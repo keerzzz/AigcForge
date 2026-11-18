@@ -5,7 +5,7 @@
     "bunfig.toml",
     ".npmrc",
     ".github/actions/setup-bun/**",
-    ".github/workflows/test.yml"
+    ".github/workflows/ci.yml"
   ],
   "globalEnv": ["CI", "AIGCFROGE_DISABLE_SHARE"],
   "globalPassThroughEnv": ["CI", "AIGCFROGE_DISABLE_SHARE"],

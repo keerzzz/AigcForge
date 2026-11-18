@@ -188,16 +188,22 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
               lines: [
                 `Operation: ${ref.operationID}`,
                 `Source Session: ${ref.sessionID}`,
-                ...(origin?.type === "goal_round" ? [`Goal: ${origin.goalID} · revision ${origin.revision} · round ${origin.roundID}`] : []),
-                ...(origin?.type === "schedule_occurrence" ? [`Schedule: ${origin.scheduleID} · occurrence ${origin.occurrenceID}`] : []),
+                ...(origin?.type === "goal_round"
+                  ? [`Goal: ${origin.goalID} · revision ${origin.revision} · round ${origin.roundID}`]
+                  : []),
+                ...(origin?.type === "schedule_occurrence"
+                  ? [`Schedule: ${origin.scheduleID} · occurrence ${origin.occurrenceID}`]
+                  : []),
                 ...(origin?.type === "user_coordination" ? ["Requested by user"] : []),
-                ...(value ? [
-                  value.request.target.type === "new_root"
-                    ? `Target: new ${value.request.target.mode} Session`
-                    : `Target Session: ${value.request.target.sessionID}`,
-                  ...(value.request.description ? [value.request.description] : []),
-                  value.request.prompt,
-                ] : ["Loading operation…"]),
+                ...(value
+                  ? [
+                      value.request.target.type === "new_root"
+                        ? `Target: new ${value.request.target.mode} Session`
+                        : `Target Session: ${value.request.target.sessionID}`,
+                      ...(value.request.description ? [value.request.description] : []),
+                      value.request.prompt,
+                    ]
+                  : ["Loading operation…"]),
               ],
             }
           })

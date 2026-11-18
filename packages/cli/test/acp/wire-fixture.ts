@@ -718,7 +718,14 @@ function startServer(options: WireOptions, changed: () => void) {
       },
       "/api/model": { GET: catalogRoute(() => catalog.models) },
       "/api/model/default": { GET: catalogRoute(() => catalog.models[0] ?? null) },
-      "/api/model/group": { GET: catalogRoute(() => ({ targets: [], definitions: [], effective: [], defaultSelection: catalog.models[0] && { providerID: catalog.models[0].providerID, id: catalog.models[0].id } })) },
+      "/api/model/group": {
+        GET: catalogRoute(() => ({
+          targets: [],
+          definitions: [],
+          effective: [],
+          defaultSelection: catalog.models[0] && { providerID: catalog.models[0].providerID, id: catalog.models[0].id },
+        })),
+      },
       "/api/agent": { GET: catalogRoute(() => catalog.agents) },
       "/api/command": { GET: catalogRoute(() => catalog.commands) },
       "/api/plugin": { GET: catalogRoute(() => catalog.plugins) },

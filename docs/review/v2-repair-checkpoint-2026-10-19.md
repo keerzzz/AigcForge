@@ -17,16 +17,16 @@
 
 证据位于 `evidence/v2-upgrade-2026-10-19/`。统一使用 Bun 1.4.2（初期临时 PATH，之后项目 `script/bun`）。
 
-| 检查 | 结果 |
-| --- | --- |
-| Core 原修复相关 12 文件 | exit 0；192 pass、42 skip、0 fail，862 assertions，`repair-core.log` |
-| Web/Node HTTP approval-stream 首轮 | exit 0；4 pass、0 fail，10 assertions，`approval-stream.log` |
-| Server 原修复相关 6 文件复跑 | exit 0；16 pass、0 fail，93 assertions（包括 Web/Node 两种传输），`repair-server.log` |
-| Client 全量 | exit 0；224 pass、0 fail，906 assertions，`client-full.json` / `.log` |
-| 官方 client generate | exit 0；重生成 SHA256 零漂移，`generated.json` |
-| 16 个改动源码/测试 oxlint | exit 0；0 warnings、0 errors，`changed-lint.log` |
-| 无缓存根 check 首轮 | exit 2；lint 1487 warnings/0 errors，18/19 typecheck 通过，新增 Node 测试直接读取地址 union 的 port 导致 Server TS2339；`check.log` |
-| 上述类型错误修复后 Server typecheck | exit 0，`server-typecheck.log` |
+| 检查                                | 结果                                                                                                                                |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Core 原修复相关 12 文件             | exit 0；192 pass、42 skip、0 fail，862 assertions，`repair-core.log`                                                                |
+| Web/Node HTTP approval-stream 首轮  | exit 0；4 pass、0 fail，10 assertions，`approval-stream.log`                                                                        |
+| Server 原修复相关 6 文件复跑        | exit 0；16 pass、0 fail，93 assertions（包括 Web/Node 两种传输），`repair-server.log`                                               |
+| Client 全量                         | exit 0；224 pass、0 fail，906 assertions，`client-full.json` / `.log`                                                               |
+| 官方 client generate                | exit 0；重生成 SHA256 零漂移，`generated.json`                                                                                      |
+| 16 个改动源码/测试 oxlint           | exit 0；0 warnings、0 errors，`changed-lint.log`                                                                                    |
+| 无缓存根 check 首轮                 | exit 2；lint 1487 warnings/0 errors，18/19 typecheck 通过，新增 Node 测试直接读取地址 union 的 port 导致 Server TS2339；`check.log` |
+| 上述类型错误修复后 Server typecheck | exit 0，`server-typecheck.log`                                                                                                      |
 
 运行时子智能体曾与无缓存 check 并行重跑 approval-stream，得到 2 pass/2 fail（Web SSE readiness 超时），记录保留在 [运行时报告](v2-project-runtime-2026-10-19.md)。不能将该轮描述为绿色，也尚不能断言负载是其根因。上表后续 6 文件复跑通过；完整 Server 隔离结果由接续记录补充。
 

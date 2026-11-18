@@ -54,10 +54,13 @@ export function createPermissionAutoApprover(input: { sdk: ServerSDK; data: Data
     const complete = await sweep()
 
     if (complete || attempt >= retryLimit) return
-    setTimeout(() => {
-      if (state.disposed || !enabled() || generation !== state.generation) return
-      void sweepWithRetry(generation, attempt + 1)
-    }, retryDelayMs * (attempt + 1))
+    setTimeout(
+      () => {
+        if (state.disposed || !enabled() || generation !== state.generation) return
+        void sweepWithRetry(generation, attempt + 1)
+      },
+      retryDelayMs * (attempt + 1),
+    )
   }
 
   async function sweep() {
@@ -115,9 +118,7 @@ export function createPermissionAutoApprover(input: { sdk: ServerSDK; data: Data
     ]
 
     return {
-      locations: [
-        ...new Map(locations.map((item) => [item.directory, item])).values(),
-      ],
+      locations: [...new Map(locations.map((item) => [item.directory, item])).values()],
       complete: active !== undefined && synced.every(Boolean),
     }
   }

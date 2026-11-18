@@ -45,9 +45,19 @@ function DialogModelContent(props: { providerID?: string; domain?: "session" | "
       if (!showSections) return []
       return items.flatMap<DialogSelectOption<ModelPreferenceModel>>((item) => {
         if (isModelGroup(item)) {
-          const group = groups().find((group) => group.groupID === item.groupID && !group.unavailable && group.definition)
+          const group = groups().find(
+            (group) => group.groupID === item.groupID && !group.unavailable && group.definition,
+          )
           if (!group) return []
-          return [{ value: item, title: group.definition?.name ?? item.groupID, description: "Model group", category, onSelect: () => onSelect(item) }]
+          return [
+            {
+              value: item,
+              title: group.definition?.name ?? item.groupID,
+              description: "Model group",
+              category,
+              onSelect: () => onSelect(item),
+            },
+          ]
         }
         const model = models().find((model) => model.providerID === item.providerID && model.id === item.modelID)
         if (!model) return []
@@ -71,9 +81,7 @@ function DialogModelContent(props: { providerID?: string; domain?: "session" | "
 
     const favoriteOptions = toOptions(favorites, "Favorites")
     const recentOptions = toOptions(
-      recents.filter(
-        (item) => !favorites.some((fav) => modelPreferenceKey(fav) === modelPreferenceKey(item)),
-      ),
+      recents.filter((item) => !favorites.some((fav) => modelPreferenceKey(fav) === modelPreferenceKey(item))),
       "Recent",
     )
 
@@ -101,27 +109,33 @@ function DialogModelContent(props: { providerID?: string; domain?: "session" | "
         })
         .filter((option) => {
           if (!showSections) return true
-          if (
-            favorites.some(
-              (item) => modelPreferenceKey(item) === modelPreferenceKey(option.value),
-            )
-          )
-            return false
-          if (
-            recents.some((item) => modelPreferenceKey(item) === modelPreferenceKey(option.value))
-          )
-            return false
+          if (favorites.some((item) => modelPreferenceKey(item) === modelPreferenceKey(option.value))) return false
+          if (recents.some((item) => modelPreferenceKey(item) === modelPreferenceKey(option.value))) return false
           return true
         }),
       connected(),
     )
 
-    const groupOptions = props.providerID ? [] : groups().flatMap((group) => {
-      if (group.unavailable || !group.definition) return []
-      const value: ModelPreferenceModel = { type: "group", groupID: group.groupID }
-      if (showSections && [...favorites, ...recents].some((item) => modelPreferenceKey(item) === modelPreferenceKey(value))) return []
-      return [{ value, title: group.definition.name, category: "Model groups", description: `${group.definition.members.length} members`, onSelect: () => onSelect(value) }]
-    })
+    const groupOptions = props.providerID
+      ? []
+      : groups().flatMap((group) => {
+          if (group.unavailable || !group.definition) return []
+          const value: ModelPreferenceModel = { type: "group", groupID: group.groupID }
+          if (
+            showSections &&
+            [...favorites, ...recents].some((item) => modelPreferenceKey(item) === modelPreferenceKey(value))
+          )
+            return []
+          return [
+            {
+              value,
+              title: group.definition.name,
+              category: "Model groups",
+              description: `${group.definition.members.length} members`,
+              onSelect: () => onSelect(value),
+            },
+          ]
+        })
     const choices = [...modelOptions, ...groupOptions]
 
     if (needle) {
@@ -201,10 +215,7 @@ function DialogModelContent(props: { providerID?: string; domain?: "session" | "
   )
 }
 
-export function prioritizeFavorites<T extends { value: ModelPreferenceModel }>(
-  options: T[],
-  favorites: Set<string>,
-) {
+export function prioritizeFavorites<T extends { value: ModelPreferenceModel }>(options: T[], favorites: Set<string>) {
   return options.toSorted(
     (a, b) => Number(favorites.has(modelPreferenceKey(b.value))) - Number(favorites.has(modelPreferenceKey(a.value))),
   )

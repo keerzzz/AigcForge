@@ -2,14 +2,7 @@
   "version": 1,
   "metadata": {
     "model": "kimi-k3",
-    "tags": [
-      "prefix:moonshot-responses",
-      "provider:moonshot",
-      "protocol:responses",
-      "image",
-      "reasoning",
-      "usage"
-    ],
+    "tags": ["prefix:moonshot-responses", "provider:moonshot", "protocol:responses", "image", "reasoning", "usage"],
     "name": "moonshot-responses/k3-reads-image-bytes",
     "recordedAt": "2026-09-15T04:26:08.233Z"
   },

@@ -137,19 +137,37 @@ export interface MockServerConfig {
   integrations?: unknown[]
   providerDefinitions?: Resolvable<Schema.Codec.Encoded<typeof ProviderDefinition.List>>
   modelGroups?: Resolvable<Schema.Codec.Encoded<typeof ModelGroup.Read>>
-  onModelGroupSave?: (input: typeof ModelGroup.SaveInput.Type) =>
-    Schema.Codec.Encoded<typeof ModelGroup.SaveResult> | Promise<Schema.Codec.Encoded<typeof ModelGroup.SaveResult>>
-  onModelGroupRemove?: (input: typeof ModelGroup.RemoveInput.Type) =>
-    Schema.Codec.Encoded<typeof ModelGroup.RemoveResult> | Promise<Schema.Codec.Encoded<typeof ModelGroup.RemoveResult>>
-  providerDiscovery?: (input: typeof ProviderDiscovery.GetInput.Type) => Schema.Codec.Encoded<typeof ProviderDiscovery.Read>
-  onProviderDiscoveryPreview?: (input: typeof ProviderDiscovery.PreviewInput.Type) =>
-    Schema.Codec.Encoded<typeof ProviderDiscovery.Read> | Promise<Schema.Codec.Encoded<typeof ProviderDiscovery.Read>>
-  onProviderDiscoveryRefresh?: (input: typeof ProviderDiscovery.RefreshInput.Type) =>
-    Schema.Codec.Encoded<typeof ProviderDiscovery.Read> | Promise<Schema.Codec.Encoded<typeof ProviderDiscovery.Read>>
-  onProviderDefinitionSave?: (input: typeof ProviderDefinition.SaveInput.Type) =>
-    Schema.Codec.Encoded<typeof ProviderDefinition.SaveResult> | Promise<Schema.Codec.Encoded<typeof ProviderDefinition.SaveResult>>
-  onProviderDefinitionRemove?: (input: typeof ProviderDefinition.RemoveInput.Type) =>
-    Schema.Codec.Encoded<typeof ProviderDefinition.RemoveResult> | Promise<Schema.Codec.Encoded<typeof ProviderDefinition.RemoveResult>>
+  onModelGroupSave?: (
+    input: typeof ModelGroup.SaveInput.Type,
+  ) => Schema.Codec.Encoded<typeof ModelGroup.SaveResult> | Promise<Schema.Codec.Encoded<typeof ModelGroup.SaveResult>>
+  onModelGroupRemove?: (
+    input: typeof ModelGroup.RemoveInput.Type,
+  ) =>
+    | Schema.Codec.Encoded<typeof ModelGroup.RemoveResult>
+    | Promise<Schema.Codec.Encoded<typeof ModelGroup.RemoveResult>>
+  providerDiscovery?: (
+    input: typeof ProviderDiscovery.GetInput.Type,
+  ) => Schema.Codec.Encoded<typeof ProviderDiscovery.Read>
+  onProviderDiscoveryPreview?: (
+    input: typeof ProviderDiscovery.PreviewInput.Type,
+  ) =>
+    | Schema.Codec.Encoded<typeof ProviderDiscovery.Read>
+    | Promise<Schema.Codec.Encoded<typeof ProviderDiscovery.Read>>
+  onProviderDiscoveryRefresh?: (
+    input: typeof ProviderDiscovery.RefreshInput.Type,
+  ) =>
+    | Schema.Codec.Encoded<typeof ProviderDiscovery.Read>
+    | Promise<Schema.Codec.Encoded<typeof ProviderDiscovery.Read>>
+  onProviderDefinitionSave?: (
+    input: typeof ProviderDefinition.SaveInput.Type,
+  ) =>
+    | Schema.Codec.Encoded<typeof ProviderDefinition.SaveResult>
+    | Promise<Schema.Codec.Encoded<typeof ProviderDefinition.SaveResult>>
+  onProviderDefinitionRemove?: (
+    input: typeof ProviderDefinition.RemoveInput.Type,
+  ) =>
+    | Schema.Codec.Encoded<typeof ProviderDefinition.RemoveResult>
+    | Promise<Schema.Codec.Encoded<typeof ProviderDefinition.RemoveResult>>
   onConnectKey?: (input: { integrationID: string; body: unknown }) => void
   // Terminal shells the settings offer (`/api/config/shell`).
   shells?: unknown[]
@@ -211,20 +229,63 @@ export interface MockServerConfig {
   identities?: Record<string, SessionIdentityIdentity | undefined>
   onIdentityRead?: (sessionID: string) => void | Promise<void>
   operations?: SessionTaskOperationInfo[]
-  onOperationRead?: (input: { sessionID: string; operationID?: string }) => void | InvalidRequestError | Promise<void | InvalidRequestError>
-  onTaskDispatch?: (input: { sessionID: string; request: SessionTask.OperationRequest }) => SessionTaskOperationInfo | InvalidRequestError | ConflictError | Promise<SessionTaskOperationInfo | InvalidRequestError | ConflictError>
-  onTaskCancelOperation?: (input: { sessionID: string; operationID: string }) => SessionTaskOperationInfo | InvalidRequestError | Promise<SessionTaskOperationInfo | InvalidRequestError>
+  onOperationRead?: (input: {
+    sessionID: string
+    operationID?: string
+  }) => void | InvalidRequestError | Promise<void | InvalidRequestError>
+  onTaskDispatch?: (input: {
+    sessionID: string
+    request: SessionTask.OperationRequest
+  }) =>
+    | SessionTaskOperationInfo
+    | InvalidRequestError
+    | ConflictError
+    | Promise<SessionTaskOperationInfo | InvalidRequestError | ConflictError>
+  onTaskCancelOperation?: (input: {
+    sessionID: string
+    operationID: string
+  }) => SessionTaskOperationInfo | InvalidRequestError | Promise<SessionTaskOperationInfo | InvalidRequestError>
   communications?: SessionCommunicationMessage[]
   communicationCapabilities?: Record<string, SessionCommunicationCapability>
-  onCommunicationRead?: (input: { sessionID: string; communicationID?: string; directory?: string; workspace?: string; cursor?: string; limit?: number }) => void | InvalidRequestError | Promise<void | InvalidRequestError>
-  onCommunicationMutation?: (input: MockCommunicationMutation) => SessionCommunicationReceipt | InvalidRequestError | ConflictError | Promise<SessionCommunicationReceipt | InvalidRequestError | ConflictError>
+  onCommunicationRead?: (input: {
+    sessionID: string
+    communicationID?: string
+    directory?: string
+    workspace?: string
+    cursor?: string
+    limit?: number
+  }) => void | InvalidRequestError | Promise<void | InvalidRequestError>
+  onCommunicationMutation?: (
+    input: MockCommunicationMutation,
+  ) =>
+    | SessionCommunicationReceipt
+    | InvalidRequestError
+    | ConflictError
+    | Promise<SessionCommunicationReceipt | InvalidRequestError | ConflictError>
   goals?: SessionGoalInfo[]
   onGoalRead?: (input: { sessionID: string; goalID?: string }) => void | Promise<void>
-  onGoalMutation?: (input: MockGoalMutation) => SessionGoalInfo | InvalidRequestError | ConflictError | Promise<SessionGoalInfo | InvalidRequestError | ConflictError>
+  onGoalMutation?: (
+    input: MockGoalMutation,
+  ) =>
+    | SessionGoalInfo
+    | InvalidRequestError
+    | ConflictError
+    | Promise<SessionGoalInfo | InvalidRequestError | ConflictError>
   schedules?: ScheduleRule[]
   scheduleRuns?: ScheduleOccurrence[]
-  onScheduleRead?: (input: { sessionID?: string; id?: string; directory?: string; workspace?: string }) => void | Promise<void>
-  onScheduleMutation?: (input: MockScheduleMutation) => ScheduleRule | ScheduleOccurrence | InvalidRequestError | Promise<ScheduleRule | ScheduleOccurrence | InvalidRequestError>
+  onScheduleRead?: (input: {
+    sessionID?: string
+    id?: string
+    directory?: string
+    workspace?: string
+  }) => void | Promise<void>
+  onScheduleMutation?: (
+    input: MockScheduleMutation,
+  ) =>
+    | ScheduleRule
+    | ScheduleOccurrence
+    | InvalidRequestError
+    | Promise<ScheduleRule | ScheduleOccurrence | InvalidRequestError>
   delegations?: Resolvable<DelegationLegacyState[]>
   onDelegationResult?: (
     input: DelegationResultInput,
@@ -1095,59 +1156,86 @@ function mockHandlers(
       return result ?? { steps: [] }
     })
 
-  const goalMutation = (input: MockGoalMutation) => Effect.gen(function* () {
-    if (!config.onGoalMutation) return yield* new InvalidRequestError({ message: "Goal mutation is not configured" })
-    const result = yield* Effect.promise(() => Promise.resolve(config.onGoalMutation?.(input)))
+  const goalMutation = (input: MockGoalMutation) =>
+    Effect.gen(function* () {
+      if (!config.onGoalMutation) return yield* new InvalidRequestError({ message: "Goal mutation is not configured" })
+      const result = yield* Effect.promise(() => Promise.resolve(config.onGoalMutation?.(input)))
 
-    if (result instanceof InvalidRequestError || result instanceof ConflictError) return yield* result
+      if (result instanceof InvalidRequestError || result instanceof ConflictError) return yield* result
 
-    if (!result) return yield* new InvalidRequestError({ message: "Goal mutation returned no acknowledgement" })
+      if (!result) return yield* new InvalidRequestError({ message: "Goal mutation returned no acknowledgement" })
 
-    return { data: result }
-  })
+      return { data: result }
+    })
 
-  const scheduleMutation = (input: MockScheduleMutation) => Effect.gen(function* () {
-    if (!config.onScheduleMutation) return yield* new InvalidRequestError({ message: "Schedule mutation is not configured" })
-    const result = yield* Effect.promise(() => Promise.resolve(config.onScheduleMutation?.(input)))
+  const scheduleMutation = (input: MockScheduleMutation) =>
+    Effect.gen(function* () {
+      if (!config.onScheduleMutation)
+        return yield* new InvalidRequestError({ message: "Schedule mutation is not configured" })
+      const result = yield* Effect.promise(() => Promise.resolve(config.onScheduleMutation?.(input)))
 
-    if (result instanceof InvalidRequestError) return yield* result
+      if (result instanceof InvalidRequestError) return yield* result
 
-    if (!result) return yield* new InvalidRequestError({ message: "Schedule mutation returned no acknowledgement" })
+      if (!result) return yield* new InvalidRequestError({ message: "Schedule mutation returned no acknowledgement" })
 
-    return result
-  })
+      return result
+    })
 
-  const communicationMutation = (input: MockCommunicationMutation) => Effect.gen(function* () {
-    if (!config.onCommunicationMutation) return yield* new InvalidRequestError({ message: "Communication mutation is not configured" })
-    const result = yield* Effect.promise(() => Promise.resolve(config.onCommunicationMutation?.(input)))
+  const communicationMutation = (input: MockCommunicationMutation) =>
+    Effect.gen(function* () {
+      if (!config.onCommunicationMutation)
+        return yield* new InvalidRequestError({ message: "Communication mutation is not configured" })
+      const result = yield* Effect.promise(() => Promise.resolve(config.onCommunicationMutation?.(input)))
 
-    if (result instanceof InvalidRequestError || result instanceof ConflictError) return yield* result
+      if (result instanceof InvalidRequestError || result instanceof ConflictError) return yield* result
 
-    if (!result) return yield* new InvalidRequestError({ message: "Communication mutation returned no acknowledgement" })
+      if (!result)
+        return yield* new InvalidRequestError({ message: "Communication mutation returned no acknowledgement" })
 
-    return { data: result }
-  })
+      return { data: result }
+    })
 
-  const communicationRead = (input: { sessionID: string; communicationID?: string }, query: typeof WorkspaceRoutingQuery.Type & { cursor?: string; limit?: number }) => Effect.gen(function* () {
-    if (!taskSession(input.sessionID, query)) return yield* new ApiNotFoundError({ name: "NotFoundError", data: { message: "Communication Session not found" } })
-    const error = yield* Effect.promise(() => Promise.resolve(config.onCommunicationRead?.({ ...input, ...query })))
+  const communicationRead = (
+    input: { sessionID: string; communicationID?: string },
+    query: typeof WorkspaceRoutingQuery.Type & { cursor?: string; limit?: number },
+  ) =>
+    Effect.gen(function* () {
+      if (!taskSession(input.sessionID, query))
+        return yield* new ApiNotFoundError({
+          name: "NotFoundError",
+          data: { message: "Communication Session not found" },
+        })
+      const error = yield* Effect.promise(() => Promise.resolve(config.onCommunicationRead?.({ ...input, ...query })))
 
-    if (error instanceof InvalidRequestError) return yield* error
+      if (error instanceof InvalidRequestError) return yield* error
 
-    return (config.communications ?? []).filter((message) =>
-      (message.actor.sessionID === input.sessionID || message.targetSessionID === input.sessionID) &&
-      (!input.communicationID || message.id === input.communicationID))
-  })
+      return (config.communications ?? []).filter(
+        (message) =>
+          (message.actor.sessionID === input.sessionID || message.targetSessionID === input.sessionID) &&
+          (!input.communicationID || message.id === input.communicationID),
+      )
+    })
 
-  const operationRead = (input: { sessionID: string; operationID?: string }, query: typeof WorkspaceRoutingQuery.Type) => Effect.gen(function* () {
-    if (!taskSession(input.sessionID, query)) return yield* new ApiNotFoundError({ name: "NotFoundError", data: { message: "Task source Session not found" } })
-    const error = yield* Effect.promise(() => Promise.resolve(config.onOperationRead?.(input)))
+  const operationRead = (
+    input: { sessionID: string; operationID?: string },
+    query: typeof WorkspaceRoutingQuery.Type,
+  ) =>
+    Effect.gen(function* () {
+      if (!taskSession(input.sessionID, query))
+        return yield* new ApiNotFoundError({
+          name: "NotFoundError",
+          data: { message: "Task source Session not found" },
+        })
+      const error = yield* Effect.promise(() => Promise.resolve(config.onOperationRead?.(input)))
 
-    if (error instanceof InvalidRequestError) return yield* error
+      if (error instanceof InvalidRequestError) return yield* error
 
-    return (config.operations ?? []).filter((operation) => operation.sourceSessionID === input.sessionID &&
-      (!input.operationID || operation.operationID === input.operationID))
-  })
+      return (config.operations ?? []).filter(
+        (operation) =>
+          operation.sourceSessionID === input.sessionID &&
+          (!input.operationID || operation.operationID === input.operationID),
+      )
+    })
 
   return HttpApiBuilder.group(MockApi, "mock", (handlers) =>
     handlers
@@ -1534,7 +1622,9 @@ function mockHandlers(
             (metaSelected && fallback ? { id: fallback.id, providerID: fallback.providerID } : undefined)
 
           const model =
-            modelInput === undefined ? undefined : Schema.decodeUnknownSync(Schema.toCodecJson(Model.Selection))(modelInput)
+            modelInput === undefined
+              ? undefined
+              : Schema.decodeUnknownSync(Schema.toCodecJson(Model.Selection))(modelInput)
 
           const controller = metaSelected
             ? new Session.RootController({
@@ -1609,109 +1699,126 @@ function mockHandlers(
         agent: (ctx) =>
           Effect.succeed({
             location: location(config, requestDirectory(config, ctx.request)),
-            data: resolve(config.agents ?? [
-              {
-                id: "build",
-                name: "Build",
-                mode: "all",
-                hidden: false,
-                request: { settings: {}, headers: {}, body: {} },
-                permissions: [],
-                handoffs: [],
-                ordinaryModes: [...ProductMode.ID.literals],
-              },
-              {
-                id: "meta",
-                name: "Meta",
-                mode: "primary",
-                hidden: false,
-                request: { settings: {}, headers: {}, body: {} },
-                permissions: [],
-                handoffs: [],
-                ordinaryModes: [...ProductMode.ID.literals],
-              },
-              {
-                id: "plan",
-                name: "Plan",
-                mode: "primary",
-                hidden: false,
-                request: { settings: {}, headers: {}, body: {} },
-                permissions: [],
-                handoffs: [],
-                ordinaryModes: [...ProductMode.ID.literals],
-              },
-              {
-                id: "explore",
-                name: "Explore",
-                mode: "subagent",
-                hidden: false,
-                request: { settings: {}, headers: {}, body: {} },
-                permissions: [],
-                handoffs: [],
-                ordinaryModes: [...ProductMode.ID.literals],
-              },
-            ]),
+            data: resolve(
+              config.agents ?? [
+                {
+                  id: "build",
+                  name: "Build",
+                  mode: "all",
+                  hidden: false,
+                  request: { settings: {}, headers: {}, body: {} },
+                  permissions: [],
+                  handoffs: [],
+                  ordinaryModes: [...ProductMode.ID.literals],
+                },
+                {
+                  id: "meta",
+                  name: "Meta",
+                  mode: "primary",
+                  hidden: false,
+                  request: { settings: {}, headers: {}, body: {} },
+                  permissions: [],
+                  handoffs: [],
+                  ordinaryModes: [...ProductMode.ID.literals],
+                },
+                {
+                  id: "plan",
+                  name: "Plan",
+                  mode: "primary",
+                  hidden: false,
+                  request: { settings: {}, headers: {}, body: {} },
+                  permissions: [],
+                  handoffs: [],
+                  ordinaryModes: [...ProductMode.ID.literals],
+                },
+                {
+                  id: "explore",
+                  name: "Explore",
+                  mode: "subagent",
+                  hidden: false,
+                  request: { settings: {}, headers: {}, body: {} },
+                  permissions: [],
+                  handoffs: [],
+                  ordinaryModes: [...ProductMode.ID.literals],
+                },
+              ],
+            ),
           }),
         provider: () =>
           Effect.succeed({ location: location(config), data: currentProviders(resolve(config.provider)) }),
-        providerDefinition: () => Effect.succeed({
-          location: location(config),
-          data: config.providerDefinitions ? resolve(config.providerDefinitions) : { targets: [], definitions: [] },
-        }),
-        providerDiscovery: (ctx) => Effect.succeed({ location: location(config), data: config.providerDiscovery?.(ctx.query) ?? {
-          status: { providerID: ctx.query.providerID, phase: "idle", cachePersisted: false, generation: 0 }, candidates: [], managed: [],
-        } }),
+        providerDefinition: () =>
+          Effect.succeed({
+            location: location(config),
+            data: config.providerDefinitions ? resolve(config.providerDefinitions) : { targets: [], definitions: [] },
+          }),
+        providerDiscovery: (ctx) =>
+          Effect.succeed({
+            location: location(config),
+            data: config.providerDiscovery?.(ctx.query) ?? {
+              status: { providerID: ctx.query.providerID, phase: "idle", cachePersisted: false, generation: 0 },
+              candidates: [],
+              managed: [],
+            },
+          }),
         providerDiscoveryPreview: (ctx) => {
           const preview = config.onProviderDiscoveryPreview
 
           if (!preview) return unsupported("preview provider model lists", "onProviderDiscoveryPreview")
 
-          return Effect.promise(() => Promise.resolve(preview(ctx.payload)))
-            .pipe(Effect.map((data) => ({ location: location(config), data })))
+          return Effect.promise(() => Promise.resolve(preview(ctx.payload))).pipe(
+            Effect.map((data) => ({ location: location(config), data })),
+          )
         },
         providerDiscoveryRefresh: (ctx) => {
           const refresh = config.onProviderDiscoveryRefresh
 
           if (!refresh) return unsupported("refresh provider model lists", "onProviderDiscoveryRefresh")
 
-          return Effect.promise(() => Promise.resolve(refresh(ctx.payload)))
-            .pipe(Effect.map((data) => ({ location: location(config), data })))
+          return Effect.promise(() => Promise.resolve(refresh(ctx.payload))).pipe(
+            Effect.map((data) => ({ location: location(config), data })),
+          )
         },
         providerDefinitionSave: (ctx) => {
           const save = config.onProviderDefinitionSave
 
           if (!save) return unsupported("save provider definitions", "onProviderDefinitionSave")
 
-          return Effect.promise(() => Promise.resolve(save(ctx.payload)))
-            .pipe(Effect.map((data) => ({ location: location(config), data })))
+          return Effect.promise(() => Promise.resolve(save(ctx.payload))).pipe(
+            Effect.map((data) => ({ location: location(config), data })),
+          )
         },
         providerDefinitionRemove: (ctx) => {
           const remove = config.onProviderDefinitionRemove
 
           if (!remove) return unsupported("remove provider definitions", "onProviderDefinitionRemove")
 
-          return Effect.promise(() => Promise.resolve(remove(ctx.payload)))
-            .pipe(Effect.map((data) => ({ location: location(config), data })))
+          return Effect.promise(() => Promise.resolve(remove(ctx.payload))).pipe(
+            Effect.map((data) => ({ location: location(config), data })),
+          )
         },
         model: () => Effect.succeed({ location: location(config), data: currentModels(resolve(config.provider)) }),
-        modelGroupDefinition: () => Effect.succeed({ location: location(config),
-          data: config.modelGroups ? resolve(config.modelGroups) : { targets: [], definitions: [], effective: [] },
-        }),
+        modelGroupDefinition: () =>
+          Effect.succeed({
+            location: location(config),
+            data: config.modelGroups ? resolve(config.modelGroups) : { targets: [], definitions: [], effective: [] },
+          }),
         modelGroupDefinitionSave: (ctx) => {
           const save = config.onModelGroupSave
 
           if (!save) return unsupported("save model groups", "onModelGroupSave")
 
-          return Effect.promise(() => Promise.resolve(save(ctx.payload)))
-            .pipe(Effect.map((data) => ({ location: location(config), data })))
+          return Effect.promise(() => Promise.resolve(save(ctx.payload))).pipe(
+            Effect.map((data) => ({ location: location(config), data })),
+          )
         },
         modelGroupDefinitionRemove: (ctx) => {
           const remove = config.onModelGroupRemove
 
           if (!remove) return unsupported("remove model groups", "onModelGroupRemove")
 
-          return Effect.promise(() => Promise.resolve(remove(ctx.payload)))
-            .pipe(Effect.map((data) => ({ location: location(config), data })))
+          return Effect.promise(() => Promise.resolve(remove(ctx.payload))).pipe(
+            Effect.map((data) => ({ location: location(config), data })),
+          )
         },
         modelDefault: () =>
           Effect.succeed({ location: location(config), data: currentDefaultModel(resolve(config.provider)) }),
@@ -2076,95 +2183,143 @@ function mockHandlers(
               (item) => Predicate.isObject(item) && item.sessionID === ctx.params.sessionID,
             ),
           })),
-        sessionIdentity: (ctx) => Effect.gen(function* () {
-          if (!taskSession(ctx.params.sessionID, ctx.query)) return yield* new ApiNotFoundError({ name: "NotFoundError", data: { message: "Session not found" } })
-          yield* Effect.promise(() => Promise.resolve(config.onIdentityRead?.(ctx.params.sessionID)))
-          const selected = config.identities?.[ctx.params.sessionID]
+        sessionIdentity: (ctx) =>
+          Effect.gen(function* () {
+            if (!taskSession(ctx.params.sessionID, ctx.query))
+              return yield* new ApiNotFoundError({ name: "NotFoundError", data: { message: "Session not found" } })
+            yield* Effect.promise(() => Promise.resolve(config.onIdentityRead?.(ctx.params.sessionID)))
+            const selected = config.identities?.[ctx.params.sessionID]
 
-          if (selected) return selected
-          const source = config.sessions.find((session) => session.id === ctx.params.sessionID)
+            if (selected) return selected
+            const source = config.sessions.find((session) => session.id === ctx.params.sessionID)
 
-          if (!source) return yield* new ApiNotFoundError({ name: "NotFoundError", data: { message: "Session not found" } })
-          const session = currentSession(source, config.directory)
+            if (!source)
+              return yield* new ApiNotFoundError({ name: "NotFoundError", data: { message: "Session not found" } })
+            const session = currentSession(source, config.directory)
 
-          return { sessionID: session.id, location: session.location, projectID: session.projectID, mode: session.mode ?? "coding", agent: session.agent ?? "build",
-            model: { status: "missing" }, permission: { declaredTier: "propose", effect: "ask" }, capability: { health: "degraded", reasons: [{ code: "mode-detail-not-projected", severity: "info" }] },
-            detail: { status: "missing", reason: "mode-detail-not-projected" } }
-        }),
+            return {
+              sessionID: session.id,
+              location: session.location,
+              projectID: session.projectID,
+              mode: session.mode ?? "coding",
+              agent: session.agent ?? "build",
+              model: { status: "missing" },
+              permission: { declaredTier: "propose", effect: "ask" },
+              capability: { health: "degraded", reasons: [{ code: "mode-detail-not-projected", severity: "info" }] },
+              detail: { status: "missing", reason: "mode-detail-not-projected" },
+            }
+          }),
         taskOperations: (ctx) => operationRead(ctx.params, ctx.query),
-        taskOperation: (ctx) => Effect.gen(function* () {
-          const operations = yield* operationRead(ctx.params, ctx.query)
+        taskOperation: (ctx) =>
+          Effect.gen(function* () {
+            const operations = yield* operationRead(ctx.params, ctx.query)
 
-          if (!operations[0]) return yield* new ApiNotFoundError({ name: "NotFoundError", data: { message: "Task operation not found" } })
+            if (!operations[0])
+              return yield* new ApiNotFoundError({
+                name: "NotFoundError",
+                data: { message: "Task operation not found" },
+              })
 
-          return operations[0]
-        }),
-        taskDispatch: (ctx) => Effect.gen(function* () {
-          if (!config.onTaskDispatch) return yield* new InvalidRequestError({ message: "Task dispatch is not configured" })
-          const result = yield* Effect.promise(() => Promise.resolve(config.onTaskDispatch?.({ sessionID: ctx.params.sessionID, request: ctx.payload })))
+            return operations[0]
+          }),
+        taskDispatch: (ctx) =>
+          Effect.gen(function* () {
+            if (!config.onTaskDispatch)
+              return yield* new InvalidRequestError({ message: "Task dispatch is not configured" })
+            const result = yield* Effect.promise(() =>
+              Promise.resolve(config.onTaskDispatch?.({ sessionID: ctx.params.sessionID, request: ctx.payload })),
+            )
 
-          if (result instanceof InvalidRequestError || result instanceof ConflictError) return yield* result
+            if (result instanceof InvalidRequestError || result instanceof ConflictError) return yield* result
 
-          if (!result) return yield* new InvalidRequestError({ message: "Task dispatch returned no acknowledgement" })
+            if (!result) return yield* new InvalidRequestError({ message: "Task dispatch returned no acknowledgement" })
 
-          return result
-        }),
-        taskCancelOperation: (ctx) => Effect.gen(function* () {
-          if (!config.onTaskCancelOperation) return yield* new InvalidRequestError({ message: "Task cancellation is not configured" })
-          const result = yield* Effect.promise(() => Promise.resolve(config.onTaskCancelOperation?.(ctx.params)))
+            return result
+          }),
+        taskCancelOperation: (ctx) =>
+          Effect.gen(function* () {
+            if (!config.onTaskCancelOperation)
+              return yield* new InvalidRequestError({ message: "Task cancellation is not configured" })
+            const result = yield* Effect.promise(() => Promise.resolve(config.onTaskCancelOperation?.(ctx.params)))
 
-          if (result instanceof InvalidRequestError) return yield* result
+            if (result instanceof InvalidRequestError) return yield* result
 
-          if (!result) return yield* new InvalidRequestError({ message: "Task cancellation returned no acknowledgement" })
+            if (!result)
+              return yield* new InvalidRequestError({ message: "Task cancellation returned no acknowledgement" })
 
-          return result
-        }),
-        communicationList: (ctx) => Effect.gen(function* () {
-          const items = yield* communicationRead(ctx.params, ctx.query)
+            return result
+          }),
+        communicationList: (ctx) =>
+          Effect.gen(function* () {
+            const items = yield* communicationRead(ctx.params, ctx.query)
 
-          return { data: { items, capability: config.communicationCapabilities?.[ctx.params.sessionID] ?? { read: true, list: true, send: false, reply: false, reasons: ["fixture-read-only"] } } }
-        }),
-        communicationRead: (ctx) => Effect.gen(function* () {
-          const items = yield* communicationRead(ctx.params, ctx.query)
+            return {
+              data: {
+                items,
+                capability: config.communicationCapabilities?.[ctx.params.sessionID] ?? {
+                  read: true,
+                  list: true,
+                  send: false,
+                  reply: false,
+                  reasons: ["fixture-read-only"],
+                },
+              },
+            }
+          }),
+        communicationRead: (ctx) =>
+          Effect.gen(function* () {
+            const items = yield* communicationRead(ctx.params, ctx.query)
 
-          return { data: items[0] ?? null }
-        }),
-        communicationSend: (ctx) => communicationMutation({ action: "send", ...ctx.params, ...ctx.query, body: ctx.payload }),
-        communicationReply: (ctx) => communicationMutation({ action: "reply", ...ctx.params, ...ctx.query, body: ctx.payload }),
-        goalList: (ctx) => Effect.gen(function* () {
-          yield* Effect.promise(() => Promise.resolve(config.onGoalRead?.(ctx.params)))
+            return { data: items[0] ?? null }
+          }),
+        communicationSend: (ctx) =>
+          communicationMutation({ action: "send", ...ctx.params, ...ctx.query, body: ctx.payload }),
+        communicationReply: (ctx) =>
+          communicationMutation({ action: "reply", ...ctx.params, ...ctx.query, body: ctx.payload }),
+        goalList: (ctx) =>
+          Effect.gen(function* () {
+            yield* Effect.promise(() => Promise.resolve(config.onGoalRead?.(ctx.params)))
 
-          return { data: (config.goals ?? []).filter((goal) => goal.sessionID === ctx.params.sessionID) }
-        }),
-        goalGet: (ctx) => Effect.gen(function* () {
-          yield* Effect.promise(() => Promise.resolve(config.onGoalRead?.(ctx.params)))
+            return { data: (config.goals ?? []).filter((goal) => goal.sessionID === ctx.params.sessionID) }
+          }),
+        goalGet: (ctx) =>
+          Effect.gen(function* () {
+            yield* Effect.promise(() => Promise.resolve(config.onGoalRead?.(ctx.params)))
 
-          return { data: config.goals?.find((goal) => goal.sessionID === ctx.params.sessionID && goal.id === ctx.params.goalID) ?? null }
-        }),
+            return {
+              data:
+                config.goals?.find(
+                  (goal) => goal.sessionID === ctx.params.sessionID && goal.id === ctx.params.goalID,
+                ) ?? null,
+            }
+          }),
         goalSet: (ctx) => goalMutation({ ...ctx.params, action: "set", body: ctx.payload }),
         goalEdit: (ctx) => goalMutation({ ...ctx.params, action: "edit", body: ctx.payload }),
         goalPause: (ctx) => goalMutation({ ...ctx.params, action: "pause", body: ctx.payload }),
         goalResume: (ctx) => goalMutation({ ...ctx.params, action: "resume", body: ctx.payload }),
         goalCancel: (ctx) => goalMutation({ ...ctx.params, action: "cancel", body: ctx.payload }),
         goalConfirm: (ctx) => goalMutation({ ...ctx.params, action: "confirm", body: ctx.payload }),
-        scheduleRules: (ctx) => Effect.gen(function* () {
-          yield* Effect.promise(() => Promise.resolve(config.onScheduleRead?.({ ...ctx.params, ...ctx.query })))
+        scheduleRules: (ctx) =>
+          Effect.gen(function* () {
+            yield* Effect.promise(() => Promise.resolve(config.onScheduleRead?.({ ...ctx.params, ...ctx.query })))
 
-          return (config.schedules ?? []).filter((rule) => rule.sessionID === ctx.params.sessionID)
-        }),
-        scheduleRule: (ctx) => Effect.gen(function* () {
-          yield* Effect.promise(() => Promise.resolve(config.onScheduleRead?.({ ...ctx.params, ...ctx.query })))
-          const rule = config.schedules?.find((rule) => rule.id === ctx.params.id)
+            return (config.schedules ?? []).filter((rule) => rule.sessionID === ctx.params.sessionID)
+          }),
+        scheduleRule: (ctx) =>
+          Effect.gen(function* () {
+            yield* Effect.promise(() => Promise.resolve(config.onScheduleRead?.({ ...ctx.params, ...ctx.query })))
+            const rule = config.schedules?.find((rule) => rule.id === ctx.params.id)
 
-          if (!rule) return yield* new InvalidRequestError({ message: "Schedule rule not found" })
+            if (!rule) return yield* new InvalidRequestError({ message: "Schedule rule not found" })
 
-          return rule
-        }),
-        scheduleRuns: (ctx) => Effect.gen(function* () {
-          yield* Effect.promise(() => Promise.resolve(config.onScheduleRead?.({ ...ctx.params, ...ctx.query })))
+            return rule
+          }),
+        scheduleRuns: (ctx) =>
+          Effect.gen(function* () {
+            yield* Effect.promise(() => Promise.resolve(config.onScheduleRead?.({ ...ctx.params, ...ctx.query })))
 
-          return (config.scheduleRuns ?? []).filter((run) => run.scheduleID === ctx.params.id)
-        }),
+            return (config.scheduleRuns ?? []).filter((run) => run.scheduleID === ctx.params.id)
+          }),
         scheduleCreate: (ctx) => scheduleMutation({ action: "create", body: ctx.payload, ...ctx.query }),
         scheduleEdit: (ctx) => scheduleMutation({ action: "edit", ...ctx.params, body: ctx.payload, ...ctx.query }),
         schedulePause: (ctx) => scheduleMutation({ action: "pause", ...ctx.params, body: ctx.payload, ...ctx.query }),
@@ -2792,7 +2947,9 @@ export function currentSession(session: MockSession, fallbackDirectory?: string)
     projectID: session.projectID ?? "project",
     mode: seed.mode,
     agent: session.agent ?? "build",
-    model: Schema.decodeUnknownSync(Model.Selection)(session.model ?? { id: "mock-model", providerID: "mock-provider" }),
+    model: Schema.decodeUnknownSync(Model.Selection)(
+      session.model ?? { id: "mock-model", providerID: "mock-provider" },
+    ),
     controller:
       session.controller === undefined ? undefined : Schema.decodeUnknownSync(Session.Controller)(session.controller),
     executorPreference:
@@ -2802,10 +2959,12 @@ export function currentSession(session: MockSession, fallbackDirectory?: string)
     fork: session.fork,
     metadata: session.metadata === undefined ? undefined : Schema.decodeUnknownSync(Session.Metadata)(session.metadata),
     cost: session.cost ?? 0,
-    ...Schema.decodeUnknownSync(Schema.Struct({
-      unknownPriceAttempts: lenient(Session.Info.fields.unknownPriceAttempts),
-      missingUsageAttempts: lenient(Session.Info.fields.missingUsageAttempts),
-    }))(session),
+    ...Schema.decodeUnknownSync(
+      Schema.Struct({
+        unknownPriceAttempts: lenient(Session.Info.fields.unknownPriceAttempts),
+        missingUsageAttempts: lenient(Session.Info.fields.missingUsageAttempts),
+      }),
+    )(session),
     tokens: session.tokens ?? { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
     ...decodeSessionOutcome(session),
     time: { created: seed.time?.created ?? 0, updated: seed.time?.updated ?? 0, ...seed.time },
@@ -2866,11 +3025,13 @@ const decodePromptPayload = Schema.decodeUnknownOption(
   }),
 )
 
-const decodeProvider = Schema.decodeUnknownOption(Schema.Struct({
-  id: Schema.String,
-  name: Schema.String,
-  integrationID: Schema.optionalKey(Schema.String),
-}))
+const decodeProvider = Schema.decodeUnknownOption(
+  Schema.Struct({
+    id: Schema.String,
+    name: Schema.String,
+    integrationID: Schema.optionalKey(Schema.String),
+  }),
+)
 
 const decodeModelProvider = Schema.decodeUnknownOption(
   Schema.Struct({ id: Schema.String, models: Schema.Record(Schema.String, Schema.Unknown) }),

@@ -16,27 +16,27 @@ Prompt 原 catalog 建图即加载；[select/read](/home/keer/workspace/aigcfrog
 
 root 在隔离仓使用已核实的 Bun 1.4.2 串行执行，测试使用包 cwd，类型使用包脚本及资源限制。命令、cwd、时间、退出码、原始 tally、日志 SHA 与本轮源码相对最终字节的差异见 [validation-manifest](evidence/v2-prompt-placement-backend-2026-10-28/validation-manifest.json) 和 [verification-summary](evidence/v2-prompt-placement-backend-2026-10-28/verification-summary.json)。运行权威是前后工作字节 hash；JSON 的 sourceTree 是旧普通 index reference，不能代替实际执行源码。
 
-| 执行面 | 原始结果（不累计重跑） | 日志 label |
-| --- | --- | --- |
-| Core Prompt/Skill/Command/Composition 相关（8 文件） |  212 pass;  0 fail;  1687 expect() calls; Ran 212 tests across 8 files. [10.80s] | `core-related-final` |
-| Schema 全包 |  415 pass;  0 fail;  1569 expect() calls; Ran 415 tests across 44 files. [417.00ms] | `schema-full-final` |
-| Client 全包 |  233 pass;  0 fail;  1008 expect() calls; Ran 233 tests across 20 files. [37.23s] | `client-full-final` |
-| Server 全包（品牌期望修复前；生产字节相同） |  191 pass;  1 skip;  0 fail;  8875 expect() calls; Ran 192 tests across 44 files. [114.88s] | `server-full-final` |
-| Server Prompt 修复后（最终测试字节） |  10 pass;  0 fail;  320 expect() calls; Ran 10 tests across 1 file. [12.96s] | `server-prompt-repaired` |
-| Core 类型 | exit 0 | `core-types-final` |
-| Schema 类型 | exit 0 | `schema-types-final` |
-| Protocol 类型 | exit 0 | `protocol-types-final` |
-| Server 类型 | exit 0 | `server-types-repaired` |
-| Client 类型 | exit 0 | `client-types-final` |
-| GUI 类型 | exit 0 | `gui-types-final` |
-| App 类型 | exit 0 | `app-types-final` |
-| App E2E 类型 | exit 0 | `app-e2e-types-final` |
-| Protocol 正式生成稳定 | exit 0 | `protocol-generated-final` |
-| Client 正式生成稳定 | exit 0 | `client-generated-final` |
-| 17 TS 文件 scoped lint | Found 0 warnings and 0 errors. | `lint-scoped-verified` |
-| 13 手写 TS 文件 AST | exit 0 | `ast-scoped-verified` |
-| 限定源码/生成物 Prettier | All matched files use Prettier code style! | `format-final-verified` |
-| 限定 diff --check | exit 0 | `diff-final-verified` |
+| 执行面                                               | 原始结果（不累计重跑）                                                                  | 日志 label                 |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------- | -------------------------- |
+| Core Prompt/Skill/Command/Composition 相关（8 文件） | 212 pass; 0 fail; 1687 expect() calls; Ran 212 tests across 8 files. [10.80s]           | `core-related-final`       |
+| Schema 全包                                          | 415 pass; 0 fail; 1569 expect() calls; Ran 415 tests across 44 files. [417.00ms]        | `schema-full-final`        |
+| Client 全包                                          | 233 pass; 0 fail; 1008 expect() calls; Ran 233 tests across 20 files. [37.23s]          | `client-full-final`        |
+| Server 全包（品牌期望修复前；生产字节相同）          | 191 pass; 1 skip; 0 fail; 8875 expect() calls; Ran 192 tests across 44 files. [114.88s] | `server-full-final`        |
+| Server Prompt 修复后（最终测试字节）                 | 10 pass; 0 fail; 320 expect() calls; Ran 10 tests across 1 file. [12.96s]               | `server-prompt-repaired`   |
+| Core 类型                                            | exit 0                                                                                  | `core-types-final`         |
+| Schema 类型                                          | exit 0                                                                                  | `schema-types-final`       |
+| Protocol 类型                                        | exit 0                                                                                  | `protocol-types-final`     |
+| Server 类型                                          | exit 0                                                                                  | `server-types-repaired`    |
+| Client 类型                                          | exit 0                                                                                  | `client-types-final`       |
+| GUI 类型                                             | exit 0                                                                                  | `gui-types-final`          |
+| App 类型                                             | exit 0                                                                                  | `app-types-final`          |
+| App E2E 类型                                         | exit 0                                                                                  | `app-e2e-types-final`      |
+| Protocol 正式生成稳定                                | exit 0                                                                                  | `protocol-generated-final` |
+| Client 正式生成稳定                                  | exit 0                                                                                  | `client-generated-final`   |
+| 17 TS 文件 scoped lint                               | Found 0 warnings and 0 errors.                                                          | `lint-scoped-verified`     |
+| 13 手写 TS 文件 AST                                  | exit 0                                                                                  | `ast-scoped-verified`      |
+| 限定源码/生成物 Prettier                             | All matched files use Prettier code style!                                              | `format-final-verified`    |
+| 限定 diff --check                                    | exit 0                                                                                  | `diff-final-verified`      |
 
 Server 全包有一个既有 hg skip 和 MaxListenersExceededWarning，未声明无警告。全包后仅将三处测试期望用 canonical AbsolutePath/Template 构造；生产未改，最终 Prompt keeper 与 Server 类型重跑通过。其他包不会因这三处 Server 测试期望改变而重跑。lint:changed 首轮没有扫描到 GUI 变动文件，不用它证明后端 lint。AST 最终绿色只覆盖 13 个手写文件；首次 17 文件全范围扫描的生成 SSE cast 仍是独立债务。
 

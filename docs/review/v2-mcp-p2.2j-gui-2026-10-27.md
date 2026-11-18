@@ -16,16 +16,16 @@ MCP 候选从同一 Session 持久 tool input 和五项 metadata facts 读取，
 
 [验证清单](evidence/v2-mcp-gui-2026-10-27/validation-manifest.json) 自动生成命令、cwd、退出码、源码哈希、日志哈希与原始 tally。隔离树 `bb5a3d68a124f8b20a3b860b36dea3c6fe1b9ff8`；十文件与实现目录逐字节一致，另固定十九个后端/读取 owner。固定 Bun 1.4.2，主线程串行执行，未重启用户 app/server。
 
-| 检查 | 实测结果 |
-| --- | --- |
-| GUI 全包 | 231 pass / 1 skip / 0 fail；753 expects |
-| App unit / browser | 742 pass / 0 fail / 2232 expects；168 pass / 0 fail / 1778 expects |
-| 生产 fixture-entry 侧栏 keeper | 28 passed，含 MCP 三条、其余资产与共享生命周期行为 |
-| 扩展 host/graph | 25 passed |
-| GUI / App / E2E 类型 | 各 exit 0；末次变化仅测试空行，manifest 如实列出差异 |
-| 增量 lint / AST / SDK 文档 / 格式 / diff-check | 各 exit 0；lint 九个 TS/TSX，AST 五个生产 TS/TSX，格式十文件 |
-| 普通 App 生产构建 | exit 0；产物清单 3156 文件 |
-| 普通构建真实 GUI/TCP/FS/SQLite/CAS 链 | 1 pass / 0 fail / 116 expects；2 primary / 0 title |
+| 检查                                           | 实测结果                                                           |
+| ---------------------------------------------- | ------------------------------------------------------------------ |
+| GUI 全包                                       | 231 pass / 1 skip / 0 fail；753 expects                            |
+| App unit / browser                             | 742 pass / 0 fail / 2232 expects；168 pass / 0 fail / 1778 expects |
+| 生产 fixture-entry 侧栏 keeper                 | 28 passed，含 MCP 三条、其余资产与共享生命周期行为                 |
+| 扩展 host/graph                                | 25 passed                                                          |
+| GUI / App / E2E 类型                           | 各 exit 0；末次变化仅测试空行，manifest 如实列出差异               |
+| 增量 lint / AST / SDK 文档 / 格式 / diff-check | 各 exit 0；lint 九个 TS/TSX，AST 五个生产 TS/TSX，格式十文件       |
+| 普通 App 生产构建                              | exit 0；产物清单 3156 文件                                         |
+| 普通构建真实 GUI/TCP/FS/SQLite/CAS 链          | 1 pass / 0 fail / 116 expects；2 primary / 0 title                 |
 
 GUI 的 skip 是当前系统不适用的 WSL 用例。构建的 chunk size、Sentry dynamic/static import 与 AST runtime binary resolution warning 保留。未新增公共 Schema/Protocol，正式生成沿用前片边界验证；本片另外固定公共生成物哈希，不声称重新生成。
 

@@ -798,11 +798,7 @@ export function FormPrompt(props: { form: FormWithLocation }) {
               {(item, index) => {
                 const isTab = () => index() === store.tab
                 const color = () =>
-                  isTab()
-                    ? theme.text.base
-                    : tabHover() === index()
-                      ? theme.text.formfield.focused
-                      : theme.text.muted
+                  isTab() ? theme.text.base : tabHover() === index() ? theme.text.formfield.focused : theme.text.muted
                 return (
                   <box
                     paddingRight={2}
@@ -864,9 +860,7 @@ export function FormPrompt(props: { form: FormWithLocation }) {
               >
                 {external().url}
               </text>
-              <text
-                fg={store.answers[external().key] === true ? theme.text.feedback.success.base : theme.text.muted}
-              >
+              <text fg={store.answers[external().key] === true ? theme.text.feedback.success.base : theme.text.muted}>
                 {store.answers[external().key] === true
                   ? "✓ Acknowledged"
                   : store.externalReady[external().key]
@@ -928,18 +922,10 @@ export function FormPrompt(props: { form: FormWithLocation }) {
                         }}
                       >
                         <box flexDirection="row">
-                          <box
-                            backgroundColor={theme.background.raised.base}
-                            paddingRight={1}
-                          >
-                            <text
-                              fg={active() ? theme.text.formfield.focused : theme.text.muted}
-                            >{`${i() + 1}.`}</text>
+                          <box backgroundColor={theme.background.raised.base} paddingRight={1}>
+                            <text fg={active() ? theme.text.formfield.focused : theme.text.muted}>{`${i() + 1}.`}</text>
                           </box>
-                          <box
-                            backgroundColor={theme.background.raised.base}
-                            flexDirection="row"
-                          >
+                          <box backgroundColor={theme.background.raised.base} flexDirection="row">
                             <Show when={multi()}>
                               <text
                                 width={4}
@@ -982,19 +968,12 @@ export function FormPrompt(props: { form: FormWithLocation }) {
                     }}
                   >
                     <box flexDirection="row">
-                      <box
-                        backgroundColor={theme.background.raised.base}
-                        paddingRight={1}
-                      >
+                      <box backgroundColor={theme.background.raised.base} paddingRight={1}>
                         <text fg={other() ? theme.text.formfield.focused : theme.text.muted}>
                           {`${rows().length + 1}.`}
                         </text>
                       </box>
-                      <box
-                        flexDirection="row"
-                        flexGrow={1}
-                        backgroundColor={theme.background.raised.base}
-                      >
+                      <box flexDirection="row" flexGrow={1} backgroundColor={theme.background.raised.base}>
                         <Show when={multi()}>
                           <text
                             width={4}
@@ -1082,9 +1061,7 @@ export function FormPrompt(props: { form: FormWithLocation }) {
                           <span style={{ fg: theme.text.muted }}>{truncate(formLabel(item), 40)}:</span>{" "}
                           <span
                             style={{
-                              fg: acknowledged()
-                                ? theme.text.feedback.success.base
-                                : theme.text.feedback.error.base,
+                              fg: acknowledged() ? theme.text.feedback.success.base : theme.text.feedback.error.base,
                             }}
                           >
                             {acknowledged() ? "Acknowledged" : "(acknowledgement required)"}

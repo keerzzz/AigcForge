@@ -88,7 +88,11 @@ export interface Editor {
 }
 
 export interface Interface extends State.Transformable<Editor> {
-  readonly get: (providerID: Provider.ID, modelID: ID, connection?: ModelSource.ConnectionRef) => Effect.Effect<Info | undefined>
+  readonly get: (
+    providerID: Provider.ID,
+    modelID: ID,
+    connection?: ModelSource.ConnectionRef,
+  ) => Effect.Effect<Info | undefined>
   readonly all: (input?: Provider.ConnectionInput) => Effect.Effect<readonly Info[]>
   readonly available: (input?: Provider.ConnectionInput) => Effect.Effect<readonly Info[]>
   readonly default: () => Effect.Effect<Info | undefined, ModelGroup.UnavailableError>
@@ -122,85 +126,97 @@ const layer = Layer.effect(
     const requested = new Map<string, Provider.ConnectionInput>()
     let input = new Map<string, Provider.Snapshot>()
     const editor = (data: Data, providerInput?: Provider.Snapshot): Editor => {
-        // Definitions are shared across Locations; a provider's map and a model are copied before their first edit.
-        const owned = new WeakSet<ReadonlyMap<ID, Info>>()
-        const drafts = new WeakSet<Info>()
-        const writable = (providerID: Provider.ID) => {
-          const current = data.models.get(providerID)
-          if (!current) return undefined
-          if (owned.has(current)) return current as Map<ID, Info>
-          const copy = new Map(current)
-          owned.add(copy)
-          data.models.set(providerID, copy)
-          return copy
-        }
-        const draft = (providerID: Provider.ID, modelID: ID) => {
-          const models = writable(providerID)
-          if (!models) return undefined
-          const current = models.get(modelID)
-          if (!current) return undefined
-          if (drafts.has(current)) return current as MutableInfo
-          const copy = structuredClone(current) as MutableInfo
-          drafts.add(copy)
-          models.set(modelID, copy)
-          return copy
-        }
-        return {
-          scope: providerInput?.scope,
-          connection: (integrationID) => providerInput?.connections?.get(integrationID),
-          list: (providerID) => {
-            const ids = providerID === undefined ? Array.from(data.models.keys()) : [providerID]
-            return ids.flatMap((id) =>
-              Array.from(data.models.get(id)?.keys() ?? []).flatMap((modelID) => draft(id, modelID) ?? []),
-            )
-          },
-          get: draft,
-          update: (providerID, modelID, update) => {
-            // Model edits cannot create/enable a provider or bypass its availability decision.
-            const models = writable(providerID)
-            if (!models) return
-            const model = draft(providerID, modelID) ?? (Info.default(providerID, modelID) as MutableInfo)
-            update(model)
-            model.id = modelID
-            model.providerID = providerID
-            const provider = providerInput?.records.get(providerID)?.provider
-            AISDKNative.rewrite(model, {
-              specifier: model.package ?? provider?.package,
-              providerID,
-              canonical: model.canonical ?? provider?.canonical,
-              modelID: model.modelID ?? modelID,
-            })
-            drafts.add(model)
-            models.set(modelID, model)
-          },
-          remove: (providerID, modelID) => {
-            writable(providerID)?.delete(modelID)
-          },
-          default: {
-            get: () => {
-              if (data.defaultModel === undefined) return undefined
-              if (!Selection.isGroup(data.defaultModel)) return { providerID: data.defaultModel.providerID, modelID: data.defaultModel.id }
-              const selected = groupDefault(ModelGroup.effectiveGroup(config.current?.() ?? groupEntries, data.defaultModel.groupID), data.models)
-              if (selected instanceof ModelGroup.UnavailableError) throw selected
-              return { providerID: selected.providerID, modelID: selected.id }
-            },
-            set: (providerID, modelID) => {
-              data.defaultModel = Ref.make({ providerID, id: modelID })
-            },
-            selection: () => data.defaultModel,
-            select: (selection) => { data.defaultModel = selection },
-          },
-          provider: {
-            list: () => Array.from(providerInput?.records.values() ?? []),
-            get: (providerID) => providerInput?.records.get(providerID),
-          },
-        }
+      // Definitions are shared across Locations; a provider's map and a model are copied before their first edit.
+      const owned = new WeakSet<ReadonlyMap<ID, Info>>()
+      const drafts = new WeakSet<Info>()
+      const writable = (providerID: Provider.ID) => {
+        const current = data.models.get(providerID)
+        if (!current) return undefined
+        if (owned.has(current)) return current as Map<ID, Info>
+        const copy = new Map(current)
+        owned.add(copy)
+        data.models.set(providerID, copy)
+        return copy
       }
+      const draft = (providerID: Provider.ID, modelID: ID) => {
+        const models = writable(providerID)
+        if (!models) return undefined
+        const current = models.get(modelID)
+        if (!current) return undefined
+        if (drafts.has(current)) return current as MutableInfo
+        const copy = structuredClone(current) as MutableInfo
+        drafts.add(copy)
+        models.set(modelID, copy)
+        return copy
+      }
+      return {
+        scope: providerInput?.scope,
+        connection: (integrationID) => providerInput?.connections?.get(integrationID),
+        list: (providerID) => {
+          const ids = providerID === undefined ? Array.from(data.models.keys()) : [providerID]
+          return ids.flatMap((id) =>
+            Array.from(data.models.get(id)?.keys() ?? []).flatMap((modelID) => draft(id, modelID) ?? []),
+          )
+        },
+        get: draft,
+        update: (providerID, modelID, update) => {
+          // Model edits cannot create/enable a provider or bypass its availability decision.
+          const models = writable(providerID)
+          if (!models) return
+          const model = draft(providerID, modelID) ?? (Info.default(providerID, modelID) as MutableInfo)
+          update(model)
+          model.id = modelID
+          model.providerID = providerID
+          const provider = providerInput?.records.get(providerID)?.provider
+          AISDKNative.rewrite(model, {
+            specifier: model.package ?? provider?.package,
+            providerID,
+            canonical: model.canonical ?? provider?.canonical,
+            modelID: model.modelID ?? modelID,
+          })
+          drafts.add(model)
+          models.set(modelID, model)
+        },
+        remove: (providerID, modelID) => {
+          writable(providerID)?.delete(modelID)
+        },
+        default: {
+          get: () => {
+            if (data.defaultModel === undefined) return undefined
+            if (!Selection.isGroup(data.defaultModel))
+              return { providerID: data.defaultModel.providerID, modelID: data.defaultModel.id }
+            const selected = groupDefault(
+              ModelGroup.effectiveGroup(config.current?.() ?? groupEntries, data.defaultModel.groupID),
+              data.models,
+            )
+            if (selected instanceof ModelGroup.UnavailableError) throw selected
+            return { providerID: selected.providerID, modelID: selected.id }
+          },
+          set: (providerID, modelID) => {
+            data.defaultModel = Ref.make({ providerID, id: modelID })
+          },
+          selection: () => data.defaultModel,
+          select: (selection) => {
+            data.defaultModel = selection
+          },
+        },
+        provider: {
+          list: () => Array.from(providerInput?.records.values() ?? []),
+          get: (providerID) => providerInput?.records.get(providerID),
+        },
+      }
+    }
     const state = State.create<Map<string, Data>, Map<string, Editor>>({
       name: "model",
-      initial: () => new Map<string, Data>(Array.from(input, ([key, value]) => [key, {
-        models: new Map(value.available.map((record) => [record.provider.id, record.models])),
-      }])),
+      initial: () =>
+        new Map<string, Data>(
+          Array.from(input, ([key, value]) => [
+            key,
+            {
+              models: new Map(value.available.map((record) => [record.provider.id, record.models])),
+            },
+          ]),
+        ),
       editor: (data) => new Map(Array.from(data, ([key, value]) => [key, editor(value, input.get(key))])),
       // read() also refreshes dependencies changed inside a State.batch before notification.
       notify: () => notify,
@@ -209,10 +225,11 @@ const layer = Layer.effect(
     const cached = new Map<string, Catalog>()
     const prepare = Effect.gen(function* () {
       groupEntries = yield* config.entries()
-      const snapshots = new Map(yield* Effect.forEach(
-        ["", ...requested.keys()],
-        (key) => providers.snapshot(requested.get(key)).pipe(Effect.map((value) => [key, value] as const)),
-      ))
+      const snapshots = new Map(
+        yield* Effect.forEach(["", ...requested.keys()], (key) =>
+          providers.snapshot(requested.get(key)).pipe(Effect.map((value) => [key, value] as const)),
+        ),
+      )
       if (input.size !== snapshots.size || Array.from(snapshots).some(([key, value]) => input.get(key) !== value)) {
         input = snapshots
         state.invalidate()
@@ -295,14 +312,24 @@ const layer = Layer.effect(
       transform: (update) => prepare.pipe(Effect.andThen(state.transform((editors) => editors.forEach(update)))),
       reload,
       get: Effect.fn("Model.get")((providerID, modelID, connection) =>
-        read(connection && { providerID, connection }).pipe(Effect.map((value) => value.byProvider.get(providerID)?.get(modelID))),
+        read(connection && { providerID, connection }).pipe(
+          Effect.map((value) => value.byProvider.get(providerID)?.get(modelID)),
+        ),
       ),
-      all: Effect.fn("Model.all")((scope) => read(scope).pipe(Effect.map((value) => scope
-        ? value.all.filter((model) => model.providerID === scope.providerID)
-        : value.all))),
-      available: Effect.fn("Model.available")((scope) => read(scope).pipe(Effect.map((value) => scope
-        ? value.available.filter((model) => model.providerID === scope.providerID)
-        : value.available))),
+      all: Effect.fn("Model.all")((scope) =>
+        read(scope).pipe(
+          Effect.map((value) =>
+            scope ? value.all.filter((model) => model.providerID === scope.providerID) : value.all,
+          ),
+        ),
+      ),
+      available: Effect.fn("Model.available")((scope) =>
+        read(scope).pipe(
+          Effect.map((value) =>
+            scope ? value.available.filter((model) => model.providerID === scope.providerID) : value.available,
+          ),
+        ),
+      ),
       selection: Effect.fn("Model.selection")(function* () {
         const value = yield* read()
         const requested = value.data.defaultModel
@@ -340,7 +367,11 @@ const layer = Layer.effect(
   }),
 )
 
-export const node = makeLocationNode({ service: Service, layer, deps: [Provider.node, Bus.node, Location.node, ModelGroup.node, Config.node] })
+export const node = makeLocationNode({
+  service: Service,
+  layer,
+  deps: [Provider.node, Bus.node, Location.node, ModelGroup.node, Config.node],
+})
 
 export function supportsText(model: Pick<Info, "capabilities">) {
   return (
@@ -374,10 +405,17 @@ export function fromConfig(selection: ConfigModel.Selection): Selection {
 }
 
 function groupDefault(current: ModelGroup.Current, models: ReadonlyMap<Provider.ID, ReadonlyMap<ID, Info>>) {
-  if (current.unavailable !== undefined) return new ModelGroup.UnavailableError({ groupID: current.groupID, reason: current.unavailable })
+  if (current.unavailable !== undefined)
+    return new ModelGroup.UnavailableError({ groupID: current.groupID, reason: current.unavailable })
   const selected = current.definition?.members.flatMap((member) => {
     const model = models.get(member.providerID)?.get(member.id)
-    return model?.enabled && supportsText(model) && (member.variant === undefined || member.variant === "default" || model.variants.some((variant) => variant.id === member.variant)) ? [model] : []
+    return model?.enabled &&
+      supportsText(model) &&
+      (member.variant === undefined ||
+        member.variant === "default" ||
+        model.variants.some((variant) => variant.id === member.variant))
+      ? [model]
+      : []
   })[0]
   return selected ?? new ModelGroup.UnavailableError({ groupID: current.groupID, reason: "no-candidates" })
 }

@@ -2,9 +2,7 @@
   "version": "7",
   "dialect": "sqlite",
   "id": "d77d746e-7940-4f61-b866-08d438efb61e",
-  "prevIds": [
-    "53c65132-8703-42d6-8464-64356145dfb4"
-  ],
+  "prevIds": ["53c65132-8703-42d6-8464-64356145dfb4"],
   "ddl": [
     {
       "name": "blob",
@@ -187,47 +185,35 @@
       "table": "state"
     },
     {
-      "columns": [
-        "extension_id",
-        "path"
-      ],
+      "columns": ["extension_id", "path"],
       "nameExplicit": false,
       "name": "extension_file_pk",
       "entityType": "pks",
       "table": "extension_file"
     },
     {
-      "columns": [
-        "name",
-        "key"
-      ],
+      "columns": ["name", "key"],
       "nameExplicit": false,
       "name": "state_pk",
       "entityType": "pks",
       "table": "state"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "blob_pk",
       "table": "blob",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "key"
-      ],
+      "columns": ["key"],
       "nameExplicit": false,
       "name": "document_pk",
       "table": "document",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "extension_pk",
       "table": "extension",

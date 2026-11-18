@@ -29,10 +29,7 @@ const SKIP_FILES = new Set(["bun.lock", "script/rename-bridge.ts", "packages/cor
 // Trees pruned by directory name during the walk.
 const PRUNE_NAMES = new Set(["node_modules", ".git", ".turbo", ".codegraph"])
 // Path-level exemptions (checked against repo-relative paths).
-const SKIP_DIRS = [
-  "docs/research/upstream-v2-sync",
-  "packages/core/src/models-dev",
-]
+const SKIP_DIRS = ["docs/research/upstream-v2-sync", "packages/core/src/models-dev"]
 
 // Tokens protected from the three-segment mapping via sentinel substitution.
 const SENTINELS = ["@opencode-ai/", "@opencode/sdk", "opencode-gitlab-auth", "vite-plugin-opencode", "OPENCODE_API_KEY"]
@@ -92,7 +89,9 @@ for (const rel of files) {
 // so any entry under a moved ancestor is skipped. Parent dirs of renamed files are
 // guaranteed to exist (either untouched or already renamed by a shallower step).
 const renameTargets = [...dirs, ...files]
-  .filter((rel) => rel.split("/").some((s) => s.includes("opencode") || s.includes("OpenCode") || s.includes("OPENCODE")))
+  .filter((rel) =>
+    rel.split("/").some((s) => s.includes("opencode") || s.includes("OpenCode") || s.includes("OPENCODE")),
+  )
   .sort((a, b) => a.split("/").length - b.split("/").length)
 
 let pathsRenamed = 0

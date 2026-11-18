@@ -11,8 +11,16 @@ import type { RunInput, RunProvider } from "./types"
 import { cycleModelVariant, isModelGroup, normalizeModelVariant } from "../model-preference"
 import type { ModelGroupCurrent } from "@aigcfroge/client/promise"
 
-export function modelInfo(providers: RunProvider[] | undefined, model: NonNullable<RunInput["model"]>, groups?: readonly ModelGroupCurrent[]) {
-  if (isModelGroup(model)) return { provider: "Model group", model: groups?.find((group) => group.groupID === model.groupID)?.definition?.name ?? `group:${model.groupID}` }
+export function modelInfo(
+  providers: RunProvider[] | undefined,
+  model: NonNullable<RunInput["model"]>,
+  groups?: readonly ModelGroupCurrent[],
+) {
+  if (isModelGroup(model))
+    return {
+      provider: "Model group",
+      model: groups?.find((group) => group.groupID === model.groupID)?.definition?.name ?? `group:${model.groupID}`,
+    }
   const provider = providers?.find((item) => item.id === model.providerID)
   return {
     provider: provider?.name ?? model.providerID,

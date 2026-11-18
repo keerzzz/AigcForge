@@ -71,7 +71,8 @@ export const dict = {
   "project.settings.extensions.empty.mcps.title": "Aún no hay MCPs",
   "project.settings.extensions.empty.mcps.description": "MCPs disponible para AigcForge aparecerá aquí",
   "project.settings.extensions.empty.plugins.title": "Aún no hay complementos",
-  "project.settings.extensions.empty.plugins.description": "Los complementos disponibles para AigcForge aparecerán aquí",
+  "project.settings.extensions.empty.plugins.description":
+    "Los complementos disponibles para AigcForge aparecerán aquí",
   "project.settings.extensions.empty.skills.title": "Aún no hay habilidades",
   "project.settings.extensions.empty.skills.description": "Las habilidades disponibles para AigcForge aparecerán aquí",
   "project.settings.extensions.lsp.configured": "Servidores de idiomas configurados",

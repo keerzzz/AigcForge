@@ -30,12 +30,25 @@ const decode = Schema.decodeUnknownSync(
 
 describe("composer persistence schemas", () => {
   test("round-trips mixed Session references with their saved server identity", () => {
-    const value = decode({ prompt: [
-      { type: "text", content: "Ask ", start: 0, end: 4 },
-      { type: "session", content: "ses_ref", start: 4, end: 11,
-        reference: { serverID: "http://127.0.0.1:4096", sessionID: "ses_ref", title: "Original target", scope: { kind: "identity" } } },
-      { type: "text", content: " now", start: 11, end: 15 },
-    ], context: { items: [] } })
+    const value = decode({
+      prompt: [
+        { type: "text", content: "Ask ", start: 0, end: 4 },
+        {
+          type: "session",
+          content: "ses_ref",
+          start: 4,
+          end: 11,
+          reference: {
+            serverID: "http://127.0.0.1:4096",
+            sessionID: "ses_ref",
+            title: "Original target",
+            scope: { kind: "identity" },
+          },
+        },
+        { type: "text", content: " now", start: 11, end: 15 },
+      ],
+      context: { items: [] },
+    })
 
     expect(value.prompt).toHaveLength(3)
     expect(value.prompt[1]).toMatchObject({

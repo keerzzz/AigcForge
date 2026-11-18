@@ -140,10 +140,7 @@ const onEvent = Effect.fnUntraced(function* (state: State, frame: string) {
   return [state, []] as const
 })
 
-const finish = Effect.fnUntraced(function* (
-  state: State,
-  context: MediaProtocol.ResponseContext<Request>,
-) {
+const finish = Effect.fnUntraced(function* (state: State, context: MediaProtocol.ResponseContext<Request>) {
   if (usesSse(context.request) && !state.done) return yield* route.incomplete()
   const format = yield* outputFormat(context.request)
   return yield* SpeechStream.finish(

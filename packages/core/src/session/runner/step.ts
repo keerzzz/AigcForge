@@ -78,7 +78,10 @@ interface Input {
     error: SessionError.Error,
     retry: boolean,
     outputStarted: boolean,
-  ) => Effect.Effect<SessionRunnerRetry.DecisionResult, Effect.Error<ReturnType<SessionContext.Interface["resolveModel"]>> | StepFailedError>
+  ) => Effect.Effect<
+    SessionRunnerRetry.DecisionResult,
+    Effect.Error<ReturnType<SessionContext.Interface["resolveModel"]>> | StepFailedError
+  >
   readonly recoverContinuation: boolean
   /** The runner owns compaction policy; the attempt invokes it only before durable output. */
   readonly recoverOverflow: Effect.Effect<boolean>
@@ -108,21 +111,37 @@ export const make = Effect.gen(function* () {
   const artifacts = yield* WorkArtifact.Service
 
   const readAssistant = Effect.fnUntraced(function* (input: Pick<Input, "sessionID" | "assistantMessageID">) {
-    const row = yield* database.db.select().from(SessionMessageTable).where(and(
-      eq(SessionMessageTable.session_id, input.sessionID),
-      eq(SessionMessageTable.id, input.assistantMessageID),
-      eq(SessionMessageTable.type, "assistant"),
-    )).get().pipe(Effect.orDie)
-    return row === undefined ? undefined : Schema.decodeUnknownSync(SessionMessage.Assistant)({ ...row.data, id: row.id, type: row.type })
+    const row = yield* database.db
+      .select()
+      .from(SessionMessageTable)
+      .where(
+        and(
+          eq(SessionMessageTable.session_id, input.sessionID),
+          eq(SessionMessageTable.id, input.assistantMessageID),
+          eq(SessionMessageTable.type, "assistant"),
+        ),
+      )
+      .get()
+      .pipe(Effect.orDie)
+    return row === undefined
+      ? undefined
+      : Schema.decodeUnknownSync(SessionMessage.Assistant)({ ...row.data, id: row.id, type: row.type })
   })
 
   const attempt = Effect.fn("SessionStep.attempt")(function* (input: Input) {
     const ordinal = (yield* readAssistant(input))?.attempts?.length ?? 0
     const attemptID = "gatt_" + Hash.sha256(JSON.stringify([input.sessionID, input.assistantMessageID, ordinal]))
     const admission = Effect.gen(function* () {
-      const goalAttempts = yield* goals.beforeAttempt({ sessionID: input.sessionID, assistantMessageID: input.assistantMessageID, attemptID, kind: "coordinator" }).pipe(
-        Effect.mapError((error) => new StepFailedError({ error: { type: "goal.budget", message: error.reason } })),
-      )
+      const goalAttempts = yield* goals
+        .beforeAttempt({
+          sessionID: input.sessionID,
+          assistantMessageID: input.assistantMessageID,
+          attemptID,
+          kind: "coordinator",
+        })
+        .pipe(
+          Effect.mapError((error) => new StepFailedError({ error: { type: "goal.budget", message: error.reason } })),
+        )
       const started = yield* Clock.currentTimeMillis
       const quote = SessionUsage.currentQuote(input.model.quote ?? { status: "unknown" }, started)
       yield* bus.publish(SessionEvent.Attempt.Started, {
@@ -137,7 +156,11 @@ export const make = Effect.gen(function* () {
         model: input.model.ref,
         apiModelID: input.prepared.request.model.id,
         connection: input.model.connection,
-        preparedDeployment: SessionProviderContext.provenance({ model: input.prepared.request.model, ref: input.model.ref, connection: input.model.connection }, undefined, input.prepared.request),
+        preparedDeployment: SessionProviderContext.provenance(
+          { model: input.prepared.request.model, ref: input.model.ref, connection: input.model.connection },
+          undefined,
+          input.prepared.request,
+        ),
         quote,
         quoteOrigin: input.model.quoteOrigin,
         quota: input.model.quota,
@@ -148,7 +171,7 @@ export const make = Effect.gen(function* () {
       })
       return { started, goalAttempts, quote }
     })
-    const admitted = yield* (input.model.binding?.withReservation(admission) ?? admission)
+    const admitted = yield* input.model.binding?.withReservation(admission) ?? admission
     if (admitted === undefined) return Outcome.Reprepare()
     const started = admitted.started
     const boundary: Boundary = input.boundary ?? {}
@@ -157,14 +180,22 @@ export const make = Effect.gen(function* () {
     const observe = Effect.fnUntraced(function* (observation: SessionAttempt.Observation) {
       delivery = observation.delivery ?? delivery
       yield* bus.publish(SessionEvent.Attempt.Observed, {
-        sessionID: input.sessionID, assistantMessageID: input.assistantMessageID, ordinal, observation,
+        sessionID: input.sessionID,
+        assistantMessageID: input.assistantMessageID,
+        ordinal,
+        observation,
       })
     }, Effect.uninterruptible)
     // The start snapshot only has to exist before local tools run, which cannot happen before Step.Started,
     // so it is captured while the provider request is in flight instead of delaying it.
-    const pendingStartSnapshot = yield* snapshots.capture().pipe(Effect.tap((snapshot) => Effect.sync(() => {
-      if (boundary.start && !boundary.start.published) boundary.start.snapshot = snapshot
-    })), Effect.forkScoped)
+    const pendingStartSnapshot = yield* snapshots.capture().pipe(
+      Effect.tap((snapshot) =>
+        Effect.sync(() => {
+          if (boundary.start && !boundary.start.published) boundary.start.snapshot = snapshot
+        }),
+      ),
+      Effect.forkScoped,
+    )
     const publisher = createLLMEventPublisher(bus, {
       sessionID: input.sessionID,
       assistantMessageID: input.assistantMessageID,
@@ -177,12 +208,24 @@ export const make = Effect.gen(function* () {
       admitted: true,
       onOutput: Effect.gen(function* () {
         const time = yield* Clock.currentTimeMillis
-        yield* observe(new SessionAttempt.Observation({ observedAt: time, outputStarted: true, firstOutputAt: time, delivery: "accepted" }))
+        yield* observe(
+          new SessionAttempt.Observation({
+            observedAt: time,
+            outputStarted: true,
+            firstOutputAt: time,
+            delivery: "accepted",
+          }),
+        )
       }),
-      onToolSuccess: (eventID) => goals.observeTool(eventID).pipe(
-        Effect.andThen(goals.observeArtifact(input.sessionID).pipe(Effect.provideService(WorkArtifact.Service, artifacts))),
-        Effect.orDie,
-      ),
+      onToolSuccess: (eventID) =>
+        goals
+          .observeTool(eventID)
+          .pipe(
+            Effect.andThen(
+              goals.observeArtifact(input.sessionID).pipe(Effect.provideService(WorkArtifact.Service, artifacts)),
+            ),
+            Effect.orDie,
+          ),
     })
     const toolRuns: Array<{
       readonly call: ToolCall
@@ -209,63 +252,85 @@ export const make = Effect.gen(function* () {
     let firstTokenRecorded = false
     let providerEndedAt: number | undefined
     // Read to the end, not just the finish event, so the next request can reuse this response.
-    const providerStream = llm.stream(input.prepared.request, input.prepared.optionsForAttempt?.(observe) ?? input.prepared.options).pipe(
-      Stream.runForEach((event) =>
-        Effect.gen(function* () {
-          if (!firstTokenRecorded && (event.type === "text-delta" || event.type === "reasoning-delta" || event.type === "tool-input-delta") && event.text.length > 0) {
-            firstTokenRecorded = true
-            const time = yield* Clock.currentTimeMillis
-            yield* observe(new SessionAttempt.Observation({ observedAt: time, firstTokenAt: time, delivery: "accepted" }))
-          }
-          if ((overflowFailure || publisher.hasProviderError()) && LLMEvent.is.stepFinish(event)) {
+    const providerStream = llm
+      .stream(input.prepared.request, input.prepared.optionsForAttempt?.(observe) ?? input.prepared.options)
+      .pipe(
+        Stream.runForEach((event) =>
+          Effect.gen(function* () {
+            if (
+              !firstTokenRecorded &&
+              (event.type === "text-delta" || event.type === "reasoning-delta" || event.type === "tool-input-delta") &&
+              event.text.length > 0
+            ) {
+              firstTokenRecorded = true
+              const time = yield* Clock.currentTimeMillis
+              yield* observe(
+                new SessionAttempt.Observation({ observedAt: time, firstTokenAt: time, delivery: "accepted" }),
+              )
+            }
+            if ((overflowFailure || publisher.hasProviderError()) && LLMEvent.is.stepFinish(event)) {
+              yield* publisher.publish(event)
+              return
+            }
+            if (overflowFailure || publisher.hasProviderError()) return
+            // Wait here, where cancellation still works, rather than inside the uninterruptible publish.
+            if (!snapshotReady) {
+              yield* Fiber.join(pendingStartSnapshot)
+              snapshotReady = true
+            }
+            if (
+              LLMEvent.is.providerError(event) &&
+              isContextOverflowFailure(event) &&
+              !publisher.record().outputStarted
+            ) {
+              overflowFailure = event
+              return
+            }
             yield* publisher.publish(event)
-            return
-          }
-          if (overflowFailure || publisher.hasProviderError()) return
-          // Wait here, where cancellation still works, rather than inside the uninterruptible publish.
-          if (!snapshotReady) {
-            yield* Fiber.join(pendingStartSnapshot)
-            snapshotReady = true
-          }
-          if (
-            LLMEvent.is.providerError(event) &&
-            isContextOverflowFailure(event) &&
-            !publisher.record().outputStarted
-          ) {
-            overflowFailure = event
-            return
-          }
-          yield* publisher.publish(event)
-          if (!consumersObserved && publisher.hasStarted() && !publisher.hasProviderError()) {
-            consumersObserved = true
-            yield* SessionNotification.observeConsumption(database.db, tasks, fs, {
-              sessionID: input.sessionID, assistantMessageID: input.assistantMessageID, started,
-              messages: input.prepared.request.messages,
-            }).pipe(Effect.orDie)
-          }
-          if (event.type !== "tool-call" || event.providerExecuted) return
-          toolRuns.push({
-            call: event,
-            fiber: yield* Effect.uninterruptibleMask((restore) =>
-              restore(executeTool(event).pipe(Effect.catchCause((cause) => {
-                if (Cause.hasInterrupts(cause) || Cause.hasFails(cause)) return Effect.failCause(cause)
-                return publisher.failTool(event.id, toSessionError(Cause.squash(cause))).pipe(Effect.as(undefined))
-              }))).pipe(
-                Effect.flatMap((outcome) => outcome === undefined ? Effect.undefined : toolOutput.truncate(outcome)),
-                Effect.flatMap((outcome) => outcome === undefined ? Effect.void : publisher.toolExecution(event.id, event.name, outcome)),
-                Effect.catchTag("Tool.Error", (error) =>
-                  publisher.failTool(event.id, toSessionError(error), error.metadata).pipe(Effect.asVoid),
+            if (!consumersObserved && publisher.hasStarted() && !publisher.hasProviderError()) {
+              consumersObserved = true
+              yield* SessionNotification.observeConsumption(database.db, tasks, fs, {
+                sessionID: input.sessionID,
+                assistantMessageID: input.assistantMessageID,
+                started,
+                messages: input.prepared.request.messages,
+              }).pipe(Effect.orDie)
+            }
+            if (event.type !== "tool-call" || event.providerExecuted) return
+            toolRuns.push({
+              call: event,
+              fiber: yield* Effect.uninterruptibleMask((restore) =>
+                restore(
+                  executeTool(event).pipe(
+                    Effect.catchCause((cause) => {
+                      if (Cause.hasInterrupts(cause) || Cause.hasFails(cause)) return Effect.failCause(cause)
+                      return publisher
+                        .failTool(event.id, toSessionError(Cause.squash(cause)))
+                        .pipe(Effect.as(undefined))
+                    }),
+                  ),
+                ).pipe(
+                  Effect.flatMap((outcome) =>
+                    outcome === undefined ? Effect.undefined : toolOutput.truncate(outcome),
+                  ),
+                  Effect.flatMap((outcome) =>
+                    outcome === undefined ? Effect.void : publisher.toolExecution(event.id, event.name, outcome),
+                  ),
+                  Effect.catchTag("Tool.Error", (error) =>
+                    publisher.failTool(event.id, toSessionError(error), error.metadata).pipe(Effect.asVoid),
+                  ),
                 ),
-              ),
-            ).pipe(Effect.forkScoped),
-          })
-        }),
-      ),
-      Effect.ensuring(Effect.gen(function* () {
-        providerEndedAt = yield* Clock.currentTimeMillis
-        yield* publisher.flush()
-      })),
-    )
+              ).pipe(Effect.forkScoped),
+            })
+          }),
+        ),
+        Effect.ensuring(
+          Effect.gen(function* () {
+            providerEndedAt = yield* Clock.currentTimeMillis
+            yield* publisher.flush()
+          }),
+        ),
+      )
 
     // Keep the final tool and Step events uninterruptible, even when the work itself is cancelled.
     return yield* Effect.uninterruptibleMask((restore) =>
@@ -276,18 +341,34 @@ export const make = Effect.gen(function* () {
         const recorded = publisher.record()
         const unknownFinish =
           Exit.isSuccess(stream) && recorded.finish?.finish === "unknown"
-            ? new AIError({ reason: new InvalidProviderOutputError({
-                message: "The provider response ended with an unknown finish reason.", classification: "incomplete-stream",
-              }) })
+            ? new AIError({
+                reason: new InvalidProviderOutputError({
+                  message: "The provider response ended with an unknown finish reason.",
+                  classification: "incomplete-stream",
+                }),
+              })
             : undefined
-        const llmFailure = streamFailure instanceof AIError ? streamFailure : unknownFinish ??
-          (overflowFailure === undefined ? undefined : new AIError({ reason: new InvalidRequestError({
-            message: overflowFailure.message, classification: overflowFailure.classification,
-          }) }))
+        const llmFailure =
+          streamFailure instanceof AIError
+            ? streamFailure
+            : (unknownFinish ??
+              (overflowFailure === undefined
+                ? undefined
+                : new AIError({
+                    reason: new InvalidRequestError({
+                      message: overflowFailure.message,
+                      classification: overflowFailure.classification,
+                    }),
+                  })))
         const llmError = llmFailure && !recorded.providerFailed ? toSessionError(llmFailure) : undefined
         const terminal = new SessionAttempt.Terminal({
-          status: streamInterrupted ? input.isLocationClosed() ? "interrupted" : "cancelled" :
-            Exit.isFailure(stream) || llmFailure !== undefined || recorded.providerFailed ? "failed" : "completed",
+          status: streamInterrupted
+            ? input.isLocationClosed()
+              ? "interrupted"
+              : "cancelled"
+            : Exit.isFailure(stream) || llmFailure !== undefined || recorded.providerFailed
+              ? "failed"
+              : "completed",
           ended: yield* Clock.currentTimeMillis,
           providerEndedAt,
           outputStarted: recorded.outputStarted,
@@ -295,15 +376,25 @@ export const make = Effect.gen(function* () {
           rawFinish: recorded.finish?.rawFinish,
           usage: recorded.finish?.usage,
           cost: SessionUsage.quotedCost(admitted.quote, recorded.finish?.usage),
-          failure: llmFailure === undefined ? recorded.providerFailed
-            ? new SessionAttempt.Failure({ reason: recorded.finish?.finish === "content-filter" ? "ContentPolicy" : "UnknownProvider" })
-            : undefined : failureDetails(llmFailure),
-          delivery: llmFailure?.reason._tag === "Transport" && llmFailure.reason.delivery !== undefined
-            ? llmFailure.reason.delivery : delivery,
+          failure:
+            llmFailure === undefined
+              ? recorded.providerFailed
+                ? new SessionAttempt.Failure({
+                    reason: recorded.finish?.finish === "content-filter" ? "ContentPolicy" : "UnknownProvider",
+                  })
+                : undefined
+              : failureDetails(llmFailure),
+          delivery:
+            llmFailure?.reason._tag === "Transport" && llmFailure.reason.delivery !== undefined
+              ? llmFailure.reason.delivery
+              : delivery,
         })
         // Provider accounting commits before waiting for local tools or taking any retry path.
         yield* bus.publish(SessionEvent.Attempt.Ended, {
-          sessionID: input.sessionID, assistantMessageID: input.assistantMessageID, ordinal, terminal,
+          sessionID: input.sessionID,
+          assistantMessageID: input.assistantMessageID,
+          ordinal,
+          terminal,
         })
         yield* goals.settleAttempt({ refs: admitted.goalAttempts, usage: terminal.usage }).pipe(Effect.orDie)
         if (!overflowFailure && publisher.hasStarted()) yield* publisher.streamed()
@@ -342,7 +433,10 @@ export const make = Effect.gen(function* () {
           return Outcome.RecoverFull({ reason: failureDetails(llmFailure) })
         }
         const retry =
-          llmFailure && llmError && (!isContextOverflowFailure(llmFailure) || (input.selection !== undefined && Model.Selection.isGroup(input.selection)))
+          llmFailure &&
+          llmError &&
+          (!isContextOverflowFailure(llmFailure) ||
+            (input.selection !== undefined && Model.Selection.isGroup(input.selection)))
             ? yield* restore(
                 input.retry(
                   llmFailure,
@@ -394,7 +488,10 @@ export const make = Effect.gen(function* () {
         const needsContinuation = input.prepared.request.toolChoice?.type !== "none" && record.needsContinuation
         {
           const startSnapshot = boundary.start?.snapshot
-          const snapshot = (record.finish || record.failure) && snapshotReady && !streamInterrupted ? yield* restore(snapshots.capture()) : undefined
+          const snapshot =
+            (record.finish || record.failure) && snapshotReady && !streamInterrupted
+              ? yield* restore(snapshots.capture())
+              : undefined
           const files =
             startSnapshot && snapshot
               ? startSnapshot === snapshot
@@ -466,7 +563,8 @@ export function failureDetails(failure: AIError | ProviderErrorEvent | undefined
   const reason = failure.reason
   return new SessionAttempt.Failure({
     reason: reason._tag,
-    classification: reason._tag === "InvalidRequest" || reason._tag === "InvalidProviderOutput" ? reason.classification : undefined,
+    classification:
+      reason._tag === "InvalidRequest" || reason._tag === "InvalidProviderOutput" ? reason.classification : undefined,
     status: reason.http?.status,
     transport: reason._tag === "Transport" ? reason.transport : undefined,
     operation: reason._tag === "Transport" ? reason.operation : undefined,
@@ -482,58 +580,101 @@ export const reconcile = Effect.fn("SessionStep.reconcile")(function* (
   bus: Bus.Interface,
   goals: SessionGoal.Interface,
   sessionID: SessionSchema.ID,
-  options?: { readonly assistantMessageID?: SessionMessage.ID; readonly error?: SessionError.Error; readonly status?: SessionAttempt.Terminal["status"] },
+  options?: {
+    readonly assistantMessageID?: SessionMessage.ID
+    readonly error?: SessionError.Error
+    readonly status?: SessionAttempt.Terminal["status"]
+  },
 ) {
-  const rows = yield* db.select().from(SessionMessageTable).where(and(
-    eq(SessionMessageTable.session_id, sessionID),
-    eq(SessionMessageTable.type, "assistant"),
-    options?.assistantMessageID === undefined ? undefined : eq(SessionMessageTable.id, options.assistantMessageID),
-  )).all().pipe(Effect.orDie)
+  const rows = yield* db
+    .select()
+    .from(SessionMessageTable)
+    .where(
+      and(
+        eq(SessionMessageTable.session_id, sessionID),
+        eq(SessionMessageTable.type, "assistant"),
+        options?.assistantMessageID === undefined ? undefined : eq(SessionMessageTable.id, options.assistantMessageID),
+      ),
+    )
+    .all()
+    .pipe(Effect.orDie)
   for (const row of rows) {
     const message = Schema.decodeUnknownSync(SessionMessage.Assistant)({ ...row.data, id: row.id, type: row.type })
     // Forked receipts remain evidence of the parent's work, with no child Goal admission or accounting.
-    if (message.attempts !== undefined && (message.origin?.kind !== "step" || message.origin.sessionID !== sessionID)) continue
-    const unsettled = message.content.filter((tool): tool is SessionMessage.AssistantTool =>
-      tool.type === "tool" && (tool.state.status === "streaming" || tool.state.status === "running"))
+    if (message.attempts !== undefined && (message.origin?.kind !== "step" || message.origin.sessionID !== sessionID))
+      continue
+    const unsettled = message.content.filter(
+      (tool): tool is SessionMessage.AssistantTool =>
+        tool.type === "tool" && (tool.state.status === "streaming" || tool.state.status === "running"),
+    )
     for (const tool of unsettled) {
       const metadata = tool.state.status === "running" ? tool.state.metadata : undefined
-      const childID = tool.name === "subagent" && typeof metadata?.sessionID === "string" ? metadata.sessionID : undefined
+      const childID =
+        tool.name === "subagent" && typeof metadata?.sessionID === "string" ? metadata.sessionID : undefined
       yield* bus.publish(SessionEvent.Tool.Failed, {
-        sessionID, assistantMessageID: message.id, id: tool.id,
-        error: { type: "aborted", message: `Tool execution interrupted: ${tool.name}${childID ? ` (sessionID: ${childID})` : ""}` },
+        sessionID,
+        assistantMessageID: message.id,
+        id: tool.id,
+        error: {
+          type: "aborted",
+          message: `Tool execution interrupted: ${tool.name}${childID ? ` (sessionID: ${childID})` : ""}`,
+        },
         ...(metadata && Object.keys(metadata).length > 0 ? { metadata } : {}),
         executed: tool.executed === true,
       })
     }
     if (message.attempts === undefined || message.attempts.length === 0) continue
-    const attempts = yield* Effect.forEach(message.attempts, (attempt) => Effect.gen(function* () {
-      const terminal = attempt.terminal ?? new SessionAttempt.Terminal({
-        status: options?.status ?? "interrupted",
-        ended: yield* Clock.currentTimeMillis,
-        outputStarted: attempt.observations.some((observation) => observation.outputStarted),
-        delivery: attempt.observations.findLast((observation) => observation.delivery !== undefined)?.delivery ?? "unknown",
-      })
-      if (attempt.terminal === undefined)
-        yield* bus.publish(SessionEvent.Attempt.Ended, { sessionID, assistantMessageID: message.id, ordinal: attempt.ordinal, terminal })
-      yield* goals.settleAttempt({ refs: attempt.goalRefs, usage: terminal.usage }).pipe(Effect.orDie)
-      return new SessionAttempt.Info({ ...attempt, terminal })
-    }))
-    if (message.unknownPriceAttempts !== undefined || message.missingUsageAttempts !== undefined || message.completion !== undefined) continue
+    const attempts = yield* Effect.forEach(message.attempts, (attempt) =>
+      Effect.gen(function* () {
+        const terminal =
+          attempt.terminal ??
+          new SessionAttempt.Terminal({
+            status: options?.status ?? "interrupted",
+            ended: yield* Clock.currentTimeMillis,
+            outputStarted: attempt.observations.some((observation) => observation.outputStarted),
+            delivery:
+              attempt.observations.findLast((observation) => observation.delivery !== undefined)?.delivery ?? "unknown",
+          })
+        if (attempt.terminal === undefined)
+          yield* bus.publish(SessionEvent.Attempt.Ended, {
+            sessionID,
+            assistantMessageID: message.id,
+            ordinal: attempt.ordinal,
+            terminal,
+          })
+        yield* goals.settleAttempt({ refs: attempt.goalRefs, usage: terminal.usage }).pipe(Effect.orDie)
+        return new SessionAttempt.Info({ ...attempt, terminal })
+      }),
+    )
+    if (
+      message.unknownPriceAttempts !== undefined ||
+      message.missingUsageAttempts !== undefined ||
+      message.completion !== undefined
+    )
+      continue
     const terminal = attempts.at(-1)?.terminal
     if (terminal === undefined) continue
     const usage = SessionUsage.aggregate(attempts)
     if (terminal.status === "completed" && unsettled.length === 0 && options?.error === undefined) {
       yield* bus.publish(SessionEvent.Step.Ended, {
-        sessionID, assistantMessageID: message.id, finish: terminal.finish ?? "unknown", rawFinish: terminal.rawFinish,
-        providerState: message.providerState, ...usage,
+        sessionID,
+        assistantMessageID: message.id,
+        finish: terminal.finish ?? "unknown",
+        rawFinish: terminal.rawFinish,
+        providerState: message.providerState,
+        ...usage,
       })
       continue
     }
     yield* bus.publish(SessionEvent.Step.Failed, {
-      sessionID, assistantMessageID: message.id,
+      sessionID,
+      assistantMessageID: message.id,
       error: options?.error ?? {
         type: terminal.failure === undefined ? "aborted" : "provider.unknown",
-        message: terminal.failure === undefined ? "Step interrupted before logical settlement" : `Model attempt failed: ${terminal.failure.reason}`,
+        message:
+          terminal.failure === undefined
+            ? "Step interrupted before logical settlement"
+            : `Model attempt failed: ${terminal.failure.reason}`,
       },
       finish: terminal.finish === "content-filter" ? "content-filter" : undefined,
       rawFinish: terminal.rawFinish,

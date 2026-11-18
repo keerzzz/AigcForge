@@ -53,9 +53,7 @@ export function StatsPoster(props: { stats: SessionStatsInfo }) {
   )
   const shades = createMemo(() => [
     theme.text.muted,
-    ...[0.3, 0.5, 0.75, 1].map((alpha) =>
-      tint(theme.background.base, theme.categorical[0][200], alpha),
-    ),
+    ...[0.3, 0.5, 0.75, 1].map((alpha) => tint(theme.background.base, theme.categorical[0][200], alpha)),
   ])
 
   return (
@@ -166,9 +164,7 @@ function StatsPage(props: { context: Plugin.Context; onClose: () => void }) {
       >
         <Show
           when={!result.error}
-          fallback={
-            <text fg={theme.text.feedback.error.base}>Could not load stats. Reopen /stats to try again.</text>
-          }
+          fallback={<text fg={theme.text.feedback.error.base}>Could not load stats. Reopen /stats to try again.</text>}
         >
           <Show when={result()} fallback={<text fg={theme.text.muted}>Gathering your stats…</text>}>
             {(value) => <StatsPoster stats={value()} />}

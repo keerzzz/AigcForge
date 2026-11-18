@@ -169,7 +169,6 @@ describe("Permission", () => {
       expect(yield* service.list()).toEqual([])
     }),
   )
-
   ;[false, true].forEach((hasSaved) => {
     it.effect(`Coding Session allow overrides Agent deny ${hasSaved ? "with" : "without"} saved approvals`, () =>
       Effect.gen(function* () {
@@ -240,7 +239,6 @@ describe("Permission", () => {
       expect(yield* service.list()).toEqual([])
     }),
   )
-
   ;[
     { name: "one resource", resources: ["secrets/token.txt"] },
     { name: "a denied resource last", resources: ["src/index.ts", "secrets/token.txt"] },
@@ -533,7 +531,6 @@ describe("Permission", () => {
       expect(yield* service.list()).toEqual([])
     }),
   )
-
   ;[true, false].forEach((hasAsk) => {
     it.effect(
       `unattended Coding denies ${hasAsk ? "Session ask rules" : "unmatched actions"} before saved approvals and hooks`,

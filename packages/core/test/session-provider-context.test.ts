@@ -154,7 +154,9 @@ it.effect("loads and replays a persisted pre-2.0.15 media checkpoint", () =>
     yield* s.compact(legacyContext)
     yield* s.prompt("continue")
     const history = yield* SessionHistory.load(s.db, sessionID, target)
-    expect(toLLMMessages(history, model.ref, model.model.provider, target).slice(0, 2)).toEqual([...SessionProviderContext.decode(legacyContext)])
+    expect(toLLMMessages(history, model.ref, model.model.provider, target).slice(0, 2)).toEqual([
+      ...SessionProviderContext.decode(legacyContext),
+    ])
     expect(history.some(SessionProviderContext.isCheckpoint)).toBe(true)
     const local = yield* SessionHistory.load(s.db, sessionID, "local")
     expect(local.some(SessionProviderContext.isCheckpoint)).toBe(false)
@@ -240,50 +242,93 @@ test("compatibility uses the actual deployment and endpoint rather than a catalo
 
 test("P4 matches configured and observed URL construction, including query and WebSocket transport, and rejects missing deployment proof", () => {
   const selected = {
-    ...model, connection: { type: "env" as const, name: "ACCOUNT_A" },
-    model: LanguageModel.update(model.model, { route: model.model.route.with({ endpoint: {
-      baseURL: "https://deployment.invalid/v1/", path: "/responses", query: { z: "last", a: "first" },
-    } }) }),
+    ...model,
+    connection: { type: "env" as const, name: "ACCOUNT_A" },
+    model: LanguageModel.update(model.model, {
+      route: model.model.route.with({
+        endpoint: {
+          baseURL: "https://deployment.invalid/v1/",
+          path: "/responses",
+          query: { z: "last", a: "first" },
+        },
+      }),
+    }),
   }
   const prepared = SessionProviderContext.provenance(selected)
   if (!prepared) throw new Error("The deployment fixture requires a concrete URL")
   const observed = SessionProviderContext.provenance(selected, "https://deployment.invalid/v1/responses?a=first&z=last")
   expect(SessionProviderContext.compatible(prepared, observed)).toBe(true)
-  expect(SessionProviderContext.compatible(prepared, SessionProviderContext.provenance(selected, "wss://deployment.invalid/v1/responses?z=last&a=first"))).toBe(true)
-  expect(SessionProviderContext.compatible(prepared, SessionProviderContext.provenance({ ...selected, connection: { type: "env", name: "ACCOUNT_B" } }))).toBe(false)
+  expect(
+    SessionProviderContext.compatible(
+      prepared,
+      SessionProviderContext.provenance(selected, "wss://deployment.invalid/v1/responses?z=last&a=first"),
+    ),
+  ).toBe(true)
+  expect(
+    SessionProviderContext.compatible(
+      prepared,
+      SessionProviderContext.provenance({ ...selected, connection: { type: "env", name: "ACCOUNT_B" } }),
+    ),
+  ).toBe(false)
   expect(SessionProviderContext.compatible({ ...prepared, deployment: undefined }, prepared)).toBe(false)
   const anonymous = SessionProviderContext.provenance({ ...selected, connection: undefined })
   expect(anonymous?.deployment).toBeDefined()
-  expect(anonymous && SessionProviderContext.compatible(anonymous, SessionProviderContext.provenance({ ...selected, connection: undefined }))).toBe(true)
-  expect(SessionProviderContext.compatible(prepared, SessionProviderContext.provenance(selected, "https://other-deployment.invalid/v1/responses?a=first&z=last"))).toBe(false)
+  expect(
+    anonymous &&
+      SessionProviderContext.compatible(
+        anonymous,
+        SessionProviderContext.provenance({ ...selected, connection: undefined }),
+      ),
+  ).toBe(true)
+  expect(
+    SessionProviderContext.compatible(
+      prepared,
+      SessionProviderContext.provenance(selected, "https://other-deployment.invalid/v1/responses?a=first&z=last"),
+    ),
+  ).toBe(false)
 })
 
-it.effect("P4 expands original readable history when a native checkpoint's connection or deployment proof is incompatible", () => Effect.gen(function* () {
-  const s = yield* setup
-  yield* s.prepare
-  yield* s.prompt("Original readable request")
-  const proof = SessionProviderContext.provenance({ ...model, connection: { type: "env", name: "ACCOUNT_A" } })
-  if (!proof) return yield* Effect.die(new Error("The native fixture requires a proven endpoint"))
-  yield* s.bus.publish(SessionEvent.Compaction.Started, { sessionID, reason: "manual", recent: "" })
-  yield* s.compact(SessionProviderContext.encode(proof, replacement))
-  yield* s.prompt("Continue visibly")
-  expect((yield* s.load(proof)).entries.some((entry) => SessionProviderContext.isCheckpoint(entry.message))).toBe(true)
-  for (const boundary of [
-    { ...proof, connection: { type: "env" as const, name: "ACCOUNT_B" } },
-    { ...proof, deployment: undefined },
-  ]) {
-    const expanded = yield* s.load(boundary)
-    expect(expanded.entries.map((entry) => entry.message.type)).toEqual(["user", "user"])
-    expect(toLLMMessages(expanded.entries.map((entry) => entry.message), model.ref, model.model.provider, boundary).map((message) => message.content))
-      .toEqual([[Message.text("Original readable request")], [Message.text("Continue visibly")]])
-  }
-  const historical = { ...proof, deployment: undefined }
-  yield* s.bus.publish(SessionEvent.Compaction.Started, { sessionID, reason: "manual", recent: "" })
-  yield* s.compact(SessionProviderContext.encode(historical, replacement))
-  const preserved = yield* s.load("latest")
-  expect(preserved.entries.some((entry) => SessionProviderContext.isCheckpoint(entry.message))).toBe(true)
-  expect((yield* s.load(proof)).entries[0]?.message).toMatchObject({ type: "compaction", providerContext: { provenance: proof } })
-}))
+it.effect(
+  "P4 expands original readable history when a native checkpoint's connection or deployment proof is incompatible",
+  () =>
+    Effect.gen(function* () {
+      const s = yield* setup
+      yield* s.prepare
+      yield* s.prompt("Original readable request")
+      const proof = SessionProviderContext.provenance({ ...model, connection: { type: "env", name: "ACCOUNT_A" } })
+      if (!proof) return yield* Effect.die(new Error("The native fixture requires a proven endpoint"))
+      yield* s.bus.publish(SessionEvent.Compaction.Started, { sessionID, reason: "manual", recent: "" })
+      yield* s.compact(SessionProviderContext.encode(proof, replacement))
+      yield* s.prompt("Continue visibly")
+      expect((yield* s.load(proof)).entries.some((entry) => SessionProviderContext.isCheckpoint(entry.message))).toBe(
+        true,
+      )
+      for (const boundary of [
+        { ...proof, connection: { type: "env" as const, name: "ACCOUNT_B" } },
+        { ...proof, deployment: undefined },
+      ]) {
+        const expanded = yield* s.load(boundary)
+        expect(expanded.entries.map((entry) => entry.message.type)).toEqual(["user", "user"])
+        expect(
+          toLLMMessages(
+            expanded.entries.map((entry) => entry.message),
+            model.ref,
+            model.model.provider,
+            boundary,
+          ).map((message) => message.content),
+        ).toEqual([[Message.text("Original readable request")], [Message.text("Continue visibly")]])
+      }
+      const historical = { ...proof, deployment: undefined }
+      yield* s.bus.publish(SessionEvent.Compaction.Started, { sessionID, reason: "manual", recent: "" })
+      yield* s.compact(SessionProviderContext.encode(historical, replacement))
+      const preserved = yield* s.load("latest")
+      expect(preserved.entries.some((entry) => SessionProviderContext.isCheckpoint(entry.message))).toBe(true)
+      expect((yield* s.load(proof)).entries[0]?.message).toMatchObject({
+        type: "compaction",
+        providerContext: { provenance: proof },
+      })
+    }),
+)
 
 it.effect(
   "advances the native instruction epoch and omits superseded chronological updates after durable replay and provider switches",

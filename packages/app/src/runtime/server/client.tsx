@@ -132,7 +132,10 @@ type ServerTransport = Readonly<Pick<ServerSDKBase, "url" | "api" | "pty">> & {
   update(http: ServerConnection.HttpBase): ServerApi
 }
 
-export function createServerTransport(input: { http: ServerConnection.HttpBase; fetch?: Parameters<typeof createRequestQueue>[0]["fetch"] }): ServerTransport {
+export function createServerTransport(input: {
+  http: ServerConnection.HttpBase
+  fetch?: Parameters<typeof createRequestQueue>[0]["fetch"]
+}): ServerTransport {
   const queue = createRequestQueue({ fetch: input.fetch ?? globalThis.fetch })
 
   const build = (http: ServerConnection.HttpBase) => {

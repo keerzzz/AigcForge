@@ -1,11 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:deepgram-speech",
-      "provider:deepgram",
-      "protocol:deepgram-speech"
-    ],
+    "tags": ["prefix:deepgram-speech", "provider:deepgram", "protocol:deepgram-speech"],
     "name": "deepgram-speech/streams-speech",
     "recordedAt": "2026-09-23T10:10:12.852Z"
   },

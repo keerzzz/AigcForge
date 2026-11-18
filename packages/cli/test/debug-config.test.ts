@@ -68,7 +68,12 @@ describe("debug config command", () => {
       await fs.mkdir(path.dirname(registration), { recursive: true })
       await fs.writeFile(
         registration,
-        JSON.stringify({ version: AIGCFROGE_VERSION, url: server.url.toString(), pid: process.pid, password: "secret" }),
+        JSON.stringify({
+          version: AIGCFROGE_VERSION,
+          url: server.url.toString(),
+          pid: process.pid,
+          password: "secret",
+        }),
       )
       const result = await cli(["debug", "config"], project, { XDG_STATE_HOME: path.join(root, "state") })
 

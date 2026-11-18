@@ -250,23 +250,20 @@ export const layer = Layer.effect(
       })
       if (Option.isNone(occurrence)) return yield* new InvalidSourceError({ reason: "step_unverified" })
       const event = occurrence.value
-      const modelStarted = event.type === SessionEvent.Step.Started.type || event.type === SessionEvent.Attempt.Started.type
+      const modelStarted =
+        event.type === SessionEvent.Step.Started.type || event.type === SessionEvent.Attempt.Started.type
       if (
         event.data.sessionID !== source.id ||
         event.data.assistantMessageID !== step.assistant_message_id ||
         ("id" in event.data ? event.data.id : null) !== step.tool_call_id ||
-        step.status !==
-          (modelStarted || event.type === SessionEvent.Tool.Called.type
-            ? "running"
-            : "completed")
+        step.status !== (modelStarted || event.type === SessionEvent.Tool.Called.type ? "running" : "completed")
       )
         return yield* new InvalidSourceError({ reason: "step_unverified" })
       if (modelStarted && controller.kind === "root" && event.data.agent !== "meta")
         return yield* new InvalidSourceError({ reason: "step_unverified" })
       if (retained) return
       // Without event retention, only an exact producer projection verifies this occurrence.
-      if (!modelStarted)
-        return yield* new InvalidSourceError({ reason: "step_unverified" })
+      if (!modelStarted) return yield* new InvalidSourceError({ reason: "step_unverified" })
       const row = yield* db
         .select()
         .from(SessionMessageTable)

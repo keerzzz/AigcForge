@@ -978,13 +978,14 @@ export function Session(props: {
         void data.session
           .compact({
             sessionID: route.sessionID,
-            model: selection && !isModelGroup(selection)
-              ? {
-                  providerID: selection.providerID,
-                  id: selection.modelID,
-                  variant: local.model.variant.current(),
-                }
-              : undefined,
+            model:
+              selection && !isModelGroup(selection)
+                ? {
+                    providerID: selection.providerID,
+                    id: selection.modelID,
+                    variant: local.model.variant.current(),
+                  }
+                : undefined,
           })
           .catch((error) => toast.show({ message: errorMessage(error), variant: "error" }))
         dialog.clear()
@@ -1468,9 +1469,7 @@ export function Session(props: {
                   onMouseOut={() => setLatestHovered(false)}
                   onMouseUp={toBottom}
                 >
-                  <text
-                    fg={latestHovered() ? theme.text.action.secondary.hovered : theme.text.action.secondary.base}
-                  >
+                  <text fg={latestHovered() ? theme.text.action.secondary.hovered : theme.text.action.secondary.base}>
                     Jump to latest ↓
                   </text>
                 </box>
@@ -1516,12 +1515,7 @@ export function Session(props: {
                     }}
                   </Show>
                 </Match>
-                <Match
-                  when={
-                    session() &&
-                    currentLocation.error?.location.directory === session()!.location.directory
-                  }
-                >
+                <Match when={session() && currentLocation.error?.location.directory === session()!.location.directory}>
                   <SessionLocationMissing
                     directory={session()!.location.directory}
                     projectID={session()!.projectID}
@@ -1970,7 +1964,12 @@ function SessionSwitchMessageV2(props: { message: SessionMessageInfo }) {
       return `Switched agent to ${agent}`
     }
     if (props.message.type === "model-switched")
-      return switchLabel(props.message.model, ctx.models(), props.message.previous, data.location.model.group.definition.list(location.ref)?.effective)
+      return switchLabel(
+        props.message.model,
+        ctx.models(),
+        props.message.previous,
+        data.location.model.group.definition.list(location.ref)?.effective,
+      )
     return ""
   }
   return (
@@ -1989,7 +1988,9 @@ function SessionNoticeMessageV2(props: { message: SessionMessageInfo }) {
   const [hover, setHover] = createSignal(false)
   const metadata = () => (props.message.type === "synthetic" ? props.message.metadata : undefined)
   const source = () => stringValue(metadata()?.source)
-  const communicationID = createMemo(() => Schema.decodeUnknownOption(Schema.Struct({ id: SessionCommunication.ID }))(metadata()?.communication))
+  const communicationID = createMemo(() =>
+    Schema.decodeUnknownOption(Schema.Struct({ id: SessionCommunication.ID }))(metadata()?.communication),
+  )
   const task = createMemo(() => Schema.decodeUnknownOption(SessionTask.TaskCoordination)(metadata()?.coordination))
   const communication = createMemo(() => {
     const record = Schema.decodeUnknownOption(SessionCommunication.Record)(metadata()?.communication)
@@ -2000,21 +2001,29 @@ function SessionNoticeMessageV2(props: { message: SessionMessageInfo }) {
   })
   createEffect(() => {
     const id = communicationID()
-    if (Option.isSome(id) && !communication()) void data.session.communication.readback(ctx.sessionID, id.value.id).catch(() => {})
+    if (Option.isSome(id) && !communication())
+      void data.session.communication.readback(ctx.sessionID, id.value.id).catch(() => {})
   })
   const goal = createMemo(() => Schema.decodeUnknownOption(SessionGoal.RoundRef)(metadata()?.goalRound))
   const relation = () => {
     const record = communication()
     if (record) {
       const title = (id: string) => data.session.get(id)?.title ?? id
-      const content = record.contentSource.sessionID === record.actor.sessionID ? "" : ` · content from ${title(record.contentSource.sessionID)}`
+      const content =
+        record.contentSource.sessionID === record.actor.sessionID
+          ? ""
+          : ` · content from ${title(record.contentSource.sessionID)}`
       return `${record.actor.type === "system" ? "Result" : "Message"} from ${title(record.actor.sessionID)} to ${title(record.targetSessionID)}${content}${record.replyTo ? ` · reply to ${record.replyTo}` : ""}`
     }
     const coordination = task()
-    if (Option.isSome(coordination)) return `Task ${coordination.value.operationRef.operationID} · ${coordination.value.actorAgent} ${coordination.value.actorSessionID} · target ${coordination.value.targetSessionID}`
+    if (Option.isSome(coordination))
+      return `Task ${coordination.value.operationRef.operationID} · ${coordination.value.actorAgent} ${coordination.value.actorSessionID} · target ${coordination.value.targetSessionID}`
     const round = goal()
-    if (Option.isSome(round)) return `Goal ${round.value.goalID} · revision ${round.value.revision} · round ${round.value.roundID}`
-    return source() === "share" ? `Shared by ${stringValue(metadata()?.actorSessionID) ?? ctx.sessionID} · content from ${stringValue(metadata()?.contentSourceSessionID) ?? stringValue(metadata()?.sourceSessionID) ?? ctx.sessionID}` : undefined
+    if (Option.isSome(round))
+      return `Goal ${round.value.goalID} · revision ${round.value.revision} · round ${round.value.roundID}`
+    return source() === "share"
+      ? `Shared by ${stringValue(metadata()?.actorSessionID) ?? ctx.sessionID} · content from ${stringValue(metadata()?.contentSourceSessionID) ?? stringValue(metadata()?.sourceSessionID) ?? ctx.sessionID}`
+      : undefined
   }
   const completion = () => source() === "subagent" || source() === "shell"
   const childID = () => (source() === "subagent" ? stringValue(metadata()?.childID) : undefined)
@@ -2817,9 +2826,7 @@ function BlockTool(props: BlockToolProps) {
               <Show
                 when={props.spinner}
                 fallback={
-                  <text
-                    fg={permission() ? theme.text.feedback.warning.base : (props.headerColor ?? theme.text.muted)}
-                  >
+                  <text fg={permission() ? theme.text.feedback.warning.base : (props.headerColor ?? theme.text.muted)}>
                     {title()}
                   </text>
                 }
@@ -3007,11 +3014,7 @@ function ShellDisplay(props: {
           <Show
             when={isRunning()}
             fallback={
-              <text
-                fg={theme.text.base}
-                wrapMode={expanded() ? "word" : "char"}
-                maxHeight={expanded() ? undefined : 2}
-              >
+              <text fg={theme.text.base} wrapMode={expanded() ? "word" : "char"} maxHeight={expanded() ? undefined : 2}>
                 {limitedInput()}
               </text>
             }
@@ -3112,7 +3115,9 @@ function Read(props: ToolProps) {
         Read {pathFormatter.format(stringValue(props.input.path))}
         <Show when={props.input.offset !== undefined || props.input.limit !== undefined}>
           :{finiteNumber(props.input.offset) || 1}-
-          {props.input.limit ? (finiteNumber(props.input.offset) || 1) + (finiteNumber(props.input.limit) || 0) - 1 : ""}
+          {props.input.limit
+            ? (finiteNumber(props.input.offset) || 1) + (finiteNumber(props.input.limit) || 0) - 1
+            : ""}
         </Show>
       </InlineTool>
       <For each={loaded()}>

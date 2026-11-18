@@ -29,7 +29,11 @@ export function AssistantAttemptsPopover(props: { messages: readonly SessionMess
         triggerProps={{ variant: "ghost", size: "small", "aria-label": title() }}
         trigger={<Icon name="info" size="small" />}
         class="flex min-h-0 flex-col [&>[data-slot=popover-body]]:min-h-0 [&>[data-slot=popover-body]]:overflow-y-auto"
-        style={{ "max-width": "min(560px, calc(100vw - 24px))", width: "560px", "max-height": "min(70dvh, 640px, var(--kb-popper-content-available-height))" }}
+        style={{
+          "max-width": "min(560px, calc(100vw - 24px))",
+          width: "560px",
+          "max-height": "min(70dvh, 640px, var(--kb-popper-content-available-height))",
+        }}
       >
         <Show when={state.open}>
           <div class="flex min-w-0 flex-col gap-4">

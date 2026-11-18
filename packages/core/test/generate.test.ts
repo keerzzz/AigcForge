@@ -69,17 +69,31 @@ const resolver = ModelResolver.layer.pipe(Layer.provide(Layer.mergeAll(providers
 const it = testEffect(Generate.layer.pipe(Layer.provide(Layer.merge(resolver, client))))
 const resolverIt = testEffect(resolver)
 
-const unavailableGroup = ModelResolver.layer.pipe(Layer.provide(Layer.mergeAll(
-  providers, integrations, npm, aisdk,
-  Layer.mock(Model.Service, { default: () => new ModelGroup.UnavailableError({ groupID: Model.GroupID.make("default-group"), reason: "no-candidates" }) }),
-)))
-testEffect(Generate.layer.pipe(Layer.provideMerge(client), Layer.provide(unavailableGroup))).effect("reports an unavailable Group default without issuing an auxiliary completion", () => Effect.gen(function* () {
-  const generate = yield* Generate.Service
-  const error = yield* generate.text({ prompt: "Generate a short summary" }).pipe(Effect.flip)
-  expect(error).toBeInstanceOf(Generate.UnavailableError)
-  expect(error.message).toContain('Model group "default-group" is unavailable: no-candidates')
-  expect(yield* TestLLM.Test.use((llm) => llm.requests())).toEqual([])
-}))
+const unavailableGroup = ModelResolver.layer.pipe(
+  Layer.provide(
+    Layer.mergeAll(
+      providers,
+      integrations,
+      npm,
+      aisdk,
+      Layer.mock(Model.Service, {
+        default: () =>
+          new ModelGroup.UnavailableError({ groupID: Model.GroupID.make("default-group"), reason: "no-candidates" }),
+      }),
+    ),
+  ),
+)
+testEffect(Generate.layer.pipe(Layer.provideMerge(client), Layer.provide(unavailableGroup))).effect(
+  "reports an unavailable Group default without issuing an auxiliary completion",
+  () =>
+    Effect.gen(function* () {
+      const generate = yield* Generate.Service
+      const error = yield* generate.text({ prompt: "Generate a short summary" }).pipe(Effect.flip)
+      expect(error).toBeInstanceOf(Generate.UnavailableError)
+      expect(error.message).toContain('Model group "default-group" is unavailable: no-candidates')
+      expect(yield* TestLLM.Test.use((llm) => llm.requests())).toEqual([])
+    }),
+)
 
 it.effect("loads dynamic AI SDK models", () =>
   Effect.gen(function* () {

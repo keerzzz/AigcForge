@@ -1,11 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:google-interactions",
-      "provider:google",
-      "protocol:google-interactions"
-    ],
+    "tags": ["prefix:google-interactions", "provider:google", "protocol:google-interactions"],
     "name": "google-interactions/streams-text-and-reports-usage",
     "recordedAt": "2026-10-03T18:08:32.334Z"
   },

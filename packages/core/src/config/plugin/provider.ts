@@ -57,11 +57,18 @@ export const Plugin = define({
     yield* ctx.provider.transform((providers) => {
       const next = new Map<ConfigProvider.Info, SourceDefinition>()
       const configured = configuredProviders(loaded.entries)
-      discovery?.setDefaults(providers.list().map((record) => record.provider), providers.scope)
+      discovery?.setDefaults(
+        providers.list().map((record) => record.provider),
+        providers.scope,
+      )
       // An unfinished lower layer also suspends the instance while its credential
       // is changing; a higher layer must not expose that credential prematurely.
-      const pending = new Set(configured.filter(([, item]) => item.adoption && item.adoption.phase !== "ready").map(([id]) => id))
-      const disabled = new Map(configured.flatMap(([id, item]) => item.disabled === undefined ? [] : [[id, item.disabled] as const]))
+      const pending = new Set(
+        configured.filter(([, item]) => item.adoption && item.adoption.phase !== "ready").map(([id]) => id),
+      )
+      const disabled = new Map(
+        configured.flatMap(([id, item]) => (item.disabled === undefined ? [] : [[id, item.disabled] as const])),
+      )
       for (const [id, item] of configured) {
         const providerID = id
         const current = providers.get(providerID)
@@ -159,11 +166,19 @@ export const Plugin = define({
             if (config.disabled !== undefined) model.enabled = !config.disabled
             if (config.limit !== undefined) model.limit = { ...model.limit, ...config.limit }
             if (config.quote !== undefined) {
-              model.metadata = { ...model.metadata, quote: config.quote.status === "unknown" ? config.quote : {
-                ...config.quote, prices: config.quote.prices.map((cost) => ({ ...cost, cache: { ...cost.cache } })),
-              } }
+              model.metadata = {
+                ...model.metadata,
+                quote:
+                  config.quote.status === "unknown"
+                    ? config.quote
+                    : {
+                        ...config.quote,
+                        prices: config.quote.prices.map((cost) => ({ ...cost, cache: { ...cost.cache } })),
+                      },
+              }
               model.origins = { ...model.origins, quote: "user" }
-              if (config.quote.status !== "unknown") model.cost = config.quote.prices.map((cost) => ({ ...cost, cache: { ...cost.cache } }))
+              if (config.quote.status !== "unknown")
+                model.cost = config.quote.prices.map((cost) => ({ ...cost, cache: { ...cost.cache } }))
             }
           })
           if (config.variants === undefined && !source?.base)
@@ -179,11 +194,23 @@ export const Plugin = define({
       }
       if (discovery) {
         for (const [providerID, ids] of Map.groupBy(
-          Array.from(definitions, ([item, definition]) => Object.keys(item.models ?? {}).map((id) => ({ providerID: definition.providerID, id }))).flat(),
+          Array.from(definitions, ([item, definition]) =>
+            Object.keys(item.models ?? {}).map((id) => ({ providerID: definition.providerID, id })),
+          ).flat(),
           (member) => member.providerID,
         )) {
           for (const id of new Set(ids.map((member) => member.id))) {
-            models.update(Provider.ID.make(providerID), Model.ID.make(id), (model) => discovery.apply(Provider.ID.make(providerID), Model.ID.make(id), model, models.connection(models.provider.get(Provider.ID.make(providerID))?.provider.integrationID ?? Integration.ID.make(providerID))))
+            models.update(Provider.ID.make(providerID), Model.ID.make(id), (model) =>
+              discovery.apply(
+                Provider.ID.make(providerID),
+                Model.ID.make(id),
+                model,
+                models.connection(
+                  models.provider.get(Provider.ID.make(providerID))?.provider.integrationID ??
+                    Integration.ID.make(providerID),
+                ),
+              ),
+            )
           }
         }
       }

@@ -701,7 +701,12 @@ describe("run interactive runtime", () => {
     expect(defaultModel).toHaveBeenCalledTimes(1)
     selected.resolve({
       location: { directory: "/tmp" },
-      data: { targets: [], definitions: [], effective: [], defaultSelection: { providerID: model.providerID, id: model.id } },
+      data: {
+        targets: [],
+        definitions: [],
+        effective: [],
+        defaultSelection: { providerID: model.providerID, id: model.id },
+      },
     })
     await defaultModelReloaded.promise
     await modelShown.promise

@@ -11,10 +11,12 @@ let customThemes: Record<string, ThemeDocumentSource> = {}
 let systemTheme: ThemeDocumentSource | undefined
 const listeners = new Set<(themes: Record<string, ThemeDocumentSource>) => void>()
 const parsed = new WeakMap<object, ThemeDocument>()
-let aigcfrogeTheme: (ThemeDocument & {
-  readonly light: ModeDefinition
-  readonly dark: ModeDefinition
-}) | undefined
+let aigcfrogeTheme:
+  | (ThemeDocument & {
+      readonly light: ModeDefinition
+      readonly dark: ModeDefinition
+    })
+  | undefined
 
 export function getAigcForgeTheme() {
   if (aigcfrogeTheme) return aigcfrogeTheme

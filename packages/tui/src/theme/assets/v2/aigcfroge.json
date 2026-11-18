@@ -1,13 +1,7 @@
 {
   "$schema": "https://aigcfroge.ai/theme.json",
   "base": {
-    "categorical": [
-      "blue",
-      "purple",
-      "green",
-      "orange",
-      "red"
-    ],
+    "categorical": ["blue", "purple", "green", "orange", "red"],
     "text": {
       "base": "$hue.neutral.200",
       "muted": "$hue.neutral.400",
@@ -240,13 +234,7 @@
       "interactive": "$hue.blue",
       "neutral": "$hue.gray"
     },
-    "categorical": [
-      "purple",
-      "orange",
-      "green",
-      "blue",
-      "red"
-    ],
+    "categorical": ["purple", "orange", "green", "blue", "red"],
     "text": {
       "action": {
         "primary": {

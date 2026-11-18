@@ -36,39 +36,39 @@
 
 H编号只是研究引用键，不是第二套任务/功能完成ID。每项须在B01矩阵映射既有账本ID与实际消费者；有新缺口再在原账本登记，不能用表中“采纳”当作已交付。
 
-| 键 | 原文与理解 | 结论及 V2 映射 |
-| --- | --- | --- |
-| H01 | 7–19：万物皆插件/Cordis | dsh官方文档支持。采纳可组合接缝思想，复用V2 Effect、GUI Extension/Contract/生命周期，不移植Cordis核心 |
-| H02 | 59–93、403–409：所有工具/资产/UI都变AgentNode、每个节点独立queue/loop | 这是构想而非dsh事实；拒绝强制统一包装。工具、资产、UI、模型、委派保留各自typed合同；Session持有模型循环 |
-| H03 | 83、262、386：卸载“无损”回收 | 采纳注册/监听/句柄/受监督工作的释放与取消；不撤销已完成文件/网络/进程副作用，不保证资源零泄漏，B04/B07查真实Scope与generation |
-| H04 | 85、158、385、556：全消息追加日志、任意毫秒fork/replay、100%确定还原 | 拒绝保证。dsh本身区分durable facts/live events，硬崩溃结算前流可缺失；V2依投影/claim有界恢复，非exactly-once，fork不是任意时点配置还原 |
-| H05 | 87、187–200：SAP替代Tool Schema、全组件只经新总线通信 | 不采纳新SAP/万能消息bus。参考声明身份/依赖/作用域/生命周期，复用现有Schema/Protocol/Tool/GUI Contract/Delegation，按能力写适配 |
-| H06 | 89–93、168–175：dsh四大Minimal/Standard/Swarm/Genesis模式 | 官方当前是web/headless/sdk/sdk-minimal/acp profiles与bundle/patch，并非原文四个Product Mode；不新增或重命名五模式 |
-| H07 | 101–113：100%配置替换、<1.5s冷启、硬件级读写开关、无缝外部桥 | 未证明指标/保证，不直接立门禁。配置按现有Config/Profile解析；权限软件策略不等于硬隔离；外部桥按实际transport；性能按同条件测量 |
-| H08 | 109、204–255：settings.yaml/.credentials.yaml、AIA_HOME与兼容字段 | 示例不是V2规范。不引入第二配置/凭据系统；版本与秘密引用沿现有owner，provider字段按真实AI路由lowering/Schema核对 |
-| H09 | 263：启动时强制Preflight Ping | 不默认采纳有费用/网络副作用的启动请求。先本地Schema/来源/能力/凭据可用性诊断；必要真实调用显式授权预算，失败有typed原因，B09核对 |
-| H10 | 291、299、352、356：llm等于ai、Effect零泄漏/比Cordis更强、已完成70% | 名称/时点与宣传性推断不能作为证据。区分默认17包与当前V2 25包，组件/工具/依赖身份按manifest和源码，功能进度按矩阵与验收 |
-| H11 | 365、392–405：Composition吞并模式、Custom成为唯一执行引擎 | 修正为组合解析/冻结与Session执行分开；Coding也消费共同底座，但不把Custom特定meta根策略推广给普通模式，B04/B06渐进提取 |
-| H12 | 442、466、502、554、653：build拥有唯一运行循环/不可替代所有owner | 原文生成审批过度推导。Coding/build是能力回归与复用参考，不是所有业务owner；当前运行循环在Core SessionRunner，不能隐式挂build或绕过V2 AI |
-| H13 | 444、475、528、613：固定21节点/去重解释、路径检查等于协议合规 | 固定数量与去重说法未证明；路径存在只证明存在。按当前文件索引、权威/引用/事实/授权审查，不把默认check脚本当V2现成门禁 |
-| H14 | 558–563：合并资产结构、预设新增字段、旧HttpApi/--v2-*路径 | 不按相似结构合并不同领域、不预造subagents/synergyPolicies/assetBindings字段。公共Schema/Protocol/Client、资产消费者和V2UI Token/图标接缝各自复用 |
-| H15 | 31–33、261、638、663–669：调度/轨迹/DevTools | 采纳可观察的状态/结果/故障定位目标，沿Session/Job/Task/Workflow/Delegation、已有UI/trace读模型；不新建轨迹库，不把临时流全持久化或输出原始秘密/prompt |
-| H16 | 648、658、669：第六模式/固定64px/统一三栏/Genesis热编译 | 用户已选择保留五模式、审阅后采用。Home/领域工作台共用宿主但按真实任务差异布局；不直接采纳像素或热编译，不新增EiaA路由 |
-| H17 | 654：切模式本质为修改DraftTab.mode | 与实际产品合同冲突，拒绝。Home筛选、mode导航、Draft身份、持久Session mode和工作位置分开；导航不隐式修改草稿/Agent或创建工作，B03 |
-| H18 | 335–339、661–668：Chat仅双资产、Assistant是剪贴板/终端页、Work固定12岗位 | 不替代已有功能范围。保留七资产、个人长期记忆/Notes/KB/提醒、真实Task/Review/调度/Workflow；岗位数与新首页功能不是已批准范围 |
+| 键  | 原文与理解                                                               | 结论及 V2 映射                                                                                                                                        |
+| --- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| H01 | 7–19：万物皆插件/Cordis                                                  | dsh官方文档支持。采纳可组合接缝思想，复用V2 Effect、GUI Extension/Contract/生命周期，不移植Cordis核心                                                 |
+| H02 | 59–93、403–409：所有工具/资产/UI都变AgentNode、每个节点独立queue/loop    | 这是构想而非dsh事实；拒绝强制统一包装。工具、资产、UI、模型、委派保留各自typed合同；Session持有模型循环                                               |
+| H03 | 83、262、386：卸载“无损”回收                                             | 采纳注册/监听/句柄/受监督工作的释放与取消；不撤销已完成文件/网络/进程副作用，不保证资源零泄漏，B04/B07查真实Scope与generation                         |
+| H04 | 85、158、385、556：全消息追加日志、任意毫秒fork/replay、100%确定还原     | 拒绝保证。dsh本身区分durable facts/live events，硬崩溃结算前流可缺失；V2依投影/claim有界恢复，非exactly-once，fork不是任意时点配置还原                |
+| H05 | 87、187–200：SAP替代Tool Schema、全组件只经新总线通信                    | 不采纳新SAP/万能消息bus。参考声明身份/依赖/作用域/生命周期，复用现有Schema/Protocol/Tool/GUI Contract/Delegation，按能力写适配                        |
+| H06 | 89–93、168–175：dsh四大Minimal/Standard/Swarm/Genesis模式                | 官方当前是web/headless/sdk/sdk-minimal/acp profiles与bundle/patch，并非原文四个Product Mode；不新增或重命名五模式                                     |
+| H07 | 101–113：100%配置替换、<1.5s冷启、硬件级读写开关、无缝外部桥             | 未证明指标/保证，不直接立门禁。配置按现有Config/Profile解析；权限软件策略不等于硬隔离；外部桥按实际transport；性能按同条件测量                        |
+| H08 | 109、204–255：settings.yaml/.credentials.yaml、AIA_HOME与兼容字段        | 示例不是V2规范。不引入第二配置/凭据系统；版本与秘密引用沿现有owner，provider字段按真实AI路由lowering/Schema核对                                       |
+| H09 | 263：启动时强制Preflight Ping                                            | 不默认采纳有费用/网络副作用的启动请求。先本地Schema/来源/能力/凭据可用性诊断；必要真实调用显式授权预算，失败有typed原因，B09核对                      |
+| H10 | 291、299、352、356：llm等于ai、Effect零泄漏/比Cordis更强、已完成70%      | 名称/时点与宣传性推断不能作为证据。区分默认17包与当前V2 25包，组件/工具/依赖身份按manifest和源码，功能进度按矩阵与验收                                |
+| H11 | 365、392–405：Composition吞并模式、Custom成为唯一执行引擎                | 修正为组合解析/冻结与Session执行分开；Coding也消费共同底座，但不把Custom特定meta根策略推广给普通模式，B04/B06渐进提取                                 |
+| H12 | 442、466、502、554、653：build拥有唯一运行循环/不可替代所有owner         | 原文生成审批过度推导。Coding/build是能力回归与复用参考，不是所有业务owner；当前运行循环在Core SessionRunner，不能隐式挂build或绕过V2 AI               |
+| H13 | 444、475、528、613：固定21节点/去重解释、路径检查等于协议合规            | 固定数量与去重说法未证明；路径存在只证明存在。按当前文件索引、权威/引用/事实/授权审查，不把默认check脚本当V2现成门禁                                  |
+| H14 | 558–563：合并资产结构、预设新增字段、旧HttpApi/--v2-\*路径               | 不按相似结构合并不同领域、不预造subagents/synergyPolicies/assetBindings字段。公共Schema/Protocol/Client、资产消费者和V2UI Token/图标接缝各自复用      |
+| H15 | 31–33、261、638、663–669：调度/轨迹/DevTools                             | 采纳可观察的状态/结果/故障定位目标，沿Session/Job/Task/Workflow/Delegation、已有UI/trace读模型；不新建轨迹库，不把临时流全持久化或输出原始秘密/prompt |
+| H16 | 648、658、669：第六模式/固定64px/统一三栏/Genesis热编译                  | 用户已选择保留五模式、审阅后采用。Home/领域工作台共用宿主但按真实任务差异布局；不直接采纳像素或热编译，不新增EiaA路由                                 |
+| H17 | 654：切模式本质为修改DraftTab.mode                                       | 与实际产品合同冲突，拒绝。Home筛选、mode导航、Draft身份、持久Session mode和工作位置分开；导航不隐式修改草稿/Agent或创建工作，B03                      |
+| H18 | 335–339、661–668：Chat仅双资产、Assistant是剪贴板/终端页、Work固定12岗位 | 不替代已有功能范围。保留七资产、个人长期记忆/Notes/KB/提醒、真实Task/Review/调度/Workflow；岗位数与新首页功能不是已批准范围                           |
 
 ## 4. 可采纳的核心：能力接缝三角色
 
 dsh官方把可替换能力分为Service Definition、Service Provider、Consumer；只有名字或接口不构成完整能力。将这一检查法放入V2复用表，而不是新增一套统一运行时：
 
-| 关注点 | V2现有候选 | 必须核验 |
-| --- | --- | --- |
-| 身份/依赖/组合 | Composition/Profile/Plan、Plugin来源、GUI Extension.compose/Contract | 来源版本、解析绑定、依赖诊断、候选与实际生效身份；typed责任不混合 |
-| 执行与权限 | SessionContext/Runner、Tool/Permission、Location服务 | 唯一执行owner、catalog与执行实现同源、权限逐次、失败取消与未知副作用 |
-| 生命周期 | Effect Scope/Fiber、Plugin generation、GUI setup/createKeyed/Live | 注册撤销/取消、迟到响应、provider失败/恢复、stored state等待加载与版本漂移 |
-| 轨迹与读模型 | Session消息/事件/Instructions状态、输入结果、Job/Task/Delegation/Workflow | durable事实与live输出分开、相关身份/attempt/result、脱敏、恢复依据，不重复持久化 |
-| Creator与资产 | 七类proposal/validation/CAS/placement、Profile/Composition与GUI审阅 | 生成不生效、确认/CAS保存、版本追踪、发现/实际消费、显式采用、引用删除/旧会话保护 |
-| 异构协作/执行环境 | Delegation/subagent/外部CLI、现有FS/subprocess/PTY/Location | 真实provider与消费者的配套能力、隔离/路径/凭据/取消/receipt；不假定无缝桥接或任意热替换 |
+| 关注点            | V2现有候选                                                                | 必须核验                                                                                |
+| ----------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| 身份/依赖/组合    | Composition/Profile/Plan、Plugin来源、GUI Extension.compose/Contract      | 来源版本、解析绑定、依赖诊断、候选与实际生效身份；typed责任不混合                       |
+| 执行与权限        | SessionContext/Runner、Tool/Permission、Location服务                      | 唯一执行owner、catalog与执行实现同源、权限逐次、失败取消与未知副作用                    |
+| 生命周期          | Effect Scope/Fiber、Plugin generation、GUI setup/createKeyed/Live         | 注册撤销/取消、迟到响应、provider失败/恢复、stored state等待加载与版本漂移              |
+| 轨迹与读模型      | Session消息/事件/Instructions状态、输入结果、Job/Task/Delegation/Workflow | durable事实与live输出分开、相关身份/attempt/result、脱敏、恢复依据，不重复持久化        |
+| Creator与资产     | 七类proposal/validation/CAS/placement、Profile/Composition与GUI审阅       | 生成不生效、确认/CAS保存、版本追踪、发现/实际消费、显式采用、引用删除/旧会话保护        |
+| 异构协作/执行环境 | Delegation/subagent/外部CLI、现有FS/subprocess/PTY/Location               | 真实provider与消费者的配套能力、隔离/路径/凭据/取消/receipt；不假定无缝桥接或任意热替换 |
 
 每个新增能力行都要有定义/提供者/消费者的实际决定函数和验收，缺一角色记明确缺口。运行状态、资产库存、组合定义与执行事实不合并成一个泛化Agent树真源。
 

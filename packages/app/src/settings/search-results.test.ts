@@ -102,7 +102,10 @@ describe("settings search ranking", () => {
     const matches = rankSettings("aigcforge name", index(), root)
     expect(matches.map((item) => item.view.target)).toEqual(["settings-project-name", "settings-project-name"])
     expect(rankSettings("Build server aigcforge name", index(), root).map((item) => item.server)).toEqual(["remote"])
-    expect(rankSettings("aigcforge skills", index(), root).map((item) => item.view.subtab)).toEqual(["skills", "skills"])
+    expect(rankSettings("aigcforge skills", index(), root).map((item) => item.view.subtab)).toEqual([
+      "skills",
+      "skills",
+    ])
   })
 
   test("project names alone find projects, including names that are setting labels", () => {

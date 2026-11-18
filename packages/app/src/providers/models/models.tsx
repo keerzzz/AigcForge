@@ -39,7 +39,8 @@ const createModelsController = (directory: Accessor<string | undefined>) => {
     () =>
       new Map(
         available().map(
-          (model) => [modelKey({ providerID: model.provider.id, modelID: model.id }), Date.parse(model.release_date)] as const,
+          (model) =>
+            [modelKey({ providerID: model.provider.id, modelID: model.id }), Date.parse(model.release_date)] as const,
         ),
       ),
   )
@@ -89,7 +90,8 @@ const createModelsController = (directory: Accessor<string | undefined>) => {
     })),
   )
 
-  const find = (key: ModelKey) => isGroup(key) ? undefined : list().find((m) => m.id === key.modelID && m.provider.id === key.providerID)
+  const find = (key: ModelKey) =>
+    isGroup(key) ? undefined : list().find((m) => m.id === key.modelID && m.provider.id === key.providerID)
 
   function update(model: ModelKey, state: Visibility) {
     if (isGroup(model)) return
@@ -131,7 +133,7 @@ const createModelsController = (directory: Accessor<string | undefined>) => {
   }
 
   const variantKey = (model: Exclude<ModelKey, { type: "group" }>) => `${model.providerID}/${model.modelID}`
-  const getVariant = (model: ModelKey) => isGroup(model) ? undefined : store.variant?.[variantKey(model)]
+  const getVariant = (model: ModelKey) => (isGroup(model) ? undefined : store.variant?.[variantKey(model)])
 
   const setVariant = (model: ModelKey, value: string | undefined) => {
     if (isGroup(model)) return

@@ -25,7 +25,8 @@ export default {
   "onboarding.wslUnavailable.title": "WSL indisponible",
   "onboarding.wslUnavailable.description": "AigcForge n'a pas pu vérifier WSL sur cet appareil.",
   "onboarding.installWsl": "Installer WSL",
-  "onboarding.windowsRestartRequired": "Redémarrez Windows pour terminer l'installation de WSL, puis rouvrez AigcForge.",
+  "onboarding.windowsRestartRequired":
+    "Redémarrez Windows pour terminer l'installation de WSL, puis rouvrez AigcForge.",
   "onboarding.allDistrosAdded": "Toutes les distributions installées ont déjà été ajoutées.",
   "onboarding.noDistros": "Aucune distribution détectée pour l'instant.",
   "onboarding.installDistro": "Installer une distribution",

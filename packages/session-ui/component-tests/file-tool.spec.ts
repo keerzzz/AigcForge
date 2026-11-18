@@ -32,7 +32,9 @@ story("keeps grouped file choices when the Used group reopens", async ({ mount }
 
 for (const tool of ["edit", "write"]) {
   story(`${tool} preserves input fallback and disclosure through completion`, async ({ mount }) => {
-    const root = await mount("current-session-file-changes--file-tool-fallbacks", { args: { tool, malformedDiagnostic: tool === "edit" } })
+    const root = await mount("current-session-file-changes--file-tool-fallbacks", {
+      args: { tool, malformedDiagnostic: tool === "edit" },
+    })
     const file = root.getByRole("button", { name: /example\.ts/ })
     await expect(file).toHaveAttribute("aria-expanded", "false")
     await file.click()

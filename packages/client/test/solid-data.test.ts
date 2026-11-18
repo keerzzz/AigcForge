@@ -320,205 +320,299 @@ test("a revoked inbox snapshot cannot acknowledge an optimistic admission", asyn
   }
 })
 
-test.each(["assistant delta", "terminal after missed text", "delivered user", "initial events", "missed tool", "tool progress", "live tool after snapshot", "tool metadata array"] as const)(
-  "message hydration retains concurrent %s",
-  async (mode) => {
-    const tool: SessionMessageAssistantTool = {
-      type: "tool", id: "call_c", name: "read", time: { created: 3, ran: 3 },
-      state: { status: "running", input: { path: "c" }, metadata: {
+test.each([
+  "assistant delta",
+  "terminal after missed text",
+  "delivered user",
+  "initial events",
+  "missed tool",
+  "tool progress",
+  "live tool after snapshot",
+  "tool metadata array",
+] as const)("message hydration retains concurrent %s", async (mode) => {
+  const tool: SessionMessageAssistantTool = {
+    type: "tool",
+    id: "call_c",
+    name: "read",
+    time: { created: 3, ran: 3 },
+    state: {
+      status: "running",
+      input: { path: "c" },
+      metadata: {
         phase: "before",
-        ...(mode === "tool metadata array" ? { entries: [{ type: "tool", id: "nested_before", value: "before" }] } : {}),
-      } },
+        ...(mode === "tool metadata array"
+          ? { entries: [{ type: "tool", id: "nested_before", value: "before" }] }
+          : {}),
+      },
+    },
+  }
+  const recovered: SessionMessageAssistantTool = {
+    type: "tool",
+    id: "call_b",
+    name: "read",
+    time: { created: 2, ran: 2, completed: 2 },
+    state: {
+      status: "completed",
+      input: { path: "b" },
+      metadata: {},
+      content: [{ type: "text", text: "Complete recovered tool result" }],
+    },
+  }
+  const assistant: SessionMessageInfo = {
+    id: "msg_assistant",
+    type: "assistant",
+    agent: "build",
+    model: { providerID: "provider", id: "model" },
+    content: [
+      { type: "text", text: "Before" },
+      ...(mode === "tool progress" || mode === "tool metadata array" ? [tool] : []),
+    ],
+    time: { created: 1 },
+  }
+  const user = { id: "msg_user", type: "user", text: "History", time: { created: 0 } } as const
+  const started = Promise.withResolvers<void>()
+  const release = Promise.withResolvers<Response>()
+  const setup = taskFixture(() => {
+    if (mode !== "initial events" && setup.requests.length === 1)
+      return Response.json({ data: [assistant, user], cursor: {} })
+    started.resolve()
+    return release.promise
+  })
+  const reads: Promise<unknown>[] = []
+  try {
+    if (mode !== "initial events") {
+      await setup.data.session.message.sync("ses_refresh")
+      setup.data.session.message.invalidate("ses_refresh")
     }
-    const recovered: SessionMessageAssistantTool = {
-      type: "tool", id: "call_b", name: "read", time: { created: 2, ran: 2, completed: 2 },
-      state: { status: "completed", input: { path: "b" }, metadata: {}, content: [{ type: "text", text: "Complete recovered tool result" }] },
+    const reading = setup.data.session.message.sync("ses_refresh")
+    reads.push(reading)
+    await Promise.race([started.promise, Promise.allSettled(reads)])
+    if (mode === "delivered user") {
+      setup.emit({
+        id: "evt_enqueued",
+        type: "session.inbox.enqueued",
+        created: 2,
+        durable: { aggregateID: "ses_refresh", seq: 2, version: 1 },
+        data: {
+          sessionID: "ses_refresh",
+          inboxID: "msg_delivered",
+          item: { type: "user", delivery: "steer", payload: { text: "New input" } },
+        },
+      })
+      setup.emit({
+        id: "evt_delivered",
+        type: "session.inbox.delivered",
+        created: 3,
+        durable: { aggregateID: "ses_refresh", seq: 3, version: 1 },
+        data: { sessionID: "ses_refresh", inboxID: "msg_delivered" },
+      })
     }
-    const assistant: SessionMessageInfo = {
-      id: "msg_assistant",
-      type: "assistant",
-      agent: "build",
-      model: { providerID: "provider", id: "model" },
-      content: [{ type: "text", text: "Before" }, ...(mode === "tool progress" || mode === "tool metadata array" ? [tool] : [])],
-      time: { created: 1 },
+    if (mode === "initial events") {
+      setup.emit({
+        id: "evt_started",
+        type: "session.step.started",
+        created: 1,
+        durable: { aggregateID: "ses_refresh", seq: 1, version: 1 },
+        data: {
+          sessionID: "ses_refresh",
+          assistantMessageID: assistant.id,
+          agent: "build",
+          model: assistant.model,
+          started: 1,
+        },
+      })
+      setup.emit({
+        id: "evt_text",
+        type: "session.text.started",
+        created: 2,
+        data: { sessionID: "ses_refresh", assistantMessageID: assistant.id },
+      })
     }
-    const user = { id: "msg_user", type: "user", text: "History", time: { created: 0 } } as const
-    const started = Promise.withResolvers<void>()
-    const release = Promise.withResolvers<Response>()
-    const setup = taskFixture(() => {
-      if (mode !== "initial events" && setup.requests.length === 1)
-        return Response.json({ data: [assistant, user], cursor: {} })
-      started.resolve()
-      return release.promise
-    })
-    const reads: Promise<unknown>[] = []
-    try {
-      if (mode !== "initial events") {
-        await setup.data.session.message.sync("ses_refresh")
-        setup.data.session.message.invalidate("ses_refresh")
-      }
-      const reading = setup.data.session.message.sync("ses_refresh")
-      reads.push(reading)
-      await Promise.race([started.promise, Promise.allSettled(reads)])
-      if (mode === "delivered user") {
+    if (mode === "assistant delta" || mode === "initial events" || mode === "terminal after missed text") {
+      if (mode !== "terminal after missed text")
         setup.emit({
-          id: "evt_enqueued",
-          type: "session.inbox.enqueued",
-          created: 2,
-          durable: { aggregateID: "ses_refresh", seq: 2, version: 1 },
-          data: {
-            sessionID: "ses_refresh",
-            inboxID: "msg_delivered",
-            item: { type: "user", delivery: "steer", payload: { text: "New input" } },
-          },
-        })
-        setup.emit({
-          id: "evt_delivered",
-          type: "session.inbox.delivered",
+          id: "evt_delta",
+          type: "session.text.delta",
           created: 3,
-          durable: { aggregateID: "ses_refresh", seq: 3, version: 1 },
-          data: { sessionID: "ses_refresh", inboxID: "msg_delivered" },
+          data: { sessionID: "ses_refresh", assistantMessageID: assistant.id, delta: " New" },
         })
-      }
-      if (mode === "initial events") {
-        setup.emit({
-          id: "evt_started",
-          type: "session.step.started",
-          created: 1,
-          durable: { aggregateID: "ses_refresh", seq: 1, version: 1 },
-          data: {
-            sessionID: "ses_refresh",
-            assistantMessageID: assistant.id,
-            agent: "build",
-            model: assistant.model,
-            started: 1,
-          },
-        })
-        setup.emit({
-          id: "evt_text",
-          type: "session.text.started",
-          created: 2,
-          data: { sessionID: "ses_refresh", assistantMessageID: assistant.id },
-        })
-      }
-      if (mode === "assistant delta" || mode === "initial events" || mode === "terminal after missed text") {
-        if (mode !== "terminal after missed text")
-          setup.emit({
-            id: "evt_delta",
-            type: "session.text.delta",
-            created: 3,
-            data: { sessionID: "ses_refresh", assistantMessageID: assistant.id, delta: " New" },
-          })
-        setup.emit({
-          id: "evt_ended",
-          type: "session.step.ended",
-          created: 4,
-          durable: { aggregateID: "ses_refresh", seq: 4, version: 1 },
-          data: {
-            sessionID: "ses_refresh",
-            assistantMessageID: assistant.id,
-            finish: "stop",
-            cost: 0,
-            tokens: session(0).tokens,
-          },
-        })
-        setup.emit({
-          id: "evt_completed",
-          type: "session.step.completed",
-          created: 5,
-          durable: { aggregateID: "ses_refresh", seq: 5, version: 1 },
-          data: { sessionID: "ses_refresh", assistantMessageID: assistant.id },
-        })
-      }
-      if (mode === "missed tool" || mode === "live tool after snapshot") {
-        setup.emit({ id: "evt_tool_c_started", type: "session.tool.input.started", created: 3,
-          data: { sessionID: "ses_refresh", assistantMessageID: assistant.id, id: tool.id, name: tool.name } })
-        setup.emit({ id: "evt_tool_c_called", type: "session.tool.called", created: 3,
-          durable: { aggregateID: "ses_refresh", seq: 3, version: 1 },
-          data: { sessionID: "ses_refresh", assistantMessageID: assistant.id, id: tool.id, input: { path: "c" }, executed: true } })
-      }
-      if (mode === "missed tool" || mode === "tool progress" || mode === "live tool after snapshot" || mode === "tool metadata array")
-        setup.emit({ id: "evt_tool_c_progress", type: "session.tool.progress", created: 4,
-          data: { sessionID: "ses_refresh", assistantMessageID: assistant.id, id: tool.id, metadata: {
+      setup.emit({
+        id: "evt_ended",
+        type: "session.step.ended",
+        created: 4,
+        durable: { aggregateID: "ses_refresh", seq: 4, version: 1 },
+        data: {
+          sessionID: "ses_refresh",
+          assistantMessageID: assistant.id,
+          finish: "stop",
+          cost: 0,
+          tokens: session(0).tokens,
+        },
+      })
+      setup.emit({
+        id: "evt_completed",
+        type: "session.step.completed",
+        created: 5,
+        durable: { aggregateID: "ses_refresh", seq: 5, version: 1 },
+        data: { sessionID: "ses_refresh", assistantMessageID: assistant.id },
+      })
+    }
+    if (mode === "missed tool" || mode === "live tool after snapshot") {
+      setup.emit({
+        id: "evt_tool_c_started",
+        type: "session.tool.input.started",
+        created: 3,
+        data: { sessionID: "ses_refresh", assistantMessageID: assistant.id, id: tool.id, name: tool.name },
+      })
+      setup.emit({
+        id: "evt_tool_c_called",
+        type: "session.tool.called",
+        created: 3,
+        durable: { aggregateID: "ses_refresh", seq: 3, version: 1 },
+        data: {
+          sessionID: "ses_refresh",
+          assistantMessageID: assistant.id,
+          id: tool.id,
+          input: { path: "c" },
+          executed: true,
+        },
+      })
+    }
+    if (
+      mode === "missed tool" ||
+      mode === "tool progress" ||
+      mode === "live tool after snapshot" ||
+      mode === "tool metadata array"
+    )
+      setup.emit({
+        id: "evt_tool_c_progress",
+        type: "session.tool.progress",
+        created: 4,
+        data: {
+          sessionID: "ses_refresh",
+          assistantMessageID: assistant.id,
+          id: tool.id,
+          metadata: {
             phase: "live",
-            ...(mode === "tool metadata array" ? { entries: [{ type: "tool", id: "nested_live", value: "live" }] } : {}),
-          } } })
-      release.resolve(
-        Response.json({
-          data:
-            mode === "initial events"
-              ? [user]
-              : [
-                  mode === "missed tool" || mode === "tool progress" || mode === "live tool after snapshot" || mode === "tool metadata array"
-                    ? { ...assistant, content: [
-                      { type: "text", text: "Before Middle" }, recovered,
-                      ...(mode === "live tool after snapshot" ? [] : [mode === "missed tool"
-                        ? { ...tool, state: { status: "streaming", input: '{"path":"c"}' } }
-                        : mode === "tool metadata array"
-                        ? { ...tool, state: { ...tool.state, metadata: { phase: "snapshot", entries: [
-                          { type: "tool", id: "nested_before", value: "snapshot" },
-                          { type: "tool", id: "nested_server", value: "server" },
-                        ] } } }
-                        : tool]),
-                    ] }
-                    : mode === "terminal after missed text"
+            ...(mode === "tool metadata array"
+              ? { entries: [{ type: "tool", id: "nested_live", value: "live" }] }
+              : {}),
+          },
+        },
+      })
+    release.resolve(
+      Response.json({
+        data:
+          mode === "initial events"
+            ? [user]
+            : [
+                mode === "missed tool" ||
+                mode === "tool progress" ||
+                mode === "live tool after snapshot" ||
+                mode === "tool metadata array"
+                  ? {
+                      ...assistant,
+                      content: [
+                        { type: "text", text: "Before Middle" },
+                        recovered,
+                        ...(mode === "live tool after snapshot"
+                          ? []
+                          : [
+                              mode === "missed tool"
+                                ? { ...tool, state: { status: "streaming", input: '{"path":"c"}' } }
+                                : mode === "tool metadata array"
+                                  ? {
+                                      ...tool,
+                                      state: {
+                                        ...tool.state,
+                                        metadata: {
+                                          phase: "snapshot",
+                                          entries: [
+                                            { type: "tool", id: "nested_before", value: "snapshot" },
+                                            { type: "tool", id: "nested_server", value: "server" },
+                                          ],
+                                        },
+                                      },
+                                    }
+                                  : tool,
+                            ]),
+                      ],
+                    }
+                  : mode === "terminal after missed text"
                     ? { ...assistant, content: [{ type: "text", text: "Before Middle" }] }
                     : assistant,
-                  { ...user, text: "Fresh history" },
-                ],
-          cursor: { next: "older" },
-        }),
+                { ...user, text: "Fresh history" },
+              ],
+        cursor: { next: "older" },
+      }),
+    )
+    await reading
+    expect(setup.data.session.message.more("ses_refresh")).toBe(true)
+    const messages = setup.data.session.message.list("ses_refresh")
+    expect(new Set(messages.map((item) => item.id)).size).toBe(messages.length)
+    if (mode === "assistant delta" || mode === "initial events" || mode === "terminal after missed text") {
+      const current = setup.data.session.message.get("ses_refresh", assistant.id)
+      expect(current?.type).toBe("assistant")
+      if (current?.type !== "assistant") throw new Error("Missing live assistant")
+      const text = current.content[0]
+      expect(text?.type).toBe("text")
+      if (text?.type !== "text") throw new Error("Missing live text")
+      expect(text.text).toBe(
+        mode === "terminal after missed text" ? "Before Middle" : mode === "assistant delta" ? "Before New" : " New",
       )
-      await reading
-      expect(setup.data.session.message.more("ses_refresh")).toBe(true)
-      const messages = setup.data.session.message.list("ses_refresh")
-      expect(new Set(messages.map((item) => item.id)).size).toBe(messages.length)
-      if (mode === "assistant delta" || mode === "initial events" || mode === "terminal after missed text") {
-        const current = setup.data.session.message.get("ses_refresh", assistant.id)
-        expect(current?.type).toBe("assistant")
-        if (current?.type !== "assistant") throw new Error("Missing live assistant")
-        const text = current.content[0]
-        expect(text?.type).toBe("text")
-        if (text?.type !== "text") throw new Error("Missing live text")
-        expect(text.text).toBe(
-          mode === "terminal after missed text" ? "Before Middle" : mode === "assistant delta" ? "Before New" : " New",
-        )
-        expect(current.time.completed).toBe(4)
-        expect(current.finish).toBe("stop")
-        expect(current.completion?.id).toBe("evt_completed")
-        expect(current.completion?.seq).toBe(5)
-      }
-      if (mode === "delivered user") {
-        expect(messages.map((item) => item.id)).toEqual([user.id, assistant.id, "msg_delivered"])
-        expect(setup.data.session.message.get("ses_refresh", "msg_delivered")).toMatchObject({
-          text: "New input",
-          time: { created: 3 },
-        })
-        expect(setup.data.session.input.has("ses_refresh", "msg_delivered")).toBe(false)
-      }
-      if (mode === "missed tool" || mode === "tool progress" || mode === "live tool after snapshot" || mode === "tool metadata array") {
-        const current = setup.data.session.message.get("ses_refresh", assistant.id)
-        if (current?.type !== "assistant") throw new Error("Missing hydrated assistant")
-        expect(current.content.map((part) => part.type === "tool" ? part.id : part.type)).toEqual(["text", "call_b", "call_c"])
-        expect(current.content[0]).toEqual({ type: "text", text: "Before Middle" })
-        expect(current.content[1]).toEqual(recovered)
-        expect(current.content[2]).toMatchObject({ id: tool.id, state: { status: "running", input: { path: "c" }, metadata: { phase: "live" } } })
-        if (mode === "tool metadata array")
-          expect(unwrap(current.content[2])).toMatchObject({ state: { metadata: { entries: [
-            { type: "tool", id: "nested_live", value: "live" },
-            { type: "tool", id: "nested_server", value: "server" },
-          ] } } })
-      }
-      if (mode === "assistant delta" || mode === "terminal after missed text" || mode === "delivered user")
-        expect(setup.data.session.message.get("ses_refresh", user.id)).toMatchObject({ text: "Fresh history" })
-      expect(setup.requests).toHaveLength(mode === "initial events" ? 1 : 2)
-    } finally {
-      release.resolve(Response.json({ data: [], cursor: {} }))
-      await Promise.allSettled(reads)
-      setup.dispose()
+      expect(current.time.completed).toBe(4)
+      expect(current.finish).toBe("stop")
+      expect(current.completion?.id).toBe("evt_completed")
+      expect(current.completion?.seq).toBe(5)
     }
-  },
-)
+    if (mode === "delivered user") {
+      expect(messages.map((item) => item.id)).toEqual([user.id, assistant.id, "msg_delivered"])
+      expect(setup.data.session.message.get("ses_refresh", "msg_delivered")).toMatchObject({
+        text: "New input",
+        time: { created: 3 },
+      })
+      expect(setup.data.session.input.has("ses_refresh", "msg_delivered")).toBe(false)
+    }
+    if (
+      mode === "missed tool" ||
+      mode === "tool progress" ||
+      mode === "live tool after snapshot" ||
+      mode === "tool metadata array"
+    ) {
+      const current = setup.data.session.message.get("ses_refresh", assistant.id)
+      if (current?.type !== "assistant") throw new Error("Missing hydrated assistant")
+      expect(current.content.map((part) => (part.type === "tool" ? part.id : part.type))).toEqual([
+        "text",
+        "call_b",
+        "call_c",
+      ])
+      expect(current.content[0]).toEqual({ type: "text", text: "Before Middle" })
+      expect(current.content[1]).toEqual(recovered)
+      expect(current.content[2]).toMatchObject({
+        id: tool.id,
+        state: { status: "running", input: { path: "c" }, metadata: { phase: "live" } },
+      })
+      if (mode === "tool metadata array")
+        expect(unwrap(current.content[2])).toMatchObject({
+          state: {
+            metadata: {
+              entries: [
+                { type: "tool", id: "nested_live", value: "live" },
+                { type: "tool", id: "nested_server", value: "server" },
+              ],
+            },
+          },
+        })
+    }
+    if (mode === "assistant delta" || mode === "terminal after missed text" || mode === "delivered user")
+      expect(setup.data.session.message.get("ses_refresh", user.id)).toMatchObject({ text: "Fresh history" })
+    expect(setup.requests).toHaveLength(mode === "initial events" ? 1 : 2)
+  } finally {
+    release.resolve(Response.json({ data: [], cursor: {} }))
+    await Promise.allSettled(reads)
+    setup.dispose()
+  }
+})
 
 test("reconciles a stale running tool when execution settles", async () => {
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
@@ -1189,7 +1283,13 @@ test.skipIf(isServer).each(["build", "plan"] as const)(
       expect(setup.data.session.identity.get(initial.id)).toBeUndefined()
       await setup.data.session.identity.sync(initial.id)
       expect(setup.data.session.identity.get(initial.id)).toEqual(fresh)
-      expect(setup.data.session.message.list(initial.id).map((message) => message.type === "agent-switched" ? { type: message.type, agent: message.agent } : { type: message.type })).toEqual([{ type: "agent-switched", agent }])
+      expect(
+        setup.data.session.message
+          .list(initial.id)
+          .map((message) =>
+            message.type === "agent-switched" ? { type: message.type, agent: message.agent } : { type: message.type },
+          ),
+      ).toEqual([{ type: "agent-switched", agent }])
     } finally {
       release.resolve(Response.json(stale))
       await Promise.allSettled(pending)
@@ -1208,7 +1308,10 @@ test.skipIf(isServer)("same Meta reselection rejects identity from an older Cust
       reasons: [],
       selection: { agent: "meta", event: { id: eventID, seq: 2 }, compositionDigest: digest },
     },
-    detail: { status: "ready", detail: { source: "custom", snapshot: { digest }, policy: { health: "ready", reasons: [] } } },
+    detail: {
+      status: "ready",
+      detail: { source: "custom", snapshot: { digest }, policy: { health: "ready", reasons: [] } },
+    },
   })
   const stale = custom("evt_old_custom", "a".repeat(64))
   const fresh = custom("evt_new_custom", "a".repeat(64))
@@ -1228,7 +1331,12 @@ test.skipIf(isServer)("same Meta reselection rejects identity from an older Cust
     const held = setup.data.session.identity.sync(initial.id)
     pending.push(held)
     await started.promise
-    setup.emit({ id: "evt_new_custom", type: "session.agent.selected", created: 3, data: { sessionID: initial.id, agent: "meta" } })
+    setup.emit({
+      id: "evt_new_custom",
+      type: "session.agent.selected",
+      created: 3,
+      data: { sessionID: initial.id, agent: "meta" },
+    })
     expect(setup.data.session.identity.get(initial.id)).toBeUndefined()
     const replacing = setup.data.session.identity.sync(initial.id)
     pending.push(replacing)
@@ -1243,75 +1351,88 @@ test.skipIf(isServer)("same Meta reselection rejects identity from an older Cust
   }
 })
 
-test.each(["invalidated", "API replaced", "Location changed", "workspace changed", "deleted", "evicted", "disposed"] as const)(
-  "identity owner discards a held read when %s",
-  async (change) => {
-    const initial: SessionInfo = { ...session(0), agent: "meta" }
-    const stale = identityInfo()
-    const fresh = {
-      ...identityInfo(),
-      location: change === "Location changed"
+test.each([
+  "invalidated",
+  "API replaced",
+  "Location changed",
+  "workspace changed",
+  "deleted",
+  "evicted",
+  "disposed",
+] as const)("identity owner discards a held read when %s", async (change) => {
+  const initial: SessionInfo = { ...session(0), agent: "meta" }
+  const stale = identityInfo()
+  const fresh = {
+    ...identityInfo(),
+    location:
+      change === "Location changed"
         ? { directory: "/canonical" }
         : { directory: "/project", ...(change === "workspace changed" ? { workspaceID: "wrk_identity" } : {}) },
-      permission: { declaredTier: "full" as const, effect: "allow" as const },
-    }
-    const started = Promise.withResolvers<void>()
-    const release = Promise.withResolvers<Response>()
-    const pending: Promise<void>[] = []
-    const setup = taskFixture(() => {
-      if (setup.requests.length > 1) return Response.json(fresh)
-      started.resolve()
-      return release.promise
-    })
-    try {
-      setup.data.session.remember(initial)
-      const held = setup.data.session.identity.sync(initial.id)
-      pending.push(held)
-      await started.promise
-      if (change === "invalidated") setup.data.session.identity.invalidate(initial.id)
-      if (change === "API replaced")
-        setup.owner.api = AigcForge.make({ baseUrl: "http://replacement.local", fetch: async () => Response.json(fresh) })
-      if (change === "Location changed")
-        setup.data.session.remember({ ...initial, location: { directory: "/canonical" } })
-      if (change === "workspace changed")
-        setup.data.session.remember({ ...initial, location: { directory: "/project", workspaceID: "wrk_identity" } })
-      if (change === "deleted")
-        setup.emit({ id: "evt_deleted_identity", type: "session.deleted", created: 3, data: { sessionID: initial.id } })
-      if (change === "evicted") setup.data.session.evict(initial.id)
-      if (change === "disposed") setup.dispose()
-      release.resolve(Response.json(stale))
-      await held
-      expect(setup.data.session.identity.get(initial.id)).toBeUndefined()
-      if (change === "deleted" || change === "evicted" || change === "disposed") return
-      await setup.data.session.identity.sync(initial.id)
-      expect(setup.data.session.identity.get(initial.id)).toEqual(fresh)
-      const request = setup.requests.at(-1)
-      if (!request) throw new Error("Identity request missing")
-      const url = new URL(request.url)
-      if (change === "Location changed") expect(url.searchParams.get("directory")).toBe("/canonical")
-      if (change === "workspace changed") expect(url.searchParams.get("workspace")).toBe("wrk_identity")
-    } finally {
-      release.resolve(Response.json(stale))
-      await Promise.allSettled(pending)
-      setup.dispose()
-    }
-  },
-)
+    permission: { declaredTier: "full" as const, effect: "allow" as const },
+  }
+  const started = Promise.withResolvers<void>()
+  const release = Promise.withResolvers<Response>()
+  const pending: Promise<void>[] = []
+  const setup = taskFixture(() => {
+    if (setup.requests.length > 1) return Response.json(fresh)
+    started.resolve()
+    return release.promise
+  })
+  try {
+    setup.data.session.remember(initial)
+    const held = setup.data.session.identity.sync(initial.id)
+    pending.push(held)
+    await started.promise
+    if (change === "invalidated") setup.data.session.identity.invalidate(initial.id)
+    if (change === "API replaced")
+      setup.owner.api = AigcForge.make({ baseUrl: "http://replacement.local", fetch: async () => Response.json(fresh) })
+    if (change === "Location changed")
+      setup.data.session.remember({ ...initial, location: { directory: "/canonical" } })
+    if (change === "workspace changed")
+      setup.data.session.remember({ ...initial, location: { directory: "/project", workspaceID: "wrk_identity" } })
+    if (change === "deleted")
+      setup.emit({ id: "evt_deleted_identity", type: "session.deleted", created: 3, data: { sessionID: initial.id } })
+    if (change === "evicted") setup.data.session.evict(initial.id)
+    if (change === "disposed") setup.dispose()
+    release.resolve(Response.json(stale))
+    await held
+    expect(setup.data.session.identity.get(initial.id)).toBeUndefined()
+    if (change === "deleted" || change === "evicted" || change === "disposed") return
+    await setup.data.session.identity.sync(initial.id)
+    expect(setup.data.session.identity.get(initial.id)).toEqual(fresh)
+    const request = setup.requests.at(-1)
+    if (!request) throw new Error("Identity request missing")
+    const url = new URL(request.url)
+    if (change === "Location changed") expect(url.searchParams.get("directory")).toBe("/canonical")
+    if (change === "workspace changed") expect(url.searchParams.get("workspace")).toBe("wrk_identity")
+  } finally {
+    release.resolve(Response.json(stale))
+    await Promise.allSettled(pending)
+    setup.dispose()
+  }
+})
 
 test.skipIf(isServer).each(["session.permissions", "agent.updated", "config.updated", "plugin.updated"] as const)(
   "%s clears the displayed identity before a replacement read",
   async (type) => {
     const initial: SessionInfo = { ...session(0), agent: "meta" }
     const value = identityInfo()
-    const setup = taskFixture((request) => new URL(request.url).pathname.endsWith("/identity")
-      ? Response.json(value)
-      : Response.json({ location: initial.location, data: [], providers: [] }))
+    const setup = taskFixture((request) =>
+      new URL(request.url).pathname.endsWith("/identity")
+        ? Response.json(value)
+        : Response.json({ location: initial.location, data: [], providers: [] }),
+    )
     try {
       setup.data.session.remember(initial)
       await setup.data.session.identity.sync(initial.id)
       expect(setup.data.session.identity.get(initial.id)).toEqual(value)
       if (type === "session.permissions")
-        setup.emit({ id: "evt_identity_permissions", type, created: 3, data: { sessionID: initial.id, permissions: [] } })
+        setup.emit({
+          id: "evt_identity_permissions",
+          type,
+          created: 3,
+          data: { sessionID: initial.id, permissions: [] },
+        })
       if (type !== "session.permissions")
         setup.emit({ id: "evt_identity_catalog", type, created: 3, location: initial.location, data: {} })
       expect(setup.data.session.identity.get(initial.id)).toBeUndefined()
@@ -1330,11 +1451,14 @@ test.skipIf(isServer)("reconnection revokes a held identity even when the same c
   const fresh = { ...identityInfo(), permission: { declaredTier: "full" as const, effect: "allow" as const } }
   const started = Promise.withResolvers<void>()
   const release = Promise.withResolvers<Response>()
-  const setup = taskFixture(() => {
-    if (setup.requests.length > 1) return Response.json(fresh)
-    started.resolve()
-    return release.promise
-  }, { status })
+  const setup = taskFixture(
+    () => {
+      if (setup.requests.length > 1) return Response.json(fresh)
+      started.resolve()
+      return release.promise
+    },
+    { status },
+  )
   try {
     setup.data.session.remember(initial)
     const held = setup.data.session.identity.sync(initial.id)
@@ -2949,7 +3073,10 @@ function identityInfo(agent = "meta", eventID = "evt_identity_initial"): Session
       reasons: agent === "meta" ? [] : [{ code: "meta-not-selected", severity: "info" }],
       selection: { agent, event: { id: eventID, seq: 1 } },
     },
-    detail: { status: "ready", detail: { source: "coding", vcs: { branch: { status: "missing" }, worktree: { status: "missing" } } } },
+    detail: {
+      status: "ready",
+      detail: { source: "coding", vcs: { branch: { status: "missing" }, worktree: { status: "missing" } } },
+    },
   }
 }
 
@@ -2961,8 +3088,13 @@ test.skipIf(isServer)("Meta getters created before hydration react to their orig
   const occurrence = scheduleOccurrenceInfo()
   const capability = { read: true, list: true, send: true, reply: true, reasons: [] }
   const identity: SessionIdentityIdentity = {
-    sessionID: "ses_refresh", location: { directory: "/project" }, projectID: "project", mode: "coding", agent: "meta",
-    model: { status: "missing" }, permission: { declaredTier: "propose", effect: "ask" },
+    sessionID: "ses_refresh",
+    location: { directory: "/project" },
+    projectID: "project",
+    mode: "coding",
+    agent: "meta",
+    model: { status: "missing" },
+    permission: { declaredTier: "propose", effect: "ask" },
     capability: { health: "degraded", reasons: [{ code: "mode-detail-not-projected", severity: "info" }] },
     detail: { status: "missing", reason: "mode-detail-not-projected" },
   }
@@ -3021,7 +3153,9 @@ test.skipIf(isServer)("Meta getters created before hydration react to their orig
     expect(observer.values.occurrence()).toEqual(occurrence)
     expect(observer.values.identity()).toEqual(identity)
     setup.emit({
-      id: "evt_getter_delivery", type: "session.inbox.delivered", created: 3,
+      id: "evt_getter_delivery",
+      type: "session.inbox.delivered",
+      created: 3,
       durable: { aggregateID: communication.targetSessionID, seq: 1, version: 1 },
       data: { sessionID: communication.targetSessionID, inboxID: communication.body.inputID },
     })
@@ -3035,20 +3169,47 @@ test.skipIf(isServer)("Meta getters created before hydration react to their orig
 
 test("task operation list and detail share facts across an Agent switch and use the full saved Location", async () => {
   const initial = operationInfo()
-  const settled = operationInfo({ phase: "settled", updatedAt: 4, result: { sessionID: "ses_data_target", inputID: "msg_data_task", messageIDs: ["msg_data_answer"] } })
-  const setup = taskFixture((request) => Response.json(new URL(request.url).pathname.endsWith("/operations") ? [initial] : settled))
+  const settled = operationInfo({
+    phase: "settled",
+    updatedAt: 4,
+    result: { sessionID: "ses_data_target", inputID: "msg_data_task", messageIDs: ["msg_data_answer"] },
+  })
+  const setup = taskFixture((request) =>
+    Response.json(new URL(request.url).pathname.endsWith("/operations") ? [initial] : settled),
+  )
   try {
-    setup.data.session.remember({ ...session(0), agent: "meta", location: { directory: "/project", workspaceID: "wrk_task_data" } })
+    setup.data.session.remember({
+      ...session(0),
+      agent: "meta",
+      location: { directory: "/project", workspaceID: "wrk_task_data" },
+    })
     await setup.data.session.task.operation.sync(initial.sourceSessionID)
     expect(setup.data.session.task.operation.list(initial.sourceSessionID, initial.taskID)).toEqual([initial])
     expect(setup.data.session.task.operation.list(initial.sourceSessionID, "tsk_other")).toEqual([])
     await setup.data.session.task.operation.readback(initial.sourceSessionID, initial.operationID)
     expect(setup.data.session.task.operation.get(initial.sourceSessionID, initial.operationID)).toEqual(settled)
-    expect(setup.data.session.task.operation.list(initial.sourceSessionID)?.[0]).toBe(setup.data.session.task.operation.get(initial.sourceSessionID, initial.operationID))
-    setup.emit({ id: "evt_operation_agent", type: "session.agent.selected", created: 5, data: { sessionID: initial.sourceSessionID, agent: "build" } })
-    expect(setup.data.session.task.operation.get(initial.sourceSessionID, initial.operationID)?.selection.agent).toBe("meta")
-    expect(setup.data.session.task.operation.get(initial.sourceSessionID, initial.operationID)?.source).toEqual(initial.source)
-    expect(setup.requests.map((request) => [new URL(request.url).pathname, new URL(request.url).searchParams.get("directory"), new URL(request.url).searchParams.get("workspace")])).toEqual([
+    expect(setup.data.session.task.operation.list(initial.sourceSessionID)?.[0]).toBe(
+      setup.data.session.task.operation.get(initial.sourceSessionID, initial.operationID),
+    )
+    setup.emit({
+      id: "evt_operation_agent",
+      type: "session.agent.selected",
+      created: 5,
+      data: { sessionID: initial.sourceSessionID, agent: "build" },
+    })
+    expect(setup.data.session.task.operation.get(initial.sourceSessionID, initial.operationID)?.selection.agent).toBe(
+      "meta",
+    )
+    expect(setup.data.session.task.operation.get(initial.sourceSessionID, initial.operationID)?.source).toEqual(
+      initial.source,
+    )
+    expect(
+      setup.requests.map((request) => [
+        new URL(request.url).pathname,
+        new URL(request.url).searchParams.get("directory"),
+        new URL(request.url).searchParams.get("workspace"),
+      ]),
+    ).toEqual([
       ["/session/ses_refresh/task/operations", "/project", "wrk_task_data"],
       ["/session/ses_refresh/task/operations/top_data_task", "/project", "wrk_task_data"],
     ])
@@ -3115,7 +3276,13 @@ test("task operation SSE invalidation discards a held snapshot and queues one re
     setup.data.session.remember(session(0))
     reads.push(setup.data.session.task.operation.sync(initial.sourceSessionID))
     await started.promise
-    setup.emit({ id: "evt_operation_changed", type: "task.operation.changed", created: 7, durable: { aggregateID: initial.sourceSessionID, seq: 2, version: 1 }, data: { sessionID: initial.sourceSessionID, operationID: initial.operationID, change: { phase: "settled" } } })
+    setup.emit({
+      id: "evt_operation_changed",
+      type: "task.operation.changed",
+      created: 7,
+      durable: { aggregateID: initial.sourceSessionID, seq: 2, version: 1 },
+      data: { sessionID: initial.sourceSessionID, operationID: initial.operationID, change: { phase: "settled" } },
+    })
     reads.push(setup.data.session.task.operation.sync(initial.sourceSessionID))
     reads.push(setup.data.session.task.operation.sync(initial.sourceSessionID))
     release.resolve(Response.json([initial]))
@@ -3133,36 +3300,54 @@ test("task operation SSE invalidation discards a held snapshot and queues one re
   }
 })
 
-test.each((["list", "detail"] as const).flatMap((read) => (["API replaced", "Location changed", "workspace changed", "evicted", "deleted", "disposed"] as const).map((change) => [read, change] as const)))(
-  "task operation %s ignores a held response after its owner is %s",
-  async (read, change) => {
-    const started = Promise.withResolvers<void>()
-    const release = Promise.withResolvers<Response>()
-    const initial = operationInfo()
-    const setup = taskFixture(() => { started.resolve(); return release.promise })
-    const pending: Promise<void>[] = []
-    try {
-      setup.data.session.remember(session(0))
-      const held = read === "list" ? setup.data.session.task.operation.sync(initial.sourceSessionID) : setup.data.session.task.operation.readback(initial.sourceSessionID, initial.operationID)
-      pending.push(held)
-      await started.promise
-      if (change === "API replaced") setup.owner.api = AigcForge.make({ baseUrl: "http://replacement.local", fetch: async () => Response.json([]) })
-      if (change === "Location changed") setup.data.session.remember({ ...session(0), location: { directory: "/canonical" } })
-      if (change === "workspace changed") setup.data.session.remember({ ...session(0), location: { directory: "/project", workspaceID: "wrk_replaced" } })
-      if (change === "evicted") setup.data.session.evict(initial.sourceSessionID)
-      if (change === "deleted") setup.emit({ id: "evt_operation_deleted", type: "session.deleted", created: 3, data: { sessionID: initial.sourceSessionID } })
-      if (change === "disposed") setup.dispose()
-      release.resolve(Response.json(read === "list" ? [initial] : initial))
-      await held
-      expect(setup.data.session.task.operation.list(initial.sourceSessionID)).toBeUndefined()
-      expect(setup.data.session.task.operation.get(initial.sourceSessionID, initial.operationID)).toBeUndefined()
-    } finally {
-      release.resolve(Response.json(read === "list" ? [initial] : initial))
-      await Promise.allSettled(pending)
-      setup.dispose()
-    }
-  },
-)
+test.each(
+  (["list", "detail"] as const).flatMap((read) =>
+    (["API replaced", "Location changed", "workspace changed", "evicted", "deleted", "disposed"] as const).map(
+      (change) => [read, change] as const,
+    ),
+  ),
+)("task operation %s ignores a held response after its owner is %s", async (read, change) => {
+  const started = Promise.withResolvers<void>()
+  const release = Promise.withResolvers<Response>()
+  const initial = operationInfo()
+  const setup = taskFixture(() => {
+    started.resolve()
+    return release.promise
+  })
+  const pending: Promise<void>[] = []
+  try {
+    setup.data.session.remember(session(0))
+    const held =
+      read === "list"
+        ? setup.data.session.task.operation.sync(initial.sourceSessionID)
+        : setup.data.session.task.operation.readback(initial.sourceSessionID, initial.operationID)
+    pending.push(held)
+    await started.promise
+    if (change === "API replaced")
+      setup.owner.api = AigcForge.make({ baseUrl: "http://replacement.local", fetch: async () => Response.json([]) })
+    if (change === "Location changed")
+      setup.data.session.remember({ ...session(0), location: { directory: "/canonical" } })
+    if (change === "workspace changed")
+      setup.data.session.remember({ ...session(0), location: { directory: "/project", workspaceID: "wrk_replaced" } })
+    if (change === "evicted") setup.data.session.evict(initial.sourceSessionID)
+    if (change === "deleted")
+      setup.emit({
+        id: "evt_operation_deleted",
+        type: "session.deleted",
+        created: 3,
+        data: { sessionID: initial.sourceSessionID },
+      })
+    if (change === "disposed") setup.dispose()
+    release.resolve(Response.json(read === "list" ? [initial] : initial))
+    await held
+    expect(setup.data.session.task.operation.list(initial.sourceSessionID)).toBeUndefined()
+    expect(setup.data.session.task.operation.get(initial.sourceSessionID, initial.operationID)).toBeUndefined()
+  } finally {
+    release.resolve(Response.json(read === "list" ? [initial] : initial))
+    await Promise.allSettled(pending)
+    setup.dispose()
+  }
+})
 
 test("task dispatch and cancellation return the actual acknowledgement and refresh their one fact cache", async () => {
   const initial = operationInfo()
@@ -3171,25 +3356,62 @@ test("task dispatch and cancellation return the actual acknowledgement and refre
     const path = new URL(request.url).pathname
     if (path.endsWith("/dispatch")) return Response.json(initial)
     if (path.endsWith("/cancel")) return Response.json(cancelled)
-    return Response.json([setup.requests.some((request) => new URL(request.url).pathname.endsWith("/cancel")) ? cancelled : initial])
+    return Response.json([
+      setup.requests.some((request) => new URL(request.url).pathname.endsWith("/cancel")) ? cancelled : initial,
+    ])
   })
   try {
     setup.data.session.remember({ ...session(0), location: { directory: "/project", workspaceID: "wrk_mutation" } })
     await setup.data.session.task.operation.sync(initial.sourceSessionID)
-    expect(await setup.data.session.task.operation.dispatch({ sessionID: initial.sourceSessionID, request: initial.request })).toEqual(initial)
+    expect(
+      await setup.data.session.task.operation.dispatch({
+        sessionID: initial.sourceSessionID,
+        request: initial.request,
+      }),
+    ).toEqual(initial)
     expect(await setup.requests[1]?.json()).toEqual(initial.request)
-    const permission: PermissionRequest = { id: "per_cancel_ack", sessionID: initial.sourceSessionID, action: "task", resources: ["root"], source: { type: "operation", sessionID: initial.sourceSessionID, operationID: initial.operationID } }
+    const permission: PermissionRequest = {
+      id: "per_cancel_ack",
+      sessionID: initial.sourceSessionID,
+      action: "task",
+      resources: ["root"],
+      source: { type: "operation", sessionID: initial.sourceSessionID, operationID: initial.operationID },
+    }
     setup.emit({ id: "evt_cancel_ask", type: "permission.asked", created: 3, data: permission })
-    setup.emit({ id: "evt_other_cancel_ask", type: "permission.asked", created: 3, data: { ...permission, id: "per_other_ack", source: { type: "operation", sessionID: initial.sourceSessionID, operationID: "top_other_ack" } } })
-    setup.data.session.remember({ ...session(0), agent: "build", location: { directory: "/project", workspaceID: "wrk_mutation" } })
-    expect(await setup.data.session.task.operation.cancel({ sessionID: initial.sourceSessionID, operationID: initial.operationID })).toEqual(cancelled)
-    expect(setup.data.session.permission.list(initial.sourceSessionID).map((value) => value.id)).toEqual(["per_other_ack"])
+    setup.emit({
+      id: "evt_other_cancel_ask",
+      type: "permission.asked",
+      created: 3,
+      data: {
+        ...permission,
+        id: "per_other_ack",
+        source: { type: "operation", sessionID: initial.sourceSessionID, operationID: "top_other_ack" },
+      },
+    })
+    setup.data.session.remember({
+      ...session(0),
+      agent: "build",
+      location: { directory: "/project", workspaceID: "wrk_mutation" },
+    })
+    expect(
+      await setup.data.session.task.operation.cancel({
+        sessionID: initial.sourceSessionID,
+        operationID: initial.operationID,
+      }),
+    ).toEqual(cancelled)
+    expect(setup.data.session.permission.list(initial.sourceSessionID).map((value) => value.id)).toEqual([
+      "per_other_ack",
+    ])
     setup.emit({ id: "evt_cancel_ask", type: "permission.asked", created: 3, data: permission })
-    expect(setup.data.session.permission.list(initial.sourceSessionID).map((value) => value.id)).toEqual(["per_other_ack"])
+    expect(setup.data.session.permission.list(initial.sourceSessionID).map((value) => value.id)).toEqual([
+      "per_other_ack",
+    ])
     await setup.data.session.task.operation.sync(initial.sourceSessionID)
     expect(setup.data.session.task.operation.get(initial.sourceSessionID, initial.operationID)).toEqual(cancelled)
     expect(setup.data.session.message.list(initial.sourceSessionID)).toEqual([])
-    expect(setup.requests.every((request) => new URL(request.url).searchParams.get("workspace") === "wrk_mutation")).toBe(true)
+    expect(
+      setup.requests.every((request) => new URL(request.url).searchParams.get("workspace") === "wrk_mutation"),
+    ).toBe(true)
   } finally {
     setup.dispose()
   }
@@ -3197,23 +3419,63 @@ test("task dispatch and cancellation return the actual acknowledgement and refre
 
 test("operation cancellation SSE removes only its permission asks and rejects an older permission snapshot", async () => {
   const initial = operationInfo()
-  const operationAsk: PermissionRequest = { id: "per_operation_cancel", sessionID: initial.sourceSessionID, action: "task", resources: ["root"], source: { type: "operation", sessionID: initial.sourceSessionID, operationID: initial.operationID } }
-  const requests: PermissionRequest[] = [operationAsk, { ...operationAsk, id: "per_operation_second", resources: ["workspace"] }, { ...operationAsk, id: "per_operation_sibling", source: { type: "operation", sessionID: initial.sourceSessionID, operationID: "top_sibling_permission" } }, { ...operationAsk, id: "per_tool_sibling", source: { type: "tool", messageID: "msg_tool_sibling", id: "call_tool_sibling" } }]
+  const operationAsk: PermissionRequest = {
+    id: "per_operation_cancel",
+    sessionID: initial.sourceSessionID,
+    action: "task",
+    resources: ["root"],
+    source: { type: "operation", sessionID: initial.sourceSessionID, operationID: initial.operationID },
+  }
+  const requests: PermissionRequest[] = [
+    operationAsk,
+    { ...operationAsk, id: "per_operation_second", resources: ["workspace"] },
+    {
+      ...operationAsk,
+      id: "per_operation_sibling",
+      source: { type: "operation", sessionID: initial.sourceSessionID, operationID: "top_sibling_permission" },
+    },
+    {
+      ...operationAsk,
+      id: "per_tool_sibling",
+      source: { type: "tool", messageID: "msg_tool_sibling", id: "call_tool_sibling" },
+    },
+  ]
   const started = Promise.withResolvers<void>()
   const release = Promise.withResolvers<Response>()
-  const setup = taskFixture(() => { started.resolve(); return release.promise })
+  const setup = taskFixture(() => {
+    started.resolve()
+    return release.promise
+  })
   const pending: Promise<void>[] = []
   try {
     setup.data.session.remember(session(0))
-    requests.forEach((request, index) => setup.emit({ id: `evt_operation_permission_${index}`, type: "permission.asked", created: 3, data: request }))
+    requests.forEach((request, index) =>
+      setup.emit({ id: `evt_operation_permission_${index}`, type: "permission.asked", created: 3, data: request }),
+    )
     const held = setup.data.session.permission.sync(initial.sourceSessionID)
     pending.push(held)
     await started.promise
-    setup.emit({ id: "evt_permission_operation_cancelled", type: "task.operation.changed", created: 4, durable: { aggregateID: initial.sourceSessionID, seq: 2, version: 1 }, data: { sessionID: initial.sourceSessionID, operationID: initial.operationID, change: { phase: "cancelled", cancelIntent: true } } })
-    expect(setup.data.session.permission.list(initial.sourceSessionID).map((value) => value.id)).toEqual(["per_operation_sibling", "per_tool_sibling"])
+    setup.emit({
+      id: "evt_permission_operation_cancelled",
+      type: "task.operation.changed",
+      created: 4,
+      durable: { aggregateID: initial.sourceSessionID, seq: 2, version: 1 },
+      data: {
+        sessionID: initial.sourceSessionID,
+        operationID: initial.operationID,
+        change: { phase: "cancelled", cancelIntent: true },
+      },
+    })
+    expect(setup.data.session.permission.list(initial.sourceSessionID).map((value) => value.id)).toEqual([
+      "per_operation_sibling",
+      "per_tool_sibling",
+    ])
     release.resolve(Response.json({ data: requests }))
     await held
-    expect(setup.data.session.permission.list(initial.sourceSessionID).map((value) => value.id)).toEqual(["per_operation_sibling", "per_tool_sibling"])
+    expect(setup.data.session.permission.list(initial.sourceSessionID).map((value) => value.id)).toEqual([
+      "per_operation_sibling",
+      "per_tool_sibling",
+    ])
   } finally {
     release.resolve(Response.json({ data: requests }))
     await Promise.allSettled(pending)
@@ -3221,39 +3483,59 @@ test("operation cancellation SSE removes only its permission asks and rejects an
   }
 })
 
-test.skipIf(isServer)("task operation reconnect invalidates a held read even when its API client is unchanged", async () => {
-  const [status, setStatus] = createSignal<"connected" | "connecting" | "reconnecting">("connected")
-  const initial = operationInfo()
-  const settled = operationInfo({ phase: "settled", updatedAt: 8 })
-  const started = Promise.withResolvers<void>()
-  const release = Promise.withResolvers<Response>()
-  const setup = taskFixture(() => {
-    if (setup.requests.length > 1) return Response.json([settled])
-    started.resolve()
-    return release.promise
-  }, { status })
-  const reads: Promise<void>[] = []
-  try {
-    setup.data.session.remember(session(0))
-    reads.push(setup.data.session.task.operation.sync(initial.sourceSessionID))
-    await started.promise
-    setStatus("reconnecting")
-    setStatus("connected")
-    release.resolve(Response.json([initial]))
-    await Promise.all(reads)
-    expect(setup.data.session.task.operation.get(initial.sourceSessionID, initial.operationID)).toBeUndefined()
-    await setup.data.session.task.operation.sync(initial.sourceSessionID)
-    expect(setup.data.session.task.operation.list(initial.sourceSessionID)).toEqual([settled])
-  } finally {
-    release.resolve(Response.json([initial]))
-    await Promise.allSettled(reads)
-    setup.dispose()
-  }
-})
+test.skipIf(isServer)(
+  "task operation reconnect invalidates a held read even when its API client is unchanged",
+  async () => {
+    const [status, setStatus] = createSignal<"connected" | "connecting" | "reconnecting">("connected")
+    const initial = operationInfo()
+    const settled = operationInfo({ phase: "settled", updatedAt: 8 })
+    const started = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<Response>()
+    const setup = taskFixture(
+      () => {
+        if (setup.requests.length > 1) return Response.json([settled])
+        started.resolve()
+        return release.promise
+      },
+      { status },
+    )
+    const reads: Promise<void>[] = []
+    try {
+      setup.data.session.remember(session(0))
+      reads.push(setup.data.session.task.operation.sync(initial.sourceSessionID))
+      await started.promise
+      setStatus("reconnecting")
+      setStatus("connected")
+      release.resolve(Response.json([initial]))
+      await Promise.all(reads)
+      expect(setup.data.session.task.operation.get(initial.sourceSessionID, initial.operationID)).toBeUndefined()
+      await setup.data.session.task.operation.sync(initial.sourceSessionID)
+      expect(setup.data.session.task.operation.list(initial.sourceSessionID)).toEqual([settled])
+    } finally {
+      release.resolve(Response.json([initial]))
+      await Promise.allSettled(reads)
+      setup.dispose()
+    }
+  },
+)
 
 test("a reserved operation reads the server source row without duplicating it on repeated SSE or readback", async () => {
   const operation = operationInfo()
-  const row: SessionMessageInfo = { id: `msg_${operation.operationID}`, type: "synthetic", text: "Review saved work", metadata: { coordination: { operationRef: { sourceSessionID: operation.sourceSessionID, operationID: operation.operationID }, actorSessionID: operation.sourceSessionID, actorAgent: "meta", targetSessionID: operation.targetSessionID, kind: "task" } }, time: { created: 3 } }
+  const row: SessionMessageInfo = {
+    id: `msg_${operation.operationID}`,
+    type: "synthetic",
+    text: "Review saved work",
+    metadata: {
+      coordination: {
+        operationRef: { sourceSessionID: operation.sourceSessionID, operationID: operation.operationID },
+        actorSessionID: operation.sourceSessionID,
+        actorAgent: "meta",
+        targetSessionID: operation.targetSessionID,
+        kind: "task",
+      },
+    },
+    time: { created: 3 },
+  }
   const sourceRead = Promise.withResolvers<void>()
   const snapshots = { rows: [] as SessionMessageInfo[] }
   const setup = taskFixture(() => {
@@ -3264,7 +3546,21 @@ test("a reserved operation reads the server source row without duplicating it on
     setup.data.session.remember(session(0))
     await setup.data.session.message.sync(operation.sourceSessionID)
     snapshots.rows = [row]
-    const event: AigcForgeEvent = { id: "evt_reserved_task_source", type: "task.operation.reserved", created: 3, durable: { aggregateID: operation.sourceSessionID, seq: 1, version: 1 }, data: { sessionID: operation.sourceSessionID, request: operation.request, source: operation.source, selection: operation.selection, sourceLocation: operation.sourceLocation, sourceMode: operation.sourceMode, targetSessionID: "ses_data_target" } }
+    const event: AigcForgeEvent = {
+      id: "evt_reserved_task_source",
+      type: "task.operation.reserved",
+      created: 3,
+      durable: { aggregateID: operation.sourceSessionID, seq: 1, version: 1 },
+      data: {
+        sessionID: operation.sourceSessionID,
+        request: operation.request,
+        source: operation.source,
+        selection: operation.selection,
+        sourceLocation: operation.sourceLocation,
+        sourceMode: operation.sourceMode,
+        targetSessionID: "ses_data_target",
+      },
+    }
     setup.emit(event)
     setup.emit(event)
     await sourceRead.promise
@@ -3290,22 +3586,78 @@ test.each(["goal", "rule", "occurrence"] as const)(
     })
     try {
       setup.data.session.remember({ ...session(0), agent: "meta" })
-      const read = kind === "goal" ? setup.data.session.goal.sync("ses_refresh") : kind === "rule"
-        ? setup.data.session.schedule.sync("ses_refresh")
-        : setup.data.session.schedule.syncRuns("ses_refresh", "sch_data_rule")
+      const read =
+        kind === "goal"
+          ? setup.data.session.goal.sync("ses_refresh")
+          : kind === "rule"
+            ? setup.data.session.schedule.sync("ses_refresh")
+            : setup.data.session.schedule.syncRuns("ses_refresh", "sch_data_rule")
       await started.promise
-      if (kind === "goal") setup.emit({ id: "evt_goal_full", type: "session.goal.updated", created: 4, data: { sessionID: "ses_refresh", goal: goalInfo({ status: "paused", pauseReason: "user", pauseVersion: 1, updatedAt: 4 }) } })
-      if (kind === "rule") setup.emit({ id: "evt_rule_full", type: "schedule.rule.updated", created: 4, data: { sessionID: "ses_refresh", rule: scheduleRuleInfo({ status: "paused", nextDueAt: undefined, updatedAt: 4 }) } })
-      if (kind === "occurrence") setup.emit({ id: "evt_occurrence_full", type: "schedule.occurrence.updated", created: 1004, data: { sessionID: "ses_refresh", occurrence: scheduleOccurrenceInfo({ status: "completed", output: "Saved result", sourceSettlement: "completed", completedAt: 1004, updatedAt: 1004 }) } })
+      if (kind === "goal")
+        setup.emit({
+          id: "evt_goal_full",
+          type: "session.goal.updated",
+          created: 4,
+          data: {
+            sessionID: "ses_refresh",
+            goal: goalInfo({ status: "paused", pauseReason: "user", pauseVersion: 1, updatedAt: 4 }),
+          },
+        })
+      if (kind === "rule")
+        setup.emit({
+          id: "evt_rule_full",
+          type: "schedule.rule.updated",
+          created: 4,
+          data: {
+            sessionID: "ses_refresh",
+            rule: scheduleRuleInfo({ status: "paused", nextDueAt: undefined, updatedAt: 4 }),
+          },
+        })
+      if (kind === "occurrence")
+        setup.emit({
+          id: "evt_occurrence_full",
+          type: "schedule.occurrence.updated",
+          created: 1004,
+          data: {
+            sessionID: "ses_refresh",
+            occurrence: scheduleOccurrenceInfo({
+              status: "completed",
+              output: "Saved result",
+              sourceSettlement: "completed",
+              completedAt: 1004,
+              updatedAt: 1004,
+            }),
+          },
+        })
       release.resolve()
       await read
-      if (kind === "goal") expect(setup.data.session.goal.list("ses_refresh")?.map((goal) => [goal.id, goal.status])).toEqual([["gol_data_goal", "paused"]])
-      if (kind === "rule") expect(setup.data.session.schedule.list("ses_refresh")?.map((rule) => [rule.id, rule.status])).toEqual([["sch_data_rule", "paused"]])
-      if (kind === "occurrence") expect(setup.data.session.schedule.runs("ses_refresh", "sch_data_rule")?.map((run) => [run.id, run.status, run.output])).toEqual([["sco_data_occurrence", "completed", "Saved result"]])
-      setup.emit({ id: "evt_saved_history_build", type: "session.agent.selected", created: 5, data: { sessionID: "ses_refresh", agent: "build" } })
+      if (kind === "goal")
+        expect(setup.data.session.goal.list("ses_refresh")?.map((goal) => [goal.id, goal.status])).toEqual([
+          ["gol_data_goal", "paused"],
+        ])
+      if (kind === "rule")
+        expect(setup.data.session.schedule.list("ses_refresh")?.map((rule) => [rule.id, rule.status])).toEqual([
+          ["sch_data_rule", "paused"],
+        ])
+      if (kind === "occurrence")
+        expect(
+          setup.data.session.schedule
+            .runs("ses_refresh", "sch_data_rule")
+            ?.map((run) => [run.id, run.status, run.output]),
+        ).toEqual([["sco_data_occurrence", "completed", "Saved result"]])
+      setup.emit({
+        id: "evt_saved_history_build",
+        type: "session.agent.selected",
+        created: 5,
+        data: { sessionID: "ses_refresh", agent: "build" },
+      })
       if (kind === "goal") expect(setup.data.session.goal.get("ses_refresh", "gol_data_goal")?.agent).toBe("meta")
-      if (kind === "rule") expect(setup.data.session.schedule.get("ses_refresh", "sch_data_rule")?.sourceAgent).toBe("meta")
-      if (kind === "occurrence") expect(setup.data.session.schedule.occurrence("ses_refresh", "sco_data_occurrence")?.sourceSettlement).toBe("completed")
+      if (kind === "rule")
+        expect(setup.data.session.schedule.get("ses_refresh", "sch_data_rule")?.sourceAgent).toBe("meta")
+      if (kind === "occurrence")
+        expect(setup.data.session.schedule.occurrence("ses_refresh", "sco_data_occurrence")?.sourceSettlement).toBe(
+          "completed",
+        )
     } finally {
       release.resolve()
       setup.dispose()
@@ -3313,43 +3665,51 @@ test.each(["goal", "rule", "occurrence"] as const)(
   },
 )
 
-test.each((["goal", "rule"] as const).flatMap((kind) =>
-  (["api replaced", "Location moved", "evicted", "deleted", "disposed"] as const).map((change) => [kind, change] as const),
-))(
-  "%s rejects a held snapshot when its owner is %s",
-  async (kind, change) => {
-    const started = Promise.withResolvers<void>()
-    const release = Promise.withResolvers<void>()
-    const setup = taskFixture(async () => {
-      started.resolve()
-      await release.promise
-      return Response.json(kind === "goal" ? { data: [goalInfo()] } : [scheduleRuleInfo()])
-    })
-    try {
-      setup.data.session.remember(session(0))
-      const read = kind === "goal" ? setup.data.session.goal.sync("ses_refresh") : setup.data.session.schedule.sync("ses_refresh")
-      await started.promise
-      if (change === "api replaced") setup.owner.api = AigcForge.make({ baseUrl: "http://replacement.local", fetch: async () => Response.json(kind === "goal" ? { data: [] } : []) })
-      if (change === "Location moved") setup.data.session.remember({ ...session(0), location: { directory: "/other", workspaceID: "wrk_other" } })
-      if (change === "evicted") setup.data.session.evict("ses_refresh")
-      if (change === "deleted") setup.emit({ id: "evt_owner_deleted", type: "session.deleted", created: 3, data: { sessionID: "ses_refresh" } })
-      if (change === "disposed") setup.dispose()
-      release.resolve()
-      await read
-      if (kind === "goal") {
-        expect(setup.data.session.goal.list("ses_refresh")).toBeUndefined()
-        expect(setup.data.session.goal.get("ses_refresh", "gol_data_goal")).toBeUndefined()
-      }
-      if (kind === "rule") {
-        expect(setup.data.session.schedule.list("ses_refresh")).toBeUndefined()
-        expect(setup.data.session.schedule.get("ses_refresh", "sch_data_rule")).toBeUndefined()
-      }
-    } finally {
-      release.resolve()
-      setup.dispose()
+test.each(
+  (["goal", "rule"] as const).flatMap((kind) =>
+    (["api replaced", "Location moved", "evicted", "deleted", "disposed"] as const).map(
+      (change) => [kind, change] as const,
+    ),
+  ),
+)("%s rejects a held snapshot when its owner is %s", async (kind, change) => {
+  const started = Promise.withResolvers<void>()
+  const release = Promise.withResolvers<void>()
+  const setup = taskFixture(async () => {
+    started.resolve()
+    await release.promise
+    return Response.json(kind === "goal" ? { data: [goalInfo()] } : [scheduleRuleInfo()])
+  })
+  try {
+    setup.data.session.remember(session(0))
+    const read =
+      kind === "goal" ? setup.data.session.goal.sync("ses_refresh") : setup.data.session.schedule.sync("ses_refresh")
+    await started.promise
+    if (change === "api replaced")
+      setup.owner.api = AigcForge.make({
+        baseUrl: "http://replacement.local",
+        fetch: async () => Response.json(kind === "goal" ? { data: [] } : []),
+      })
+    if (change === "Location moved")
+      setup.data.session.remember({ ...session(0), location: { directory: "/other", workspaceID: "wrk_other" } })
+    if (change === "evicted") setup.data.session.evict("ses_refresh")
+    if (change === "deleted")
+      setup.emit({ id: "evt_owner_deleted", type: "session.deleted", created: 3, data: { sessionID: "ses_refresh" } })
+    if (change === "disposed") setup.dispose()
+    release.resolve()
+    await read
+    if (kind === "goal") {
+      expect(setup.data.session.goal.list("ses_refresh")).toBeUndefined()
+      expect(setup.data.session.goal.get("ses_refresh", "gol_data_goal")).toBeUndefined()
     }
-  },
-)
+    if (kind === "rule") {
+      expect(setup.data.session.schedule.list("ses_refresh")).toBeUndefined()
+      expect(setup.data.session.schedule.get("ses_refresh", "sch_data_rule")).toBeUndefined()
+    }
+  } finally {
+    release.resolve()
+    setup.dispose()
+  }
+})
 
 test("Schedule mutation captures the full saved Location and keeps rule and occurrence acknowledgements distinct", async () => {
   const requests: { path: string; directory: string | null; workspace: string | null; body: unknown }[] = []
@@ -3357,7 +3717,12 @@ test("Schedule mutation captures the full saved Location and keeps rule and occu
   const run = scheduleOccurrenceInfo({ status: "admitted", updatedAt: 1004 })
   const setup = taskFixture(async (request) => {
     const url = new URL(request.url)
-    requests.push({ path: url.pathname, directory: url.searchParams.get("directory"), workspace: url.searchParams.get("workspace"), body: request.method === "POST" ? await request.json() : undefined })
+    requests.push({
+      path: url.pathname,
+      directory: url.searchParams.get("directory"),
+      workspace: url.searchParams.get("workspace"),
+      body: request.method === "POST" ? await request.json() : undefined,
+    })
     if (url.pathname.endsWith("/pause")) return Response.json(rule)
     if (url.pathname.endsWith("/run")) return Response.json(run)
     return Response.json([scheduleRuleInfo()])
@@ -3365,9 +3730,21 @@ test("Schedule mutation captures the full saved Location and keeps rule and occu
   try {
     setup.data.session.remember({ ...session(0), location: { directory: "/project", workspaceID: "wrk_task_data" } })
     await setup.data.session.schedule.sync("ses_refresh")
-    expect(await setup.data.session.schedule.pause({ sessionID: "ses_refresh", id: rule.id, payload: { expectedRevision: 1 } })).toEqual(rule)
+    expect(
+      await setup.data.session.schedule.pause({
+        sessionID: "ses_refresh",
+        id: rule.id,
+        payload: { expectedRevision: 1 },
+      }),
+    ).toEqual(rule)
     expect(setup.data.session.schedule.get("ses_refresh", rule.id)?.status).toBe("paused")
-    expect(await setup.data.session.schedule.run({ sessionID: "ses_refresh", id: rule.id, payload: { expectedRevision: 2 } })).toEqual(run)
+    expect(
+      await setup.data.session.schedule.run({
+        sessionID: "ses_refresh",
+        id: rule.id,
+        payload: { expectedRevision: 2 },
+      }),
+    ).toEqual(run)
     expect(setup.data.session.schedule.get("ses_refresh", rule.id)?.status).toBe("paused")
     expect(setup.data.session.schedule.occurrence("ses_refresh", run.id)?.status).toBe("admitted")
     expect(requests.map((request) => [request.path, request.directory, request.workspace])).toEqual([
@@ -3404,7 +3781,12 @@ test("Goal reads and mutations use the generated Promise value and saved full Lo
   const completed = goalInfo({ status: "completed", updatedAt: 5 })
   const setup = taskFixture(async (request) => {
     const url = new URL(request.url)
-    requests.push({ path: url.pathname, directory: url.searchParams.get("directory"), workspace: url.searchParams.get("workspace"), body: request.method === "POST" ? await request.json() : undefined })
+    requests.push({
+      path: url.pathname,
+      directory: url.searchParams.get("directory"),
+      workspace: url.searchParams.get("workspace"),
+      body: request.method === "POST" ? await request.json() : undefined,
+    })
     if (url.pathname.endsWith("/pause")) return Response.json({ data: paused })
     if (url.pathname.endsWith("/confirm")) return Response.json({ data: completed })
     if (url.pathname.endsWith("/gol_missing")) return Response.json({ data: null })
@@ -3417,15 +3799,48 @@ test("Goal reads and mutations use the generated Promise value and saved full Lo
     await setup.data.session.goal.readback(initial.sessionID, initial.id)
     await setup.data.session.goal.readback(initial.sessionID, "gol_missing")
     expect(setup.data.session.goal.list(initial.sessionID)).toEqual([initial])
-    expect(await setup.data.session.goal.set({ sessionID: initial.sessionID, goalID: initial.id, objective: initial.objective, conditions: initial.conditions, budget: initial.budget })).toEqual(initial)
-    expect(await setup.data.session.goal.pause({ sessionID: initial.sessionID, goalID: initial.id, expectedRevision: initial.revision })).toEqual(paused)
+    expect(
+      await setup.data.session.goal.set({
+        sessionID: initial.sessionID,
+        goalID: initial.id,
+        objective: initial.objective,
+        conditions: initial.conditions,
+        budget: initial.budget,
+      }),
+    ).toEqual(initial)
+    expect(
+      await setup.data.session.goal.pause({
+        sessionID: initial.sessionID,
+        goalID: initial.id,
+        expectedRevision: initial.revision,
+      }),
+    ).toEqual(paused)
     expect(setup.data.session.goal.get(initial.sessionID, initial.id)?.status).toBe("paused")
-    expect(await setup.data.session.goal.confirm({ sessionID: initial.sessionID, goalID: initial.id, expectedRevision: initial.revision, evidenceIDs: ["evidence_current"], evidenceSetDigest: initial.evidenceSetDigest })).toEqual(completed)
+    expect(
+      await setup.data.session.goal.confirm({
+        sessionID: initial.sessionID,
+        goalID: initial.id,
+        expectedRevision: initial.revision,
+        evidenceIDs: ["evidence_current"],
+        evidenceSetDigest: initial.evidenceSetDigest,
+      }),
+    ).toEqual(completed)
     expect(setup.data.session.goal.get(initial.sessionID, initial.id)?.status).toBe("completed")
-    expect(requests.every((request) => request.directory === "/project" && request.workspace === "wrk_goal_data")).toBe(true)
+    expect(requests.every((request) => request.directory === "/project" && request.workspace === "wrk_goal_data")).toBe(
+      true,
+    )
     expect(requests.at(-2)?.body).toEqual({ expectedRevision: 1 })
-    expect(requests.at(-1)?.body).toEqual({ expectedRevision: 1, evidenceIDs: ["evidence_current"], evidenceSetDigest: initial.evidenceSetDigest })
-    expect(requests.find((request) => request.body && request.path.endsWith("/goal"))?.body).toEqual({ goalID: initial.id, objective: initial.objective, conditions: initial.conditions, budget: {} })
+    expect(requests.at(-1)?.body).toEqual({
+      expectedRevision: 1,
+      evidenceIDs: ["evidence_current"],
+      evidenceSetDigest: initial.evidenceSetDigest,
+    })
+    expect(requests.find((request) => request.body && request.path.endsWith("/goal"))?.body).toEqual({
+      goalID: initial.id,
+      objective: initial.objective,
+      conditions: initial.conditions,
+      budget: {},
+    })
   } finally {
     setup.dispose()
   }
@@ -3437,10 +3852,19 @@ test("communication pages, detail and capability share the canonical Data record
   const setup = taskFixture((request) => {
     const url = new URL(request.url)
     if (url.pathname.endsWith(older.id)) return Response.json({ data: older })
-    return Response.json({ data: { items: url.searchParams.has("cursor") ? [first, older] : [first], next: url.searchParams.has("cursor") ? undefined : "older-page", capability: { read: true, list: true, send: false, reply: false, reasons: ["historical-agent"] } } })
+    return Response.json({
+      data: {
+        items: url.searchParams.has("cursor") ? [first, older] : [first],
+        next: url.searchParams.has("cursor") ? undefined : "older-page",
+        capability: { read: true, list: true, send: false, reply: false, reasons: ["historical-agent"] },
+      },
+    })
   })
   try {
-    setup.data.session.remember({ ...session(0), location: { directory: "/project", workspaceID: "wrk_communication_data" } })
+    setup.data.session.remember({
+      ...session(0),
+      location: { directory: "/project", workspaceID: "wrk_communication_data" },
+    })
     await setup.data.session.communication.sync("ses_refresh")
     expect(setup.data.session.communication.next("ses_refresh")).toBe("older-page")
     await setup.data.session.communication.more("ses_refresh")
@@ -3448,11 +3872,24 @@ test("communication pages, detail and capability share the canonical Data record
     expect(setup.data.session.communication.list("ses_refresh")?.map((value) => value.id)).toEqual([first.id, older.id])
     expect(setup.data.session.communication.get("ses_refresh", older.id)).toEqual(older)
     expect(setup.data.session.communication.next("ses_refresh")).toBeUndefined()
-    expect(setup.data.session.communication.capability("ses_refresh")).toEqual({ read: true, list: true, send: false, reply: false, reasons: ["historical-agent"] })
-    expect(setup.requests.map((request) => {
-      const url = new URL(request.url)
-      return [url.pathname, url.searchParams.get("directory"), url.searchParams.get("workspace"), url.searchParams.get("cursor")]
-    })).toEqual([
+    expect(setup.data.session.communication.capability("ses_refresh")).toEqual({
+      read: true,
+      list: true,
+      send: false,
+      reply: false,
+      reasons: ["historical-agent"],
+    })
+    expect(
+      setup.requests.map((request) => {
+        const url = new URL(request.url)
+        return [
+          url.pathname,
+          url.searchParams.get("directory"),
+          url.searchParams.get("workspace"),
+          url.searchParams.get("cursor"),
+        ]
+      }),
+    ).toEqual([
       ["/api/session/ses_refresh/communication", "/project", "wrk_communication_data", null],
       ["/api/session/ses_refresh/communication", "/project", "wrk_communication_data", "older-page"],
       ["/api/session/ses_refresh/communication/com_data_older", "/project", "wrk_communication_data", null],
@@ -3462,51 +3899,99 @@ test("communication pages, detail and capability share the canonical Data record
   }
 })
 
-test.each(["send", "reply"] as const)("communication %s preserves the exact wire request while lifecycle facts overtake its acknowledgement", async (action) => {
-  const started = Promise.withResolvers<void>()
-  const release = Promise.withResolvers<void>()
-  const received = communicationInfo({ actor: { type: "user", sessionID: "ses_data_target" }, targetSessionID: "ses_refresh", body: { sessionID: "ses_refresh", inputID: "msg_communication_data", digest: "a".repeat(64) } })
-  const value = communicationInfo({ replyTo: action === "reply" ? received.id : undefined, id: "com_data_sent" })
-  const receipt: SessionCommunicationReceipt = { ...value, admission: "admitted", wake: "not_requested" }
-  const bodies: unknown[] = []
-  const setup = taskFixture(async (request) => {
-    if (request.method === "GET") return Response.json({ data: { items: action === "reply" ? [received] : [], capability: { read: true, list: true, send: true, reply: true, reasons: [] } } })
-    bodies.push(await request.json())
-    started.resolve()
-    await release.promise
-    return Response.json({ data: receipt })
-  })
-  const reads: Promise<SessionCommunicationReceipt>[] = []
-  try {
-    setup.data.session.remember({ ...session(0), location: { directory: "/project", workspaceID: "wrk_communication_data" } })
-    await setup.data.session.communication.sync("ses_refresh")
-    const content = { type: "text" as const, text: value.text }
-    const send = () => action === "send"
-      ? setup.data.session.communication.send({ sessionID: "ses_refresh", payload: { id: value.id, targetSessionID: value.targetSessionID, content, delivery: "queue", trigger: false } })
-      : setup.data.session.communication.reply({ sessionID: "ses_refresh", communicationID: received.id, payload: { id: value.id, content, delivery: "queue", trigger: false } })
-    reads.push(send())
-    await started.promise
-    setup.emit(communicationEvent(value))
-    setup.emit(communicationEvent(value))
-    setup.emit({ id: "evt_communication_cancelled", type: "session.inbox.cancelled", created: 5, durable: { aggregateID: value.targetSessionID, seq: 2, version: 1 }, data: { sessionID: value.targetSessionID, inboxID: value.body.inputID } })
-    release.resolve()
-    expect(await reads[0]).toEqual(receipt)
-    expect(setup.data.session.communication.get("ses_refresh", value.id)?.state).toBe("cancelled")
-    expect(setup.data.session.communication.list("ses_refresh")?.filter((item) => item.id === value.id)).toHaveLength(1)
-    reads.push(send())
-    await reads[1]
-    expect(bodies[0]).toEqual(bodies[1])
-    expect(bodies[0]).toEqual({ id: value.id, ...(action === "send" ? { targetSessionID: value.targetSessionID } : {}), content, delivery: "queue", trigger: false })
-    const url = new URL(setup.requests.at(-1)!.url)
-    expect(url.pathname).toBe(action === "send" ? "/api/session/ses_refresh/communication" : `/api/session/ses_refresh/communication/${received.id}/reply`)
-    expect(url.searchParams.get("workspace")).toBe("wrk_communication_data")
-    expect(url.searchParams.get("directory")).toBe("/project")
-  } finally {
-    release.resolve()
-    await Promise.allSettled(reads)
-    setup.dispose()
-  }
-})
+test.each(["send", "reply"] as const)(
+  "communication %s preserves the exact wire request while lifecycle facts overtake its acknowledgement",
+  async (action) => {
+    const started = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    const received = communicationInfo({
+      actor: { type: "user", sessionID: "ses_data_target" },
+      targetSessionID: "ses_refresh",
+      body: { sessionID: "ses_refresh", inputID: "msg_communication_data", digest: "a".repeat(64) },
+    })
+    const value = communicationInfo({ replyTo: action === "reply" ? received.id : undefined, id: "com_data_sent" })
+    const receipt: SessionCommunicationReceipt = { ...value, admission: "admitted", wake: "not_requested" }
+    const bodies: unknown[] = []
+    const setup = taskFixture(async (request) => {
+      if (request.method === "GET")
+        return Response.json({
+          data: {
+            items: action === "reply" ? [received] : [],
+            capability: { read: true, list: true, send: true, reply: true, reasons: [] },
+          },
+        })
+      bodies.push(await request.json())
+      started.resolve()
+      await release.promise
+      return Response.json({ data: receipt })
+    })
+    const reads: Promise<SessionCommunicationReceipt>[] = []
+    try {
+      setup.data.session.remember({
+        ...session(0),
+        location: { directory: "/project", workspaceID: "wrk_communication_data" },
+      })
+      await setup.data.session.communication.sync("ses_refresh")
+      const content = { type: "text" as const, text: value.text }
+      const send = () =>
+        action === "send"
+          ? setup.data.session.communication.send({
+              sessionID: "ses_refresh",
+              payload: {
+                id: value.id,
+                targetSessionID: value.targetSessionID,
+                content,
+                delivery: "queue",
+                trigger: false,
+              },
+            })
+          : setup.data.session.communication.reply({
+              sessionID: "ses_refresh",
+              communicationID: received.id,
+              payload: { id: value.id, content, delivery: "queue", trigger: false },
+            })
+      reads.push(send())
+      await started.promise
+      setup.emit(communicationEvent(value))
+      setup.emit(communicationEvent(value))
+      setup.emit({
+        id: "evt_communication_cancelled",
+        type: "session.inbox.cancelled",
+        created: 5,
+        durable: { aggregateID: value.targetSessionID, seq: 2, version: 1 },
+        data: { sessionID: value.targetSessionID, inboxID: value.body.inputID },
+      })
+      release.resolve()
+      expect(await reads[0]).toEqual(receipt)
+      expect(setup.data.session.communication.get("ses_refresh", value.id)?.state).toBe("cancelled")
+      expect(setup.data.session.communication.list("ses_refresh")?.filter((item) => item.id === value.id)).toHaveLength(
+        1,
+      )
+      reads.push(send())
+      await reads[1]
+      expect(bodies[0]).toEqual(bodies[1])
+      expect(bodies[0]).toEqual({
+        id: value.id,
+        ...(action === "send" ? { targetSessionID: value.targetSessionID } : {}),
+        content,
+        delivery: "queue",
+        trigger: false,
+      })
+      const url = new URL(setup.requests.at(-1)!.url)
+      expect(url.pathname).toBe(
+        action === "send"
+          ? "/api/session/ses_refresh/communication"
+          : `/api/session/ses_refresh/communication/${received.id}/reply`,
+      )
+      expect(url.searchParams.get("workspace")).toBe("wrk_communication_data")
+      expect(url.searchParams.get("directory")).toBe("/project")
+    } finally {
+      release.resolve()
+      await Promise.allSettled(reads)
+      setup.dispose()
+    }
+  },
+)
 
 test("communication lifecycle and deletion supersede a held page without duplicating its original carrier", async () => {
   const started = Promise.withResolvers<void>()
@@ -3514,8 +3999,16 @@ test("communication lifecycle and deletion supersede a held page without duplica
   const value = communicationInfo()
   const snapshot = { held: false }
   const setup = taskFixture(async () => {
-    if (snapshot.held) { started.resolve(); await release.promise }
-    return Response.json({ data: { items: snapshot.held ? [value] : [], capability: { read: true, list: true, send: true, reply: true, reasons: [] } } })
+    if (snapshot.held) {
+      started.resolve()
+      await release.promise
+    }
+    return Response.json({
+      data: {
+        items: snapshot.held ? [value] : [],
+        capability: { read: true, list: true, send: true, reply: true, reasons: [] },
+      },
+    })
   })
   const reads: Promise<void>[] = []
   try {
@@ -3526,13 +4019,26 @@ test("communication lifecycle and deletion supersede a held page without duplica
     reads.push(setup.data.session.communication.sync("ses_refresh"))
     await started.promise
     setup.emit(communicationEvent(value))
-    setup.emit({ id: "evt_communication_delivered", type: "session.inbox.delivered", created: 4, durable: { aggregateID: value.targetSessionID, seq: 2, version: 1 }, data: { sessionID: value.targetSessionID, inboxID: value.body.inputID } })
+    setup.emit({
+      id: "evt_communication_delivered",
+      type: "session.inbox.delivered",
+      created: 4,
+      durable: { aggregateID: value.targetSessionID, seq: 2, version: 1 },
+      data: { sessionID: value.targetSessionID, inboxID: value.body.inputID },
+    })
     release.resolve()
     await reads[0]
-    expect(setup.data.session.communication.list("ses_refresh")?.map((item) => [item.id, item.state])).toEqual([[value.id, "visible"]])
+    expect(setup.data.session.communication.list("ses_refresh")?.map((item) => [item.id, item.state])).toEqual([
+      [value.id, "visible"],
+    ])
     setup.emit(communicationEvent(value))
     expect(setup.data.session.communication.get("ses_refresh", value.id)?.state).toBe("visible")
-    setup.emit({ id: "evt_communication_target_deleted", type: "session.deleted", created: 6, data: { sessionID: value.targetSessionID } })
+    setup.emit({
+      id: "evt_communication_target_deleted",
+      type: "session.deleted",
+      created: 6,
+      data: { sessionID: value.targetSessionID },
+    })
     expect(setup.data.session.communication.get("ses_refresh", value.id)?.state).toBe("removed")
     expect(setup.data.session.deleted(value.targetSessionID)).toBe(true)
   } finally {
@@ -3544,112 +4050,243 @@ test("communication lifecycle and deletion supersede a held page without duplica
 
 test("older Inbox lifecycle events do not regress the canonical communication state", async () => {
   const value = communicationInfo()
-  const setup = taskFixture(() => Response.json({ data: { items: [], capability: { read: true, list: true, send: true, reply: true, reasons: [] } } }))
+  const setup = taskFixture(() =>
+    Response.json({
+      data: { items: [], capability: { read: true, list: true, send: true, reply: true, reasons: [] } },
+    }),
+  )
   try {
     setup.data.session.remember(session(0))
     await setup.data.session.communication.sync("ses_refresh")
     setup.emit(communicationEvent(value))
-    setup.emit({ id: "evt_communication_new_cancel", type: "session.inbox.cancelled", created: 5, durable: { aggregateID: value.targetSessionID, seq: 3, version: 1 }, data: { sessionID: value.targetSessionID, inboxID: value.body.inputID } })
-    setup.emit({ id: "evt_communication_old_delivery", type: "session.inbox.delivered", created: 4, durable: { aggregateID: value.targetSessionID, seq: 2, version: 1 }, data: { sessionID: value.targetSessionID, inboxID: value.body.inputID } })
+    setup.emit({
+      id: "evt_communication_new_cancel",
+      type: "session.inbox.cancelled",
+      created: 5,
+      durable: { aggregateID: value.targetSessionID, seq: 3, version: 1 },
+      data: { sessionID: value.targetSessionID, inboxID: value.body.inputID },
+    })
+    setup.emit({
+      id: "evt_communication_old_delivery",
+      type: "session.inbox.delivered",
+      created: 4,
+      durable: { aggregateID: value.targetSessionID, seq: 2, version: 1 },
+      data: { sessionID: value.targetSessionID, inboxID: value.body.inputID },
+    })
     setup.emit(communicationEvent(value))
-    expect(setup.data.session.communication.list("ses_refresh")?.map((item) => [item.id, item.state])).toEqual([[value.id, "cancelled"]])
+    expect(setup.data.session.communication.list("ses_refresh")?.map((item) => [item.id, item.state])).toEqual([
+      [value.id, "cancelled"],
+    ])
   } finally {
     setup.dispose()
   }
 })
 
-test.skipIf(isServer)("communication reconnect revokes a held page and the existing owner performs the next read", async () => {
-  const started = Promise.withResolvers<void>()
-  const release = Promise.withResolvers<void>()
-  const [status, setStatus] = createSignal<"connected" | "reconnecting">("connected")
-  const value = communicationInfo()
-  const snapshots = { calls: 0 }
-  const setup = taskFixture(async () => {
-    snapshots.calls += 1
-    if (snapshots.calls === 1) { started.resolve(); await release.promise }
-    return Response.json({ data: { items: [{ ...value, state: snapshots.calls === 1 ? "pending" : "visible" }], capability: { read: true, list: true, send: true, reply: true, reasons: [] } } })
-  }, { status })
-  const reads: Promise<void>[] = []
-  try {
-    setup.data.session.remember(session(0))
-    reads.push(setup.data.session.communication.sync("ses_refresh"))
-    await started.promise
-    setStatus("reconnecting")
-    setStatus("connected")
-    release.resolve()
-    await reads[0]
-    expect(setup.data.session.communication.list("ses_refresh")).toBeUndefined()
-    await setup.data.session.communication.sync("ses_refresh")
-    expect(setup.data.session.communication.get("ses_refresh", value.id)?.state).toBe("visible")
-  } finally {
-    release.resolve()
-    await Promise.allSettled(reads)
-    setup.dispose()
-  }
-})
+test.skipIf(isServer)(
+  "communication reconnect revokes a held page and the existing owner performs the next read",
+  async () => {
+    const started = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    const [status, setStatus] = createSignal<"connected" | "reconnecting">("connected")
+    const value = communicationInfo()
+    const snapshots = { calls: 0 }
+    const setup = taskFixture(
+      async () => {
+        snapshots.calls += 1
+        if (snapshots.calls === 1) {
+          started.resolve()
+          await release.promise
+        }
+        return Response.json({
+          data: {
+            items: [{ ...value, state: snapshots.calls === 1 ? "pending" : "visible" }],
+            capability: { read: true, list: true, send: true, reply: true, reasons: [] },
+          },
+        })
+      },
+      { status },
+    )
+    const reads: Promise<void>[] = []
+    try {
+      setup.data.session.remember(session(0))
+      reads.push(setup.data.session.communication.sync("ses_refresh"))
+      await started.promise
+      setStatus("reconnecting")
+      setStatus("connected")
+      release.resolve()
+      await reads[0]
+      expect(setup.data.session.communication.list("ses_refresh")).toBeUndefined()
+      await setup.data.session.communication.sync("ses_refresh")
+      expect(setup.data.session.communication.get("ses_refresh", value.id)?.state).toBe("visible")
+    } finally {
+      release.resolve()
+      await Promise.allSettled(reads)
+      setup.dispose()
+    }
+  },
+)
 
-test.each(["api replaced", "Location moved", "evicted", "deleted", "disposed"] as const)("communication rejects a held page when its owner is %s", async (change) => {
-  const started = Promise.withResolvers<void>()
-  const release = Promise.withResolvers<void>()
-  const value = communicationInfo()
-  const setup = taskFixture(async () => {
-    started.resolve()
-    await release.promise
-    return Response.json({ data: { items: [value], capability: { read: true, list: true, send: true, reply: true, reasons: [] } } })
-  })
-  const reads: Promise<void>[] = []
-  try {
-    setup.data.session.remember(session(0))
-    reads.push(setup.data.session.communication.sync("ses_refresh"))
-    await started.promise
-    if (change === "api replaced") setup.owner.api = AigcForge.make({ baseUrl: "http://replacement.local", fetch: async () => Response.json({ data: { items: [], capability: { read: true, list: true, send: false, reply: false, reasons: [] } } }) })
-    if (change === "Location moved") setup.data.session.remember({ ...session(0), location: { directory: "/other", workspaceID: "wrk_other" } })
-    if (change === "evicted") setup.data.session.evict("ses_refresh")
-    if (change === "deleted") setup.emit({ id: "evt_communication_owner_deleted", type: "session.deleted", created: 3, data: { sessionID: "ses_refresh" } })
-    if (change === "disposed") setup.dispose()
-    release.resolve()
-    await reads[0]
-    expect(setup.data.session.communication.list("ses_refresh")).toBeUndefined()
-    expect(setup.data.session.communication.get("ses_refresh", value.id)).toBeUndefined()
-    expect(setup.data.session.communication.capability("ses_refresh")).toBeUndefined()
-  } finally {
-    release.resolve()
-    await Promise.allSettled(reads)
-    setup.dispose()
-  }
-})
+test.each(["api replaced", "Location moved", "evicted", "deleted", "disposed"] as const)(
+  "communication rejects a held page when its owner is %s",
+  async (change) => {
+    const started = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    const value = communicationInfo()
+    const setup = taskFixture(async () => {
+      started.resolve()
+      await release.promise
+      return Response.json({
+        data: { items: [value], capability: { read: true, list: true, send: true, reply: true, reasons: [] } },
+      })
+    })
+    const reads: Promise<void>[] = []
+    try {
+      setup.data.session.remember(session(0))
+      reads.push(setup.data.session.communication.sync("ses_refresh"))
+      await started.promise
+      if (change === "api replaced")
+        setup.owner.api = AigcForge.make({
+          baseUrl: "http://replacement.local",
+          fetch: async () =>
+            Response.json({
+              data: { items: [], capability: { read: true, list: true, send: false, reply: false, reasons: [] } },
+            }),
+        })
+      if (change === "Location moved")
+        setup.data.session.remember({ ...session(0), location: { directory: "/other", workspaceID: "wrk_other" } })
+      if (change === "evicted") setup.data.session.evict("ses_refresh")
+      if (change === "deleted")
+        setup.emit({
+          id: "evt_communication_owner_deleted",
+          type: "session.deleted",
+          created: 3,
+          data: { sessionID: "ses_refresh" },
+        })
+      if (change === "disposed") setup.dispose()
+      release.resolve()
+      await reads[0]
+      expect(setup.data.session.communication.list("ses_refresh")).toBeUndefined()
+      expect(setup.data.session.communication.get("ses_refresh", value.id)).toBeUndefined()
+      expect(setup.data.session.communication.capability("ses_refresh")).toBeUndefined()
+    } finally {
+      release.resolve()
+      await Promise.allSettled(reads)
+      setup.dispose()
+    }
+  },
+)
 
 function communicationInfo(input: Partial<SessionCommunicationMessage> = {}): SessionCommunicationMessage {
-  return { id: "com_data_communication", actor: { type: "user", sessionID: "ses_refresh" }, contentSource: { sessionID: "ses_refresh", scope: "text" }, targetSessionID: "ses_data_target", body: { sessionID: "ses_data_target", inputID: "msg_communication_data", digest: "a".repeat(64) }, requestDigest: "b".repeat(64), delivery: "queue", trigger: false, createdAt: 1, text: "Read this exact saved communication.", state: "pending", ...input }
+  return {
+    id: "com_data_communication",
+    actor: { type: "user", sessionID: "ses_refresh" },
+    contentSource: { sessionID: "ses_refresh", scope: "text" },
+    targetSessionID: "ses_data_target",
+    body: { sessionID: "ses_data_target", inputID: "msg_communication_data", digest: "a".repeat(64) },
+    requestDigest: "b".repeat(64),
+    delivery: "queue",
+    trigger: false,
+    createdAt: 1,
+    text: "Read this exact saved communication.",
+    state: "pending",
+    ...input,
+  }
 }
 
 function communicationEvent(value: SessionCommunicationMessage): AigcForgeEvent {
-  return { id: "evt_communication_enqueued", type: "session.inbox.enqueued", created: 1, durable: { aggregateID: value.targetSessionID, seq: 1, version: 1 }, data: { sessionID: value.targetSessionID, inboxID: value.body.inputID, communication: value, item: { type: "synthetic", delivery: value.delivery, payload: { text: value.text, metadata: { source: "share", communication: { id: value.id } } } } } }
+  return {
+    id: "evt_communication_enqueued",
+    type: "session.inbox.enqueued",
+    created: 1,
+    durable: { aggregateID: value.targetSessionID, seq: 1, version: 1 },
+    data: {
+      sessionID: value.targetSessionID,
+      inboxID: value.body.inputID,
+      communication: value,
+      item: {
+        type: "synthetic",
+        delivery: value.delivery,
+        payload: { text: value.text, metadata: { source: "share", communication: { id: value.id } } },
+      },
+    },
+  }
 }
 
 function goalInfo(input: Partial<SessionGoalInfo> = {}): SessionGoalInfo {
   const count = { steps: 0, attempts: 0, recordedTokens: 0, sharedTokens: 0, unknownAttempts: 0, pendingAttempts: 0 }
   return {
-    id: "gol_data_goal", sessionID: "ses_refresh", metaAgentID: "meta_data_goal", agent: "meta",
-    selection: { agent: "meta", event: { id: "evt_goal_selection", seq: 1 } }, objective: "Finish the saved task",
+    id: "gol_data_goal",
+    sessionID: "ses_refresh",
+    metaAgentID: "meta_data_goal",
+    agent: "meta",
+    selection: { agent: "meta", event: { id: "evt_goal_selection", seq: 1 } },
+    objective: "Finish the saved task",
     conditions: [{ id: "acceptance", kind: "human_acceptance", description: "Review the saved result" }],
-    taskRefs: [], revision: 1, revisionCreatedAt: 0, status: "active", pauseVersion: 0, budget: {}, rounds: [], attempts: [], evidence: [],
-    evidenceSetDigest: "a".repeat(64), currentEvidenceIDs: [], satisfiedConditionIDs: [], activeMilliseconds: 0,
-    accounting: { rounds: 0, activeMilliseconds: 0, coordinator: { ...count }, worker: { ...count }, compaction: { ...count }, auxiliary: { ...count } },
-    createdAt: 0, updatedAt: 0, ...input,
+    taskRefs: [],
+    revision: 1,
+    revisionCreatedAt: 0,
+    status: "active",
+    pauseVersion: 0,
+    budget: {},
+    rounds: [],
+    attempts: [],
+    evidence: [],
+    evidenceSetDigest: "a".repeat(64),
+    currentEvidenceIDs: [],
+    satisfiedConditionIDs: [],
+    activeMilliseconds: 0,
+    accounting: {
+      rounds: 0,
+      activeMilliseconds: 0,
+      coordinator: { ...count },
+      worker: { ...count },
+      compaction: { ...count },
+      auxiliary: { ...count },
+    },
+    createdAt: 0,
+    updatedAt: 0,
+    ...input,
   }
 }
 
 function scheduleRuleInfo(input: Partial<ScheduleRule> = {}): ScheduleRule {
-  return { id: "sch_data_rule", sessionID: "ses_refresh", kind: "prompt", content: "Review the current work", dueAt: 1000, timezone: "UTC",
-    target: { policy: "existing", sessionID: "ses_data_target" }, executionPolicy: { delivery: "queue", missed: "catch_up" }, sourceAgent: "meta",
-    revision: 1, status: "pending", nextDueAt: 1000, createdAt: 0, updatedAt: 0, ...input }
+  return {
+    id: "sch_data_rule",
+    sessionID: "ses_refresh",
+    kind: "prompt",
+    content: "Review the current work",
+    dueAt: 1000,
+    timezone: "UTC",
+    target: { policy: "existing", sessionID: "ses_data_target" },
+    executionPolicy: { delivery: "queue", missed: "catch_up" },
+    sourceAgent: "meta",
+    revision: 1,
+    status: "pending",
+    nextDueAt: 1000,
+    createdAt: 0,
+    updatedAt: 0,
+    ...input,
+  }
 }
 
 function scheduleOccurrenceInfo(input: Partial<ScheduleOccurrence> = {}): ScheduleOccurrence {
-  return { id: "sco_data_occurrence", scheduleID: "sch_data_rule", sessionID: "ses_refresh", ruleRevision: 1, snapshot: scheduleRuleInfo(),
-    scheduledAt: 1000, claimedAt: 1001, claimOwner: "test", caughtUp: false, status: "claimed", inputID: "msg_data_schedule", operationID: "top_data_schedule",
-    createdAt: 1001, updatedAt: 1001, ...input }
+  return {
+    id: "sco_data_occurrence",
+    scheduleID: "sch_data_rule",
+    sessionID: "ses_refresh",
+    ruleRevision: 1,
+    snapshot: scheduleRuleInfo(),
+    scheduledAt: 1000,
+    claimedAt: 1001,
+    claimOwner: "test",
+    caughtUp: false,
+    status: "claimed",
+    inputID: "msg_data_schedule",
+    operationID: "top_data_schedule",
+    createdAt: 1001,
+    updatedAt: 1001,
+    ...input,
+  }
 }
 
 function operationInfo(input: Partial<SessionTaskOperationInfo> = {}): SessionTaskOperationInfo {
@@ -3683,7 +4320,10 @@ function operationInfo(input: Partial<SessionTaskOperationInfo> = {}): SessionTa
   }
 }
 
-function taskFixture(read: (request: Request) => Response | Promise<Response>, connection?: CreateDataInput["connection"]) {
+function taskFixture(
+  read: (request: Request) => Response | Promise<Response>,
+  connection?: CreateDataInput["connection"],
+) {
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
   const requests: Request[] = []
   const api = AigcForge.make({
@@ -3717,7 +4357,10 @@ function taskFixture(read: (request: Request) => Response | Promise<Response>, c
 
 test("physical attempt SSE preserves logical selection, exact observations and authoritative accounting on readback", async () => {
   const selection = { type: "group", groupID: "fallback" } as const
-  const models = [{ providerID: "a", id: "catalog-a" }, { providerID: "b", id: "catalog-b" }]
+  const models = [
+    { providerID: "a", id: "catalog-a" },
+    { providerID: "b", id: "catalog-b" },
+  ]
   const snapshot: SessionMessageInfo[] = []
   const setup = taskFixture(() => Response.json({ data: snapshot, cursor: {} }))
   const parent = session(0)
@@ -3726,31 +4369,145 @@ test("physical attempt SSE preserves logical selection, exact observations and a
   try {
     setup.data.session.remember({ ...parent, model: selection, cost: 7 })
     setup.emit({
-      id: "evt_attempt_a", type: "session.attempt.started", created: 1, durable: durable(1),
-      data: { ...identity, ordinal: 0, attemptID: "physical-a", agent: "build", selection, model: models[0]!, apiModelID: "api-a", connection: { type: "credential", id: "cred_a" }, quote: { status: "unknown" }, goalRefs: [], transition: "initial", started: 1 },
+      id: "evt_attempt_a",
+      type: "session.attempt.started",
+      created: 1,
+      durable: durable(1),
+      data: {
+        ...identity,
+        ordinal: 0,
+        attemptID: "physical-a",
+        agent: "build",
+        selection,
+        model: models[0]!,
+        apiModelID: "api-a",
+        connection: { type: "credential", id: "cred_a" },
+        quote: { status: "unknown" },
+        goalRefs: [],
+        transition: "initial",
+        started: 1,
+      },
     })
-    setup.emit({ id: "evt_first_step", type: "session.step.started", created: 2, durable: durable(2), data: { ...identity, agent: "build", model: models[0]!, started: 1 } })
-    setup.emit({ id: "evt_a_streamed", type: "session.step.streamed", created: 3, durable: durable(3), data: identity })
-    setup.emit({ id: "evt_attempt_a_end", type: "session.attempt.ended", created: 3, durable: durable(4), data: { ...identity, ordinal: 0, terminal: { status: "failed", ended: 3, outputStarted: false, failure: { reason: "Authentication", status: 401 }, usage: parent.tokens } } })
     setup.emit({
-      id: "evt_attempt_b", type: "session.attempt.started", created: 4, durable: durable(5),
-      data: { ...identity, ordinal: 1, attemptID: "physical-b", agent: "build", selection, model: models[1]!, apiModelID: "api-b", connection: { type: "credential", id: "cred_b" }, quote: { status: "free", prices: [{ input: 0, output: 0, cache: { read: 0, write: 0 } }] }, goalRefs: [], transition: "fallback", reason: { reason: "Authentication", status: 401 }, started: 4 },
+      id: "evt_first_step",
+      type: "session.step.started",
+      created: 2,
+      durable: durable(2),
+      data: { ...identity, agent: "build", model: models[0]!, started: 1 },
     })
-    const sent: AigcForgeEvent = { id: "evt_b_sent", type: "session.attempt.observed", created: 5, durable: durable(6), data: { ...identity, ordinal: 1, observation: { observedAt: 5, transport: "http", delivery: "accepted" } } }
+    setup.emit({ id: "evt_a_streamed", type: "session.step.streamed", created: 3, durable: durable(3), data: identity })
+    setup.emit({
+      id: "evt_attempt_a_end",
+      type: "session.attempt.ended",
+      created: 3,
+      durable: durable(4),
+      data: {
+        ...identity,
+        ordinal: 0,
+        terminal: {
+          status: "failed",
+          ended: 3,
+          outputStarted: false,
+          failure: { reason: "Authentication", status: 401 },
+          usage: parent.tokens,
+        },
+      },
+    })
+    setup.emit({
+      id: "evt_attempt_b",
+      type: "session.attempt.started",
+      created: 4,
+      durable: durable(5),
+      data: {
+        ...identity,
+        ordinal: 1,
+        attemptID: "physical-b",
+        agent: "build",
+        selection,
+        model: models[1]!,
+        apiModelID: "api-b",
+        connection: { type: "credential", id: "cred_b" },
+        quote: { status: "free", prices: [{ input: 0, output: 0, cache: { read: 0, write: 0 } }] },
+        goalRefs: [],
+        transition: "fallback",
+        reason: { reason: "Authentication", status: 401 },
+        started: 4,
+      },
+    })
+    const sent: AigcForgeEvent = {
+      id: "evt_b_sent",
+      type: "session.attempt.observed",
+      created: 5,
+      durable: durable(6),
+      data: { ...identity, ordinal: 1, observation: { observedAt: 5, transport: "http", delivery: "accepted" } },
+    }
     setup.emit(sent)
     setup.emit(sent)
     setup.emit({ ...sent, id: "evt_b_sent_again", durable: durable(7) })
-    setup.emit({ id: "evt_legacy_retry_start", type: "session.step.started", created: 6, durable: durable(8), data: { ...identity, agent: "build", model: models[1]!, started: 6 } })
+    setup.emit({
+      id: "evt_legacy_retry_start",
+      type: "session.step.started",
+      created: 6,
+      durable: durable(8),
+      data: { ...identity, agent: "build", model: models[1]!, started: 6 },
+    })
     setup.emit({ id: "evt_b_streamed", type: "session.step.streamed", created: 6, durable: durable(9), data: identity })
-    setup.emit({ id: "evt_b_output", type: "session.attempt.observed", created: 7, durable: durable(10), data: { ...identity, ordinal: 1, observation: { observedAt: 7, outputStarted: true, firstOutputAt: 7 } } })
+    setup.emit({
+      id: "evt_b_output",
+      type: "session.attempt.observed",
+      created: 7,
+      durable: durable(10),
+      data: { ...identity, ordinal: 1, observation: { observedAt: 7, outputStarted: true, firstOutputAt: 7 } },
+    })
     setup.emit({ id: "evt_b_text", type: "session.text.started", created: 8, data: identity })
-    setup.emit({ id: "evt_b_delta", type: "session.text.delta", created: 9, data: { ...identity, delta: "Actual B output" } })
-    const terminal: AigcForgeEvent = { id: "evt_attempt_b_end", type: "session.attempt.ended", created: 10, durable: durable(11), data: { ...identity, ordinal: 1, terminal: { status: "completed", ended: 10, outputStarted: true, finish: "stop", usage: parent.tokens, cost: 0 } } }
+    setup.emit({
+      id: "evt_b_delta",
+      type: "session.text.delta",
+      created: 9,
+      data: { ...identity, delta: "Actual B output" },
+    })
+    const terminal: AigcForgeEvent = {
+      id: "evt_attempt_b_end",
+      type: "session.attempt.ended",
+      created: 10,
+      durable: durable(11),
+      data: {
+        ...identity,
+        ordinal: 1,
+        terminal: {
+          status: "completed",
+          ended: 10,
+          outputStarted: true,
+          finish: "stop",
+          usage: parent.tokens,
+          cost: 0,
+        },
+      },
+    }
     setup.emit(terminal)
     setup.emit(terminal)
     expect(setup.data.session.get(parent.id)?.cost).toBe(7)
-    setup.emit({ id: "evt_step_end", type: "session.step.ended", created: 11, durable: durable(12), data: { ...identity, finish: "stop", needsContinuation: false, cost: 0, tokens: parent.tokens, unknownPriceAttempts: 1, missingUsageAttempts: 0 } })
-    setup.emit({ id: "evt_usage", type: "session.usage.updated", created: 12, data: { sessionID: parent.id, cost: 7, tokens: parent.tokens, unknownPriceAttempts: 1, missingUsageAttempts: 0 } })
+    setup.emit({
+      id: "evt_step_end",
+      type: "session.step.ended",
+      created: 11,
+      durable: durable(12),
+      data: {
+        ...identity,
+        finish: "stop",
+        needsContinuation: false,
+        cost: 0,
+        tokens: parent.tokens,
+        unknownPriceAttempts: 1,
+        missingUsageAttempts: 0,
+      },
+    })
+    setup.emit({
+      id: "evt_usage",
+      type: "session.usage.updated",
+      created: 12,
+      data: { sessionID: parent.id, cost: 7, tokens: parent.tokens, unknownPriceAttempts: 1, missingUsageAttempts: 0 },
+    })
     const message = setup.data.session.message.get(parent.id, identity.assistantMessageID)
     expect(message?.type).toBe("assistant")
     if (message?.type !== "assistant") throw new Error("Missing actual attempt projection")
@@ -3760,12 +4517,31 @@ test("physical attempt SSE preserves logical selection, exact observations and a
     expect(message.time.streamed).toBe(3)
     if (message.origin?.kind !== "step") throw new Error("Missing first dispatch origin")
     expect(message.origin.id).toBe("evt_attempt_a")
-    expect(message.attempts?.map((attempt) => [attempt.ordinal, attempt.model.providerID, attempt.apiModelID, attempt.terminal?.status])).toEqual([[0, "a", "api-a", "failed"], [1, "b", "api-b", "completed"]])
-    expect(message.attempts?.[1]?.observations.map((item) => item.event.id)).toEqual(["evt_b_sent", "evt_b_sent_again", "evt_b_output"])
+    expect(
+      message.attempts?.map((attempt) => [
+        attempt.ordinal,
+        attempt.model.providerID,
+        attempt.apiModelID,
+        attempt.terminal?.status,
+      ]),
+    ).toEqual([
+      [0, "a", "api-a", "failed"],
+      [1, "b", "api-b", "completed"],
+    ])
+    expect(message.attempts?.[1]?.observations.map((item) => item.event.id)).toEqual([
+      "evt_b_sent",
+      "evt_b_sent_again",
+      "evt_b_output",
+    ])
     expect(message.attempts?.[0]?.quote.status).toBe("unknown")
     expect(message.attempts?.[1]?.quote.status).toBe("free")
     expect(message.unknownPriceAttempts).toBe(1)
-    expect(setup.data.session.get(parent.id)).toMatchObject({ model: selection, cost: 7, unknownPriceAttempts: 1, missingUsageAttempts: 0 })
+    expect(setup.data.session.get(parent.id)).toMatchObject({
+      model: selection,
+      cost: 7,
+      unknownPriceAttempts: 1,
+      missingUsageAttempts: 0,
+    })
     snapshot.push(structuredClone(unwrap(message)))
     setup.data.session.message.invalidate(parent.id)
     await setup.data.session.message.sync(parent.id)
@@ -3780,7 +4556,21 @@ test("the original model group resource refreshes only observed Location reads a
   const location = { directory: "/project" }
   const setup = taskFixture((request) => {
     if (new URL(request.url).pathname === "/api/model/group")
-      return Response.json({ location, data: { targets: [], definitions: [], effective: [{ groupID: "fallback", definition: { name: state.name, enabled: true, members: [], strategy: "order", affinity: "turn" }, unavailable: "empty" }], defaultSelection: { type: "group", groupID: "fallback" } } })
+      return Response.json({
+        location,
+        data: {
+          targets: [],
+          definitions: [],
+          effective: [
+            {
+              groupID: "fallback",
+              definition: { name: state.name, enabled: true, members: [], strategy: "order", affinity: "turn" },
+              unavailable: "empty",
+            },
+          ],
+          defaultSelection: { type: "group", groupID: "fallback" },
+        },
+      })
     return Response.json({ location, data: [] })
   })
   try {

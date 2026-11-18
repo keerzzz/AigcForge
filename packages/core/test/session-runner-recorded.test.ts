@@ -164,7 +164,9 @@ const testLayer = (llmClient: Layer.Layer<LLMClientService>) =>
     ],
   )
 const it = testEffect(testLayer(client))
-const gateway = testEffect(testLayer(LLMClient.layer.pipe(Layer.provide(RequestExecutor.layer.pipe(Layer.provide(FetchHttpClient.layer))))))
+const gateway = testEffect(
+  testLayer(LLMClient.layer.pipe(Layer.provide(RequestExecutor.layer.pipe(Layer.provide(FetchHttpClient.layer))))),
+)
 const sessionID = Session.ID.make("ses_runner_recorded")
 
 describe("SessionRunnerLLM recorded", () => {
@@ -230,7 +232,9 @@ describe("SessionRunnerLLM recorded", () => {
           .from(EventTable)
           .where(eq(EventTable.aggregate_id, sessionID))
           .orderBy(EventTable.seq)
-          .all()).map((event) => event.type).filter((type) => !type.startsWith("session.attempt.")),
+          .all())
+          .map((event) => event.type)
+          .filter((type) => !type.startsWith("session.attempt.")),
       ).toEqual([
         "session.inbox.enqueued.1",
         "session.instructions.updated.2",
@@ -245,52 +249,96 @@ describe("SessionRunnerLLM recorded", () => {
     }),
   )
 
-  gateway.live("records Magpie early headers as gateway diagnostics and measures the physical stream", () => Effect.gen(function* () {
-    const requests: { path: string; session: string | null }[] = []
-    const running = yield* Effect.acquireRelease(Effect.sync(() => Bun.serve({ hostname: "127.0.0.1", port: 0, fetch(request) {
-      requests.push({ path: new URL(request.url).pathname, session: request.headers.get("x-magpie-session") })
-      const frames = [
-        { id: "chat_gateway", model: "upstream/final-candidate", choices: [{ delta: { role: "assistant", content: "O" }, finish_reason: null }] },
-        { id: "chat_gateway", choices: [{ delta: { content: "K" }, finish_reason: null }] },
-        { id: "chat_gateway", choices: [{ delta: {}, finish_reason: "stop" }] },
-        { id: "chat_gateway", choices: [], usage: { prompt_tokens: 3, completion_tokens: 2, total_tokens: 5 } },
-      ]
-      return new Response(frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("") + "data: [DONE]\n\n", {
-        headers: { "content-type": "text/event-stream", "x-magpie-provider": "reported-provider", "x-magpie-model": "early-candidate" },
-      })
-    } })), (server) => Effect.promise(() => server.stop(true)))
-    const hooks = yield* PluginHooks.Service
-    const agents = yield* Agent.Service
-    yield* agents.transform((editor) => editor.update(Agent.ID.make("build"), (agent) => {
-      agent.originKind = "builtin"
-      agent.mode = "primary"
-    }))
-    yield* hooks.register("session", "model.request", (event) => Effect.sync(() => { event.baseURL = `${running.url}v1` }))
-    const db = (yield* Database.Service).db
-    yield* db.insert(ProjectTable).values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
-    yield* db.insert(SessionTable).values({ id: sessionID, project_id: Project.ID.global, slug: "gateway", directory: "/project", title: "Gateway fixture", version: "test" }).run().pipe(Effect.orDie)
-    const session = yield* Session.Service
-    yield* session.prompt({ sessionID, text: "Gateway fixture", resume: false })
-    yield* session.resume(sessionID)
-    const assistant = (yield* session.context(sessionID)).find((message) => message.type === "assistant")
-    if (assistant?.type !== "assistant") throw new Error("Expected the gateway assistant")
-    expect(assistant.content).toMatchObject([{ type: "text", text: "OK" }])
-    expect(assistant.attempts).toHaveLength(1)
-    const attempt = assistant.attempts?.[0]
-    if (!attempt?.terminal) throw new Error("Expected the physical attempt terminal")
-    expect(attempt.model).toMatchObject({ providerID: "openai", id: "gpt-4o-mini" })
-    expect(attempt.apiModelID).toBe("gpt-4o-mini")
-    expect(attempt.observations.flatMap((observation) => observation.gatewayReport ? [observation.gatewayReport] : [])).toEqual([
-      { source: "response-headers", provider: "reported-provider", model: "early-candidate" },
-    ])
-    const first = attempt.observations.filter((observation) => observation.firstTokenAt !== undefined)
-    expect(first).toHaveLength(1)
-    expect(first[0]?.firstTokenAt).toBeGreaterThanOrEqual(attempt.started)
-    expect(attempt.terminal.providerEndedAt).toBeGreaterThanOrEqual(first[0]?.firstTokenAt ?? 0)
-    expect(attempt.terminal.ended).toBeGreaterThanOrEqual(attempt.terminal.providerEndedAt ?? 0)
-    expect(attempt.terminal.usage).toMatchObject({ input: 3, output: 2 })
-    expect(attempt.quote.status).toBe("unknown")
-    expect(attempt.terminal.cost).toBeUndefined()
-    expect(requests).toEqual([{ path: "/v1/chat/completions", session: null }])
-  }))
+  gateway.live("records Magpie early headers as gateway diagnostics and measures the physical stream", () =>
+    Effect.gen(function* () {
+      const requests: { path: string; session: string | null }[] = []
+      const running = yield* Effect.acquireRelease(
+        Effect.sync(() =>
+          Bun.serve({
+            hostname: "127.0.0.1",
+            port: 0,
+            fetch(request) {
+              requests.push({ path: new URL(request.url).pathname, session: request.headers.get("x-magpie-session") })
+              const frames = [
+                {
+                  id: "chat_gateway",
+                  model: "upstream/final-candidate",
+                  choices: [{ delta: { role: "assistant", content: "O" }, finish_reason: null }],
+                },
+                { id: "chat_gateway", choices: [{ delta: { content: "K" }, finish_reason: null }] },
+                { id: "chat_gateway", choices: [{ delta: {}, finish_reason: "stop" }] },
+                { id: "chat_gateway", choices: [], usage: { prompt_tokens: 3, completion_tokens: 2, total_tokens: 5 } },
+              ]
+              return new Response(
+                frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("") + "data: [DONE]\n\n",
+                {
+                  headers: {
+                    "content-type": "text/event-stream",
+                    "x-magpie-provider": "reported-provider",
+                    "x-magpie-model": "early-candidate",
+                  },
+                },
+              )
+            },
+          }),
+        ),
+        (server) => Effect.promise(() => server.stop(true)),
+      )
+      const hooks = yield* PluginHooks.Service
+      const agents = yield* Agent.Service
+      yield* agents.transform((editor) =>
+        editor.update(Agent.ID.make("build"), (agent) => {
+          agent.originKind = "builtin"
+          agent.mode = "primary"
+        }),
+      )
+      yield* hooks.register("session", "model.request", (event) =>
+        Effect.sync(() => {
+          event.baseURL = `${running.url}v1`
+        }),
+      )
+      const db = (yield* Database.Service).db
+      yield* db
+        .insert(ProjectTable)
+        .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
+        .onConflictDoNothing()
+        .run()
+        .pipe(Effect.orDie)
+      yield* db
+        .insert(SessionTable)
+        .values({
+          id: sessionID,
+          project_id: Project.ID.global,
+          slug: "gateway",
+          directory: "/project",
+          title: "Gateway fixture",
+          version: "test",
+        })
+        .run()
+        .pipe(Effect.orDie)
+      const session = yield* Session.Service
+      yield* session.prompt({ sessionID, text: "Gateway fixture", resume: false })
+      yield* session.resume(sessionID)
+      const assistant = (yield* session.context(sessionID)).find((message) => message.type === "assistant")
+      if (assistant?.type !== "assistant") throw new Error("Expected the gateway assistant")
+      expect(assistant.content).toMatchObject([{ type: "text", text: "OK" }])
+      expect(assistant.attempts).toHaveLength(1)
+      const attempt = assistant.attempts?.[0]
+      if (!attempt?.terminal) throw new Error("Expected the physical attempt terminal")
+      expect(attempt.model).toMatchObject({ providerID: "openai", id: "gpt-4o-mini" })
+      expect(attempt.apiModelID).toBe("gpt-4o-mini")
+      expect(
+        attempt.observations.flatMap((observation) => (observation.gatewayReport ? [observation.gatewayReport] : [])),
+      ).toEqual([{ source: "response-headers", provider: "reported-provider", model: "early-candidate" }])
+      const first = attempt.observations.filter((observation) => observation.firstTokenAt !== undefined)
+      expect(first).toHaveLength(1)
+      expect(first[0]?.firstTokenAt).toBeGreaterThanOrEqual(attempt.started)
+      expect(attempt.terminal.providerEndedAt).toBeGreaterThanOrEqual(first[0]?.firstTokenAt ?? 0)
+      expect(attempt.terminal.ended).toBeGreaterThanOrEqual(attempt.terminal.providerEndedAt ?? 0)
+      expect(attempt.terminal.usage).toMatchObject({ input: 3, output: 2 })
+      expect(attempt.quote.status).toBe("unknown")
+      expect(attempt.terminal.cost).toBeUndefined()
+      expect(requests).toEqual([{ path: "/v1/chat/completions", session: null }])
+    }),
+  )
 })

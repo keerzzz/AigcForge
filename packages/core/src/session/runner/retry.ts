@@ -27,7 +27,9 @@ export interface Decision {
   readonly attempt: number
   readonly delay: number
 }
-export type DecisionResult = Decision | { readonly retry: false; readonly reason?: "exhausted" | "timeout-exhausted" | "declined" }
+export type DecisionResult =
+  | Decision
+  | { readonly retry: false; readonly reason?: "exhausted" | "timeout-exhausted" | "declined" }
 
 /** Bound provider-requested delays so a hostile or buggy retry-after cannot stall a session for hours. */
 const RETRY_AFTER_MAX = Duration.toMillis("15 minutes")
@@ -85,10 +87,11 @@ export const policy = (sessionID: SessionSchema.ID) =>
           decision: input.retry && timeouts <= MAX_TIMEOUT_RETRIES ? { retry: true, delay } : { retry: false },
         }
         yield* input.hook(event)
-        if (!event.decision.retry) return {
-          retry: false,
-          reason: input.retry && timeouts > MAX_TIMEOUT_RETRIES ? "timeout-exhausted" : "declined",
-        } satisfies DecisionResult
+        if (!event.decision.retry)
+          return {
+            retry: false,
+            reason: input.retry && timeouts > MAX_TIMEOUT_RETRIES ? "timeout-exhausted" : "declined",
+          } satisfies DecisionResult
         const normalized =
           Number.isFinite(event.decision.delay) && event.decision.delay >= 0 ? Math.ceil(event.decision.delay) : delay
         return { retry: true as const, attempt, delay: normalized }

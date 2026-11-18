@@ -52,7 +52,6 @@ MC06FirstSliceFunctionalAccepted=true，MC06Complete=false，MC07Started=false�
 
 2026-11-05最新状态：监督 Root 已[正式签收首片工程](/home/keer/.codex/outputs/2026-11-05/mc06-engineering-v1/review/supervisor-mc06-limited-engineering-acceptance-v1.json)，SHA256 `43b3d84b545d40e95dd4bfb7775df17b9af7b6f86a5ff57be355c975e669e456`。同一独审确认 R1/R2 闭合，修复受影响组56 pass /0 fail /500 expects及类型、格式、lint、Effect AST检查通过；原128/0证据保留，不相加。当前source为freeze-v2（SHA256 `7c2a121662093d11a3eac7fe8c51063ba15802a82dd2c93fc139a7465bd12bcb`）。用户已选择cc-switch与gpt-6.1-sol/ultra，仅用于运行包准备；父模型仍DeepSeek Flash/high。工程接受不授予实际执行额度，真实CLI/provider/Native预算及调用仍0/0/0，MC06Complete=false。执行会话连续宿主限流后，监督Root接管文档和唯一检查/构建槽，runtime helper仅写新MC06仓外目录；[交接与用户选择记录](/home/keer/.codex/outputs/2026-11-05/mc06-engineering-v1/supervisor-runtime-preparation-handoff-v1.json)。下文待审、路线未选与原资源槽描述保留为历史。 最终精确模型选择见[用户更正记录](/home/keer/.codex/outputs/2026-11-05/mc06-engineering-v1/runtime-model-selection-v2.json)。
 
-
 日期：2026-11-05，Asia/Shanghai。当前状态：**监督 Root 已在本会话正式派发下列13文件上限的首片工程及必要零模型检查。** 唯一生产/测试写者现为 `/root`（实施子智能体宿主限流后接回；接回前只有已核 RED 新测试，生产文件全部与原基线相同），本 Root 单写本任务单和仓外协调/运行准备产物，独占测试、类型、格式和构建资源槽；冻结后一次独审由非写者执行，监督 Root 验收。13文件是上限，不要求每个文件必改。真实 CLI/provider/Native 预算均为0；原 S1 owner 不转移。文中调查时点的未授权/未运行记录保留为历史，不覆盖本段正式派发。
 
 ## 目的、范围与依赖
@@ -172,7 +171,6 @@ TTL 已由 `permission.ts:392–404` 的现有 assert 与 ApprovalPresence 持�
 
 调查出口的任务单已获监督有限架构核对与工程派发；本片现在按上述单写者/检查槽实施，不代表工程接受。先可信红绿、必要检查、冻结和一次独审，再准备具体真实验收包；真实调用仍需新预算。MC06 原范围完成仍需原用户链真实验收、原退出签收和明确分配的文档同步。完成首片交回，不向其他聊天发消息、不创建或实施 MC07。
 
-
 ## 2026-11-05 首片工程冻结检查点
 
 本段记录本任务后续工程结果；前文“未测试/未授权”等调查语句是历史时点。首片工程候选已冻结，实际修改13文件，批准上限为原13文件加cli-discovery精确一行。源码不再修改，等待监督安排唯一独审。
@@ -183,7 +181,6 @@ TTL 已由 `permission.ts:392–404` 的现有 assert 与 ApprovalPresence 持�
 - Core类型、格式、lint、Effect AST均actual exit0；所有早期红轮保留。
 
 冻结：`/home/keer/.codex/outputs/2026-11-05/mc06-engineering-v1/freeze-v1/freeze.json`，SHA256 `69593dda5e592cadd1d49a22c006a159a206814e791d5c480800c0b4b025aca7`。交回说明：`/home/keer/.codex/outputs/2026-11-05/mc06-engineering-v1/engineering-handoff.md`。原WIP、branch/HEAD、空暂存区及保护哈希保持；真实CLI/provider/Native预算与调用仍0/0/0。MC06Complete=false，不启动MC07。
-
 
 ## 2026-11-05 唯一独审修复冻结v2
 

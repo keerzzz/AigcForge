@@ -7,7 +7,13 @@ import { Session } from "@aigcfroge/schema/session"
 import { ModelGroup } from "@aigcfroge/schema/model-group"
 import { Effect, Schema } from "effect"
 import type { Catalog } from "../../src/acp/catalog"
-import { configOptions, currentModel, parseModelSelection, resolveChange, selectionFromSession } from "../../src/acp/config-option"
+import {
+  configOptions,
+  currentModel,
+  parseModelSelection,
+  resolveChange,
+  selectionFromSession,
+} from "../../src/acp/config-option"
 import { currentValue } from "./select-options"
 
 const model = (providerID: string, id: string, name: string, variants: string[] = []) => ({
@@ -53,61 +59,110 @@ const effortOption = (providerID: string, id: string) =>
   }).find((option) => option.id === "effort")
 
 describe("acp config options", () => {
-  test.each(["coding", "work", "custom", undefined] as const)("projects ordinary Agent and Executor choices for Session mode %s", (mode) => {
-    const choices = [
-      { id: Agent.ID.make("authored"), name: "Authored", ordinaryModes: ["custom"] as const },
-      { id: Agent.ID.make("build"), name: "Build", ordinaryModes: ProductMode.ID.literals },
-      { id: Agent.ID.make("legacy"), name: "Legacy" },
-    ]
-    const projected: Catalog = { ...catalog, modes: choices, executors: choices, defaultModeID: Agent.ID.make("authored") }
-    const expected = mode === "custom"
-      ? [{ value: "authored", name: "Authored" }, { value: "build", name: "Build" }, { value: "legacy", name: "Legacy" }]
-      : [{ value: "build", name: "Build" }, { value: "legacy", name: "Legacy" }]
-    const fresh = configOptions(projected, { mode })
-    expect(fresh.find((option) => option.id === "mode")).toMatchObject({
-      currentValue: mode === "custom" ? "authored" : "build", options: expected,
-    })
-    const selection = selectionFromSession({
-      mode: mode ?? ProductMode.Default, agent: Agent.ID.make("meta"), model: catalog.defaultModel,
-      controller: rootController, executorPreference: new Session.ExecutorPreference({ agent: Agent.ID.make("build") }),
-    })
-    expect(selection.mode).toBe(mode ?? ProductMode.Default)
-    expect(configOptions(projected, selection).find((option) => option.id === "executor")).toMatchObject({
-      currentValue: "build", options: expected,
-    })
-  })
+  test.each(["coding", "work", "custom", undefined] as const)(
+    "projects ordinary Agent and Executor choices for Session mode %s",
+    (mode) => {
+      const choices = [
+        { id: Agent.ID.make("authored"), name: "Authored", ordinaryModes: ["custom"] as const },
+        { id: Agent.ID.make("build"), name: "Build", ordinaryModes: ProductMode.ID.literals },
+        { id: Agent.ID.make("legacy"), name: "Legacy" },
+      ]
+      const projected: Catalog = {
+        ...catalog,
+        modes: choices,
+        executors: choices,
+        defaultModeID: Agent.ID.make("authored"),
+      }
+      const expected =
+        mode === "custom"
+          ? [
+              { value: "authored", name: "Authored" },
+              { value: "build", name: "Build" },
+              { value: "legacy", name: "Legacy" },
+            ]
+          : [
+              { value: "build", name: "Build" },
+              { value: "legacy", name: "Legacy" },
+            ]
+      const fresh = configOptions(projected, { mode })
+      expect(fresh.find((option) => option.id === "mode")).toMatchObject({
+        currentValue: mode === "custom" ? "authored" : "build",
+        options: expected,
+      })
+      const selection = selectionFromSession({
+        mode: mode ?? ProductMode.Default,
+        agent: Agent.ID.make("meta"),
+        model: catalog.defaultModel,
+        controller: rootController,
+        executorPreference: new Session.ExecutorPreference({ agent: Agent.ID.make("build") }),
+      })
+      expect(selection.mode).toBe(mode ?? ProductMode.Default)
+      expect(configOptions(projected, selection).find((option) => option.id === "executor")).toMatchObject({
+        currentValue: "build",
+        options: expected,
+      })
+    },
+  )
 
   test("preserves mode-ineligible saved Agent and Executor selections as unavailable", () => {
     const authored = { id: Agent.ID.make("authored"), name: "Authored", ordinaryModes: ["custom"] as const }
     const projected: Catalog = { ...catalog, modes: [...catalog.modes, authored], executors: [authored] }
-    expect(configOptions(projected, { mode: "coding", modeID: authored.id }).find((option) => option.id === "mode")).toMatchObject({
+    expect(
+      configOptions(projected, { mode: "coding", modeID: authored.id }).find((option) => option.id === "mode"),
+    ).toMatchObject({
       currentValue: "authored",
-      options: [{ value: "build", name: "Build" }, { value: "authored", name: "authored", description: "Unavailable Agent; saved selection" }],
+      options: [
+        { value: "build", name: "Build" },
+        { value: "authored", name: "authored", description: "Unavailable Agent; saved selection" },
+      ],
     })
-    expect(configOptions(projected, {
-      mode: "coding", modeID: Agent.ID.make("meta"), controller: rootController,
-      executorPreference: new Session.ExecutorPreference({ agent: authored.id }),
-    }).find((option) => option.id === "executor")).toMatchObject({
-      currentValue: "authored", options: [{ value: "authored", name: "authored", description: "Unavailable executor; saved preference" }],
+    expect(
+      configOptions(projected, {
+        mode: "coding",
+        modeID: Agent.ID.make("meta"),
+        controller: rootController,
+        executorPreference: new Session.ExecutorPreference({ agent: authored.id }),
+      }).find((option) => option.id === "executor"),
+    ).toMatchObject({
+      currentValue: "authored",
+      options: [{ value: "authored", name: "authored", description: "Unavailable executor; saved preference" }],
     })
   })
 
   test("selects logical Groups independently for Session and executor and omits physical effort controls", async () => {
     const group = Model.Selection.parse("group:fallback")
-    const grouped: Catalog = { ...executorCatalog, groups: [new ModelGroup.Current({
-      groupID: Model.GroupID.make("fallback"), definition: new ModelGroup.Definition({
-        name: "Fast fallback", enabled: true, members: [Model.Ref.parse("openai/gpt-5")], strategy: "order", affinity: "turn",
-      }),
-    })] }
-    const selection = { modeID: Agent.ID.make("meta"), controller: rootController, model: group,
-      executorPreference: new Session.ExecutorPreference({ agent: Agent.ID.make("worker"), model: group }) }
+    const grouped: Catalog = {
+      ...executorCatalog,
+      groups: [
+        new ModelGroup.Current({
+          groupID: Model.GroupID.make("fallback"),
+          definition: new ModelGroup.Definition({
+            name: "Fast fallback",
+            enabled: true,
+            members: [Model.Ref.parse("openai/gpt-5")],
+            strategy: "order",
+            affinity: "turn",
+          }),
+        }),
+      ],
+    }
+    const selection = {
+      modeID: Agent.ID.make("meta"),
+      controller: rootController,
+      model: group,
+      executorPreference: new Session.ExecutorPreference({ agent: Agent.ID.make("worker"), model: group }),
+    }
     const options = configOptions(grouped, selection)
     expect(currentValue({ configOptions: options }, "model")).toBe("group:fallback")
     expect(currentValue({ configOptions: options }, "executor-model")).toBe("group:fallback")
     expect(options.some((option) => option.id === "effort" || option.id === "executor-effort")).toBe(false)
-    expect(options.find((option) => option.id === "model")).toMatchObject({ options: expect.arrayContaining([{ value: "group:fallback", name: "Fast fallback", description: "Model group" }]) })
+    expect(options.find((option) => option.id === "model")).toMatchObject({
+      options: expect.arrayContaining([{ value: "group:fallback", name: "Fast fallback", description: "Model group" }]),
+    })
     expect(await Effect.runPromise(resolveChange(grouped, {}, "model", "group:fallback"))).toEqual({ model: group })
-    expect(await Effect.runPromise(resolveChange(grouped, selection, "executor-model", "group:fallback"))).toEqual({ executorPreference: selection.executorPreference })
+    expect(await Effect.runPromise(resolveChange(grouped, selection, "executor-model", "group:fallback"))).toEqual({
+      executorPreference: selection.executorPreference,
+    })
     await expect(Effect.runPromise(resolveChange(grouped, selection, "effort", "high"))).rejects.toThrow()
     expect(parseModelSelection("group:vendor/chat", grouped.models)).toEqual(Model.Ref.parse("group:vendor/chat"))
   })
@@ -117,7 +172,9 @@ describe("acp config options", () => {
     const options = configOptions(catalog, { model: group })
     expect(currentValue({ configOptions: options }, "model")).toBe("group:removed")
     expect(currentModel(catalog, { model: group })).toEqual(group)
-    expect(await Effect.runPromise(resolveChange(catalog, { model: group }, "model", "group:removed"))).toEqual({ model: group })
+    expect(await Effect.runPromise(resolveChange(catalog, { model: group }, "model", "group:removed"))).toEqual({
+      model: group,
+    })
     await expect(Effect.runPromise(resolveChange(catalog, {}, "model", "group:removed"))).rejects.toThrow()
   })
 
@@ -258,9 +315,13 @@ describe("acp config options", () => {
       model: parseModelSelection("openai/gpt-5/low", catalog.models),
       controller,
     }
-    const adoptedCatalog = { ...executorCatalog, executors: executorCatalog.executors.map((agent) => ({
-      ...agent, ordinaryModes: ["custom"] as const,
-    })) }
+    const adoptedCatalog = {
+      ...executorCatalog,
+      executors: executorCatalog.executors.map((agent) => ({
+        ...agent,
+        ordinaryModes: ["custom"] as const,
+      })),
+    }
     expect(configOptions(adoptedCatalog, selection)).toMatchObject([
       { id: "model", currentValue: "openai/gpt-5", options: [{ value: "openai/gpt-5", name: "openai/gpt-5" }] },
       { id: "effort", currentValue: "low", options: [{ value: "low", name: "Low" }] },
@@ -297,10 +358,14 @@ describe("acp config options", () => {
           : { executorPreference: { model: { ...ref, variant: "implicit" } } },
       )
       expect(implicit).toMatchObject(id === "effort" ? { model: ref } : { executorPreference: { model: ref } })
-      const selected = implicit && "model" in implicit
-        ? implicit.model
-        : implicit && "executorPreference" in implicit ? implicit.executorPreference?.model : undefined
-      if (!selected || Model.Selection.isGroup(selected)) throw new Error("The implicit variant fixture requires a physical model")
+      const selected =
+        implicit && "model" in implicit
+          ? implicit.model
+          : implicit && "executorPreference" in implicit
+            ? implicit.executorPreference?.model
+            : undefined
+      if (!selected || Model.Selection.isGroup(selected))
+        throw new Error("The implicit variant fixture requires a physical model")
       expect(selected.variant).toBeUndefined()
     }
   })

@@ -20,10 +20,7 @@ export const Plugin = define({
     const lock = Semaphore.makeUnsafe(1)
     const skills: Skill.Info[] = []
 
-    const watch = Effect.fn("ConfigCompatibilityPlugin.watch")(function* (
-      target: string,
-      type: "file" | "directory",
-    ) {
+    const watch = Effect.fn("ConfigCompatibilityPlugin.watch")(function* (target: string, type: "file" | "directory") {
       const updates = yield* watcher.subscribe({ path: target, type })
       yield* FiberMap.run(
         watches,

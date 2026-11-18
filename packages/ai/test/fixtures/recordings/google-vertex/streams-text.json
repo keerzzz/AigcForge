@@ -1,11 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:google-vertex",
-      "provider:google-vertex",
-      "protocol:gemini"
-    ],
+    "tags": ["prefix:google-vertex", "provider:google-vertex", "protocol:gemini"],
     "name": "google-vertex/streams-text",
     "recordedAt": "2026-09-22T03:46:28.840Z"
   },

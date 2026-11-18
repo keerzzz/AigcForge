@@ -87,7 +87,9 @@ describe("persistence schemas", () => {
     })
 
     const decode = Schema.decodeUnknownSync(schema)
-    expect(decode({ general: { expanded: true, theme: "dark", nested: { keep: true } }, other: { flag: true } })).toEqual({
+    expect(
+      decode({ general: { expanded: true, theme: "dark", nested: { keep: true } }, other: { flag: true } }),
+    ).toEqual({
       general: { mode: "full", theme: "dark", nested: { keep: true } },
       other: { flag: true },
     })

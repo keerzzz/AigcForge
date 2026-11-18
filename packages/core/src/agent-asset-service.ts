@@ -28,10 +28,9 @@ export class InvalidCandidateError extends Schema.TaggedError<InvalidCandidateEr
   }
 }
 
-export class StaleRevisionError extends Schema.TaggedError<StaleRevisionError>()(
-  "AgentAssetService.StaleRevision",
-  { relativePath: Schema.String },
-) {
+export class StaleRevisionError extends Schema.TaggedError<StaleRevisionError>()("AgentAssetService.StaleRevision", {
+  relativePath: Schema.String,
+}) {
   override get message() {
     return `Stale revision for ${this.relativePath}`
   }
@@ -64,10 +63,10 @@ export class ReadbackMismatchError extends Schema.TaggedError<ReadbackMismatchEr
   }
 }
 
-export class RollbackFailedError extends Schema.TaggedError<RollbackFailedError>()(
-  "AgentAssetService.RollbackFailed",
-  { relativePath: Schema.String, reason: Schema.String },
-) {
+export class RollbackFailedError extends Schema.TaggedError<RollbackFailedError>()("AgentAssetService.RollbackFailed", {
+  relativePath: Schema.String,
+  reason: Schema.String,
+}) {
   override get message() {
     return `Rollback failed for ${this.relativePath}: ${this.reason}`
   }
@@ -447,4 +446,8 @@ export const locationLayer = Layer.effect(
 
 export const layer = locationLayer
 
-export const node = makeLocationNode({ service: Service, layer: locationLayer, deps: [FSUtil.node, LocationMutation.node, AgentAsset.node, FileMutation.node] })
+export const node = makeLocationNode({
+  service: Service,
+  layer: locationLayer,
+  deps: [FSUtil.node, LocationMutation.node, AgentAsset.node, FileMutation.node],
+})

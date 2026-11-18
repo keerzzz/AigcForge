@@ -933,9 +933,7 @@ test("surfaces sessions awaiting permissions or questions at the top with attent
         value.includes("? Parent awaiting question") &&
         value.includes("Recent session 1"),
     )
-    expect(frame.indexOf("? Parent awaiting question")).toBeLessThan(
-      frame.indexOf("! Old session awaiting permission"),
-    )
+    expect(frame.indexOf("? Parent awaiting question")).toBeLessThan(frame.indexOf("! Old session awaiting permission"))
     expect(frame.indexOf("! Old session awaiting permission")).toBeLessThan(frame.indexOf("Recent session 1"))
 
     fixture.app.mockInput.pressEnter()

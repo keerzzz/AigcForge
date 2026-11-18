@@ -338,7 +338,11 @@ export const layer = Layer.effect(
       // History is selected before request hooks, so a hook that reroutes the request cannot be honored here.
       const provenance = SessionProviderContext.provenance(context.model)
       if (!provenance) return yield* unsupported("Provider compaction requires a stable, configured endpoint")
-      const routed = SessionProviderContext.provenance({ model: prepared.request.model, ref: context.model.ref, connection: context.model.connection }, undefined, prepared.request)
+      const routed = SessionProviderContext.provenance(
+        { model: prepared.request.model, ref: context.model.ref, connection: context.model.connection },
+        undefined,
+        prepared.request,
+      )
       if (!SessionProviderContext.compatible(provenance, routed)) {
         return yield* unsupported(
           "Provider compaction requires the endpoint in provider/model settings, not a model.request rewrite",
@@ -347,52 +351,88 @@ export const layer = Layer.effect(
 
       let expected = routed
       let observed: SessionProviderContext.Provenance | undefined
-      const observedOptions = prepared.optionsForAttempt?.((observation) => Effect.sync(() => {
-        if (observation.delivery === "accepted" && observation.deployment !== undefined && expected !== undefined &&
-          SessionProviderContext.compatible(expected, observation.deployment)) observed = provenance
-      })) ?? prepared.options
+      const observedOptions =
+        prepared.optionsForAttempt?.((observation) =>
+          Effect.sync(() => {
+            if (
+              observation.delivery === "accepted" &&
+              observation.deployment !== undefined &&
+              expected !== undefined &&
+              SessionProviderContext.compatible(expected, observation.deployment)
+            )
+              observed = provenance
+          }),
+        ) ?? prepared.options
       const options: StreamOptions = {
         ...observedOptions,
         http: (request, handler) => {
           // The original CompactOperation constructs its real endpoint before this middleware.
           // Compare the final hook-selected send with that endpoint, then attest its generation route.
           const url = Option.getOrUndefined(HttpClientRequest.toUrl(request))?.href
-          expected = url === undefined ? undefined : SessionProviderContext.provenance({ model: prepared.request.model, ref: context.model.ref, connection: context.model.connection }, url)
+          expected =
+            url === undefined
+              ? undefined
+              : SessionProviderContext.provenance(
+                  { model: prepared.request.model, ref: context.model.ref, connection: context.model.connection },
+                  url,
+                )
           observed = undefined
           return observedOptions.http?.(request, handler) ?? handler(request)
         },
       }
-      const toResult = (window: ReadonlyArray<Message>, usage: Usage | undefined) => Effect.gen(function* () {
-        yield* spend(context.session.id, usage && SessionUsage.record(usage, context.model.cost))
-        if (observed === undefined) return yield* unsupported("Native compaction did not prove the producing connection and deployment")
-        return {
+      const toResult = (window: ReadonlyArray<Message>, usage: Usage | undefined) =>
+        Effect.gen(function* () {
+          yield* spend(context.session.id, usage && SessionUsage.record(usage, context.model.cost))
+          if (observed === undefined)
+            return yield* unsupported("Native compaction did not prove the producing connection and deployment")
+          return {
             text: "",
             recent: "",
             providerContext: SessionProviderContext.encode(observed, window),
-        } satisfies Result
-      })
+          } satisfies Result
+        })
 
       const send = (request: LLMRequest) => {
         if (LLMClient.canCompact(request, { mechanism: "trigger" })) {
           return Effect.gen(function* () {
             const history = yield* SessionHistory.load(db, context.session.id, "local").pipe(Effect.orDie)
             const retained = recentUserMessages(history, context.model, keep)
-            const refs = yield* goals.beforeAttempt({ sessionID: context.session.id, kind: "compaction" }).pipe(
-              Effect.mapError((error): Failure => ({ error: { type: "goal.budget", message: error.reason } })),
-            )
+            const refs = yield* goals
+              .beforeAttempt({ sessionID: context.session.id, kind: "compaction" })
+              .pipe(Effect.mapError((error): Failure => ({ error: { type: "goal.budget", message: error.reason } })))
             const response = yield* llm.compact(request, { ...options, mechanism: "trigger" }).pipe(
-              Effect.onExit((exit) => goals.settleAttempt({ refs, usage: exit._tag === "Success" && exit.value.usage !== undefined ? SessionUsage.tokens(exit.value.usage) : undefined }).pipe(Effect.orDie)),
+              Effect.onExit((exit) =>
+                goals
+                  .settleAttempt({
+                    refs,
+                    usage:
+                      exit._tag === "Success" && exit.value.usage !== undefined
+                        ? SessionUsage.tokens(exit.value.usage)
+                        : undefined,
+                  })
+                  .pipe(Effect.orDie),
+              ),
             )
             return yield* toResult([...retained, Message.assistant(response.checkpoint)], response.usage)
           })
         }
         if (LLMClient.canCompact(request)) {
           return Effect.gen(function* () {
-            const refs = yield* goals.beforeAttempt({ sessionID: context.session.id, kind: "compaction" }).pipe(
-              Effect.mapError((error): Failure => ({ error: { type: "goal.budget", message: error.reason } })),
-            )
+            const refs = yield* goals
+              .beforeAttempt({ sessionID: context.session.id, kind: "compaction" })
+              .pipe(Effect.mapError((error): Failure => ({ error: { type: "goal.budget", message: error.reason } })))
             const response = yield* llm.compact(request, { mechanism: "endpoint", http: options.http }).pipe(
-              Effect.onExit((exit) => goals.settleAttempt({ refs, usage: exit._tag === "Success" && exit.value.usage !== undefined ? SessionUsage.tokens(exit.value.usage) : undefined }).pipe(Effect.orDie)),
+              Effect.onExit((exit) =>
+                goals
+                  .settleAttempt({
+                    refs,
+                    usage:
+                      exit._tag === "Success" && exit.value.usage !== undefined
+                        ? SessionUsage.tokens(exit.value.usage)
+                        : undefined,
+                  })
+                  .pipe(Effect.orDie),
+              ),
             )
             return yield* toResult(response.replacement, response.usage)
           })
@@ -535,14 +575,18 @@ export const layer = Layer.effect(
       })
     }
 
-    const stream = Effect.fnUntraced(function* (context: SessionContext.Loaded, request: LLMRequest, options: StreamOptions) {
+    const stream = Effect.fnUntraced(function* (
+      context: SessionContext.Loaded,
+      request: LLMRequest,
+      options: StreamOptions,
+    ) {
       const sessionID = context.session.id
       const metadataKey = context.model.model.route.providerMetadataKey ?? context.model.model.provider
       const unusable = (error: SessionError.Error) => Effect.fail<Failure>({ error })
 
-      const refs = yield* goals.beforeAttempt({ sessionID, kind: "compaction" }).pipe(
-        Effect.mapError((error): Failure => ({ error: { type: "goal.budget", message: error.reason } })),
-      )
+      const refs = yield* goals
+        .beforeAttempt({ sessionID, kind: "compaction" })
+        .pipe(Effect.mapError((error): Failure => ({ error: { type: "goal.budget", message: error.reason } })))
       let goalUsage: SessionUsage.Recorded | undefined
       return yield* llm.stream(request, options).pipe(
         Stream.runFoldEffect(
@@ -601,7 +645,9 @@ export const layer = Layer.effect(
             }
           },
         ),
-        Effect.ensuring(Effect.suspend(() => goals.settleAttempt({ refs, usage: goalUsage?.tokens }).pipe(Effect.orDie))),
+        Effect.ensuring(
+          Effect.suspend(() => goals.settleAttempt({ refs, usage: goalUsage?.tokens }).pipe(Effect.orDie)),
+        ),
       )
     })
 
@@ -719,7 +765,16 @@ export const layer = Layer.effect(
 export const node = makeLocationNode({
   service: Service,
   layer,
-  deps: [Agent.node, Bus.node, Database.node, llmClient, Model.node, SessionModelRequest.node, SessionRunnerModel.node, SessionGoal.node],
+  deps: [
+    Agent.node,
+    Bus.node,
+    Database.node,
+    llmClient,
+    Model.node,
+    SessionModelRequest.node,
+    SessionRunnerModel.node,
+    SessionGoal.node,
+  ],
 })
 
 /** History loads from the latest completed compaction, so a previous one is always the first message. */

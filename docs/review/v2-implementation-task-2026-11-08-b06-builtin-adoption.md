@@ -34,17 +34,17 @@
 
 ## 修改文件与理由
 
-| 文件（均相对上述目标仓） | 本片职责 |
-| --- | --- |
-| `packages/schema/src/composition.ts` | 输入/Plan/快照的窄内置根来源与 revision；保持真实旧 Snapshot read 合同。 |
-| `packages/core/src/composition-resolver.ts` | 显式根读取、规范输入/version、零池、Meta 条件渲染、诊断与 freeze。 |
-| `packages/core/src/session/composition.ts` | assertDependency/selectAgent/根子身份、来源证据与旧快照分支。 |
-| `packages/schema/src/composition-consumer-view.ts` | 由快照根 ID 决定 orchestrator consumer。 |
-| `packages/core/src/session.ts` | start/retry/upgrade/fork/model/controller 消费保存根，保留原子提交。 |
-| `packages/app/src/home/route.tsx` | 在 Custom 工作面呈现最小装配入口，复用现 Home/工作位置。 |
-| `packages/app/src/home/model.ts` | Custom 的新建动作进入显式组合流程，成功后走现 Session readback/remember/tab 导航。 |
-| `packages/app/src/home/custom-composition.tsx`（必要新组件） | 可操作的根选择、来源/version/模型/权限预览、取消/确认、请求状态与错误。 |
-| `packages/app/src/runtime/i18n/en.ts` | 新入口文案与可访问名称。 |
+| 文件（均相对上述目标仓）                                     | 本片职责                                                                           |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `packages/schema/src/composition.ts`                         | 输入/Plan/快照的窄内置根来源与 revision；保持真实旧 Snapshot read 合同。           |
+| `packages/core/src/composition-resolver.ts`                  | 显式根读取、规范输入/version、零池、Meta 条件渲染、诊断与 freeze。                 |
+| `packages/core/src/session/composition.ts`                   | assertDependency/selectAgent/根子身份、来源证据与旧快照分支。                      |
+| `packages/schema/src/composition-consumer-view.ts`           | 由快照根 ID 决定 orchestrator consumer。                                           |
+| `packages/core/src/session.ts`                               | start/retry/upgrade/fork/model/controller 消费保存根，保留原子提交。               |
+| `packages/app/src/home/route.tsx`                            | 在 Custom 工作面呈现最小装配入口，复用现 Home/工作位置。                           |
+| `packages/app/src/home/model.ts`                             | Custom 的新建动作进入显式组合流程，成功后走现 Session readback/remember/tab 导航。 |
+| `packages/app/src/home/custom-composition.tsx`（必要新组件） | 可操作的根选择、来源/version/模型/权限预览、取消/确认、请求状态与错误。            |
+| `packages/app/src/runtime/i18n/en.ts`                        | 新入口文案与可访问名称。                                                           |
 
 公开 Schema 改动后从 `packages/client` 正式 `generate`，登记实际生成差额，不能手改 generated。现 Protocol/Server plan/start 已传 canonical Composition 合同，先复用；若某处确实漏消费，给出该决定函数证据再最小修改。`CompositionDigest.computeCompositionDigest`可继续 hash 含根 revision 的规范输入；无需另造摘要 owner。Created projector、Permission、SessionContext、Profile service 当前未发现必须生产修改的差额，不扩成格式整理。
 

@@ -373,15 +373,26 @@ const Group = HttpApiGroup.make("mock")
   .add(HttpApiEndpoint.get("agent", "/api/agent", { success: Json }))
   .add(HttpApiEndpoint.get("provider", "/api/provider", { success: Json }))
   .add(HttpApiEndpoint.get("providerDefinition", "/api/provider/definition", { success: Json }))
-  .add(HttpApiEndpoint.get("providerDiscovery", "/api/provider/discovery", {
-    query: Schema.Struct({ ...LocationQuery.fields, ...ProviderDiscovery.GetInput.fields }), success: Json,
-  }))
-  .add(HttpApiEndpoint.post("providerDiscoveryPreview", "/api/provider/discovery/preview", {
-    payload: ProviderDiscovery.PreviewInput, success: Json, error: Unsupported,
-  }))
-  .add(HttpApiEndpoint.post("providerDiscoveryRefresh", "/api/provider/discovery/refresh", {
-    payload: ProviderDiscovery.RefreshInput, success: Json, error: Unsupported,
-  }))
+  .add(
+    HttpApiEndpoint.get("providerDiscovery", "/api/provider/discovery", {
+      query: Schema.Struct({ ...LocationQuery.fields, ...ProviderDiscovery.GetInput.fields }),
+      success: Json,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("providerDiscoveryPreview", "/api/provider/discovery/preview", {
+      payload: ProviderDiscovery.PreviewInput,
+      success: Json,
+      error: Unsupported,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("providerDiscoveryRefresh", "/api/provider/discovery/refresh", {
+      payload: ProviderDiscovery.RefreshInput,
+      success: Json,
+      error: Unsupported,
+    }),
+  )
   .add(
     HttpApiEndpoint.post("providerDefinitionSave", "/api/provider/definition", {
       payload: ProviderDefinition.SaveInput,
@@ -398,8 +409,20 @@ const Group = HttpApiGroup.make("mock")
   )
   .add(HttpApiEndpoint.get("model", "/api/model", { success: Json }))
   .add(HttpApiEndpoint.get("modelGroupDefinition", "/api/model/group", { success: Json }))
-  .add(HttpApiEndpoint.post("modelGroupDefinitionSave", "/api/model/group", { payload: ModelGroup.SaveInput, success: Json, error: Unsupported }))
-  .add(HttpApiEndpoint.delete("modelGroupDefinitionRemove", "/api/model/group", { payload: ModelGroup.RemoveInput, success: Json, error: Unsupported }))
+  .add(
+    HttpApiEndpoint.post("modelGroupDefinitionSave", "/api/model/group", {
+      payload: ModelGroup.SaveInput,
+      success: Json,
+      error: Unsupported,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.delete("modelGroupDefinitionRemove", "/api/model/group", {
+      payload: ModelGroup.RemoveInput,
+      success: Json,
+      error: Unsupported,
+    }),
+  )
   .add(HttpApiEndpoint.get("modelDefault", "/api/model/default", { success: Json }))
   .add(HttpApiEndpoint.get("integrationList", "/api/integration", { success: Json }))
   .add(
@@ -685,33 +708,228 @@ const Group = HttpApiGroup.make("mock")
       error: TaskErrors,
     }),
   )
-  .add(HttpApiEndpoint.get("sessionIdentity", SessionPaths.identity, { params: TaskSessionParams, query: WorkspaceRoutingQuery, success: Json, error: TaskErrors }))
-  .add(HttpApiEndpoint.get("taskOperations", SessionPaths.taskOperations, { params: TaskSessionParams, query: WorkspaceRoutingQuery, success: Json, error: TaskErrors }))
-  .add(HttpApiEndpoint.get("taskOperation", SessionPaths.taskOperation, { params: { ...TaskSessionParams, operationID: SessionTask.OperationID }, query: WorkspaceRoutingQuery, success: Json, error: TaskErrors }))
-  .add(HttpApiEndpoint.post("taskDispatch", SessionPaths.taskDispatch, { params: TaskSessionParams, query: WorkspaceRoutingQuery, payload: SessionTask.OperationRequest, success: Json, error: [ApiNotFoundError, InvalidRequestError, ConflictError] }))
-  .add(HttpApiEndpoint.post("taskCancelOperation", SessionPaths.taskOperationCancel, { params: { ...TaskSessionParams, operationID: SessionTask.OperationID }, query: WorkspaceRoutingQuery, success: Json, error: TaskErrors }))
-  .add(HttpApiEndpoint.get("communicationList", "/api/session/:sessionID/communication", { params: TaskSessionParams, query: CommunicationListQuery, success: Json, error: TaskErrors }))
-  .add(HttpApiEndpoint.get("communicationRead", "/api/session/:sessionID/communication/:communicationID", { params: { ...TaskSessionParams, communicationID: SessionCommunication.ID }, query: WorkspaceRoutingQuery, success: Json, error: TaskErrors }))
-  .add(HttpApiEndpoint.post("communicationSend", "/api/session/:sessionID/communication", { params: TaskSessionParams, query: WorkspaceRoutingQuery, payload: SessionCommunication.Send, success: Json, error: [ApiNotFoundError, InvalidRequestError, ConflictError] }))
-  .add(HttpApiEndpoint.post("communicationReply", "/api/session/:sessionID/communication/:communicationID/reply", { params: { ...TaskSessionParams, communicationID: SessionCommunication.ID }, query: WorkspaceRoutingQuery, payload: SessionCommunication.Reply, success: Json, error: [ApiNotFoundError, InvalidRequestError, ConflictError] }))
-  .add(HttpApiEndpoint.get("goalList", "/api/session/:sessionID/goal", { params: TaskSessionParams, success: Json, error: TaskErrors }))
-  .add(HttpApiEndpoint.get("goalGet", "/api/session/:sessionID/goal/:goalID", { params: { ...TaskSessionParams, goalID: SessionGoal.ID }, success: Json, error: TaskErrors }))
-  .add(HttpApiEndpoint.post("goalSet", "/api/session/:sessionID/goal", { params: TaskSessionParams, payload: SessionGoal.CreateInput, success: Json, error: [ApiNotFoundError, InvalidRequestError, ConflictError] }))
-  .add(HttpApiEndpoint.patch("goalEdit", "/api/session/:sessionID/goal/:goalID", { params: { ...TaskSessionParams, goalID: SessionGoal.ID }, payload: SessionGoal.EditInput, success: Json, error: [ApiNotFoundError, InvalidRequestError, ConflictError] }))
-  .add(HttpApiEndpoint.post("goalPause", "/api/session/:sessionID/goal/:goalID/pause", { params: { ...TaskSessionParams, goalID: SessionGoal.ID }, payload: SessionGoal.RevisionInput, success: Json, error: [ApiNotFoundError, InvalidRequestError, ConflictError] }))
-  .add(HttpApiEndpoint.post("goalResume", "/api/session/:sessionID/goal/:goalID/resume", { params: { ...TaskSessionParams, goalID: SessionGoal.ID }, payload: SessionGoal.RevisionInput, success: Json, error: [ApiNotFoundError, InvalidRequestError, ConflictError] }))
-  .add(HttpApiEndpoint.post("goalCancel", "/api/session/:sessionID/goal/:goalID/cancel", { params: { ...TaskSessionParams, goalID: SessionGoal.ID }, payload: SessionGoal.RevisionInput, success: Json, error: [ApiNotFoundError, InvalidRequestError, ConflictError] }))
-  .add(HttpApiEndpoint.post("goalConfirm", "/api/session/:sessionID/goal/:goalID/confirm", { params: { ...TaskSessionParams, goalID: SessionGoal.ID }, payload: SessionGoal.ConfirmInput, success: Json, error: [ApiNotFoundError, InvalidRequestError, ConflictError] }))
-  .add(HttpApiEndpoint.get("scheduleRules", "/schedule/rules/:sessionID", { params: TaskSessionParams, query: WorkspaceRoutingQuery, success: Json, error: TaskErrors }))
-  .add(HttpApiEndpoint.get("scheduleRule", "/schedule/rule/:id", { params: { id: Schedule.ID }, query: WorkspaceRoutingQuery, success: Json, error: TaskErrors }))
-  .add(HttpApiEndpoint.post("scheduleCreate", "/schedule/rule", { query: WorkspaceRoutingQuery, payload: Schedule.Create, success: Json, error: [ApiNotFoundError, InvalidRequestError, ConflictError] }))
-  .add(HttpApiEndpoint.patch("scheduleEdit", "/schedule/rule/:id", { params: { id: Schedule.ID }, query: WorkspaceRoutingQuery, payload: Schedule.Edit, success: Json, error: [ApiNotFoundError, InvalidRequestError, ConflictError] }))
-  .add(HttpApiEndpoint.post("schedulePause", "/schedule/rule/:id/pause", { params: { id: Schedule.ID }, query: WorkspaceRoutingQuery, payload: Schedule.Mutation, success: Json, error: TaskErrors }))
-  .add(HttpApiEndpoint.post("scheduleResume", "/schedule/rule/:id/resume", { params: { id: Schedule.ID }, query: WorkspaceRoutingQuery, payload: Schedule.Mutation, success: Json, error: TaskErrors }))
-  .add(HttpApiEndpoint.post("scheduleCancel", "/schedule/rule/:id/cancel", { params: { id: Schedule.ID }, query: WorkspaceRoutingQuery, payload: Schedule.Mutation, success: Json, error: TaskErrors }))
-  .add(HttpApiEndpoint.post("scheduleRun", "/schedule/rule/:id/run", { params: { id: Schedule.ID }, query: WorkspaceRoutingQuery, payload: Schedule.Mutation, success: Json, error: TaskErrors }))
-  .add(HttpApiEndpoint.get("scheduleRuns", "/schedule/rule/:id/runs", { params: { id: Schedule.ID }, query: WorkspaceRoutingQuery, success: Json, error: TaskErrors }))
-  .add(HttpApiEndpoint.post("scheduleCancelRun", "/schedule/run/:occurrenceID/cancel", { params: { occurrenceID: Schedule.OccurrenceID }, query: WorkspaceRoutingQuery, success: Json, error: TaskErrors }))
+  .add(
+    HttpApiEndpoint.get("sessionIdentity", SessionPaths.identity, {
+      params: TaskSessionParams,
+      query: WorkspaceRoutingQuery,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.get("taskOperations", SessionPaths.taskOperations, {
+      params: TaskSessionParams,
+      query: WorkspaceRoutingQuery,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.get("taskOperation", SessionPaths.taskOperation, {
+      params: { ...TaskSessionParams, operationID: SessionTask.OperationID },
+      query: WorkspaceRoutingQuery,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("taskDispatch", SessionPaths.taskDispatch, {
+      params: TaskSessionParams,
+      query: WorkspaceRoutingQuery,
+      payload: SessionTask.OperationRequest,
+      success: Json,
+      error: [ApiNotFoundError, InvalidRequestError, ConflictError],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("taskCancelOperation", SessionPaths.taskOperationCancel, {
+      params: { ...TaskSessionParams, operationID: SessionTask.OperationID },
+      query: WorkspaceRoutingQuery,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.get("communicationList", "/api/session/:sessionID/communication", {
+      params: TaskSessionParams,
+      query: CommunicationListQuery,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.get("communicationRead", "/api/session/:sessionID/communication/:communicationID", {
+      params: { ...TaskSessionParams, communicationID: SessionCommunication.ID },
+      query: WorkspaceRoutingQuery,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("communicationSend", "/api/session/:sessionID/communication", {
+      params: TaskSessionParams,
+      query: WorkspaceRoutingQuery,
+      payload: SessionCommunication.Send,
+      success: Json,
+      error: [ApiNotFoundError, InvalidRequestError, ConflictError],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("communicationReply", "/api/session/:sessionID/communication/:communicationID/reply", {
+      params: { ...TaskSessionParams, communicationID: SessionCommunication.ID },
+      query: WorkspaceRoutingQuery,
+      payload: SessionCommunication.Reply,
+      success: Json,
+      error: [ApiNotFoundError, InvalidRequestError, ConflictError],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.get("goalList", "/api/session/:sessionID/goal", {
+      params: TaskSessionParams,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.get("goalGet", "/api/session/:sessionID/goal/:goalID", {
+      params: { ...TaskSessionParams, goalID: SessionGoal.ID },
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("goalSet", "/api/session/:sessionID/goal", {
+      params: TaskSessionParams,
+      payload: SessionGoal.CreateInput,
+      success: Json,
+      error: [ApiNotFoundError, InvalidRequestError, ConflictError],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.patch("goalEdit", "/api/session/:sessionID/goal/:goalID", {
+      params: { ...TaskSessionParams, goalID: SessionGoal.ID },
+      payload: SessionGoal.EditInput,
+      success: Json,
+      error: [ApiNotFoundError, InvalidRequestError, ConflictError],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("goalPause", "/api/session/:sessionID/goal/:goalID/pause", {
+      params: { ...TaskSessionParams, goalID: SessionGoal.ID },
+      payload: SessionGoal.RevisionInput,
+      success: Json,
+      error: [ApiNotFoundError, InvalidRequestError, ConflictError],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("goalResume", "/api/session/:sessionID/goal/:goalID/resume", {
+      params: { ...TaskSessionParams, goalID: SessionGoal.ID },
+      payload: SessionGoal.RevisionInput,
+      success: Json,
+      error: [ApiNotFoundError, InvalidRequestError, ConflictError],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("goalCancel", "/api/session/:sessionID/goal/:goalID/cancel", {
+      params: { ...TaskSessionParams, goalID: SessionGoal.ID },
+      payload: SessionGoal.RevisionInput,
+      success: Json,
+      error: [ApiNotFoundError, InvalidRequestError, ConflictError],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("goalConfirm", "/api/session/:sessionID/goal/:goalID/confirm", {
+      params: { ...TaskSessionParams, goalID: SessionGoal.ID },
+      payload: SessionGoal.ConfirmInput,
+      success: Json,
+      error: [ApiNotFoundError, InvalidRequestError, ConflictError],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.get("scheduleRules", "/schedule/rules/:sessionID", {
+      params: TaskSessionParams,
+      query: WorkspaceRoutingQuery,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.get("scheduleRule", "/schedule/rule/:id", {
+      params: { id: Schedule.ID },
+      query: WorkspaceRoutingQuery,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("scheduleCreate", "/schedule/rule", {
+      query: WorkspaceRoutingQuery,
+      payload: Schedule.Create,
+      success: Json,
+      error: [ApiNotFoundError, InvalidRequestError, ConflictError],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.patch("scheduleEdit", "/schedule/rule/:id", {
+      params: { id: Schedule.ID },
+      query: WorkspaceRoutingQuery,
+      payload: Schedule.Edit,
+      success: Json,
+      error: [ApiNotFoundError, InvalidRequestError, ConflictError],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("schedulePause", "/schedule/rule/:id/pause", {
+      params: { id: Schedule.ID },
+      query: WorkspaceRoutingQuery,
+      payload: Schedule.Mutation,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("scheduleResume", "/schedule/rule/:id/resume", {
+      params: { id: Schedule.ID },
+      query: WorkspaceRoutingQuery,
+      payload: Schedule.Mutation,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("scheduleCancel", "/schedule/rule/:id/cancel", {
+      params: { id: Schedule.ID },
+      query: WorkspaceRoutingQuery,
+      payload: Schedule.Mutation,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("scheduleRun", "/schedule/rule/:id/run", {
+      params: { id: Schedule.ID },
+      query: WorkspaceRoutingQuery,
+      payload: Schedule.Mutation,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.get("scheduleRuns", "/schedule/rule/:id/runs", {
+      params: { id: Schedule.ID },
+      query: WorkspaceRoutingQuery,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("scheduleCancelRun", "/schedule/run/:occurrenceID/cancel", {
+      params: { occurrenceID: Schedule.OccurrenceID },
+      query: WorkspaceRoutingQuery,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
   .add(
     HttpApiEndpoint.post("sessionTaskCreate", SessionPaths.task, {
       params: TaskSessionParams,

@@ -8,7 +8,13 @@ import { SplitBorder } from "../../ui/border"
 import { Locale } from "../../util/locale"
 import { EntryAnchor, GroupAnchor, visitEntries } from "./anchor-view"
 import { groupID } from "./anchors"
-import { instructionPaths, type PartRef, type SessionEntry, type SessionGroup, type SessionNode } from "./grouping/session"
+import {
+  instructionPaths,
+  type PartRef,
+  type SessionEntry,
+  type SessionGroup,
+  type SessionNode,
+} from "./grouping/session"
 import { summarizeActivity } from "./activity-summary"
 import { InlineToolRow, reasoningContent, toolDisplay } from "./message-parts"
 import { use } from "./render-context"

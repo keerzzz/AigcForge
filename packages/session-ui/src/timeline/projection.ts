@@ -57,12 +57,15 @@ const decodeLocalAgent = Schema.decodeUnknownOption(Schema.Struct({ agent: Schem
 
 const decodeLocalModel = Schema.decodeUnknownOption(
   Schema.Struct({
-    model: Schema.Union([Schema.Struct({ type: Schema.Literal("group"), groupID: Schema.String }), Schema.Struct({
-      id: lenient(Schema.String),
-      modelID: lenient(Schema.String),
-      providerID: Schema.String,
-      variant: lenient(Schema.String),
-    })]),
+    model: Schema.Union([
+      Schema.Struct({ type: Schema.Literal("group"), groupID: Schema.String }),
+      Schema.Struct({
+        id: lenient(Schema.String),
+        modelID: lenient(Schema.String),
+        providerID: Schema.String,
+        variant: lenient(Schema.String),
+      }),
+    ]),
   }),
 )
 
@@ -295,8 +298,13 @@ export namespace Timeline {
 
         const lastStep = current?.entries.findLast((entry) => entry.type === "assistant" || entry.type === "idle")
 
-        if (lastStep?.type === "assistant" && lastStep.message.error && !isInterrupted(lastStep.message.error) &&
-          sameError(lastStep.message.error, message.error)) return
+        if (
+          lastStep?.type === "assistant" &&
+          lastStep.message.error &&
+          !isInterrupted(lastStep.message.error) &&
+          sameError(lastStep.message.error, message.error)
+        )
+          return
 
         if (current && !current.shell) {
           current.entries.push({ type: "idle", message })
@@ -537,10 +545,15 @@ export namespace Timeline {
 
       if (lastStep?.type !== "assistant") return
 
-      if (isActive && lastAssistant?.retry) rows.push(new TimelineRow.Retry({ userMessageID: turnID, messageID: lastAssistant.id }))
+      if (isActive && lastAssistant?.retry)
+        rows.push(new TimelineRow.Retry({ userMessageID: turnID, messageID: lastAssistant.id }))
       else if (lastAssistant?.error && !isInterrupted(lastAssistant.error))
         rows.push(
-          new TimelineRow.Error({ userMessageID: turnID, messageID: lastAssistant.id, text: unwrapErrorMessage(lastAssistant.error.message) }),
+          new TimelineRow.Error({
+            userMessageID: turnID,
+            messageID: lastAssistant.id,
+            text: unwrapErrorMessage(lastAssistant.error.message),
+          }),
         )
     }
 
@@ -701,7 +714,7 @@ function indexUserContext(messages: SessionMessageInfo[]) {
     if (message.type === "user") {
       userID = message.id
       const localModel = Option.getOrUndefined(decodeLocalModel(message.metadata))?.model
-      const localModelID = localModel && !("type" in localModel) ? localModel.id ?? localModel.modelID : undefined
+      const localModelID = localModel && !("type" in localModel) ? (localModel.id ?? localModel.modelID) : undefined
 
       result.set(message.id, {
         agent: Option.match(decodeLocalAgent(message.metadata), {
@@ -712,8 +725,8 @@ function indexUserContext(messages: SessionMessageInfo[]) {
           localModel && "type" in localModel
             ? localModel
             : localModel && localModelID
-            ? { id: localModelID, providerID: localModel.providerID, variant: localModel.variant }
-            : model,
+              ? { id: localModelID, providerID: localModel.providerID, variant: localModel.variant }
+              : model,
       })
     }
 

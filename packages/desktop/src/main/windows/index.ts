@@ -235,5 +235,3 @@ export const makeMainWindows = Effect.fn("Window.make")(function* () {
 
   return { create, restore }
 })
-
-

@@ -1,4 +1,10 @@
-import type { AigcForgeEvent, ModelGroupRead, SessionAttemptInfo, SessionMessageAssistant, SessionMessageInfo } from "@aigcfroge/client/promise"
+import type {
+  AigcForgeEvent,
+  ModelGroupRead,
+  SessionAttemptInfo,
+  SessionMessageAssistant,
+  SessionMessageInfo,
+} from "@aigcfroge/client/promise"
 import { expect, test, type Page } from "@playwright/test"
 import { seed, sessionHref } from "../utils/app"
 import { trackPageErrors } from "../utils/errors"
@@ -19,53 +25,149 @@ import { expectSessionTitle } from "../utils/waits"
 test.use({ serviceWorkers: "block" })
 
 test.describe("timeline history", () => {
-  test("keeps logical groups and durable attempts distinct through reload and an Idle failure", async ({ page }, testInfo) => {
+  test("keeps logical groups and durable attempts distinct through reload and an Idle failure", async ({
+    page,
+  }, testInfo) => {
     const selected = { type: "group" as const, groupID: "fallback" }
 
-    const group: ModelGroupRead = { targets: [], definitions: [], effective: [{ groupID: selected.groupID,
-      definition: { name: "Fallback route", enabled: true, members: [{ providerID: "provider", id: "a" }, { providerID: "provider", id: "b" }], strategy: "order", affinity: "turn" } }] }
+    const group: ModelGroupRead = {
+      targets: [],
+      definitions: [],
+      effective: [
+        {
+          groupID: selected.groupID,
+          definition: {
+            name: "Fallback route",
+            enabled: true,
+            members: [
+              { providerID: "provider", id: "a" },
+              { providerID: "provider", id: "b" },
+            ],
+            strategy: "order",
+            affinity: "turn",
+          },
+        },
+      ],
+    }
 
-    const request = (id: string, ordinal: number, status: "completed" | "failed", unknown: boolean, started = 1700000001000): SessionAttemptInfo => ({
-      ordinal, attemptID: `request-${id}`, agent: "build", selection: selected, model: { providerID: "provider", id: ordinal === 0 ? "a" : "b" }, apiModelID: `api-${id}`,
-      connection: { type: "credential", id: `account-${id}` }, goalRefs: [], transition: ordinal === 0 ? "initial" : "fallback",
-      reason: ordinal ? { reason: "Authentication" } : undefined, started,
-      quote: unknown ? { status: "unknown" } : { status: "known", prices: [{ input: 2, output: 4, cache: { read: 0.5, write: 1 } }], source: "Recorded price source" },
+    const request = (
+      id: string,
+      ordinal: number,
+      status: "completed" | "failed",
+      unknown: boolean,
+      started = 1700000001000,
+    ): SessionAttemptInfo => ({
+      ordinal,
+      attemptID: `request-${id}`,
+      agent: "build",
+      selection: selected,
+      model: { providerID: "provider", id: ordinal === 0 ? "a" : "b" },
+      apiModelID: `api-${id}`,
+      connection: { type: "credential", id: `account-${id}` },
+      goalRefs: [],
+      transition: ordinal === 0 ? "initial" : "fallback",
+      reason: ordinal ? { reason: "Authentication" } : undefined,
+      started,
+      quote: unknown
+        ? { status: "unknown" }
+        : {
+            status: "known",
+            prices: [{ input: 2, output: 4, cache: { read: 0.5, write: 1 } }],
+            source: "Recorded price source",
+          },
       quoteOrigin: unknown ? "unknown" : "user",
-      quota: unknown ? { status: "unsupported", source: "quota-unavailable", reason: "unsupported", windows: [] }
-        : { status: "known", source: "Recorded quota source", connection: { type: "credential", id: `account-${id}` },
-            observedAt: started - 100, freshUntil: started + 2_000, windows: [] },
-      observations: [{ observedAt: started + 100, event: { id: `evt_observed_${id}`, seq: ordinal }, transport: "http",
+      quota: unknown
+        ? { status: "unsupported", source: "quota-unavailable", reason: "unsupported", windows: [] }
+        : {
+            status: "known",
+            source: "Recorded quota source",
+            connection: { type: "credential", id: `account-${id}` },
+            observedAt: started - 100,
+            freshUntil: started + 2_000,
+            windows: [],
+          },
+      observations: [
+        {
+          observedAt: started + 100,
+          event: { id: `evt_observed_${id}`, seq: ordinal },
+          transport: "http",
+          delivery: status === "completed" ? "accepted" : "rejected",
+          outputStarted: status === "completed" ? true : undefined,
+          firstOutputAt: status === "completed" ? started + 100 : undefined,
+        },
+      ],
+      terminal: {
+        status,
+        ended: started + 1000,
+        outputStarted: status === "completed",
         delivery: status === "completed" ? "accepted" : "rejected",
-        outputStarted: status === "completed" ? true : undefined, firstOutputAt: status === "completed" ? started + 100 : undefined }],
-      terminal: { status, ended: started + 1000, outputStarted: status === "completed", delivery: status === "completed" ? "accepted" : "rejected",
         providerEndedAt: status === "completed" ? started + 750 : undefined,
-        cost: unknown ? undefined : status === "completed" ? 0.04 : 0.005, usage: unknown ? undefined : { input: 12, output: 34, reasoning: 5, cache: { read: 6, write: 7 } },
+        cost: unknown ? undefined : status === "completed" ? 0.04 : 0.005,
+        usage: unknown ? undefined : { input: 12, output: 34, reasoning: 5, cache: { read: 6, write: 7 } },
         failure: status === "failed" ? { reason: unknown ? "Authentication" : "ProviderInternal" } : undefined,
       },
     })
 
-    const earlierUser = { ...userMessage(undefined, { id: "msg_earlier_group" }), text: "Earlier request", metadata: { model: selected } }
+    const earlierUser = {
+      ...userMessage(undefined, { id: "msg_earlier_group" }),
+      text: "Earlier request",
+      metadata: { model: selected },
+    }
 
-    const completed: SessionMessageAssistant = { ...assistantMessage([textPart("prt_completed_group", "The actual response came from B.")], { id: "msg_completed_group", parentID: earlierUser.id }),
-      model: { providerID: "provider", id: "b" }, attempts: [request("completed-a", 0, "failed", true), request("completed-b", 1, "completed", false)],
-      cost: 0.04, unknownPriceAttempts: 1, missingUsageAttempts: 1 }
+    const completed: SessionMessageAssistant = {
+      ...assistantMessage([textPart("prt_completed_group", "The actual response came from B.")], {
+        id: "msg_completed_group",
+        parentID: earlierUser.id,
+      }),
+      model: { providerID: "provider", id: "b" },
+      attempts: [request("completed-a", 0, "failed", true), request("completed-b", 1, "completed", false)],
+      cost: 0.04,
+      unknownPriceAttempts: 1,
+      missingUsageAttempts: 1,
+    }
 
-    const latestUser = { ...userMessage(undefined, { id: "msg_failed_group", created: 1700000003000 }), text: "Failed request", metadata: { model: selected } }
+    const latestUser = {
+      ...userMessage(undefined, { id: "msg_failed_group", created: 1700000003000 }),
+      text: "Failed request",
+      metadata: { model: selected },
+    }
 
-    const failed: SessionMessageAssistant = { ...assistantMessage([], { id: "msg_failed_group_assistant", parentID: latestUser.id,
-      error: { type: "provider.error", message: "All candidates failed" }, created: 1700000004000 }), model: { providerID: "provider", id: "b" },
-      attempts: [request("failed-a", 0, "failed", true, 1700000004000), request("failed-b", 1, "failed", false, 1700000004000)], cost: 0.005, unknownPriceAttempts: 1, missingUsageAttempts: 1 }
+    const failed: SessionMessageAssistant = {
+      ...assistantMessage([], {
+        id: "msg_failed_group_assistant",
+        parentID: latestUser.id,
+        error: { type: "provider.error", message: "All candidates failed" },
+        created: 1700000004000,
+      }),
+      model: { providerID: "provider", id: "b" },
+      attempts: [
+        request("failed-a", 0, "failed", true, 1700000004000),
+        request("failed-b", 1, "failed", false, 1700000004000),
+      ],
+      cost: 0.005,
+      unknownPriceAttempts: 1,
+      missingUsageAttempts: 1,
+    }
 
     const messages: SessionMessageInfo[] = [earlierUser, completed, latestUser, failed]
 
-    const timeline = await setupTimeline(page, { sessionMessages: messages, modelGroups: group,
+    const timeline = await setupTimeline(page, {
+      sessionMessages: messages,
+      modelGroups: group,
       sessions: [{ ...session(), model: selected, cost: 0.045, unknownPriceAttempts: 2, missingUsageAttempts: 2 }],
-      sessionStatus: { [sessionID]: { type: "idle" } }, viewport: { width: 1400, height: 1100 } })
+      sessionStatus: { [sessionID]: { type: "idle" } },
+      viewport: { width: 1400, height: 1100 },
+    })
 
     const latest = page.locator('[data-timeline-row="UserMessage"][data-message-id="msg_failed_group"]')
     await expect(latest).toContainText("Group · Fallback route")
-    await expect(page.locator(`[data-timeline-part-id="${completed.id}:text:0"] [data-slot="text-part-meta"]`)).toContainText(" · b · ")
-    const successButton = page.locator('[data-timeline-row="AssistantPart"]').filter({ hasText: "The actual response came from B." }).getByRole("button", { name: "2 model attempts", exact: true })
+    await expect(
+      page.locator(`[data-timeline-part-id="${completed.id}:text:0"] [data-slot="text-part-meta"]`),
+    ).toContainText(" · b · ")
+    const successButton = page
+      .locator('[data-timeline-row="AssistantPart"]')
+      .filter({ hasText: "The actual response came from B." })
+      .getByRole("button", { name: "2 model attempts", exact: true })
     await expect(page.locator('[data-timeline-row="AssistantAttempts"]')).toHaveCount(0)
     await page.locator(`[data-timeline-part-id="${completed.id}:text:0"]`).hover()
     await successButton.click()
@@ -82,12 +184,23 @@ test.describe("timeline history", () => {
     await expect(actual).toContainText("Quota at attempt startQuota known")
     await expect(actual).toContainText("Recorded quota source")
 
-    const observation = { observedAt: 1700000001250, firstTokenAt: 1700000001250,
-      gatewayReport: { source: "response-headers" as const, provider: "early-gateway-provider", model: "gateway/early-model" } }
+    const observation = {
+      observedAt: 1700000001250,
+      firstTokenAt: 1700000001250,
+      gatewayReport: {
+        source: "response-headers" as const,
+        provider: "early-gateway-provider",
+        model: "gateway/early-model",
+      },
+    }
 
     // SAFETY: makeEvent preserves the literal event type supplied here.
-    const observed = makeEvent("session.attempt.observed", { sessionID, assistantMessageID: completed.id, ordinal: 1, observation }) as
-      Extract<AigcForgeEvent, { type: "session.attempt.observed" }>
+    const observed = makeEvent("session.attempt.observed", {
+      sessionID,
+      assistantMessageID: completed.id,
+      ordinal: 1,
+      observation,
+    }) as Extract<AigcForgeEvent, { type: "session.attempt.observed" }>
 
     await timeline.send(observed)
     await expect(actual).toContainText("Time to first token (TTFT)250 ms")
@@ -133,7 +246,10 @@ test.describe("timeline history", () => {
     await page.locator(`[data-timeline-part-id="${completed.id}:text:0"]`).hover()
     await successButton.click()
     await page.mouse.wheel(0, 100_000)
-    const idle = makeEvent("session.execution.failed", { sessionID, error: { type: "provider.error", message: "Idle failure recorded" } })
+    const idle = makeEvent("session.execution.failed", {
+      sessionID,
+      error: { type: "provider.error", message: "Idle failure recorded" },
+    })
     await timeline.send(idle)
     await expect(error).toContainText("Idle failure recorded")
     await error.getByRole("button", { name: "2 model attempts", exact: true }).click()
@@ -153,12 +269,21 @@ test.describe("timeline history", () => {
     await expect(localized).toContainText("身份验证失败")
     await expect(localized).toContainText("request-failed-b")
     await expect(page.locator('[data-timeline-row="AssistantAttempts"]')).toHaveCount(0)
-    await expect.poll(async () => {
-      const bounds = await localized.boundingBox()
-      const viewport = page.viewportSize()
+    await expect
+      .poll(async () => {
+        const bounds = await localized.boundingBox()
+        const viewport = page.viewportSize()
 
-      return bounds && viewport && bounds.x >= 0 && bounds.y >= 0 && bounds.x + bounds.width <= viewport.width && bounds.y + bounds.height <= viewport.height
-    }).toBe(true)
+        return (
+          bounds &&
+          viewport &&
+          bounds.x >= 0 &&
+          bounds.y >= 0 &&
+          bounds.x + bounds.width <= viewport.width &&
+          bounds.y + bounds.height <= viewport.height
+        )
+      })
+      .toBe(true)
     await page.screenshot({ path: testInfo.outputPath("attempt-popover-zh-narrow.png") })
   })
   test("keeps visible rows fixed while an older page prepends", async ({ page }) => {

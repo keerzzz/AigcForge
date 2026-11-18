@@ -3,11 +3,19 @@ import { Venice } from "../../src/providers.js"
 
 LLM.request({
   model: Venice.chat("qwen3-6-27b"),
-  providerOptions: { reasoningEffort: "high", reasoning: { summary: "concise" }, veniceParameters: { includeVeniceSystemPrompt: false } },
+  providerOptions: {
+    reasoningEffort: "high",
+    reasoning: { summary: "concise" },
+    veniceParameters: { includeVeniceSystemPrompt: false },
+  },
 })
 LLM.request({
   model: Venice.configure({ providerOptions: { reasoningEffort: "future-effort" } }).model("future-model"),
-  providerOptions: { reasoning: { enabled: false }, promptCacheRetention: "future-retention", parallelToolCalls: false },
+  providerOptions: {
+    reasoning: { enabled: false },
+    promptCacheRetention: "future-retention",
+    parallelToolCalls: false,
+  },
 })
 LLM.request({
   model: Venice.chat("qwen3-6-27b"),

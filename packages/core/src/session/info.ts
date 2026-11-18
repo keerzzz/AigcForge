@@ -32,15 +32,17 @@ export function fromRow(row: typeof SessionTable.$inferSelect & { last_message?:
       ? Schema.decodeUnknownSync(SessionSchema.ExecutorPreference)(row.executor_preference)
       : undefined,
     model: model
-      ? Model.Selection.isGroup(model) ? model : {
-          id: model.id,
-          providerID: model.providerID,
-          variant: row.controller
-            ? model.variant === undefined
-              ? undefined
-              : model.variant
-            : Model.VariantID.make(model.variant ?? "default"),
-        }
+      ? Model.Selection.isGroup(model)
+        ? model
+        : {
+            id: model.id,
+            providerID: model.providerID,
+            variant: row.controller
+              ? model.variant === undefined
+                ? undefined
+                : model.variant
+              : Model.VariantID.make(model.variant ?? "default"),
+          }
       : undefined,
     cost: Money.USD.make(row.cost),
     unknownPriceAttempts: row.unknown_price_attempts ?? undefined,

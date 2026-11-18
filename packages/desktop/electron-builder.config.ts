@@ -193,8 +193,9 @@ function getConfig() {
         productName: "AigcForge Beta",
         protocols: { name: "AigcForge Beta", schemes: ["aigcfroge"] },
         publish: {
-          provider: "generic",
-          url: "https://aigcfroge.ai/update/api/beta/desktop/aigcfroge/",
+          provider: "github",
+          owner: "keerzzz",
+          repo: "AigcForge-beta",
           channel: "latest",
         },
         deb: { fpm: [metainfoFpm(appId)] },
@@ -209,8 +210,9 @@ function getConfig() {
         productName: "AigcForge",
         protocols: { name: "AigcForge", schemes: ["aigcfroge"] },
         publish: {
-          provider: "generic",
-          url: "https://aigcfroge.ai/update/api/latest/desktop/aigcfroge/",
+          provider: "github",
+          owner: "keerzzz",
+          repo: "AigcForge",
           channel: "latest",
         },
         deb: { fpm: [metainfoFpm(appId), legacyDesktopEntryFpm] },

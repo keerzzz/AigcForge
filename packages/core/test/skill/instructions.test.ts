@@ -73,9 +73,7 @@ describe("SkillInstructions", () => {
 
       skills = []
       expect(
-        yield* instructions
-          .load(agent.permissions)
-          .pipe(Effect.flatMap((context) => readUpdate(context, initialized))),
+        yield* instructions.load(agent.permissions).pipe(Effect.flatMap((context) => readUpdate(context, initialized))),
       ).toMatchObject({ text: "Skill guidance is no longer available. Do not use any previously listed skill." })
     }).pipe(Effect.provide(layer(() => skills)))
   })
@@ -126,9 +124,7 @@ describe("SkillInstructions", () => {
 
       skills = [Skill.Info.make({ ...effect, description: "Build applications with Effect v4" })]
       expect(
-        yield* instructions
-          .load(agent.permissions)
-          .pipe(Effect.flatMap((context) => readUpdate(context, initialized))),
+        yield* instructions.load(agent.permissions).pipe(Effect.flatMap((context) => readUpdate(context, initialized))),
       ).toMatchObject({
         text: expect.stringContaining(
           "The available skills have changed. This list supersedes the previous available skills list.",
@@ -172,9 +168,9 @@ describe("SkillInstructions", () => {
     })
     return Effect.gen(function* () {
       const instructions = yield* SkillInstructions.Service
-      expect(
-        (yield* instructions.load(agent.permissions).pipe(Effect.flatMap(readInitial))).text,
-      ).toContain("<name>Effect</name>")
+      expect((yield* instructions.load(agent.permissions).pipe(Effect.flatMap(readInitial))).text).toContain(
+        "<name>Effect</name>",
+      )
     }).pipe(Effect.provide(layer(() => [effect])))
   })
 

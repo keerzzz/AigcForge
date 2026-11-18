@@ -3,7 +3,7 @@
   "extends": "@tsconfig/bun/tsconfig.json",
   "compilerOptions": {
     "noUnusedLocals": true,
-    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "lib": ["ESNext", "DOM", "DOM.Iterable", "DOM.AsyncIterable"],
     "noUncheckedIndexedAccess": false
   }
 }

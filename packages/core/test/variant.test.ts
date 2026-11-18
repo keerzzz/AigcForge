@@ -32,7 +32,9 @@ test("spells Messages variants for each provider", () => {
   ])
 
   expect(
-    resolve(model("@aigcfroge/ai/providers/anthropic", "claude-opus-4-8"), [{ type: "effort", values: ["low", "max"] }]),
+    resolve(model("@aigcfroge/ai/providers/anthropic", "claude-opus-4-8"), [
+      { type: "effort", values: ["low", "max"] },
+    ]),
   ).toEqual([
     { id: "low", settings: { effort: "low", thinking: { type: "adaptive", display: "summarized" } } },
     { id: "max", settings: { effort: "max", thinking: { type: "adaptive", display: "summarized" } } },
@@ -186,9 +188,9 @@ test("spells xAI Responses variants with catalog effort levels", () => {
       settings: { reasoningEffort: "low", reasoningSummary: "auto", include: ["reasoning.encrypted_content"] },
     },
   ])
-  expect(resolve(model("@aigcfroge/ai/providers/xai", "grok-4.6"), [{ type: "effort" }]).map((item) => item.id)).toEqual(
-    ["low", "medium", "high"],
-  )
+  expect(
+    resolve(model("@aigcfroge/ai/providers/xai", "grok-4.6"), [{ type: "effort" }]).map((item) => item.id),
+  ).toEqual(["low", "medium", "high"])
 })
 
 test("spells Chat Completions variants for direct providers", () => {

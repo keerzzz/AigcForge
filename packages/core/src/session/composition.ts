@@ -144,17 +144,23 @@ export const insertSnapshot = Effect.fn("SessionComposition.insertSnapshot")(fun
     .pipe(Effect.orDie)
 })
 
-export function bindGroupBehavior(snapshot: Composition.SnapshotV2, agentID: string, groupBehavior?: ModelGroup.BehaviorSnapshot) {
+export function bindGroupBehavior(
+  snapshot: Composition.SnapshotV2,
+  agentID: string,
+  groupBehavior?: ModelGroup.BehaviorSnapshot,
+) {
   const root = agentID === (snapshot.data.root?.id ?? "meta")
   return new Composition.SnapshotV2({
     ...snapshot,
     data: new Composition.SnapshotDataV2({
       ...snapshot.data,
-      ...(root ? { groupBehavior } : {
-        executors: snapshot.data.executors?.map((executor) => executor.id === agentID
-          ? new Composition.SnapshotExecutorData({ ...executor, groupBehavior })
-          : executor),
-      }),
+      ...(root
+        ? { groupBehavior }
+        : {
+            executors: snapshot.data.executors?.map((executor) =>
+              executor.id === agentID ? new Composition.SnapshotExecutorData({ ...executor, groupBehavior }) : executor,
+            ),
+          }),
     }),
   })
 }
@@ -443,9 +449,14 @@ export const layer = Layer.effect(
           return yield* new DependencyMissingError({ sessionID, reason: "group_behavior_requires_snapshot_v2" })
         return
       }
-      yield* db.update(SessionCompositionSnapshotTable).set({
-        data: bindGroupBehavior(snapshot, agentID ?? snapshot.data.root?.id ?? "meta", groupBehavior).data,
-      }).where(eq(SessionCompositionSnapshotTable.session_id, sessionID)).run().pipe(Effect.orDie)
+      yield* db
+        .update(SessionCompositionSnapshotTable)
+        .set({
+          data: bindGroupBehavior(snapshot, agentID ?? snapshot.data.root?.id ?? "meta", groupBehavior).data,
+        })
+        .where(eq(SessionCompositionSnapshotTable.session_id, sessionID))
+        .run()
+        .pipe(Effect.orDie)
     })
 
     const attach = Effect.fn("SessionComposition.attach")(function* (

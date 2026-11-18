@@ -55,9 +55,12 @@ function CompositionSummary(props: {
     const label = language.t("model.group.selection", { name: group?.definition?.name || model.groupID })
     const unavailable = group ? group.unavailable : read ? "missing" : undefined
 
-    return unavailable ? language.t("home.custom.model.groupUnavailable", {
-      model: label, reason: language.t(`model.group.unavailable.${unavailable}`),
-    }) : label
+    return unavailable
+      ? language.t("home.custom.model.groupUnavailable", {
+          model: label,
+          reason: language.t(`model.group.unavailable.${unavailable}`),
+        })
+      : label
   }
 
   const snapshot = () => composition.snapshot()
@@ -146,9 +149,7 @@ function CompositionSummary(props: {
                         </p>
                         <bdi class="break-all text-v2-text-text-muted">{executor.relativePath}</bdi>
                         <code class="break-all">{executor.revision}</code>
-                        <p class="break-words text-v2-text-text-muted">
-                          {modelLabel(executor.info.model)}
-                        </p>
+                        <p class="break-words text-v2-text-text-muted">{modelLabel(executor.info.model)}</p>
                       </li>
                     )}
                   </For>

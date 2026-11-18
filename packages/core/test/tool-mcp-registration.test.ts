@@ -79,9 +79,10 @@ describe("McpRegistration namespace and collision", () => {
     Effect.gen(function* () {
       const tools = yield* Tool.Service
       const scope = yield* Scope.make()
-      yield* McpRegistration.registerServer(tools, { serverName: "context7", tools: { read: echo(), grep: echo() } }).pipe(
-        Scope.provide(scope),
-      )
+      yield* McpRegistration.registerServer(tools, {
+        serverName: "context7",
+        tools: { read: echo(), grep: echo() },
+      }).pipe(Scope.provide(scope))
 
       expect(yield* registeredNames(tools)).toEqual(["mcp_context7_grep", "mcp_context7_read"])
 
@@ -109,10 +110,10 @@ describe("McpRegistration namespace and collision", () => {
     Effect.gen(function* () {
       const tools = yield* Tool.Service
       const scope = yield* Scope.make()
-      const exit = yield* McpRegistration.registerServer(tools, { serverName: "Bad Server!", tools: { read: echo() } }).pipe(
-        Scope.provide(scope),
-        Effect.exit,
-      )
+      const exit = yield* McpRegistration.registerServer(tools, {
+        serverName: "Bad Server!",
+        tools: { read: echo() },
+      }).pipe(Scope.provide(scope), Effect.exit)
       expectInvalidServerName(exit, "Bad Server!")
       expect(yield* registeredNames(tools)).toEqual([])
       yield* Scope.close(scope, Exit.void)
@@ -123,9 +124,7 @@ describe("McpRegistration namespace and collision", () => {
     Effect.gen(function* () {
       const tools = yield* Tool.Service
       const appScope = yield* Scope.make()
-      yield* tools
-        .transform((editor) => editor.add({ ...echo(), name: "mcp_ctx_echo" }))
-        .pipe(Scope.provide(appScope))
+      yield* tools.transform((editor) => editor.add({ ...echo(), name: "mcp_ctx_echo" })).pipe(Scope.provide(appScope))
 
       const scope = yield* Scope.make()
       const exit = yield* McpRegistration.registerServer(tools, { serverName: "ctx", tools: { echo: echo() } }).pipe(
@@ -169,10 +168,10 @@ describe("McpRegistration namespace and collision", () => {
     Effect.gen(function* () {
       const tools = yield* Tool.Service
       const scope = yield* Scope.make()
-      const exit = yield* McpRegistration.registerServer(tools, { serverName: "ok", tools: { "bad name": echo() } }).pipe(
-        Scope.provide(scope),
-        Effect.exit,
-      )
+      const exit = yield* McpRegistration.registerServer(tools, {
+        serverName: "ok",
+        tools: { "bad name": echo() },
+      }).pipe(Scope.provide(scope), Effect.exit)
       expectRegistrationError(exit, "mcp_ok_bad name")
       // Nothing was registered: all-or-nothing per server.
       expect(yield* registeredNames(tools)).toEqual([])

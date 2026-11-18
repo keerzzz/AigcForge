@@ -3,7 +3,12 @@ import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { ApiNotFoundError } from "../errors.js"
 import { Authorization } from "../middleware/authorization.js"
-import { InstanceContext, WorkspaceRouting, WorkspaceRoutingQuery, WorkspaceRoutingQueryFields } from "../middleware/workspace-routing.js"
+import {
+  InstanceContext,
+  WorkspaceRouting,
+  WorkspaceRoutingQuery,
+  WorkspaceRoutingQueryFields,
+} from "../middleware/workspace-routing.js"
 import { described } from "./metadata.js"
 
 // Fork-retained instance-scoped surface (see prompt-asset.ts for the conventions).

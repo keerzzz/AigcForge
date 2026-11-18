@@ -154,10 +154,7 @@ export const wrapSystemUpdate = (parts: ReadonlyArray<{ readonly text: string }>
  * raw retrieved, tool, or web content into privileged updates: keep untrusted
  * data in ordinary user/tool messages instead.
  */
-export const systemUpdateText = Effect.fnUntraced(function* (
-  route: string,
-  message: LLMRequest["messages"][number],
-) {
+export const systemUpdateText = Effect.fnUntraced(function* (route: string, message: LLMRequest["messages"][number]) {
   const content: TextPart[] = []
   for (const part of message.content) {
     if (!supportsContent(part, ["text"])) return yield* unsupportedContent(route, "system", ["text"])

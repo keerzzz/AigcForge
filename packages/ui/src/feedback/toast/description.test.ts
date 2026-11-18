@@ -17,4 +17,3 @@ describe("toast description bound", () => {
     expect(bounded.title).toBe("Failed to send prompt")
   })
 })
-

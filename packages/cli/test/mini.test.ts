@@ -598,7 +598,15 @@ describe("mini command", () => {
           if (request.method === "GET" && url.pathname === "/api/model/default")
             return Response.json({ location, data: models[0] })
           if (request.method === "GET" && url.pathname === "/api/model/group")
-            return Response.json({ location, data: { targets: [], definitions: [], effective: [], defaultSelection: models[0] && { providerID: models[0].providerID, id: models[0].id } } })
+            return Response.json({
+              location,
+              data: {
+                targets: [],
+                definitions: [],
+                effective: [],
+                defaultSelection: models[0] && { providerID: models[0].providerID, id: models[0].id },
+              },
+            })
           if (request.method === "GET" && url.pathname === "/api/agent")
             return Response.json({ location, data: agents })
           if (request.method === "GET" && ["/api/reference", "/api/command", "/api/form"].includes(url.pathname))
@@ -1093,7 +1101,10 @@ describe("mini command", () => {
     expect(JSON.stringify(parseRunModel("openrouter/openai/gpt-5#high"))).toBe(
       JSON.stringify({ model: { providerID: "openrouter", modelID: "openai/gpt-5" }, variant: "high" }),
     )
-    expect(parseRunModel("group:fallback")).toEqual({ model: { type: "group", groupID: "fallback" }, variant: undefined })
+    expect(parseRunModel("group:fallback")).toEqual({
+      model: { type: "group", groupID: "fallback" },
+      variant: undefined,
+    })
     expect(parseSessionTargetModel("openrouter/openai/gpt-5#high")).toEqual({
       providerID: "openrouter",
       id: "openai/gpt-5",

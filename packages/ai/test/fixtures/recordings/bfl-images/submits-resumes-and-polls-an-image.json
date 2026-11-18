@@ -1,11 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:bfl-images",
-      "provider:black-forest-labs",
-      "protocol:bfl-images"
-    ],
+    "tags": ["prefix:bfl-images", "provider:black-forest-labs", "protocol:bfl-images"],
     "name": "bfl-images/submits-resumes-and-polls-an-image",
     "recordedAt": "2026-09-23T18:35:19.533Z"
   },

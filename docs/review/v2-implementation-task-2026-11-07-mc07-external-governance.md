@@ -12,11 +12,11 @@
 
 前序状态：
 
-| 前序 | 当前状态与依据 |
-| --- | --- |
-| no_code_change | 工程及真实用户链已接受：[Root 最终接受](/home/keer/.codex/outputs/2026-11-07/mc07-no-code-change-runtime-root-v2/root-final-acceptance.json)。 |
-| source 单因素 | 工程已接受：[Root 最终接受](/home/keer/.codex/outputs/2026-11-07/mc07-source-conflict-engineering-v1/root-final-acceptance.json)。 |
-| fanout | 原工程与真实链已通过：复用两次已完成 Task，以新 Turn 完成 Build 成功/General 声明故障、显式 close、完整父消费和同次退出。依据：[Root 最终接受](/home/keer/.codex/outputs/2026-11-07/mc07-fanout-tail-root-v1/root-final-acceptance.json)。 |
+| 前序           | 当前状态与依据                                                                                                                                                                                                                             |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| no_code_change | 工程及真实用户链已接受：[Root 最终接受](/home/keer/.codex/outputs/2026-11-07/mc07-no-code-change-runtime-root-v2/root-final-acceptance.json)。                                                                                             |
+| source 单因素  | 工程已接受：[Root 最终接受](/home/keer/.codex/outputs/2026-11-07/mc07-source-conflict-engineering-v1/root-final-acceptance.json)。                                                                                                         |
+| fanout         | 原工程与真实链已通过：复用两次已完成 Task，以新 Turn 完成 Build 成功/General 声明故障、显式 close、完整父消费和同次退出。依据：[Root 最终接受](/home/keer/.codex/outputs/2026-11-07/mc07-fanout-tail-root-v1/root-final-acceptance.json)。 |
 
 MC07 整体保持开放，本片是其当前剩余主链。[fanout 文档闭环](/home/keer/.codex/outputs/2026-11-07/mc07-fanout-final-docs-v1/root-document-closure.json)已完成。派发与检查槽见本目录 dispatch.json；六文件 before 复用 before.json，并由 before-reconfirmed.json 确認字节、模式和 WIP 未变。交付写入 /home/keer/.codex/outputs/2026-11-07/mc07-external-governance-engineering-v1。
 
@@ -34,14 +34,14 @@ MC07 整体保持开放，本片是其当前剩余主链。[fanout 文档闭环]
 
 ## 精确白名单
 
-| 文件 | 必要差额 |
-| --- | --- |
-| [tool/plugin/task.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/plugin/task.ts:183) | 正式 foreground external review：现 execution_type=external-cli、cli_target/subagent_type=codex、intent=review、attended=false、实际 D/revision_digest；取得当前内部 revision/reference，通过 read 权限后路由 reviewer、准入 review Turn。complete/archive 只接纳具可信 proof 的本链；显式 retract_rejection 沿原 task_reconcile 权限与 active participant 匹配合同，不追加 review proof 门槛。 |
-| [delegation/execution.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/execution.ts:1651) | 在原 dispatchExternal/Job/锁与结算内绑定 reviewer/revision，读取真实完成全文、解析现 envelope、持久可信 typed 结果并记录 review；live/wait/原恢复入口消费同一结果。保留原取消、Scope 清理和通知 owner。 |
-| [delegation/service.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/service.ts:301) | 保留内部 producer/RevisionReference；Core 私有 review receipt/proof 接纳真实 External 分支。proofFor/recordReview 校对原完成绑定、source/attempt/native identity/digest；close/complete/archive 仅放行受支持且 proof 吻合的 roster，沿原 fresh barrier。 |
-| [delegation/receipt.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/receipt.ts:23) | 原 External/Binding/key/matches 内表达审阅引用和持久 typed 结算，供 Task metadata、完整前台结果和冷读消费；External thread/turn 与内部 child/input 保持真实身份。私有字段由正式任务/实现冻结。 |
-| [meta-agent-integration.test.ts](/home/keer/workspace/aigcfroge-v2/packages/core/test/meta-agent-integration.test.ts:251) | 主 keeper：复用 mc07Build、实际 Task/Session/DB/Bus/FileAccess/Git 与原 app-server 夹具，覆盖 producer→review→repair/copy→撤回→complete/父消费。 |
-| [delegation-service.test.ts](/home/keer/workspace/aigcfroge-v2/packages/core/test/delegation-service.test.ts:1) | 仅补主链不能直接覆盖的 owning proof、旧无证明 review、来源冲突或完成拒绝 keeper。 |
+| 文件                                                                                                                      | 必要差额                                                                                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [tool/plugin/task.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/plugin/task.ts:183)                        | 正式 foreground external review：现 execution_type=external-cli、cli_target/subagent_type=codex、intent=review、attended=false、实际 D/revision_digest；取得当前内部 revision/reference，通过 read 权限后路由 reviewer、准入 review Turn。complete/archive 只接纳具可信 proof 的本链；显式 retract_rejection 沿原 task_reconcile 权限与 active participant 匹配合同，不追加 review proof 门槛。 |
+| [delegation/execution.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/execution.ts:1651)               | 在原 dispatchExternal/Job/锁与结算内绑定 reviewer/revision，读取真实完成全文、解析现 envelope、持久可信 typed 结果并记录 review；live/wait/原恢复入口消费同一结果。保留原取消、Scope 清理和通知 owner。                                                                                                                                                                                         |
+| [delegation/service.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/service.ts:301)                    | 保留内部 producer/RevisionReference；Core 私有 review receipt/proof 接纳真实 External 分支。proofFor/recordReview 校对原完成绑定、source/attempt/native identity/digest；close/complete/archive 仅放行受支持且 proof 吻合的 roster，沿原 fresh barrier。                                                                                                                                        |
+| [delegation/receipt.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/receipt.ts:23)                     | 原 External/Binding/key/matches 内表达审阅引用和持久 typed 结算，供 Task metadata、完整前台结果和冷读消费；External thread/turn 与内部 child/input 保持真实身份。私有字段由正式任务/实现冻结。                                                                                                                                                                                                  |
+| [meta-agent-integration.test.ts](/home/keer/workspace/aigcfroge-v2/packages/core/test/meta-agent-integration.test.ts:251) | 主 keeper：复用 mc07Build、实际 Task/Session/DB/Bus/FileAccess/Git 与原 app-server 夹具，覆盖 producer→review→repair/copy→撤回→complete/父消费。                                                                                                                                                                                                                                                |
+| [delegation-service.test.ts](/home/keer/workspace/aigcfroge-v2/packages/core/test/delegation-service.test.ts:1)           | 仅补主链不能直接覆盖的 owning proof、旧无证明 review、来源冲突或完成拒绝 keeper。                                                                                                                                                                                                                                                                                                               |
 
 四生产是接缝白名单，不要求逐文件新增代码。review/fold/digest、Session/Job/FileAccess、CliAdapter/codex-app-server、公共 API/generated、其余测试及仓内文档只读。工程仓/默认仓 Git 写、安装、构建生成和现用服务/用户 DB 操作均 0；测试的私有 tmpdir seed/empty commit 仅复用已有 fixture。必要越界先交决定函数、实际失败与最小差额，由 Root 重分配。
 
@@ -58,15 +58,15 @@ MC07 整体保持开放，本片是其当前剩余主链。[fanout 文档闭环]
 
 fixture 为已有已跟踪文本 artifact.txt：初始 base 换行，R1 为 base 换行 r1 换行，R2 为 base 换行 r2 换行。D、digest、child、participant、thread/turn、receipt/source 均取原真实结果，不预写成功身份。
 
-| 动作 | 直接验收证据 |
-| --- | --- |
-| U1 内部 Build 完成 R1 | 实际 write/capture 与完整父 Tool 消费先于 reviewer 准入；记录原 D、implementer/child、revision 与 source。 |
-| U2 外部只读审 R1，typed rejected | foreground、attended=false，实际 readOnly/networkAccess=false；原完整 review envelope 绑定 R1，blocking finding 要求末行 r1 改 r2并保留 base。reviewer/review Turn、真实 native identity、可信 typed proof/全文进入父；sticky rejection 保持。 |
-| U3 同 implementer/child 修 R2，同 reviewer/thread 新 Turn approved | 原 R1 findings/全文进入修复输入；R2 rework 有实际新 digest/producer/source，同 reviewer/thread 新 native Turn 精确审 R2，完整 approval 回父。 |
-| U4 尝试 complete | R2 approval 已有效，sticky rejection 仍使 completion 拒绝；原拒绝、失败理由、状态可消费，无 RejectionRetracted/Completed/Archived 或新 grant。 |
-| U5 明确 retract_rejection | 匹配实际 active rejectionParticipantID，保留理由及 task_reconcile 许可/拒绝确认事实；拒绝确认/错误 participant 不撤回，R1 历史保留。 |
-| copy 增量，归档前 | 同 child/D 的 no_change 与已接受 no_code_change 私有空提交链核 producer/commit 来源和原批准有效性；不另启 reviewer、不造新 receipt/review 事件；与 rework 主链分账。 |
-| U6 fresh completion/archive/完整父消费 | task_close/task_archive 当前权限；cleanup 后再验 fresh barrier，Completed/Archived/archivedFrom 与原 source/时间真实持久，原完整 complete 结果进入后续父请求。逐请求核对模型实际收到的正文和下一步所需身份，不能把持久 Tool metadata 当模型可见正文；活动/未完成新 Turn 不能借旧 barrier 完成。 |
+| 动作                                                               | 直接验收证据                                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| U1 内部 Build 完成 R1                                              | 实际 write/capture 与完整父 Tool 消费先于 reviewer 准入；记录原 D、implementer/child、revision 与 source。                                                                                                                                                                                      |
+| U2 外部只读审 R1，typed rejected                                   | foreground、attended=false，实际 readOnly/networkAccess=false；原完整 review envelope 绑定 R1，blocking finding 要求末行 r1 改 r2并保留 base。reviewer/review Turn、真实 native identity、可信 typed proof/全文进入父；sticky rejection 保持。                                                  |
+| U3 同 implementer/child 修 R2，同 reviewer/thread 新 Turn approved | 原 R1 findings/全文进入修复输入；R2 rework 有实际新 digest/producer/source，同 reviewer/thread 新 native Turn 精确审 R2，完整 approval 回父。                                                                                                                                                   |
+| U4 尝试 complete                                                   | R2 approval 已有效，sticky rejection 仍使 completion 拒绝；原拒绝、失败理由、状态可消费，无 RejectionRetracted/Completed/Archived 或新 grant。                                                                                                                                                  |
+| U5 明确 retract_rejection                                          | 匹配实际 active rejectionParticipantID，保留理由及 task_reconcile 许可/拒绝确认事实；拒绝确认/错误 participant 不撤回，R1 历史保留。                                                                                                                                                            |
+| copy 增量，归档前                                                  | 同 child/D 的 no_change 与已接受 no_code_change 私有空提交链核 producer/commit 来源和原批准有效性；不另启 reviewer、不造新 receipt/review 事件；与 rework 主链分账。                                                                                                                            |
+| U6 fresh completion/archive/完整父消费                             | task_close/task_archive 当前权限；cleanup 后再验 fresh barrier，Completed/Archived/archivedFrom 与原 source/时间真实持久，原完整 complete 结果进入后续父请求。逐请求核对模型实际收到的正文和下一步所需身份，不能把持久 Tool metadata 当模型可见正文；活动/未完成新 Turn 不能借旧 barrier 完成。 |
 
 最小新增边界证据：缺/坏/wrong digest、一次 source/native identity 冲突、超过摘要上限的完整 envelope 冷读、父 Tool.Success 前结算、旧无 proof review 完成拒绝。复用相同 keeper，不扩全故障矩阵。外部局部失败/取消/迟到/unknown 保留准确状态、原成功和完整消费者；归档错误/unavailable 不冒充成功。
 

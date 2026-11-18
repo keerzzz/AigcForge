@@ -4,7 +4,7 @@
 
 取证者 `/root/p03_fd_final_review`；实施/审批 Owner `/root`。目标 `/home/keer/workspace/aigcfroge-v2`、`v2-dev`、取证起始 HEAD `251c0fe38041a326e624db464d1ee0efd1522881`，含主线 WIP。旧产品只读参考 `/home/keer/workspace/aigcfroge` 的 `main` `edbe67383d830aa40269ddf453c7f5617c940b46` 及 WIP。主线模式创建运输独立推进，本报告不覆盖其实现或审批。
 
-仅新建本 MD/JSON，不改 packages、plan、debt、已有报告或 final-source-*。源码哈希只覆盖本报告引用输入，不是完整不可变工作树快照；来源改变后由主线判断相关范围重验。没有测试/build/typecheck/lint/acceptance/server/索引执行，没有新 green tally，没有复现 product red，不重跑或累加历史日志。
+仅新建本 MD/JSON，不改 packages、plan、debt、已有报告或 final-source-\*。源码哈希只覆盖本报告引用输入，不是完整不可变工作树快照；来源改变后由主线判断相关范围重验。没有测试/build/typecheck/lint/acceptance/server/索引执行，没有新 green tally，没有复现 product red，不重跑或累加历史日志。
 
 工作令与范围依据：[当前 docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md:5](/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md:5)；[当前 docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md:132](/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md:132)；[当前 docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md:160](/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md:160)；[当前 docs/technical-debt.md:74](/home/keer/workspace/aigcfroge-v2/docs/technical-debt.md:74)。
 

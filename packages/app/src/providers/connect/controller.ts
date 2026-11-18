@@ -43,9 +43,7 @@ export function providerFormDefaults(fields: ProviderConnectMethod["form"]) {
 
       if (actual === undefined) return false
 
-      const equal = Array.isArray(actual)
-        ? actual.some((item) => item === condition.value)
-        : actual === condition.value
+      const equal = Array.isArray(actual) ? actual.some((item) => item === condition.value) : actual === condition.value
 
       return condition.op === "eq" ? equal : !equal
     })

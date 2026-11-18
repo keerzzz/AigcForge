@@ -35,5 +35,4 @@ AUDIT-V2-DESKTOP-CLOSURE保持Open的范围由Desktop/Release、Client/Merman负
 
 P0.3本地必要闭包待独立复审与主线协议审批后才能关闭；其余边界在canonical debt继续跟踪。`git log --oneline 251c0fe38041a326e624db464d1ee0efd1522881..HEAD`当前输出为空；没有手写commit列表。
 
-
 **最新限定审批已完成。** 2026-10-25T19:31:15.828741+00:00主线再核所有输入、日志与产物，依据 [独立复审](evidence/v2-desktop-p0.3-2026-10-25/desktop-final-source-independent-review.md) findings=[] 完成 [本地闭包审批](v2-desktop-p0.3-approval-2026-10-25.md)。前文“待审批”保留准备时点。冻结source副本7440项和可变输出副本5378项已保存；后者主线实际逐项验证，复审仅核归档整体SHA/记录。外部两份CLI与ASAR仍在owned run目录，development CLI原字节可由已核相同的primary artifact保留。TEAM在7440之外另行pin，只影响本轮构建日志；未扩大完整input/dependency/WIP快照。

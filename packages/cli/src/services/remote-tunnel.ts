@@ -57,7 +57,8 @@ export const ensure = Effect.fnUntraced(function* () {
     Effect.provide(OpenTunnelClient.layer()),
     Effect.timeoutOrElse({
       duration: "5 minutes",
-      orElse: () => Effect.fail(new Error("Timed out creating the remote access tunnel; run the command again to resume")),
+      orElse: () =>
+        Effect.fail(new Error("Timed out creating the remote access tunnel; run the command again to resume")),
     }),
   )
 })

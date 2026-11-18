@@ -12,14 +12,14 @@
 
 ## 2. 第一性推导与批准项
 
-| 基本事实 | 推导 | 批准的实现 |
-| --- | --- | --- |
-| 主列纵向空间有限；当前 TaskPanel 位于 Timeline/Composer 之间 | 持续管理占据主列时会减少对话空间；修复应改变真实挂载位置 | 任务、协作、Meta、工作流和产物迁到右侧，五类功能可达后立即移除主列聚合区 |
-| File/Review/Browser 已使用同一 Panel 宿主 | 统一能力已有多个真实消费者，复用宿主足够 | 使用现 Panel/createRegion/SideRegion/RegionContent，不建立第二注册表、事件总线或布局缓存 |
-| Panel 与 Extension 是不同粒度；一个扩展能注册多个 Panel | 五个可插拔视图不要求五个 setup/扩展发布单元 | 默认一个 session-management 扩展，贡献五个独立 Panel/菜单/显示偏好 |
-| 询问、权限与联网选择需要即时回应；Form/Permission 选择独立 | 不能用隐藏另一请求换取视觉紧凑，也不应把即时请求放入可能收起的管理栏 | 保留原 response dock 与 blocked 规则；Queue 留在 Composer 附近 |
-| Task 与 Todo 从同一 owner 投影 | 两个编辑数据源会把同一任务分裂 | Todos 消费原 Task 来源，不新增编辑库 |
-| 业务执行生命周期长于单次 Panel render | 关闭视图应收回 UI；在飞操作不能因卸载丢失后再次提交 | 业务继续由原 owner 执行；UI token/pending/ACK 在扩展的同 Session 内存状态保留 |
+| 基本事实                                                     | 推导                                                                 | 批准的实现                                                                               |
+| ------------------------------------------------------------ | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| 主列纵向空间有限；当前 TaskPanel 位于 Timeline/Composer 之间 | 持续管理占据主列时会减少对话空间；修复应改变真实挂载位置             | 任务、协作、Meta、工作流和产物迁到右侧，五类功能可达后立即移除主列聚合区                 |
+| File/Review/Browser 已使用同一 Panel 宿主                    | 统一能力已有多个真实消费者，复用宿主足够                             | 使用现 Panel/createRegion/SideRegion/RegionContent，不建立第二注册表、事件总线或布局缓存 |
+| Panel 与 Extension 是不同粒度；一个扩展能注册多个 Panel      | 五个可插拔视图不要求五个 setup/扩展发布单元                          | 默认一个 session-management 扩展，贡献五个独立 Panel/菜单/显示偏好                       |
+| 询问、权限与联网选择需要即时回应；Form/Permission 选择独立   | 不能用隐藏另一请求换取视觉紧凑，也不应把即时请求放入可能收起的管理栏 | 保留原 response dock 与 blocked 规则；Queue 留在 Composer 附近                           |
+| Task 与 Todo 从同一 owner 投影                               | 两个编辑数据源会把同一任务分裂                                       | Todos 消费原 Task 来源，不新增编辑库                                                     |
+| 业务执行生命周期长于单次 Panel render                        | 关闭视图应收回 UI；在飞操作不能因卸载丢失后再次提交                  | 业务继续由原 owner 执行；UI token/pending/ACK 在扩展的同 Session 内存状态保留            |
 
 位置由 [screen 挂载](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/screen.tsx:359)决定；宿主集合、选择与实例由 [createRegion](/home/keer/workspace/aigcfroge-v2/packages/app/src/runtime/extension/panels.tsx:98)决定；同扩展多 Panel 的具体归属由 [provider](/home/keer/workspace/aigcfroge-v2/packages/app/src/runtime/extension/host-apis.tsx:636)决定。现有 [Skill/Command 两个 Panel](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/skill-proposals/renderer.tsx:169)提供真实实现参考，按各自 tab ID 列出，而非假设新接口存在。
 
@@ -51,14 +51,14 @@ RS02 产生可操作的右侧路径；RS03 确认五类功能均在右侧可达�
 
 ## 4. 保留的防御及其实际触发点
 
-| 实际触发 | 依据 | 保留动作 |
-| --- | --- | --- |
-| 切 Session/服务或重连后异步结果迟到 | 原 Task/Meta/Workflow owner 与 live ServerRef | 在拥有结果的边界保留原身份与连接代次比较 |
-| 同伴 SSE 修改正在编辑的 Task | 原 Task CAS、stale draft 合同 | 原 revision 冲突与草稿保持，不增加第二 CAS 或全局校验 |
-| 普通 Panel 切换卸载；在飞写操作尚未结束 | [Task mutate](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/tasks/session-task-panel.tsx:271)、[WorkArtifact cleanup](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/tasks/work-artifact-panel.tsx:266) | 原 pending/token/ACK 跨视图保留，复开继续观察原请求 |
-| 隐藏 Browser Panel 后 File 仍可能转交 HTML | [File.openResolvedFile](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/file/renderer.tsx:563)、[Browser.canOpen](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/browser/renderer.tsx:49) | 同一显示偏好参与原路由可用性；保留 File fallback 与明确恢复入口 |
-| 新 lazy 视图或 refetch 会向 Session 传播 suspension | 原 RegionContent 与 GUI 局部 Suspense 合同 | 使用原局部边界/latest，不让 Timeline 重挂载 |
-| 显示/停用变化影响监听、embed 或 PTY | 原 Panel 可见性和 extension cleanup | UI reads 随可见性，浏览器/终端生命周期继续按原 owner，不把隐藏误作业务取消 |
+| 实际触发                                            | 依据                                                                                                                                                                                                                             | 保留动作                                                                   |
+| --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| 切 Session/服务或重连后异步结果迟到                 | 原 Task/Meta/Workflow owner 与 live ServerRef                                                                                                                                                                                    | 在拥有结果的边界保留原身份与连接代次比较                                   |
+| 同伴 SSE 修改正在编辑的 Task                        | 原 Task CAS、stale draft 合同                                                                                                                                                                                                    | 原 revision 冲突与草稿保持，不增加第二 CAS 或全局校验                      |
+| 普通 Panel 切换卸载；在飞写操作尚未结束             | [Task mutate](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/tasks/session-task-panel.tsx:271)、[WorkArtifact cleanup](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/tasks/work-artifact-panel.tsx:266) | 原 pending/token/ACK 跨视图保留，复开继续观察原请求                        |
+| 隐藏 Browser Panel 后 File 仍可能转交 HTML          | [File.openResolvedFile](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/file/renderer.tsx:563)、[Browser.canOpen](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/browser/renderer.tsx:49)           | 同一显示偏好参与原路由可用性；保留 File fallback 与明确恢复入口            |
+| 新 lazy 视图或 refetch 会向 Session 传播 suspension | 原 RegionContent 与 GUI 局部 Suspense 合同                                                                                                                                                                                       | 使用原局部边界/latest，不让 Timeline 重挂载                                |
+| 显示/停用变化影响监听、embed 或 PTY                 | 原 Panel 可见性和 extension cleanup                                                                                                                                                                                              | UI reads 随可见性，浏览器/终端生命周期继续按原 owner，不把隐藏误作业务取消 |
 
 这些措施均对应本次迁移的具体状态转换。类型化内部值不重复解码，权限仍由原业务边界处理。动态 renderer 等未来入口在本期尚未引入，已从当前防御矩阵移出。
 

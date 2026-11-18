@@ -11,7 +11,7 @@
     "dev:web": "bun --cwd packages/app dev",
     "dev:storybook": "bun --cwd packages/storybook storybook",
     "bench:devex": "bun run --cwd packages/app test:bench:devex",
-    "lint": "oxlint && ast-grep scan -c script/ast-grep/gui-extensions/sgconfig.yml && bun script/sdk-docs.ts",
+    "lint": "oxlint && bun script/format.ts --check && bun script/check-unawaited-assertions.ts && ast-grep scan -c script/ast-grep/gui-extensions/sgconfig.yml && bun script/sdk-docs.ts",
     "lint:changed": "bun script/lint-changed.ts",
     "lint:effect-patterns": "ast-grep scan -c script/ast-grep/sgconfig.yml packages/util/src packages/core/src packages/server/src packages/protocol/src",
     "lint:effect-simplifications": "ast-grep scan -c script/ast-grep/effect-simplifications/sgconfig.yml --off=unused-suppression packages",
@@ -125,6 +125,8 @@
   "dependencies": {
     "@aws-sdk/client-s3": "3.933.0",
     "@aigcfroge/plugin": "workspace:*",
+    "@aigcfroge/script": "workspace:*",
+    "effect": "catalog:",
     "typescript": "catalog:"
   },
   "repository": {

@@ -179,7 +179,10 @@ export interface Interface extends State.Transformable<Editor> {
   readonly connection: {
     /** Returns the active connection for one integration. */
     readonly active: (id: ID) => Effect.Effect<IntegrationConnection.Info | undefined>
-    readonly get: (id: ID, connection: ModelSource.ConnectionRef) => Effect.Effect<IntegrationConnection.Info | undefined>
+    readonly get: (
+      id: ID,
+      connection: ModelSource.ConnectionRef,
+    ) => Effect.Effect<IntegrationConnection.Info | undefined>
     /** Resolves a connection into credential material or an external credential-source reference. */
     readonly resolve: (
       connection: IntegrationConnection.Info,

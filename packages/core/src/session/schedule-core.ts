@@ -79,9 +79,11 @@ export const make = <Row extends ScheduleRowLike>(adapters: Adapters<Row>): Effe
             continue
           }
 
-          const run = row.nextDueAt ?? (row.recurrence?.enabled
-            ? nextRun(row.recurrence.cron, now, row.recurrence.timezone)
-            : (row.scheduledAt ?? undefined))
+          const run =
+            row.nextDueAt ??
+            (row.recurrence?.enabled
+              ? nextRun(row.recurrence.cron, now, row.recurrence.timezone)
+              : (row.scheduledAt ?? undefined))
           if (run !== undefined && run !== null) next.set(row.id, { run, schedule })
         }
         queue = next

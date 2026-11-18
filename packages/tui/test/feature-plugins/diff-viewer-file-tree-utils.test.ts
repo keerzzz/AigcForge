@@ -64,7 +64,10 @@ describe("diff viewer file tree utilities", () => {
 
   test("collapses unary directory chains while flattening", () => {
     const rows = flattenFileTree(
-      buildFileTree([{ file: "packages/aigcfroge/src/cli/app.ts" }, { file: "packages/aigcfroge/src/server/server.ts" }]),
+      buildFileTree([
+        { file: "packages/aigcfroge/src/cli/app.ts" },
+        { file: "packages/aigcfroge/src/server/server.ts" },
+      ]),
     )
 
     expect(rows.map((row) => `${"  ".repeat(row.depth)}${row.kind}:${row.name}`)).toEqual([

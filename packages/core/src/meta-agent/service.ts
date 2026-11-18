@@ -87,7 +87,12 @@ export interface Interface {
   >
   readonly materialize: (event: SessionEvent.DurableEvent) => Effect.Effect<void>
   readonly create: (input: CreateInput) => Effect.Effect<MetaAgent.Info>
-  readonly setModel: (input: { readonly id: MetaAgent.ID; readonly model: Model.Selection; readonly groupBehavior?: ModelGroup.BehaviorSnapshot; readonly updated?: number }) => Effect.Effect<void>
+  readonly setModel: (input: {
+    readonly id: MetaAgent.ID
+    readonly model: Model.Selection
+    readonly groupBehavior?: ModelGroup.BehaviorSnapshot
+    readonly updated?: number
+  }) => Effect.Effect<void>
   readonly get: (id: MetaAgent.ID) => Effect.Effect<MetaAgent.Info | undefined>
   readonly list: () => Effect.Effect<MetaAgent.Info[]>
   readonly sessions: (metaID: MetaAgent.ID) => Effect.Effect<AttachedSession[]>
@@ -127,7 +132,10 @@ function rowToInfo(row: typeof MetaAgentTable.$inferSelect): MetaAgent.Info {
     title: row.title,
     agent: Agent.ID.make(row.agent),
     model: Schema.decodeUnknownSync(Model.Selection)(row.model),
-    groupBehavior: row.group_behavior === null ? undefined : Schema.decodeUnknownSync(ModelGroup.BehaviorSnapshot)(row.group_behavior),
+    groupBehavior:
+      row.group_behavior === null
+        ? undefined
+        : Schema.decodeUnknownSync(ModelGroup.BehaviorSnapshot)(row.group_behavior),
     time: {
       created: DateTime.makeUnsafe(row.time_created),
       updated: DateTime.makeUnsafe(row.time_updated),
@@ -148,7 +156,10 @@ export const layer = Layer.effect(
       before: number,
       ordinal?: number,
     ) {
-      const attemptType = Event.versionedType(SessionEvent.Attempt.Started.type, SessionEvent.Attempt.Started.durable.version)
+      const attemptType = Event.versionedType(
+        SessionEvent.Attempt.Started.type,
+        SessionEvent.Attempt.Started.durable.version,
+      )
       const row = yield* db
         .select()
         .from(EventTable)
@@ -157,7 +168,12 @@ export const layer = Layer.effect(
             eq(EventTable.aggregate_id, sessionID),
             inArray(
               EventTable.type,
-              ordinal === undefined ? [attemptType, Event.versionedType(SessionEvent.Step.Started.type, SessionEvent.Step.Started.durable.version)] : [attemptType],
+              ordinal === undefined
+                ? [
+                    attemptType,
+                    Event.versionedType(SessionEvent.Step.Started.type, SessionEvent.Step.Started.durable.version),
+                  ]
+                : [attemptType],
             ),
             eq(sql<string>`json_extract(${EventTable.data}, '$.assistantMessageID')`, assistantMessageID),
             ordinal === undefined ? undefined : eq(sql<number>`json_extract(${EventTable.data}, '$.ordinal')`, ordinal),
@@ -169,9 +185,10 @@ export const layer = Layer.effect(
         .get()
         .pipe(Effect.orDie)
       if (!row) return undefined
-      const data = row.type === attemptType
-        ? Schema.decodeUnknownSync(SessionEvent.Attempt.Started.data)(row.data)
-        : Schema.decodeUnknownSync(SessionEvent.Step.Started.data)(row.data)
+      const data =
+        row.type === attemptType
+          ? Schema.decodeUnknownSync(SessionEvent.Attempt.Started.data)(row.data)
+          : Schema.decodeUnknownSync(SessionEvent.Step.Started.data)(row.data)
       return { ...row, data }
     })
 
@@ -513,12 +530,7 @@ export const layer = Layer.effect(
       route: { readonly sourceSessionID: SessionSchema.ID; readonly targetSessionID: SessionSchema.ID },
       capture?: CoordinationCapture,
     ) {
-      const row = yield* db
-        .select()
-        .from(SessionTable)
-        .where(eq(SessionTable.id, sessionID))
-        .get()
-        .pipe(Effect.orDie)
+      const row = yield* db.select().from(SessionTable).where(eq(SessionTable.id, sessionID)).get().pipe(Effect.orDie)
       if (!row) return yield* new NotFoundError({ sessionID })
       const session = fromRow(row)
       const controller = session.controller
@@ -553,7 +565,8 @@ export const layer = Layer.effect(
             sessionID,
             field: "communication",
             kind: "child_communication_target_invalid",
-            message: "A controlled child may communicate with its Meta parent or a child in the same saved Meta control tree",
+            message:
+              "A controlled child may communicate with its Meta parent or a child in the same saved Meta control tree",
           })
         yield* assertOwner(fromRow(target))
       }
@@ -587,9 +600,9 @@ export const layer = Layer.effect(
       if (!row?.controller) return
       const session = fromRow(row)
       const controller = session.controller!
-      const modelStarted = event.type === SessionEvent.Step.Started.type || event.type === SessionEvent.Attempt.Started.type
-      if (modelStarted && controller.kind === "root" && event.data.agent !== "meta")
-        return
+      const modelStarted =
+        event.type === SessionEvent.Step.Started.type || event.type === SessionEvent.Attempt.Started.type
+      if (modelStarted && controller.kind === "root" && event.data.agent !== "meta") return
       const notification = yield* Effect.gen(function* () {
         if (event.type !== SessionEvent.InboxDelivered.type) return
         const saved = yield* db
@@ -625,12 +638,16 @@ export const layer = Layer.effect(
       if (previous) return
       const started = modelStarted || event.type === SessionEvent.Tool.Called.type
       const toolCallID = notification?.source.id ?? ("id" in event.data ? event.data.id : undefined)
-      const origin =
-        modelStarted
-          ? undefined
-          : toolCallID && event.type !== SessionEvent.Tool.Called.type
-            ? yield* calledFor(row.id, assistantMessageID, toolCallID, event.durable.seq)
-            : yield* startedFor(row.id, assistantMessageID, event.durable.seq, event.type === SessionEvent.Attempt.Ended.type ? event.data.ordinal : undefined)
+      const origin = modelStarted
+        ? undefined
+        : toolCallID && event.type !== SessionEvent.Tool.Called.type
+          ? yield* calledFor(row.id, assistantMessageID, toolCallID, event.durable.seq)
+          : yield* startedFor(
+              row.id,
+              assistantMessageID,
+              event.durable.seq,
+              event.type === SessionEvent.Attempt.Ended.type ? event.data.ordinal : undefined,
+            )
       if (!modelStarted && !origin) return
       if (controller.kind === "root" && origin && "agent" in origin.data && origin.data.agent !== "meta") return
       const witness = origin
@@ -740,174 +757,169 @@ export const layer = Layer.effect(
       })
       const resultMetadata =
         event.type === SessionEvent.Tool.Success.type ? event.data.metadata : notification?.message.metadata
-      const verifiedExternalReceipt =
-        yield *
-        Effect.gen(function* () {
-          if (
-            (event.type !== SessionEvent.Tool.Success.type && !notification) ||
-            toolName !== "task" ||
-            resultMetadata?.receipt !== undefined
-          )
+      const verifiedExternalReceipt = yield* Effect.gen(function* () {
+        if (
+          (event.type !== SessionEvent.Tool.Success.type && !notification) ||
+          toolName !== "task" ||
+          resultMetadata?.receipt !== undefined
+        )
+          return undefined
+        const receipt = Schema.decodeUnknownOption(DelegationReceipt.Outcome)(resultMetadata?.externalReceipt)
+        if (Option.isNone(receipt)) return undefined
+        const value = receipt.value
+        if (
+          value.source.type !== "tool" ||
+          value.parentSessionID !== row.id ||
+          value.source.messageID !== assistantMessageID ||
+          value.source.id !== toolCallID
+        )
+          return undefined
+        const saved = yield* db
+          .select({ value: KVTable.value })
+          .from(KVTable)
+          .where(eq(KVTable.key, DelegationReceipt.key(value)))
+          .get()
+          .pipe(Effect.orDie)
+        const binding = Schema.decodeUnknownOption(DelegationReceipt.Binding)(saved?.value)
+        if (Option.isNone(binding) || !DelegationReceipt.matches(binding.value, value)) return undefined
+        const state = DelegationFold.foldDelegation(yield* DelegationProjector.readEvents(db, value.delegationID))
+        const participant = state?.participants.get(value.participantID)
+        const delivery = state?.deliveries.get(
+          DelegationFold.deliveryKey(
+            value.turnID,
+            value.participantID,
+            value.deliveryOrigin,
+            value.senderParticipantID,
+          ),
+        )
+        if (
+          state?.delegation.parentSessionID !== row.id ||
+          state.delegation.metaAgentID !== controller.metaAgentID ||
+          (value instanceof DelegationReceipt.Jsonl
+            ? participant?.provider !== value.target ||
+              participant.target !== value.target ||
+              participant.externalThreadID !== value.jsonlMessage.sessionID
+            : value instanceof DelegationReceipt.Sdk
+              ? participant?.provider !== "claude-code" ||
+                participant.target !== "claude-code" ||
+                participant.externalThreadID !== value.sdkMessage.sessionID
+              : value instanceof DelegationReceipt.Acp
+                ? participant?.provider !== value.target ||
+                  participant.target !== value.target ||
+                  participant.externalThreadID !== value.acpPrompt.sessionID
+                : value instanceof DelegationReceipt.Pending &&
+                    binding.value.target === "claude-code" &&
+                    binding.value.transport === "sdk"
+                  ? participant?.provider !== "claude-code" || participant.target !== "claude-code"
+                  : participant?.provider !== "codex" || participant.externalThreadID !== value.externalThreadID) ||
+          delivery?.attempt !== value.attempt ||
+          !["completed", "failed", "cancelled", "recovery_required"].includes(delivery.status)
+        )
+          return undefined
+        if (
+          value instanceof DelegationReceipt.Pending &&
+          (!notification ||
+            (value.execution !== "admitted" && state.turns.get(value.turnID)?.delivery !== "queue") ||
+            delivery.status === "completed")
+        )
+          return undefined
+        if (
+          delivery.status === "completed" &&
+          !(
+            value instanceof DelegationReceipt.Sdk ||
+            value instanceof DelegationReceipt.Acp ||
+            value instanceof DelegationReceipt.Jsonl
+          ) &&
+          delivery.externalTurnID !== value.externalTurnID
+        )
+          return undefined
+        if (value instanceof DelegationReceipt.Acp || value instanceof DelegationReceipt.Jsonl) {
+          if (event.type !== SessionEvent.Tool.Success.type || notification || delivery.status !== "completed")
             return undefined
-          const receipt = Schema.decodeUnknownOption(DelegationReceipt.Outcome)(resultMetadata?.externalReceipt)
-          if (Option.isNone(receipt)) return undefined
-          const value = receipt.value
-          if (
-            value.source.type !== "tool" ||
-            value.parentSessionID !== row.id ||
-            value.source.messageID !== assistantMessageID ||
-            value.source.id !== toolCallID
+          const output = DelegationReceipt.decodeOutput(
+            event.data.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join(""),
           )
-            return undefined
-          const saved = yield* db
-            .select({ value: KVTable.value })
-            .from(KVTable)
-            .where(eq(KVTable.key, DelegationReceipt.key(value)))
+          const task = yield* db
+            .select()
+            .from(TaskTable)
+            .where(and(eq(TaskTable.id, binding.value.parentTaskID), eq(TaskTable.session_id, row.id)))
             .get()
             .pipe(Effect.orDie)
-          const binding = Schema.decodeUnknownOption(DelegationReceipt.Binding)(saved?.value)
-          if (Option.isNone(binding) || !DelegationReceipt.matches(binding.value, value)) return undefined
-          const state = DelegationFold.foldDelegation(yield* DelegationProjector.readEvents(db, value.delegationID))
-          const participant = state?.participants.get(value.participantID)
-          const delivery = state?.deliveries.get(
-            DelegationFold.deliveryKey(
-              value.turnID,
-              value.participantID,
-              value.deliveryOrigin,
-              value.senderParticipantID,
-            ),
-          )
           if (
-            state?.delegation.parentSessionID !== row.id ||
-            state.delegation.metaAgentID !== controller.metaAgentID ||
-            (value instanceof DelegationReceipt.Jsonl
-              ? participant?.provider !== value.target ||
-                participant.target !== value.target ||
-                participant.externalThreadID !== value.jsonlMessage.sessionID
-              : value instanceof DelegationReceipt.Sdk
-                ? participant?.provider !== "claude-code" ||
-                  participant.target !== "claude-code" ||
-                  participant.externalThreadID !== value.sdkMessage.sessionID
-                : value instanceof DelegationReceipt.Acp
-                  ? participant?.provider !== value.target ||
-                    participant.target !== value.target ||
-                    participant.externalThreadID !== value.acpPrompt.sessionID
-                  : value instanceof DelegationReceipt.Pending &&
-                      binding.value.target === "claude-code" &&
-                      binding.value.transport === "sdk"
-                    ? participant?.provider !== "claude-code" || participant.target !== "claude-code"
-                    : participant?.provider !== "codex" || participant.externalThreadID !== value.externalThreadID) ||
-            delivery?.attempt !== value.attempt ||
-            !["completed", "failed", "cancelled", "recovery_required"].includes(delivery.status)
+            Option.isNone(output) ||
+            output.value.status !== "completed" ||
+            !DelegationReceipt.matchesOutput(binding.value, output.value) ||
+            binding.value.settlement?.status !== "completed" ||
+            binding.value.settlement.text !== output.value.output ||
+            !task ||
+            task.status !== "completed" ||
+            task.revision !== binding.value.parentTaskRevision + 1 ||
+            task.output_digest !== DelegationReceipt.outputDigest(output.value.output)
           )
             return undefined
+        }
+        if (notification) {
           if (
-            value instanceof DelegationReceipt.Pending &&
-            (!notification ||
-              (value.execution !== "admitted" && state.turns.get(value.turnID)?.delivery !== "queue") ||
-              delivery.status === "completed")
+            binding.value.background !== true ||
+            notification.message.id !==
+              DelegationReceipt.notificationID(
+                DelegationFold.inputID(value.delegationID, value),
+                binding.value.parentTaskID,
+              ) ||
+            resultMetadata?.status !== delivery.status
           )
             return undefined
+          const sourceRow = yield* db
+            .select()
+            .from(SessionMessageTable)
+            .where(and(eq(SessionMessageTable.id, value.source.messageID), eq(SessionMessageTable.session_id, row.id)))
+            .get()
+            .pipe(Effect.orDie)
+          const source = sourceRow
+            ? Schema.decodeUnknownOption(SessionMessage.Assistant)({
+                ...sourceRow.data,
+                id: sourceRow.id,
+                type: sourceRow.type,
+              })
+            : Option.none()
+          if (Option.isNone(source) || source.value.agent !== binding.value.agent) return undefined
+          const call = source.value.content.find(
+            (part) => part.type === "tool" && part.id === value.source.id && part.name === "task",
+          )
+          if (call?.type !== "tool" || call.state.status !== "completed") return undefined
+          const ack = DelegationReceipt.decodeOutput(
+            call.state.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join(""),
+          )
+          if (Option.isNone(ack) || !DelegationReceipt.isBackgroundAck(binding.value, call, ack.value)) return undefined
+          const output = DelegationReceipt.decodeOutput(notification.message.text)
           if (
-            delivery.status === "completed" &&
-            !(
-              value instanceof DelegationReceipt.Sdk ||
-              value instanceof DelegationReceipt.Acp ||
-              value instanceof DelegationReceipt.Jsonl
-            ) &&
-            delivery.externalTurnID !== value.externalTurnID
+            Option.isNone(output) ||
+            output.value.status !== delivery.status ||
+            !DelegationReceipt.matchesOutput(binding.value, output.value)
           )
             return undefined
-          if (value instanceof DelegationReceipt.Acp || value instanceof DelegationReceipt.Jsonl) {
-            if (event.type !== SessionEvent.Tool.Success.type || notification || delivery.status !== "completed")
-              return undefined
-            const output = DelegationReceipt.decodeOutput(
-              event.data.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join(""),
-            )
-            const task = yield* db
-              .select()
-              .from(TaskTable)
-              .where(and(eq(TaskTable.id, binding.value.parentTaskID), eq(TaskTable.session_id, row.id)))
-              .get()
-              .pipe(Effect.orDie)
-            if (
-              Option.isNone(output) ||
-              output.value.status !== "completed" ||
-              !DelegationReceipt.matchesOutput(binding.value, output.value) ||
-              binding.value.settlement?.status !== "completed" ||
-              binding.value.settlement.text !== output.value.output ||
-              !task ||
-              task.status !== "completed" ||
-              task.revision !== binding.value.parentTaskRevision + 1 ||
-              task.output_digest !== DelegationReceipt.outputDigest(output.value.output)
-            )
-              return undefined
-          }
-          if (notification) {
-            if (
-              binding.value.background !== true ||
-              notification.message.id !==
-                DelegationReceipt.notificationID(
-                  DelegationFold.inputID(value.delegationID, value),
-                  binding.value.parentTaskID,
-                ) ||
-              resultMetadata?.status !== delivery.status
-            )
-              return undefined
-            const sourceRow = yield* db
-              .select()
-              .from(SessionMessageTable)
-              .where(
-                and(eq(SessionMessageTable.id, value.source.messageID), eq(SessionMessageTable.session_id, row.id)),
-              )
-              .get()
-              .pipe(Effect.orDie)
-            const source = sourceRow
-              ? Schema.decodeUnknownOption(SessionMessage.Assistant)({
-                  ...sourceRow.data,
-                  id: sourceRow.id,
-                  type: sourceRow.type,
-                })
-              : Option.none()
-            if (Option.isNone(source) || source.value.agent !== binding.value.agent) return undefined
-            const call = source.value.content.find(
-              (part) => part.type === "tool" && part.id === value.source.id && part.name === "task",
-            )
-            if (call?.type !== "tool" || call.state.status !== "completed") return undefined
-            const ack = DelegationReceipt.decodeOutput(
-              call.state.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join(""),
-            )
-            if (Option.isNone(ack) || !DelegationReceipt.isBackgroundAck(binding.value, call, ack.value))
-              return undefined
-            const output = DelegationReceipt.decodeOutput(notification.message.text)
-            if (
-              Option.isNone(output) ||
-              output.value.status !== delivery.status ||
-              !DelegationReceipt.matchesOutput(binding.value, output.value)
-            )
-              return undefined
-            const task = yield* db
-              .select()
-              .from(TaskTable)
-              .where(and(eq(TaskTable.id, binding.value.parentTaskID), eq(TaskTable.session_id, row.id)))
-              .get()
-              .pipe(Effect.orDie)
-            if (
-              !task ||
-              task.revision !== binding.value.parentTaskRevision + 1 ||
-              task.status !==
-                (delivery.status === "completed"
-                  ? "completed"
-                  : delivery.status === "cancelled"
-                    ? "cancelled"
-                    : "failed") ||
-              (delivery.status === "completed" &&
-                task.output_digest !== DelegationReceipt.outputDigest(output.value.output))
-            )
-              return undefined
-          }
-          return value
-        })
+          const task = yield* db
+            .select()
+            .from(TaskTable)
+            .where(and(eq(TaskTable.id, binding.value.parentTaskID), eq(TaskTable.session_id, row.id)))
+            .get()
+            .pipe(Effect.orDie)
+          if (
+            !task ||
+            task.revision !== binding.value.parentTaskRevision + 1 ||
+            task.status !==
+              (delivery.status === "completed"
+                ? "completed"
+                : delivery.status === "cancelled"
+                  ? "cancelled"
+                  : "failed") ||
+            (delivery.status === "completed" &&
+              task.output_digest !== DelegationReceipt.outputDigest(output.value.output))
+          )
+            return undefined
+        }
+        return value
+      })
       if (notification && !verifiedExternalReceipt) return
       const max = yield* db
         .select({ value: sql<number>`COALESCE(MAX(${MetaAgentStepTable.seq}), 0)` })
@@ -944,9 +956,7 @@ export const layer = Layer.effect(
           engine:
             toolName ??
             witness?.engine ??
-            (modelStarted
-              ? `${event.data.model.providerID}/${event.data.model.id}`
-              : "unknown"),
+            (modelStarted ? `${event.data.model.providerID}/${event.data.model.id}` : "unknown"),
           status:
             event.type === SessionEvent.Step.Failed.type ||
             (event.type === SessionEvent.Attempt.Ended.type && event.data.terminal.status !== "completed") ||
@@ -977,7 +987,10 @@ export const layer = Layer.effect(
         title: input.title,
         agent: Agent.ID.make(input.agent),
         model: Schema.decodeUnknownSync(Model.Selection)(input.model),
-        groupBehavior: input.groupBehavior === undefined ? undefined : Schema.decodeUnknownSync(ModelGroup.BehaviorSnapshot)(input.groupBehavior),
+        groupBehavior:
+          input.groupBehavior === undefined
+            ? undefined
+            : Schema.decodeUnknownSync(ModelGroup.BehaviorSnapshot)(input.groupBehavior),
         time: { created: now, updated: now },
       })
       yield* db
@@ -987,7 +1000,10 @@ export const layer = Layer.effect(
           title: input.title,
           agent: input.agent,
           model: Schema.encodeSync(Model.Selection)(info.model),
-          group_behavior: info.groupBehavior === undefined ? null : Schema.encodeSync(ModelGroup.BehaviorSnapshot)(info.groupBehavior),
+          group_behavior:
+            info.groupBehavior === undefined
+              ? null
+              : Schema.encodeSync(ModelGroup.BehaviorSnapshot)(info.groupBehavior),
           time_created: DateTime.toEpochMillis(now),
           time_updated: DateTime.toEpochMillis(now),
         })
@@ -995,13 +1011,25 @@ export const layer = Layer.effect(
       return info
     })
 
-    const setModel = Effect.fn("MetaAgentService.setModel")(function* (input: { readonly id: MetaAgent.ID; readonly model: Model.Selection; readonly groupBehavior?: ModelGroup.BehaviorSnapshot; readonly updated?: number }) {
+    const setModel = Effect.fn("MetaAgentService.setModel")(function* (input: {
+      readonly id: MetaAgent.ID
+      readonly model: Model.Selection
+      readonly groupBehavior?: ModelGroup.BehaviorSnapshot
+      readonly updated?: number
+    }) {
       const updated = input.updated ?? (yield* DateTime.nowAsDate).getTime()
-      yield* db.update(MetaAgentTable).set({
-        model: Schema.encodeSync(Model.Selection)(input.model),
-        group_behavior: input.groupBehavior === undefined ? null : Schema.encodeSync(ModelGroup.BehaviorSnapshot)(input.groupBehavior),
-        time_updated: updated,
-      }).where(eq(MetaAgentTable.id, input.id)).pipe(Effect.orDie)
+      yield* db
+        .update(MetaAgentTable)
+        .set({
+          model: Schema.encodeSync(Model.Selection)(input.model),
+          group_behavior:
+            input.groupBehavior === undefined
+              ? null
+              : Schema.encodeSync(ModelGroup.BehaviorSnapshot)(input.groupBehavior),
+          time_updated: updated,
+        })
+        .where(eq(MetaAgentTable.id, input.id))
+        .pipe(Effect.orDie)
     })
 
     const get = Effect.fn("MetaAgentService.get")(function* (id: MetaAgent.ID) {

@@ -1,10 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:vercel-native",
-      "provider:vercel-ai-gateway"
-    ],
+    "tags": ["prefix:vercel-native", "provider:vercel-ai-gateway"],
     "name": "vercel-native/automatically-caches-distinct-claude-system-blocks",
     "recordedAt": "2026-10-05T05:01:46.082Z"
   },

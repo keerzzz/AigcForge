@@ -1,11 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:google-interactions",
-      "provider:google",
-      "protocol:google-interactions"
-    ],
+    "tags": ["prefix:google-interactions", "provider:google", "protocol:google-interactions"],
     "name": "google-interactions/streams-reasoning-and-retains-thought-signatures",
     "recordedAt": "2026-10-03T18:08:37.674Z"
   },

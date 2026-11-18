@@ -72,11 +72,12 @@ export const SettingsProviders: Component<{
   const providerConnect = useProviderConnectController()
   const definition = data.location.provider.definition
   const discovery = data.location.provider.discovery
-  const location = () => props.directory ? { directory: props.directory } : undefined
+  const location = () => (props.directory ? { directory: props.directory } : undefined)
   const lifetime = { active: true, generation: 0 }
 
   const discoveryRequest: DiscoveryRequestState = {
-    generation: 0, controller: undefined,
+    generation: 0,
+    controller: undefined,
   }
 
   const [state, setState] = createStore<ProviderSettingsState>({
@@ -90,7 +91,10 @@ export const SettingsProviders: Component<{
     discoveryBusy: false,
   })
 
-  onCleanup(() => { lifetime.active = false; cancelDiscovery() })
+  onCleanup(() => {
+    lifetime.active = false
+    cancelDiscovery()
+  })
   createEffect(() => {
     const client = serverSdk.api
     const ref = location()
@@ -115,7 +119,8 @@ export const SettingsProviders: Component<{
   }
 
   const savedDefinitions = () => definition.list(location())?.definitions ?? []
-  const definitionKey = (item: ProviderDefinitionInfo) => item.providerID + "\n" + (item.target?.path ?? item.source.path ?? item.source.scope)
+  const definitionKey = (item: ProviderDefinitionInfo) =>
+    item.providerID + "\n" + (item.target?.path ?? item.source.path ?? item.source.scope)
 
   createEffect(() => {
     const client = serverSdk.api
@@ -143,25 +148,48 @@ export const SettingsProviders: Component<{
     const adoption = item.definition.adoption
 
     if (adoption && adoption.phase !== "ready")
-      return language.t(adoption.phase === "draft" ? "settings.providers.definitions.draft" : "settings.providers.definitions.applying")
+      return language.t(
+        adoption.phase === "draft" ? "settings.providers.definitions.draft" : "settings.providers.definitions.applying",
+      )
 
-    return language.t(item.definition.disabled ? "settings.providers.definitions.disabled" : "settings.providers.definitions.enabled")
+    return language.t(
+      item.definition.disabled ? "settings.providers.definitions.disabled" : "settings.providers.definitions.enabled",
+    )
   }
 
   const editDefinition = (item?: ProviderDefinitionInfo) => {
-    void dialog.show(() => (
-      <Dialog size="large" preventBackdropDismiss>
-        <DialogHeader><DialogTitle>{language.t("provider.custom.title")}</DialogTitle></DialogHeader>
-        <DialogBody>
-          <CustomProviderForm directory={props.directory} defaultLocation={props.directory === undefined}
-            providerID={item?.providerID} targetPath={item?.target?.path}
-            onSaved={() => { definition.invalidate(location()); void loadDefinitions() }} />
-        </DialogBody>
-      </Dialog>
-    ), () => { definition.invalidate(location()); void loadDefinitions() })
+    void dialog.show(
+      () => (
+        <Dialog size="large" preventBackdropDismiss>
+          <DialogHeader>
+            <DialogTitle>{language.t("provider.custom.title")}</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
+            <CustomProviderForm
+              directory={props.directory}
+              defaultLocation={props.directory === undefined}
+              providerID={item?.providerID}
+              targetPath={item?.target?.path}
+              onSaved={() => {
+                definition.invalidate(location())
+                void loadDefinitions()
+              }}
+            />
+          </DialogBody>
+        </Dialog>
+      ),
+      () => {
+        definition.invalidate(location())
+        void loadDefinitions()
+      },
+    )
   }
 
-  async function changeDefinition(item: ProviderDefinitionInfo, action: "toggle" | "remove" | "source" | "sync", value?: boolean) {
+  async function changeDefinition(
+    item: ProviderDefinitionInfo,
+    action: "toggle" | "remove" | "source" | "sync",
+    value?: boolean,
+  ) {
     const target = item.target
 
     if (!target?.writable || state.definitionAction) return
@@ -172,26 +200,44 @@ export const SettingsProviders: Component<{
 
     try {
       if (action === "remove") {
-        const response = await client.provider.definition.remove({ providerID: item.providerID,
-          target: { scope: target.scope, path: target.path }, expectedDigest: target.digest, location: ref })
+        const response = await client.provider.definition.remove({
+          providerID: item.providerID,
+          target: { scope: target.scope, path: target.path },
+          expectedDigest: target.digest,
+          location: ref,
+        })
 
         if (!lifetime.active || client !== serverSdk.api || generation !== lifetime.generation) return
 
         if (response.data.definition.status === "conflict" || response.data.definition.status === "failed")
           throw new Error(response.data.definition.message ?? language.t("provider.custom.status.failed"))
-        showToast({ variant: "success", icon: "circle-check",
+        showToast({
+          variant: "success",
+          icon: "circle-check",
           title: language.t("settings.providers.definitions.removed"),
-          description: response.data.inherited.length ? language.t("settings.providers.definitions.inherited", {
-            sources: response.data.inherited.map((source) => source.path ?? source.scope).join(", "),
-          }) : undefined })
+          description: response.data.inherited.length
+            ? language.t("settings.providers.definitions.inherited", {
+                sources: response.data.inherited.map((source) => source.path ?? source.scope).join(", "),
+              })
+            : undefined,
+        })
       }
 
       if (action !== "remove") {
-        const response = await client.provider.definition.save({ providerID: item.providerID,
-          target: { scope: target.scope, path: target.path }, expectedDigest: target.digest,
-          submissionID: crypto.randomUUID(), patch: { set: action === "toggle" ? { disabled: !item.definition.disabled }
-            : { discovery: action === "source" ? { enabled: value } : { autoSync: value } } },
-          credential: { type: "keep" }, location: ref })
+        const response = await client.provider.definition.save({
+          providerID: item.providerID,
+          target: { scope: target.scope, path: target.path },
+          expectedDigest: target.digest,
+          submissionID: crypto.randomUUID(),
+          patch: {
+            set:
+              action === "toggle"
+                ? { disabled: !item.definition.disabled }
+                : { discovery: action === "source" ? { enabled: value } : { autoSync: value } },
+          },
+          credential: { type: "keep" },
+          location: ref,
+        })
 
         if (!lifetime.active || client !== serverSdk.api || generation !== lifetime.generation) return
 
@@ -203,8 +249,12 @@ export const SettingsProviders: Component<{
       data.location.provider.invalidate(ref)
       data.location.model.invalidate(ref)
       discovery.invalidate(item.providerID, undefined, ref)
-      await Promise.all([definition.sync(ref), data.location.provider.sync(ref), data.location.model.sync(ref),
-        discovery.sync(item.providerID, state.discoveryConnection, ref)])
+      await Promise.all([
+        definition.sync(ref),
+        data.location.provider.sync(ref),
+        data.location.model.sync(ref),
+        discovery.sync(item.providerID, state.discoveryConnection, ref),
+      ])
     } catch (error) {
       if (lifetime.active && client === serverSdk.api && generation === lifetime.generation)
         setState("definitionError", error instanceof Error ? error.message : String(error))
@@ -235,12 +285,18 @@ export const SettingsProviders: Component<{
     const generation = discoveryRequest.generation
     const controller = new AbortController()
     discoveryRequest.controller = controller
-    const fresh = () => lifetime.active && client === serverSdk.api && generation === discoveryRequest.generation && !controller.signal.aborted
+    const fresh = () =>
+      lifetime.active &&
+      client === serverSdk.api &&
+      generation === discoveryRequest.generation &&
+      !controller.signal.aborted
     setState("discoveryBusy", true)
 
     try {
-      await client.provider.discovery.refresh({ providerID: item.providerID, connection, force: true, location: ref },
-        { signal: controller.signal })
+      await client.provider.discovery.refresh(
+        { providerID: item.providerID, connection, force: true, location: ref },
+        { signal: controller.signal },
+      )
 
       if (!fresh()) return
       discovery.invalidate(item.providerID, connection, ref)
@@ -248,23 +304,42 @@ export const SettingsProviders: Component<{
     } catch (error) {
       if (fresh()) setState("discoveryError", error instanceof Error ? error.message : String(error))
     } finally {
-      if (fresh()) { setState("discoveryBusy", false); discoveryRequest.controller = undefined }
+      if (fresh()) {
+        setState("discoveryBusy", false)
+        discoveryRequest.controller = undefined
+      }
     }
   }
 
   function DiscoveryControls(control: { item: ProviderDefinitionInfo }) {
     const list = () => discovery.get(control.item.providerID, state.discoveryConnection, location())
 
-    const options = () => [{ key: "active", label: language.t("provider.discovery.activeConnection"), connection: undefined },
-      ...control.item.connections.flatMap<{ key: string; label: string; connection: ModelSourceConnectionRef }>((connection) => {
-        if (connection.type === "credential") return [{ key: "credential:" + connection.id, label: connection.label,
-          connection: { type: "credential", id: connection.id } }]
+    const options = () => [
+      { key: "active", label: language.t("provider.discovery.activeConnection"), connection: undefined },
+      ...control.item.connections.flatMap<{ key: string; label: string; connection: ModelSourceConnectionRef }>(
+        (connection) => {
+          if (connection.type === "credential")
+            return [
+              {
+                key: "credential:" + connection.id,
+                label: connection.label,
+                connection: { type: "credential", id: connection.id },
+              },
+            ]
 
-        if (connection.type === "env") return [{ key: "env:" + connection.name, label: connection.name,
-          connection: { type: "env", name: connection.name } }]
+          if (connection.type === "env")
+            return [
+              {
+                key: "env:" + connection.name,
+                label: connection.name,
+                connection: { type: "env", name: connection.name },
+              },
+            ]
 
-        return []
-      })]
+          return []
+        },
+      ),
+    ]
 
     const key = () => {
       if (state.discoveryConnection?.type === "credential") return "credential:" + state.discoveryConnection.id
@@ -274,74 +349,133 @@ export const SettingsProviders: Component<{
       return "active"
     }
 
-    return <section class="flex basis-full min-w-0 flex-col gap-3 border-t border-border-weak pt-3"
-      aria-label={language.t("provider.discovery.title")}>
-      <Select options={options()} current={options().find((item) => item.key === key())} value={(item) => item.key}
-        label={(item) => item.label} disabled={state.discoveryBusy} aria-label={language.t("provider.discovery.connection")}
-        onSelect={(option) => {
-          if (!option) return
-          setState("discoveryConnection", option.connection)
-        }} />
-      <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
-        <Switch checked={control.item.definition.discovery?.enabled ?? true}
-          onChange={(value) => void changeDefinition(control.item, "source", value)}
-          disabled={!control.item.target?.writable || state.definitionAction !== undefined || state.discoveryBusy}>
-          {language.t("provider.discovery.source")}
-        </Switch>
-        <Switch checked={control.item.definition.discovery?.autoSync ?? false}
-          onChange={(value) => void changeDefinition(control.item, "sync", value)}
-          disabled={!control.item.target?.writable || state.definitionAction !== undefined || state.discoveryBusy}>
-          {language.t("provider.discovery.autoSync")}
-        </Switch>
-      </div>
-      <div class="flex flex-wrap gap-2">
-        <Button size="small" variant="neutral" onClick={() => void refreshDiscovery(control.item)}
-          disabled={state.discoveryBusy || state.definitionAction !== undefined || control.item.definition.discovery?.enabled === false}>
-          {language.t("provider.discovery.refresh")}
-        </Button>
-        <Show when={state.discoveryBusy}>
-          <Button size="small" variant="ghost" onClick={cancelDiscovery}>{language.t("provider.discovery.cancel")}</Button>
+    return (
+      <section
+        class="flex basis-full min-w-0 flex-col gap-3 border-t border-border-weak pt-3"
+        aria-label={language.t("provider.discovery.title")}
+      >
+        <Select
+          options={options()}
+          current={options().find((item) => item.key === key())}
+          value={(item) => item.key}
+          label={(item) => item.label}
+          disabled={state.discoveryBusy}
+          aria-label={language.t("provider.discovery.connection")}
+          onSelect={(option) => {
+            if (!option) return
+            setState("discoveryConnection", option.connection)
+          }}
+        />
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <Switch
+            checked={control.item.definition.discovery?.enabled ?? true}
+            onChange={(value) => void changeDefinition(control.item, "source", value)}
+            disabled={!control.item.target?.writable || state.definitionAction !== undefined || state.discoveryBusy}
+          >
+            {language.t("provider.discovery.source")}
+          </Switch>
+          <Switch
+            checked={control.item.definition.discovery?.autoSync ?? false}
+            onChange={(value) => void changeDefinition(control.item, "sync", value)}
+            disabled={!control.item.target?.writable || state.definitionAction !== undefined || state.discoveryBusy}
+          >
+            {language.t("provider.discovery.autoSync")}
+          </Switch>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <Button
+            size="small"
+            variant="neutral"
+            onClick={() => void refreshDiscovery(control.item)}
+            disabled={
+              state.discoveryBusy ||
+              state.definitionAction !== undefined ||
+              control.item.definition.discovery?.enabled === false
+            }
+          >
+            {language.t("provider.discovery.refresh")}
+          </Button>
+          <Show when={state.discoveryBusy}>
+            <Button size="small" variant="ghost" onClick={cancelDiscovery}>
+              {language.t("provider.discovery.cancel")}
+            </Button>
+          </Show>
+          <Button
+            size="small"
+            variant="ghost"
+            onClick={() => editDefinition(control.item)}
+            disabled={!control.item.target?.writable || state.definitionAction !== undefined}
+          >
+            {language.t("provider.discovery.manage", {
+              provider: control.item.definition.name ?? control.item.providerID,
+            })}
+          </Button>
+        </div>
+        <p role="status" class="text-12-regular text-text-weak">
+          {language.t(
+            "provider.discovery.phase." + (state.discoveryBusy ? "fetching" : (list()?.status.phase ?? "idle")),
+          )}
+        </p>
+        <Show when={state.discoveryError}>
+          <p role="alert" class="text-13-regular text-text-base">
+            {state.discoveryError}
+          </p>
         </Show>
-        <Button size="small" variant="ghost" onClick={() => editDefinition(control.item)}
-          disabled={!control.item.target?.writable || state.definitionAction !== undefined}>
-          {language.t("provider.discovery.manage", { provider: control.item.definition.name ?? control.item.providerID })}
-        </Button>
-      </div>
-      <p role="status" class="text-12-regular text-text-weak">{language.t("provider.discovery.phase." +
-        (state.discoveryBusy ? "fetching" : list()?.status.phase ?? "idle"))}</p>
-      <Show when={state.discoveryError}><p role="alert" class="text-13-regular text-text-base">{state.discoveryError}</p></Show>
-      <Show when={list()}>
-        {(read) => <>
-          <Show when={read().status.error}>{(error) => <p role="alert" class="text-13-regular text-text-base">{error().message}</p>}</Show>
-          <Show when={read().status.identity}>
-            {(identity) => <p class="text-12-regular text-text-weak break-all">{identity().listURL}</p>}
-          </Show>
-          <Show when={read().status.lastSuccessAt}>
-            {(time) => <p class="text-12-regular text-text-weak">{language.t("provider.discovery.lastSuccess", {
-              time: new Date(time()).toLocaleString(language.intl()),
-            })}</p>}
-          </Show>
-          <Show when={read().inventory && (read().status.phase === "failed" || read().status.phase === "partial")}>
-            <p class="text-12-regular text-text-weak">{language.t("provider.discovery.previousSuccess", {
-              time: new Date(read().inventory!.observedAt).toLocaleString(language.intl()),
-            })}</p>
-          </Show>
-          <Show when={read().inventory && !read().status.cachePersisted}>
-            <p class="text-12-regular text-text-weak">{language.t("provider.discovery.cacheNotSaved")}</p>
-          </Show>
-          <For each={read().managed}>
-            {(model) => <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 text-12-regular">
-              <div class="min-w-0 flex-1">
-                <p class="text-text-base break-all">{model.metadata.name ?? model.ref.id}</p>
-                <p class="text-text-weak break-all">{model.ref.id} · {model.modelID}</p>
-                <Show when={model.origins.name}><p class="text-text-weak">{language.t("provider.model.origin." + model.origins.name)}</p></Show>
-              </div>
-              <span class="text-text-weak">{language.t("provider.discovery.membership." + model.membership)}</span>
-            </div>}
-          </For>
-        </>}
-      </Show>
-    </section>
+        <Show when={list()}>
+          {(read) => (
+            <>
+              <Show when={read().status.error}>
+                {(error) => (
+                  <p role="alert" class="text-13-regular text-text-base">
+                    {error().message}
+                  </p>
+                )}
+              </Show>
+              <Show when={read().status.identity}>
+                {(identity) => <p class="text-12-regular text-text-weak break-all">{identity().listURL}</p>}
+              </Show>
+              <Show when={read().status.lastSuccessAt}>
+                {(time) => (
+                  <p class="text-12-regular text-text-weak">
+                    {language.t("provider.discovery.lastSuccess", {
+                      time: new Date(time()).toLocaleString(language.intl()),
+                    })}
+                  </p>
+                )}
+              </Show>
+              <Show when={read().inventory && (read().status.phase === "failed" || read().status.phase === "partial")}>
+                <p class="text-12-regular text-text-weak">
+                  {language.t("provider.discovery.previousSuccess", {
+                    time: new Date(read().inventory!.observedAt).toLocaleString(language.intl()),
+                  })}
+                </p>
+              </Show>
+              <Show when={read().inventory && !read().status.cachePersisted}>
+                <p class="text-12-regular text-text-weak">{language.t("provider.discovery.cacheNotSaved")}</p>
+              </Show>
+              <For each={read().managed}>
+                {(model) => (
+                  <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 text-12-regular">
+                    <div class="min-w-0 flex-1">
+                      <p class="text-text-base break-all">{model.metadata.name ?? model.ref.id}</p>
+                      <p class="text-text-weak break-all">
+                        {model.ref.id} · {model.modelID}
+                      </p>
+                      <Show when={model.origins.name}>
+                        <p class="text-text-weak">{language.t("provider.model.origin." + model.origins.name)}</p>
+                      </Show>
+                    </div>
+                    <span class="text-text-weak">
+                      {language.t("provider.discovery.membership." + model.membership)}
+                    </span>
+                  </div>
+                )}
+              </For>
+            </>
+          )}
+        </Show>
+      </section>
+    )
   }
 
   const updateDisconnecting = (ids: string[], status: "removing" | "removed" | "absent" | undefined) =>
@@ -703,51 +837,104 @@ export const SettingsProviders: Component<{
           <div class="flex flex-wrap items-center justify-between gap-2">
             <h3 class="settings-section-title">{language.t("settings.providers.section.definitions")}</h3>
             <div class="flex flex-wrap gap-2">
-              <Button size="small" variant="ghost" onClick={() => { definition.invalidate(location()); void loadDefinitions() }}
-                disabled={state.definitionLoading}>{language.t("settings.providers.definitions.refresh")}</Button>
+              <Button
+                size="small"
+                variant="ghost"
+                onClick={() => {
+                  definition.invalidate(location())
+                  void loadDefinitions()
+                }}
+                disabled={state.definitionLoading}
+              >
+                {language.t("settings.providers.definitions.refresh")}
+              </Button>
               <Button size="small" variant="neutral" icon="plus" onClick={() => editDefinition()}>
                 {language.t("settings.providers.definitions.add")}
               </Button>
             </div>
           </div>
-          <Show when={state.definitionError}><p role="alert" class="text-13-regular text-text-base">{state.definitionError}</p></Show>
+          <Show when={state.definitionError}>
+            <p role="alert" class="text-13-regular text-text-base">
+              {state.definitionError}
+            </p>
+          </Show>
           <SettingsList variant="catalog">
-            <Show when={savedDefinitions().length > 0} fallback={
-              <div class="settings-provider-empty">{language.t(state.definitionLoading
-                ? "settings.providers.definitions.loading" : "settings.providers.definitions.empty")}</div>
-            }>
+            <Show
+              when={savedDefinitions().length > 0}
+              fallback={
+                <div class="settings-provider-empty">
+                  {language.t(
+                    state.definitionLoading
+                      ? "settings.providers.definitions.loading"
+                      : "settings.providers.definitions.empty",
+                  )}
+                </div>
+              }
+            >
               <For each={savedDefinitions()}>
                 {(item) => (
                   <div class="settings-provider-row">
                     <div class="flex w-full min-w-0 flex-col gap-3">
                       <div class="settings-provider-lead min-w-0">
-                        <ProviderModelIcon provider={{ id: item.providerID, name: item.definition.name ?? item.providerID }}
-                          class="settings-provider-icon shrink-0" />
+                        <ProviderModelIcon
+                          provider={{ id: item.providerID, name: item.definition.name ?? item.providerID }}
+                          class="settings-provider-icon shrink-0"
+                        />
                         <div class="settings-provider-copy min-w-0">
                           <div class="settings-provider-main">
-                            <span class="settings-provider-name truncate">{item.definition.name ?? item.providerID}</span>
+                            <span class="settings-provider-name truncate">
+                              {item.definition.name ?? item.providerID}
+                            </span>
                             <Badge>{definitionStatus(item)}</Badge>
                           </div>
-                          <p class="text-12-regular text-text-weak break-all">{item.providerID} · {item.source.path ?? language.t("settings.providers.definitions.virtual")}</p>
+                          <p class="text-12-regular text-text-weak break-all">
+                            {item.providerID} ·{" "}
+                            {item.source.path ?? language.t("settings.providers.definitions.virtual")}
+                          </p>
                         </div>
                       </div>
                       <div class="flex flex-wrap gap-2">
-                        <Button size="small" variant="ghost-muted" onClick={() => expandDiscovery(item)}
-                          aria-expanded={state.discoveryExpanded === definitionKey(item)}>
+                        <Button
+                          size="small"
+                          variant="ghost-muted"
+                          onClick={() => expandDiscovery(item)}
+                          aria-expanded={state.discoveryExpanded === definitionKey(item)}
+                        >
                           {language.t("provider.discovery.title")}
                         </Button>
-                        <Button size="small" variant="ghost-muted" onClick={() => editDefinition(item)}
+                        <Button
+                          size="small"
+                          variant="ghost-muted"
+                          onClick={() => editDefinition(item)}
                           disabled={!item.target?.writable || state.definitionAction !== undefined}
-                          aria-label={language.t("settings.providers.definitions.edit", { provider: item.definition.name ?? item.providerID })}>
+                          aria-label={language.t("settings.providers.definitions.edit", {
+                            provider: item.definition.name ?? item.providerID,
+                          })}
+                        >
                           {language.t("common.edit")}
                         </Button>
-                        <Button size="small" variant="ghost-muted" onClick={() => void changeDefinition(item, "toggle")}
-                          disabled={!item.target?.writable || state.definitionAction !== undefined ||
-                            Boolean(item.definition.adoption && item.definition.adoption.phase !== "ready")}>
-                          {language.t(item.definition.disabled ? "settings.providers.definitions.allow" : "settings.providers.definitions.disable")}
+                        <Button
+                          size="small"
+                          variant="ghost-muted"
+                          onClick={() => void changeDefinition(item, "toggle")}
+                          disabled={
+                            !item.target?.writable ||
+                            state.definitionAction !== undefined ||
+                            Boolean(item.definition.adoption && item.definition.adoption.phase !== "ready")
+                          }
+                        >
+                          {language.t(
+                            item.definition.disabled
+                              ? "settings.providers.definitions.allow"
+                              : "settings.providers.definitions.disable",
+                          )}
                         </Button>
-                        <Button size="small" variant="ghost-muted" onClick={() => void changeDefinition(item, "remove")}
-                          disabled={!item.target?.writable || state.definitionAction !== undefined}>
+                        <Button
+                          size="small"
+                          variant="ghost-muted"
+                          onClick={() => void changeDefinition(item, "remove")}
+                          disabled={!item.target?.writable || state.definitionAction !== undefined}
+                        >
                           {language.t("settings.providers.definitions.remove")}
                         </Button>
                       </div>
@@ -781,9 +968,7 @@ export const SettingsProviders: Component<{
                             <ProviderModelIcon provider={item} class="settings-provider-icon shrink-0" />
 
                             <div class="settings-provider-main">
-                              <span class="settings-provider-name truncate">
-                                {item.name}
-                              </span>
+                              <span class="settings-provider-name truncate">{item.name}</span>
                               <Badge>{type(item)}</Badge>
                             </div>
                           </div>
@@ -908,9 +1093,7 @@ export const SettingsProviders: Component<{
 
                     <div class="settings-provider-copy">
                       <div class="settings-provider-main">
-                        <span class="settings-provider-name">
-                          {item.name}
-                        </span>
+                        <span class="settings-provider-name">{item.name}</span>
                         <Show when={item.id === "aigcfroge" || item.id === "aigcfroge-go"}>
                           <Badge>{language.t("dialog.provider.tag.recommended")}</Badge>
                         </Show>

@@ -103,7 +103,11 @@ test.each([false, true])(
       app.footer.event({
         type: "models",
         providers: [
-          { id: "aigcfroge", name: "Anomaly / AigcForge", models: { "gpt-5.6-sol": { name: "GPT-5.6 Sol (50% Off)" } } },
+          {
+            id: "aigcfroge",
+            name: "Anomaly / AigcForge",
+            models: { "gpt-5.6-sol": { name: "GPT-5.6 Sol (50% Off)" } },
+          },
         ],
       })
       app.footer.event({

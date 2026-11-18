@@ -745,9 +745,9 @@ it.live("plans and adopts each selected builtin root over HTTP with an empty use
             }),
           )
           // Plan's Created subscriber admits its reminder asynchronously, without resuming the Session.
-          const reminder = yield* (id === "plan"
+          const reminder = yield* id === "plan"
             ? awaitWithTimeout(Deferred.await(admitted), "Plan reminder was not durably admitted after Custom Created")
-            : Effect.void)
+            : Effect.void
           expect(created.session.agent).toBe(Agent.ID.make(id))
           expect(created.session.model).toEqual(model)
           expect(created.snapshot.data).toMatchObject({
@@ -801,7 +801,9 @@ it.live("plans and adopts each selected builtin root over HTTP with an empty use
               },
             }),
           )
-          expect(retried).toEqual(new Composition.StartResponse({ session: currentSession, snapshot: created.snapshot }))
+          expect(retried).toEqual(
+            new Composition.StartResponse({ session: currentSession, snapshot: created.snapshot }),
+          )
           expect(yield* storedState(test)).toEqual(state)
           expect(yield* database.db.select().from(MetaAgentSessionTable).all()).toEqual(owners)
           expect(yield* test.llm.requests()).toEqual([])

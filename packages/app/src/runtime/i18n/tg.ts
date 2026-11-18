@@ -842,7 +842,8 @@ export const dict = {
   "project.settings.color.description":
     "Барои тасвири лоиҳа истифода мешавад, вақте ки ягон тасвири фармоишӣ муқаррар карда нашудааст",
   "project.settings.worktree.startup.description": "Пас аз сохтани дарахти нави корӣ як маротиба иҷро мешавад",
-  "project.settings.worktree.startup.hint.base": "Барои дарахти кории асосӣ $AIGCFROGE_WORKTREE_BASE-ро истифода баред.",
+  "project.settings.worktree.startup.hint.base":
+    "Барои дарахти кории асосӣ $AIGCFROGE_WORKTREE_BASE-ро истифода баред.",
   "project.settings.worktree.startup.hint.new": "Барои дарахти нави корӣ $AIGCFROGE_WORKTREE_PATH-ро истифода баред.",
   "project.settings.extensions.empty.mcps.title": "Ҳанӯз MCP нест",
   "project.settings.extensions.empty.mcps.description": "MCP-ҳои барои AigcForge дастрас дар ин ҷо пайдо мешаванд",

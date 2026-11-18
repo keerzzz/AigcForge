@@ -16,7 +16,6 @@ import { testEffect } from "./lib/effect"
 
 const fsLayer = FSUtil.layer.pipe(Layer.provide(NodeFileSystem.layer))
 
-
 const dependencies = Layer.mergeAll(fsLayer, tempLocationLayer, hostEnvironmentLayer)
 const serviceLayer = AgentAssetService.locationLayer.pipe(
   Layer.provide(FileMutation.layer),

@@ -85,7 +85,9 @@ export function mount(input: { server: string; route: string; direction: Directi
     return (
       <Show
         when={started()}
-        fallback={<button onClick={() => void preloadRoute(input.route).then(() => setStarted(true))}>Start app</button>}
+        fallback={
+          <button onClick={() => void preloadRoute(input.route).then(() => setStarted(true))}>Start app</button>
+        }
       >
         <DirectedApp />
       </Show>

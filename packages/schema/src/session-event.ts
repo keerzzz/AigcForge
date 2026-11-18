@@ -398,12 +398,22 @@ export const Attempt = {
   Observed: Event.durable({
     type: "session.attempt.observed",
     ...options,
-    schema: { ...Base, assistantMessageID: SessionMessage.ID, ordinal: NonNegativeInt, observation: SessionAttempt.Observation },
+    schema: {
+      ...Base,
+      assistantMessageID: SessionMessage.ID,
+      ordinal: NonNegativeInt,
+      observation: SessionAttempt.Observation,
+    },
   }),
   Ended: Event.durable({
     type: "session.attempt.ended",
     ...options,
-    schema: { ...Base, assistantMessageID: SessionMessage.ID, ordinal: NonNegativeInt, terminal: SessionAttempt.Terminal },
+    schema: {
+      ...Base,
+      assistantMessageID: SessionMessage.ID,
+      ordinal: NonNegativeInt,
+      terminal: SessionAttempt.Terminal,
+    },
   }),
 }
 

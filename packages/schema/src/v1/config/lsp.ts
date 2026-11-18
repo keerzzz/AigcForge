@@ -63,21 +63,22 @@ export const builtinServerIds = [
 
 export const requiresExtensionsForCustomServers = Schema.makeFilter<
   boolean | Record<string, Schema.Schema.Type<typeof Entry>>
->((data) => {
-  if (typeof data === "boolean") return undefined
-  const ids = new Set(builtinServerIds)
-  const ok = Object.entries(data).every(([id, config]) => {
-    if ("disabled" in config && config.disabled) return true
-    if (ids.has(id)) return true
-    return "extensions" in config && Boolean(config.extensions)
-  })
-  return ok ? undefined : "For custom LSP servers, 'extensions' array is required."
-}, {
-  representation: { id: "aigcfroge/lspExtensionsRequired", payload: {} },
-  arbitraryConstraint: {} as Record<string, unknown>,
-  toCode: () => ({
-    runtime:
-      `Schema.makeFilter((data) => { if (typeof data === "boolean") return undefined; const ids = new Set($[
+>(
+  (data) => {
+    if (typeof data === "boolean") return undefined
+    const ids = new Set(builtinServerIds)
+    const ok = Object.entries(data).every(([id, config]) => {
+      if ("disabled" in config && config.disabled) return true
+      if (ids.has(id)) return true
+      return "extensions" in config && Boolean(config.extensions)
+    })
+    return ok ? undefined : "For custom LSP servers, 'extensions' array is required."
+  },
+  {
+    representation: { id: "aigcfroge/lspExtensionsRequired", payload: {} },
+    arbitraryConstraint: {} as Record<string, unknown>,
+    toCode: () => ({
+      runtime: `Schema.makeFilter((data) => { if (typeof data === "boolean") return undefined; const ids = new Set($[
   "deno",
   "typescript",
   "vue",
@@ -117,8 +118,9 @@ export const requiresExtensionsForCustomServers = Schema.makeFilter<
   "haskell-language-server",
   "julials",
 ]); const ok = Object.entries(data).every(([id, config]) => { if ("disabled" in config && config.disabled) return true; if (ids.has(id)) return true; return "extensions" in config && Boolean(config.extensions) }); return ok ? undefined : "For custom LSP servers, 'extensions' array is required." })`,
-  }),
-})
+    }),
+  },
+)
 
 export const Info = Schema.Union([Schema.Boolean, Schema.Record(Schema.String, Entry)])
   .check(requiresExtensionsForCustomServers)

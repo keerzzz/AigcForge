@@ -90,8 +90,7 @@ export const layer = Layer.effect(
             if (codemode && !canExecute) return []
             if (
               !owned.some(
-                (tool) =>
-                  Permission.evaluate(McpTool.name(tool.server, tool.name), "*", permissions).effect !== "deny",
+                (tool) => Permission.evaluate(McpTool.name(tool.server, tool.name), "*", permissions).effect !== "deny",
               )
             )
               return []

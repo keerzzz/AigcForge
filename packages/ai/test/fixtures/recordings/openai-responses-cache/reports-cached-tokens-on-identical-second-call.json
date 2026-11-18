@@ -1,12 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:openai-responses-cache",
-      "provider:openai",
-      "protocol:openai-responses",
-      "cache"
-    ],
+    "tags": ["prefix:openai-responses-cache", "provider:openai", "protocol:openai-responses", "cache"],
     "name": "openai-responses-cache/reports-cached-tokens-on-identical-second-call",
     "recordedAt": "2026-09-15T04:25:37.715Z"
   },

@@ -17,15 +17,15 @@
 
 只由 root 串行执行，使用隔离验证仓、固定 `script/bun`（1.4.2）；测试均在包目录，类型通过包脚本并限 `GOMAXPROCS=2 GOMEMLIMIT=3GiB`。隔离仓 HEAD 较旧，不能用其 HEAD 当本片基线；每轮原始日志、源码哈希和相对最终版本差异由 runner 生成。以下是各轮原始 tally，不累加重复运行。
 
-| 记录 | exit | 命令生成的 tally | 相对最终树的文件差异 |
-| --- | --- | --- | --- |
-| `schema-final` | 0 |  389 pass;  0 fail;  1434 expect() calls; Ran 389 tests across 44 files. [615.00ms] | `packages/core/test/skill-asset.test.ts`, `packages/schema/test/asset-placement.test.ts`, `packages/server/test/skill-asset.test.ts` |
-| `schema-keeper-verified` | 0 |  16 pass;  0 fail;  80 expect() calls; Ran 16 tests across 1 file. [319.00ms] | 无 |
-| `core-regression-final` | 0 |  126 pass;  0 fail;  941 expect() calls; Ran 126 tests across 14 files. [10.73s] | `packages/core/test/skill-asset.test.ts`, `packages/schema/test/asset-placement.test.ts`, `packages/server/test/skill-asset.test.ts` |
-| `core-keeper-verified` | 0 |  21 pass;  0 fail;  169 expect() calls; Ran 21 tests across 1 file. [3.85s] | 无 |
-| `server-full-final` | 0 |  167 pass;  1 skip;  0 fail;  7733 expect() calls; Ran 168 tests across 44 files. [83.64s] | `packages/core/test/skill-asset.test.ts`, `packages/schema/test/asset-placement.test.ts`, `packages/server/test/skill-asset.test.ts` |
-| `server-keeper-approved` | 0 |  6 pass;  0 fail;  225 expect() calls; Ran 6 tests across 1 file. [9.96s] | `packages/core/test/skill-asset.test.ts`, `packages/schema/test/asset-placement.test.ts` |
-| `client-full-final` | 0 |  225 pass;  0 fail;  926 expect() calls; Ran 225 tests across 20 files. [38.98s] | `packages/core/test/skill-asset.test.ts`, `packages/schema/test/asset-placement.test.ts`, `packages/server/test/skill-asset.test.ts` |
+| 记录                     | exit | 命令生成的 tally                                                                       | 相对最终树的文件差异                                                                                                                 |
+| ------------------------ | ---- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `schema-final`           | 0    | 389 pass; 0 fail; 1434 expect() calls; Ran 389 tests across 44 files. [615.00ms]       | `packages/core/test/skill-asset.test.ts`, `packages/schema/test/asset-placement.test.ts`, `packages/server/test/skill-asset.test.ts` |
+| `schema-keeper-verified` | 0    | 16 pass; 0 fail; 80 expect() calls; Ran 16 tests across 1 file. [319.00ms]             | 无                                                                                                                                   |
+| `core-regression-final`  | 0    | 126 pass; 0 fail; 941 expect() calls; Ran 126 tests across 14 files. [10.73s]          | `packages/core/test/skill-asset.test.ts`, `packages/schema/test/asset-placement.test.ts`, `packages/server/test/skill-asset.test.ts` |
+| `core-keeper-verified`   | 0    | 21 pass; 0 fail; 169 expect() calls; Ran 21 tests across 1 file. [3.85s]               | 无                                                                                                                                   |
+| `server-full-final`      | 0    | 167 pass; 1 skip; 0 fail; 7733 expect() calls; Ran 168 tests across 44 files. [83.64s] | `packages/core/test/skill-asset.test.ts`, `packages/schema/test/asset-placement.test.ts`, `packages/server/test/skill-asset.test.ts` |
+| `server-keeper-approved` | 0    | 6 pass; 0 fail; 225 expect() calls; Ran 6 tests across 1 file. [9.96s]                 | `packages/core/test/skill-asset.test.ts`, `packages/schema/test/asset-placement.test.ts`                                             |
+| `client-full-final`      | 0    | 225 pass; 0 fail; 926 expect() calls; Ran 225 tests across 20 files. [38.98s]          | `packages/core/test/skill-asset.test.ts`, `packages/schema/test/asset-placement.test.ts`, `packages/server/test/skill-asset.test.ts` |
 
 生产实现从最终全包测试至源码冻结没有变动；表中较早版本差异只在测试的品牌期望、错误 payload、service 绑定与导出身份测试的无 alias 写法。Core/Server/Schema 各改动 keeper 已在对应最终修正后重跑。Server 全包有 1 skip 和 MaxListenersExceededWarning，均保留原日志；没有把它描述为无警告或全部运行。未运行 Core 整包、App 单元/浏览器全包或 GUI/E2E 行为；本片没有 GUI 改动，下一纵片独立验证。
 

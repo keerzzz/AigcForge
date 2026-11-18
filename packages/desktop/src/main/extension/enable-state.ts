@@ -3,10 +3,13 @@ import type { EnableState } from "@aigcfroge/gui-extensions/sdk/bridge"
 
 /** Explicit settings only: both startup readers and the manager resolve absent rows through the same SDK rule. */
 export function readEnableState(db: DatabaseSync): readonly EnableState[] {
-  return db.prepare("SELECT id, enabled FROM extension").all().map((row) => {
-    // SAFETY: extension.id is TEXT PRIMARY KEY; extension.enabled is INTEGER NOT NULL in every journaled schema.
-    const id = row.id as string
+  return db
+    .prepare("SELECT id, enabled FROM extension")
+    .all()
+    .map((row) => {
+      // SAFETY: extension.id is TEXT PRIMARY KEY; extension.enabled is INTEGER NOT NULL in every journaled schema.
+      const id = row.id as string
 
-    return { id, enabled: row.enabled === 1 }
-  })
+      return { id, enabled: row.enabled === 1 }
+    })
 }

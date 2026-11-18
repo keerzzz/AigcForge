@@ -13,7 +13,13 @@ import type { LocationRef, ModelGroupCurrent } from "@aigcfroge/client/promise"
 import type { Config } from "../config"
 import { newSessionLocation } from "../config/new-session-location"
 import { errorMessage } from "../util/error"
-import { isModelGroup, modelPreferenceKey, sameModelSelection, toModelPreference, toModelSelection } from "../model-preference"
+import {
+  isModelGroup,
+  modelPreferenceKey,
+  sameModelSelection,
+  toModelPreference,
+  toModelSelection,
+} from "../model-preference"
 import { loadRunAgents, loadRunCommands, loadRunReferences } from "./catalog.shared"
 import {
   resolveMiniSettings,
@@ -289,9 +295,7 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
         if (
           info.id !== sessionID ||
           (domain === "session" && change.agent && info.agent !== change.agent) ||
-          (domain === "session" &&
-            model &&
-            !sameModelSelection(info.model, model)) ||
+          (domain === "session" && model && !sameModelSelection(info.model, model)) ||
           !applySelection(info, domain === "session" && change.agent === "meta")
         )
           throw new Error("Could not confirm the Session selection")
@@ -429,10 +433,8 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
       state.agent = agent
     },
     onModelSelect: async (model, domain: MiniModelDomain = "session") => {
-      if (state.selection?.controller)
-        return canonicalChoice(domain, { model: toModelSelection(model) })
-      if (domain === "executor")
-        return canonicalChoice(domain, { model: toModelSelection(model) })
+      if (state.selection?.controller) return canonicalChoice(domain, { model: toModelSelection(model) })
+      if (domain === "executor") return canonicalChoice(domain, { model: toModelSelection(model) })
       ++choices.session
       if (state.model && modelPreferenceKey(state.model) === modelPreferenceKey(model)) {
         return
@@ -620,7 +622,9 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
             : undefined
         if (!current()) return
         state.activeVariant = state.selection?.controller
-          ? state.selection.model && !isModelGroup(state.selection.model) ? state.selection.model.variant : undefined
+          ? state.selection.model && !isModelGroup(state.selection.model)
+            ? state.selection.model.variant
+            : undefined
           : resolveVariant(next.variant, resumed.variant, resumedSavedVariant, [])
         session.variant = state.activeVariant
         footer.event({ type: "history", history: resumed.history })
@@ -810,13 +814,16 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
         state.groups = result.data.effective
         footer.event({ type: "models", providers: state.providers, groups: state.groups })
         if (state.model) {
-          footer.event({ type: "model", model: formatModelLabel(state.model, state.activeVariant, state.providers, state.groups), selection: state.model })
+          footer.event({
+            type: "model",
+            model: formatModelLabel(state.model, state.activeVariant, state.providers, state.groups),
+            selection: state.model,
+          })
           return
         }
         if (!result.data.defaultSelection) return
         const model = toModelPreference(result.data.defaultSelection)
-        const changed =
-          !state.defaultModel || modelPreferenceKey(state.defaultModel) !== modelPreferenceKey(model)
+        const changed = !state.defaultModel || modelPreferenceKey(state.defaultModel) !== modelPreferenceKey(model)
         const saved = changed ? await input.host.preferences.resolveVariant(model) : undefined
         if (state.model || !currentClient(attempt)) return
         state.defaultModel = model
@@ -959,8 +966,11 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
         },
         trace: log,
         onCatalogRefresh: requestCatalogRefresh,
-        contextLimit: (model) => isModelGroup(model) ? undefined :
-          state.providers.find((provider) => provider.id === model.providerID)?.models[model.modelID]?.limit?.context,
+        contextLimit: (model) =>
+          isModelGroup(model)
+            ? undefined
+            : state.providers.find((provider) => provider.id === model.providerID)?.models[model.modelID]?.limit
+                ?.context,
       })
       if (footer.isClosed) {
         await handle.close()

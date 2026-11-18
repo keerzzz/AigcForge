@@ -122,7 +122,9 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, "publish">, inp
     return assistantMessageID
   })
   const currentAssistantMessageID = () =>
-    start.published ? Effect.succeed(assistantMessageID) : Effect.die(new Error("Tool event before assistant step start"))
+    start.published
+      ? Effect.succeed(assistantMessageID)
+      : Effect.die(new Error("Tool event before assistant step start"))
   const startOutput = Effect.fnUntraced(function* () {
     if (outputStarted) return
     outputStarted = true
@@ -600,17 +602,23 @@ export const createLLMEventPublisher = (bus: Pick<Bus.Interface, "publish">, inp
     const content = result.content
     if (!isReadonlyArrayNonEmpty(content)) return yield* Effect.die(new Error(`Tool execution has no content: ${id}`))
     tool.settled = true
-    const event = yield* bus.publish(SessionEvent.Tool.Success, {
-      sessionID: input.sessionID,
-      assistantMessageID,
-      id,
-      content,
-      ...(result.metadata === undefined ? {} : { metadata: result.metadata }),
-      executed: tool.providerExecuted,
-    }).pipe(Effect.onError(() => Effect.sync(() => {
-      // A rejected result has no terminal event; let the runner record the execution failure.
-      tool.settled = false
-    })))
+    const event = yield* bus
+      .publish(SessionEvent.Tool.Success, {
+        sessionID: input.sessionID,
+        assistantMessageID,
+        id,
+        content,
+        ...(result.metadata === undefined ? {} : { metadata: result.metadata }),
+        executed: tool.providerExecuted,
+      })
+      .pipe(
+        Effect.onError(() =>
+          Effect.sync(() => {
+            // A rejected result has no terminal event; let the runner record the execution failure.
+            tool.settled = false
+          }),
+        ),
+      )
     if (input.onToolSuccess) yield* input.onToolSuccess(event.id)
   }, Effect.uninterruptible)
 

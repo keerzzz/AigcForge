@@ -79,32 +79,32 @@ test("captures image pixels and their terminal placement", async () => {
     Effect.scoped(
       Effect.gen(function* () {
         const renderer = yield* SimulationRenderer.create({ width: 20, height: 10 })
-        const image = NativeImage.fromRgba(
-          Uint8Array.from([255, 0, 0, 255, 0, 0, 255, 255]),
-          2,
-          1,
+        const image = NativeImage.fromRgba(Uint8Array.from([255, 0, 0, 255, 0, 0, 255, 255]), 2, 1)
+        renderer.root.add(
+          new ImageRenderable(renderer, {
+            source: image,
+            position: "absolute",
+            left: 2,
+            top: 1,
+            width: 2,
+            height: 1,
+            fit: "fill",
+          }),
         )
-        renderer.root.add(new ImageRenderable(renderer, {
-          source: image,
-          position: "absolute",
-          left: 2,
-          top: 1,
-          width: 2,
-          height: 1,
-          fit: "fill",
-        }))
 
         const frame = yield* capture(createHarness(renderer))
 
-        expect(frame.images).toEqual([{
-          x: 2,
-          y: 1,
-          width: 2,
-          height: 1,
-          pixelWidth: 2,
-          pixelHeight: 1,
-          rgba: "/wAA/wAA//8=",
-        }])
+        expect(frame.images).toEqual([
+          {
+            x: 2,
+            y: 1,
+            width: 2,
+            height: 1,
+            pixelWidth: 2,
+            pixelHeight: 1,
+            rgba: "/wAA/wAA//8=",
+          },
+        ])
       }),
     ),
   )

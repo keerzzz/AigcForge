@@ -50,15 +50,15 @@
 
 两 note 已证明的 **7 个生产主接缝**与下方第8个共享来源接缝，均已由Root正式绑定：
 
-| 文件 | 必要变化 |
-| --- | --- |
-| [tool/plugin/task.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/plugin/task.ts:36) | 有限正式 Workflow 输入分支、已选 Meta 判定、实际 Context source、原 Task link/失败路径、完整 Tool 结果。 |
-| [workflow/sql.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/workflow/sql.ts:6) | 在现 run 行增加 frozen_snapshot 和 task_binding 两个 nullable 列。 |
-| [workflow/workflow-run.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/workflow/workflow-run.ts:385) | owning request lookup、私有 codec/读取、完整 requestDigest/冲突、同次准入与 retry 继承。 |
-| [workflow/execution.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/workflow/execution.ts:183) | 正式 Task 准入、释放锁后等待、run 冻结消费、Task CAS、W1 单出口和原取消／Custom 兼容。 |
-| [session.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/session.ts:702) | 原创建/采用路径保存并核对真实 Workflow child 的 run 冻结副本，保留父 mode/Agent。 |
-| [session/composition.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/session/composition.ts:434) | 复用原冻结依赖、Agent/binding 选择判定，使消费可以明确指向 owning run 值。 |
-| [session/context.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/session/context.ts:176) | 实际 Work Workflow child 的模型/提示/工具/Skill 采用现 frozen 路线，普通父继续现路线。 |
+| 文件                                                                                                         | 必要变化                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| [tool/plugin/task.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/plugin/task.ts:36)            | 有限正式 Workflow 输入分支、已选 Meta 判定、实际 Context source、原 Task link/失败路径、完整 Tool 结果。 |
+| [workflow/sql.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/workflow/sql.ts:6)                     | 在现 run 行增加 frozen_snapshot 和 task_binding 两个 nullable 列。                                       |
+| [workflow/workflow-run.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/workflow/workflow-run.ts:385) | owning request lookup、私有 codec/读取、完整 requestDigest/冲突、同次准入与 retry 继承。                 |
+| [workflow/execution.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/workflow/execution.ts:183)       | 正式 Task 准入、释放锁后等待、run 冻结消费、Task CAS、W1 单出口和原取消／Custom 兼容。                   |
+| [session.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/session.ts:702)                             | 原创建/采用路径保存并核对真实 Workflow child 的 run 冻结副本，保留父 mode/Agent。                        |
+| [session/composition.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/session/composition.ts:434)     | 复用原冻结依赖、Agent/binding 选择判定，使消费可以明确指向 owning run 值。                               |
+| [session/context.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/session/context.ts:176)             | 实际 Work Workflow child 的模型/提示/工具/Skill 采用现 frozen 路线，普通父继续现路线。                   |
 
 **第8个已正式绑定的共享来源判定接缝：** [meta-agent/service.ts:332](/home/keer/workspace/aigcfroge-v2/packages/core/src/meta-agent/service.ts:332) 的 assertChildSource workflow 分支虽然核真实 run/step/child/input，仍无条件 `compositions.selectAgent(parent.id, step.agent_id)`。普通父没有该 Session snapshot，仅改上述七文件不能完成这处原校验。应在同一原判定内使用 owning run 冻结池；不要把 SessionComposition.selectAgent 改成依赖隐式跨 run 猜选。此项有源码依据，与七个主接缝同次实施。
 

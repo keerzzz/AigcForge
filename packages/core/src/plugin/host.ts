@@ -312,7 +312,10 @@ export const make = Effect.fn("PluginHost.make")(function* (
               const current = yield* Location.Service
               const models = yield* Model.Service
               const read = yield* ModelGroup.get(input?.groupID)
-              return { location: current, data: new ModelGroup.Read({ ...read, defaultSelection: yield* models.selection() }) }
+              return {
+                location: current,
+                data: new ModelGroup.Read({ ...read, defaultSelection: yield* models.selection() }),
+              }
             }).pipe(Effect.provide(locations.get(ref ?? location)), Effect.orDie)
           },
           save: (input) => {

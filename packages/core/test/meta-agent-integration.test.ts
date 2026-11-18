@@ -285,34 +285,79 @@ const mc04bTask = Effect.fnUntraced(function* (
   input: typeof TaskTool.Input.Type,
   responses: readonly TestLLM.Response[] = [],
 ) {
-  yield* fixture.llm.push(TestLLM.tool(id, TaskTool.name, input), ...responses, TestLLM.text(`Consumed ${id} completely.`, `${id}-parent`))
+  yield* fixture.llm.push(
+    TestLLM.tool(id, TaskTool.name, input),
+    ...responses,
+    TestLLM.text(`Consumed ${id} completely.`, `${id}-parent`),
+  )
   yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: input.description })
   yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), `${id} did not settle`, "10 seconds")
   const result = yield* mc07Consumed(fixture, id)
-  if (result.tool.state.status !== "completed" && result.tool.state.status !== "error") return yield* Effect.die(new Error(`${id} has no terminal Task facts`))
-  return { ...result, verification: Schema.decodeUnknownSync(VerificationRouter.Settlement)(result.tool.state.metadata?.verification) }
+  if (result.tool.state.status !== "completed" && result.tool.state.status !== "error")
+    return yield* Effect.die(new Error(`${id} has no terminal Task facts`))
+  return {
+    ...result,
+    verification: Schema.decodeUnknownSync(VerificationRouter.Settlement)(result.tool.state.metadata?.verification),
+  }
 })
 
 const mc04bSetup = Effect.fnUntraced(function* (
   verifier = ConfigMeta.Verifier.make({ escalation_enabled: true, escalation_threshold: 2 }),
-  typecheck: string | false = `${JSON.stringify(path.resolve(import.meta.dirname, "../../../node_modules/.bin/tsgo"))} --noEmit --skipLibCheck --target esnext input.ts`,
+  typecheck:
+    | string
+    | false = `${JSON.stringify(path.resolve(import.meta.dirname, "../../../node_modules/.bin/tsgo"))} --noEmit --skipLibCheck --target esnext input.ts`,
 ) {
-  const fixture = yield* metaSetup(Agent.ID.make("build"), false, Agent.ID.make("meta"), "app-server", undefined, "", "work", ConfigMeta.Info.make({ verifier }))
-  yield* fixture.sessions.setPermissions({ sessionID: fixture.root.id, permissions: [{ action: "*", resource: "*", effect: "allow" }] })
+  const fixture = yield* metaSetup(
+    Agent.ID.make("build"),
+    false,
+    Agent.ID.make("meta"),
+    "app-server",
+    undefined,
+    "",
+    "work",
+    ConfigMeta.Info.make({ verifier }),
+  )
+  yield* fixture.sessions.setPermissions({
+    sessionID: fixture.root.id,
+    permissions: [{ action: "*", resource: "*", effect: "allow" }],
+  })
   if (typecheck !== false)
-    yield* Effect.promise(() => Bun.write(`${fixture.root.location.directory}/package.json`, JSON.stringify({ packageManager: "bun@1.4.2", scripts: { typecheck } })))
+    yield* Effect.promise(() =>
+      Bun.write(
+        `${fixture.root.location.directory}/package.json`,
+        JSON.stringify({ packageManager: "bun@1.4.2", scripts: { typecheck } }),
+      ),
+    )
   return fixture
 })
 
-const mc04bWrite = Effect.fnUntraced(function* (fixture: Effect.Success<ReturnType<typeof metaSetup>>, id: string, content: string) {
-  yield* fixture.llm.push(TestLLM.tool(id, "write", { path: "input.ts", content }), TestLLM.text(`Consumed ${id}.`, `${id}-parent`))
+const mc04bWrite = Effect.fnUntraced(function* (
+  fixture: Effect.Success<ReturnType<typeof metaSetup>>,
+  id: string,
+  content: string,
+) {
+  yield* fixture.llm.push(
+    TestLLM.tool(id, "write", { path: "input.ts", content }),
+    TestLLM.text(`Consumed ${id}.`, `${id}-parent`),
+  )
   yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Write and check the actual fixture." })
   yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), `${id} did not settle`, "10 seconds")
   const saved = yield* mc07Result(fixture, id)
-  if (saved.tool.state.status !== "completed") return yield* Effect.die(new Error(`${id} did not save a completed Tool`))
-  const consumed = (yield* fixture.llm.requests()).flatMap((request) => request.messages).flatMap((message) => message.role === "tool" ? message.content : []).findLast((part) => part.type === "tool-result" && part.id === id)
-  expect(consumed?.type === "tool-result" && consumed.result).toEqual({ type: "content", value: saved.tool.state.content })
-  return { ...saved, mechanical: Schema.decodeUnknownSync(Verifier.Result)(saved.tool.state.metadata?.verification), text: saved.tool.state.content.flatMap((part) => part.type === "text" ? [part.text] : []).join("\n") }
+  if (saved.tool.state.status !== "completed")
+    return yield* Effect.die(new Error(`${id} did not save a completed Tool`))
+  const consumed = (yield* fixture.llm.requests())
+    .flatMap((request) => request.messages)
+    .flatMap((message) => (message.role === "tool" ? message.content : []))
+    .findLast((part) => part.type === "tool-result" && part.id === id)
+  expect(consumed?.type === "tool-result" && consumed.result).toEqual({
+    type: "content",
+    value: saved.tool.state.content,
+  })
+  return {
+    ...saved,
+    mechanical: Schema.decodeUnknownSync(Verifier.Result)(saved.tool.state.metadata?.verification),
+    text: saved.tool.state.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("\n"),
+  }
 })
 
 effectTest.live("MC04b consumes actual L0 source through the configured Judge and complete parent result", () =>
@@ -353,26 +398,36 @@ effectTest.live("MC04b consumes actual L0 source through the configured Judge an
     const mechanical = yield* mc07Result(fixture, "mc04b-l0-write")
     if (mechanical.tool.state.status !== "completed")
       return yield* Effect.die(new Error("MC04b mechanical Tool result is missing"))
-    const mechanicalText = mechanical.tool.state.content
-      ?.flatMap((part) => (part.type === "text" ? [part.text] : []))
-      .join("\n") ?? ""
+    const mechanicalText =
+      mechanical.tool.state.content?.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("\n") ?? ""
     expect(mechanicalText).toContain("typecheck 失败")
     expect(mechanicalText).toContain("[验证来源] verification.source=")
     const observations = JSON.stringify({
-      observations: [{ kind: "contradiction", quote: "typecheck 失败", detail: "The declared string received a number." }],
+      observations: [
+        { kind: "contradiction", quote: "typecheck 失败", detail: "The declared string received a number." },
+      ],
     })
     const requestedJudges: (typeof TaskTool.Input.Type)[] = []
     yield* fixture.llm.serve((request) => {
-      if (request.messages.some((message) => message.role === "user" && message.content.some((part) => part.type === "text" && part.text.includes("<verification_source>"))))
+      if (
+        request.messages.some(
+          (message) =>
+            message.role === "user" &&
+            message.content.some((part) => part.type === "text" && part.text.includes("<verification_source>")),
+        )
+      )
         return TestLLM.text(observations, `mc04b-judge-${request.model.id}`)
-      const consumed = request.messages.flatMap((message) => message.role === "tool" ? message.content : [])
+      const consumed = request.messages.flatMap((message) => (message.role === "tool" ? message.content : []))
       if (consumed.some((part) => part.type === "tool-result" && part.id === "mc04b-l1-judge"))
         return TestLLM.text("Consumed all Judge results and retained the compiler failure.", "mc04b-l1-parent")
       const mechanical = consumed.find((part) => part.type === "tool-result" && part.id === "mc04b-l0-write")
-      const text = mechanical?.type === "tool-result" && mechanical.result.type === "content"
-        ? mechanical.result.value.flatMap((part) => part.type === "text" ? [part.text] : []).join("\n")
-        : ""
-      const source = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Struct({ messageID: SessionMessage.ID, id: Schema.String })))(text.match(/^\[验证来源\] verification.source=(.+)$/m)?.[1])
+      const text =
+        mechanical?.type === "tool-result" && mechanical.result.type === "content"
+          ? mechanical.result.value.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("\n")
+          : ""
+      const source = Schema.decodeUnknownSync(
+        Schema.fromJsonString(Schema.Struct({ messageID: SessionMessage.ID, id: Schema.String })),
+      )(text.match(/^\[验证来源\] verification.source=(.+)$/m)?.[1])
       const input: typeof TaskTool.Input.Type = {
         description: "Observe the actual compiler failure",
         prompt: "Report contradictions and missing evidence in the saved compiler result.",
@@ -412,130 +467,284 @@ effectTest.live("MC04b consumes actual L0 source through the configured Judge an
       await git(fixture.root.location.directory, "add", "--", "input.ts")
       await git(fixture.root.location.directory, "commit", "-m", "MC04b tracked fixture baseline")
     })
-    const r1 = yield* mc04bTask(fixture, "mc04b-l2-r1", {
-      description: "Capture the current failed revision",
-      prompt: "Write the new revision for the original compiler failure.",
-      subagent_type: "build",
-      new_delegation: true,
-      artifact_path: "input.ts",
-      verification,
-    }, [
-      TestLLM.tool("mc04b-r1-write", "write", { path: "input.ts", content: "export const value: string = 2\n" }),
-      TestLLM.text("R1 still needs the typed compiler repair.", "mc04b-r1-child"),
-    ])
+    const r1 = yield* mc04bTask(
+      fixture,
+      "mc04b-l2-r1",
+      {
+        description: "Capture the current failed revision",
+        prompt: "Write the new revision for the original compiler failure.",
+        subagent_type: "build",
+        new_delegation: true,
+        artifact_path: "input.ts",
+        verification,
+      },
+      [
+        TestLLM.tool("mc04b-r1-write", "write", { path: "input.ts", content: "export const value: string = 2\n" }),
+        TestLLM.text("R1 still needs the typed compiler repair.", "mc04b-r1-child"),
+      ],
+    )
     if (r1.tool.state.status !== "completed") return yield* Effect.die(new Error("MC04b R1 Task failed"))
     const producer = Schema.decodeUnknownSync(DelegationService.Governance)(r1.tool.state.metadata?.governance)
-    if (producer.kind !== "revision" || !("artifact" in producer)) return yield* Effect.die(new Error("MC04b R1 has no actual revision"))
-    expect(r1.tool.state.metadata?.verification).toMatchObject({ level: "l2", reset: "none", state: { level: "l2", failures: 0 } })
-    const reviewText = (digest: string, verdict: "rejected" | "approved") => `<review>${JSON.stringify({
-      kind: "aigcfroge.review.v1", reviewed_revision_digest: digest, verdict, findings: [], summary: `${verdict}: the current compiler result was inspected.`,
-    })}</review>`
-    const rejected = yield* mc04bTask(fixture, "mc04b-l2-rejected", {
-      description: "Review the actual R1",
-      prompt: "Review the bound R1 and record the typed finding.",
-      subagent_type: "build",
-      intent: "review",
-      revision_digest: producer.artifact.revisionDigest,
-      delegation_id: producer.receipt.delegationID,
-      verification,
-    }, [TestLLM.text(reviewText(producer.artifact.revisionDigest, "rejected"), "mc04b-reject-child")])
+    if (producer.kind !== "revision" || !("artifact" in producer))
+      return yield* Effect.die(new Error("MC04b R1 has no actual revision"))
+    expect(r1.tool.state.metadata?.verification).toMatchObject({
+      level: "l2",
+      reset: "none",
+      state: { level: "l2", failures: 0 },
+    })
+    const reviewText = (digest: string, verdict: "rejected" | "approved") =>
+      `<review>${JSON.stringify({
+        kind: "aigcfroge.review.v1",
+        reviewed_revision_digest: digest,
+        verdict,
+        findings: [],
+        summary: `${verdict}: the current compiler result was inspected.`,
+      })}</review>`
+    const rejected = yield* mc04bTask(
+      fixture,
+      "mc04b-l2-rejected",
+      {
+        description: "Review the actual R1",
+        prompt: "Review the bound R1 and record the typed finding.",
+        subagent_type: "build",
+        intent: "review",
+        revision_digest: producer.artifact.revisionDigest,
+        delegation_id: producer.receipt.delegationID,
+        verification,
+      },
+      [TestLLM.text(reviewText(producer.artifact.revisionDigest, "rejected"), "mc04b-reject-child")],
+    )
     if (rejected.tool.state.status !== "completed") return yield* Effect.die(new Error("MC04b R1 review failed"))
     const reviewer = Schema.decodeUnknownSync(Delegation.Receipt)(rejected.tool.state.metadata?.receipt)
-    const repair = yield* mc04bTask(fixture, "mc04b-l2-repair", {
-      description: "Repair the original typed rejection",
-      prompt: `Repair the exact reviewed compiler failure.\n${rejected.text}`,
-      subagent_type: "build",
-      artifact_path: "input.ts",
-      delegation_id: producer.receipt.delegationID,
-      participant_id: producer.receipt.participantID,
-      task_id: producer.receipt.childSessionID,
-      command: "append",
-      verification,
-    }, [
-      TestLLM.tool("mc04b-r2-write", "write", { path: "input.ts", content: 'export const value: string = "fixed"\n' }),
-      TestLLM.text("R2 fixed the compiler failure.", "mc04b-r2-child"),
-    ])
+    const repair = yield* mc04bTask(
+      fixture,
+      "mc04b-l2-repair",
+      {
+        description: "Repair the original typed rejection",
+        prompt: `Repair the exact reviewed compiler failure.\n${rejected.text}`,
+        subagent_type: "build",
+        artifact_path: "input.ts",
+        delegation_id: producer.receipt.delegationID,
+        participant_id: producer.receipt.participantID,
+        task_id: producer.receipt.childSessionID,
+        command: "append",
+        verification,
+      },
+      [
+        TestLLM.tool("mc04b-r2-write", "write", {
+          path: "input.ts",
+          content: 'export const value: string = "fixed"\n',
+        }),
+        TestLLM.text("R2 fixed the compiler failure.", "mc04b-r2-child"),
+      ],
+    )
     if (repair.tool.state.status !== "completed") return yield* Effect.die(new Error("MC04b R2 Task failed"))
     const repaired = Schema.decodeUnknownSync(DelegationService.Governance)(repair.tool.state.metadata?.governance)
-    if (repaired.kind !== "revision" || !("artifact" in repaired)) return yield* Effect.die(new Error("MC04b repair has no actual revision"))
+    if (repaired.kind !== "revision" || !("artifact" in repaired))
+      return yield* Effect.die(new Error("MC04b repair has no actual revision"))
     expect(repaired.receipt.childSessionID).toBe(producer.receipt.childSessionID)
     expect(repaired.receipt.inputID).not.toBe(producer.receipt.inputID)
     expect(repaired.artifact.revisionDigest).not.toBe(producer.artifact.revisionDigest)
-    const childMessages = yield* fixture.sessions.messages({ sessionID: repaired.receipt.childSessionID, type: "assistant", order: "asc" })
-    const passed = childMessages.flatMap((message) => message.type === "assistant" ? message.content : []).find((part) => part.type === "tool" && part.id === "mc04b-r2-write")
-    if (passed?.type !== "tool" || passed.state.status !== "completed") return yield* Effect.die(new Error("MC04b repair write is missing"))
+    const childMessages = yield* fixture.sessions.messages({
+      sessionID: repaired.receipt.childSessionID,
+      type: "assistant",
+      order: "asc",
+    })
+    const passed = childMessages
+      .flatMap((message) => (message.type === "assistant" ? message.content : []))
+      .find((part) => part.type === "tool" && part.id === "mc04b-r2-write")
+    if (passed?.type !== "tool" || passed.state.status !== "completed")
+      return yield* Effect.die(new Error("MC04b repair write is missing"))
     const actualPassed = Schema.decodeUnknownSync(Verifier.Result)(passed.state.metadata?.verification)
     expect(actualPassed).toMatchObject({ status: "passed", packages: [{ status: "passed", exitCode: 0 }] })
-    const approved = yield* mc04bTask(fixture, "mc04b-l2-approved", {
-      description: "Review the repaired R2",
-      prompt: "Review R2 in the same original reviewer.",
-      subagent_type: "build",
-      intent: "review",
-      revision_digest: repaired.artifact.revisionDigest,
-      delegation_id: repaired.receipt.delegationID,
-      participant_id: reviewer.participantID,
-      task_id: reviewer.childSessionID,
-      verification,
-    }, [TestLLM.text(reviewText(repaired.artifact.revisionDigest, "approved"), "mc04b-approve-child")])
+    const approved = yield* mc04bTask(
+      fixture,
+      "mc04b-l2-approved",
+      {
+        description: "Review the repaired R2",
+        prompt: "Review R2 in the same original reviewer.",
+        subagent_type: "build",
+        intent: "review",
+        revision_digest: repaired.artifact.revisionDigest,
+        delegation_id: repaired.receipt.delegationID,
+        participant_id: reviewer.participantID,
+        task_id: reviewer.childSessionID,
+        verification,
+      },
+      [TestLLM.text(reviewText(repaired.artifact.revisionDigest, "approved"), "mc04b-approve-child")],
+    )
     const delegations = yield* DelegationService.Service
     const blocked = yield* delegations.foldState(producer.receipt.delegationID)
     expect(blocked?.reviews.map((review) => review.verdict)).toEqual(["rejected", "approved"])
     expect(blocked?.delegation.rejectionBlocked).toBe(true)
-    const completeInput = { description: "Complete the verified delegation", prompt: "Complete and archive after the original review barrier.", subagent_type: "build", delegation_id: producer.receipt.delegationID, command: "complete" as const, verification }
+    const completeInput = {
+      description: "Complete the verified delegation",
+      prompt: "Complete and archive after the original review barrier.",
+      subagent_type: "build",
+      delegation_id: producer.receipt.delegationID,
+      command: "complete" as const,
+      verification,
+    }
     const refused = yield* mc04bTask(fixture, "mc04b-l2-blocked", completeInput)
-    if (refused.tool.state.status !== "completed") return yield* Effect.die(new Error("MC04b completion refusal did not preserve its result"))
-    expect(refused.tool.state.metadata?.verification).toMatchObject({ status: "unavailable", reset: "none", state: { level: "l2", failures: 0 } })
+    if (refused.tool.state.status !== "completed")
+      return yield* Effect.die(new Error("MC04b completion refusal did not preserve its result"))
+    expect(refused.tool.state.metadata?.verification).toMatchObject({
+      status: "unavailable",
+      reset: "none",
+      state: { level: "l2", failures: 0 },
+    })
     expect(refused.text).toMatch(/barrier/i)
     expect(yield* delegations.foldState(producer.receipt.delegationID)).toEqual(blocked)
-    const retracted = yield* mc04bTask(fixture, "mc04b-l2-retract", { ...completeInput, description: "Retract the repaired R1 rejection", prompt: "Explicitly retract R1: R2 passed the actual compiler check and the same reviewer approved R2.", participant_id: reviewer.participantID, command: "retract_rejection" })
+    const retracted = yield* mc04bTask(fixture, "mc04b-l2-retract", {
+      ...completeInput,
+      description: "Retract the repaired R1 rejection",
+      prompt: "Explicitly retract R1: R2 passed the actual compiler check and the same reviewer approved R2.",
+      participant_id: reviewer.participantID,
+      command: "retract_rejection",
+    })
     if (retracted.tool.state.status !== "completed") return yield* Effect.die(new Error("MC04b retraction failed"))
-    expect(retracted.tool.state.metadata?.verification).toMatchObject({ reset: "none", state: { level: "l2", failures: 0 } })
+    expect(retracted.tool.state.metadata?.verification).toMatchObject({
+      reset: "none",
+      state: { level: "l2", failures: 0 },
+    })
     const completed = yield* mc04bTask(fixture, "mc04b-l2-complete", completeInput)
     if (completed.tool.state.status !== "completed") return yield* Effect.die(new Error("MC04b completion failed"))
-    expect(completed.tool.state.metadata?.verification).toMatchObject({ status: "completed", reset: "completion_barrier", state: { level: "l0", failures: 0 }, completion: { canComplete: true, revisionDigest: repaired.artifact.revisionDigest } })
+    expect(completed.tool.state.metadata?.verification).toMatchObject({
+      status: "completed",
+      reset: "completion_barrier",
+      state: { level: "l0", failures: 0 },
+      completion: { canComplete: true, revisionDigest: repaired.artifact.revisionDigest },
+    })
     expect((yield* delegations.foldState(producer.receipt.delegationID))?.delegation.status).toBe("archived")
-    if (actualPassed.source?.type !== "tool") return yield* Effect.die(new Error("MC04b passed child result has no Tool source"))
-    const childReset = yield* mc04bTask(fixture, "mc04b-child-passed-source", { description: "Consume the owned child passed result", prompt: "Observe the exact saved child compiler pass.", subagent_type: "build", execution_type: "judge", verification: { source: { sessionID: repaired.receipt.childSessionID, messageID: SessionMessage.ID.make(actualPassed.source.messageID), id: actualPassed.source.id } } })
-    expect(childReset.verification).toMatchObject({ level: "l0", reset: "l0_passed", mechanicalSource: { sessionID: repaired.receipt.childSessionID }, state: { level: "l0", failures: 0 } })
+    if (actualPassed.source?.type !== "tool")
+      return yield* Effect.die(new Error("MC04b passed child result has no Tool source"))
+    const childReset = yield* mc04bTask(fixture, "mc04b-child-passed-source", {
+      description: "Consume the owned child passed result",
+      prompt: "Observe the exact saved child compiler pass.",
+      subagent_type: "build",
+      execution_type: "judge",
+      verification: {
+        source: {
+          sessionID: repaired.receipt.childSessionID,
+          messageID: SessionMessage.ID.make(actualPassed.source.messageID),
+          id: actualPassed.source.id,
+        },
+      },
+    })
+    expect(childReset.verification).toMatchObject({
+      level: "l0",
+      reset: "l0_passed",
+      mechanicalSource: { sessionID: repaired.receipt.childSessionID },
+      state: { level: "l0", failures: 0 },
+    })
     const sources = [judged, r1, rejected, repair, approved, refused, retracted, completed, childReset]
     const requests = yield* fixture.llm.requests()
-    console.info("MC04B_FULL_CONSUMER", JSON.stringify({
-      mechanical: mechanical.tool.state.metadata?.verification,
-      visibleMechanical: { text: mechanicalText, source: verification.source, taskInput: requestedJudges[0] },
-      judge: output,
-      repairedMechanical: passed.state.metadata?.verification,
-      results: sources.map((result) => ({ source: { messageID: result.assistant.id, id: result.tool.id }, body: result.text, metadata: result.tool.state.status === "completed" ? result.tool.state.metadata : undefined })),
-      consumers: sources.map((result) => ({ id: result.tool.id, bodySha256: createHash("sha256").update(result.text).digest("hex"), requests: requests.flatMap((request, index) => request.messages.flatMap((message) => message.role === "tool" ? message.content : []).some((part) => part.type === "tool-result" && part.id === result.tool.id && part.result.type === "text" && part.result.value === result.text) ? [index] : []) })),
-      modelRequests: requests.map((request) => ({ provider: request.model.provider, id: request.model.id, route: request.model.route.id })),
-    }))
+    console.info(
+      "MC04B_FULL_CONSUMER",
+      JSON.stringify({
+        mechanical: mechanical.tool.state.metadata?.verification,
+        visibleMechanical: { text: mechanicalText, source: verification.source, taskInput: requestedJudges[0] },
+        judge: output,
+        repairedMechanical: passed.state.metadata?.verification,
+        results: sources.map((result) => ({
+          source: { messageID: result.assistant.id, id: result.tool.id },
+          body: result.text,
+          metadata: result.tool.state.status === "completed" ? result.tool.state.metadata : undefined,
+        })),
+        consumers: sources.map((result) => ({
+          id: result.tool.id,
+          bodySha256: createHash("sha256").update(result.text).digest("hex"),
+          requests: requests.flatMap((request, index) =>
+            request.messages
+              .flatMap((message) => (message.role === "tool" ? message.content : []))
+              .some(
+                (part) =>
+                  part.type === "tool-result" &&
+                  part.id === result.tool.id &&
+                  part.result.type === "text" &&
+                  part.result.value === result.text,
+              )
+              ? [index]
+              : [],
+          ),
+        })),
+        modelRequests: requests.map((request) => ({
+          provider: request.model.provider,
+          id: request.model.id,
+          route: request.model.route.id,
+        })),
+      }),
+    )
   }),
 )
 
-effectTest.live("MC04b saves threshold-two failure counts once, reads them back, and resets on a fresh passed source", () =>
-  Effect.gen(function* () {
-    const fixture = yield* mc04bSetup()
-    const failed = yield* mc04bWrite(fixture, "mc04b-count-failed", "export const value: string = 1\n")
-    const input = {
-      description: "Consume the saved mechanical result", prompt: "Observe the exact saved result.", subagent_type: "build", execution_type: "judge" as const,
-      judge_models: [`${fixture.executorModel.providerID}/${fixture.executorModel.id}`, `${fixture.metaModel.providerID}/${fixture.metaModel.id}`],
-      verification: { source: { messageID: failed.assistant.id, id: failed.tool.id } },
-    }
-    const first = yield* mc04bTask(fixture, "mc04b-count-first", input)
-    expect(first.verification).toMatchObject({ level: "l0", status: "not_dispatched", state: { level: "l0", failures: 1 } })
-    const duplicate = yield* mc04bTask(fixture, "mc04b-count-duplicate", input)
-    expect(duplicate.verification.state).toEqual(first.verification.state)
-    expect(yield* SessionTask.Service.use((tasks) => tasks.get(fixture.root.id))).toHaveLength(0)
-    const second = yield* mc04bWrite(fixture, "mc04b-count-second-failure", "export const value: string = 2\n")
-    const advisory = yield* mc04bTask(fixture, "mc04b-count-l1", { ...input, verification: { source: { messageID: second.assistant.id, id: second.tool.id } } }, [TestLLM.text('{"observations":[]}', "mc04b-count-a"), TestLLM.text('{"observations":[]}', "mc04b-count-b")])
-    expect(advisory.verification).toMatchObject({ level: "l1", reset: "none", state: { level: "l1", failures: 0 }, observations: [{ status: "no_issue_reported" }, { status: "no_issue_reported" }] })
-    const fixed = yield* mc04bWrite(fixture, "mc04b-count-passed", 'export const value: string = "fixed"\n')
-    const passed = yield* mc04bTask(fixture, "mc04b-count-reset", { ...input, verification: { source: { messageID: fixed.assistant.id, id: fixed.tool.id } } })
-    expect(passed.verification).toMatchObject({ level: "l0", reset: "l0_passed", state: { level: "l0", failures: 0 } })
-    const stale = yield* mc04bTask(fixture, "mc04b-count-stale", input)
-    expect(stale.verification).toMatchObject({ status: "unavailable", reset: "none", state: { level: "l0", failures: 0 } })
-    expect(stale.verification.reason).toContain("stale")
-    console.info("MC04B_COUNT_REPLAY", JSON.stringify({ first: first.verification, duplicate: duplicate.verification, advisory: advisory.verification, passed: passed.verification, stale: stale.verification }))
-  }),
+effectTest.live(
+  "MC04b saves threshold-two failure counts once, reads them back, and resets on a fresh passed source",
+  () =>
+    Effect.gen(function* () {
+      const fixture = yield* mc04bSetup()
+      const failed = yield* mc04bWrite(fixture, "mc04b-count-failed", "export const value: string = 1\n")
+      const input = {
+        description: "Consume the saved mechanical result",
+        prompt: "Observe the exact saved result.",
+        subagent_type: "build",
+        execution_type: "judge" as const,
+        judge_models: [
+          `${fixture.executorModel.providerID}/${fixture.executorModel.id}`,
+          `${fixture.metaModel.providerID}/${fixture.metaModel.id}`,
+        ],
+        verification: { source: { messageID: failed.assistant.id, id: failed.tool.id } },
+      }
+      const first = yield* mc04bTask(fixture, "mc04b-count-first", input)
+      expect(first.verification).toMatchObject({
+        level: "l0",
+        status: "not_dispatched",
+        state: { level: "l0", failures: 1 },
+      })
+      const duplicate = yield* mc04bTask(fixture, "mc04b-count-duplicate", input)
+      expect(duplicate.verification.state).toEqual(first.verification.state)
+      expect(yield* SessionTask.Service.use((tasks) => tasks.get(fixture.root.id))).toHaveLength(0)
+      const second = yield* mc04bWrite(fixture, "mc04b-count-second-failure", "export const value: string = 2\n")
+      const advisory = yield* mc04bTask(
+        fixture,
+        "mc04b-count-l1",
+        { ...input, verification: { source: { messageID: second.assistant.id, id: second.tool.id } } },
+        [TestLLM.text('{"observations":[]}', "mc04b-count-a"), TestLLM.text('{"observations":[]}', "mc04b-count-b")],
+      )
+      expect(advisory.verification).toMatchObject({
+        level: "l1",
+        reset: "none",
+        state: { level: "l1", failures: 0 },
+        observations: [{ status: "no_issue_reported" }, { status: "no_issue_reported" }],
+      })
+      const fixed = yield* mc04bWrite(fixture, "mc04b-count-passed", 'export const value: string = "fixed"\n')
+      const passed = yield* mc04bTask(fixture, "mc04b-count-reset", {
+        ...input,
+        verification: { source: { messageID: fixed.assistant.id, id: fixed.tool.id } },
+      })
+      expect(passed.verification).toMatchObject({
+        level: "l0",
+        reset: "l0_passed",
+        state: { level: "l0", failures: 0 },
+      })
+      const stale = yield* mc04bTask(fixture, "mc04b-count-stale", input)
+      expect(stale.verification).toMatchObject({
+        status: "unavailable",
+        reset: "none",
+        state: { level: "l0", failures: 0 },
+      })
+      expect(stale.verification.reason).toContain("stale")
+      console.info(
+        "MC04B_COUNT_REPLAY",
+        JSON.stringify({
+          first: first.verification,
+          duplicate: duplicate.verification,
+          advisory: advisory.verification,
+          passed: passed.verification,
+          stale: stale.verification,
+        }),
+      )
+    }),
 )
 
 effectTest.live("MC04b disabled escalation retains actual base L0 and dispatches no Judge", () =>
@@ -543,8 +752,20 @@ effectTest.live("MC04b disabled escalation retains actual base L0 and dispatches
     const fixture = yield* mc04bSetup(ConfigMeta.Verifier.make({ escalation_enabled: false, escalation_threshold: 1 }))
     const failed = yield* mc04bWrite(fixture, "mc04b-disabled-write", "export const value: string = 1\n")
     expect(failed.mechanical.status).toBe("failed")
-    const result = yield* mc04bTask(fixture, "mc04b-disabled-task", { description: "Evaluate disabled escalation", prompt: "Observe the saved compiler result.", subagent_type: "build", execution_type: "judge", verification: { source: { messageID: failed.assistant.id, id: failed.tool.id } } })
-    expect(result.verification).toMatchObject({ enabled: false, level: "l0", status: "not_dispatched", state: { level: "l0", failures: 0 }, mechanical: { status: "failed" } })
+    const result = yield* mc04bTask(fixture, "mc04b-disabled-task", {
+      description: "Evaluate disabled escalation",
+      prompt: "Observe the saved compiler result.",
+      subagent_type: "build",
+      execution_type: "judge",
+      verification: { source: { messageID: failed.assistant.id, id: failed.tool.id } },
+    })
+    expect(result.verification).toMatchObject({
+      enabled: false,
+      level: "l0",
+      status: "not_dispatched",
+      state: { level: "l0", failures: 0 },
+      mechanical: { status: "failed" },
+    })
     expect(yield* SessionTask.Service.use((tasks) => tasks.get(fixture.root.id))).toHaveLength(0)
     expect(yield* fixture.llm.requests()).toHaveLength(4)
   }),
@@ -553,44 +774,134 @@ effectTest.live("MC04b disabled escalation retains actual base L0 and dispatches
 for (const status of ["unavailable", "unchecked"] as const)
   effectTest.live(`MC04b ${status} mechanical result counts no code failure`, () =>
     Effect.gen(function* () {
-      const fixture = yield* mc04bSetup(ConfigMeta.Verifier.make({ enabled: status !== "unchecked", escalation_enabled: true, escalation_threshold: 1 }), "mc04b-nonexistent-typechecker")
+      const fixture = yield* mc04bSetup(
+        ConfigMeta.Verifier.make({
+          enabled: status !== "unchecked",
+          escalation_enabled: true,
+          escalation_threshold: 1,
+        }),
+        "mc04b-nonexistent-typechecker",
+      )
       const saved = yield* mc04bWrite(fixture, `mc04b-${status}-write`, "export const value: string = 1\n")
       expect(saved.mechanical.status).toBe(status)
-      const result = yield* mc04bTask(fixture, `mc04b-${status}-task`, { description: "Consume the actual unavailable result", prompt: "Observe the saved result.", subagent_type: "build", execution_type: "judge", verification: { source: { messageID: saved.assistant.id, id: saved.tool.id } } })
-      expect(result.verification).toMatchObject({ level: "l0", status: "not_dispatched", reset: "none", state: { level: "l0", failures: 0 } })
+      const result = yield* mc04bTask(fixture, `mc04b-${status}-task`, {
+        description: "Consume the actual unavailable result",
+        prompt: "Observe the saved result.",
+        subagent_type: "build",
+        execution_type: "judge",
+        verification: { source: { messageID: saved.assistant.id, id: saved.tool.id } },
+      })
+      expect(result.verification).toMatchObject({
+        level: "l0",
+        status: "not_dispatched",
+        reset: "none",
+        state: { level: "l0", failures: 0 },
+      })
       expect(yield* SessionTask.Service.use((tasks) => tasks.get(fixture.root.id))).toHaveLength(0)
     }),
   )
 
-effectTest.live("MC04b explicit content creation retains invalid approved text and empty advisory without granting quality", () =>
-  Effect.gen(function* () {
-    const fixture = yield* mc04bSetup(ConfigMeta.Verifier.make({ escalation_enabled: true, escalation_threshold: 1 }), false)
-    const result = yield* mc04bTask(fixture, "mc04b-content-judge", { description: "Observe explicit content evidence", prompt: "Content evidence is complete. 🚀", subagent_type: "build", execution_type: "judge", judge_models: [`${fixture.executorModel.providerID}/${fixture.executorModel.id}`, `${fixture.metaModel.providerID}/${fixture.metaModel.id}`], verification: { intent: "content_creation" } }, [TestLLM.text("approved", "mc04b-content-approved"), TestLLM.text('{"observations":[]}', "mc04b-content-empty")])
-    const output = Schema.decodeUnknownSync(Schema.fromJsonString(TaskTool.JudgeOutput))(result.text)
-    expect(output.workers.map((worker) => worker.text)).toEqual(["approved", '{"observations":[]}'])
-    expect(result.verification).toMatchObject({ mechanical: { status: "unavailable", packages: [] }, level: "l1", reset: "none", state: { level: "l1", failures: 0 }, observations: [{ status: "invalid" }, { status: "no_issue_reported" }] })
-    expect(yield* Effect.promise(() => Bun.file(`${fixture.root.location.directory}/package.json`).exists())).toBe(false)
-    expect(yield* Effect.promise(() => Bun.file(`${fixture.root.location.directory}/.git/HEAD`).exists())).toBe(false)
-    const delegations = yield* DelegationService.Service
-    for (const worker of output.workers) expect((yield* delegations.foldState(worker.delegationID))?.reviews).toEqual([])
-    const database = yield* Database.Service
-    expect(yield* database.db.select().from(ScopedGrantTable)).toEqual([])
-    const wrongSource = yield* mc04bTask(fixture, "mc04b-content-wrong-source", { description: "Reject the wrong saved Tool type", prompt: "Observe the referenced result.", subagent_type: "build", execution_type: "judge", verification: { source: { messageID: result.assistant.id, id: result.tool.id } } })
-    expect(wrongSource.verification).toMatchObject({ status: "unavailable", reset: "none", state: { level: "l1", failures: 0 } })
-    expect(wrongSource.verification.reason).toContain("write/edit/patch")
-  }),
+effectTest.live(
+  "MC04b explicit content creation retains invalid approved text and empty advisory without granting quality",
+  () =>
+    Effect.gen(function* () {
+      const fixture = yield* mc04bSetup(
+        ConfigMeta.Verifier.make({ escalation_enabled: true, escalation_threshold: 1 }),
+        false,
+      )
+      const result = yield* mc04bTask(
+        fixture,
+        "mc04b-content-judge",
+        {
+          description: "Observe explicit content evidence",
+          prompt: "Content evidence is complete. 🚀",
+          subagent_type: "build",
+          execution_type: "judge",
+          judge_models: [
+            `${fixture.executorModel.providerID}/${fixture.executorModel.id}`,
+            `${fixture.metaModel.providerID}/${fixture.metaModel.id}`,
+          ],
+          verification: { intent: "content_creation" },
+        },
+        [
+          TestLLM.text("approved", "mc04b-content-approved"),
+          TestLLM.text('{"observations":[]}', "mc04b-content-empty"),
+        ],
+      )
+      const output = Schema.decodeUnknownSync(Schema.fromJsonString(TaskTool.JudgeOutput))(result.text)
+      expect(output.workers.map((worker) => worker.text)).toEqual(["approved", '{"observations":[]}'])
+      expect(result.verification).toMatchObject({
+        mechanical: { status: "unavailable", packages: [] },
+        level: "l1",
+        reset: "none",
+        state: { level: "l1", failures: 0 },
+        observations: [{ status: "invalid" }, { status: "no_issue_reported" }],
+      })
+      expect(yield* Effect.promise(() => Bun.file(`${fixture.root.location.directory}/package.json`).exists())).toBe(
+        false,
+      )
+      expect(yield* Effect.promise(() => Bun.file(`${fixture.root.location.directory}/.git/HEAD`).exists())).toBe(false)
+      const delegations = yield* DelegationService.Service
+      for (const worker of output.workers)
+        expect((yield* delegations.foldState(worker.delegationID))?.reviews).toEqual([])
+      const database = yield* Database.Service
+      expect(yield* database.db.select().from(ScopedGrantTable)).toEqual([])
+      const wrongSource = yield* mc04bTask(fixture, "mc04b-content-wrong-source", {
+        description: "Reject the wrong saved Tool type",
+        prompt: "Observe the referenced result.",
+        subagent_type: "build",
+        execution_type: "judge",
+        verification: { source: { messageID: result.assistant.id, id: result.tool.id } },
+      })
+      expect(wrongSource.verification).toMatchObject({
+        status: "unavailable",
+        reset: "none",
+        state: { level: "l1", failures: 0 },
+      })
+      expect(wrongSource.verification.reason).toContain("write/edit/patch")
+    }),
 )
 
 for (const condition of ["missing_model", "unavailable_model", "permission_denied"] as const)
   effectTest.live(`MC04b ${condition} retains accurate undispatched facts without a child`, () =>
     Effect.gen(function* () {
-      const fixture = yield* mc04bSetup(ConfigMeta.Verifier.make({ escalation_enabled: true, escalation_threshold: 1 }), false)
-      if (condition === "permission_denied") yield* fixture.sessions.setPermissions({ sessionID: fixture.root.id, permissions: [{ action: "*", resource: "*", effect: "allow" }, { action: "task", resource: "build", effect: "deny" }] })
-      const input = { description: "Observe missing dispatch conditions", prompt: "The content needs evidence.", subagent_type: "build", execution_type: "judge" as const, verification: { intent: "content_creation" as const }, ...(condition === "missing_model" ? {} : { judge_models: [`${fixture.executorModel.providerID}/${fixture.executorModel.id}`, `${fixture.metaModel.providerID}/${condition === "unavailable_model" ? "missing-model" : fixture.metaModel.id}`] }) }
+      const fixture = yield* mc04bSetup(
+        ConfigMeta.Verifier.make({ escalation_enabled: true, escalation_threshold: 1 }),
+        false,
+      )
+      if (condition === "permission_denied")
+        yield* fixture.sessions.setPermissions({
+          sessionID: fixture.root.id,
+          permissions: [
+            { action: "*", resource: "*", effect: "allow" },
+            { action: "task", resource: "build", effect: "deny" },
+          ],
+        })
+      const input = {
+        description: "Observe missing dispatch conditions",
+        prompt: "The content needs evidence.",
+        subagent_type: "build",
+        execution_type: "judge" as const,
+        verification: { intent: "content_creation" as const },
+        ...(condition === "missing_model"
+          ? {}
+          : {
+              judge_models: [
+                `${fixture.executorModel.providerID}/${fixture.executorModel.id}`,
+                `${fixture.metaModel.providerID}/${condition === "unavailable_model" ? "missing-model" : fixture.metaModel.id}`,
+              ],
+            }),
+      }
       const result = yield* mc04bTask(fixture, `mc04b-${condition}`, input)
       expect(result.verification.status).toBe("unavailable")
       expect(result.verification.reset).toBe("none")
-      expect(result.verification.reason).toMatch(condition === "missing_model" ? /judge_models/ : condition === "unavailable_model" ? /unavailable/ : /denied|blocked/i)
+      expect(result.verification.reason).toMatch(
+        condition === "missing_model"
+          ? /judge_models/
+          : condition === "unavailable_model"
+            ? /unavailable/
+            : /denied|blocked/i,
+      )
       expect(yield* SessionTask.Service.use((tasks) => tasks.get(fixture.root.id))).toHaveLength(0)
       expect(yield* fixture.llm.requests()).toHaveLength(2)
     }),
@@ -598,70 +909,218 @@ for (const condition of ["missing_model", "unavailable_model", "permission_denie
 
 effectTest.live("MC04b failed Judge worker retains its completed sibling observation and full parent result", () =>
   Effect.gen(function* () {
-    const fixture = yield* mc04bSetup(ConfigMeta.Verifier.make({ escalation_enabled: true, escalation_threshold: 1 }), false)
-    const observed = JSON.stringify({ observations: [{ kind: "missing_evidence", quote: "Evidence is missing.", detail: "The evidence must be supplied." }] })
-    const result = yield* mc04bTask(fixture, "mc04b-partial-failure", { description: "Observe incomplete content evidence", prompt: "Evidence is missing.", subagent_type: "build", execution_type: "judge", judge_models: [`${fixture.executorModel.providerID}/${fixture.executorModel.id}`, `${fixture.metaModel.providerID}/${fixture.metaModel.id}`], verification: { intent: "content_creation" } }, [TestLLM.text(observed, "mc04b-completed-sibling"), Stream.fail(new AIError({ reason: new InvalidRequestError({ message: "MC04b controlled worker failure" }) }))])
+    const fixture = yield* mc04bSetup(
+      ConfigMeta.Verifier.make({ escalation_enabled: true, escalation_threshold: 1 }),
+      false,
+    )
+    const observed = JSON.stringify({
+      observations: [
+        { kind: "missing_evidence", quote: "Evidence is missing.", detail: "The evidence must be supplied." },
+      ],
+    })
+    const result = yield* mc04bTask(
+      fixture,
+      "mc04b-partial-failure",
+      {
+        description: "Observe incomplete content evidence",
+        prompt: "Evidence is missing.",
+        subagent_type: "build",
+        execution_type: "judge",
+        judge_models: [
+          `${fixture.executorModel.providerID}/${fixture.executorModel.id}`,
+          `${fixture.metaModel.providerID}/${fixture.metaModel.id}`,
+        ],
+        verification: { intent: "content_creation" },
+      },
+      [
+        TestLLM.text(observed, "mc04b-completed-sibling"),
+        Stream.fail(new AIError({ reason: new InvalidRequestError({ message: "MC04b controlled worker failure" }) })),
+      ],
+    )
     const output = Schema.decodeUnknownSync(Schema.fromJsonString(TaskTool.JudgeOutput))(result.text)
     expect(output.status).toBe("failed")
     expect(output.workers.map((worker) => worker.status)).toEqual(["completed", "failed"])
     expect(output.workers[0]?.text).toBe(observed)
     expect(output.workers[1]?.text).toContain("MC04b controlled worker failure")
-    expect(result.verification).toMatchObject({ status: "failed", reset: "none", state: { level: "l2", failures: 0 }, observations: [{ status: "reported" }, { status: "failed" }] })
+    expect(result.verification).toMatchObject({
+      status: "failed",
+      reset: "none",
+      state: { level: "l2", failures: 0 },
+      observations: [{ status: "reported" }, { status: "failed" }],
+    })
     const successful = output.workers[0]?.receipt
     if (!successful) return yield* Effect.die(new Error("MC04b completed sibling receipt is missing"))
-    expect(yield* DelegationExecution.Service.use((execution) => execution.wait(successful))).toMatchObject({ status: "completed", text: observed })
+    expect(yield* DelegationExecution.Service.use((execution) => execution.wait(successful))).toMatchObject({
+      status: "completed",
+      text: observed,
+    })
   }),
 )
 
-effectTest.live("MC04b rejects quotes of appended format instructions and retains partial JSON without counting it", () =>
-  Effect.gen(function* () {
-    const fixture = yield* mc04bSetup(ConfigMeta.Verifier.make({ escalation_enabled: true, escalation_threshold: 1 }), false)
-    const locations = yield* LocationServiceMap.Service
-    const local = locations.get(fixture.root.location)
-    yield* Agent.Service.use((agents) => agents.transform((editor) => editor.update(Agent.ID.make("build"), (agent) => { agent.steps = 1 }))).pipe(Effect.provide(local))
-    const invalid = JSON.stringify({ observations: [{ kind: "contradiction", quote: "Return only JSON:", detail: "This quotes the appended format instruction." }] })
-    const partial = JSON.stringify({ observations: [{ kind: "missing_evidence", quote: "Original evidence.", detail: "Readable output stopped at its length limit." }] })
-    const result = yield* mc04bTask(fixture, "mc04b-instruction-anchor", { description: "Observe only original evidence", prompt: "Original evidence.", subagent_type: "build", execution_type: "judge", judge_models: [`${fixture.executorModel.providerID}/${fixture.executorModel.id}`, `${fixture.metaModel.providerID}/${fixture.metaModel.id}`], verification: { intent: "content_creation" } }, [TestLLM.text(invalid, "mc04b-format-quote"), TestLLM.complete({ reason: { normalized: "length" } }, LLMEvent.textStart({ id: "mc04b-partial-json" }), LLMEvent.textDelta({ id: "mc04b-partial-json", text: partial }), LLMEvent.textEnd({ id: "mc04b-partial-json" }))])
-    const output = Schema.decodeUnknownSync(Schema.fromJsonString(TaskTool.JudgeOutput))(result.text)
-    expect(output.input.text).toContain("Return only JSON:")
-    expect(output.workers.map((worker) => worker.text)).toEqual([invalid, partial])
-    expect(result.verification).toMatchObject({ reset: "none", state: { level: "l1", failures: 0 }, observations: [{ status: "invalid", observations: [] }, { status: "partial", observations: [] }] })
-  }),
+effectTest.live(
+  "MC04b rejects quotes of appended format instructions and retains partial JSON without counting it",
+  () =>
+    Effect.gen(function* () {
+      const fixture = yield* mc04bSetup(
+        ConfigMeta.Verifier.make({ escalation_enabled: true, escalation_threshold: 1 }),
+        false,
+      )
+      const locations = yield* LocationServiceMap.Service
+      const local = locations.get(fixture.root.location)
+      yield* Agent.Service.use((agents) =>
+        agents.transform((editor) =>
+          editor.update(Agent.ID.make("build"), (agent) => {
+            agent.steps = 1
+          }),
+        ),
+      ).pipe(Effect.provide(local))
+      const invalid = JSON.stringify({
+        observations: [
+          { kind: "contradiction", quote: "Return only JSON:", detail: "This quotes the appended format instruction." },
+        ],
+      })
+      const partial = JSON.stringify({
+        observations: [
+          {
+            kind: "missing_evidence",
+            quote: "Original evidence.",
+            detail: "Readable output stopped at its length limit.",
+          },
+        ],
+      })
+      const result = yield* mc04bTask(
+        fixture,
+        "mc04b-instruction-anchor",
+        {
+          description: "Observe only original evidence",
+          prompt: "Original evidence.",
+          subagent_type: "build",
+          execution_type: "judge",
+          judge_models: [
+            `${fixture.executorModel.providerID}/${fixture.executorModel.id}`,
+            `${fixture.metaModel.providerID}/${fixture.metaModel.id}`,
+          ],
+          verification: { intent: "content_creation" },
+        },
+        [
+          TestLLM.text(invalid, "mc04b-format-quote"),
+          TestLLM.complete(
+            { reason: { normalized: "length" } },
+            LLMEvent.textStart({ id: "mc04b-partial-json" }),
+            LLMEvent.textDelta({ id: "mc04b-partial-json", text: partial }),
+            LLMEvent.textEnd({ id: "mc04b-partial-json" }),
+          ),
+        ],
+      )
+      const output = Schema.decodeUnknownSync(Schema.fromJsonString(TaskTool.JudgeOutput))(result.text)
+      expect(output.input.text).toContain("Return only JSON:")
+      expect(output.workers.map((worker) => worker.text)).toEqual([invalid, partial])
+      expect(result.verification).toMatchObject({
+        reset: "none",
+        state: { level: "l1", failures: 0 },
+        observations: [
+          { status: "invalid", observations: [] },
+          { status: "partial", observations: [] },
+        ],
+      })
+    }),
 )
 
 for (const reportsIssue of [true, false]) {
-  effectTest.live(`MC04b cancelled Judge retains ${reportsIssue ? "reported" : "empty"} completed workers for exact parent consumption`, () =>
-    Effect.gen(function* () {
-      const fixture = yield* mc04bSetup(ConfigMeta.Verifier.make({ escalation_enabled: true, escalation_threshold: 1 }), false)
-      const observed = JSON.stringify({ observations: reportsIssue ? [{ kind: "missing_evidence", quote: "Original cancellation evidence.", detail: "The completed sibling reported missing evidence." }] : [] })
-      const input = { description: "Observe cancellable evidence", prompt: "Original cancellation evidence.", subagent_type: "build", execution_type: "judge" as const, judge_models: [`${fixture.executorModel.providerID}/${fixture.executorModel.id}`, `${fixture.metaModel.providerID}/${fixture.metaModel.id}`], verification: { intent: "content_creation" as const } }
-      const ready = yield* Deferred.make<(typeof TaskTool.JudgeOutput.Type.workers)[number]>()
-      const bus = yield* Bus.Service
-      const unsubscribe = yield* bus.listen((event) => {
-        if (event.type !== SessionEvent.Tool.Progress.type) return Effect.void
-        const progress = Schema.decodeUnknownSync(SessionEvent.Tool.Progress.data)(event.data)
-        if (progress.sessionID !== fixture.root.id || progress.id !== "mc04b-cancel-judge") return Effect.void
-        const workers = Schema.decodeUnknownOption(TaskTool.JudgeOutput.fields.workers)(progress.metadata.completedWorkers)
-        return Option.isSome(workers) && workers.value.length === 1 && workers.value[0] ? Deferred.succeed(ready, workers.value[0]).pipe(Effect.asVoid) : Effect.void
-      })
-      yield* Effect.addFinalizer(() => unsubscribe)
-      yield* fixture.llm.push(TestLLM.tool("mc04b-cancel-judge", TaskTool.name, input))
-      yield* fixture.llm.serve((request) => request.messages.some((message) => message.role === "user" && message.content.some((part) => part.type === "text" && part.text.includes("<verification_source>"))) ? String(request.model.id) === fixture.executorModel.id ? TestLLM.text(observed, "mc04b-cancel-completed") : Stream.never : TestLLM.text("Consumed the retained cancellation facts.", "mc04b-cancel-parent"))
-      yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: input.description })
-      yield* awaitWithTimeout(fixture.llm.wait(3), "MC04b cancellable workers did not start", "10 seconds")
-      const completed = yield* awaitWithTimeout(Deferred.await(ready), "MC04b completed sibling progress was not observed", "10 seconds")
-      if (!completed.receipt) return yield* Effect.die(new Error("MC04b completed sibling has no exact receipt"))
-      const receipt = completed.receipt
-      expect(completed.text).toBe(observed)
-      expect(yield* fixture.runs.interrupt(fixture.root.id)).toBe(true)
-      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC04b cancellation did not settle", "10 seconds")
-      const cancelled = yield* mc07Result(fixture, "mc04b-cancel-judge")
-      expect(cancelled.tool.state.status).toBe("error")
-      if (cancelled.tool.state.status !== "error") return yield* Effect.die(new Error("MC04b cancellation has no saved Tool error"))
-      const settlement = Schema.decodeUnknownSync(VerificationRouter.Settlement)(cancelled.tool.state.metadata?.verification)
-      expect(settlement).toMatchObject({ status: "cancelled", reset: "none", state: { level: reportsIssue ? "l2" : "l1", failures: 0 }, observations: [{ status: reportsIssue ? "reported" : "no_issue_reported" }] })
-      expect(Schema.decodeUnknownSync(TaskTool.JudgeOutput.fields.workers)(cancelled.tool.state.metadata?.completedWorkers)).toEqual([completed])
-      expect(yield* DelegationExecution.Service.use((execution) => execution.wait(receipt))).toMatchObject({ status: "completed", text: observed })
+  effectTest.live(
+    `MC04b cancelled Judge retains ${reportsIssue ? "reported" : "empty"} completed workers for exact parent consumption`,
+    () =>
+      Effect.gen(function* () {
+        const fixture = yield* mc04bSetup(
+          ConfigMeta.Verifier.make({ escalation_enabled: true, escalation_threshold: 1 }),
+          false,
+        )
+        const observed = JSON.stringify({
+          observations: reportsIssue
+            ? [
+                {
+                  kind: "missing_evidence",
+                  quote: "Original cancellation evidence.",
+                  detail: "The completed sibling reported missing evidence.",
+                },
+              ]
+            : [],
+        })
+        const input = {
+          description: "Observe cancellable evidence",
+          prompt: "Original cancellation evidence.",
+          subagent_type: "build",
+          execution_type: "judge" as const,
+          judge_models: [
+            `${fixture.executorModel.providerID}/${fixture.executorModel.id}`,
+            `${fixture.metaModel.providerID}/${fixture.metaModel.id}`,
+          ],
+          verification: { intent: "content_creation" as const },
+        }
+        const ready = yield* Deferred.make<(typeof TaskTool.JudgeOutput.Type.workers)[number]>()
+        const bus = yield* Bus.Service
+        const unsubscribe = yield* bus.listen((event) => {
+          if (event.type !== SessionEvent.Tool.Progress.type) return Effect.void
+          const progress = Schema.decodeUnknownSync(SessionEvent.Tool.Progress.data)(event.data)
+          if (progress.sessionID !== fixture.root.id || progress.id !== "mc04b-cancel-judge") return Effect.void
+          const workers = Schema.decodeUnknownOption(TaskTool.JudgeOutput.fields.workers)(
+            progress.metadata.completedWorkers,
+          )
+          return Option.isSome(workers) && workers.value.length === 1 && workers.value[0]
+            ? Deferred.succeed(ready, workers.value[0]).pipe(Effect.asVoid)
+            : Effect.void
+        })
+        yield* Effect.addFinalizer(() => unsubscribe)
+        yield* fixture.llm.push(TestLLM.tool("mc04b-cancel-judge", TaskTool.name, input))
+        yield* fixture.llm.serve((request) =>
+          request.messages.some(
+            (message) =>
+              message.role === "user" &&
+              message.content.some((part) => part.type === "text" && part.text.includes("<verification_source>")),
+          )
+            ? String(request.model.id) === fixture.executorModel.id
+              ? TestLLM.text(observed, "mc04b-cancel-completed")
+              : Stream.never
+            : TestLLM.text("Consumed the retained cancellation facts.", "mc04b-cancel-parent"),
+        )
+        yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: input.description })
+        yield* awaitWithTimeout(fixture.llm.wait(3), "MC04b cancellable workers did not start", "10 seconds")
+        const completed = yield* awaitWithTimeout(
+          Deferred.await(ready),
+          "MC04b completed sibling progress was not observed",
+          "10 seconds",
+        )
+        if (!completed.receipt) return yield* Effect.die(new Error("MC04b completed sibling has no exact receipt"))
+        const receipt = completed.receipt
+        expect(completed.text).toBe(observed)
+        expect(yield* fixture.runs.interrupt(fixture.root.id)).toBe(true)
+        yield* awaitWithTimeout(
+          fixture.runs.awaitIdle(fixture.root.id),
+          "MC04b cancellation did not settle",
+          "10 seconds",
+        )
+        const cancelled = yield* mc07Result(fixture, "mc04b-cancel-judge")
+        expect(cancelled.tool.state.status).toBe("error")
+        if (cancelled.tool.state.status !== "error")
+          return yield* Effect.die(new Error("MC04b cancellation has no saved Tool error"))
+        const settlement = Schema.decodeUnknownSync(VerificationRouter.Settlement)(
+          cancelled.tool.state.metadata?.verification,
+        )
+        expect(settlement).toMatchObject({
+          status: "cancelled",
+          reset: "none",
+          state: { level: reportsIssue ? "l2" : "l1", failures: 0 },
+          observations: [{ status: reportsIssue ? "reported" : "no_issue_reported" }],
+        })
+        expect(
+          Schema.decodeUnknownSync(TaskTool.JudgeOutput.fields.workers)(
+            cancelled.tool.state.metadata?.completedWorkers,
+          ),
+        ).toEqual([completed])
+        expect(yield* DelegationExecution.Service.use((execution) => execution.wait(receipt))).toMatchObject({
+          status: "completed",
+          text: observed,
+        })
         const beforeRead = yield* fixture.llm.requests()
         const sources = yield* DelegationExecution.Service.use((execution) =>
           execution.readSources(receipt.delegationID),
@@ -786,52 +1245,205 @@ for (const reportsIssue of [true, false]) {
         expect(
           yield* Effect.forEach([fixture.root.id, receipt.childSessionID, receipt.delegationID], (aggregateID) =>
             bus.log({ aggregateID }).pipe(Stream.runCollect),
-      )).toEqual(readOnly.events)
-      const unrelated = yield* mc04bTask(fixture, "mc04b-cancel-unrelated", { description: "Read unrelated content facts", prompt: "A different content request.", subagent_type: "build", verification: input.verification })
-      expect(unrelated.text).not.toContain("<retained_judge_results>")
-      const replay = yield* mc04bTask(fixture, "mc04b-cancel-replay", input, reportsIssue ? [] : [TestLLM.text(JSON.stringify({ observations: [] }), "mc04b-new-judge-first"), TestLLM.text(JSON.stringify({ observations: [] }), "mc04b-new-judge-second")])
-      expect(replay.verification).toMatchObject({ status: reportsIssue ? "not_dispatched" : "completed", reset: "none", state: { level: reportsIssue ? "l2" : "l1", failures: 0 } })
-      const restored = reportsIssue
-        ? Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Array(Schema.Struct({ verification: VerificationRouter.Settlement, workers: TaskTool.JudgeOutput.fields.workers }))))(replay.text.match(/<retained_judge_results>([\s\S]*?)<\/retained_judge_results>/)?.[1])
-        : Schema.decodeUnknownSync(Schema.fromJsonString(TaskTool.JudgeOutput))(replay.text).retained
-      expect(restored).toEqual([{ verification: settlement, workers: [completed] }])
-      if (replay.tool.state.status !== "completed") return yield* Effect.die(new Error("MC04b restored result has no saved canonical Tool content"))
-      expect(replay.tool.state.metadata?.restoredVerificationSources).toEqual([Schema.encodeSync(VerificationRouter.Source)(settlement.source)])
-      const repeated = yield* mc04bTask(fixture, "mc04b-cancel-repeat", { description: "Read the same saved facts", prompt: input.prompt, subagent_type: "build", verification: input.verification })
-      expect(repeated.text).not.toContain("<retained_judge_results>")
-      const requests = yield* fixture.llm.requests()
-      expect(requests).toHaveLength(reportsIssue ? 9 : 11)
-      console.info("MC04B_CANCEL_REPLAY", JSON.stringify({ case: reportsIssue ? "reported" : "empty", source: { messageID: cancelled.assistant.id, id: cancelled.tool.id }, settlement, completed, replay: { verification: replay.verification, text: replay.text, restored, consumers: requests.flatMap((request, index) => request.messages.flatMap((message) => message.role === "tool" ? message.content : []).some((part) => part.type === "tool-result" && part.id === replay.tool.id && part.result.type === "text" && part.result.value === replay.text) ? [index] : []) }, unrelated: unrelated.text, repeated: repeated.text }))
-    }),
+          ),
+        ).toEqual(readOnly.events)
+        const unrelated = yield* mc04bTask(fixture, "mc04b-cancel-unrelated", {
+          description: "Read unrelated content facts",
+          prompt: "A different content request.",
+          subagent_type: "build",
+          verification: input.verification,
+        })
+        expect(unrelated.text).not.toContain("<retained_judge_results>")
+        const replay = yield* mc04bTask(
+          fixture,
+          "mc04b-cancel-replay",
+          input,
+          reportsIssue
+            ? []
+            : [
+                TestLLM.text(JSON.stringify({ observations: [] }), "mc04b-new-judge-first"),
+                TestLLM.text(JSON.stringify({ observations: [] }), "mc04b-new-judge-second"),
+              ],
+        )
+        expect(replay.verification).toMatchObject({
+          status: reportsIssue ? "not_dispatched" : "completed",
+          reset: "none",
+          state: { level: reportsIssue ? "l2" : "l1", failures: 0 },
+        })
+        const restored = reportsIssue
+          ? Schema.decodeUnknownSync(
+              Schema.fromJsonString(
+                Schema.Array(
+                  Schema.Struct({
+                    verification: VerificationRouter.Settlement,
+                    workers: TaskTool.JudgeOutput.fields.workers,
+                  }),
+                ),
+              ),
+            )(replay.text.match(/<retained_judge_results>([\s\S]*?)<\/retained_judge_results>/)?.[1])
+          : Schema.decodeUnknownSync(Schema.fromJsonString(TaskTool.JudgeOutput))(replay.text).retained
+        expect(restored).toEqual([{ verification: settlement, workers: [completed] }])
+        if (replay.tool.state.status !== "completed")
+          return yield* Effect.die(new Error("MC04b restored result has no saved canonical Tool content"))
+        expect(replay.tool.state.metadata?.restoredVerificationSources).toEqual([
+          Schema.encodeSync(VerificationRouter.Source)(settlement.source),
+        ])
+        const repeated = yield* mc04bTask(fixture, "mc04b-cancel-repeat", {
+          description: "Read the same saved facts",
+          prompt: input.prompt,
+          subagent_type: "build",
+          verification: input.verification,
+        })
+        expect(repeated.text).not.toContain("<retained_judge_results>")
+        const requests = yield* fixture.llm.requests()
+        expect(requests).toHaveLength(reportsIssue ? 9 : 11)
+        console.info(
+          "MC04B_CANCEL_REPLAY",
+          JSON.stringify({
+            case: reportsIssue ? "reported" : "empty",
+            source: { messageID: cancelled.assistant.id, id: cancelled.tool.id },
+            settlement,
+            completed,
+            replay: {
+              verification: replay.verification,
+              text: replay.text,
+              restored,
+              consumers: requests.flatMap((request, index) =>
+                request.messages
+                  .flatMap((message) => (message.role === "tool" ? message.content : []))
+                  .some(
+                    (part) =>
+                      part.type === "tool-result" &&
+                      part.id === replay.tool.id &&
+                      part.result.type === "text" &&
+                      part.result.value === replay.text,
+                  )
+                  ? [index]
+                  : [],
+              ),
+            },
+            unrelated: unrelated.text,
+            repeated: repeated.text,
+          }),
+        )
+      }),
   )
 }
 
-effectTest.live("MC04b reconciles an original recovery-required delivery without a first revision and keeps L2 unsettled", () =>
-  Effect.gen(function* () {
-    const fixture = yield* mc04bSetup(ConfigMeta.Verifier.make({ escalation_enabled: true, escalation_threshold: 1 }), false)
-    const observed = JSON.stringify({ observations: [{ kind: "missing_evidence", quote: "The first artifact has no evidence.", detail: "The first artifact requires investigation." }] })
-    yield* mc04bTask(fixture, "mc04b-reconcile-judge", { description: "Observe missing first artifact evidence", prompt: "The first artifact has no evidence.", subagent_type: "build", execution_type: "judge", judge_models: [`${fixture.executorModel.providerID}/${fixture.executorModel.id}`, `${fixture.metaModel.providerID}/${fixture.metaModel.id}`], verification: { intent: "content_creation" } }, [TestLLM.text(observed, "mc04b-reconcile-a"), TestLLM.text(observed, "mc04b-reconcile-b")])
-    yield* fixture.llm.push(TestLLM.tool("mc04b-existing-task", TaskTool.name, { description: "Create the original owned Task", prompt: "Produce the original Task receipt without an artifact revision.", subagent_type: "build", new_delegation: true }), TestLLM.text("The original input and receipt are retained.", "mc04b-existing-child"), TestLLM.text("Consumed the original Task receipt.", "mc04b-existing-parent"))
-    yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Prepare the existing Task recovery fixture." })
-    yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC04b original Task did not settle", "10 seconds")
-    const original = yield* mc07Consumed(fixture, "mc04b-existing-task")
-    if (original.tool.state.status !== "completed") return yield* Effect.die(new Error("MC04b original Task receipt is missing"))
-    const receipt = Schema.decodeUnknownSync(Delegation.Receipt)(original.tool.state.metadata?.receipt)
-    const delegations = yield* DelegationService.Service
-    expect((yield* delegations.foldState(receipt.delegationID))?.delegation.latestRevisionDigest).toBeUndefined()
-    const turn = yield* delegations.appendTurn({ delegationID: receipt.delegationID, kind: "task", promptSummary: "Admit the original first-artifact recovery fixture", participantIDs: [receipt.participantID], delivery: "steer", origin: { deliveryOrigin: receipt.deliveryOrigin, senderParticipantID: receipt.senderParticipantID } })
-    yield* delegations.recordDelivery({ delegationID: receipt.delegationID, turnID: turn.id, participantID: receipt.participantID, deliveryOrigin: receipt.deliveryOrigin, senderParticipantID: receipt.senderParticipantID, attempt: 1, status: "recovery_required", errorCode: "mc04b_controlled_disruption", summary: "Controlled original delivery recovery fixture" })
-    const before = yield* delegations.foldState(receipt.delegationID)
-    expect([...(before?.deliveries.values() ?? [])].map((delivery) => delivery.status)).toEqual(["completed", "recovery_required"])
-    const requests = (yield* fixture.llm.requests()).length
-    const result = yield* mc04bTask(fixture, "mc04b-l2-reconcile", { description: "Reconcile the original disrupted input", prompt: "Reconcile the existing delivery without replaying its effects.", subagent_type: "build", command: "reconcile", delegation_id: receipt.delegationID, verification: { intent: "content_creation" } })
-    expect(result.verification).toMatchObject({ level: "l2", status: "completed", reset: "none", state: { level: "l2", failures: 0 } })
-    const after = yield* delegations.foldState(receipt.delegationID)
-    expect([...(after?.deliveries.values() ?? [])].find((delivery) => delivery.turnID === turn.id)).toMatchObject({ status: "failed", errorCode: "reconciled_after_disruption" })
-    expect(after?.delegation.latestRevisionDigest).toBeUndefined()
-    expect((yield* fixture.llm.requests()).length - requests).toBe(2)
-    console.info("MC04B_RECONCILE", JSON.stringify({ receipt, source: result.verification.source, verification: result.verification, deliveries: [...(after?.deliveries.values() ?? [])] }))
-  }),
+effectTest.live(
+  "MC04b reconciles an original recovery-required delivery without a first revision and keeps L2 unsettled",
+  () =>
+    Effect.gen(function* () {
+      const fixture = yield* mc04bSetup(
+        ConfigMeta.Verifier.make({ escalation_enabled: true, escalation_threshold: 1 }),
+        false,
+      )
+      const observed = JSON.stringify({
+        observations: [
+          {
+            kind: "missing_evidence",
+            quote: "The first artifact has no evidence.",
+            detail: "The first artifact requires investigation.",
+          },
+        ],
+      })
+      yield* mc04bTask(
+        fixture,
+        "mc04b-reconcile-judge",
+        {
+          description: "Observe missing first artifact evidence",
+          prompt: "The first artifact has no evidence.",
+          subagent_type: "build",
+          execution_type: "judge",
+          judge_models: [
+            `${fixture.executorModel.providerID}/${fixture.executorModel.id}`,
+            `${fixture.metaModel.providerID}/${fixture.metaModel.id}`,
+          ],
+          verification: { intent: "content_creation" },
+        },
+        [TestLLM.text(observed, "mc04b-reconcile-a"), TestLLM.text(observed, "mc04b-reconcile-b")],
+      )
+      yield* fixture.llm.push(
+        TestLLM.tool("mc04b-existing-task", TaskTool.name, {
+          description: "Create the original owned Task",
+          prompt: "Produce the original Task receipt without an artifact revision.",
+          subagent_type: "build",
+          new_delegation: true,
+        }),
+        TestLLM.text("The original input and receipt are retained.", "mc04b-existing-child"),
+        TestLLM.text("Consumed the original Task receipt.", "mc04b-existing-parent"),
+      )
+      yield* fixture.sessions.prompt({
+        sessionID: fixture.root.id,
+        text: "Prepare the existing Task recovery fixture.",
+      })
+      yield* awaitWithTimeout(
+        fixture.runs.awaitIdle(fixture.root.id),
+        "MC04b original Task did not settle",
+        "10 seconds",
+      )
+      const original = yield* mc07Consumed(fixture, "mc04b-existing-task")
+      if (original.tool.state.status !== "completed")
+        return yield* Effect.die(new Error("MC04b original Task receipt is missing"))
+      const receipt = Schema.decodeUnknownSync(Delegation.Receipt)(original.tool.state.metadata?.receipt)
+      const delegations = yield* DelegationService.Service
+      expect((yield* delegations.foldState(receipt.delegationID))?.delegation.latestRevisionDigest).toBeUndefined()
+      const turn = yield* delegations.appendTurn({
+        delegationID: receipt.delegationID,
+        kind: "task",
+        promptSummary: "Admit the original first-artifact recovery fixture",
+        participantIDs: [receipt.participantID],
+        delivery: "steer",
+        origin: { deliveryOrigin: receipt.deliveryOrigin, senderParticipantID: receipt.senderParticipantID },
+      })
+      yield* delegations.recordDelivery({
+        delegationID: receipt.delegationID,
+        turnID: turn.id,
+        participantID: receipt.participantID,
+        deliveryOrigin: receipt.deliveryOrigin,
+        senderParticipantID: receipt.senderParticipantID,
+        attempt: 1,
+        status: "recovery_required",
+        errorCode: "mc04b_controlled_disruption",
+        summary: "Controlled original delivery recovery fixture",
+      })
+      const before = yield* delegations.foldState(receipt.delegationID)
+      expect([...(before?.deliveries.values() ?? [])].map((delivery) => delivery.status)).toEqual([
+        "completed",
+        "recovery_required",
+      ])
+      const requests = (yield* fixture.llm.requests()).length
+      const result = yield* mc04bTask(fixture, "mc04b-l2-reconcile", {
+        description: "Reconcile the original disrupted input",
+        prompt: "Reconcile the existing delivery without replaying its effects.",
+        subagent_type: "build",
+        command: "reconcile",
+        delegation_id: receipt.delegationID,
+        verification: { intent: "content_creation" },
+      })
+      expect(result.verification).toMatchObject({
+        level: "l2",
+        status: "completed",
+        reset: "none",
+        state: { level: "l2", failures: 0 },
+      })
+      const after = yield* delegations.foldState(receipt.delegationID)
+      expect([...(after?.deliveries.values() ?? [])].find((delivery) => delivery.turnID === turn.id)).toMatchObject({
+        status: "failed",
+        errorCode: "reconciled_after_disruption",
+      })
+      expect(after?.delegation.latestRevisionDigest).toBeUndefined()
+      expect((yield* fixture.llm.requests()).length - requests).toBe(2)
+      console.info(
+        "MC04B_RECONCILE",
+        JSON.stringify({
+          receipt,
+          source: result.verification.source,
+          verification: result.verification,
+          deliveries: [...(after?.deliveries.values() ?? [])],
+        }),
+      )
+    }),
 )
 
 effectTest.live(
@@ -1137,10 +1749,18 @@ effectTest.live(
       const execution = yield* DelegationExecution.Service
       const states = yield* delegations.list({ parentSessionID: fixture.root.id })
       const ready = states.find((state) =>
-        [...(state?.participants.values() ?? [])].some((participant) => participant.executor && !Model.Selection.isGroup(participant.executor.model) && participant.executor.model.id === second.id),
+        [...(state?.participants.values() ?? [])].some(
+          (participant) =>
+            participant.executor &&
+            !Model.Selection.isGroup(participant.executor.model) &&
+            participant.executor.model.id === second.id,
+        ),
       )
       const participant = [...(ready?.participants.values() ?? [])].find(
-        (participant) => participant.executor && !Model.Selection.isGroup(participant.executor.model) && participant.executor.model.id === second.id,
+        (participant) =>
+          participant.executor &&
+          !Model.Selection.isGroup(participant.executor.model) &&
+          participant.executor.model.id === second.id,
       )
       if (!participant?.childSessionID) return yield* Effect.die(new Error("Judge B actual child is missing"))
       const user = (yield* fixture.sessions.context(participant.childSessionID)).find(
@@ -1176,7 +1796,11 @@ effectTest.live(
         { provider: "judge-runtime", id: "judge-api-A" },
         { provider: "judge-runtime", id: "judge-api-B" },
       ])
-      expect(output.workers.map((worker) => Model.Selection.isGroup(worker.executor.model) ? undefined : worker.executor.model.id)).toEqual([fixture.executorModel.id, second.id])
+      expect(
+        output.workers.map((worker) =>
+          Model.Selection.isGroup(worker.executor.model) ? undefined : worker.executor.model.id,
+        ),
+      ).toEqual([fixture.executorModel.id, second.id])
       expect(output.workers[0]?.requested).toMatchObject({ variant: Model.VariantID.make("review") })
       expect(output.workers[0]?.executor.model).toMatchObject({ variant: Model.VariantID.make("review") })
       const settled = yield* tasks.get(fixture.root.id)
@@ -3075,7 +3699,9 @@ effectTest.live("MC07 R2 capture uses the new invocation's current read authoriz
         .forSession(fixture.root.id)
         .pipe(
           Effect.map((requests) =>
-            requests.find((item) => item.action === "read" && item.source?.type === "tool" && item.source.id === callID),
+            requests.find(
+              (item) => item.action === "read" && item.source?.type === "tool" && item.source.id === callID,
+            ),
           ),
         ),
       "MC07 current capture did not ask read",
@@ -4566,9 +5192,19 @@ for (const worker of ["keeper-worker", "build"] as const)
           .select()
           .from(MetaAgentStepTable)
           .where(eq(MetaAgentStepTable.meta_agent_id, controller.metaAgentID))
-        expect(steps.filter((step) => step.event_type !== SessionEvent.Attempt.Started.type && step.event_type !== SessionEvent.Attempt.Ended.type)).toHaveLength(8)
-        expect(steps.filter((step) => step.event_type === SessionEvent.Attempt.Started.type)).toHaveLength(requests.length)
-        expect(steps.filter((step) => step.event_type === SessionEvent.Attempt.Ended.type)).toHaveLength(requests.length)
+        expect(
+          steps.filter(
+            (step) =>
+              step.event_type !== SessionEvent.Attempt.Started.type &&
+              step.event_type !== SessionEvent.Attempt.Ended.type,
+          ),
+        ).toHaveLength(8)
+        expect(steps.filter((step) => step.event_type === SessionEvent.Attempt.Started.type)).toHaveLength(
+          requests.length,
+        )
+        expect(steps.filter((step) => step.event_type === SessionEvent.Attempt.Ended.type)).toHaveLength(
+          requests.length,
+        )
         expect(steps.find((step) => step.type === "receipt")).toMatchObject({
           root_session_id: f.root.id,
           meta_agent_session_id: f.root.id,
@@ -6523,7 +7159,7 @@ for (const ownerDuringRead of [false, true])
         external.state.holdResult = false
         external.releaseResult()
         yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "Original native result did not finish")
-        const context = yield * Layer.build(Layer.fresh(metaLayer(true, snapshot)))
+        const context = yield* Layer.build(Layer.fresh(metaLayer(true, snapshot)))
         expect(Context.get(context, Database.Service)).not.toBe(database)
         const sessions = Context.get(context, Session.Service)
         const root = yield* sessions.get(fixture.root.id)
@@ -8066,7 +8702,6 @@ effectTest.live("MC06 R2 cancellation at committed Started settles the owning Jo
   }),
 )
 
-
 const sdkTaskSetup = (
   toolName: "Read" | "Grep" | "Glob" = "Read",
   validIdentity = true,
@@ -8721,7 +9356,7 @@ const sdkSteerAdmit = Effect.fnUntraced(function* (
       if (yield* Deferred.isDone(f.gates.bWritten)) return true
       const messages = yield* f.sessions.context(f.root.id)
       const tool = messages
-        .flatMap((message) => message.type === "assistant" ? message.content : [])
+        .flatMap((message) => (message.type === "assistant" ? message.content : []))
         .find((part) => part.type === "tool" && part.id === "mc06-sdk-steer-b")
       if (tool?.type === "tool" && tool.state.status === "error")
         return yield* Effect.fail(new Error(`MC06 SDK steer B failed: ${JSON.stringify(tool.state)}`))
@@ -11047,7 +11682,7 @@ for (const scenario of [
       expect(f.queries).toHaveLength(1)
       expect(f.state).toEqual({ reads: 1, closed: 1, hookCalls: 1 })
 
-      const context = yield * Layer.build(Layer.fresh(metaLayer(true, snapshot)))
+      const context = yield* Layer.build(Layer.fresh(metaLayer(true, snapshot)))
       const coldDatabase = Context.get(context, Database.Service)
       expect(coldDatabase).not.toBe(database)
       const sessions = Context.get(context, Session.Service)
@@ -11810,7 +12445,7 @@ for (const scenario of [
         "Original SDK background Job did not finish its notification",
       )
       yield* unsubscribe
-      const context = yield * Layer.build(Layer.fresh(metaLayer(true, snapshot)))
+      const context = yield* Layer.build(Layer.fresh(metaLayer(true, snapshot)))
       const database = Context.get(context, Database.Service)
       expect(database).not.toBe(originalDatabase)
       const sessions = Context.get(context, Session.Service)
@@ -12744,7 +13379,7 @@ for (const scenario of [
       const original = yield* mc07Consumed(f, id)
       if (original.tool.state.status !== "completed") return yield* Effect.die(new Error("Original SDK review failed"))
       const receipt = Schema.decodeUnknownSync(DelegationReceipt.Sdk)(original.tool.state.metadata?.externalReceipt)
-      const context = yield * Layer.build(Layer.fresh(metaLayer(true, snapshot)))
+      const context = yield* Layer.build(Layer.fresh(metaLayer(true, snapshot)))
       const database = Context.get(context, Database.Service)
       expect(database).not.toBe(originalDatabase)
       const sessions = Context.get(context, Session.Service)
@@ -13728,7 +14363,7 @@ for (const phase of ["queued", "start_unknown"] as const)
         yield* awaitWithTimeout(f.runs.awaitIdle(f.root.id), "The original SDK queue fixture parent did not release")
         expect(f.queries).toHaveLength(1)
 
-        const context = yield * Layer.build(Layer.fresh(metaLayer(true, snapshot)))
+        const context = yield* Layer.build(Layer.fresh(metaLayer(true, snapshot)))
         const database = Context.get(context, Database.Service)
         expect(database).not.toBe(originalDatabase)
         const sessions = Context.get(context, Session.Service)
@@ -13973,7 +14608,7 @@ testEffect(Layer.empty).live(
       expect(sdk.queries).toHaveLength(1)
       expect(sdk.state).toEqual({ reads: 1, closed: 1, hookCalls: 1 })
 
-      const context = yield * Layer.build(Layer.fresh(metaLayer(true, snapshot)))
+      const context = yield* Layer.build(Layer.fresh(metaLayer(true, snapshot)))
       const database = Context.get(context, Database.Service)
       expect(database).not.toBe(originalDatabase)
       const sessions = Context.get(context, Session.Service)
@@ -14847,7 +15482,6 @@ for (const phase of ["delivery", "legacy"] as const)
       }),
   )
 
-
 class JsonlPeerEvent extends Schema.Class<JsonlPeerEvent>("Test.JsonlPeerEvent")({
   event: Schema.String,
   pid: Schema.Int,
@@ -15640,7 +16274,6 @@ effectTest.live(
     }),
 )
 
-
 effectTest.live(
   "MC06 JSONL formal append rejects a predecessor Binding whose source has no committed original Tool",
   () =>
@@ -15675,7 +16308,6 @@ effectTest.live(
       expect(yield* f.permission.forSession(f.root.id)).toEqual([])
     }),
 )
-
 
 const sdkResultPairSetup = Effect.fnUntraced(function* (duplicate = false) {
   yield* Effect.acquireRelease(
@@ -16483,7 +17115,6 @@ effectTest.live(
       expect(yield* f.permission.forSession(f.root.id)).toEqual([])
     }),
 )
-
 
 effectTest.live("MC06 SDK result completed B survives a nonzero original Query exit with its complete identity", () =>
   Effect.gen(function* () {

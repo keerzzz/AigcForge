@@ -68,12 +68,12 @@ nix run nixpkgs#aigcfroge           # ή github:anomalyco/aigcfroge με βάσ�
 
 Το AigcForge είναι επίσης διαθέσιμο ως εφαρμογή. Κατέβασε το απευθείας από τη [σελίδα εκδόσεων](https://github.com/anomalyco/aigcfroge/releases) ή το [aigcfroge.ai/download](https://aigcfroge.ai/download).
 
-| Πλατφόρμα             | Λήψη                               |
-| --------------------- | ---------------------------------- |
+| Πλατφόρμα             | Λήψη                                |
+| --------------------- | ----------------------------------- |
 | macOS (Apple Silicon) | `aigcfroge-desktop-mac-arm64.dmg`   |
 | macOS (Intel)         | `aigcfroge-desktop-mac-x64.dmg`     |
 | Windows               | `aigcfroge-desktop-windows-x64.exe` |
-| Linux                 | `.deb`, `.rpm`, ή AppImage         |
+| Linux                 | `.deb`, `.rpm`, ή AppImage          |
 
 ```bash
 # macOS (Homebrew)

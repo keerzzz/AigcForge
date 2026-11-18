@@ -15,7 +15,7 @@ no_code_change/R1/R2原接受保持；source和外部reviewer候选已独审，�
 **派发绑定：**
 
 - no_code_change 最终接受：[no_code_change 最终接受](/home/keer/.codex/outputs/2026-11-07/mc07-no-code-change-runtime-root-v2/root-final-acceptance.json)。
-- 本片正式派发、两文件 before 与检查槽：[Root 派发](</home/keer/.codex/outputs/2026-11-07/mc07-fanout-engineering-v1/dispatch.json>)、[两文件 before](</home/keer/.codex/outputs/2026-11-07/mc07-fanout-engineering-v1/before-files.json>)；承接新会话 Root 独占工程写入/检查槽。
+- 本片正式派发、两文件 before 与检查槽：[Root 派发](/home/keer/.codex/outputs/2026-11-07/mc07-fanout-engineering-v1/dispatch.json)、[两文件 before](/home/keer/.codex/outputs/2026-11-07/mc07-fanout-engineering-v1/before-files.json)；承接新会话 Root 独占工程写入/检查槽。
 - 工程交付目录：`/home/keer/.codex/outputs/2026-11-07/mc07-fanout-engineering-v1`。
 
 **本任务在监督 Root 发出的新会话派发消息与 dispatch.json 同时存在后生效。** 仅下列两文件工程范围生效，生产修改须有本片真实 RED；已满足的合同复用既有通过证据。当前 MC07 整体继续开放，真实 Source/Native/Codex/产品模型预算均 0。
@@ -30,22 +30,22 @@ Root 已确认 §5.6 是原合同：全目标类型/权限/来源/既有绑定�
 
 ## 精确白名单：1 生产＋1 测试
 
-| 文件 | 必要差额 |
-| --- | --- |
-| [execution.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/execution.ts:1044) | 仅真实 RED 后修原 dispatch/dispatchCall 的后提交失败结算与本次可逆资源收口。复用 ownsChild/findInput、recordDelivery、Session.cancelInbox、settle/recover、Job.cancel/completeBackground、store.release；保留原稳定 delivery/input/attempt/source、权限和锁顺序。不得以整体 close 自动抹掉另一目标的工作。 |
-| [delegation-execution.test.ts](/home/keer/workspace/aigcfroge-v2/packages/core/test/delegation-execution.test.ts:961) | 复用 setup、实际 Session/Bus/DB/Job/TestLLM 与现有 readiness。补 `MC07 fanout` 的第二目标准入故障见证，扩现有准备失败/资源收口断言；完成下列五项，已有等价 keeper直接复用。 |
+| 文件                                                                                                                  | 必要差额                                                                                                                                                                                                                                                                                                   |
+| --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [execution.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/execution.ts:1044)                      | 仅真实 RED 后修原 dispatch/dispatchCall 的后提交失败结算与本次可逆资源收口。复用 ownsChild/findInput、recordDelivery、Session.cancelInbox、settle/recover、Job.cancel/completeBackground、store.release；保留原稳定 delivery/input/attempt/source、权限和锁顺序。不得以整体 close 自动抹掉另一目标的工作。 |
+| [delegation-execution.test.ts](/home/keer/workspace/aigcfroge-v2/packages/core/test/delegation-execution.test.ts:961) | 复用 setup、实际 Session/Bus/DB/Job/TestLLM 与现有 readiness。补 `MC07 fanout` 的第二目标准入故障见证，扩现有准备失败/资源收口断言；完成下列五项，已有等价 keeper直接复用。                                                                                                                                |
 
 Service/Bus/Session/Job、task/fold/review、公共 API/generated、其余测试与仓内文档只读。已有同聚合原子 keeper、MC05 独立失败、unknown 与 close 路径通过时不新增生产代码。工程仓/默认仓 Git 写、安装升级、构建生成及现用服务/用户库操作均禁用；测试只用现有私有 Session/DB fixture。
 
 ## 五项验收与可信 RED→GREEN
 
-| 原合同 | 必须交付的直接证据 |
-| --- | --- |
-| 前置失败与同聚合原子准入 | 复用现 Custom 全池/既有 binding 校验，以及 Service 首通知完整 fanout、后项 projector 失败全回滚 keeper。无新目标输入/执行/观察任务；已存在状态保持。提交后准备失败保留已创建 child/binding，明确其实际收口，不能冒充前置回滚。 |
-| 第二目标准入失败 | 使用真实第二 Session InboxEnqueued 失败 projector，先证明父 Turn/Delivery 与第一输入已提交；保存原错误、全部稳定 inputID/source、pending/visible/result、Delivery 状态与 Job/notification。失败目标准确 failed/cancelled/recovery，不滞留为伪成功或无法解释的等待。 |
-| 已执行成功保留 | 复用 MC05 已接受 keeper；补偿路径还须核第一目标已产生实际完整结果时，第二故障不改其 receipt/正文/attempt、不重放。用现有 Deferred/readiness 控制同一切口，暂停放在第二 publication 之前，避免持有同库事务而阻塞第一结果提交。 |
-| 可逆 pending 补偿 | 用原 owning serialized 边界证明本次输入仍 pending、来源匹配且未执行，才取消；保留 Enqueued/Cancelled 等历史。核本次 inbox、结果观察 Job/notification、执行 claim 收口；共享旧 Job、活动 child、异主输入和已完成结果保持。不能由未 wake 推断未执行。 |
-| 显式 reconcile | 经现 execution.close/retry/fork 的实际决定路径和原归属/权限，回读持久结果与资源。unknown 保留 recovery/历史，不自动 retry；reconcileResume 返回 0 不算补偿或执行成功。原结果、来源、已完成部分与关闭后的准确状态可消费。 |
+| 原合同                   | 必须交付的直接证据                                                                                                                                                                                                                                                  |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 前置失败与同聚合原子准入 | 复用现 Custom 全池/既有 binding 校验，以及 Service 首通知完整 fanout、后项 projector 失败全回滚 keeper。无新目标输入/执行/观察任务；已存在状态保持。提交后准备失败保留已创建 child/binding，明确其实际收口，不能冒充前置回滚。                                      |
+| 第二目标准入失败         | 使用真实第二 Session InboxEnqueued 失败 projector，先证明父 Turn/Delivery 与第一输入已提交；保存原错误、全部稳定 inputID/source、pending/visible/result、Delivery 状态与 Job/notification。失败目标准确 failed/cancelled/recovery，不滞留为伪成功或无法解释的等待。 |
+| 已执行成功保留           | 复用 MC05 已接受 keeper；补偿路径还须核第一目标已产生实际完整结果时，第二故障不改其 receipt/正文/attempt、不重放。用现有 Deferred/readiness 控制同一切口，暂停放在第二 publication 之前，避免持有同库事务而阻塞第一结果提交。                                       |
+| 可逆 pending 补偿        | 用原 owning serialized 边界证明本次输入仍 pending、来源匹配且未执行，才取消；保留 Enqueued/Cancelled 等历史。核本次 inbox、结果观察 Job/notification、执行 claim 收口；共享旧 Job、活动 child、异主输入和已完成结果保持。不能由未 wake 推断未执行。                 |
+| 显式 reconcile           | 经现 execution.close/retry/fork 的实际决定路径和原归属/权限，回读持久结果与资源。unknown 保留 recovery/历史，不自动 retry；reconcileResume 返回 0 不算补偿或执行成功。原结果、来源、已完成部分与关闭后的准确状态可消费。                                            |
 
 先在 no_code_change 接受后的生产代码上取得真实 RED：第二故障晚于第一准入，观察具体不满足上述合同的状态。准备/权限/夹具失败单列；不为造 RED 破坏源码。最小修复后 focused GREEN 必须经过实际实现；新故障主链的成败/receipt 由真实 owner 产生，不手种事件或 SQL 冒充 producer。既有 unknown/保留历史 fixture 沿原信用复用，不复制幂等/结算算法、不加 test-only 生产 seam。
 

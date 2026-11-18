@@ -68,12 +68,12 @@ nix run nixpkgs#aigcfroge           # or github:anomalyco/aigcfroge for latest d
 
 AigcForge is also available as a desktop application. Download directly from the [releases page](https://github.com/anomalyco/aigcfroge/releases) or [aigcfroge.ai/download](https://aigcfroge.ai/download).
 
-| Platform              | Download                           |
-| --------------------- | ---------------------------------- |
+| Platform              | Download                            |
+| --------------------- | ----------------------------------- |
 | macOS (Apple Silicon) | `aigcfroge-desktop-mac-arm64.dmg`   |
 | macOS (Intel)         | `aigcfroge-desktop-mac-x64.dmg`     |
 | Windows               | `aigcfroge-desktop-windows-x64.exe` |
-| Linux                 | `.deb`, `.rpm`, or `.AppImage`     |
+| Linux                 | `.deb`, `.rpm`, or `.AppImage`      |
 
 ```bash
 # macOS (Homebrew)

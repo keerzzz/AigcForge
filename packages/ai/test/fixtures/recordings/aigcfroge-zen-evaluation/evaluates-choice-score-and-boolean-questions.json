@@ -2,11 +2,7 @@
   "version": 1,
   "metadata": {
     "model": "jev-1.13-free",
-    "tags": [
-      "prefix:aigcfroge-zen-evaluation",
-      "provider:aigcfroge",
-      "protocol:system-one"
-    ],
+    "tags": ["prefix:aigcfroge-zen-evaluation", "provider:aigcfroge", "protocol:system-one"],
     "name": "aigcfroge-zen-evaluation/evaluates-choice-score-and-boolean-questions",
     "recordedAt": "2026-09-22T03:44:57.511Z"
   },

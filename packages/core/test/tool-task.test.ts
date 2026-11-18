@@ -364,122 +364,239 @@ const judgeLeaf = Effect.fnUntraced(function* () {
   }
 })
 
-const saveJudgeGroup = Effect.fnUntraced(function* (f: Effect.Success<ReturnType<typeof judgeLeaf>>, members: readonly Model.Ref[]) {
+const saveJudgeGroup = Effect.fnUntraced(function* (
+  f: Effect.Success<ReturnType<typeof judgeLeaf>>,
+  members: readonly Model.Ref[],
+) {
   const config = yield* Config.Service.pipe(Effect.provide(f.local))
   if (!config.provider) return yield* Effect.die(new Error("Judge Group configuration is missing"))
-  const target = (yield* config.provider.list()).targets.find((target) => target.scope === "project" && target.preferred)
+  const target = (yield* config.provider.list()).targets.find(
+    (target) => target.scope === "project" && target.preferred,
+  )
   if (!target) return yield* Effect.die(new Error("Judge Group target is missing"))
   const group = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("judge-summary") })
-  const saved = yield* ModelGroup.save(ModelGroup.decodeSave({
-    groupID: group.groupID, target: { scope: target.scope, path: target.path }, expectedDigest: target.digest,
-    patch: { set: { name: "Judge summary", enabled: true, members: [...members], strategy: "order", affinity: "turn" } },
-  })).pipe(Effect.provideService(Config.Service, config))
+  const saved = yield* ModelGroup.save(
+    ModelGroup.decodeSave({
+      groupID: group.groupID,
+      target: { scope: target.scope, path: target.path },
+      expectedDigest: target.digest,
+      patch: {
+        set: { name: "Judge summary", enabled: true, members: [...members], strategy: "order", affinity: "turn" },
+      },
+    }),
+  ).pipe(Effect.provideService(Config.Service, config))
   expect(saved.definition.status).toBe("saved")
-  yield* f.sessions.selectExecutor({ sessionID: f.root.id, executorPreference: new ExecutorPreference({ agent: f.binding.agent, model: group }) })
+  yield* f.sessions.selectExecutor({
+    sessionID: f.root.id,
+    executorPreference: new ExecutorPreference({ agent: f.binding.agent, model: group }),
+  })
   return group
 })
 
-leafIt.live("inherits a Judge summary Group and records its actual fallback API model from physical attempts", () => Effect.gen(function* () {
-  const f = yield* judgeLeaf()
-  const rejected = Model.Ref.make({ providerID: f.metaModel.providerID, id: Model.ID.make("catalog-rejected") })
-  const accepted = Model.Ref.make({ providerID: f.metaModel.providerID, id: Model.ID.make("catalog-summary") })
-  yield* useOfflineCatalog([{
-    info: Provider.Info.make({ ...Provider.Info.empty(f.metaModel.providerID), activation: "enabled", package: "@aigcfroge/ai/providers/openai/responses" }),
-    models: [f.metaModel, f.workerModel, rejected, accepted].map((ref) => Model.Info.make({
-      ...Model.Info.default(ref.providerID, ref.id),
-      modelID: ref.id === rejected.id ? Model.ID.make("rejected-api") : ref.id === accepted.id ? Model.ID.make("summary-api") : ref.id,
-    })),
-  }]).pipe(Effect.provide(f.local))
-  const group = yield* saveJudgeGroup(f, [rejected, accepted])
-  yield* f.llm.serve((request) => request.model.id === "rejected-api"
-    ? Stream.fail(new AIError({ reason: new InvalidRequestError({
-        message: "The Group candidate model does not exist", classification: "model-not-found",
-        http: { status: 404, url: "http://127.0.0.1/v1/responses", headers: {} },
-      }) }))
-    : TestLLM.text(request.model.id === "summary-api" ? "Complete Group summary" : `Original ${request.model.id} body`, "group-summary"))
-  const result = yield* f.execute({ summary: {} })
-  expect(result.status).toBe("completed")
-  const output = Schema.decodeUnknownSync(TaskTool.JudgeOutput)(result.output)
-  expect(output.workers.map((worker) => worker.text)).toEqual(["Original worker body", "Original meta body"])
-  expect(output.summary).toMatchObject({ status: "completed", result: { requested: group, executor: { model: group, groupBehavior: { members: [rejected, accepted] } }, text: "Complete Group summary", completion: { model: accepted } } })
-  const requests = yield* f.llm.requests()
-  expect(requests.map((request) => String(request.model.id))).toEqual(["worker", "meta", "rejected-api", "summary-api"])
-  const actual = requests.find((request) => request.model.id === "summary-api")
-  if (!actual) return yield* Effect.die(new Error("The actual Group summary request is missing"))
-  expect(output.summary?.result?.runtime).toEqual({ provider: actual.model.provider, id: actual.model.id, route: actual.model.route.id })
-  const receipt = output.summary?.result?.receipt
-  if (!receipt) return yield* Effect.die(new Error("The Group summary receipt is missing"))
-  expect((yield* f.sessions.get(receipt.childSessionID)).model).toEqual(group)
-  const completed = yield* SessionInputResult.read(f.db, { sessionID: receipt.childSessionID, inputID: receipt.inputID })
-  if (completed.status !== "completed") return yield* Effect.die(new Error("The Group summary input did not complete"))
-  expect(completed.assistant.attempts?.map((attempt) => ({ selection: attempt.selection, model: attempt.model, api: attempt.apiModelID }))).toEqual([
-    { selection: group, model: rejected, api: "rejected-api" }, { selection: group, model: accepted, api: "summary-api" },
-  ])
-}))
+leafIt.live("inherits a Judge summary Group and records its actual fallback API model from physical attempts", () =>
+  Effect.gen(function* () {
+    const f = yield* judgeLeaf()
+    const rejected = Model.Ref.make({ providerID: f.metaModel.providerID, id: Model.ID.make("catalog-rejected") })
+    const accepted = Model.Ref.make({ providerID: f.metaModel.providerID, id: Model.ID.make("catalog-summary") })
+    yield* useOfflineCatalog([
+      {
+        info: Provider.Info.make({
+          ...Provider.Info.empty(f.metaModel.providerID),
+          activation: "enabled",
+          package: "@aigcfroge/ai/providers/openai/responses",
+        }),
+        models: [f.metaModel, f.workerModel, rejected, accepted].map((ref) =>
+          Model.Info.make({
+            ...Model.Info.default(ref.providerID, ref.id),
+            modelID:
+              ref.id === rejected.id
+                ? Model.ID.make("rejected-api")
+                : ref.id === accepted.id
+                  ? Model.ID.make("summary-api")
+                  : ref.id,
+          }),
+        ),
+      },
+    ]).pipe(Effect.provide(f.local))
+    const group = yield* saveJudgeGroup(f, [rejected, accepted])
+    yield* f.llm.serve((request) =>
+      request.model.id === "rejected-api"
+        ? Stream.fail(
+            new AIError({
+              reason: new InvalidRequestError({
+                message: "The Group candidate model does not exist",
+                classification: "model-not-found",
+                http: { status: 404, url: "http://127.0.0.1/v1/responses", headers: {} },
+              }),
+            }),
+          )
+        : TestLLM.text(
+            request.model.id === "summary-api" ? "Complete Group summary" : `Original ${request.model.id} body`,
+            "group-summary",
+          ),
+    )
+    const result = yield* f.execute({ summary: {} })
+    expect(result.status).toBe("completed")
+    const output = Schema.decodeUnknownSync(TaskTool.JudgeOutput)(result.output)
+    expect(output.workers.map((worker) => worker.text)).toEqual(["Original worker body", "Original meta body"])
+    expect(output.summary).toMatchObject({
+      status: "completed",
+      result: {
+        requested: group,
+        executor: { model: group, groupBehavior: { members: [rejected, accepted] } },
+        text: "Complete Group summary",
+        completion: { model: accepted },
+      },
+    })
+    const requests = yield* f.llm.requests()
+    expect(requests.map((request) => String(request.model.id))).toEqual([
+      "worker",
+      "meta",
+      "rejected-api",
+      "summary-api",
+    ])
+    const actual = requests.find((request) => request.model.id === "summary-api")
+    if (!actual) return yield* Effect.die(new Error("The actual Group summary request is missing"))
+    expect(output.summary?.result?.runtime).toEqual({
+      provider: actual.model.provider,
+      id: actual.model.id,
+      route: actual.model.route.id,
+    })
+    const receipt = output.summary?.result?.receipt
+    if (!receipt) return yield* Effect.die(new Error("The Group summary receipt is missing"))
+    expect((yield* f.sessions.get(receipt.childSessionID)).model).toEqual(group)
+    const completed = yield* SessionInputResult.read(f.db, {
+      sessionID: receipt.childSessionID,
+      inputID: receipt.inputID,
+    })
+    if (completed.status !== "completed")
+      return yield* Effect.die(new Error("The Group summary input did not complete"))
+    expect(
+      completed.assistant.attempts?.map((attempt) => ({
+        selection: attempt.selection,
+        model: attempt.model,
+        api: attempt.apiModelID,
+      })),
+    ).toEqual([
+      { selection: group, model: rejected, api: "rejected-api" },
+      { selection: group, model: accepted, api: "summary-api" },
+    ])
+  }),
+)
 
-leafIt.live("keeps the original Judge packet and omits runtime when an inherited Group emits no attempt", () => Effect.gen(function* () {
-  const f = yield* judgeLeaf()
-  const missing = Model.Ref.make({ providerID: f.metaModel.providerID, id: Model.ID.make("not-in-catalog") })
-  const group = yield* saveJudgeGroup(f, [missing])
-  yield* f.llm.serve((request) => TestLLM.text(`Original ${request.model.id} body`, "group-unavailable"))
-  const result = yield* f.execute({ summary: {} })
-  expect(result.status).toBe("completed")
-  const output = Schema.decodeUnknownSync(TaskTool.JudgeOutput)(result.output)
-  expect(output.status).toBe("completed")
-  expect(output.workers.map((worker) => worker.text)).toEqual(["Original worker body", "Original meta body"])
-  expect(output.summary).toMatchObject({ status: "failed", result: { requested: group, executor: { model: group } } })
-  expect(output.summary?.result?.runtime).toBeUndefined()
-  expect(output.summary?.result?.completion).toBeUndefined()
-  expect(yield* f.llm.requests()).toHaveLength(2)
-  const receipt = output.summary?.result?.receipt
-  if (!receipt) return yield* Effect.die(new Error("The unavailable Group receipt is missing"))
-  expect((yield* f.sessions.messages({ sessionID: receipt.childSessionID })).filter((message) => message.type === "assistant").flatMap((message) => message.attempts ?? [])).toEqual([])
-}))
+leafIt.live("keeps the original Judge packet and omits runtime when an inherited Group emits no attempt", () =>
+  Effect.gen(function* () {
+    const f = yield* judgeLeaf()
+    const missing = Model.Ref.make({ providerID: f.metaModel.providerID, id: Model.ID.make("not-in-catalog") })
+    const group = yield* saveJudgeGroup(f, [missing])
+    yield* f.llm.serve((request) => TestLLM.text(`Original ${request.model.id} body`, "group-unavailable"))
+    const result = yield* f.execute({ summary: {} })
+    expect(result.status).toBe("completed")
+    const output = Schema.decodeUnknownSync(TaskTool.JudgeOutput)(result.output)
+    expect(output.status).toBe("completed")
+    expect(output.workers.map((worker) => worker.text)).toEqual(["Original worker body", "Original meta body"])
+    expect(output.summary).toMatchObject({ status: "failed", result: { requested: group, executor: { model: group } } })
+    expect(output.summary?.result?.runtime).toBeUndefined()
+    expect(output.summary?.result?.completion).toBeUndefined()
+    expect(yield* f.llm.requests()).toHaveLength(2)
+    const receipt = output.summary?.result?.receipt
+    if (!receipt) return yield* Effect.die(new Error("The unavailable Group receipt is missing"))
+    expect(
+      (yield* f.sessions.messages({ sessionID: receipt.childSessionID }))
+        .filter((message) => message.type === "assistant")
+        .flatMap((message) => message.attempts ?? []),
+    ).toEqual([])
+  }),
+)
 
 for (const mode of ["foreground", "background", "admit-only"] as const) {
-  leafIt.live(`SC01 root Task ${mode} self-target settles the original runner without duplicate inputs`, () => Effect.gen(function* () {
-    const f = yield* metaLeaf("work")
-    const llm = yield* TestLLM.Test
-    const tasks = yield* SessionTask.Service
-    const execution = yield* SessionExecution.Service
-    yield* f.sessions.setPermissions({ sessionID: f.root.id, permissions: [{ action: "*", resource: "*", effect: "allow" }] })
-    const replies = [
-      TestLLM.tool("sc01-self-target", TaskTool.name, {
-        description: "Continue this root",
-        prompt: "Do the successor work",
-        target: { type: "existing_root", sessionID: f.root.id },
-        ...(mode === "background" ? { background: true } : {}),
-        ...(mode === "admit-only" ? { resume: false } : {}),
-      }),
-      TestLLM.text("The original turn settled", "sc01-source-finished"),
-      TestLLM.text("The queued successor settled", "sc01-target-finished"),
-    ]
-    yield* llm.serve((request) => request.tools.some((tool) => tool.name === TaskTool.name)
-      ? replies.shift() ?? TestLLM.text("The root settled", "sc01-exhausted")
-      : TestLLM.text("A fixture title", "sc01-auxiliary"))
-    yield* f.sessions.prompt({ sessionID: f.root.id, text: "Call the Task tool with this root as its target", resume: false })
-    yield* awaitWithTimeout(f.sessions.resume(f.root.id), "The source Task runner did not settle", "10 seconds")
-    expect(yield* execution.isActive(f.root.id)).toBe(false)
-    const tools = (yield* f.sessions.messages({ sessionID: f.root.id })).flatMap((message) => message.type === "assistant" ? message.content : [])
-    const operation = (yield* tasks.operations({ sessionID: f.root.id }))[0]
-    if (mode === "foreground") {
-      expect(tools).toContainEqual(expect.objectContaining({ type: "tool", id: "sc01-self-target", state: expect.objectContaining({
-        status: "error", error: expect.objectContaining({ message: "Synchronous Task target must be a different root Session; use background: true or resume: false for this Session" }),
-      }) }))
-      expect(operation).toBeUndefined()
+  leafIt.live(`SC01 root Task ${mode} self-target settles the original runner without duplicate inputs`, () =>
+    Effect.gen(function* () {
+      const f = yield* metaLeaf("work")
+      const llm = yield* TestLLM.Test
+      const tasks = yield* SessionTask.Service
+      const execution = yield* SessionExecution.Service
+      yield* f.sessions.setPermissions({
+        sessionID: f.root.id,
+        permissions: [{ action: "*", resource: "*", effect: "allow" }],
+      })
+      const replies = [
+        TestLLM.tool("sc01-self-target", TaskTool.name, {
+          description: "Continue this root",
+          prompt: "Do the successor work",
+          target: { type: "existing_root", sessionID: f.root.id },
+          ...(mode === "background" ? { background: true } : {}),
+          ...(mode === "admit-only" ? { resume: false } : {}),
+        }),
+        TestLLM.text("The original turn settled", "sc01-source-finished"),
+        TestLLM.text("The queued successor settled", "sc01-target-finished"),
+      ]
+      yield* llm.serve((request) =>
+        request.tools.some((tool) => tool.name === TaskTool.name)
+          ? (replies.shift() ?? TestLLM.text("The root settled", "sc01-exhausted"))
+          : TestLLM.text("A fixture title", "sc01-auxiliary"),
+      )
+      yield* f.sessions.prompt({
+        sessionID: f.root.id,
+        text: "Call the Task tool with this root as its target",
+        resume: false,
+      })
+      yield* awaitWithTimeout(f.sessions.resume(f.root.id), "The source Task runner did not settle", "10 seconds")
+      expect(yield* execution.isActive(f.root.id)).toBe(false)
+      const tools = (yield* f.sessions.messages({ sessionID: f.root.id })).flatMap((message) =>
+        message.type === "assistant" ? message.content : [],
+      )
+      const operation = (yield* tasks.operations({ sessionID: f.root.id }))[0]
+      if (mode === "foreground") {
+        expect(tools).toContainEqual(
+          expect.objectContaining({
+            type: "tool",
+            id: "sc01-self-target",
+            state: expect.objectContaining({
+              status: "error",
+              error: expect.objectContaining({
+                message:
+                  "Synchronous Task target must be a different root Session; use background: true or resume: false for this Session",
+              }),
+            }),
+          }),
+        )
+        expect(operation).toBeUndefined()
+        expect(yield* f.sessions.inbox(f.root.id)).toEqual([])
+        return
+      }
+      if (!operation) return yield* Effect.die(new Error("The asynchronous self-target operation was not admitted"))
+      expect(yield* tasks.operations({ sessionID: f.root.id })).toHaveLength(1)
+      expect(operation).toMatchObject({
+        sourceSessionID: f.root.id,
+        targetSessionID: f.root.id,
+        request: { delivery: "queue" },
+      })
+      expect(tools).toContainEqual(
+        expect.objectContaining({
+          type: "tool",
+          id: "sc01-self-target",
+          state: expect.objectContaining({ status: "completed" }),
+        }),
+      )
+      expect(
+        yield* SessionInputResult.read((yield* Database.Service).db, {
+          sessionID: f.root.id,
+          inputID: operation.inputID,
+        }),
+      ).toMatchObject({ status: "completed" })
       expect(yield* f.sessions.inbox(f.root.id)).toEqual([])
-      return
-    }
-    if (!operation) return yield* Effect.die(new Error("The asynchronous self-target operation was not admitted"))
-    expect(yield* tasks.operations({ sessionID: f.root.id })).toHaveLength(1)
-    expect(operation).toMatchObject({ sourceSessionID: f.root.id, targetSessionID: f.root.id, request: { delivery: "queue" } })
-    expect(tools).toContainEqual(expect.objectContaining({ type: "tool", id: "sc01-self-target", state: expect.objectContaining({ status: "completed" }) }))
-    expect(yield* SessionInputResult.read((yield* Database.Service).db, { sessionID: f.root.id, inputID: operation.inputID })).toMatchObject({ status: "completed" })
-    expect(yield* f.sessions.inbox(f.root.id)).toEqual([])
-  }).pipe(Effect.ensuring(Effect.gen(function* () {
-    const execution = yield* SessionExecution.Service
-    yield* Effect.forEach(yield* execution.active, (sessionID) => execution.interrupt(sessionID), { discard: true })
-  }))))
+    }).pipe(
+      Effect.ensuring(
+        Effect.gen(function* () {
+          const execution = yield* SessionExecution.Service
+          yield* Effect.forEach(yield* execution.active, (sessionID) => execution.interrupt(sessionID), {
+            discard: true,
+          })
+        }),
+      ),
+    ),
+  )
 }
 
 leafIt.live("MP02 Task root targets keep stable invocation identities and preserve the existing delegation", () =>
@@ -1078,9 +1195,15 @@ leafIt.live(
       expect(JSON.stringify(requests[1]?.messages)).toContain(body)
       expect(JSON.stringify(requests[1]?.messages)).toContain("sc02-read")
       const database = yield* Database.Service
-      expect((yield* SessionInputResult.current(database.db, target.id))?.inputs.map((entry) => entry.inputID)).toEqual([operation.inputID])
+      expect((yield* SessionInputResult.current(database.db, target.id))?.inputs.map((entry) => entry.inputID)).toEqual(
+        [operation.inputID],
+      )
       const ref = { sessionID: f.root.id, operationID: operation.operationID }
-      yield* awaitWithTimeout(f.sessions.cancelTaskOperation(ref), "The next-Step cancellation was not acknowledged", "10 seconds")
+      yield* awaitWithTimeout(
+        f.sessions.cancelTaskOperation(ref),
+        "The next-Step cancellation was not acknowledged",
+        "10 seconds",
+      )
       yield* awaitWithTimeout(
         SessionExecution.Service.use((execution) => execution.awaitIdle(target.id)),
         "Target cancellation did not settle",
@@ -1099,12 +1222,24 @@ leafIt.live(
       expect(events.filter((event) => event.type === SessionEvent.Step.Started.type)).toHaveLength(2)
       expect(events.filter((event) => event.type === SessionEvent.Step.Completed.type)).toHaveLength(1)
       expect(events.filter((event) => event.type === SessionEvent.Tool.Success.type)).toEqual([
-        expect.objectContaining({ data: expect.objectContaining({ id: "sc02-read", content: [expect.objectContaining({ type: "text", text: expect.stringContaining(body) })] }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            id: "sc02-read",
+            content: [expect.objectContaining({ type: "text", text: expect.stringContaining(body) })],
+          }),
+        }),
       ])
       expect(events.filter((event) => event.type === SessionEvent.Execution.Interrupted.type)).toEqual([
-        expect.objectContaining({ data: expect.objectContaining({ reason: "user", resultAnchorInputID: operation.inputID }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ reason: "user", resultAnchorInputID: operation.inputID }),
+        }),
       ])
-      expect(events.filter((event) => event.type === SessionEvent.Execution.Succeeded.type || event.type === SessionEvent.Execution.Failed.type)).toEqual([])
+      expect(
+        events.filter(
+          (event) =>
+            event.type === SessionEvent.Execution.Succeeded.type || event.type === SessionEvent.Execution.Failed.type,
+        ),
+      ).toEqual([])
     }),
 )
 
@@ -1990,7 +2125,10 @@ for (const outcome of ["failed", "length", "empty", "cancelled"] as const) {
         const states = yield* f.delegations.list({ parentSessionID: f.root.id })
         const state = states.find((state) =>
           [...(state?.participants.values() ?? [])].some(
-            (participant) => participant.executor && !Model.Selection.isGroup(participant.executor.model) && participant.executor.model.id === selected.id,
+            (participant) =>
+              participant.executor &&
+              !Model.Selection.isGroup(participant.executor.model) &&
+              participant.executor.model.id === selected.id,
           ),
         )
         if (!state) return yield* Effect.die(new Error("R1 enhancement delegation is missing"))
@@ -2125,8 +2263,14 @@ leafIt.live("MC08 J1 cancels only owning workers while retaining a completed sib
     const completed = yield* Effect.forEach(receipts, (receipt) =>
       f.sessions.get(receipt.childSessionID).pipe(Effect.map((child) => ({ receipt, child }))),
     )
-    const success = completed.find((worker) => worker.child.model && !Model.Selection.isGroup(worker.child.model) && worker.child.model.id === "worker")
-    const running = completed.find((worker) => worker.child.model && !Model.Selection.isGroup(worker.child.model) && worker.child.model.id === "meta")
+    const success = completed.find(
+      (worker) =>
+        worker.child.model && !Model.Selection.isGroup(worker.child.model) && worker.child.model.id === "worker",
+    )
+    const running = completed.find(
+      (worker) =>
+        worker.child.model && !Model.Selection.isGroup(worker.child.model) && worker.child.model.id === "meta",
+    )
     if (!success || !running) return yield* Effect.die(new Error("Judge receipts are missing"))
     expect(
       yield* awaitWithTimeout(

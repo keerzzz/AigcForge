@@ -73,21 +73,28 @@ export const SessionInstanceHandler = HttpApiBuilder.group(Api, "session-instanc
       .handle("identity", ({ params }) =>
         Effect.gen(function* () {
           const session = yield* requireSession(params.sessionID)
-          const context = yield* locations.contextEffect(session.location).pipe(
-            Effect.mapError((error) => notFound(`Location not found: ${error.directory}`)),
-          )
+          const context = yield* locations
+            .contextEffect(session.location)
+            .pipe(Effect.mapError((error) => notFound(`Location not found: ${error.directory}`)))
           return yield* Effect.gen(function* () {
             const identities = yield* SessionIdentityProjection.Service
             return yield* identities.project(session.id).pipe(
               Effect.catchTag("Session.NotFoundError", () => notFound(`Session not found: ${session.id}`)),
-              Effect.catchTag("SessionIdentity.IdentityFieldMissing", (error) =>
-                new ConflictError({ resource: error.sessionID, message: `Session identity field missing: ${error.field}` }),
+              Effect.catchTag(
+                "SessionIdentity.IdentityFieldMissing",
+                (error) =>
+                  new ConflictError({
+                    resource: error.sessionID,
+                    message: `Session identity field missing: ${error.field}`,
+                  }),
               ),
               Effect.catchTag("SessionIdentity.SnapshotUnavailable", (error) =>
                 notFound(`Snapshot not found for session ${error.sessionID}`),
               ),
-              Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
-                new ConflictError({ resource: error.sessionID, message: "Invalid Session composition snapshot" }),
+              Effect.catchTag(
+                "SessionComposition.SnapshotDecodeError",
+                (error) =>
+                  new ConflictError({ resource: error.sessionID, message: "Invalid Session composition snapshot" }),
               ),
               Effect.catchTag("Permission.BlockedError", (error) => new ForbiddenError({ message: error.message })),
             )
@@ -176,8 +183,9 @@ export const SessionInstanceHandler = HttpApiBuilder.group(Api, "session-instanc
             Effect.catchTag("Session.NotFoundError", (error) => notFound(`Session not found: ${error.sessionID}`)),
             Effect.catchTag("SessionTask.TaskWriteError", invalidTask),
             Effect.catchTag("SessionTask.OperationConflictError", operationConflict),
-            Effect.catchTag("Session.ControllerConflictError", (error) =>
-              new InvalidRequestError({ message: error.message, field: error.field, kind: error.kind }),
+            Effect.catchTag(
+              "Session.ControllerConflictError",
+              (error) => new InvalidRequestError({ message: error.message, field: error.field, kind: error.kind }),
             ),
           )
         }),
@@ -340,7 +348,9 @@ function invalidTask(error: SessionTask.TaskWriteError) {
   return new InvalidRequestError({ message: error.message, kind: error.reason })
 }
 
-function operationConflict(error: SessionTask.OperationConflictError): Effect.Effect<never, ApiNotFoundError | ConflictError> {
+function operationConflict(
+  error: SessionTask.OperationConflictError,
+): Effect.Effect<never, ApiNotFoundError | ConflictError> {
   if (error.reason === "operation_missing") return notFound(`Task operation not found: ${error.operationID}`)
   return new ConflictError({ resource: error.operationID, message: `Task operation conflict: ${error.reason}` })
 }

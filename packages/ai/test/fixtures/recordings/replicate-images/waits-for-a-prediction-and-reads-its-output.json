@@ -1,11 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:replicate-images",
-      "provider:replicate",
-      "protocol:replicate-images"
-    ],
+    "tags": ["prefix:replicate-images", "provider:replicate", "protocol:replicate-images"],
     "name": "replicate-images/waits-for-a-prediction-and-reads-its-output",
     "recordedAt": "2026-09-23T18:42:06.871Z"
   },

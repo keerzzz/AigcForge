@@ -352,7 +352,10 @@ export function fromPromise(plugin: Plugin) {
               definition: {
                 get: adaptApiMethod(ModelEndpoints["model.group.definition.get"], host.model.group.definition.get),
                 save: adaptApiMethod(ModelEndpoints["model.group.definition.save"], host.model.group.definition.save),
-                remove: adaptApiMethod(ModelEndpoints["model.group.definition.remove"], host.model.group.definition.remove),
+                remove: adaptApiMethod(
+                  ModelEndpoints["model.group.definition.remove"],
+                  host.model.group.definition.remove,
+                ),
               },
             },
             list: adaptApiMethod(ModelEndpoints["model.list"], host.model.list),

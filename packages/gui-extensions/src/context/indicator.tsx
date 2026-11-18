@@ -53,9 +53,10 @@ export function SessionContextUsage(props: {
 
     return {
       total: current.total,
-      usage: current.total !== undefined && model?.limit.context
-        ? Math.round((current.total / model.limit.context) * 100)
-        : null,
+      usage:
+        current.total !== undefined && model?.limit.context
+          ? Math.round((current.total / model.limit.context) * 100)
+          : null,
     }
   })
 

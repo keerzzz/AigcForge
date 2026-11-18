@@ -18,14 +18,14 @@
 
 [验证清单](evidence/v2-agent-backend-2026-10-27/validation-manifest.json) 记录命令、退出码、日志哈希、源码 pins 与各次候选树。隔离树 `ceee7d00893ab8797159a7d0e330e495a45e20d7` 只含本片代码；六文件与实现工作区逐字节一致。外部依赖共享，workspace 链接全部指向隔离目录。
 
-| 检查 | 本次结果 |
-| --- | --- |
-| Server 全包 | 154 pass / 1 skip / 0 fail；7291 expects；41 文件 |
-| Core Agent registry/service/bridge/resolver | 35 pass / 0 fail；525 expects；4 文件 |
-| Core / Server 包级 typecheck | 均 exit 0 |
-| Client 正式生成、OpenAPI check、生成物 diff | 均 exit 0；无公共生成物变化 |
-| 定向 lint | 六文件，0 errors / 0 warnings；当前配置只有 1 条规则 |
-| AST / Prettier / diff-check | 五生产文件 / 六文件 / 暂存差异分别 exit 0 |
+| 检查                                        | 本次结果                                             |
+| ------------------------------------------- | ---------------------------------------------------- |
+| Server 全包                                 | 154 pass / 1 skip / 0 fail；7291 expects；41 文件    |
+| Core Agent registry/service/bridge/resolver | 35 pass / 0 fail；525 expects；4 文件                |
+| Core / Server 包级 typecheck                | 均 exit 0                                            |
+| Client 正式生成、OpenAPI check、生成物 diff | 均 exit 0；无公共生成物变化                          |
+| 定向 lint                                   | 六文件，0 errors / 0 warnings；当前配置只有 1 条规则 |
+| AST / Prettier / diff-check                 | 五生产文件 / 六文件 / 暂存差异分别 exit 0            |
 
 Core 类型检查发生在 Server 测试中 Warning 构造器类型修正之前；所有 Core 源和依赖源均与最终树一致，唯一差异是该 Server 测试文件。最终 Server 类型检查与全包测试覆盖此修正。
 

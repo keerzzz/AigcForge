@@ -81,21 +81,43 @@ export interface Interface {
     input: ShareInput,
   ) => Effect.Effect<
     void | ResultOutput | SessionCommunication.Receipt,
-    Session.NotFoundError | Session.MessageDecodeError | Session.SyntheticConflictError | ControllerConflictError | SessionCommunication.Error
+    | Session.NotFoundError
+    | Session.MessageDecodeError
+    | Session.SyntheticConflictError
+    | ControllerConflictError
+    | SessionCommunication.Error
   >
-  readonly send: (input: SessionCommunication.Send & { readonly sessionID: SessionSchema.ID }) => Effect.Effect<
-    SessionCommunication.Receipt, Session.NotFoundError | Session.MessageDecodeError | ControllerConflictError | SessionCommunication.Error
+  readonly send: (
+    input: SessionCommunication.Send & { readonly sessionID: SessionSchema.ID },
+  ) => Effect.Effect<
+    SessionCommunication.Receipt,
+    Session.NotFoundError | Session.MessageDecodeError | ControllerConflictError | SessionCommunication.Error
   >
-  readonly reply: (input: SessionCommunication.Reply & { readonly sessionID: SessionSchema.ID; readonly communicationID: SessionCommunication.ID }) => Effect.Effect<
-    SessionCommunication.Receipt, Session.NotFoundError | Session.MessageDecodeError | ControllerConflictError | SessionCommunication.Error
+  readonly reply: (
+    input: SessionCommunication.Reply & {
+      readonly sessionID: SessionSchema.ID
+      readonly communicationID: SessionCommunication.ID
+    },
+  ) => Effect.Effect<
+    SessionCommunication.Receipt,
+    Session.NotFoundError | Session.MessageDecodeError | ControllerConflictError | SessionCommunication.Error
   >
-  readonly read: (input: { readonly sessionID: SessionSchema.ID; readonly communicationID: SessionCommunication.ID }) => Effect.Effect<
-    SessionCommunication.Message | undefined, Session.NotFoundError | Session.MessageDecodeError | SessionCommunication.Error
+  readonly read: (input: {
+    readonly sessionID: SessionSchema.ID
+    readonly communicationID: SessionCommunication.ID
+  }) => Effect.Effect<
+    SessionCommunication.Message | undefined,
+    Session.NotFoundError | Session.MessageDecodeError | SessionCommunication.Error
   >
-  readonly list: (input: SessionCommunication.ListInput & { readonly sessionID: SessionSchema.ID }) => Effect.Effect<
-    SessionCommunication.Page, Session.NotFoundError | Session.MessageDecodeError | SessionCommunication.Error
+  readonly list: (
+    input: SessionCommunication.ListInput & { readonly sessionID: SessionSchema.ID },
+  ) => Effect.Effect<
+    SessionCommunication.Page,
+    Session.NotFoundError | Session.MessageDecodeError | SessionCommunication.Error
   >
-  readonly capability: (sessionID: SessionSchema.ID) => Effect.Effect<SessionCommunication.Capability, Session.NotFoundError>
+  readonly capability: (
+    sessionID: SessionSchema.ID,
+  ) => Effect.Effect<SessionCommunication.Capability, Session.NotFoundError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionShare") {}
@@ -138,41 +160,80 @@ export const layer = Layer.effect(
     const metas = yield* MetaAgentService.Service
     const kv = yield* KV.Service
 
-    const available = (sessionID: SessionSchema.ID) => bus.retainsEvents ? Effect.void : new SessionCommunication.Error({
-      sessionID, reason: "unavailable", message: "Durable communication requires retained Session events",
-    })
+    const available = (sessionID: SessionSchema.ID) =>
+      bus.retainsEvents
+        ? Effect.void
+        : new SessionCommunication.Error({
+            sessionID,
+            reason: "unavailable",
+            message: "Durable communication requires retained Session events",
+          })
     const message = Effect.fn("SessionShareV2.communicationMessage")(function* (saved: CommunicationRecord.Stored) {
       const visible = yield* store.message(saved.record.body.inputID)
       const pending = yield* SessionInbox.find(database.db, saved.record.body.inputID)
-      if (visible && visible.sessionID !== saved.record.targetSessionID || pending && pending.sessionID !== saved.record.targetSessionID)
-        return yield* new SessionCommunication.Error({ sessionID: saved.record.actor.sessionID, communicationID: saved.record.id,
-          reason: "invalid_carrier", message: "The saved communication carrier belongs to another Session" })
-      const cancelled = !visible && !pending ? yield* bus.log({ aggregateID: saved.record.targetSessionID }).pipe(
-        Stream.runFold(() => false, (cancelled, event) => {
-          if (cancelled || event.type !== SessionEvent.InboxCancelled.type) return cancelled
-          const data = Schema.decodeUnknownOption(SessionEvent.InboxCancelled.data)(event.data)
-          return Option.isSome(data) && data.value.inboxID === saved.record.body.inputID
-        }),
-      ) : false
-      return new SessionCommunication.Message({ ...saved.record, text: saved.text,
-        state: visible ? "visible" : pending ? "pending" : cancelled ? "cancelled" : "removed" })
+      if (
+        (visible && visible.sessionID !== saved.record.targetSessionID) ||
+        (pending && pending.sessionID !== saved.record.targetSessionID)
+      )
+        return yield* new SessionCommunication.Error({
+          sessionID: saved.record.actor.sessionID,
+          communicationID: saved.record.id,
+          reason: "invalid_carrier",
+          message: "The saved communication carrier belongs to another Session",
+        })
+      const cancelled =
+        !visible && !pending
+          ? yield* bus.log({ aggregateID: saved.record.targetSessionID }).pipe(
+              Stream.runFold(
+                () => false,
+                (cancelled, event) => {
+                  if (cancelled || event.type !== SessionEvent.InboxCancelled.type) return cancelled
+                  const data = Schema.decodeUnknownOption(SessionEvent.InboxCancelled.data)(event.data)
+                  return Option.isSome(data) && data.value.inboxID === saved.record.body.inputID
+                },
+              ),
+            )
+          : false
+      return new SessionCommunication.Message({
+        ...saved.record,
+        text: saved.text,
+        state: visible ? "visible" : pending ? "pending" : cancelled ? "cancelled" : "removed",
+      })
     })
-    const receipt = Effect.fn("SessionShareV2.communicationReceipt")(function* (saved: CommunicationRecord.Stored, admitted = false, trigger = saved.record.trigger) {
+    const receipt = Effect.fn("SessionShareV2.communicationReceipt")(function* (
+      saved: CommunicationRecord.Stored,
+      admitted = false,
+      trigger = saved.record.trigger,
+    ) {
       const current = yield* message(saved)
-      const notification = yield* SessionNotification.inspect(database.db, bus, store,
-        { sessionID: saved.record.targetSessionID, inboxID: saved.record.body.inputID })
+      const notification = yield* SessionNotification.inspect(database.db, bus, store, {
+        sessionID: saved.record.targetSessionID,
+        inboxID: saved.record.body.inputID,
+      })
       const wake = trigger && notification.wake
       if (wake) yield* execution.wake(saved.record.targetSessionID)
-      return new SessionCommunication.Receipt({ ...current,
-        admission: admitted ? "admitted" : current.state === "pending" || current.state === "visible" ? "retained" : "suppressed",
-        wake: wake ? "requested" : trigger ? "suppressed" : "not_requested" })
+      return new SessionCommunication.Receipt({
+        ...current,
+        admission: admitted
+          ? "admitted"
+          : current.state === "pending" || current.state === "visible"
+            ? "retained"
+            : "suppressed",
+        wake: wake ? "requested" : trigger ? "suppressed" : "not_requested",
+      })
     })
     const deliver = Effect.fn("SessionShareV2.deliverCommunication")(function* (input: {
       readonly id: SessionCommunication.ID
       readonly actor: SessionCommunication.Actor
       readonly targetSessionID: SessionSchema.ID
       readonly contentSource: SessionCommunication.ContentSource
-      readonly request: SessionCommunication.Content | { readonly scope: ShareScope; readonly sourceSessionID: SessionSchema.ID; readonly result_source?: ResultSource }
+      readonly request:
+        | SessionCommunication.Content
+        | {
+            readonly scope: ShareScope
+            readonly sourceSessionID: SessionSchema.ID
+            readonly result_source?: ResultSource
+          }
       readonly text: Effect.Effect<string, Session.NotFoundError | Session.MessageDecodeError>
       readonly inputID?: SessionMessage.ID
       readonly replyTo?: SessionCommunication.ID
@@ -181,142 +242,314 @@ export const layer = Layer.effect(
     }) {
       yield* available(input.actor.sessionID)
       const inputID = input.inputID ?? SessionMessage.ID.make(`msg_communication_${Hash.sha256(input.id)}`)
-      const requestDigest = SessionCommunication.Digest.make(CompositionDigest.computeDigest({
-        actor: Schema.encodeSync(SessionCommunication.Actor)(input.actor), targetSessionID: input.targetSessionID,
-        contentSource: { sessionID: input.contentSource.sessionID, scope: input.contentSource.scope, result_source: input.contentSource.result_source },
-        request: input.request, replyTo: input.replyTo, inputID, delivery: input.delivery,
-      }))
+      const requestDigest = SessionCommunication.Digest.make(
+        CompositionDigest.computeDigest({
+          actor: Schema.encodeSync(SessionCommunication.Actor)(input.actor),
+          targetSessionID: input.targetSessionID,
+          contentSource: {
+            sessionID: input.contentSource.sessionID,
+            scope: input.contentSource.scope,
+            result_source: input.contentSource.result_source,
+          },
+          request: input.request,
+          replyTo: input.replyTo,
+          inputID,
+          delivery: input.delivery,
+        }),
+      )
       const previous = yield* CommunicationRecord.get(database.db, input.id)
       if (previous) {
         if (previous.record.requestDigest !== requestDigest)
-          return yield* new SessionCommunication.Error({ sessionID: input.actor.sessionID, communicationID: input.id,
-            reason: "conflicting_retry", message: "The communication ID belongs to a different saved request" })
+          return yield* new SessionCommunication.Error({
+            sessionID: input.actor.sessionID,
+            communicationID: input.id,
+            reason: "conflicting_retry",
+            message: "The communication ID belongs to a different saved request",
+          })
         return yield* receipt(previous, false, input.trigger)
       }
       yield* sessions.get(input.actor.sessionID)
       yield* sessions.get(input.targetSessionID)
       if (input.replyTo) {
         const parent = yield* CommunicationRecord.get(database.db, input.replyTo)
-        if (!parent || parent.record.targetSessionID !== input.actor.sessionID || parent.record.actor.sessionID !== input.targetSessionID || input.replyTo === input.id)
-          return yield* new SessionCommunication.Error({ sessionID: input.actor.sessionID, communicationID: input.id,
-            reason: "invalid_reply", message: "Only the receiving Session may reply to the exact saved sender" })
+        if (
+          !parent ||
+          parent.record.targetSessionID !== input.actor.sessionID ||
+          parent.record.actor.sessionID !== input.targetSessionID ||
+          input.replyTo === input.id
+        )
+          return yield* new SessionCommunication.Error({
+            sessionID: input.actor.sessionID,
+            communicationID: input.id,
+            reason: "invalid_reply",
+            message: "Only the receiving Session may reply to the exact saved sender",
+          })
       }
       const selection = input.actor.type === "user" ? yield* metas.assertCoordination(input.actor.sessionID) : undefined
       const admit = Effect.gen(function* () {
         const retained = yield* CommunicationRecord.get(database.db, input.id)
         if (retained) {
           if (retained.record.requestDigest !== requestDigest)
-            return yield* new SessionCommunication.Error({ sessionID: input.actor.sessionID, communicationID: input.id,
-              reason: "conflicting_retry", message: "The communication ID belongs to a different saved request" })
+            return yield* new SessionCommunication.Error({
+              sessionID: input.actor.sessionID,
+              communicationID: input.id,
+              reason: "conflicting_retry",
+              message: "The communication ID belongs to a different saved request",
+            })
           return yield* receipt(retained, false, input.trigger)
         }
         const text = yield* input.text
-        const record = new SessionCommunication.Record({ id: input.id, actor: input.actor, targetSessionID: input.targetSessionID,
-          contentSource: input.contentSource, replyTo: input.replyTo, requestDigest,
-          body: new SessionCommunication.BodyRef({ sessionID: input.targetSessionID, inputID, digest: SessionCommunication.Digest.make(Hash.sha256(text)) }),
-          delivery: input.delivery, trigger: input.trigger, createdAt: (yield* DateTime.nowAsDate).getTime() })
-        yield* inbox.admit({ id: inputID, sessionID: input.targetSessionID, communication: record,
-          beforeCommit: selection ? metas.assertCoordination(input.actor.sessionID, { selection: selection.selection }).pipe(Effect.asVoid, Effect.orDie) : undefined,
-          item: { type: "synthetic", delivery: input.delivery, payload: SessionInbox.SyntheticPayload.make({ text,
-            metadata: { source: "share", communication: { id: input.id }, actorSessionID: input.actor.sessionID,
-              contentSourceSessionID: input.contentSource.sessionID, sourceSessionID: input.contentSource.sessionID, scope: input.contentSource.scope,
-              ...(input.contentSource.result_source ? { result_source: Schema.encodeSync(SessionCommunication.ResultSource)(input.contentSource.result_source) } : {}),
-              ...(input.contentSource.basis ? { basis: input.contentSource.basis } : {}),
-            } }) },
-        }).pipe(
-          Effect.catchTag("SessionInbox.LifecycleConflict", () => new SessionCommunication.Error({ sessionID: input.actor.sessionID,
-            communicationID: input.id, reason: "invalid_carrier", message: "The communication input belongs to another retained admission" })),
-          Effect.catchDefect((defect) => defect instanceof SessionCommunication.Error || defect instanceof ControllerConflictError
-            ? Effect.fail(defect) : Effect.die(defect)),
-        )
+        const record = new SessionCommunication.Record({
+          id: input.id,
+          actor: input.actor,
+          targetSessionID: input.targetSessionID,
+          contentSource: input.contentSource,
+          replyTo: input.replyTo,
+          requestDigest,
+          body: new SessionCommunication.BodyRef({
+            sessionID: input.targetSessionID,
+            inputID,
+            digest: SessionCommunication.Digest.make(Hash.sha256(text)),
+          }),
+          delivery: input.delivery,
+          trigger: input.trigger,
+          createdAt: (yield* DateTime.nowAsDate).getTime(),
+        })
+        yield* inbox
+          .admit({
+            id: inputID,
+            sessionID: input.targetSessionID,
+            communication: record,
+            beforeCommit: selection
+              ? metas
+                  .assertCoordination(input.actor.sessionID, { selection: selection.selection })
+                  .pipe(Effect.asVoid, Effect.orDie)
+              : undefined,
+            item: {
+              type: "synthetic",
+              delivery: input.delivery,
+              payload: SessionInbox.SyntheticPayload.make({
+                text,
+                metadata: {
+                  source: "share",
+                  communication: { id: input.id },
+                  actorSessionID: input.actor.sessionID,
+                  contentSourceSessionID: input.contentSource.sessionID,
+                  sourceSessionID: input.contentSource.sessionID,
+                  scope: input.contentSource.scope,
+                  ...(input.contentSource.result_source
+                    ? {
+                        result_source: Schema.encodeSync(SessionCommunication.ResultSource)(
+                          input.contentSource.result_source,
+                        ),
+                      }
+                    : {}),
+                  ...(input.contentSource.basis ? { basis: input.contentSource.basis } : {}),
+                },
+              }),
+            },
+          })
+          .pipe(
+            Effect.catchTag(
+              "SessionInbox.LifecycleConflict",
+              () =>
+                new SessionCommunication.Error({
+                  sessionID: input.actor.sessionID,
+                  communicationID: input.id,
+                  reason: "invalid_carrier",
+                  message: "The communication input belongs to another retained admission",
+                }),
+            ),
+            Effect.catchDefect((defect) =>
+              defect instanceof SessionCommunication.Error || defect instanceof ControllerConflictError
+                ? Effect.fail(defect)
+                : Effect.die(defect),
+            ),
+          )
         const saved = yield* CommunicationRecord.get(database.db, input.id)
-        if (!saved) return yield* new SessionCommunication.Error({ sessionID: input.actor.sessionID, communicationID: input.id,
-          reason: "invalid_carrier", message: "The original Inbox transaction did not save the communication" })
+        if (!saved)
+          return yield* new SessionCommunication.Error({
+            sessionID: input.actor.sessionID,
+            communicationID: input.id,
+            reason: "invalid_carrier",
+            message: "The original Inbox transaction did not save the communication",
+          })
         return yield* receipt(saved, true, input.trigger)
-      }).pipe(Effect.catchTag("SessionCommunication.Error", (error) => Effect.gen(function* () {
-        const saved = yield* CommunicationRecord.get(database.db, input.id)
-        if (error.reason === "conflicting_retry" && saved?.record.requestDigest === requestDigest) return yield* receipt(saved, false, input.trigger)
-        return yield* error
-      })))
+      }).pipe(
+        Effect.catchTag("SessionCommunication.Error", (error) =>
+          Effect.gen(function* () {
+            const saved = yield* CommunicationRecord.get(database.db, input.id)
+            if (error.reason === "conflicting_retry" && saved?.record.requestDigest === requestDigest)
+              return yield* receipt(saved, false, input.trigger)
+            return yield* error
+          }),
+        ),
+      )
       return yield* selection ? serializedSelection(input.actor.sessionID, admit) : admit
     })
-    const contentText = (content: SessionCommunication.Content) => Effect.gen(function* () {
-      if (content.type === "text") return content.text
-      yield* sessions.get(content.sessionID)
-      if (content.scope === "reference") return `[Shared reference] Source session: ${content.sessionID}.`
-      if (content.scope === "full") return `[Shared history from session ${content.sessionID}]\n\n${formatMessages(yield* sessions.context(content.sessionID))}`
-      const text = lastAssistantText(yield* sessions.messages({ sessionID: content.sessionID, order: "asc" }))
-      return text ? `[Shared output from session ${content.sessionID}]\n\n${text}` : `[Shared output] Source session ${content.sessionID} has no assistant output yet.`
+    const contentText = (content: SessionCommunication.Content) =>
+      Effect.gen(function* () {
+        if (content.type === "text") return content.text
+        yield* sessions.get(content.sessionID)
+        if (content.scope === "reference") return `[Shared reference] Source session: ${content.sessionID}.`
+        if (content.scope === "full")
+          return `[Shared history from session ${content.sessionID}]\n\n${formatMessages(yield* sessions.context(content.sessionID))}`
+        const text = lastAssistantText(yield* sessions.messages({ sessionID: content.sessionID, order: "asc" }))
+        return text
+          ? `[Shared output from session ${content.sessionID}]\n\n${text}`
+          : `[Shared output] Source session ${content.sessionID} has no assistant output yet.`
+      })
+    const send = Effect.fn("SessionShareV2.send")(function* (
+      input: SessionCommunication.Send & { readonly sessionID: SessionSchema.ID },
+    ) {
+      return yield* deliver({
+        id: input.id,
+        actor: new SessionCommunication.UserActor({ type: "user", sessionID: input.sessionID }),
+        contentSource: new SessionCommunication.ContentSource({
+          sessionID: input.content.type === "session" ? input.content.sessionID : input.sessionID,
+          scope: input.content.type === "session" ? input.content.scope : "text",
+        }),
+        targetSessionID: input.targetSessionID,
+        request: input.content,
+        text: contentText(input.content),
+        delivery: input.delivery ?? "queue",
+        trigger: input.trigger ?? true,
+      })
     })
-    const send = Effect.fn("SessionShareV2.send")(function* (input: SessionCommunication.Send & { readonly sessionID: SessionSchema.ID }) {
-      return yield* deliver({ id: input.id, actor: new SessionCommunication.UserActor({ type: "user", sessionID: input.sessionID }),
-        contentSource: new SessionCommunication.ContentSource({ sessionID: input.content.type === "session" ? input.content.sessionID : input.sessionID,
-          scope: input.content.type === "session" ? input.content.scope : "text" }),
-        targetSessionID: input.targetSessionID, request: input.content, text: contentText(input.content),
-        delivery: input.delivery ?? "queue", trigger: input.trigger ?? true })
-    })
-    const reply = Effect.fn("SessionShareV2.reply")(function* (input: SessionCommunication.Reply & { readonly sessionID: SessionSchema.ID; readonly communicationID: SessionCommunication.ID }) {
+    const reply = Effect.fn("SessionShareV2.reply")(function* (
+      input: SessionCommunication.Reply & {
+        readonly sessionID: SessionSchema.ID
+        readonly communicationID: SessionCommunication.ID
+      },
+    ) {
       yield* available(input.sessionID)
       const parent = yield* CommunicationRecord.get(database.db, input.communicationID)
       if (!parent || parent.record.targetSessionID !== input.sessionID)
-        return yield* new SessionCommunication.Error({ sessionID: input.sessionID, communicationID: input.communicationID,
-          reason: "invalid_reply", message: "Only the receiving Session may reply to this communication" })
-      return yield* deliver({ id: input.id, actor: new SessionCommunication.UserActor({ type: "user", sessionID: input.sessionID }),
-        targetSessionID: parent.record.actor.sessionID, replyTo: parent.record.id,
-        contentSource: new SessionCommunication.ContentSource({ sessionID: input.content.type === "session" ? input.content.sessionID : input.sessionID,
-          scope: input.content.type === "session" ? input.content.scope : "text" }), request: input.content, text: contentText(input.content),
-        delivery: input.delivery ?? "queue", trigger: input.trigger ?? true })
+        return yield* new SessionCommunication.Error({
+          sessionID: input.sessionID,
+          communicationID: input.communicationID,
+          reason: "invalid_reply",
+          message: "Only the receiving Session may reply to this communication",
+        })
+      return yield* deliver({
+        id: input.id,
+        actor: new SessionCommunication.UserActor({ type: "user", sessionID: input.sessionID }),
+        targetSessionID: parent.record.actor.sessionID,
+        replyTo: parent.record.id,
+        contentSource: new SessionCommunication.ContentSource({
+          sessionID: input.content.type === "session" ? input.content.sessionID : input.sessionID,
+          scope: input.content.type === "session" ? input.content.scope : "text",
+        }),
+        request: input.content,
+        text: contentText(input.content),
+        delivery: input.delivery ?? "queue",
+        trigger: input.trigger ?? true,
+      })
     })
-    const read = Effect.fn("SessionShareV2.readCommunication")(function* (input: { readonly sessionID: SessionSchema.ID; readonly communicationID: SessionCommunication.ID }) {
+    const read = Effect.fn("SessionShareV2.readCommunication")(function* (input: {
+      readonly sessionID: SessionSchema.ID
+      readonly communicationID: SessionCommunication.ID
+    }) {
       yield* available(input.sessionID)
       yield* sessions.get(input.sessionID)
       const saved = yield* CommunicationRecord.get(database.db, input.communicationID)
       if (!saved) return undefined
       if (saved.record.actor.sessionID !== input.sessionID && saved.record.targetSessionID !== input.sessionID)
-        return yield* new SessionCommunication.Error({ sessionID: input.sessionID, communicationID: input.communicationID,
-          reason: "not_participant", message: "The Session is not a participant in this communication" })
+        return yield* new SessionCommunication.Error({
+          sessionID: input.sessionID,
+          communicationID: input.communicationID,
+          reason: "not_participant",
+          message: "The Session is not a participant in this communication",
+        })
       return yield* message(saved)
     })
     const capability = Effect.fn("SessionShareV2.communicationCapability")(function* (sessionID: SessionSchema.ID) {
       const coordination = yield* metas.coordination(sessionID)
-      return new SessionCommunication.Capability({ read: bus.retainsEvents, list: bus.retainsEvents,
-        send: bus.retainsEvents && coordination.available, reply: bus.retainsEvents && coordination.available,
-        reasons: [...(!bus.retainsEvents ? ["retained-events-required"] : []), ...coordination.reasons.map((reason) => reason.code)] })
+      return new SessionCommunication.Capability({
+        read: bus.retainsEvents,
+        list: bus.retainsEvents,
+        send: bus.retainsEvents && coordination.available,
+        reply: bus.retainsEvents && coordination.available,
+        reasons: [
+          ...(!bus.retainsEvents ? ["retained-events-required"] : []),
+          ...coordination.reasons.map((reason) => reason.code),
+        ],
+      })
     })
-    const list = Effect.fn("SessionShareV2.listCommunications")(function* (input: SessionCommunication.ListInput & { readonly sessionID: SessionSchema.ID }) {
+    const list = Effect.fn("SessionShareV2.listCommunications")(function* (
+      input: SessionCommunication.ListInput & { readonly sessionID: SessionSchema.ID },
+    ) {
       yield* sessions.get(input.sessionID)
       const capabilities = yield* capability(input.sessionID)
       if (!capabilities.list) return new SessionCommunication.Page({ items: [], capability: capabilities })
       const page = yield* CommunicationRecord.page(kv, input.sessionID, input)
-      const messages = yield* Effect.forEach(page.entries, (entry) => read({ sessionID: input.sessionID,
-        communicationID: Schema.decodeUnknownSync(SessionCommunication.ID)(entry.value) }))
-      return new SessionCommunication.Page({ items: messages.filter((message): message is SessionCommunication.Message => message !== undefined),
-        next: page.next, capability: capabilities })
+      const messages = yield* Effect.forEach(page.entries, (entry) =>
+        read({
+          sessionID: input.sessionID,
+          communicationID: Schema.decodeUnknownSync(SessionCommunication.ID)(entry.value),
+        }),
+      )
+      return new SessionCommunication.Page({
+        items: messages.filter((message): message is SessionCommunication.Message => message !== undefined),
+        next: page.next,
+        capability: capabilities,
+      })
     })
 
     const share = Effect.fn("SessionShareV2.share")(function* (input: ShareInput) {
       if (input.actor && input.communicationID && (input.scope !== "result" || bus.retainsEvents)) {
-        const delivered = yield* deliver({ id: input.communicationID, actor: input.actor, targetSessionID: input.targetSessionID,
-          contentSource: new SessionCommunication.ContentSource({ sessionID: input.sourceSessionID, scope: input.scope,
+        const delivered = yield* deliver({
+          id: input.communicationID,
+          actor: input.actor,
+          targetSessionID: input.targetSessionID,
+          contentSource: new SessionCommunication.ContentSource({
+            sessionID: input.sourceSessionID,
+            scope: input.scope,
             result_source: input.scope === "result" ? input.result.result_source : undefined,
-            basis: input.scope === "result" ? input.result.basis : undefined }),
-          request: input.scope === "text" ? new SessionCommunication.TextContent({ type: "text", text: input.text })
-            : { sourceSessionID: input.sourceSessionID, scope: input.scope, result_source: input.scope === "result" ? input.result.result_source : undefined },
+            basis: input.scope === "result" ? input.result.basis : undefined,
+          }),
+          request:
+            input.scope === "text"
+              ? new SessionCommunication.TextContent({ type: "text", text: input.text })
+              : {
+                  sourceSessionID: input.sourceSessionID,
+                  scope: input.scope,
+                  result_source: input.scope === "result" ? input.result.result_source : undefined,
+                },
           replyTo: input.replyTo,
-          inputID: input.scope === "result" ? input.inboxID : undefined, delivery: input.delivery ?? "queue", trigger: input.trigger ?? true,
+          inputID: input.scope === "result" ? input.inboxID : undefined,
+          delivery: input.delivery ?? "queue",
+          trigger: input.trigger ?? true,
           text: Effect.gen(function* () {
             yield* sessions.get(input.sourceSessionID)
             if (input.scope === "text") return input.text
-            const body = input.scope === "result" ? input.result.text : yield* contentText(new SessionCommunication.SessionContent({
-              type: "session", sessionID: input.sourceSessionID, scope: input.scope }))
+            const body =
+              input.scope === "result"
+                ? input.result.text
+                : yield* contentText(
+                    new SessionCommunication.SessionContent({
+                      type: "session",
+                      sessionID: input.sourceSessionID,
+                      scope: input.scope,
+                    }),
+                  )
             return `[Shared by ${input.actor?.agent === "meta" ? "Meta session" : `agent ${input.actor?.agent} in session`} ${input.actor?.sessionID}, content from session ${input.sourceSessionID}]\n${body}`
           }),
         })
         if (input.scope !== "result") return delivered
-        return new ResultOutput({ actorSessionID: delivered.actor.sessionID, sourceSessionID: delivered.contentSource.sessionID,
-          targetSessionID: delivered.targetSessionID, scope: "result", result_source: delivered.contentSource.result_source ?? input.result.result_source,
-          basis: delivered.contentSource.basis ?? input.result.basis, inboxID: delivered.body.inputID, admission: delivered.admission,
-          wake: delivered.wake, text: delivered.text, communication: new SessionCommunication.Record(delivered) })
+        return new ResultOutput({
+          actorSessionID: delivered.actor.sessionID,
+          sourceSessionID: delivered.contentSource.sessionID,
+          targetSessionID: delivered.targetSessionID,
+          scope: "result",
+          result_source: delivered.contentSource.result_source ?? input.result.result_source,
+          basis: delivered.contentSource.basis ?? input.result.basis,
+          inboxID: delivered.body.inputID,
+          admission: delivered.admission,
+          wake: delivered.wake,
+          text: delivered.text,
+          communication: new SessionCommunication.Record(delivered),
+        })
       }
       yield* sessions.get(input.sourceSessionID)
       yield* sessions.get(input.targetSessionID)
@@ -414,5 +647,14 @@ export const layer = Layer.effect(
 export const node: LayerNode.Provider<Service, never, typeof Node.tags.values.global> = Node.makeGlobalNode({
   service: Service,
   layer,
-  deps: [Session.node, Database.node, Bus.node, SessionStore.node, SessionExecution.node, SessionInbox.node, MetaAgentService.node, KV.node],
+  deps: [
+    Session.node,
+    Database.node,
+    Bus.node,
+    SessionStore.node,
+    SessionExecution.node,
+    SessionInbox.node,
+    MetaAgentService.node,
+    KV.node,
+  ],
 })

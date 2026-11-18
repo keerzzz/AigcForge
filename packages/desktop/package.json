@@ -39,6 +39,7 @@
     "@aigcfroge/gui-extensions": "workspace:*",
     "@aigcfroge/client": "workspace:*",
     "@aigcfroge/schema": "workspace:*",
+    "@aigcfroge/script": "workspace:*",
     "@aigcfroge/ui": "workspace:*",
     "@sentry/solid": "catalog:",
     "@sentry/vite-plugin": "catalog:",

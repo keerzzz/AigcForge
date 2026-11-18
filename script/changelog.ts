@@ -11,6 +11,7 @@ const { values, positionals } = parseArgs({
   options: {
     from: { type: "string", short: "f" },
     to: { type: "string", short: "t" },
+    model: { type: "string" },
     variant: { type: "string", default: "low" },
     quiet: { type: "boolean", default: false },
     print: { type: "boolean", default: false },
@@ -27,12 +28,13 @@ if (values.help) {
   console.log(`
 Usage: bun script/changelog.ts [options]
 
-Generates UPCOMING_CHANGELOG.md by running the aigcfroge changelog command.
+Generates UPCOMING_CHANGELOG.md through the V2 CLI and the release-notes template.
 
 Options:
   -f, --from <version>   Starting version (default: latest non-draft GitHub release)
   -t, --to <ref>         Ending ref (default: HEAD)
-      --variant <name>   Thinking variant for aigcfroge run (default: low)
+      --model <name>     Model in provider/model or provider/model#variant form
+      --variant <name>   Variant for a model without #variant (default: low)
       --quiet            Suppress aigcfroge command output unless it fails
       --print            Print the generated UPCOMING_CHANGELOG.md after success
   -h, --help             Show this help message
@@ -45,16 +47,37 @@ Examples:
   process.exit(0)
 }
 
-await rm(file, { force: true })
-
 const quiet = values.quiet
-const cmd = ["aigcfroge", "run"]
-cmd.push("--variant", values.variant)
-cmd.push("--command", "changelog", "--", ...args)
+const bunBin = process.argv[0] || "bun"
+const raw = Bun.spawn([bunBin, path.join(root, "script/raw-changelog.ts"), ...args], {
+  cwd: root,
+  stdin: "ignore",
+  stdout: "pipe",
+  stderr: "pipe",
+})
+const [input, diagnostics, inputExit] = await Promise.all([
+  new Response(raw.stdout).text(),
+  new Response(raw.stderr).text(),
+  raw.exited,
+])
+if (inputExit !== 0) {
+  if (diagnostics) process.stderr.write(diagnostics)
+  process.exit(inputExit)
+}
+
+const template = await Bun.file(path.join(root, ".aigcfroge/command/changelog.md")).text()
+const marker = "!`bun script/raw-changelog.ts $ARGUMENTS`"
+if (!template.includes(marker)) throw new Error("Changelog template is missing its structured input marker")
+const prompt = template.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, "").replace(marker, () => input)
+const cmd = [bunBin, path.join(root, "packages/cli/src/index.ts"), "run", "--standalone", "--agent", "build"]
+if (values.model) cmd.push("--model", values.model.includes("#") ? values.model : `${values.model}#${values.variant}`)
+cmd.push(prompt)
+
+await rm(file, { force: true })
 
 const proc = Bun.spawn(cmd, {
   cwd: root,
-  stdin: "inherit",
+  stdin: "ignore",
   stdout: quiet ? "pipe" : "inherit",
   stderr: quiet ? "pipe" : "inherit",
 })

@@ -86,10 +86,9 @@ export const Info = Schema.Struct({
     description: "Custom username to display in conversations instead of system username",
   }),
   mode: optional(
-    Schema.StructWithRest(
-      Schema.Struct({ build: optional(ConfigAgentV1.Info), plan: optional(ConfigAgentV1.Info) }),
-      [Schema.Record(Schema.String, ConfigAgentV1.Info)],
-    ),
+    Schema.StructWithRest(Schema.Struct({ build: optional(ConfigAgentV1.Info), plan: optional(ConfigAgentV1.Info) }), [
+      Schema.Record(Schema.String, ConfigAgentV1.Info),
+    ]),
   ).annotate({ description: "@deprecated Use `agent` field instead." }),
   agent: optional(
     Schema.StructWithRest(
@@ -131,9 +130,7 @@ export const Info = Schema.Struct({
   attachment: optional(ConfigAttachmentV1.Info).annotate({
     description: "Attachment processing configuration, including image size limits and resizing behavior",
   }),
-  enterprise: optional(
-    Schema.Struct({ url: optional(Schema.String).annotate({ description: "Enterprise URL" }) }),
-  ),
+  enterprise: optional(Schema.Struct({ url: optional(Schema.String).annotate({ description: "Enterprise URL" }) })),
   tool_output: optional(
     Schema.Struct({
       max_lines: optional(PositiveInt).annotate({

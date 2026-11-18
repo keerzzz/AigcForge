@@ -9,7 +9,8 @@ export function clonePrompt(prompt: Prompt): Prompt {
   return prompt.map((part) => {
     if (part.type === "file") return { ...part, selection: part.selection ? { ...part.selection } : undefined }
 
-    if (part.type === "session") return { ...part, reference: { ...part.reference, scope: { ...part.reference.scope } } }
+    if (part.type === "session")
+      return { ...part, reference: { ...part.reference, scope: { ...part.reference.scope } } }
 
     return { ...part }
   })

@@ -74,7 +74,9 @@ describe("SessionStore", () => {
 
       expect(empty.time.message).toEqual(empty.time.created)
       expect(Schema.encodeSync(Session.Info)(empty).time.message).toBe(DateTime.toEpochMillis(empty.time.created))
-      expect((yield* store.list()).find((session) => session.id === sessionID)?.time.message).toEqual(empty.time.created)
+      expect((yield* store.list()).find((session) => session.id === sessionID)?.time.message).toEqual(
+        empty.time.created,
+      )
 
       yield* bus.publish(SessionEvent.Synthetic, { sessionID: foreignID, text: "system bookkeeping only" })
       const syntheticOnly = yield* store.get(foreignID)

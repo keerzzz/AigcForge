@@ -160,19 +160,19 @@ B 编号是 P0–P6 的交付批次，不重编号历史任务、migration 或�
 
 ## 3. 批次依赖与 P 映射
 
-| 批次 | 范围 | 原计划映射 | 主要前置 |
-| --- | --- | --- | --- |
-| B00 | 协议、路线、门禁、交接提示词 | §0、P1/P6 文档权威 | 本轮文档范围 |
-| B01 | 默认新增能力矩阵与双仓架构覆盖 | P1 | B00 文档通过 |
-| B02 | 桌面闭包与既有 S1 验收接口 | P0.3、P2.2T | 原 owner/冻结身份；独立于 B01 收尾 |
-| B03 | Home/模式/工作位置/Draft/Session/Panel/状态宿主 | P2.1、P5 | B01 对应映射；生产实施遵守 S1 门禁 |
-| B04 | Coding 增量、权限/工具与行为版本/分叉 | P0.2、P1、P3 | B01 合同，B02 当前可运行闭包 |
-| B05 | Chat 七资产管理/候选/运行消费/导入与引用 | P2.2 | B03 宿主；涉及冻结时依 B04 |
-| B06 | Custom Builder 与 Meta 持久流程 | P3 | B03、B04；依具体资产消费接 B05 |
-| B07 | Work/Task/Review/Delegation/Workflow | P4、P0.4 | B01、B03；组合/Meta 依实际消费者 |
-| B08 | Assistant 个人记忆/Notes/KB/提醒 | P3 | B01、B03；与 Work 调度分开 |
-| B09 | 全局搜索/分享/外部 CLI/兼容/模型能力 | P5、P4 剩余外部链 | 按实际消费者穿插，不强等 B07/B08 全部结束 |
-| B10 | 最终数据、平台、性能、发布与 Cutover | P6 | 全矩阵核对与对应领域门禁 |
+| 批次 | 范围                                            | 原计划映射         | 主要前置                                  |
+| ---- | ----------------------------------------------- | ------------------ | ----------------------------------------- |
+| B00  | 协议、路线、门禁、交接提示词                    | §0、P1/P6 文档权威 | 本轮文档范围                              |
+| B01  | 默认新增能力矩阵与双仓架构覆盖                  | P1                 | B00 文档通过                              |
+| B02  | 桌面闭包与既有 S1 验收接口                      | P0.3、P2.2T        | 原 owner/冻结身份；独立于 B01 收尾        |
+| B03  | Home/模式/工作位置/Draft/Session/Panel/状态宿主 | P2.1、P5           | B01 对应映射；生产实施遵守 S1 门禁        |
+| B04  | Coding 增量、权限/工具与行为版本/分叉           | P0.2、P1、P3       | B01 合同，B02 当前可运行闭包              |
+| B05  | Chat 七资产管理/候选/运行消费/导入与引用        | P2.2               | B03 宿主；涉及冻结时依 B04                |
+| B06  | Custom Builder 与 Meta 持久流程                 | P3                 | B03、B04；依具体资产消费接 B05            |
+| B07  | Work/Task/Review/Delegation/Workflow            | P4、P0.4           | B01、B03；组合/Meta 依实际消费者          |
+| B08  | Assistant 个人记忆/Notes/KB/提醒                | P3                 | B01、B03；与 Work 调度分开                |
+| B09  | 全局搜索/分享/外部 CLI/兼容/模型能力            | P5、P4 剩余外部链  | 按实际消费者穿插，不强等 B07/B08 全部结束 |
+| B10  | 最终数据、平台、性能、发布与 Cutover            | P6                 | 全矩阵核对与对应领域门禁                  |
 
 上述顺序是默认优先级，不是无条件线性阻塞。B03 导航调查不因 B04 冻结待裁决而停；B08 不因 Work 的独立调度停；涉及同一 owner、共享产物或未完成合同的小节必须等待。
 
@@ -181,6 +181,7 @@ B 编号是 P0–P6 的交付批次，不重编号历史任务、migration 或�
 目标：让新会话在 V2 内独立找到正确规则，停止旧 P0.1/旧 owner 入口漂移，不把文档通过写成功能完成。
 
 小节：
+
 1. B00.1 复审此前七项建议，承接第一性原理与安全，说明条件和拒绝的过度改造。
 2. B00.2 建短 CLAUDE/ARCHITECTURE/DESIGN/testing 索引，AGENTS 只加导航和迁移门禁，保留原生语义；不新建第二 CONTEXT 字典。
 3. B00.3 在原总计划加入 B 路线、批次与提示词入口；旧证据保留为历史，修正文档当前入口/过时 owner 引用。
@@ -195,6 +196,7 @@ B 编号是 P0–P6 的交付批次，不重编号历史任务、migration 或�
 目标：把“默认新增内容全部移植”变成可审计范围，并按依赖给下一条用户链下任务。
 
 小节：
+
 1. B01.1 核对两仓 HEAD/WIP 和固定上游，保存相关源码引用/内容身份及未跟踪源码清单；不读无关用户数据、下载数据或秘密。
 2. B01.2 覆盖默认17包/V2当前25包与九类代码族，逐能力读真实入口、决定函数、消费者和最近测试；generated/vendor 读生成/消费边界，不逐份复制。
 3. B01.3 分类为 V2 等价复用、自研增量、冲突适配、旧缺陷/无消费者；保留允许差异与未核范围。没有证据的项标待查，不标已完成。
@@ -213,6 +215,7 @@ B 编号是 P0–P6 的交付批次，不重编号历史任务、migration 或�
 目标：区分已验证产物、当前源码、未提交恢复内容和可重建交付；接续原任务而非接管。
 
 小节：
+
 1. B02.1 只读核对原 S1 owner、宽度 repair 冻结 handoff、剩余子会话/长标题与 HMR 记录，原验收负责人完成其范围。
 2. B02.2 追踪 DesktopCli/BackgroundService/Client service/CLI ServerProcess、prebuild/builder/release 的真实闭包；列出未提交恢复与同源产物差距。
 3. B02.3 经明确任务单从冻结源构建配对 CLI/Desktop，隔离冷启动、复用、认证、PTY/handoff；缺平台或环境逐项阻断。
@@ -226,6 +229,7 @@ B 编号是 P0–P6 的交付批次，不重编号历史任务、migration 或�
 目标：先定正确入口与身份，使后续资产和模式能力不再依赖错误标题入口或重复缓存。
 
 小节：
+
 1. B03.1 Home 查询/共享工作位置/新建来源：复用现有 Server/Project/selection，处理无位置、跨 server/project、迟到响应及 storage 加载。
 2. B03.2 模式工作台/全局入口 → Draft/canonical Session：联动 AppRoutes/preload、LayoutRoute、tab schema 与 Desktop route restore，不覆盖已有 Session mode/Location。
 3. B03.3 共享 Panel/Chat 管理与候选职责、窄屏/焦点/恢复；保留 S1 已验证结果，新增领域面只用现有接缝。
@@ -240,6 +244,7 @@ B 编号是 P0–P6 的交付批次，不重编号历史任务、migration 或�
 目标：保护 V2 Coding 基线并移植默认新增能力，封闭行为版本目标与 V2 当前普通/Custom 执行差异。
 
 小节：
+
 1. B04.1 从 B01 矩阵核对 Coding 构建/LSP/审查/文件符号验证/doom loop 的等价与增量；沿现有工具/上下文 owner 接入，不搬旧 runner。
 2. B04.2 权限展示/档位/Scoped Grant/Break-glass 的明确产品增量；保留 V2 决策、hook、saved approval 和快照→实际 assert，租约/回收另验。
 3. B04.3 列出定义/工具实现来源、实时环境观察、授权/凭据/健康、Agent/Model 选择五类合同；先复现实例缺口再决定共同捕获/消费的最小提取。
@@ -254,6 +259,7 @@ B 编号是 P0–P6 的交付批次，不重编号历史任务、migration 或�
 目标：保留七类已完成后端，交付正确管理/候选入口与真实消费，不按 CRUD 数量算完成。
 
 小节：
+
 1. B05.1 管理页 list/count 的同一合并 owner、project/global/工作副本目标与 Location 级 mutation/授权；不使用假 Session ID 或自动造会话。
 2. B05.2 先完整验证 Skill 或 Prompt：新建/提案/审阅/取消/CAS/保存/发现/插入/显式发送/重载；复用已交付子链，补真正缺口。
 3. B05.3 按 Agent、MCP、Plugin、Workflow 各自 codec、连接/授权/加载副作用和冻结消费者扩展，不能泛化为同一保存语义。
@@ -268,6 +274,7 @@ B 编号是 P0–P6 的交付批次，不重编号历史任务、migration 或�
 目标：从V2电路板与Chat资产元件重新设计Custom；不参考默认旧Custom PRD/ADR/UI或固定meta/用户Agent数量/旧升级流程。Meta所有内容与能力保留，旧Custom排除不影响它。
 
 小节：
+
 1. B06.1 内置基础组合＋可选Chat元件的目录/选择/插拔/连接/预览/保存装配定义；零用户资产也可启动基础智能体，内置来源和用户资产明确区分。
 2. B06.2 按B04.0新装配合同确认与原子采用、V2执行/真实结果、版本漂移/引用删除/取消/恢复/显式采用新版；失效已选依赖不fallback，保存不自动安装/授权/挂载/执行。
 3. B06.3 Meta完整协议/指令、身份/记忆、意图分发、资产/CLI信息、子代理协议卡片、内外协作/委派/Task/Workflow、review/revision、结果通知与恢复全部按B01矩阵迁移。Meta可被组合消费，不把旧Custom的强制meta根策略当新设计依据。
@@ -279,6 +286,7 @@ B 编号是 P0–P6 的交付批次，不重编号历史任务、migration 或�
 目标：从 Work 用户入口到持久执行结果与恢复，CRUD/scheduled 字段不冒充完整执行。
 
 小节：
+
 1. B07.1 Work preset/workflow Draft 合同、Task 四态/真实进度/外部关闭/收起更新、持久 child 导航/当次快照、继续执行。
 2. B07.2 reconcile/reorder CAS 冲突拒绝刷新、客户端缺省时区/模型工具承载、固定时区 DST、到期队列与真正 claim/取消/冷恢复；保留 V2 Todo 语义。
 3. B07.3 内部 Delegation/Task receipt、review/revision barrier、fanout 准入/补偿、多个 pending/删除/关闭/归档/人工停止与未知副作用。
@@ -291,6 +299,7 @@ B 编号是 P0–P6 的交付批次，不重编号历史任务、migration 或�
 目标：个人记忆、Daily Notes、KB 与提醒从写入到读取和到期投递闭环。
 
 小节：
+
 1. B08.1 可见域/位置与 Dashboard 数据、错误/迟到响应/编辑实例身份。
 2. B08.2 PersonalMemory/Notes/KB 写入、检索、修订/删除、Session Instructions 消费与旧数据。
 3. B08.3 提醒确认、固定时区/缺省、生产调度/投递、已读/取消/失败/冷恢复。
@@ -302,6 +311,7 @@ B 编号是 P0–P6 的交付批次，不重编号历史任务、migration 或�
 目标：完成用户能到达的剩余消费者，必要时与前批穿插，不批量恢复旧 HTTP 镜像。
 
 小节：
+
 1. B09.1 Home/global search、跨项目/Location 同步、删除/重连/失效；不把 Home 全服务器范围扩大为未批准的跨服务器聚合。
 2. B09.2 分享链接授权/撤销/保留与实际访问、share-summary/AI judge 的现有 AI 适配和有界错误。
 3. B09.3 本地 Codex/Claude CLI 发现、外部会话导入/续接、attended、review/revision 的真实生产链与安全边界。
@@ -314,6 +324,7 @@ B 编号是 P0–P6 的交付批次，不重编号历史任务、migration 或�
 目标：从本地能力交付到可重建、安全升级的桌面产品。不是到此才第一次查数据和性能。
 
 小节：
+
 1. B10.1 汇总功能矩阵、允许差异和未交付 ID；全链完成后删除已证明无消费者的兼容/重复状态，统一当前文档。
 2. B10.2 真实旧库/旧桌面 storage 副本升级：实体/关系/事件/输入结果/快照/Task/Delegation/Workflow/个人数据不变量及失败恢复。
 3. B10.3 冻结源/锁/同源 CLI/Desktop，支持平台的 packaged/native PTY/服务版本复用接管、安装/更新失败恢复与同条件性能/规模测量。
@@ -336,7 +347,6 @@ B 编号是 P0–P6 的交付批次，不重编号历史任务、migration 或�
 §37历史检查点（当前见§38）：2026-11-02 当前MC02接续：协议卡共享注册编码与实际七段传播已按[专项§37](2026-10-29-meta-cpu-closure-plan.md#37-2026-11-02-mc02协议卡编码与七段原生传播验收)有限接受。统一Agent注册入口复用canonical卡codec；新Work/Meta的generator文本＝Task.prompt＝receipt指定child user，七标题与present/included/true/live metadata持久回读通过，Root36/36核对，Flash/high6/6（Meta3＋Build3）。取消槽及前置失败分轮保留，原§33–§36证据不覆写。当前继续有效内部Agent目录、完整Agent/CLI/资产scope/source/adoption/执行实现版本；完整MC02、后续MC/M01–M24、S1与历史owner/unlock保持，MC01绿色组不重开。
 
 §39历史检查点（当前见§40）：2026-11-02 当前MC02接续：[专项§39](2026-10-29-meta-cpu-closure-plan.md#39-2026-11-02-mc02冻结目录与缺省执行偏好验收)已核冻结Meta目录工程与原生消费者：snapshot原始coder/writer保持，当前Session策略coder deny、writer ask，实际Flash/high一次HTTP200仅输出FROZEN_DIRECTORY_OK: writer；原生首发保持executorPreference缺省，executor POST0、prompt POST1、ACK200，Root21/21核对，独立结果复核与文档复核分别记录。Build、Plan、Meta公共注册及模型入口保持。前置原生fixture失败均0模型且保留；完整资产/CLI目录scope/source/adoption/执行实现版本与MC02–MC10/M01–M24仍开放，MC01绿色组不重开。
-
 
 §40历史检查点（当前见§41）：2026-11-02 当前MC02接续：[专项§40](2026-10-29-meta-cpu-closure-plan.md#40-2026-11-02-mc02冻结skill资产目录验收)已有限接受冻结Skill目录：2生产文件＋2keeper，59/0、317断言；新Custom/Meta原生1次Flash/high HTTP200，仅列Root craft并保留Authored empty prompt，Root与独审24/24条件核对。快照不变，executor偏好缺省、executor POST0、prompt POST1、ACK200，实际工具调用0；真实Skill leaf未验。完整MC02原目录/来源scope/冻结版本余项仍开放；CLI真实执行归MC06，全模式执行实现绑定归原B04，MC03原依赖保持，MC01绿色组不重开。
 
@@ -372,7 +382,7 @@ B 编号是 P0–P6 的交付批次，不重编号历史任务、migration 或�
 
 2026-11-03 §52原MC03零模型进度：受控readiness keeper使用实际SessionStep/Bus/SessionProjector/DB和Deferred信号，在pending Snapshot期间interrupt/join，late release不生成完成事件；正常对照仅一次Completed，投影完成id/seq与回调一致。最终1 pass/0 fail/5 filtered/23 expects、actual exit0，Core类型、格式、lint与diff通过；首轮缺cost.cache失败保留。仅新增既有session-step.test.ts一个keeper，无本轮生产修改、新registry或模型循环。见[keeper接受](/home/keer/.codex/outputs/2026-11-03/mc03-readiness-root-v2/root-engineering-acceptance-v1.json)。私有publication/readiness宿主改为在声明resume时取current Location Snapshot，并捕获实际Source Scope供既有FiberSet runtime；首次缺Scope的type exit2/TS2345与后继exit0分开保留，独审及[工程准备接受](/home/keer/.codex/outputs/2026-11-03/mc03-publication-readiness-source-root-v3/root-engineering-preparation-acceptance-v1.json)不取得真实publication/public resume/cancellation信用。
 
-原来源/有效目录场景仍用同DB、同Source/Writer及原账本：旧Source slot1取消保留；无startup sweep的显式Source resume产生slot2 complete200/high，真实User、Started/Ended/Completed和meta_step owner/root/provenance准确关联，Source tails为空，仅[正常Source子范围接受](/home/keer/.codex/outputs/2026-11-03/mc03-source-directory-continuation-root-v5/root-source-native-acceptance-v1.json)。无证据legacy row只作负面夹具，不取得来源信用。v3/v4在模型前的断言失败新增请求0；决定函数BrowserConnection.grant/release（packages/plugin-browser/src/connection.ts:30）解释Native临时browser/*/allow，权限匹配由PermissionEffective.evaluate（packages/core/src/permission/effective.ts:36）决定，精确browser action不匹配memory；原raw deny→effective ask及三owning once门禁保持。v5首次Writer Native ACK200，但编辑器填入文本仅丢一个换行，harness精确文本期望失败；旧memory_record在未答复ask后取消，memory0，slot3虽complete200仍不接受工具。v6保留完整旧User/eventprefix，以明确的新Native单行输入重验，释放前新id/正文/hash均核对；ACK200与slot4上游503分别记录，provider.internal、idle failed、claim清空、工具/新ask/once/记忆新增均0。全场景实际4/8（Source2＋Writer2），v5/v6 command/controller/runner exit1保留，取消不退款、无generic retry或人工token限制。见[provider暂停结算](/home/keer/.codex/outputs/2026-11-03/mc03-source-directory-continuation-root-v6/root-provider-pause-disposition-v1.json)。用户明确暂停DeepSeek后Root关闭自有网关，final close成功：Electron0、gateway0、Source进程结束但数字exit仍unknown，三端口free；不以HTTP200/目录暴露/空Assistant代替真实工具消费。
+原来源/有效目录场景仍用同DB、同Source/Writer及原账本：旧Source slot1取消保留；无startup sweep的显式Source resume产生slot2 complete200/high，真实User、Started/Ended/Completed和meta_step owner/root/provenance准确关联，Source tails为空，仅[正常Source子范围接受](/home/keer/.codex/outputs/2026-11-03/mc03-source-directory-continuation-root-v5/root-source-native-acceptance-v1.json)。无证据legacy row只作负面夹具，不取得来源信用。v3/v4在模型前的断言失败新增请求0；决定函数BrowserConnection.grant/release（packages/plugin-browser/src/connection.ts:30）解释Native临时browser/\*/allow，权限匹配由PermissionEffective.evaluate（packages/core/src/permission/effective.ts:36）决定，精确browser action不匹配memory；原raw deny→effective ask及三owning once门禁保持。v5首次Writer Native ACK200，但编辑器填入文本仅丢一个换行，harness精确文本期望失败；旧memory_record在未答复ask后取消，memory0，slot3虽complete200仍不接受工具。v6保留完整旧User/eventprefix，以明确的新Native单行输入重验，释放前新id/正文/hash均核对；ACK200与slot4上游503分别记录，provider.internal、idle failed、claim清空、工具/新ask/once/记忆新增均0。全场景实际4/8（Source2＋Writer2），v5/v6 command/controller/runner exit1保留，取消不退款、无generic retry或人工token限制。见[provider暂停结算](/home/keer/.codex/outputs/2026-11-03/mc03-source-directory-continuation-root-v6/root-provider-pause-disposition-v1.json)。用户明确暂停DeepSeek后Root关闭自有网关，final close成功：Electron0、gateway0、Source进程结束但数字exit仍unknown，三端口free；不以HTTP200/目录暴露/空Assistant代替真实工具消费。
 
 未完成项继续登记原MC03 owner：来源/有效目录的新三次调用与owning ask/once204、step_unverified、成功record/search模型消费，以及真实checkpoint publication失败→public resume与pending readiness取消/正常尾项。用户暂停真实模型期间只做零模型工程/文档核对；解除条件为用户允许恢复模型验收、路由可用且具体有限任务重新绑定/复审，不自动重试、重置账本或重播已接受TTL/CRUD/P1。原Inbox publication失败、Location decline、并行Session及必要恢复仍按§46与债务账本逐项核证，不能用checkpoint切口覆盖。CLI执行归MC06、全模式执行绑定归B04，个人Inspector/UI/整体在飞恢复保留原B08/MC09/MC10 owner/unlock，S1归属不转移。MC03Complete=false、MC04aUnlocked=false；默认工作区只读、Git写未授权，旧WIP/历史失败均保留。
 

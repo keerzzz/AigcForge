@@ -1,6 +1,19 @@
 export * as DelegationExecution from "./execution.js"
 
-import { Cause, Context, DateTime, Deferred, Effect, Exit, Layer, Option, Queue, Schema, Stream, type Scope } from "effect"
+import {
+  Cause,
+  Context,
+  DateTime,
+  Deferred,
+  Effect,
+  Exit,
+  Layer,
+  Option,
+  Queue,
+  Schema,
+  Stream,
+  type Scope,
+} from "effect"
 import { isReadonlyArrayNonEmpty } from "effect/Array"
 import { ChildProcess } from "effect/process"
 import { createHash, randomUUID } from "node:crypto"
@@ -95,9 +108,12 @@ class ArtifactError extends Schema.TaggedError<ArtifactError>()("DelegationExecu
   message: Schema.String,
 }) {}
 
-class ScheduledExecutionError extends Schema.TaggedError<ScheduledExecutionError>()("DelegationExecution.ScheduleError", {
-  message: Schema.String,
-}) {}
+class ScheduledExecutionError extends Schema.TaggedError<ScheduledExecutionError>()(
+  "DelegationExecution.ScheduleError",
+  {
+    message: Schema.String,
+  },
+) {}
 
 class TaskLink extends Schema.Class<TaskLink>("DelegationExecution.TaskLink")({
   parentTaskID: Schema.String,
@@ -840,7 +856,9 @@ const make: Effect.Effect<
                   new TaskSettlement({
                     status,
                     revision: task.revision,
-                    ...(link.value.source?.type === "operation" && status !== "recovery_required" ? { sourceSettlement: status === "cancelled" ? "cancelled" as const : "completed" as const } : {}),
+                    ...(link.value.source?.type === "operation" && status !== "recovery_required"
+                      ? { sourceSettlement: status === "cancelled" ? ("cancelled" as const) : ("completed" as const) }
+                      : {}),
                     ...(Option.isSome(retained) ? { governance: retained.value.governance } : {}),
                   }),
                 ),
@@ -851,14 +869,24 @@ const make: Effect.Effect<
       if (updated) return
       if (link.value.source?.type !== "operation") return
       const present = (yield* tasks.get(recovery.parentSessionID)).some((task) => task.id === link.value.parentTaskID)
-      if (link.value.source && status !== "recovery_required") yield* tasks.releaseClaim({
-        sessionID: recovery.parentSessionID, id: link.value.parentTaskID,
-        revision: link.value.parentTaskRevision, source: link.value.source,
-      })
-      yield* kv.set(key, Schema.encodeSync(Schema.toCodecJson(TaskSettlement))(new TaskSettlement({
-        status, revision: link.value.parentTaskRevision, sourceSettlement: present ? "conflict" : "unavailable",
-        ...(Option.isSome(retained) ? { governance: retained.value.governance } : {}),
-      })))
+      if (link.value.source && status !== "recovery_required")
+        yield* tasks.releaseClaim({
+          sessionID: recovery.parentSessionID,
+          id: link.value.parentTaskID,
+          revision: link.value.parentTaskRevision,
+          source: link.value.source,
+        })
+      yield* kv.set(
+        key,
+        Schema.encodeSync(Schema.toCodecJson(TaskSettlement))(
+          new TaskSettlement({
+            status,
+            revision: link.value.parentTaskRevision,
+            sourceSettlement: present ? "conflict" : "unavailable",
+            ...(Option.isSome(retained) ? { governance: retained.value.governance } : {}),
+          }),
+        ),
+      )
     }).pipe(Effect.uninterruptible)
     if (!link.value.background) return false
     const notification = { sessionID: recovery.parentSessionID, inboxID: notificationID }
@@ -866,32 +894,48 @@ const make: Effect.Effect<
     if (!decision.admit) return decision.wake
     const notificationText = `<task id="${recovery.childSessionID}" state="${delivery.status}">\n${text}\n</task>`
     const communication = yield* CommunicationRecord.prepareSystem(db, {
-      inputID: notificationID, targetSessionID: recovery.parentSessionID, text: notificationText,
-      actor: new SessionCommunication.SystemActor({ type: "system", sessionID: recovery.childSessionID,
-        origin: new SessionCommunication.DelegationOrigin({ type: "delegation_delivery", delegationID: recovery.delegationID,
-          participantID: delivery.participantID, turnID: delivery.turnID, deliveryOrigin: delivery.deliveryOrigin,
-          senderParticipantID: delivery.senderParticipantID, attempt: delivery.attempt }) }),
+      inputID: notificationID,
+      targetSessionID: recovery.parentSessionID,
+      text: notificationText,
+      actor: new SessionCommunication.SystemActor({
+        type: "system",
+        sessionID: recovery.childSessionID,
+        origin: new SessionCommunication.DelegationOrigin({
+          type: "delegation_delivery",
+          delegationID: recovery.delegationID,
+          participantID: delivery.participantID,
+          turnID: delivery.turnID,
+          deliveryOrigin: delivery.deliveryOrigin,
+          senderParticipantID: delivery.senderParticipantID,
+          attempt: delivery.attempt,
+        }),
+      }),
       contentSource: new SessionCommunication.ContentSource({ sessionID: recovery.childSessionID, scope: "result" }),
-      delivery: "steer", trigger: true, createdAt: (yield* DateTime.nowAsDate).getTime(),
+      delivery: "steer",
+      trigger: true,
+      createdAt: (yield* DateTime.nowAsDate).getTime(),
     }).pipe(Effect.orDie)
     // The input is the durable notification marker. Exact retries reuse it before any parent wake.
     yield* sessions
-      .synthetic({
-        id: notificationID,
-        sessionID: recovery.parentSessionID,
-        description: link.value.description,
-        text: communication.text,
-        metadata: {
-          source: "task",
-          childID: recovery.childSessionID,
-          state: delivery.status,
-          parentTaskID: link.value.parentTaskID,
-          inputID: saved.id,
-          delegation: new Reference({ delegationID: recovery.delegationID, ...delivery }),
-          communication: Schema.encodeSync(SessionCommunication.Record)(communication.record),
+      .synthetic(
+        {
+          id: notificationID,
+          sessionID: recovery.parentSessionID,
+          description: link.value.description,
+          text: communication.text,
+          metadata: {
+            source: "task",
+            childID: recovery.childSessionID,
+            state: delivery.status,
+            parentTaskID: link.value.parentTaskID,
+            inputID: saved.id,
+            delegation: new Reference({ delegationID: recovery.delegationID, ...delivery }),
+            communication: Schema.encodeSync(SessionCommunication.Record)(communication.record),
+          },
+          resume: false,
         },
-        resume: false,
-      }, { communication: communication.record })
+        { communication: communication.record },
+      )
       .pipe(
         Effect.catchTag("Session.NotFoundError", () => Effect.void),
         Effect.orDie,
@@ -975,20 +1019,40 @@ const make: Effect.Effect<
             ),
           )
         : Option.none()
-      const settlement = Option.isSome(link) ? decodeTaskSettlement(yield* kv.get(
-        `delegation:task-settlement:${DelegationReceipt.notificationID(saved.id, link.value.parentTaskID)}`,
-      )) : Option.none()
-      const latest = Option.isSome(link) && link.value.source?.type === "operation"
-        ? yield* requireState(receipt.delegationID) : undefined
-      const delivery = latest?.deliveries.get(DelegationFold.deliveryKey(receipt.turnID, receipt.participantID,
-        receipt.deliveryOrigin, receipt.senderParticipantID))
-      const corrected = settled.value.status === "recovery_required" && delivery?.attempt === receipt.attempt && delivery.status === "cancelled"
+      const settlement = Option.isSome(link)
+        ? decodeTaskSettlement(
+            yield* kv.get(
+              `delegation:task-settlement:${DelegationReceipt.notificationID(saved.id, link.value.parentTaskID)}`,
+            ),
+          )
+        : Option.none()
+      const latest =
+        Option.isSome(link) && link.value.source?.type === "operation"
+          ? yield* requireState(receipt.delegationID)
+          : undefined
+      const delivery = latest?.deliveries.get(
+        DelegationFold.deliveryKey(
+          receipt.turnID,
+          receipt.participantID,
+          receipt.deliveryOrigin,
+          receipt.senderParticipantID,
+        ),
+      )
+      const corrected =
+        settled.value.status === "recovery_required" &&
+        delivery?.attempt === receipt.attempt &&
+        delivery.status === "cancelled"
       const status = corrected ? "cancelled" : settled.value.status
       return {
         status,
         text: resultText(status, result, (corrected ? delivery.summary : settled.value.summary) ?? "Task settled"),
         ...(Option.isSome(retained) ? { governance: retained.value.governance } : {}),
-        ...(Option.isSome(link) && link.value.source?.type === "operation" && Option.isSome(settlement) && settlement.value.sourceSettlement ? { sourceSettlement: settlement.value.sourceSettlement } : {}),
+        ...(Option.isSome(link) &&
+        link.value.source?.type === "operation" &&
+        Option.isSome(settlement) &&
+        settlement.value.sourceSettlement
+          ? { sourceSettlement: settlement.value.sourceSettlement }
+          : {}),
       }
     }).pipe(Effect.setContext(context))
 
@@ -1202,13 +1266,27 @@ const make: Effect.Effect<
     if (input.task?.source?.type === "operation") {
       const source = input.task.source
       const run = /^top_schedule_[a-f0-9]{64}$/.test(source.operationID)
-        ? yield* schedules.occurrence(Schedule.OccurrenceID.make(`sco_${source.operationID.slice("top_schedule_".length)}`))
+        ? yield* schedules.occurrence(
+            Schedule.OccurrenceID.make(`sco_${source.operationID.slice("top_schedule_".length)}`),
+          )
         : undefined
-      if (!run || run.snapshot.target?.policy !== "legacy_child" || run.snapshot.kind !== "task" ||
-        run.sessionID !== state.delegation.parentSessionID || source.sessionID !== run.sessionID ||
-        run.taskID !== input.task.parentTaskID || run.taskRevision !== input.task.parentTaskRevision ||
-        input.prompt !== run.snapshot.content || input.artifact || input.review)
-        return yield* invalid(state, "dispatch", "An operation source requires its exact persisted scheduled child claim")
+      if (
+        !run ||
+        run.snapshot.target?.policy !== "legacy_child" ||
+        run.snapshot.kind !== "task" ||
+        run.sessionID !== state.delegation.parentSessionID ||
+        source.sessionID !== run.sessionID ||
+        run.taskID !== input.task.parentTaskID ||
+        run.taskRevision !== input.task.parentTaskRevision ||
+        input.prompt !== run.snapshot.content ||
+        input.artifact ||
+        input.review
+      )
+        return yield* invalid(
+          state,
+          "dispatch",
+          "An operation source requires its exact persisted scheduled child claim",
+        )
     }
     const turn = state.turns.get(input.turnID)
     if (!turn) return yield* new Delegation.DelegationTurnNotFoundError(input)
@@ -2092,24 +2170,44 @@ const make: Effect.Effect<
     if (!decision.admit) return decision.wake
     const response = DelegationReceipt.response(receipt, task.id, result)
     const communication = yield* CommunicationRecord.prepareSystem(db, {
-      inputID: notification.inboxID, targetSessionID: parent.id, text: response.content.map((part) => part.text).join(""),
-      actor: new SessionCommunication.SystemActor({ type: "system", sessionID: parent.id,
-        origin: new SessionCommunication.DelegationOrigin({ type: "delegation_delivery", delegationID: binding.delegationID,
-          participantID: binding.participantID, turnID: binding.turnID, deliveryOrigin: binding.deliveryOrigin,
-          senderParticipantID: binding.senderParticipantID, attempt: binding.attempt }) }),
+      inputID: notification.inboxID,
+      targetSessionID: parent.id,
+      text: response.content.map((part) => part.text).join(""),
+      actor: new SessionCommunication.SystemActor({
+        type: "system",
+        sessionID: parent.id,
+        origin: new SessionCommunication.DelegationOrigin({
+          type: "delegation_delivery",
+          delegationID: binding.delegationID,
+          participantID: binding.participantID,
+          turnID: binding.turnID,
+          deliveryOrigin: binding.deliveryOrigin,
+          senderParticipantID: binding.senderParticipantID,
+          attempt: binding.attempt,
+        }),
+      }),
       contentSource: new SessionCommunication.ContentSource({ sessionID: parent.id, scope: "result" }),
-      delivery: "steer", trigger: true, createdAt: (yield* DateTime.nowAsDate).getTime(),
+      delivery: "steer",
+      trigger: true,
+      createdAt: (yield* DateTime.nowAsDate).getTime(),
     }).pipe(Effect.orDie)
-    yield* sessions.synthetic({
-      id: notification.inboxID,
-      sessionID: parent.id,
-      description:
-        typeof call.state.input.description === "string" ? call.state.input.description : state.delegation.title,
-      text: communication.text,
-      metadata: { ...response.metadata, source: "task", state: result.status,
-        communication: Schema.encodeSync(SessionCommunication.Record)(communication.record) },
-      resume: false,
-    }, { communication: communication.record })
+    yield* sessions.synthetic(
+      {
+        id: notification.inboxID,
+        sessionID: parent.id,
+        description:
+          typeof call.state.input.description === "string" ? call.state.input.description : state.delegation.title,
+        text: communication.text,
+        metadata: {
+          ...response.metadata,
+          source: "task",
+          state: result.status,
+          communication: Schema.encodeSync(SessionCommunication.Record)(communication.record),
+        },
+        resume: false,
+      },
+      { communication: communication.record },
+    )
     const admitted = yield* SessionNotification.inspect(db, bus, store, notification)
     return !admitted.admit && admitted.wake
   })
@@ -4329,21 +4427,44 @@ const make: Effect.Effect<
     const run = yield* schedules.occurrence(occurrenceID)
     if (run?.receipt) return run.receipt
     if (!run || run.snapshot.kind !== "task" || run.snapshot.target?.policy !== "legacy_child" || !run.taskID)
-      return yield* new ScheduledExecutionError({ message: "Internal scheduled execution requires a claimed retained Task occurrence" })
+      return yield* new ScheduledExecutionError({
+        message: "Internal scheduled execution requires a claimed retained Task occurrence",
+      })
     if (run.cancelRequested || ["completed", "cancelled", "failed", "blocked", "skipped"].includes(run.status))
       return yield* new ScheduledExecutionError({ message: "The scheduled occurrence already has a terminal outcome" })
     const parent = yield* sessions.get(run.sessionID)
-    const source = new Permission.OperationSource({ type: "operation", sessionID: parent.id, operationID: run.operationID })
+    const source = new Permission.OperationSource({
+      type: "operation",
+      sessionID: parent.id,
+      operationID: run.operationID,
+    })
     const current = (yield* tasks.get(parent.id)).find((task) => task.id === run.taskID)
     if (!current) return yield* new ScheduledExecutionError({ message: "The scheduled Task no longer exists" })
-    const claimed = run.taskRevision !== undefined
-      ? current.status === "in_progress" && current.revision === run.taskRevision ? current : undefined
-      : yield* tasks.patch({ sessionID: parent.id, id: current.id, expectedRevision: current.revision,
-          expect: ["pending", "scheduled", "completed", "failed"], status: "in_progress" }, {
-          claim: source,
-          commit: (task) => schedules.advanceOccurrence(run.id, new Schedule.OccurrenceChange({ taskRevision: task.revision })).pipe(Effect.asVoid, Effect.orDie),
-        })
-    if (!claimed) return yield* new ScheduledExecutionError({ message: "The scheduled Task changed or has another execution owner" })
+    const claimed =
+      run.taskRevision !== undefined
+        ? current.status === "in_progress" && current.revision === run.taskRevision
+          ? current
+          : undefined
+        : yield* tasks.patch(
+            {
+              sessionID: parent.id,
+              id: current.id,
+              expectedRevision: current.revision,
+              expect: ["pending", "scheduled", "completed", "failed"],
+              status: "in_progress",
+            },
+            {
+              claim: source,
+              commit: (task) =>
+                schedules
+                  .advanceOccurrence(run.id, new Schedule.OccurrenceChange({ taskRevision: task.revision }))
+                  .pipe(Effect.asVoid, Effect.orDie),
+            },
+          )
+    if (!claimed)
+      return yield* new ScheduledExecutionError({
+        message: "The scheduled Task changed or has another execution owner",
+      })
     const selected = yield* Effect.gen(function* () {
       yield* Plugin.awaitActivation
       const agents = yield* Agent.Service
@@ -4352,38 +4473,86 @@ const make: Effect.Effect<
       const permission = yield* Permission.Service
       yield* schedules.advanceOccurrence(run.id, new Schedule.OccurrenceChange({ actorAgent: actor }))
       yield* permission.assert({
-        id: Permission.ID.make(`per_schedule_${run.id}`), sessionID: parent.id, agent: actor, action: "task",
-        resources: [run.snapshot.target?.policy === "legacy_child" ? run.snapshot.target.agentID ?? "build" : "build"],
-        source, metadata: { scheduleID: run.scheduleID, occurrenceID: run.id, operationID: run.operationID },
+        id: Permission.ID.make(`per_schedule_${run.id}`),
+        sessionID: parent.id,
+        agent: actor,
+        action: "task",
+        resources: [
+          run.snapshot.target?.policy === "legacy_child" ? (run.snapshot.target.agentID ?? "build") : "build",
+        ],
+        source,
+        metadata: { scheduleID: run.scheduleID, occurrenceID: run.id, operationID: run.operationID },
       })
-      const preference = run.snapshot.target?.policy === "legacy_child" ? run.snapshot.target.agentID ?? Agent.ID.make("build") : Agent.ID.make("build")
-      const agent = parent.mode === "custom"
-        ? (yield* compositions.selectAgent(parent.id, preference)).info
-        : yield* agents.resolve(preference, parent.mode)
-      if (!agent || agent.mode === "primary") return yield* new ScheduledExecutionError({ message: "The scheduled child Agent is unavailable" })
-      const executor = actor === "meta" && parent.controller?.kind === "root"
-        ? yield* Session.resolveExecutor(parent, agent).pipe(Effect.provideService(SessionComposition.Service, compositions)) : undefined
+      const preference =
+        run.snapshot.target?.policy === "legacy_child"
+          ? (run.snapshot.target.agentID ?? Agent.ID.make("build"))
+          : Agent.ID.make("build")
+      const agent =
+        parent.mode === "custom"
+          ? (yield* compositions.selectAgent(parent.id, preference)).info
+          : yield* agents.resolve(preference, parent.mode)
+      if (!agent || agent.mode === "primary")
+        return yield* new ScheduledExecutionError({ message: "The scheduled child Agent is unavailable" })
+      const executor =
+        actor === "meta" && parent.controller?.kind === "root"
+          ? yield* Session.resolveExecutor(parent, agent).pipe(
+              Effect.provideService(SessionComposition.Service, compositions),
+            )
+          : undefined
       return { actor, agent, executor }
     }).pipe(instances.provide(parent))
-    return yield* serializedSelection(run.sessionID, Effect.gen(function* () {
-      const latest = yield* schedules.occurrence(run.id)
-      if (!latest || latest.cancelRequested || ["completed", "failed", "cancelled", "blocked", "skipped"].includes(latest.status))
-        return yield* new ScheduledExecutionError({ message: "The scheduled child was cancelled before admission" })
-      const route = yield* delegations.internalParticipant({
-        occurrenceID: run.id, agent: selected.agent.id, actor: selected.actor, executor: selected.executor,
-      })
-      const receipts = yield* dispatch({ ...route, prompt: run.snapshot.content,
-        task: { parentTaskID: claimed.id, parentTaskRevision: claimed.revision,
-          description: run.snapshot.content, background: true, source } })
-      const receipt = receipts.find((item) => item.participantID === route.participantID && item.turnID === route.turnID)
-      if (!receipt || receipt.inputID !== run.inputID || receipt.childSessionID !== run.targetSessionID)
-        return yield* new ScheduledExecutionError({ message: "The scheduled child admission has a different fixed input identity" })
-      yield* schedules.advanceOccurrence(run.id, new Schedule.OccurrenceChange({ receipt, status: "admitted",
-        admission: new Schedule.Admission({ targetSessionID: receipt.childSessionID, inputID: receipt.inputID,
-          operationID: run.operationID, taskID: claimed.id, taskRevision: claimed.revision,
-          admittedAt: (yield* DateTime.nowAsDate).getTime() }) }))
-      return receipt
-    }))
+    return yield* serializedSelection(
+      run.sessionID,
+      Effect.gen(function* () {
+        const latest = yield* schedules.occurrence(run.id)
+        if (
+          !latest ||
+          latest.cancelRequested ||
+          ["completed", "failed", "cancelled", "blocked", "skipped"].includes(latest.status)
+        )
+          return yield* new ScheduledExecutionError({ message: "The scheduled child was cancelled before admission" })
+        const route = yield* delegations.internalParticipant({
+          occurrenceID: run.id,
+          agent: selected.agent.id,
+          actor: selected.actor,
+          executor: selected.executor,
+        })
+        const receipts = yield* dispatch({
+          ...route,
+          prompt: run.snapshot.content,
+          task: {
+            parentTaskID: claimed.id,
+            parentTaskRevision: claimed.revision,
+            description: run.snapshot.content,
+            background: true,
+            source,
+          },
+        })
+        const receipt = receipts.find(
+          (item) => item.participantID === route.participantID && item.turnID === route.turnID,
+        )
+        if (!receipt || receipt.inputID !== run.inputID || receipt.childSessionID !== run.targetSessionID)
+          return yield* new ScheduledExecutionError({
+            message: "The scheduled child admission has a different fixed input identity",
+          })
+        yield* schedules.advanceOccurrence(
+          run.id,
+          new Schedule.OccurrenceChange({
+            receipt,
+            status: "admitted",
+            admission: new Schedule.Admission({
+              targetSessionID: receipt.childSessionID,
+              inputID: receipt.inputID,
+              operationID: run.operationID,
+              taskID: claimed.id,
+              taskRevision: claimed.revision,
+              admittedAt: (yield* DateTime.nowAsDate).getTime(),
+            }),
+          }),
+        )
+        return receipt
+      }),
+    )
   })
 
   return Service.of({

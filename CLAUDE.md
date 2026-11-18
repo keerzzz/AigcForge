@@ -60,7 +60,6 @@ Native与两个代理退出0，Source已结束、三端口释放，SDK余进程0
 
 用户停止了B06新Custom对话，当前本聊天继续MC06。用户选择先完成底层工程、等待路由可用；随后已修改ccSwitch配置。[最新映射核对](/home/keer/.codex/outputs/2026-11-08/mc06-sdk-recovery-v1/route-snapshot-v1.json)确认变更为内部子智能体模型，当前主会话/Haiku实际映射仍指向此前报错的claude-opus-5。当前底层工程模型预算0；后继真实验收需绑定实际可用主模型与最终同源产物。SDK单次/续接真实用户链验收、评审、后台、未保存完整结果的恢复窗口和其它transport成功执行继续原MC06 owner；全平台插拔与Custom布局仍待元智能体完成后讨论。
 
-
 2026-11-08 后续架构方向已记录：全平台底座与界面采用可插拔、可替换、可启停、可组合逻辑，覆盖项目树、会话列表、SSE 数据通道、侧边栏及智能体执行能力，共同支撑 Custom 装配。详见[全平台装配方向](docs/research/upstream-v2-sync/2026-10-29-shared-foundation-decision.md#platform-assembly-direction)。当前继续元智能体实施任务，完成后再讨论具体架构与布局；该方向尚未派发源码实施。
 
 2026-11-08 最新状态：**MC06 Claude SDK 单次前台只读 Task 已完成工程与同源私有构建验收。** [工程接受](/home/keer/.codex/outputs/2026-11-08/mc06-sdk-v1/root-engineering-acceptance.json)、[分轮工件](/home/keer/.codex/outputs/2026-11-08/mc06-sdk-v1/final/engineering-evidence-map-v1.json)和[私有产物](/home/keer/.codex/outputs/2026-11-08/mc06-sdk-v1/artifacts/final-dev-artifacts-v1.json)绑定 7 个生产文件、3 个既有测试文件。SDK adapter/lifecycle 26/0/91；正式 SDK 12/0/143；MC06 整组45/0/522（包含SDK用例）、Delegation三文件107/0/1090、MC07外部治理7/0/191分别通过。Core/CLI/Server最终类型、任务格式与lint通过；AST当前和基线各2项，新增0。10文件模式、Git HEAD/暂存及7,572个构建输入已核对。
@@ -244,18 +243,18 @@ MC06FirstSliceFunctionalAccepted=true，MC06Complete=false，MC07Started=false�
 
 Meta专项按[全量闭环方案](docs/research/upstream-v2-sync/2026-10-29-meta-cpu-closure-plan.md)与唯一总计划推进。2026-10-31人类裁决：普通根保留Agent显式选择及default_agent机制，Build、Plan、Meta并列；仅选中Meta时启用其统筹能力。普通Build/Plan不补挂Meta，不把Agent选择写成executorPreference。Agent、Model、Tool注册独立，Meta全部功能保留。旧“所有新根统一Meta”裁决废止。注册公共化为后续新Custom调查建议，不授权新增注册表或Runtime。现有会话/WIP不因文档自动重分类，Git写操作未授权，S1归属保持。
 
-| 关注点 | 入口与职责 |
-| --- | --- |
-| 工程规则、依赖、V2 执行不变量 | [AGENTS.md](AGENTS.md) 与受影响包/子目录 AGENTS |
-| 包职责、状态归属、调查路由 | [ARCHITECTURE.md](ARCHITECTURE.md) |
-| 产品入口、V2 UI 宿主与设计约束 | [DESIGN.md](DESIGN.md) |
-| Session/工具跨模块语义 | [specs/v2/README.md](specs/v2/README.md)、[Session](specs/v2/session.md)、[Tools](specs/v2/tools.md) |
-| 测试、生成、桌面与性能门禁 | [docs/testing.md](docs/testing.md) |
-| 唯一总路线与当前工作令 | [V2 对齐计划](docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md) |
-| 各批目标、依赖与退出条件 | [批次计划](docs/research/upstream-v2-sync/2026-10-29-migration-batch-plans.md) |
-| 新会话首读与任务提示词 | [提示词目录](docs/research/upstream-v2-sync/2026-10-29-migration-session-prompts.md) |
-| dsh可组合性研究与适用边界 | [研究对齐](docs/research/upstream-v2-sync/2026-10-29-deepseek-harness-alignment.md)，区分官方事实、构想、旧分析与本轮裁决 |
-| 唯一未交付/技术债状态 | [docs/technical-debt.md](docs/technical-debt.md) |
+| 关注点                         | 入口与职责                                                                                                                |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
+| 工程规则、依赖、V2 执行不变量  | [AGENTS.md](AGENTS.md) 与受影响包/子目录 AGENTS                                                                           |
+| 包职责、状态归属、调查路由     | [ARCHITECTURE.md](ARCHITECTURE.md)                                                                                        |
+| 产品入口、V2 UI 宿主与设计约束 | [DESIGN.md](DESIGN.md)                                                                                                    |
+| Session/工具跨模块语义         | [specs/v2/README.md](specs/v2/README.md)、[Session](specs/v2/session.md)、[Tools](specs/v2/tools.md)                      |
+| 测试、生成、桌面与性能门禁     | [docs/testing.md](docs/testing.md)                                                                                        |
+| 唯一总路线与当前工作令         | [V2 对齐计划](docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md)                                   |
+| 各批目标、依赖与退出条件       | [批次计划](docs/research/upstream-v2-sync/2026-10-29-migration-batch-plans.md)                                            |
+| 新会话首读与任务提示词         | [提示词目录](docs/research/upstream-v2-sync/2026-10-29-migration-session-prompts.md)                                      |
+| dsh可组合性研究与适用边界      | [研究对齐](docs/research/upstream-v2-sync/2026-10-29-deepseek-harness-alignment.md)，区分官方事实、构想、旧分析与本轮裁决 |
+| 唯一未交付/技术债状态          | [docs/technical-debt.md](docs/technical-debt.md)                                                                          |
 
 权威按关注点划分，不用一份文档压过所有领域。Protocol/Schema 定义公共合同，Core/宿主源码证明当前实现；源码不是改变产品要求的授权。规格解释语义，裁决说明选择，计划安排工作，账本记录未完成项。历史日志和审批仅对其原范围、源码及运行环境有效。
 
@@ -331,7 +330,6 @@ Meta专项按[全量闭环方案](docs/research/upstream-v2-sync/2026-10-29-meta
 
 §39历史检查点（当前见§40）：2026-11-02 当前MC02接续：[专项§39](docs/research/upstream-v2-sync/2026-10-29-meta-cpu-closure-plan.md#39-2026-11-02-mc02冻结目录与缺省执行偏好验收)已核冻结Meta目录工程与原生消费者：snapshot原始coder/writer保持，当前Session策略coder deny、writer ask，实际Flash/high一次HTTP200仅输出FROZEN_DIRECTORY_OK: writer；原生首发保持executorPreference缺省，executor POST0、prompt POST1、ACK200，Root21/21核对，独立结果复核与文档复核分别记录。Build、Plan、Meta公共注册及模型入口保持。前置原生fixture失败均0模型且保留；完整资产/CLI目录scope/source/adoption/执行实现版本与MC02–MC10/M01–M24仍开放，MC01绿色组不重开。
 
-
 §40历史检查点（当前见§41）：2026-11-02 当前MC02接续：[专项§40](docs/research/upstream-v2-sync/2026-10-29-meta-cpu-closure-plan.md#40-2026-11-02-mc02冻结skill资产目录验收)已有限接受冻结Skill目录：2生产文件＋2keeper，59/0、317断言；新Custom/Meta原生1次Flash/high HTTP200，仅列Root craft并保留Authored empty prompt，Root与独审24/24条件核对。快照不变，executor偏好缺省、executor POST0、prompt POST1、ACK200，实际工具调用0；真实Skill leaf未验。完整MC02原目录/来源scope/冻结版本余项仍开放；CLI真实执行归MC06，全模式执行实现绑定归原B04，MC03原依赖保持，MC01绿色组不重开。
 
 §43历史检查点（当前见§44）：2026-11-02 当前按[专项§43](docs/research/upstream-v2-sync/2026-10-29-meta-cpu-closure-plan.md#43-2026-11-02-mc03项目memory内容写入守卫验收)接续：MC01、MC02原退出保持接受；MC03逐次授权首片§42与新项目memory内容写入守卫已有限接受。八项既有凭据文本检测共享复用，Correction两项路径拒绝保持，安全文件引用可记录；RED0/2/2、GREEN31/0/101、格式后20/0/90分轮记录，新Flash/high2次HTTP200、一次脱敏Tool error与第二请求消费、SQL前后0事实，26/26条件通过。六actions/controller/runner均0；Source实际退出码未捕获。默认曝光、来源关系、旧事实读取/自动memory与纠错/CRUD/生命周期仍沿原MC03，完整MC03不关闭；CLI MC06、全模式B04、S1及历史owner/unlock保持。
@@ -366,7 +364,7 @@ Meta专项按[全量闭环方案](docs/research/upstream-v2-sync/2026-10-29-meta
 
 2026-11-03 §52原MC03零模型进度：受控readiness keeper使用实际SessionStep/Bus/SessionProjector/DB和Deferred信号，在pending Snapshot期间interrupt/join，late release不生成完成事件；正常对照仅一次Completed，投影完成id/seq与回调一致。最终1 pass/0 fail/5 filtered/23 expects、actual exit0，Core类型、格式、lint与diff通过；首轮缺cost.cache失败保留。仅新增既有session-step.test.ts一个keeper，无本轮生产修改、新registry或模型循环。见[keeper接受](/home/keer/.codex/outputs/2026-11-03/mc03-readiness-root-v2/root-engineering-acceptance-v1.json)。私有publication/readiness宿主改为在声明resume时取current Location Snapshot，并捕获实际Source Scope供既有FiberSet runtime；首次缺Scope的type exit2/TS2345与后继exit0分开保留，独审及[工程准备接受](/home/keer/.codex/outputs/2026-11-03/mc03-publication-readiness-source-root-v3/root-engineering-preparation-acceptance-v1.json)不取得真实publication/public resume/cancellation信用。
 
-原来源/有效目录场景仍用同DB、同Source/Writer及原账本：旧Source slot1取消保留；无startup sweep的显式Source resume产生slot2 complete200/high，真实User、Started/Ended/Completed和meta_step owner/root/provenance准确关联，Source tails为空，仅[正常Source子范围接受](/home/keer/.codex/outputs/2026-11-03/mc03-source-directory-continuation-root-v5/root-source-native-acceptance-v1.json)。无证据legacy row只作负面夹具，不取得来源信用。v3/v4在模型前的断言失败新增请求0；决定函数BrowserConnection.grant/release（packages/plugin-browser/src/connection.ts:30）解释Native临时browser/*/allow，权限匹配由PermissionEffective.evaluate（packages/core/src/permission/effective.ts:36）决定，精确browser action不匹配memory；原raw deny→effective ask及三owning once门禁保持。v5首次Writer Native ACK200，但编辑器填入文本仅丢一个换行，harness精确文本期望失败；旧memory_record在未答复ask后取消，memory0，slot3虽complete200仍不接受工具。v6保留完整旧User/eventprefix，以明确的新Native单行输入重验，释放前新id/正文/hash均核对；ACK200与slot4上游503分别记录，provider.internal、idle failed、claim清空、工具/新ask/once/记忆新增均0。全场景实际4/8（Source2＋Writer2），v5/v6 command/controller/runner exit1保留，取消不退款、无generic retry或人工token限制。见[provider暂停结算](/home/keer/.codex/outputs/2026-11-03/mc03-source-directory-continuation-root-v6/root-provider-pause-disposition-v1.json)。用户明确暂停DeepSeek后Root关闭自有网关，final close成功：Electron0、gateway0、Source进程结束但数字exit仍unknown，三端口free；不以HTTP200/目录暴露/空Assistant代替真实工具消费。
+原来源/有效目录场景仍用同DB、同Source/Writer及原账本：旧Source slot1取消保留；无startup sweep的显式Source resume产生slot2 complete200/high，真实User、Started/Ended/Completed和meta_step owner/root/provenance准确关联，Source tails为空，仅[正常Source子范围接受](/home/keer/.codex/outputs/2026-11-03/mc03-source-directory-continuation-root-v5/root-source-native-acceptance-v1.json)。无证据legacy row只作负面夹具，不取得来源信用。v3/v4在模型前的断言失败新增请求0；决定函数BrowserConnection.grant/release（packages/plugin-browser/src/connection.ts:30）解释Native临时browser/\*/allow，权限匹配由PermissionEffective.evaluate（packages/core/src/permission/effective.ts:36）决定，精确browser action不匹配memory；原raw deny→effective ask及三owning once门禁保持。v5首次Writer Native ACK200，但编辑器填入文本仅丢一个换行，harness精确文本期望失败；旧memory_record在未答复ask后取消，memory0，slot3虽complete200仍不接受工具。v6保留完整旧User/eventprefix，以明确的新Native单行输入重验，释放前新id/正文/hash均核对；ACK200与slot4上游503分别记录，provider.internal、idle failed、claim清空、工具/新ask/once/记忆新增均0。全场景实际4/8（Source2＋Writer2），v5/v6 command/controller/runner exit1保留，取消不退款、无generic retry或人工token限制。见[provider暂停结算](/home/keer/.codex/outputs/2026-11-03/mc03-source-directory-continuation-root-v6/root-provider-pause-disposition-v1.json)。用户明确暂停DeepSeek后Root关闭自有网关，final close成功：Electron0、gateway0、Source进程结束但数字exit仍unknown，三端口free；不以HTTP200/目录暴露/空Assistant代替真实工具消费。
 
 未完成项继续登记原MC03 owner：来源/有效目录的新三次调用与owning ask/once204、step_unverified、成功record/search模型消费，以及真实checkpoint publication失败→public resume与pending readiness取消/正常尾项。用户暂停真实模型期间只做零模型工程/文档核对；解除条件为用户允许恢复模型验收、路由可用且具体有限任务重新绑定/复审，不自动重试、重置账本或重播已接受TTL/CRUD/P1。原Inbox publication失败、Location decline、并行Session及必要恢复仍按§46与债务账本逐项核证，不能用checkpoint切口覆盖。CLI执行归MC06、全模式执行绑定归B04，个人Inspector/UI/整体在飞恢复保留原B08/MC09/MC10 owner/unlock，S1归属不转移。MC03Complete=false、MC04aUnlocked=false；默认工作区只读、Git写未授权，旧WIP/历史失败均保留。
 

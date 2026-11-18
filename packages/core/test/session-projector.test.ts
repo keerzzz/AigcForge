@@ -38,7 +38,14 @@ import { SessionStep } from "@aigcfroge/core/session/runner/step"
 
 const it = testEffect(
   AppNodeBuilder.build(
-    LayerNode.group([Database.node, Bus.node, SessionProjector.node, SessionInbox.node, SessionStore.node, SessionGoal.node]),
+    LayerNode.group([
+      Database.node,
+      Bus.node,
+      SessionProjector.node,
+      SessionInbox.node,
+      SessionStore.node,
+      SessionGoal.node,
+    ]),
     [Bus.node.replace(Bus.configured({ persist: true }))],
   ),
 )
@@ -88,94 +95,223 @@ const seedSession = (overrides?: Partial<typeof SessionTable.$inferInsert>) =>
     return db
   })
 
-it.effect("P3 keeps actual attempts separate and settles their prices once across replay and recovery", () => Effect.gen(function* () {
-  const selection = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("ordered") })
-  const db = yield* seedSession({ model: Schema.encodeSync(Model.Selection)(selection) })
-  const bus = yield* Bus.Service
-  const store = yield* SessionStore.Service
-  const goals = yield* SessionGoal.Service
-  const assistantMessageID = SessionMessage.ID.make("msg_attempt_accounting")
-  const actualB = Model.Ref.make({ id: Model.ID.make("model-b"), providerID: Provider.ID.make("provider-b") })
-  const prices = (input: number, output: number) => [{
-    input: Money.USDPerMillionTokens.make(input), output: Money.USDPerMillionTokens.make(output),
-    cache: { read: Money.USDPerMillionTokens.make(0), write: Money.USDPerMillionTokens.make(0) },
-  }]
-  const first = new SessionAttempt.Started({
-    ordinal: 0, attemptID: "gatt_first", agent: build, selection, model, apiModelID: "api-a",
-    quote: { status: "known", prices: prices(1, 2) }, goalRefs: [], transition: "initial", started: 10,
-  })
-  const admitted = yield* bus.publish(SessionEvent.Attempt.Started, { sessionID, assistantMessageID, ...first })
-  yield* bus.publish(SessionEvent.Step.Started, { sessionID, assistantMessageID, agent: build, model, started: 10 })
-  yield* bus.publish(SessionEvent.Attempt.Ended, {
-    sessionID, assistantMessageID, ordinal: 0,
-    terminal: new SessionAttempt.Terminal({ status: "failed", ended: 20, outputStarted: false,
-      usage: { input: 1_000_000, output: 1_000_000, reasoning: 0, cache: { read: 0, write: 0 } },
-      cost: Money.USD.make(3), failure: new SessionAttempt.Failure({ reason: "Authentication", status: 401 }), delivery: "rejected" }),
-  })
-  yield* bus.publish(SessionEvent.Attempt.Started, { sessionID, assistantMessageID, ...new SessionAttempt.Started({
-    ordinal: 1, attemptID: "gatt_second", agent: build, selection, model: actualB, apiModelID: "api-b",
-    quote: { status: "known", prices: prices(4, 5) }, goalRefs: [], transition: "fallback",
-    reason: new SessionAttempt.Failure({ reason: "Authentication", status: 401 }), started: 30,
-  }) })
-  const output = yield* bus.publish(SessionEvent.Attempt.Observed, { sessionID, assistantMessageID, ordinal: 1,
-    observation: new SessionAttempt.Observation({ observedAt: 35, outputStarted: true, firstOutputAt: 35, delivery: "accepted" }) })
-  const terminal = new SessionAttempt.Terminal({ status: "completed", ended: 40, outputStarted: true, finish: "stop",
-    usage: { input: 1_000_000, output: 1_000_000, reasoning: 1_000_000, cache: { read: 0, write: 0 } }, cost: Money.USD.make(14), delivery: "accepted" })
-  yield* bus.publish(SessionEvent.Attempt.Ended, { sessionID, assistantMessageID, ordinal: 1, terminal })
-  yield* bus.publish(SessionEvent.Attempt.Ended, { sessionID, assistantMessageID, ordinal: 1, terminal })
-  const before = yield* store.get(sessionID)
-  expect(before).toMatchObject({ model: selection, cost: 0, tokens: { input: 0, output: 0 } })
-  expect(before?.unknownPriceAttempts).toBeUndefined()
-  const summary = { cost: Money.USD.make(17), tokens: { input: 2_000_000, output: 2_000_000, reasoning: 1_000_000, cache: { read: 0, write: 0 } }, unknownPriceAttempts: 0, missingUsageAttempts: 0 }
-  yield* bus.publish(SessionEvent.Step.Ended, { sessionID, assistantMessageID, finish: "stop", ...summary })
-  yield* bus.publish(SessionEvent.Step.Ended, { sessionID, assistantMessageID, finish: "stop", ...summary })
-  const projected = (yield* store.context(sessionID)).find((message) => message.type === "assistant")
-  expect(projected).toMatchObject({ model: actualB, attempts: [{ ordinal: 0, apiModelID: "api-a", terminal: { cost: 3 } }, { ordinal: 1, apiModelID: "api-b", terminal: { cost: 14 }, observations: [{ event: { id: output.id } }] }], ...summary })
-  expect(projected?.origin).toMatchObject({ kind: "step", id: admitted.id })
-  expect(projected && DateTime.toEpochMillis(projected.time.created)).toBe(10)
-  expect(yield* store.get(sessionID)).toMatchObject({ model: selection, ...summary })
-  const conflicting = yield* bus.publish(SessionEvent.Attempt.Ended, { sessionID, assistantMessageID, ordinal: 1,
-    terminal: new SessionAttempt.Terminal({ ...terminal, cost: Money.USD.make(15) }) }).pipe(Effect.exit)
-  expect(Exit.isFailure(conflicting)).toBe(true)
-  if (Exit.isFailure(conflicting)) expect(Cause.squash(conflicting.cause)).toBeInstanceOf(Bus.InvalidDurableEventError)
-  yield* SessionStep.reconcile(db, bus, goals, sessionID)
-  yield* SessionStep.reconcile(db, bus, goals, sessionID)
-  expect(yield* store.get(sessionID)).toMatchObject(summary)
-  const events = yield* db.select().from(EventTable).where(eq(EventTable.aggregate_id, sessionID)).orderBy(asc(EventTable.seq)).all()
-  yield* bus.remove(sessionID)
-  yield* db.delete(SessionMessageTable).where(eq(SessionMessageTable.session_id, sessionID)).run()
-  yield* db.update(SessionTable).set({ cost: 0, tokens_input: 0, tokens_output: 0, tokens_reasoning: 0, tokens_cache_read: 0, tokens_cache_write: 0, unknown_price_attempts: null, missing_usage_attempts: null }).where(eq(SessionTable.id, sessionID)).run()
-  yield* Effect.forEach(events, (event) => bus.replay({ id: event.id, created: event.created, aggregateID: event.aggregate_id, seq: event.seq, type: event.type, data: event.data }), { discard: true })
-  expect(yield* store.get(sessionID)).toMatchObject({ model: selection, ...summary })
-  expect((yield* store.context(sessionID)).find((message) => message.type === "assistant")).toEqual(projected)
-}))
+it.effect("P3 keeps actual attempts separate and settles their prices once across replay and recovery", () =>
+  Effect.gen(function* () {
+    const selection = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("ordered") })
+    const db = yield* seedSession({ model: Schema.encodeSync(Model.Selection)(selection) })
+    const bus = yield* Bus.Service
+    const store = yield* SessionStore.Service
+    const goals = yield* SessionGoal.Service
+    const assistantMessageID = SessionMessage.ID.make("msg_attempt_accounting")
+    const actualB = Model.Ref.make({ id: Model.ID.make("model-b"), providerID: Provider.ID.make("provider-b") })
+    const prices = (input: number, output: number) => [
+      {
+        input: Money.USDPerMillionTokens.make(input),
+        output: Money.USDPerMillionTokens.make(output),
+        cache: { read: Money.USDPerMillionTokens.make(0), write: Money.USDPerMillionTokens.make(0) },
+      },
+    ]
+    const first = new SessionAttempt.Started({
+      ordinal: 0,
+      attemptID: "gatt_first",
+      agent: build,
+      selection,
+      model,
+      apiModelID: "api-a",
+      quote: { status: "known", prices: prices(1, 2) },
+      goalRefs: [],
+      transition: "initial",
+      started: 10,
+    })
+    const admitted = yield* bus.publish(SessionEvent.Attempt.Started, { sessionID, assistantMessageID, ...first })
+    yield* bus.publish(SessionEvent.Step.Started, { sessionID, assistantMessageID, agent: build, model, started: 10 })
+    yield* bus.publish(SessionEvent.Attempt.Ended, {
+      sessionID,
+      assistantMessageID,
+      ordinal: 0,
+      terminal: new SessionAttempt.Terminal({
+        status: "failed",
+        ended: 20,
+        outputStarted: false,
+        usage: { input: 1_000_000, output: 1_000_000, reasoning: 0, cache: { read: 0, write: 0 } },
+        cost: Money.USD.make(3),
+        failure: new SessionAttempt.Failure({ reason: "Authentication", status: 401 }),
+        delivery: "rejected",
+      }),
+    })
+    yield* bus.publish(SessionEvent.Attempt.Started, {
+      sessionID,
+      assistantMessageID,
+      ...new SessionAttempt.Started({
+        ordinal: 1,
+        attemptID: "gatt_second",
+        agent: build,
+        selection,
+        model: actualB,
+        apiModelID: "api-b",
+        quote: { status: "known", prices: prices(4, 5) },
+        goalRefs: [],
+        transition: "fallback",
+        reason: new SessionAttempt.Failure({ reason: "Authentication", status: 401 }),
+        started: 30,
+      }),
+    })
+    const output = yield* bus.publish(SessionEvent.Attempt.Observed, {
+      sessionID,
+      assistantMessageID,
+      ordinal: 1,
+      observation: new SessionAttempt.Observation({
+        observedAt: 35,
+        outputStarted: true,
+        firstOutputAt: 35,
+        delivery: "accepted",
+      }),
+    })
+    const terminal = new SessionAttempt.Terminal({
+      status: "completed",
+      ended: 40,
+      outputStarted: true,
+      finish: "stop",
+      usage: { input: 1_000_000, output: 1_000_000, reasoning: 1_000_000, cache: { read: 0, write: 0 } },
+      cost: Money.USD.make(14),
+      delivery: "accepted",
+    })
+    yield* bus.publish(SessionEvent.Attempt.Ended, { sessionID, assistantMessageID, ordinal: 1, terminal })
+    yield* bus.publish(SessionEvent.Attempt.Ended, { sessionID, assistantMessageID, ordinal: 1, terminal })
+    const before = yield* store.get(sessionID)
+    expect(before).toMatchObject({ model: selection, cost: 0, tokens: { input: 0, output: 0 } })
+    expect(before?.unknownPriceAttempts).toBeUndefined()
+    const summary = {
+      cost: Money.USD.make(17),
+      tokens: { input: 2_000_000, output: 2_000_000, reasoning: 1_000_000, cache: { read: 0, write: 0 } },
+      unknownPriceAttempts: 0,
+      missingUsageAttempts: 0,
+    }
+    yield* bus.publish(SessionEvent.Step.Ended, { sessionID, assistantMessageID, finish: "stop", ...summary })
+    yield* bus.publish(SessionEvent.Step.Ended, { sessionID, assistantMessageID, finish: "stop", ...summary })
+    const projected = (yield* store.context(sessionID)).find((message) => message.type === "assistant")
+    expect(projected).toMatchObject({
+      model: actualB,
+      attempts: [
+        { ordinal: 0, apiModelID: "api-a", terminal: { cost: 3 } },
+        { ordinal: 1, apiModelID: "api-b", terminal: { cost: 14 }, observations: [{ event: { id: output.id } }] },
+      ],
+      ...summary,
+    })
+    expect(projected?.origin).toMatchObject({ kind: "step", id: admitted.id })
+    expect(projected && DateTime.toEpochMillis(projected.time.created)).toBe(10)
+    expect(yield* store.get(sessionID)).toMatchObject({ model: selection, ...summary })
+    const conflicting = yield* bus
+      .publish(SessionEvent.Attempt.Ended, {
+        sessionID,
+        assistantMessageID,
+        ordinal: 1,
+        terminal: new SessionAttempt.Terminal({ ...terminal, cost: Money.USD.make(15) }),
+      })
+      .pipe(Effect.exit)
+    expect(Exit.isFailure(conflicting)).toBe(true)
+    if (Exit.isFailure(conflicting))
+      expect(Cause.squash(conflicting.cause)).toBeInstanceOf(Bus.InvalidDurableEventError)
+    yield* SessionStep.reconcile(db, bus, goals, sessionID)
+    yield* SessionStep.reconcile(db, bus, goals, sessionID)
+    expect(yield* store.get(sessionID)).toMatchObject(summary)
+    const events = yield* db
+      .select()
+      .from(EventTable)
+      .where(eq(EventTable.aggregate_id, sessionID))
+      .orderBy(asc(EventTable.seq))
+      .all()
+    yield* bus.remove(sessionID)
+    yield* db.delete(SessionMessageTable).where(eq(SessionMessageTable.session_id, sessionID)).run()
+    yield* db
+      .update(SessionTable)
+      .set({
+        cost: 0,
+        tokens_input: 0,
+        tokens_output: 0,
+        tokens_reasoning: 0,
+        tokens_cache_read: 0,
+        tokens_cache_write: 0,
+        unknown_price_attempts: null,
+        missing_usage_attempts: null,
+      })
+      .where(eq(SessionTable.id, sessionID))
+      .run()
+    yield* Effect.forEach(
+      events,
+      (event) =>
+        bus.replay({
+          id: event.id,
+          created: event.created,
+          aggregateID: event.aggregate_id,
+          seq: event.seq,
+          type: event.type,
+          data: event.data,
+        }),
+      { discard: true },
+    )
+    expect(yield* store.get(sessionID)).toMatchObject({ model: selection, ...summary })
+    expect((yield* store.context(sessionID)).find((message) => message.type === "assistant")).toEqual(projected)
+  }),
+)
 
-it.effect("P3 rejects orphan receipts and preserves unknown price and missing usage during cold reconciliation", () => Effect.gen(function* () {
-  const db = yield* seedSession()
-  const bus = yield* Bus.Service
-  const store = yield* SessionStore.Service
-  const goals = yield* SessionGoal.Service
-  const assistantMessageID = SessionMessage.ID.make("msg_unfinished_attempt")
-  const orphan = yield* bus.publish(SessionEvent.Attempt.Observed, { sessionID, assistantMessageID, ordinal: 0,
-    observation: new SessionAttempt.Observation({ observedAt: 1, delivery: "accepted" }) }).pipe(Effect.exit)
-  expect(Exit.isFailure(orphan)).toBe(true)
-  if (Exit.isFailure(orphan)) expect(Cause.squash(orphan.cause)).toBeInstanceOf(Bus.InvalidDurableEventError)
-  yield* bus.publish(SessionEvent.Attempt.Started, { sessionID, assistantMessageID, ...new SessionAttempt.Started({
-    ordinal: 0, attemptID: "gatt_unfinished", agent: build, selection: model, model, apiModelID: "api-model",
-    quote: { status: "unknown" }, goalRefs: [], transition: "initial", started: 5,
-  }) })
-  yield* SessionStep.reconcile(db, bus, goals, sessionID)
-  yield* SessionStep.reconcile(db, bus, goals, sessionID)
-  const assistant = (yield* store.context(sessionID)).find((message) => message.type === "assistant")
-  expect(assistant).toMatchObject({ attempts: [{ attemptID: "gatt_unfinished", ordinal: 0, terminal: { status: "interrupted", outputStarted: false, delivery: "unknown" } }], cost: 0, unknownPriceAttempts: 1, missingUsageAttempts: 1 })
-  expect(assistant?.attempts?.[0].terminal?.usage).toBeUndefined()
-  expect(assistant?.attempts?.[0].terminal?.cost).toBeUndefined()
-  expect(yield* store.get(sessionID)).toMatchObject({ cost: 0, unknownPriceAttempts: 1, missingUsageAttempts: 1 })
-  const events = yield* db.select().from(EventTable).where(eq(EventTable.aggregate_id, sessionID)).all()
-  expect(events.filter((event) => event.type === "session.attempt.started.1")).toHaveLength(1)
-  expect(events.filter((event) => event.type === "session.attempt.ended.1")).toHaveLength(1)
-  expect(events.filter((event) => event.type === "session.step.failed.1")).toHaveLength(1)
-}))
+it.effect("P3 rejects orphan receipts and preserves unknown price and missing usage during cold reconciliation", () =>
+  Effect.gen(function* () {
+    const db = yield* seedSession()
+    const bus = yield* Bus.Service
+    const store = yield* SessionStore.Service
+    const goals = yield* SessionGoal.Service
+    const assistantMessageID = SessionMessage.ID.make("msg_unfinished_attempt")
+    const orphan = yield* bus
+      .publish(SessionEvent.Attempt.Observed, {
+        sessionID,
+        assistantMessageID,
+        ordinal: 0,
+        observation: new SessionAttempt.Observation({ observedAt: 1, delivery: "accepted" }),
+      })
+      .pipe(Effect.exit)
+    expect(Exit.isFailure(orphan)).toBe(true)
+    if (Exit.isFailure(orphan)) expect(Cause.squash(orphan.cause)).toBeInstanceOf(Bus.InvalidDurableEventError)
+    yield* bus.publish(SessionEvent.Attempt.Started, {
+      sessionID,
+      assistantMessageID,
+      ...new SessionAttempt.Started({
+        ordinal: 0,
+        attemptID: "gatt_unfinished",
+        agent: build,
+        selection: model,
+        model,
+        apiModelID: "api-model",
+        quote: { status: "unknown" },
+        goalRefs: [],
+        transition: "initial",
+        started: 5,
+      }),
+    })
+    yield* SessionStep.reconcile(db, bus, goals, sessionID)
+    yield* SessionStep.reconcile(db, bus, goals, sessionID)
+    const assistant = (yield* store.context(sessionID)).find((message) => message.type === "assistant")
+    expect(assistant).toMatchObject({
+      attempts: [
+        {
+          attemptID: "gatt_unfinished",
+          ordinal: 0,
+          terminal: { status: "interrupted", outputStarted: false, delivery: "unknown" },
+        },
+      ],
+      cost: 0,
+      unknownPriceAttempts: 1,
+      missingUsageAttempts: 1,
+    })
+    expect(assistant?.attempts?.[0].terminal?.usage).toBeUndefined()
+    expect(assistant?.attempts?.[0].terminal?.cost).toBeUndefined()
+    expect(yield* store.get(sessionID)).toMatchObject({ cost: 0, unknownPriceAttempts: 1, missingUsageAttempts: 1 })
+    const events = yield* db.select().from(EventTable).where(eq(EventTable.aggregate_id, sessionID)).all()
+    expect(events.filter((event) => event.type === "session.attempt.started.1")).toHaveLength(1)
+    expect(events.filter((event) => event.type === "session.attempt.ended.1")).toHaveLength(1)
+    expect(events.filter((event) => event.type === "session.step.failed.1")).toHaveLength(1)
+  }),
+)
 
 describe("SessionProjector", () => {
   it.effect("does not settle a pending manual compaction on an auto failure", () =>

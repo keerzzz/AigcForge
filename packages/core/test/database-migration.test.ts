@@ -111,21 +111,30 @@ const legacyMainFixture = Effect.fnUntraced(function* (db: Effect.Success<typeof
     {
       type: "session.next.prompt.admitted.1",
       data: {
-        ...base, timestamp: 4, messageID: "msg_legacy_user",
-        prompt: { text: "Synthetic legacy request" }, delivery: "steer",
+        ...base,
+        timestamp: 4,
+        messageID: "msg_legacy_user",
+        prompt: { text: "Synthetic legacy request" },
+        delivery: "steer",
       },
     },
     {
       type: "session.next.prompted.1",
       data: {
-        ...base, timestamp: 5, messageID: "msg_legacy_user",
-        prompt: { text: "Synthetic legacy request" }, delivery: "steer",
+        ...base,
+        timestamp: 5,
+        messageID: "msg_legacy_user",
+        prompt: { text: "Synthetic legacy request" },
+        delivery: "steer",
       },
     },
     {
       type: "session.next.step.started.1",
       data: {
-        ...base, timestamp: 6, assistantMessageID: "msg_legacy_answer", agent: "build",
+        ...base,
+        timestamp: 6,
+        assistantMessageID: "msg_legacy_answer",
+        agent: "build",
         model: { id: "model", providerID: "provider" },
       },
     },
@@ -136,7 +145,10 @@ const legacyMainFixture = Effect.fnUntraced(function* (db: Effect.Success<typeof
     {
       type: "session.next.text.ended.1",
       data: {
-        ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", textID: "text-1",
+        ...base,
+        timestamp: 8,
+        assistantMessageID: "msg_legacy_answer",
+        textID: "text-1",
         text: "Synthetic recovered answer",
       },
     },
@@ -146,7 +158,13 @@ const legacyMainFixture = Effect.fnUntraced(function* (db: Effect.Success<typeof
     },
     {
       type: "session.next.reasoning.ended.1",
-      data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", reasoningID: "reason-1", text: "Synthetic reasoning" },
+      data: {
+        ...base,
+        timestamp: 8,
+        assistantMessageID: "msg_legacy_answer",
+        reasoningID: "reason-1",
+        text: "Synthetic reasoning",
+      },
     },
     {
       type: "session.next.reasoning.started.1",
@@ -154,7 +172,13 @@ const legacyMainFixture = Effect.fnUntraced(function* (db: Effect.Success<typeof
     },
     {
       type: "session.next.reasoning.ended.1",
-      data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", reasoningID: "reason-1", text: "Second reasoning span" },
+      data: {
+        ...base,
+        timestamp: 8,
+        assistantMessageID: "msg_legacy_answer",
+        reasoningID: "reason-1",
+        text: "Second reasoning span",
+      },
     },
     {
       type: "session.next.text.started.1",
@@ -162,27 +186,61 @@ const legacyMainFixture = Effect.fnUntraced(function* (db: Effect.Success<typeof
     },
     {
       type: "session.next.text.ended.1",
-      data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", textID: "text-1", text: "Second text span" },
+      data: {
+        ...base,
+        timestamp: 8,
+        assistantMessageID: "msg_legacy_answer",
+        textID: "text-1",
+        text: "Second text span",
+      },
     },
     ...["success", "failed"].flatMap((status) => [
       {
         type: "session.next.tool.input.started.1",
-        data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", callID: `call-${status}`, name: "read" },
+        data: {
+          ...base,
+          timestamp: 8,
+          assistantMessageID: "msg_legacy_answer",
+          callID: `call-${status}`,
+          name: "read",
+        },
       },
       {
         type: "session.next.tool.input.ended.1",
-        data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", callID: `call-${status}`, text: '{"filePath":"/legacy/result.txt"}' },
+        data: {
+          ...base,
+          timestamp: 8,
+          assistantMessageID: "msg_legacy_answer",
+          callID: `call-${status}`,
+          text: '{"filePath":"/legacy/result.txt"}',
+        },
       },
       {
         type: "session.next.tool.called.1",
-        data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", callID: `call-${status}`, tool: "read", input: { filePath: "/legacy/result.txt" }, provider: { executed: false, metadata: { fixture: "called" } } },
+        data: {
+          ...base,
+          timestamp: 8,
+          assistantMessageID: "msg_legacy_answer",
+          callID: `call-${status}`,
+          tool: "read",
+          input: { filePath: "/legacy/result.txt" },
+          provider: { executed: false, metadata: { fixture: "called" } },
+        },
       },
       {
         type: `session.next.tool.${status}.1`,
         data: {
-          ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", callID: `call-${status}`,
+          ...base,
+          timestamp: 8,
+          assistantMessageID: "msg_legacy_answer",
+          callID: `call-${status}`,
           ...(status === "success"
-            ? { structured: { preview: "Synthetic preview" }, content: [{ type: "text", text: "Synthetic tool full response" }], result: { type: "text", value: "Original raw result" }, outputPaths: ["/legacy/result.txt"] }
+            ? {
+                structured: { preview: "Synthetic preview" },
+                content: [{ type: "text", text: "Synthetic tool full response" }],
+                result: { type: "text", value: "Original raw result" },
+                outputPaths: ["/legacy/result.txt"],
+              }
             : { error: { type: "tool.execution", message: "Synthetic tool failed" } }),
           provider: { executed: false, metadata: { fixture: "returned" } },
         },
@@ -190,26 +248,55 @@ const legacyMainFixture = Effect.fnUntraced(function* (db: Effect.Success<typeof
     ]),
     {
       type: "session.next.tool.input.started.1",
-      data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", callID: "call-input-failed", name: "read" },
+      data: {
+        ...base,
+        timestamp: 8,
+        assistantMessageID: "msg_legacy_answer",
+        callID: "call-input-failed",
+        name: "read",
+      },
     },
     {
       type: "session.next.tool.input.ended.1",
-      data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", callID: "call-input-failed", text: '{"bad":' },
+      data: {
+        ...base,
+        timestamp: 8,
+        assistantMessageID: "msg_legacy_answer",
+        callID: "call-input-failed",
+        text: '{"bad":',
+      },
     },
     {
       type: "session.next.tool.failed.1",
-      data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", callID: "call-input-failed", error: { type: "tool.execution", message: "Invalid raw input" }, provider: { executed: false } },
+      data: {
+        ...base,
+        timestamp: 8,
+        assistantMessageID: "msg_legacy_answer",
+        callID: "call-input-failed",
+        error: { type: "tool.execution", message: "Invalid raw input" },
+        provider: { executed: false },
+      },
     },
     {
       type: "session.next.step.ended.2",
       data: {
-        ...base, timestamp: 9, assistantMessageID: "msg_legacy_answer", finish: "stop", cost: 0,
+        ...base,
+        timestamp: 9,
+        assistantMessageID: "msg_legacy_answer",
+        finish: "stop",
+        cost: 0,
         tokens: { input: 1, output: 2, reasoning: 0, cache: { read: 0, write: 0 } },
       },
     },
     {
       type: "session.next.step.started.1",
-      data: { ...base, timestamp: 10, assistantMessageID: "msg_legacy_failed", agent: "build", model: { id: "model", providerID: "provider" } },
+      data: {
+        ...base,
+        timestamp: 10,
+        assistantMessageID: "msg_legacy_failed",
+        agent: "build",
+        model: { id: "model", providerID: "provider" },
+      },
     },
     {
       type: "session.next.text.started.1",
@@ -217,23 +304,57 @@ const legacyMainFixture = Effect.fnUntraced(function* (db: Effect.Success<typeof
     },
     {
       type: "session.next.text.ended.1",
-      data: { ...base, timestamp: 10, assistantMessageID: "msg_legacy_failed", textID: "partial", text: "Synthetic partial before failure" },
+      data: {
+        ...base,
+        timestamp: 10,
+        assistantMessageID: "msg_legacy_failed",
+        textID: "partial",
+        text: "Synthetic partial before failure",
+      },
     },
     {
       type: "session.next.step.failed.2",
-      data: { ...base, timestamp: 11, assistantMessageID: "msg_legacy_failed", error: { type: "unknown", message: "Synthetic failed step" } },
+      data: {
+        ...base,
+        timestamp: 11,
+        assistantMessageID: "msg_legacy_failed",
+        error: { type: "unknown", message: "Synthetic failed step" },
+      },
     },
     {
       type: "session.next.retried.1",
-      data: { ...base, timestamp: 12, attempt: 1, error: { message: "Synthetic retry", isRetryable: true, statusCode: 503, responseBody: "Original retry response" } },
+      data: {
+        ...base,
+        timestamp: 12,
+        attempt: 1,
+        error: {
+          message: "Synthetic retry",
+          isRetryable: true,
+          statusCode: 503,
+          responseBody: "Original retry response",
+        },
+      },
     },
     {
       type: "session.next.step.started.1",
-      data: { ...base, timestamp: 13, assistantMessageID: "msg_legacy_retry", agent: "build", model: { id: "model", providerID: "provider" } },
+      data: {
+        ...base,
+        timestamp: 13,
+        assistantMessageID: "msg_legacy_retry",
+        agent: "build",
+        model: { id: "model", providerID: "provider" },
+      },
     },
     {
       type: "session.next.step.ended.2",
-      data: { ...base, timestamp: 14, assistantMessageID: "msg_legacy_retry", finish: "stop", cost: 0, tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } } },
+      data: {
+        ...base,
+        timestamp: 14,
+        assistantMessageID: "msg_legacy_retry",
+        finish: "stop",
+        cost: 0,
+        tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+      },
     },
     {
       type: "session.next.synthetic.1",
@@ -242,8 +363,11 @@ const legacyMainFixture = Effect.fnUntraced(function* (db: Effect.Success<typeof
     {
       type: "session.next.prompt.admitted.1",
       data: {
-        ...base, timestamp: 20, messageID: "msg_legacy_pending",
-        prompt: { text: "Synthetic pending request" }, delivery: "queue",
+        ...base,
+        timestamp: 20,
+        messageID: "msg_legacy_pending",
+        prompt: { text: "Synthetic pending request" },
+        delivery: "queue",
       },
     },
   ]
@@ -304,35 +428,80 @@ describe("DatabaseMigration", () => {
         expect(yield* db.get(sql`SELECT count(*) AS count FROM _legacy_main_part`)).toEqual({ count: 1 })
         expect(yield* db.get(sql`SELECT count(*) AS count FROM _legacy_main_workspace`)).toEqual({ count: 0 })
         expect(yield* db.get(sql`SELECT count(*) AS count FROM workspace`)).toEqual({ count: 0 })
-        expect((yield* db.all<{ name: string }>(sql`PRAGMA table_info(_legacy_main_workspace)`)).map((column) => column.name)).toEqual([
-          "id", "type", "name", "branch", "directory", "extra", "project_id", "time_used",
-        ])
-        expect((yield* db.all<{ name: string }>(sql`PRAGMA table_info(workspace)`)).map((column) => column.name)).toEqual(
-          expect.arrayContaining(["provider", "binding"]),
-        )
+        expect(
+          (yield* db.all<{ name: string }>(sql`PRAGMA table_info(_legacy_main_workspace)`)).map(
+            (column) => column.name,
+          ),
+        ).toEqual(["id", "type", "name", "branch", "directory", "extra", "project_id", "time_used"])
+        expect(
+          (yield* db.all<{ name: string }>(sql`PRAGMA table_info(workspace)`)).map((column) => column.name),
+        ).toEqual(expect.arrayContaining(["provider", "binding"]))
         expect(yield* db.get(sql`SELECT count(*) AS count FROM migration`)).toEqual({ count: migrations.length })
-        expect(yield* db.get(sql`SELECT mode, permission_tier, attended FROM session_v2 WHERE id = 'ses_legacy_events'`)).toEqual({
-          mode: "work", permission_tier: "propose", attended: 1,
+        expect(
+          yield* db.get(sql`SELECT mode, permission_tier, attended FROM session_v2 WHERE id = 'ses_legacy_events'`),
+        ).toEqual({
+          mode: "work",
+          permission_tier: "propose",
+          attended: 1,
         })
-        expect(yield* db.get(sql`SELECT data FROM session_composition_snapshot`)).toEqual({ data: '{"preserved":true}' })
-        expect(yield* db.all<{ table: string }>(sql`PRAGMA foreign_key_list(session_composition_snapshot)`)).toContainEqual(
-          expect.objectContaining({ table: "session_v2" }),
+        expect(yield* db.get(sql`SELECT data FROM session_composition_snapshot`)).toEqual({
+          data: '{"preserved":true}',
+        })
+        expect(
+          yield* db.all<{ table: string }>(sql`PRAGMA foreign_key_list(session_composition_snapshot)`),
+        ).toContainEqual(expect.objectContaining({ table: "session_v2" }))
+        const messages = yield* db.all<{ id: string; type: string; data: string }>(
+          sql`SELECT id, type, data FROM session_message ORDER BY session_id, seq`,
         )
-        const messages = yield* db.all<{ id: string; type: string; data: string }>(sql`SELECT id, type, data FROM session_message ORDER BY session_id, seq`)
         expect(messages).toHaveLength(8)
         for (const message of messages)
-          Schema.decodeUnknownSync(SessionMessage.Info)({ ...JSON.parse(message.data), id: message.id, type: message.type })
-        expect(yield* db.get(sql`SELECT json_extract(data, '$.content[0].text') AS text FROM session_message WHERE id = 'msg_legacy_answer'`)).toEqual({ text: "Synthetic recovered answer" })
-        expect(yield* db.get(sql`SELECT json_extract(data, '$.text') AS text FROM session_message WHERE id = 'msg_legacy_v1'`)).toEqual({ text: "Synthetic V1 request" })
+          Schema.decodeUnknownSync(SessionMessage.Info)({
+            ...JSON.parse(message.data),
+            id: message.id,
+            type: message.type,
+          })
+        expect(
+          yield* db.get(
+            sql`SELECT json_extract(data, '$.content[0].text') AS text FROM session_message WHERE id = 'msg_legacy_answer'`,
+          ),
+        ).toEqual({ text: "Synthetic recovered answer" })
+        expect(
+          yield* db.get(
+            sql`SELECT json_extract(data, '$.text') AS text FROM session_message WHERE id = 'msg_legacy_v1'`,
+          ),
+        ).toEqual({ text: "Synthetic V1 request" })
         const answer = JSON.parse(messages.find((message) => message.id === "msg_legacy_answer")!.data)
-        expect(answer.content).toContainEqual({ type: "reasoning", text: "Synthetic reasoning", time: { created: 8, completed: 8 } })
-        expect(answer.content).toContainEqual({ type: "reasoning", text: "Second reasoning span", time: { created: 8, completed: 8 } })
+        expect(answer.content).toContainEqual({
+          type: "reasoning",
+          text: "Synthetic reasoning",
+          time: { created: 8, completed: 8 },
+        })
+        expect(answer.content).toContainEqual({
+          type: "reasoning",
+          text: "Second reasoning span",
+          time: { created: 8, completed: 8 },
+        })
         expect(answer.content).toContainEqual({ type: "text", text: "Second text span" })
         expect(answer.content.find((block: { id?: string }) => block.id === "call-success")).toMatchObject({
-          state: { status: "completed", input: { filePath: "/legacy/result.txt" }, content: [{ type: "text", text: "Synthetic tool full response" }], metadata: { preview: "Synthetic preview", legacy: { rawInput: '{"filePath":"/legacy/result.txt"}', result: { type: "text", value: "Original raw result" }, outputPaths: ["/legacy/result.txt"] } } },
-          providerState: { fixture: "called" }, providerResultState: { fixture: "returned" },
+          state: {
+            status: "completed",
+            input: { filePath: "/legacy/result.txt" },
+            content: [{ type: "text", text: "Synthetic tool full response" }],
+            metadata: {
+              preview: "Synthetic preview",
+              legacy: {
+                rawInput: '{"filePath":"/legacy/result.txt"}',
+                result: { type: "text", value: "Original raw result" },
+                outputPaths: ["/legacy/result.txt"],
+              },
+            },
+          },
+          providerState: { fixture: "called" },
+          providerResultState: { fixture: "returned" },
         })
-        expect(answer.content.find((block: { id?: string }) => block.id === "call-failed")).toMatchObject({ state: { status: "error", error: { message: "Synthetic tool failed" } } })
+        expect(answer.content.find((block: { id?: string }) => block.id === "call-failed")).toMatchObject({
+          state: { status: "error", error: { message: "Synthetic tool failed" } },
+        })
         expect(answer.content.find((block: { id?: string }) => block.id === "call-input-failed")).toMatchObject({
           state: {
             status: "error",
@@ -341,15 +510,31 @@ describe("DatabaseMigration", () => {
           },
         })
         expect(JSON.parse(messages.find((message) => message.id === "msg_legacy_failed")!.data)).toMatchObject({
-          content: [{ type: "text", text: "Synthetic partial before failure" }], finish: "error", error: { type: "unknown", message: "Synthetic failed step" }, time: { created: 10, completed: 11 },
+          content: [{ type: "text", text: "Synthetic partial before failure" }],
+          finish: "error",
+          error: { type: "unknown", message: "Synthetic failed step" },
+          time: { created: 10, completed: 11 },
         })
-        expect(JSON.parse(messages.find((message) => message.id === "msg_legacy_retry")!.data)).toMatchObject({ retry: { attempt: 1, at: 12, error: { message: "Synthetic retry", status: 503, response: { body: "Original retry response" } } } })
-        expect(JSON.parse(messages.find((message) => message.id === "msg_legacy_synthetic")!.data)).toMatchObject({ text: "Synthetic historical notification" })
-        expect(yield* db.get(sql`SELECT id, delivery FROM session_inbox`)).toEqual({ id: "msg_legacy_pending", delivery: "queue" })
+        expect(JSON.parse(messages.find((message) => message.id === "msg_legacy_retry")!.data)).toMatchObject({
+          retry: {
+            attempt: 1,
+            at: 12,
+            error: { message: "Synthetic retry", status: 503, response: { body: "Original retry response" } },
+          },
+        })
+        expect(JSON.parse(messages.find((message) => message.id === "msg_legacy_synthetic")!.data)).toMatchObject({
+          text: "Synthetic historical notification",
+        })
+        expect(yield* db.get(sql`SELECT id, delivery FROM session_inbox`)).toEqual({
+          id: "msg_legacy_pending",
+          delivery: "queue",
+        })
         expect(yield* db.all(sql`PRAGMA foreign_key_check`)).toEqual([])
 
         yield* DatabaseMigration.apply(db)
-        expect(yield* V1Migration.run().pipe(Effect.provideService(Database.Service, { db }))).toEqual({ status: "completed" })
+        expect(yield* V1Migration.run().pipe(Effect.provideService(Database.Service, { db }))).toEqual({
+          status: "completed",
+        })
         expect(yield* db.get(sql`SELECT count(*) AS count FROM _legacy_main_event`)).toEqual({ count: eventCount })
         expect(yield* db.get(sql`SELECT count(*) AS count FROM session_message`)).toEqual({ count: 8 })
         expect(yield* db.get(sql`SELECT count(*) AS count FROM kv WHERE key = 'migration.v1-v2'`)).toEqual({ count: 0 })
@@ -357,37 +542,46 @@ describe("DatabaseMigration", () => {
     )
   })
 
-  test.each(["unknown event", "nonempty legacy workspace"])("rolls back legacy main recovery for %s", async (scenario) => {
-    await run(
-      Effect.gen(function* () {
-        const db = yield* makeDb
-        const eventCount = yield* legacyMainFixture(db)
-        if (scenario === "unknown event")
-          yield* db.run(sql`UPDATE event SET type = 'session.next.future.1' WHERE seq = 0`)
-        if (scenario === "nonempty legacy workspace")
-          yield* db.run(sql`INSERT INTO workspace (id, type, project_id) VALUES ('legacy-workspace', 'git', 'legacy-project')`)
-        const result = yield* Effect.exit(DatabaseMigration.apply(db))
-        expect(result._tag).toBe("Failure")
-        if (scenario === "nonempty legacy workspace" && result._tag === "Failure")
-          expect(Cause.squash(result.cause)).toMatchObject({ reason: "Unsupported legacy column: workspace.type" })
-        expect(yield* db.get(sql`SELECT count(*) AS count FROM session`)).toEqual({ count: 2 })
-        expect(yield* db.get(sql`SELECT count(*) AS count FROM event`)).toEqual({ count: eventCount })
-        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE name = '_legacy_main_session'`)).toBeUndefined()
-        expect(yield* db.get(sql`SELECT count(*) AS count FROM workspace`)).toEqual({
-          count: scenario === "nonempty legacy workspace" ? 1 : 0,
-        })
-        expect(yield* db.get(sql`SELECT count(*) AS count FROM migration WHERE id LIKE '20261016%'`)).toEqual({ count: 0 })
-        expect(yield* db.get(sql`PRAGMA foreign_keys`)).toEqual({ foreign_keys: 1 })
-      }),
-    )
-  })
+  test.each(["unknown event", "nonempty legacy workspace"])(
+    "rolls back legacy main recovery for %s",
+    async (scenario) => {
+      await run(
+        Effect.gen(function* () {
+          const db = yield* makeDb
+          const eventCount = yield* legacyMainFixture(db)
+          if (scenario === "unknown event")
+            yield* db.run(sql`UPDATE event SET type = 'session.next.future.1' WHERE seq = 0`)
+          if (scenario === "nonempty legacy workspace")
+            yield* db.run(
+              sql`INSERT INTO workspace (id, type, project_id) VALUES ('legacy-workspace', 'git', 'legacy-project')`,
+            )
+          const result = yield* Effect.exit(DatabaseMigration.apply(db))
+          expect(result._tag).toBe("Failure")
+          if (scenario === "nonempty legacy workspace" && result._tag === "Failure")
+            expect(Cause.squash(result.cause)).toMatchObject({ reason: "Unsupported legacy column: workspace.type" })
+          expect(yield* db.get(sql`SELECT count(*) AS count FROM session`)).toEqual({ count: 2 })
+          expect(yield* db.get(sql`SELECT count(*) AS count FROM event`)).toEqual({ count: eventCount })
+          expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE name = '_legacy_main_session'`)).toBeUndefined()
+          expect(yield* db.get(sql`SELECT count(*) AS count FROM workspace`)).toEqual({
+            count: scenario === "nonempty legacy workspace" ? 1 : 0,
+          })
+          expect(yield* db.get(sql`SELECT count(*) AS count FROM migration WHERE id LIKE '20261016%'`)).toEqual({
+            count: 0,
+          })
+          expect(yield* db.get(sql`PRAGMA foreign_keys`)).toEqual({ foreign_keys: 1 })
+        }),
+      )
+    },
+  )
 
   test("blocks direct V1 import of event-sourced legacy main sessions", async () => {
     await run(
       Effect.gen(function* () {
         const db = yield* makeDb
         const eventCount = yield* legacyMainFixture(db)
-        expect((yield* Effect.exit(V1Migration.run().pipe(Effect.provideService(Database.Service, { db }))))._tag).toBe("Failure")
+        expect((yield* Effect.exit(V1Migration.run().pipe(Effect.provideService(Database.Service, { db }))))._tag).toBe(
+          "Failure",
+        )
         expect(yield* db.get(sql`SELECT count(*) AS count FROM event`)).toEqual({ count: eventCount })
         expect(yield* db.get(sql`SELECT count(*) AS count FROM kv WHERE key = 'migration.v1-v2'`)).toEqual({ count: 0 })
       }),
@@ -519,21 +713,25 @@ describe("DatabaseMigration", () => {
         expect(
           yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'session_pending'`),
         ).toEqual({ name: "session_pending" })
-        expect(yield* db.all(sql`
+        expect(
+          yield* db.all(sql`
           SELECT 'session_input_result' AS name, count(*) AS count FROM session_input_result
           UNION ALL SELECT 'task_operation', count(*) FROM task_operation
           UNION ALL SELECT 'session_goal', count(*) FROM session_goal
           UNION ALL SELECT 'schedule_occurrence', count(*) FROM schedule_occurrence
-        `)).toEqual([
+        `),
+        ).toEqual([
           { name: "session_input_result", count: 0 },
           { name: "task_operation", count: 0 },
           { name: "session_goal", count: 0 },
           { name: "schedule_occurrence", count: 0 },
         ])
-        expect(yield* db.all(sql`
+        expect(
+          yield* db.all(sql`
           SELECT id FROM migration
           WHERE id IN (${taskOperationMigration.id}, ${goalScheduleMigration.id}) ORDER BY id
-        `)).toEqual([{ id: taskOperationMigration.id }, { id: goalScheduleMigration.id }])
+        `),
+        ).toEqual([{ id: taskOperationMigration.id }, { id: goalScheduleMigration.id }])
         expect(yield* db.get(sql`SELECT count(*) AS count FROM migration`)).toEqual({ count: migrations.length })
       }),
     )
@@ -640,14 +838,27 @@ describe("DatabaseMigration", () => {
         expect(yield* db.all(tasks)).toEqual(previous.tasks)
         expect(yield* db.all(deliveries)).toEqual(previous.deliveries)
         expect(yield* db.all(sql`SELECT * FROM session_message ORDER BY id`)).toEqual(previous.messages)
-        expect(yield* db.all(sql`
+        expect(
+          yield* db.all(sql`
           SELECT id, revision, recurrence, target, execution_policy, source_agent, task_id, next_due_at,
             active_occurrence_id, bound_target_session_id, last_error
           FROM schedule ORDER BY id
-        `)).toEqual(["sch_pending", "sch_running"].map((id) => ({
-          id, revision: 1, recurrence: null, target: null, execution_policy: null, source_agent: null,
-          task_id: null, next_due_at: null, active_occurrence_id: null, bound_target_session_id: null, last_error: null,
-        })))
+        `),
+        ).toEqual(
+          ["sch_pending", "sch_running"].map((id) => ({
+            id,
+            revision: 1,
+            recurrence: null,
+            target: null,
+            execution_policy: null,
+            source_agent: null,
+            task_id: null,
+            next_due_at: null,
+            active_occurrence_id: null,
+            bound_target_session_id: null,
+            last_error: null,
+          })),
+        )
         expect(yield* db.all(sql`SELECT id, operation_id FROM task ORDER BY id`)).toEqual([
           { id: "old-due", operation_id: null },
           { id: "old-running", operation_id: null },
@@ -695,10 +906,12 @@ describe("DatabaseMigration", () => {
         expect(yield* db.all(tasks)).toEqual(previous.tasks)
         expect(yield* db.all(deliveries)).toEqual(previous.deliveries)
         expect(yield* db.all(journal)).toEqual(previous.journal)
-        expect(yield* db.all(sql`
+        expect(
+          yield* db.all(sql`
           SELECT name FROM sqlite_master WHERE type = 'table'
             AND name IN ('session_input_result', 'task_operation', 'session_goal', 'schedule_occurrence')
-        `)).toEqual([])
+        `),
+        ).toEqual([])
       }),
       global,
       source,

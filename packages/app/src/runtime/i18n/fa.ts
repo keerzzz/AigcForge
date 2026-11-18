@@ -459,7 +459,8 @@ export const dict = {
   "settings.general.row.shell.autoDefault": "خودکار (پیش‌فرض)",
   "settings.general.row.shell.terminalOnly": "فقط ترمینال",
   "settings.general.row.colorScheme.title": "طرح رنگ",
-  "settings.general.row.colorScheme.description": "انتخاب کنید که آیا AigcForge از تم سیستمی، روشن یا تیره پیروی می کند",
+  "settings.general.row.colorScheme.description":
+    "انتخاب کنید که آیا AigcForge از تم سیستمی، روشن یا تیره پیروی می کند",
   "settings.general.row.theme.title": "موضوع",
   "settings.general.row.theme.description": "نحوه مضمون سازی AigcForge را سفارشی کنید.",
   "settings.general.row.font.title": "فونت کد",

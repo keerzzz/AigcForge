@@ -30,7 +30,13 @@ import { Provider } from "@aigcfroge/core/provider"
 import { SessionEvent } from "@aigcfroge/schema/session-event"
 import { SessionTaskEvent } from "@aigcfroge/schema/session-task-event"
 import { SessionIdentity } from "@aigcfroge/schema/session-identity"
-import { OperationExistingRootTarget, OperationID, OperationInfo, OperationNewRootTarget, OperationRequest } from "@aigcfroge/schema/session-task"
+import {
+  OperationExistingRootTarget,
+  OperationID,
+  OperationInfo,
+  OperationNewRootTarget,
+  OperationRequest,
+} from "@aigcfroge/schema/session-task"
 import { SessionMessage } from "@aigcfroge/schema/session-message"
 import { Workspace } from "@aigcfroge/schema/workspace"
 import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
@@ -179,23 +185,25 @@ it.live("MP01 identity uses the stored Location graph and the selected Agent thr
       Effect.gen(function* () {
         yield* Effect.promise(() => test.client.session.switchAgent({ sessionID, agent }))
         const reminders = agent === "plan" ? 1 : agent === "meta" ? 2 : 0
-        yield* pollWithTimeout(SessionInbox.list(database.db, sessionID).pipe(
-          Effect.map((pending) => pending.length === reminders ? true : undefined),
-        ), "The selected Agent's Plan reminder did not reach the durable Inbox")
+        yield* pollWithTimeout(
+          SessionInbox.list(database.db, sessionID).pipe(
+            Effect.map((pending) => (pending.length === reminders ? true : undefined)),
+          ),
+          "The selected Agent's Plan reminder did not reach the durable Inbox",
+        )
         const afterSwitch = yield* database.db.select().from(EventTable).all().pipe(Effect.orDie)
         const pending = yield* SessionInbox.list(database.db, sessionID)
         const identity = Schema.decodeUnknownSync(SessionIdentity.Identity)(
           yield* Effect.promise(() => api.identity({ sessionID, directory })),
         )
-        expect(identityJson(identity)).toEqual(identityJson(
-          yield* Context.get(context, SessionIdentityProjection.Service).project(sessionID),
-        ))
+        expect(identityJson(identity)).toEqual(
+          identityJson(yield* Context.get(context, SessionIdentityProjection.Service).project(sessionID)),
+        )
         expect(identity.agent).toBe(Agent.ID.make(agent))
         expect(identity.coordination?.selection.agent).toBe(Agent.ID.make(agent))
         expect(identity.coordination?.selection.event).toBeDefined()
         expect(identity.coordination?.available).toBe(agent === "meta")
-        if (agent !== "meta")
-          expect(identity.coordination?.reasons).toMatchObject([{ code: "meta-not-selected" }])
+        if (agent !== "meta") expect(identity.coordination?.reasons).toMatchObject([{ code: "meta-not-selected" }])
         expect((yield* Context.get(test.context, Session.Service).get(sessionID)).controller).toEqual(
           Schema.decodeUnknownSync(RootController)(root.controller),
         )
@@ -204,26 +212,48 @@ it.live("MP01 identity uses the stored Location graph and the selected Agent thr
       }),
     )
     const pending = yield* SessionInbox.list(database.db, sessionID)
-    const reminders = pending.flatMap((item) => item.type === "synthetic" ? [item] : [])
+    const reminders = pending.flatMap((item) => (item.type === "synthetic" ? [item] : []))
     expect(pending).toHaveLength(2)
     expect(reminders).toHaveLength(2)
     expect(reminders[0].payload.text).toContain("You are in Plan mode.")
     expect(reminders[1].payload.text).toContain("You are NO LONGER in Plan mode.")
     const finalEvents = yield* database.db.select().from(EventTable).all().pipe(Effect.orDie)
     const enqueued = finalEvents
-      .filter((event) => event.type === Event.versionedType(SessionEvent.InboxEnqueued.type, SessionEvent.InboxEnqueued.durable.version))
+      .filter(
+        (event) =>
+          event.type ===
+          Event.versionedType(SessionEvent.InboxEnqueued.type, SessionEvent.InboxEnqueued.durable.version),
+      )
       .toSorted((left, right) => left.seq - right.seq)
       .map((event) => ({ event, data: Schema.decodeUnknownSync(SessionEvent.InboxEnqueued.data)(event.data) }))
-    expect(pending.map((item) => ({ sessionID: item.sessionID, inboxID: item.id, item: Schema.encodeSync(SessionInbox.Item)(item) })))
-      .toEqual(enqueued.map((item) => ({ sessionID: item.data.sessionID, inboxID: item.data.inboxID, item: Schema.encodeSync(SessionInbox.Item)(item.data.item) })))
-    expect((yield* database.db.select().from(SessionInboxTable).all().pipe(Effect.orDie))
-      .toSorted((left, right) => left.enqueued_seq - right.enqueued_seq)
-      .map((item) => ({ id: item.id, sessionID: item.session_id, seq: item.enqueued_seq })))
-      .toEqual(enqueued.map((item) => ({ id: item.data.inboxID, sessionID: item.data.sessionID, seq: item.event.seq })))
-    expect((yield* database.db.select().from(SessionMessageTable).all().pipe(Effect.orDie))
-      .map((message) => message.type)).toEqual(["agent-switched", "agent-switched", "agent-switched"])
+    expect(
+      pending.map((item) => ({
+        sessionID: item.sessionID,
+        inboxID: item.id,
+        item: Schema.encodeSync(SessionInbox.Item)(item),
+      })),
+    ).toEqual(
+      enqueued.map((item) => ({
+        sessionID: item.data.sessionID,
+        inboxID: item.data.inboxID,
+        item: Schema.encodeSync(SessionInbox.Item)(item.data.item),
+      })),
+    )
+    expect(
+      (yield* database.db.select().from(SessionInboxTable).all().pipe(Effect.orDie))
+        .toSorted((left, right) => left.enqueued_seq - right.enqueued_seq)
+        .map((item) => ({ id: item.id, sessionID: item.session_id, seq: item.enqueued_seq })),
+    ).toEqual(enqueued.map((item) => ({ id: item.data.inboxID, sessionID: item.data.sessionID, seq: item.event.seq })))
+    expect(
+      (yield* database.db.select().from(SessionMessageTable).all().pipe(Effect.orDie)).map((message) => message.type),
+    ).toEqual(["agent-switched", "agent-switched", "agent-switched"])
     expect(finalEvents.some((event) => event.type.startsWith("session.execution."))).toBe(false)
-    yield* database.db.update(SessionTable).set({ workspace_id: Workspace.ID.make("wrk_identity_foreign") }).where(eq(SessionTable.id, sessionID)).run().pipe(Effect.orDie)
+    yield* database.db
+      .update(SessionTable)
+      .set({ workspace_id: Workspace.ID.make("wrk_identity_foreign") })
+      .where(eq(SessionTable.id, sessionID))
+      .run()
+      .pipe(Effect.orDie)
     expect((yield* test.request(`/session/${sessionID}/identity`)).status).toBe(404)
   }),
 )
@@ -235,12 +265,20 @@ it.live("MP01 identity preserves typed HTTP failures for absent Agent and unavai
     const sessionID = yield* test.session
     const database = Context.get(test.context, Database.Service)
     const api = test.client["session-instance"].session.instance.session
-    yield* database.db.update(SessionTable).set({ agent: null }).where(eq(SessionTable.id, sessionID)).run().pipe(Effect.orDie)
+    yield* database.db
+      .update(SessionTable)
+      .set({ agent: null })
+      .where(eq(SessionTable.id, sessionID))
+      .run()
+      .pipe(Effect.orDie)
     const conflict = yield* test.request(`/session/${sessionID}/identity`)
     expect(conflict.status).toBe(409)
     expect(yield* Effect.promise(() => conflict.json())).toMatchObject({ _tag: "ConflictError", resource: sessionID })
     yield* Effect.promise(async () =>
-      expect(api.identity({ sessionID, directory })).rejects.toMatchObject({ _tag: "ConflictError", resource: sessionID }),
+      expect(api.identity({ sessionID, directory })).rejects.toMatchObject({
+        _tag: "ConflictError",
+        resource: sessionID,
+      }),
     )
     const custom = yield* createLegacySession({
       location: Location.Ref.make({ directory: AbsolutePath.make(directory) }),
@@ -257,172 +295,294 @@ it.live("MP01 identity preserves typed HTTP failures for absent Agent and unavai
   }),
 )
 
-it.live("MP01 HTTP task operations retain user provenance, durable retries, cancellation, and history after Task deletion", () =>
-  Effect.gen(function* () {
-    const directory = (yield* tmpdirScoped()).path
-    const other = (yield* tmpdirScoped()).path
-    const options = { database: { path: path.join(directory, "operations.db") }, events: { persist: true } }
-    const recorded = yield* Effect.gen(function* () {
-      const test = yield* boot(directory, options)
-      const context = yield* Context.get(test.context, LocationServiceMap.Service).contextEffect(
-        Location.Ref.make({ directory: AbsolutePath.make(directory) }),
-      )
-      yield* useOfflineCatalog([
-        {
-          info: Provider.Info.make({
-            ...Provider.Info.empty(Provider.ID.make("fixture")),
-            activation: "enabled",
-            package: "@aigcfroge/ai/providers/openai/responses",
-          }),
-          models: [Model.Info.default(Provider.ID.make("fixture"), Model.ID.make("fixture"))],
-        },
-      ]).pipe(Effect.provideContext(context))
-      const model = Model.Ref.make({ id: Model.ID.make("fixture"), providerID: Provider.ID.make("fixture") })
-      const root = yield* Effect.promise(() =>
-        test.client.session.create({ agent: "meta", control: "meta", location: { directory }, model }),
-      )
-      const sourceSessionID = Session.ID.make(root.id)
-      const database = Context.get(test.context, Database.Service)
-      const identity = yield* test.request(`/session/${sourceSessionID}/identity`)
-      expect(identity.status).toBe(200)
-      expect(Schema.decodeUnknownSync(SessionIdentity.Identity)(yield* Effect.promise(() => identity.json())).coordination)
-        .toMatchObject({ available: true, reasons: [], selection: { agent: "meta" } })
-      const beforeInvalid = {
-        operations: yield* database.db.select().from(TaskOperationTable).all().pipe(Effect.orDie),
-        inputs: yield* database.db.select().from(SessionInboxTable).all().pipe(Effect.orDie),
-      }
-      const invalid = {
-        ...Schema.encodeSync(OperationRequest)(new OperationRequest({
+it.live(
+  "MP01 HTTP task operations retain user provenance, durable retries, cancellation, and history after Task deletion",
+  () =>
+    Effect.gen(function* () {
+      const directory = (yield* tmpdirScoped()).path
+      const other = (yield* tmpdirScoped()).path
+      const options = { database: { path: path.join(directory, "operations.db") }, events: { persist: true } }
+      const recorded = yield* Effect.gen(function* () {
+        const test = yield* boot(directory, options)
+        const context = yield* Context.get(test.context, LocationServiceMap.Service).contextEffect(
+          Location.Ref.make({ directory: AbsolutePath.make(directory) }),
+        )
+        yield* useOfflineCatalog([
+          {
+            info: Provider.Info.make({
+              ...Provider.Info.empty(Provider.ID.make("fixture")),
+              activation: "enabled",
+              package: "@aigcfroge/ai/providers/openai/responses",
+            }),
+            models: [Model.Info.default(Provider.ID.make("fixture"), Model.ID.make("fixture"))],
+          },
+        ]).pipe(Effect.provideContext(context))
+        const model = Model.Ref.make({ id: Model.ID.make("fixture"), providerID: Provider.ID.make("fixture") })
+        const root = yield* Effect.promise(() =>
+          test.client.session.create({ agent: "meta", control: "meta", location: { directory }, model }),
+        )
+        const sourceSessionID = Session.ID.make(root.id)
+        const database = Context.get(test.context, Database.Service)
+        const identity = yield* test.request(`/session/${sourceSessionID}/identity`)
+        expect(identity.status).toBe(200)
+        expect(
+          Schema.decodeUnknownSync(SessionIdentity.Identity)(yield* Effect.promise(() => identity.json())).coordination,
+        ).toMatchObject({ available: true, reasons: [], selection: { agent: "meta" } })
+        const beforeInvalid = {
+          operations: yield* database.db.select().from(TaskOperationTable).all().pipe(Effect.orDie),
+          inputs: yield* database.db.select().from(SessionInboxTable).all().pipe(Effect.orDie),
+        }
+        const invalid = {
+          ...Schema.encodeSync(OperationRequest)(
+            new OperationRequest({
+              operationID: OperationID.create(),
+              inputID: SessionMessage.ID.create(),
+              target: new OperationNewRootTarget({
+                type: "new_root",
+                mode: "coding",
+                agent: Agent.ID.make("build"),
+                model,
+              }),
+              prompt: "Reject invalid operation identity",
+              delivery: "queue",
+              resume: false,
+            }),
+          ),
+          operationID: "invalid",
+        }
+        const rejected = yield* test.request(`/session/${sourceSessionID}/task/dispatch`, { body: invalid })
+        expect(rejected.status).toBe(400)
+        const schemaError = yield* Schema.decodeUnknownEffect(OperationRequest)(invalid).pipe(Effect.flip)
+        expect(
+          Schema.decodeUnknownSync(InvalidRequestError)(yield* Effect.promise(() => rejected.json())),
+        ).toMatchObject({ _tag: "InvalidRequestError", kind: "Payload", message: schemaError.message })
+        expect(yield* database.db.select().from(TaskOperationTable).all().pipe(Effect.orDie)).toEqual(
+          beforeInvalid.operations,
+        )
+        expect(yield* database.db.select().from(SessionInboxTable).all().pipe(Effect.orDie)).toEqual(
+          beforeInvalid.inputs,
+        )
+        const staleTask = taskFromJson(
+          yield* Effect.promise(() =>
+            test.tasks.create({
+              sessionID: sourceSessionID,
+              directory,
+              payload: { content: "Stale task", status: "pending", priority: "medium" },
+            }),
+          ),
+        )
+        const stale = new OperationRequest({
           operationID: OperationID.create(),
           inputID: SessionMessage.ID.create(),
-          target: new OperationNewRootTarget({ type: "new_root", mode: "coding", agent: Agent.ID.make("build"), model }),
-          prompt: "Reject invalid operation identity",
+          taskID: staleTask.id,
+          expectedRevision: staleTask.revision + 1,
+          target: new OperationNewRootTarget({
+            type: "new_root",
+            mode: "coding",
+            agent: Agent.ID.make("build"),
+            model,
+          }),
+          prompt: "Dispatch with a stale source revision",
           delivery: "queue",
           resume: false,
-        })),
-        operationID: "invalid",
-      }
-      const rejected = yield* test.request(`/session/${sourceSessionID}/task/dispatch`, { body: invalid })
-      expect(rejected.status).toBe(400)
-      const schemaError = yield* Schema.decodeUnknownEffect(OperationRequest)(invalid).pipe(Effect.flip)
-      expect(Schema.decodeUnknownSync(InvalidRequestError)(yield* Effect.promise(() => rejected.json())))
-        .toMatchObject({ _tag: "InvalidRequestError", kind: "Payload", message: schemaError.message })
-      expect(yield* database.db.select().from(TaskOperationTable).all().pipe(Effect.orDie)).toEqual(beforeInvalid.operations)
-      expect(yield* database.db.select().from(SessionInboxTable).all().pipe(Effect.orDie)).toEqual(beforeInvalid.inputs)
-      const staleTask = taskFromJson(yield* Effect.promise(() =>
-        test.tasks.create({ sessionID: sourceSessionID, directory, payload: { content: "Stale task", status: "pending", priority: "medium" } }),
-      ))
-      const stale = new OperationRequest({
-        operationID: OperationID.create(),
-        inputID: SessionMessage.ID.create(),
-        taskID: staleTask.id,
-        expectedRevision: staleTask.revision + 1,
-        target: new OperationNewRootTarget({ type: "new_root", mode: "coding", agent: Agent.ID.make("build"), model }),
-        prompt: "Dispatch with a stale source revision",
-        delivery: "queue",
-        resume: false,
-      })
-      const staleResponse = yield* test.request(`/session/${sourceSessionID}/task/dispatch`, { body: Schema.encodeSync(OperationRequest)(stale) })
-      expect(staleResponse.status).toBe(400)
-      expect(yield* Effect.promise(() => staleResponse.json())).toMatchObject({ _tag: "InvalidRequestError", kind: "stale_revision" })
-      expect(yield* database.db.select().from(TaskOperationTable).all().pipe(Effect.orDie)).toEqual([])
-      yield* Effect.promise(() => test.tasks.delete({ sessionID: sourceSessionID, taskID: staleTask.id, directory }))
-      const operations = yield* Effect.forEach(["new_root", "existing_root"] as const, (kind) =>
-        Effect.gen(function* () {
-          const target = kind === "existing_root"
-            ? yield* Effect.promise(() => test.client.session.create({ agent: "build", mode: "coding", location: { directory }, model }))
-            : undefined
-          const request = new OperationRequest({
-            operationID: OperationID.create(),
-            inputID: SessionMessage.ID.create(),
-            target: target
-              ? new OperationExistingRootTarget({ type: "existing_root", sessionID: Session.ID.make(target.id) })
-              : new OperationNewRootTarget({ type: "new_root", mode: "coding", agent: Agent.ID.make("build"), model, title: "HTTP delegated root" }),
-            description: `HTTP ${kind} work`,
-            prompt: `Complete the ${kind} work`,
-            delivery: "queue",
-            resume: false,
-          })
-          const response = yield* test.request(`/session/${sourceSessionID}/task/dispatch`, {
-            body: {
-              ...Schema.encodeSync(OperationRequest)(request),
-              source: { type: "model_tool", sessionID: sourceSessionID, agent: "meta", messageID: "msg_forged_source", id: "forged-call" },
-            },
-          })
-          expect(response.status).toBe(200)
-          const operation = Schema.decodeUnknownSync(OperationInfo)(yield* Effect.promise(() => response.json()))
-          expect(operation).toMatchObject({
-            sourceSessionID,
-            operationID: request.operationID,
-            inputID: request.inputID,
-            phase: "admitted",
-            source: { type: "user_coordination", sessionID: sourceSessionID, agent: "meta" },
-            selection: { agent: "meta" },
-          })
-          if (!operation.targetSessionID || !operation.taskID) return yield* Effect.die(new Error("Task operation has no target or source Task"))
-          const targetSession = yield* Context.get(test.context, Session.Service).get(operation.targetSessionID)
-          expect(targetSession.parentID).toBeUndefined()
-          expect(targetSession.id).not.toBe(sourceSessionID)
-          expect(targetSession.agent).toBe(Agent.ID.make("build"))
-          if (target) expect(targetSession.id).toBe(Session.ID.make(target.id))
-          const inbox = yield* database.db.select().from(SessionInboxTable).where(eq(SessionInboxTable.id, request.inputID)).all().pipe(Effect.orDie)
-          expect(inbox).toMatchObject([{ id: request.inputID, session_id: targetSession.id, type: "user", payload: { text: request.prompt } }])
-          const retried = yield* Effect.promise(() =>
-            test.tasks.dispatch({ sessionID: sourceSessionID, directory: `${directory}/.`, payload: Schema.encodeSync(OperationRequest)(request) }),
-          )
-          expect(Schema.decodeUnknownSync(OperationInfo)(retried)).toEqual(operation)
-          expect(yield* database.db.select().from(SessionInboxTable).where(eq(SessionInboxTable.id, request.inputID)).all().pipe(Effect.orDie)).toEqual(inbox)
-          expect(Schema.decodeUnknownSync(OperationInfo)(yield* Effect.promise(() =>
-            test.tasks.operation({ sessionID: sourceSessionID, operationID: operation.operationID, directory }),
-          ))).toEqual(operation)
-          const conflict = yield* test.request(`/session/${sourceSessionID}/task/dispatch`, {
-            body: { ...Schema.encodeSync(OperationRequest)(request), prompt: "Changed operation body" },
-          })
-          expect(conflict.status).toBe(409)
-          expect(yield* Effect.promise(() => conflict.json())).toMatchObject({ _tag: "ConflictError", resource: operation.operationID })
-          yield* Effect.promise(async () =>
-            expect(test.tasks.dispatch({ sessionID: sourceSessionID, directory, payload: { ...Schema.encodeSync(OperationRequest)(request), prompt: "Changed operation body" } })).rejects.toMatchObject({ _tag: "ConflictError" }),
-          )
-          return operation
-        }),
-      )
-      expect((yield* database.db.select().from(TaskOperationTable).all().pipe(Effect.orDie))).toHaveLength(2)
-      yield* Effect.promise(() => test.client.session.switchAgent({ sessionID: sourceSessionID, agent: "build" }))
-      expect(Schema.decodeUnknownSync(Schema.Array(OperationInfo))(yield* Effect.promise(() =>
-        test.tasks.operations({ sessionID: sourceSessionID, directory }),
-      ))).toEqual(operations)
-      const cancelled = yield* Effect.forEach(operations, (operation) =>
-        Effect.gen(function* () {
-          const result = Schema.decodeUnknownSync(OperationInfo)(yield* Effect.promise(() =>
-            test.tasks.cancelOperation({ sessionID: sourceSessionID, operationID: operation.operationID, directory }),
-          ))
-          expect(result).toMatchObject({ operationID: operation.operationID, phase: "cancelled", cancelIntent: true })
-          expect(yield* database.db.select().from(SessionInboxTable).where(eq(SessionInboxTable.id, operation.inputID)).all().pipe(Effect.orDie)).toEqual([])
-          return result
-        }),
-      )
-      const deletedTaskID = cancelled[0].taskID
-      if (!deletedTaskID) return yield* Effect.die(new Error("Cancelled operation has no source Task"))
-      yield* Effect.promise(() => test.tasks.delete({ sessionID: sourceSessionID, taskID: deletedTaskID, directory }))
-      expect(Schema.decodeUnknownSync(Schema.Array(OperationInfo))(yield* Effect.promise(() =>
-        test.tasks.operations({ sessionID: sourceSessionID, taskID: deletedTaskID, directory }),
-      ))).toEqual([cancelled[0]])
-      expect((yield* test.request(`/session/${sourceSessionID}/task/operations`, { authenticated: false })).status).toBe(401)
-      expect((yield* test.request(`/session/${sourceSessionID}/task/operations`, { directory: other })).status).toBe(404)
-      expect((yield* test.request(`/session/${sourceSessionID}/task/operations/${cancelled[0].operationID}/cancel`, { method: "POST", directory: other })).status).toBe(404)
-      const foreign = yield* test.session
-      expect((yield* test.request(`/session/${foreign}/task/operations/${cancelled[0].operationID}`)).status).toBe(404)
-      expect((yield* database.db.select().from(EventTable).all().pipe(Effect.orDie)).some((event) => event.type.startsWith("session.execution."))).toBe(false)
-      return { sourceSessionID, cancelled, deletedTaskID }
-    }).pipe(Effect.scoped)
-    const reopened = yield* boot(directory, options)
-    expect(Schema.decodeUnknownSync(Schema.Array(OperationInfo))(yield* Effect.promise(() =>
-      reopened.tasks.operations({ sessionID: recorded.sourceSessionID, directory }),
-    ))).toEqual(recorded.cancelled)
-    expect(Schema.decodeUnknownSync(Schema.Array(OperationInfo))(yield* Effect.promise(() =>
-      reopened.tasks.operations({ sessionID: recorded.sourceSessionID, taskID: recorded.deletedTaskID, directory }),
-    ))).toEqual([recorded.cancelled[0]])
-  }),
+        })
+        const staleResponse = yield* test.request(`/session/${sourceSessionID}/task/dispatch`, {
+          body: Schema.encodeSync(OperationRequest)(stale),
+        })
+        expect(staleResponse.status).toBe(400)
+        expect(yield* Effect.promise(() => staleResponse.json())).toMatchObject({
+          _tag: "InvalidRequestError",
+          kind: "stale_revision",
+        })
+        expect(yield* database.db.select().from(TaskOperationTable).all().pipe(Effect.orDie)).toEqual([])
+        yield* Effect.promise(() => test.tasks.delete({ sessionID: sourceSessionID, taskID: staleTask.id, directory }))
+        const operations = yield* Effect.forEach(["new_root", "existing_root"] as const, (kind) =>
+          Effect.gen(function* () {
+            const target =
+              kind === "existing_root"
+                ? yield* Effect.promise(() =>
+                    test.client.session.create({ agent: "build", mode: "coding", location: { directory }, model }),
+                  )
+                : undefined
+            const request = new OperationRequest({
+              operationID: OperationID.create(),
+              inputID: SessionMessage.ID.create(),
+              target: target
+                ? new OperationExistingRootTarget({ type: "existing_root", sessionID: Session.ID.make(target.id) })
+                : new OperationNewRootTarget({
+                    type: "new_root",
+                    mode: "coding",
+                    agent: Agent.ID.make("build"),
+                    model,
+                    title: "HTTP delegated root",
+                  }),
+              description: `HTTP ${kind} work`,
+              prompt: `Complete the ${kind} work`,
+              delivery: "queue",
+              resume: false,
+            })
+            const response = yield* test.request(`/session/${sourceSessionID}/task/dispatch`, {
+              body: {
+                ...Schema.encodeSync(OperationRequest)(request),
+                source: {
+                  type: "model_tool",
+                  sessionID: sourceSessionID,
+                  agent: "meta",
+                  messageID: "msg_forged_source",
+                  id: "forged-call",
+                },
+              },
+            })
+            expect(response.status).toBe(200)
+            const operation = Schema.decodeUnknownSync(OperationInfo)(yield* Effect.promise(() => response.json()))
+            expect(operation).toMatchObject({
+              sourceSessionID,
+              operationID: request.operationID,
+              inputID: request.inputID,
+              phase: "admitted",
+              source: { type: "user_coordination", sessionID: sourceSessionID, agent: "meta" },
+              selection: { agent: "meta" },
+            })
+            if (!operation.targetSessionID || !operation.taskID)
+              return yield* Effect.die(new Error("Task operation has no target or source Task"))
+            const targetSession = yield* Context.get(test.context, Session.Service).get(operation.targetSessionID)
+            expect(targetSession.parentID).toBeUndefined()
+            expect(targetSession.id).not.toBe(sourceSessionID)
+            expect(targetSession.agent).toBe(Agent.ID.make("build"))
+            if (target) expect(targetSession.id).toBe(Session.ID.make(target.id))
+            const inbox = yield* database.db
+              .select()
+              .from(SessionInboxTable)
+              .where(eq(SessionInboxTable.id, request.inputID))
+              .all()
+              .pipe(Effect.orDie)
+            expect(inbox).toMatchObject([
+              { id: request.inputID, session_id: targetSession.id, type: "user", payload: { text: request.prompt } },
+            ])
+            const retried = yield* Effect.promise(() =>
+              test.tasks.dispatch({
+                sessionID: sourceSessionID,
+                directory: `${directory}/.`,
+                payload: Schema.encodeSync(OperationRequest)(request),
+              }),
+            )
+            expect(Schema.decodeUnknownSync(OperationInfo)(retried)).toEqual(operation)
+            expect(
+              yield* database.db
+                .select()
+                .from(SessionInboxTable)
+                .where(eq(SessionInboxTable.id, request.inputID))
+                .all()
+                .pipe(Effect.orDie),
+            ).toEqual(inbox)
+            expect(
+              Schema.decodeUnknownSync(OperationInfo)(
+                yield* Effect.promise(() =>
+                  test.tasks.operation({ sessionID: sourceSessionID, operationID: operation.operationID, directory }),
+                ),
+              ),
+            ).toEqual(operation)
+            const conflict = yield* test.request(`/session/${sourceSessionID}/task/dispatch`, {
+              body: { ...Schema.encodeSync(OperationRequest)(request), prompt: "Changed operation body" },
+            })
+            expect(conflict.status).toBe(409)
+            expect(yield* Effect.promise(() => conflict.json())).toMatchObject({
+              _tag: "ConflictError",
+              resource: operation.operationID,
+            })
+            yield* Effect.promise(async () =>
+              expect(
+                test.tasks.dispatch({
+                  sessionID: sourceSessionID,
+                  directory,
+                  payload: { ...Schema.encodeSync(OperationRequest)(request), prompt: "Changed operation body" },
+                }),
+              ).rejects.toMatchObject({ _tag: "ConflictError" }),
+            )
+            return operation
+          }),
+        )
+        expect(yield* database.db.select().from(TaskOperationTable).all().pipe(Effect.orDie)).toHaveLength(2)
+        yield* Effect.promise(() => test.client.session.switchAgent({ sessionID: sourceSessionID, agent: "build" }))
+        expect(
+          Schema.decodeUnknownSync(Schema.Array(OperationInfo))(
+            yield* Effect.promise(() => test.tasks.operations({ sessionID: sourceSessionID, directory })),
+          ),
+        ).toEqual(operations)
+        const cancelled = yield* Effect.forEach(operations, (operation) =>
+          Effect.gen(function* () {
+            const result = Schema.decodeUnknownSync(OperationInfo)(
+              yield* Effect.promise(() =>
+                test.tasks.cancelOperation({
+                  sessionID: sourceSessionID,
+                  operationID: operation.operationID,
+                  directory,
+                }),
+              ),
+            )
+            expect(result).toMatchObject({ operationID: operation.operationID, phase: "cancelled", cancelIntent: true })
+            expect(
+              yield* database.db
+                .select()
+                .from(SessionInboxTable)
+                .where(eq(SessionInboxTable.id, operation.inputID))
+                .all()
+                .pipe(Effect.orDie),
+            ).toEqual([])
+            return result
+          }),
+        )
+        const deletedTaskID = cancelled[0].taskID
+        if (!deletedTaskID) return yield* Effect.die(new Error("Cancelled operation has no source Task"))
+        yield* Effect.promise(() => test.tasks.delete({ sessionID: sourceSessionID, taskID: deletedTaskID, directory }))
+        expect(
+          Schema.decodeUnknownSync(Schema.Array(OperationInfo))(
+            yield* Effect.promise(() =>
+              test.tasks.operations({ sessionID: sourceSessionID, taskID: deletedTaskID, directory }),
+            ),
+          ),
+        ).toEqual([cancelled[0]])
+        expect(
+          (yield* test.request(`/session/${sourceSessionID}/task/operations`, { authenticated: false })).status,
+        ).toBe(401)
+        expect((yield* test.request(`/session/${sourceSessionID}/task/operations`, { directory: other })).status).toBe(
+          404,
+        )
+        expect(
+          (yield* test.request(`/session/${sourceSessionID}/task/operations/${cancelled[0].operationID}/cancel`, {
+            method: "POST",
+            directory: other,
+          })).status,
+        ).toBe(404)
+        const foreign = yield* test.session
+        expect((yield* test.request(`/session/${foreign}/task/operations/${cancelled[0].operationID}`)).status).toBe(
+          404,
+        )
+        expect(
+          (yield* database.db.select().from(EventTable).all().pipe(Effect.orDie)).some((event) =>
+            event.type.startsWith("session.execution."),
+          ),
+        ).toBe(false)
+        return { sourceSessionID, cancelled, deletedTaskID }
+      }).pipe(Effect.scoped)
+      const reopened = yield* boot(directory, options)
+      expect(
+        Schema.decodeUnknownSync(Schema.Array(OperationInfo))(
+          yield* Effect.promise(() => reopened.tasks.operations({ sessionID: recorded.sourceSessionID, directory })),
+        ),
+      ).toEqual(recorded.cancelled)
+      expect(
+        Schema.decodeUnknownSync(Schema.Array(OperationInfo))(
+          yield* Effect.promise(() =>
+            reopened.tasks.operations({
+              sessionID: recorded.sourceSessionID,
+              taskID: recorded.deletedTaskID,
+              directory,
+            }),
+          ),
+        ),
+      ).toEqual([recorded.cancelled[0]])
+    }),
 )
 
 it.live("MP01 HTTP dispatch rejects non-Meta before durable reservation", () =>
@@ -441,8 +601,13 @@ it.live("MP01 HTTP dispatch rejects non-Meta before durable reservation", () =>
     const body = Schema.encodeSync(OperationRequest)(request)
     const response = yield* test.request(`/session/${sourceSessionID}/task/dispatch`, { body })
     expect(response.status).toBe(400)
-    expect(yield* Effect.promise(() => response.json())).toMatchObject({ _tag: "InvalidRequestError", kind: "meta-not-selected" })
-    expect((yield* test.request(`/session/${sourceSessionID}/task/dispatch`, { body, authenticated: false })).status).toBe(401)
+    expect(yield* Effect.promise(() => response.json())).toMatchObject({
+      _tag: "InvalidRequestError",
+      kind: "meta-not-selected",
+    })
+    expect(
+      (yield* test.request(`/session/${sourceSessionID}/task/dispatch`, { body, authenticated: false })).status,
+    ).toBe(401)
     const database = Context.get(test.context, Database.Service)
     expect(yield* database.db.select().from(TaskOperationTable).all().pipe(Effect.orDie)).toEqual([])
     expect(yield* database.db.select().from(SessionInboxTable).all().pipe(Effect.orDie)).toEqual([])
@@ -563,60 +728,123 @@ it.live("MP04 artifact HTTP apply records the exact producer after the Location 
     const test = yield* boot(directory)
     const location = Location.Ref.make({ directory: AbsolutePath.make(directory) })
     const context = yield* Context.get(test.context, LocationServiceMap.Service).contextEffect(location)
-    yield* useOfflineCatalog([{ info: Provider.Info.make({ ...Provider.Info.empty(Provider.ID.make("fixture")), name: "Fixture", activation: "enabled",
-      package: "@aigcfroge/ai/providers/openai/responses" }), models: [Model.Info.default(Provider.ID.make("fixture"), Model.ID.make("fixture"))] }])
-      .pipe(Effect.provideContext(context))
-    const root = yield* Context.get(test.context, Session.Service).create({ location, agent: Agent.ID.make("meta"),
-      model: Model.Ref.make({ id: Model.ID.make("fixture"), providerID: Provider.ID.make("fixture") }) })
+    yield* useOfflineCatalog([
+      {
+        info: Provider.Info.make({
+          ...Provider.Info.empty(Provider.ID.make("fixture")),
+          name: "Fixture",
+          activation: "enabled",
+          package: "@aigcfroge/ai/providers/openai/responses",
+        }),
+        models: [Model.Info.default(Provider.ID.make("fixture"), Model.ID.make("fixture"))],
+      },
+    ]).pipe(Effect.provideContext(context))
+    const root = yield* Context.get(test.context, Session.Service).create({
+      location,
+      agent: Agent.ID.make("meta"),
+      model: Model.Ref.make({ id: Model.ID.make("fixture"), providerID: Provider.ID.make("fixture") }),
+    })
     const goals = Context.get(test.context, SessionGoal.Service)
     const bus = Context.get(test.context, Bus.Service)
     const db = Context.get(test.context, Database.Service).db
     const content = "# Verified generated artifact\n"
-    const condition = Schema.decodeUnknownSync(ArtifactCondition)({ id: "artifact", kind: "artifact", sessionID: root.id, artifactID: "pending-artifact",
-      revision: WorkflowAsset.Revision.make(Hash.sha256(content)), relativePath: "result.md" })
-    const acceptance = SessionGoal.Condition.make({ id: "accept", kind: "human_acceptance", description: "Confirm the saved artifact" })
-    const originalGoal = yield* goals.set({ sessionID: root.id, objective: "Accept the exact applied result", conditions: [condition, acceptance], budget: {} })
-    const unsubscribe = yield* bus.listen((event) => Effect.gen(function* () {
-      if (event.type !== WorkArtifact.Event.ArtifactApplied.type) return
-      const applied = Schema.decodeUnknownSync(WorkArtifact.Event.ArtifactApplied.data)(event.data)
-      if (applied.sessionID !== root.id) return
-      // apply allocates the Artifact ID before updating its snapshot; bind the existing Goal to that actual ID.
-      const goal = yield* goals.edit({ sessionID: root.id, goalID: originalGoal.id, expectedRevision: originalGoal.revision,
-        conditions: [SessionGoal.Condition.make({ ...condition, artifactID: applied.artifactID }), acceptance] })
-      const round = (yield* goals.advance({ sessionID: root.id, goalID: originalGoal.id })).round
-      if (!round) return yield* Effect.die(new Error("missing Goal round"))
-      expect(round).toMatchObject({ goalID: originalGoal.id, sessionID: root.id, revision: goal.revision })
-      yield* SessionInbox.promote(db, bus, root.id, "input", undefined, { anchorInputID: round.inputID })
-    }).pipe(Effect.orDie))
+    const condition = Schema.decodeUnknownSync(ArtifactCondition)({
+      id: "artifact",
+      kind: "artifact",
+      sessionID: root.id,
+      artifactID: "pending-artifact",
+      revision: WorkflowAsset.Revision.make(Hash.sha256(content)),
+      relativePath: "result.md",
+    })
+    const acceptance = SessionGoal.Condition.make({
+      id: "accept",
+      kind: "human_acceptance",
+      description: "Confirm the saved artifact",
+    })
+    const originalGoal = yield* goals.set({
+      sessionID: root.id,
+      objective: "Accept the exact applied result",
+      conditions: [condition, acceptance],
+      budget: {},
+    })
+    const unsubscribe = yield* bus.listen((event) =>
+      Effect.gen(function* () {
+        if (event.type !== WorkArtifact.Event.ArtifactApplied.type) return
+        const applied = Schema.decodeUnknownSync(WorkArtifact.Event.ArtifactApplied.data)(event.data)
+        if (applied.sessionID !== root.id) return
+        // apply allocates the Artifact ID before updating its snapshot; bind the existing Goal to that actual ID.
+        const goal = yield* goals.edit({
+          sessionID: root.id,
+          goalID: originalGoal.id,
+          expectedRevision: originalGoal.revision,
+          conditions: [SessionGoal.Condition.make({ ...condition, artifactID: applied.artifactID }), acceptance],
+        })
+        const round = (yield* goals.advance({ sessionID: root.id, goalID: originalGoal.id })).round
+        if (!round) return yield* Effect.die(new Error("missing Goal round"))
+        expect(round).toMatchObject({ goalID: originalGoal.id, sessionID: root.id, revision: goal.revision })
+        yield* SessionInbox.promote(db, bus, root.id, "input", undefined, { anchorInputID: round.inputID })
+      }).pipe(Effect.orDie),
+    )
     yield* Effect.addFinalizer(() => unsubscribe)
-    const response = yield* test.request(`/session/${root.id}/work-artifact/apply`, { body: {
-      title: "Applied result", relativePath: "result.md", content, overwrite: false,
-    } })
-    expect({ status: response.status, body: yield* Effect.promise(() => response.clone().text()) }).toMatchObject({ status: 200 })
+    const response = yield* test.request(`/session/${root.id}/work-artifact/apply`, {
+      body: {
+        title: "Applied result",
+        relativePath: "result.md",
+        content,
+        overwrite: false,
+      },
+    })
+    expect({ status: response.status, body: yield* Effect.promise(() => response.clone().text()) }).toMatchObject({
+      status: 200,
+    })
     const artifact = Schema.decodeUnknownSync(WorkArtifact.ArtifactRecord)(yield* Effect.promise(() => response.json()))
     expect(yield* goals.list(root.id)).toHaveLength(1)
     const goal = yield* goals.get({ sessionID: root.id, goalID: originalGoal.id })
     if (!goal) return yield* Effect.die(new Error("missing applied artifact Goal"))
-    expect(goal).toMatchObject({ id: originalGoal.id, revision: originalGoal.revision + 1, status: "active",
-      conditions: [{ kind: "artifact", sessionID: root.id, artifactID: artifact.id }, acceptance] })
+    expect(goal).toMatchObject({
+      id: originalGoal.id,
+      revision: originalGoal.revision + 1,
+      status: "active",
+      conditions: [{ kind: "artifact", sessionID: root.id, artifactID: artifact.id }, acceptance],
+    })
     expect(goal.rounds).toHaveLength(1)
     expect(goal.rounds[0]).toMatchObject({ goalID: originalGoal.id, sessionID: root.id, revision: goal.revision })
-    expect(yield* SessionInputResult.current(db, root.id)).toMatchObject({ anchorInputID: goal.rounds[0].inputID,
-      inputs: [{ inputID: goal.rounds[0].inputID }] })
+    expect(yield* SessionInputResult.current(db, root.id)).toMatchObject({
+      anchorInputID: goal.rounds[0].inputID,
+      inputs: [{ inputID: goal.rounds[0].inputID }],
+    })
     expect(goal.evidence).toHaveLength(1)
     expect(goal.currentEvidenceIDs).toEqual([goal.evidence[0].id])
-    expect(goal.evidence[0]).toMatchObject({ kind: "artifact", revision: goal.revision,
-      producer: { sessionID: root.id, artifactID: artifact.id, revision: Hash.sha256(content), relativePath: artifact.relativePath } })
+    expect(goal.evidence[0]).toMatchObject({
+      kind: "artifact",
+      revision: goal.revision,
+      producer: {
+        sessionID: root.id,
+        artifactID: artifact.id,
+        revision: Hash.sha256(content),
+        relativePath: artifact.relativePath,
+      },
+    })
     expect(goal.satisfiedConditionIDs).toEqual(["artifact"])
     expect(yield* Context.get(context, WorkArtifact.Service).get(root.id)).toMatchObject({
-      artifact: { id: artifact.id, sessionID: root.id, relativePath: artifact.relativePath }, revision: Hash.sha256(content),
+      artifact: { id: artifact.id, sessionID: root.id, relativePath: artifact.relativePath },
+      revision: Hash.sha256(content),
     })
-    expect(yield* Effect.promise(() => test.client.file.read({ location: { directory }, path: artifact.relativePath })))
-      .toEqual(new TextEncoder().encode(content))
+    expect(
+      yield* Effect.promise(() => test.client.file.read({ location: { directory }, path: artifact.relativePath })),
+    ).toEqual(new TextEncoder().encode(content))
     const other = (yield* tmpdirScoped()).path
-    expect((yield* test.request(`/session/${root.id}/work-artifact/apply`, { directory: other, body: {
-      title: "Wrong location", relativePath: "result.md", content, overwrite: false,
-    } })).status).toBe(409)
+    expect(
+      (yield* test.request(`/session/${root.id}/work-artifact/apply`, {
+        directory: other,
+        body: {
+          title: "Wrong location",
+          relativePath: "result.md",
+          content,
+          overwrite: false,
+        },
+      })).status,
+    ).toBe(409)
     expect((yield* goals.get({ sessionID: root.id, goalID: originalGoal.id }))?.evidence).toEqual(goal.evidence)
   }),
 )
@@ -1204,12 +1432,31 @@ it.live("retains Custom scheduled Tasks and their canonical Schedule rules witho
     )
     expect(created).toMatchObject({ status: "scheduled", agentID: "worker", scheduledAt, recurrence })
     const scheduleID = ScheduleTask.idFor(created.id)
-    const registered = yield* database.db.select().from(ScheduleTable).where(eq(ScheduleTable.id, scheduleID)).get().pipe(Effect.orDie)
-    if (!registered) return yield* Effect.die(new Error("The scheduled Task did not register its canonical Schedule rule"))
-    expect(registered).toMatchObject({ id: scheduleID, session_id: sessionID, task_id: created.id, kind: "task", status: "pending",
-      content: created.content, due_at: scheduledAt, recurrence, timezone: "UTC", revision: 1,
-      target: { policy: "legacy_child", agentID: "worker" }, execution_policy: { delivery: "queue", missed: "catch_up" },
-      delivery_key: `task:${sessionID}:${created.id}`, attempts: 0, active_occurrence_id: null })
+    const registered = yield* database.db
+      .select()
+      .from(ScheduleTable)
+      .where(eq(ScheduleTable.id, scheduleID))
+      .get()
+      .pipe(Effect.orDie)
+    if (!registered)
+      return yield* Effect.die(new Error("The scheduled Task did not register its canonical Schedule rule"))
+    expect(registered).toMatchObject({
+      id: scheduleID,
+      session_id: sessionID,
+      task_id: created.id,
+      kind: "task",
+      status: "pending",
+      content: created.content,
+      due_at: scheduledAt,
+      recurrence,
+      timezone: "UTC",
+      revision: 1,
+      target: { policy: "legacy_child", agentID: "worker" },
+      execution_policy: { delivery: "queue", missed: "catch_up" },
+      delivery_key: `task:${sessionID}:${created.id}`,
+      attempts: 0,
+      active_occurrence_id: null,
+    })
     expect(created.nextRun).toBe(registered.next_due_at ?? undefined)
     const reconciled = yield* list(
       yield* test.request(root, {
@@ -1218,9 +1465,18 @@ it.live("retains Custom scheduled Tasks and their canonical Schedule rules witho
       }),
     )
     expect(reconciled[0]).toMatchObject({ id: created.id, agentID: "worker", scheduledAt, recurrence })
-    expect(yield* database.db.select().from(ScheduleTable).where(eq(ScheduleTable.id, scheduleID)).get().pipe(Effect.orDie))
-      .toMatchObject({ id: scheduleID, session_id: sessionID, task_id: created.id, content: "updated schedule", revision: registered.revision + 1,
-        target: registered.target, status: "pending", next_due_at: registered.next_due_at })
+    expect(
+      yield* database.db.select().from(ScheduleTable).where(eq(ScheduleTable.id, scheduleID)).get().pipe(Effect.orDie),
+    ).toMatchObject({
+      id: scheduleID,
+      session_id: sessionID,
+      task_id: created.id,
+      content: "updated schedule",
+      revision: registered.revision + 1,
+      target: registered.target,
+      status: "pending",
+      next_due_at: registered.next_due_at,
+    })
     const paused = yield* info(
       yield* test.request(`${root}/${created.id}`, {
         method: "PATCH",
@@ -1229,19 +1485,51 @@ it.live("retains Custom scheduled Tasks and their canonical Schedule rules witho
     )
     expect(paused).toMatchObject({ status: "cancelled", content: "paused", scheduledAt, recurrence })
     expect(paused.nextRun).toBeUndefined()
-    const pausedRule = yield* database.db.select().from(ScheduleTable).where(eq(ScheduleTable.id, scheduleID)).get().pipe(Effect.orDie)
+    const pausedRule = yield* database.db
+      .select()
+      .from(ScheduleTable)
+      .where(eq(ScheduleTable.id, scheduleID))
+      .get()
+      .pipe(Effect.orDie)
     if (!pausedRule) return yield* Effect.die(new Error("The cancelled Task lost its Schedule rule"))
-    expect(pausedRule).toMatchObject({ id: scheduleID, session_id: sessionID, task_id: created.id, status: "paused", content: paused.content,
-      revision: registered.revision + 2, recurrence, target: registered.target, next_due_at: null, attempts: 0, active_occurrence_id: null })
+    expect(pausedRule).toMatchObject({
+      id: scheduleID,
+      session_id: sessionID,
+      task_id: created.id,
+      status: "paused",
+      content: paused.content,
+      revision: registered.revision + 2,
+      recurrence,
+      target: registered.target,
+      next_due_at: null,
+      attempts: 0,
+      active_occurrence_id: null,
+    })
     const reordered = yield* list(yield* test.request(`${root}/reorder`, { body: { ids: [created.id] } }))
-    expect(yield* database.db.select().from(ScheduleTable).where(eq(ScheduleTable.id, scheduleID)).get().pipe(Effect.orDie)).toEqual(pausedRule)
+    expect(
+      yield* database.db.select().from(ScheduleTable).where(eq(ScheduleTable.id, scheduleID)).get().pipe(Effect.orDie),
+    ).toEqual(pausedRule)
     expect(yield* info(yield* test.request(`${root}/${created.id}`, { method: "DELETE" }))).toEqual(reordered[0])
     expect(yield* list(yield* test.request(root))).toEqual([])
     const retained = yield* database.db.select().from(ScheduleTable).all().pipe(Effect.orDie)
     expect(retained).toHaveLength(1)
-    expect(retained[0]).toMatchObject({ id: scheduleID, session_id: sessionID, task_id: created.id, kind: "task", status: "cancelled",
-      content: paused.content, due_at: scheduledAt, recurrence, target: registered.target, execution_policy: registered.execution_policy,
-      delivery_key: registered.delivery_key, revision: pausedRule.revision + 1, next_due_at: null, attempts: 0, active_occurrence_id: null })
+    expect(retained[0]).toMatchObject({
+      id: scheduleID,
+      session_id: sessionID,
+      task_id: created.id,
+      kind: "task",
+      status: "cancelled",
+      content: paused.content,
+      due_at: scheduledAt,
+      recurrence,
+      target: registered.target,
+      execution_policy: registered.execution_policy,
+      delivery_key: registered.delivery_key,
+      revision: pausedRule.revision + 1,
+      next_due_at: null,
+      attempts: 0,
+      active_occurrence_id: null,
+    })
     expect(yield* database.db.select().from(SessionInboxTable).all()).toEqual([])
     expect(yield* database.db.select().from(SessionMessageTable).all()).toEqual([])
     expect(yield* database.db.select().from(SessionTable).all()).toEqual(sessionBefore)

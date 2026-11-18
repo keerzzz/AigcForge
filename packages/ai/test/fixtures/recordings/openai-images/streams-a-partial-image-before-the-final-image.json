@@ -1,11 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:openai-images",
-      "provider:openai",
-      "protocol:openai-images"
-    ],
+    "tags": ["prefix:openai-images", "provider:openai", "protocol:openai-images"],
     "name": "openai-images/streams-a-partial-image-before-the-final-image",
     "recordedAt": "2026-09-23T16:23:53.625Z"
   },

@@ -120,10 +120,7 @@ export const Pill = {
       <Tabs.List>
         <Tabs.Trigger value="first">First</Tabs.Trigger>
         <Tabs.Trigger value="second">Second</Tabs.Trigger>
-        <Tabs.Trigger
-          value="third"
-          closeButton={<Tabs.CloseButton onClick={() => console.log("Close tab-3")} />}
-        >
+        <Tabs.Trigger value="third" closeButton={<Tabs.CloseButton onClick={() => console.log("Close tab-3")} />}>
           Closable
         </Tabs.Trigger>
       </Tabs.List>
@@ -149,10 +146,7 @@ export const Closable = {
   render: (props: TabsProps) => (
     <Tabs {...props}>
       <Tabs.List>
-        <Tabs.Trigger
-          value="tab-1"
-          closeButton={<Tabs.CloseButton onClick={() => console.log("Close tab-1")} />}
-        >
+        <Tabs.Trigger value="tab-1" closeButton={<Tabs.CloseButton onClick={() => console.log("Close tab-1")} />}>
           Tab 1
         </Tabs.Trigger>
         <Tabs.Trigger value="tab-2">Tab 2</Tabs.Trigger>

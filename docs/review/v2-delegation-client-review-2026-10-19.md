@@ -8,7 +8,7 @@
 | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `metaAgentID?: string` 等字段不再含显式 undefined                        | 对 HTTP JSON 正确；省略字段不需要 wire undefined/null 分支。                          | `packages/schema/src/schema.ts:18` 的 `optional`，尤其 `:22` 的 encode filter。                       |
 | timestamp 为 `number \| "Infinity" \| "-Infinity" \| "NaN"`              | 对当前 `Schema.Number` 契约正确；生成器不能擅自删除分支。                             | installed Effect `src/SchemaAST.ts:1912` 的 `Number.toCodecJson` 与 `:4160` 的 `numberToJson`。       |
-| `DelegationInfo`、`DelegationParticipantInfo`、`DelegationTurnInfo` 消失 | 初始公开 TypeScript 名称兼容退化；canonical identifier 修复后名称已恢复。 | `packages/httpapi-codegen/src/index.ts:1051` 判 anonymous，`:1062` 内联，`:1075` 排除匿名 reference。 |
+| `DelegationInfo`、`DelegationParticipantInfo`、`DelegationTurnInfo` 消失 | 初始公开 TypeScript 名称兼容退化；canonical identifier 修复后名称已恢复。             | `packages/httpapi-codegen/src/index.ts:1051` 判 anonymous，`:1062` 内联，`:1075` 排除匿名 reference。 |
 | Effect client 的 decoded 数据类型                                        | 与 Promise wire 类型分工不同；本次不把 domain Class 类型导入 Promise 代替 wire 类型。 | generator `README.md:12`、`:13`；Client Promise JSON parser `src/promise/generated/client.ts:5431`。  |
 
 最初审查快照：HEAD=`1a02c0e44e459bbec981b4edfd85ced533b32b89`；`git diff --numstat -- packages/client/src/promise/generated/types.ts` 为 `93 / 58`；该生成文件 SHA256=`51a213d48534f723b8808e823c8d8c9f12b6be5c2f5166dd7879e9d1578eff16`。这些值只标识修复前快照。
@@ -85,11 +85,11 @@ const types = emitPromise(compile(api), { mutableOutputs: true }).files.find((fi
 
 主任务随后授权扩展独占 `packages/schema/test/delegation-event.test.ts`：为三个现有 record fixture 增加精确 identifier，`:221` 检查 domain、storage encoded、HTTP encoded 的名称；在已有 HTTP JSON 往返测试中增加直接 decode/encode 断言。主任务已修改 canonical `delegation.ts:123`、`:143`、`:162`；Struct identifier 分别位于 `:140`、`:159`、`:176`。
 
-| 实际回归 | 命令及 cwd | 实际结果 | 证据 |
-| --- | --- | --- | --- |
-| Schema 适配后最终回归 | cwd=`packages/schema`；`../../script/bun run test --timeout 30000 test/delegation-event.test.ts test/event-manifest.test.ts test/delegation.test.ts` | exit 0；46 pass / 0 fail / 498 expect() calls | `docs/review/evidence/v2-delegation-contract-2026-10-19/schema-client-types.{json,log}` |
-| Core exact facade | cwd=`packages/core`；`../../script/bun run test --timeout 30000 test/delegation-event.test.ts` | exit 0；1 pass / 0 fail / 97 expect() calls | 同目录 `core-client-identifiers.{json,log}` |
-| focused oxlint | 当前独占 Schema test | exit 0；0 warnings / 0 errors；范围启用 1 条规则 | 同目录 `identifier-lint.{json,log}` |
+| 实际回归              | 命令及 cwd                                                                                                                                           | 实际结果                                         | 证据                                                                                    |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| Schema 适配后最终回归 | cwd=`packages/schema`；`../../script/bun run test --timeout 30000 test/delegation-event.test.ts test/event-manifest.test.ts test/delegation.test.ts` | exit 0；46 pass / 0 fail / 498 expect() calls    | `docs/review/evidence/v2-delegation-contract-2026-10-19/schema-client-types.{json,log}` |
+| Core exact facade     | cwd=`packages/core`；`../../script/bun run test --timeout 30000 test/delegation-event.test.ts`                                                       | exit 0；1 pass / 0 fail / 97 expect() calls      | 同目录 `core-client-identifiers.{json,log}`                                             |
+| focused oxlint        | 当前独占 Schema test                                                                                                                                 | exit 0；0 warnings / 0 errors；范围启用 1 条规则 | 同目录 `identifier-lint.{json,log}`                                                     |
 
 主任务的首轮 Schema typecheck exit 2 单独记录在 `docs/review/evidence/v2-integration-2026-10-20/schema-typecheck.log`。两个报错都来自测试类型：Bun matcher 的 mutable 重载不接受 readonly Definitions；异构 record 数组推断把其他记录不存在的字段带成 optional undefined，不能与 Json 期望类型比较。修复为 `toEqual([...DelegationEvent.Definitions])` 和 fixture `as const`，没有 unchecked cast，没有改变 runtime fixture。上表最后一轮 46/0/498 是适配后的实际测试退出；Schema typecheck 后续退出仍由主任务记录，本审查不把测试通过说成类型门禁通过。
 

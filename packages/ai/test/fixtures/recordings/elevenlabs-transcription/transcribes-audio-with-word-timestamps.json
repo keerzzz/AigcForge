@@ -1,11 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:elevenlabs-transcription",
-      "provider:elevenlabs",
-      "protocol:elevenlabs-transcription"
-    ],
+    "tags": ["prefix:elevenlabs-transcription", "provider:elevenlabs", "protocol:elevenlabs-transcription"],
     "name": "elevenlabs-transcription/transcribes-audio-with-word-timestamps",
     "recordedAt": "2026-09-27T09:35:27.686Z"
   },

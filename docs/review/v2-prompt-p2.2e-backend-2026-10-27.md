@@ -16,16 +16,16 @@
 
 [最终输入记录](evidence/v2-continuation-2026-10-27/prompt-final-input.json) 绑定 15 个源码/测试/生成文件及 13 份适用命令记录。各记录保存实际命令、cwd、退出码、运行前后源码哈希和日志哈希。这些命令运行期间源码未变；随后独立 Task 时区保留修复另行绑定和验证，不将本表当作后续全部 WIP 的全包结论。
 
-| 验证 | 实际结果 |
-| --- | --- |
-| Server 全包 | 159 pass / 1 skip / 0 fail；7255 expects，40 文件 |
-| Core 三类资产关联测试 | 23 pass / 0 fail；58 expects，3 文件 |
-| Client 正式 generate | exit 0；生成未改变源码 |
-| Protocol OpenAPI check | exit 0 |
-| Protocol、Client、App 类型检查 | 各 exit 0，逐包串行 |
-| 定向 lint | 13 文件，0 warnings / 0 errors；当前非 GUI 配置为 1 条规则 |
-| Effect AST 与格式 | 9 个生产文件 AST、13 文件格式，各 exit 0 |
-| 历史 Schema/Core/Server 类型 | 复用已核验的最终记录；在 Prompt 验证冻结时，Schema/Core 捕获与 package 树仅 Server Prompt 测试不同，Server 品牌构造修正版记录匹配全部 15 文件 |
+| 验证                           | 实际结果                                                                                                                                      |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Server 全包                    | 159 pass / 1 skip / 0 fail；7255 expects，40 文件                                                                                             |
+| Core 三类资产关联测试          | 23 pass / 0 fail；58 expects，3 文件                                                                                                          |
+| Client 正式 generate           | exit 0；生成未改变源码                                                                                                                        |
+| Protocol OpenAPI check         | exit 0                                                                                                                                        |
+| Protocol、Client、App 类型检查 | 各 exit 0，逐包串行                                                                                                                           |
+| 定向 lint                      | 13 文件，0 warnings / 0 errors；当前非 GUI 配置为 1 条规则                                                                                    |
+| Effect AST 与格式              | 9 个生产文件 AST、13 文件格式，各 exit 0                                                                                                      |
+| 历史 Schema/Core/Server 类型   | 复用已核验的最终记录；在 Prompt 验证冻结时，Schema/Core 捕获与 package 树仅 Server Prompt 测试不同，Server 品牌构造修正版记录匹配全部 15 文件 |
 
 Server 夹具通过真实 `createRoutes` 图和 [HttpEffect.toWebHandlerWith](../../packages/server/test/fixture/asset-http.ts:72) 运行认证、Location、SessionRunner 与资产服务，文件写入实际临时目录；数据库为内存 SQLite，模型为 TestLLM。该证据不证明 TCP、GUI、外部 provider、磁盘数据库冷重开或 Desktop。虽然启用了文件 watcher，apply/delete 的显式 registry reload 不单独证明 native watcher 交付。
 

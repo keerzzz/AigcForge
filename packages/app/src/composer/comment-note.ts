@@ -39,7 +39,9 @@ const decodePromptPresentation = Schema.decodeUnknownOption(
   }),
 )
 
-const decodePromptComment = Schema.decodeUnknownOption(Schema.Union([NoteComment, LegacyBrowserNote, PromptFileComment]))
+const decodePromptComment = Schema.decodeUnknownOption(
+  Schema.Union([NoteComment, LegacyBrowserNote, PromptFileComment]),
+)
 
 const decodeSessionMention = Schema.decodeUnknownOption(Schema.toEncoded(SessionReference.Mention))
 
@@ -51,8 +53,13 @@ export function readPromptPresentation(metadata: SessionMessageUser["metadata"])
       sessionReferences: presentation.sessionReferences.flatMap((value) => {
         const mention = Option.getOrUndefined(decodeSessionMention(value))
 
-        return mention && mention.start >= 0 && mention.end > mention.start && mention.end <= presentation.displayText.length &&
-          presentation.displayText.slice(mention.start, mention.end) === mention.content ? [mention] : []
+        return mention &&
+          mention.start >= 0 &&
+          mention.end > mention.start &&
+          mention.end <= presentation.displayText.length &&
+          presentation.displayText.slice(mention.start, mention.end) === mention.content
+          ? [mention]
+          : []
       }),
       comments: presentation.comments.flatMap((item): PromptComment[] => Option.toArray(decodePromptComment(item))),
     })),

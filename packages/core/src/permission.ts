@@ -448,10 +448,7 @@ const layer = Layer.effect(
             // Each operation owns its approval; historical Tool rejection still ends the Session batch.
             if (existing.request.source?.type === "operation") return
             for (const [id, item] of pending) {
-              if (
-                item.request.sessionID !== existing.request.sessionID ||
-                item.request.source?.type === "operation"
-              )
+              if (item.request.sessionID !== existing.request.sessionID || item.request.source?.type === "operation")
                 continue
               yield* bus.publish(Permission.Event.Replied, {
                 sessionID: item.request.sessionID,

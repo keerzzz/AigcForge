@@ -19,16 +19,43 @@ export type Delivery = typeof Delivery.Type
 
 export class Failure extends Schema.Class<Failure>("SessionAttempt.Failure")({
   reason: Schema.Literals([
-    "InvalidRequest", "UnsupportedOperation", "NoRoute", "Authentication", "RateLimit", "QuotaExceeded",
-    "ContentPolicy", "ProviderInternal", "Transport", "InvalidProviderOutput", "UnknownProvider", "Timeout",
+    "InvalidRequest",
+    "UnsupportedOperation",
+    "NoRoute",
+    "Authentication",
+    "RateLimit",
+    "QuotaExceeded",
+    "ContentPolicy",
+    "ProviderInternal",
+    "Transport",
+    "InvalidProviderOutput",
+    "UnknownProvider",
+    "Timeout",
   ]),
-  classification: Schema.Literals(["context-overflow", "payload-too-large", "model-not-found", "incomplete-stream"]).pipe(optional),
+  classification: Schema.Literals([
+    "context-overflow",
+    "payload-too-large",
+    "model-not-found",
+    "incomplete-stream",
+  ]).pipe(optional),
   status: Schema.Int.check(Schema.isBetween({ minimum: 100, maximum: 599 })).pipe(optional),
   transport: Schema.Literals(["http", "websocket"]).pipe(optional),
   operation: Schema.Literals(["request", "read", "write"]).pipe(optional),
-  phase: Schema.Literals(["prepare", "queue", "connect", "send", "receive", "decode", "complete", "fallback", "close"]).pipe(optional),
+  phase: Schema.Literals([
+    "prepare",
+    "queue",
+    "connect",
+    "send",
+    "receive",
+    "decode",
+    "complete",
+    "fallback",
+    "close",
+  ]).pipe(optional),
   delivery: Delivery.pipe(optional),
-  recovery: Schema.Literals(["retry-connect", "retry-full", "rotate-and-retry-full", "fallback-http", "fail"]).pipe(optional),
+  recovery: Schema.Literals(["retry-connect", "retry-full", "rotate-and-retry-full", "fallback-http", "fail"]).pipe(
+    optional,
+  ),
 }) {}
 
 export class Started extends Schema.Class<Started>("SessionAttempt.Started")({

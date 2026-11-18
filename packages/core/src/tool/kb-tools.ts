@@ -194,7 +194,8 @@ fallback for Chinese phrases.`,
                   // unconditional Global.Path.config wrote project-note mirrors into
                   // the config dir and left the real project file stale.
                   const prior = yield* kb.get(input.id)
-                  if (!prior) return { output: { id: input.id, updated: false }, content: `Note ${input.id} not found.` }
+                  if (!prior)
+                    return { output: { id: input.id, updated: false }, content: `Note ${input.id} not found.` }
                   const updated = yield* kb.update({
                     id: input.id,
                     ...(input.title !== undefined ? { title: input.title } : {}),
@@ -225,7 +226,8 @@ links pointing at it become dangling.`,
               Effect.andThen(
                 Effect.gen(function* () {
                   const prior = yield* kb.get(input.id)
-                  if (!prior) return { output: { id: input.id, deleted: false }, content: `Note ${input.id} not found.` }
+                  if (!prior)
+                    return { output: { id: input.id, deleted: false }, content: `Note ${input.id} not found.` }
                   yield* kb.remove({
                     id: prior.id,
                     baseDir: prior.scope === "global" ? Global.Path.config : location.directory,

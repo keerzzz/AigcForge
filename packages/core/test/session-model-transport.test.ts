@@ -111,48 +111,65 @@ describe("SessionModelTransport", () => {
     const checkpoints: Array<unknown> = []
     const checkpoint = { protocol: "responses", value: { id: "response-account-a" } }
     const proof = (name: string): SessionProviderContext.Provenance => ({
-      providerID: Provider.ID.make("provider"), provider: "provider", modelID: "model", route: "responses", protocol: "responses",
-      endpoint: "same-endpoint", connection: { type: "env", name }, deployment: `deployment-${name}`,
+      providerID: Provider.ID.make("provider"),
+      provider: "provider",
+      modelID: "model",
+      route: "responses",
+      protocol: "responses",
+      endpoint: "same-endpoint",
+      connection: { type: "env", name },
+      deployment: `deployment-${name}`,
     })
     const item = (id: string): WebSocketChannelExchange => ({
-      ...exchange(id), driver: {
-        create: (saved) => Effect.sync(() => {
-          checkpoints.push(saved)
-          return { message: id, mode: saved ? "incremental" : "full" }
-        }),
+      ...exchange(id),
+      driver: {
+        create: (saved) =>
+          Effect.sync(() => {
+            checkpoints.push(saved)
+            return { message: id, mode: saved ? "incremental" : "full" }
+          }),
         observe: (_create, frame) => Effect.succeed({ type: "completed", frame, checkpoint }),
       },
     })
-    await run(fixture.connector, Effect.gen(function* () {
-      const transport = yield* SessionModelTransport.Service
-      yield* collectComplete(transport.bind(session, { provenance: () => proof("ACCOUNT_A") }), item("first"))
-      yield* collectComplete(transport.bind(session, { provenance: () => proof("ACCOUNT_A") }), item("held"))
-      yield* collectComplete(transport.bind(session, { provenance: () => proof("ACCOUNT_B") }), item("other"))
-      expect(checkpoints).toEqual([undefined, checkpoint, undefined])
-      expect(fixture.connections).toHaveLength(2)
-      expect(fixture.connections[0]?.closed).toBe(1)
-      expect(fixture.connections.map((connection) => connection.sent)).toEqual([["first", "held"], ["other"]])
-    }))
+    await run(
+      fixture.connector,
+      Effect.gen(function* () {
+        const transport = yield* SessionModelTransport.Service
+        yield* collectComplete(transport.bind(session, { provenance: () => proof("ACCOUNT_A") }), item("first"))
+        yield* collectComplete(transport.bind(session, { provenance: () => proof("ACCOUNT_A") }), item("held"))
+        yield* collectComplete(transport.bind(session, { provenance: () => proof("ACCOUNT_B") }), item("other"))
+        expect(checkpoints).toEqual([undefined, checkpoint, undefined])
+        expect(fixture.connections).toHaveLength(2)
+        expect(fixture.connections[0]?.closed).toBe(1)
+        expect(fixture.connections.map((connection) => connection.sent)).toEqual([["first", "held"], ["other"]])
+      }),
+    )
   })
 
   test("P3 signals a successful send only after the lazy exchange sends to the selected URL", async () => {
     const fixture = automatic()
     const observed: string[] = []
     const selectedURL = "wss://selected-provider.test/responses"
-    await run(fixture.connector, Effect.gen(function* () {
-      const transport = yield* SessionModelTransport.Service
-      const execution = yield* transport.bind(session, {
-        handshake: (connect) => Effect.succeed({ ...connect, url: selectedURL }),
-        sent: (url) => Effect.sync(() => {
-          expect(fixture.connections.at(-1)?.sent).toEqual(["lazy-send"])
-          observed.push(url)
-        }),
-      }).execute(exchange("lazy-send"))
-      expect(fixture.connections).toHaveLength(0)
-      expect(observed).toEqual([])
-      expect(Array.from(yield* Stream.runCollect(execution.frames))).toEqual(["completed:lazy-send"])
-      expect(observed).toEqual([selectedURL])
-    }).pipe(Effect.scoped))
+    await run(
+      fixture.connector,
+      Effect.gen(function* () {
+        const transport = yield* SessionModelTransport.Service
+        const execution = yield* transport
+          .bind(session, {
+            handshake: (connect) => Effect.succeed({ ...connect, url: selectedURL }),
+            sent: (url) =>
+              Effect.sync(() => {
+                expect(fixture.connections.at(-1)?.sent).toEqual(["lazy-send"])
+                observed.push(url)
+              }),
+          })
+          .execute(exchange("lazy-send"))
+        expect(fixture.connections).toHaveLength(0)
+        expect(observed).toEqual([])
+        expect(Array.from(yield* Stream.runCollect(execution.frames))).toEqual(["completed:lazy-send"])
+        expect(observed).toEqual([selectedURL])
+      }).pipe(Effect.scoped),
+    )
   })
 
   for (const boundary of ["connect", "not-sent", "ambiguous"] as const) {
@@ -160,30 +177,44 @@ describe("SessionModelTransport", () => {
       const fixture = automatic()
       const observed: string[] = []
       const connector: WebSocketConnector = {
-        open: (input) => boundary === "connect"
-          ? Effect.fail(error("Connect refused", "not-sent"))
-          : fixture.connector.open(input).pipe(Effect.map((connection) => ({
-              ...connection,
-              sendText: () => Effect.fail(error("Send refused", boundary)),
-            }))),
+        open: (input) =>
+          boundary === "connect"
+            ? Effect.fail(error("Connect refused", "not-sent"))
+            : fixture.connector.open(input).pipe(
+                Effect.map((connection) => ({
+                  ...connection,
+                  sendText: () => Effect.fail(error("Send refused", boundary)),
+                })),
+              ),
       }
-      await run(connector, Effect.gen(function* () {
-        const transport = yield* SessionModelTransport.Service
-        const execution = yield* transport.bind(session, {
-          sent: (url) => Effect.sync(() => { observed.push(url) }),
-        }).execute(exchange("unsent", { fallback: () => Stream.make("http-fallback") }))
-        expect(observed).toEqual([])
-        const result = yield* Stream.runCollect(execution.frames).pipe(Effect.result)
-        if (boundary === "ambiguous") {
-          expect(result).toMatchObject({ _tag: "Failure", failure: { reason: { delivery: "ambiguous", phase: "send" } } })
-        }
-        if (boundary !== "ambiguous") {
-          expect(result._tag).toBe("Success")
-          if (result._tag === "Success") expect(Array.from(result.success)).toEqual(["http-fallback"])
-        }
-        expect(observed).toEqual([])
-        expect(fixture.connections.flatMap((connection) => connection.sent)).toEqual([])
-      }).pipe(Effect.scoped))
+      await run(
+        connector,
+        Effect.gen(function* () {
+          const transport = yield* SessionModelTransport.Service
+          const execution = yield* transport
+            .bind(session, {
+              sent: (url) =>
+                Effect.sync(() => {
+                  observed.push(url)
+                }),
+            })
+            .execute(exchange("unsent", { fallback: () => Stream.make("http-fallback") }))
+          expect(observed).toEqual([])
+          const result = yield* Stream.runCollect(execution.frames).pipe(Effect.result)
+          if (boundary === "ambiguous") {
+            expect(result).toMatchObject({
+              _tag: "Failure",
+              failure: { reason: { delivery: "ambiguous", phase: "send" } },
+            })
+          }
+          if (boundary !== "ambiguous") {
+            expect(result._tag).toBe("Success")
+            if (result._tag === "Success") expect(Array.from(result.success)).toEqual(["http-fallback"])
+          }
+          expect(observed).toEqual([])
+          expect(fixture.connections.flatMap((connection) => connection.sent)).toEqual([])
+        }).pipe(Effect.scoped),
+      )
     })
   }
 

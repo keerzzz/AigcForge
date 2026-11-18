@@ -130,27 +130,46 @@ const layer = Layer.effect(
     const registry = yield* Tool.Service
     const permission = yield* Permission.Service
 
-    const groupBehaviorFor = Effect.fnUntraced(function* (session: SessionSchema.Info, frozen?: SessionComposition.Selection) {
+    const groupBehaviorFor = Effect.fnUntraced(function* (
+      session: SessionSchema.Info,
+      frozen?: SessionComposition.Selection,
+    ) {
       const selection = session.model ?? frozen?.info.model
       if (selection === undefined || !Model.Selection.isGroup(selection)) return undefined
-      const binding = session.controller?.kind === "child" ? session.controller.executor.groupBehavior :
-        frozen ? SessionComposition.groupBehaviorFor(frozen.snapshot, frozen.info.id) : undefined
-      if ((frozen !== undefined || session.controller?.kind === "child") &&
-          (binding === undefined || binding.groupID !== selection.groupID))
-        return yield* new SessionComposition.DependencyMissingError({ sessionID: session.id, reason: "model_group_behavior_missing" })
+      const binding =
+        session.controller?.kind === "child"
+          ? session.controller.executor.groupBehavior
+          : frozen
+            ? SessionComposition.groupBehaviorFor(frozen.snapshot, frozen.info.id)
+            : undefined
+      if (
+        (frozen !== undefined || session.controller?.kind === "child") &&
+        (binding === undefined || binding.groupID !== selection.groupID)
+      )
+        return yield* new SessionComposition.DependencyMissingError({
+          sessionID: session.id,
+          reason: "model_group_behavior_missing",
+        })
       return binding
     })
 
-    const resolveModel = Effect.fn("SessionContext.resolveModel")(function* (session: SessionSchema.Info, options?: Omit<SessionRunnerModel.Options, "groupBehavior">) {
+    const resolveModel = Effect.fn("SessionContext.resolveModel")(function* (
+      session: SessionSchema.Info,
+      options?: Omit<SessionRunnerModel.Options, "groupBehavior">,
+    ) {
       yield* ProductModePolicy.assertRuntimeSupported(session.mode)
       if (
         session.mode !== "custom" &&
         !(session.controller?.kind === "child" && session.controller.source.kind === "workflow")
       )
-        return yield* models.resolve(session, model.available, { ...options, groupBehavior: yield* groupBehaviorFor(session) })
+        return yield* models.resolve(session, model.available, {
+          ...options,
+          groupBehavior: yield* groupBehaviorFor(session),
+        })
       const selection = yield* SessionComposition.selectSessionAgent(compositions, session)
       return yield* models.resolve({ ...session, model: session.model ?? selection.info.model }, model.available, {
-        ...options, groupBehavior: yield* groupBehaviorFor(session, selection),
+        ...options,
+        groupBehavior: yield* groupBehaviorFor(session, selection),
       })
     })
 
@@ -159,7 +178,9 @@ const layer = Layer.effect(
       if (!agent) return
       const primary = yield* resolveModel(session).pipe(Effect.orElseSucceed(() => undefined))
       if (agent.model && Model.Selection.isGroup(agent.model)) {
-        const selected = yield* models.resolve({ ...session, model: agent.model }, model.available).pipe(Effect.orElseSucceed(() => undefined))
+        const selected = yield* models
+          .resolve({ ...session, model: agent.model }, model.available)
+          .pipe(Effect.orElseSucceed(() => undefined))
         return selected === undefined ? undefined : { agent, primary, selected }
       }
       const titleModel = agent.model && !Model.Selection.isGroup(agent.model) ? agent.model : undefined
@@ -210,9 +231,7 @@ const layer = Layer.effect(
         : String(location.directory)
       const parent =
         session.controller?.kind === "child" ? yield* store.get(session.controller.rootSessionID) : undefined
-      const communication = parent
-        ? yield* metas.coordination(parent.id, { tool: "share" })
-        : coordination
+      const communication = parent ? yield* metas.coordination(parent.id, { tool: "share" }) : coordination
       const registered = yield* registry.list()
       const membership = (name: string) => frozen === undefined || frozen.snapshot.data.tools.catalog.includes(name)
       const include = (name: string) =>
@@ -277,8 +296,7 @@ const layer = Layer.effect(
               CompositionConsumerView.getSkills(frozen.snapshot, frozen.scope),
             )
       if (frozenSkills !== undefined && Result.isFailure(frozenSkills)) return yield* frozenSkills.failure
-      const liveMeta =
-        frozen === undefined && coordination.available && agent.info.system !== undefined
+      const liveMeta = frozen === undefined && coordination.available && agent.info.system !== undefined
       const liveSkills = liveMeta ? yield* skills.list() : undefined
       const loaded = yield* Effect.all(
         {
@@ -402,13 +420,19 @@ const layer = Layer.effect(
                 if (tool.name !== "task") return tool
                 const producer = loaded.tools.catalog.find((entry) => entry.name === tool.name)?.producer
                 if (producer && producer.id !== "aigcfroge.tool.task") return tool
-                const properties = Schema.decodeUnknownOption(Schema.Record(Schema.String, Schema.Unknown))(tool.inputSchema.properties)
+                const properties = Schema.decodeUnknownOption(Schema.Record(Schema.String, Schema.Unknown))(
+                  tool.inputSchema.properties,
+                )
                 if (Option.isNone(properties)) return tool
                 return {
                   ...tool,
                   inputSchema: {
                     ...tool.inputSchema,
-                    properties: Object.fromEntries(Object.entries(properties.value).filter(([name]) => !["target", "delivery", "resume"].includes(name))),
+                    properties: Object.fromEntries(
+                      Object.entries(properties.value).filter(
+                        ([name]) => !["target", "delivery", "resume"].includes(name),
+                      ),
+                    ),
                   },
                 }
               }),
@@ -416,7 +440,10 @@ const layer = Layer.effect(
       }
     })
 
-    const load = Effect.fn("SessionContext.load")(function* (selection: Selection, binding?: SessionRunnerModel.Binding) {
+    const load = Effect.fn("SessionContext.load")(function* (
+      selection: Selection,
+      binding?: SessionRunnerModel.Binding,
+    ) {
       yield* ProductModePolicy.assertRuntimeSupported(selection.session.mode)
       const resolved = yield* models.resolve(
         {

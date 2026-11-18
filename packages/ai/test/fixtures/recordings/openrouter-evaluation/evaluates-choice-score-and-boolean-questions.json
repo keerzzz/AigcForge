@@ -2,11 +2,7 @@
   "version": 1,
   "metadata": {
     "model": "typesafe/jev-1.13",
-    "tags": [
-      "prefix:openrouter-evaluation",
-      "provider:openrouter",
-      "protocol:system-one"
-    ],
+    "tags": ["prefix:openrouter-evaluation", "provider:openrouter", "protocol:system-one"],
     "name": "openrouter-evaluation/evaluates-choice-score-and-boolean-questions",
     "recordedAt": "2026-09-22T14:54:46.656Z"
   },

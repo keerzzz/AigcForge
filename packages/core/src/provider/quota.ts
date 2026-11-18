@@ -3,43 +3,53 @@ export * as ProviderQuota from "./quota.js"
 import { Option, Schema } from "effect"
 import { optional } from "@aigcfroge/schema/schema"
 
-const decodeNumber = Schema.decodeUnknownOption(Schema.Union([Schema.Finite, Schema.NumberFromString.check(Schema.isFinite())]))
-const decodeChatGPT = Schema.decodeUnknownOption(Schema.Struct({
-  plan_type: Schema.String.pipe(optional),
-  rate_limit: Schema.Struct({
-    allowed: Schema.Boolean.pipe(optional),
-    primary_window: Schema.Unknown.pipe(optional),
-    secondary_window: Schema.Unknown.pipe(optional),
-  }).pipe(optional),
-  credits: Schema.Struct({
-    has_credits: Schema.Boolean.pipe(optional),
+const decodeNumber = Schema.decodeUnknownOption(
+  Schema.Union([Schema.Finite, Schema.NumberFromString.check(Schema.isFinite())]),
+)
+const decodeChatGPT = Schema.decodeUnknownOption(
+  Schema.Struct({
+    plan_type: Schema.String.pipe(optional),
+    rate_limit: Schema.Struct({
+      allowed: Schema.Boolean.pipe(optional),
+      primary_window: Schema.Unknown.pipe(optional),
+      secondary_window: Schema.Unknown.pipe(optional),
+    }).pipe(optional),
+    credits: Schema.Struct({
+      has_credits: Schema.Boolean.pipe(optional),
+      unlimited: Schema.Boolean.pipe(optional),
+      balance: Schema.Unknown.pipe(optional),
+    }).pipe(optional),
+  }),
+)
+const decodeChatGPTWindow = Schema.decodeUnknownOption(
+  Schema.Struct({
+    used_percent: Schema.Unknown.pipe(optional),
+    limit_window_seconds: Schema.Unknown.pipe(optional),
+    reset_at: Schema.Unknown.pipe(optional),
+    reset_after_seconds: Schema.Unknown.pipe(optional),
+  }),
+)
+const decodeCopilot = Schema.decodeUnknownOption(
+  Schema.Struct({
+    copilot_plan: Schema.String.pipe(optional),
+    quota_reset_date_utc: Schema.String.pipe(optional),
+    quota_reset_date: Schema.String.pipe(optional),
+    token_based_billing: Schema.Boolean.pipe(optional),
+    quota_snapshots: Schema.Record(Schema.String, Schema.Unknown).pipe(optional),
+  }),
+)
+const decodeCopilotWindow = Schema.decodeUnknownOption(
+  Schema.Struct({
     unlimited: Schema.Boolean.pipe(optional),
-    balance: Schema.Unknown.pipe(optional),
-  }).pipe(optional),
-}))
-const decodeChatGPTWindow = Schema.decodeUnknownOption(Schema.Struct({
-  used_percent: Schema.Unknown.pipe(optional),
-  limit_window_seconds: Schema.Unknown.pipe(optional),
-  reset_at: Schema.Unknown.pipe(optional),
-  reset_after_seconds: Schema.Unknown.pipe(optional),
-}))
-const decodeCopilot = Schema.decodeUnknownOption(Schema.Struct({
-  copilot_plan: Schema.String.pipe(optional),
-  quota_reset_date_utc: Schema.String.pipe(optional),
-  quota_reset_date: Schema.String.pipe(optional),
-  token_based_billing: Schema.Boolean.pipe(optional),
-  quota_snapshots: Schema.Record(Schema.String, Schema.Unknown).pipe(optional),
-}))
-const decodeCopilotWindow = Schema.decodeUnknownOption(Schema.Struct({
-  unlimited: Schema.Boolean.pipe(optional),
-  has_quota: Schema.Boolean.pipe(optional),
-  entitlement: Schema.Unknown.pipe(optional),
-  quota_remaining: Schema.Unknown.pipe(optional),
-  percent_remaining: Schema.Unknown.pipe(optional),
-  quota_reset_at: Schema.Unknown.pipe(optional),
-  overage_permitted: Schema.Boolean.pipe(optional),
-  token_based_billing: Schema.Boolean.pipe(optional),
-}))
+    has_quota: Schema.Boolean.pipe(optional),
+    entitlement: Schema.Unknown.pipe(optional),
+    quota_remaining: Schema.Unknown.pipe(optional),
+    percent_remaining: Schema.Unknown.pipe(optional),
+    quota_reset_at: Schema.Unknown.pipe(optional),
+    overage_permitted: Schema.Boolean.pipe(optional),
+    token_based_billing: Schema.Boolean.pipe(optional),
+  }),
+)
 
 /** Reads the subscription API's observations; eligibility remains the routing owner's decision. */
 export function chatgpt(input: unknown, observedAt: number) {
@@ -54,13 +64,20 @@ export function chatgpt(input: unknown, observedAt: number) {
     const reset = number(value?.reset_at)
     const after = number(value?.reset_after_seconds)
     const span = number(value?.limit_window_seconds)
-    return [{
-      id: item.id,
-      unit: "chatgpt-share",
-      usedRatio: used / 100,
-      resetAt: reset !== undefined && reset > 0 ? reset * 1000 : after !== undefined && after >= 0 ? observedAt + after * 1000 : undefined,
-      spanMs: span !== undefined && span > 0 ? span * 1000 : undefined,
-    }]
+    return [
+      {
+        id: item.id,
+        unit: "chatgpt-share",
+        usedRatio: used / 100,
+        resetAt:
+          reset !== undefined && reset > 0
+            ? reset * 1000
+            : after !== undefined && after >= 0
+              ? observedAt + after * 1000
+              : undefined,
+        spanMs: span !== undefined && span > 0 ? span * 1000 : undefined,
+      },
+    ]
   })
   return {
     source: "chatgpt" as const,
@@ -89,22 +106,33 @@ export function copilot(input: unknown, observedAt: number) {
     // An exhausted pooled premium allowance can still be reported as unlimited.
     const exhausted = id === "premium_interactions" && value.unlimited === true && value.has_quota === false
     const unlimited = value.unlimited === true && !exhausted
-    const usedRatio = exhausted ? 1 : total !== undefined && total > 0 && remaining !== undefined
-      ? Math.max(0, (total - remaining) / total)
-      : percent === undefined ? undefined : (100 - percent) / 100
+    const usedRatio = exhausted
+      ? 1
+      : total !== undefined && total > 0 && remaining !== undefined
+        ? Math.max(0, (total - remaining) / total)
+        : percent === undefined
+          ? undefined
+          : (100 - percent) / 100
     if (!unlimited && usedRatio === undefined) return []
     const reset = number(value.quota_reset_at)
-    return [{
-      id,
-      unit: `copilot-${id}-${(value.token_based_billing ?? reply?.token_based_billing) === true ? "token" : "request"}`,
-      usedRatio: unlimited ? undefined : usedRatio,
-      total,
-      remaining,
-      unlimited,
-      hasQuota: value.has_quota,
-      overagePermitted: value.overage_permitted,
-      resetAt: reset !== undefined && reset > 0 ? reset * 1000 : resetTime !== undefined && Number.isFinite(resetTime) ? resetTime : undefined,
-    }]
+    return [
+      {
+        id,
+        unit: `copilot-${id}-${(value.token_based_billing ?? reply?.token_based_billing) === true ? "token" : "request"}`,
+        usedRatio: unlimited ? undefined : usedRatio,
+        total,
+        remaining,
+        unlimited,
+        hasQuota: value.has_quota,
+        overagePermitted: value.overage_permitted,
+        resetAt:
+          reset !== undefined && reset > 0
+            ? reset * 1000
+            : resetTime !== undefined && Number.isFinite(resetTime)
+              ? resetTime
+              : undefined,
+      },
+    ]
   })
   return {
     source: "github-copilot" as const,

@@ -2,14 +2,7 @@
   "version": 1,
   "metadata": {
     "model": "mistral-small-latest",
-    "tags": [
-      "prefix:mistral-chat",
-      "provider:mistral",
-      "protocol:mistral-chat",
-      "tool",
-      "tool-loop",
-      "usage"
-    ],
+    "tags": ["prefix:mistral-chat", "provider:mistral", "protocol:mistral-chat", "tool", "tool-loop", "usage"],
     "name": "mistral-chat/drives-a-tool-loop",
     "recordedAt": "2026-10-03T04:09:49.878Z"
   },

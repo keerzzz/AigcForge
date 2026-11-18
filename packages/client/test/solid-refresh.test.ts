@@ -23,7 +23,13 @@ test("config and authored-provider reads refresh only after an owner loads them"
           location,
           data: {
             targets: [
-              { scope: "global", path: "/config/aigcfroge.jsonc", digest: definitionDigest, preferred: true, writable: true },
+              {
+                scope: "global",
+                path: "/config/aigcfroge.jsonc",
+                digest: definitionDigest,
+                preferred: true,
+                writable: true,
+              },
             ],
             definitions: [],
           },

@@ -53,9 +53,7 @@ export const Model = Schema.Struct({
   ),
   experimental: optional(Schema.Boolean),
   status: optional(ModelStatus),
-  provider: optional(
-    Schema.Struct({ npm: optional(Schema.String), api: optional(Schema.String) }),
-  ),
+  provider: optional(Schema.Struct({ npm: optional(Schema.String), api: optional(Schema.String) })),
   options: optional(Schema.Record(Schema.String, Schema.Any)),
   headers: optional(Schema.Record(Schema.String, Schema.String)),
   variants: optional(

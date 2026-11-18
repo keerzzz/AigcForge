@@ -5,12 +5,7 @@
     "route": "cloudflare-ai-gateway-responses",
     "transport": "http",
     "model": "gpt-5-nano",
-    "tags": [
-      "prefix:cloudflare-ai-gateway",
-      "provider:cloudflare-ai-gateway",
-      "text",
-      "golden"
-    ],
+    "tags": ["prefix:cloudflare-ai-gateway", "provider:cloudflare-ai-gateway", "text", "golden"],
     "name": "cloudflare-ai-gateway/cloudflare-ai-gateway-openai-gpt-5-nano-text",
     "recordedAt": "2026-09-30T04:36:07.656Z"
   },

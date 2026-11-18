@@ -118,7 +118,12 @@ export function HomeWorkSummary(props: { home: HomeController; sessions: HomeSes
               }
             >
               {(record) => (
-                <Button type="button" variant="ghost" data-slot="summary-row" onClick={() => props.sessions.session.open(record.session)}>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  data-slot="summary-row"
+                  onClick={() => props.sessions.session.open(record.session)}
+                >
                   <Icon name={group.icon} size="small" />
                   <span data-slot="summary-copy">
                     <strong>{sessionTitle(record.session.title) ?? language.t("command.session.new")}</strong>

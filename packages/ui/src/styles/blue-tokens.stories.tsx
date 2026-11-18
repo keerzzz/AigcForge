@@ -73,7 +73,9 @@ function BlueReview() {
                 }}
               >
                 <strong style={{ "font-size": "12px" }}>blue-{step}</strong>
-                <span style={{ "font-size": "11px", opacity: 0.8 }}>{unused.has(step) ? "palette only" : "in use"}</span>
+                <span style={{ "font-size": "11px", opacity: 0.8 }}>
+                  {unused.has(step) ? "palette only" : "in use"}
+                </span>
               </div>
             )}
           </For>

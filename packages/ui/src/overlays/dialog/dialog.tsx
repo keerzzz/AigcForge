@@ -1,5 +1,13 @@
 import { CloseButton, Content, Description, Title } from "@kobalte/core/dialog"
-import { type ComponentProps, type JSXElement, type ParentProps, Show, children, createEffect, splitProps } from "solid-js"
+import {
+  type ComponentProps,
+  type JSXElement,
+  type ParentProps,
+  Show,
+  children,
+  createEffect,
+  splitProps,
+} from "solid-js"
 import { useDialogLayer } from "../../context/dialog"
 import { useI18n } from "../../context/i18n"
 import "./dialog.css"

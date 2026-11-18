@@ -202,7 +202,10 @@ describe("PluginSupervisor", () => {
     }),
   )
 
-  for (const targets of [["aigcfroge.config.policy", "aigcfroge.provider.aigcfroge", "aigcfroge.config.agent"], ["*"]]) {
+  for (const targets of [
+    ["aigcfroge.config.policy", "aigcfroge.provider.aigcfroge", "aigcfroge.config.agent"],
+    ["*"],
+  ]) {
     it.effect(`keeps policy enforcement and the Console connection through plugin removals: ${targets}`, () =>
       Effect.gen(function* () {
         source.operations = targets.map((target) => ({ type: "remove", target }))

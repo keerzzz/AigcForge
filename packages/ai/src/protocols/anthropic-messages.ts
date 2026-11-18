@@ -1383,10 +1383,7 @@ const onContentBlockDelta = Effect.fnUntraced(function* (
   return [state, NO_EVENTS] satisfies StepResult
 })
 
-const onContentBlockStop = Effect.fnUntraced(function* (
-  state: ParserState,
-  event: AnthropicEvent,
-) {
+const onContentBlockStop = Effect.fnUntraced(function* (state: ParserState, event: AnthropicEvent) {
   if (event.index === undefined) return [state, NO_EVENTS] satisfies StepResult
   if (event.index in state.compactions) {
     const { [event.index]: content, ...compactions } = state.compactions

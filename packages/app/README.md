@@ -73,8 +73,8 @@ Environment options:
 
 The `deploy` GitHub Actions workflow uses SST to deploy the web app from these branches in `anomalyco/aigcfroge`:
 
-| Branch       | Site                  |
-| ------------ | --------------------- |
+| Branch       | Site                   |
+| ------------ | ---------------------- |
 | `dev`        | `app.dev.aigcfroge.ai` |
 | `production` | `app.aigcfroge.ai`     |
 | `beta`       | `beta.aigcfroge.ai`    |
@@ -85,9 +85,9 @@ and Sentry environment to `beta` without deploying the API, console, database, o
 
 `VITE_AIGCFROGE_SERVER_MODE` controls which server the web build provides at startup:
 
-| Mode               | Initial server                                                                       |
-| ------------------ | ------------------------------------------------------------------------------------ |
-| `none`             | No initial server. The beta deployment uses this mode.                               |
+| Mode               | Initial server                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------- |
+| `none`             | No initial server. The beta deployment uses this mode.                                |
 | `origin` (default) | The current page's origin. CLI builds explicitly use this mode for `aigcfroge serve`. |
 
 In Vite development mode, `origin` uses `VITE_AIGCFROGE_SERVER_HOST` / `VITE_AIGCFROGE_SERVER_PORT`

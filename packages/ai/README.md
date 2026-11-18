@@ -39,11 +39,13 @@ live under `providerMetadata.vertex`. The default is still full-history replay w
 
 ```ts
 const model = Google.configure({ apiKey }).interactions("gemini-3.8-flash")
-const response = yield* LLM.generate({
-  model,
-  prompt: "Say hello.",
-  providerOptions: { thinkingLevel: "low", thinkingSummaries: "auto", store: true },
-})
+const response =
+  yield *
+  LLM.generate({
+    model,
+    prompt: "Say hello.",
+    providerOptions: { thinkingLevel: "low", thinkingSummaries: "auto", store: true },
+  })
 ```
 
 Interactions supports text output, streamed function calls, native tool results, thought signatures, and multimodal

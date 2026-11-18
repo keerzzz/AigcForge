@@ -112,15 +112,13 @@ export class StaleRevisionError extends Schema.TaggedError<StaleRevisionError>()
   relativePath: Schema.String,
 }) {}
 
-export class OverwriteRequiredError extends Schema.TaggedError<OverwriteRequiredError>()(
-  "MCPAsset.OverwriteRequired",
-  { relativePath: Schema.String },
-) {}
+export class OverwriteRequiredError extends Schema.TaggedError<OverwriteRequiredError>()("MCPAsset.OverwriteRequired", {
+  relativePath: Schema.String,
+}) {}
 
-export class InvalidCandidateError extends Schema.TaggedError<InvalidCandidateError>()(
-  "MCPAsset.InvalidCandidate",
-  { reason: Schema.String },
-) {}
+export class InvalidCandidateError extends Schema.TaggedError<InvalidCandidateError>()("MCPAsset.InvalidCandidate", {
+  reason: Schema.String,
+}) {}
 
 export class WriteFailedError extends Schema.TaggedError<WriteFailedError>()("MCPAsset.WriteFailed", {
   relativePath: Schema.String,

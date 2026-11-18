@@ -155,12 +155,7 @@ test("expands and collapses an edit diff without moving twice", async ({ page },
               files: [
                 {
                   file: "src/edit.ts",
-                  patch: createTwoFilesPatch(
-                    "a/src/edit.ts",
-                    "b/src/edit.ts",
-                    source(40, false),
-                    source(40, true),
-                  ),
+                  patch: createTwoFilesPatch("a/src/edit.ts", "b/src/edit.ts", source(40, false), source(40, true)),
                   additions: 40,
                   deletions: 40,
                   status: "modified",

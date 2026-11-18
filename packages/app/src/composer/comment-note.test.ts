@@ -17,14 +17,24 @@ const note = { ...durable, live: { subject: 'the "button#save" element (browser 
 describe("extension notes", () => {
   test("presentation preserves exact server identity and skips malformed Session reference offsets", () => {
     const first = {
-      reference: { serverID: "server-one", sessionID: "ses_same", title: "Saved title", scope: { kind: "identity" as const } },
+      reference: {
+        serverID: "server-one",
+        sessionID: "ses_same",
+        title: "Saved title",
+        scope: { kind: "identity" as const },
+      },
       start: 4,
       end: 9,
       content: "@same",
     }
 
     const second = {
-      reference: { serverID: "server-two", sessionID: "ses_same", title: "Saved title", scope: { kind: "through" as const, messageID: "msg_boundary" } },
+      reference: {
+        serverID: "server-two",
+        sessionID: "ses_same",
+        title: "Saved title",
+        scope: { kind: "through" as const, messageID: "msg_boundary" },
+      },
       start: 18,
       end: 23,
       content: "@same",

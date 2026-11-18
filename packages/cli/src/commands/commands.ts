@@ -473,10 +473,26 @@ const Root = Spec.make(typeof AIGCFROGE_CLI_NAME === "string" ? AIGCFROGE_CLI_NA
       params: {
         ...ServerParams,
         sessionID: Argument.String("sessionID").pipe(Argument.withDescription("Owning Session ID")),
-        action: Argument.Literals("action", ["list", "read", "set", "edit", "pause", "resume", "cancel", "confirm"]).pipe(Argument.optional),
+        action: Argument.Literals("action", [
+          "list",
+          "read",
+          "set",
+          "edit",
+          "pause",
+          "resume",
+          "cancel",
+          "confirm",
+        ]).pipe(Argument.optional),
         goal: Flag.String("goal").pipe(Flag.withDescription("Saved Goal ID for read or changes"), Flag.optional),
-        data: Flag.String("data").pipe(Flag.withDescription("JSON conditions/objective/budget, edit, or exact acceptance payload"), Flag.optional),
-        revision: Flag.Int("revision").pipe(Flag.withSchema(Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))), Flag.withDescription("Expected saved revision for pause/resume/cancel"), Flag.optional),
+        data: Flag.String("data").pipe(
+          Flag.withDescription("JSON conditions/objective/budget, edit, or exact acceptance payload"),
+          Flag.optional,
+        ),
+        revision: Flag.Int("revision").pipe(
+          Flag.withSchema(Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))),
+          Flag.withDescription("Expected saved revision for pause/resume/cancel"),
+          Flag.optional,
+        ),
       },
     }),
     Spec.make("schedule", {
@@ -484,11 +500,29 @@ const Root = Spec.make(typeof AIGCFROGE_CLI_NAME === "string" ? AIGCFROGE_CLI_NA
       params: {
         ...ServerParams,
         sessionID: Argument.String("sessionID").pipe(Argument.withDescription("Owning Session ID")),
-        action: Argument.Literals("action", ["list", "read", "create", "edit", "pause", "resume", "cancel", "run", "history", "cancel-run"]).pipe(Argument.optional),
+        action: Argument.Literals("action", [
+          "list",
+          "read",
+          "create",
+          "edit",
+          "pause",
+          "resume",
+          "cancel",
+          "run",
+          "history",
+          "cancel-run",
+        ]).pipe(Argument.optional),
         id: Flag.String("id").pipe(Flag.withDescription("Saved Schedule ID"), Flag.optional),
         occurrence: Flag.String("occurrence").pipe(Flag.withDescription("Occurrence ID for cancel-run"), Flag.optional),
-        data: Flag.String("data").pipe(Flag.withDescription("JSON schedule target/timezone/trigger or exact revision edit"), Flag.optional),
-        revision: Flag.Int("revision").pipe(Flag.withSchema(Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))), Flag.withDescription("Expected saved revision for pause/resume/cancel/run"), Flag.optional),
+        data: Flag.String("data").pipe(
+          Flag.withDescription("JSON schedule target/timezone/trigger or exact revision edit"),
+          Flag.optional,
+        ),
+        revision: Flag.Int("revision").pipe(
+          Flag.withSchema(Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))),
+          Flag.withDescription("Expected saved revision for pause/resume/cancel/run"),
+          Flag.optional,
+        ),
       },
     }),
     Spec.make("service", {

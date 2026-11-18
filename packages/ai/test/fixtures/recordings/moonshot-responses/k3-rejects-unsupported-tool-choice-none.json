@@ -2,14 +2,7 @@
   "version": 1,
   "metadata": {
     "model": "kimi-k3",
-    "tags": [
-      "prefix:moonshot-responses",
-      "provider:moonshot",
-      "protocol:responses",
-      "tool",
-      "tool-choice",
-      "error"
-    ],
+    "tags": ["prefix:moonshot-responses", "provider:moonshot", "protocol:responses", "tool", "tool-choice", "error"],
     "name": "moonshot-responses/k3-rejects-unsupported-tool-choice-none",
     "recordedAt": "2026-09-15T04:26:05.011Z"
   },

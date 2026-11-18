@@ -1,14 +1,7 @@
 import { RGBA } from "@opentui/core"
 import { Schema } from "effect"
 import { expandTheme, mergeTheme } from "./expand.js"
-import {
-  ActionState,
-  ActionVariant,
-  HueStep,
-  SurfaceName,
-  ThemeDefinition,
-  ThemeDocument,
-} from "./schema.js"
+import { ActionState, ActionVariant, HueStep, SurfaceName, ThemeDefinition, ThemeDocument } from "./schema.js"
 import type {
   ActionStateKey,
   ActionStates,
@@ -157,9 +150,9 @@ function resolveView(
 }
 
 function statefulActions(actions: Readonly<Record<ActionVariant, StatefulColor>>) {
-  return Object.fromEntries(ActionVariant.literals.map((variant) => [variant, statefulColor(actions[variant])])) as Readonly<
-    Record<ActionVariant, StatefulColor>
-  >
+  return Object.fromEntries(
+    ActionVariant.literals.map((variant) => [variant, statefulColor(actions[variant])]),
+  ) as Readonly<Record<ActionVariant, StatefulColor>>
 }
 
 function statefulColor(color: StatefulColor): StatefulColor {
@@ -169,9 +162,7 @@ function statefulColor(color: StatefulColor): StatefulColor {
   }
 }
 
-function compileHueSteps(
-  hue: ResolvedHue,
-): Pick<ResolvedThemeTokens, "source" | "increase" | "decrease"> {
+function compileHueSteps(hue: ResolvedHue): Pick<ResolvedThemeTokens, "source" | "increase" | "decrease"> {
   const index = new WeakMap<RGBA, { hue: string; step: HueStep; position: number }>()
   for (const [name, scale] of Object.entries(hue)) {
     HueStep.literals.forEach((step, position) => index.set(scale[step], { hue: name, step, position }))

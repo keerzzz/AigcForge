@@ -20,10 +20,23 @@ describe("Model.Selection", () => {
 
   test("normalizes group and legacy config inputs at the original boundary", () => {
     const decode = Schema.decodeUnknownSync(ConfigModel.Selection)
-    expect(Schema.encodeSync(ConfigModel.Selection)(decode("group:primary"))).toEqual({ type: "group", groupID: "primary" })
-    expect(Schema.encodeSync(ConfigModel.Selection)(decode({ type: "group", groupID: "primary" }))).toEqual({ type: "group", groupID: "primary" })
-    expect(Schema.encodeSync(ConfigModel.Selection)(decode("openai/gpt-5#high"))).toEqual({ providerID: "openai", model: "gpt-5", variant: "high" })
-    expect(Schema.encodeSync(ConfigModel.Selection)(decode("group:primary"))).toEqual({ type: "group", groupID: "primary" })
+    expect(Schema.encodeSync(ConfigModel.Selection)(decode("group:primary"))).toEqual({
+      type: "group",
+      groupID: "primary",
+    })
+    expect(Schema.encodeSync(ConfigModel.Selection)(decode({ type: "group", groupID: "primary" }))).toEqual({
+      type: "group",
+      groupID: "primary",
+    })
+    expect(Schema.encodeSync(ConfigModel.Selection)(decode("openai/gpt-5#high"))).toEqual({
+      providerID: "openai",
+      model: "gpt-5",
+      variant: "high",
+    })
+    expect(Schema.encodeSync(ConfigModel.Selection)(decode("group:primary"))).toEqual({
+      type: "group",
+      groupID: "primary",
+    })
     expect(() => decode("group:")).toThrow()
   })
 })

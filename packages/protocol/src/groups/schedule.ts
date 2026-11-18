@@ -90,49 +90,61 @@ export const ScheduleGroup = HttpApiGroup.make("schedule")
   .add(
     HttpApiEndpoint.patch("schedule.edit", `${root}/rule/:id`, {
       query: Schema.Struct(WorkspaceRoutingQueryFields),
-      params: Schema.Struct({ id: Schedule.ID }), payload: Schedule.Edit, error: InvalidRequestError,
+      params: Schema.Struct({ id: Schedule.ID }),
+      payload: Schedule.Edit,
+      error: InvalidRequestError,
       success: described(Schedule.Rule, "The edited rule"),
     }),
   )
   .add(
     HttpApiEndpoint.post("schedule.pause", `${root}/rule/:id/pause`, {
       query: Schema.Struct(WorkspaceRoutingQueryFields),
-      params: Schema.Struct({ id: Schedule.ID }), payload: Schedule.Mutation, error: InvalidRequestError,
+      params: Schema.Struct({ id: Schedule.ID }),
+      payload: Schedule.Mutation,
+      error: InvalidRequestError,
       success: described(Schedule.Rule, "The paused rule"),
     }),
   )
   .add(
     HttpApiEndpoint.post("schedule.resume", `${root}/rule/:id/resume`, {
       query: Schema.Struct(WorkspaceRoutingQueryFields),
-      params: Schema.Struct({ id: Schedule.ID }), payload: Schedule.Mutation, error: InvalidRequestError,
+      params: Schema.Struct({ id: Schedule.ID }),
+      payload: Schedule.Mutation,
+      error: InvalidRequestError,
       success: described(Schedule.Rule, "The resumed rule"),
     }),
   )
   .add(
     HttpApiEndpoint.post("schedule.cancelRule", `${root}/rule/:id/cancel`, {
       query: Schema.Struct(WorkspaceRoutingQueryFields),
-      params: Schema.Struct({ id: Schedule.ID }), payload: Schedule.Mutation, error: InvalidRequestError,
+      params: Schema.Struct({ id: Schedule.ID }),
+      payload: Schedule.Mutation,
+      error: InvalidRequestError,
       success: described(Schedule.Rule, "The cancelled rule with preserved occurrence history"),
     }),
   )
   .add(
     HttpApiEndpoint.post("schedule.runOnce", `${root}/rule/:id/run`, {
       query: Schema.Struct(WorkspaceRoutingQueryFields),
-      params: Schema.Struct({ id: Schedule.ID }), payload: Schedule.Mutation, error: InvalidRequestError,
+      params: Schema.Struct({ id: Schedule.ID }),
+      payload: Schedule.Mutation,
+      error: InvalidRequestError,
       success: described(Schedule.Occurrence, "The claimed occurrence and its admission state"),
     }),
   )
   .add(
     HttpApiEndpoint.get("schedule.runs", `${root}/rule/:id/runs`, {
       query: Schema.Struct(WorkspaceRoutingQueryFields),
-      params: Schema.Struct({ id: Schedule.ID }), error: InvalidRequestError,
+      params: Schema.Struct({ id: Schedule.ID }),
+      error: InvalidRequestError,
       success: described(Schema.Array(Schedule.Occurrence), "Independent occurrence receipts, newest first"),
     }),
   )
   .add(
     HttpApiEndpoint.post("schedule.cancelRun", `${root}/run/:occurrenceID/cancel`, {
       query: Schema.Struct(WorkspaceRoutingQueryFields),
-      params: Schema.Struct({ occurrenceID: Schedule.OccurrenceID }), error: InvalidRequestError,
+      params: Schema.Struct({ occurrenceID: Schedule.OccurrenceID }),
+      error: InvalidRequestError,
       success: described(Schedule.Occurrence, "The occurrence cancellation state"),
     }),
   )

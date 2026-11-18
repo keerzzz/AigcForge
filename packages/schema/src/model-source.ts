@@ -65,7 +65,9 @@ export const Cost = Schema.Struct({
 export const ConnectionRef = Schema.Union([
   Schema.Struct({ type: Schema.Literal("credential"), id: Credential.ID }),
   Schema.Struct({ type: Schema.Literal("env"), name: Schema.String }),
-]).pipe(Schema.toTaggedUnion("type")).annotate({ identifier: "ModelSource.ConnectionRef" })
+])
+  .pipe(Schema.toTaggedUnion("type"))
+  .annotate({ identifier: "ModelSource.ConnectionRef" })
 export type ConnectionRef = Schema.Schema.Type<typeof ConnectionRef>
 
 /** Account observations remain attached to the connection and model view that produced them. */
@@ -76,7 +78,9 @@ export const Quota = Schema.Struct({
   connection: ConnectionRef.pipe(optional),
   observedAt: Schema.Finite.pipe(optional),
   freshUntil: Schema.Finite.pipe(optional),
-  reason: Schema.Literals(["unsupported", "authentication", "rate-limit", "transport", "invalid-output"]).pipe(optional),
+  reason: Schema.Literals(["unsupported", "authentication", "rate-limit", "transport", "invalid-output"]).pipe(
+    optional,
+  ),
   plan: Schema.String.pipe(optional),
   allowed: Schema.Boolean.pipe(optional),
   freeModel: Schema.Boolean.pipe(optional),
@@ -86,18 +90,20 @@ export const Quota = Schema.Struct({
     unlimited: Schema.Boolean.pipe(optional),
     expiresAt: Schema.Finite.pipe(optional),
   }).pipe(optional),
-  windows: Schema.Array(Schema.Struct({
-    id: Schema.String,
-    unit: Schema.String,
-    scope: Schema.Literals(["account", "model"]),
-    modelIDs: Schema.Array(Schema.String).pipe(optional),
-    usedRatio: Schema.Finite.pipe(optional),
-    total: Schema.Finite.pipe(optional),
-    remaining: Schema.Finite.pipe(optional),
-    unlimited: Schema.Boolean.pipe(optional),
-    resetAt: Schema.Finite.pipe(optional),
-    spanMs: Schema.Finite.pipe(optional),
-  })),
+  windows: Schema.Array(
+    Schema.Struct({
+      id: Schema.String,
+      unit: Schema.String,
+      scope: Schema.Literals(["account", "model"]),
+      modelIDs: Schema.Array(Schema.String).pipe(optional),
+      usedRatio: Schema.Finite.pipe(optional),
+      total: Schema.Finite.pipe(optional),
+      remaining: Schema.Finite.pipe(optional),
+      unlimited: Schema.Boolean.pipe(optional),
+      resetAt: Schema.Finite.pipe(optional),
+      spanMs: Schema.Finite.pipe(optional),
+    }),
+  ),
 }).annotate({ identifier: "ModelSource.Quota" })
 
 export const Protocol = Schema.Literals(["openai", "anthropic"]).annotate({ identifier: "ModelSource.Protocol" })
@@ -161,7 +167,9 @@ export const Seed = Schema.Struct({
   metadata: Metadata,
 }).annotate({ identifier: "ModelSource.Seed" })
 
-export const Origin = Schema.Literals(["user", "live", "public", "seed", "runtime-default", "unknown"]).annotate({ identifier: "ModelSource.Origin" })
+export const Origin = Schema.Literals(["user", "live", "public", "seed", "runtime-default", "unknown"]).annotate({
+  identifier: "ModelSource.Origin",
+})
 export type Origin = Schema.Schema.Type<typeof Origin>
 
 export interface Origins extends Schema.Schema.Type<typeof Origins> {}
@@ -169,7 +177,15 @@ export const Origins = Schema.Struct({
   name: Origin.pipe(optional),
   family: Origin.pipe(optional),
   compatibility: Schema.Record(Schema.String, Origin).pipe(optional),
-  capabilities: Schema.Struct({ tools: Origin.pipe(optional), input: Origin.pipe(optional), output: Origin.pipe(optional) }).pipe(optional),
-  limit: Schema.Struct({ context: Origin.pipe(optional), input: Origin.pipe(optional), output: Origin.pipe(optional) }).pipe(optional),
+  capabilities: Schema.Struct({
+    tools: Origin.pipe(optional),
+    input: Origin.pipe(optional),
+    output: Origin.pipe(optional),
+  }).pipe(optional),
+  limit: Schema.Struct({
+    context: Origin.pipe(optional),
+    input: Origin.pipe(optional),
+    output: Origin.pipe(optional),
+  }).pipe(optional),
   quote: Origin.pipe(optional),
 }).annotate({ identifier: "ModelSource.Origins" })

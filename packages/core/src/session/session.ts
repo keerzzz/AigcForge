@@ -170,7 +170,12 @@ export const make = Effect.fn("Session.make")(function* () {
       return
     }
     if (sameModel(session.model, input.model)) return
-    yield* bus.publish(SessionEvent.ModelSelected, { sessionID, model: input.model, previous: session.model, groupBehavior: input.groupBehavior })
+    yield* bus.publish(SessionEvent.ModelSelected, {
+      sessionID,
+      model: input.model,
+      previous: session.model,
+      groupBehavior: input.groupBehavior,
+    })
   })
   const mutatePending = (
     sessionID: SessionSchema.ID,

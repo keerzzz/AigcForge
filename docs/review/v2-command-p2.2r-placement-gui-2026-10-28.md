@@ -14,19 +14,19 @@ Command 新提案默认当前 worktree/clone 的 Project，持久完整 canonica
 
 所有检查由 root 在隔离验证仓串行运行。固定 Bun 为仓库 `script/bun`；测试在所属包目录，类型走包脚本及资源限制。每轮退出码、实际命令、cwd、日志 SHA、该轮源码 pins 与最终字节差异见 [verification-summary.json](evidence/v2-command-placement-gui-2026-10-28/verification-summary.json)。原始日志与完整本地逐轮快照保留；不把不同轮次合计为额外测试覆盖。
 
-| 执行面 | 实际结果 |
-| --- | --- |
-| Server Command keeper | 15 pass / 0 fail / 704 expects |
-| Core 资产、迁移、命令和 Composition 相关 keeper | 156 pass / 0 fail / 1173 expects，7 个文件 |
-| Client 整包 | 229 pass / 0 fail / 968 expects |
-| GUI 整包（含最终 parser） | 372 pass / 1 既有 skip / 0 fail / 1349 expects |
-| App unit / browser | 分别 742 pass / 0 fail / 2232 expects；168 pass / 0 fail / 1778 expects |
-| 最终七族侧栏 | 69 passed，workers=1、retries=0 |
-| 宿主组件与扩展图 | 25 passed，retries=0 |
-| Core、GUI、Server、App、App E2E 类型 | exit 0；E2E 类型后仅补两处空行，有机械等价记录 |
-| scoped lint / lint:changed | 0 warnings、0 errors；实际 7 个 changed code files，0 problems |
-| AST / Prettier / diff --check | exit 0；AST 工具的 postinstall 提示单独保留 |
-| 普通 App 构建 | exit 0，3156 个最终产物；已有 chunk/timing 提示保留，不作性能无回归承诺 |
+| 执行面                                          | 实际结果                                                                |
+| ----------------------------------------------- | ----------------------------------------------------------------------- |
+| Server Command keeper                           | 15 pass / 0 fail / 704 expects                                          |
+| Core 资产、迁移、命令和 Composition 相关 keeper | 156 pass / 0 fail / 1173 expects，7 个文件                              |
+| Client 整包                                     | 229 pass / 0 fail / 968 expects                                         |
+| GUI 整包（含最终 parser）                       | 372 pass / 1 既有 skip / 0 fail / 1349 expects                          |
+| App unit / browser                              | 分别 742 pass / 0 fail / 2232 expects；168 pass / 0 fail / 1778 expects |
+| 最终七族侧栏                                    | 69 passed，workers=1、retries=0                                         |
+| 宿主组件与扩展图                                | 25 passed，retries=0                                                    |
+| Core、GUI、Server、App、App E2E 类型            | exit 0；E2E 类型后仅补两处空行，有机械等价记录                          |
+| scoped lint / lint:changed                      | 0 warnings、0 errors；实际 7 个 changed code files，0 problems          |
+| AST / Prettier / diff --check                   | exit 0；AST 工具的 postinstall 提示单独保留                             |
+| 普通 App 构建                                   | exit 0，3156 个最终产物；已有 chunk/timing 提示保留，不作性能无回归承诺 |
 
 GUI 跳过项为既有 WSL inline-script 测试。类型检查与旧轮次的空白差异由 gui-spacing-repair.json、e2e-spacing-repair.json 记录；最终 side-panels、构建与真实链均绑定最终九文件字节。
 

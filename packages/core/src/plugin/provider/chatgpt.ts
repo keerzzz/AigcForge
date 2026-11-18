@@ -214,13 +214,16 @@ export const ChatGPTPlugin = define({
     const credentials = yield* Credential.Service
     const integrations = yield* Integration.Service
     const loading = Semaphore.makeUnsafe(1)
-    const accounts = new Map<string, {
-      connection: IntegrationConnection.Info
-      credential: Credential.OAuth
-      models?: ReadonlyArray<RemoteModel>
-      syncing: boolean
-      synced: boolean
-    }>()
+    const accounts = new Map<
+      string,
+      {
+        connection: IntegrationConnection.Info
+        credential: Credential.OAuth
+        models?: ReadonlyArray<RemoteModel>
+        syncing: boolean
+        synced: boolean
+      }
+    >()
     let active: IntegrationConnection.Info | undefined
     const selected = (connection?: ModelSource.ConnectionRef) =>
       accounts.get(IntegrationConnection.key(connection ?? active) ?? "")
@@ -228,50 +231,84 @@ export const ChatGPTPlugin = define({
     const load = Effect.fn("ChatGPTPlugin.load")(function* () {
       const connections = (yield* integrations.get(integrationID))?.connections ?? []
       const values = new Map((yield* credentials.list(integrationID)).map((entry) => [entry.id, entry.value]))
-      const next = yield* Effect.forEach(connections, (connection) => Effect.gen(function* () {
-        if (connection.type !== "credential") return []
-        const credential = values.get(connection.id)
-        if (credential?.type !== "oauth" || credential.methodID !== methodID) return []
-        const key = IntegrationConnection.key(connection)!
-        const previous = accounts.get(key)
-        const metadata = Option.getOrUndefined(decodeMetadata(credential.metadata))
-        if (previous?.credential.access === credential.access && previous.credential.metadata?.clientID === metadata?.clientID) {
-          previous.connection = connection
-          previous.credential = credential
-          return [[key, previous] as const]
-        }
-        const stored = metadata ? yield* ctx.storage.get(modelCacheKey(metadata.clientID, connection)) : undefined
-        const legacy = stored === undefined && metadata ? yield* ctx.storage.get(modelCacheKey(metadata.clientID)) : stored
-        return [[key, { connection, credential, models: Option.getOrUndefined(decodeCachedModels(legacy)), syncing: false, synced: false }] as const]
-      }))
+      const next = yield* Effect.forEach(connections, (connection) =>
+        Effect.gen(function* () {
+          if (connection.type !== "credential") return []
+          const credential = values.get(connection.id)
+          if (credential?.type !== "oauth" || credential.methodID !== methodID) return []
+          const key = IntegrationConnection.key(connection)!
+          const previous = accounts.get(key)
+          const metadata = Option.getOrUndefined(decodeMetadata(credential.metadata))
+          if (
+            previous?.credential.access === credential.access &&
+            previous.credential.metadata?.clientID === metadata?.clientID
+          ) {
+            previous.connection = connection
+            previous.credential = credential
+            return [[key, previous] as const]
+          }
+          const stored = metadata ? yield* ctx.storage.get(modelCacheKey(metadata.clientID, connection)) : undefined
+          const legacy =
+            stored === undefined && metadata ? yield* ctx.storage.get(modelCacheKey(metadata.clientID)) : stored
+          return [
+            [
+              key,
+              {
+                connection,
+                credential,
+                models: Option.getOrUndefined(decodeCachedModels(legacy)),
+                syncing: false,
+                synced: false,
+              },
+            ] as const,
+          ]
+        }),
+      )
       accounts.clear()
       for (const [key, account] of next.flat()) accounts.set(key, account)
       active = connections[0]
     })
 
     const refreshModels = Effect.fn("ChatGPTPlugin.refreshModels")(function* () {
-      yield* Effect.forEach(Array.from(accounts.values()), (source) => Effect.gen(function* () {
-        const metadata = Option.getOrUndefined(decodeMetadata(source.credential.metadata))
-        if (!metadata || source.syncing || source.synced) return
-        source.syncing = true
-        yield* fetchModels(source.credential.access, ctx.app).pipe(
-          Effect.timeout("15 seconds"),
-          Effect.catch(() => Effect.logDebug("failed to refresh ChatGPT models").pipe(Effect.as(undefined))),
-          Effect.flatMap((models) => loading.withPermit(Effect.gen(function* () {
-            if (!models || accounts.get(IntegrationConnection.key(source.connection)!) !== source) return
-            source.models = models
-            source.synced = true
-            yield* ctx.storage.set(modelCacheKey(metadata.clientID, source.connection), models)
-            yield* ctx.provider.reload()
-          }))),
-          Effect.ensuring(Effect.sync(() => { source.syncing = false })),
-        )
-      }), { concurrency: "unbounded", discard: true })
+      yield* Effect.forEach(
+        Array.from(accounts.values()),
+        (source) =>
+          Effect.gen(function* () {
+            const metadata = Option.getOrUndefined(decodeMetadata(source.credential.metadata))
+            if (!metadata || source.syncing || source.synced) return
+            source.syncing = true
+            yield* fetchModels(source.credential.access, ctx.app).pipe(
+              Effect.timeout("15 seconds"),
+              Effect.catch(() => Effect.logDebug("failed to refresh ChatGPT models").pipe(Effect.as(undefined))),
+              Effect.flatMap((models) =>
+                loading.withPermit(
+                  Effect.gen(function* () {
+                    if (!models || accounts.get(IntegrationConnection.key(source.connection)!) !== source) return
+                    source.models = models
+                    source.synced = true
+                    yield* ctx.storage.set(modelCacheKey(metadata.clientID, source.connection), models)
+                    yield* ctx.provider.reload()
+                  }),
+                ),
+              ),
+              Effect.ensuring(
+                Effect.sync(() => {
+                  source.syncing = false
+                }),
+              ),
+            )
+          }),
+        { concurrency: "unbounded", discard: true },
+      )
     })
 
     yield* ctx.integration.transform((editor) => {
       editor.method.update(
-        signIn(ctx.app, () => Option.getOrUndefined(decodeMetadata(selected()?.credential.metadata))?.clientID, ctx.storage),
+        signIn(
+          ctx.app,
+          () => Option.getOrUndefined(decodeMetadata(selected()?.credential.metadata))?.clientID,
+          ctx.storage,
+        ),
       )
     })
     yield* Effect.forEach(
@@ -299,7 +336,11 @@ export const ChatGPTPlugin = define({
       "retry",
       (event) =>
         Effect.sync(() => {
-          if (!selected(event.connection) || !nonRetryableSharingCodes.some((code) => event.error.response?.body.includes(code))) return
+          if (
+            !selected(event.connection) ||
+            !nonRetryableSharingCodes.some((code) => event.error.response?.body.includes(code))
+          )
+            return
           event.decision = { retry: false }
         }),
       { providerID },
@@ -345,7 +386,13 @@ export const ChatGPTPlugin = define({
     yield* ctx.model.transform((models) => {
       const source = selected(models.connection(integrationID))
       if (!source || source.connection.type !== "credential") return
-      const quota: ModelSource.Quota = { status: "unsupported", source: "chatgpt-token-sharing", connection: { type: "credential", id: source.connection.id }, reason: "unsupported", windows: [] }
+      const quota: ModelSource.Quota = {
+        status: "unsupported",
+        source: "chatgpt-token-sharing",
+        connection: { type: "credential", id: source.connection.id },
+        reason: "unsupported",
+        windows: [],
+      }
       for (const model of models.list(providerID)) {
         models.update(model.providerID, model.id, (draft) => {
           draft.metadata = { ...draft.metadata, quota: { ...quota, windows: [] } }
@@ -360,17 +407,32 @@ export const ChatGPTPlugin = define({
         })
       }
     })
-    yield* ctx.session.hook("model.quota", (evt) => Effect.gen(function* () {
-      const connection = evt.connection
-        ? yield* integrations.connection.get(integrationID, evt.connection)
-        : yield* integrations.connection.active(integrationID)
-      if (connection?.type !== "credential" || !selected(connection)) return
-      evt.quota = { status: "unsupported", source: "chatgpt-token-sharing", connection: { type: "credential", id: connection.id }, reason: "unsupported", windows: [] }
-    }), { providerID })
-    const reload = () => loading.withPermit(load().pipe(Effect.andThen(ctx.provider.reload())))
-      .pipe(Effect.andThen(refreshModels().pipe(Effect.forkScoped, Effect.asVoid)))
+    yield* ctx.session.hook(
+      "model.quota",
+      (evt) =>
+        Effect.gen(function* () {
+          const connection = evt.connection
+            ? yield* integrations.connection.get(integrationID, evt.connection)
+            : yield* integrations.connection.active(integrationID)
+          if (connection?.type !== "credential" || !selected(connection)) return
+          evt.quota = {
+            status: "unsupported",
+            source: "chatgpt-token-sharing",
+            connection: { type: "credential", id: connection.id },
+            reason: "unsupported",
+            windows: [],
+          }
+        }),
+      { providerID },
+    )
+    const reload = () =>
+      loading
+        .withPermit(load().pipe(Effect.andThen(ctx.provider.reload())))
+        .pipe(Effect.andThen(refreshModels().pipe(Effect.forkScoped, Effect.asVoid)))
     yield* bus.subscribe([Credential.Event.Updated, Credential.Event.Switched]).pipe(
-      Stream.filter((event) => event.type === Credential.Event.Updated.type || event.data.integrationID === integrationID),
+      Stream.filter(
+        (event) => event.type === Credential.Event.Updated.type || event.data.integrationID === integrationID,
+      ),
       Stream.runForEach(reload),
       Effect.forkScoped({ startImmediately: true }),
     )

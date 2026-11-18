@@ -71,7 +71,8 @@ export const dict = {
   "project.settings.extensions.empty.plugins.title": "Ingen plugins endnu",
   "project.settings.extensions.empty.plugins.description": "Plugins, der er tilgængelige for AigcForge, vises her",
   "project.settings.extensions.empty.skills.title": "Ingen færdigheder endnu",
-  "project.settings.extensions.empty.skills.description": "De færdigheder, der er tilgængelige for AigcForge, vises her",
+  "project.settings.extensions.empty.skills.description":
+    "De færdigheder, der er tilgængelige for AigcForge, vises her",
   "project.settings.extensions.lsp.configured": "Konfigurerede sprogservere",
   "project.settings.extensions.lsp.status.enabled": "Aktiveret i config",
   "project.settings.extensions.lsp.status.disabled": "Deaktiveret i config",

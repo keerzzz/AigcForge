@@ -28,16 +28,19 @@ const permission = permissionLayer({
     Effect.sync(() => assertions.push(input)).pipe(
       Effect.andThen(
         deny
-          ? Effect.fail(new Permission.BlockedError({ rules: [], permission: input.action, resources: input.resources }))
+          ? Effect.fail(
+              new Permission.BlockedError({ rules: [], permission: input.action, resources: input.resources }),
+            )
           : Effect.void,
       ),
     ),
 })
 
 const harness = Layer.mergeAll(
-  AppNodeBuilder.build(LayerNode.group([Tool.node, PluginHooks.node, SessionTodo.node, SessionTask.node, Database.node, Bus.node]), [
-    Image.node.replace(Layer.mock(Image.Service, { normalize: (_resource, content) => Effect.succeed(content) })),
-  ]),
+  AppNodeBuilder.build(
+    LayerNode.group([Tool.node, PluginHooks.node, SessionTodo.node, SessionTask.node, Database.node, Bus.node]),
+    [Image.node.replace(Layer.mock(Image.Service, { normalize: (_resource, content) => Effect.succeed(content) }))],
+  ),
   permission,
 )
 
@@ -145,7 +148,10 @@ describe("TodoWriteTool", () => {
       const service = yield* SessionTodo.Service
 
       // First write establishes the baseline.
-      const first = yield* executeTool(registry, call(sessionID, [{ content: "a", status: "pending", priority: "low" }]))
+      const first = yield* executeTool(
+        registry,
+        call(sessionID, [{ content: "a", status: "pending", priority: "low" }]),
+      )
       expect(first.status).toBe("completed")
       // Another write path appends a row the model's list doesn't know about.
       yield* tasks.append({

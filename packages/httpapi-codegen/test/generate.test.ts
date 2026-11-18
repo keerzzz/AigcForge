@@ -76,7 +76,8 @@ export const ClassPayloadApi = HttpApi.make("class-payload").add(
         query: { location: Schema.String },
         payload: ModelGroup.SaveInput,
         success: Schema.String,
-      }).annotate(OpenApi.Identifier, "model.group.definition.save")
+      })
+        .annotate(OpenApi.Identifier, "model.group.definition.save")
         .annotate(HttpApi.PayloadParseOptions, { onExcessProperty: "error", errors: "all" }),
     )
     .add(
@@ -115,22 +116,22 @@ type ClassPayloadClient = {
       readonly definition: {
         readonly save: (input: {
           readonly location: string
-          readonly payload: typeof ModelGroup.SaveInput["~type.make.in"]
+          readonly payload: (typeof ModelGroup.SaveInput)["~type.make.in"]
         }) => Effect.Effect<string, unknown>
         readonly remove: (input: {
           readonly location: string
-          readonly payload: typeof ModelGroup.RemoveInput["~type.make.in"]
+          readonly payload: (typeof ModelGroup.RemoveInput)["~type.make.in"]
         }) => Effect.Effect<string, unknown>
       }
     }
     readonly switch: (
-      input: typeof SwitchPayload["~type.make.in"] & { readonly location: string },
+      input: (typeof SwitchPayload)["~type.make.in"] & { readonly location: string },
     ) => Effect.Effect<string, unknown>
     readonly history: (
-      input: typeof HistoryPayload["~type.make.in"] & { readonly location: string },
+      input: (typeof HistoryPayload)["~type.make.in"] & { readonly location: string },
     ) => Effect.Effect<string, unknown>
     readonly struct: (
-      input: typeof PlainPayload["~type.make.in"] & { readonly location: string },
+      input: (typeof PlainPayload)["~type.make.in"] & { readonly location: string },
     ) => Effect.Effect<string, unknown>
   }
 }
@@ -196,7 +197,6 @@ describe("HttpApiCodegen.generate", () => {
       "HttpApiClient.ForApi<typeof Api>",
     )
   })
-
   ;[false, true].forEach((shaped) => {
     it.live(`materializes canonical group save/remove payloads with generated shape ${shaped}`, () =>
       Effect.gen(function* () {
@@ -207,21 +207,26 @@ describe("HttpApiCodegen.generate", () => {
           ...(shaped ? { shapeModule: "./api" } : {}),
         })
         const emitted = yield* Effect.acquireRelease(
-          Effect.promise(() => emittedModule({
-            ...output,
-            files: [...output.files, ...(shaped ? emitEffectShape(contract).files : [])],
-          })),
+          Effect.promise(() =>
+            emittedModule({
+              ...output,
+              files: [...output.files, ...(shaped ? emitEffectShape(contract).files : [])],
+            }),
+          ),
           (value) => Effect.promise(() => value[Symbol.asyncDispose]()),
         )
-        const make: (options: { readonly baseUrl: string }) => Effect.Effect<ClassPayloadClient, never, HttpClient.HttpClient> =
-          emitted.module.AigcForge.make
+        const make: (options: {
+          readonly baseUrl: string
+        }) => Effect.Effect<ClassPayloadClient, never, HttpClient.HttpClient> = emitted.module.AigcForge.make
         const requests: Array<{ method: string; query: Record<string, string>; body: unknown }> = []
         const httpClient = HttpClient.make((request) => {
           if (request.body._tag !== "Uint8Array") return Effect.die(new Error("Expected a JSON payload"))
           requests.push({
             method: request.method,
             query: Object.fromEntries(request.urlParams.params),
-            body: Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown))(new TextDecoder().decode(request.body.body)),
+            body: Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown))(
+              new TextDecoder().decode(request.body.body),
+            ),
           })
           return Effect.succeed(HttpClientResponse.fromWeb(request, Response.json("ok")))
         })
@@ -230,7 +235,7 @@ describe("HttpApiCodegen.generate", () => {
           target: { scope: "project", path: AbsolutePath.make("/workspace/aigcfroge.jsonc") },
           expectedDigest: null,
           patch: { set: { name: "Primary" } },
-        } satisfies typeof ModelGroup.SaveInput["~type.make.in"]
+        } satisfies (typeof ModelGroup.SaveInput)["~type.make.in"]
         const remove = { groupID: save.groupID, target: save.target, expectedDigest: "digest-1" }
         expect(Schema.is(ModelGroup.SaveInput)(save)).toBe(false)
         expect(Schema.is(ModelGroup.Patch)(save.patch)).toBe(false)
@@ -244,10 +249,12 @@ describe("HttpApiCodegen.generate", () => {
             location: "local",
             payload: Schema.decodeUnknownSync(Schema.toCodecJson(ModelGroup.SaveInput))(save),
           })
-          const invalid = yield* client.model.group.definition.save({
-            location: "local",
-            payload: { ...save, patch: Object.assign({}, save.patch, { unexpected: true }) },
-          }).pipe(Effect.flip)
+          const invalid = yield* client.model.group.definition
+            .save({
+              location: "local",
+              payload: { ...save, patch: Object.assign({}, save.patch, { unexpected: true }) },
+            })
+            .pipe(Effect.flip)
           return { saved, removed, existing, invalid }
         }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient))
 
@@ -263,60 +270,73 @@ describe("HttpApiCodegen.generate", () => {
       }),
     )
 
-    it.live(`materializes deep Class payloads and preserves decoded flat Struct inputs with generated shape ${shaped}`, () =>
-      Effect.gen(function* () {
-        const contract = compile(ClassPayloadApi)
-        const output = emitEffectImported(contract, {
-          module: fileURLToPath(import.meta.url),
-          api: "ClassPayloadApi",
-          ...(shaped ? { shapeModule: "./api" } : {}),
-        })
-        const emitted = yield* Effect.acquireRelease(
-          Effect.promise(() => emittedModule({
-            ...output,
-            files: [...output.files, ...(shaped ? emitEffectShape(contract).files : [])],
-          })),
-          (value) => Effect.promise(() => value[Symbol.asyncDispose]()),
-        )
-        const make: (options: { readonly baseUrl: string }) => Effect.Effect<ClassPayloadClient, never, HttpClient.HttpClient> =
-          emitted.module.AigcForge.make
-        const requests: Array<{ query: Record<string, string>; body: unknown }> = []
-        const httpClient = HttpClient.make((request) => {
-          if (request.body._tag !== "Uint8Array") return Effect.die(new Error("Expected a JSON payload"))
-          requests.push({
-            query: Object.fromEntries(request.urlParams.params),
-            body: Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown))(new TextDecoder().decode(request.body.body)),
+    it.live(
+      `materializes deep Class payloads and preserves decoded flat Struct inputs with generated shape ${shaped}`,
+      () =>
+        Effect.gen(function* () {
+          const contract = compile(ClassPayloadApi)
+          const output = emitEffectImported(contract, {
+            module: fileURLToPath(import.meta.url),
+            api: "ClassPayloadApi",
+            ...(shaped ? { shapeModule: "./api" } : {}),
           })
-          return Effect.succeed(HttpClientResponse.fromWeb(request, Response.json("ok")))
-        })
-        const created = DateTime.makeUnsafe("2026-11-15T00:00:00.000Z")
-        const group = { type: "group", groupID: Model.GroupID.make("primary") } satisfies typeof Model.GroupRef["~type.make.in"]
-        const ref = Model.Ref.parse("test/model-a")
-        const timed = { created, count: 3 }
-        expect(Schema.is(Model.GroupRef)(group)).toBe(false)
-        expect(Schema.is(TimedPayload)(timed)).toBe(false)
+          const emitted = yield* Effect.acquireRelease(
+            Effect.promise(() =>
+              emittedModule({
+                ...output,
+                files: [...output.files, ...(shaped ? emitEffectShape(contract).files : [])],
+              }),
+            ),
+            (value) => Effect.promise(() => value[Symbol.asyncDispose]()),
+          )
+          const make: (options: {
+            readonly baseUrl: string
+          }) => Effect.Effect<ClassPayloadClient, never, HttpClient.HttpClient> = emitted.module.AigcForge.make
+          const requests: Array<{ query: Record<string, string>; body: unknown }> = []
+          const httpClient = HttpClient.make((request) => {
+            if (request.body._tag !== "Uint8Array") return Effect.die(new Error("Expected a JSON payload"))
+            requests.push({
+              query: Object.fromEntries(request.urlParams.params),
+              body: Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown))(
+                new TextDecoder().decode(request.body.body),
+              ),
+            })
+            return Effect.succeed(HttpClientResponse.fromWeb(request, Response.json("ok")))
+          })
+          const created = DateTime.makeUnsafe("2026-11-15T00:00:00.000Z")
+          const group = {
+            type: "group",
+            groupID: Model.GroupID.make("primary"),
+          } satisfies (typeof Model.GroupRef)["~type.make.in"]
+          const ref = Model.Ref.parse("test/model-a")
+          const timed = { created, count: 3 }
+          expect(Schema.is(Model.GroupRef)(group)).toBe(false)
+          expect(Schema.is(TimedPayload)(timed)).toBe(false)
 
-        const result = yield* Effect.gen(function* () {
-          const client = yield* make({ baseUrl: "https://example.com" })
-          const selected = yield* client.model.switch({ location: "local", model: group, created, count: 1 })
-          const physical = yield* client.model.switch({ location: "local", model: ref, created, count: 2 })
-          const history = yield* client.model.history({ location: "local", entries: [timed] })
-          const plain = yield* client.model.struct({ location: "local", prompt: "plain", created, count: 4 })
-          return [selected, physical, history, plain]
-        }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient))
+          const result = yield* Effect.gen(function* () {
+            const client = yield* make({ baseUrl: "https://example.com" })
+            const selected = yield* client.model.switch({ location: "local", model: group, created, count: 1 })
+            const physical = yield* client.model.switch({ location: "local", model: ref, created, count: 2 })
+            const history = yield* client.model.history({ location: "local", entries: [timed] })
+            const plain = yield* client.model.struct({ location: "local", prompt: "plain", created, count: 4 })
+            return [selected, physical, history, plain]
+          }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient))
 
-        expect(result).toEqual(["ok", "ok", "ok", "ok"])
-        expect(requests).toEqual([
-          { query: { location: "local" }, body: { model: group, created: "2026-11-15T00:00:00.000Z", count: "1" } },
-          { query: { location: "local" }, body: { model: ref, created: "2026-11-15T00:00:00.000Z", count: "2" } },
-          { query: { location: "local" }, body: { entries: [{ created: "2026-11-15T00:00:00.000Z", count: "3" }] } },
-          { query: { location: "local" }, body: { prompt: "plain", created: "2026-11-15T00:00:00.000Z", count: "4" } },
-        ])
-        const source = output.files.find((file) => file.path === "client.ts")?.content
-        expect(source).toContain("const EndpointModelSwitchPayload = SchemaParser.makeEffect")
-        expect(source).toContain('query: { "location": input["location"] }, payload')
-        expect(source).not.toContain("const EndpointModelStructPayload")
-      }),
+          expect(result).toEqual(["ok", "ok", "ok", "ok"])
+          expect(requests).toEqual([
+            { query: { location: "local" }, body: { model: group, created: "2026-11-15T00:00:00.000Z", count: "1" } },
+            { query: { location: "local" }, body: { model: ref, created: "2026-11-15T00:00:00.000Z", count: "2" } },
+            { query: { location: "local" }, body: { entries: [{ created: "2026-11-15T00:00:00.000Z", count: "3" }] } },
+            {
+              query: { location: "local" },
+              body: { prompt: "plain", created: "2026-11-15T00:00:00.000Z", count: "4" },
+            },
+          ])
+          const source = output.files.find((file) => file.path === "client.ts")?.content
+          expect(source).toContain("const EndpointModelSwitchPayload = SchemaParser.makeEffect")
+          expect(source).toContain('query: { "location": input["location"] }, payload')
+          expect(source).not.toContain("const EndpointModelStructPayload")
+        }),
     )
   })
 
@@ -375,8 +395,9 @@ describe("HttpApiCodegen.generate", () => {
   })
 
   test("preserves decoded Goal evidence defaults while Promise output retains the optional wire field", () => {
-    const defaults = Schema.Struct({ currentEvidenceIDs: SessionGoal.Info.fields.currentEvidenceIDs })
-      .annotate({ identifier: "GoalEvidenceDefaults" })
+    const defaults = Schema.Struct({ currentEvidenceIDs: SessionGoal.Info.fields.currentEvidenceIDs }).annotate({
+      identifier: "GoalEvidenceDefaults",
+    })
     const contract = compile(api(HttpApiEndpoint.get("get", "/goal", { success: Schema.Struct({ data: defaults }) })))
     const effect = emitEffectShape(contract).files[0]?.content
     const promise = emitPromise(contract).files.find((file) => file.path === "types.ts")?.content
@@ -388,25 +409,57 @@ describe("HttpApiCodegen.generate", () => {
   })
 
   test("preserves Communication classes and branded identities as decoded Effect contracts", () => {
-    const contract = compile(HttpApi.make("communication").add(HttpApiGroup.make("session")
-      .add(HttpApiEndpoint.get("read", "/communication/:communicationID", {
-        params: { communicationID: SessionCommunication.ID },
-        success: Schema.Struct({ data: Schema.NullOr(SessionCommunication.Message) }),
-      }))
-      .add(HttpApiEndpoint.post("send", "/communication", {
-        payload: SessionCommunication.Send,
-        success: Schema.Struct({ data: SessionCommunication.Receipt }),
-      }))
-      .add(HttpApiEndpoint.get("list", "/communication", {
-        success: Schema.Struct({ data: SessionCommunication.Page }),
-      }))))
-    const effect = emitEffectShape(contract, { typeReferences: [
-      { schema: SessionCommunication.ID, name: "SessionCommunication.ID", import: 'import type { SessionCommunication } from "@aigcfroge/schema/session-communication"' },
-      { schema: SessionCommunication.Send, name: "SessionCommunication.Send", import: 'import type { SessionCommunication } from "@aigcfroge/schema/session-communication"' },
-      { schema: SessionCommunication.Receipt, name: "SessionCommunication.Receipt", import: 'import type { SessionCommunication } from "@aigcfroge/schema/session-communication"' },
-      { schema: SessionCommunication.Message, name: "SessionCommunication.Message", import: 'import type { SessionCommunication } from "@aigcfroge/schema/session-communication"' },
-      { schema: SessionCommunication.Page, name: "SessionCommunication.Page", import: 'import type { SessionCommunication } from "@aigcfroge/schema/session-communication"' },
-    ] }).files[0]?.content
+    const contract = compile(
+      HttpApi.make("communication").add(
+        HttpApiGroup.make("session")
+          .add(
+            HttpApiEndpoint.get("read", "/communication/:communicationID", {
+              params: { communicationID: SessionCommunication.ID },
+              success: Schema.Struct({ data: Schema.NullOr(SessionCommunication.Message) }),
+            }),
+          )
+          .add(
+            HttpApiEndpoint.post("send", "/communication", {
+              payload: SessionCommunication.Send,
+              success: Schema.Struct({ data: SessionCommunication.Receipt }),
+            }),
+          )
+          .add(
+            HttpApiEndpoint.get("list", "/communication", {
+              success: Schema.Struct({ data: SessionCommunication.Page }),
+            }),
+          ),
+      ),
+    )
+    const effect = emitEffectShape(contract, {
+      typeReferences: [
+        {
+          schema: SessionCommunication.ID,
+          name: "SessionCommunication.ID",
+          import: 'import type { SessionCommunication } from "@aigcfroge/schema/session-communication"',
+        },
+        {
+          schema: SessionCommunication.Send,
+          name: "SessionCommunication.Send",
+          import: 'import type { SessionCommunication } from "@aigcfroge/schema/session-communication"',
+        },
+        {
+          schema: SessionCommunication.Receipt,
+          name: "SessionCommunication.Receipt",
+          import: 'import type { SessionCommunication } from "@aigcfroge/schema/session-communication"',
+        },
+        {
+          schema: SessionCommunication.Message,
+          name: "SessionCommunication.Message",
+          import: 'import type { SessionCommunication } from "@aigcfroge/schema/session-communication"',
+        },
+        {
+          schema: SessionCommunication.Page,
+          name: "SessionCommunication.Page",
+          import: 'import type { SessionCommunication } from "@aigcfroge/schema/session-communication"',
+        },
+      ],
+    }).files[0]?.content
     const promise = emitPromise(contract).files.find((file) => file.path === "types.ts")?.content
 
     expect(effect).toContain('readonly "communicationID": SessionCommunication.ID')

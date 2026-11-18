@@ -1,14 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:venice-chat",
-      "provider:venice",
-      "protocol:venice-chat",
-      "tool",
-      "parallel",
-      "signature"
-    ],
+    "tags": ["prefix:venice-chat", "provider:venice", "protocol:venice-chat", "tool", "parallel", "signature"],
     "name": "venice-chat/gemini-preserves-per-call-signatures-through-parallel-tools",
     "recordedAt": "2026-10-05T03:21:54.383Z"
   },

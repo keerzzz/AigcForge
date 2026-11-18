@@ -10,9 +10,7 @@ import { testEffect } from "./lib/effect"
 const it = testEffect(
   PersonalMemory.layer.pipe(
     Layer.provideMerge(
-      AppNodeBuilder.build(LayerNode.group([Database.node, Bus.node]), [
-        Bus.node.replace(Bus.configured()),
-      ]),
+      AppNodeBuilder.build(LayerNode.group([Database.node, Bus.node]), [Bus.node.replace(Bus.configured())]),
     ),
   ),
 )

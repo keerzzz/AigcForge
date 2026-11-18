@@ -608,11 +608,7 @@
     "canonicalCheck": {
       "name": "publication-canonical-check",
       "cwd": "/home/keer/workspace/aigcfroge-v2",
-      "command": [
-        "/home/keer/workspace/aigcfroge-v2/script/bun",
-        "run",
-        "check"
-      ],
+      "command": ["/home/keer/workspace/aigcfroge-v2/script/bun", "run", "check"],
       "startedUTC": "2026-11-18T09:57:22.937202+00:00",
       "exitCode": 0,
       "durationSeconds": 39.85,
@@ -837,13 +833,7 @@
     "patchCheck": {
       "name": "publication-full-patch-check-final-v2",
       "cwd": "/home/keer/.codex/worktrees/v2-delivery/aigcfroge-v2",
-      "command": [
-        "git",
-        "diff",
-        "--cached",
-        "--check",
-        "--no-renames"
-      ],
+      "command": ["git", "diff", "--cached", "--check", "--no-renames"],
       "startedUTC": "2026-11-18T10:04:26.932987+00:00",
       "exitCode": 0,
       "durationSeconds": 0.74,
@@ -932,16 +922,8 @@
     "historicalLinkRepair": {
       "document": "docs/review/v2-delegation-service-2026-10-20.md",
       "originalMissingTarget": "verification.json",
-      "replacementReceipts": [
-        "lint-final.json",
-        "format-test-final.json",
-        "diff-check-final.json"
-      ],
-      "verifiedHistoricalExitCodes": [
-        0,
-        0,
-        0
-      ],
+      "replacementReceipts": ["lint-final.json", "format-test-final.json", "diff-check-final.json"],
+      "verifiedHistoricalExitCodes": [0, 0, 0],
       "typecheckUnrunStatementPreserved": true
     }
   },

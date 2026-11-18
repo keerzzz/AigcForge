@@ -12,33 +12,33 @@
 
 下表为当前 manifest 与入口的职责索引，不代表全部实现已审计或发布形态已批准。
 
-| 包 | 职责 |
-| --- | --- |
-| [schema](packages/schema) | browser-safe 公共 wire/storage 合同、ID 与事件 |
-| [protocol](packages/protocol) | 公共 HTTP 操作和传输合同 |
-| [ai](packages/ai) | 模型请求、provider 路由、传输与规范化输出 |
-| [core](packages/core) | Session、权限、工具、资产、组合、Task/Delegation/Workflow 与持久化 |
-| [server](packages/server) | 将 Protocol 操作连接 Core 和主机服务 |
-| [client](packages/client) | 生成 Promise/Effect API、服务连接及 Solid 数据消费 |
-| [cli](packages/cli) | 命令入口、服务进程与桌面内置 CLI 闭包 |
-| [desktop](packages/desktop) | Electron 窗口、IPC、存储、内置服务和打包/更新 |
-| [app](packages/app) | Shell、Home、Draft、Session、路由、数据与窗口扩展宿主 |
-| [gui-extensions](packages/gui-extensions) | 通过 SDK 贡献桌面/Web 功能和主进程能力 |
-| [session-ui](packages/session-ui) | 会话内容与共享渲染 |
-| [ui](packages/ui) | 组件、样式、字体、图标、i18n 等共享 UI 原语 |
-| [theme](packages/theme) | 主题定义与相关合同 |
-| [tui](packages/tui) | OpenTUI 交互与终端功能宿主 |
-| [plugin](packages/plugin) | 插件合同与接入能力 |
-| [plugin-browser](packages/plugin-browser) | 浏览器侧插件接缝 |
-| [codemode](packages/codemode) | CodeMode 执行能力 |
-| [latex](packages/latex) | LaTeX 渲染/插件能力 |
-| [merman](packages/merman) | 图形渲染/插件能力 |
-| [simulation](packages/simulation) | 接入现有领域的受控模拟能力 |
-| [httpapi-codegen](packages/httpapi-codegen) | 从 HttpApi 编译客户端合同与代码 |
-| [http-recorder](packages/http-recorder) | HTTP 记录/回放测试基础设施 |
-| [script](packages/script) | 构建、发布等共用脚本 |
-| [storybook](packages/storybook) | 组件/宿主展示与相应验证入口 |
-| [util](packages/util) | 通用与主机基础设施 |
+| 包                                          | 职责                                                               |
+| ------------------------------------------- | ------------------------------------------------------------------ |
+| [schema](packages/schema)                   | browser-safe 公共 wire/storage 合同、ID 与事件                     |
+| [protocol](packages/protocol)               | 公共 HTTP 操作和传输合同                                           |
+| [ai](packages/ai)                           | 模型请求、provider 路由、传输与规范化输出                          |
+| [core](packages/core)                       | Session、权限、工具、资产、组合、Task/Delegation/Workflow 与持久化 |
+| [server](packages/server)                   | 将 Protocol 操作连接 Core 和主机服务                               |
+| [client](packages/client)                   | 生成 Promise/Effect API、服务连接及 Solid 数据消费                 |
+| [cli](packages/cli)                         | 命令入口、服务进程与桌面内置 CLI 闭包                              |
+| [desktop](packages/desktop)                 | Electron 窗口、IPC、存储、内置服务和打包/更新                      |
+| [app](packages/app)                         | Shell、Home、Draft、Session、路由、数据与窗口扩展宿主              |
+| [gui-extensions](packages/gui-extensions)   | 通过 SDK 贡献桌面/Web 功能和主进程能力                             |
+| [session-ui](packages/session-ui)           | 会话内容与共享渲染                                                 |
+| [ui](packages/ui)                           | 组件、样式、字体、图标、i18n 等共享 UI 原语                        |
+| [theme](packages/theme)                     | 主题定义与相关合同                                                 |
+| [tui](packages/tui)                         | OpenTUI 交互与终端功能宿主                                         |
+| [plugin](packages/plugin)                   | 插件合同与接入能力                                                 |
+| [plugin-browser](packages/plugin-browser)   | 浏览器侧插件接缝                                                   |
+| [codemode](packages/codemode)               | CodeMode 执行能力                                                  |
+| [latex](packages/latex)                     | LaTeX 渲染/插件能力                                                |
+| [merman](packages/merman)                   | 图形渲染/插件能力                                                  |
+| [simulation](packages/simulation)           | 接入现有领域的受控模拟能力                                         |
+| [httpapi-codegen](packages/httpapi-codegen) | 从 HttpApi 编译客户端合同与代码                                    |
+| [http-recorder](packages/http-recorder)     | HTTP 记录/回放测试基础设施                                         |
+| [script](packages/script)                   | 构建、发布等共用脚本                                               |
+| [storybook](packages/storybook)             | 组件/宿主展示与相应验证入口                                        |
+| [util](packages/util)                       | 通用与主机基础设施                                                 |
 
 当前 workspace 清单没有旧 `packages/sdk/js` 包；这不证明没有嵌入式 SDK 消费者，也不授权删除 `sdks/` 或其它入口。Desktop 的工作区依赖列在 devDependencies，仍可成为打包运行闭包的一部分。
 
@@ -70,16 +70,16 @@
 
 ## 按任务读取
 
-| 改动 | 必读入口/决定边界 |
-| --- | --- |
-| Session/Instructions/恢复 | [Session contract](specs/v2/session.md)、`core/src/session/`、根 AGENTS |
-| 工具/权限/插件 | [Tools contract](specs/v2/tools.md)、[Tool guide](packages/core/src/tool/AGENTS.md)、Core owning modules |
-| AI/provider | [AI guide](packages/ai/AGENTS.md)、Core model-request/model-transport；不把 Session 责任搬到 AI |
-| 公共 API/生成 | [Schema guide](packages/schema/AGENTS.md)、Protocol/Server handlers、Client build、httpapi-codegen |
-| Home/模式/Draft/Session | App shell/routes、shell/state、new-session、session resolution、Client Solid data |
-| Panel/扩展/状态栏 | [GUI guide](packages/gui-extensions/AGENTS.md)、App runtime/extension、Desktop main extension |
-| 桌面/存储/服务 | [Desktop guide](packages/desktop/AGENTS.md)、[CLI guide](packages/cli/AGENTS.md)、Client service |
-| 产品范围与迁移差异 | [代码族调查](docs/research/upstream-v2-sync/2026-10-29-code-family-review.md)、总计划 B01、唯一账本 |
+| 改动                      | 必读入口/决定边界                                                                                        |
+| ------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Session/Instructions/恢复 | [Session contract](specs/v2/session.md)、`core/src/session/`、根 AGENTS                                  |
+| 工具/权限/插件            | [Tools contract](specs/v2/tools.md)、[Tool guide](packages/core/src/tool/AGENTS.md)、Core owning modules |
+| AI/provider               | [AI guide](packages/ai/AGENTS.md)、Core model-request/model-transport；不把 Session 责任搬到 AI          |
+| 公共 API/生成             | [Schema guide](packages/schema/AGENTS.md)、Protocol/Server handlers、Client build、httpapi-codegen       |
+| Home/模式/Draft/Session   | App shell/routes、shell/state、new-session、session resolution、Client Solid data                        |
+| Panel/扩展/状态栏         | [GUI guide](packages/gui-extensions/AGENTS.md)、App runtime/extension、Desktop main extension            |
+| 桌面/存储/服务            | [Desktop guide](packages/desktop/AGENTS.md)、[CLI guide](packages/cli/AGENTS.md)、Client service         |
+| 产品范围与迁移差异        | [代码族调查](docs/research/upstream-v2-sync/2026-10-29-code-family-review.md)、总计划 B01、唯一账本      |
 
 页面/包架构按批次调查并记录其完整消费者链；不因更新本入口就宣称25包全部架构已经审批。规格不放待办；批次计划与任务提示词是唯一总计划的执行附件，不能另设领域权威。
 

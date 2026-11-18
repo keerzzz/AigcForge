@@ -1,6 +1,13 @@
 import { expect, test } from "bun:test"
 import path from "node:path"
-import { createModelPreferenceRepository, decodeModelPreference, modelPreferenceKey, sameModelSelection, toModelPreference, toModelSelection } from "../src/model-preference"
+import {
+  createModelPreferenceRepository,
+  decodeModelPreference,
+  modelPreferenceKey,
+  sameModelSelection,
+  toModelPreference,
+  toModelSelection,
+} from "../src/model-preference"
 import { tmpdir } from "./fixture/fixture"
 
 test("repairs known model preferences and preserves unrelated fields", () => {
@@ -65,6 +72,10 @@ test("persists Groups beside physical preferences and keeps member variants sepa
   expect(toModelSelection(group, "high")).toEqual(group)
   expect(toModelPreference(group)).toEqual(group)
   expect(sameModelSelection(group, { type: "group", groupID: "other" })).toBe(false)
-  expect(sameModelSelection({ providerID: "test", id: "chat" }, { providerID: "test", id: "chat", variant: "default" })).toBe(true)
-  expect(decodeModelPreference({ recent: [group, { type: "group", groupID: "bad/name" }], favorite: [group] }).recent).toEqual([group])
+  expect(
+    sameModelSelection({ providerID: "test", id: "chat" }, { providerID: "test", id: "chat", variant: "default" }),
+  ).toBe(true)
+  expect(
+    decodeModelPreference({ recent: [group, { type: "group", groupID: "bad/name" }], favorite: [group] }).recent,
+  ).toEqual([group])
 })

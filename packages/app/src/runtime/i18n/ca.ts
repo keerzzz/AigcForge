@@ -841,7 +841,8 @@ export const dict = {
   "project.settings.extensions.empty.mcps.title": "Encara no MCPs",
   "project.settings.extensions.empty.mcps.description": "MCPs disponible per a AigcForge apareixerà aquí",
   "project.settings.extensions.empty.plugins.title": "Encara no hi ha connectors",
-  "project.settings.extensions.empty.plugins.description": "Els connectors disponibles per a AigcForge apareixeran aquí",
+  "project.settings.extensions.empty.plugins.description":
+    "Els connectors disponibles per a AigcForge apareixeran aquí",
   "project.settings.extensions.empty.skills.title": "Encara no hi ha habilitats",
   "project.settings.extensions.empty.skills.description": "Les habilitats disponibles per a AigcForge apareixeran aquí",
   "project.settings.extensions.lsp.configured": "Servidors d'idiomes configurats",

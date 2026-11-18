@@ -54,7 +54,9 @@ const context = createSimpleContext({
 
     function isModelValid(model: ModelPreferenceModel) {
       if (isModelGroup(model))
-        return !!groups()?.effective.some((item) => item.groupID === model.groupID && !item.unavailable && item.definition)
+        return !!groups()?.effective.some(
+          (item) => item.groupID === model.groupID && !item.unavailable && item.definition,
+        )
       return !!models()?.some((item) => item.providerID === model.providerID && item.id === model.modelID)
     }
 
@@ -72,7 +74,8 @@ const context = createSimpleContext({
         return (data.location.agent.list(location.ref) ?? []).filter((agent) =>
           controller?.kind === "child"
             ? agent.id === controller.executor.agent
-            : agent.mode !== "subagent" && !agent.hidden &&
+            : agent.mode !== "subagent" &&
+              !agent.hidden &&
               (agent.ordinaryModes?.includes(session?.mode ?? ProductMode.Default) ?? true),
         )
       })
@@ -216,8 +219,7 @@ const context = createSimpleContext({
         const configured = entry?.type === "document" ? entry.info.model : undefined
         if (!configured) return
         if (typeof configured === "string") return parse(configured)
-        if ("type" in configured)
-          return { type: "group" as const, groupID: configured.groupID }
+        if ("type" in configured) return { type: "group" as const, groupID: configured.groupID }
         return { providerID: configured.providerID, modelID: configured.model, variant: configured.variant }
       })
 
@@ -288,10 +290,16 @@ const context = createSimpleContext({
             ? requested.variant
             : undefined) ??
           preferred ??
-          (configured && !isModelGroup(configured) && configured.providerID === model.providerID && configured.id === model.modelID
+          (configured &&
+          !isModelGroup(configured) &&
+          configured.providerID === model.providerID &&
+          configured.id === model.modelID
             ? configured.variant
             : undefined) ??
-          (fallback && !isModelGroup(fallback) && fallback.providerID === model.providerID && fallback.modelID === model.modelID
+          (fallback &&
+          !isModelGroup(fallback) &&
+          fallback.providerID === model.providerID &&
+          fallback.modelID === model.modelID
             ? fallback.variant
             : undefined)
         const variant = agent.current()?.id === "meta" ? selected : normalizeModelVariant(selected)
@@ -325,7 +333,11 @@ const context = createSimpleContext({
         return model && preferredSelection(model)
       }
 
-      function setSessionSelection(sessionID: string, agentID: string, selection: ModelPreferenceSelection | undefined) {
+      function setSessionSelection(
+        sessionID: string,
+        agentID: string,
+        selection: ModelPreferenceSelection | undefined,
+      ) {
         setSelectionState("selectionBySessionAgent", sessionID, {
           ...selectionState.selectionBySessionAgent[sessionID],
           [agentID]: selection,
@@ -354,9 +366,7 @@ const context = createSimpleContext({
           const current = sessionSelection(sessionID)
           setSessionDraft(
             sessionID,
-            current && modelPreferenceKey(current) === modelPreferenceKey(model)
-              ? current
-              : preferredSelection(model),
+            current && modelPreferenceKey(current) === modelPreferenceKey(model) ? current : preferredSelection(model),
           )
           return true
         }
@@ -416,11 +426,7 @@ const context = createSimpleContext({
         available(model = currentModel()) {
           return model ? isModelValid(model) : false
         },
-        trackSessionCommit(
-          sessionID: string,
-          value: ModelSelection,
-          agentID: string,
-        ) {
+        trackSessionCommit(sessionID: string, value: ModelSelection, agentID: string) {
           const committed = {
             agentID,
             selection: modelSelectionKey(value),
@@ -523,9 +529,7 @@ const context = createSimpleContext({
         toggleFavorite(model: ModelPreferenceModel) {
           batch(() => {
             if (!isModelValid(model)) return
-            const exists = preferences.favorite.some(
-              (x) => modelPreferenceKey(x) === modelPreferenceKey(model),
-            )
+            const exists = preferences.favorite.some((x) => modelPreferenceKey(x) === modelPreferenceKey(model))
             setPreferences("favorite", favoriteModels(model, preferences.favorite, !exists))
             void repository.setFavorite(model, !exists).catch(() => undefined)
           })
@@ -573,9 +577,14 @@ const context = createSimpleContext({
       }
 
       const slot = (domain: "session" | "executor", id: string) => JSON.stringify(["canonical", domain, id])
-      const refKey = (value: ModelSelection | undefined) => JSON.stringify(
-        value ? isModelGroup(value) ? ["group", value.groupID] : [value.providerID, value.id, value.variant ?? null] : null,
-      )
+      const refKey = (value: ModelSelection | undefined) =>
+        JSON.stringify(
+          value
+            ? isModelGroup(value)
+              ? ["group", value.groupID]
+              : [value.providerID, value.id, value.variant ?? null]
+            : null,
+        )
       const preferenceKey = (value: SessionExecutorPreference | undefined) =>
         JSON.stringify(value ? [value.agent, refKey(value.model)] : null)
       const selectionRef = (value: ModelPreferenceSelection) => toModelSelection(value, value.variant)
@@ -684,8 +693,13 @@ const context = createSimpleContext({
         list() {
           const catalog = data.location.agent.list(location.ref) ?? []
           if (locked()) return catalog.filter((item) => item.id === controlledSession()?.agent)
-          return catalog.filter((item) => item.id !== "meta" && item.mode !== "primary" && !item.hidden &&
-            (item.ordinaryModes?.includes(controlledSession()?.mode ?? ProductMode.Default) ?? true))
+          return catalog.filter(
+            (item) =>
+              item.id !== "meta" &&
+              item.mode !== "primary" &&
+              !item.hidden &&
+              (item.ordinaryModes?.includes(controlledSession()?.mode ?? ProductMode.Default) ?? true),
+          )
         },
         current() {
           if (locked())
@@ -756,13 +770,16 @@ const context = createSimpleContext({
               ? previous
               : isModelGroup(value)
                 ? { type: "group", groupID: value.groupID }
-              : {
-                  ...value,
-                  variant:
-                    configured && !isModelGroup(configured) && configured.providerID === value.providerID && configured.id === value.modelID
-                      ? configured.variant
-                      : undefined,
-                },
+                : {
+                    ...value,
+                    variant:
+                      configured &&
+                      !isModelGroup(configured) &&
+                      configured.providerID === value.providerID &&
+                      configured.id === value.modelID
+                        ? configured.variant
+                        : undefined,
+                  },
           )
           if (options?.recent) {
             setPreferences("recent", recentModels(value, preferences.recent))
@@ -773,9 +790,7 @@ const context = createSimpleContext({
           const available = choices.filter(isModelValid)
           if (available.length === 0) return
           const value = current()
-          const index = available.findIndex(
-            (item) => value && modelPreferenceKey(item) === modelPreferenceKey(value),
-          )
+          const index = available.findIndex((item) => value && modelPreferenceKey(item) === modelPreferenceKey(value))
           const next =
             available[
               index === -1
@@ -810,7 +825,11 @@ const context = createSimpleContext({
             const value = selected()
             if (value && isModelGroup(value)) {
               const group = groups()?.effective.find((item) => item.groupID === value.groupID)
-              return { provider: "Model group", model: group?.definition?.name ?? `${value.groupID} (unavailable)`, reasoning: false }
+              return {
+                provider: "Model group",
+                model: group?.definition?.name ?? `${value.groupID} (unavailable)`,
+                reasoning: false,
+              }
             }
             const provider = providers()?.find((item) => item.id === value?.providerID)
             const info = models()?.find((item) => item.providerID === value?.providerID && item.id === value?.modelID)

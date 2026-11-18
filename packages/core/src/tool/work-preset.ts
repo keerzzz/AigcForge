@@ -47,7 +47,8 @@ export const Plugin = {
           execute: (input) =>
             Effect.gen(function* () {
               const preset = WorkPresetRegistry.byId(input.presetID)
-              if (!preset) return yield* Effect.fail(new ToolFailure({ message: `Unknown work preset: ${input.presetID}` }))
+              if (!preset)
+                return yield* Effect.fail(new ToolFailure({ message: `Unknown work preset: ${input.presetID}` }))
               return { output: { preset }, content: toModelContent(preset) }
             }),
         }),

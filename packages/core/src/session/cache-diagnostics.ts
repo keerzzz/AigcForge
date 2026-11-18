@@ -70,10 +70,7 @@ const classifyConfidence = (cacheRead: number, cacheWrite: number): ConfidenceLe
   return "unavailable"
 }
 
-const v2StepEndedType = Bus.versionedType(
-  SessionEvent.Step.Ended.type,
-  SessionEvent.Step.Ended.durable?.version ?? 2,
-)
+const v2StepEndedType = Bus.versionedType(SessionEvent.Step.Ended.type, SessionEvent.Step.Ended.durable?.version ?? 2)
 
 const v1PartUpdatedType = Bus.versionedType(
   SessionV1.Event.PartUpdated.type,

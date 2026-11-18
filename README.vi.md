@@ -68,12 +68,12 @@ nix run nixpkgs#aigcfroge           # hoặc github:anomalyco/aigcfroge cho nhá
 
 AigcForge cũng có sẵn dưới dạng ứng dụng desktop. Tải trực tiếp từ [trang releases](https://github.com/anomalyco/aigcfroge/releases) hoặc [aigcfroge.ai/download](https://aigcfroge.ai/download).
 
-| Nền tảng              | Tải xuống                          |
-| --------------------- | ---------------------------------- |
+| Nền tảng              | Tải xuống                           |
+| --------------------- | ----------------------------------- |
 | macOS (Apple Silicon) | `aigcfroge-desktop-mac-arm64.dmg`   |
 | macOS (Intel)         | `aigcfroge-desktop-mac-x64.dmg`     |
 | Windows               | `aigcfroge-desktop-windows-x64.exe` |
-| Linux                 | `.deb`, `.rpm`, hoặc AppImage      |
+| Linux                 | `.deb`, `.rpm`, hoặc AppImage       |
 
 ```bash
 # macOS (Homebrew)

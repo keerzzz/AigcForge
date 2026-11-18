@@ -4,25 +4,25 @@
 
 ## 1. 基线、授权与文件保护
 
-| 项目 | 实际基线 |
-| --- | --- |
-| 工作区与分支 | `/home/keer/workspace/aigcfroge-v2`，`v2-dev` |
-| HEAD | `0a09f6bccdb71f1234eea759eb99e8a336d1d4da`，与批准基线一致 |
-| 暂存区 | 空；本片不提交、切分支或新建worktree |
-| 原WIP | ARCHITECTURE、DESIGN、总对齐计划、migration-session-prompts、shared-foundation-decision、desktop-startup independent-review六份；与[原快照](/home/keer/.codex/outputs/2026-11-10/side-chat-plan/before.json)的内容哈希一致 |
+| 项目         | 实际基线                                                                                                                                                                                                                                                              |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 工作区与分支 | `/home/keer/workspace/aigcfroge-v2`，`v2-dev`                                                                                                                                                                                                                         |
+| HEAD         | `0a09f6bccdb71f1234eea759eb99e8a336d1d4da`，与批准基线一致                                                                                                                                                                                                            |
+| 暂存区       | 空；本片不提交、切分支或新建worktree                                                                                                                                                                                                                                  |
+| 原WIP        | ARCHITECTURE、DESIGN、总对齐计划、migration-session-prompts、shared-foundation-decision、desktop-startup independent-review六份；与[原快照](/home/keer/.codex/outputs/2026-11-10/side-chat-plan/before.json)的内容哈希一致                                            |
 | 本片现场证据 | [before.json](/home/keer/.codex/outputs/2026-11-10/session-surfaces-sc00/before.json)、[摘要](/home/keer/.codex/outputs/2026-11-10/session-surfaces-sc00/baseline-summary.json)、`/home/keer/.codex/outputs/2026-11-10/session-surfaces-sc00/before-files/`修改前副本 |
-| 保护范围 | 完整历史未跟踪库存只记录一次；后继只核该片实际编辑/生成路径、原WIP和冻结输入，不重复扫描历史证据 |
+| 保护范围     | 完整历史未跟踪库存只记录一次；后继只核该片实际编辑/生成路径、原WIP和冻结输入，不重复扫描历史证据                                                                                                                                                                      |
 
 SC00只改本任务单、DESIGN请求/会话内容段、ARCHITECTURE目标接缝段、GUI AGENTS的Timeline旧句和原账本的本轮登记。批准计划、审批文档和其余四份原WIP保持。后继顺序为SC01→SC02→SC03→SC04→SC05→SC06→SC07→SC08→SC09；每片交回Root审查，收到明确派发才开始下一片。一个文件一个写入owner；只读分析可以并行，测试/构建槽由实施会话串行持有，Root验收时交回。
 
 ## 2. 第一性依据与方案选择
 
-| 层 | 可追溯判断 |
-| --- | --- |
-| fact | [ServerRef/SessionRef](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/sdk/host-apis.ts:13)分别表达live服务器与真实Shell所有权；[host的key构造和tab筛选](/home/keer/workspace/aigcfroge-v2/packages/app/src/runtime/extension/host-apis.tsx:458)决定跨server身份。[Tab关闭](/home/keer/workspace/aigcfroge-v2/packages/app/src/shell/tabs/tabs.tsx:203)调用原memory.remove；[memory owner](/home/keer/workspace/aigcfroge-v2/packages/app/src/shell/tabs/memory.ts:9)尚无多视图持有。 |
-| hypothesis | 把主SessionScreen直接装进Panel会把草稿、请求和附件继续绑到主路由；关闭真实Shell可能释放仍被Panel使用的草稿。 |
-| inference | [Composer adapter](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/composer/adapter.ts:9)和[请求model](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/requests/model.ts:15)仍读取route providers；只换Timeline的sessionID不足以绑定交互目标。新多视图寿命属于本轮场景，须由原owner的定向工件裁决。 |
-| recommendation | 参数化现内容owner，保留stable Session ID和source布局，复用现Panel、Data、SSE、Composer持久键；先让主root和真实child两个消费者运行，再接独立root侧聊。 |
+| 层             | 可追溯判断                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| fact           | [ServerRef/SessionRef](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/sdk/host-apis.ts:13)分别表达live服务器与真实Shell所有权；[host的key构造和tab筛选](/home/keer/workspace/aigcfroge-v2/packages/app/src/runtime/extension/host-apis.tsx:458)决定跨server身份。[Tab关闭](/home/keer/workspace/aigcfroge-v2/packages/app/src/shell/tabs/tabs.tsx:203)调用原memory.remove；[memory owner](/home/keer/workspace/aigcfroge-v2/packages/app/src/shell/tabs/memory.ts:9)尚无多视图持有。 |
+| hypothesis     | 把主SessionScreen直接装进Panel会把草稿、请求和附件继续绑到主路由；关闭真实Shell可能释放仍被Panel使用的草稿。                                                                                                                                                                                                                                                                                                                                                                                        |
+| inference      | [Composer adapter](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/composer/adapter.ts:9)和[请求model](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/requests/model.ts:15)仍读取route providers；只换Timeline的sessionID不足以绑定交互目标。新多视图寿命属于本轮场景，须由原owner的定向工件裁决。                                                                                                                                                                           |
+| recommendation | 参数化现内容owner，保留stable Session ID和source布局，复用现Panel、Data、SSE、Composer持久键；先让主root和真实child两个消费者运行，再接独立root侧聊。                                                                                                                                                                                                                                                                                                                                               |
 
 咨询方案比较：单次`Bus.publishAll`可以原子提交同aggregate事件，但普通prompt hook拥有真实`session.get`，提前prepare会改变其读取语义。采用两阶段：同事务Created＋咨询归属，随后普通prepare，再同事务首问准入＋归属更新。另建虚拟Session读取层、参考服务或模型循环没有已验证第二用例。
 
@@ -45,13 +45,13 @@ interface SessionTargetRef {
 
 拟新增`Sessions.target({server, sessionID})`只取得目标引用；宿主`Sessions.content({source, screen, target, active, interaction})`渲染共用内容。`source: MountedSession`与`screen: SessionScreen`来自真实Panel输入，`target: SessionTargetRef`来自明确绑定，`interaction`为`interactive|readonly`。readonly只减少视图操作；原权限和child控制仍由领域owner决定。主会话通过相同内容路径显示；现`Sessions.current()`和`Screen.current()`继续表示主路由。实际复用部分在两个真实消费者验证后形成，SC01不先发布未使用的通用接口。
 
-| 责任 | 精确目标 |
-| --- | --- |
-| Panel登记、条带、标题、选择、关闭与持久绑定 | source工作区；现PanelTab/Store保存target的serverID/sessionID及必要偏好 |
-| Timeline、消息分页、附件读取、模型/Agent、输入、队列、询问、权限、停止、回答动作 | target的live ServerRef、保存Location和Session |
-| 草稿数据与附件引用 | [原Composer target](/home/keer/workspace/aigcfroge-v2/packages/app/src/composer/state.ts:62)的server scope＋Location＋Session/Draft键 |
-| 焦点、编辑DOM、滚动与未读展示 | 各view owner；不复制同target的持久草稿 |
-| 显式“打开为主会话” | 原导航owner，绑定确切target；普通attach/restore不导航、不准入或interrupt |
+| 责任                                                                             | 精确目标                                                                                                                              |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Panel登记、条带、标题、选择、关闭与持久绑定                                      | source工作区；现PanelTab/Store保存target的serverID/sessionID及必要偏好                                                                |
+| Timeline、消息分页、附件读取、模型/Agent、输入、队列、询问、权限、停止、回答动作 | target的live ServerRef、保存Location和Session                                                                                         |
+| 草稿数据与附件引用                                                               | [原Composer target](/home/keer/workspace/aigcfroge-v2/packages/app/src/composer/state.ts:62)的server scope＋Location＋Session/Draft键 |
+| 焦点、编辑DOM、滚动与未读展示                                                    | 各view owner；不复制同target的持久草稿                                                                                                |
+| 显式“打开为主会话”                                                               | 原导航owner，绑定确切target；普通attach/restore不导航、不准入或interrupt                                                              |
 
 同source同target复用原标签；不同source可以各有view，同server仍共用Data。A→B替换释放A的view持有，旧异步响应只归A；目标Location变化按实际target重新绑定，源目录不覆盖目标目录。source移动后的Panel绑定恢复沿原布局/Store机制，等待IPC load，不用默认空值覆盖保存内容。
 
@@ -69,16 +69,16 @@ interface SessionTargetRef {
 
 该位置加入原[SlotMap](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/sdk/registries.ts:549)，沿原[ExtensionSlot](/home/keer/workspace/aigcfroge-v2/packages/app/src/runtime/extension/render.tsx:33)排序、卸载和错误边界。
 
-| 字段 | 固定含义 |
-| --- | --- |
-| `screen: SessionScreen`、`source: MountedSession` | 常量source screen及其live source输入；只处理工作区布局 |
-| `session: SessionTargetRef` | 正文的实际target，包含确切server/session/Location；该新Slot不要求MountedSession.tab |
-| `active: boolean` | 该内容view当前选中且可见；缓存/隐藏view为false |
-| `userMessageID: string` | 该回答组所对应的真实user消息 |
-| `assistantMessageID: string`、`contentID: string` | 被点击文本所属的真实assistant及Timeline内容条目ID |
-| `text: string` | 被点击的普通文本块；不是reasoning、工具UI或整轮日志 |
-| `completed: boolean`、`latest: boolean` | 回答组已结束、是否为target最新回答组；资产入口另读target真实idle与mode |
-| `boundary: SessionFork.Boundary \| undefined` | 已完成组为`{type: "through", messageID: 整组最后已完成持久消息ID}`；未完成时undefined |
+| 字段                                              | 固定含义                                                                              |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `screen: SessionScreen`、`source: MountedSession` | 常量source screen及其live source输入；只处理工作区布局                                |
+| `session: SessionTargetRef`                       | 正文的实际target，包含确切server/session/Location；该新Slot不要求MountedSession.tab   |
+| `active: boolean`                                 | 该内容view当前选中且可见；缓存/隐藏view为false                                        |
+| `userMessageID: string`                           | 该回答组所对应的真实user消息                                                          |
+| `assistantMessageID: string`、`contentID: string` | 被点击文本所属的真实assistant及Timeline内容条目ID                                     |
+| `text: string`                                    | 被点击的普通文本块；不是reasoning、工具UI或整轮日志                                   |
+| `completed: boolean`、`latest: boolean`           | 回答组已结束、是否为target最新回答组；资产入口另读target真实idle与mode                |
+| `boundary: SessionFork.Boundary \| undefined`     | 已完成组为`{type: "through", messageID: 整组最后已完成持久消息ID}`；未完成时undefined |
 
 当前[copyContentID](/home/keer/workspace/aigcfroge-v2/packages/session-ui/src/timeline/session-timeline-row.tsx:128)仅定位最后非空文本，不能作为整轮截断。SC05在原Timeline projection/row owner按同user组和持久顺序决定结束边界，保留最后文本后面的工具/assistant消息；边界合法性和settled过滤仍由[Core projectFork](/home/keer/workspace/aigcfroge-v2/packages/core/src/session/projector.ts:118)裁决。UI“回答整轮”是展示单位，不新增durable turn对象，也不将一个logical Step称为provider turn。不得以当前已加载的下一user推算服务边界。
 
@@ -94,25 +94,25 @@ interface SessionTargetRef {
 
 拟新增Core方法`Session.createConsultation`，Protocol ID为`session.createConsultation`，HTTP为`POST /api/session/:sourceSessionID/consultation`。该API仅在当前server创建target；跨server查看使用各自ServerRef。公共字段复用[PromptInput](/home/keer/workspace/aigcfroge-v2/packages/schema/src/prompt-input.ts:29)、[Prompt.FileAttachment](/home/keer/workspace/aigcfroge-v2/packages/schema/src/prompt.ts:26)和[Session.ForkBoundary](/home/keer/workspace/aigcfroge-v2/packages/schema/src/session-fork.ts:6)。
 
-| 请求字段 | 固定合同 |
-| --- | --- |
-| 路径`sourceSessionID: Session.ID` | 首次操作的实际来源；恢复时与持久owner比较 |
-| `id: Session.ID` | 必填稳定target ID；首次发送前保存，重试复用 |
-| `boundary: Session.ForkBoundary` | 必填before/through的`type＋messageID`；首次创建冻结，重试读取已保存值 |
-| `agent: Agent.ID` | 必填明确普通Agent；实际Location插件激活后必须解析出Info，沿原根可选/control规则保证普通Chat root |
-| `model?: Model.Ref`、`title?: string` | 普通目标选择；不复制源controller/executor身份 |
-| `prompt` | 必填`id: SessionMessage.ID`及现text/files?/agents?/skills?/metadata?/delivery?；id为稳定首问ID |
-| `resume?: boolean` | 默认true；false为admit-only，只决定仍pending首问的advisory wake |
+| 请求字段                              | 固定合同                                                                                         |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 路径`sourceSessionID: Session.ID`     | 首次操作的实际来源；恢复时与持久owner比较                                                        |
+| `id: Session.ID`                      | 必填稳定target ID；首次发送前保存，重试复用                                                      |
+| `boundary: Session.ForkBoundary`      | 必填before/through的`type＋messageID`；首次创建冻结，重试读取已保存值                            |
+| `agent: Agent.ID`                     | 必填明确普通Agent；实际Location插件激活后必须解析出Info，沿原根可选/control规则保证普通Chat root |
+| `model?: Model.Ref`、`title?: string` | 普通目标选择；不复制源controller/executor身份                                                    |
+| `prompt`                              | 必填`id: SessionMessage.ID`及现text/files?/agents?/skills?/metadata?/delivery?；id为稳定首问ID   |
+| `resume?: boolean`                    | 默认true；false为admit-only，只决定仍pending首问的advisory wake                                  |
 
 body不接收权威Location、parentID、controller或服务参考正文/digest。新建时从source保存Location建立`mode=chat`普通root；后续prepare始终按target实际Location。optional字段在wire省略，沿Schema包既有codec，不以null替代。
 
 成功沿`{data: ...}`返回：`session`为现PublicSessionInfo；`reference`包含不可编辑provenance（sourceSessionID、冻结boundary/boundarySeq、sourceMessageIDs、digest、实际未包含项），`reference.file: Prompt.FileAttachment`为从row或实际inbox/User读取的冻结参考；`admission`为以下闭集。
 
-| admission | 输入与副作用 |
-| --- | --- |
-| `{state: "pending", input: SessionInbox.User}` | 返回原pending输入的首次payload及当前delivery；resume允许时可补wake |
-| `{state: "promoted", input: SessionMessage.User}` | 返回实际User；HTTP重试零wake/零provider重启 |
-| `{state: "cancelled", id: SessionMessage.ID}` | 返回原首问取消事实和保存参考；已删问题正文不伪造为User；HTTP重试零wake |
+| admission                                         | 输入与副作用                                                           |
+| ------------------------------------------------- | ---------------------------------------------------------------------- |
+| `{state: "pending", input: SessionInbox.User}`    | 返回原pending输入的首次payload及当前delivery；resume允许时可补wake     |
+| `{state: "promoted", input: SessionMessage.User}` | 返回实际User；HTTP重试零wake/零provider重启                            |
+| `{state: "cancelled", id: SessionMessage.ID}`     | 返回原首问取消事实和保存参考；已删问题正文不伪造为User；HTTP重试零wake |
 
 创建/准入失败沿现typed错误返回；成功不虚构reserved admission。目标已存在而无匹配咨询owner、source/firstID冲突或阶段与carrier不一致返回409；源/边界新建时不存在为404，跨源或未完成边界、非普通Agent、非法参考为400。handler按原错误映射薄接线。
 
@@ -136,11 +136,11 @@ body不接收权威Location、parentID、controller或服务参考正文/digest�
 
 固定`reference_carrier_id`指向实际pending/User；它是字节读取定位，phase只记录首问状态。row有参考时，新User准入在同事务将它转到该User.files、写carrier ID并清row正文。取消pending carrier同事务转回实际参考并清carrier ID，若它也是firstID则保持cancelled首问终态。保存原文在row或实际input中必须始终存在一个可回读承载；并发准入/取消不能清除最后一份。SC04在原Session事务owner实现，SC07以取消→重开/查看→新问题验证。不永久复制整份首问，不让每个Panel保存一份参考。
 
-| carrier读取状态 | 新User的参考准入 |
-| --- | --- |
-| row持有`reference_file` | prepare后附该实际文件，同事务准入并建立carrier |
-| 尚无已promoted carrier，参考仍在pending inbox | 从实际pending files读取冻结参考，prepare后也附到新User；pending不是模型已读历史 |
-| 已有promoted carrier | 后续模型消费服从正常History、压缩与回退，不自动给新User再次附原文；持久User.files可查看，重新引用走显式动作 |
+| carrier读取状态                               | 新User的参考准入                                                                                            |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| row持有`reference_file`                       | prepare后附该实际文件，同事务准入并建立carrier                                                              |
+| 尚无已promoted carrier，参考仍在pending inbox | 从实际pending files读取冻结参考，prepare后也附到新User；pending不是模型已读历史                             |
+| 已有promoted carrier                          | 后续模型消费服从正常History、压缩与回退，不自动给新User再次附原文；持久User.files可查看，重新引用走显式动作 |
 
 首个实际携带该冻结参考的User投影时，原InboxDelivered事务将其设为promoted carrier；已经有promoted carrier时保留它，后到pending副本不替换该事实。取消其它pending副本只保持firstID终态与现有效carrier，不清除promoted User。若当前仍只有pending carrier或row文件，取消当前carrier先转回实际bytes。参考副本按保存digest/服务provenance辨认，metadata不决定权威。
 
@@ -246,14 +246,14 @@ body不接收权威Location、parentID、controller或服务参考正文/digest�
 
 Core用包wrapper，Protocol没有test，App的E2E类型单独运行；Client check:generated会生成且有写入，执行前按实际生成路径保护。GUI SDK改动同片TSDoc/README并用原`script/sdk-docs.ts`门禁；其余包只用manifest存在的test/typecheck。E2E依原utils readiness、role/label及动作前network等待，不固定sleep，不重试状态变更。性能用production、workers=1/retries=0；真实native隔离目标与预算由Root在相应片冻结。
 
-| 协议差额 | 本片裁决与影响 |
-| --- | --- |
-| DESIGN请求“留中间Composer” | 窄化为实际交互target自己的Composer；主原子树顺序和权限不变，SC07验证互斥响应面 |
-| GUI Timeline仅header旧句 | 本片按明确派发先行允许轻量response Slot；原无逐行订阅/后台/模型工作和稳定挂载约束保持，SC05行为验证 |
-| 一般English-only规则与用户中文要求 | 沿批准要求恢复简体中文及旧locale，去中英文边界空格；普通技术token不改名，不把翻译门禁用作本需求阻挡 |
-| 历史默认仓main/SDK路径/重试术语 | 实施目录和分支以本任务V2为准；使用当前Schema/Protocol、first-admission-wins、logical Step及launcher，不复制旧SDK/运行时或exact-payload retry |
-| 现普通cancel/readmit与咨询firstID终态 | 唯一准入owner按咨询持久归属拒绝已取消firstID复活、reserved firstID被普通输入占用；普通其它输入原keeper完全保持 |
-| 已知retained Bus/source失败 | 原[唯一账本条目](/home/keer/workspace/aigcfroge-v2/docs/technical-debt.md)保留fact/hypothesis/inference/recommendation；非保留Bus是待查输入，仅阻挡对应真实执行，不阻挡SC00或只读UI |
+| 协议差额                              | 本片裁决与影响                                                                                                                                                                      |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DESIGN请求“留中间Composer”            | 窄化为实际交互target自己的Composer；主原子树顺序和权限不变，SC07验证互斥响应面                                                                                                      |
+| GUI Timeline仅header旧句              | 本片按明确派发先行允许轻量response Slot；原无逐行订阅/后台/模型工作和稳定挂载约束保持，SC05行为验证                                                                                 |
+| 一般English-only规则与用户中文要求    | 沿批准要求恢复简体中文及旧locale，去中英文边界空格；普通技术token不改名，不把翻译门禁用作本需求阻挡                                                                                 |
+| 历史默认仓main/SDK路径/重试术语       | 实施目录和分支以本任务V2为准；使用当前Schema/Protocol、first-admission-wins、logical Step及launcher，不复制旧SDK/运行时或exact-payload retry                                        |
+| 现普通cancel/readmit与咨询firstID终态 | 唯一准入owner按咨询持久归属拒绝已取消firstID复活、reserved firstID被普通输入占用；普通其它输入原keeper完全保持                                                                      |
+| 已知retained Bus/source失败           | 原[唯一账本条目](/home/keer/workspace/aigcfroge-v2/docs/technical-debt.md)保留fact/hypothesis/inference/recommendation；非保留Bus是待查输入，仅阻挡对应真实执行，不阻挡SC00或只读UI |
 
 SC00验收由[可重跑文档核验脚本](/home/keer/.codex/outputs/2026-11-10/session-surfaces-sc00/validate-sc00.py)生成[document-validation.json](/home/keer/.codex/outputs/2026-11-10/session-surfaces-sc00/document-validation.json)：新引用/行号/锚点、实际manifest、协议差额、允许文档变换、原WIP内容隔离及HEAD/暂存区。行为未自动验证，后继外部验证路径是各片nearest keeper和同源真实链；文档通过不取得生产行为信用。Root预审的取消参考、source恢复、通用准入与Queue/steer接线在本片固定并由SC04/07定向证明。
 

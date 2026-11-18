@@ -238,18 +238,39 @@ describe("V2 mini transport", () => {
     const client = sdk({ streams: [events] })
     const ui = footer()
     const transport = await createSessionTransport({ sdk: client, sessionID: "ses_1", thinking: false, footer: ui.api })
-    const prompt = spyOn(client.session, "prompt").mockImplementation((request) => ok(promptAdmission(request)) as never)
+    const prompt = spyOn(client.session, "prompt").mockImplementation(
+      (request) => ok(promptAdmission(request)) as never,
+    )
     const group = { type: "group" as const, groupID: "fallback" }
-    await transport.admitPromptTurn({
-      agent: undefined, model: group, variant: undefined,
-      prompt: { messageID: "msg_group", text: "Hello group", parts: [] }, files: [], includeFiles: false,
-    }, "queue")
+    await transport.admitPromptTurn(
+      {
+        agent: undefined,
+        model: group,
+        variant: undefined,
+        prompt: { messageID: "msg_group", text: "Hello group", parts: [] },
+        files: [],
+        includeFiles: false,
+      },
+      "queue",
+    )
     expect(client.session.switchModel).toHaveBeenCalledWith({ sessionID: "ses_1", model: group }, expect.anything())
-    expect(prompt).toHaveBeenCalledWith(expect.objectContaining({ id: "msg_group", delivery: "queue" }), expect.anything())
-    await expect(transport.admitPromptTurn({
-      agent: undefined, model: group, variant: "high",
-      prompt: { messageID: "msg_bad_group", text: "Hello", parts: [] }, files: [], includeFiles: false,
-    }, "queue")).rejects.toThrow("Model groups use each member's configured variant")
+    expect(prompt).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "msg_group", delivery: "queue" }),
+      expect.anything(),
+    )
+    await expect(
+      transport.admitPromptTurn(
+        {
+          agent: undefined,
+          model: group,
+          variant: "high",
+          prompt: { messageID: "msg_bad_group", text: "Hello", parts: [] },
+          files: [],
+          includeFiles: false,
+        },
+        "queue",
+      ),
+    ).rejects.toThrow("Model groups use each member's configured variant")
     expect(prompt).toHaveBeenCalledTimes(1)
     await transport.close()
   })
@@ -2920,7 +2941,12 @@ describe("V2 mini transport", () => {
       () =>
         ok({
           location: { directory: "/tmp", project: { id: "proj_1", directory: "/tmp" } },
-          data: { targets: [], definitions: [], effective: [], defaultSelection: { id: "gpt-5", providerID: "openai" } },
+          data: {
+            targets: [],
+            definitions: [],
+            effective: [],
+            defaultSelection: { id: "gpt-5", providerID: "openai" },
+          },
         }) as never,
     )
     const switched = spyOn(client.session, "switchModel").mockImplementation(() => ok(undefined))

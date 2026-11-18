@@ -2,9 +2,7 @@
   "version": "7",
   "dialect": "sqlite",
   "id": "463be56f-5f29-4831-9d00-1b9c6bd957e3",
-  "prevIds": [
-    "00000000-0000-0000-0000-000000000000"
-  ],
+  "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
     {
       "name": "blob",
@@ -55,18 +53,14 @@
       "table": "document"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "blob_pk",
       "table": "blob",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "key"
-      ],
+      "columns": ["key"],
       "nameExplicit": false,
       "name": "document_pk",
       "table": "document",

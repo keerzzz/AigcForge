@@ -11,10 +11,7 @@ interface State {
   readonly responseID?: string
 }
 
-const onOutputItem = Effect.fnUntraced(function* (
-  state: State,
-  input: OpenResponses.Event,
-) {
+const onOutputItem = Effect.fnUntraced(function* (state: State, input: OpenResponses.Event) {
   const event = OpenResponses.normalize(state.parser, input)
   const item = event.item
   if (!item) return state

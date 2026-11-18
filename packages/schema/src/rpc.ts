@@ -100,11 +100,7 @@ export interface Failure<Type extends string = string, Data = unknown> {
 }
 
 export type SystemError = Failure<
-  | "rpc.unavailable"
-  | "rpc.method_not_found"
-  | "rpc.invalid_input"
-  | "rpc.invalid_output"
-  | "rpc.internal",
+  "rpc.unavailable" | "rpc.method_not_found" | "rpc.invalid_input" | "rpc.invalid_output" | "rpc.internal",
   never
 >
 
@@ -144,19 +140,17 @@ export type ErrorFactory<M extends Method> = <Name extends ErrorName<M>>(
 export type EventInputData<S extends EventValueSchema> = S extends JsonSchema.JsonSchema
   ? EventDataObject
   : HandlerOutput<S>
-export type EventData<S extends EventValueSchema> = S extends JsonSchema.JsonSchema
-  ? EventDataObject
-  : Output<S>
+export type EventData<S extends EventValueSchema> = S extends JsonSchema.JsonSchema ? EventDataObject : Output<S>
 
 // Keep the event name correlated with its payload even when callers use unions.
 export type EventInput<D extends Definition> = {
   [Name in keyof D["events"] & string]: [name: Name, data: EventInputData<D["events"][Name]["schema"]>]
 }[keyof D["events"] & string]
 
-type EventPayloadFor<
-  D extends Definition,
-  Name extends keyof D["events"] & string,
-> = Omit<Event.Payload<Event.EphemeralDefinition>, "type" | "data" | "durable" | "location"> & {
+type EventPayloadFor<D extends Definition, Name extends keyof D["events"] & string> = Omit<
+  Event.Payload<Event.EphemeralDefinition>,
+  "type" | "data" | "durable" | "location"
+> & {
   readonly type: `rpc.${D["id"]}.${Name}`
   readonly data: EventData<D["events"][Name]["schema"]>
   readonly location: Location.Ref

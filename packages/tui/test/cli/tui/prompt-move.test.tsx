@@ -46,9 +46,7 @@ test.each([
 
     await fixture.create()
 
-    expect(fixture.requests).toEqual([
-      { payload: { projectID: "proj_test", name: "fresh" }, directory: null },
-    ])
+    expect(fixture.requests).toEqual([{ payload: { projectID: "proj_test", name: "fresh" }, directory: null }])
     expect(fixture.data.location.info({ directory: created })?.project.canonical).toBe(clone)
     expect(fixture.reads.locations.filter((directory) => directory === input.directory)).toHaveLength(
       input.home ? 3 : 1,
@@ -78,9 +76,7 @@ test.each([
     expect(fixture.reads.worktrees).toEqual(["proj_test"])
     expect(frame).toContain(clone)
     expect(frame.indexOf(clone)).toBeLessThan(frame.indexOf(main))
-    expect(fixture.requests).toEqual([
-      { payload: { projectID: "proj_test", name: "fresh" }, directory: null },
-    ])
+    expect(fixture.requests).toEqual([{ payload: { projectID: "proj_test", name: "fresh" }, directory: null }])
     expect(fixture.data.location.info(selected)?.project.canonical).toBe(clone)
     expect(fixture.moves).toEqual([])
   } finally {
@@ -219,7 +215,12 @@ test("creating a worktree recovers the session without reading its removed locat
 })
 
 test("failed recovery does not navigate away from the session", async () => {
-  const fixture = await renderMove({ directory: clone, unavailable: "location", showMissingLocation: true, moveFails: true })
+  const fixture = await renderMove({
+    directory: clone,
+    unavailable: "location",
+    showMissingLocation: true,
+    moveFails: true,
+  })
   try {
     await fixture.app.waitForFrame((frame) => frame.includes("Session location unavailable"))
     fixture.app.mockInput.pressEnter()

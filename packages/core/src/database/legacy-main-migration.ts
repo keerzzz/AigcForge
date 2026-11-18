@@ -31,7 +31,10 @@ const legacyOnly = new Set([
 export const matches = Effect.fn("LegacyMainMigration.matches")(function* (db: Database) {
   if (!(yield* db.get(sql`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'migration'`))) return false
   const found = yield* db.all<{ id: string }>(sql`
-    SELECT id FROM migration WHERE id IN (${sql.join(markers.map((id) => sql`${id}`), sql`, `)})
+    SELECT id FROM migration WHERE id IN (${sql.join(
+      markers.map((id) => sql`${id}`),
+      sql`, `,
+    )})
   `)
   if (found.length > 0 && found.length !== markers.length)
     return yield* new LegacyMainHistory.RecoveryError({ reason: "Unsupported legacy main migration lineage" })
@@ -56,17 +59,21 @@ const copy = Effect.fn("LegacyMainMigration.copy")(function* (tx: Transaction, s
       column.notnull < expected.notnull ||
       column.dflt_value !== expected.dflt_value
     )
-      return yield* new LegacyMainHistory.RecoveryError({ reason: `Unsupported legacy column: ${target}.${column.name}` })
+      return yield* new LegacyMainHistory.RecoveryError({
+        reason: `Unsupported legacy column: ${target}.${column.name}`,
+      })
   }
   if (
     after.some(
-      (column) =>
-        !before.some((source) => source.name === column.name) && column.notnull && column.dflt_value === null,
+      (column) => !before.some((source) => source.name === column.name) && column.notnull && column.dflt_value === null,
     )
   )
     return yield* new LegacyMainHistory.RecoveryError({ reason: `Legacy table lacks required columns: ${target}` })
 
-  const fields = sql.join(before.map((column) => sql.identifier(column.name)), sql`, `)
+  const fields = sql.join(
+    before.map((column) => sql.identifier(column.name)),
+    sql`, `,
+  )
   yield* tx.run(sql`INSERT INTO ${sql.identifier(target)} (${fields}) SELECT ${fields} FROM ${sql.identifier(source)}`)
   const targetCount = yield* tx.get<{ count: number }>(sql`SELECT count(*) AS count FROM ${sql.identifier(target)}`)
   const mismatch = yield* tx.get(sql`
@@ -82,7 +89,9 @@ export const restore = Effect.fn("LegacyMainMigration.restore")(function* (
   migrations: readonly DatabaseMigration.Migration[],
 ) {
   if (!supportsForeignKeyToggle)
-    return yield* new LegacyMainHistory.RecoveryError({ reason: "Legacy main recovery requires a local SQLite database" })
+    return yield* new LegacyMainHistory.RecoveryError({
+      reason: "Legacy main recovery requires a local SQLite database",
+    })
   const existing = yield* db.all<{ name: string; type: string }>(sql`
     SELECT name, type FROM pragma_table_list
     WHERE schema = 'main' AND name NOT LIKE 'sqlite_%' AND substr(name, 1, 1) <> '_'
@@ -92,19 +101,27 @@ export const restore = Effect.fn("LegacyMainMigration.restore")(function* (
   if (["session", "message", "part", "event"].some((name) => !names.has(name)))
     return yield* new LegacyMainHistory.RecoveryError({ reason: "Legacy main recovery is missing source tables" })
   if (tables.some((table) => table.type !== "table" && !(table.type === "virtual" && table.name === "kb_note_fts")))
-    return yield* new LegacyMainHistory.RecoveryError({ reason: "Legacy main recovery found an unsupported table kind" })
+    return yield* new LegacyMainHistory.RecoveryError({
+      reason: "Legacy main recovery found an unsupported table kind",
+    })
   if (yield* db.get(sql`SELECT 1 FROM sqlite_master WHERE substr(name, 1, ${prefix.length}) = ${prefix} LIMIT 1`))
-    return yield* new LegacyMainHistory.RecoveryError({ reason: "Legacy main archive already exists beside source tables" })
+    return yield* new LegacyMainHistory.RecoveryError({
+      reason: "Legacy main archive already exists beside source tables",
+    })
   if (names.has("session_v2") && (yield* db.get(sql`SELECT 1 FROM session_v2 LIMIT 1`)))
     return yield* new LegacyMainHistory.RecoveryError({
       reason: "Legacy main and current Session data cannot be merged implicitly",
     })
   for (const name of ["session_pending", "session_inbox", "instruction_state", "instruction_entry", "instruction_blob"])
     if (names.has(name) && (yield* db.get(sql`SELECT 1 FROM ${sql.identifier(name)} LIMIT 1`)))
-      return yield* new LegacyMainHistory.RecoveryError({ reason: `Legacy main recovery found current state in ${name}` })
+      return yield* new LegacyMainHistory.RecoveryError({
+        reason: `Legacy main recovery found current state in ${name}`,
+      })
   const triggers = yield* db.all<{ tbl_name: string }>(sql`SELECT tbl_name FROM sqlite_master WHERE type = 'trigger'`)
   if (triggers.some((trigger) => names.has(trigger.tbl_name)))
-    return yield* new LegacyMainHistory.RecoveryError({ reason: "Legacy main recovery found unsupported source triggers" })
+    return yield* new LegacyMainHistory.RecoveryError({
+      reason: "Legacy main recovery found unsupported source triggers",
+    })
 
   const foreignKeys = yield* db.get<{ foreign_keys: number }>(sql`PRAGMA foreign_keys`)
   yield* db.run(sql`PRAGMA foreign_keys = OFF`)
@@ -127,7 +144,9 @@ export const restore = Effect.fn("LegacyMainMigration.restore")(function* (
         `)
         const currentNames = new Set(current.map((table) => table.name))
         if (tables.some((table) => !currentNames.has(table.name) && !legacyOnly.has(table.name)))
-          return yield* new LegacyMainHistory.RecoveryError({ reason: "Legacy main recovery found an unknown source table" })
+          return yield* new LegacyMainHistory.RecoveryError({
+            reason: "Legacy main recovery found an unknown source table",
+          })
         for (const table of current) {
           if (projected.has(table.name)) continue
           const source = table.name === "session_v2" ? "session" : table.name
@@ -151,9 +170,9 @@ export const restore = Effect.fn("LegacyMainMigration.restore")(function* (
     )
     .pipe(
       Effect.ensuring(
-        db.run(foreignKeys?.foreign_keys === 1 ? "PRAGMA foreign_keys = ON" : "PRAGMA foreign_keys = OFF").pipe(
-          Effect.orDie,
-        ),
+        db
+          .run(foreignKeys?.foreign_keys === 1 ? "PRAGMA foreign_keys = ON" : "PRAGMA foreign_keys = OFF")
+          .pipe(Effect.orDie),
       ),
     )
 })

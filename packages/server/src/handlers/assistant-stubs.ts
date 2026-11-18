@@ -75,28 +75,51 @@ export const ScheduleHandler = HttpApiBuilder.group(Api, "schedule", (handlers) 
     const schedules = yield* ScheduleService.Service
     const deliveries = yield* ScheduleService.DeliveryService
     const execution = yield* ScheduleExecution.Service
-    const requireRule = (id: Parameters<ScheduleService.Interface["getRule"]>[0]) => schedules.getRule(id).pipe(
-      Effect.flatMap((rule) => rule ? Effect.succeed(rule)
-        : Effect.fail(new InvalidRequestError({ message: `Schedule ${id} not found` }))),
-    )
+    const requireRule = (id: Parameters<ScheduleService.Interface["getRule"]>[0]) =>
+      schedules
+        .getRule(id)
+        .pipe(
+          Effect.flatMap((rule) =>
+            rule ? Effect.succeed(rule) : Effect.fail(new InvalidRequestError({ message: `Schedule ${id} not found` })),
+          ),
+        )
     const invalid = (error: Error) => new InvalidRequestError({ message: error.message })
     return handlers
       .handle("schedule.pending", () => schedules.listPending())
       .handle("schedule.list", ({ params }) => schedules.list(params.sessionID))
-      .handle("schedule.cancel", ({ params }) => schedules.cancel(params.id).pipe(
-        Effect.flatMap((schedule) => schedule ? Effect.succeed(schedule)
-          : Effect.fail(new InvalidRequestError({ message: `Schedule ${params.id} not found` }))),
-      ))
+      .handle("schedule.cancel", ({ params }) =>
+        schedules
+          .cancel(params.id)
+          .pipe(
+            Effect.flatMap((schedule) =>
+              schedule
+                ? Effect.succeed(schedule)
+                : Effect.fail(new InvalidRequestError({ message: `Schedule ${params.id} not found` })),
+            ),
+          ),
+      )
       .handle("schedule.create", ({ payload }) => execution.create(payload).pipe(Effect.mapError(invalid)))
       .handle("schedule.rules", ({ params }) => schedules.listRules(params.sessionID))
       .handle("schedule.rule", ({ params }) => requireRule(params.id))
-      .handle("schedule.edit", ({ params, payload }) => execution.edit(params.id, payload).pipe(Effect.mapError(invalid)))
-      .handle("schedule.pause", ({ params, payload }) => schedules.pauseRule(params.id, payload.expectedRevision).pipe(Effect.mapError(invalid)))
-      .handle("schedule.resume", ({ params, payload }) => schedules.resumeRule(params.id, payload.expectedRevision).pipe(Effect.mapError(invalid)))
-      .handle("schedule.cancelRule", ({ params, payload }) => schedules.cancelRule(params.id, payload.expectedRevision).pipe(Effect.mapError(invalid)))
-      .handle("schedule.runOnce", ({ params, payload }) => execution.runOnce(params.id, payload.expectedRevision).pipe(Effect.mapError(invalid)))
+      .handle("schedule.edit", ({ params, payload }) =>
+        execution.edit(params.id, payload).pipe(Effect.mapError(invalid)),
+      )
+      .handle("schedule.pause", ({ params, payload }) =>
+        schedules.pauseRule(params.id, payload.expectedRevision).pipe(Effect.mapError(invalid)),
+      )
+      .handle("schedule.resume", ({ params, payload }) =>
+        schedules.resumeRule(params.id, payload.expectedRevision).pipe(Effect.mapError(invalid)),
+      )
+      .handle("schedule.cancelRule", ({ params, payload }) =>
+        schedules.cancelRule(params.id, payload.expectedRevision).pipe(Effect.mapError(invalid)),
+      )
+      .handle("schedule.runOnce", ({ params, payload }) =>
+        execution.runOnce(params.id, payload.expectedRevision).pipe(Effect.mapError(invalid)),
+      )
       .handle("schedule.runs", ({ params }) => requireRule(params.id).pipe(Effect.andThen(schedules.runs(params.id))))
-      .handle("schedule.cancelRun", ({ params }) => execution.cancelRun(params.occurrenceID).pipe(Effect.mapError(invalid)))
+      .handle("schedule.cancelRun", ({ params }) =>
+        execution.cancelRun(params.occurrenceID).pipe(Effect.mapError(invalid)),
+      )
       .handle("delivery.recent", ({ query }) => deliveries.listRecent(query.limit ?? 50))
       .handle("delivery.inbox", ({ params }) => deliveries.listInbox(params.sessionID))
       .handle("delivery.read", ({ params }) => deliveries.markRead(params.deliveryKey))

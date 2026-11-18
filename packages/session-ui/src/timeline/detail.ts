@@ -5,11 +5,13 @@ import { SessionCommunication } from "@aigcfroge/schema/session-communication"
 import { Option, Schema } from "effect"
 import { shellResultFailed } from "../message/current-tool-state"
 
-const decodeCoordination = Schema.decodeUnknownOption(Schema.Union([
-  Schema.Struct({ coordination: Schema.toEncoded(SessionTask.TaskCoordination) }),
-  Schema.Struct({ goalRound: Schema.toEncoded(SessionGoalID.RoundRef) }),
-  Schema.Struct({ communication: Schema.Struct({ id: SessionCommunication.ID }) }),
-]))
+const decodeCoordination = Schema.decodeUnknownOption(
+  Schema.Union([
+    Schema.Struct({ coordination: Schema.toEncoded(SessionTask.TaskCoordination) }),
+    Schema.Struct({ goalRound: Schema.toEncoded(SessionGoalID.RoundRef) }),
+    Schema.Struct({ communication: Schema.Struct({ id: SessionCommunication.ID }) }),
+  ]),
+)
 
 export const timelineCategories = ["shell", "edit", "thinking", "subagents", "notices", "tools"] as const
 

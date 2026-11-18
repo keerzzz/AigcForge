@@ -83,11 +83,29 @@ export function ExtensionLinks(props: ParentProps<{ session: MountedSession }>) 
       shellOutput={data.shellOutput}
       onSessionHref={data.sessionHref}
       onOpenTask={(reference) => {
-        host.links.open({ href: "", session: props.session, task: { server: props.session.server, sourceSessionID: reference.sourceSessionID, operationID: reference.operationID } })
+        host.links.open({
+          href: "",
+          session: props.session,
+          task: {
+            server: props.session.server,
+            sourceSessionID: reference.sourceSessionID,
+            operationID: reference.operationID,
+          },
+        })
       }}
-      onCommunication={(reference) => props.session.server.data.session.communication.get(reference.sessionID, reference.communicationID)}
+      onCommunication={(reference) =>
+        props.session.server.data.session.communication.get(reference.sessionID, reference.communicationID)
+      }
       onOpenCommunication={(reference) => {
-        host.links.open({ href: "", session: props.session, communication: { server: props.session.server, sessionID: reference.sessionID, communicationID: reference.communicationID } })
+        host.links.open({
+          href: "",
+          session: props.session,
+          communication: {
+            server: props.session.server,
+            sessionID: reference.sessionID,
+            communicationID: reference.communicationID,
+          },
+        })
       }}
       onOpenSessionReference={(reference) => {
         host.links.open({ href: "", session: props.session, reference })

@@ -2198,127 +2198,237 @@ describe("SessionRestart Meta ownership boot", () => {
     )
   }
   for (const boundary of ["started-only", "ended-without-step", "settled-step"] as const) {
-    it.live(`P3 reopens the original SQLite attempt and saved Goal refs at ${boundary}`, () => Effect.gen(function* () {
-      const directory = yield* tmpdirScoped()
-      const sessionID = Session.ID.create()
-      const assistantMessageID = SessionMessage.ID.create()
-      const attemptID = "gatt_" + Hash.sha256(JSON.stringify([sessionID, assistantMessageID, 0]))
-      const selection = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("restart-group") })
-      const model = Model.Ref.parse("restart-provider/catalog-model")
-      const usage = { input: 9, output: 4, reasoning: 2, cache: { read: 1, write: 0 } }
-      const summary = { cost: Money.USD.make(5), tokens: usage, unknownPriceAttempts: 1, missingUsageAttempts: 0 }
-      const graph = AppNodeBuilder.build(LayerNode.group([nodes, MetaAgentService.node, SessionProjector.node]), [
-        Global.node.replace(tempGlobalLayer),
-        Database.node.replace(Database.configured({ path: `${directory.path}/physical-restart.db` })),
-        Bus.node.replace(Bus.configured({ persist: true })), offlineModels,
-      ])
-      const before = yield* Effect.gen(function* () {
-        const database = yield* Database.Service
-        const bus = yield* Bus.Service
-        const metas = yield* MetaAgentService.Service
-        const goals = yield* SessionGoal.Service
-        const store = yield* SessionStore.Service
-        const meta = yield* metas.create({ title: "Physical recovery owner", agent: "meta", model: selection })
-        yield* seedSessions(database, [sessionID], {
-          mode: "coding", directory: directory.path, agent: "meta", model: selection,
-          controller: new SessionSchema.RootController({ kind: "root", rootSessionID: sessionID, metaAgentID: meta.id }),
-        })
-        yield* metas.attach({ metaID: meta.id, sessionID, role: "orchestrator" })
-        const goal = yield* goals.set({ sessionID, objective: "Preserve the saved physical attempt", budget: {}, conditions: [
-          SessionGoal.Condition.make({ id: "command", kind: "command_result", command: "bun test restart", cwd: directory.path, exit: 0, outputIncludes: ["passed"] }),
-        ] })
-        const advanced = yield* goals.advance({ sessionID, goalID: goal.id })
-        if (advanced.round === undefined) return yield* Effect.die(new Error("Recovery Goal did not reserve its round"))
-        yield* SessionInbox.promote(database.db, bus, sessionID, "input", undefined, { anchorInputID: advanced.round.inputID })
-        const refs = yield* goals.beforeAttempt({ sessionID, inputID: advanced.round.inputID, assistantMessageID, attemptID, kind: "coordinator" })
-        expect(refs).toHaveLength(1)
-        yield* bus.publish(SessionEvent.Attempt.Started, { sessionID, assistantMessageID, ...new SessionAttempt.Started({
-          ordinal: 0, attemptID, agent: Agent.ID.make("meta"), selection, behaviorDigest: "saved-behavior-digest", model,
-          apiModelID: "provider-api-model", connection: { type: "credential", id: Credential.ID.make("saved-connection") },
-          quote: { status: "unknown" }, goalRefs: refs, transition: "initial", started: 10,
-        }) })
-        if (boundary !== "started-only") yield* bus.publish(SessionEvent.Attempt.Ended, { sessionID, assistantMessageID, ordinal: 0, terminal: new SessionAttempt.Terminal({
-          status: "completed", ended: 20, outputStarted: false, finish: "stop", usage, cost: summary.cost, delivery: "accepted",
-        }) })
-        if (boundary === "settled-step") {
-          yield* goals.settleAttempt({ refs, usage })
-          yield* bus.publish(SessionEvent.Step.Ended, { sessionID, assistantMessageID, finish: "stop", ...summary })
-          yield* bus.publish(SessionEvent.Step.Completed, { sessionID, assistantMessageID, resultAnchorInputID: advanced.round.inputID })
-        }
-        yield* store.claim(sessionID)
-        const saved = yield* goals.get({ sessionID, goalID: goal.id })
-        const assistant = (yield* store.context(sessionID)).find((message) => message.type === "assistant")
-        if (saved === undefined || assistant === undefined) return yield* Effect.die(new Error("Recovery setup did not persist its Goal or Assistant"))
-        return { goalID: goal.id, round: advanced.round, rounds: saved.rounds, refs, assistant }
-      }).pipe(Effect.scoped, Effect.provide(Layer.fresh(graph)))
+    it.live(`P3 reopens the original SQLite attempt and saved Goal refs at ${boundary}`, () =>
+      Effect.gen(function* () {
+        const directory = yield* tmpdirScoped()
+        const sessionID = Session.ID.create()
+        const assistantMessageID = SessionMessage.ID.create()
+        const attemptID = "gatt_" + Hash.sha256(JSON.stringify([sessionID, assistantMessageID, 0]))
+        const selection = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("restart-group") })
+        const model = Model.Ref.parse("restart-provider/catalog-model")
+        const usage = { input: 9, output: 4, reasoning: 2, cache: { read: 1, write: 0 } }
+        const summary = { cost: Money.USD.make(5), tokens: usage, unknownPriceAttempts: 1, missingUsageAttempts: 0 }
+        const graph = AppNodeBuilder.build(LayerNode.group([nodes, MetaAgentService.node, SessionProjector.node]), [
+          Global.node.replace(tempGlobalLayer),
+          Database.node.replace(Database.configured({ path: `${directory.path}/physical-restart.db` })),
+          Bus.node.replace(Bus.configured({ persist: true })),
+          offlineModels,
+        ])
+        const before = yield* Effect.gen(function* () {
+          const database = yield* Database.Service
+          const bus = yield* Bus.Service
+          const metas = yield* MetaAgentService.Service
+          const goals = yield* SessionGoal.Service
+          const store = yield* SessionStore.Service
+          const meta = yield* metas.create({ title: "Physical recovery owner", agent: "meta", model: selection })
+          yield* seedSessions(database, [sessionID], {
+            mode: "coding",
+            directory: directory.path,
+            agent: "meta",
+            model: selection,
+            controller: new SessionSchema.RootController({
+              kind: "root",
+              rootSessionID: sessionID,
+              metaAgentID: meta.id,
+            }),
+          })
+          yield* metas.attach({ metaID: meta.id, sessionID, role: "orchestrator" })
+          const goal = yield* goals.set({
+            sessionID,
+            objective: "Preserve the saved physical attempt",
+            budget: {},
+            conditions: [
+              SessionGoal.Condition.make({
+                id: "command",
+                kind: "command_result",
+                command: "bun test restart",
+                cwd: directory.path,
+                exit: 0,
+                outputIncludes: ["passed"],
+              }),
+            ],
+          })
+          const advanced = yield* goals.advance({ sessionID, goalID: goal.id })
+          if (advanced.round === undefined)
+            return yield* Effect.die(new Error("Recovery Goal did not reserve its round"))
+          yield* SessionInbox.promote(database.db, bus, sessionID, "input", undefined, {
+            anchorInputID: advanced.round.inputID,
+          })
+          const refs = yield* goals.beforeAttempt({
+            sessionID,
+            inputID: advanced.round.inputID,
+            assistantMessageID,
+            attemptID,
+            kind: "coordinator",
+          })
+          expect(refs).toHaveLength(1)
+          yield* bus.publish(SessionEvent.Attempt.Started, {
+            sessionID,
+            assistantMessageID,
+            ...new SessionAttempt.Started({
+              ordinal: 0,
+              attemptID,
+              agent: Agent.ID.make("meta"),
+              selection,
+              behaviorDigest: "saved-behavior-digest",
+              model,
+              apiModelID: "provider-api-model",
+              connection: { type: "credential", id: Credential.ID.make("saved-connection") },
+              quote: { status: "unknown" },
+              goalRefs: refs,
+              transition: "initial",
+              started: 10,
+            }),
+          })
+          if (boundary !== "started-only")
+            yield* bus.publish(SessionEvent.Attempt.Ended, {
+              sessionID,
+              assistantMessageID,
+              ordinal: 0,
+              terminal: new SessionAttempt.Terminal({
+                status: "completed",
+                ended: 20,
+                outputStarted: false,
+                finish: "stop",
+                usage,
+                cost: summary.cost,
+                delivery: "accepted",
+              }),
+            })
+          if (boundary === "settled-step") {
+            yield* goals.settleAttempt({ refs, usage })
+            yield* bus.publish(SessionEvent.Step.Ended, { sessionID, assistantMessageID, finish: "stop", ...summary })
+            yield* bus.publish(SessionEvent.Step.Completed, {
+              sessionID,
+              assistantMessageID,
+              resultAnchorInputID: advanced.round.inputID,
+            })
+          }
+          yield* store.claim(sessionID)
+          const saved = yield* goals.get({ sessionID, goalID: goal.id })
+          const assistant = (yield* store.context(sessionID)).find((message) => message.type === "assistant")
+          if (saved === undefined || assistant === undefined)
+            return yield* Effect.die(new Error("Recovery setup did not persist its Goal or Assistant"))
+          return { goalID: goal.id, round: advanced.round, rounds: saved.rounds, refs, assistant }
+        }).pipe(Effect.scoped, Effect.provide(Layer.fresh(graph)))
 
-      const after = yield* Effect.gen(function* () {
-        const database = yield* Database.Service
-        const goals = yield* SessionGoal.Service
-        const store = yield* SessionStore.Service
-        const scope = yield* Scope.make()
-        yield* Effect.addFinalizer(() => Scope.close(scope, Exit.void))
-        const drained: Session.ID[] = []
-        const started = yield* Deferred.make<void>()
-        const release = yield* Deferred.make<void>()
-        const context = yield* buildExecution(scope, (input) => Effect.sync(() => { drained.push(input.sessionID) }).pipe(
-          Effect.andThen(Deferred.succeed(started, undefined)), Effect.andThen(Deferred.await(release)),
-        ))
-        const execution = Context.get(context, SessionExecution.Service)
-        const restart = Context.get(context, SessionRestart.Service)
-        yield* restart.resumeSuspendedSessions
-        if (boundary !== "settled-step") yield* awaitWithTimeout(Deferred.await(started), "Reopened attempt owner did not resume")
-        yield* restart.resumeSuspendedSessions
-        const messages = yield* store.context(sessionID)
-        const assistant = messages.find((message): message is SessionMessage.Assistant => message.type === "assistant")
-        if (assistant?.attempts === undefined) return yield* Effect.die(new Error("Reopened physical receipt disappeared"))
-        expect(assistant.attempts).toHaveLength(1)
-        expect(assistant.attempts[0]).toMatchObject({ ordinal: 0, attemptID, selection, behaviorDigest: "saved-behavior-digest", model, apiModelID: "provider-api-model", goalRefs: before.refs })
-        expect(assistant.attempts[0].terminal).toMatchObject(boundary === "started-only"
-          ? { status: "interrupted", outputStarted: false, delivery: "unknown" }
-          : { status: "completed", usage, cost: summary.cost, delivery: "accepted" })
-        const goal = yield* goals.get({ sessionID, goalID: before.goalID })
-        expect(goal?.rounds).toEqual(before.rounds)
-        expect(goal?.attempts).toHaveLength(1)
-        expect(goal?.attempts[0]).toMatchObject({ id: attemptID, assistantMessageID })
-        expect(goal?.attempts[0].settledAt).toBeDefined()
-        expect(goal?.attempts[0].usage).toEqual(boundary === "started-only" ? undefined : usage)
-        expect(goal?.accounting.coordinator.unknownAttempts).toBe(boundary === "started-only" ? 1 : 0)
-        expect(yield* store.get(sessionID)).toMatchObject(boundary === "started-only"
-          ? { cost: 0, unknownPriceAttempts: 1, missingUsageAttempts: 1 }
-          : summary)
-        const events = yield* database.db.select().from(EventTable).where(eq(EventTable.aggregate_id, sessionID)).orderBy(asc(EventTable.seq)).all().pipe(Effect.orDie)
-        expect(events.filter((event) => event.type === "session.attempt.started.1")).toHaveLength(1)
-        expect(events.filter((event) => event.type === "session.attempt.ended.1")).toHaveLength(1)
-        expect(events.filter((event) => event.type === "session.step.ended.1" || event.type === "session.step.failed.1")).toHaveLength(1)
-        expect(events.filter((event) => event.type === "session.step.completed.1")).toHaveLength(boundary === "settled-step" ? 1 : 0)
-        expect(drained).toEqual(boundary === "settled-step" ? [] : [sessionID])
-        if (boundary === "settled-step") expect(assistant).toEqual(before.assistant)
-        if (boundary !== "settled-step") {
-          yield* Deferred.succeed(release, undefined)
-          yield* execution.awaitIdle(sessionID)
-        }
-        return { assistant, goal, session: yield* store.get(sessionID), receiptEvents: events.filter((event) => event.type.startsWith("session.attempt.") || event.type.startsWith("session.step.")) }
-      }).pipe(Effect.scoped, Effect.provide(Layer.fresh(graph)))
+        const after = yield* Effect.gen(function* () {
+          const database = yield* Database.Service
+          const goals = yield* SessionGoal.Service
+          const store = yield* SessionStore.Service
+          const scope = yield* Scope.make()
+          yield* Effect.addFinalizer(() => Scope.close(scope, Exit.void))
+          const drained: Session.ID[] = []
+          const started = yield* Deferred.make<void>()
+          const release = yield* Deferred.make<void>()
+          const context = yield* buildExecution(scope, (input) =>
+            Effect.sync(() => {
+              drained.push(input.sessionID)
+            }).pipe(Effect.andThen(Deferred.succeed(started, undefined)), Effect.andThen(Deferred.await(release))),
+          )
+          const execution = Context.get(context, SessionExecution.Service)
+          const restart = Context.get(context, SessionRestart.Service)
+          yield* restart.resumeSuspendedSessions
+          if (boundary !== "settled-step")
+            yield* awaitWithTimeout(Deferred.await(started), "Reopened attempt owner did not resume")
+          yield* restart.resumeSuspendedSessions
+          const messages = yield* store.context(sessionID)
+          const assistant = messages.find(
+            (message): message is SessionMessage.Assistant => message.type === "assistant",
+          )
+          if (assistant?.attempts === undefined)
+            return yield* Effect.die(new Error("Reopened physical receipt disappeared"))
+          expect(assistant.attempts).toHaveLength(1)
+          expect(assistant.attempts[0]).toMatchObject({
+            ordinal: 0,
+            attemptID,
+            selection,
+            behaviorDigest: "saved-behavior-digest",
+            model,
+            apiModelID: "provider-api-model",
+            goalRefs: before.refs,
+          })
+          expect(assistant.attempts[0].terminal).toMatchObject(
+            boundary === "started-only"
+              ? { status: "interrupted", outputStarted: false, delivery: "unknown" }
+              : { status: "completed", usage, cost: summary.cost, delivery: "accepted" },
+          )
+          const goal = yield* goals.get({ sessionID, goalID: before.goalID })
+          expect(goal?.rounds).toEqual(before.rounds)
+          expect(goal?.attempts).toHaveLength(1)
+          expect(goal?.attempts[0]).toMatchObject({ id: attemptID, assistantMessageID })
+          expect(goal?.attempts[0].settledAt).toBeDefined()
+          expect(goal?.attempts[0].usage).toEqual(boundary === "started-only" ? undefined : usage)
+          expect(goal?.accounting.coordinator.unknownAttempts).toBe(boundary === "started-only" ? 1 : 0)
+          expect(yield* store.get(sessionID)).toMatchObject(
+            boundary === "started-only" ? { cost: 0, unknownPriceAttempts: 1, missingUsageAttempts: 1 } : summary,
+          )
+          const events = yield* database.db
+            .select()
+            .from(EventTable)
+            .where(eq(EventTable.aggregate_id, sessionID))
+            .orderBy(asc(EventTable.seq))
+            .all()
+            .pipe(Effect.orDie)
+          expect(events.filter((event) => event.type === "session.attempt.started.1")).toHaveLength(1)
+          expect(events.filter((event) => event.type === "session.attempt.ended.1")).toHaveLength(1)
+          expect(
+            events.filter((event) => event.type === "session.step.ended.1" || event.type === "session.step.failed.1"),
+          ).toHaveLength(1)
+          expect(events.filter((event) => event.type === "session.step.completed.1")).toHaveLength(
+            boundary === "settled-step" ? 1 : 0,
+          )
+          expect(drained).toEqual(boundary === "settled-step" ? [] : [sessionID])
+          if (boundary === "settled-step") expect(assistant).toEqual(before.assistant)
+          if (boundary !== "settled-step") {
+            yield* Deferred.succeed(release, undefined)
+            yield* execution.awaitIdle(sessionID)
+          }
+          return {
+            assistant,
+            goal,
+            session: yield* store.get(sessionID),
+            receiptEvents: events.filter(
+              (event) => event.type.startsWith("session.attempt.") || event.type.startsWith("session.step."),
+            ),
+          }
+        }).pipe(Effect.scoped, Effect.provide(Layer.fresh(graph)))
 
-      yield* Effect.gen(function* () {
-        const database = yield* Database.Service
-        const goals = yield* SessionGoal.Service
-        const store = yield* SessionStore.Service
-        const scope = yield* Scope.make()
-        yield* Effect.addFinalizer(() => Scope.close(scope, Exit.void))
-        const drained: Session.ID[] = []
-        const context = yield* buildExecution(scope, (input) => Effect.sync(() => { drained.push(input.sessionID) }))
-        yield* Context.get(context, SessionRestart.Service).resumeSuspendedSessions
-        expect(drained).toEqual([])
-        expect((yield* store.context(sessionID)).find((message) => message.type === "assistant")).toEqual(after.assistant)
-        expect((yield* goals.get({ sessionID, goalID: before.goalID }))?.attempts).toEqual(after.goal?.attempts)
-        expect((yield* goals.get({ sessionID, goalID: before.goalID }))?.rounds).toEqual(after.goal?.rounds)
-        expect(yield* store.get(sessionID)).toEqual(after.session)
-        const events = yield* database.db.select().from(EventTable).where(eq(EventTable.aggregate_id, sessionID)).orderBy(asc(EventTable.seq)).all().pipe(Effect.orDie)
-        expect(events.filter((event) => event.type.startsWith("session.attempt.") || event.type.startsWith("session.step."))).toEqual(after.receiptEvents)
-      }).pipe(Effect.scoped, Effect.provide(Layer.fresh(graph)))
-    }))
+        yield* Effect.gen(function* () {
+          const database = yield* Database.Service
+          const goals = yield* SessionGoal.Service
+          const store = yield* SessionStore.Service
+          const scope = yield* Scope.make()
+          yield* Effect.addFinalizer(() => Scope.close(scope, Exit.void))
+          const drained: Session.ID[] = []
+          const context = yield* buildExecution(scope, (input) =>
+            Effect.sync(() => {
+              drained.push(input.sessionID)
+            }),
+          )
+          yield* Context.get(context, SessionRestart.Service).resumeSuspendedSessions
+          expect(drained).toEqual([])
+          expect((yield* store.context(sessionID)).find((message) => message.type === "assistant")).toEqual(
+            after.assistant,
+          )
+          expect((yield* goals.get({ sessionID, goalID: before.goalID }))?.attempts).toEqual(after.goal?.attempts)
+          expect((yield* goals.get({ sessionID, goalID: before.goalID }))?.rounds).toEqual(after.goal?.rounds)
+          expect(yield* store.get(sessionID)).toEqual(after.session)
+          const events = yield* database.db
+            .select()
+            .from(EventTable)
+            .where(eq(EventTable.aggregate_id, sessionID))
+            .orderBy(asc(EventTable.seq))
+            .all()
+            .pipe(Effect.orDie)
+          expect(
+            events.filter(
+              (event) => event.type.startsWith("session.attempt.") || event.type.startsWith("session.step."),
+            ),
+          ).toEqual(after.receiptEvents)
+        }).pipe(Effect.scoped, Effect.provide(Layer.fresh(graph)))
+      }),
+    )
   }
 
   for (const boundary of ["pre-admission", "unknown-attempt"] as const) {

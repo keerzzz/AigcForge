@@ -1,4 +1,15 @@
-import { createMemo, createSignal, ErrorBoundary, For, Match, onCleanup, Show, Switch, untrack, type JSX } from "solid-js"
+import {
+  createMemo,
+  createSignal,
+  ErrorBoundary,
+  For,
+  Match,
+  onCleanup,
+  Show,
+  Switch,
+  untrack,
+  type JSX,
+} from "solid-js"
 import { createStore } from "solid-js/store"
 import { Dynamic } from "solid-js/web"
 import { createResizeObserver } from "@solid-primitives/resize-observer"

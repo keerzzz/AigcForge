@@ -48,7 +48,6 @@ AUDIT-V2-RECOVERY-ISOLATION 的完整配置矩阵、多领域与多 participant 
 
 反向真实Workflow健康/Delegation故障组合由下一子切片继续；成功child delivery、完整receipt/parent notice、全部配置/Location、managed-server/provider、并发和逐写入crash仍开放。P0.4/P0/P0.3整项、提交与发布未批准。`git log`生成的本批commit列表仍为空，全部WIP保留。此审批绑定Workflow测试e5b444…快照，后续新增反向测试须单独验证。
 
-
 ## 2026-10-25T18:51:46.939735+00:00 UTC 反向真实领域增量审批
 
 批准一个反向恢复用例及现有KV输出根的增量。[机器记录](evidence/v2-recovery-p0.4-2026-10-25/protocol-approval-reverse-workflow.json) 保存当前七文件、三份有效日志与 [独立复审](evidence/v2-recovery-p0.4-2026-10-25/p04-reverse-workflow-review.md) 身份，复审JSON SHA `af4ccdb6e0cdadcf7bdc22c66fa4e68e155d56097db2b6e0ace022d2bc868470`，findings=[]。主线重核所有源码与日志SHA；四文件回归 **124 pass / 0 fail / 1229 expect**，Core类型exit0、七文件lint exit0（0 warnings/errors、1 rule）。三生产文件和其余三测试与123审批相同，旧Effect检查只复用相同三生产SHA，不扩大为新测试AST检查。原123及单例格式前58断言记录均保留，不累计。

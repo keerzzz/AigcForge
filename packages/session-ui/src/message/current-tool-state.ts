@@ -5,13 +5,17 @@ const decodeInput = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Reco
 
 const empty = {}
 
-export function currentToolInput(tool: SessionMessageAssistantTool): Extract<SessionMessageAssistantTool["state"], { status: "running" }>["input"] {
+export function currentToolInput(
+  tool: SessionMessageAssistantTool,
+): Extract<SessionMessageAssistantTool["state"], { status: "running" }>["input"] {
   if (tool.state.status !== "streaming") return tool.state.input
 
   return Option.getOrElse(decodeInput(tool.state.input), () => empty)
 }
 
-export function currentToolMetadata(tool: SessionMessageAssistantTool): Extract<SessionMessageAssistantTool["state"], { status: "running" }>["metadata"] {
+export function currentToolMetadata(
+  tool: SessionMessageAssistantTool,
+): Extract<SessionMessageAssistantTool["state"], { status: "running" }>["metadata"] {
   if (!("metadata" in tool.state)) return empty
 
   return tool.state.metadata ?? empty
@@ -56,10 +60,7 @@ export function executeToolFailed(metadata: Record<string, JsonValue>) {
   return (
     metadata.error === true ||
     (Array.isArray(calls) &&
-      calls.some(
-        (call) =>
-          Predicate.isObject(call) && "status" in call && call.status === "error",
-      ))
+      calls.some((call) => Predicate.isObject(call) && "status" in call && call.status === "error"))
   )
 }
 

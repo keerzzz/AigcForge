@@ -329,49 +329,67 @@ const hookEvent = (sessionID: Session.ID, agent = Agent.ID.make("meta")): Sessio
   tools: { [SubagentTool.name]: { description: SubagentTool.description, input: { type: "object" } } },
 })
 
-ownershipIt.live("parses a Group override and retains the Custom child's captured behavior when its definition changes", () => Effect.gen(function* () {
-  const f = yield* setupCustom()
-  const presence = yield* ApprovalPresence.Service
-  yield* presence.bindResponder({ location: f.parent.location, custom: true })
-  const bus = yield* Bus.Service
-  const unsubscribe = yield* bus.listen((event) => {
-    if (event.type !== Permission.Event.Asked.type) return Effect.void
-    const request = Schema.decodeUnknownSync(Permission.Request)(event.data)
-    if (request.sessionID !== f.parent.id || request.action !== SubagentTool.name) return Effect.void
-    expect(request.resources).toEqual([f.info.id])
-    return f.permission.reply({ requestID: request.id, reply: "once" }).pipe(Effect.orDie)
-  })
-  yield* Effect.addFinalizer(() => unsubscribe)
-  const locations = yield* LocationServiceMap.Service
-  const config = yield* Config.Service.pipe(Effect.provide(locations.get(f.parent.location)))
-  if (!config.provider) return yield* Effect.die(new Error("Subagent Group configuration is missing"))
-  const target = (yield* config.provider.list()).targets.find((target) => target.scope === "project" && target.preferred)
-  if (!target) return yield* Effect.die(new Error("Subagent Group target is missing"))
-  const group = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("review") })
-  const input = { groupID: group.groupID, target: { scope: target.scope, path: target.path }, expectedDigest: target.digest,
-    patch: { set: { name: "Review", enabled: true, members: [childModel], strategy: "order", affinity: "turn" } } }
-  const saved = yield* ModelGroup.save(ModelGroup.decodeSave(input)).pipe(Effect.provideService(Config.Service, config))
-  expect(saved.definition.status).toBe("saved")
-  const original = yield* ModelGroup.behavior(group.groupID).pipe(Effect.provideService(Config.Service, config))
-  const response = yield* f.execute({ model: "group:review" })
-  expect(response).toMatchObject({ status: "completed" })
-  const childID = outputSessionID(response.output)
-  const child = yield* f.sessions.get(childID)
-  expect(child.model).toEqual(group)
-  const snapshot = yield* f.compositions.get(childID)
-  if (snapshot.version !== 2) return yield* Effect.die(new Error("Subagent Group snapshot is not V2"))
-  expect(SessionComposition.groupBehaviorFor(snapshot, f.info.id)).toEqual(original)
-  const edited = yield* ModelGroup.save(ModelGroup.decodeSave({ ...input, expectedDigest: saved.definition.target?.digest, patch: { set: { members: [parentModel] } } })).pipe(Effect.provideService(Config.Service, config))
-  expect(edited.definition.status).toBe("saved")
-  expect((yield* f.execute({ sessionID: childID, background: true })).status).toBe("completed")
-  expect((yield* f.sessions.get(childID)).model).toEqual(group)
-  expect(yield* f.compositions.get(childID)).toEqual(snapshot)
-  const next = yield* f.execute({ model: "group:review" })
-  expect(next.status).toBe("completed")
-  const nextSnapshot = yield* f.compositions.get(outputSessionID(next.output))
-  if (nextSnapshot.version !== 2) return yield* Effect.die(new Error("New subagent Group snapshot is not V2"))
-  expect(SessionComposition.groupBehaviorFor(nextSnapshot, f.info.id)?.members).toEqual([parentModel])
-}))
+ownershipIt.live(
+  "parses a Group override and retains the Custom child's captured behavior when its definition changes",
+  () =>
+    Effect.gen(function* () {
+      const f = yield* setupCustom()
+      const presence = yield* ApprovalPresence.Service
+      yield* presence.bindResponder({ location: f.parent.location, custom: true })
+      const bus = yield* Bus.Service
+      const unsubscribe = yield* bus.listen((event) => {
+        if (event.type !== Permission.Event.Asked.type) return Effect.void
+        const request = Schema.decodeUnknownSync(Permission.Request)(event.data)
+        if (request.sessionID !== f.parent.id || request.action !== SubagentTool.name) return Effect.void
+        expect(request.resources).toEqual([f.info.id])
+        return f.permission.reply({ requestID: request.id, reply: "once" }).pipe(Effect.orDie)
+      })
+      yield* Effect.addFinalizer(() => unsubscribe)
+      const locations = yield* LocationServiceMap.Service
+      const config = yield* Config.Service.pipe(Effect.provide(locations.get(f.parent.location)))
+      if (!config.provider) return yield* Effect.die(new Error("Subagent Group configuration is missing"))
+      const target = (yield* config.provider.list()).targets.find(
+        (target) => target.scope === "project" && target.preferred,
+      )
+      if (!target) return yield* Effect.die(new Error("Subagent Group target is missing"))
+      const group = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("review") })
+      const input = {
+        groupID: group.groupID,
+        target: { scope: target.scope, path: target.path },
+        expectedDigest: target.digest,
+        patch: { set: { name: "Review", enabled: true, members: [childModel], strategy: "order", affinity: "turn" } },
+      }
+      const saved = yield* ModelGroup.save(ModelGroup.decodeSave(input)).pipe(
+        Effect.provideService(Config.Service, config),
+      )
+      expect(saved.definition.status).toBe("saved")
+      const original = yield* ModelGroup.behavior(group.groupID).pipe(Effect.provideService(Config.Service, config))
+      const response = yield* f.execute({ model: "group:review" })
+      expect(response).toMatchObject({ status: "completed" })
+      const childID = outputSessionID(response.output)
+      const child = yield* f.sessions.get(childID)
+      expect(child.model).toEqual(group)
+      const snapshot = yield* f.compositions.get(childID)
+      if (snapshot.version !== 2) return yield* Effect.die(new Error("Subagent Group snapshot is not V2"))
+      expect(SessionComposition.groupBehaviorFor(snapshot, f.info.id)).toEqual(original)
+      const edited = yield* ModelGroup.save(
+        ModelGroup.decodeSave({
+          ...input,
+          expectedDigest: saved.definition.target?.digest,
+          patch: { set: { members: [parentModel] } },
+        }),
+      ).pipe(Effect.provideService(Config.Service, config))
+      expect(edited.definition.status).toBe("saved")
+      expect((yield* f.execute({ sessionID: childID, background: true })).status).toBe("completed")
+      expect((yield* f.sessions.get(childID)).model).toEqual(group)
+      expect(yield* f.compositions.get(childID)).toEqual(snapshot)
+      const next = yield* f.execute({ model: "group:review" })
+      expect(next.status).toBe("completed")
+      const nextSnapshot = yield* f.compositions.get(outputSessionID(next.output))
+      if (nextSnapshot.version !== 2) return yield* Effect.die(new Error("New subagent Group snapshot is not V2"))
+      expect(SessionComposition.groupBehaviorFor(nextSnapshot, f.info.id)?.members).toEqual([parentModel])
+    }),
+)
 
 describe("SubagentTool", () => {
   it.live("rejects user-defined Coding targets without creating a child", () =>
@@ -1408,7 +1426,10 @@ describe("SubagentTool", () => {
           })
 
           const failures = [
-            ["not-a-ref", 'Invalid model "not-a-ref". Use "providerID/modelID", "providerID/modelID#variant", or "group:groupID".'],
+            [
+              "not-a-ref",
+              'Invalid model "not-a-ref". Use "providerID/modelID", "providerID/modelID#variant", or "group:groupID".',
+            ],
             ["test/missing", 'Model "test/missing" is not available. Use the models tool to see what is available.'],
             ["test/override#slow", 'Variant "slow" is not available for "test/override". Available: fast.'],
             ["test/plain#high", 'Model "test/plain" has no variants. Omit the variant.'],

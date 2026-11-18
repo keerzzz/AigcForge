@@ -50,23 +50,36 @@ export function quotedCost(quote: ModelSource.Quote, usage: TokenUsage.Info | un
 /** Quotes are valid at the physical request boundary; an elapsed quote has no current price. */
 export function currentQuote(quote: ModelSource.Quote, time: number): ModelSource.Quote {
   if (quote.status === "unknown") return quote
-  if ((quote.validFrom !== undefined && time < quote.validFrom) ||
-    (quote.validUntil !== undefined && time >= quote.validUntil)) return { status: "unknown" }
+  if (
+    (quote.validFrom !== undefined && time < quote.validFrom) ||
+    (quote.validUntil !== undefined && time >= quote.validUntil)
+  )
+    return { status: "unknown" }
   return quote
 }
 
 /** A logical Step sums its durable receipts, each already priced at its own deployment. */
-export const aggregate = (attempts: readonly SessionAttempt.Info[]) => attempts.reduce((sum, attempt) => {
-  const terminal = attempt.terminal
-  if (!terminal) return sum
-  const usage = terminal.usage ?? tokens(undefined)
-  return {
-    ...add(sum, { tokens: usage, cost: terminal.cost ?? Money.USD.zero }),
-    unknownPriceAttempts: sum.unknownPriceAttempts + Number(attempt.quote.status === "unknown" ||
-      (attempt.quote.status === "known" && terminal.usage !== undefined && price(attempt.quote.prices, terminal.usage) === undefined)),
-    missingUsageAttempts: sum.missingUsageAttempts + Number(terminal.usage === undefined),
-  }
-}, { cost: Money.USD.zero, tokens: tokens(undefined), unknownPriceAttempts: 0, missingUsageAttempts: 0 })
+export const aggregate = (attempts: readonly SessionAttempt.Info[]) =>
+  attempts.reduce(
+    (sum, attempt) => {
+      const terminal = attempt.terminal
+      if (!terminal) return sum
+      const usage = terminal.usage ?? tokens(undefined)
+      return {
+        ...add(sum, { tokens: usage, cost: terminal.cost ?? Money.USD.zero }),
+        unknownPriceAttempts:
+          sum.unknownPriceAttempts +
+          Number(
+            attempt.quote.status === "unknown" ||
+              (attempt.quote.status === "known" &&
+                terminal.usage !== undefined &&
+                price(attempt.quote.prices, terminal.usage) === undefined),
+          ),
+        missingUsageAttempts: sum.missingUsageAttempts + Number(terminal.usage === undefined),
+      }
+    },
+    { cost: Money.USD.zero, tokens: tokens(undefined), unknownPriceAttempts: 0, missingUsageAttempts: 0 },
+  )
 
 export type Recorded = { readonly tokens: TokenUsage.Info; readonly cost: Money.USD }
 

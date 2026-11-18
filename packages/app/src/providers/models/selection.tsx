@@ -32,7 +32,9 @@ export type { ModelKey } from "./key"
 
 const ChoiceSchema = Schema.Struct({
   model: Persistence.optional(ModelKey),
-  modelLabel: Persistence.optional(Schema.Struct({ name: Schema.String, providerName: Schema.optional(Schema.String) })),
+  modelLabel: Persistence.optional(
+    Schema.Struct({ name: Schema.String, providerName: Schema.optional(Schema.String) }),
+  ),
   variant: Persistence.optional(Schema.NullOr(Schema.String)),
 })
 
@@ -43,10 +45,12 @@ const StateSchema = Schema.Struct({
   executorPreference: Persistence.optional(
     Schema.Struct({
       agent: Schema.String,
-      model: Schema.optional(Schema.Union([
-        Schema.Struct({ id: Schema.String, providerID: Schema.String, variant: Schema.optional(Schema.String) }),
-        Schema.Struct({ type: Schema.Literal("group"), groupID: Schema.String }),
-      ])),
+      model: Schema.optional(
+        Schema.Union([
+          Schema.Struct({ id: Schema.String, providerID: Schema.String, variant: Schema.optional(Schema.String) }),
+          Schema.Struct({ type: Schema.Literal("group"), groupID: Schema.String }),
+        ]),
+      ),
     }),
   ),
 })
@@ -428,7 +432,12 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (previous.agent === item.name) return
           const choices = selectionChoices()
 
-          if (previous.agent) choices[previous.agent] = { model: previous.model, modelLabel: previous.modelLabel, variant: previous.variant }
+          if (previous.agent)
+            choices[previous.agent] = {
+              model: previous.model,
+              modelLabel: previous.modelLabel,
+              variant: previous.variant,
+            }
 
           if (item.name === "meta") {
             const selected = executorAgent()
@@ -522,15 +531,21 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
 
       if (item) return { id: item.id, name: item.name, provider: item.provider }
 
-      const authored = data.location.provider.definition?.list({ directory: sdk().directory })?.definitions
-        .filter((item) => item.providerID === selected.providerID).at(-1)
+      const authored = data.location.provider.definition
+        ?.list({ directory: sdk().directory })
+        ?.definitions.filter((item) => item.providerID === selected.providerID)
+        .at(-1)
 
       return {
         id: selected.modelID,
         name: label?.name ?? authored?.definition.models?.[selected.modelID]?.name ?? selected.modelID,
-        provider: { id: selected.providerID, name: label?.providerName ?? authored?.definition.name ?? selected.providerID },
+        provider: {
+          id: selected.providerID,
+          name: label?.providerName ?? authored?.definition.name ?? selected.providerID,
+        },
         unavailable: authored?.definition.disabled
-          ? language.t("model.selection.disabled") : language.t("model.selection.unavailable"),
+          ? language.t("model.selection.disabled")
+          : language.t("model.selection.unavailable"),
       }
     }
 
@@ -559,7 +574,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           model: { providerID: model.provider.id, modelID: model.id, variants: model.variants },
         }) ??
         getConfiguredAgentVariant({
-          agent: { model: global && !isGroup(global) ? global : undefined, variant: global && !isGroup(global) ? global.variant : undefined },
+          agent: {
+            model: global && !isGroup(global) ? global : undefined,
+            variant: global && !isGroup(global) ? global.variant : undefined,
+          },
           model: { providerID: model.provider.id, modelID: model.id, variants: model.variants },
         })
       )
@@ -574,7 +592,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       if (session?.agent && session.agent !== agent.current()?.name) return
       const value = session?.model
 
-      if (value) return "type" in value ? null : value.variant ?? null
+      if (value) return "type" in value ? null : (value.variant ?? null)
     }
 
     const snapshot = () => {
@@ -640,12 +658,13 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         executorPreference: value.executorPreference
           ? {
               ...value.executorPreference,
-              model: value.executorPreference.model && !("type" in value.executorPreference.model)
-                ? {
-                    ...value.executorPreference.model,
-                    variant: value.executorPreference.model.variant ?? "default",
-                  }
-                : value.executorPreference.model,
+              model:
+                value.executorPreference.model && !("type" in value.executorPreference.model)
+                  ? {
+                      ...value.executorPreference.model,
+                      variant: value.executorPreference.model.variant ?? "default",
+                    }
+                  : value.executorPreference.model,
             }
           : undefined,
       })
@@ -711,11 +730,16 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     )
 
     const model = {
-      ready: Object.assign(() => {
-        const selected = key()
+      ready: Object.assign(
+        () => {
+          const selected = key()
 
-        return models.ready() && configuredModel.ready() && (!selected || !isGroup(selected) || groupRead() !== undefined)
-      }, { promise: models.ready.promise }),
+          return (
+            models.ready() && configuredModel.ready() && (!selected || !isGroup(selected) || groupRead() !== undefined)
+          )
+        },
+        { promise: models.ready.promise },
+      ),
       current,
       identity,
       key,
@@ -802,9 +826,11 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (item && !validModel(item)) return
           const previous = key()
           const same = item && sameKey(previous, item)
-          write({ model: item,
+          write({
+            model: item,
             modelLabel: item ? modelLabel(item) : undefined,
-            variant: same ? (model.variant.current() ?? null) : undefined })
+            variant: same ? (model.variant.current() ?? null) : undefined,
+          })
 
           if (!item) return
 
@@ -901,16 +927,19 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const stored = choices[`executor:${previous.agent}`]
         choices[`executor:${previous.agent}`] = {
           model: selected,
-          modelLabel: selected ? modelLabel(selected, sameKey(stored?.model, selected) ? stored?.modelLabel : undefined) : undefined,
+          modelLabel: selected
+            ? modelLabel(selected, sameKey(stored?.model, selected) ? stored?.modelLabel : undefined)
+            : undefined,
           variant: previous.model && !("type" in previous.model) ? previous.model.variant : undefined,
         }
       }
 
       const chosen = next && previous?.agent !== next.agent ? choices[`executor:${next.agent}`] : undefined
 
-      const preference = next && !next.model && chosen?.model
-        ? { agent: next.agent, model: toSelection(chosen.model, chosen.variant ?? undefined) }
-        : next
+      const preference =
+        next && !next.model && chosen?.model
+          ? { agent: next.agent, model: toSelection(chosen.model, chosen.variant ?? undefined) }
+          : next
 
       if (preference?.model) {
         const selected = fromSelection(preference.model)
@@ -945,11 +974,16 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
 
     const executorModel = {
       ...model,
-      ready: Object.assign(() => {
-        const selected = executorKey()
+      ready: Object.assign(
+        () => {
+          const selected = executorKey()
 
-        return models.ready() && configuredModel.ready() && (!selected || !isGroup(selected) || groupRead() !== undefined)
-      }, { promise: models.ready.promise }),
+          return (
+            models.ready() && configuredModel.ready() && (!selected || !isGroup(selected) || groupRead() !== undefined)
+          )
+        },
+        { promise: models.ready.promise },
+      ),
       current: executorCurrent,
       key: executorKey,
       identity: () => {
@@ -969,7 +1003,12 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const previousKey = previous && fromSelection(previous)
         selectExecutor({
           agent: selected.name,
-          model: item ? toSelection(item, previous && !("type" in previous) && sameKey(previousKey, item) ? previous.variant : undefined) : undefined,
+          model: item
+            ? toSelection(
+                item,
+                previous && !("type" in previous) && sameKey(previousKey, item) ? previous.variant : undefined,
+              )
+            : undefined,
         })
 
         if (item) models.setVisibility(item, true)
@@ -980,7 +1019,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const items = recentKeys()
         const value = executorKey()
         const index = items.findIndex((item) => sameKey(item, value))
-        const next = items[index === -1 ? (direction === 1 ? 0 : items.length - 1) : (index + direction + items.length) % items.length]
+        const next =
+          items[
+            index === -1 ? (direction === 1 ? 0 : items.length - 1) : (index + direction + items.length) % items.length
+          ]
 
         if (next) executorModel.set(next)
       },
@@ -993,7 +1035,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         selected: () => {
           const selected = preference()?.model
 
-          return selected ? ("type" in selected ? null : selected.variant ?? null) : undefined
+          return selected ? ("type" in selected ? null : (selected.variant ?? null)) : undefined
         },
         current() {
           const selected = executorKey()
@@ -1103,7 +1145,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           setSaved("session", session, {
             agent: msg.agent,
             model: msg.model,
-            variant: "type" in msg.model ? null : msg.model.variant ?? null,
+            variant: "type" in msg.model ? null : (msg.model.variant ?? null),
           })
         },
       },

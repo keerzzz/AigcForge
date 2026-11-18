@@ -66,7 +66,9 @@ export class SystemActor extends Schema.Class<SystemActor>("SessionCommunication
   origin: SystemOrigin,
 }) {}
 
-export const Actor = Schema.Union([UserActor, ToolActor, SystemActor]).annotate({ identifier: "SessionCommunication.Actor" })
+export const Actor = Schema.Union([UserActor, ToolActor, SystemActor]).annotate({
+  identifier: "SessionCommunication.Actor",
+})
 export type Actor = typeof Actor.Type
 
 export class ResultSource extends Schema.Class<ResultSource>("SessionCommunication.ResultSource")({
@@ -129,7 +131,9 @@ export class SessionContent extends Schema.Class<SessionContent>("SessionCommuni
   scope: Schema.Literals(["reference", "output", "full"]),
 }) {}
 
-export const Content = Schema.Union([TextContent, SessionContent]).annotate({ identifier: "SessionCommunication.Content" })
+export const Content = Schema.Union([TextContent, SessionContent]).annotate({
+  identifier: "SessionCommunication.Content",
+})
 export type Content = typeof Content.Type
 
 export class Send extends Schema.Class<Send>("SessionCommunication.Send")({
@@ -169,7 +173,14 @@ export class Page extends Schema.Class<Page>("SessionCommunication.Page")({
 export class Error extends Schema.TaggedError<Error>()("SessionCommunication.Error", {
   sessionID: SessionID,
   communicationID: ID.pipe(optional),
-  reason: Schema.Literals(["unavailable", "conflicting_retry", "not_participant", "invalid_reply", "invalid_content", "invalid_carrier"]),
+  reason: Schema.Literals([
+    "unavailable",
+    "conflicting_retry",
+    "not_participant",
+    "invalid_reply",
+    "invalid_content",
+    "invalid_carrier",
+  ]),
   message: Schema.String,
 }) {}
 

@@ -211,8 +211,7 @@ function ComposerStory(props: {
               : `Submitted: ${value}`,
           )
         },
-        onStop: () =>
-          setStory("activity", props.continueOnStop ? "POST /interrupt · resume: true" : "Stop requested"),
+        onStop: () => setStory("activity", props.continueOnStop ? "POST /interrupt · resume: true" : "Stop requested"),
       },
     },
   })
@@ -572,9 +571,15 @@ function SelectionPrecedenceDemo() {
           <strong class="text-text-strong">openai/gpt-5</strong>
           <span class="text-text-weak">Resolved selection</span>
           <strong class="text-text-strong">
-            {(() => { const model = selection().model;
+            {(() => {
+              const model = selection().model
 
- return model ? "type" in model ? `group:${model.groupID}` : `${model.providerID}/${model.modelID}` : "Unavailable" })()}
+              return model
+                ? "type" in model
+                  ? `group:${model.groupID}`
+                  : `${model.providerID}/${model.modelID}`
+                : "Unavailable"
+            })()}
           </strong>
         </div>
         <button

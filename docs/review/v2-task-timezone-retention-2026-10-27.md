@@ -14,13 +14,13 @@
 
 [最终输入](evidence/v2-continuation-2026-10-27/task-retention-final-input.json) 绑定两个变更文件与六份最终记录；日志哈希及运行前后源码均已核验。
 
-| 范围 | 结果 |
-| --- | --- |
-| Core Task 服务及三个 schedule 测试文件 | 115 pass / 0 fail / 344 expects |
-| Server Task HTTP | 7 pass / 0 fail / 163 expects |
-| Core 类型检查 | exit 0 |
-| 两文件定向 lint | exit 0，0 warnings/errors，当前配置为 1 条规则 |
-| 生产文件 AST、两文件格式 | 各 exit 0；AST 运行时二进制解析警告保留 |
+| 范围                                   | 结果                                           |
+| -------------------------------------- | ---------------------------------------------- |
+| Core Task 服务及三个 schedule 测试文件 | 115 pass / 0 fail / 344 expects                |
+| Server Task HTTP                       | 7 pass / 0 fail / 163 expects                  |
+| Core 类型检查                          | exit 0                                         |
+| 两文件定向 lint                        | exit 0，0 warnings/errors，当前配置为 1 条规则 |
+| 生产文件 AST、两文件格式               | 各 exit 0；AST 运行时二进制解析警告保留        |
 
 首次类型检查发现测试将 optional recurrence 与 nullable SQL 字段直接比较；已在断言前确认持久 recurrence 存在，未使用类型逃逸。最终行为与类型检查重新运行，上述 115 个用例只计最终一轮。未运行 Core 全包，不把 2026-10-26 的历史全包结果计作当前源码验证。
 

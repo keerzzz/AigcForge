@@ -843,7 +843,8 @@ export const dict = {
   "project.settings.extensions.empty.plugins.title": "Ավելացումներ դեռ չկան",
   "project.settings.extensions.empty.plugins.description": "AigcForge-ի համար հասանելի ավելացումները կհայտնվեն այստեղ",
   "project.settings.extensions.empty.skills.title": "Կառավարվում հաստատված հմտություններ չունի",
-  "project.settings.extensions.empty.skills.description": "AigcForge-ի համար հասանելի կարողությունները կհայտնվեն այստեղ",
+  "project.settings.extensions.empty.skills.description":
+    "AigcForge-ի համար հասանելի կարողությունները կհայտնվեն այստեղ",
   "project.settings.extensions.lsp.configured": "Պատրաստված լեզվական սերվերներ",
   "project.settings.extensions.lsp.status.enabled": "Կոնֆիգուրացիայում ակտիվացված",
   "project.settings.extensions.lsp.status.disabled": "Կոնֆիգուրացիայում անջատված",

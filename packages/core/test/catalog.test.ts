@@ -201,8 +201,7 @@ describe("Provider and Model", () => {
       yield* settle(
         Ref.get(log).pipe(
           Effect.map(
-            (types) =>
-              types.lastIndexOf(Model.Event.Updated.type) > types.lastIndexOf(Credential.Event.Updated.type),
+            (types) => types.lastIndexOf(Model.Event.Updated.type) > types.lastIndexOf(Credential.Event.Updated.type),
           ),
         ),
       )

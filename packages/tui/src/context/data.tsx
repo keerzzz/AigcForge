@@ -26,7 +26,11 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
         ...data.location,
         async sync(ref?: LocationRef) {
           await data.location.syncInfo(ref)
-          await Promise.all([data.location.sync(ref), data.location.config.sync(ref), data.location.model.group.definition.sync(ref)])
+          await Promise.all([
+            data.location.sync(ref),
+            data.location.config.sync(ref),
+            data.location.model.group.definition.sync(ref),
+          ])
         },
       },
       session: {

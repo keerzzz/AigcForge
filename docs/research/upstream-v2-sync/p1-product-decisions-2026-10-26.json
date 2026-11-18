@@ -14,9 +14,6 @@
     "metaMemoryIndependent": true,
     "customFrozenContractPreserved": true
   },
-  "planRefs": [
-    "P1 default Coding increment catalog product decision",
-    "P3 Assistant personal long-term memory scope"
-  ],
+  "planRefs": ["P1 default Coding increment catalog product decision", "P3 Assistant personal long-term memory scope"],
   "scope": "Resolve these two product choices only. No automatic full P1/P3 closure, no extra mode/Custom/Meta permissions, and no data/model execution approval."
 }

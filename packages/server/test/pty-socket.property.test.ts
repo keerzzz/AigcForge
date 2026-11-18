@@ -93,9 +93,7 @@ const simulate = (input: Scenario) =>
                 }),
               ),
             ),
-            Effect.flatMap((batch) =>
-              nonEmpty(batch) ? Effect.succeed(batch) : Effect.die(new Error("empty batch")),
-            ),
+            Effect.flatMap((batch) => (nonEmpty(batch) ? Effect.succeed(batch) : Effect.die(new Error("empty batch")))),
           ),
           upgrade: Socket.SocketUpgradeError.unsupported,
         }),

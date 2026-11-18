@@ -242,13 +242,7 @@ function NewSessionTips(props: {
           class="group/new-session-tip pointer-events-auto relative flex h-6 max-w-full items-center transition-[opacity,transform] duration-[250ms] ease-[cubic-bezier(0.215,0.61,0.355,1)] motion-reduce:transition-none"
           classList={{ "data-[visible=false]:animate-out fade-out slide-out-to-bottom-4": true }}
         >
-          <Button
-            type="button"
-            variant="ghost"
-            size="small"
-            class="h-6 min-w-0 text-text-weak"
-            onClick={open}
-          >
+          <Button type="button" variant="ghost" size="small" class="h-6 min-w-0 text-text-weak" onClick={open}>
             <span class="truncate">
               {language.t(displayed() === "workspace" ? "home.workspaceTip" : "home.providerTip")}
             </span>

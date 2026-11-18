@@ -666,8 +666,7 @@ function renderImportedEffectFiles(
   const payloadConstructors = new Set(
     groups.flatMap((group) =>
       group.endpoints.filter(
-        (endpoint) =>
-          endpoint.payloads[0] !== undefined && hasConstructor(Schema.toType(endpoint.payloads[0]).ast),
+        (endpoint) => endpoint.payloads[0] !== undefined && hasConstructor(Schema.toType(endpoint.payloads[0]).ast),
       ),
     ),
   )
@@ -714,10 +713,7 @@ function renderImportedEffectFiles(
       const constructed = payloadConstructors.has(item)
         ? `Effect.gen(function* () {\nconst payload = yield* ${adapter}Payload(${parts.find((part) => part.startsWith("payload: "))!.slice("payload: ".length)}, { parseOptions: Context.getOrElse(${endpoint}.annotations, HttpApi.PayloadParseOptions, () => ({})) }).pipe(Effect.mapError((issue) => new ClientError({ cause: issue })))\nreturn yield* ${mapped}\n})`
         : mapped
-      const result =
-        item.operation.success === "stream"
-          ? `Stream.unwrap(${constructed})`
-          : constructed
+      const result = item.operation.success === "stream" ? `Stream.unwrap(${constructed})` : constructed
       const output =
         options.shapeModule === undefined
           ? result
@@ -772,9 +768,10 @@ function renderImportedEffectFiles(
     projection === undefined
       ? `import { ${api} } from ${JSON.stringify(options.module)}`
       : `import { HttpApi, HttpApiClient${"endpoints" in options ? ", HttpApiGroup" : ""} } from "effect/http-api"\nimport { ${projection.imports.join(", ")} } from ${JSON.stringify(options.module)}`
-  const httpApiImport = projection === undefined
-    ? `import { ${payloadConstructors.size > 0 ? "HttpApi, " : ""}HttpApiClient } from "effect/http-api"\n`
-    : ""
+  const httpApiImport =
+    projection === undefined
+      ? `import { ${payloadConstructors.size > 0 ? "HttpApi, " : ""}HttpApiClient } from "effect/http-api"\n`
+      : ""
   const shapeTypes = groups.flatMap((group) =>
     group.endpoints.flatMap((endpoint) => [
       ...(endpoint.operation.inputMode === "none" ? [] : [`${endpointTypeName(group, endpoint)}Input`]),
@@ -1921,7 +1918,10 @@ function hasConstructor(root: SchemaAST.AST) {
     if (SchemaAST.isUnion(ast)) return ast.types.some(visit)
     if (SchemaAST.isArrays(ast)) return ast.elements.some(visit) || ast.rest.some(visit)
     if (SchemaAST.isObjects(ast)) {
-      return ast.propertySignatures.some((field) => visit(field.type)) || ast.indexSignatures.some((index) => visit(index.type))
+      return (
+        ast.propertySignatures.some((field) => visit(field.type)) ||
+        ast.indexSignatures.some((index) => visit(index.type))
+      )
     }
     return false
   }

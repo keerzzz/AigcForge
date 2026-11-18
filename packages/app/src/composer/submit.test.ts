@@ -169,8 +169,12 @@ describe("Composer submission", () => {
     selected.model.selection = {
       ...selection,
       current: () => undefined,
-      identity: () => ({ id: "missing-model", name: "Saved Model", provider: { id: "provider-1", name: "Provider" },
-        unavailable: "Unavailable" }),
+      identity: () => ({
+        id: "missing-model",
+        name: "Saved Model",
+        provider: { id: "provider-1", name: "Provider" },
+        unavailable: "Unavailable",
+      }),
     }
     const completed = Promise.withResolvers<void>()
 
@@ -179,11 +183,17 @@ describe("Composer submission", () => {
       switchModel: async (request) => {
         expect(request.model).toEqual({ providerID: "provider-1", id: "missing-model", variant: "balanced" })
       },
-      command: async () => { completed.resolve() },
+      command: async () => {
+        completed.resolve()
+      },
     })
 
-    await submitInput(active(state, target, () => selected), undefined, "normal", () => [{ name: "review" }])
-      .submit(new Event("submit"))
+    await submitInput(
+      active(state, target, () => selected),
+      undefined,
+      "normal",
+      () => [{ name: "review" }],
+    ).submit(new Event("submit"))
     await completed.promise
   })
 

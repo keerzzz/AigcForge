@@ -1381,11 +1381,7 @@ export function Prompt(props: PromptProps) {
     const commitModel = async () => {
       requireSelectionOwner()
       if (newSession || locked) return
-      if (
-        session?.agent === agent.id &&
-        sameModelSelection(session.model, model)
-      )
-        return
+      if (session?.agent === agent.id && sameModelSelection(session.model, model)) return
       const finishCommit = modelOwner.trackSessionCommit(target, model, agent.id)
       try {
         await selectionClient.session.switchModel({ sessionID: target, model })

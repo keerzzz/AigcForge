@@ -72,28 +72,36 @@ export function createComposerModel(
     live = false
   })
 
-  const referenceServers = () => global.servers.list().flatMap((connection) => {
-    const id = ServerConnection.key(connection)
-    const current = global.serverCtx(id)
+  const referenceServers = () =>
+    global.servers.list().flatMap((connection) => {
+      const id = ServerConnection.key(connection)
+      const current = global.serverCtx(id)
 
-    return current ? [{ id, data: current.data }] : []
-  })
+      return current ? [{ id, data: current.data }] : []
+    })
 
-  const sessionReferences = createMemo<ComposerSuggestion[]>(() => referenceServers().flatMap((server) =>
-    server.data.session.list().map((session) => ({
-      id: `session:${server.id}:${session.id}`,
-      kind: "session" as const,
-      label: `@${session.title ?? session.id} ${session.id}`,
-      description: server.id,
-      mention: {
-        type: "session" as const,
-        reference: { serverID: server.id, sessionID: session.id, title: session.title ?? session.id, scope: { kind: "identity" as const } },
-        content: `@${session.title || session.id}`,
-        start: 0,
-        end: 0,
-      },
-    })),
-  ))
+  const sessionReferences = createMemo<ComposerSuggestion[]>(() =>
+    referenceServers().flatMap((server) =>
+      server.data.session.list().map((session) => ({
+        id: `session:${server.id}:${session.id}`,
+        kind: "session" as const,
+        label: `@${session.title ?? session.id} ${session.id}`,
+        description: server.id,
+        mention: {
+          type: "session" as const,
+          reference: {
+            serverID: server.id,
+            sessionID: session.id,
+            title: session.title ?? session.id,
+            scope: { kind: "identity" as const },
+          },
+          content: `@${session.title || session.id}`,
+          start: 0,
+          end: 0,
+        },
+      })),
+    ),
+  )
 
   const interaction = createComposerEditorState(prompt.mode.current())
   createEffect(
@@ -355,7 +363,9 @@ export function createComposerModel(
 
   const controller = createComposerEditor({
     referenceLabel(reference) {
-      const connection = global.servers.list().find((connection) => ServerConnection.key(connection) === reference.serverID)
+      const connection = global.servers
+        .list()
+        .find((connection) => ServerConnection.key(connection) === reference.serverID)
       const current = connection ? global.serverCtx(ServerConnection.key(connection)) : undefined
       const session = current?.data.session.get(reference.sessionID)
       const title = session?.title || reference.title || reference.sessionID
@@ -372,7 +382,9 @@ export function createComposerModel(
       const source = extensions.current()
 
       if (!source) {
-        const connection = global.servers.list().find((connection) => ServerConnection.key(connection) === reference.serverID)
+        const connection = global.servers
+          .list()
+          .find((connection) => ServerConnection.key(connection) === reference.serverID)
         const current = connection ? global.serverCtx(ServerConnection.key(connection)) : undefined
 
         if (!connection || !current || !current.data.session.get(reference.sessionID)) {
@@ -392,32 +404,57 @@ export function createComposerModel(
     },
     async resolveReferences(text, signal) {
       const matches = parseSessionReferences(text)
-      const sourceKey = JSON.stringify([server.key, sdk().directory, adapter.kind === "active-session" ? adapter.session().id : "draft"])
+      const sourceKey = JSON.stringify([
+        server.key,
+        sdk().directory,
+        adapter.kind === "active-session" ? adapter.session().id : "draft",
+      ])
       const initial = adapter.state.current()
-      const current = () => live && !signal.aborted && JSON.stringify([server.key, sdk().directory, adapter.kind === "active-session" ? adapter.session().id : "draft"]) === sourceKey && adapter.state.current() === initial
+      const current = () =>
+        live &&
+        !signal.aborted &&
+        JSON.stringify([
+          server.key,
+          sdk().directory,
+          adapter.kind === "active-session" ? adapter.session().id : "draft",
+        ]) === sourceKey &&
+        adapter.state.current() === initial
 
-      const references = await Promise.all(matches.map(async (match) => {
-        const known = referenceServers().filter((server) => server.data.session.get(match.sessionID))
-        const id = match.serverID ?? (known.length === 1 ? known[0]?.id : known.length > 1 ? undefined : server.key)
-        const connection = global.servers.list().find((connection) => ServerConnection.key(connection) === id)
-        const owner = connection ? global.serverCtx(ServerConnection.key(connection)) : undefined
+      const references = await Promise.all(
+        matches.map(async (match) => {
+          const known = referenceServers().filter((server) => server.data.session.get(match.sessionID))
+          const id = match.serverID ?? (known.length === 1 ? known[0]?.id : known.length > 1 ? undefined : server.key)
+          const connection = global.servers.list().find((connection) => ServerConnection.key(connection) === id)
+          const owner = connection ? global.serverCtx(ServerConnection.key(connection)) : undefined
 
-        if (!id || !owner) return undefined
+          if (!id || !owner) return undefined
 
-        const client = owner.sdk.api
-        const attempt = owner.sdk.connection.attempt()
-        const session = owner.data.session.get(match.sessionID) ?? await owner.data.session.readback(match.sessionID).then(() => owner.data.session.get(match.sessionID), () => undefined)
+          const client = owner.sdk.api
+          const attempt = owner.sdk.connection.attempt()
+          const session =
+            owner.data.session.get(match.sessionID) ??
+            (await owner.data.session.readback(match.sessionID).then(
+              () => owner.data.session.get(match.sessionID),
+              () => undefined,
+            ))
 
-        if (!current() || !session || owner.sdk.api !== client || owner.sdk.connection.attempt() !== attempt) return undefined
+          if (!current() || !session || owner.sdk.api !== client || owner.sdk.connection.attempt() !== attempt)
+            return undefined
 
-        return {
-          start: match.start,
-          end: match.end,
-          content: match.content,
-          type: "session" as const,
-          reference: { serverID: id, sessionID: session.id, title: session.title ?? session.id, scope: { kind: "identity" as const } },
-        }
-      }))
+          return {
+            start: match.start,
+            end: match.end,
+            content: match.content,
+            type: "session" as const,
+            reference: {
+              serverID: id,
+              sessionID: session.id,
+              title: session.title ?? session.id,
+              scope: { kind: "identity" as const },
+            },
+          }
+        }),
+      )
 
       if (!current()) return undefined
 

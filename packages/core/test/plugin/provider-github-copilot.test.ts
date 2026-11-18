@@ -34,7 +34,7 @@ const addPlugin = Effect.fn(function* (http?: HttpClient.HttpClient) {
   const plugin = yield* Plugin.Service
   const host = yield* PluginHost.make(plugin)
   const effect = GithubCopilotPlugin.effect(host)
-  yield* (http ? effect.pipe(Effect.provideService(HttpClient.HttpClient, http)) : effect)
+  yield* http ? effect.pipe(Effect.provideService(HttpClient.HttpClient, http)) : effect
 })
 
 function required<T>(value: T | undefined): T {
@@ -95,55 +95,106 @@ describe("GithubCopilotPlugin", () => {
       const hooks = yield* PluginHooks.Service
       const directoryRequests: Array<{ path: string; authorization: string | null }> = []
       const titleRequests: Array<{ path: string; authorization: string | null; model: unknown }> = []
-      const running = yield* Effect.acquireRelease(Effect.sync(() => Bun.serve({
-        hostname: "127.0.0.1", port: 0,
-        fetch: async (request) => {
-          const path = new URL(request.url).pathname
-          const account = path.startsWith("/account-a/") ? "a" : "b"
-          if (path.endsWith("/models")) {
-            directoryRequests.push({ path, authorization: request.headers.get("authorization") })
-            return Response.json({ data: [
-              {
-                id: `claude-${account}`, name: `Account ${account} Claude`, version: "2026-11-15",
-                model_picker_enabled: true, supported_endpoints: ["/v1/messages"],
-                capabilities: { family: "claude", limits: { max_context_window_tokens: account === "a" ? 12_000 : 22_000, max_prompt_tokens: 10_000, max_output_tokens: 2_000 }, supports: { tool_calls: account === "a", vision: account === "a" } },
-              },
-              {
-                id: "gpt-4o-mini", name: "Utility", version: "2026-11-15", model_picker_enabled: true,
-                supported_endpoints: ["/chat/completions"],
-                capabilities: { family: "gpt", limits: { max_context_window_tokens: 12_000, max_prompt_tokens: 10_000, max_output_tokens: 2_000 }, supports: { tool_calls: true } },
-              },
-            ] })
-          }
-          if (path.endsWith("/chat/completions")) {
-            const body = await request.json() as { model?: unknown }
-            titleRequests.push({ path, authorization: request.headers.get("authorization"), model: body.model })
-            return Response.json({ choices: [{ message: { content: `Account ${account} title` } }] })
-          }
-          return new Response(null, { status: 404 })
-        },
-      })), (server) => Effect.promise(() => server.stop(true)))
+      const running = yield* Effect.acquireRelease(
+        Effect.sync(() =>
+          Bun.serve({
+            hostname: "127.0.0.1",
+            port: 0,
+            fetch: async (request) => {
+              const path = new URL(request.url).pathname
+              const account = path.startsWith("/account-a/") ? "a" : "b"
+              if (path.endsWith("/models")) {
+                directoryRequests.push({ path, authorization: request.headers.get("authorization") })
+                return Response.json({
+                  data: [
+                    {
+                      id: `claude-${account}`,
+                      name: `Account ${account} Claude`,
+                      version: "2026-11-15",
+                      model_picker_enabled: true,
+                      supported_endpoints: ["/v1/messages"],
+                      capabilities: {
+                        family: "claude",
+                        limits: {
+                          max_context_window_tokens: account === "a" ? 12_000 : 22_000,
+                          max_prompt_tokens: 10_000,
+                          max_output_tokens: 2_000,
+                        },
+                        supports: { tool_calls: account === "a", vision: account === "a" },
+                      },
+                    },
+                    {
+                      id: "gpt-4o-mini",
+                      name: "Utility",
+                      version: "2026-11-15",
+                      model_picker_enabled: true,
+                      supported_endpoints: ["/chat/completions"],
+                      capabilities: {
+                        family: "gpt",
+                        limits: {
+                          max_context_window_tokens: 12_000,
+                          max_prompt_tokens: 10_000,
+                          max_output_tokens: 2_000,
+                        },
+                        supports: { tool_calls: true },
+                      },
+                    },
+                  ],
+                })
+              }
+              if (path.endsWith("/chat/completions")) {
+                const body = (await request.json()) as { model?: unknown }
+                titleRequests.push({ path, authorization: request.headers.get("authorization"), model: body.model })
+                return Response.json({ choices: [{ message: { content: `Account ${account} title` } }] })
+              }
+              return new Response(null, { status: 404 })
+            },
+          }),
+        ),
+        (server) => Effect.promise(() => server.stop(true)),
+      )
       const baseURL = `http://127.0.0.1:${running.port}`
       const pickerA = Model.ID.make("picker-a")
       const pickerB = Model.ID.make("picker-b")
       yield* providers.transform((editor) => {
         editor.update(Provider.ID.githubCopilot, () => {})
-        editor.models.update(Provider.ID.githubCopilot, pickerA, (model) => { model.modelID = Model.ID.make("claude-a") })
-        editor.models.update(Provider.ID.githubCopilot, pickerB, (model) => { model.modelID = Model.ID.make("claude-b") })
+        editor.models.update(Provider.ID.githubCopilot, pickerA, (model) => {
+          model.modelID = Model.ID.make("claude-a")
+        })
+        editor.models.update(Provider.ID.githubCopilot, pickerB, (model) => {
+          model.modelID = Model.ID.make("claude-b")
+        })
       })
       const accountA = yield* credentials.create({
         integrationID: Integration.ID.make("github-copilot"),
-        value: Credential.OAuth.make({ type: "oauth", methodID: Integration.MethodID.make("device"), access: "copilot-a", refresh: "copilot-a", expires: 0, metadata: { apiEndpoint: `${baseURL}/account-a` } }),
+        value: Credential.OAuth.make({
+          type: "oauth",
+          methodID: Integration.MethodID.make("device"),
+          access: "copilot-a",
+          refresh: "copilot-a",
+          expires: 0,
+          metadata: { apiEndpoint: `${baseURL}/account-a` },
+        }),
       })
       const accountB = yield* credentials.create({
-        integrationID: Integration.ID.make("github-copilot"), activate: false,
-        value: Credential.OAuth.make({ type: "oauth", methodID: Integration.MethodID.make("device"), access: "copilot-b", refresh: "copilot-b", expires: 0, metadata: { apiEndpoint: `${baseURL}/account-b` } }),
+        integrationID: Integration.ID.make("github-copilot"),
+        activate: false,
+        value: Credential.OAuth.make({
+          type: "oauth",
+          methodID: Integration.MethodID.make("device"),
+          access: "copilot-b",
+          refresh: "copilot-b",
+          expires: 0,
+          metadata: { apiEndpoint: `${baseURL}/account-b` },
+        }),
       })
       const connectionA = { type: "credential" as const, id: accountA.id }
       const connectionB = { type: "credential" as const, id: accountB.id }
       yield* addPlugin()
       const modelB = yield* pollWithTimeout(
-        models.get(Provider.ID.githubCopilot, pickerB, connectionB).pipe(Effect.map((model) => model?.settings?.baseURL === `${baseURL}/account-b/v1` ? model : undefined)),
+        models
+          .get(Provider.ID.githubCopilot, pickerB, connectionB)
+          .pipe(Effect.map((model) => (model?.settings?.baseURL === `${baseURL}/account-b/v1` ? model : undefined))),
         "Inactive Copilot account did not publish its own model directory",
       )
       const modelA = required(yield* models.get(Provider.ID.githubCopilot, pickerA, connectionA))
@@ -157,9 +208,20 @@ describe("GithubCopilotPlugin", () => {
       expect(modelA.capabilities.tools).toBe(true)
       expect(modelB.capabilities.tools).toBe(false)
       expect(modelB.limit.context).toBe(22_000)
-      expect((yield* providers.snapshot({ providerID: Provider.ID.githubCopilot, connection: connectionB })).available.find((source) => source.provider.id === Provider.ID.githubCopilot)?.sourceConnection).toMatchObject(connectionB)
-      yield* models.transform((editor) => { editor.update(Provider.ID.githubCopilot, pickerB, (model) => { model.name = "Curated Copilot B" }) })
-      for (const [model, connection, account] of [[modelA, connectionA, "a"], [modelB, connectionB, "b"]] as const) {
+      expect(
+        (yield* providers.snapshot({ providerID: Provider.ID.githubCopilot, connection: connectionB })).available.find(
+          (source) => source.provider.id === Provider.ID.githubCopilot,
+        )?.sourceConnection,
+      ).toMatchObject(connectionB)
+      yield* models.transform((editor) => {
+        editor.update(Provider.ID.githubCopilot, pickerB, (model) => {
+          model.name = "Curated Copilot B"
+        })
+      })
+      for (const [model, connection, account] of [
+        [modelA, connectionA, "a"],
+        [modelB, connectionB, "b"],
+      ] as const) {
         const resolved = yield* resolver.resolveModel(model, undefined, connection)
         expect(resolved.connection).toEqual(connection)
         expect(resolved.model.route.endpoint.baseURL).toBe(`${baseURL}/account-${account}/v1`)
@@ -167,21 +229,38 @@ describe("GithubCopilotPlugin", () => {
         const compiled = yield* compileRequest(request)
         expect(compiled.body).toMatchObject({ model: `claude-${account}` })
         const url = `${baseURL}/account-${account}/v1/messages`
-        const authentication = yield* resolved.model.route.auth.apply({ request, method: "POST", url, body: JSON.stringify(compiled.body), headers: HttpClientRequest.post(url).headers })
+        const authentication = yield* resolved.model.route.auth.apply({
+          request,
+          method: "POST",
+          url,
+          body: JSON.stringify(compiled.body),
+          headers: HttpClientRequest.post(url).headers,
+        })
         const event = yield* hooks.trigger("session", "http.request", {
-          sessionID: Session.ID.make(`ses_copilot_${account}`), agent: Agent.ID.make("build"), model: resolved.ref, kind: "primary",
+          sessionID: Session.ID.make(`ses_copilot_${account}`),
+          agent: Agent.ID.make("build"),
+          model: resolved.ref,
+          kind: "primary",
           request: new Request(url, { method: "POST", headers: authentication, body: JSON.stringify(compiled.body) }),
         })
         expect(event.request.headers.get("authorization")).toBe(`Bearer copilot-${account}`)
         expect(event.request.headers.has("x-api-key")).toBe(false)
       }
       const title = yield* hooks.trigger("session", "title", {
-        sessionID: Session.ID.make("ses_copilot_title"), model: Model.Ref.make({ providerID: Provider.ID.githubCopilot, id: pickerB }), connection: connectionB,
-        system: [], messages: [Message.user("fixture title")], options: {},
+        sessionID: Session.ID.make("ses_copilot_title"),
+        model: Model.Ref.make({ providerID: Provider.ID.githubCopilot, id: pickerB }),
+        connection: connectionB,
+        system: [],
+        messages: [Message.user("fixture title")],
+        options: {},
       })
       expect(title.result).toBe("Account b title")
-      expect(titleRequests).toEqual([{ path: "/account-b/chat/completions", authorization: "Bearer copilot-b", model: "gpt-4o-mini" }])
-      expect(required(yield* models.get(Provider.ID.githubCopilot, pickerB, connectionB)).name).toBe("Curated Copilot B")
+      expect(titleRequests).toEqual([
+        { path: "/account-b/chat/completions", authorization: "Bearer copilot-b", model: "gpt-4o-mini" },
+      ])
+      expect(required(yield* models.get(Provider.ID.githubCopilot, pickerB, connectionB)).name).toBe(
+        "Curated Copilot B",
+      )
       expect(yield* integrations.connection.active(Integration.ID.make("github-copilot"))).toMatchObject(connectionA)
     }).pipe(Effect.provide(ModelResolver.layer)),
   )
@@ -193,71 +272,202 @@ describe("GithubCopilotPlugin", () => {
       const credentials = yield* Credential.Service
       const integrations = yield* Integration.Service
       const hooks = yield* PluginHooks.Service
-      const running = yield* Effect.acquireRelease(Effect.sync(() => Bun.serve({
-        hostname: "127.0.0.1", port: 0,
-        fetch: () => Response.json({ data: [
-          ...[["premium-api", 1], ["free-api", 0]].map(([id, multiplier]) => ({
-            id, name: String(id), version: "2026-11-15", model_picker_enabled: true, supported_endpoints: ["/v1/messages"], billing: { multiplier },
-            capabilities: { family: "claude", limits: { max_context_window_tokens: 20_000, max_prompt_tokens: 18_000, max_output_tokens: 2_000 }, supports: { tool_calls: true } },
-          })),
-          {
-            id: "unknown-api", name: "Unknown billing", version: "2026-11-15", model_picker_enabled: true, supported_endpoints: ["/v1/messages"],
-            capabilities: { family: "claude", limits: { max_context_window_tokens: 20_000, max_prompt_tokens: 18_000, max_output_tokens: 2_000 }, supports: { tool_calls: true } },
-          },
-        ] }),
-      })), (server) => Effect.promise(() => server.stop(true)))
+      const running = yield* Effect.acquireRelease(
+        Effect.sync(() =>
+          Bun.serve({
+            hostname: "127.0.0.1",
+            port: 0,
+            fetch: () =>
+              Response.json({
+                data: [
+                  ...[
+                    ["premium-api", 1],
+                    ["free-api", 0],
+                  ].map(([id, multiplier]) => ({
+                    id,
+                    name: String(id),
+                    version: "2026-11-15",
+                    model_picker_enabled: true,
+                    supported_endpoints: ["/v1/messages"],
+                    billing: { multiplier },
+                    capabilities: {
+                      family: "claude",
+                      limits: {
+                        max_context_window_tokens: 20_000,
+                        max_prompt_tokens: 18_000,
+                        max_output_tokens: 2_000,
+                      },
+                      supports: { tool_calls: true },
+                    },
+                  })),
+                  {
+                    id: "unknown-api",
+                    name: "Unknown billing",
+                    version: "2026-11-15",
+                    model_picker_enabled: true,
+                    supported_endpoints: ["/v1/messages"],
+                    capabilities: {
+                      family: "claude",
+                      limits: {
+                        max_context_window_tokens: 20_000,
+                        max_prompt_tokens: 18_000,
+                        max_output_tokens: 2_000,
+                      },
+                      supports: { tool_calls: true },
+                    },
+                  },
+                ],
+              }),
+          }),
+        ),
+        (server) => Effect.promise(() => server.stop(true)),
+      )
       const baseURL = `http://127.0.0.1:${running.port}`
       const premiumID = Model.ID.make("premium-picker")
       const freeID = Model.ID.make("free-picker")
       yield* providers.transform((editor) => {
         editor.update(Provider.ID.githubCopilot, () => {})
-        editor.models.update(Provider.ID.githubCopilot, premiumID, (model) => { model.modelID = Model.ID.make("premium-api") })
-        editor.models.update(Provider.ID.githubCopilot, freeID, (model) => { model.modelID = Model.ID.make("free-api") })
+        editor.models.update(Provider.ID.githubCopilot, premiumID, (model) => {
+          model.modelID = Model.ID.make("premium-api")
+        })
+        editor.models.update(Provider.ID.githubCopilot, freeID, (model) => {
+          model.modelID = Model.ID.make("free-api")
+        })
       })
       const accountA = yield* credentials.create({
         integrationID: Integration.ID.make("github-copilot"),
-        value: Credential.OAuth.make({ type: "oauth", methodID: Integration.MethodID.make("device"), access: "copilot-a", refresh: "copilot-a", expires: 0, metadata: { apiEndpoint: baseURL } }),
+        value: Credential.OAuth.make({
+          type: "oauth",
+          methodID: Integration.MethodID.make("device"),
+          access: "copilot-a",
+          refresh: "copilot-a",
+          expires: 0,
+          metadata: { apiEndpoint: baseURL },
+        }),
       })
       const accountB = yield* credentials.create({
-        integrationID: Integration.ID.make("github-copilot"), activate: false,
-        value: Credential.OAuth.make({ type: "oauth", methodID: Integration.MethodID.make("device"), access: "copilot-b", refresh: "copilot-b", expires: 0, metadata: { apiEndpoint: baseURL, enterpriseUrl: "company.ghe.com" } }),
+        integrationID: Integration.ID.make("github-copilot"),
+        activate: false,
+        value: Credential.OAuth.make({
+          type: "oauth",
+          methodID: Integration.MethodID.make("device"),
+          access: "copilot-b",
+          refresh: "copilot-b",
+          expires: 0,
+          metadata: { apiEndpoint: baseURL, enterpriseUrl: "company.ghe.com" },
+        }),
       })
       const connectionA = { type: "credential" as const, id: accountA.id }
       const connectionB = { type: "credential" as const, id: accountB.id }
       const reads: Array<{ url: string; authorization?: string; version?: string }> = []
-      yield* addPlugin(HttpClient.make((request) => Effect.sync(() => {
-        reads.push({ url: request.url, authorization: request.headers.authorization, version: request.headers["x-github-api-version"] })
-        return HttpClientResponse.fromWeb(request, Response.json({
-          copilot_plan: "business", chat_enabled: true, token_based_billing: false, quota_reset_date_utc: "2026-12-01T00:00:00.000Z",
-          quota_snapshots: { chat: { unlimited: true }, completions: { entitlement: 100, quota_remaining: 90 }, premium_interactions: { entitlement: 100, quota_remaining: 0, has_quota: false, unlimited: false } },
-        }))
-      })))
+      yield* addPlugin(
+        HttpClient.make((request) =>
+          Effect.sync(() => {
+            reads.push({
+              url: request.url,
+              authorization: request.headers.authorization,
+              version: request.headers["x-github-api-version"],
+            })
+            return HttpClientResponse.fromWeb(
+              request,
+              Response.json({
+                copilot_plan: "business",
+                chat_enabled: true,
+                token_based_billing: false,
+                quota_reset_date_utc: "2026-12-01T00:00:00.000Z",
+                quota_snapshots: {
+                  chat: { unlimited: true },
+                  completions: { entitlement: 100, quota_remaining: 90 },
+                  premium_interactions: { entitlement: 100, quota_remaining: 0, has_quota: false, unlimited: false },
+                },
+              }),
+            )
+          }),
+        ),
+      )
       const model = yield* pollWithTimeout(
-        models.get(Provider.ID.githubCopilot, premiumID, connectionB).pipe(Effect.map((model) => model?.settings?.baseURL === `${baseURL}/v1` ? model : undefined)),
+        models
+          .get(Provider.ID.githubCopilot, premiumID, connectionB)
+          .pipe(Effect.map((model) => (model?.settings?.baseURL === `${baseURL}/v1` ? model : undefined))),
         "Copilot catalog did not finish before the quota read",
       )
       expect(model.metadata?.quota).toMatchObject({ status: "unknown", connection: connectionB })
       expect(model.metadata?.quota?.freeModel).toBeUndefined()
       yield* modelRequest(Session.ID.make("ses_copilot_plain"), "primary")
       expect(reads).toEqual([])
-      const observed = yield* hooks.trigger("session", "model.quota", { sessionID: Session.ID.make("ses_copilot_quota"), model: Model.Ref.make({ providerID: Provider.ID.githubCopilot, id: premiumID }), connection: connectionB })
-      expect(reads).toEqual([{ url: "https://api.company.ghe.com/copilot_internal/user", authorization: "Bearer copilot-b", version: "2025-04-01" }])
-      expect(observed.quota).toMatchObject({ status: "known", source: "github-copilot", connection: connectionB, plan: "business", allowed: true, freePlan: false, freeModel: false })
-      expect(observed.quota?.windows.find((window) => window.id === "premium_interactions")).toMatchObject({ scope: "model", modelIDs: ["premium-api"], usedRatio: 1, remaining: 0, resetAt: Date.parse("2026-12-01T00:00:00.000Z") })
-      expect(observed.quota?.windows.find((window) => window.id === "completions")).toMatchObject({ scope: "model", modelIDs: [] })
-      expect(required(yield* models.get(Provider.ID.githubCopilot, premiumID, connectionB)).metadata?.quota).toEqual(observed.quota)
-      const free = yield* hooks.trigger("session", "model.quota", { sessionID: Session.ID.make("ses_copilot_quota"), model: Model.Ref.make({ providerID: Provider.ID.githubCopilot, id: freeID }), connection: connectionB })
+      const observed = yield* hooks.trigger("session", "model.quota", {
+        sessionID: Session.ID.make("ses_copilot_quota"),
+        model: Model.Ref.make({ providerID: Provider.ID.githubCopilot, id: premiumID }),
+        connection: connectionB,
+      })
+      expect(reads).toEqual([
+        {
+          url: "https://api.company.ghe.com/copilot_internal/user",
+          authorization: "Bearer copilot-b",
+          version: "2025-04-01",
+        },
+      ])
+      expect(observed.quota).toMatchObject({
+        status: "known",
+        source: "github-copilot",
+        connection: connectionB,
+        plan: "business",
+        allowed: true,
+        freePlan: false,
+        freeModel: false,
+      })
+      expect(observed.quota?.windows.find((window) => window.id === "premium_interactions")).toMatchObject({
+        scope: "model",
+        modelIDs: ["premium-api"],
+        usedRatio: 1,
+        remaining: 0,
+        resetAt: Date.parse("2026-12-01T00:00:00.000Z"),
+      })
+      expect(observed.quota?.windows.find((window) => window.id === "completions")).toMatchObject({
+        scope: "model",
+        modelIDs: [],
+      })
+      expect(required(yield* models.get(Provider.ID.githubCopilot, premiumID, connectionB)).metadata?.quota).toEqual(
+        observed.quota,
+      )
+      const free = yield* hooks.trigger("session", "model.quota", {
+        sessionID: Session.ID.make("ses_copilot_quota"),
+        model: Model.Ref.make({ providerID: Provider.ID.githubCopilot, id: freeID }),
+        connection: connectionB,
+      })
       expect(free.quota).toMatchObject({ status: "known", freeModel: true })
       expect(free.quota?.windows.find((window) => window.id === "premium_interactions")?.modelIDs).toEqual([])
-      const unknown = yield* hooks.trigger("session", "model.quota", { sessionID: Session.ID.make("ses_copilot_quota"), model: Model.Ref.make({ providerID: Provider.ID.githubCopilot, id: Model.ID.make("unknown-api") }), connection: connectionB })
-      expect(unknown.quota).toMatchObject({ status: "unknown", source: "github-copilot", connection: connectionB, allowed: true })
+      const unknown = yield* hooks.trigger("session", "model.quota", {
+        sessionID: Session.ID.make("ses_copilot_quota"),
+        model: Model.Ref.make({ providerID: Provider.ID.githubCopilot, id: Model.ID.make("unknown-api") }),
+        connection: connectionB,
+      })
+      expect(unknown.quota).toMatchObject({
+        status: "unknown",
+        source: "github-copilot",
+        connection: connectionB,
+        allowed: true,
+      })
       expect(unknown.quota?.freeModel).toBeUndefined()
-      expect(unknown.quota?.windows.find((window) => window.id === "premium_interactions")).toMatchObject({ scope: "account", usedRatio: 1, remaining: 0, unlimited: false })
+      expect(unknown.quota?.windows.find((window) => window.id === "premium_interactions")).toMatchObject({
+        scope: "account",
+        usedRatio: 1,
+        remaining: 0,
+        unlimited: false,
+      })
       expect(unknown.quota?.windows.find((window) => window.id === "premium_interactions")?.modelIDs).toBeUndefined()
-      expect(unknown.quota?.windows.find((window) => window.id === "chat")).toMatchObject({ scope: "account", unlimited: true })
-      expect(required(yield* models.get(Provider.ID.githubCopilot, Model.ID.make("unknown-api"), connectionB)).metadata?.quota).toEqual(unknown.quota)
+      expect(unknown.quota?.windows.find((window) => window.id === "chat")).toMatchObject({
+        scope: "account",
+        unlimited: true,
+      })
+      expect(
+        required(yield* models.get(Provider.ID.githubCopilot, Model.ID.make("unknown-api"), connectionB)).metadata
+          ?.quota,
+      ).toEqual(unknown.quota)
       expect(reads).toHaveLength(1)
-      expect(required(yield* models.get(Provider.ID.githubCopilot, premiumID, connectionA)).metadata?.quota?.status).toBe("unknown")
+      expect(
+        required(yield* models.get(Provider.ID.githubCopilot, premiumID, connectionA)).metadata?.quota?.status,
+      ).toBe("unknown")
       expect(yield* integrations.connection.active(Integration.ID.make("github-copilot"))).toMatchObject(connectionA)
     }),
   )
@@ -804,10 +1014,9 @@ describe("GithubCopilotPlugin", () => {
         editor.models.update(Provider.ID.githubCopilot, Model.ID.make("gpt-5-chat-latest"), () => {})
       })
       yield* addPlugin()
-      expect(
-        required(yield* models.get(Provider.ID.githubCopilot, Model.ID.make("gpt-5-chat-latest")))
-          .enabled,
-      ).toBe(false)
+      expect(required(yield* models.get(Provider.ID.githubCopilot, Model.ID.make("gpt-5-chat-latest"))).enabled).toBe(
+        false,
+      )
     }),
   )
 
@@ -821,8 +1030,7 @@ describe("GithubCopilotPlugin", () => {
       })
       yield* addPlugin()
       expect(
-        required(yield* models.get(Provider.ID.make("custom-copilot"), Model.ID.make("gpt-5-chat-latest")))
-          .enabled,
+        required(yield* models.get(Provider.ID.make("custom-copilot"), Model.ID.make("gpt-5-chat-latest"))).enabled,
       ).toBe(true)
     }),
   )

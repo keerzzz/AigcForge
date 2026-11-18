@@ -69,9 +69,7 @@ export const WorkArtifactHandler = HttpApiBuilder.group(Api, "work-artifact", (h
 )
 
 export const ControlPlaneHandler = HttpApiBuilder.group(Api, "controlPlane", (handlers) =>
-  handlers
-
-    .handle("controlPlane.moveSession", () => failClosed("controlPlane", "moveSession")),
+  handlers.handle("controlPlane.moveSession", () => failClosed("controlPlane", "moveSession")),
 )
 
 export const ControlHandler = HttpApiBuilder.group(Api, "control", (handlers) =>

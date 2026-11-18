@@ -67,19 +67,18 @@ export async function writeClipboard(text: string): Promise<boolean> {
   )
 }
 
-function modelLabel(
-  data: ReturnType<typeof useData>,
-  i18n: ReturnType<typeof useI18n>,
-  model: ModelSelection,
-) {
+function modelLabel(data: ReturnType<typeof useData>, i18n: ReturnType<typeof useI18n>, model: ModelSelection) {
   if ("type" in model) {
     const group = data.store.modelGroups?.find((group) => group.groupID === model.groupID)
     const unavailable = group ? group.unavailable : data.store.modelGroups ? "missing" : undefined
     const name = group?.definition?.name || model.groupID
 
-    return unavailable ? i18n.t("ui.message.modelGroupUnavailable", {
-      name, reason: i18n.t(`ui.modelAttempts.group.${unavailable}`),
-    }) : i18n.t("ui.message.modelGroup", { name })
+    return unavailable
+      ? i18n.t("ui.message.modelGroupUnavailable", {
+          name,
+          reason: i18n.t(`ui.modelAttempts.group.${unavailable}`),
+        })
+      : i18n.t("ui.message.modelGroup", { name })
   }
 
   const name = data.store.provider?.all?.get(model.providerID)?.models?.[model.id]?.name ?? model.id
@@ -393,7 +392,12 @@ export function CurrentUserMessageDisplay(props: {
       >
         <div data-slot="user-message-body">
           <div data-slot="user-message-text" dir="auto" data-comments={comments().length > 0 ? "true" : undefined}>
-            <CurrentHighlightedText text={props.text} files={inlineFiles()} agents={agents()} sessions={props.sessionReferences ?? []} />
+            <CurrentHighlightedText
+              text={props.text}
+              files={inlineFiles()}
+              agents={agents()}
+              sessions={props.sessionReferences ?? []}
+            />
             <Show when={comments().length > 0}>
               <UserMessageComments comments={comments()} bounded />
             </Show>
@@ -491,7 +495,12 @@ function CurrentHighlightedText(props: {
       ...props.agents.flatMap((agent) =>
         agent.mention ? [{ start: agent.mention.start, end: agent.mention.end, type: "agent" as const }] : [],
       ),
-      ...props.sessions.map((mention) => ({ start: mention.start, end: mention.end, type: "session" as const, reference: mention.reference })),
+      ...props.sessions.map((mention) => ({
+        start: mention.start,
+        end: mention.end,
+        type: "session" as const,
+        reference: mention.reference,
+      })),
     ].sort((a, b) => a.start - b.start)
 
     const result: HighlightSegment[] = []
@@ -500,7 +509,11 @@ function CurrentHighlightedText(props: {
       if (reference.start < last) return
 
       if (reference.start > last) result.push({ text: props.text.slice(last, reference.start) })
-      result.push({ text: props.text.slice(reference.start, reference.end), type: reference.type, reference: reference.type === "session" ? reference.reference : undefined })
+      result.push({
+        text: props.text.slice(reference.start, reference.end),
+        type: reference.type,
+        reference: reference.type === "session" ? reference.reference : undefined,
+      })
       last = reference.end
     })
 
@@ -512,22 +525,45 @@ function CurrentHighlightedText(props: {
   return (
     <For each={segments()}>
       {(segment) => (
-        <Show when={segment.reference} fallback={<span data-highlight={segment.type}>
-          <Show when={segment.type && segment.text.startsWith("@")} fallback={segment.text}><span data-slot="user-message-mention-prefix">@</span>{segment.text.slice(1)}</Show>
-        </span>}>
+        <Show
+          when={segment.reference}
+          fallback={
+            <span data-highlight={segment.type}>
+              <Show when={segment.type && segment.text.startsWith("@")} fallback={segment.text}>
+                <span data-slot="user-message-mention-prefix">@</span>
+                {segment.text.slice(1)}
+              </Show>
+            </span>
+          }
+        >
           {(reference) => {
             const state = () => data.sessionReferenceState?.(reference())
             const title = () => state()?.title ?? reference().title
             const status = () => state()?.status ?? "unknown"
 
-            return <Tooltip value={i18n.t(`ui.message.sessionReference.${status()}`, { title: title(), server: reference().serverID })}>
-              <button data-slot="user-message-session-reference" data-highlight="session" type="button"
-                aria-label={i18n.t("ui.message.sessionReference.label", { title: title(), server: reference().serverID })}
-                disabled={!data.openSessionReference || status() === "missing" || status() === "disconnected"}
-                onClick={() => data.openSessionReference?.(reference())}>
-                <span data-slot="user-message-mention-prefix">@</span><span>{title()}</span>
-              </button>
-            </Tooltip>
+            return (
+              <Tooltip
+                value={i18n.t(`ui.message.sessionReference.${status()}`, {
+                  title: title(),
+                  server: reference().serverID,
+                })}
+              >
+                <button
+                  data-slot="user-message-session-reference"
+                  data-highlight="session"
+                  type="button"
+                  aria-label={i18n.t("ui.message.sessionReference.label", {
+                    title: title(),
+                    server: reference().serverID,
+                  })}
+                  disabled={!data.openSessionReference || status() === "missing" || status() === "disconnected"}
+                  onClick={() => data.openSessionReference?.(reference())}
+                >
+                  <span data-slot="user-message-mention-prefix">@</span>
+                  <span>{title()}</span>
+                </button>
+              </Tooltip>
+            )
           }}
         </Show>
       )}

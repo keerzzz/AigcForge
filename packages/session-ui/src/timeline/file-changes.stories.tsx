@@ -280,7 +280,13 @@ export const FileToolFallbacks = {
     controlled: { control: "boolean" },
     malformedDiagnostic: { control: "boolean" },
   },
-  render: (args: { tool: string; empty: boolean; forceOpen: boolean; controlled: boolean; malformedDiagnostic: boolean }) => {
+  render: (args: {
+    tool: string
+    empty: boolean
+    forceOpen: boolean
+    controlled: boolean
+    malformedDiagnostic: boolean
+  }) => {
     const [state, setState] = createStore({ completed: false, open: false })
 
     return (

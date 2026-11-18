@@ -143,11 +143,14 @@ export interface Interface {
     readonly agent: Agent.ID
     readonly actor: Agent.ID
     readonly executor?: Session.ExecutorBinding
-  }) => Effect.Effect<{
-    readonly delegationID: DelegationID.ID
-    readonly participantID: ParticipantID
-    readonly turnID: TurnID
-  }, ServiceError>
+  }) => Effect.Effect<
+    {
+      readonly delegationID: DelegationID.ID
+      readonly participantID: ParticipantID
+      readonly turnID: TurnID
+    },
+    ServiceError
+  >
   readonly create: (input: CreateInput) => Effect.Effect<Delegation.Info, ServiceError>
   readonly resolve: (input: ResolveInput) => Effect.Effect<DelegationFoldState, ServiceError>
   readonly addParticipant: (input: AddParticipantInput) => Effect.Effect<Delegation.ParticipantInfo, ServiceError>
@@ -1905,8 +1908,12 @@ export const layer = Layer.effect(
     const internalParticipant = Effect.fn("DelegationService.internalParticipant")(function* (
       input: Parameters<Interface["internalParticipant"]>[0],
     ) {
-      const row = yield* db.select({ data: ScheduleOccurrenceTable.data }).from(ScheduleOccurrenceTable)
-        .where(eq(ScheduleOccurrenceTable.id, input.occurrenceID)).get().pipe(Effect.orDie)
+      const row = yield* db
+        .select({ data: ScheduleOccurrenceTable.data })
+        .from(ScheduleOccurrenceTable)
+        .where(eq(ScheduleOccurrenceTable.id, input.occurrenceID))
+        .get()
+        .pipe(Effect.orDie)
       const run = row ? Schema.decodeUnknownSync(Schedule.Occurrence)(row.data) : undefined
       const hash = input.occurrenceID.slice("sco_".length)
       const delegationID = DelegationID.ID.make(`dlg_schedule_${hash}`)
@@ -1914,37 +1921,70 @@ export const layer = Layer.effect(
       const turnID = TurnID.make(`trn_schedule_${hash}`)
       if (!run || run.snapshot.target?.policy !== "legacy_child" || run.snapshot.kind !== "task")
         return yield* new Delegation.DelegationInvalidStateError({
-          delegationID, currentStatus: run?.status ?? "missing", attemptedTransition: "internalParticipant",
+          delegationID,
+          currentStatus: run?.status ?? "missing",
+          attemptedTransition: "internalParticipant",
           reason: "Internal scheduled execution requires a persisted retained child occurrence",
         })
-      yield* mutationLocks.withLock(delegationID)(Effect.gen(function* () {
-        const saved = yield* foldState(delegationID)
-        if (!saved) yield* create({ parentSessionID: run.sessionID, agent: input.actor,
-          delegationID, title: run.snapshot.content })
-        const state = yield* requireState(delegationID)
-        if (state.delegation.parentSessionID !== run.sessionID)
-          return yield* new Delegation.DelegationInvalidStateError({
-            delegationID, currentStatus: state.delegation.status, attemptedTransition: "internalParticipant",
-            reason: "Schedule delegation belongs to a different source Session",
-          })
-        const participant = state.participants.get(participantID)
-        if (participant) {
-          if (participant.provider === "internal" && participant.target === input.agent && participant.role === "implementer") return
-          return yield* new Delegation.DelegationInvalidStateError({
-            delegationID, currentStatus: participant.phase, attemptedTransition: "internalParticipant",
-            reason: "The frozen scheduled executor changed",
-          })
-        }
-        const parent = yield* requireParent(run.sessionID, delegationID, "internalParticipant")
-        const candidate: AddParticipantInput = { delegationID, provider: "internal", target: input.agent,
-          role: "implementer", context: "fresh", executor: input.executor }
-        const error = participantExecutorError(parent, state, candidate, "addParticipant")
-        if (error) return yield* error
-        yield* createParticipant(candidate, participantID)
-      }))
-      yield* appendTurn({ delegationID, kind: "task", promptSummary: run.snapshot.content, evidenceDigest: run.id,
-        participantIDs: [participantID], delivery: run.snapshot.executionPolicy.delivery,
-        origin: { deliveryOrigin: `schedule:${run.id}`, senderParticipantID: participantID } }, turnID)
+      yield* mutationLocks.withLock(delegationID)(
+        Effect.gen(function* () {
+          const saved = yield* foldState(delegationID)
+          if (!saved)
+            yield* create({
+              parentSessionID: run.sessionID,
+              agent: input.actor,
+              delegationID,
+              title: run.snapshot.content,
+            })
+          const state = yield* requireState(delegationID)
+          if (state.delegation.parentSessionID !== run.sessionID)
+            return yield* new Delegation.DelegationInvalidStateError({
+              delegationID,
+              currentStatus: state.delegation.status,
+              attemptedTransition: "internalParticipant",
+              reason: "Schedule delegation belongs to a different source Session",
+            })
+          const participant = state.participants.get(participantID)
+          if (participant) {
+            if (
+              participant.provider === "internal" &&
+              participant.target === input.agent &&
+              participant.role === "implementer"
+            )
+              return
+            return yield* new Delegation.DelegationInvalidStateError({
+              delegationID,
+              currentStatus: participant.phase,
+              attemptedTransition: "internalParticipant",
+              reason: "The frozen scheduled executor changed",
+            })
+          }
+          const parent = yield* requireParent(run.sessionID, delegationID, "internalParticipant")
+          const candidate: AddParticipantInput = {
+            delegationID,
+            provider: "internal",
+            target: input.agent,
+            role: "implementer",
+            context: "fresh",
+            executor: input.executor,
+          }
+          const error = participantExecutorError(parent, state, candidate, "addParticipant")
+          if (error) return yield* error
+          yield* createParticipant(candidate, participantID)
+        }),
+      )
+      yield* appendTurn(
+        {
+          delegationID,
+          kind: "task",
+          promptSummary: run.snapshot.content,
+          evidenceDigest: run.id,
+          participantIDs: [participantID],
+          delivery: run.snapshot.executionPolicy.delivery,
+          origin: { deliveryOrigin: `schedule:${run.id}`, senderParticipantID: participantID },
+        },
+        turnID,
+      )
       return { delegationID, participantID, turnID }
     })
 

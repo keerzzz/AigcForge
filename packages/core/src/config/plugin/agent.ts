@@ -96,8 +96,7 @@ export const Plugin = define({
         editor.update(agentID, (agent) => {
           agent.originKind = origins.get(agentID) ?? "user"
           if (!exists) agent.permissions.push(...permissions)
-          if (item.model !== undefined)
-            agent.model = Model.fromConfig(item.model)
+          if (item.model !== undefined) agent.model = Model.fromConfig(item.model)
           if (item.request !== undefined) {
             Object.assign(agent.request.headers, item.request.headers ?? {})
             Object.assign(agent.request.body, item.request.body ?? {})

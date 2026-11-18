@@ -28,19 +28,25 @@ export const ProviderGroup = HttpApiGroup.make("server.provider")
       query: Schema.Struct({ ...LocationQuery.fields, ...ProviderDiscovery.GetInput.fields }),
       success: Location.response(ProviderDiscovery.Read),
       error: [InvalidRequestError, ServiceUnavailableError],
-    }).annotateMerge(OpenApi.annotations({
-      identifier: "provider.discovery.get",
-      summary: "Read a connection's discovered model inventory",
-      description: "Read the selected connection's last complete inventory, fetch status, and managed model metadata without starting a request.",
-      transform: (operation) => {
-        if (!Array.isArray(operation.parameters)) return operation
-        return { ...operation, parameters: operation.parameters.map((parameter) =>
-          parameter?.in === "query" && (parameter.name === "location" || parameter.name === "connection")
-            ? { ...parameter, style: "deepObject", explode: true }
-            : parameter,
-        ) }
-      },
-    })),
+    }).annotateMerge(
+      OpenApi.annotations({
+        identifier: "provider.discovery.get",
+        summary: "Read a connection's discovered model inventory",
+        description:
+          "Read the selected connection's last complete inventory, fetch status, and managed model metadata without starting a request.",
+        transform: (operation) => {
+          if (!Array.isArray(operation.parameters)) return operation
+          return {
+            ...operation,
+            parameters: operation.parameters.map((parameter) =>
+              parameter?.in === "query" && (parameter.name === "location" || parameter.name === "connection")
+                ? { ...parameter, style: "deepObject", explode: true }
+                : parameter,
+            ),
+          }
+        },
+      }),
+    ),
   )
   .add(
     HttpApiEndpoint.post("provider.discovery.preview", "/api/provider/discovery/preview", {
@@ -51,11 +57,14 @@ export const ProviderGroup = HttpApiGroup.make("server.provider")
     })
       .annotate(HttpApi.PayloadParseOptions, { onExcessProperty: "error", errors: "all" })
       .annotateMerge(locationQueryOpenApi)
-      .annotateMerge(OpenApi.annotations({
-        identifier: "provider.discovery.preview",
-        summary: "Preview models using a provider draft",
-        description: "Merge a stored provider patch or use a new definition to fetch temporary candidates without saving configuration, credentials, or discovery cache.",
-      })),
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "provider.discovery.preview",
+          summary: "Preview models using a provider draft",
+          description:
+            "Merge a stored provider patch or use a new definition to fetch temporary candidates without saving configuration, credentials, or discovery cache.",
+        }),
+      ),
   )
   .add(
     HttpApiEndpoint.post("provider.discovery.refresh", "/api/provider/discovery/refresh", {
@@ -66,11 +75,14 @@ export const ProviderGroup = HttpApiGroup.make("server.provider")
     })
       .annotate(HttpApi.PayloadParseOptions, { onExcessProperty: "error", errors: "all" })
       .annotateMerge(locationQueryOpenApi)
-      .annotateMerge(OpenApi.annotations({
-        identifier: "provider.discovery.refresh",
-        summary: "Refresh a saved connection's model inventory",
-        description: "Fetch the stored connection's model directory, retaining the same identity's last complete success when a request fails or returns a partial listing.",
-      })),
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "provider.discovery.refresh",
+          summary: "Refresh a saved connection's model inventory",
+          description:
+            "Fetch the stored connection's model directory, retaining the same identity's last complete success when a request fails or returns a partial listing.",
+        }),
+      ),
   )
   .add(
     HttpApiEndpoint.get("provider.definition.get", "/api/provider/definition", {
@@ -79,11 +91,14 @@ export const ProviderGroup = HttpApiGroup.make("server.provider")
       error: [InvalidRequestError, ServiceUnavailableError],
     })
       .annotateMerge(locationQueryOpenApi)
-      .annotateMerge(OpenApi.annotations({
-        identifier: "provider.definition.get",
-        summary: "Read authored provider definitions",
-        description: "Read editable provider layers, including disabled and incomplete definitions, and legal configuration targets.",
-      })),
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "provider.definition.get",
+          summary: "Read authored provider definitions",
+          description:
+            "Read editable provider layers, including disabled and incomplete definitions, and legal configuration targets.",
+        }),
+      ),
   )
   .add(
     HttpApiEndpoint.post("provider.definition.save", "/api/provider/definition", {
@@ -94,11 +109,14 @@ export const ProviderGroup = HttpApiGroup.make("server.provider")
     })
       .annotate(HttpApi.PayloadParseOptions, { onExcessProperty: "error", errors: "all" })
       .annotateMerge(locationQueryOpenApi)
-      .annotateMerge(OpenApi.annotations({
-        identifier: "provider.definition.save",
-        summary: "Save an authored provider definition",
-        description: "Patch one configuration layer and reconcile its credential adoption using a stable submission ID.",
-      })),
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "provider.definition.save",
+          summary: "Save an authored provider definition",
+          description:
+            "Patch one configuration layer and reconcile its credential adoption using a stable submission ID.",
+        }),
+      ),
   )
   .add(
     HttpApiEndpoint.delete("provider.definition.remove", "/api/provider/definition", {
@@ -109,11 +127,14 @@ export const ProviderGroup = HttpApiGroup.make("server.provider")
     })
       .annotate(HttpApi.PayloadParseOptions, { onExcessProperty: "error", errors: "all" })
       .annotateMerge(locationQueryOpenApi)
-      .annotateMerge(OpenApi.annotations({
-        identifier: "provider.definition.remove",
-        summary: "Remove an authored provider layer",
-        description: "Remove only the chosen configuration layer. Inherited definitions and stored credentials remain owned by their sources.",
-      })),
+      .annotateMerge(
+        OpenApi.annotations({
+          identifier: "provider.definition.remove",
+          summary: "Remove an authored provider layer",
+          description:
+            "Remove only the chosen configuration layer. Inherited definitions and stored credentials remain owned by their sources.",
+        }),
+      ),
   )
   .add(
     HttpApiEndpoint.get("provider.get", "/api/provider/:providerID", {

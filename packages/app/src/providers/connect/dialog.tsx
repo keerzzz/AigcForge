@@ -142,8 +142,7 @@ export const DialogConnectProvider: Component<{
               onConnected={(methodID) => {
                 props.onConnected?.(provider)
 
-                if (provider === "openai" && methodID === "chatgpt-token-sharing")
-                  setState("chatgptWelcome", true)
+                if (provider === "openai" && methodID === "chatgpt-token-sharing") setState("chatgptWelcome", true)
               }}
               onFirstConnection={(provider) => setState("modelProvider", provider)}
               onAuthorization={(authorization) => setState("authorization", authorization)}
@@ -182,7 +181,8 @@ export const DialogConnectProvider: Component<{
       }}
       class="[font-family:var(--v2-font-family-sans)] [&_[data-slot=dialog-header]]:!px-5 [&_[data-slot=dialog-header-title]]:!text-[15px] [&_[data-slot=dialog-header-title]]:!tracking-[-0.13px]"
       classList={{
-        "[&_[data-slot=dialog-header]]:!pt-4 [&_[data-slot=dialog-header]]:!pb-3": consoleSelected() && !state.modelProvider,
+        "[&_[data-slot=dialog-header]]:!pt-4 [&_[data-slot=dialog-header]]:!pb-3":
+          consoleSelected() && !state.modelProvider,
         "[&_[data-slot=dialog-header]]:!pt-5": !!state.modelProvider,
       }}
     >
@@ -472,9 +472,7 @@ function ProviderConnection(props: {
       props.onConnected?.(method?.type === "oauth" ? method.id : undefined)
       // The picker only lists the newest model per family by default, which hides most of
       // what a new connection just unlocked. Show everything the connected integration offers.
-      global.models.show(
-        connectionModels().map((model) => ({ providerID: model.providerID, modelID: model.id })),
-      )
+      global.models.show(connectionModels().map((model) => ({ providerID: model.providerID, modelID: model.id })))
 
       if (state.catalogPending) {
         setState("noModels", true)
@@ -598,7 +596,9 @@ function ProviderConnection(props: {
   })
   createEffect(() => {
     const current = controller.auth.state()
-    props.onAuthorization(controller.authorization() !== undefined && (current === "waiting" || current === "refreshing"))
+    props.onAuthorization(
+      controller.authorization() !== undefined && (current === "waiting" || current === "refreshing"),
+    )
   })
 
   const provider = createMemo(() => ({

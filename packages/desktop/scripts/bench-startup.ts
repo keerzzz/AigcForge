@@ -81,7 +81,9 @@ const home = resolve(args.values.home ?? join(tmpdir(), "aigcfroge-bench-startup
 
 for (const build of builds) {
   if (!existsSync(build.exe))
-    throw new Error(`Packaged executable not found: ${build.exe}. Run 'bun run build && bun run package:win' (or pass --exe).`)
+    throw new Error(
+      `Packaged executable not found: ${build.exe}. Run 'bun run build && bun run package:win' (or pass --exe).`,
+    )
 }
 
 if (!Number.isSafeInteger(runs) || runs < 1) throw new Error("--runs must be a positive integer")
@@ -178,7 +180,9 @@ for (const build of builds) console.log(`bench${build.label ? ` ${build.label}` 
 
 console.log(`home:  ${home}`)
 
-console.log(`service: ${service}, runs: ${runs} (+${warmup} warm-up), cdp ${cdpPort}, inspect ${inspectPort}${args.values.fresh ? ", fresh profile per launch" : ""}`)
+console.log(
+  `service: ${service}, runs: ${runs} (+${warmup} warm-up), cdp ${cdpPort}, inspect ${inspectPort}${args.values.fresh ? ", fresh profile per launch" : ""}`,
+)
 
 if (service === "warm") await warmService()
 
@@ -269,7 +273,9 @@ const labels = Object.keys(summaries)
 
 const header = `${"".padEnd(32)}${labels.map((label) => (labels.length > 1 ? label : "").padStart(6).padEnd(22)).join("")}`
 
-console.log(`\n${service} service${args.values.fresh ? ", fresh profile" : ""} — median (min…max) ms since spawn over ${runs} runs`)
+console.log(
+  `\n${service} service${args.values.fresh ? ", fresh profile" : ""} — median (min…max) ms since spawn over ${runs} runs`,
+)
 
 console.log(header)
 
@@ -288,7 +294,11 @@ console.log(`\nphases — median ms`)
 console.log(header)
 
 for (const [name] of phaseOrder) {
-  const cells = labels.map((label) => String(phases[label][name] ?? "").padStart(6).padEnd(22))
+  const cells = labels.map((label) =>
+    String(phases[label][name] ?? "")
+      .padStart(6)
+      .padEnd(22),
+  )
   console.log(`${name.padEnd(32)}${cells.join("")}`)
 }
 
@@ -301,7 +311,9 @@ for (const label of labels) {
 
   if (!s) continue
   const total = s.processes.reduce((n, p) => n + p.rssMB, 0)
-  console.log(`${(labels.length > 1 ? label : "").padEnd(4)}total ${total} MB · main cpu ${s.mainCpuMs ?? "?"} ms · renderer heap ${s.renderer.jsHeapMB} MB, ${s.renderer.domNodes} nodes, layout ${s.renderer.layoutMs} ms/${s.renderer.layouts}×, style ${s.renderer.styleMs} ms/${s.renderer.styleRecalcs}×`)
+  console.log(
+    `${(labels.length > 1 ? label : "").padEnd(4)}total ${total} MB · main cpu ${s.mainCpuMs ?? "?"} ms · renderer heap ${s.renderer.jsHeapMB} MB, ${s.renderer.domNodes} nodes, layout ${s.renderer.layoutMs} ms/${s.renderer.layouts}×, style ${s.renderer.styleMs} ms/${s.renderer.styleRecalcs}×`,
+  )
   console.log(`    ${s.processes.map((p) => `${p.name} ${p.rssMB}`).join(" · ")}`)
 }
 
@@ -429,7 +441,8 @@ async function launch(build: { label: string; exe: string }, run: number): Promi
     const task = (metrics.find((m) => m.name === "TaskDuration")?.value ?? 0) * 1000
     scriptMs = (metrics.find((m) => m.name === "ScriptDuration")?.value ?? 0) * 1000
 
-    if (process.env.BENCH_DEBUG && task - taskMs > 5) console.log(`busy +${Date.now() - spawnAt} ${Math.round(task - taskMs)} ms`)
+    if (process.env.BENCH_DEBUG && task - taskMs > 5)
+      console.log(`busy +${Date.now() - spawnAt} ${Math.round(task - taskMs)} ms`)
     taskMs = task
     window.push({ at: Date.now(), task })
 
@@ -473,7 +486,8 @@ async function launch(build: { label: string; exe: string }, run: number): Promi
   await sleep(300)
 
   // Chromium writes the startup trace when --trace-startup-duration elapses; keep the app alive until then.
-  if (trace) await waitFor(async () => (existsSync(tracePath) && statSync(tracePath).size > 0 ? true : undefined), 20_000)
+  if (trace)
+    await waitFor(async () => (existsSync(tracePath) && statSync(tracePath).size > 0 ? true : undefined), 20_000)
   const main = mainLog()
   const origin = last?.origin ? Math.round(last.origin - spawnAt) : undefined
 
@@ -505,8 +519,11 @@ async function launch(build: { label: string; exe: string }, run: number): Promi
       rendererProcess: origin,
       windowVisible: main.windowVisible && main.windowVisible - spawnAt,
       domInteractive:
-        last?.domInteractive !== undefined && origin !== undefined ? Math.round(origin + last.domInteractive) : undefined,
-      firstPaint: last?.firstPaint !== undefined && origin !== undefined ? Math.round(origin + last.firstPaint) : undefined,
+        last?.domInteractive !== undefined && origin !== undefined
+          ? Math.round(origin + last.domInteractive)
+          : undefined,
+      firstPaint:
+        last?.firstPaint !== undefined && origin !== undefined ? Math.round(origin + last.firstPaint) : undefined,
       // With a shell snapshot in the early document, first paint is the snapshot, not the app.
       prepaintVisible:
         prepaintSeen && last?.firstPaint !== undefined && origin !== undefined
@@ -561,10 +578,16 @@ async function mainBootTiming() {
 }
 
 function defaultExe() {
-  const unpacked = join(packageDir, "dist", process.platform === "win32" ? "win-unpacked" : process.platform === "darwin" ? "mac" : "linux-unpacked")
+  const unpacked = join(
+    packageDir,
+    "dist",
+    process.platform === "win32" ? "win-unpacked" : process.platform === "darwin" ? "mac" : "linux-unpacked",
+  )
 
   if (!existsSync(unpacked)) return join(unpacked, "AigcForge Dev.exe")
-  const candidate = readdirSync(unpacked).find((f) => (process.platform === "win32" ? f.endsWith(".exe") : f.endsWith(".app") || !f.includes(".")))
+  const candidate = readdirSync(unpacked).find((f) =>
+    process.platform === "win32" ? f.endsWith(".exe") : f.endsWith(".app") || !f.includes("."),
+  )
 
   return join(unpacked, candidate ?? "AigcForge Dev.exe")
 }
@@ -580,7 +603,15 @@ function appIdFor(executable: string) {
 }
 
 function prepareHome() {
-  for (const dir of [paths.appData, paths.temp, dirname(paths.db), paths.config, dirname(paths.registration), join(home, ".cache")]) mkdirSync(dir, { recursive: true })
+  for (const dir of [
+    paths.appData,
+    paths.temp,
+    dirname(paths.db),
+    paths.config,
+    dirname(paths.registration),
+    join(home, ".cache"),
+  ])
+    mkdirSync(dir, { recursive: true })
 
   if (args.values.seed && !existsSync(userData)) {
     // Seed only the app's own state (tabs, drafts, settings, window placement); Chromium profile
@@ -600,15 +631,37 @@ function prepareHome() {
     for (const file of readdirSync(userData).filter((name) => /^window-state-.*\.json$/.test(name))) {
       const state = JSON.parse(readFileSync(join(userData, file), "utf8"))
       const bounds = displayAt(at[0], at[1])
-      writeFileSync(join(userData, file), JSON.stringify({ ...state, x: at[0], y: at[1], isMaximized: false, isFullScreen: false, displayBounds: bounds }))
+      writeFileSync(
+        join(userData, file),
+        JSON.stringify({
+          ...state,
+          x: at[0],
+          y: at[1],
+          isMaximized: false,
+          isFullScreen: false,
+          displayBounds: bounds,
+        }),
+      )
     }
   }
 }
 
 function displayAt(x: number, y: number) {
   if (process.platform !== "win32") return undefined
-  const out = execFileSync("pwsh", ["-NoProfile", "-NonInteractive", "-Command", "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Screen]::AllScreens | ForEach-Object { \"$($_.Bounds.X),$($_.Bounds.Y),$($_.Bounds.Width),$($_.Bounds.Height)\" }"], { encoding: "utf8" })
-  const displays = out.trim().split(/\r?\n/).map((line) => line.split(",").map(Number))
+  const out = execFileSync(
+    "pwsh",
+    [
+      "-NoProfile",
+      "-NonInteractive",
+      "-Command",
+      'Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Screen]::AllScreens | ForEach-Object { "$($_.Bounds.X),$($_.Bounds.Y),$($_.Bounds.Width),$($_.Bounds.Height)" }',
+    ],
+    { encoding: "utf8" },
+  )
+  const displays = out
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => line.split(",").map(Number))
   const hit = displays.find(([dx, dy, dw, dh]) => x >= dx && y >= dy && x < dx + dw && y < dy + dh)
 
   return hit ? { x: hit[0], y: hit[1], width: hit[2], height: hit[3] } : undefined
@@ -619,7 +672,9 @@ async function freePort() {
     const server = createServer()
     server.listen(0, "127.0.0.1", () => {
       const address = server.address()
-      server.close(() => (typeof address === "object" && address ? resolvePort(address.port) : reject(new Error("no port"))))
+      server.close(() =>
+        typeof address === "object" && address ? resolvePort(address.port) : reject(new Error("no port")),
+      )
     })
   })
 }
@@ -814,7 +869,8 @@ async function windowRaiser(): Promise<{ raise: (pid: number) => void; screen: (
         .filter((line) => line.startsWith("screen "))
         .map((line) => line.split(" ").slice(1).map(Number) as [number, number])
 
-      if (process.env.BENCH_DEBUG) console.log(lines.filter((line) => line.startsWith("raised")).join(" "), `${samples.length} screen samples`)
+      if (process.env.BENCH_DEBUG)
+        console.log(lines.filter((line) => line.startsWith("raised")).join(" "), `${samples.length} screen samples`)
       const first = samples[0]?.[1]
       const last = samples.at(-1)?.[1]
       const differs = (a: number, b: number) => Math.abs(a - b) > 16 * 16 * 12
@@ -838,7 +894,13 @@ async function processTree(root: number) {
             `$all = Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId, Name, WorkingSetSize, CommandLine; $ids = @(${root}); do { $before = $ids.Count; $ids = @($ids + ($all | Where-Object { $ids -contains $_.ParentProcessId } | ForEach-Object ProcessId) | Sort-Object -Unique) } while ($ids.Count -ne $before); $all | Where-Object { $ids -contains $_.ProcessId } | ForEach-Object { '{0}|{1}|{2}|{3}' -f $_.ProcessId, $_.Name, $_.WorkingSetSize, (($_.CommandLine -split ' ' | Where-Object { $_ -like '--type=*' }) -join '') } `,
           ],
         ]
-      : ["sh", ["-c", `ps -eo pid=,ppid=,rss=,comm= | awk -v r=${root} 'BEGIN{ids[r]=1} {p[$1]=$2; rss[$1]=$3; c[$1]=$4} END{for(k=0;k<8;k++) for(i in p) if(p[i] in ids) ids[i]=1; for(i in ids) if(i in rss) print i "|" c[i] "|" rss[i]*1024 "|"}'`]]
+      : [
+          "sh",
+          [
+            "-c",
+            `ps -eo pid=,ppid=,rss=,comm= | awk -v r=${root} 'BEGIN{ids[r]=1} {p[$1]=$2; rss[$1]=$3; c[$1]=$4} END{for(k=0;k<8;k++) for(i in p) if(p[i] in ids) ids[i]=1; for(i in ids) if(i in rss) print i "|" c[i] "|" rss[i]*1024 "|"}'`,
+          ],
+        ]
 
   const out = await new Promise<string>((done) => {
     const child = spawn(script[0] as string, script[1] as string[], { stdio: ["ignore", "pipe", "ignore"] })
@@ -854,7 +916,11 @@ async function processTree(root: number) {
     .map((line) => {
       const [pid, name, rss, type] = line.split("|")
 
-      return { pid: Number(pid), name: `${name}${type ? ` ${type.replace("--type=", "")}` : ""}`, rssMB: Math.round(Number(rss) / 1048576) }
+      return {
+        pid: Number(pid),
+        name: `${name}${type ? ` ${type.replace("--type=", "")}` : ""}`,
+        rssMB: Math.round(Number(rss) / 1048576),
+      }
     })
 }
 
@@ -869,7 +935,10 @@ function summarize(list: Sample[]) {
   const out: Record<string, { median: number; min: number; max: number }> = {}
 
   for (const key of keys) {
-    const sorted = list.map((s) => values(s)[key]).filter((v): v is number => Number.isFinite(v)).sort((a, b) => a - b)
+    const sorted = list
+      .map((s) => values(s)[key])
+      .filter((v): v is number => Number.isFinite(v))
+      .sort((a, b) => a - b)
 
     if (!sorted.length) continue
     out[key] = { median: sorted[Math.floor(sorted.length / 2)], min: sorted[0], max: sorted[sorted.length - 1] }
@@ -881,7 +950,8 @@ function summarize(list: Sample[]) {
 // The service must come from the CLI bundled with the executable: the desktop restarts a service
 // whose version differs from its bundled CLI, which would turn a warm run into a cold one.
 function bundledCli(exe: string) {
-  const resources = process.platform === "darwin" ? join(dirname(exe), "..", "Resources") : join(dirname(exe), "resources")
+  const resources =
+    process.platform === "darwin" ? join(dirname(exe), "..", "Resources") : join(dirname(exe), "resources")
 
   return join(resources, process.platform === "win32" ? "aigcfroge-cli.exe" : "aigcfroge-cli")
 }
@@ -906,7 +976,12 @@ async function warmService() {
     if (existsSync(paths.registration)) {
       const registration = JSON.parse(readFileSync(paths.registration, "utf8")) as { url?: string }
 
-      if (registration.url && (await fetch(`${registration.url}/api/info`).then((r) => r.status < 500).catch(() => false))) {
+      if (
+        registration.url &&
+        (await fetch(`${registration.url}/api/info`)
+          .then((r) => r.status < 500)
+          .catch(() => false))
+      ) {
         console.log(`service warm at ${registration.url}`)
 
         return

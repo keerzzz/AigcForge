@@ -242,13 +242,16 @@ export const OpenAIPlugin = define({
     const integrations = yield* Integration.Service
     const http = yield* HttpClient.HttpClient
     const loading = Semaphore.makeUnsafe(1)
-    const accounts = new Map<string, {
-      credential: Credential.OAuth
-      quota?: ModelSource.Quota
-      lastSuccess?: ModelSource.Quota
-      readAt?: number
-      quotaLoading: ReturnType<typeof Semaphore.makeUnsafe>
-    }>()
+    const accounts = new Map<
+      string,
+      {
+        credential: Credential.OAuth
+        quota?: ModelSource.Quota
+        lastSuccess?: ModelSource.Quota
+        readAt?: number
+        quotaLoading: ReturnType<typeof Semaphore.makeUnsafe>
+      }
+    >()
     let active: IntegrationConnection.Info | undefined
     const selected = (connection?: ModelSource.ConnectionRef) =>
       accounts.get(IntegrationConnection.key(connection ?? active) ?? "")
@@ -256,11 +259,17 @@ export const OpenAIPlugin = define({
     const load = Effect.fn("OpenAIPlugin.load")(function* () {
       const connections = (yield* integrations.get(Integration.ID.make("openai")))?.connections ?? []
       const next = (yield* credentials.list(Integration.ID.make("openai"))).flatMap((entry) => {
-        if (entry.value.type !== "oauth" ||
-          (entry.value.methodID !== browserMethodID && entry.value.methodID !== headlessMethodID)) return []
+        if (
+          entry.value.type !== "oauth" ||
+          (entry.value.methodID !== browserMethodID && entry.value.methodID !== headlessMethodID)
+        )
+          return []
         const key = IntegrationConnection.key({ type: "credential", id: entry.id })!
         const previous = accounts.get(key)
-        if (previous?.credential.methodID === entry.value.methodID && previous.credential.metadata?.accountID === entry.value.metadata?.accountID) {
+        if (
+          previous?.credential.methodID === entry.value.methodID &&
+          previous.credential.metadata?.accountID === entry.value.metadata?.accountID
+        ) {
           previous.credential = entry.value
           return [[key, previous] as const]
         }
@@ -302,7 +311,17 @@ export const OpenAIPlugin = define({
         // subscription covers usage, so hide the rest and zero the cost.
         models.update(model.providerID, model.id, (draft) => {
           if (!chatgpt) return
-          if (source?.quota) draft.metadata = { ...draft.metadata, quota: { ...source.quota, windows: source.quota.windows.map((window) => ({ ...window, modelIDs: window.modelIDs && [...window.modelIDs] })) } }
+          if (source?.quota)
+            draft.metadata = {
+              ...draft.metadata,
+              quota: {
+                ...source.quota,
+                windows: source.quota.windows.map((window) => ({
+                  ...window,
+                  modelIDs: window.modelIDs && [...window.modelIDs],
+                })),
+              },
+            }
           if (Schema.is(Schema.Struct({ mode: Schema.Literal("pro") }))(draft.body?.reasoning)) {
             draft.enabled = false
             return
@@ -324,37 +343,60 @@ export const OpenAIPlugin = define({
         })
       }
     })
-    yield* ctx.session.hook("model.quota", (evt) => Effect.gen(function* () {
-      const connection = evt.connection
-        ? yield* integrations.connection.get(Integration.ID.make("openai"), evt.connection)
-        : yield* integrations.connection.active(Integration.ID.make("openai"))
-      if (connection?.type !== "credential") return
-      const ref = { type: "credential" as const, id: connection.id }
-      const source = selected(ref)
-      if (!source) return
-      yield* source.quotaLoading.withPermit(Effect.gen(function* () {
-        const now = (yield* DateTime.nowAsDate).getTime()
-        if (source.quota && source.readAt !== undefined && now - source.readAt < quotaCacheTTL) {
-          evt.quota = source.quota
-          return
-        }
-        const credential = yield* ctx.integration.connection.resolve(connection).pipe(Effect.orElseSucceed(() => undefined))
-        const quota: ModelSource.Quota = credential?.type === "oauth" &&
-          (credential.methodID === browserMethodID || credential.methodID === headlessMethodID)
-          ? yield* fetchCodexQuota({
-              http, app: ctx.app, token: credential.access, connection: ref,
-              accountID: typeof credential.metadata?.accountID === "string" ? credential.metadata.accountID : undefined,
-            })
-          : { status: "error", source: "openai-codex", connection: ref, observedAt: now, freshUntil: now + quotaCacheTTL, reason: "authentication", windows: [] }
-        source.readAt = now
-        if (quota.status === "known") source.lastSuccess = quota
-        source.quota = quota.status !== "known" && source.lastSuccess
-          ? { ...source.lastSuccess, status: "unknown", reason: quota.reason }
-          : quota
-        evt.quota = source.quota
-        yield* ctx.model.reload()
-      }))
-    }), { providerID: Provider.ID.openai })
+    yield* ctx.session.hook(
+      "model.quota",
+      (evt) =>
+        Effect.gen(function* () {
+          const connection = evt.connection
+            ? yield* integrations.connection.get(Integration.ID.make("openai"), evt.connection)
+            : yield* integrations.connection.active(Integration.ID.make("openai"))
+          if (connection?.type !== "credential") return
+          const ref = { type: "credential" as const, id: connection.id }
+          const source = selected(ref)
+          if (!source) return
+          yield* source.quotaLoading.withPermit(
+            Effect.gen(function* () {
+              const now = (yield* DateTime.nowAsDate).getTime()
+              if (source.quota && source.readAt !== undefined && now - source.readAt < quotaCacheTTL) {
+                evt.quota = source.quota
+                return
+              }
+              const credential = yield* ctx.integration.connection
+                .resolve(connection)
+                .pipe(Effect.orElseSucceed(() => undefined))
+              const quota: ModelSource.Quota =
+                credential?.type === "oauth" &&
+                (credential.methodID === browserMethodID || credential.methodID === headlessMethodID)
+                  ? yield* fetchCodexQuota({
+                      http,
+                      app: ctx.app,
+                      token: credential.access,
+                      connection: ref,
+                      accountID:
+                        typeof credential.metadata?.accountID === "string" ? credential.metadata.accountID : undefined,
+                    })
+                  : {
+                      status: "error",
+                      source: "openai-codex",
+                      connection: ref,
+                      observedAt: now,
+                      freshUntil: now + quotaCacheTTL,
+                      reason: "authentication",
+                      windows: [],
+                    }
+              source.readAt = now
+              if (quota.status === "known") source.lastSuccess = quota
+              source.quota =
+                quota.status !== "known" && source.lastSuccess
+                  ? { ...source.lastSuccess, status: "unknown", reason: quota.reason }
+                  : quota
+              evt.quota = source.quota
+              yield* ctx.model.reload()
+            }),
+          )
+        }),
+      { providerID: Provider.ID.openai },
+    )
     yield* ctx.session.hook(
       "model.request",
       (evt) =>
@@ -380,47 +422,91 @@ export const OpenAIPlugin = define({
       yield* ctx.session.hook(name, omitOutputLimit, { providerID: Provider.ID.openai })
     const refresh = () => loading.withPermit(load().pipe(Effect.andThen(ctx.provider.reload())))
     yield* bus.subscribe([Credential.Event.Updated, Credential.Event.Switched]).pipe(
-      Stream.filter((event) => event.type === Credential.Event.Updated.type || event.data.integrationID === Integration.ID.make("openai")),
+      Stream.filter(
+        (event) =>
+          event.type === Credential.Event.Updated.type || event.data.integrationID === Integration.ID.make("openai"),
+      ),
       Stream.runForEach(refresh),
       Effect.forkScoped({ startImmediately: true }),
     )
   }),
 } satisfies PluginInternal.InternalPlugin)
 
-export const fetchCodexQuota = Effect.fn("OpenAI.fetchCodexQuota")((input: {
-  http: HttpClient.HttpClient
-  app: App.Info
-  token: string
-  connection: ModelSource.ConnectionRef
-  accountID?: string
-}) => Effect.gen(function* () {
-  const response = yield* input.http.execute(HttpClientRequest.get("https://chatgpt.com/backend-api/wham/usage").pipe(
-    HttpClientRequest.bearerToken(input.token),
-    HttpClientRequest.setHeader("User-Agent", App.useragent(input.app)),
-    HttpClientRequest.setHeaders(typeof input.accountID === "string" ? { "ChatGPT-Account-Id": input.accountID } : {}),
-  ))
-  const body = response.status >= 200 && response.status < 300
-    ? yield* response.json.pipe(Effect.orElseSucceed(() => undefined))
-    : undefined
-  const observedAt = (yield* DateTime.nowAsDate).getTime()
-  if (body === undefined) return {
-    status: "error", source: "openai-codex", connection: input.connection, observedAt, freshUntil: observedAt + quotaCacheTTL,
-    reason: response.status === 401 || response.status === 403 ? "authentication" : response.status === 429 ? "rate-limit" : response.status >= 200 && response.status < 300 ? "invalid-output" : "transport",
-    windows: [],
-  } satisfies ModelSource.Quota
-  const parsed = ProviderQuota.chatgpt(body, observedAt)
-  return {
-    status: parsed.known ? "known" : "unknown", source: "openai-codex", connection: input.connection,
-    observedAt, freshUntil: observedAt + quotaCacheTTL,
-    reason: parsed.known ? undefined : "invalid-output",
-    plan: parsed.plan, freePlan: parsed.plan === undefined ? undefined : parsed.plan === "free", allowed: parsed.allowed,
-    credits: parsed.balance === undefined && parsed.unlimitedCredits === undefined ? undefined : { balance: parsed.balance, unlimited: parsed.unlimitedCredits },
-    windows: parsed.windows.map((window) => ({ ...window, scope: "account" as const })),
-  } satisfies ModelSource.Quota
-}).pipe(Effect.timeout("5 seconds"), Effect.catch(() => Effect.gen(function* () {
-  const observedAt = (yield* DateTime.nowAsDate).getTime()
-  return { status: "error", source: "openai-codex", connection: input.connection, observedAt, freshUntil: observedAt + quotaCacheTTL, reason: "transport", windows: [] } satisfies ModelSource.Quota
-}))))
+export const fetchCodexQuota = Effect.fn("OpenAI.fetchCodexQuota")(
+  (input: {
+    http: HttpClient.HttpClient
+    app: App.Info
+    token: string
+    connection: ModelSource.ConnectionRef
+    accountID?: string
+  }) =>
+    Effect.gen(function* () {
+      const response = yield* input.http.execute(
+        HttpClientRequest.get("https://chatgpt.com/backend-api/wham/usage").pipe(
+          HttpClientRequest.bearerToken(input.token),
+          HttpClientRequest.setHeader("User-Agent", App.useragent(input.app)),
+          HttpClientRequest.setHeaders(
+            typeof input.accountID === "string" ? { "ChatGPT-Account-Id": input.accountID } : {},
+          ),
+        ),
+      )
+      const body =
+        response.status >= 200 && response.status < 300
+          ? yield* response.json.pipe(Effect.orElseSucceed(() => undefined))
+          : undefined
+      const observedAt = (yield* DateTime.nowAsDate).getTime()
+      if (body === undefined)
+        return {
+          status: "error",
+          source: "openai-codex",
+          connection: input.connection,
+          observedAt,
+          freshUntil: observedAt + quotaCacheTTL,
+          reason:
+            response.status === 401 || response.status === 403
+              ? "authentication"
+              : response.status === 429
+                ? "rate-limit"
+                : response.status >= 200 && response.status < 300
+                  ? "invalid-output"
+                  : "transport",
+          windows: [],
+        } satisfies ModelSource.Quota
+      const parsed = ProviderQuota.chatgpt(body, observedAt)
+      return {
+        status: parsed.known ? "known" : "unknown",
+        source: "openai-codex",
+        connection: input.connection,
+        observedAt,
+        freshUntil: observedAt + quotaCacheTTL,
+        reason: parsed.known ? undefined : "invalid-output",
+        plan: parsed.plan,
+        freePlan: parsed.plan === undefined ? undefined : parsed.plan === "free",
+        allowed: parsed.allowed,
+        credits:
+          parsed.balance === undefined && parsed.unlimitedCredits === undefined
+            ? undefined
+            : { balance: parsed.balance, unlimited: parsed.unlimitedCredits },
+        windows: parsed.windows.map((window) => ({ ...window, scope: "account" as const })),
+      } satisfies ModelSource.Quota
+    }).pipe(
+      Effect.timeout("5 seconds"),
+      Effect.catch(() =>
+        Effect.gen(function* () {
+          const observedAt = (yield* DateTime.nowAsDate).getTime()
+          return {
+            status: "error",
+            source: "openai-codex",
+            connection: input.connection,
+            observedAt,
+            freshUntil: observedAt + quotaCacheTTL,
+            reason: "transport",
+            windows: [],
+          } satisfies ModelSource.Quota
+        }),
+      ),
+    ),
+)
 
 function headers(contentType: string, app: App.Info) {
   return { "Content-Type": contentType, "User-Agent": App.useragent(app) }

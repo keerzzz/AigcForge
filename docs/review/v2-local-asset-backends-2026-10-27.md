@@ -14,14 +14,14 @@ HEAD 已支持 Session.create 的 mode，因此本切片无需引入待提交的
 
 从已提交 Task 基线与本次精确补丁导出隔离源码，workspace 链接只指向该副本。源 tree、每文件哈希、命令、退出码及日志哈希见 [asset-validation.json](evidence/v2-local-commits-2026-10-27/asset-validation.json)。正式生成首次允许预期输出变化；后续重复生成保持字节一致。
 
-| 范围 | 结果 |
-| --- | --- |
-| Server 全包 | 150 pass / 1 skip / 0 fail；7275 expects；40 files |
-| Core 三类资产 | 23 pass / 0 fail；58 expects；3 files |
-| Client 全包 | 224 pass / 0 fail；906 expects；20 files |
-| Core、Server、Schema、Protocol、Client 包 typecheck | 各 exit 0 |
-| Client 正式生成及稳定性、OpenAPI 生成及 check | 各 exit 0 |
-| 17文件 lint、13生产文件 AST、格式、diff check | 各 exit 0 |
+| 范围                                                | 结果                                               |
+| --------------------------------------------------- | -------------------------------------------------- |
+| Server 全包                                         | 150 pass / 1 skip / 0 fail；7275 expects；40 files |
+| Core 三类资产                                       | 23 pass / 0 fail；58 expects；3 files              |
+| Client 全包                                         | 224 pass / 0 fail；906 expects；20 files           |
+| Core、Server、Schema、Protocol、Client 包 typecheck | 各 exit 0                                          |
+| Client 正式生成及稳定性、OpenAPI 生成及 check       | 各 exit 0                                          |
+| 17文件 lint、13生产文件 AST、格式、diff check       | 各 exit 0                                          |
 
 早期 Server 类型检查使用了 Core 旧声明，表现为多处相同的 Requires 服务依赖错误。复制源码保留的旧 mtime 是根因；更新候选源码 mtime 并重编译 Core 后，未改变任何生产字节，Server 所有类型错误消失。该失败与旧 Core 增量空转记录保留，不计最终有效检查。lint 当前一条规则；Server listener 和 AST binary-resolution 警告保留。
 

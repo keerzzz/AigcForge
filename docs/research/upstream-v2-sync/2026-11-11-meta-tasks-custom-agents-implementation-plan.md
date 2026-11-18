@@ -4,14 +4,14 @@
 
 本文是[总路线](/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md)与[会话工作面计划](/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/2026-11-10-side-chat-subagent-implementation-plan.md)的后继附件。原SC00–SC09已完成接受；本轮补充Meta任务权限、真实委派导航和用户智能体的模式边界。实施状态继续由[唯一账本](/home/keer/workspace/aigcfroge-v2/docs/technical-debt.md)记录。
 
-| 输入 | 核对结果 |
-| --- | --- |
-| 实施工作区 | `/home/keer/workspace/aigcfroge-v2` |
-| 当前分支 | `v2-dev` |
-| 当前HEAD | `0a09f6bccdb71f1234eea759eb99e8a336d1d4da` |
-| 历史参考 | `/home/keer/workspace/aigcfroge` |
-| 本次交付 | Meta现代任务权限与执行认领保护、用户Agent来源及模式边界、Custom库存／冻结采用、Task到原Tool的导航；工程和真实链验收分别记录 |
-| 适用协议 | [AGENTS](/home/keer/workspace/aigcfroge-v2/AGENTS.md)、[CLAUDE](/home/keer/workspace/aigcfroge-v2/CLAUDE.md)、[架构](/home/keer/workspace/aigcfroge-v2/ARCHITECTURE.md)、[设计](/home/keer/workspace/aigcfroge-v2/DESIGN.md)、[验证](/home/keer/workspace/aigcfroge-v2/docs/testing.md)、[V2合同权威](/home/keer/workspace/aigcfroge-v2/specs/v2/README.md) |
+| 输入       | 核对结果                                                                                                                                                                                                                                                                                                                                                    |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 实施工作区 | `/home/keer/workspace/aigcfroge-v2`                                                                                                                                                                                                                                                                                                                         |
+| 当前分支   | `v2-dev`                                                                                                                                                                                                                                                                                                                                                    |
+| 当前HEAD   | `0a09f6bccdb71f1234eea759eb99e8a336d1d4da`                                                                                                                                                                                                                                                                                                                  |
+| 历史参考   | `/home/keer/workspace/aigcfroge`                                                                                                                                                                                                                                                                                                                            |
+| 本次交付   | Meta现代任务权限与执行认领保护、用户Agent来源及模式边界、Custom库存／冻结采用、Task到原Tool的导航；工程和真实链验收分别记录                                                                                                                                                                                                                                 |
+| 适用协议   | [AGENTS](/home/keer/workspace/aigcfroge-v2/AGENTS.md)、[CLAUDE](/home/keer/workspace/aigcfroge-v2/CLAUDE.md)、[架构](/home/keer/workspace/aigcfroge-v2/ARCHITECTURE.md)、[设计](/home/keer/workspace/aigcfroge-v2/DESIGN.md)、[验证](/home/keer/workspace/aigcfroge-v2/docs/testing.md)、[V2合同权威](/home/keer/workspace/aigcfroge-v2/specs/v2/README.md) |
 
 ## 1. 产品结论与已确认边界
 
@@ -32,11 +32,11 @@ Meta需要使用真实任务管理工具，维护计划并委派Build。输入�
 
 ## 2. 已有Meta → Build展示及实际缺口
 
-| 调用方式 | 现有领域链路 | 当前可见UI | 本轮实现 |
-| --- | --- | --- | --- |
-| `task(subagent_type="build")` | 创建或采用父Task，捕获Task ID／revision／原Tool source，再创建participant与child | 自动任务dock、协作委派／参与者／回执、Meta controller／executor／来源、共享子会话内容 | 从真实父Task打开原委派、子会话及精确结果；保留不同attempt |
-| `subagent(agent="build")` | 创建child并执行Session.prompt／SubagentJob，返回实际sessionID与状态 | Timeline调用记录、协作中的普通子智能体分组、Meta概览与子会话查看 | 保持原查看与导航；需要父计划节点时由Meta显式使用Task或已有计划项 |
-| Work的前台Workflow Task | 实际选中的Work Meta根，采用已发布步骤、冻结Snapshot和父Task绑定 | 工作流运行、协作／Meta来源、子会话及结果 | 与父Task导航贯通；保留Run、步骤和冻结版本身份 |
+| 调用方式                      | 现有领域链路                                                                     | 当前可见UI                                                                            | 本轮实现                                                         |
+| ----------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `task(subagent_type="build")` | 创建或采用父Task，捕获Task ID／revision／原Tool source，再创建participant与child | 自动任务dock、协作委派／参与者／回执、Meta controller／executor／来源、共享子会话内容 | 从真实父Task打开原委派、子会话及精确结果；保留不同attempt        |
+| `subagent(agent="build")`     | 创建child并执行Session.prompt／SubagentJob，返回实际sessionID与状态              | Timeline调用记录、协作中的普通子智能体分组、Meta概览与子会话查看                      | 保持原查看与导航；需要父计划节点时由Meta显式使用Task或已有计划项 |
+| Work的前台Workflow Task       | 实际选中的Work Meta根，采用已发布步骤、冻结Snapshot和父Task绑定                  | 工作流运行、协作／Meta来源、子会话及结果                                              | 与父Task导航贯通；保留Run、步骤和冻结版本身份                    |
 
 决定函数与消费者：
 
@@ -51,23 +51,23 @@ Meta需要使用真实任务管理工具，维护计划并委派Build。输入�
 
 下表保留2026-11-11实施前调查时点；当前五项现代任务工具状态见后表。
 
-| 层次 | 证据与结论 |
-| --- | --- |
-| fact | 用户测试Session `ses_e35910fa9ffeZJMu86JrBJEJL0`的模式为Coding、agent为Meta、tier为propose，任务表为零行。用户报告完成6轮文件核验，但任务创建、取消和失败标记均未执行。 |
-| fact | [内置注册](/home/keer/workspace/aigcfroge-v2/packages/core/src/plugin/internal.ts:374)已经包含`task_create / task_update / task_delete / task_reorder / taskwrite / todowrite`。[Meta定义](/home/keer/workspace/aigcfroge-v2/packages/core/src/plugin/agent.ts:270)以`* deny`开始，没有任务清单管理allow。 |
-| fact | [Tool.snapshot](/home/keer/workspace/aigcfroge-v2/packages/core/src/tool.ts:282)过滤整项工具；[whollyDisabled](/home/keer/workspace/aigcfroge-v2/packages/core/src/tool.ts:419)以最后匹配action、resource为`*`且effect为deny裁决。[PermissionEffective](/home/keer/workspace/aigcfroge-v2/packages/core/src/permission/effective.ts:113)计算档位与规则，并重放显式deny。 |
-| hypothesis | Meta基线缺少清单管理allow，使工具在模型请求构建时消失。该原因可同时解释“有task委派能力”“能弹question”“任务清单工具缺失”。 |
-| inference | 注册存在，Meta规则命中整项过滤，测试恰使用Coding／Meta／propose；证据支持权限过滤原因。UI空任务是未产生Task的结果。 |
-| recommendation | 为内置Meta增加五项现代任务管理allow，同时在SessionTask自动写边界保护执行占用项；用真实请求工具快照与Task事件验证完整链路。 |
+| 层次           | 证据与结论                                                                                                                                                                                                                                                                                                                                                               |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| fact           | 用户测试Session `ses_e35910fa9ffeZJMu86JrBJEJL0`的模式为Coding、agent为Meta、tier为propose，任务表为零行。用户报告完成6轮文件核验，但任务创建、取消和失败标记均未执行。                                                                                                                                                                                                  |
+| fact           | [内置注册](/home/keer/workspace/aigcfroge-v2/packages/core/src/plugin/internal.ts:374)已经包含`task_create / task_update / task_delete / task_reorder / taskwrite / todowrite`。[Meta定义](/home/keer/workspace/aigcfroge-v2/packages/core/src/plugin/agent.ts:270)以`* deny`开始，没有任务清单管理allow。                                                               |
+| fact           | [Tool.snapshot](/home/keer/workspace/aigcfroge-v2/packages/core/src/tool.ts:282)过滤整项工具；[whollyDisabled](/home/keer/workspace/aigcfroge-v2/packages/core/src/tool.ts:419)以最后匹配action、resource为`*`且effect为deny裁决。[PermissionEffective](/home/keer/workspace/aigcfroge-v2/packages/core/src/permission/effective.ts:113)计算档位与规则，并重放显式deny。 |
+| hypothesis     | Meta基线缺少清单管理allow，使工具在模型请求构建时消失。该原因可同时解释“有task委派能力”“能弹question”“任务清单工具缺失”。                                                                                                                                                                                                                                                |
+| inference      | 注册存在，Meta规则命中整项过滤，测试恰使用Coding／Meta／propose；证据支持权限过滤原因。UI空任务是未产生Task的结果。                                                                                                                                                                                                                                                      |
+| recommendation | 为内置Meta增加五项现代任务管理allow，同时在SessionTask自动写边界保护执行占用项；用真实请求工具快照与Task事件验证完整链路。                                                                                                                                                                                                                                               |
 
 MA01已在原Meta定义增加五项现代任务allow。当前有效规则由[PermissionEffective.compute](/home/keer/workspace/aigcfroge-v2/packages/core/src/permission/effective.ts:72)决定，[五模式／两档位keeper](/home/keer/workspace/aigcfroge-v2/packages/core/test/agent.test.ts:93)检查以下结果及Session显式deny：
 
-| 组合 | 五项现代清单工具的当前状态 |
-| --- | --- |
-| Coding／Build或Plan，propose或full | 可见 |
-| Coding／Meta，propose或full | allow；原真实工具快照keeper已执行 |
-| Chat／Work／Assistant的Meta，propose或full | allow；不增加新的权限预检 |
-| Custom已采用Meta，propose或full | 原非只读allow上限仍改判ask；显式deny仍为deny |
+| 组合                                       | 五项现代清单工具的当前状态                   |
+| ------------------------------------------ | -------------------------------------------- |
+| Coding／Build或Plan，propose或full         | 可见                                         |
+| Coding／Meta，propose或full                | allow；原真实工具快照keeper已执行            |
+| Chat／Work／Assistant的Meta，propose或full | allow；不增加新的权限预检                    |
+| Custom已采用Meta，propose或full            | 原非只读allow上限仍改判ask；显式deny仍为deny |
 
 `todowrite`仍为兼容路径，没有新增Meta基线allow。Custom权限消费实际采用快照；已运行的受控模型keeper与真实Flash运行分别记录，见§9。
 
@@ -75,13 +75,13 @@ MA01已在原Meta定义增加五项现代任务allow。当前有效规则由[Per
 
 ### 4.1 模式边界
 
-| 模式 | 普通智能体列表／根选择 | Meta直接委派池 | 用户定义的执行入口 |
-| --- | --- | --- | --- |
-| Coding | 现有内置Agent；Build／Plan／Meta入口保留 | 符合子角色、hidden及现权限规则的内置Agent | 用户Agent转至Custom采用 |
-| Chat | 现有内置Agent与Chat操作约束 | 符合该会话现权限的内置Agent | 可沿既有资产生产／保存链生成定义；执行在Custom |
-| Work | 现有内置Agent；前台Workflow／Judge仍要求实际选中Meta根 | 普通直接委派只读内置池 | 已发布Workflow中明确绑定的冻结Agent可由原Run执行 |
-| Assistant | 现有内置Agent及Assistant工作面 | 现有权限允许的内置Agent | 用户Agent转至Custom采用；个人记忆等沿原owner |
-| Custom | 内置Build／Plan／Meta根与有效用户资产根；库存独立显示 | 当前已采用快照中明确绑定、角色适用的executor | 资产引用 → plan/start → 冻结Snapshot → 原执行链 |
+| 模式      | 普通智能体列表／根选择                                 | Meta直接委派池                               | 用户定义的执行入口                               |
+| --------- | ------------------------------------------------------ | -------------------------------------------- | ------------------------------------------------ |
+| Coding    | 现有内置Agent；Build／Plan／Meta入口保留               | 符合子角色、hidden及现权限规则的内置Agent    | 用户Agent转至Custom采用                          |
+| Chat      | 现有内置Agent与Chat操作约束                            | 符合该会话现权限的内置Agent                  | 可沿既有资产生产／保存链生成定义；执行在Custom   |
+| Work      | 现有内置Agent；前台Workflow／Judge仍要求实际选中Meta根 | 普通直接委派只读内置池                       | 已发布Workflow中明确绑定的冻结Agent可由原Run执行 |
+| Assistant | 现有内置Agent及Assistant工作面                         | 现有权限允许的内置Agent                      | 用户Agent转至Custom采用；个人记忆等沿原owner     |
+| Custom    | 内置Build／Plan／Meta根与有效用户资产根；库存独立显示  | 当前已采用快照中明确绑定、角色适用的executor | 资产引用 → plan/start → 冻结Snapshot → 原执行链  |
 
 上表不重写各模式的工具权限。`Agent.availableForDelegation`的角色／hidden／Permission判断继续生效，[决定函数](/home/keer/workspace/aigcfroge-v2/packages/core/src/agent.ts:126)补来源与产品模式条件；Custom继续由[selectAgent](/home/keer/workspace/aigcfroge-v2/packages/core/src/session/composition.ts:670)及[唯一匹配](/home/keer/workspace/aigcfroge-v2/packages/core/src/session/composition.ts:734)消费冻结成员。
 
@@ -89,17 +89,17 @@ Work例外由[frozenRun](/home/keer/workspace/aigcfroge-v2/packages/core/src/wor
 
 ### 4.2 智能体边界
 
-| 概念 | 权威来源 | 实施规则 |
-| --- | --- | --- |
-| 稳定身份与展示名称 | `Agent.Info.id / name` | 执行用ID，名称用于展示；同名不构成同一Agent |
-| 定义来源 | 实际注册／资产转换边界 | 增加最小公开`originKind: builtin \| user`语义；Config多文档移除／重建保留原注册来源，不能仅依赖当前exists；保留已有文件／revision provenance |
-| 根／子角色 | 既有`Agent.Info.mode: primary \| subagent \| all` | primary用于根、subagent用于executor、all按真实入口使用；hidden沿现规则 |
-| 适用产品模式 | 当前Session的`ProductMode`及已确认来源规则 | 用户定义普通选择仅Custom；不再添加一份`allowedModes`配置 |
-| 模型与请求设置 | `Agent.Info.model / request`及现选择owner | 采用时保存实际定义；执行沿现解析及provider规则 |
-| 工具、Skill、MCP | 既有注册、Composition bindings及捕获工具快照 | 定义声明与真实可用能力分开；采用不绕过Permission |
-| 权限 | Agent规则、Session规则、ProductMode／tier与原Permission owner | 不从展示注册、Agent名称或Build模板推导授权 |
-| executor | 现Composition／Delegation的实际执行定义 | 内置本地Agent与外部executor沿原实现；新增显示行不能创建执行能力 |
-| Session与Location | 已保存Session、controller source、原placement | child继承原业务模式与Location；不把当前页面目录覆盖执行位置 |
+| 概念               | 权威来源                                                      | 实施规则                                                                                                                                     |
+| ------------------ | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| 稳定身份与展示名称 | `Agent.Info.id / name`                                        | 执行用ID，名称用于展示；同名不构成同一Agent                                                                                                  |
+| 定义来源           | 实际注册／资产转换边界                                        | 增加最小公开`originKind: builtin \| user`语义；Config多文档移除／重建保留原注册来源，不能仅依赖当前exists；保留已有文件／revision provenance |
+| 根／子角色         | 既有`Agent.Info.mode: primary \| subagent \| all`             | primary用于根、subagent用于executor、all按真实入口使用；hidden沿现规则                                                                       |
+| 适用产品模式       | 当前Session的`ProductMode`及已确认来源规则                    | 用户定义普通选择仅Custom；不再添加一份`allowedModes`配置                                                                                     |
+| 模型与请求设置     | `Agent.Info.model / request`及现选择owner                     | 采用时保存实际定义；执行沿现解析及provider规则                                                                                               |
+| 工具、Skill、MCP   | 既有注册、Composition bindings及捕获工具快照                  | 定义声明与真实可用能力分开；采用不绕过Permission                                                                                             |
+| 权限               | Agent规则、Session规则、ProductMode／tier与原Permission owner | 不从展示注册、Agent名称或Build模板推导授权                                                                                                   |
+| executor           | 现Composition／Delegation的实际执行定义                       | 内置本地Agent与外部executor沿原实现；新增显示行不能创建执行能力                                                                              |
+| Session与Location  | 已保存Session、controller source、原placement                 | child继承原业务模式与Location；不把当前页面目录覆盖执行位置                                                                                  |
 
 `AgentAsset.source`是提示词正文，不是来源分类；`native`不能用于区分内置与用户定义。App的[normalizeAgentList](/home/keer/workspace/aigcfroge-v2/packages/app/src/runtime/server/global-sync/utils.ts:15)现已保留`originKind / ordinaryModes`及文件版本provenance。现App的`name=Agent.id`寻址兼容保留，展示名称不能替代执行ID。
 
@@ -137,14 +137,14 @@ Meta指导文本已同步：先建立必要计划项，优先增量创建／更�
 
 执行结算使用原Task revision CAS，见[实际结算](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/execution.ts:1601)与[Workflow合同](/home/keer/workspace/aigcfroge-v2/specs/v2/tools.md:148)。[原native Job可以继续运行](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/execution.ts:1532)，因此“清单改成功”不能视作“工作已取消”。
 
-| 任务类型／操作 | 自动管理工具行为 |
-| --- | --- |
-| 普通计划项，含无执行绑定的in_progress项 | 可以增量改内容／状态／优先级／摘要；完成、失败和取消可真实写入 |
+| 任务类型／操作                                         | 自动管理工具行为                                                                        |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| 普通计划项，含无执行绑定的in_progress项                | 可以增量改内容／状态／优先级／摘要；完成、失败和取消可真实写入                          |
 | 存在未结算执行认领的父Task、worker Task或aggregate父项 | 自动编辑／删除返回明确执行占用冲突；停止与结算走原Task／Job／Delegation／Workflow owner |
-| 无关的新计划项或普通计划项 | 即使同Session另有运行任务，也可增量修改 |
-| 整表write／legacy todowrite／reorder | 若实际改动会删除、重写或改revision于保护项，整次写入原子失败；不能先改部分项再报错 |
-| 执行owner的CAS结算、取消、恢复 | 保持原来源、expectedRevision和实际outcome；自动清单权限不能冒充该owner |
-| 现显式HTTP任务编辑 | 保留其已定义的编辑／使旧claim失效语义；与自动管理路径明确区分，不暗改用户控制合同 |
+| 无关的新计划项或普通计划项                             | 即使同Session另有运行任务，也可增量修改                                                 |
+| 整表write／legacy todowrite／reorder                   | 若实际改动会删除、重写或改revision于保护项，整次写入原子失败；不能先改部分项再报错      |
+| 执行owner的CAS结算、取消、恢复                         | 保持原来源、expectedRevision和实际outcome；自动清单权限不能冒充该owner                  |
+| 现显式HTTP任务编辑                                     | 保留其已定义的编辑／使旧claim失效语义；与自动管理路径明确区分，不暗改用户控制合同       |
 
 首次认领必须与Task写入同事务锚定。当前Task行没有执行来源字段，普通Task／Judge先append或patch、随后才准入TaskLink，Workflow也先修改Task再写Run.task_binding；只扫描现有绑定会漏掉这个窗口，见[Task认领](/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/plugin/task.ts:2019)、[Workflow准入](/home/keer/workspace/aigcfroge-v2/packages/core/src/workflow/execution.ts:1153)。
 
@@ -176,14 +176,14 @@ flowchart LR
   T --> V[Task dock / 协作 / Meta / child]
 ```
 
-| 来源路径 | 本轮处理 |
-| --- | --- |
-| 产品内置AgentPlugin | 在内置注册处标记builtin；现定义和角色保持 |
-| Config修改或重新启用内置ID | 在Config transform开始前保存原注册来源；多文档先disabled移除、再重建同ID仍保留builtin；`exists`只说明当时是否在目录中 |
-| Config创建新ID | 标记user；Custom库存显示“待导入”，经明确资产候选保存取得引用后采用 |
-| AgentAsset保存 | [apply](/home/keer/workspace/aigcfroge-v2/packages/core/src/agent-asset-service.ts:241)负责CAS、写入与读回；[资产转换](/home/keer/workspace/aigcfroge-v2/packages/core/src/agent/asset-bridge.ts:40)标记user与文件版本 |
-| 文件Agent／扩展定义 | 实际启用该producer时标记来源并执行同一模式规则；不因本方案主动启用尚未装配的loader |
-| Custom冻结执行成员 | [CompositionResolver](/home/keer/workspace/aigcfroge-v2/packages/core/src/composition-resolver.ts:306)与原selectAgent完成采用及执行选择 |
+| 来源路径                   | 本轮处理                                                                                                                                                                                                               |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 产品内置AgentPlugin        | 在内置注册处标记builtin；现定义和角色保持                                                                                                                                                                              |
+| Config修改或重新启用内置ID | 在Config transform开始前保存原注册来源；多文档先disabled移除、再重建同ID仍保留builtin；`exists`只说明当时是否在目录中                                                                                                  |
+| Config创建新ID             | 标记user；Custom库存显示“待导入”，经明确资产候选保存取得引用后采用                                                                                                                                                     |
+| AgentAsset保存             | [apply](/home/keer/workspace/aigcfroge-v2/packages/core/src/agent-asset-service.ts:241)负责CAS、写入与读回；[资产转换](/home/keer/workspace/aigcfroge-v2/packages/core/src/agent/asset-bridge.ts:40)标记user与文件版本 |
+| 文件Agent／扩展定义        | 实际启用该producer时标记来源并执行同一模式规则；不因本方案主动启用尚未装配的loader                                                                                                                                     |
+| Custom冻结执行成员         | [CompositionResolver](/home/keer/workspace/aigcfroge-v2/packages/core/src/composition-resolver.ts:306)与原selectAgent完成采用及执行选择                                                                                |
 
 `registerAgentAssetTransform`有现成实现，但当前生产装配未接入其全局layer；`Agent.fileLayer`也依赖loader注入与功能flag。不能通过重新打开全局bridge实现Custom专属列表，否则会把用户Agent送回其它模式的共享池。
 
@@ -218,16 +218,16 @@ Custom采用两个真实视图：
 
 ## 7. Build能力复用与UI交互
 
-| Build现能力 | 自建Agent接入方式 | 实施owner |
-| --- | --- | --- |
-| 定义、系统正文、card、角色 | 原ConfigAgent／AgentAsset及Agent.Info | Schema／Core Agent |
-| 模型、variant、请求设置 | 资产定义与采用快照；原模型解析 | Core／Client选择 |
-| 内置工具、Code Mode、MCP、Skill | 原注册与Composition bindings；每个模型请求捕获有效工具 | Core Tool／Composition／Runner |
-| 权限询问与操作档位 | 原PermissionEffective／Permission请求 | Core／现请求dock |
-| Location、文件、Shell及写入 | 原Location服务与真实Agent权限 | Core Location／Tool |
-| 输入、SSE、Timeline与工具结果 | 原durable inbox、runner、Client Data与Session content | Core／Client／App |
-| 父Task、子会话、外部executor与回执 | 原Task、Subagent、Delegation与exact receipt | Core执行owner／GUI |
-| 中断、失败、重试与恢复 | 原业务控制与冻结来源，结果不改写为成功 | Core／协作与工作流Panel |
+| Build现能力                        | 自建Agent接入方式                                      | 实施owner                      |
+| ---------------------------------- | ------------------------------------------------------ | ------------------------------ |
+| 定义、系统正文、card、角色         | 原ConfigAgent／AgentAsset及Agent.Info                  | Schema／Core Agent             |
+| 模型、variant、请求设置            | 资产定义与采用快照；原模型解析                         | Core／Client选择               |
+| 内置工具、Code Mode、MCP、Skill    | 原注册与Composition bindings；每个模型请求捕获有效工具 | Core Tool／Composition／Runner |
+| 权限询问与操作档位                 | 原PermissionEffective／Permission请求                  | Core／现请求dock               |
+| Location、文件、Shell及写入        | 原Location服务与真实Agent权限                          | Core Location／Tool            |
+| 输入、SSE、Timeline与工具结果      | 原durable inbox、runner、Client Data与Session content  | Core／Client／App              |
+| 父Task、子会话、外部executor与回执 | 原Task、Subagent、Delegation与exact receipt            | Core执行owner／GUI             |
+| 中断、失败、重试与恢复             | 原业务控制与冻结来源，结果不改写为成功                 | Core／协作与工作流Panel        |
 
 自建Agent可以声明实际支持的这些能力；选择Build为模板不复制其全部授权。新增能力信息放进现定义与绑定，不再新增“Build兼容运行时”。
 
@@ -251,14 +251,14 @@ UI交互按以下路径落地：
 
 ### 7.1 顶部、底部与右侧插拔接缝
 
-| 工作面 | 当前底座 | 本轮接入及验证 |
-| --- | --- | --- |
-| 顶部Timeline贡献 | [`session.header` Slot](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/sdk/registries.ts:554)，[现挂载](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/timeline/message-timeline.tsx:637) | 复用宿主排序、启禁和作用域；原header运行入口保留 |
-| 右侧加号／引导 | [`MenuItem(session.panel)`](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/panel-launcher/renderer.tsx:29)与模块真实注册条件 | 新模块与模式条件走原入口，不硬写第二份模块表 |
-| 右侧Panel与child | [`createRegion`](/home/keer/workspace/aigcfroge-v2/packages/app/src/runtime/extension/panels.tsx:98)及原Sessions.content | 标签选择、复用、关闭、恢复；关闭仅撤销view持有 |
-| 回答下方动作 | [`session.response.actions` Slot](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/sdk/registries.ts:563)，[宿主目标捕获](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/timeline/message-timeline.tsx:313) | 复用Fork／存资产／侧聊的真实target、source与内容边界 |
-| 底部Task／请求dock | [App固定挂载](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/composer/region.tsx:334) | 自动只读任务与即时请求；它不是Panel／Slot注册项，本轮不为统一名称将它插件化 |
-| 窗口底部扩展 | [`window.bottom` Slot](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/sdk/registries.ts:552) | 复用注册撤销、贡献错误隔离；不把它当作Task执行owner |
+| 工作面             | 当前底座                                                                                                                                                                                                                             | 本轮接入及验证                                                              |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| 顶部Timeline贡献   | [`session.header` Slot](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/sdk/registries.ts:554)，[现挂载](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/timeline/message-timeline.tsx:637)                 | 复用宿主排序、启禁和作用域；原header运行入口保留                            |
+| 右侧加号／引导     | [`MenuItem(session.panel)`](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/panel-launcher/renderer.tsx:29)与模块真实注册条件                                                                                          | 新模块与模式条件走原入口，不硬写第二份模块表                                |
+| 右侧Panel与child   | [`createRegion`](/home/keer/workspace/aigcfroge-v2/packages/app/src/runtime/extension/panels.tsx:98)及原Sessions.content                                                                                                             | 标签选择、复用、关闭、恢复；关闭仅撤销view持有                              |
+| 回答下方动作       | [`session.response.actions` Slot](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/sdk/registries.ts:563)，[宿主目标捕获](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/timeline/message-timeline.tsx:313) | 复用Fork／存资产／侧聊的真实target、source与内容边界                        |
+| 底部Task／请求dock | [App固定挂载](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/composer/region.tsx:334)                                                                                                                                    | 自动只读任务与即时请求；它不是Panel／Slot注册项，本轮不为统一名称将它插件化 |
+| 窗口底部扩展       | [`window.bottom` Slot](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/sdk/registries.ts:552)                                                                                                                          | 复用注册撤销、贡献错误隔离；不把它当作Task执行owner                         |
 
 所有这些视图共用原ServerRef、Data/SSE与Session身份。可插拔贡献共用Extension Host生命周期；固定Task／请求dock沿原Composer生命周期。顶／底／右侧保留各自语义与真实target，无需再包一层通用“顶底底座”。
 
@@ -270,17 +270,17 @@ UI交互按以下路径落地：
 
 后期如出现第二个可独立安装的列表提供者，再在现Extension Host中增加类型化显示贡献。显示贡献只接收已筛选库存与导航能力；执行资格仍由Core和冻结Composition裁决。本轮不发布尚无真实消费者的新列表SDK。
 
-| Owner | 本轮具体职责 |
-| --- | --- |
-| Schema | Agent来源与只读普通目录投影的wire shape；现Task／Composition绑定字段只有实际读缺口才补 |
-| Core Agent／Config／Asset | 唯一来源×模式判断及读投影，保留内置配置覆盖／重建身份，完整声明到候选导入，避免重启全局asset桥 |
-| Core Permission／Tool／SessionTask | 五项allow、全工具快照、自动写占用项防护、真实错误与CAS |
-| Core Session／Context／Task／Subagent／Workflow | 根选择、目标解析与目录统一；Work owner的冻结例外；恢复原归属 |
-| Protocol／Server | 改动涉及公开shape时对齐原HttpApi与errors；不添加重复路由 |
-| Client | 正式生成；normalize保留来源，Data继续同一读模型与共享SSE |
-| App | 模式适用列表、Custom库存／采用、dock导航与共享Session内容 |
-| GUI extensions | 现协作／Meta／工作流来源及结果导航，模式化新标签入口，i18n |
-| 文档与测试owner | 更新现Session／Tools跨模块合同、DESIGN与最近keeper；未交付项只入原账本 |
+| Owner                                           | 本轮具体职责                                                                                   |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Schema                                          | Agent来源与只读普通目录投影的wire shape；现Task／Composition绑定字段只有实际读缺口才补         |
+| Core Agent／Config／Asset                       | 唯一来源×模式判断及读投影，保留内置配置覆盖／重建身份，完整声明到候选导入，避免重启全局asset桥 |
+| Core Permission／Tool／SessionTask              | 五项allow、全工具快照、自动写占用项防护、真实错误与CAS                                         |
+| Core Session／Context／Task／Subagent／Workflow | 根选择、目标解析与目录统一；Work owner的冻结例外；恢复原归属                                   |
+| Protocol／Server                                | 改动涉及公开shape时对齐原HttpApi与errors；不添加重复路由                                       |
+| Client                                          | 正式生成；normalize保留来源，Data继续同一读模型与共享SSE                                       |
+| App                                             | 模式适用列表、Custom库存／采用、dock导航与共享Session内容                                      |
+| GUI extensions                                  | 现协作／Meta／工作流来源及结果导航，模式化新标签入口，i18n                                     |
+| 文档与测试owner                                 | 更新现Session／Tools跨模块合同、DESIGN与最近keeper；未交付项只入原账本                         |
 
 错误继续区分：权限deny、模式／Agent不可用、stale revision、执行占用、资产引用失效、结果pending／failed／interrupted／unverified。失败保留原Tool content和真实来源。旧completed结果缺少完成证据时保持原unverified，不凭新UI赋予成功。
 
@@ -288,14 +288,14 @@ UI交互按以下路径落地：
 
 顺序：`MA00 → MA01 → MA02 → MA03 → MA04 → MA05`。每片做到可运行纵链；测试／构建由主线串行，独立只读分析与不同文件owner可并行。
 
-| 小节 | 已落地内容与决定边界 | 验证状态（分轮） |
-| --- | --- | --- |
-| MA00：合同与底座基线 | canonical Reference延迟读取、四个原Storybook mock恢复真实Provider合同；原SC接受保持 | Schema 9 pass／0 fail；原host／graph 25 passed，见§9.2 |
-| MA01：Meta真任务链 | 五项allow、同事务KV claim、现代／legacy自动写保护、原source／revision结算和释放；无绑定计划仍可写；原HTTP编辑语义保持 | [Core三文件](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma01-core-tasks-green.log)：144 pass／0 fail／1005 expect；[Meta与background定向](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma01-two-keepers-final.log)：2 pass／0 fail／40 expect |
-| MA02：来源与执行筛选 | `originKind`、Core唯一`ordinaryModes / assertOrdinaryMode`及公开投影；普通目录／直接目标同边界，Location目录完整；Custom和Work Workflow冻结选择保留 | [Core七文件](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma02-03-core-fixed.log)：227 pass／0 fail／1422 expect，含Config、Subagent、Session及Custom keeper |
-| MA03：Custom定义到执行 | 原真实会话创建／Config导入／CAS保存；Custom定义库存、asset root／executor选择、Profile引用、采用后冻结成员和版本；首页保持库存及采用职责 | [GUI提案](/home/keer/.codex/outputs/2026-11-11/meta-implementation/gui-proposal-tests.log)：247 pass／0 fail／979 expect；[Server最终源码两文件](/home/keer/.codex/outputs/2026-11-11/meta-implementation/server-tests-after-types.log)：31 pass／0 fail／421 expect；[Custom／dock／五模式引导](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma-ui-final.log)：12 passed |
-| MA04：Task到Build UI | 原Task metadata定位message／Tool call，每次执行单独导航；原协作／Meta／child消费结果；固定只读dock、原Slot／Panel和英文／中文文案 | 上述12项UI覆盖采用／Profile CAS／Task来源／五模式；[宿主末轮](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma-host-final.log)25 passed；[来源回调反证](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma04-dock-mutation-red.log)1 failed；production前后各1项通过 |
-| MA05：完整接受 | 真实Build→父消费及用户Agent提案→保存→Custom采用→执行→父消费通过；CAS新采用与旧版本保持通过；修复实际Custom权限接缝后构建v2桌面并复验 | [真实报告](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-live/report.json)exit0、Electron0；[最终工程及产物身份](/home/keer/.codex/outputs/2026-11-11/meta-implementation/engineering-final-acceptance.json)；Source HTTP11／11，修后API8／0、审批4／0、权限17／0与App／Core类型、CLI／Desktop构建通过 |
+| 小节                   | 已落地内容与决定边界                                                                                                                                | 验证状态（分轮）                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MA00：合同与底座基线   | canonical Reference延迟读取、四个原Storybook mock恢复真实Provider合同；原SC接受保持                                                                 | Schema 9 pass／0 fail；原host／graph 25 passed，见§9.2                                                                                                                                                                                                                                                                                                                                |
+| MA01：Meta真任务链     | 五项allow、同事务KV claim、现代／legacy自动写保护、原source／revision结算和释放；无绑定计划仍可写；原HTTP编辑语义保持                               | [Core三文件](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma01-core-tasks-green.log)：144 pass／0 fail／1005 expect；[Meta与background定向](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma01-two-keepers-final.log)：2 pass／0 fail／40 expect                                                                                                               |
+| MA02：来源与执行筛选   | `originKind`、Core唯一`ordinaryModes / assertOrdinaryMode`及公开投影；普通目录／直接目标同边界，Location目录完整；Custom和Work Workflow冻结选择保留 | [Core七文件](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma02-03-core-fixed.log)：227 pass／0 fail／1422 expect，含Config、Subagent、Session及Custom keeper                                                                                                                                                                                                              |
+| MA03：Custom定义到执行 | 原真实会话创建／Config导入／CAS保存；Custom定义库存、asset root／executor选择、Profile引用、采用后冻结成员和版本；首页保持库存及采用职责            | [GUI提案](/home/keer/.codex/outputs/2026-11-11/meta-implementation/gui-proposal-tests.log)：247 pass／0 fail／979 expect；[Server最终源码两文件](/home/keer/.codex/outputs/2026-11-11/meta-implementation/server-tests-after-types.log)：31 pass／0 fail／421 expect；[Custom／dock／五模式引导](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma-ui-final.log)：12 passed |
+| MA04：Task到Build UI   | 原Task metadata定位message／Tool call，每次执行单独导航；原协作／Meta／child消费结果；固定只读dock、原Slot／Panel和英文／中文文案                   | 上述12项UI覆盖采用／Profile CAS／Task来源／五模式；[宿主末轮](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma-host-final.log)25 passed；[来源回调反证](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma04-dock-mutation-red.log)1 failed；production前后各1项通过                                                                                              |
+| MA05：完整接受         | 真实Build→父消费及用户Agent提案→保存→Custom采用→执行→父消费通过；CAS新采用与旧版本保持通过；修复实际Custom权限接缝后构建v2桌面并复验                | [真实报告](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-live/report.json)exit0、Electron0；[最终工程及产物身份](/home/keer/.codex/outputs/2026-11-11/meta-implementation/engineering-final-acceptance.json)；Source HTTP11／11，修后API8／0、审批4／0、权限17／0与App／Core类型、CLI／Desktop构建通过                                              |
 
 ### 9.1 必须成立的行为断言
 
@@ -338,14 +338,14 @@ Server最初30 pass／1 fail的Custom启动400已定位为`meta_model_missing`�
 
 ### 9.4 MA05本地补证（2026-11-12）
 
-| 合同 | 本轮实际结果 | 原始证据 |
-| --- | --- | --- |
-| §9.1第8项：显式采用新版本 | 原Custom keeper扩展后1 passed（26.0s）：库存刷新至V2后显式选择、preview／start，新Session采用V2，旧Session仍显示V1，executor版本保持。该轮使用原API fixture和真实UI控件。 | [最终日志](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-item8-final.log)、[E2E类型复验日志](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-e2e-typecheck-green.log)、[原keeper](/home/keer/workspace/aigcfroge-v2/packages/app/e2e/regression/custom-profile.spec.ts:226) |
-| §9.1第5／8项：原生保存、采用与CAS升级 | 私有Native使用原资产API保存直接fixture、原Custom UI选择Meta及用户executor并preview／start，再以旧revision执行CAS更新及显式新采用；命令exit0、Electron0、prompt0。旧Session持有`1c278445…`，库存及新Session为`59c25789…`，两个Session ID分别保留在报告。 | [原生报告](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-prepare-adoption/report.json)、[版本／快照记录](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-prepare-adoption/explicit-revision-adoption.json)、[命令收据](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/runtime/native-adoption-command.json) |
-| §9.1第8项：引用、依赖与stale事实 | Root串行重跑3条既有Core keeper，exit0、3 pass／32 filtered／0 fail／280 expect、模型0。失效用户AgentRef在temporary／Profile的resolve／freeze均保留`agent_not_found`；声明依赖缺失报告`prompt_not_found / skill_not_found / command_not_found`；跨消费者7条stale事实保留source及expected／current revision。同名和Agent CAS沿原Server／GUI证据。 | [3项日志](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-agent-reference-keepers.log)、[精确源码与命令收据](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-agent-reference-command.json)、[Item8映射](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/contract-evidence-map.json) |
-| §9.1第6项：真实模式准入边界 | 私有Native prepare报告exit0、errors 0、prompt 0；同一用户Agent只出现在Custom目录，Coding／Chat／Work／Assistant直接提交该ID均返回400、`InvalidRequestError`、`field=agent`、`kind=agent_mode_unavailable`。原生Home→会话行重新打开同一Meta Session，标签活动且主Composer可编辑。 | [Native报告](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-prepare/report.json)、[prepare命令收据](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/runtime/native-prepare-command.json) |
-| 本期网关计数与终态 | 本地TLS fixture exit0：两并发请求字节保持，收到`[DONE]`后不等待上游EOF，第三请求429；真实模型请求0。cap0检查的两个POST均429、reservation 0。 | [TLS检查](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/runtime/gateway-local-check.json)、[cap0检查](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/runtime/zero-cap-check.json) |
-| 本期记账核验 | 原accounting-check命令exit0、真实模型0、Source reservation0；本地fixture有2个reservation、2条终态和1次cap拒绝，修改请求正文的核验反证被拒绝。 | [记账报告](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/runtime/accounting-check.json)、[命令收据](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/runtime/accounting-check-command.json) |
+| 合同                                  | 本轮实际结果                                                                                                                                                                                                                                                                                                                                    | 原始证据                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| §9.1第8项：显式采用新版本             | 原Custom keeper扩展后1 passed（26.0s）：库存刷新至V2后显式选择、preview／start，新Session采用V2，旧Session仍显示V1，executor版本保持。该轮使用原API fixture和真实UI控件。                                                                                                                                                                       | [最终日志](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-item8-final.log)、[E2E类型复验日志](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-e2e-typecheck-green.log)、[原keeper](/home/keer/workspace/aigcfroge-v2/packages/app/e2e/regression/custom-profile.spec.ts:226)                                                                                               |
+| §9.1第5／8项：原生保存、采用与CAS升级 | 私有Native使用原资产API保存直接fixture、原Custom UI选择Meta及用户executor并preview／start，再以旧revision执行CAS更新及显式新采用；命令exit0、Electron0、prompt0。旧Session持有`1c278445…`，库存及新Session为`59c25789…`，两个Session ID分别保留在报告。                                                                                         | [原生报告](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-prepare-adoption/report.json)、[版本／快照记录](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-prepare-adoption/explicit-revision-adoption.json)、[命令收据](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/runtime/native-adoption-command.json) |
+| §9.1第8项：引用、依赖与stale事实      | Root串行重跑3条既有Core keeper，exit0、3 pass／32 filtered／0 fail／280 expect、模型0。失效用户AgentRef在temporary／Profile的resolve／freeze均保留`agent_not_found`；声明依赖缺失报告`prompt_not_found / skill_not_found / command_not_found`；跨消费者7条stale事实保留source及expected／current revision。同名和Agent CAS沿原Server／GUI证据。 | [3项日志](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-agent-reference-keepers.log)、[精确源码与命令收据](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-agent-reference-command.json)、[Item8映射](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/contract-evidence-map.json)                                                                |
+| §9.1第6项：真实模式准入边界           | 私有Native prepare报告exit0、errors 0、prompt 0；同一用户Agent只出现在Custom目录，Coding／Chat／Work／Assistant直接提交该ID均返回400、`InvalidRequestError`、`field=agent`、`kind=agent_mode_unavailable`。原生Home→会话行重新打开同一Meta Session，标签活动且主Composer可编辑。                                                                | [Native报告](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-prepare/report.json)、[prepare命令收据](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/runtime/native-prepare-command.json)                                                                                                                                                      |
+| 本期网关计数与终态                    | 本地TLS fixture exit0：两并发请求字节保持，收到`[DONE]`后不等待上游EOF，第三请求429；真实模型请求0。cap0检查的两个POST均429、reservation 0。                                                                                                                                                                                                    | [TLS检查](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/runtime/gateway-local-check.json)、[cap0检查](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/runtime/zero-cap-check.json)                                                                                                                                                                  |
+| 本期记账核验                          | 原accounting-check命令exit0、真实模型0、Source reservation0；本地fixture有2个reservation、2条终态和1次cap拒绝，修改请求正文的核验反证被拒绝。                                                                                                                                                                                                   | [记账报告](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/runtime/accounting-check.json)、[命令收据](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/runtime/accounting-check-command.json)                                                                                                                                                          |
 
 上述零模型补证阶段只扩展原Custom keeper；七轮准备脚本失败和修后[最终日志](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/runtime/native-adoption-final.log)分别保留。后续真实链、实际接缝修复及最终预算结算见§9.5，分轮不相加。
 
@@ -355,19 +355,19 @@ Coding／Meta的实际模型请求包含`task_create / task_update / task_delete
 
 同次模型提案保存的`ma05_user_probe`由Custom页面选择为Meta的executor，原preview／start形成冻结快照。真实原生dock对该Tool来源的task权限执行Allow once并返回204，用户child完成`MA05_CUSTOM_OK`；原Tool全文进入父请求slot11，终答为`MA05_CUSTOM_PARENT_CONSUMED: MA05_CUSTOM_OK`。随后原CAS将库存revision从`47ba0972…`更新为`848eca22…`；显式新采用消费新revision，原已执行Session保持旧快照。
 
-| §9.1项 | 验收依据与结果 |
-| --- | --- |
-| 1：真实任务工具及状态 | [真实请求／终态报告](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-live/report.json)记录五工具及slot1／4／11；[Build执行与dock](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-live/execution-build.json)保存五状态首写和结算。显式deny沿原Core keeper。 |
-| 2：普通计划可写、执行占用保护 | [Task三文件144／0](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma01-core-tasks-green.log)覆盖普通计划、自动更新／删除／整写／重排及真实worker claim，业务结算沿原owner。 |
-| 3：claim窗口、精确重试及释放 | 同144／0覆盖事务hook前claim、竞争source、exact retry、取消与source／revision释放，background ACK另由[2项定向](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma01-two-keepers-final.log)覆盖；[legacyOwned](/home/keer/workspace/aigcfroge-v2/packages/core/src/session/task.ts:523)只读原持久表，未在Task锁内取Workflow／Delegation锁。 |
-| 4：Task来源及精确结果 | [Build真实来源](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-live/execution-build.json)与[Custom真实来源](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-live/execution-ma05_user_probe.json)分别保存Task／Tool／Delegation／child及完整结果；最终[边界2／0](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-final-boundary-command.json)补普通subagent完成后父Task仍为空及Work两个执行绑定／旧结果保持的精确断言。 |
-| 5：保存、采用、真实用户executor | [保存记录](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-live/agent-saved.json)及[成功Custom报告](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-live/custom-result.json)；原冻结选择、未采用目标和deny边界由[Core227／0](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma02-03-core-fixed.log)覆盖。 |
-| 6：四非Custom模式边界 | [真实零模型Source准入](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-prepare/report.json)：同一用户ID仅Custom目录出现，四种非Custom直接创建均400／agent_mode_unavailable。 |
-| 7：Work显式冻结例外 | [原Task144／0](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma01-core-tasks-green.log)覆盖Work发布／取消／恢复；最终[边界2／0](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-final-boundary-command.json)明确断言child.mode=work、父read允许／write拒绝权限上限、冻结配置、新Tool绑定和3次受控模型调用。原Work普通目录保持内置池。 |
-| 8：版本及真实错误 | [成功链新旧快照](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-live/explicit-revision-adoption.json)、[Core引用三项3／0](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-agent-reference-command.json)、[Agent同名／CAS的Server31／0](/home/keer/.codex/outputs/2026-11-11/meta-implementation/server-tests-after-types.log)及[GUI Agent247／0](/home/keer/.codex/outputs/2026-11-11/meta-implementation/gui-proposal-tests.log)，Profile CAS不替代Agent错误。 |
-| 9：共享Data／SSE及请求owner | [Client64／0](/home/keer/.codex/outputs/2026-11-11/meta-implementation/client-runtime-tests.log)覆盖共享源和最后subscriber释放，原SC03真实child／侧聊视图与请求owner证据保持；本次Custom原生权限reply204补齐真实消费。 |
-| 10：来源及完整Config声明 | [Config／Agent227／0](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma02-03-core-fixed.log)覆盖disable／recreate内置ID、用户来源、handoffs及有序权限；[Config keeper](/home/keer/workspace/aigcfroge-v2/packages/core/test/config/agent.test.ts:488)与本次同Location模式目录相互对应。 |
-| 11：顶／底／右侧插拔及真实target | [原宿主25 passed](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma-host-final.log)覆盖scope撤销和异常隔离；[UI12 passed](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma-ui-final.log)及原SC面板／终端／回答动作合同保持，本次只读dock与请求dock继续共存。 |
+| §9.1项                           | 验收依据与结果                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1：真实任务工具及状态            | [真实请求／终态报告](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-live/report.json)记录五工具及slot1／4／11；[Build执行与dock](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-live/execution-build.json)保存五状态首写和结算。显式deny沿原Core keeper。                                                                                                                                                                                    |
+| 2：普通计划可写、执行占用保护    | [Task三文件144／0](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma01-core-tasks-green.log)覆盖普通计划、自动更新／删除／整写／重排及真实worker claim，业务结算沿原owner。                                                                                                                                                                                                                                                                                                                          |
+| 3：claim窗口、精确重试及释放     | 同144／0覆盖事务hook前claim、竞争source、exact retry、取消与source／revision释放，background ACK另由[2项定向](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma01-two-keepers-final.log)覆盖；[legacyOwned](/home/keer/workspace/aigcfroge-v2/packages/core/src/session/task.ts:523)只读原持久表，未在Task锁内取Workflow／Delegation锁。                                                                                                                                                             |
+| 4：Task来源及精确结果            | [Build真实来源](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-live/execution-build.json)与[Custom真实来源](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-live/execution-ma05_user_probe.json)分别保存Task／Tool／Delegation／child及完整结果；最终[边界2／0](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-final-boundary-command.json)补普通subagent完成后父Task仍为空及Work两个执行绑定／旧结果保持的精确断言。          |
+| 5：保存、采用、真实用户executor  | [保存记录](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-live/agent-saved.json)及[成功Custom报告](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-live/custom-result.json)；原冻结选择、未采用目标和deny边界由[Core227／0](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma02-03-core-fixed.log)覆盖。                                                                                                                            |
+| 6：四非Custom模式边界            | [真实零模型Source准入](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-prepare/report.json)：同一用户ID仅Custom目录出现，四种非Custom直接创建均400／agent_mode_unavailable。                                                                                                                                                                                                                                                                                                   |
+| 7：Work显式冻结例外              | [原Task144／0](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma01-core-tasks-green.log)覆盖Work发布／取消／恢复；最终[边界2／0](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-final-boundary-command.json)明确断言child.mode=work、父read允许／write拒绝权限上限、冻结配置、新Tool绑定和3次受控模型调用。原Work普通目录保持内置池。                                                                                                                                                 |
+| 8：版本及真实错误                | [成功链新旧快照](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-ready/native-live/explicit-revision-adoption.json)、[Core引用三项3／0](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-agent-reference-command.json)、[Agent同名／CAS的Server31／0](/home/keer/.codex/outputs/2026-11-11/meta-implementation/server-tests-after-types.log)及[GUI Agent247／0](/home/keer/.codex/outputs/2026-11-11/meta-implementation/gui-proposal-tests.log)，Profile CAS不替代Agent错误。 |
+| 9：共享Data／SSE及请求owner      | [Client64／0](/home/keer/.codex/outputs/2026-11-11/meta-implementation/client-runtime-tests.log)覆盖共享源和最后subscriber释放，原SC03真实child／侧聊视图与请求owner证据保持；本次Custom原生权限reply204补齐真实消费。                                                                                                                                                                                                                                                                                         |
+| 10：来源及完整Config声明         | [Config／Agent227／0](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma02-03-core-fixed.log)覆盖disable／recreate内置ID、用户来源、handoffs及有序权限；[Config keeper](/home/keer/workspace/aigcfroge-v2/packages/core/test/config/agent.test.ts:488)与本次同Location模式目录相互对应。                                                                                                                                                                                                              |
+| 11：顶／底／右侧插拔及真实target | [原宿主25 passed](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma-host-final.log)覆盖scope撤销和异常隔离；[UI12 passed](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma-ui-final.log)及原SC面板／终端／回答动作合同保持，本次只读dock与请求dock继续共存。                                                                                                                                                                                                                              |
 
 真实验收发现两处当前接缝：App请求未声明现有Custom审批能力；Permission从Location目录解析已冻结用户Agent。修复复用[createApiForServer](/home/keer/workspace/aigcfroge-v2/packages/app/src/runtime/server/api.ts:23)的原请求header与[Permission.configured](/home/keer/workspace/aigcfroge-v2/packages/core/src/permission.ts:197)的冻结选择。未知或缺配置目标沿明确deny／错误结果处理。修后API8／0、审批4／0、权限17／0、App／Core类型及CLI／Desktop构建exit0；最终同源桌面为`2.0.26-dev-ma-20261112-v2`，见[执行命令与产物记录](/home/keer/.codex/outputs/2026-11-11/meta-implementation/ma05-live-root-commands.json)。
 

@@ -26,17 +26,17 @@ Info 增加原始 content，保留 BOM、CRLF、注释和额外字段。版本�
 
 [验证清单](evidence/v2-workflow-backend-2026-10-28/validation-manifest.json) 记录命令、cwd、退出码、各轮源码哈希、日志哈希及版本差异。固定 Bun 1.4.2；主线程包内串行执行；类型脚本使用 GOMAXPROCS=2、GOMEMLIMIT=3GiB。子智能体分别实现 Core、HTTP 测试及独立复审，没有并行运行检查。
 
-| 范围 | 实测结果 |
-| --- | --- |
-| 旧 proposer 真实注册表红测 | 0 pass / 3 fail；短路径、身份及坏图 |
-| 最终 Core 资产、路径、注册表、YAML runtime | 78 pass / 0 fail；251 expects；4 文件 |
-| 既有组合、冻结、Workflow 执行消费者 | 98 pass / 0 fail；887 expects；实际 5 文件；BOM 修复前快照 |
-| Server 全包 | 165 pass / 1 skip / 0 fail；7538 expects；44 文件，含 5 个 Workflow HTTP 用例 |
-| Schema 相关 | 37 pass / 0 fail；108 expects；2 文件 |
-| Client 全包 | 224 pass / 0 fail；906 expects；20 文件 |
-| Core/Schema/Protocol/Client/Server/GUI/App 类型 | 各包脚本 exit 0，具体输入版本见 manifest |
-| 定向 lint、AST、格式、SDK 文档 | 15 TS 文件、10 生产文件、18 文件及 SDK 检查分别 exit 0 |
-| 正式生成稳定性 | 再次 Client generate、OpenAPI check、生成物 diff 各 exit 0 |
+| 范围                                            | 实测结果                                                                      |
+| ----------------------------------------------- | ----------------------------------------------------------------------------- |
+| 旧 proposer 真实注册表红测                      | 0 pass / 3 fail；短路径、身份及坏图                                           |
+| 最终 Core 资产、路径、注册表、YAML runtime      | 78 pass / 0 fail；251 expects；4 文件                                         |
+| 既有组合、冻结、Workflow 执行消费者             | 98 pass / 0 fail；887 expects；实际 5 文件；BOM 修复前快照                    |
+| Server 全包                                     | 165 pass / 1 skip / 0 fail；7538 expects；44 文件，含 5 个 Workflow HTTP 用例 |
+| Schema 相关                                     | 37 pass / 0 fail；108 expects；2 文件                                         |
+| Client 全包                                     | 224 pass / 0 fail；906 expects；20 文件                                       |
+| Core/Schema/Protocol/Client/Server/GUI/App 类型 | 各包脚本 exit 0，具体输入版本见 manifest                                      |
+| 定向 lint、AST、格式、SDK 文档                  | 15 TS 文件、10 生产文件、18 文件及 SDK 检查分别 exit 0                        |
+| 正式生成稳定性                                  | 再次 Client generate、OpenAPI check、生成物 diff 各 exit 0                    |
 
 [独立复审](evidence/v2-workflow-backend-2026-10-28/independent-review.md) 绑定全部十八项哈希，BOM 发现已关闭，无未解决阻断。保留旧 Schema 身份断言红测、品牌类型测试失败、首轮生成差异及命令清理失败的准确记录，见 [恢复说明](evidence/v2-workflow-backend-2026-10-28/recovery-notes.md)。旧 minimal StepDef JSON 测试本来就通过，没有将静态风险包装成复现缺陷。所有重复运行不累加。
 

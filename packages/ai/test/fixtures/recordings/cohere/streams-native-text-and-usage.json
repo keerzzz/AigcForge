@@ -1,10 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:cohere",
-      "provider:cohere"
-    ],
+    "tags": ["prefix:cohere", "provider:cohere"],
     "name": "cohere/streams-native-text-and-usage",
     "recordedAt": "2026-10-02T02:36:12.967Z"
   },

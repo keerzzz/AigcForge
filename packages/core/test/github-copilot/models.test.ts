@@ -148,8 +148,16 @@ test("prices cache reads from either token price spelling", async () => {
 
   try {
     const models = await CopilotModels.get(server.url.origin, {}, [])
-    expect(models.get(Model.ID.make("renamed"))?.cost[0]).toMatchObject({ input: 2.5, output: 15, cache: { read: 0.25 } })
-    expect(models.get(Model.ID.make("legacy"))?.cost[0]).toMatchObject({ input: 2.5, output: 15, cache: { read: 0.25 } })
+    expect(models.get(Model.ID.make("renamed"))?.cost[0]).toMatchObject({
+      input: 2.5,
+      output: 15,
+      cache: { read: 0.25 },
+    })
+    expect(models.get(Model.ID.make("legacy"))?.cost[0]).toMatchObject({
+      input: 2.5,
+      output: 15,
+      cache: { read: 0.25 },
+    })
     expect(models.get(Model.ID.make("unpriced"))?.cost[0]).toMatchObject({ cache: { read: 0 } })
   } finally {
     await server.stop(true)

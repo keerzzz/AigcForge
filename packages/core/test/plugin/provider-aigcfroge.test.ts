@@ -633,20 +633,29 @@ describe("AigcfrogePlugin", () => {
           yield* drain
           expect(state.requests).toBe(2)
           expect(rebuilds).toEqual({ provider: initial.provider + 1, websearch: initial.websearch + 1 })
-          expect(yield* websearch.default()).toEqual({ id: WebSearch.ID.make("aigcfroge"), name: "AigcForge Web Search" })
+          expect(yield* websearch.default()).toEqual({
+            id: WebSearch.ID.make("aigcfroge"),
+            name: "AigcForge Web Search",
+          })
 
           yield* TestClock.adjust("1 minute")
           yield* drain
           expect(state.requests).toBe(3)
           expect(rebuilds).toEqual({ provider: initial.provider + 1, websearch: initial.websearch + 1 })
-          expect(yield* websearch.default()).toEqual({ id: WebSearch.ID.make("aigcfroge"), name: "AigcForge Web Search" })
+          expect(yield* websearch.default()).toEqual({
+            id: WebSearch.ID.make("aigcfroge"),
+            name: "AigcForge Web Search",
+          })
 
           state.failing = true
           yield* TestClock.adjust("1 minute")
           yield* drain
           expect(state.requests).toBe(4)
           expect(rebuilds).toEqual({ provider: initial.provider + 1, websearch: initial.websearch + 1 })
-          expect(yield* websearch.default()).toEqual({ id: WebSearch.ID.make("aigcfroge"), name: "AigcForge Web Search" })
+          expect(yield* websearch.default()).toEqual({
+            id: WebSearch.ID.make("aigcfroge"),
+            name: "AigcForge Web Search",
+          })
 
           state.failing = false
           state.advertised = false
@@ -1366,7 +1375,10 @@ describe("AigcfrogePlugin", () => {
             id: WebSearch.ID.make("aigcfroge"),
             name: "AigcForge Web Search",
           })
-          expect(yield* websearch.default()).toEqual({ id: WebSearch.ID.make("aigcfroge"), name: "AigcForge Web Search" })
+          expect(yield* websearch.default()).toEqual({
+            id: WebSearch.ID.make("aigcfroge"),
+            name: "AigcForge Web Search",
+          })
           expect(yield* websearch.query({ query: "effect web search" })).toEqual(
             new WebSearch.Response({
               providerID: WebSearch.ID.make("aigcfroge"),

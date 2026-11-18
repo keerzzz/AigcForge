@@ -95,9 +95,9 @@ const snapshot = Effect.fnUntraced(function* (directory: string, files: readonly
     Effect.gen(function* () {
       const target = path.resolve(directory, file)
       if (!FSUtil.contains(directory, target)) return undefined
-      const stat = yield* fs.stat(target).pipe(
-        Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)),
-      )
+      const stat = yield* fs
+        .stat(target)
+        .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
       if (!stat) return new Change({ path: target, hash: null })
       const real = yield* fs.realPath(target)
       if (stat.type !== "File" || !FSUtil.contains(directory, real)) return undefined
@@ -110,8 +110,16 @@ const snapshot = Effect.fnUntraced(function* (directory: string, files: readonly
 
 export const isCurrent = Effect.fn("Verifier.isCurrent")(function* (directory: string, result: Result) {
   const fs = yield* FSUtil.Service
-  const current = yield* snapshot(directory, result.files.map((file) => file.path))
-  if (!current || Instructions.hash(current.map((change) => [change.path, change.hash])) !== Instructions.hash(result.files.map((change) => [change.path, change.hash]))) return false
+  const current = yield* snapshot(
+    directory,
+    result.files.map((file) => file.path),
+  )
+  if (
+    !current ||
+    Instructions.hash(current.map((change) => [change.path, change.hash])) !==
+      Instructions.hash(result.files.map((change) => [change.path, change.hash]))
+  )
+    return false
   const manifests = yield* Effect.forEach(result.packages, (pkg) =>
     Effect.gen(function* () {
       if (pkg.manifestHash === undefined) return true
@@ -122,7 +130,13 @@ export const isCurrent = Effect.fn("Verifier.isCurrent")(function* (directory: s
   return manifests.every(Boolean)
 })
 
-const report = (input: Input, status: typeof Status.Type, text: string, files: Change[] = [], packages: PackageCheck[] = []): Report => ({
+const report = (
+  input: Input,
+  status: typeof Status.Type,
+  text: string,
+  files: Change[] = [],
+  packages: PackageCheck[] = [],
+): Report => ({
   result: new Result({
     sessionID: input.sessionID,
     toolName: input.toolName,
@@ -193,25 +207,49 @@ export const layer = Layer.effect(
             report(input, check.status, text, changes, [new PackageCheck({ directory, ...check })])
           const real = yield* fs.realPath(directory)
           if (!FSUtil.contains(location.directory, real))
-            return packageReport("[验证] 不可用：package符号链接位于Location之外。", { status: "unavailable", executed: false })
+            return packageReport("[验证] 不可用：package符号链接位于Location之外。", {
+              status: "unavailable",
+              executed: false,
+            })
           const raw = yield* fs.readFileString(file)
           const pkg = yield* Schema.decodeUnknownEffect(manifest)(raw)
-          const identity = { manifestHash: Instructions.hash(raw), ...(pkg.scripts?.typecheck ? { script: pkg.scripts.typecheck } : {}) }
+          const identity = {
+            manifestHash: Instructions.hash(raw),
+            ...(pkg.scripts?.typecheck ? { script: pkg.scripts.typecheck } : {}),
+          }
           if (!pkg.scripts?.typecheck)
-            return packageReport(`[验证] 不可用：${directory} 没有 typecheck 脚本。`, { ...identity, status: "unavailable", executed: false })
+            return packageReport(`[验证] 不可用：${directory} 没有 typecheck 脚本。`, {
+              ...identity,
+              status: "unavailable",
+              executed: false,
+            })
           const manager = pkg.packageManager ?? root?.packageManager
           if (!hasLauncher && !manager?.startsWith("bun@"))
-            return packageReport(`[验证] 不可用：${directory} 未声明受支持的 Bun 执行方式。`, { ...identity, status: "unavailable", executed: false })
+            return packageReport(`[验证] 不可用：${directory} 未声明受支持的 Bun 执行方式。`, {
+              ...identity,
+              status: "unavailable",
+              executed: false,
+            })
           if (manager && !manager.startsWith("bun@"))
-            return packageReport(`[验证] 不可用：${directory} 的包管理器不是 Bun，未替换执行方式。`, { ...identity, status: "unavailable", executed: false })
+            return packageReport(`[验证] 不可用：${directory} 的包管理器不是 Bun，未替换执行方式。`, {
+              ...identity,
+              status: "unavailable",
+              executed: false,
+            })
           // Limit repeated checks of the same reported change, not future repairs in this Session.
           const key = Instructions.hash([input.sessionID, directory])
-          const signature = Instructions.hash([pkg.scripts.typecheck, ...changes.map((change) => [change.path, change.hash])])
+          const signature = Instructions.hash([
+            pkg.scripts.typecheck,
+            ...changes.map((change) => [change.path, change.hash]),
+          ])
           const checkIdentity = { ...identity, signature }
           const previous = (yield* Ref.get(failures)).get(key)
           const count = previous?.signature === signature ? previous.count : 0
           if (count >= configured.maxConsecutiveFailures)
-            return packageReport(`[验证] 未检查：同一变更已达到连续失败上限 ${configured.maxConsecutiveFailures}；新变更后会重新检查，也可显式运行 typecheck。`, { ...checkIdentity, status: "unchecked", executed: false })
+            return packageReport(
+              `[验证] 未检查：同一变更已达到连续失败上限 ${configured.maxConsecutiveFailures}；新变更后会重新检查，也可显式运行 typecheck。`,
+              { ...checkIdentity, status: "unchecked", executed: false },
+            )
           const executable = hasLauncher ? launcher : "bun"
           const args = ["run", `--cwd=${directory}`, "typecheck"]
           yield* permission.assert({
@@ -252,7 +290,12 @@ export const layer = Layer.effect(
               durationMs,
               error: result.unavailable,
             })
-            return packageReport(`[验证] ${result.unavailable}：${directory} typecheck 未完成，不计为代码失败。`, { ...checkIdentity, status: "unavailable", executed: null, durationMs })
+            return packageReport(`[验证] ${result.unavailable}：${directory} typecheck 未完成，不计为代码失败。`, {
+              ...checkIdentity,
+              status: "unavailable",
+              executed: null,
+              durationMs,
+            })
           }
           const output = [result.result.stdout.toString("utf8"), result.result.stderr.toString("utf8")]
             .filter(Boolean)
@@ -268,7 +311,13 @@ export const layer = Layer.effect(
               packageDirectory: directory,
               durationMs,
             })
-            return packageReport(`[验证] ${directory} typecheck 通过（exit 0）。`, { ...checkIdentity, status: "passed", executed: true, exitCode: 0, durationMs })
+            return packageReport(`[验证] ${directory} typecheck 通过（exit 0）。`, {
+              ...checkIdentity,
+              status: "passed",
+              executed: true,
+              exitCode: 0,
+              durationMs,
+            })
           }
           const characters = Array.from(output)
           const diagnostic =
@@ -285,7 +334,13 @@ export const layer = Layer.effect(
             error: `${unavailable ? "执行不可用" : "检查失败"}（exit ${result.result.exitCode}）\n${diagnostic}`,
           })
           if (unavailable)
-            return packageReport(`[验证] 执行不可用：${directory} typecheck 未完成，不计为代码失败。`, { ...checkIdentity, status: "unavailable", executed: true, exitCode: result.result.exitCode, durationMs })
+            return packageReport(`[验证] 执行不可用：${directory} typecheck 未完成，不计为代码失败。`, {
+              ...checkIdentity,
+              status: "unavailable",
+              executed: true,
+              exitCode: result.result.exitCode,
+              durationMs,
+            })
           yield* Ref.update(failures, (state) => {
             if (state.size >= 32 && !state.has(key)) {
               const oldest = state.keys().next().value
@@ -307,24 +362,42 @@ export const layer = Layer.effect(
               Effect.as(""),
               Effect.catchTag("CorrectionStore.InvalidEntryError", () => Effect.succeed("\n检测纠错未获Store接受。")),
             )
-          return packageReport(`[验证] ${directory} typecheck 失败（exit ${result.result.exitCode}）：\n${diagnostic}${correction}`, { ...checkIdentity, status: "failed", executed: true, exitCode: result.result.exitCode, durationMs })
+          return packageReport(
+            `[验证] ${directory} typecheck 失败（exit ${result.result.exitCode}）：\n${diagnostic}${correction}`,
+            { ...checkIdentity, status: "failed", executed: true, exitCode: result.result.exitCode, durationMs },
+          )
         }).pipe(
-          Effect.catchTags(unavailable((text) => report(input, "unavailable", text, changes, [
-            new PackageCheck({ directory: path.dirname(file), status: "unavailable", executed: false }),
-          ]))),
+          Effect.catchTags(
+            unavailable((text) =>
+              report(input, "unavailable", text, changes, [
+                new PackageCheck({ directory: path.dirname(file), status: "unavailable", executed: false }),
+              ]),
+            ),
+          ),
         ),
       )
       const checks = reports.flatMap((result) => result.result.packages)
-      return report(input,
-        checks.some((check) => check.status === "failed") ? "failed" : checks.every((check) => check.status === "passed") ? "passed" : checks.some((check) => check.status === "unavailable") ? "unavailable" : "unchecked",
-        reports.map((result) => result.text).join("\n"), changes, checks)
+      return report(
+        input,
+        checks.some((check) => check.status === "failed")
+          ? "failed"
+          : checks.every((check) => check.status === "passed")
+            ? "passed"
+            : checks.some((check) => check.status === "unavailable")
+              ? "unavailable"
+              : "unchecked",
+        reports.map((result) => result.text).join("\n"),
+        changes,
+        checks,
+      )
     })
     return Service.of({
       verify: (input) =>
         verify(input).pipe(
           verification.withPermits(1),
           Effect.catchTags({
-            PlatformError: () => Effect.succeed(report(input, "unavailable", "[验证] 不可用：无法读取package或检查目录。")),
+            PlatformError: () =>
+              Effect.succeed(report(input, "unavailable", "[验证] 不可用：无法读取package或检查目录。")),
             SchemaError: () => Effect.succeed(report(input, "unavailable", "[验证] 不可用：package.json格式无效。")),
             FileSystemError: () => Effect.succeed(report(input, "unavailable", "[验证] 不可用：无法定位检查目录。")),
           }),

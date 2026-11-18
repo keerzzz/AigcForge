@@ -2,14 +2,7 @@
   "version": 1,
   "metadata": {
     "model": "MiniMax-M3",
-    "tags": [
-      "prefix:minimax-chat",
-      "provider:minimax",
-      "protocol:minimax-chat",
-      "text",
-      "usage",
-      "thinking-off"
-    ],
+    "tags": ["prefix:minimax-chat", "provider:minimax", "protocol:minimax-chat", "text", "usage", "thinking-off"],
     "name": "minimax-chat/m3-streams-text-with-thinking-disabled",
     "recordedAt": "2026-09-07T16:53:20.976Z"
   },

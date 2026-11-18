@@ -13,13 +13,10 @@ import { Identifier } from "@aigcfroge/schema/identifier"
 // 过期后读取即视为关闭并清理。
 export const LEASE_MS = 60_000
 
-export class UnavailableError extends Schema.TaggedError<UnavailableError>()(
-  "PermissionOverride.UnavailableError",
-  {
-    sessionID: SessionSchema.ID,
-    reason: Schema.Literals(["child-session", "unattended"]),
-  },
-) {}
+export class UnavailableError extends Schema.TaggedError<UnavailableError>()("PermissionOverride.UnavailableError", {
+  sessionID: SessionSchema.ID,
+  reason: Schema.Literals(["child-session", "unattended"]),
+}) {}
 
 // 非 durable 事件定义：状态同步给 App 多窗口，不写 durable EventV2（红线 7）。
 export const Event = {

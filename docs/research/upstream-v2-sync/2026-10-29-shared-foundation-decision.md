@@ -50,41 +50,41 @@ Meta作为平台重要能力可供基础组合与用户装配消费，保留它�
 
 #### A. 唯一入口与职责
 
-| 入口 | 职责 | 禁止混入 |
-| --- | --- | --- |
-| Home | 选择明确server/project、会话聚合与模式导航 | 导航自动创建/恢复工作或隐式改执行位置 |
-| Chat | 使用内置能力对话，生产/编辑/导入/审阅七类资产 | 没有自建资产就不可用；保存后自动执行插件 |
-| Custom | 展示内置/自建元件、选择连接、预览诊断、保存Profile、确认启动 | 仅凭前端连线运行；将缺失引用替换成基础组合 |
-| Session | 按保存的身份/Location/采用版本运行并消费真实结果 | 根据当前mode导航改旧组合或重新装载最新资产 |
-| Desktop | 提供同源服务/存储/IPC/窗口与生命周期 | 单独再建一套执行底座或接管现用服务 |
+| 入口    | 职责                                                         | 禁止混入                                   |
+| ------- | ------------------------------------------------------------ | ------------------------------------------ |
+| Home    | 选择明确server/project、会话聚合与模式导航                   | 导航自动创建/恢复工作或隐式改执行位置      |
+| Chat    | 使用内置能力对话，生产/编辑/导入/审阅七类资产                | 没有自建资产就不可用；保存后自动执行插件   |
+| Custom  | 展示内置/自建元件、选择连接、预览诊断、保存Profile、确认启动 | 仅凭前端连线运行；将缺失引用替换成基础组合 |
+| Session | 按保存的身份/Location/采用版本运行并消费真实结果             | 根据当前mode导航改旧组合或重新装载最新资产 |
+| Desktop | 提供同源服务/存储/IPC/窗口与生命周期                         | 单独再建一套执行底座或接管现用服务         |
 
 唯一装配链：内置基础能力＋可选用户资产 → 按类型/来源/版本/消费者显式绑定 → Plan预览与依赖/权限诊断 → 用户确认 → 原子创建Session与采用快照 → 同一V2执行与结果消费。Profile保存、组合采用、插件安装/授权/挂载、实际执行是不同动作，不由一次“保存”隐式完成。
 
 #### B. 电路板插槽与权威
 
-| 接缝 | 原owner与合同 | 约束 |
-| --- | --- | --- |
-| 定义/资产 | Schema、typed asset owner、registry、CAS与来源revision | 同名遮蔽/合并由统一owner决定，不复制缓存或资产文件 |
-| 装配/绑定 | Profile、CompositionResolver、Plan、Snapshot及consumer绑定 | 共同机制与Custom策略分开；根/执行者/工具/资产的实际来源可解释 |
-| 模型与确定性执行 | Core Session/Runner/AI、Tool、Job/Task/Workflow/Delegation | 推理与确定性执行复用现有引擎，不为元件套第二循环 |
-| 权限/运行环境 | Permission/Policy、Location、FS/process/PTY、MCP/Plugin生命周期 | 资产请求不授予权限，不替换全局身份/权限/存储/进程owner |
-| UI/人类交互 | App/GUI Contract/Command/Panel、Question/Permission与IPC storage | 消费同一真实状态；人类回复不因进入消息流而获得无限授权 |
-| 状态/版本/结果 | Session投影、Instructions、采用快照、领域receipt与必要live事件 | 组合定义/实例/调用/结果分开；目录指纹不证明实现固定 |
+| 接缝             | 原owner与合同                                                    | 约束                                                          |
+| ---------------- | ---------------------------------------------------------------- | ------------------------------------------------------------- |
+| 定义/资产        | Schema、typed asset owner、registry、CAS与来源revision           | 同名遮蔽/合并由统一owner决定，不复制缓存或资产文件            |
+| 装配/绑定        | Profile、CompositionResolver、Plan、Snapshot及consumer绑定       | 共同机制与Custom策略分开；根/执行者/工具/资产的实际来源可解释 |
+| 模型与确定性执行 | Core Session/Runner/AI、Tool、Job/Task/Workflow/Delegation       | 推理与确定性执行复用现有引擎，不为元件套第二循环              |
+| 权限/运行环境    | Permission/Policy、Location、FS/process/PTY、MCP/Plugin生命周期  | 资产请求不授予权限，不替换全局身份/权限/存储/进程owner        |
+| UI/人类交互      | App/GUI Contract/Command/Panel、Question/Permission与IPC storage | 消费同一真实状态；人类回复不因进入消息流而获得无限授权        |
+| 状态/版本/结果   | Session投影、Instructions、采用快照、领域receipt与必要live事件   | 组合定义/实例/调用/结果分开；目录指纹不证明实现固定           |
 
 缺少必要接缝时先证明现有owner无法表达，补最小公共身份/来源/绑定合同；既不能为了口号预建万能AgentNode，也不能用“禁止新增”拒绝空资产基础组合等真实需求。
 
 #### C. 基础组合与错误边界
 
-| 场景 | 目标行为 |
-| --- | --- |
-| Chat库存为空 | 平台默认能力仍能对话/产生资产；空态引导创建，不要求先有用户Agent |
-| Custom未选用户元件/库存为空 | 提供显式标识的内置基础组合；Plan列出真实内置来源/能力/版本，确认后可启动 |
+| 场景                                     | 目标行为                                                                          |
+| ---------------------------------------- | --------------------------------------------------------------------------------- |
+| Chat库存为空                             | 平台默认能力仍能对话/产生资产；空态引导创建，不要求先有用户Agent                  |
+| Custom未选用户元件/库存为空              | 提供显式标识的内置基础组合；Plan列出真实内置来源/能力/版本，确认后可启动          |
 | 用户已选必需引用无效、版本冲突或依赖缺失 | 明确阻断该组合、定位元件；保留草稿/历史，可取消/修复/重新预览；不静默改用内置组合 |
-| 旧快照内容仍在且精确运行依赖可用 | 经现有校验沿用；源资产变更不自动更新旧会话 |
-| 旧快照所需实现/凭据/模型不可用 | 呈现具体缺失与可执行操作；不自动采用最新实现/其它模型，不隐藏改变权限或费用 |
-| 权限拒绝或Custom被禁用/客户端不支持 | 保留typed拒绝/不支持，不通过底座fallback绕过校验或解码成Coding |
-| 确认时CAS/来源变化 | 拒绝旧预览、刷新并再确认；不无条件覆盖 |
-| 取消/进程故障/未知副作用 | 原owner结算与有界恢复，保留事实/输入/结果；不推导未执行、不可逆副作用不自动撤销 |
+| 旧快照内容仍在且精确运行依赖可用         | 经现有校验沿用；源资产变更不自动更新旧会话                                        |
+| 旧快照所需实现/凭据/模型不可用           | 呈现具体缺失与可执行操作；不自动采用最新实现/其它模型，不隐藏改变权限或费用       |
+| 权限拒绝或Custom被禁用/客户端不支持      | 保留typed拒绝/不支持，不通过底座fallback绕过校验或解码成Coding                    |
+| 确认时CAS/来源变化                       | 拒绝旧预览、刷新并再确认；不无条件覆盖                                            |
+| 取消/进程故障/未知副作用                 | 原owner结算与有界恢复，保留事实/输入/结果；不推导未执行、不可逆副作用不自动撤销   |
 
 “默认基础组合”是明确输入策略，不是异常catch后的万能降级。基础能力不是伪造的Chat资产，不填假ID、不临时写虚构Agent文件；built-in定义与用户asset引用的typed区分、版本捕获、Plan/快照/重试都须在原owner内设计。
 
@@ -103,15 +103,15 @@ B01先建立电路板接缝/元件来源/装配/运行消费者与空态矩阵�
 
 ### 2. 每个第一类单元的最小逻辑合同
 
-| 维度 | 必须可表达与核验 | 不可据此推导 |
-| --- | --- | --- |
-| 身份与定义 | 稳定领域身份、来源/版本、单元类别、作用域与定义/实例归属 | 为每个函数/Token/行数据创建新Agent记录 |
-| 契约 | typed请求/结果/命令/事件、提供者与消费者、失败和取消边界 | 所有业务共享一份Any输入或万能接口 |
-| 组合/协作 | 显式绑定、依赖诊断、直接消费/调用/委派/人类审批关系 | 只登记接口/名字就是可运行能力 |
-| 权限 | 所请求能力与实际授权分开，审批者/目标/版本绑定 | Human单元或Manifest可绕过当前Permission |
-| 生命周期 | 资源owner、启动/激活/失效/回收、异步generation与迟到响应保护 | 每个单元都需要永久fiber/queue/LLM loop |
-| 版本采用 | 定义更新、当前组合、实例与精确实现来源，显式采用新版 | 目录指纹等于实现固定、普通fork自动重新冻结 |
-| 可观察结果 | 在现有Session/Job/领域事实中关联调用/结果/状态/原因 | 新建第二轨迹库、持久化所有临时流或泄露prompt/秘密 |
+| 维度       | 必须可表达与核验                                             | 不可据此推导                                      |
+| ---------- | ------------------------------------------------------------ | ------------------------------------------------- |
+| 身份与定义 | 稳定领域身份、来源/版本、单元类别、作用域与定义/实例归属     | 为每个函数/Token/行数据创建新Agent记录            |
+| 契约       | typed请求/结果/命令/事件、提供者与消费者、失败和取消边界     | 所有业务共享一份Any输入或万能接口                 |
+| 组合/协作  | 显式绑定、依赖诊断、直接消费/调用/委派/人类审批关系          | 只登记接口/名字就是可运行能力                     |
+| 权限       | 所请求能力与实际授权分开，审批者/目标/版本绑定               | Human单元或Manifest可绕过当前Permission           |
+| 生命周期   | 资源owner、启动/激活/失效/回收、异步generation与迟到响应保护 | 每个单元都需要永久fiber/queue/LLM loop            |
+| 版本采用   | 定义更新、当前组合、实例与精确实现来源，显式采用新版         | 目录指纹等于实现固定、普通fork自动重新冻结        |
+| 可观察结果 | 在现有Session/Job/领域事实中关联调用/结果/状态/原因          | 新建第二轨迹库、持久化所有临时流或泄露prompt/秘密 |
 
 统一的是组织与治理维度，异构的是执行/生命周期与具体业务契约。可以建立必要的公共身份/治理接缝，但必须先有表达缺口、真实消费者与复用决定；不预造平行AgentKernel/registry，也不能以“禁止抽象”为由拒绝目标所必需的最小合同。
 
@@ -178,18 +178,18 @@ V2 GUI 已有 Extension.compose/Contract、Command、MenuItem、Panel、Slot 与
 
 ## 当前证据与复用决定
 
-| Candidate | 调用/决定函数与测试证据 | 兼容性 | 决定及原因 |
-| --- | --- | --- | --- |
-| SessionExecution / SessionRunner | V2 `core/src/session/execution.ts:89/98`；inbox matches/reconcile/promote；core Session tests | 已承载普通和 Custom 的共用执行入口 | 复用；不新建 AgentKernel/循环 |
-| CompositionResolver / SessionComposition | V2 `core/src/session.ts:392/403/432`；`session/context.ts:150`；Custom tests | 有冻结机制，仍含 Custom 专属选择 | 保留 owner，继续核对后渐进提取；首节不改 |
-| PermissionEffective / Permission | V2 `core/src/permission/effective.ts:56` 决定规则；context 消费 | 单一决策点含显式模式策略 | 复用；不能用组合声明直接授予权限 |
-| AppRoutes / Session resolution | V2 `app/src/shell/routes/routes.tsx:43/86`，`session/session-resolution.ts:37` | 已有共同 Shell 与规范会话解析；缺模式工作区路由 | 保留；模式宿主作为下一节调查 |
-| Default ModeWorkspace / modeSurface | 默认 `app/src/components/mode-surfaces.tsx:208`、`pages/mode-workspace.tsx:74/126`；路由/模式 keeper | 领域职责可迁移；旧资源/缓存不可机械复制 | 移植行为到 V2 owner，不复制旧运行壳 |
-| Default SessionRightPanel / ChatRightPanel | 默认 `session-side-panel.tsx:222/377`、`chat-right-panel.tsx:225/263` | 候选审阅属于共享会话右栏 | 作为职责依据；不把资产库存搬入 Session 标题 |
-| V2 SideRegion / MenuItem / Panel | `app/src/runtime/extension/side-region.tsx:38/72`；`gui-extensions/src/file/renderer.tsx:368`；side-panels keeper | 现有侧栏“+”菜单和 Panel 开启/恢复路径可用 | 首节复用；移除七个 header 注册，保留候选业务 |
-| GUI skill-proposals extension | `gui-extensions/src/skill-proposals/renderer.tsx:119` 起七个 header Slot 与 side Panel；panel/parser/request/keeper | 当前候选已能保存插入；入口错误 | 原位调整登记；不扩成资产管理中心 |
-| ChatAssetsProvider / mergeAssets | 默认 `chat-assets.tsx:83/211/217/243`；`asset-workbench.tsx:147` 以 kind+name 决定项目遮蔽系统项 | 库存与计数已有共同 owner；V2管理页缺完整映射 | 后续复用业务语义；不为侧栏计数建第二缓存 |
-| Default delete / V2 AssetLocation | 默认 mode-workspace-slots 使用占位Session ID；V2 `server/src/handlers/asset-location.ts:27/43` 查真实归属 | 直接复制不兼容 | 后续研究Location管理mutation；首节不改校验/造假Session |
+| Candidate                                  | 调用/决定函数与测试证据                                                                                             | 兼容性                                          | 决定及原因                                             |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------ |
+| SessionExecution / SessionRunner           | V2 `core/src/session/execution.ts:89/98`；inbox matches/reconcile/promote；core Session tests                       | 已承载普通和 Custom 的共用执行入口              | 复用；不新建 AgentKernel/循环                          |
+| CompositionResolver / SessionComposition   | V2 `core/src/session.ts:392/403/432`；`session/context.ts:150`；Custom tests                                        | 有冻结机制，仍含 Custom 专属选择                | 保留 owner，继续核对后渐进提取；首节不改               |
+| PermissionEffective / Permission           | V2 `core/src/permission/effective.ts:56` 决定规则；context 消费                                                     | 单一决策点含显式模式策略                        | 复用；不能用组合声明直接授予权限                       |
+| AppRoutes / Session resolution             | V2 `app/src/shell/routes/routes.tsx:43/86`，`session/session-resolution.ts:37`                                      | 已有共同 Shell 与规范会话解析；缺模式工作区路由 | 保留；模式宿主作为下一节调查                           |
+| Default ModeWorkspace / modeSurface        | 默认 `app/src/components/mode-surfaces.tsx:208`、`pages/mode-workspace.tsx:74/126`；路由/模式 keeper                | 领域职责可迁移；旧资源/缓存不可机械复制         | 移植行为到 V2 owner，不复制旧运行壳                    |
+| Default SessionRightPanel / ChatRightPanel | 默认 `session-side-panel.tsx:222/377`、`chat-right-panel.tsx:225/263`                                               | 候选审阅属于共享会话右栏                        | 作为职责依据；不把资产库存搬入 Session 标题            |
+| V2 SideRegion / MenuItem / Panel           | `app/src/runtime/extension/side-region.tsx:38/72`；`gui-extensions/src/file/renderer.tsx:368`；side-panels keeper   | 现有侧栏“+”菜单和 Panel 开启/恢复路径可用       | 首节复用；移除七个 header 注册，保留候选业务           |
+| GUI skill-proposals extension              | `gui-extensions/src/skill-proposals/renderer.tsx:119` 起七个 header Slot 与 side Panel；panel/parser/request/keeper | 当前候选已能保存插入；入口错误                  | 原位调整登记；不扩成资产管理中心                       |
+| ChatAssetsProvider / mergeAssets           | 默认 `chat-assets.tsx:83/211/217/243`；`asset-workbench.tsx:147` 以 kind+name 决定项目遮蔽系统项                    | 库存与计数已有共同 owner；V2管理页缺完整映射    | 后续复用业务语义；不为侧栏计数建第二缓存               |
+| Default delete / V2 AssetLocation          | 默认 mode-workspace-slots 使用占位Session ID；V2 `server/src/handlers/asset-location.ts:27/43` 查真实归属           | 直接复制不兼容                                  | 后续研究Location管理mutation；首节不改校验/造假Session |
 
 路径在表中省略 `packages/` 前缀；默认/V2 已明确标注。附加生命周期证据及完整调查范围见[代码族调查](2026-10-29-code-family-review.md)。表中测试是覆盖定位，不自动表示本轮新执行。
 
@@ -212,7 +212,6 @@ V2 GUI 已有 Extension.compose/Contract、Command、MenuItem、Panel、Slot 与
 独立首节调查/评审已核实MenuItem→SideRegion→layout.open→既有Panel与tab复用链，生产修改限定renderer足够。评审要求已写入[具体任务单](../../review/v2-implementation-task-2026-10-29-proposal-entry.md)：MenuItem无enabled字段，采用响应式可用性登记；动作重新读取当前Session；窄屏沿原mobile菜单；标题断言只限定标题区域。既有窄屏Command选择首Panel的风险单独登记，不能冒称已通过。
 
 辅助交付后冻结源码，主对话真实 Electron + DeepSeek Flash 验收；失败留在同一节修复。模式宿主、全局导航/底栏和组合实现身份等下一节研究继续，但不提前实施。
-
 
 ### 2026-10-29 共享工作位置的人类裁决
 

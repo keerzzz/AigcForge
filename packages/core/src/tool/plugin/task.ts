@@ -724,12 +724,15 @@ export const Plugin = {
         input.background !== true &&
         input.resume !== false
       )
-        return yield* toToolFailure(new ControllerConflictError({
-          sessionID: context.sessionID,
-          field: "target",
-          kind: "coordination_root_required",
-          message: "Synchronous Task target must be a different root Session; use background: true or resume: false for this Session",
-        }))
+        return yield* toToolFailure(
+          new ControllerConflictError({
+            sessionID: context.sessionID,
+            field: "target",
+            kind: "coordination_root_required",
+            message:
+              "Synchronous Task target must be a different root Session; use background: true or resume: false for this Session",
+          }),
+        )
       const identity = Hash.sha256(Buffer.from(JSON.stringify([context.sessionID, context.messageID, context.id])))
       const admitted = yield* sessions
         .dispatchTask(
@@ -1204,27 +1207,55 @@ export const Plugin = {
                               sessionID: worker.receipt.childSessionID,
                               inputID: worker.receipt.inputID,
                             })
-                            const membership = completed.status === "completed" ? undefined : yield* database.db
-                              .select({ joined: SessionInputResultTable.joined_event_seq, terminal: SessionInputResultTable.terminal_event_seq })
-                              .from(SessionInputResultTable)
-                              .where(and(eq(SessionInputResultTable.session_id, worker.receipt.childSessionID), eq(SessionInputResultTable.input_id, worker.receipt.inputID)))
-                              .get()
-                              .pipe(Effect.orDie)
-                            const assistant = completed.status === "completed"
-                              ? completed.assistant
-                              : membership ? (yield* SessionHistory.load(database.db, worker.receipt.childSessionID, "local"))
-                                  .findLast((message) => message.type === "assistant" && message.origin?.kind === "step" &&
-                                    message.origin.seq >= membership.joined && (membership.terminal === null || message.origin.seq <= membership.terminal))
-                                : undefined
+                            const membership =
+                              completed.status === "completed"
+                                ? undefined
+                                : yield* database.db
+                                    .select({
+                                      joined: SessionInputResultTable.joined_event_seq,
+                                      terminal: SessionInputResultTable.terminal_event_seq,
+                                    })
+                                    .from(SessionInputResultTable)
+                                    .where(
+                                      and(
+                                        eq(SessionInputResultTable.session_id, worker.receipt.childSessionID),
+                                        eq(SessionInputResultTable.input_id, worker.receipt.inputID),
+                                      ),
+                                    )
+                                    .get()
+                                    .pipe(Effect.orDie)
+                            const assistant =
+                              completed.status === "completed"
+                                ? completed.assistant
+                                : membership
+                                  ? (yield* SessionHistory.load(
+                                      database.db,
+                                      worker.receipt.childSessionID,
+                                      "local",
+                                    )).findLast(
+                                      (message) =>
+                                        message.type === "assistant" &&
+                                        message.origin?.kind === "step" &&
+                                        message.origin.seq >= membership.joined &&
+                                        (membership.terminal === null || message.origin.seq <= membership.terminal),
+                                    )
+                                  : undefined
                             const attempt = assistant?.type === "assistant" ? assistant.attempts?.at(-1) : undefined
-                            const deployment = attempt?.observations.findLast((observation) => observation.deployment !== undefined)?.deployment
-                              ?? attempt?.preparedDeployment
+                            const deployment =
+                              attempt?.observations.findLast((observation) => observation.deployment !== undefined)
+                                ?.deployment ?? attempt?.preparedDeployment
                             settled.add(worker.delegationID)
                             return yield* retainWorker({
                               ...identity,
-                              ...(attempt && deployment ? {
-                                runtime: { provider: deployment.provider, id: attempt.apiModelID, route: deployment.route },
-                              } : {}),
+                              ...(attempt && deployment
+                                ? {
+                                    runtime: {
+                                      provider: deployment.provider,
+                                      id: attempt.apiModelID,
+                                      route: deployment.route,
+                                    },
+                                  }
+                                : {}),
                               receipt: new Delegation.Receipt(worker.receipt),
                               status: result.status,
                               text:
@@ -1360,7 +1391,10 @@ export const Plugin = {
                               expect: ["in_progress"],
                               status: status === "recovery_required" ? "failed" : status,
                               outputDigest: workers
-                                .map((worker) => `${worker.runtime ? `${worker.runtime.provider}/${worker.runtime.id}` : Model.Selection.isGroup(worker.requested) ? `group:${worker.requested.groupID}` : `${worker.requested.providerID}/${worker.requested.id}`}: ${worker.status}`)
+                                .map(
+                                  (worker) =>
+                                    `${worker.runtime ? `${worker.runtime.provider}/${worker.runtime.id}` : Model.Selection.isGroup(worker.requested) ? `group:${worker.requested.groupID}` : `${worker.requested.providerID}/${worker.requested.id}`}: ${worker.status}`,
+                                )
                                 .join("\n"),
                             },
                             recoveryRequired.size === 0
@@ -1781,20 +1815,22 @@ export const Plugin = {
                           return yield* new ToolFailure({
                             message: "External participant has active or unresolved work",
                           })
-                        const steerClaim = steer ? yield* Effect.gen(function* () {
-                          if (!selected || !routed)
-                            return yield* new ToolFailure({
-                              message: "External steer requires its existing delegation and participant",
+                        const steerClaim = steer
+                          ? yield* Effect.gen(function* () {
+                              if (!selected || !routed)
+                                return yield* new ToolFailure({
+                                  message: "External steer requires its existing delegation and participant",
+                                })
+                              return yield* execution
+                                .preflightExternalSteer({
+                                  delegationID: selected.delegation.id,
+                                  participantID: routed.id,
+                                  parentSessionID: parent.id,
+                                  agent: context.agent,
+                                })
+                                .pipe(Effect.mapError(toToolFailure))
                             })
-                          return yield* execution
-                            .preflightExternalSteer({
-                              delegationID: selected.delegation.id,
-                              participantID: routed.id,
-                              parentSessionID: parent.id,
-                              agent: context.agent,
-                            })
-                            .pipe(Effect.mapError(toToolFailure))
-                        }) : undefined
+                          : undefined
                         const linked = input.parent_task_id
                           ? (yield* tasks.get(parent.id)).find((task) => task.id === input.parent_task_id)
                           : undefined
@@ -1844,9 +1880,11 @@ export const Plugin = {
                                 },
                                 {
                                   claim: source,
-                                  handoff: steerClaim?.parentTaskID === linked.id && steerClaim.parentTaskRevision !== undefined
-                                    ? { source: steerClaim.source, revision: steerClaim.parentTaskRevision }
-                                    : undefined,
+                                  handoff:
+                                    steerClaim?.parentTaskID === linked.id &&
+                                    steerClaim.parentTaskRevision !== undefined
+                                      ? { source: steerClaim.source, revision: steerClaim.parentTaskRevision }
+                                      : undefined,
                                 },
                               )
                               .pipe(Effect.mapError(toToolFailure))

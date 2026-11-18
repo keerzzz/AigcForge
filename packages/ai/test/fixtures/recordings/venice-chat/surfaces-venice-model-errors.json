@@ -1,12 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:venice-chat",
-      "provider:venice",
-      "protocol:venice-chat",
-      "error"
-    ],
+    "tags": ["prefix:venice-chat", "provider:venice", "protocol:venice-chat", "error"],
     "name": "venice-chat/surfaces-venice-model-errors",
     "recordedAt": "2026-10-05T02:59:11.768Z"
   },

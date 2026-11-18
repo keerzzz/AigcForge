@@ -84,9 +84,7 @@ describe("CloudflareWorkersAIPlugin", () => {
           type: "key",
           label: "API key",
         })
-        expect(required(yield* catalog.get(providerID)).package).toBe(
-          "@aigcfroge/ai/providers/cloudflare-workers-ai",
-        )
+        expect(required(yield* catalog.get(providerID)).package).toBe("@aigcfroge/ai/providers/cloudflare-workers-ai")
       }),
     ),
   )

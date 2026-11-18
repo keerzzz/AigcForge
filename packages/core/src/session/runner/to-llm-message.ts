@@ -104,11 +104,13 @@ const userAttachmentContent = (files: readonly FileAttachment[]) => {
 }
 
 const decodeToolInput = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown))
-const decodeCommunication = Schema.decodeUnknownOption(Schema.Struct({
-  source: Schema.Literal("share"),
-  communication: Schema.Struct({ id: SessionCommunication.ID }),
-  actorSessionID: SessionID,
-}))
+const decodeCommunication = Schema.decodeUnknownOption(
+  Schema.Struct({
+    source: Schema.Literal("share"),
+    communication: Schema.Struct({ id: SessionCommunication.ID }),
+    actorSessionID: SessionID,
+  }),
+)
 
 const providerMetadata = (
   provider: string,
@@ -157,10 +159,20 @@ const toolResult = (tool: SessionMessage.AssistantTool, providerMetadata: Provid
   }
 }
 
-const assistant = (message: SessionMessage.Assistant, model: Model.Ref, providerMetadataKey: string, target?: SessionProviderContext.Provenance) => {
+const assistant = (
+  message: SessionMessage.Assistant,
+  model: Model.Ref,
+  providerMetadataKey: string,
+  target?: SessionProviderContext.Provenance,
+) => {
   const sameProvider = String(message.model.providerID) === String(model.providerID)
-  const attempt = message.origin?.kind === "step" ? message.attempts?.findLast((attempt) =>
-    attempt.terminal?.outputStarted || attempt.observations.some((observation) => observation.outputStarted)) : undefined
+  const attempt =
+    message.origin?.kind === "step"
+      ? message.attempts?.findLast(
+          (attempt) =>
+            attempt.terminal?.outputStarted || attempt.observations.some((observation) => observation.outputStarted),
+        )
+      : undefined
   const source = attempt?.observations.findLast((observation) => observation.deployment !== undefined)?.deployment
   const replayable = source !== undefined && SessionProviderContext.compatible(source, target)
   const reuseProviderMetadata = replayable && message.error === undefined
@@ -258,7 +270,12 @@ const modelSwitched = (message: SessionMessage.ModelSelected, model: Model.Ref):
   return [Message.effort({ effort: to.effort, previous: from.effort })]
 }
 
-function toLLMMessage(message: SessionMessage.Info, model: Model.Ref, providerMetadataKey: string, target?: SessionProviderContext.Provenance): Message[] {
+function toLLMMessage(
+  message: SessionMessage.Info,
+  model: Model.Ref,
+  providerMetadataKey: string,
+  target?: SessionProviderContext.Provenance,
+): Message[] {
   switch (message.type) {
     case "agent-switched":
     case "idle":
@@ -294,9 +311,15 @@ function toLLMMessage(message: SessionMessage.Info, model: Model.Ref, providerMe
       ]
     case "synthetic": {
       const communication = decodeCommunication(message.metadata)
-      return [Message.make({ id: message.id, role: "user", content: Option.isSome(communication)
-        ? `[Session communication ${communication.value.communication.id} from session ${communication.value.actorSessionID}]\n${message.text}\n\nReply with share using replyTo="${communication.value.communication.id}".`
-        : message.text })]
+      return [
+        Message.make({
+          id: message.id,
+          role: "user",
+          content: Option.isSome(communication)
+            ? `[Session communication ${communication.value.communication.id} from session ${communication.value.actorSessionID}]\n${message.text}\n\nReply with share using replyTo="${communication.value.communication.id}".`
+            : message.text,
+        }),
+      ]
     }
     case "skill":
       return [Message.make({ id: message.id, role: "user", content: message.text, metadata: message.metadata })]
@@ -319,7 +342,8 @@ function toLLMMessage(message: SessionMessage.Info, model: Model.Ref, providerMe
       if (message.status !== "completed") return []
       if (SessionProviderContext.isCheckpoint(message))
         return SessionProviderContext.compatible(message.providerContext.provenance, target)
-          ? [...SessionProviderContext.decode(message.providerContext)] : []
+          ? [...SessionProviderContext.decode(message.providerContext)]
+          : []
       return [
         Message.make({
           id: message.id,

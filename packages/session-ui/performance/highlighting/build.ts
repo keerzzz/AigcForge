@@ -14,7 +14,8 @@ if (ui !== realpathSync(path.resolve(import.meta.dir, "../../../ui"))) throw new
 
 const util = realpathSync(path.resolve(import.meta.dir, "../../node_modules/@aigcfroge/util"))
 
-if (util !== realpathSync(path.resolve(import.meta.dir, "../../../util"))) throw new Error(`Wrong workspace source: ${util}`)
+if (util !== realpathSync(path.resolve(import.meta.dir, "../../../util")))
+  throw new Error(`Wrong workspace source: ${util}`)
 
 await build({
   configFile: false,
@@ -29,10 +30,28 @@ const files = await Array.fromAsync(new Bun.Glob("**/*").scan({ cwd: outDir, onl
 
 const hash = createHash("sha256")
 
-for (const file of files.sort()) hash.update(file).update(new Uint8Array(await Bun.file(path.join(outDir, file)).arrayBuffer()))
+for (const file of files.sort())
+  hash.update(file).update(new Uint8Array(await Bun.file(path.join(outDir, file)).arrayBuffer()))
 
-await Bun.write(path.join(outDir, "build.json"), JSON.stringify({
-  revision: Bun.spawnSync(["git", "rev-parse", "HEAD"]).stdout.toString().trim(),
-  sourceDiff: Bun.spawnSync(["git", "diff", "--", "src/components/session-diff.ts", "src/components/file.tsx", "src/pierre/worker.ts"]).stdout.toString(),
-  bundle: hash.digest("hex"), bun: Bun.version, ui, util,
-}, null, 2))
+await Bun.write(
+  path.join(outDir, "build.json"),
+  JSON.stringify(
+    {
+      revision: Bun.spawnSync(["git", "rev-parse", "HEAD"]).stdout.toString().trim(),
+      sourceDiff: Bun.spawnSync([
+        "git",
+        "diff",
+        "--",
+        "src/components/session-diff.ts",
+        "src/components/file.tsx",
+        "src/pierre/worker.ts",
+      ]).stdout.toString(),
+      bundle: hash.digest("hex"),
+      bun: Bun.version,
+      ui,
+      util,
+    },
+    null,
+    2,
+  ),
+)

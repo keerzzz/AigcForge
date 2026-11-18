@@ -37,7 +37,9 @@ function directory(phase: "ready" | "failed", generation: number) {
 
 function fixture(fetch: (request: Request) => Promise<Response>) {
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
-  const owner = { api: AigcForge.make({ baseUrl: "http://aigcfroge.local", fetch: (input, init) => fetch(new Request(input, init)) }) }
+  const owner = {
+    api: AigcForge.make({ baseUrl: "http://aigcfroge.local", fetch: (input, init) => fetch(new Request(input, init)) }),
+  }
   const setup = createRoot((dispose) => ({
     data: createData({
       api: () => owner.api,
@@ -82,21 +84,25 @@ test("directory diagnostics refresh observed connections in both windows without
   try {
     windows.forEach((window) => window.emit(event))
     expect(requests).toEqual([])
-    await Promise.all(windows.flatMap((window) => [
-      window.data.location.provider.discovery.sync("custom"),
-      window.data.location.provider.discovery.sync("custom", account),
-      window.data.location.provider.discovery.sync("custom", environment),
-    ]))
+    await Promise.all(
+      windows.flatMap((window) => [
+        window.data.location.provider.discovery.sync("custom"),
+        window.data.location.provider.discovery.sync("custom", account),
+        window.data.location.provider.discovery.sync("custom", environment),
+      ]),
+    )
     expect(requests.filter((value) => value === "active")).toHaveLength(2)
     expect(requests.filter((value) => value === account.id)).toHaveLength(2)
     expect(requests.filter((value) => value === environment.name)).toHaveLength(2)
     state.phase = "failed"
     state.generation = 2
     windows.forEach((window) => window.emit(event))
-    await Promise.all(windows.flatMap((window) => [
-      window.data.location.provider.discovery.sync("custom"),
-      window.data.location.provider.discovery.sync("custom", account),
-    ]))
+    await Promise.all(
+      windows.flatMap((window) => [
+        window.data.location.provider.discovery.sync("custom"),
+        window.data.location.provider.discovery.sync("custom", account),
+      ]),
+    )
     expect(requests.filter((value) => value === "active")).toHaveLength(4)
     expect(requests.filter((value) => value === account.id)).toHaveLength(4)
     expect(requests.filter((value) => value === environment.name)).toHaveLength(2)
@@ -129,7 +135,10 @@ test("an invalidated directory read cannot replace its queued response", async (
     release.resolve(Response.json({ location, data: directory("ready", 1) }))
     await Promise.all([before, after])
     expect(requests).toBe(2)
-    expect(setup.data.location.provider.discovery.get("custom", account)?.status).toMatchObject({ phase: "failed", generation: 2 })
+    expect(setup.data.location.provider.discovery.get("custom", account)?.status).toMatchObject({
+      phase: "failed",
+      generation: 2,
+    })
   } finally {
     release.resolve(Response.json({ location, data: directory("ready", 1) }))
     setup.dispose()

@@ -818,7 +818,8 @@ export const dict = {
   "project.settings.extensions.empty.mcps.title": "MCPs puudub veel",
   "project.settings.extensions.empty.mcps.description": "MCPs, mis on saadaval AigcForge jaoks, kuvatakse siin",
   "project.settings.extensions.empty.plugins.title": "Pluginaid pole veel",
-  "project.settings.extensions.empty.plugins.description": "AigcForge jaoks saadaolevad pistikprogrammid kuvatakse siin",
+  "project.settings.extensions.empty.plugins.description":
+    "AigcForge jaoks saadaolevad pistikprogrammid kuvatakse siin",
   "project.settings.extensions.empty.skills.title": "Oskusi veel pole",
   "project.settings.extensions.empty.skills.description": "Siin kuvatakse AigcForge jaoks saadaolevad oskused",
   "project.settings.extensions.lsp.configured": "Konfigureeritud keeleserverid",

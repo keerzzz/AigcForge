@@ -231,13 +231,24 @@ function modelInfo(
       name: input.name ?? model.name,
       ...(model.family ? { family: Model.Family.make(model.family) } : {}),
       ...(Model.compatibility(model.interleaved) ? { compatibility: Model.compatibility(model.interleaved) } : {}),
-      capabilities: { tools: model.tool_call, ...(model.modalities?.input ? { input: model.modalities.input } : {}), ...(model.modalities?.output ? { output: model.modalities.output } : {}) },
+      capabilities: {
+        tools: model.tool_call,
+        ...(model.modalities?.input ? { input: model.modalities.input } : {}),
+        ...(model.modalities?.output ? { output: model.modalities.output } : {}),
+      },
       limit: model.limit,
-      quote: (input.costKnown ?? model.cost !== undefined) ? {
-        status: (input.cost ?? cost(model.cost)).every((item) => item.input === 0 && item.output === 0 && item.cache.read === 0 && item.cache.write === 0) ? "free" : "known",
-        prices: input.cost ?? cost(model.cost),
-        source: "models.dev",
-      } : { status: "unknown" },
+      quote:
+        (input.costKnown ?? model.cost !== undefined)
+          ? {
+              status: (input.cost ?? cost(model.cost)).every(
+                (item) => item.input === 0 && item.output === 0 && item.cache.read === 0 && item.cache.write === 0,
+              )
+                ? "free"
+                : "known",
+              prices: input.cost ?? cost(model.cost),
+              source: "models.dev",
+            }
+          : { status: "unknown" },
     },
     compatibility: Model.compatibility(model.interleaved),
     family: model.family ? Model.Family.make(model.family) : undefined,

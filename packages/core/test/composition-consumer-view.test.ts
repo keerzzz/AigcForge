@@ -74,10 +74,15 @@ const preBindingSnapshot = () =>
 describe("CompositionConsumerView.resolveScope", () => {
   test("maps each explicit builtin root and keeps root and child roles isolated", () => {
     ;(["build", "plan", "meta"] as const).forEach((id) => {
-      const base = Schema.encodeSync(Composition.Snapshot)(scopedSnapshot({
-        orchestrator: binding([instruction("root-only")]),
-        "agents/coder": binding([instruction("child-only")]),
-      }, [agent("coder")]))
+      const base = Schema.encodeSync(Composition.Snapshot)(
+        scopedSnapshot(
+          {
+            orchestrator: binding([instruction("root-only")]),
+            "agents/coder": binding([instruction("child-only")]),
+          },
+          [agent("coder")],
+        ),
+      )
       const snapshot = decode({
         ...base,
         data: {
@@ -86,10 +91,18 @@ describe("CompositionConsumerView.resolveScope", () => {
           orchestrator: Schema.encodeSync(Agent.Info)(Agent.Info.default(Agent.ID.make(id))),
         },
       })
-      expect(CompositionConsumerView.resolveScopeForAgent(snapshot, id)).toEqual({ _tag: "scoped", key: "orchestrator" })
-      expect(CompositionConsumerView.resolveScope(snapshot, { agent: id })).toEqual({ _tag: "scoped", key: "orchestrator" })
-      expect(CompositionConsumerView.resolveScope(snapshot, { agent: "coder", parentID: "ses_root" }))
-        .toEqual({ _tag: "scoped", key: "agents/coder" })
+      expect(CompositionConsumerView.resolveScopeForAgent(snapshot, id)).toEqual({
+        _tag: "scoped",
+        key: "orchestrator",
+      })
+      expect(CompositionConsumerView.resolveScope(snapshot, { agent: id })).toEqual({
+        _tag: "scoped",
+        key: "orchestrator",
+      })
+      expect(CompositionConsumerView.resolveScope(snapshot, { agent: "coder", parentID: "ses_root" })).toEqual({
+        _tag: "scoped",
+        key: "agents/coder",
+      })
       const invalid = [
         CompositionConsumerView.resolveScope(snapshot, { agent: id, parentID: "ses_root" }),
         CompositionConsumerView.resolveScope(snapshot, { agent: "coder" }),
@@ -104,7 +117,9 @@ describe("CompositionConsumerView.resolveScope", () => {
   })
 
   test("rejects builtin root mappings when the stored source and Info identities disagree", () => {
-    const base = Schema.encodeSync(Composition.Snapshot)(scopedSnapshot({ orchestrator: binding([instruction("root-only")]) }, []))
+    const base = Schema.encodeSync(Composition.Snapshot)(
+      scopedSnapshot({ orchestrator: binding([instruction("root-only")]) }, []),
+    )
     const snapshot = decode({
       ...base,
       data: {

@@ -29,7 +29,11 @@ afterEach(() => mock.restore())
 describe("session target resolver", () => {
   test("parses Group selections with slash-prefixed physical refs preserved", () => {
     expect(parseSessionTargetModel("group:fallback")).toEqual({ type: "group", groupID: "fallback" })
-    expect(parseSessionTargetModel("group:vendor/chat#high")).toEqual({ providerID: "group:vendor", id: "chat", variant: "high" })
+    expect(parseSessionTargetModel("group:vendor/chat#high")).toEqual({
+      providerID: "group:vendor",
+      id: "chat",
+      variant: "high",
+    })
     expect(() => parseSessionTargetModel("group:fallback#high")).toThrow()
   })
 
@@ -43,7 +47,9 @@ describe("session target resolver", () => {
     const switched = spyOn(client.session, "switchModel").mockResolvedValue()
     expect((await resolveSessionTarget({ client, session: selected.id, prepare })).model).toEqual(first)
     expect(switched).not.toHaveBeenCalled()
-    spyOn(client.session, "get").mockResolvedValueOnce(selected).mockResolvedValue({ ...selected, model: next })
+    spyOn(client.session, "get")
+      .mockResolvedValueOnce(selected)
+      .mockResolvedValue({ ...selected, model: next })
     expect((await resolveSessionTarget({ client, session: selected.id, model: next, prepare })).model).toEqual(next)
     expect(switched).toHaveBeenCalledWith({ sessionID: selected.id, model: next })
   })

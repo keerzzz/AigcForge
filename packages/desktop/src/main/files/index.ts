@@ -87,15 +87,16 @@ function make(fs: FileSystem.FileSystem, path: Path.Path) {
     }),
     openPath: Effect.fn("DesktopFiles.openPath")(function* (target: string, application?: string) {
       if (!application) return yield* Effect.promise(() => shell.openPath(target))
-      yield* Effect.tryPromise(() =>
-        new Promise<void>((resolve, reject) => {
-          const command =
-            process.platform === "darwin"
-              ? { file: "open", arguments: ["-a", application, target] }
-              : { file: application, arguments: [target] }
+      yield* Effect.tryPromise(
+        () =>
+          new Promise<void>((resolve, reject) => {
+            const command =
+              process.platform === "darwin"
+                ? { file: "open", arguments: ["-a", application, target] }
+                : { file: application, arguments: [target] }
 
-          execFile(command.file, command.arguments, (error) => (error ? reject(error) : resolve()))
-        }),
+            execFile(command.file, command.arguments, (error) => (error ? reject(error) : resolve()))
+          }),
       )
     }),
     revealPath: Effect.fn("DesktopFiles.revealPath")(function* (target: string) {

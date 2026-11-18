@@ -39,7 +39,8 @@ export async function renderLocal(
     const location = { directory: url.searchParams.get("location[directory]") ?? directory }
     if (url.pathname === "/api/agent") return json({ location, data: input.agents ?? [agent("build")] })
     if (url.pathname === "/api/model") return json({ location, data: input.models ?? [model("first")] })
-    if (url.pathname === "/api/model/group") return json({ location, data: input.groups ?? { targets: [], definitions: [], effective: [] } })
+    if (url.pathname === "/api/model/group")
+      return json({ location, data: input.groups ?? { targets: [], definitions: [], effective: [] } })
     const session = input.sessions?.find((session) => url.pathname === `/api/session/${session.id}`)
     if (session) return json({ data: session })
   }, events)

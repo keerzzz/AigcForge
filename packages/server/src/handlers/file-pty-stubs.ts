@@ -38,7 +38,5 @@ export const PtyInstanceHandler = HttpApiBuilder.group(Api, "pty-instance", (han
 )
 
 export const PtyConnectInstanceHandler = HttpApiBuilder.group(Api, "pty-connect-instance", (handlers) =>
-  handlers
-
-    .handle("pty.connect", () => failClosed("pty-connect-instance", "connect")),
+  handlers.handle("pty.connect", () => failClosed("pty-connect-instance", "connect")),
 )

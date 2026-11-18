@@ -10,8 +10,19 @@ export { Target, TargetRevision, Source } from "./provider-definition.js"
 
 const Weight = Schema.Finite.check(Schema.isGreaterThan(0))
 
-export const Strategy = Schema.Literals(["order", "rotate", "weight", "fast", "cheap", "smart", "usage", "pace", "free", "expiring", "drain"])
-  .annotate({ identifier: "ModelGroup.Strategy" })
+export const Strategy = Schema.Literals([
+  "order",
+  "rotate",
+  "weight",
+  "fast",
+  "cheap",
+  "smart",
+  "usage",
+  "pace",
+  "free",
+  "expiring",
+  "drain",
+]).annotate({ identifier: "ModelGroup.Strategy" })
 export type Strategy = typeof Strategy.Type
 
 export interface Member extends Schema.Schema.Type<typeof Member> {}

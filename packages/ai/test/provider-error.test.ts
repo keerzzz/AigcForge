@@ -553,7 +553,9 @@ describe("provider error rawBody classification", () => {
     const generic = classifyProviderFailure({ message: "Unknown Model", status: 404 })
     expect(generic).toMatchObject({ _tag: "InvalidRequest" })
     expect(generic).not.toHaveProperty("classification")
-    expect(classifyProviderFailure({ message: "Request failed", status: 500, rawBody })).toMatchObject({ _tag: "ProviderInternal" })
+    expect(classifyProviderFailure({ message: "Request failed", status: 500, rawBody })).toMatchObject({
+      _tag: "ProviderInternal",
+    })
   })
 })
 

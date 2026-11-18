@@ -2,13 +2,7 @@
   "version": 1,
   "metadata": {
     "model": "kimi-k3",
-    "tags": [
-      "prefix:moonshot-messages",
-      "provider:moonshot",
-      "protocol:messages",
-      "structured-output",
-      "usage"
-    ],
+    "tags": ["prefix:moonshot-messages", "provider:moonshot", "protocol:messages", "structured-output", "usage"],
     "name": "moonshot-messages/k3-returns-native-structured-output",
     "recordedAt": "2026-09-29T05:28:45.268Z"
   },

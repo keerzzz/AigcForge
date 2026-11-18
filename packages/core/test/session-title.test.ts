@@ -342,7 +342,9 @@ it.effect("uses a small model from the primary provider", () =>
 
     expect(requests.map((request) => String(request.model.id))).toEqual(["title-small"])
     const selected = selections[1]
-    expect(selected && !Model.Selection.isGroup(selected) ? selected.variant : undefined).toBe(Model.VariantID.make("none"))
+    expect(selected && !Model.Selection.isGroup(selected) ? selected.variant : undefined).toBe(
+      Model.VariantID.make("none"),
+    )
     const store = yield* SessionStore.Service
     expect((yield* store.get(sessionID))?.title).toBe("Generated Title")
   }),

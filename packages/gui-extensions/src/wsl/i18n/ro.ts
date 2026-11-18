@@ -25,7 +25,8 @@ export default {
   "onboarding.wslUnavailable.title": "WSL indisponibil",
   "onboarding.wslUnavailable.description": "AigcForge nu a putut verifica WSL pe acest calculator.",
   "onboarding.installWsl": "Instalează WSL",
-  "onboarding.windowsRestartRequired": "Repornește Windows pentru a finaliza instalarea WSL, apoi redeschide AigcForge.",
+  "onboarding.windowsRestartRequired":
+    "Repornește Windows pentru a finaliza instalarea WSL, apoi redeschide AigcForge.",
   "onboarding.allDistrosAdded": "Toate distro-urile instalate sunt deja adăugate.",
   "onboarding.noDistros": "Nu a fost detectat niciun distro încă.",
   "onboarding.installDistro": "Instalează distro",

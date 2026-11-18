@@ -74,7 +74,10 @@ describe("subagent observer lifetime", () => {
             ),
           )
           yield* Effect.promise(() =>
-            Bun.write(`${childDir.path}/aigcfroge.json`, JSON.stringify({ agents: { reviewer: { mode: "subagent" } } })),
+            Bun.write(
+              `${childDir.path}/aigcfroge.json`,
+              JSON.stringify({ agents: { reviewer: { mode: "subagent" } } }),
+            ),
           )
           const sessions = yield* Session.Service
           const locations = yield* LocationServiceMap.Service

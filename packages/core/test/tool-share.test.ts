@@ -93,10 +93,12 @@ const execution = makeGlobalNode({
 })
 const sharePlugins = makeLocationNode({
   name: "test/share-plugins",
-  layer: Layer.effectDiscard(Effect.gen(function* () {
-    yield* registerToolPlugin(AgentPlugin.Plugin, { agent: agentHost(yield* Agent.Service) })
-    yield* registerToolPlugin(SessionShareTool.Plugin)
-  })),
+  layer: Layer.effectDiscard(
+    Effect.gen(function* () {
+      yield* registerToolPlugin(AgentPlugin.Plugin, { agent: agentHost(yield* Agent.Service) })
+      yield* registerToolPlugin(SessionShareTool.Plugin)
+    }),
+  ),
   deps: [Session.node, SessionShareV2.node, Permission.node, Tool.node, FSUtil.node, MetaAgentService.node, Agent.node],
 })
 const nodes = LayerNode.group([
@@ -164,12 +166,27 @@ const setup = (
     const sessions = yield* Session.Service
     const locations = yield* LocationServiceMap.Service
     const local = locations.get(location)
-    yield* useOfflineCatalog([{ info: Provider.Info.make({ ...Provider.Info.empty(model.providerID), activation: "enabled",
-      package: "@aigcfroge/ai/providers/openai/responses" }), models: [Model.Info.make(Model.Info.default(model.providerID, model.id))] }])
-      .pipe(Effect.provide(local))
-    if (targetLocation) yield* useOfflineCatalog([{ info: Provider.Info.make({ ...Provider.Info.empty(model.providerID), activation: "enabled",
-      package: "@aigcfroge/ai/providers/openai/responses" }), models: [Model.Info.make(Model.Info.default(model.providerID, model.id))] }])
-      .pipe(Effect.provide(locations.get(targetLocation)))
+    yield* useOfflineCatalog([
+      {
+        info: Provider.Info.make({
+          ...Provider.Info.empty(model.providerID),
+          activation: "enabled",
+          package: "@aigcfroge/ai/providers/openai/responses",
+        }),
+        models: [Model.Info.make(Model.Info.default(model.providerID, model.id))],
+      },
+    ]).pipe(Effect.provide(local))
+    if (targetLocation)
+      yield* useOfflineCatalog([
+        {
+          info: Provider.Info.make({
+            ...Provider.Info.empty(model.providerID),
+            activation: "enabled",
+            package: "@aigcfroge/ai/providers/openai/responses",
+          }),
+          models: [Model.Info.make(Model.Info.default(model.providerID, model.id))],
+        },
+      ]).pipe(Effect.provide(locations.get(targetLocation)))
     const caller = yield* sessions.create({ location, agent: callerAgent, model, title: "caller" })
     const source = yield* sessions.create({ location, model, title: "source" })
     const target = yield* sessions.create({ location: targetLocation ?? location, model, title: "target" })
@@ -242,7 +259,11 @@ const controlledChild = Effect.fnUntraced(function* (
       toolCallID: source.id,
     }),
   })
-  yield* bus.publish(SessionEvent.Tool.Success, { ...source, content: [{ type: "text", text: child.id }], executed: false })
+  yield* bus.publish(SessionEvent.Tool.Success, {
+    ...source,
+    content: [{ type: "text", text: child.id }],
+    executed: false,
+  })
   yield* bus.publish(SessionEvent.Step.Ended, {
     sessionID: fixture.caller.id,
     assistantMessageID,
@@ -624,7 +645,9 @@ describe("SessionShareV2", () => {
         })
         expect((yield* fixture.sessions.inbox(fixture.target.id)).map((item) => item.payload)).toEqual([
           expect.objectContaining({ text: expected }),
-          expect.objectContaining({ text: `[Shared by Meta session ${fixture.caller.id}, content from session ${fixture.source.id}]\n${expected}` }),
+          expect.objectContaining({
+            text: `[Shared by Meta session ${fixture.caller.id}, content from session ${fixture.source.id}]\n${expected}`,
+          }),
         ])
         expect(yield* fixture.sessions.context(fixture.target.id)).toEqual([])
         expect(calls.wakes).toEqual([])
@@ -860,7 +883,9 @@ describe("SessionShareTool", () => {
         if (event.type === SessionEvent.Execution.Failed.type) {
           const data = Schema.decodeUnknownSync(Schema.toType(SessionEvent.Execution.Failed.data))(event.data)
           if (data.sessionID === fixture.target.id)
-            return Deferred.fail(completed, new Error(`Target execution failed: ${JSON.stringify(data.error)}`)).pipe(Effect.asVoid)
+            return Deferred.fail(completed, new Error(`Target execution failed: ${JSON.stringify(data.error)}`)).pipe(
+              Effect.asVoid,
+            )
         }
         return Effect.void
       })
@@ -903,24 +928,43 @@ describe("SessionShareTool", () => {
       const fixture = yield* setup("builtin")
       const child = yield* controlledChild(fixture, Agent.ID.make("explore"))
       const execution = yield* SessionExecution.Service
-      const reported = yield* fixture.execute({ scope: "text", text: "The parser is isolated. Which response fields should I preserve?" },
-        child.id, "live-child-report", Agent.ID.make("explore"))
+      const reported = yield* fixture.execute(
+        { scope: "text", text: "The parser is isolated. Which response fields should I preserve?" },
+        child.id,
+        "live-child-report",
+        Agent.ID.make("explore"),
+      )
       const record = Schema.decodeUnknownSync(SessionCommunication.Record)(reported.metadata?.communication)
-      yield* awaitWithTimeout(execution.awaitIdle(fixture.caller.id), "Meta did not consume the child's report", "10 seconds")
+      yield* awaitWithTimeout(
+        execution.awaitIdle(fixture.caller.id),
+        "Meta did not consume the child's report",
+        "10 seconds",
+      )
       expect(yield* fixture.sessions.inbox(fixture.caller.id)).toEqual([])
-      expect((yield* fixture.sessions.context(fixture.caller.id)).flatMap((message) => message.type === "assistant" ? message.content : []))
-        .toContainEqual(expect.objectContaining({ type: "text", text: "received" }))
-      const replied = yield* fixture.execute({ scope: "text", replyTo: record.id, text: "Keep the public response fields and continue." },
-        fixture.caller.id, "live-meta-reply")
+      expect(
+        (yield* fixture.sessions.context(fixture.caller.id)).flatMap((message) =>
+          message.type === "assistant" ? message.content : [],
+        ),
+      ).toContainEqual(expect.objectContaining({ type: "text", text: "received" }))
+      const replied = yield* fixture.execute(
+        { scope: "text", replyTo: record.id, text: "Keep the public response fields and continue." },
+        fixture.caller.id,
+        "live-meta-reply",
+      )
       expect(replied.metadata?.targetSessionID).toBe(child.id)
-      yield* awaitWithTimeout(execution.awaitIdle(child.id), "The original child did not consume Meta's reply", "10 seconds")
+      yield* awaitWithTimeout(
+        execution.awaitIdle(child.id),
+        "The original child did not consume Meta's reply",
+        "10 seconds",
+      )
       expect(yield* fixture.sessions.inbox(child.id)).toEqual([])
       const history = yield* fixture.sessions.context(child.id)
       expect(history.filter((message) => message.type === "synthetic")).toContainEqual(
         expect.objectContaining({ text: "Keep the public response fields and continue." }),
       )
-      expect(history.flatMap((message) => message.type === "assistant" ? message.content : []))
-        .toContainEqual(expect.objectContaining({ type: "text", text: "received" }))
+      expect(history.flatMap((message) => (message.type === "assistant" ? message.content : []))).toContainEqual(
+        expect.objectContaining({ type: "text", text: "received" }),
+      )
       expect((yield* fixture.sessions.get(child.id)).controller).toEqual(child.controller)
     }),
   )
@@ -935,9 +979,15 @@ describe("SessionShareTool Meta coordination", () => {
         Effect.provide((yield* LocationServiceMap.Service).get(child.location)),
       )
       for (const sessionID of [fixture.caller.id, child.id])
-        expect((yield* context.select(sessionID)).tools.definitions.some((tool) => tool.name === SessionShareTool.name)).toBe(true)
-      const report = yield* fixture.execute({ scope: "text", text: "The saved controller matches.", trigger: false },
-        child.id, "explore-report", Agent.ID.make("explore"))
+        expect(
+          (yield* context.select(sessionID)).tools.definitions.some((tool) => tool.name === SessionShareTool.name),
+        ).toBe(true)
+      const report = yield* fixture.execute(
+        { scope: "text", text: "The saved controller matches.", trigger: false },
+        child.id,
+        "explore-report",
+        Agent.ID.make("explore"),
+      )
       expect(report.metadata?.targetSessionID).toBe(fixture.caller.id)
     }),
   )
@@ -951,11 +1001,16 @@ describe("SessionShareTool Meta coordination", () => {
       const selected = yield* context.select(child.id)
       expect(selected.tools.definitions.some((tool) => tool.name === SessionShareTool.name)).toBe(true)
 
-      const report = yield* fixture.execute({
-        scope: "text",
-        text: "The parser issue is isolated. Should I preserve the existing response shape?",
-        trigger: false,
-      }, child.id, "child-report", Agent.defaultID)
+      const report = yield* fixture.execute(
+        {
+          scope: "text",
+          text: "The parser issue is isolated. Should I preserve the existing response shape?",
+          trigger: false,
+        },
+        child.id,
+        "child-report",
+        Agent.defaultID,
+      )
       const record = Schema.decodeUnknownSync(SessionCommunication.Record)(report.metadata?.communication)
       expect(record).toMatchObject({
         actor: { sessionID: child.id, agent: Agent.defaultID },
@@ -963,20 +1018,34 @@ describe("SessionShareTool Meta coordination", () => {
         targetSessionID: fixture.caller.id,
         delivery: "steer",
       })
-      expect((yield* fixture.sessions.inbox(fixture.caller.id)).find((item) => item.type === "synthetic")?.payload.text).toContain("Should I preserve")
+      expect(
+        (yield* fixture.sessions.inbox(fixture.caller.id)).find((item) => item.type === "synthetic")?.payload.text,
+      ).toContain("Should I preserve")
 
-      const reply = yield* fixture.execute({
-        scope: "text",
-        replyTo: record.id,
-        text: "Preserve the response shape and continue with the regression test.",
-        trigger: false,
-      }, fixture.caller.id, "meta-reply")
+      const reply = yield* fixture.execute(
+        {
+          scope: "text",
+          replyTo: record.id,
+          text: "Preserve the response shape and continue with the regression test.",
+          trigger: false,
+        },
+        fixture.caller.id,
+        "meta-reply",
+      )
       const replied = Schema.decodeUnknownSync(SessionCommunication.Record)(reply.metadata?.communication)
       expect(replied).toMatchObject({ replyTo: record.id, targetSessionID: child.id })
-      expect((yield* fixture.sessions.inbox(child.id)).find((item) => item.type === "synthetic")?.payload.text).toContain("Preserve the response shape")
+      expect(
+        (yield* fixture.sessions.inbox(child.id)).find((item) => item.type === "synthetic")?.payload.text,
+      ).toContain("Preserve the response shape")
       const share = yield* SessionShareV2.Service
-      expect((yield* share.list({ sessionID: child.id })).items.map((message) => message.id)).toEqual([record.id, replied.id])
-      expect((yield* share.list({ sessionID: fixture.caller.id })).items.map((message) => message.id)).toEqual([record.id, replied.id])
+      expect((yield* share.list({ sessionID: child.id })).items.map((message) => message.id)).toEqual([
+        record.id,
+        replied.id,
+      ])
+      expect((yield* share.list({ sessionID: fixture.caller.id })).items.map((message) => message.id)).toEqual([
+        record.id,
+        replied.id,
+      ])
     }),
   )
 
@@ -986,7 +1055,9 @@ describe("SessionShareTool Meta coordination", () => {
       const child = yield* controlledChild(fixture)
       yield* assistant(child.id, ["The parser preserves the public response fields."])
       yield* fixture.execute({ scope: "output", trigger: false }, child.id, "child-output-report", Agent.defaultID)
-      expect((yield* fixture.sessions.inbox(fixture.caller.id)).find((item) => item.type === "synthetic")?.payload.text).toBe(
+      expect(
+        (yield* fixture.sessions.inbox(fixture.caller.id)).find((item) => item.type === "synthetic")?.payload.text,
+      ).toBe(
         `[Shared by agent build in session ${child.id}, content from session ${child.id}]\n[Shared output from session ${child.id}]\n\nThe parser preserves the public response fields.`,
       )
     }),
@@ -1000,7 +1071,9 @@ describe("SessionShareTool Meta coordination", () => {
         { sourceSessionID: fixture.source.id, targetSessionID: fixture.caller.id, scope: "output" },
         { targetSessionID: fixture.target.id, scope: "text", text: "Unrelated target" },
       ] as const) {
-        const exit = yield* fixture.execute(input, child.id, `child-denied-${input.scope}`, Agent.defaultID).pipe(Effect.exit)
+        const exit = yield* fixture
+          .execute(input, child.id, `child-denied-${input.scope}`, Agent.defaultID)
+          .pipe(Effect.exit)
         expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toBeInstanceOf(Tool.Error)
       }
       expect(yield* fixture.sessions.inbox(fixture.caller.id)).toEqual([])
@@ -1014,16 +1087,41 @@ describe("SessionShareTool Meta coordination", () => {
       const fixture = yield* setup()
       const first = yield* controlledChild(fixture)
       const second = yield* controlledChild(fixture, Agent.ID.make("explore"), "spawn-peer-worker")
-      const sent = yield* fixture.execute({ scope: "text", targetSessionID: second.id,
-        text: "Please check the parser boundary before I update it.", trigger: false }, first.id, "peer-send", Agent.defaultID)
+      const sent = yield* fixture.execute(
+        {
+          scope: "text",
+          targetSessionID: second.id,
+          text: "Please check the parser boundary before I update it.",
+          trigger: false,
+        },
+        first.id,
+        "peer-send",
+        Agent.defaultID,
+      )
       const record = Schema.decodeUnknownSync(SessionCommunication.Record)(sent.metadata?.communication)
-      expect(record).toMatchObject({ actor: { sessionID: first.id }, targetSessionID: second.id,
-        contentSource: { sessionID: first.id, scope: "text" } })
-      const replied = yield* fixture.execute({ scope: "text", replyTo: record.id,
-        text: "The parser boundary is valid; preserve the public fields.", trigger: false }, second.id, "peer-reply", Agent.ID.make("explore"))
+      expect(record).toMatchObject({
+        actor: { sessionID: first.id },
+        targetSessionID: second.id,
+        contentSource: { sessionID: first.id, scope: "text" },
+      })
+      const replied = yield* fixture.execute(
+        {
+          scope: "text",
+          replyTo: record.id,
+          text: "The parser boundary is valid; preserve the public fields.",
+          trigger: false,
+        },
+        second.id,
+        "peer-reply",
+        Agent.ID.make("explore"),
+      )
       expect(replied.metadata?.targetSessionID).toBe(first.id)
-      expect((yield* fixture.sessions.inbox(first.id)).find((item) => item.type === "synthetic")?.payload.text).toContain("preserve the public fields")
-      expect((yield* fixture.sessions.inbox(second.id)).find((item) => item.type === "synthetic")?.payload.text).toContain("check the parser boundary")
+      expect(
+        (yield* fixture.sessions.inbox(first.id)).find((item) => item.type === "synthetic")?.payload.text,
+      ).toContain("preserve the public fields")
+      expect(
+        (yield* fixture.sessions.inbox(second.id)).find((item) => item.type === "synthetic")?.payload.text,
+      ).toContain("check the parser boundary")
       expect(yield* fixture.sessions.inbox(fixture.caller.id)).toEqual([])
     }),
   )
@@ -1032,10 +1130,20 @@ describe("SessionShareTool Meta coordination", () => {
     Effect.gen(function* () {
       const fixture = yield* setup()
       const first = yield* controlledChild(fixture)
-      const other = yield* fixture.sessions.create({ location: fixture.caller.location, agent: Agent.ID.make("meta"), model })
+      const other = yield* fixture.sessions.create({
+        location: fixture.caller.location,
+        agent: Agent.ID.make("meta"),
+        model,
+      })
       const foreign = yield* controlledChild({ ...fixture, caller: other }, Agent.defaultID, "spawn-foreign-worker")
-      const exit = yield* fixture.execute({ scope: "text", targetSessionID: foreign.id,
-        text: "Cross-group message", trigger: false }, first.id, "peer-foreign", Agent.defaultID).pipe(Effect.exit)
+      const exit = yield* fixture
+        .execute(
+          { scope: "text", targetSessionID: foreign.id, text: "Cross-group message", trigger: false },
+          first.id,
+          "peer-foreign",
+          Agent.defaultID,
+        )
+        .pipe(Effect.exit)
       expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toBeInstanceOf(Tool.Error)
       expect(yield* fixture.sessions.inbox(foreign.id)).toEqual([])
       expect(yield* fixture.sessions.inbox(other.id)).toEqual([])
@@ -1049,8 +1157,14 @@ describe("SessionShareTool Meta coordination", () => {
       const metas = yield* MetaAgentService.Service
       if (child.controller?.kind !== "child") return yield* Effect.die(new Error("Expected a controlled child"))
       yield* metas.detach({ metaID: child.controller.metaAgentID, sessionID: child.id })
-      const exit = yield* fixture.execute({ scope: "text", text: "Forged ownership", trigger: false },
-        child.id, "detached-child-feedback", Agent.defaultID).pipe(Effect.exit)
+      const exit = yield* fixture
+        .execute(
+          { scope: "text", text: "Forged ownership", trigger: false },
+          child.id,
+          "detached-child-feedback",
+          Agent.defaultID,
+        )
+        .pipe(Effect.exit)
       expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toBeInstanceOf(Tool.Error)
       expect(yield* fixture.sessions.inbox(fixture.caller.id)).toEqual([])
     }),
@@ -1060,8 +1174,14 @@ describe("SessionShareTool Meta coordination", () => {
     it.live(`MP01 rejects a ${agent} caller even when its content source is Meta`, () =>
       Effect.gen(function* () {
         const fixture = yield* setup("ask", undefined, Agent.ID.make(agent))
-        const meta = yield* fixture.sessions.create({ location: fixture.caller.location, agent: Agent.ID.make("meta"), model })
-        const exit = yield* fixture.execute({ sourceSessionID: meta.id, targetSessionID: fixture.target.id, scope: "reference" }).pipe(Effect.exit)
+        const meta = yield* fixture.sessions.create({
+          location: fixture.caller.location,
+          agent: Agent.ID.make("meta"),
+          model,
+        })
+        const exit = yield* fixture
+          .execute({ sourceSessionID: meta.id, targetSessionID: fixture.target.id, scope: "reference" })
+          .pipe(Effect.exit)
         expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toBeInstanceOf(Tool.Error)
         expect(yield* fixture.permission.forSession(fixture.caller.id)).toEqual([])
         expect(yield* fixture.sessions.inbox(fixture.target.id)).toEqual([])
@@ -1073,53 +1193,62 @@ describe("SessionShareTool Meta coordination", () => {
   it.live("MP01 rejects a captured Build executor on a currently selected Meta root", () =>
     Effect.gen(function* () {
       const fixture = yield* setup()
-      const exit = yield* fixture.execute(
-        { sourceSessionID: fixture.source.id, targetSessionID: fixture.target.id, scope: "reference" },
-        fixture.caller.id,
-        "captured-build-share",
-        Agent.ID.make("build"),
-      ).pipe(Effect.exit)
+      const exit = yield* fixture
+        .execute(
+          { sourceSessionID: fixture.source.id, targetSessionID: fixture.target.id, scope: "reference" },
+          fixture.caller.id,
+          "captured-build-share",
+          Agent.ID.make("build"),
+        )
+        .pipe(Effect.exit)
       expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toBeInstanceOf(Tool.Error)
       expect(yield* fixture.sessions.inbox(fixture.target.id)).toEqual([])
     }),
   )
 
   for (const reselect of [false, true]) {
-    it.live(`MP01 blocks a pending share after Meta selection changes${reselect ? " and returns to Meta" : " to Build"}`, () =>
-      Effect.gen(function* () {
-        const fixture = yield* setup("ask")
-        const bus = yield* Bus.Service
-        const metas = yield* MetaAgentService.Service
-        const presence = yield* ApprovalPresence.Service
-        yield* presence.bindResponder({ custom: true })
-        const asked = yield* Deferred.make<Permission.Request>()
-        const unsubscribe = yield* bus.listen((event) =>
-          event.type === Permission.Event.Asked.type
-            ? Deferred.succeed(asked, Schema.decodeUnknownSync(Permission.Request)(event.data)).pipe(Effect.asVoid)
-            : Effect.void,
-        )
-        yield* Effect.addFinalizer(() => unsubscribe)
-        const before = yield* metas.assertCoordination(fixture.caller.id)
-        const fiber = yield* fixture.execute({
-          sourceSessionID: fixture.source.id,
-          targetSessionID: fixture.target.id,
-          scope: "reference",
-          trigger: false,
-        }).pipe(Effect.forkScoped)
-        const request = yield* awaitWithTimeout(Deferred.await(asked), "pending Meta share did not ask permission")
-        yield* fixture.sessions.switchAgent({ sessionID: fixture.caller.id, agent: Agent.ID.make("build") })
-        if (reselect)
-          yield* fixture.sessions.switchAgent({ sessionID: fixture.caller.id, agent: Agent.ID.make("meta"), model })
-        const current = yield* metas.coordination(fixture.caller.id)
-        expect(current.selection.event?.id).not.toBe(before.selection.event?.id)
-        expect(current.available).toBe(reselect)
-        yield* fixture.permission.reply({ requestID: request.id, reply: "once" })
-        const exit = yield* awaitWithTimeout(Fiber.await(fiber), "pending Meta share did not finish after selection changed")
-        expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toBeInstanceOf(Tool.Error)
-        expect(yield* fixture.sessions.inbox(fixture.target.id)).toEqual([])
-        expect((yield* ExecutionCalls).wakes).toEqual([])
-        expect((yield* fixture.sessions.get(fixture.caller.id)).controller).toEqual(fixture.caller.controller)
-      }),
+    it.live(
+      `MP01 blocks a pending share after Meta selection changes${reselect ? " and returns to Meta" : " to Build"}`,
+      () =>
+        Effect.gen(function* () {
+          const fixture = yield* setup("ask")
+          const bus = yield* Bus.Service
+          const metas = yield* MetaAgentService.Service
+          const presence = yield* ApprovalPresence.Service
+          yield* presence.bindResponder({ custom: true })
+          const asked = yield* Deferred.make<Permission.Request>()
+          const unsubscribe = yield* bus.listen((event) =>
+            event.type === Permission.Event.Asked.type
+              ? Deferred.succeed(asked, Schema.decodeUnknownSync(Permission.Request)(event.data)).pipe(Effect.asVoid)
+              : Effect.void,
+          )
+          yield* Effect.addFinalizer(() => unsubscribe)
+          const before = yield* metas.assertCoordination(fixture.caller.id)
+          const fiber = yield* fixture
+            .execute({
+              sourceSessionID: fixture.source.id,
+              targetSessionID: fixture.target.id,
+              scope: "reference",
+              trigger: false,
+            })
+            .pipe(Effect.forkScoped)
+          const request = yield* awaitWithTimeout(Deferred.await(asked), "pending Meta share did not ask permission")
+          yield* fixture.sessions.switchAgent({ sessionID: fixture.caller.id, agent: Agent.ID.make("build") })
+          if (reselect)
+            yield* fixture.sessions.switchAgent({ sessionID: fixture.caller.id, agent: Agent.ID.make("meta"), model })
+          const current = yield* metas.coordination(fixture.caller.id)
+          expect(current.selection.event?.id).not.toBe(before.selection.event?.id)
+          expect(current.available).toBe(reselect)
+          yield* fixture.permission.reply({ requestID: request.id, reply: "once" })
+          const exit = yield* awaitWithTimeout(
+            Fiber.await(fiber),
+            "pending Meta share did not finish after selection changed",
+          )
+          expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toBeInstanceOf(Tool.Error)
+          expect(yield* fixture.sessions.inbox(fixture.target.id)).toEqual([])
+          expect((yield* ExecutionCalls).wakes).toEqual([])
+          expect((yield* fixture.sessions.get(fixture.caller.id)).controller).toEqual(fixture.caller.controller)
+        }),
     )
   }
 
@@ -1157,15 +1286,23 @@ describe("SessionShareTool Meta coordination", () => {
       const context = yield* SessionContext.Service.pipe(Effect.provide(locations.get(fixture.caller.location)))
       const meta = yield* context.select(fixture.caller.id)
       expect(meta.tools.definitions.map((tool) => tool.name)).toContain(SessionShareTool.name)
-      expect(meta.tools.definitions.find((tool) => tool.name === TaskTool.name)).toHaveProperty("inputSchema.properties.target")
+      expect(meta.tools.definitions.find((tool) => tool.name === TaskTool.name)).toHaveProperty(
+        "inputSchema.properties.target",
+      )
       for (const agent of ["build", "plan"] as const) {
         yield* fixture.sessions.switchAgent({ sessionID: fixture.caller.id, agent: Agent.ID.make(agent) })
         const ordinary = yield* context.select(fixture.caller.id)
         expect(ordinary.tools.definitions.map((tool) => tool.name)).not.toContain(SessionShareTool.name)
         expect(ordinary.tools.definitions.map((tool) => tool.name)).toContain(TaskTool.name)
-        expect(ordinary.tools.definitions.find((tool) => tool.name === TaskTool.name)).not.toHaveProperty("inputSchema.properties.target")
-        expect(ordinary.tools.definitions.find((tool) => tool.name === TaskTool.name)).not.toHaveProperty("inputSchema.properties.delivery")
-        expect(ordinary.tools.definitions.find((tool) => tool.name === TaskTool.name)).not.toHaveProperty("inputSchema.properties.resume")
+        expect(ordinary.tools.definitions.find((tool) => tool.name === TaskTool.name)).not.toHaveProperty(
+          "inputSchema.properties.target",
+        )
+        expect(ordinary.tools.definitions.find((tool) => tool.name === TaskTool.name)).not.toHaveProperty(
+          "inputSchema.properties.delivery",
+        )
+        expect(ordinary.tools.definitions.find((tool) => tool.name === TaskTool.name)).not.toHaveProperty(
+          "inputSchema.properties.resume",
+        )
       }
     }),
   )

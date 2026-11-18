@@ -16,12 +16,24 @@ const displays = {
 
 describe("window state", () => {
   test("keeps bounds that still fit on a display", () => {
-    const saved = { x: 2000, y: 100, width: 1000, height: 700, displayBounds: { x: 1920, y: 0, width: 2560, height: 1440 } }
+    const saved = {
+      x: 2000,
+      y: 100,
+      width: 1000,
+      height: 700,
+      displayBounds: { x: 1920, y: 0, width: 2560, height: 1440 },
+    }
     expect(resolveWindowState(saved, defaults, displays)).toEqual(saved)
   })
 
   test("falls back to the default size on the primary display when the saved display is gone", () => {
-    const saved = { x: 5000, y: 100, width: 1000, height: 700, displayBounds: { x: 4480, y: 0, width: 1920, height: 1080 } }
+    const saved = {
+      x: 5000,
+      y: 100,
+      width: 1000,
+      height: 700,
+      displayBounds: { x: 4480, y: 0, width: 1920, height: 1080 },
+    }
     expect(resolveWindowState(saved, defaults, displays)).toEqual({ ...defaults, x: 0, y: 0, displayBounds: primary })
   })
 

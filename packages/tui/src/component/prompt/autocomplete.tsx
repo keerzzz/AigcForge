@@ -275,22 +275,28 @@ export function Autocomplete(props: {
   }
 
   const references = createMemo(() => data.location.reference.list() ?? [])
-  const sessions = createMemo((): AutocompleteOption[] => data.session.list().map((session) => ({
-    display: "@" + (session.title ?? session.id), aliases: [session.id], kind: "session",
-    description: session.id,
-    onSelect: () => {
-      const input = props.input()
-      const end = input.cursorOffset
-      input.cursorOffset = store.index
-      const start = input.logicalCursor
-      input.cursorOffset = end
-      const stop = input.logicalCursor
-      input.deleteRange(start.row, start.col, stop.row, stop.col)
-      input.insertText(sessionReferenceText(session, client.url ?? "current server") + " ")
-      props.setPrompt((draft) => { draft.text = input.plainText })
-      hide()
-    },
-  })))
+  const sessions = createMemo((): AutocompleteOption[] =>
+    data.session.list().map((session) => ({
+      display: "@" + (session.title ?? session.id),
+      aliases: [session.id],
+      kind: "session",
+      description: session.id,
+      onSelect: () => {
+        const input = props.input()
+        const end = input.cursorOffset
+        input.cursorOffset = store.index
+        const start = input.logicalCursor
+        input.cursorOffset = end
+        const stop = input.logicalCursor
+        input.deleteRange(start.row, start.col, stop.row, stop.col)
+        input.insertText(sessionReferenceText(session, client.url ?? "current server") + " ")
+        props.setPrompt((draft) => {
+          draft.text = input.plainText
+        })
+        hide()
+      },
+    })),
+  )
 
   const referenceMatch = createMemo(() => {
     if (store.visible !== "reference") return

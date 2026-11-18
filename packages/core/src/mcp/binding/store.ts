@@ -210,28 +210,25 @@ export const layer = Layer.effect(
         const ws = normalizeWorkspaceId(workspaceID)
         const valid = yield* validateWriteInput(id, input)
         return yield* Effect.gen(function* () {
-          yield* BindingEvent.publish(
-            events,
-            { bindingID: id, status: "active", revision: 1, timeUpdated: now },
-            () =>
-              Effect.gen(function* () {
-                const inserted = yield* db
-                  .insert(McpCredentialBindingTable)
-                  .values({
-                    id,
-                    directory,
-                    workspace_id: ws,
-                    server_name: valid.serverName,
-                    credential_ref: valid.credentialRef,
-                    binding_revision: 1,
-                    revoked_at: null,
-                  })
-                  .onConflictDoNothing()
-                  .returning()
-                  .get()
-                  .pipe(Effect.orDie)
-                return inserted !== undefined
-              }),
+          yield* BindingEvent.publish(events, { bindingID: id, status: "active", revision: 1, timeUpdated: now }, () =>
+            Effect.gen(function* () {
+              const inserted = yield* db
+                .insert(McpCredentialBindingTable)
+                .values({
+                  id,
+                  directory,
+                  workspace_id: ws,
+                  server_name: valid.serverName,
+                  credential_ref: valid.credentialRef,
+                  binding_revision: 1,
+                  revoked_at: null,
+                })
+                .onConflictDoNothing()
+                .returning()
+                .get()
+                .pipe(Effect.orDie)
+              return inserted !== undefined
+            }),
           )
           const row = (yield* db
             .select()
@@ -451,5 +448,8 @@ export const layer = Layer.effect(
  */
 export const locationLayer = layer
 
-
-export const node = makeLocationNode({ service: Service, layer: locationLayer, deps: [Database.node, Bus.node, Location.node] })
+export const node = makeLocationNode({
+  service: Service,
+  layer: locationLayer,
+  deps: [Database.node, Bus.node, Location.node],
+})

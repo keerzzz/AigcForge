@@ -118,10 +118,13 @@ const annotate = (
 }
 
 const affinity = (exchange: WebSocketChannelExchange, provenance?: SessionProviderContext.Provenance) =>
-  `${exchange.connect.url}:${Hash.sha256(JSON.stringify([
-    Object.entries(exchange.connect.headers).sort(([a], [b]) => a.localeCompare(b)),
-    provenance?.connection, provenance?.deployment,
-  ]))}`
+  `${exchange.connect.url}:${Hash.sha256(
+    JSON.stringify([
+      Object.entries(exchange.connect.headers).sort(([a], [b]) => a.localeCompare(b)),
+      provenance?.connection,
+      provenance?.deployment,
+    ]),
+  )}`
 
 const observationFrame = (observation: ChannelObservation) => {
   if (observation.type === "frame" || observation.type === "completed" || observation.type === "incomplete")

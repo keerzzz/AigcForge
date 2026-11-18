@@ -58,11 +58,7 @@ export function downloadSessionExport(filename: string, data: unknown) {
   URL.revokeObjectURL(url)
 }
 
-export async function saveSessionExport(
-  filename: string,
-  data: unknown,
-  platform: Pick<Platform, "saveFile">,
-) {
+export async function saveSessionExport(filename: string, data: unknown, platform: Pick<Platform, "saveFile">) {
   if (!platform.saveFile) {
     downloadSessionExport(filename, data)
 

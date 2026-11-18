@@ -95,13 +95,15 @@ export function extractPromptFromMessage(
   const trailing: Inline[] = []
   const attachments: (ImageAttachmentPart | PathAttachmentPart)[] = []
 
-  inline.push(...(presentation?.sessionReferences ?? []).map((mention) => ({
-    type: "session" as const,
-    start: mention.start,
-    end: mention.end,
-    value: mention.content,
-    reference: mention.reference,
-  })))
+  inline.push(
+    ...(presentation?.sessionReferences ?? []).map((mention) => ({
+      type: "session" as const,
+      start: mention.start,
+      end: mention.end,
+      value: mention.content,
+      reference: mention.reference,
+    })),
+  )
 
   for (const file of message.files ?? []) {
     const mention = file.mention

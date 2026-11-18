@@ -122,20 +122,20 @@ B01先封闭电路板接缝/资产与完整Meta内容矩阵；B04.0先设计内�
 
 ### 0.2 总线路图与批次出口
 
-| 批次 | 目标 | 出口 |
-| --- | --- | --- |
-| B00 | 协议/路线/提示词 | 文档事实、引用、授权、差异复审通过；不计功能完成 |
-| B01 | 全能力矩阵/架构覆盖 | 范围无无归属遗漏，差异/未读/争议与下一小节任务明确 |
-| B02 | 原 S1/桌面闭包 | 原 owner 收尾；配对源码/CLI/Desktop 与未验范围分开 |
-| B03 | Home/模式/位置/Draft/Session/Panel/状态 | 正确宿主、唯一数据来源、路由/恢复/原生窗口用户链 |
-| B04 | Coding/权限/工具/行为版本 | 增量与基线不冲突；定义/实现/实时资源/分叉合同可验证 |
-| B05 | Chat 七资产 | 管理/候选/保存/发现/消费/编辑导入/引用删除逐类闭环 |
-| Meta MC00–MC10 | 普通Agent选择兼容及Meta全内容/接口/协作闭环 | 依专项合同/小节门禁逐片完成，设计稿不算已实施 |
-| B06 | 新 Custom 装配与剩余产品链 | 内置根首链与Profile保存/显式采用已闭环；统一底层本片工程验收，首页/会话详情布局讨论中；完整Builder/health/upgrade、未证闭包及全部装配继续 |
-| B07 | Work/Task/Review/委派/Workflow | 真进度/结果/调度/取消/恢复及数据与通知消费 |
-| B08 | Assistant | 个人记忆/Notes/KB 与提醒真实写读、到期/已读/恢复 |
-| B09 | 全局/分享/外部 CLI/兼容/AI | 剩余真实消费者、授权/撤销和模型能力差异逐项闭环 |
-| B10 | 数据/平台/性能/发布/Cutover | 完整矩阵、同源可重建产物、升级恢复和明确切换授权 |
+| 批次           | 目标                                        | 出口                                                                                                                                      |
+| -------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| B00            | 协议/路线/提示词                            | 文档事实、引用、授权、差异复审通过；不计功能完成                                                                                          |
+| B01            | 全能力矩阵/架构覆盖                         | 范围无无归属遗漏，差异/未读/争议与下一小节任务明确                                                                                        |
+| B02            | 原 S1/桌面闭包                              | 原 owner 收尾；配对源码/CLI/Desktop 与未验范围分开                                                                                        |
+| B03            | Home/模式/位置/Draft/Session/Panel/状态     | 正确宿主、唯一数据来源、路由/恢复/原生窗口用户链                                                                                          |
+| B04            | Coding/权限/工具/行为版本                   | 增量与基线不冲突；定义/实现/实时资源/分叉合同可验证                                                                                       |
+| B05            | Chat 七资产                                 | 管理/候选/保存/发现/消费/编辑导入/引用删除逐类闭环                                                                                        |
+| Meta MC00–MC10 | 普通Agent选择兼容及Meta全内容/接口/协作闭环 | 依专项合同/小节门禁逐片完成，设计稿不算已实施                                                                                             |
+| B06            | 新 Custom 装配与剩余产品链                  | 内置根首链与Profile保存/显式采用已闭环；统一底层本片工程验收，首页/会话详情布局讨论中；完整Builder/health/upgrade、未证闭包及全部装配继续 |
+| B07            | Work/Task/Review/委派/Workflow              | 真进度/结果/调度/取消/恢复及数据与通知消费                                                                                                |
+| B08            | Assistant                                   | 个人记忆/Notes/KB 与提醒真实写读、到期/已读/恢复                                                                                          |
+| B09            | 全局/分享/外部 CLI/兼容/AI                  | 剩余真实消费者、授权/撤销和模型能力差异逐项闭环                                                                                           |
+| B10            | 数据/平台/性能/发布/Cutover                 | 完整矩阵、同源可重建产物、升级恢复和明确切换授权                                                                                          |
 
 每批详细计划与小节前置见[批次附件](2026-10-29-migration-batch-plans.md)；每批可复制提示词见[提示词目录](2026-10-29-migration-session-prompts.md)。这些出口是待验证的要求，不是整批已获生产开工权或已完成。
 
@@ -325,7 +325,6 @@ P2.2D Command GUI 于2026-10-26获 [本地限定协议审批](../../review/evide
 
 2026-10-27 P2.2G Agent 后端完成限定复审：六源文件、隔离 Server154/1skip/0 与 Core35/0、Core/Server类型及生成/定向门禁通过，独立复审无阻断项。见 [Agent 后端检查点](../../review/v2-agent-p2.2g-backend-2026-10-27.md)。既有 owner 完成持久 proposal facts/JSON warnings、四 HTTP 路由与组合 plan/start 冻结回读。普通 Session native 注册、GUI、Project/global、导入/编辑/引用删除、冷恢复与实际 provider/Desktop 仍开放；下一片扩展现有资产评审面板，先记录生产性能基线。
 
-
 2026-10-27 P2.2H Agent GUI 完成限定独立复审和本地交付准备，见 [GUI检查点](../../review/v2-agent-p2.2h-gui-2026-10-27.md)。11源码/测试文件复用既有面板；GUI219/1skip/0、App742/0与browser168/0、侧栏25passed、最终Agent3passed、host/graph25passed、类型/门禁分别通过。真实GUI/TCP/FS/SQLite/组合冻结1/0/62，2primary/0title。保存不发草稿，非空handoffs禁止覆盖，普通Session native discovery仍未接通。性能三路径各5样本，两条稳定median变慢，原失败与变化保留。Project/global、编辑/导入/引用删除、冷恢复/实际provider/Desktop及MCP/Plugin/Workflow仍开放；下一片先核MCP的codec、env/秘密与reload/连接语义，再接已有后端owner。
 
 ## 7. P3：Meta、Assistant 与 Custom 用户流程
@@ -425,7 +424,6 @@ lint:changed 只覆盖指定 GUI 包，不能代表 Core/Codegen lint。非 GUI 
 
 2026-10-28 P2.2M Workflow后端限定验证完成，见 [检查点](../../review/v2-workflow-p2.2m-backend-2026-10-28.md)：真实registry短路径/身份/原YAML、持久facts、validateGraph/CAS/条件回滚；Core资产78/0、既有消费者98/0、Server165/1skip/0、Schema37/0、Client224/0，类型和门禁分别绑定。下一片P2.2N按显式kind贯穿Workflow GUI，不能用同形candidate或.plugin.yaml后缀推断类别；共享面板与完整声明审阅、取消/确认/CAS、restore preload及真实GUI链仍待实现。其他Project/global/导入编辑引用/空图语义/运行UI/冷恢复平台债务继续开放。
 
-
 ### 2026-10-28 P2.2N Workflow GUI 续接记录
 
 本片声明审阅/取消/保存/冲突再确认与真实GUI/TCP/FS/SQLite链完成，见 [检查点](../../review/v2-workflow-p2.2n-gui-2026-10-28.md)。最终源码与中间轮验证分开记账；原失败不覆盖。默认Project、显式global仍未实际接线。用户补充裁决：各worktree/clone独立，写入当前工作副本的项目根。下一片依据 [placement预检](../../review/evidence/v2-workflow-gui-2026-10-28/next-placement-preflight.md)，先锁定共享目标身份和旧来源兼容，以Skill选定owner纵链推进，再扩展其余六族和导入编辑。无关WIP不纳入该片。
@@ -435,7 +433,6 @@ lint:changed 只覆盖指定 GUI 包，不能代表 Core/Codegen lint。非 GUI 
 截至 `d6495e2738`，Skill、Command、Prompt 的 Project/global 后端与 GUI 小节已有各自本地提交，P2.2T 桌面验收继续进行。本轮真实 Electron + DeepSeek V4.1 Flash 揭示 CLI WebUi 未分流非 `/api` 资产端点；修复该共用入口后，Project/global 两条提案审阅、取消、保存、插入与显式发送链均通过，SQLite 为 3 user / 4 assistant / 3 succeeded。详见 [桌面续验检查点](../../review/v2-desktop-live-routing-2026-10-29.md)。独立复审、限定提交和依赖 pin 复查收齐后再进入下一小节；旧库升级、开发态 ResizeObserver 警告及其他平台范围分别留在账本，未被新库成功关闭。
 
 用户本轮要求每完成一个小节，必须启动桌面端并使用 DeepSeek Flash 真实对话验证；发现问题先查上下游代码、协议和测试并修复，通过后才继续。后续按既有 placement 顺序接续 Agent，再处理 MCP、Plugin、Workflow，保留导入编辑与引用、P3–P6 全部未完成范围。旧会话“P2.2T 后停下”的节奏已由本轮继续授权替代。
-
 
 2026-10-28 P2.2O 已完成限定本地提交。命令生成提交清单：
 
@@ -458,7 +455,6 @@ aad89b310b feat(core): support explicit skill asset targets
 §37历史检查点（当前见§38）：2026-11-02 当前MC02接续：协议卡共享注册编码与实际七段传播已按[专项§37](2026-10-29-meta-cpu-closure-plan.md#37-2026-11-02-mc02协议卡编码与七段原生传播验收)有限接受。统一Agent注册入口复用canonical卡codec；新Work/Meta的generator文本＝Task.prompt＝receipt指定child user，七标题与present/included/true/live metadata持久回读通过，Root36/36核对，Flash/high6/6（Meta3＋Build3）。取消槽及前置失败分轮保留，原§33–§36证据不覆写。当前继续有效内部Agent目录、完整Agent/CLI/资产scope/source/adoption/执行实现版本；完整MC02、后续MC/M01–M24、S1与历史owner/unlock保持，MC01绿色组不重开。
 
 §39历史检查点（当前见§40）：2026-11-02 当前MC02接续：[专项§39](2026-10-29-meta-cpu-closure-plan.md#39-2026-11-02-mc02冻结目录与缺省执行偏好验收)已核冻结Meta目录工程与原生消费者：snapshot原始coder/writer保持，当前Session策略coder deny、writer ask，实际Flash/high一次HTTP200仅输出FROZEN_DIRECTORY_OK: writer；原生首发保持executorPreference缺省，executor POST0、prompt POST1、ACK200，Root21/21核对，独立结果复核与文档复核分别记录。Build、Plan、Meta公共注册及模型入口保持。前置原生fixture失败均0模型且保留；完整资产/CLI目录scope/source/adoption/执行实现版本与MC02–MC10/M01–M24仍开放，MC01绿色组不重开。
-
 
 §40历史检查点（当前见§41）：2026-11-02 当前MC02接续：[专项§40](2026-10-29-meta-cpu-closure-plan.md#40-2026-11-02-mc02冻结skill资产目录验收)已有限接受冻结Skill目录：2生产文件＋2keeper，59/0、317断言；新Custom/Meta原生1次Flash/high HTTP200，仅列Root craft并保留Authored empty prompt，Root与独审24/24条件核对。快照不变，executor偏好缺省、executor POST0、prompt POST1、ACK200，实际工具调用0；真实Skill leaf未验。完整MC02原目录/来源scope/冻结版本余项仍开放；CLI真实执行归MC06，全模式执行实现绑定归原B04，MC03原依赖保持，MC01绿色组不重开。
 
@@ -494,7 +490,7 @@ aad89b310b feat(core): support explicit skill asset targets
 
 2026-11-03 §52原MC03零模型进度：受控readiness keeper使用实际SessionStep/Bus/SessionProjector/DB和Deferred信号，在pending Snapshot期间interrupt/join，late release不生成完成事件；正常对照仅一次Completed，投影完成id/seq与回调一致。最终1 pass/0 fail/5 filtered/23 expects、actual exit0，Core类型、格式、lint与diff通过；首轮缺cost.cache失败保留。仅新增既有session-step.test.ts一个keeper，无本轮生产修改、新registry或模型循环。见[keeper接受](/home/keer/.codex/outputs/2026-11-03/mc03-readiness-root-v2/root-engineering-acceptance-v1.json)。私有publication/readiness宿主改为在声明resume时取current Location Snapshot，并捕获实际Source Scope供既有FiberSet runtime；首次缺Scope的type exit2/TS2345与后继exit0分开保留，独审及[工程准备接受](/home/keer/.codex/outputs/2026-11-03/mc03-publication-readiness-source-root-v3/root-engineering-preparation-acceptance-v1.json)不取得真实publication/public resume/cancellation信用。
 
-原来源/有效目录场景仍用同DB、同Source/Writer及原账本：旧Source slot1取消保留；无startup sweep的显式Source resume产生slot2 complete200/high，真实User、Started/Ended/Completed和meta_step owner/root/provenance准确关联，Source tails为空，仅[正常Source子范围接受](/home/keer/.codex/outputs/2026-11-03/mc03-source-directory-continuation-root-v5/root-source-native-acceptance-v1.json)。无证据legacy row只作负面夹具，不取得来源信用。v3/v4在模型前的断言失败新增请求0；决定函数BrowserConnection.grant/release（packages/plugin-browser/src/connection.ts:30）解释Native临时browser/*/allow，权限匹配由PermissionEffective.evaluate（packages/core/src/permission/effective.ts:36）决定，精确browser action不匹配memory；原raw deny→effective ask及三owning once门禁保持。v5首次Writer Native ACK200，但编辑器填入文本仅丢一个换行，harness精确文本期望失败；旧memory_record在未答复ask后取消，memory0，slot3虽complete200仍不接受工具。v6保留完整旧User/eventprefix，以明确的新Native单行输入重验，释放前新id/正文/hash均核对；ACK200与slot4上游503分别记录，provider.internal、idle failed、claim清空、工具/新ask/once/记忆新增均0。全场景实际4/8（Source2＋Writer2），v5/v6 command/controller/runner exit1保留，取消不退款、无generic retry或人工token限制。见[provider暂停结算](/home/keer/.codex/outputs/2026-11-03/mc03-source-directory-continuation-root-v6/root-provider-pause-disposition-v1.json)。用户明确暂停DeepSeek后Root关闭自有网关，final close成功：Electron0、gateway0、Source进程结束但数字exit仍unknown，三端口free；不以HTTP200/目录暴露/空Assistant代替真实工具消费。
+原来源/有效目录场景仍用同DB、同Source/Writer及原账本：旧Source slot1取消保留；无startup sweep的显式Source resume产生slot2 complete200/high，真实User、Started/Ended/Completed和meta_step owner/root/provenance准确关联，Source tails为空，仅[正常Source子范围接受](/home/keer/.codex/outputs/2026-11-03/mc03-source-directory-continuation-root-v5/root-source-native-acceptance-v1.json)。无证据legacy row只作负面夹具，不取得来源信用。v3/v4在模型前的断言失败新增请求0；决定函数BrowserConnection.grant/release（packages/plugin-browser/src/connection.ts:30）解释Native临时browser/\*/allow，权限匹配由PermissionEffective.evaluate（packages/core/src/permission/effective.ts:36）决定，精确browser action不匹配memory；原raw deny→effective ask及三owning once门禁保持。v5首次Writer Native ACK200，但编辑器填入文本仅丢一个换行，harness精确文本期望失败；旧memory_record在未答复ask后取消，memory0，slot3虽complete200仍不接受工具。v6保留完整旧User/eventprefix，以明确的新Native单行输入重验，释放前新id/正文/hash均核对；ACK200与slot4上游503分别记录，provider.internal、idle failed、claim清空、工具/新ask/once/记忆新增均0。全场景实际4/8（Source2＋Writer2），v5/v6 command/controller/runner exit1保留，取消不退款、无generic retry或人工token限制。见[provider暂停结算](/home/keer/.codex/outputs/2026-11-03/mc03-source-directory-continuation-root-v6/root-provider-pause-disposition-v1.json)。用户明确暂停DeepSeek后Root关闭自有网关，final close成功：Electron0、gateway0、Source进程结束但数字exit仍unknown，三端口free；不以HTTP200/目录暴露/空Assistant代替真实工具消费。
 
 未完成项继续登记原MC03 owner：来源/有效目录的新三次调用与owning ask/once204、step_unverified、成功record/search模型消费，以及真实checkpoint publication失败→public resume与pending readiness取消/正常尾项。用户暂停真实模型期间只做零模型工程/文档核对；解除条件为用户允许恢复模型验收、路由可用且具体有限任务重新绑定/复审，不自动重试、重置账本或重播已接受TTL/CRUD/P1。原Inbox publication失败、Location decline、并行Session及必要恢复仍按§46与债务账本逐项核证，不能用checkpoint切口覆盖。CLI执行归MC06、全模式执行绑定归B04，个人Inspector/UI/整体在飞恢复保留原B08/MC09/MC10 owner/unlock，S1归属不转移。MC03Complete=false、MC04aUnlocked=false；默认工作区只读、Git写未授权，旧WIP/历史失败均保留。
 

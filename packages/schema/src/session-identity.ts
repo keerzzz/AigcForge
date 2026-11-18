@@ -242,10 +242,13 @@ const IdentityStruct = Schema.Struct({
    * agent is corrupt data, not a normal state.
    */
   model: datum(
-    Schema.Union([Schema.Struct({
-      providerID: Schema.String,
-      modelID: Schema.String,
-    }).annotate({ identifier: "SessionIdentity.Model" }), Model.GroupRef]),
+    Schema.Union([
+      Schema.Struct({
+        providerID: Schema.String,
+        modelID: Schema.String,
+      }).annotate({ identifier: "SessionIdentity.Model" }),
+      Model.GroupRef,
+    ]),
     "SessionIdentity.ModelRef",
   ),
   permission: Schema.Struct({

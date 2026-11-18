@@ -29,7 +29,14 @@ import { awaitWithTimeout, testEffect } from "./lib/effect"
 
 const it = testEffect(
   AppNodeBuilder.build(
-    LayerNode.group([Database.node, Bus.node, SessionInbox.node, SessionProjector.node, SessionStore.node, SessionTask.node]),
+    LayerNode.group([
+      Database.node,
+      Bus.node,
+      SessionInbox.node,
+      SessionProjector.node,
+      SessionStore.node,
+      SessionTask.node,
+    ]),
     [Bus.node.replace(Bus.configured({ persist: true }))],
   ),
 )
@@ -130,101 +137,167 @@ const operationRequest = (sourceSessionID: Session.ID, targetSessionID: Session.
     delivery: "queue",
     resume: false,
   }),
-  source: new SessionTask.OperationUserSource({ type: "user_coordination", sessionID: sourceSessionID, agent: Agent.ID.make("meta") }),
+  source: new SessionTask.OperationUserSource({
+    type: "user_coordination",
+    sessionID: sourceSessionID,
+    agent: Agent.ID.make("meta"),
+  }),
   selection: new SessionTask.OperationSelection({ agent: Agent.ID.make("meta"), seq: Event.Seq.make(0) }),
   sourceLocation: Location.Ref.make({ directory: AbsolutePath.make("/admission") }),
   sourceMode: ProductMode.ID.make("coding"),
 })
 
 describe("Task operation input ownership", () => {
-  it.live("keeps identical operation IDs from two sources separate in messages and permissions", () => Effect.gen(function* () {
-    const f = yield* setup()
-    const tasks = yield* SessionTask.Service
-    const a = yield* tasks.reserveOperation(operationRequest(f.sessionID, f.otherID, f.id))
-    const b = yield* tasks.reserveOperation(operationRequest(f.otherID, f.sessionID, SessionMessage.ID.make("msg_other_operation")))
-    const aRef = { sessionID: a.operation.sourceSessionID, operationID: a.operation.operationID }
-    const bRef = { sessionID: b.operation.sourceSessionID, operationID: b.operation.operationID }
-    expect(TaskOperation.permissionID(aRef)).not.toBe(TaskOperation.permissionID(bRef))
-    expect(TaskOperation.statusMessageID(aRef)).not.toBe(TaskOperation.statusMessageID(bRef))
-    expect((yield* f.store.message(TaskOperation.statusMessageID(aRef)))?.sessionID).toBe(f.sessionID)
-    expect((yield* f.store.message(TaskOperation.statusMessageID(bRef)))?.sessionID).toBe(f.otherID)
-  }))
-
-  it.live("rejects ordinary admission that loses to a committed operation reservation", () => Effect.gen(function* () {
-    const f = yield* setup()
-    const gate = yield* gatedAdmission(f.bus)
-    const scope = yield* Scope.Scope
-    const loser = yield* gate.admission.admit({ id: f.id, sessionID: f.otherID, item: item("user", "unrelated input") }).pipe(Effect.forkIn(scope))
-    yield* awaitWithTimeout(Deferred.await(gate.entered), "Ordinary input did not reach the publication gate")
-    const tasks = yield* SessionTask.Service
-    const operation = yield* tasks.reserveOperation(operationRequest(f.sessionID, f.otherID, f.id))
-    yield* Deferred.succeed(gate.release, undefined)
-    expect(yield* awaitWithTimeout(Fiber.join(loser).pipe(Effect.flip), "Ordinary input did not lose its reservation race")).toMatchObject({ _tag: "SessionInbox.LifecycleConflict" })
-    expect(yield* SessionInbox.find(f.database.db, f.id)).toBeUndefined()
-    expect(yield* tasks.operation({ sessionID: f.sessionID, operationID: operation.operation.operationID })).toEqual(operation.operation)
-  }))
-
-  it.live("rechecks a delayed reservation after ordinary admission commits", () => Effect.gen(function* () {
-    const f = yield* setup()
-    const entered = yield* Deferred.make<void>()
-    const release = yield* Deferred.make<void>()
-    yield* Effect.addFinalizer(() => Deferred.succeed(release, undefined).pipe(Effect.asVoid))
-    const publish: Bus.Interface["publish"] = (definition, data, options) => definition.type !== SessionTaskEvent.OperationReserved.type
-      ? f.bus.publish(definition, data, options)
-      : Deferred.succeed(entered, undefined).pipe(Effect.andThen(Deferred.await(release)), Effect.andThen(f.bus.publish(definition, data, options)))
-    const tasks = yield* SessionTask.Service.pipe(Effect.provide(Layer.fresh(SessionTask.layer.pipe(
-      Layer.provide(Layer.succeed(Bus.Service, Bus.Service.of({ ...f.bus, publish }))),
-    ))))
-    const scope = yield* Scope.Scope
-    const loser = yield* tasks.reserveOperation(operationRequest(f.sessionID, f.otherID, f.id)).pipe(Effect.forkIn(scope))
-    yield* awaitWithTimeout(Deferred.await(entered), "Operation reservation did not reach publication")
-    yield* f.admission.admit({ id: f.id, sessionID: f.otherID, item: item("user", "ordinary winner") })
-    yield* Deferred.succeed(release, undefined)
-    expect(yield* awaitWithTimeout(Fiber.join(loser).pipe(Effect.flip), "Operation reservation did not lose the input race")).toMatchObject({ reason: "input_owned" })
-    expect(yield* tasks.operations({ sessionID: f.sessionID })).toEqual([])
-    expect(yield* SessionInbox.find(f.database.db, f.id)).toMatchObject({ payload: { text: "ordinary winner" } })
-  }))
-
-  for (const first of ["consultation", "task"] as const) {
-    it.live(`keeps the first ${first} reservation as the sole input owner`, () => Effect.gen(function* () {
+  it.live("keeps identical operation IDs from two sources separate in messages and permissions", () =>
+    Effect.gen(function* () {
       const f = yield* setup()
       const tasks = yield* SessionTask.Service
-      const consultation = f.database.db.transaction(() => Consultation.reserve(f.database.db, f.otherID, {
-        firstMessageID: f.id,
-        reference: SessionConsultation.Reference.make({
-          sourceSessionID: f.sessionID,
-          boundary: { type: "through", messageID: SessionMessage.ID.make("msg_reference") },
-          boundarySeq: Event.Seq.make(0),
-          sourceMessageIDs: [], digest: "frozen", omissions: [],
-          file: { data: "", mime: "text/plain", source: { type: "inline" } },
-        }),
-      })).pipe(Effect.orDie)
-      const reservation = tasks.reserveOperation(operationRequest(f.sessionID, f.otherID, f.id))
-      yield* (first === "consultation" ? consultation : reservation)
-      const failed = yield* (first === "consultation" ? reservation : consultation).pipe(Effect.exit)
-      expect(failed._tag).toBe("Failure")
-      expect((yield* tasks.operations({ sessionID: f.sessionID })).length).toBe(first === "task" ? 1 : 0)
-      expect((yield* Consultation.get(f.database.db, f.otherID)) !== undefined).toBe(first === "consultation")
-    }))
+      const a = yield* tasks.reserveOperation(operationRequest(f.sessionID, f.otherID, f.id))
+      const b = yield* tasks.reserveOperation(
+        operationRequest(f.otherID, f.sessionID, SessionMessage.ID.make("msg_other_operation")),
+      )
+      const aRef = { sessionID: a.operation.sourceSessionID, operationID: a.operation.operationID }
+      const bRef = { sessionID: b.operation.sourceSessionID, operationID: b.operation.operationID }
+      expect(TaskOperation.permissionID(aRef)).not.toBe(TaskOperation.permissionID(bRef))
+      expect(TaskOperation.statusMessageID(aRef)).not.toBe(TaskOperation.statusMessageID(bRef))
+      expect((yield* f.store.message(TaskOperation.statusMessageID(aRef)))?.sessionID).toBe(f.sessionID)
+      expect((yield* f.store.message(TaskOperation.statusMessageID(bRef)))?.sessionID).toBe(f.otherID)
+    }),
+  )
+
+  it.live("rejects ordinary admission that loses to a committed operation reservation", () =>
+    Effect.gen(function* () {
+      const f = yield* setup()
+      const gate = yield* gatedAdmission(f.bus)
+      const scope = yield* Scope.Scope
+      const loser = yield* gate.admission
+        .admit({ id: f.id, sessionID: f.otherID, item: item("user", "unrelated input") })
+        .pipe(Effect.forkIn(scope))
+      yield* awaitWithTimeout(Deferred.await(gate.entered), "Ordinary input did not reach the publication gate")
+      const tasks = yield* SessionTask.Service
+      const operation = yield* tasks.reserveOperation(operationRequest(f.sessionID, f.otherID, f.id))
+      yield* Deferred.succeed(gate.release, undefined)
+      expect(
+        yield* awaitWithTimeout(
+          Fiber.join(loser).pipe(Effect.flip),
+          "Ordinary input did not lose its reservation race",
+        ),
+      ).toMatchObject({ _tag: "SessionInbox.LifecycleConflict" })
+      expect(yield* SessionInbox.find(f.database.db, f.id)).toBeUndefined()
+      expect(yield* tasks.operation({ sessionID: f.sessionID, operationID: operation.operation.operationID })).toEqual(
+        operation.operation,
+      )
+    }),
+  )
+
+  it.live("rechecks a delayed reservation after ordinary admission commits", () =>
+    Effect.gen(function* () {
+      const f = yield* setup()
+      const entered = yield* Deferred.make<void>()
+      const release = yield* Deferred.make<void>()
+      yield* Effect.addFinalizer(() => Deferred.succeed(release, undefined).pipe(Effect.asVoid))
+      const publish: Bus.Interface["publish"] = (definition, data, options) =>
+        definition.type !== SessionTaskEvent.OperationReserved.type
+          ? f.bus.publish(definition, data, options)
+          : Deferred.succeed(entered, undefined).pipe(
+              Effect.andThen(Deferred.await(release)),
+              Effect.andThen(f.bus.publish(definition, data, options)),
+            )
+      const tasks = yield* SessionTask.Service.pipe(
+        Effect.provide(
+          Layer.fresh(
+            SessionTask.layer.pipe(Layer.provide(Layer.succeed(Bus.Service, Bus.Service.of({ ...f.bus, publish })))),
+          ),
+        ),
+      )
+      const scope = yield* Scope.Scope
+      const loser = yield* tasks
+        .reserveOperation(operationRequest(f.sessionID, f.otherID, f.id))
+        .pipe(Effect.forkIn(scope))
+      yield* awaitWithTimeout(Deferred.await(entered), "Operation reservation did not reach publication")
+      yield* f.admission.admit({ id: f.id, sessionID: f.otherID, item: item("user", "ordinary winner") })
+      yield* Deferred.succeed(release, undefined)
+      expect(
+        yield* awaitWithTimeout(
+          Fiber.join(loser).pipe(Effect.flip),
+          "Operation reservation did not lose the input race",
+        ),
+      ).toMatchObject({ reason: "input_owned" })
+      expect(yield* tasks.operations({ sessionID: f.sessionID })).toEqual([])
+      expect(yield* SessionInbox.find(f.database.db, f.id)).toMatchObject({ payload: { text: "ordinary winner" } })
+    }),
+  )
+
+  for (const first of ["consultation", "task"] as const) {
+    it.live(`keeps the first ${first} reservation as the sole input owner`, () =>
+      Effect.gen(function* () {
+        const f = yield* setup()
+        const tasks = yield* SessionTask.Service
+        const consultation = f.database.db
+          .transaction(() =>
+            Consultation.reserve(f.database.db, f.otherID, {
+              firstMessageID: f.id,
+              reference: SessionConsultation.Reference.make({
+                sourceSessionID: f.sessionID,
+                boundary: { type: "through", messageID: SessionMessage.ID.make("msg_reference") },
+                boundarySeq: Event.Seq.make(0),
+                sourceMessageIDs: [],
+                digest: "frozen",
+                omissions: [],
+                file: { data: "", mime: "text/plain", source: { type: "inline" } },
+              }),
+            }),
+          )
+          .pipe(Effect.orDie)
+        const reservation = tasks.reserveOperation(operationRequest(f.sessionID, f.otherID, f.id))
+        yield* first === "consultation" ? consultation : reservation
+        const failed = yield* (first === "consultation" ? reservation : consultation).pipe(Effect.exit)
+        expect(failed._tag).toBe("Failure")
+        expect((yield* tasks.operations({ sessionID: f.sessionID })).length).toBe(first === "task" ? 1 : 0)
+        expect((yield* Consultation.get(f.database.db, f.otherID)) !== undefined).toBe(first === "consultation")
+      }),
+    )
   }
 
-  it.live("reconciles only the frozen committed operation carrier before and after promotion", () => Effect.gen(function* () {
-    const f = yield* setup()
-    const tasks = yield* SessionTask.Service
-    const input = operationRequest(f.sessionID, f.otherID, f.id)
-    yield* tasks.reserveOperation(input)
-    const payload = SessionInbox.UserPayload.make({ text: input.request.prompt })
-    const prepared = new SessionTask.OperationPrepared({ payload, delivery: "queue", digest: TaskOperation.payloadDigest(payload, "queue") })
-    yield* tasks.advanceOperation({ sessionID: f.sessionID, operationID: input.request.operationID, change: new SessionTask.OperationChange({ phase: "prepared", prepared }) })
-    const operation = new SessionTask.OperationReadonlyRef({ sourceSessionID: f.sessionID, operationID: input.request.operationID })
-    yield* f.admission.admit({ id: f.id, sessionID: f.otherID, item: { type: "user", payload, delivery: "queue" }, operation })
-    const lookup = { id: f.id, sessionID: f.otherID, type: "user" as const, delivery: "queue" as const, operation }
-    expect(yield* f.admission.reconcile(lookup)).toMatchObject({ payload })
-    expect((yield* tasks.operation({ sessionID: f.sessionID, operationID: operation.operationID }))?.admission).toBeDefined()
-    expect(yield* SessionInbox.promote(f.database.db, f.bus, f.otherID, "input")).toBe(1)
-    expect(yield* f.admission.reconcile(lookup)).toMatchObject({ payload })
-    expect(yield* f.admission.reconcile({ ...lookup, delivery: "steer" }).pipe(Effect.flip)).toMatchObject({ _tag: "SessionInbox.LifecycleConflict" })
-  }))
+  it.live("reconciles only the frozen committed operation carrier before and after promotion", () =>
+    Effect.gen(function* () {
+      const f = yield* setup()
+      const tasks = yield* SessionTask.Service
+      const input = operationRequest(f.sessionID, f.otherID, f.id)
+      yield* tasks.reserveOperation(input)
+      const payload = SessionInbox.UserPayload.make({ text: input.request.prompt })
+      const prepared = new SessionTask.OperationPrepared({
+        payload,
+        delivery: "queue",
+        digest: TaskOperation.payloadDigest(payload, "queue"),
+      })
+      yield* tasks.advanceOperation({
+        sessionID: f.sessionID,
+        operationID: input.request.operationID,
+        change: new SessionTask.OperationChange({ phase: "prepared", prepared }),
+      })
+      const operation = new SessionTask.OperationReadonlyRef({
+        sourceSessionID: f.sessionID,
+        operationID: input.request.operationID,
+      })
+      yield* f.admission.admit({
+        id: f.id,
+        sessionID: f.otherID,
+        item: { type: "user", payload, delivery: "queue" },
+        operation,
+      })
+      const lookup = { id: f.id, sessionID: f.otherID, type: "user" as const, delivery: "queue" as const, operation }
+      expect(yield* f.admission.reconcile(lookup)).toMatchObject({ payload })
+      expect(
+        (yield* tasks.operation({ sessionID: f.sessionID, operationID: operation.operationID }))?.admission,
+      ).toBeDefined()
+      expect(yield* SessionInbox.promote(f.database.db, f.bus, f.otherID, "input")).toBe(1)
+      expect(yield* f.admission.reconcile(lookup)).toMatchObject({ payload })
+      expect(yield* f.admission.reconcile({ ...lookup, delivery: "steer" }).pipe(Effect.flip)).toMatchObject({
+        _tag: "SessionInbox.LifecycleConflict",
+      })
+    }),
+  )
 })
 
 describe("SessionInbox admission promotion race", () => {

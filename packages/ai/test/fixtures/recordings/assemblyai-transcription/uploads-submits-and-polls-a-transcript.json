@@ -1,11 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:assemblyai-transcription",
-      "provider:assemblyai",
-      "protocol:assemblyai-transcription"
-    ],
+    "tags": ["prefix:assemblyai-transcription", "provider:assemblyai", "protocol:assemblyai-transcription"],
     "name": "assemblyai-transcription/uploads-submits-and-polls-a-transcript",
     "recordedAt": "2026-09-23T14:03:07.504Z"
   },

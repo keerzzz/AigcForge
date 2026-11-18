@@ -18,15 +18,15 @@
 
 [验证 manifest](evidence/v2-workflow-gui-2026-10-28/validation-manifest.json) 自动记录命令、cwd、退出码、日志哈希、源码哈希、实际 tally 及与最终源码的差异。验证副本为 `/home/keer/task-backups/v2-agent-backend-validation-20261027`，最终候选树 `39b0a4a94d9180cfa6938484736ada1d261b70fa`；十个源码/测试文件与主工作区逐字节一致。固定 Bun 1.4.2；所有检查由 root 包内串行执行。
 
-| 检查 | 实测结果及适用版本 |
-| --- | --- |
-| GUI 全包 | 258 pass / 1 skip / 0 fail；991 expects；33 文件。最终记录 `gui-tests-dom-final`。 |
-| GUI / E2E 类型 | `gui-types-dom-final` / `e2e-types-dom-final` 各 exit 0，绑定最终源码。 |
-| 侧栏 keeper | `side-panels-final`：35 passed，workers 1 / retries 0，153.93s；含新增 Workflow 四项及已有 Prompt 等回归。 |
-| 增量 lint / AST / 格式 / diff | 最终记录各 exit 0；lint 检查 9 个 TS/TSX，AST 检查 5 个生产 TS/TSX，格式覆盖 10 文件。 |
-| 普通 App 构建 | `app-plain-build` exit 0；3156 文件，只有 index.html，无三个 fixture HTML。 |
-| 普通产物真实链 | `real-chain-ready`：1 pass / 0 fail / 121 expects；2 primary / 0 title。 |
-| SDK 文档 | exit 0；155 declarations、645 members、191 parameters、15 guide blocks，0 problems。后续仅删除 DOM 属性。 |
+| 检查                          | 实测结果及适用版本                                                                                         |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| GUI 全包                      | 258 pass / 1 skip / 0 fail；991 expects；33 文件。最终记录 `gui-tests-dom-final`。                         |
+| GUI / E2E 类型                | `gui-types-dom-final` / `e2e-types-dom-final` 各 exit 0，绑定最终源码。                                    |
+| 侧栏 keeper                   | `side-panels-final`：35 passed，workers 1 / retries 0，153.93s；含新增 Workflow 四项及已有 Prompt 等回归。 |
+| 增量 lint / AST / 格式 / diff | 最终记录各 exit 0；lint 检查 9 个 TS/TSX，AST 检查 5 个生产 TS/TSX，格式覆盖 10 文件。                     |
+| 普通 App 构建                 | `app-plain-build` exit 0；3156 文件，只有 index.html，无三个 fixture HTML。                                |
+| 普通产物真实链                | `real-chain-ready`：1 pass / 0 fail / 121 expects；2 primary / 0 title。                                   |
+| SDK 文档                      | exit 0；155 declarations、645 members、191 parameters、15 guide blocks，0 problems。后续仅删除 DOM 属性。  |
 
 以下是本片较早版本的真实通过结果，未冒充最终源码全包复验：App unit 742 pass / 0 fail / 2232 expects（107 文件），browser 168 pass / 0 fail / 1778 expects（38 文件）；host/graph 25 passed。这两轮早于最终 Effect Match 分派及 DOM 属性删除。App `tsgo -b` 在 Match 后通过，随后仅删除 DOM 属性；E2E 类型、GUI 类型和受影响侧栏流程已在最终源码复验。既有 WSL skip、AST binary resolution warning 与构建 chunk/Sentry 警告保留，不计作错误消失。
 

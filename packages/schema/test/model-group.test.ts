@@ -84,8 +84,13 @@ test("attempt contracts preserve missing usage and real free quotes independentl
   expect(encoded.terminal).not.toHaveProperty("usage")
   expect(encoded.terminal).not.toHaveProperty("cost")
   expect(encoded).not.toHaveProperty("groupMemberIndex")
-  expect(Schema.decodeUnknownSync(SessionAttempt.Info)({ ...started, groupMemberIndex: 1, observations: [] }).groupMemberIndex).toBe(1)
-  expect(() => Schema.decodeUnknownSync(SessionAttempt.Info)({ ...started, groupMemberIndex: -1, observations: [] })).toThrow()
+  expect(
+    Schema.decodeUnknownSync(SessionAttempt.Info)({ ...started, groupMemberIndex: 1, observations: [] })
+      .groupMemberIndex,
+  ).toBe(1)
+  expect(() =>
+    Schema.decodeUnknownSync(SessionAttempt.Info)({ ...started, groupMemberIndex: -1, observations: [] }),
+  ).toThrow()
   expect(
     Schema.decodeUnknownSync(SessionAttempt.Info)({
       ...started,
@@ -98,15 +103,34 @@ test("attempt contracts preserve missing usage and real free quotes independentl
   expect(SessionEvent.Attempt.Ended.durability).toBe("durable")
   const measured = Schema.decodeUnknownSync(SessionAttempt.Info)({
     ...started,
-    observations: [{ observedAt: 150, firstTokenAt: 150, gatewayReport: { source: "response-headers", provider: "upstream", model: "early" }, event: { id: "evt_one", seq: 1 } }],
+    observations: [
+      {
+        observedAt: 150,
+        firstTokenAt: 150,
+        gatewayReport: { source: "response-headers", provider: "upstream", model: "early" },
+        event: { id: "evt_one", seq: 1 },
+      },
+    ],
     terminal: { status: "completed", ended: 200, providerEndedAt: 190, outputStarted: true },
   })
   expect(measured.observations[0]?.firstTokenAt).toBe(150)
   expect(measured.observations[0]?.gatewayReport?.model).toBe("early")
   expect(measured.terminal?.providerEndedAt).toBe(190)
-  const quota = { status: "known", source: "copilot", connection: { type: "credential", id: "cred_one" }, observedAt: 100, freshUntil: 200, windows: [{ id: "premium", unit: "requests", scope: "model", modelIDs: ["one"], usedRatio: 0.4, resetAt: 300 }] } satisfies typeof ModelSource.Quota.Encoded
+  const quota = {
+    status: "known",
+    source: "copilot",
+    connection: { type: "credential", id: "cred_one" },
+    observedAt: 100,
+    freshUntil: 200,
+    windows: [{ id: "premium", unit: "requests", scope: "model", modelIDs: ["one"], usedRatio: 0.4, resetAt: 300 }],
+  } satisfies typeof ModelSource.Quota.Encoded
   expect(Schema.encodeSync(ModelSource.Quota)(Schema.decodeUnknownSync(ModelSource.Quota)(quota))).toEqual(quota)
-  expect(() => Schema.decodeUnknownSync(ModelSource.Quota)({ ...quota, windows: [{ id: "bad", unit: "requests", scope: "account", usedRatio: Number.NaN }] })).toThrow()
+  expect(() =>
+    Schema.decodeUnknownSync(ModelSource.Quota)({
+      ...quota,
+      windows: [{ id: "bad", unit: "requests", scope: "account", usedRatio: Number.NaN }],
+    }),
+  ).toThrow()
 })
 
 test("canonical leaf identities and group Session reads retain historical physical messages", () => {

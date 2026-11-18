@@ -1,11 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:fal-video",
-      "provider:fal",
-      "protocol:fal-video"
-    ],
+    "tags": ["prefix:fal-video", "provider:fal", "protocol:fal-video"],
     "name": "fal-video/generates-a-video",
     "recordedAt": "2026-09-22T19:44:17.974Z"
   },

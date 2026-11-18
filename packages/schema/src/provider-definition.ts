@@ -55,8 +55,35 @@ export const Editable = Schema.Struct(Struct.omit(ConfigProvider.Info.fields, ["
   parseOptions: { onExcessProperty: "error" },
 })
 
-const ProviderField = Schema.Literals(["canonical", "name", "env", "package", "disabled", "settings", "headers", "body", "models", "discovery"])
-const ModelField = Schema.Literals(["modelID", "family", "name", "compatibility", "package", "settings", "headers", "body", "capabilities", "variants", "cost", "quote", "disabled", "limit", "seed"])
+const ProviderField = Schema.Literals([
+  "canonical",
+  "name",
+  "env",
+  "package",
+  "disabled",
+  "settings",
+  "headers",
+  "body",
+  "models",
+  "discovery",
+])
+const ModelField = Schema.Literals([
+  "modelID",
+  "family",
+  "name",
+  "compatibility",
+  "package",
+  "settings",
+  "headers",
+  "body",
+  "capabilities",
+  "variants",
+  "cost",
+  "quote",
+  "disabled",
+  "limit",
+  "seed",
+])
 
 export const UnsetPath = Schema.Union([
   Schema.Tuple([ProviderField]),
@@ -64,7 +91,12 @@ export const UnsetPath = Schema.Union([
   Schema.Tuple([Schema.Literal("discovery"), Schema.Literal("list"), Schema.Literals(["protocol", "url"])]),
   Schema.Tuple([Schema.Literal("models"), Schema.String]),
   Schema.Tuple([Schema.Literal("models"), Schema.String, ModelField]),
-  Schema.Tuple([Schema.Literal("models"), Schema.String, Schema.Literal("quote"), Schema.Literals(["validFrom", "validUntil", "source", "observedAt"])]),
+  Schema.Tuple([
+    Schema.Literal("models"),
+    Schema.String,
+    Schema.Literal("quote"),
+    Schema.Literals(["validFrom", "validUntil", "source", "observedAt"]),
+  ]),
   Schema.Tuple([
     Schema.Literal("models"),
     Schema.String,
@@ -91,7 +123,9 @@ export const CredentialAction = Schema.Union([
     label: Schema.String.pipe(optional),
     activate: Schema.Boolean.pipe(optional),
   }),
-]).pipe(Schema.toTaggedUnion("type")).annotate({ identifier: "ProviderDefinition.CredentialAction" })
+])
+  .pipe(Schema.toTaggedUnion("type"))
+  .annotate({ identifier: "ProviderDefinition.CredentialAction" })
 export type CredentialAction = Schema.Schema.Type<typeof CredentialAction>
 
 export interface SaveInput extends Schema.Schema.Type<typeof SaveInput> {}

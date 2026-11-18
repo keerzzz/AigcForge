@@ -109,12 +109,7 @@ test("prompt footer can hide details", async () => {
   const app = await testRender(
     () => (
       <box width="100%" flexDirection="row" justifyContent="space-between" gap={2}>
-        <PromptFooter
-          context={context}
-          sessionID={sessionID()}
-          mode="normal"
-          showDetails={showDetails()}
-        />
+        <PromptFooter context={context} sessionID={sessionID()} mode="normal" showDetails={showDetails()} />
       </box>
     ),
     {

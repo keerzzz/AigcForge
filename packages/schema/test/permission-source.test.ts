@@ -58,9 +58,7 @@ describe("Permission provenance", () => {
   })
 
   test("operation provenance requires both canonical session and operation identities", () => {
-    expect(() =>
-      Schema.decodeUnknownSync(Permission.Source)({ type: "operation", sessionID: "ses_origin" }),
-    ).toThrow()
+    expect(() => Schema.decodeUnknownSync(Permission.Source)({ type: "operation", sessionID: "ses_origin" })).toThrow()
     expect(() =>
       Schema.decodeUnknownSync(Permission.Source)({ type: "operation", sessionID: "ses_origin", operationID: "top_" }),
     ).toThrow()

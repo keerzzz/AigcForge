@@ -8,7 +8,14 @@ describe("util.model", () => {
     expect(parse("group:vendor/chat#high")).toEqual({ providerID: "group:vendor", modelID: "chat", variant: "high" })
     expect(formatRef({ type: "group", groupID: "fallback" })).toBe("group:fallback")
     expect(switchLabel({ type: "group", groupID: "fallback" })).toBe("Switched model to group:fallback")
-    expect(switchLabel({ type: "group", groupID: "fallback" }, undefined, undefined, [{ groupID: "fallback", definition: { name: "Resilient", enabled: true, members: [], strategy: "order", affinity: "turn" } }])).toBe("Switched model to Resilient")
+    expect(
+      switchLabel({ type: "group", groupID: "fallback" }, undefined, undefined, [
+        {
+          groupID: "fallback",
+          definition: { name: "Resilient", enabled: true, members: [], strategy: "order", affinity: "turn" },
+        },
+      ]),
+    ).toBe("Switched model to Resilient")
   })
   test("splits provider from a nested model identifier", () => {
     expect(parse("provider/org/model")).toEqual({ providerID: "provider", modelID: "org/model" })

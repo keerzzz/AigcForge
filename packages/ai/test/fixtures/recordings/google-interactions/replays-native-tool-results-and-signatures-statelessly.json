@@ -1,11 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:google-interactions",
-      "provider:google",
-      "protocol:google-interactions"
-    ],
+    "tags": ["prefix:google-interactions", "provider:google", "protocol:google-interactions"],
     "name": "google-interactions/replays-native-tool-results-and-signatures-statelessly",
     "recordedAt": "2026-10-03T18:10:15.040Z"
   },

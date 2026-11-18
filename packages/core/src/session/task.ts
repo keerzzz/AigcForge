@@ -210,7 +210,9 @@ export interface Interface {
   readonly attachOperationTask: (
     input: TaskOperation.Ref,
   ) => Effect.Effect<SessionTask.OperationInfo, OperationConflictError>
-  readonly claimWaitingOperation: (input: TaskOperation.Ref) => Effect.Effect<SessionTask.OperationInfo, OperationConflictError>
+  readonly claimWaitingOperation: (
+    input: TaskOperation.Ref,
+  ) => Effect.Effect<SessionTask.OperationInfo, OperationConflictError>
   /** Service-owned facts; source/target/request identity stays immutable. */
   readonly advanceOperation: (
     input: TaskOperation.Ref & {
@@ -392,10 +394,12 @@ const resolveNextRun = (
 }
 
 const toInfo = (row: TaskRow, now: number, schedule?: { readonly nextRun: number | undefined }): Info => {
-  const run = schedule ? schedule.nextRun : resolveNextRun(
-    { status: row.status, scheduledAt: row.scheduled_at ?? undefined, recurrence: row.recurrence ?? undefined },
-    now,
-  )
+  const run = schedule
+    ? schedule.nextRun
+    : resolveNextRun(
+        { status: row.status, scheduledAt: row.scheduled_at ?? undefined, recurrence: row.recurrence ?? undefined },
+        now,
+      )
   return new Info({
     id: row.id,
     content: row.content,
@@ -560,7 +564,9 @@ export const layer = Layer.effect(
         .where(eq(KVTable.key, claimKey(sessionID, id)))
         .get()
         .pipe(
-          Effect.map((row) => Option.getOrUndefined(Schema.decodeUnknownOption(Schema.toCodecJson(ExecutionClaim))(row?.value))),
+          Effect.map((row) =>
+            Option.getOrUndefined(Schema.decodeUnknownOption(Schema.toCodecJson(ExecutionClaim))(row?.value)),
+          ),
           Effect.orDie,
         )
 
@@ -817,7 +823,9 @@ export const layer = Layer.effect(
             if (task && !claim && (yield* legacyOwned(input.sessionID, task)))
               return yield* new TaskWriteError({ sessionID: input.sessionID, id: task.id, reason: "execution_owned" })
             const waiting = task
-              ? (yield* TaskOperation.list(db, { sessionID: input.sessionID, taskID: task.id })).filter((operation) => operation.phase === "waiting")
+              ? (yield* TaskOperation.list(db, { sessionID: input.sessionID, taskID: task.id })).filter(
+                  (operation) => operation.phase === "waiting",
+                )
               : []
             const predecessorID = waiting.at(-1)?.operationID ?? claim?.operationID
             const now = (yield* DateTime.nowAsDate).getTime()
@@ -831,67 +839,92 @@ export const layer = Layer.effect(
               targetSessionID:
                 input.request.target.type === "existing_root"
                   ? input.request.target.sessionID
-                  : input.targetSessionID ?? SessionSchema.ID.create(),
+                  : (input.targetSessionID ?? SessionSchema.ID.create()),
               taskRevision: task && predecessorID === undefined ? task.revision + 1 : undefined,
               predecessorID,
               goalRounds: input.goalRounds,
             }
-            yield* events.publish(SessionTaskEvent.OperationReserved, data, {
-              commit: (seq) =>
-                Effect.gen(function* () {
-                  const previous = yield* read(input.sessionID)
-                  yield* TaskOperation.projectReserved(db, data, now, seq)
-                  yield* TaskOperation.assertFreeInput(db, {
-                    sessionID: input.sessionID,
-                    operationID: input.request.operationID,
-                    inputID: input.request.inputID,
-                    projected: true,
-                  }).pipe(Effect.orDie)
-                  if (!task || predecessorID !== undefined) return
-                  const updated = yield* db
-                    .update(TaskTable)
-                    .set({
-                      status: "in_progress",
-                      operation_id: input.request.operationID,
-                      revision: task.revision + 1,
-                      time_updated: now,
+            yield* events
+              .publish(SessionTaskEvent.OperationReserved, data, {
+                commit: (seq) =>
+                  Effect.gen(function* () {
+                    const previous = yield* read(input.sessionID)
+                    yield* TaskOperation.projectReserved(db, data, now, seq)
+                    yield* TaskOperation.assertFreeInput(db, {
+                      sessionID: input.sessionID,
+                      operationID: input.request.operationID,
+                      inputID: input.request.inputID,
+                      projected: true,
+                    }).pipe(Effect.orDie)
+                    if (!task || predecessorID !== undefined) return
+                    const updated = yield* db
+                      .update(TaskTable)
+                      .set({
+                        status: "in_progress",
+                        operation_id: input.request.operationID,
+                        revision: task.revision + 1,
+                        time_updated: now,
+                      })
+                      .where(
+                        and(
+                          eq(TaskTable.session_id, input.sessionID),
+                          eq(TaskTable.id, task.id),
+                          eq(TaskTable.revision, task.revision),
+                        ),
+                      )
+                      .returning({ id: TaskTable.id })
+                      .get()
+                      .pipe(Effect.orDie)
+                    if (!updated)
+                      return yield* Effect.die(
+                        new OperationConflictError({
+                          sessionID: input.sessionID,
+                          operationID: input.request.operationID,
+                          reason: "phase_changed",
+                        }),
+                      )
+                    const saved = yield* TaskOperation.get(db, {
+                      sessionID: input.sessionID,
+                      operationID: input.request.operationID,
                     })
-                    .where(and(eq(TaskTable.session_id, input.sessionID), eq(TaskTable.id, task.id), eq(TaskTable.revision, task.revision)))
-                    .returning({ id: TaskTable.id })
-                    .get()
-                    .pipe(Effect.orDie)
-                  if (!updated) return yield* Effect.die(new OperationConflictError({ sessionID: input.sessionID, operationID: input.request.operationID, reason: "phase_changed" }))
-                  const saved = yield* TaskOperation.get(db, {
-                    sessionID: input.sessionID,
-                    operationID: input.request.operationID,
-                  })
-                  if (!saved) return yield* Effect.die(new Error("Task operation reservation was not projected"))
-                  const row = yield* db
-                    .select()
-                    .from(TaskTable)
-                    .where(eq(TaskTable.id, task.id))
-                    .get()
-                    .pipe(Effect.orDie)
-                  if (row) yield* saveClaim(toInfo(row, now), TaskOperation.permissionSource(saved), saved.operationID)
-                  yield* ScheduleTask.sync(db, { sessionID: input.sessionID, now, previous, execution: true })
+                    if (!saved) return yield* Effect.die(new Error("Task operation reservation was not projected"))
+                    const row = yield* db
+                      .select()
+                      .from(TaskTable)
+                      .where(eq(TaskTable.id, task.id))
+                      .get()
+                      .pipe(Effect.orDie)
+                    if (row)
+                      yield* saveClaim(toInfo(row, now), TaskOperation.permissionSource(saved), saved.operationID)
+                    yield* ScheduleTask.sync(db, { sessionID: input.sessionID, now, previous, execution: true })
+                  }),
+              })
+              .pipe(
+                Effect.catchDefect((error) => {
+                  if (error instanceof OperationConflictError) return Effect.fail(error)
+                  // The reservation projector runs before the commit hook in the same transaction.
+                  const cause =
+                    error instanceof EffectDrizzleQueryError && Cause.isCause(error.cause)
+                      ? Cause.findErrorOption(error.cause)
+                      : Option.none()
+                  if (
+                    Option.isSome(cause) &&
+                    cause.value instanceof SqlError &&
+                    cause.value.reason instanceof UniqueViolation &&
+                    cause.value.reason.constraint === "task_operation.input_id"
+                  )
+                    return Effect.fail(
+                      new OperationConflictError({
+                        sessionID: input.sessionID,
+                        operationID: input.request.operationID,
+                        reason: "input_owned",
+                      }),
+                    )
+                  return Effect.die(error)
                 }),
-            }).pipe(Effect.catchDefect((error) => {
-              if (error instanceof OperationConflictError) return Effect.fail(error)
-              // The reservation projector runs before the commit hook in the same transaction.
-              const cause = error instanceof EffectDrizzleQueryError && Cause.isCause(error.cause)
-                ? Cause.findErrorOption(error.cause)
-                : Option.none()
-              if (Option.isSome(cause) && cause.value instanceof SqlError &&
-                cause.value.reason instanceof UniqueViolation && cause.value.reason.constraint === "task_operation.input_id")
-                return Effect.fail(new OperationConflictError({ sessionID: input.sessionID,
-                  operationID: input.request.operationID, reason: "input_owned" }))
-              return Effect.die(error)
-            }))
-            if (task && predecessorID === undefined)
-              yield* publishBoth(
-                input.sessionID,
-                yield* readInfo(input.sessionID, now),
               )
+            if (task && predecessorID === undefined)
+              yield* publishBoth(input.sessionID, yield* readInfo(input.sessionID, now))
             const saved = yield* TaskOperation.get(db, {
               sessionID: input.sessionID,
               operationID: input.request.operationID,
@@ -941,10 +974,7 @@ export const layer = Layer.effect(
                 yield* ScheduleTask.sync(db, { sessionID: input.sessionID, now, previous: rows, execution: true })
               }),
           })
-          yield* publishBoth(
-            input.sessionID,
-            yield* readInfo(input.sessionID, now),
-          )
+          yield* publishBoth(input.sessionID, yield* readInfo(input.sessionID, now))
           const saved = yield* TaskOperation.get(db, input)
           if (!saved) return yield* Effect.die(new Error("Task operation attachment was not saved"))
           return saved
@@ -1005,17 +1035,48 @@ export const layer = Layer.effect(
                   )
                     return
                   const claim = yield* readClaim(input.sessionID, current.taskID)
-                  const settled = claim && claim.operationID === current.operationID && claim.parentTaskRevision === current.taskRevision && sameSource(claim.source, TaskOperation.permissionSource(current))
-                    ? yield* db.update(TaskTable).set({
-                      status: input.change.phase === "settled" ? "completed" : input.change.phase === "cancelled" || input.change.phase === "superseded" ? "cancelled" : "failed",
-                      output_digest: input.change.result?.text ?? input.change.error?.message,
-                      revision: current.taskRevision + 1,
-                      time_updated: now,
-                    }).where(and(eq(TaskTable.session_id, input.sessionID), eq(TaskTable.id, current.taskID), eq(TaskTable.revision, current.taskRevision), eq(TaskTable.operation_id, current.operationID))).returning({ id: TaskTable.id }).get().pipe(Effect.orDie)
-                    : undefined
+                  const settled =
+                    claim &&
+                    claim.operationID === current.operationID &&
+                    claim.parentTaskRevision === current.taskRevision &&
+                    sameSource(claim.source, TaskOperation.permissionSource(current))
+                      ? yield* db
+                          .update(TaskTable)
+                          .set({
+                            status:
+                              input.change.phase === "settled"
+                                ? "completed"
+                                : input.change.phase === "cancelled" || input.change.phase === "superseded"
+                                  ? "cancelled"
+                                  : "failed",
+                            output_digest: input.change.result?.text ?? input.change.error?.message,
+                            revision: current.taskRevision + 1,
+                            time_updated: now,
+                          })
+                          .where(
+                            and(
+                              eq(TaskTable.session_id, input.sessionID),
+                              eq(TaskTable.id, current.taskID),
+                              eq(TaskTable.revision, current.taskRevision),
+                              eq(TaskTable.operation_id, current.operationID),
+                            ),
+                          )
+                          .returning({ id: TaskTable.id })
+                          .get()
+                          .pipe(Effect.orDie)
+                      : undefined
                   const operation = yield* TaskOperation.get(db, input)
-                  if (operation && (operation.sourceSettlement === undefined || operation.sourceSettlement === "pending"))
-                    yield* TaskOperation.store(db, new SessionTask.OperationInfo({ ...operation, sourceSettlement: settled ? "settled" : "conflict" }))
+                  if (
+                    operation &&
+                    (operation.sourceSettlement === undefined || operation.sourceSettlement === "pending")
+                  )
+                    yield* TaskOperation.store(
+                      db,
+                      new SessionTask.OperationInfo({
+                        ...operation,
+                        sourceSettlement: settled ? "settled" : "conflict",
+                      }),
+                    )
                   yield* releaseOwned({
                     sessionID: input.sessionID,
                     id: current.taskID,
@@ -1027,7 +1088,11 @@ export const layer = Layer.effect(
             })
             const saved = yield* TaskOperation.get(db, input)
             if (!saved) return yield* Effect.die(new Error("Task operation change was not saved"))
-            if (current.taskID && input.change.phase && ["settled", "failed", "cancelled", "blocked", "superseded"].includes(input.change.phase))
+            if (
+              current.taskID &&
+              input.change.phase &&
+              ["settled", "failed", "cancelled", "blocked", "superseded"].includes(input.change.phase)
+            )
               yield* publishBoth(input.sessionID, yield* readInfo(input.sessionID, now))
             return saved
           }),
@@ -1035,30 +1100,85 @@ export const layer = Layer.effect(
     )
 
     const claimWaitingOperation = Effect.fn("SessionTask.claimWaitingOperation")((input: TaskOperation.Ref) =>
-      writeLock.withPermits(1)(Effect.gen(function* () {
-        const operation = yield* TaskOperation.get(db, input)
-        if (!operation) return yield* new OperationConflictError({ ...input, reason: "operation_missing" })
-        if (operation.phase !== "waiting") return operation
-        const waiting = (yield* TaskOperation.list(db, { sessionID: input.sessionID, taskID: operation.taskID })).filter((entry) => entry.phase === "waiting")
-        if (waiting[0]?.operationID !== input.operationID || !operation.taskID || (yield* readClaim(input.sessionID, operation.taskID))) return operation
-        const predecessor = operation.predecessorID ? yield* TaskOperation.get(db, { sessionID: input.sessionID, operationID: operation.predecessorID }) : undefined
-        if (predecessor && !["settled", "failed", "cancelled", "blocked", "superseded"].includes(predecessor.phase)) return operation
-        const task = yield* db.select().from(TaskTable).where(and(eq(TaskTable.session_id, input.sessionID), eq(TaskTable.id, operation.taskID))).get().pipe(Effect.orDie)
-        if (!task) return yield* new OperationConflictError({ ...input, reason: "task_missing" })
-        const now = (yield* DateTime.nowAsDate).getTime()
-        const data = { sessionID: input.sessionID, operationID: input.operationID, change: new SessionTask.OperationChange({ phase: "reserved", taskRevision: task.revision + 1 }) }
-        yield* events.publish(SessionTaskEvent.OperationChanged, data, { commit: (seq) => Effect.gen(function* () {
-          const previous = yield* read(input.sessionID)
-          const updated = yield* db.update(TaskTable).set({ status: "in_progress", operation_id: operation.operationID, revision: task.revision + 1, time_updated: now }).where(and(eq(TaskTable.session_id, input.sessionID), eq(TaskTable.id, task.id), eq(TaskTable.revision, task.revision))).returning({ id: TaskTable.id }).get().pipe(Effect.orDie)
-          if (!updated) return yield* Effect.die(new OperationConflictError({ ...input, reason: "phase_changed" }))
-          yield* TaskOperation.projectChanged(db, data, now, seq)
-          const row = yield* db.select().from(TaskTable).where(eq(TaskTable.id, task.id)).get().pipe(Effect.orDie)
-          if (row) yield* saveClaim(toInfo(row, now), TaskOperation.permissionSource(operation), operation.operationID)
-          yield* ScheduleTask.sync(db, { sessionID: input.sessionID, now, previous, execution: true })
-        }) }).pipe(Effect.catchDefect((error) => error instanceof OperationConflictError ? Effect.fail(error) : Effect.die(error)))
-        yield* publishBoth(input.sessionID, yield* readInfo(input.sessionID, now))
-        return (yield* TaskOperation.get(db, input)) ?? operation
-      })),
+      writeLock.withPermits(1)(
+        Effect.gen(function* () {
+          const operation = yield* TaskOperation.get(db, input)
+          if (!operation) return yield* new OperationConflictError({ ...input, reason: "operation_missing" })
+          if (operation.phase !== "waiting") return operation
+          const waiting = (yield* TaskOperation.list(db, {
+            sessionID: input.sessionID,
+            taskID: operation.taskID,
+          })).filter((entry) => entry.phase === "waiting")
+          if (
+            waiting[0]?.operationID !== input.operationID ||
+            !operation.taskID ||
+            (yield* readClaim(input.sessionID, operation.taskID))
+          )
+            return operation
+          const predecessor = operation.predecessorID
+            ? yield* TaskOperation.get(db, { sessionID: input.sessionID, operationID: operation.predecessorID })
+            : undefined
+          if (predecessor && !["settled", "failed", "cancelled", "blocked", "superseded"].includes(predecessor.phase))
+            return operation
+          const task = yield* db
+            .select()
+            .from(TaskTable)
+            .where(and(eq(TaskTable.session_id, input.sessionID), eq(TaskTable.id, operation.taskID)))
+            .get()
+            .pipe(Effect.orDie)
+          if (!task) return yield* new OperationConflictError({ ...input, reason: "task_missing" })
+          const now = (yield* DateTime.nowAsDate).getTime()
+          const data = {
+            sessionID: input.sessionID,
+            operationID: input.operationID,
+            change: new SessionTask.OperationChange({ phase: "reserved", taskRevision: task.revision + 1 }),
+          }
+          yield* events
+            .publish(SessionTaskEvent.OperationChanged, data, {
+              commit: (seq) =>
+                Effect.gen(function* () {
+                  const previous = yield* read(input.sessionID)
+                  const updated = yield* db
+                    .update(TaskTable)
+                    .set({
+                      status: "in_progress",
+                      operation_id: operation.operationID,
+                      revision: task.revision + 1,
+                      time_updated: now,
+                    })
+                    .where(
+                      and(
+                        eq(TaskTable.session_id, input.sessionID),
+                        eq(TaskTable.id, task.id),
+                        eq(TaskTable.revision, task.revision),
+                      ),
+                    )
+                    .returning({ id: TaskTable.id })
+                    .get()
+                    .pipe(Effect.orDie)
+                  if (!updated)
+                    return yield* Effect.die(new OperationConflictError({ ...input, reason: "phase_changed" }))
+                  yield* TaskOperation.projectChanged(db, data, now, seq)
+                  const row = yield* db
+                    .select()
+                    .from(TaskTable)
+                    .where(eq(TaskTable.id, task.id))
+                    .get()
+                    .pipe(Effect.orDie)
+                  if (row)
+                    yield* saveClaim(toInfo(row, now), TaskOperation.permissionSource(operation), operation.operationID)
+                  yield* ScheduleTask.sync(db, { sessionID: input.sessionID, now, previous, execution: true })
+                }),
+            })
+            .pipe(
+              Effect.catchDefect((error) =>
+                error instanceof OperationConflictError ? Effect.fail(error) : Effect.die(error),
+              ),
+            )
+          yield* publishBoth(input.sessionID, yield* readInfo(input.sessionID, now))
+          return (yield* TaskOperation.get(db, input)) ?? operation
+        }),
+      ),
     )
 
     const update = Effect.fn("SessionTask.update")(
@@ -1230,7 +1350,12 @@ export const layer = Layer.effect(
                       yield* tx.delete(TaskTable).where(eq(TaskTable.id, row.id)).run().pipe(Effect.orDie)
                     }
                   }
-                  yield* ScheduleTask.sync(tx, { sessionID: input.sessionID, now, previous: existing, execution: options?.claim !== undefined || options?.settle !== undefined })
+                  yield* ScheduleTask.sync(tx, {
+                    sessionID: input.sessionID,
+                    now,
+                    previous: existing,
+                    execution: options?.claim !== undefined || options?.settle !== undefined,
+                  })
                   return { type: "ok" as const, resolved: yield* readInfo(input.sessionID, now) }
                 }),
               )
@@ -1392,7 +1517,12 @@ export const layer = Layer.effect(
                       .pipe(Effect.orDie)
                     position++
                   }
-                  yield* ScheduleTask.sync(tx, { sessionID: input.sessionID, now, previous: existing, execution: options?.claim !== undefined || options?.settle !== undefined })
+                  yield* ScheduleTask.sync(tx, {
+                    sessionID: input.sessionID,
+                    now,
+                    previous: existing,
+                    execution: options?.claim !== undefined || options?.settle !== undefined,
+                  })
                   const full = yield* readInfo(input.sessionID, now)
                   const added = new Set(planned.map((task) => task.id))
                   for (const task of full) {
@@ -1502,7 +1632,12 @@ export const layer = Layer.effect(
                   for (const row of existing.slice(input.tasks.length)) {
                     yield* tx.delete(TaskTable).where(eq(TaskTable.id, row.id)).run().pipe(Effect.orDie)
                   }
-                  yield* ScheduleTask.sync(tx, { sessionID: input.sessionID, now, previous: existing, execution: options?.claim !== undefined || options?.settle !== undefined })
+                  yield* ScheduleTask.sync(tx, {
+                    sessionID: input.sessionID,
+                    now,
+                    previous: existing,
+                    execution: options?.claim !== undefined || options?.settle !== undefined,
+                  })
                   return { type: "ok" as const, resolved: yield* readInfo(input.sessionID, now) }
                 }),
               )
@@ -1539,11 +1674,15 @@ export const layer = Layer.effect(
       writeLock.withPermits(1)(
         Effect.gen(function* () {
           const now = (yield* DateTime.nowAsDate).getTime()
-          yield* db.transaction(() => Effect.gen(function* () {
-            const previous = yield* read(sessionID)
-            yield* db.delete(TaskTable).where(eq(TaskTable.session_id, sessionID)).run().pipe(Effect.orDie)
-            yield* ScheduleTask.sync(db, { sessionID, now, previous })
-          })).pipe(Effect.catchTag("SqlError", Effect.die))
+          yield* db
+            .transaction(() =>
+              Effect.gen(function* () {
+                const previous = yield* read(sessionID)
+                yield* db.delete(TaskTable).where(eq(TaskTable.session_id, sessionID)).run().pipe(Effect.orDie)
+                yield* ScheduleTask.sync(db, { sessionID, now, previous })
+              }),
+            )
+            .pipe(Effect.catchTag("SqlError", Effect.die))
           yield* publishBoth(sessionID, [])
         }),
       ),
@@ -1565,7 +1704,12 @@ export const layer = Layer.effect(
                   if (owned) return yield* owned
                   const schedules = yield* ScheduleTask.nextRuns(db, input.sessionID)
                   yield* db.delete(TaskTable).where(scoped).run().pipe(Effect.orDie)
-                  yield* ScheduleTask.sync(db, { sessionID: input.sessionID, now, previous, execution: options?.claim !== undefined || options?.settle !== undefined })
+                  yield* ScheduleTask.sync(db, {
+                    sessionID: input.sessionID,
+                    now,
+                    previous,
+                    execution: options?.claim !== undefined || options?.settle !== undefined,
+                  })
                   return { task: toInfo(row, now, schedules.get(row.id)), full: yield* readInfo(input.sessionID, now) }
                 }),
               )
@@ -1660,7 +1804,12 @@ export const layer = Layer.effect(
                 .pipe(Effect.orDie)
               const row = yield* db.select().from(TaskTable).where(scoped).get().pipe(Effect.orDie)
               if (!row) return undefined
-              yield* ScheduleTask.sync(db, { sessionID: input.sessionID, now, previous, execution: options?.claim !== undefined || options?.settle !== undefined })
+              yield* ScheduleTask.sync(db, {
+                sessionID: input.sessionID,
+                now,
+                previous,
+                execution: options?.claim !== undefined || options?.settle !== undefined,
+              })
               const schedules = yield* ScheduleTask.nextRuns(db, input.sessionID)
               const task = toInfo(row, now, schedules.get(row.id))
               if (options?.claim) yield* saveClaim(task, options.claim)
@@ -1737,7 +1886,12 @@ export const layer = Layer.effect(
                       .run()
                       .pipe(Effect.orDie)
                   }
-                  yield* ScheduleTask.sync(tx, { sessionID: input.sessionID, now, previous: existing, execution: options?.claim !== undefined || options?.settle !== undefined })
+                  yield* ScheduleTask.sync(tx, {
+                    sessionID: input.sessionID,
+                    now,
+                    previous: existing,
+                    execution: options?.claim !== undefined || options?.settle !== undefined,
+                  })
                   return yield* readInfo(input.sessionID, now)
                 }),
               )
@@ -1774,8 +1928,11 @@ export const layer = Layer.effect(
     const listAll = Effect.fn("SessionTask.listAll")(function* () {
       const now = (yield* DateTime.nowAsDate).getTime()
       const rows = yield* db.select().from(TaskTable).orderBy(asc(TaskTable.position)).all().pipe(Effect.orDie)
-      const schedules = new Map((yield* Effect.forEach([...new Set(rows.map((row) => row.session_id))],
-        (sessionID) => ScheduleTask.nextRuns(db, sessionID))).flatMap((runs) => [...runs]))
+      const schedules = new Map(
+        (yield* Effect.forEach([...new Set(rows.map((row) => row.session_id))], (sessionID) =>
+          ScheduleTask.nextRuns(db, sessionID),
+        )).flatMap((runs) => [...runs]),
+      )
       return rows.map((row) => toInfo(row, now, schedules.get(row.id)))
     })
 

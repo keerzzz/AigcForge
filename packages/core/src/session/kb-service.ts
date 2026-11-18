@@ -420,8 +420,14 @@ export const layer = Layer.effect(
               if (!FSUtil.contains(dir, oldAbsolute)) {
                 return yield* Effect.die(new Error("Note title escapes the knowledge-base directory"))
               }
-              const newTarget: FileMutation.Target = { absolute: AbsolutePath.make(newAbsolute), resource: `${title}.md` }
-              const oldTarget: FileMutation.Target = { absolute: AbsolutePath.make(oldAbsolute), resource: `${prior.title}.md` }
+              const newTarget: FileMutation.Target = {
+                absolute: AbsolutePath.make(newAbsolute),
+                resource: `${title}.md`,
+              }
+              const oldTarget: FileMutation.Target = {
+                absolute: AbsolutePath.make(oldAbsolute),
+                resource: `${prior.title}.md`,
+              }
               // Rename: write new mirror first, then remove old, both inside locks.
               // Lock both paths in sorted order to avoid deadlock; check duplicate/title
               // inside the lock so a concurrent create/rename cannot slip between check and write.
@@ -815,4 +821,8 @@ export const startupLayer = Layer.effectDiscard(
     )
   }),
 )
-export const startupNode = LayerNode.make({ name: "KnowledgeBaseStartup", layer: startupLayer, deps: [node, FSUtil.node] })
+export const startupNode = LayerNode.make({
+  name: "KnowledgeBaseStartup",
+  layer: startupLayer,
+  deps: [node, FSUtil.node],
+})

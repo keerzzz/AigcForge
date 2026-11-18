@@ -5,10 +5,7 @@ export function selectTheme(document: ThemeDocument, mode?: Mode): ThemeDefiniti
   return selectThemeMode(document, mode).theme
 }
 
-export function selectThemeMode(
-  document: ThemeDocument,
-  mode: Mode = "light",
-): { theme: ThemeDefinition; mode: Mode } {
+export function selectThemeMode(document: ThemeDocument, mode: Mode = "light"): { theme: ThemeDefinition; mode: Mode } {
   const modes = themeModes(document)
   const selectedMode = modes.includes(mode) ? mode : modes[0]
   const selected = document[selectedMode]

@@ -169,10 +169,7 @@ const describeOutput = (format: string) => {
   return encoding === undefined ? SpeechStream.container(codec, sampleRate) : SpeechStream.pcm(encoding, sampleRate)
 }
 
-const finish = Effect.fnUntraced(function* (
-  state: State,
-  context: MediaProtocol.ResponseContext<Request>,
-) {
+const finish = Effect.fnUntraced(function* (state: State, context: MediaProtocol.ResponseContext<Request>) {
   const requestID = context.http.headers["request-id"]
   return yield* SpeechStream.finish(route, state, {
     ...describeOutput(yield* outputFormat(context.request)),

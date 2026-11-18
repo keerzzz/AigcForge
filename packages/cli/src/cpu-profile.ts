@@ -19,10 +19,7 @@ export const listen = Effect.gen(function* () {
   )
   yield* Effect.gen(function* () {
     yield* Queue.take(signals)
-    const file = path.join(
-      global.log,
-      `cpu-${process.pid}-${new Date().toISOString().replace(/[:.]/g, "")}.cpuprofile`,
-    )
+    const file = path.join(global.log, `cpu-${process.pid}-${new Date().toISOString().replace(/[:.]/g, "")}.cpuprofile`)
     yield* run(file, Effect.sleep("10 seconds")).pipe(
       Effect.catchCause((cause) => Effect.logError("Failed to capture CPU profile", { path: file, cause })),
     )

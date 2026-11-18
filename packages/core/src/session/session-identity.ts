@@ -303,7 +303,12 @@ export const layer = Layer.effect(
         model:
           model === undefined
             ? { status: "missing" as const }
-            : { status: "ready" as const, value: Model.Selection.isGroup(model) ? model : { providerID: String(model.providerID), modelID: String(model.id) } },
+            : {
+                status: "ready" as const,
+                value: Model.Selection.isGroup(model)
+                  ? model
+                  : { providerID: String(model.providerID), modelID: String(model.id) },
+              },
         permission: { declaredTier: session.permissionTier ?? PermissionTier.Default, effect },
         capability: resolved.capability,
         coordination,

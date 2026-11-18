@@ -137,10 +137,7 @@ const HOSTED_TOOLS = {
   },
 } satisfies ResponsesHostedTools.Definitions
 
-const onEvent = Effect.fnUntraced(function* (
-  state: OpenResponses.ParserState,
-  input: OpenResponses.Event,
-) {
+const onEvent = Effect.fnUntraced(function* (state: OpenResponses.ParserState, input: OpenResponses.Event) {
   const event = OpenResponses.normalize(state, input)
   if (event.type === "response.output_item.done" && event.item && ResponsesHostedTools.isItem(event.item, HOSTED_TOOLS))
     return yield* ResponsesHostedTools.onDone(state, event.item, HOSTED_TOOLS)

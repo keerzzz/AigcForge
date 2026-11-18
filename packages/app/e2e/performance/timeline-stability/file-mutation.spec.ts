@@ -65,13 +65,7 @@ test("adds patch files incrementally without resetting outer expansion", async (
   const third = patchFile("src/old.ts", "deleted")
   await timeline.send(
     partUpdated(
-      toolPart(
-        patchID,
-        "patch",
-        "running",
-        { patchText: "Update files" },
-        { metadata: { files: [first, second] } },
-      ),
+      toolPart(patchID, "patch", "running", { patchText: "Update files" }, { metadata: { files: [first, second] } }),
     ),
     240,
   )

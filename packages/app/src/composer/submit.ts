@@ -282,7 +282,9 @@ function handoffMessage(value: ComposerSubmission): SessionMessageUser {
     metadata: {
       displayText: value.text,
       sessionReferences: value.prompt.flatMap((part) =>
-        part.type === "session" ? [{ reference: part.reference, start: part.start, end: part.end, content: part.content }] : [],
+        part.type === "session"
+          ? [{ reference: part.reference, start: part.start, end: part.end, content: part.content }]
+          : [],
       ),
       attachments: value.prompt.flatMap((part) =>
         part.type === "path" ? [{ name: part.filename, mime: part.mime, path: part.path }] : [],
@@ -372,7 +374,10 @@ function currentSelection(input: ComposerSubmitInput): ComposerSelection | undef
     executorPreference: preference
       ? { ...preference, model: preference.model ? { ...preference.model } : undefined }
       : undefined,
-    model: "type" in model && model.type === "group" ? { type: "group", groupID: model.groupID } : { modelID: model.id, providerID: model.provider.id },
+    model:
+      "type" in model && model.type === "group"
+        ? { type: "group", groupID: model.groupID }
+        : { modelID: model.id, providerID: model.provider.id },
     variant: controls.model.selection.variant.current(),
   }
 }
@@ -439,9 +444,11 @@ function restoreSubmission(
 
   // A recovered follow-up changes the payload, so it must use a new admission ID.
   if (value.mode === "normal" && restored.prompt === submission.prompt) {
-    restored.target.retry.set("type" in value.selection.model
-      ? { id: value.id, agent: value.selection.agent, ...value.selection.model }
-      : { id: value.id, agent: value.selection.agent, ...value.selection.model, variant: value.selection.variant })
+    restored.target.retry.set(
+      "type" in value.selection.model
+        ? { id: value.id, agent: value.selection.agent, ...value.selection.model }
+        : { id: value.id, agent: value.selection.agent, ...value.selection.model, variant: value.selection.variant },
+    )
   }
 
   if (!submission.current(input.adapter.state)) return true

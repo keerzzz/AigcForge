@@ -11,19 +11,19 @@ SC02和Custom Group精确恢复请求已由原keeper、真实Runner请求对象�
 ## 结论与范围
 
 | 修复前优先级 | 已修复并复验 |
-| --- | ---: |
-| P1 | 2 |
-| P2 | 10 |
+| ------------ | -----------: |
+| P1           |            2 |
+| P2           |           10 |
 
 工作区 `/home/keer/workspace/aigcfroge-v2`，分支 `v2-dev`，HEAD `0a09f6bccdb71f1234eea759eb99e8a336d1d4da`。本轮没有新增提交。对照范围为原暂存差分相对HEAD及本轮修复增量；`origin/main` 已核对为 `d11d3c7c16f0bcf318a0197bfb647c3cf81b06fd`，浅克隆merge-base未取得，完整分支相对main的审查仍需另行绑定。原暂存tree `b0984199fec45942c22b2c8020d0d65a9c53c812`，证据整理后tree `97790e5b5b16853605646c30c98a1fbd5bd2fde8`。最终暂存tree、numstat、补丁与工件SHA由仓外 `final-index-receipt.json` 记录，避免索引嵌入自身哈希。
 
-| 原分配范围 | 文件 | 审阅方式 |
-| --- | ---: | --- |
-| Frontend | 250 | changed hunks、owning contracts；Root接审20 tests/specs，7项unit/component差分、4项完整case、9项selected E2E合同 |
-| Platform | 83 | owning boundary差分；大型generated采用正式canonical字节比较 |
-| Session／Schema／AI／Protocol／Server | 261 | 182差分、2生成合同、77表层风险分流；6782 hunks全部分类 |
-| Root文档 | 18 | 计划绑定；连同相关包文档共24文件、1493个本地链接目标核对 |
-| 合计 | 612 | 文件完成分流不授予逐行全文审计或全套运行通过 |
+| 原分配范围                            | 文件 | 审阅方式                                                                                                         |
+| ------------------------------------- | ---: | ---------------------------------------------------------------------------------------------------------------- |
+| Frontend                              |  250 | changed hunks、owning contracts；Root接审20 tests/specs，7项unit/component差分、4项完整case、9项selected E2E合同 |
+| Platform                              |   83 | owning boundary差分；大型generated采用正式canonical字节比较                                                      |
+| Session／Schema／AI／Protocol／Server |  261 | 182差分、2生成合同、77表层风险分流；6782 hunks全部分类                                                           |
+| Root文档                              |   18 | 计划绑定；连同相关包文档共24文件、1493个本地链接目标核对                                                         |
+| 合计                                  |  612 | 文件完成分流不授予逐行全文审计或全套运行通过                                                                     |
 
 ## 确认finding与修复
 
@@ -211,21 +211,20 @@ App Agent归一化、Session引用编码、CLI implicit effort label沿原映射
 
 所有产品测试从包目录、通过仓库script/bun运行；测试／构建槽串行、E2E workers=1/retries=0。具体完整命令、cwd、exit、tally、时间和源码身份见机器索引。
 
-| 最终验证 | exit | 实际结果 | 工件 |
-| --- | ---: | --- | --- |
-| Core原七文件 | 0 | 508 pass / 0 fail / 3183 expects / 7文件 | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/core-session-keepers-wire-fixed.log) |
-| Core transport七项 | 0 | 7 pass / 0 fail / 37 expects | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/core-session-wire-seven-fixed.log) |
-| App全包unit | 0 | 814 pass / 0 fail / 2394 expects / 108文件 | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/app-unit-frozen.json) |
-| App browser | 0 | 172 pass / 0 fail / 1827 expects / 38文件 | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/app-browser-frozen.json) |
-| TUI原30文件 | 0 | 494 pass / 2 skip / 0 fail / 103752 expects | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/platform-tui-readiness-normal-final.log) |
-| Server原12文件 | 0 | 82 pass / 0 fail / 1645 expects | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/server-staged-twelve-green.json) |
-| App production E2E | 0 | 4 passed：SC07 legacy BTW、两持续侧root、MP03保存目标、model/group碰撞 | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/app-e2e-green.json) |
-| App／E2E类型 | 0 | 各自exit0；App原类型收据另列机器索引 | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/app-e2e-types-frozen.json) |
-| Client browser三文件 | 0 | 197 pass / 0 skip / 0 fail / 1098 expects | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/platform-client-browser-normalized.log) |
-| CLI四文件 | 0 | 57 pass / 0 fail / 352 expects | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/platform-cli-final.log) |
-| canonical check | 0 | 1346 warnings / 0 errors；类型24/24成功 | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/repository-check-final.json) |
-| strict lint:changed HEAD | 1 | 187 diagnostics / 29 dirty / 227 GUI changed files | [失败收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/repository-lint-changed-final.json) |
-
+| 最终验证                 | exit | 实际结果                                                               | 工件                                                                                              |
+| ------------------------ | ---: | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Core原七文件             |    0 | 508 pass / 0 fail / 3183 expects / 7文件                               | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/core-session-keepers-wire-fixed.log)     |
+| Core transport七项       |    0 | 7 pass / 0 fail / 37 expects                                           | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/core-session-wire-seven-fixed.log)       |
+| App全包unit              |    0 | 814 pass / 0 fail / 2394 expects / 108文件                             | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/app-unit-frozen.json)                    |
+| App browser              |    0 | 172 pass / 0 fail / 1827 expects / 38文件                              | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/app-browser-frozen.json)                 |
+| TUI原30文件              |    0 | 494 pass / 2 skip / 0 fail / 103752 expects                            | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/platform-tui-readiness-normal-final.log) |
+| Server原12文件           |    0 | 82 pass / 0 fail / 1645 expects                                        | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/server-staged-twelve-green.json)         |
+| App production E2E       |    0 | 4 passed：SC07 legacy BTW、两持续侧root、MP03保存目标、model/group碰撞 | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/app-e2e-green.json)                      |
+| App／E2E类型             |    0 | 各自exit0；App原类型收据另列机器索引                                   | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/app-e2e-types-frozen.json)               |
+| Client browser三文件     |    0 | 197 pass / 0 skip / 0 fail / 1098 expects                              | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/platform-client-browser-normalized.log)  |
+| CLI四文件                |    0 | 57 pass / 0 fail / 352 expects                                         | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/platform-cli-final.log)                  |
+| canonical check          |    0 | 1346 warnings / 0 errors；类型24/24成功                                | [收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/repository-check-final.json)             |
+| strict lint:changed HEAD |    1 | 187 diagnostics / 29 dirty / 227 GUI changed files                     | [失败收据](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/repository-lint-changed-final.json)  |
 
 App unit日志有ECONNRESET辅助输出，但runner exit0、0 fail。Btw三场景与Meta六场景为实际组件内存传输回放，production E2E为上表独立四项。重叠测试组不相加；本报告没有全仓测试全绿或代码覆盖率百分比的可执行工件。
 

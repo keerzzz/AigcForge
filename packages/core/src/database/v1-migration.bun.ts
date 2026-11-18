@@ -540,7 +540,9 @@ export function run(options: Options = {}): Effect.Effect<RunResult, never, Data
       if (state?.phase === "completed") return { status: "completed" as const }
       if (!(yield* hasLegacySessions(db))) return { status: "completed" as const }
       if (yield* db.get(sql`SELECT 1 FROM event WHERE type GLOB 'session.next.*' LIMIT 1`))
-        return yield* Effect.die(new Error("Legacy event-sourced sessions require legacy-main recovery before V1 import"))
+        return yield* Effect.die(
+          new Error("Legacy event-sourced sessions require legacy-main recovery before V1 import"),
+        )
       const now = Date.now()
       yield* db.run(sql`
           INSERT OR IGNORE INTO project (id, worktree, time_created, time_updated, time_active, sandboxes)

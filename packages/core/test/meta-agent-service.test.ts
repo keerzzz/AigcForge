@@ -63,9 +63,7 @@ describe("MetaAgentService coordination", () => {
       })
       const mismatch = yield* fixture.service.coordination(fixture.id, { agent: Agent.ID.make("build") })
       expect(mismatch.available).toBe(false)
-      expect(mismatch.reasons.map((reason) => reason.code)).toEqual([
-        SessionIdentity.ReasonCodes.metaExecutionMismatch,
-      ])
+      expect(mismatch.reasons.map((reason) => reason.code)).toEqual([SessionIdentity.ReasonCodes.metaExecutionMismatch])
     }),
   )
 
@@ -73,11 +71,7 @@ describe("MetaAgentService coordination", () => {
     it.live(`MP01 keeps a saved Meta controller inactive while ${agent} is selected`, () =>
       Effect.gen(function* () {
         const fixture = yield* coordinationFixture
-        yield* fixture.db
-          .update(SessionTable)
-          .set({ agent })
-          .where(eq(SessionTable.id, fixture.id))
-          .pipe(Effect.orDie)
+        yield* fixture.db.update(SessionTable).set({ agent }).where(eq(SessionTable.id, fixture.id)).pipe(Effect.orDie)
         const capability = yield* fixture.service.coordination(fixture.id)
         expect(capability.available).toBe(false)
         expect(capability.selection.agent).toBe(Agent.ID.make(agent))
@@ -111,9 +105,7 @@ describe("MetaAgentService coordination", () => {
         .pipe(Effect.orDie)
       const child = yield* fixture.service.coordination(childID)
       expect(child.available).toBe(false)
-      expect(child.reasons.map((reason) => reason.code)).toEqual([
-        SessionIdentity.ReasonCodes.coordinationRootRequired,
-      ])
+      expect(child.reasons.map((reason) => reason.code)).toEqual([SessionIdentity.ReasonCodes.coordinationRootRequired])
       yield* fixture.service.detach({ metaID: fixture.meta.id, sessionID: fixture.id })
       const root = yield* fixture.service.coordination(fixture.id)
       expect(root.available).toBe(false)
@@ -147,7 +139,9 @@ describe("MetaAgentService coordination", () => {
               root: new Composition.BuiltinRoot({
                 source: "builtin",
                 id: "meta",
-                revision: Composition.Revision.make(CompositionDigest.computeDigest(Schema.encodeSync(Agent.Info)(info))),
+                revision: Composition.Revision.make(
+                  CompositionDigest.computeDigest(Schema.encodeSync(Agent.Info)(info)),
+                ),
               }),
               orchestrator: info,
               agents: [],
@@ -158,7 +152,12 @@ describe("MetaAgentService coordination", () => {
               commands: [],
               maxConcurrency: 1,
               bindings: {
-                orchestrator: new Composition.SnapshotBindingData({ instructions: [], prompts: [], skills: [], commands: [] }),
+                orchestrator: new Composition.SnapshotBindingData({
+                  instructions: [],
+                  prompts: [],
+                  skills: [],
+                  commands: [],
+                }),
               },
               tools: CompositionDigest.captureTools(
                 [{ type: "tool", name, description: name, inputSchema: { type: "object" }, placement: "direct" }],

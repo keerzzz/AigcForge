@@ -3,7 +3,4 @@
 import { $ } from "bun"
 
 await $`bun run generate`.cwd("packages/protocol")
-
-await $`bun run generate`.cwd("services/www")
-
-await $`./script/format.ts`
+await $`bun run generate`.cwd("packages/client")

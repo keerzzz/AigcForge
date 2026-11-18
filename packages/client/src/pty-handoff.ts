@@ -32,7 +32,10 @@ export async function prepare(file: string, info: Info, timeout: number) {
       // Another caller may already have prepared and stopped this server.
       const concurrent = await read(file)
       if (concurrent !== undefined && concurrent.expiresAt > Date.now() && same(concurrent.source, info)) return
-      console.warn("Background service cannot hand off persistent terminals; shutting them down before replacement", cause)
+      console.warn(
+        "Background service cannot hand off persistent terminals; shutting them down before replacement",
+        cause,
+      )
       await client.experimental.persistentPty.shutdown({ signal: AbortSignal.timeout(timeout) }).catch(() => {})
       return null
     })

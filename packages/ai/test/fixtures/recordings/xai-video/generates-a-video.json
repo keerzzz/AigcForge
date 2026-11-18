@@ -1,11 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:xai-video",
-      "provider:xai",
-      "protocol:xai-video"
-    ],
+    "tags": ["prefix:xai-video", "provider:xai", "protocol:xai-video"],
     "name": "xai-video/generates-a-video",
     "recordedAt": "2026-09-22T19:37:31.721Z"
   },

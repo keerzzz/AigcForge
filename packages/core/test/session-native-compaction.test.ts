@@ -49,7 +49,9 @@ const it = testEffect(
   ),
 )
 
-const setup = Effect.fnUntraced(function* (options: { endpoint?: boolean; request?: Agent.Info["request"]; connection?: ModelSource.ConnectionRef } = {}) {
+const setup = Effect.fnUntraced(function* (
+  options: { endpoint?: boolean; request?: Agent.Info["request"]; connection?: ModelSource.ConnectionRef } = {},
+) {
   const endpoint = options.endpoint ?? false
   const db = (yield* Database.Service).db
   const bus = yield* Bus.Service
@@ -266,41 +268,64 @@ const setup = Effect.fnUntraced(function* (options: { endpoint?: boolean; reques
   }
 })
 
-it.live("P4 proves the actual compact endpoint before binding its replacement to the generation deployment and account", () => Effect.gen(function* () {
-  const connection = { type: "env" as const, name: "NATIVE_ACCOUNT_A" }
-  const fixture = yield* setup({ endpoint: true, connection })
-  yield* fixture.prompt("Original visible request")
-  expect(yield* fixture.compact).toEqual({ status: "completed" })
-  const checkpoint = yield* fixture.checkpoint
-  expect(fixture.paths).toEqual(["/responses/compact"])
-  expect(checkpoint.provenance.connection).toEqual(connection)
-  expect(checkpoint.provenance.deployment).toBeDefined()
-  expect(SessionProviderContext.compatible(checkpoint.provenance, SessionProviderContext.provenance(fixture.model))).toBe(true)
-  const db = (yield* Database.Service).db
-  const history = yield* SessionHistory.load(db, fixture.sessionID, SessionProviderContext.provenance({
-    ...fixture.model, connection: { type: "env", name: "NATIVE_ACCOUNT_B" },
-  }) ?? "local")
-  expect(history.filter((message) => message.type === "user").map((message) => message.text)).toEqual(["Original visible request"])
-  expect(history.some(SessionProviderContext.isCheckpoint)).toBe(false)
-  expect(yield* fixture.checkpoint).toEqual(checkpoint)
-}))
+it.live(
+  "P4 proves the actual compact endpoint before binding its replacement to the generation deployment and account",
+  () =>
+    Effect.gen(function* () {
+      const connection = { type: "env" as const, name: "NATIVE_ACCOUNT_A" }
+      const fixture = yield* setup({ endpoint: true, connection })
+      yield* fixture.prompt("Original visible request")
+      expect(yield* fixture.compact).toEqual({ status: "completed" })
+      const checkpoint = yield* fixture.checkpoint
+      expect(fixture.paths).toEqual(["/responses/compact"])
+      expect(checkpoint.provenance.connection).toEqual(connection)
+      expect(checkpoint.provenance.deployment).toBeDefined()
+      expect(
+        SessionProviderContext.compatible(checkpoint.provenance, SessionProviderContext.provenance(fixture.model)),
+      ).toBe(true)
+      const db = (yield* Database.Service).db
+      const history = yield* SessionHistory.load(
+        db,
+        fixture.sessionID,
+        SessionProviderContext.provenance({
+          ...fixture.model,
+          connection: { type: "env", name: "NATIVE_ACCOUNT_B" },
+        }) ?? "local",
+      )
+      expect(history.filter((message) => message.type === "user").map((message) => message.text)).toEqual([
+        "Original visible request",
+      ])
+      expect(history.some(SessionProviderContext.isCheckpoint)).toBe(false)
+      expect(yield* fixture.checkpoint).toEqual(checkpoint)
+    }),
+)
 
-it.live("P4 retains readable history and declines a native checkpoint rerouted by the HTTP hook", () => Effect.gen(function* () {
-  const fixture = yield* setup({ endpoint: true, connection: { type: "env", name: "NATIVE_ACCOUNT_A" } })
-  yield* fixture.prompt("Original visible request")
-  yield* fixture.hooks.register("session", "http.request", (event) => Effect.sync(() => {
-    const url = new URL(event.request.url)
-    url.pathname = "/rerouted/compact"
-    event.request = new Request(url.toString(), event.request)
-  }))
-  expect(yield* fixture.compact).toMatchObject({ status: "failed", error: {
-    type: "provider.unsupported-operation", message: "Native compaction did not prove the producing connection and deployment",
-  } })
-  expect(fixture.paths).toEqual(["/rerouted/compact"])
-  const history = (yield* fixture.load).messages
-  expect(history.some(SessionProviderContext.isCheckpoint)).toBe(false)
-  expect(history.filter((message) => message.type === "user").map((message) => message.text)).toEqual(["Original visible request"])
-}))
+it.live("P4 retains readable history and declines a native checkpoint rerouted by the HTTP hook", () =>
+  Effect.gen(function* () {
+    const fixture = yield* setup({ endpoint: true, connection: { type: "env", name: "NATIVE_ACCOUNT_A" } })
+    yield* fixture.prompt("Original visible request")
+    yield* fixture.hooks.register("session", "http.request", (event) =>
+      Effect.sync(() => {
+        const url = new URL(event.request.url)
+        url.pathname = "/rerouted/compact"
+        event.request = new Request(url.toString(), event.request)
+      }),
+    )
+    expect(yield* fixture.compact).toMatchObject({
+      status: "failed",
+      error: {
+        type: "provider.unsupported-operation",
+        message: "Native compaction did not prove the producing connection and deployment",
+      },
+    })
+    expect(fixture.paths).toEqual(["/rerouted/compact"])
+    const history = (yield* fixture.load).messages
+    expect(history.some(SessionProviderContext.isCheckpoint)).toBe(false)
+    expect(history.filter((message) => message.type === "user").map((message) => message.text)).toEqual([
+      "Original visible request",
+    ])
+  }),
+)
 
 for (const endpoint of [false, true])
   it.live(`sends context Agent headers and body through native compaction ${endpoint ? "endpoint" : "trigger"}`, () =>

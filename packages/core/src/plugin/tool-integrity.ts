@@ -60,23 +60,34 @@ export const Plugin = define({
         }
         const referenced = files === undefined ? undefined : yield* references.check(input)
         const checked = files === undefined ? undefined : yield* verifier.verify(input)
-        const reports = files === undefined
-          ? ["[工具检查] 未检查：工具结果未提供可验证的变更文件。"]
-          : [referenced ?? "", checked?.text ?? ""]
-        const text = [...reports, `[验证来源] verification.source=${JSON.stringify({ messageID: input.source.messageID, id: input.source.id })}`].filter(Boolean).join("\n")
+        const reports =
+          files === undefined
+            ? ["[工具检查] 未检查：工具结果未提供可验证的变更文件。"]
+            : [referenced ?? "", checked?.text ?? ""]
+        const text = [
+          ...reports,
+          `[验证来源] verification.source=${JSON.stringify({ messageID: input.source.messageID, id: input.source.id })}`,
+        ]
+          .filter(Boolean)
+          .join("\n")
         event.result = {
           ...event.result,
-          ...(text ? { content: [...normalizeContent(event.result.content, event.result.output), { type: "text", text }] } : {}),
+          ...(text
+            ? { content: [...normalizeContent(event.result.content, event.result.output), { type: "text", text }] }
+            : {}),
           metadata: {
             ...event.result.metadata,
-            verification: Schema.encodeSync(Schema.toCodecJson(Verifier.Result))(checked?.result ?? new Verifier.Result({
-              sessionID: input.sessionID,
-              toolName: input.toolName,
-              source: input.source,
-              status: "unchecked",
-              files: [],
-              packages: [],
-            })),
+            verification: Schema.encodeSync(Schema.toCodecJson(Verifier.Result))(
+              checked?.result ??
+                new Verifier.Result({
+                  sessionID: input.sessionID,
+                  toolName: input.toolName,
+                  source: input.source,
+                  status: "unchecked",
+                  files: [],
+                  packages: [],
+                }),
+            ),
           },
         }
       }),

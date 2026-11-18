@@ -529,18 +529,24 @@ capturedPluginTest.live("reads canonical model groups through the Promise plugin
       async setup(ctx) {
         const response = await ctx.model.group.definition.get({ groupID: "fixture-missing-group" })
         const payload = {
-          groupID: "fixture-missing-group", target: { scope: "global" as const, path: "/fixture/aigcfroge.jsonc" }, expectedDigest: null,
+          groupID: "fixture-missing-group",
+          target: { scope: "global" as const, path: "/fixture/aigcfroge.jsonc" },
+          expectedDigest: null,
         }
-        await expect(ctx.model.group.definition.save({ payload: { ...payload, patch: { set: { members: [] } } } })).rejects.toThrow("Authored model group configuration is unavailable")
-        await expect(ctx.model.group.definition.remove({ payload })).rejects.toThrow("Authored model group configuration is unavailable")
+        await expect(
+          ctx.model.group.definition.save({ payload: { ...payload, patch: { set: { members: [] } } } }),
+        ).rejects.toThrow("Authored model group configuration is unavailable")
+        await expect(ctx.model.group.definition.remove({ payload })).rejects.toThrow(
+          "Authored model group configuration is unavailable",
+        )
         Effect.runSync(Deferred.succeed(read, response.data))
       },
     })
     yield* plugins.activate([{ ...definition, revision: "1" }])
     yield* plugins.awaitActivation
-    const result = Schema.decodeUnknownSync(ModelGroup.Read)(yield* awaitWithTimeout(
-      Deferred.await(read), "The original Promise plugin API did not return its group read",
-    ))
+    const result = Schema.decodeUnknownSync(ModelGroup.Read)(
+      yield* awaitWithTimeout(Deferred.await(read), "The original Promise plugin API did not return its group read"),
+    )
     expect(result.effective).toMatchObject([{ groupID: "fixture-missing-group", unavailable: "missing" }])
     expect((yield* plugins.list())[0]?.state.status).toBe("active")
   }),

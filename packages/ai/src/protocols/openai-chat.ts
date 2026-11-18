@@ -91,7 +91,11 @@ const OpenRouterDetailFields = {
 }
 const ReasoningDetail = Schema.Union([
   Schema.StructWithRest(
-    Schema.Struct({ type: Schema.Literal("reasoning.text"), text: Schema.optional(Schema.String), ...OpenRouterDetailFields }),
+    Schema.Struct({
+      type: Schema.Literal("reasoning.text"),
+      text: Schema.optional(Schema.String),
+      ...OpenRouterDetailFields,
+    }),
     [Schema.Record(Schema.String, Schema.Unknown)],
   ),
   Schema.StructWithRest(
@@ -408,10 +412,7 @@ const lowerReasoningDetail = (detail: ReasoningDetail) => {
 
 const isKimiDetail = (detail: { readonly type: string }) => detail.type === "summary" || detail.type === "encrypted"
 
-const lowerUserMessage = Effect.fnUntraced(function* (
-  message: OpenAIChatRequestMessage,
-  options: LoweringOptions,
-) {
+const lowerUserMessage = Effect.fnUntraced(function* (message: OpenAIChatRequestMessage, options: LoweringOptions) {
   const content: OpenAIChatUserContent[] = []
   for (const part of message.content) {
     if (part.type === "text") {
@@ -497,10 +498,7 @@ const lowerAssistantMessage = Effect.fnUntraced(function* (
   return { ...result, [field]: reasoningText }
 })
 
-const lowerToolMessages = Effect.fnUntraced(function* (
-  message: OpenAIChatRequestMessage,
-  options: LoweringOptions,
-) {
+const lowerToolMessages = Effect.fnUntraced(function* (message: OpenAIChatRequestMessage, options: LoweringOptions) {
   const messages: OpenAIChatMessage[] = []
   const attachments: OpenAIChatUserContent[] = []
   for (const part of message.content) {
@@ -608,10 +606,7 @@ const lowerMessages = Effect.fnUntraced(function* (request: LLMRequest, options:
       if (pendingAttachments.length > 0) {
         messages.push({
           role: "user",
-          content: [
-            ...pendingAttachments.splice(0),
-            { type: "text", text: part.text, cache_control: cacheControl },
-          ],
+          content: [...pendingAttachments.splice(0), { type: "text", text: part.text, cache_control: cacheControl }],
         })
         continue
       }
@@ -629,10 +624,7 @@ const lowerMessages = Effect.fnUntraced(function* (request: LLMRequest, options:
       else if (previous?.role === "user" && Array.isArray(previous.content))
         messages[messages.length - 1] = {
           role: "user",
-          content: [
-            ...previous.content,
-            { type: "text", text: part.text, cache_control: cacheControl },
-          ],
+          content: [...previous.content, { type: "text", text: part.text, cache_control: cacheControl }],
         }
       else
         messages.push(

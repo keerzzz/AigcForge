@@ -142,10 +142,7 @@ export type Model = {
   options: NonNullable<ModelListOutput["data"][number]["settings"]>
   headers: Record<string, string>
   release_date: string
-  variants?: Record<
-    string,
-    NonNullable<ModelListOutput["data"][number]["variants"][number]["settings"]>
-  >
+  variants?: Record<string, NonNullable<ModelListOutput["data"][number]["variants"][number]["settings"]>>
 }
 
 export type Provider = {

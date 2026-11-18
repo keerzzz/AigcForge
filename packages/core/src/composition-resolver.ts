@@ -924,15 +924,24 @@ export const layer = Layer.effect(
             message: "Ready MCP connection facts do not match the captured tool catalog",
           })
         const rootModel = resolved.orchestrator.model
-        const groupBehavior = rootModel !== undefined && Model.Selection.isGroup(rootModel)
-          ? yield* groups.behavior(rootModel.groupID).pipe(Effect.mapError((error) => new Composition.ResolveError({ code: "root_group_unavailable", message: error.message })))
-          : undefined
+        const groupBehavior =
+          rootModel !== undefined && Model.Selection.isGroup(rootModel)
+            ? yield* groups
+                .behavior(rootModel.groupID)
+                .pipe(
+                  Effect.mapError(
+                    (error) => new Composition.ResolveError({ code: "root_group_unavailable", message: error.message }),
+                  ),
+                )
+            : undefined
         const executors = yield* Effect.forEach(resolved.executors, (executor) => {
           const selected = executor.info.model
           if (selected === undefined || !Model.Selection.isGroup(selected)) return Effect.succeed(executor)
           return groups.behavior(selected.groupID).pipe(
             Effect.map((groupBehavior) => new Composition.SnapshotExecutorData({ ...executor, groupBehavior })),
-            Effect.mapError((error) => new Composition.ResolveError({ code: "executor_group_unavailable", message: error.message })),
+            Effect.mapError(
+              (error) => new Composition.ResolveError({ code: "executor_group_unavailable", message: error.message }),
+            ),
           )
         })
         // New freezes use the complete scoped shape even for a single agent.

@@ -1,10 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:vercel-native",
-      "provider:vercel-ai-gateway"
-    ],
+    "tags": ["prefix:vercel-native", "provider:vercel-ai-gateway"],
     "name": "vercel-native/continues-messages-gemini-reasoning-and-tools",
     "recordedAt": "2026-10-02T03:35:15.999Z"
   },

@@ -106,9 +106,7 @@
         "target:packages/core/src/plugin/agent.ts:31",
         "target:packages/core/src/plugin/internal.ts:335"
       ],
-      "fixtures": [
-        "target:packages/core/test/meta-agent-memory.test.ts:1"
-      ]
+      "fixtures": ["target:packages/core/test/meta-agent-memory.test.ts:1"]
     },
     {
       "id": "ASSISTANT-PERSONAL-MEMORY",
@@ -176,9 +174,7 @@
         "old:packages/app/src/pages/assistant-dashboard.tsx:171",
         "old:packages/app/src/pages/session/assistant-kb-tab.tsx:25"
       ],
-      "fixtures": [
-        "target:packages/core/test/kb-service.test.ts:1"
-      ]
+      "fixtures": ["target:packages/core/test/kb-service.test.ts:1"]
     },
     {
       "id": "ASSISTANT-KB",
@@ -210,9 +206,7 @@
         "old:docs/prd/assistant-mode-personal-agent.md:480",
         "old:packages/app/src/pages/session/assistant-kb-tab.tsx:81"
       ],
-      "fixtures": [
-        "target:packages/core/test/kb-service.test.ts:1"
-      ]
+      "fixtures": ["target:packages/core/test/kb-service.test.ts:1"]
     },
     {
       "id": "ASSISTANT-REMINDERS",
@@ -248,9 +242,7 @@
         "old:docs/prd/assistant-mode-personal-agent.md:130",
         "old:packages/app/src/pages/assistant-dashboard.tsx:259"
       ],
-      "fixtures": [
-        "target:packages/core/test/schedule-service.test.ts:1"
-      ]
+      "fixtures": ["target:packages/core/test/schedule-service.test.ts:1"]
     },
     {
       "id": "IMPORT-ASSET-CONFIG",
@@ -316,9 +308,7 @@
         "target:packages/core/src/import-parser.ts:269",
         "target:docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md:126"
       ],
-      "fixtures": [
-        "target:packages/core/test/session-create.test.ts:1"
-      ]
+      "fixtures": ["target:packages/core/test/session-create.test.ts:1"]
     },
     {
       "id": "EXTERNAL-CLI-CONTINUATION",
@@ -530,9 +520,7 @@
         "target:packages/app/src/home/sessions/controller.tsx:85",
         "target:docs/technical-debt.md:71"
       ],
-      "fixtures": [
-        "target:packages/app/src/home/sessions/index.test.ts:1"
-      ]
+      "fixtures": ["target:packages/app/src/home/sessions/index.test.ts:1"]
     },
     {
       "id": "GLOBAL-SYNC-CONFIG",
@@ -674,10 +662,7 @@
       "rule": "现行账本明确全量/reorder 缺结构版本、recurrence 时区 nextRun 与旧 owning marker 的缺口；已关闭的确切 marker 更正不重开。",
       "owner": "产品 Owner/Task/Core与/root",
       "unlock": "结构竞争、时区和旧记录修复明确合同及真实证据",
-      "source_refs": [
-        "target:docs/technical-debt.md:14",
-        "target:docs/technical-debt.md:19"
-      ]
+      "source_refs": ["target:docs/technical-debt.md:14", "target:docs/technical-debt.md:19"]
     },
     {
       "id": "P1-WORK-CUSTOM-WORKFLOW-ENTRY",
@@ -708,10 +693,7 @@
       "rule": "公开 URL 的 destination、受众/凭据/保留/撤销恢复未在当前 owner 中闭环；内部分享关闭不授权公开发布。",
       "owner": "产品 Owner/Share/Server/App与/root",
       "unlock": "具体可审查 payload/访问/撤销实现与独立远程发布授权",
-      "source_refs": [
-        "target:docs/technical-debt.md:10",
-        "old:packages/aigcfroge/src/share/share-next.ts:338"
-      ]
+      "source_refs": ["target:docs/technical-debt.md:10", "old:packages/aigcfroge/src/share/share-next.ts:338"]
     }
   ],
   "authority_refs": [
@@ -741,846 +723,595 @@
       "scope": "target",
       "sha256": "96bbbbb397353d205a850f0ad0f10bd2fc4c108f65af432d6eff79ef681c2ecc",
       "line_count_at_capture": 229,
-      "cited_lines": [
-        5,
-        126,
-        132,
-        134,
-        140,
-        160
-      ]
+      "cited_lines": [5, 126, 132, 134, 140, 160]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/p1-first-asset-preflight-2026-10-25-skill.md",
       "scope": "target",
       "sha256": "b94e7eed14f47ce9076d92ac851d08b34b7eb5cfdb193ff6993cf1724949832a",
       "line_count_at_capture": 72,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/p2-mode-preflight-2026-10-25-generic-create.md",
       "scope": "target",
       "sha256": "a8acd2d1c1b930880439fc3f49bcc5a1ed44c35824698ffa1cf597e9a68690d0",
       "line_count_at_capture": 118,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/docs/review/v2-task-product-audit-2026-10-24.md",
       "scope": "target",
       "sha256": "45ac52fd2c17d9479db16d513dac87318fdcdfebd52f0e152099542600e06ffa",
       "line_count_at_capture": 43,
-      "cited_lines": [
-        3
-      ]
+      "cited_lines": [3]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/docs/technical-debt.md",
       "scope": "target",
       "sha256": "6fa66ae1873bcbea59a382c1f45056575af022f0f91e44477ce92230b4e0f4a0",
       "line_count_at_capture": 74,
-      "cited_lines": [
-        9,
-        10,
-        11,
-        14,
-        19,
-        22,
-        71,
-        74
-      ]
+      "cited_lines": [9, 10, 11, 14, 19, 22, 71, 74]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/app/e2e/regression/session-header.spec.ts",
       "scope": "target",
       "sha256": "d84e778f51a9bff79c854624446d38676bb82e325db32de338fb514d4c11852e",
       "line_count_at_capture": 1012,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/app/src/home/sessions/controller.tsx",
       "scope": "target",
       "sha256": "54adc370893c980f0af63c6ac0895eab1dd167183a8bcb02cdb8c2c37a795654",
       "line_count_at_capture": 447,
-      "cited_lines": [
-        62,
-        85
-      ]
+      "cited_lines": [62, 85]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/app/src/home/sessions/index.test.ts",
       "scope": "target",
       "sha256": "4e5aac5664b8f8b2ecb2f079123cfd077e3a0f6f4bae91c6bd1bf9d58c90be1f",
       "line_count_at_capture": 163,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/app/src/home/sessions/search.ts",
       "scope": "target",
       "sha256": "388c94bede4cb6bd1aa8e7c05333cca82b3e1d9941b3f50ac1f85acfef511d64",
       "line_count_at_capture": 177,
-      "cited_lines": [
-        16,
-        41,
-        162
-      ]
+      "cited_lines": [16, 41, 162]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/app/src/runtime/server/global-sync/bootstrap.test.ts",
       "scope": "target",
       "sha256": "148ca3c3e9b18b29468dfb153af36b853a212ceffb9ed185627c77b8254810fe",
       "line_count_at_capture": 174,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/app/src/runtime/server/global-sync/bootstrap.ts",
       "scope": "target",
       "sha256": "456061a7664a6d94a92b30782be0e0ff0c8371ac3e706c5cc449b1b99fcbb6df",
       "line_count_at_capture": 179,
-      "cited_lines": [
-        52,
-        81
-      ]
+      "cited_lines": [52, 81]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/app/src/runtime/server/sync.tsx",
       "scope": "target",
       "sha256": "06087d430c7721d9fc9fb4951eb49093bc4e6b1519dca51dc60e3f052b901c66",
       "line_count_at_capture": 369,
-      "cited_lines": [
-        289
-      ]
+      "cited_lines": [289]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/app/src/session/tasks/session-task-panel.tsx",
       "scope": "target",
       "sha256": "8c1b452664c28d86e147c3dbcf055fcc675bf024db60b6b570fc39b163cea996",
       "line_count_at_capture": 528,
-      "cited_lines": [
-        73,
-        108,
-        180,
-        255
-      ]
+      "cited_lines": [73, 108, 180, 255]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/client/src/solid/data.ts",
       "scope": "target",
       "sha256": "7a29ed7cac739f457dab28d597a1207926bd2c8ae028fd5672551858e75c3422",
       "line_count_at_capture": 2055,
-      "cited_lines": [
-        674
-      ]
+      "cited_lines": [674]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/client/test/solid-data.test.ts",
       "scope": "target",
       "sha256": "3a8ea4118bab4c433547b3b1705c091f8d1cf2862552689a3c93fa546446b6fe",
       "line_count_at_capture": 1417,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/agent/meta/memory.ts",
       "scope": "target",
       "sha256": "e50c504091a84151f8946e45d959a851addb4757f352e436514c26ab365c0310",
       "line_count_at_capture": 166,
-      "cited_lines": [
-        87,
-        115
-      ]
+      "cited_lines": [87, 115]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/composition/reference.ts",
       "scope": "target",
       "sha256": "c6f31142b51f231d87dd0c74d595aa0d5851865b30bd2d371106bbd7e246146d",
       "line_count_at_capture": 58,
-      "cited_lines": [
-        26
-      ]
+      "cited_lines": [26]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/config.ts",
       "scope": "target",
       "sha256": "6f8f5e068ab0a07df5de40adbef3f3ff2028617531ab766f84016f8aa964c02f",
       "line_count_at_capture": 375,
-      "cited_lines": [
-        22
-      ]
+      "cited_lines": [22]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/execution.ts",
       "scope": "target",
       "sha256": "d8dc255aff6784f97f2ec054ab99ce28beefc669ed14f80fac98399c6dc1c767",
       "line_count_at_capture": 1043,
-      "cited_lines": [
-        550,
-        587,
-        607
-      ]
+      "cited_lines": [550, 587, 607]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/review.ts",
       "scope": "target",
       "sha256": "ec22f99aaf4c2c6d174e3b6cd660f1437a1b9950b0a00c09b611a347b4bfe926",
       "line_count_at_capture": 225,
-      "cited_lines": [
-        20,
-        78
-      ]
+      "cited_lines": [20, 78]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/service.ts",
       "scope": "target",
       "sha256": "031e8afc9d52215c95a94363f1378047d455151f6375de538cd73c02142c4baa",
       "line_count_at_capture": 1149,
-      "cited_lines": [
-        434,
-        1104
-      ]
+      "cited_lines": [434, 1104]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/import-parser.ts",
       "scope": "target",
       "sha256": "a84bddf8531bd5fd449764aeef14a54894edcbceeded3c9cdcbde90805d74b45",
       "line_count_at_capture": 355,
-      "cited_lines": [
-        252,
-        269,
-        348
-      ]
+      "cited_lines": [252, 269, 348]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/meta-agent/service.ts",
       "scope": "target",
       "sha256": "473a291a4c4e64350ca3e3785741b10324964b9e6a00dc898c329ec9a1e8e328",
       "line_count_at_capture": 301,
-      "cited_lines": [
-        94,
-        178,
-        216
-      ]
+      "cited_lines": [94, 178, 216]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/plugin/agent.ts",
       "scope": "target",
       "sha256": "fdc1581cc37632f5a7f09904958461d7f0be8a2d3835567e3794d253acfee8a3",
       "line_count_at_capture": 220,
-      "cited_lines": [
-        31,
-        120,
-        182
-      ]
+      "cited_lines": [31, 120, 182]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/plugin/internal.ts",
       "scope": "target",
       "sha256": "0b1504efa42277d0dd1a90c0ca1016961f1898e3ab03e610aab06b177a761d26",
       "line_count_at_capture": 399,
-      "cited_lines": [
-        283,
-        330,
-        335,
-        338
-      ]
+      "cited_lines": [283, 330, 335, 338]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session.ts",
       "scope": "target",
       "sha256": "cc61a9836e8580231e6a49729f1f60d72413dec820bd9d751c1e6f553e0160fe",
       "line_count_at_capture": 810,
-      "cited_lines": [
-        392,
-        429
-      ]
+      "cited_lines": [392, 429]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/composition.ts",
       "scope": "target",
       "sha256": "8eb03f4e69815846d111fae35ca6b038bc12c325f62027ff15d674641239ee51",
       "line_count_at_capture": 659,
-      "cited_lines": [
-        248
-      ]
+      "cited_lines": [248]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/context.ts",
       "scope": "target",
       "sha256": "25b11148445a0a3b1fca37ad1b95a33b0013acb9ce53173a0042cdb5eb74c63e",
       "line_count_at_capture": 355,
-      "cited_lines": [
-        159,
-        215,
-        225
-      ]
+      "cited_lines": [159, 215, 225]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/kb-service.ts",
       "scope": "target",
       "sha256": "49d8d84c9a6a879f18a32db1f7864a0dc411d9c9f7ca6b805dc844eedd8e5def",
       "line_count_at_capture": 818,
-      "cited_lines": [
-        167,
-        270,
-        273,
-        375
-      ]
+      "cited_lines": [167, 270, 273, 375]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/personal-memory.ts",
       "scope": "target",
       "sha256": "d094a0166c6e8d56c527660c0a993ac0ffb049a9396f6bd3349a603a4631b387",
       "line_count_at_capture": 244,
-      "cited_lines": [
-        90,
-        158,
-        171
-      ]
+      "cited_lines": [90, 158, 171]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/schedule-service.ts",
       "scope": "target",
       "sha256": "fbfbe574dacccfd70d54e973a01c21a56ce5c3e8ddfde7b69b040298ab71b95a",
       "line_count_at_capture": 714,
-      "cited_lines": [
-        533,
-        697,
-        714
-      ]
+      "cited_lines": [533, 697, 714]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/share-v2.ts",
       "scope": "target",
       "sha256": "cc7a53905549af3e76a1902cfc5a75b71dfc1de85e07a2cdda4895353577c32e",
       "line_count_at_capture": 97,
-      "cited_lines": [
-        17,
-        36,
-        50,
-        66,
-        81
-      ]
+      "cited_lines": [17, 36, 50, 66, 81]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/task.ts",
       "scope": "target",
       "sha256": "ca6200aa39797a6ef2b9358662c6261dfc093262bbb405e822cdfaa2bf1b6cae",
       "line_count_at_capture": 1136,
-      "cited_lines": [
-        963
-      ]
+      "cited_lines": [963]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/transfer.ts",
       "scope": "target",
       "sha256": "39638ff14d7c1d35b254f6e3ea3ab5dc5ef7544b6106ddba74aafbfb51433013",
       "line_count_at_capture": 336,
-      "cited_lines": [
-        57,
-        64,
-        91
-      ]
+      "cited_lines": [57, 64, 91]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/cli-adapter.ts",
       "scope": "target",
       "sha256": "d358c688fd81d5754200006a473a17efff9b1fead6bd80f051a58a11ae483fd8",
       "line_count_at_capture": 156,
-      "cited_lines": [
-        44,
-        85,
-        139
-      ]
+      "cited_lines": [44, 85, 139]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/cli-discovery.ts",
       "scope": "target",
       "sha256": "6b9e289fcb0da69d48efd7d56814962a177f53d97f29392a803af6446b41640c",
       "line_count_at_capture": 31,
-      "cited_lines": [
-        15
-      ]
+      "cited_lines": [15]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/kb-tools.ts",
       "scope": "target",
       "sha256": "4205282cb68836d465508361e35cd8b7c81fd44197ef7512639111b604fd2f7c",
       "line_count_at_capture": 267,
-      "cited_lines": [
-        45,
-        59
-      ]
+      "cited_lines": [45, 59]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/list-assets.ts",
       "scope": "target",
       "sha256": "8bdbe8a467641d4c7ebedd21fc0dfb102460d9c32fc6ff0db423b26918300ed5",
       "line_count_at_capture": 118,
-      "cited_lines": [
-        58
-      ]
+      "cited_lines": [58]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/memory.ts",
       "scope": "target",
       "sha256": "0d8fed042c8a6e33434b49ee434c74fb63c463e74c191b1d7932a3366f57915d",
       "line_count_at_capture": 134,
-      "cited_lines": [
-        74
-      ]
+      "cited_lines": [74]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/plugin/share.ts",
       "scope": "target",
       "sha256": "4d5e6acd8873e47cadcbd547c56b81d857394e0bb9be626f253331bd52ecaad1",
       "line_count_at_capture": 77,
-      "cited_lines": [
-        48
-      ]
+      "cited_lines": [48]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/propose-note.ts",
       "scope": "target",
       "sha256": "12adbd79d51de3dc4085de54d8526377903ebd659fe114254d2819316a5384a3",
       "line_count_at_capture": 103,
-      "cited_lines": [
-        59,
-        81
-      ]
+      "cited_lines": [59, 81]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/reminder-cancel.ts",
       "scope": "target",
       "sha256": "36ed9282c69648725a3ccded2f96ba61c6d349329562c01c7cd0c3e79d6ac8f5",
       "line_count_at_capture": 81,
-      "cited_lines": [
-        56
-      ]
+      "cited_lines": [56]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/reminder-create.ts",
       "scope": "target",
       "sha256": "8e1ce3a3e7946dc12fc4cddd57c6146e9866f5ed3a8b598bedba2ac6bc828925",
       "line_count_at_capture": 128,
-      "cited_lines": [
-        34,
-        77,
-        108
-      ]
+      "cited_lines": [34, 77, 108]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/workflow/execution.ts",
       "scope": "target",
       "sha256": "82f0fe4af7194e06c100b89dab6d542e8c68d5ce14737a9cb6c85ca01c362e3c",
       "line_count_at_capture": 1042,
-      "cited_lines": [
-        179,
-        840,
-        863
-      ]
+      "cited_lines": [179, 840, 863]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/cli-discovery.test.ts",
       "scope": "target",
       "sha256": "2f9af1cd32b50d27aaa5f1d616f3921f10728aea7894326dd13861e1b4dcb290",
       "line_count_at_capture": 103,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/delegation-execution.test.ts",
       "scope": "target",
       "sha256": "8d6403bde2d9affbe443b889d172100e770e6c5240939fdf138a9f4842a93269",
       "line_count_at_capture": 1429,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/delegation-review.test.ts",
       "scope": "target",
       "sha256": "acd35d84330bacfa1f277234763673c676055aa13f76f94da83cadca1b3e56cb",
       "line_count_at_capture": 345,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/delegation-service.test.ts",
       "scope": "target",
       "sha256": "9c90e65f3d55ce53f6841d810026127bb1da9b7e3f6c584f32eadab571c1b43a",
       "line_count_at_capture": 1329,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/import-parser-redos.test.ts",
       "scope": "target",
       "sha256": "44f756ed99b8efc76b7e72df72e37cf6ecfc60ee4573180bf76b15cf68f01757",
       "line_count_at_capture": 70,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/import-parser-size-warnings.test.ts",
       "scope": "target",
       "sha256": "55707422120abcfa70b8e2ab07e5096aff6f87385b8b1f73f4faf3e2286cf3ee",
       "line_count_at_capture": 95,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/import-parser.test.ts",
       "scope": "target",
       "sha256": "ec641130c15f3986e8504dbf7292a40aef256dedf49beded51482e15305cf8a3",
       "line_count_at_capture": 128,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/kb-service.test.ts",
       "scope": "target",
       "sha256": "e124199d45752d472d5288ae9a5439b25a91ac8c7db8b84bea589189ca6bf0ea",
       "line_count_at_capture": 429,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/meta-agent-integration.test.ts",
       "scope": "target",
       "sha256": "1b837ea3f756ff77b6f0ae344f56428f03820b55ab0d8dd0f1dd3c2e36391a1e",
       "line_count_at_capture": 46,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/meta-agent-memory.test.ts",
       "scope": "target",
       "sha256": "f0845bd47c5a879adfb3fd41aa7f713b8a32610fe85b28675a596cf09280be63",
       "line_count_at_capture": 241,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/meta-agent-service.test.ts",
       "scope": "target",
       "sha256": "68941a59b3b2020a2ec4b57e4ccbfd94cf6ab395b2fdda62724b8b2602a82ad3",
       "line_count_at_capture": 171,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/personal-memory.test.ts",
       "scope": "target",
       "sha256": "78e53086699197f21dad3713d81eafd1406d5851578cb1f05f7cb1a377a9e85d",
       "line_count_at_capture": 102,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/schedule-service.test.ts",
       "scope": "target",
       "sha256": "adc35c81fda8d1135765c9aa8882c4a30d69ad7953c5207219fe6a6c7b4b7168",
       "line_count_at_capture": 442,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/session-composition-references.test.ts",
       "scope": "target",
       "sha256": "64ff08bc73b8f4fb5881e592323a2c6e9e7d5d986ca3c753b236f8d3e169959d",
       "line_count_at_capture": 440,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/session-create.test.ts",
       "scope": "target",
       "sha256": "cf5f5c24acd1ac876f20fa0216bd94c667bfcf9e2aed5cd05106c8f7cb252b0f",
       "line_count_at_capture": 1581,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/session-skill.test.ts",
       "scope": "target",
       "sha256": "d08b820a1d90c452fb9caa16be1b79aaa7becd67b471952d44ddedd9436a3d47",
       "line_count_at_capture": 593,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/workflow-execution.test.ts",
       "scope": "target",
       "sha256": "f9e7a8b0bfca0d67e20a1d362ba6d9f14fecd97359a68f4db3303b6ee1431b7d",
       "line_count_at_capture": 1944,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/protocol/src/groups/import-parser.ts",
       "scope": "target",
       "sha256": "de9f1587a18fd35bd36e40cea7bee6bb216248eb5693b784346295d872696472",
       "line_count_at_capture": 28,
-      "cited_lines": [
-        11
-      ]
+      "cited_lines": [11]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/protocol/src/groups/session-instance.ts",
       "scope": "target",
       "sha256": "8cf66cd8fd3d2c528989dff096c3c51fe90f95eea52e06ba4a1c5a51452ff11e",
       "line_count_at_capture": 1040,
-      "cited_lines": [
-        709,
-        721
-      ]
+      "cited_lines": [709, 721]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/schema/src/custom-profile.ts",
       "scope": "target",
       "sha256": "c008a4c79d0d02d88d4961d6f4109894eac2e95d511a419f950c733ec5d10cc1",
       "line_count_at_capture": 191,
-      "cited_lines": [
-        83
-      ]
+      "cited_lines": [83]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/schema/src/import-parser.ts",
       "scope": "target",
       "sha256": "72264cb866326ba9ad8cda5ba91dc96a1960d125fc878cb45d35d3dc9111cc82",
       "line_count_at_capture": 35,
-      "cited_lines": [
-        19
-      ]
+      "cited_lines": [19]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/schema/src/kb-note.ts",
       "scope": "target",
       "sha256": "650e173ed66adae523fa62a6c5031b907dd7c77cc769885506f51dcf460901ab",
       "line_count_at_capture": 101,
-      "cited_lines": [
-        24
-      ]
+      "cited_lines": [24]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/schema/test/personal-memory.test.ts",
       "scope": "target",
       "sha256": "dd2201c5382eb9021a047fbc8bf80d6b024657da27aa07eb1c03e44c6bcd5c36",
       "line_count_at_capture": 56,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/server/src/handlers/assistant-stubs.ts",
       "scope": "target",
       "sha256": "9a1bea3f332f402199ca1f36b79e43c25d7b32152fa259369a265e6d71c767b8",
       "line_count_at_capture": 56,
-      "cited_lines": [
-        20,
-        30,
-        42,
-        52
-      ]
+      "cited_lines": [20, 30, 42, 52]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/server/src/handlers/composition-stubs.ts",
       "scope": "target",
       "sha256": "fc0d653811a9ecaaf778282b73f3c6a382da6f3a1e52efc252750981089df8d7",
       "line_count_at_capture": 184,
-      "cited_lines": [
-        65
-      ]
+      "cited_lines": [65]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/server/src/handlers/config.ts",
       "scope": "target",
       "sha256": "9a314620f58985efe752905b87e8f59afd25c4426801d31832fbedef6ea30f92",
       "line_count_at_capture": 26,
-      "cited_lines": [
-        7
-      ]
+      "cited_lines": [7]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/server/src/handlers/custom-profile.ts",
       "scope": "target",
       "sha256": "3ff01fb4a0f448c9b90219d32b2a2c116f359106f7bfa7304713d6c105454c96",
       "line_count_at_capture": 125,
-      "cited_lines": [
-        26
-      ]
+      "cited_lines": [26]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/server/src/handlers/delegation.ts",
       "scope": "target",
       "sha256": "10f8da86dd67b9c35dea58c43e842ed6c06ed9bcd19f70703af2a80261d601c1",
       "line_count_at_capture": 200,
-      "cited_lines": [
-        38,
-        84
-      ]
+      "cited_lines": [38, 84]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/server/src/handlers/session-instance-stubs.ts",
       "scope": "target",
       "sha256": "a202949ec699659f9eba759cfe3876da7957135a0fbaee61de1e610b3f6026ce",
       "line_count_at_capture": 226,
-      "cited_lines": [
-        132,
-        174,
-        180,
-        192
-      ]
+      "cited_lines": [132, 174, 180, 192]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/server/test/custom-composition.test.ts",
       "scope": "target",
       "sha256": "09c5293fd8830392c095178affdea332d4664b2b784feba4ecd32c84b23b8997",
       "line_count_at_capture": 1220,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/server/test/delegation.test.ts",
       "scope": "target",
       "sha256": "fac1d696616b756d47ab6c11defc3dc1d1ebd3b105ef0f21b19437a87209e990",
       "line_count_at_capture": 1005,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/server/test/session-task.test.ts",
       "scope": "target",
       "sha256": "ca9b8ba5629dd02a5d7dbd856f0f883edbaf3d7720a07f8280c4694caca308e8",
       "line_count_at_capture": 628,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge-v2/packages/server/test/workflow-execution.test.ts",
       "scope": "target",
       "sha256": "86fedfddb33dee80415d846ac189f88c595036e47a6c32bf0e87147116954249",
       "line_count_at_capture": 427,
-      "cited_lines": [
-        1
-      ]
+      "cited_lines": [1]
     },
     {
       "path": "/home/keer/workspace/aigcfroge/docs/prd/assistant-mode-personal-agent.md",
       "scope": "old",
       "sha256": "cc36729e2fbf1dfb5a4a647927c01f714886a2592a38a9724e2fb34082051684",
       "line_count_at_capture": 571,
-      "cited_lines": [
-        51,
-        130,
-        211,
-        215,
-        258,
-        480,
-        488
-      ]
+      "cited_lines": [51, 130, 211, 215, 258, 480, 488]
     },
     {
       "path": "/home/keer/workspace/aigcfroge/docs/prd/custom-mode-composition-platform.md",
       "scope": "old",
       "sha256": "3e0504b54535450751298f7fa1c0fec77581887ea7f55da9fdec16f7a5336aa0",
       "line_count_at_capture": 419,
-      "cited_lines": [
-        123,
-        292
-      ]
+      "cited_lines": [123, 292]
     },
     {
       "path": "/home/keer/workspace/aigcfroge/docs/prd/meta-agent-orchestrator.md",
       "scope": "old",
       "sha256": "bd6e80c24ae600527811ec93af9a9f50cd274a667097cc41ee9848550db2431b",
       "line_count_at_capture": 356,
-      "cited_lines": [
-        65,
-        67,
-        68,
-        79
-      ]
+      "cited_lines": [65, 67, 68, 79]
     },
     {
       "path": "/home/keer/workspace/aigcfroge/packages/aigcfroge/src/share/share-next.ts",
       "scope": "old",
       "sha256": "57c38ae8da8a4749b27969881b51ba96ad3f963430653accde5869071e424139",
       "line_count_at_capture": 385,
-      "cited_lines": [
-        310,
-        338
-      ]
+      "cited_lines": [310, 338]
     },
     {
       "path": "/home/keer/workspace/aigcfroge/packages/app/src/components/chat/chat-import-dialog.tsx",
       "scope": "old",
       "sha256": "cbd3df4585866c9b92a4ec05bcbeab286faacef78374871faa6b6eb71f0d6b3c",
       "line_count_at_capture": 564,
-      "cited_lines": [
-        104,
-        234,
-        262
-      ]
+      "cited_lines": [104, 234, 262]
     },
     {
       "path": "/home/keer/workspace/aigcfroge/packages/app/src/pages/assistant-dashboard.tsx",
       "scope": "old",
       "sha256": "d0a9624b20af522b24f6ab622be07a223d0c0beec44d607d0a830e880d5a93eb",
       "line_count_at_capture": 519,
-      "cited_lines": [
-        116,
-        171,
-        259
-      ]
+      "cited_lines": [116, 171, 259]
     },
     {
       "path": "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/assistant-kb-tab.tsx",
       "scope": "old",
       "sha256": "bf95f65b66a168f32e5c34a165381d47a0913ef9965432505f1d7a0aa09d1026",
       "line_count_at_capture": 284,
-      "cited_lines": [
-        25,
-        81
-      ]
+      "cited_lines": [25, 81]
     },
     {
       "path": "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/assistant-session-panel.tsx",
       "scope": "old",
       "sha256": "129abb0f01035f942fccd9caf53358e96d8e687b9c6e4a0253c69bfb45d49e2d",
       "line_count_at_capture": 322,
-      "cited_lines": [
-        120
-      ]
+      "cited_lines": [120]
     }
   ],
   "report_markdown": {

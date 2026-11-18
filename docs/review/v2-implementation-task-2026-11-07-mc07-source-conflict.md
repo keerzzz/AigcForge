@@ -4,7 +4,7 @@
 
 2026-11-07。监督 Root 在 fanout 工程接受、相关 govern 字节未变及检查槽空闲后正式派发本测试补证，和零运行的 fanout 包准备并行。新工作会话及子智能体模型均为 **gpt-6.1-sol / max**。实际仓 `/home/keer/workspace/aigcfroge-v2`，默认 `/home/keer/workspace/aigcfroge` 只读；保留分支、全部 WIP、文件模式。一个实施者、一个串行检查 owner，监督 Root 负责最终签收及仓内文档。
 
-[Root 顺序裁定](</home/keer/.codex/outputs/2026-11-07/mc07-source-conflict-engineering-v1/sequence-decision.json>)确认本测试不依赖 fanout 的真实运行结果；[前序工程接受](/home/keer/.codex/outputs/2026-11-07/mc07-fanout-engineering-v1/root-engineering-acceptance.json)、[before](</home/keer/.codex/outputs/2026-11-07/mc07-source-conflict-engineering-v1/before-files.json>)、[正式派发](</home/keer/.codex/outputs/2026-11-07/mc07-source-conflict-engineering-v1/dispatch.json>)构成本次绑定。输出目录 `/home/keer/.codex/outputs/2026-11-07/mc07-source-conflict-engineering-v1`。本会话主智能体独占工程写入与串行检查槽；最终通过后停止写入并交回监督 Root。
+[Root 顺序裁定](/home/keer/.codex/outputs/2026-11-07/mc07-source-conflict-engineering-v1/sequence-decision.json)确认本测试不依赖 fanout 的真实运行结果；[前序工程接受](/home/keer/.codex/outputs/2026-11-07/mc07-fanout-engineering-v1/root-engineering-acceptance.json)、[before](/home/keer/.codex/outputs/2026-11-07/mc07-source-conflict-engineering-v1/before-files.json)、[正式派发](/home/keer/.codex/outputs/2026-11-07/mc07-source-conflict-engineering-v1/dispatch.json)构成本次绑定。输出目录 `/home/keer/.codex/outputs/2026-11-07/mc07-source-conflict-engineering-v1`。本会话主智能体独占工程写入与串行检查槽；最终通过后停止写入并交回监督 Root。
 
 唯一测试文件当前模式为 **0775**，必须保留；现有字节 SHA256 `cb1fd9d3b49a22f02f9bd042e779e5e40464761ed4f18931e193407c4bb304ae`。不得因常见测试模式为0664而改写。原目录的阶段 A / prompt / review 保持历史；当前权限以上述具体正式绑定为准。
 

@@ -297,7 +297,8 @@ export function createHostApis() {
       list: () => current()?.sessions() ?? [],
       current: () => current()?.current(),
       openTask: (input) => context.links.open({ href: "", session: input.source, task: input.target }),
-      openCommunication: (input) => context.links.open({ href: "", session: input.source, communication: input.target }),
+      openCommunication: (input) =>
+        context.links.open({ href: "", session: input.source, communication: input.target }),
       target: (input) => ({
         key: `${input.server.id}\n${input.sessionID}`,
         id: input.sessionID,

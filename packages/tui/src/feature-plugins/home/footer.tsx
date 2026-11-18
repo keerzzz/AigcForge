@@ -31,8 +31,7 @@ function Mcp(props: { context: Plugin.Context }) {
             <Match when={true}>
               <span
                 style={{
-                  fg:
-                    count() > 0 ? props.context.theme.text.feedback.success.base : props.context.theme.text.muted,
+                  fg: count() > 0 ? props.context.theme.text.feedback.success.base : props.context.theme.text.muted,
                 }}
               >
                 ⊙{" "}

@@ -82,12 +82,15 @@ export const setup = Effect.fnUntraced(function* (input: {
   yield* Plugin.awaitActivation.pipe(Effect.provideContext(local))
   const second = yield* locations.contextEffect(locationRefForRoute({ directory: other }))
   yield* Plugin.awaitActivation.pipe(Effect.provideContext(second))
-  const request = (route: string, options: {
-    body?: unknown
-    directory?: string
-    authenticated?: boolean
-    method?: "GET" | "POST" | "PATCH" | "DELETE"
-  } = {}) =>
+  const request = (
+    route: string,
+    options: {
+      body?: unknown
+      directory?: string
+      authenticated?: boolean
+      method?: "GET" | "POST" | "PATCH" | "DELETE"
+    } = {},
+  ) =>
     Effect.promise(() => {
       const url = new URL(route, "http://aigcfroge.local")
       url.searchParams.set(

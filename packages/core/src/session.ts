@@ -140,24 +140,48 @@ export const resolveExecutor = Effect.fn("Session.resolveExecutor")(function* (
     })
   const source = requested ? "tool" : preference ? "preference" : agent.model ? "agent" : "session"
   if (Model.Selection.isGroup(model)) {
-    const live = yield* ModelGroup.behavior(model.groupID).pipe(Effect.mapError((error) => new ControllerConflictError({
-      sessionID: parent.id, field: "model", kind: "executor_model_unavailable", message: error.message,
-    })))
-    const frozen = parent.mode === "custom"
-      ? yield* Effect.gen(function* () {
-          const compositions = yield* SessionComposition.Service
-          return yield* compositions.get(parent.id)
-        }).pipe(Effect.mapError((error) => new ControllerConflictError({
-          sessionID: parent.id, field: "executor", kind: "executor_snapshot_unavailable", message: error.message,
-        })))
-      : undefined
-    const inherited = frozen?.version === 2
-      ? source === "agent" ? frozen.data.executors?.find((executor) => executor.id === agent.id)?.groupBehavior
-        : source === "session" ? frozen.data.groupBehavior : undefined
-      : undefined
+    const live = yield* ModelGroup.behavior(model.groupID).pipe(
+      Effect.mapError(
+        (error) =>
+          new ControllerConflictError({
+            sessionID: parent.id,
+            field: "model",
+            kind: "executor_model_unavailable",
+            message: error.message,
+          }),
+      ),
+    )
+    const frozen =
+      parent.mode === "custom"
+        ? yield* Effect.gen(function* () {
+            const compositions = yield* SessionComposition.Service
+            return yield* compositions.get(parent.id)
+          }).pipe(
+            Effect.mapError(
+              (error) =>
+                new ControllerConflictError({
+                  sessionID: parent.id,
+                  field: "executor",
+                  kind: "executor_snapshot_unavailable",
+                  message: error.message,
+                }),
+            ),
+          )
+        : undefined
+    const inherited =
+      frozen?.version === 2
+        ? source === "agent"
+          ? frozen.data.executors?.find((executor) => executor.id === agent.id)?.groupBehavior
+          : source === "session"
+            ? frozen.data.groupBehavior
+            : undefined
+        : undefined
     if (frozen && (source === "agent" || source === "session") && inherited?.groupID !== model.groupID)
       return yield* new ControllerConflictError({
-        sessionID: parent.id, field: "model", kind: "executor_group_behavior_missing", message: "The frozen executor does not contain this model group's behavior",
+        sessionID: parent.id,
+        field: "model",
+        kind: "executor_group_behavior_missing",
+        message: "The frozen executor does not contain this model group's behavior",
       })
     return new SessionSchema.ExecutorBinding({ agent: agent.id, model, groupBehavior: inherited ?? live, source })
   }
@@ -1143,25 +1167,56 @@ const layer = Layer.effect(
             const selected = preference.model
             yield* Effect.gen(function* () {
               if (Model.Selection.isGroup(selected)) {
-                yield* ModelGroup.behavior(selected.groupID).pipe(Effect.mapError((error) => new ControllerConflictError({
-                  sessionID, field: "executorPreference.model", kind: "executor_model_unavailable", message: error.message,
-                })))
+                yield* ModelGroup.behavior(selected.groupID).pipe(
+                  Effect.mapError(
+                    (error) =>
+                      new ControllerConflictError({
+                        sessionID,
+                        field: "executorPreference.model",
+                        kind: "executor_model_unavailable",
+                        message: error.message,
+                      }),
+                  ),
+                )
                 return
               }
-              const candidate = (yield* catalog.available()).find((item) => item.id === selected.id && item.providerID === selected.providerID)
+              const candidate = (yield* catalog.available()).find(
+                (item) => item.id === selected.id && item.providerID === selected.providerID,
+              )
               if (!candidate)
-                return yield* new ControllerConflictError({ sessionID, field: "executorPreference.model", kind: "executor_model_unavailable", message: "Executor model is unavailable" })
-              yield* resolver.resolveModel(candidate, selected.variant).pipe(Effect.mapError((error) => new ControllerConflictError({
-                sessionID, field: "executorPreference.model", kind: "executor_model_invalid", message: error.message,
-              })))
+                return yield* new ControllerConflictError({
+                  sessionID,
+                  field: "executorPreference.model",
+                  kind: "executor_model_unavailable",
+                  message: "Executor model is unavailable",
+                })
+              yield* resolver.resolveModel(candidate, selected.variant).pipe(
+                Effect.mapError(
+                  (error) =>
+                    new ControllerConflictError({
+                      sessionID,
+                      field: "executorPreference.model",
+                      kind: "executor_model_invalid",
+                      message: error.message,
+                    }),
+                ),
+              )
             })
           }
         }
         const selection = requested ?? (yield* catalog.selection())
         if (selection && Model.Selection.isGroup(selection)) {
-          yield* ModelGroup.behavior(selection.groupID).pipe(Effect.mapError((error) => new ControllerConflictError({
-            sessionID, field: "model", kind: "meta_model_unavailable", message: error.message,
-          })))
+          yield* ModelGroup.behavior(selection.groupID).pipe(
+            Effect.mapError(
+              (error) =>
+                new ControllerConflictError({
+                  sessionID,
+                  field: "model",
+                  kind: "meta_model_unavailable",
+                  message: error.message,
+                }),
+            ),
+          )
           return selection
         }
         const candidate = selection
@@ -1207,7 +1262,15 @@ const layer = Layer.effect(
     ) {
       if (model === undefined || !Model.Selection.isGroup(model)) return undefined
       return yield* ModelGroup.behavior(model.groupID).pipe(
-        Effect.mapError((error) => new ControllerConflictError({ sessionID, field: "model", kind: "group_model_unavailable", message: error.message })),
+        Effect.mapError(
+          (error) =>
+            new ControllerConflictError({
+              sessionID,
+              field: "model",
+              kind: "group_model_unavailable",
+              message: error.message,
+            }),
+        ),
         Effect.provide(locations.get(location)),
       )
     })
@@ -1249,19 +1312,36 @@ const layer = Layer.effect(
       )
         return yield* new CompositionConflictError({ sessionID: session.id, reason: "custom_identity_mismatch" })
       const snapshot = yield* compositions.get(session.id)
-      const selected = session.model ?? (snapshot.version === 2
-        ? session.agent === (snapshot.data.root?.id ?? "meta") ? snapshot.data.orchestrator?.model : snapshot.data.executors?.find((executor) => executor.id === session.agent)?.info.model
-        : undefined)
-      if (input.model !== undefined && ((selected !== undefined && Model.Selection.isGroup(selected)) || Model.Selection.isGroup(input.model)) && !sameModel(selected, input.model))
+      const selected =
+        session.model ??
+        (snapshot.version === 2
+          ? session.agent === (snapshot.data.root?.id ?? "meta")
+            ? snapshot.data.orchestrator?.model
+            : snapshot.data.executors?.find((executor) => executor.id === session.agent)?.info.model
+          : undefined)
+      if (
+        input.model !== undefined &&
+        ((selected !== undefined && Model.Selection.isGroup(selected)) || Model.Selection.isGroup(input.model)) &&
+        !sameModel(selected, input.model)
+      )
         return yield* new CompositionConflictError({ sessionID: session.id, reason: "group_selection_mismatch" })
       // The existing Session retains captured Group behavior when its source
       // retries after a Group edit or changes its own runtime selection.
-      const expected = snapshot.version === 2 && input.snapshot.version === 2
-        ? [input.agent, ...(input.parent ? [input.parent.agent ?? input.snapshot.data.root?.id ?? "meta"] : [])].reduce(
-            (expected, agent) => SessionComposition.bindGroupBehavior(expected, agent, SessionComposition.groupBehaviorFor(snapshot, agent)),
-            input.snapshot,
-          )
-        : input.snapshot
+      const expected =
+        snapshot.version === 2 && input.snapshot.version === 2
+          ? [
+              input.agent,
+              ...(input.parent ? [input.parent.agent ?? input.snapshot.data.root?.id ?? "meta"] : []),
+            ].reduce(
+              (expected, agent) =>
+                SessionComposition.bindGroupBehavior(
+                  expected,
+                  agent,
+                  SessionComposition.groupBehaviorFor(snapshot, agent),
+                ),
+              input.snapshot,
+            )
+          : input.snapshot
       if (
         CompositionDigest.computeDigest({ ...snapshot, sessionID: undefined }) !==
         CompositionDigest.computeDigest({ ...expected, sessionID: undefined })
@@ -1391,11 +1471,12 @@ const layer = Layer.effect(
             }
           : undefined
       const selected = meta?.model ?? input.model ?? root.model
-      const groupBehavior = selected && Model.Selection.isGroup(selected)
-        ? input.model === undefined && frozen.data.groupBehavior?.groupID === selected.groupID
-          ? frozen.data.groupBehavior
-          : yield* captureGroupBehavior(sessionID, input.location, selected)
-        : undefined
+      const groupBehavior =
+        selected && Model.Selection.isGroup(selected)
+          ? input.model === undefined && frozen.data.groupBehavior?.groupID === selected.groupID
+            ? frozen.data.groupBehavior
+            : yield* captureGroupBehavior(sessionID, input.location, selected)
+          : undefined
       const snapshot = SessionComposition.bindGroupBehavior(frozen, root.id, groupBehavior)
       yield* bus
         .publish(
@@ -1423,7 +1504,15 @@ const layer = Layer.effect(
               Effect.gen(function* () {
                 if (beforeCommit) yield* beforeCommit()
                 yield* SessionComposition.insertSnapshot(db, sessionID, snapshot)
-                if (meta) yield* commitMetaAssociation(meta.controller, sessionID, meta.model, input.title, false, snapshot.data.groupBehavior)
+                if (meta)
+                  yield* commitMetaAssociation(
+                    meta.controller,
+                    sessionID,
+                    meta.model,
+                    input.title,
+                    false,
+                    snapshot.data.groupBehavior,
+                  )
               }),
           },
         )
@@ -1847,20 +1936,21 @@ const layer = Layer.effect(
               if (selected.info) yield* Agent.assertOrdinaryMode(selected.info, mode)
               return selected.id
             }).pipe(Effect.provide(locations.get(location)))
-        const ordinaryAgent = parent && selection === undefined && agent !== undefined
-          ? yield* Effect.gen(function* () {
-            const agents = yield* Agent.Service
-            const selected = yield* agents.get(Agent.ID.make(agent))
-            if (selected) yield* Agent.assertOrdinaryMode(selected, mode)
-            return selected
-          }).pipe(Effect.provide(locations.get(location)))
-          : undefined
+        const ordinaryAgent =
+          parent && selection === undefined && agent !== undefined
+            ? yield* Effect.gen(function* () {
+                const agents = yield* Agent.Service
+                const selected = yield* agents.get(Agent.ID.make(agent))
+                if (selected) yield* Agent.assertOrdinaryMode(selected, mode)
+                return selected
+              }).pipe(Effect.provide(locations.get(location)))
+            : undefined
         const metaSelected = !parent && agent === "meta"
         const model = metaSelected
           ? yield* resolveMetaModel(sessionID, location, input.model, input.executorPreference, undefined, mode)
           : childController
             ? childController.executor.model
-            : input.model ?? (parent ? selection?.info.model ?? ordinaryAgent?.model ?? parent.model : undefined)
+            : (input.model ?? (parent ? (selection?.info.model ?? ordinaryAgent?.model ?? parent.model) : undefined))
         const controller = metaSelected
           ? new SessionSchema.RootController({
               kind: "root",
@@ -1889,18 +1979,36 @@ const layer = Layer.effect(
             input.metadata ?? parent.metadata,
           )
         }
-        const inheritedBehavior = selection && model && Model.Selection.isGroup(model)
-          ? sameModel(model, selection.info.model)
-            ? selection.snapshot.data.executors?.find((executor) => executor.id === selection.info.id)?.groupBehavior
-            : selection.info.model === undefined && sameModel(model, parent?.model) ? selection.snapshot.data.groupBehavior : undefined
-          : undefined
-        if (selection && model && Model.Selection.isGroup(model) && controller?.kind !== "child" &&
-          (sameModel(model, selection.info.model) || (selection.info.model === undefined && sameModel(model, parent?.model))) && inheritedBehavior?.groupID !== model.groupID)
-          return yield* new ControllerConflictError({ sessionID, field: "model", kind: "frozen_group_behavior_missing", message: "The frozen source does not contain this model group's behavior" })
+        const inheritedBehavior =
+          selection && model && Model.Selection.isGroup(model)
+            ? sameModel(model, selection.info.model)
+              ? selection.snapshot.data.executors?.find((executor) => executor.id === selection.info.id)?.groupBehavior
+              : selection.info.model === undefined && sameModel(model, parent?.model)
+                ? selection.snapshot.data.groupBehavior
+                : undefined
+            : undefined
+        if (
+          selection &&
+          model &&
+          Model.Selection.isGroup(model) &&
+          controller?.kind !== "child" &&
+          (sameModel(model, selection.info.model) ||
+            (selection.info.model === undefined && sameModel(model, parent?.model))) &&
+          inheritedBehavior?.groupID !== model.groupID
+        )
+          return yield* new ControllerConflictError({
+            sessionID,
+            field: "model",
+            kind: "frozen_group_behavior_missing",
+            message: "The frozen source does not contain this model group's behavior",
+          })
         const capturedBehavior = controller?.kind === "child" ? controller.executor.groupBehavior : inheritedBehavior
         const snapshot = selection
-          ? SessionComposition.bindGroupBehavior(selection.snapshot, selection.info.id,
-              capturedBehavior ?? (yield* captureGroupBehavior(sessionID, location, model)))
+          ? SessionComposition.bindGroupBehavior(
+              selection.snapshot,
+              selection.info.id,
+              capturedBehavior ?? (yield* captureGroupBehavior(sessionID, location, model)),
+            )
           : undefined
         const project = yield* projects.resolve(location.directory)
         const projected = yield* bus
@@ -1925,7 +2033,12 @@ const layer = Layer.effect(
               permissions: input.permissions ?? parent?.permissions,
               consultation: input.consultation,
               model,
-              groupBehavior: controller?.kind === "child" ? undefined : snapshot && agent ? SessionComposition.groupBehaviorFor(snapshot, agent) : undefined,
+              groupBehavior:
+                controller?.kind === "child"
+                  ? undefined
+                  : snapshot && agent
+                    ? SessionComposition.groupBehaviorFor(snapshot, agent)
+                    : undefined,
             },
             {
               location,
@@ -2246,20 +2359,45 @@ const layer = Layer.effect(
         const forkAgent = selection?.info.id ?? agent
         const selectedModel = model ?? parent.model ?? selection?.info.model
         const inheritedAgent = sameModel(selectedModel, parent.model)
-          ? parent.agent ?? selection?.snapshot.data.root?.id ?? "meta"
-          : sameModel(selectedModel, selection?.info.model) ? selection?.info.id : undefined
-        const inheritedBehavior = selection && inheritedAgent !== undefined
-          ? SessionComposition.groupBehaviorFor(selection.snapshot, inheritedAgent)
-          : undefined
-        if (selection && selectedModel && Model.Selection.isGroup(selectedModel) && controller?.kind !== "child" &&
-          inheritedAgent !== undefined && inheritedBehavior?.groupID !== selectedModel.groupID)
-          return yield* new ControllerConflictError({ sessionID, field: "model", kind: "frozen_group_behavior_missing", message: "The frozen fork source does not contain this model group's behavior" })
+          ? (parent.agent ?? selection?.snapshot.data.root?.id ?? "meta")
+          : sameModel(selectedModel, selection?.info.model)
+            ? selection?.info.id
+            : undefined
+        const inheritedBehavior =
+          selection && inheritedAgent !== undefined
+            ? SessionComposition.groupBehaviorFor(selection.snapshot, inheritedAgent)
+            : undefined
+        if (
+          selection &&
+          selectedModel &&
+          Model.Selection.isGroup(selectedModel) &&
+          controller?.kind !== "child" &&
+          inheritedAgent !== undefined &&
+          inheritedBehavior?.groupID !== selectedModel.groupID
+        )
+          return yield* new ControllerConflictError({
+            sessionID,
+            field: "model",
+            kind: "frozen_group_behavior_missing",
+            message: "The frozen fork source does not contain this model group's behavior",
+          })
         const snapshot = selection
-          ? SessionComposition.bindGroupBehavior(selection.snapshot, selection.info.id,
-              controller?.kind === "child" ? controller.executor.groupBehavior :
-                selectedModel && Model.Selection.isGroup(selectedModel) ? inheritedBehavior ?? (yield* captureGroupBehavior(sessionID, parent.location, selectedModel)) : undefined)
+          ? SessionComposition.bindGroupBehavior(
+              selection.snapshot,
+              selection.info.id,
+              controller?.kind === "child"
+                ? controller.executor.groupBehavior
+                : selectedModel && Model.Selection.isGroup(selectedModel)
+                  ? (inheritedBehavior ?? (yield* captureGroupBehavior(sessionID, parent.location, selectedModel)))
+                  : undefined,
+            )
           : undefined
-        const groupBehavior = controller?.kind === "child" ? undefined : snapshot && forkAgent ? SessionComposition.groupBehaviorFor(snapshot, forkAgent) : undefined
+        const groupBehavior =
+          controller?.kind === "child"
+            ? undefined
+            : snapshot && forkAgent
+              ? SessionComposition.groupBehaviorFor(snapshot, forkAgent)
+              : undefined
         const inherited = yield* db
           .transaction(() =>
             Effect.all({
@@ -2459,9 +2597,10 @@ const layer = Layer.effect(
           session.controller?.kind === "root" && session.agent === "meta"
             ? yield* resolveMetaModel(session.id, session.location, input.model)
             : input.model
-        const groupBehavior = session.mode === "custom" && session.controller?.kind !== "child" && !sameModel(session.model, model)
-          ? yield* captureGroupBehavior(session.id, session.location, model)
-          : undefined
+        const groupBehavior =
+          session.mode === "custom" && session.controller?.kind !== "child" && !sameModel(session.model, model)
+            ? yield* captureGroupBehavior(session.id, session.location, model)
+            : undefined
         return yield* sessions.forSession(input.sessionID).switchModel({ ...input, model, groupBehavior })
       }),
       selectExecutor: Effect.fn("Session.selectExecutor")(function* (input) {

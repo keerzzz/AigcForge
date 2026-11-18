@@ -1,11 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:openai-transcription",
-      "provider:openai",
-      "protocol:openai-transcription"
-    ],
+    "tags": ["prefix:openai-transcription", "provider:openai", "protocol:openai-transcription"],
     "name": "openai-transcription/transcribes-with-a-language-hint",
     "recordedAt": "2026-09-23T12:31:56.657Z"
   },

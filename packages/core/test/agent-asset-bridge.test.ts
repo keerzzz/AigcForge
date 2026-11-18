@@ -64,7 +64,10 @@ permissions:
 `
     const parsed = parseAgentAssetConfig(yamlStr)
     expect(parsed).toBeDefined()
-    expect(parsed?.model).toMatchObject({ providerID: Provider.ID.make("anthropic"), model: Model.ID.make("claude-3-5-sonnet") })
+    expect(parsed?.model).toMatchObject({
+      providerID: Provider.ID.make("anthropic"),
+      model: Model.ID.make("claude-3-5-sonnet"),
+    })
     expect(parsed?.mode).toBe("subagent")
     expect(parsed?.hidden).toBe(true)
     expect(parsed?.permissions).toHaveLength(1)
@@ -112,7 +115,10 @@ request:
     expect(info).toBeDefined()
     expect(info?.id).toBe(Agent.ID.make("reviewer"))
     expect(info?.description).toBe("Code reviewer")
-    expect(info?.model).toMatchObject({ id: Model.ID.make("claude-3-5-sonnet"), providerID: Provider.ID.make("anthropic") })
+    expect(info?.model).toMatchObject({
+      id: Model.ID.make("claude-3-5-sonnet"),
+      providerID: Provider.ID.make("anthropic"),
+    })
     expect(info?.mode).toBe("subagent")
     expect(info?.request).toEqual({
       settings: {},

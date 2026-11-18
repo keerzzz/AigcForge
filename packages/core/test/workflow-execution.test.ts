@@ -400,8 +400,8 @@ it.live("filters a frozen Workflow child by the current parent permission ceilin
       })
       expect(child.attended).toBe(false)
       // An attended fixture exposes execution asks for the parent ceiling checks below.
-      yield* Context.get(f.context, Database.Service).db
-        .update(SessionTable)
+      yield* Context.get(f.context, Database.Service)
+        .db.update(SessionTable)
         .set({ attended: 1 })
         .where(eq(SessionTable.id, child.id))
         .run()
@@ -2041,7 +2041,8 @@ it.live("retains an adopted Workflow CPU binding after a preference change and d
       const child = yield* original.sessions.get(Session.ID.make(before.childSessionId))
       if (child.controller?.kind !== "child") return yield* Effect.die(new Error("Missing Workflow CPU binding"))
       const executorModel = child.controller.executor.model
-      if (Model.Selection.isGroup(executorModel)) return yield* Effect.die(new Error("This Workflow fixture requires a physical model"))
+      if (Model.Selection.isGroup(executorModel))
+        return yield* Effect.die(new Error("This Workflow fixture requires a physical model"))
       expect(child.controller).toMatchObject({
         rootSessionID: original.created.session.id,
         source: { kind: "workflow", runID: admitted.id, stepRunID: before.id },
@@ -2104,7 +2105,8 @@ it.live("retains an adopted Workflow CPU binding after a preference change and d
       expect(retained.agent).toEqual(child.controller.executor.agent)
       expect((yield* reopened.sessions.get(reopened.created.session.id)).executorPreference).toEqual(preference)
       const rootModel = reopened.created.session.model
-      if (!rootModel || Model.Selection.isGroup(rootModel)) return yield* Effect.die(new Error("This Workflow root fixture requires a physical model"))
+      if (!rootModel || Model.Selection.isGroup(rootModel))
+        return yield* Effect.die(new Error("This Workflow root fixture requires a physical model"))
       expect((yield* reopened.llm.requests()).map((request) => String(request.model.id))).toEqual([
         String(executorModel.id),
         String(rootModel.id),

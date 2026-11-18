@@ -152,14 +152,16 @@ export function ComposerEditor(props: ComposerEditorProps) {
     // Replacing an inactive editor's nodes invalidates its DOM selection.
     restoreCursorOnFocus = document.activeElement !== boundary
     // Moving the cursor alone must not rebuild the editable DOM.
-    untrack(() => renderComposerEditor(
-      boundary,
-      parts,
-      props.controller.cursor(),
-      props.controller.referenceLabel,
-      props.controller.openReference,
-      (status) => i18n.t(`ui.promptInput.sessionReference.${status}`),
-    ))
+    untrack(() =>
+      renderComposerEditor(
+        boundary,
+        parts,
+        props.controller.cursor(),
+        props.controller.referenceLabel,
+        props.controller.openReference,
+        (status) => i18n.t(`ui.promptInput.sessionReference.${status}`),
+      ),
+    )
   })
 
   createEffect(() => {
@@ -171,8 +173,9 @@ export function ComposerEditor(props: ComposerEditorProps) {
       const part = mentionParts.get(mention)
 
       if (part?.type !== "session") return
-      updateSessionReferenceLabel(mention, part, props.controller.referenceLabel,
-        (status) => i18n.t(`ui.promptInput.sessionReference.${status}`))
+      updateSessionReferenceLabel(mention, part, props.controller.referenceLabel, (status) =>
+        i18n.t(`ui.promptInput.sessionReference.${status}`),
+      )
     })
   })
 
@@ -546,7 +549,13 @@ function parseComposerEditor(editor: HTMLDivElement) {
     const original = mentionParts.get(element)
 
     if (element.dataset.mention === "session") {
-      if (original?.type === "session") parts.push({ ...original, content, start: position, end: position + content.length } satisfies ComposerSessionPart)
+      if (original?.type === "session")
+        parts.push({
+          ...original,
+          content,
+          start: position,
+          end: position + content.length,
+        } satisfies ComposerSessionPart)
 
       if (original?.type !== "session") buffer += content
 

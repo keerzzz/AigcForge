@@ -56,7 +56,9 @@ export const latestCompaction = Effect.fnUntraced(function* (
               boundary === "local" || boundary.deployment === undefined
                 ? undefined
                 : and(
-                    ...(["providerID", "provider", "modelID", "route", "protocol", "endpoint", "deployment"] as const).map(
+                    ...(
+                      ["providerID", "provider", "modelID", "route", "protocol", "endpoint", "deployment"] as const
+                    ).map(
                       (key) =>
                         sql`json_extract(${SessionMessageTable.data}, ${`$.providerContext.provenance.${key}`}) = ${boundary[key]}`,
                     ),

@@ -4,7 +4,12 @@ import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/http-api"
 import { ApiVcsApplyError } from "../errors.js"
 import { Authorization } from "../middleware/authorization.js"
-import { InstanceContext, WorkspaceRouting, WorkspaceRoutingQuery, WorkspaceRoutingQueryFields } from "../middleware/workspace-routing.js"
+import {
+  InstanceContext,
+  WorkspaceRouting,
+  WorkspaceRoutingQuery,
+  WorkspaceRoutingQueryFields,
+} from "../middleware/workspace-routing.js"
 import { described } from "./metadata.js"
 
 // Fork-retained instance-scoped surface (see prompt-asset.ts for the conventions).
@@ -168,10 +173,7 @@ export const InstanceGroup = HttpApiGroup.make("instance-instance")
   .add(
     HttpApiEndpoint.get("instance-instance.vcsDiffRaw", "/vcs/diff/raw", {
       query: VcsDiffQuery,
-      success: described(
-        Schema.Struct({ file: Schema.String, patch: Schema.String }),
-        "Raw VCS diff",
-      ),
+      success: described(Schema.Struct({ file: Schema.String, patch: Schema.String }), "Raw VCS diff"),
     }).annotateMerge(
       OpenApi.annotations({
         identifier: "instance.vcs.diffRaw",

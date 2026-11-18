@@ -80,10 +80,7 @@ export const Plugin = define({
               Effect.gen(function* () {
                 const agent = command.agent === undefined ? undefined : Agent.ID.make(command.agent)
                 const commandAgent = agent === undefined ? undefined : (yield* ctx.agent.get({ agentID: agent })).data
-                const model =
-                  command.model === undefined
-                    ? commandAgent?.model
-                    : Model.fromConfig(command.model)
+                const model = command.model === undefined ? commandAgent?.model : Model.fromConfig(command.model)
                 const text = yield* evaluateTemplate(command.template, input.prompt.text, {
                   location,
                   processes,

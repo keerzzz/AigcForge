@@ -8,11 +8,19 @@ describe("validateCustomProvider", () => {
     const result = validateCustomProvider({
       intent: "preview",
       form: {
-        providerID: "custom-provider", name: "", baseURL: "https://api.example.com", protocol: "chat",
-        credentialAction: "create", credentialID: "saved-credential", apiKey: " new-draft-key ",
-        models: [{ row: "m0", id: "", name: "", err: {} }], headers: [], err: {},
+        providerID: "custom-provider",
+        name: "",
+        baseURL: "https://api.example.com",
+        protocol: "chat",
+        credentialAction: "create",
+        credentialID: "saved-credential",
+        apiKey: " new-draft-key ",
+        models: [{ row: "m0", id: "", name: "", err: {} }],
+        headers: [],
+        err: {},
       },
-      t, existingProviderIDs: new Set(),
+      t,
+      existingProviderIDs: new Set(),
     })
 
     expect(result.result?.key).toBe("new-draft-key")
@@ -168,18 +176,34 @@ describe("validateCustomProvider", () => {
   })
 
   test.each([
-    { overrides: { tools: "unsupported" as const, context: "64000", compatibility: '{"requireReasoning":false}',
-      cost: '{"input":0,"output":0}' }, error: undefined },
+    {
+      overrides: {
+        tools: "unsupported" as const,
+        context: "64000",
+        compatibility: '{"requireReasoning":false}',
+        cost: '{"input":0,"output":0}',
+      },
+      error: undefined,
+    },
     { overrides: { context: "1.5" }, error: "context" as const },
     { overrides: { compatibility: '{"maxTokensField":"invalid"}' }, error: "compatibility" as const },
     { overrides: { cost: '{"input":0}' }, error: "cost" as const },
   ])("parses authored overrides at the form boundary: $error", ({ overrides, error }) => {
     const result = validateCustomProvider({
-      form: { providerID: "custom-provider", name: "Provider", baseURL: "https://api.example.com", protocol: "chat",
-        credentialAction: "keep", credentialID: "", apiKey: "", headers: [], err: {},
+      form: {
+        providerID: "custom-provider",
+        name: "Provider",
+        baseURL: "https://api.example.com",
+        protocol: "chat",
+        credentialAction: "keep",
+        credentialID: "",
+        apiKey: "",
+        headers: [],
+        err: {},
         models: [{ row: "m0", id: "model-a", name: "", overrides, err: {} }],
       },
-      t, existingProviderIDs: new Set(),
+      t,
+      existingProviderIDs: new Set(),
     })
 
     if (error) {
@@ -190,7 +214,9 @@ describe("validateCustomProvider", () => {
     }
 
     expect(result.result?.definition.models?.["model-a"]).toMatchObject({
-      capabilities: { tools: false }, limit: { context: 64000 }, compatibility: { requireReasoning: false },
+      capabilities: { tools: false },
+      limit: { context: 64000 },
+      compatibility: { requireReasoning: false },
       cost: { input: 0, output: 0 },
     })
     expect(result.result?.definition.models?.["model-a"]).not.toHaveProperty("name")
@@ -199,13 +225,20 @@ describe("validateCustomProvider", () => {
   test("keeps a redacted header and model alias when editing unrelated fields", () => {
     const result = validateCustomProvider({
       form: {
-        providerID: "custom-provider", name: "Edited Provider", baseURL: "https://api.example.com",
-        protocol: "chat", credentialAction: "keep", credentialID: "", apiKey: "",
+        providerID: "custom-provider",
+        name: "Edited Provider",
+        baseURL: "https://api.example.com",
+        protocol: "chat",
+        credentialAction: "keep",
+        credentialID: "",
+        apiKey: "",
         models: [{ row: "m0", configID: "friendly-alias", id: "actual-model", name: "Model", err: {} }],
         headers: [{ row: "h0", key: "Authorization", configKey: "Authorization", value: "", redacted: true, err: {} }],
         err: {},
       },
-      t, existingProviderIDs: new Set(["custom-provider"]), editingProviderID: "custom-provider",
+      t,
+      existingProviderIDs: new Set(["custom-provider"]),
+      editingProviderID: "custom-provider",
       definition: { models: { "friendly-alias": { modelID: "actual-model", name: "Model" } } },
       redactedPaths: [["headers", "Authorization"]],
     })
@@ -217,30 +250,68 @@ describe("validateCustomProvider", () => {
 
   test("writes a dated quote from authored prices and keeps raw upstream model IDs", () => {
     const result = validateCustomProvider({
-      form: { providerID: "custom-provider", name: "Provider", baseURL: "https://api.example.com", protocol: "chat",
-        credentialAction: "keep", credentialID: "", apiKey: "", headers: [], err: {},
-        models: [{ row: "m0", configID: "route", id: "group/reasoning", name: "", err: {}, overrides: {
-          cost: '{"input":2,"output":8,"cache":{"read":0.5}}',
-          quoteValidFrom: "1970-01-01T00:00:01.000Z", quoteValidUntil: "1970-01-01T00:00:02.000Z",
-        } }],
+      form: {
+        providerID: "custom-provider",
+        name: "Provider",
+        baseURL: "https://api.example.com",
+        protocol: "chat",
+        credentialAction: "keep",
+        credentialID: "",
+        apiKey: "",
+        headers: [],
+        err: {},
+        models: [
+          {
+            row: "m0",
+            configID: "route",
+            id: "group/reasoning",
+            name: "",
+            err: {},
+            overrides: {
+              cost: '{"input":2,"output":8,"cache":{"read":0.5}}',
+              quoteValidFrom: "1970-01-01T00:00:01.000Z",
+              quoteValidUntil: "1970-01-01T00:00:02.000Z",
+            },
+          },
+        ],
       },
-      t, existingProviderIDs: new Set(),
+      t,
+      existingProviderIDs: new Set(),
     })
 
-    expect(result.result?.definition.models?.route).toEqual({ modelID: "group/reasoning", quote: { status: "known",
-      prices: [{ input: 2, output: 8, cache: { read: 0.5, write: 0 } }], validFrom: 1_000, validUntil: 2_000 } })
+    expect(result.result?.definition.models?.route).toEqual({
+      modelID: "group/reasoning",
+      quote: {
+        status: "known",
+        prices: [{ input: 2, output: 8, cache: { read: 0.5, write: 0 } }],
+        validFrom: 1_000,
+        validUntil: 2_000,
+      },
+    })
   })
 
   test.each([
-    { overrides: { cost: '{"input":2,"output":8}', quoteValidFrom: "invalid-date" }, error: "provider.model.override.invalidQuoteDate" },
+    {
+      overrides: { cost: '{"input":2,"output":8}', quoteValidFrom: "invalid-date" },
+      error: "provider.model.override.invalidQuoteDate",
+    },
     { overrides: { quoteValidFrom: "1970-01-01T00:00:01.000Z" }, error: "provider.model.override.quoteNeedsPrice" },
   ])("validates quote dates at the authored form boundary: $error", ({ overrides, error }) => {
     const result = validateCustomProvider({
-      form: { providerID: "custom-provider", name: "Provider", baseURL: "https://api.example.com", protocol: "chat",
-        credentialAction: "keep", credentialID: "", apiKey: "", headers: [], err: {},
+      form: {
+        providerID: "custom-provider",
+        name: "Provider",
+        baseURL: "https://api.example.com",
+        protocol: "chat",
+        credentialAction: "keep",
+        credentialID: "",
+        apiKey: "",
+        headers: [],
+        err: {},
         models: [{ row: "m0", id: "model", name: "", overrides, err: {} }],
       },
-      t, existingProviderIDs: new Set(),
+      t,
+      existingProviderIDs: new Set(),
     })
 
     expect(result.result).toBeUndefined()
@@ -251,63 +322,182 @@ describe("validateCustomProvider", () => {
     const prices = [{ input: 2, output: 8, cache: { read: 0.5, write: 1 } }]
 
     const result = validateCustomProvider({
-      form: { providerID: "custom-provider", name: "Provider", baseURL: "https://api.example.com", protocol: "responses",
-        credentialAction: "keep", credentialID: "", apiKey: "", headers: [], err: {},
-        models: [{ row: "m0", configID: "alias", id: "provider/model", name: "", err: {}, overrides: {
-          cost: JSON.stringify(prices, null, 2), quoteValidFrom: "1970-01-01T00:00:01.000Z", quoteValidUntil: "",
-        } }],
+      form: {
+        providerID: "custom-provider",
+        name: "Provider",
+        baseURL: "https://api.example.com",
+        protocol: "responses",
+        credentialAction: "keep",
+        credentialID: "",
+        apiKey: "",
+        headers: [],
+        err: {},
+        models: [
+          {
+            row: "m0",
+            configID: "alias",
+            id: "provider/model",
+            name: "",
+            err: {},
+            overrides: {
+              cost: JSON.stringify(prices, null, 2),
+              quoteValidFrom: "1970-01-01T00:00:01.000Z",
+              quoteValidUntil: "",
+            },
+          },
+        ],
       },
-      definition: { models: { alias: { cost: { input: 99, output: 99 }, quote: { status: "known", prices,
-        source: "saved-price-source", observedAt: 500, validFrom: 1_000, validUntil: 2_000 } } } },
-      t, existingProviderIDs: new Set(["custom-provider"]), editingProviderID: "custom-provider",
+      definition: {
+        models: {
+          alias: {
+            cost: { input: 99, output: 99 },
+            quote: {
+              status: "known",
+              prices,
+              source: "saved-price-source",
+              observedAt: 500,
+              validFrom: 1_000,
+              validUntil: 2_000,
+            },
+          },
+        },
+      },
+      t,
+      existingProviderIDs: new Set(["custom-provider"]),
+      editingProviderID: "custom-provider",
     })
 
-    expect(result.result?.definition.models?.alias?.quote).toEqual({ status: "known", prices,
-      source: "saved-price-source", observedAt: 500, validFrom: 1_000, validUntil: undefined })
+    expect(result.result?.definition.models?.alias?.quote).toEqual({
+      status: "known",
+      prices,
+      source: "saved-price-source",
+      observedAt: 500,
+      validFrom: 1_000,
+      validUntil: undefined,
+    })
     expect(result.result?.definition.models?.alias).not.toHaveProperty("cost")
-    expect(result.result?.unset).toEqual([["models", "alias", "cost"], ["models", "alias", "quote", "validUntil"]])
+    expect(result.result?.unset).toEqual([
+      ["models", "alias", "cost"],
+      ["models", "alias", "quote", "validUntil"],
+    ])
   })
 
-  test.each(["known", "free"] as const)("retains the explicit %s status when editing an empty quote's date", (status) => {
-    const result = validateCustomProvider({
-      form: { providerID: "custom-provider", name: "Provider", baseURL: "https://api.example.com", protocol: "chat",
-        credentialAction: "keep", credentialID: "", apiKey: "", headers: [], err: {},
-        models: [{ row: "m0", id: "model", name: "", err: {}, overrides: { cost: "[]", quoteValidFrom: "1970-01-01T00:00:01.000Z" } }],
-      },
-      definition: { models: { model: { quote: { status, prices: [] } } } },
-      t, existingProviderIDs: new Set(["custom-provider"]), editingProviderID: "custom-provider",
-    })
+  test.each(["known", "free"] as const)(
+    "retains the explicit %s status when editing an empty quote's date",
+    (status) => {
+      const result = validateCustomProvider({
+        form: {
+          providerID: "custom-provider",
+          name: "Provider",
+          baseURL: "https://api.example.com",
+          protocol: "chat",
+          credentialAction: "keep",
+          credentialID: "",
+          apiKey: "",
+          headers: [],
+          err: {},
+          models: [
+            {
+              row: "m0",
+              id: "model",
+              name: "",
+              err: {},
+              overrides: { cost: "[]", quoteValidFrom: "1970-01-01T00:00:01.000Z" },
+            },
+          ],
+        },
+        definition: { models: { model: { quote: { status, prices: [] } } } },
+        t,
+        existingProviderIDs: new Set(["custom-provider"]),
+        editingProviderID: "custom-provider",
+      })
 
-    expect(result.models[0]?.quoteValidFrom).toBeUndefined()
-    expect(result.result?.definition.models?.model?.quote).toEqual({ status, prices: [], validFrom: 1_000, validUntil: undefined })
-  })
+      expect(result.models[0]?.quoteValidFrom).toBeUndefined()
+      expect(result.result?.definition.models?.model?.quote).toEqual({
+        status,
+        prices: [],
+        validFrom: 1_000,
+        validUntil: undefined,
+      })
+    },
+  )
 
   test("preserves an explicit unknown quote and restores automatic pricing only on request", () => {
     const input = {
-      form: { providerID: "custom-provider", name: "Provider", baseURL: "https://api.example.com", protocol: "chat" as const,
-        credentialAction: "keep" as const, credentialID: "", apiKey: "", headers: [], err: {},
-        models: [{ row: "m0", id: "model", name: "", err: {}, overrides: { cost: "", quoteValidFrom: "", quoteValidUntil: "" } }],
+      form: {
+        providerID: "custom-provider",
+        name: "Provider",
+        baseURL: "https://api.example.com",
+        protocol: "chat" as const,
+        credentialAction: "keep" as const,
+        credentialID: "",
+        apiKey: "",
+        headers: [],
+        err: {},
+        models: [
+          {
+            row: "m0",
+            id: "model",
+            name: "",
+            err: {},
+            overrides: { cost: "", quoteValidFrom: "", quoteValidUntil: "" },
+          },
+        ],
       },
       definition: { models: { model: { quote: { status: "unknown" as const } } } },
-      t, existingProviderIDs: new Set(["custom-provider"]), editingProviderID: "custom-provider",
+      t,
+      existingProviderIDs: new Set(["custom-provider"]),
+      editingProviderID: "custom-provider",
     }
 
     expect(validateCustomProvider(input).result?.unset).toEqual([])
-    expect(validateCustomProvider({ ...input, form: { ...input.form, models: input.form.models.map((model) => ({ ...model,
-      overrides: { ...model.overrides, quoteReset: true } })) } }).result?.unset).toEqual([["models", "model", "quote"]])
+    expect(
+      validateCustomProvider({
+        ...input,
+        form: {
+          ...input.form,
+          models: input.form.models.map((model) => ({ ...model, overrides: { ...model.overrides, quoteReset: true } })),
+        },
+      }).result?.unset,
+    ).toEqual([["models", "model", "quote"]])
   })
 
   test("keeps discovered quote validity in the seed until a date is authored", () => {
-    const seed = { identity: { providerID: "custom-provider", listURL: "https://api.example.com/models", protocol: "openai" as const,
-      auth: "bearer" as const, configurationDigest: "source" }, inventoryDigest: "inventory", observedAt: 500,
-      metadata: { quote: { status: "known" as const, prices: [{ input: 2, output: 8, cache: { read: 0, write: 0 } }], validFrom: 1_000, validUntil: 2_000 } } }
+    const seed = {
+      identity: {
+        providerID: "custom-provider",
+        listURL: "https://api.example.com/models",
+        protocol: "openai" as const,
+        auth: "bearer" as const,
+        configurationDigest: "source",
+      },
+      inventoryDigest: "inventory",
+      observedAt: 500,
+      metadata: {
+        quote: {
+          status: "known" as const,
+          prices: [{ input: 2, output: 8, cache: { read: 0, write: 0 } }],
+          validFrom: 1_000,
+          validUntil: 2_000,
+        },
+      },
+    }
 
     const result = validateCustomProvider({
-      form: { providerID: "custom-provider", name: "Provider", baseURL: "https://api.example.com", protocol: "chat",
-        credentialAction: "keep", credentialID: "", apiKey: "", headers: [], err: {},
+      form: {
+        providerID: "custom-provider",
+        name: "Provider",
+        baseURL: "https://api.example.com",
+        protocol: "chat",
+        credentialAction: "keep",
+        credentialID: "",
+        apiKey: "",
+        headers: [],
+        err: {},
         models: [{ row: "m0", id: "model", name: "", seed, overrides: { context: "64000" }, err: {} }],
       },
-      t, existingProviderIDs: new Set(),
+      t,
+      existingProviderIDs: new Set(),
     })
 
     expect(result.result?.definition.models?.model).toMatchObject({ seed, limit: { context: 64000 } })
@@ -315,16 +505,31 @@ describe("validateCustomProvider", () => {
   })
 
   test.each([
-    { models: [{ configID: "alias-a", id: "same-api" }, { configID: "alias-b", id: "same-api" }], duplicate: false },
+    {
+      models: [
+        { configID: "alias-a", id: "same-api" },
+        { configID: "alias-b", id: "same-api" },
+      ],
+      duplicate: false,
+    },
     { models: [{ configID: "alias-a", id: "actual-api" }, { id: "alias-a" }], duplicate: true },
   ])("validates the stored model keys: $duplicate", ({ models, duplicate }) => {
     const result = validateCustomProvider({
       form: {
-        providerID: "custom-provider", name: "Provider", baseURL: "https://api.example.com", protocol: "chat",
-        credentialAction: "keep", credentialID: "", apiKey: "", headers: [], err: {},
+        providerID: "custom-provider",
+        name: "Provider",
+        baseURL: "https://api.example.com",
+        protocol: "chat",
+        credentialAction: "keep",
+        credentialID: "",
+        apiKey: "",
+        headers: [],
+        err: {},
         models: models.map((model, index) => ({ ...model, row: String(index), name: "Model", err: {} })),
       },
-      t, existingProviderIDs: new Set(["custom-provider"]), editingProviderID: "custom-provider",
+      t,
+      existingProviderIDs: new Set(["custom-provider"]),
+      editingProviderID: "custom-provider",
     })
 
     expect(result.models[1]?.id).toBe(duplicate ? "provider.custom.error.duplicate" : undefined)
@@ -336,11 +541,22 @@ describe("validateCustomProvider", () => {
     { envNames: "", env: undefined, unset: [["env"]] },
   ])("edits authored environment references: $envNames", ({ envNames, env, unset }) => {
     const result = validateCustomProvider({
-      form: { providerID: "custom-provider", name: "Provider", baseURL: "https://api.example.com", protocol: "chat",
-        credentialAction: "keep", credentialID: "", apiKey: "", envNames, headers: [], err: {},
+      form: {
+        providerID: "custom-provider",
+        name: "Provider",
+        baseURL: "https://api.example.com",
+        protocol: "chat",
+        credentialAction: "keep",
+        credentialID: "",
+        apiKey: "",
+        envNames,
+        headers: [],
+        err: {},
         models: [{ row: "m0", id: "model-a", name: "Model", err: {} }],
       },
-      t, existingProviderIDs: new Set(["custom-provider"]), editingProviderID: "custom-provider",
+      t,
+      existingProviderIDs: new Set(["custom-provider"]),
+      editingProviderID: "custom-provider",
       definition: { env: ["FIRST_KEY", "SECOND_KEY"] },
     })
 

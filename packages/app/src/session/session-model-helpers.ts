@@ -27,8 +27,10 @@ export const syncPromptModel = (local: ModelSelection, prompt: PromptState) => {
 
   const current = prompt.model.current()
 
-  if (sameKey(current && ("type" in current ? current : { ...current, variant: current.variant ?? undefined }), next) &&
-    (current && !("type" in current) ? current.variant : undefined) === ("type" in next ? undefined : next.variant))
+  if (
+    sameKey(current && ("type" in current ? current : { ...current, variant: current.variant ?? undefined }), next) &&
+    (current && !("type" in current) ? current.variant : undefined) === ("type" in next ? undefined : next.variant)
+  )
     return
   prompt.model.set(next)
 }

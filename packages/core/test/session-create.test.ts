@@ -123,10 +123,17 @@ const admissionIt = testEffect(
       LocationServiceMap.node,
       admissionLLM,
     ]),
-    [Global.node.replace(tempGlobalLayer), Bus.node.replace(Bus.configured({ persist: true })), offlineModels,
-      LayerNodePlatform.llmClient.replace(makeGlobalNode({ service: LLMClient.Service,
-        layer: Layer.effect(LLMClient.Service, TestLLM.Test), deps: [admissionLLM],
-      })),
+    [
+      Global.node.replace(tempGlobalLayer),
+      Bus.node.replace(Bus.configured({ persist: true })),
+      offlineModels,
+      LayerNodePlatform.llmClient.replace(
+        makeGlobalNode({
+          service: LLMClient.Service,
+          layer: Layer.effect(LLMClient.Service, TestLLM.Test),
+          deps: [admissionLLM],
+        }),
+      ),
     ],
   ),
 )
@@ -179,7 +186,9 @@ const metaAdmission = Effect.fn("Keeper.metaAdmission")(function* (custom: boole
     metas: yield* MetaAgentService.Service,
     create: (selection: Model.Selection = model) =>
       composition
-        ? sessions.createCustom({ id, location, model: selection, composition }).pipe(Effect.map((response) => response.session))
+        ? sessions
+            .createCustom({ id, location, model: selection, composition })
+            .pipe(Effect.map((response) => response.session))
         : sessions.create({ id, location, model: selection, agent: Agent.ID.make("meta") }),
     read: () =>
       Effect.all({
@@ -199,191 +208,319 @@ const metaAdmission = Effect.fn("Keeper.metaAdmission")(function* (custom: boole
   }
 })
 
-const saveSessionGroup = Effect.fnUntraced(function* (location: Location.Ref, groupID: Model.GroupID, members: readonly Model.Ref[]) {
+const saveSessionGroup = Effect.fnUntraced(function* (
+  location: Location.Ref,
+  groupID: Model.GroupID,
+  members: readonly Model.Ref[],
+) {
   const locations = yield* LocationServiceMap.Service
   const config = yield* Config.Service.pipe(Effect.provide(locations.get(location)))
   if (!config.provider) return yield* Effect.die(new Error("Authored Group configuration is missing"))
-  const target = (yield* config.provider.list()).targets.find((target) => target.scope === "project" && target.preferred)
+  const target = (yield* config.provider.list()).targets.find(
+    (target) => target.scope === "project" && target.preferred,
+  )
   if (!target) return yield* Effect.die(new Error("Project Group target is missing"))
-  const saved = yield* ModelGroup.save(ModelGroup.decodeSave({
-    groupID, target: { scope: target.scope, path: target.path }, expectedDigest: target.digest,
-    patch: { set: { name: groupID, enabled: true, members: [...members], strategy: "order", affinity: "turn" } },
-  })).pipe(Effect.provideService(Config.Service, config))
+  const saved = yield* ModelGroup.save(
+    ModelGroup.decodeSave({
+      groupID,
+      target: { scope: target.scope, path: target.path },
+      expectedDigest: target.digest,
+      patch: { set: { name: groupID, enabled: true, members: [...members], strategy: "order", affinity: "turn" } },
+    }),
+  ).pipe(Effect.provideService(Config.Service, config))
   expect(saved.definition.status).toBe("saved")
   return yield* ModelGroup.behavior(groupID).pipe(Effect.provideService(Config.Service, config))
 })
 
-admissionIt.live("runs ordinary Meta Group selection from current configuration without a Composition snapshot", () => Effect.gen(function* () {
-  const f = yield* metaAdmission(false)
-  const locations = yield* LocationServiceMap.Service
-  const local = locations.get(f.location)
-  const next = Model.Ref.make({ providerID: f.model.providerID, id: Model.ID.make("next") })
-  yield* useOfflineCatalog([{
-    info: Provider.Info.make({ ...Provider.Info.empty(f.model.providerID), activation: "enabled", package: "@aigcfroge/ai/providers/openai/responses" }),
-    models: [f.model, next].map((ref) => Model.Info.make(Model.Info.default(ref.providerID, ref.id))),
-  }]).pipe(Effect.provide(local))
-  const group = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("dynamic-meta") })
-  yield* saveSessionGroup(f.location, group.groupID, [f.model])
-  const root = yield* f.create(group)
-  const context = yield* SessionContext.Service.pipe(Effect.provide(local))
-  const compositions = yield* SessionComposition.Service
-  expect(root.model).toEqual(group)
-  expect(yield* compositions.read(root.id)).toBeUndefined()
-  expect((yield* context.resolveModel(root)).ref).toEqual(f.model)
-  if (root.controller?.kind !== "root") return yield* Effect.die(new Error("Meta root controller is missing"))
-  expect((yield* f.metas.get(root.controller.metaAgentID))?.groupBehavior).toBeUndefined()
-  yield* saveSessionGroup(f.location, group.groupID, [next])
-  expect((yield* context.resolveModel(root)).ref).toEqual(next)
-  expect(yield* compositions.read(root.id)).toBeUndefined()
-}))
+admissionIt.live("runs ordinary Meta Group selection from current configuration without a Composition snapshot", () =>
+  Effect.gen(function* () {
+    const f = yield* metaAdmission(false)
+    const locations = yield* LocationServiceMap.Service
+    const local = locations.get(f.location)
+    const next = Model.Ref.make({ providerID: f.model.providerID, id: Model.ID.make("next") })
+    yield* useOfflineCatalog([
+      {
+        info: Provider.Info.make({
+          ...Provider.Info.empty(f.model.providerID),
+          activation: "enabled",
+          package: "@aigcfroge/ai/providers/openai/responses",
+        }),
+        models: [f.model, next].map((ref) => Model.Info.make(Model.Info.default(ref.providerID, ref.id))),
+      },
+    ]).pipe(Effect.provide(local))
+    const group = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("dynamic-meta") })
+    yield* saveSessionGroup(f.location, group.groupID, [f.model])
+    const root = yield* f.create(group)
+    const context = yield* SessionContext.Service.pipe(Effect.provide(local))
+    const compositions = yield* SessionComposition.Service
+    expect(root.model).toEqual(group)
+    expect(yield* compositions.read(root.id)).toBeUndefined()
+    expect((yield* context.resolveModel(root)).ref).toEqual(f.model)
+    if (root.controller?.kind !== "root") return yield* Effect.die(new Error("Meta root controller is missing"))
+    expect((yield* f.metas.get(root.controller.metaAgentID))?.groupBehavior).toBeUndefined()
+    yield* saveSessionGroup(f.location, group.groupID, [next])
+    expect((yield* context.resolveModel(root)).ref).toEqual(next)
+    expect(yield* compositions.read(root.id)).toBeUndefined()
+  }),
+)
 
-admissionIt.live("pins Custom Groups across edits and retry, and captures new behavior on explicit fork or upgrade", () => withCustomMode("true", Effect.gen(function* () {
-  const f = yield* metaAdmission(true)
-  const sessions = yield* Session.Service
-  const compositions = yield* SessionComposition.Service
-  const locations = yield* LocationServiceMap.Service
-  const local = locations.get(f.location)
-  const context = yield* SessionContext.Service.pipe(Effect.provide(local))
-  const next = Model.Ref.make({ providerID: f.model.providerID, id: Model.ID.make("next") })
-  yield* useOfflineCatalog([{
-    info: Provider.Info.make({ ...Provider.Info.empty(f.model.providerID), activation: "enabled", package: "@aigcfroge/ai/providers/openai/responses" }),
-    models: [f.model, next].map((ref) => Model.Info.make(Model.Info.default(ref.providerID, ref.id))),
-  }]).pipe(Effect.provide(local))
-  const group = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("frozen-root") })
-  const other = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("explicit-root") })
-  const captured = yield* saveSessionGroup(f.location, group.groupID, [f.model])
-  const root = yield* f.create(group)
-  const original = yield* compositions.get(root.id)
-  if (original.version !== 2) return yield* Effect.die(new Error("Custom Group snapshot is not V2"))
-  expect(original.data.groupBehavior).toEqual(captured)
-  const edited = yield* saveSessionGroup(f.location, group.groupID, [next])
-  expect(edited.behaviorDigest).not.toBe(captured.behaviorDigest)
-  expect(yield* f.create(group)).toEqual(root)
-  expect(yield* compositions.get(root.id)).toEqual(original)
-  expect((yield* context.resolveModel(root)).ref).toEqual(f.model)
-  yield* sessions.prompt({ sessionID: root.id, text: "Fork the frozen Group", resume: false })
-  yield* SessionInbox.promote(f.db, f.bus, root.id, "steer")
-  const fork = yield* sessions.fork({ sessionID: root.id })
-  expect(fork.model).toEqual(group)
-  expect((yield* context.resolveModel(fork)).ref).toEqual(f.model)
-  const current = yield* saveSessionGroup(f.location, other.groupID, [next])
-  const explicit = yield* sessions.fork({ sessionID: root.id, model: other })
-  const explicitSnapshot = yield* compositions.get(explicit.id)
-  if (explicitSnapshot.version !== 2) return yield* Effect.die(new Error("Explicit Group snapshot is not V2"))
-  expect(explicitSnapshot.data.groupBehavior).toEqual(current)
-  expect((yield* context.resolveModel(explicit)).ref).toEqual(next)
-  expect(yield* sessions.fork({ sessionID: root.id, id: fork.id, model: other }).pipe(Effect.flip)).toMatchObject({ reason: "group_selection_mismatch" })
-  if (!f.composition) return yield* Effect.die(new Error("Custom composition is missing"))
-  const ordinary = yield* sessions.create({ location: f.location, agent: Agent.ID.make("build"), model: group })
-  const upgraded = yield* sessions.upgradeCustom({ sessionID: ordinary.id, composition: f.composition, model: group })
-  if (upgraded.snapshot.version !== 2) return yield* Effect.die(new Error("Upgraded Group snapshot is not V2"))
-  expect(upgraded.snapshot.data.groupBehavior).toEqual(edited)
-  expect((yield* context.resolveModel(upgraded.session)).ref).toEqual(next)
-  expect(yield* compositions.get(root.id)).toEqual(original)
-})))
+admissionIt.live(
+  "pins Custom Groups across edits and retry, and captures new behavior on explicit fork or upgrade",
+  () =>
+    withCustomMode(
+      "true",
+      Effect.gen(function* () {
+        const f = yield* metaAdmission(true)
+        const sessions = yield* Session.Service
+        const compositions = yield* SessionComposition.Service
+        const locations = yield* LocationServiceMap.Service
+        const local = locations.get(f.location)
+        const context = yield* SessionContext.Service.pipe(Effect.provide(local))
+        const next = Model.Ref.make({ providerID: f.model.providerID, id: Model.ID.make("next") })
+        yield* useOfflineCatalog([
+          {
+            info: Provider.Info.make({
+              ...Provider.Info.empty(f.model.providerID),
+              activation: "enabled",
+              package: "@aigcfroge/ai/providers/openai/responses",
+            }),
+            models: [f.model, next].map((ref) => Model.Info.make(Model.Info.default(ref.providerID, ref.id))),
+          },
+        ]).pipe(Effect.provide(local))
+        const group = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("frozen-root") })
+        const other = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("explicit-root") })
+        const captured = yield* saveSessionGroup(f.location, group.groupID, [f.model])
+        const root = yield* f.create(group)
+        const original = yield* compositions.get(root.id)
+        if (original.version !== 2) return yield* Effect.die(new Error("Custom Group snapshot is not V2"))
+        expect(original.data.groupBehavior).toEqual(captured)
+        const edited = yield* saveSessionGroup(f.location, group.groupID, [next])
+        expect(edited.behaviorDigest).not.toBe(captured.behaviorDigest)
+        expect(yield* f.create(group)).toEqual(root)
+        expect(yield* compositions.get(root.id)).toEqual(original)
+        expect((yield* context.resolveModel(root)).ref).toEqual(f.model)
+        yield* sessions.prompt({ sessionID: root.id, text: "Fork the frozen Group", resume: false })
+        yield* SessionInbox.promote(f.db, f.bus, root.id, "steer")
+        const fork = yield* sessions.fork({ sessionID: root.id })
+        expect(fork.model).toEqual(group)
+        expect((yield* context.resolveModel(fork)).ref).toEqual(f.model)
+        const current = yield* saveSessionGroup(f.location, other.groupID, [next])
+        const explicit = yield* sessions.fork({ sessionID: root.id, model: other })
+        const explicitSnapshot = yield* compositions.get(explicit.id)
+        if (explicitSnapshot.version !== 2) return yield* Effect.die(new Error("Explicit Group snapshot is not V2"))
+        expect(explicitSnapshot.data.groupBehavior).toEqual(current)
+        expect((yield* context.resolveModel(explicit)).ref).toEqual(next)
+        expect(yield* sessions.fork({ sessionID: root.id, id: fork.id, model: other }).pipe(Effect.flip)).toMatchObject(
+          { reason: "group_selection_mismatch" },
+        )
+        if (!f.composition) return yield* Effect.die(new Error("Custom composition is missing"))
+        const ordinary = yield* sessions.create({ location: f.location, agent: Agent.ID.make("build"), model: group })
+        const upgraded = yield* sessions.upgradeCustom({
+          sessionID: ordinary.id,
+          composition: f.composition,
+          model: group,
+        })
+        if (upgraded.snapshot.version !== 2) return yield* Effect.die(new Error("Upgraded Group snapshot is not V2"))
+        expect(upgraded.snapshot.data.groupBehavior).toEqual(edited)
+        expect((yield* context.resolveModel(upgraded.session)).ref).toEqual(next)
+        expect(yield* compositions.get(root.id)).toEqual(original)
+      }),
+    ),
+)
 
-admissionIt.live("keeps a frozen child Group on exact retry and carries its behavior into a root fork", () => withCustomMode("true", Effect.gen(function* () {
-  const f = yield* metaAdmission(true)
-  const sessions = yield* Session.Service
-  const compositions = yield* SessionComposition.Service
-  const delegations = yield* DelegationService.Service
-  const locations = yield* LocationServiceMap.Service
-  const local = locations.get(f.location)
-  const next = Model.Ref.make({ providerID: f.model.providerID, id: Model.ID.make("next") })
-  yield* useOfflineCatalog([{
-    info: Provider.Info.make({ ...Provider.Info.empty(f.model.providerID), activation: "enabled", package: "@aigcfroge/ai/providers/openai/responses" }),
-    models: [f.model, next].map((ref) => Model.Info.make(Model.Info.default(ref.providerID, ref.id))),
-  }]).pipe(Effect.provide(local))
-  const rootGroup = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("parent-group") })
-  const childGroup = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("child-group") })
-  yield* saveSessionGroup(f.location, rootGroup.groupID, [f.model])
-  const firstBehavior = yield* saveSessionGroup(f.location, childGroup.groupID, [next])
-  const root = yield* f.create(rootGroup)
-  const agent = (yield* compositions.selectAgent(root.id, "meta-worker")).info
-  const delegation = yield* delegations.create({ parentSessionID: root.id, agent: agent.id, title: "Frozen ordinary source" })
-  const participant = yield* delegations.addParticipant({ delegationID: delegation.id, provider: "internal", target: agent.id, role: "implementer", context: "fresh" })
-  const input = { parentID: root.id, agent: agent.id, model: childGroup, source: new SessionSchema.TaskControllerSource({ kind: "task", delegationID: delegation.id, participantID: participant.id }) }
-  const child = yield* sessions.create(input)
-  yield* delegations.bindParticipant({ delegationID: delegation.id, participantID: participant.id, childSessionID: child.id })
-  const snapshot = yield* compositions.get(child.id)
-  const context = yield* SessionContext.Service.pipe(Effect.provide(local))
-  expect(child.model).toEqual(childGroup)
-  expect(child.controller).toBeUndefined()
-  expect((yield* context.resolveModel(child)).ref).toEqual(next)
-  yield* saveSessionGroup(f.location, childGroup.groupID, [f.model])
-  expect(yield* sessions.create({ ...input, id: child.id })).toEqual(child)
-  expect(yield* compositions.get(child.id)).toEqual(snapshot)
-  expect(yield* sessions.create({ ...input, id: child.id, model: rootGroup }).pipe(Effect.flip)).toMatchObject({ reason: "group_selection_mismatch" })
-  yield* sessions.prompt({ sessionID: child.id, text: "Fork from this child Group", resume: false })
-  yield* SessionInbox.promote(f.db, f.bus, child.id, "steer")
-  const fork = yield* sessions.fork({ sessionID: child.id })
-  const forkSnapshot = yield* compositions.get(fork.id)
-  if (forkSnapshot.version !== 2) return yield* Effect.die(new Error("Fork Group snapshot is not V2"))
-  expect(fork.model).toEqual(childGroup)
-  expect(forkSnapshot.data.groupBehavior).toEqual(firstBehavior)
-  expect((yield* context.resolveModel(fork)).ref).toEqual(next)
-})))
+admissionIt.live("keeps a frozen child Group on exact retry and carries its behavior into a root fork", () =>
+  withCustomMode(
+    "true",
+    Effect.gen(function* () {
+      const f = yield* metaAdmission(true)
+      const sessions = yield* Session.Service
+      const compositions = yield* SessionComposition.Service
+      const delegations = yield* DelegationService.Service
+      const locations = yield* LocationServiceMap.Service
+      const local = locations.get(f.location)
+      const next = Model.Ref.make({ providerID: f.model.providerID, id: Model.ID.make("next") })
+      yield* useOfflineCatalog([
+        {
+          info: Provider.Info.make({
+            ...Provider.Info.empty(f.model.providerID),
+            activation: "enabled",
+            package: "@aigcfroge/ai/providers/openai/responses",
+          }),
+          models: [f.model, next].map((ref) => Model.Info.make(Model.Info.default(ref.providerID, ref.id))),
+        },
+      ]).pipe(Effect.provide(local))
+      const rootGroup = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("parent-group") })
+      const childGroup = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("child-group") })
+      yield* saveSessionGroup(f.location, rootGroup.groupID, [f.model])
+      const firstBehavior = yield* saveSessionGroup(f.location, childGroup.groupID, [next])
+      const root = yield* f.create(rootGroup)
+      const agent = (yield* compositions.selectAgent(root.id, "meta-worker")).info
+      const delegation = yield* delegations.create({
+        parentSessionID: root.id,
+        agent: agent.id,
+        title: "Frozen ordinary source",
+      })
+      const participant = yield* delegations.addParticipant({
+        delegationID: delegation.id,
+        provider: "internal",
+        target: agent.id,
+        role: "implementer",
+        context: "fresh",
+      })
+      const input = {
+        parentID: root.id,
+        agent: agent.id,
+        model: childGroup,
+        source: new SessionSchema.TaskControllerSource({
+          kind: "task",
+          delegationID: delegation.id,
+          participantID: participant.id,
+        }),
+      }
+      const child = yield* sessions.create(input)
+      yield* delegations.bindParticipant({
+        delegationID: delegation.id,
+        participantID: participant.id,
+        childSessionID: child.id,
+      })
+      const snapshot = yield* compositions.get(child.id)
+      const context = yield* SessionContext.Service.pipe(Effect.provide(local))
+      expect(child.model).toEqual(childGroup)
+      expect(child.controller).toBeUndefined()
+      expect((yield* context.resolveModel(child)).ref).toEqual(next)
+      yield* saveSessionGroup(f.location, childGroup.groupID, [f.model])
+      expect(yield* sessions.create({ ...input, id: child.id })).toEqual(child)
+      expect(yield* compositions.get(child.id)).toEqual(snapshot)
+      expect(yield* sessions.create({ ...input, id: child.id, model: rootGroup }).pipe(Effect.flip)).toMatchObject({
+        reason: "group_selection_mismatch",
+      })
+      yield* sessions.prompt({ sessionID: child.id, text: "Fork from this child Group", resume: false })
+      yield* SessionInbox.promote(f.db, f.bus, child.id, "steer")
+      const fork = yield* sessions.fork({ sessionID: child.id })
+      const forkSnapshot = yield* compositions.get(fork.id)
+      if (forkSnapshot.version !== 2) return yield* Effect.die(new Error("Fork Group snapshot is not V2"))
+      expect(fork.model).toEqual(childGroup)
+      expect(forkSnapshot.data.groupBehavior).toEqual(firstBehavior)
+      expect((yield* context.resolveModel(fork)).ref).toEqual(next)
+    }),
+  ),
+)
 
-admissionIt.live("captures an asset executor's Group during real freeze and keeps the Meta child's first binding", () => withCustomMode("true", Effect.gen(function* () {
-  const group = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("asset-executor") })
-  const f = yield* metaAdmission(true, group)
-  const future = Model.Ref.make({ providerID: f.model.providerID, id: Model.ID.make("future-member") })
-  const locations = yield* LocationServiceMap.Service
-  const local = locations.get(f.location)
-  yield* useOfflineCatalog([{
-    info: Provider.Info.make({ ...Provider.Info.empty(f.model.providerID), activation: "enabled", package: "@aigcfroge/ai/providers/openai/responses" }),
-    models: [f.model, future].map((ref) => Model.Info.make({ ...Model.Info.default(ref.providerID, ref.id),
-      modelID: Model.ID.make(ref.id === f.model.id ? "frozen-group-api" : "future-group-api"),
-    })),
-  }]).pipe(Effect.provide(local))
-  const captured = yield* saveSessionGroup(f.location, group.groupID, [f.model])
-  const root = yield* f.create()
-  const sessions = yield* Session.Service
-  const compositions = yield* SessionComposition.Service
-  const agent = (yield* compositions.selectAgent(root.id, "meta-worker")).info
-  const snapshot = yield* compositions.get(root.id)
-  if (snapshot.version !== 2) return yield* Effect.die(new Error("Asset Group snapshot is not V2"))
-  expect(agent.model).toEqual(group)
-  expect(SessionComposition.groupBehaviorFor(snapshot, agent.id)).toEqual(captured)
-  const binding = yield* Session.resolveExecutor(root, agent).pipe(Effect.provide(local))
-  expect(binding).toMatchObject({ model: group, groupBehavior: captured, source: "agent" })
-  const delegations = yield* DelegationService.Service
-  const delegation = yield* delegations.create({ parentSessionID: root.id, title: "Frozen Meta executor" })
-  const participant = yield* delegations.addParticipant({ delegationID: delegation.id, provider: "internal", target: agent.id, role: "implementer", context: "fresh", executor: binding })
-  const input = { parentID: root.id, title: "Frozen Custom Group child", agent: agent.id, model: group, executor: binding,
-    source: new SessionSchema.TaskControllerSource({ kind: "task", delegationID: delegation.id, participantID: participant.id }) }
-  const child = yield* sessions.create(input)
-  yield* delegations.bindParticipant({ delegationID: delegation.id, participantID: participant.id, childSessionID: child.id })
-  expect(child.controller).toMatchObject({ kind: "child", executor: { model: group, groupBehavior: captured } })
-  const childSnapshot = yield* compositions.get(child.id)
-  const llm = yield* TestLLM.Test
-  yield* llm.push(TestLLM.text("Frozen first run", "group-first"), TestLLM.text("Frozen resumed run", "group-resume"))
-  const firstInput = yield* sessions.prompt({ sessionID: child.id, text: "First frozen Group input", resume: false })
-  yield* awaitWithTimeout(sessions.resume(child.id), "The frozen Group child did not finish its first run", "10 seconds")
-  expect((yield* llm.requests()).map((request) => String(request.model.id))).toEqual(["frozen-group-api"])
-  const afterFirstRun = yield* sessions.get(child.id)
-  yield* saveSessionGroup(f.location, group.groupID, [future])
-  expect(yield* Session.resolveExecutor(root, agent).pipe(Effect.provide(local))).toEqual(binding)
-  expect(yield* sessions.create({ ...input, id: child.id })).toEqual(afterFirstRun)
-  const context = yield* SessionContext.Service.pipe(Effect.provide(local))
-  expect((yield* context.resolveModel(child)).ref).toEqual(f.model)
-  expect(yield* compositions.get(root.id)).toEqual(snapshot)
-  const secondInput = yield* sessions.prompt({ sessionID: child.id, text: "Resume this exact frozen Group child", resume: false })
-  yield* awaitWithTimeout(sessions.resume(child.id), "The exact frozen Group child did not resume", "10 seconds")
-  const requests = yield* llm.requests()
-  expect(requests.map((request) => String(request.model.id))).toEqual(["frozen-group-api", "frozen-group-api"])
-  expect(requests.map((request) => request.http?.headers?.["x-aigcfroge-session-id"])).toEqual([child.id, child.id])
-  expect(JSON.stringify(requests[1]?.messages)).toContain("Resume this exact frozen Group child")
-  expect(yield* compositions.get(child.id)).toEqual(childSnapshot)
-  expect((yield* sessions.get(child.id)).controller).toEqual(child.controller)
-  for (const id of [firstInput.id, secondInput.id]) {
-    const completed = yield* SessionInputResult.read(f.db, { sessionID: child.id, inputID: id })
-    if (completed.status !== "completed") return yield* Effect.die(new Error("The frozen Group input did not complete"))
-    expect(completed.assistant.attempts?.map((attempt) => ({ selection: attempt.selection, model: attempt.model, api: attempt.apiModelID }))).toEqual([
-      { selection: group, model: f.model, api: "frozen-group-api" },
-    ])
-  }
-})))
+admissionIt.live("captures an asset executor's Group during real freeze and keeps the Meta child's first binding", () =>
+  withCustomMode(
+    "true",
+    Effect.gen(function* () {
+      const group = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("asset-executor") })
+      const f = yield* metaAdmission(true, group)
+      const future = Model.Ref.make({ providerID: f.model.providerID, id: Model.ID.make("future-member") })
+      const locations = yield* LocationServiceMap.Service
+      const local = locations.get(f.location)
+      yield* useOfflineCatalog([
+        {
+          info: Provider.Info.make({
+            ...Provider.Info.empty(f.model.providerID),
+            activation: "enabled",
+            package: "@aigcfroge/ai/providers/openai/responses",
+          }),
+          models: [f.model, future].map((ref) =>
+            Model.Info.make({
+              ...Model.Info.default(ref.providerID, ref.id),
+              modelID: Model.ID.make(ref.id === f.model.id ? "frozen-group-api" : "future-group-api"),
+            }),
+          ),
+        },
+      ]).pipe(Effect.provide(local))
+      const captured = yield* saveSessionGroup(f.location, group.groupID, [f.model])
+      const root = yield* f.create()
+      const sessions = yield* Session.Service
+      const compositions = yield* SessionComposition.Service
+      const agent = (yield* compositions.selectAgent(root.id, "meta-worker")).info
+      const snapshot = yield* compositions.get(root.id)
+      if (snapshot.version !== 2) return yield* Effect.die(new Error("Asset Group snapshot is not V2"))
+      expect(agent.model).toEqual(group)
+      expect(SessionComposition.groupBehaviorFor(snapshot, agent.id)).toEqual(captured)
+      const binding = yield* Session.resolveExecutor(root, agent).pipe(Effect.provide(local))
+      expect(binding).toMatchObject({ model: group, groupBehavior: captured, source: "agent" })
+      const delegations = yield* DelegationService.Service
+      const delegation = yield* delegations.create({ parentSessionID: root.id, title: "Frozen Meta executor" })
+      const participant = yield* delegations.addParticipant({
+        delegationID: delegation.id,
+        provider: "internal",
+        target: agent.id,
+        role: "implementer",
+        context: "fresh",
+        executor: binding,
+      })
+      const input = {
+        parentID: root.id,
+        title: "Frozen Custom Group child",
+        agent: agent.id,
+        model: group,
+        executor: binding,
+        source: new SessionSchema.TaskControllerSource({
+          kind: "task",
+          delegationID: delegation.id,
+          participantID: participant.id,
+        }),
+      }
+      const child = yield* sessions.create(input)
+      yield* delegations.bindParticipant({
+        delegationID: delegation.id,
+        participantID: participant.id,
+        childSessionID: child.id,
+      })
+      expect(child.controller).toMatchObject({ kind: "child", executor: { model: group, groupBehavior: captured } })
+      const childSnapshot = yield* compositions.get(child.id)
+      const llm = yield* TestLLM.Test
+      yield* llm.push(
+        TestLLM.text("Frozen first run", "group-first"),
+        TestLLM.text("Frozen resumed run", "group-resume"),
+      )
+      const firstInput = yield* sessions.prompt({
+        sessionID: child.id,
+        text: "First frozen Group input",
+        resume: false,
+      })
+      yield* awaitWithTimeout(
+        sessions.resume(child.id),
+        "The frozen Group child did not finish its first run",
+        "10 seconds",
+      )
+      expect((yield* llm.requests()).map((request) => String(request.model.id))).toEqual(["frozen-group-api"])
+      const afterFirstRun = yield* sessions.get(child.id)
+      yield* saveSessionGroup(f.location, group.groupID, [future])
+      expect(yield* Session.resolveExecutor(root, agent).pipe(Effect.provide(local))).toEqual(binding)
+      expect(yield* sessions.create({ ...input, id: child.id })).toEqual(afterFirstRun)
+      const context = yield* SessionContext.Service.pipe(Effect.provide(local))
+      expect((yield* context.resolveModel(child)).ref).toEqual(f.model)
+      expect(yield* compositions.get(root.id)).toEqual(snapshot)
+      const secondInput = yield* sessions.prompt({
+        sessionID: child.id,
+        text: "Resume this exact frozen Group child",
+        resume: false,
+      })
+      yield* awaitWithTimeout(sessions.resume(child.id), "The exact frozen Group child did not resume", "10 seconds")
+      const requests = yield* llm.requests()
+      expect(requests.map((request) => String(request.model.id))).toEqual(["frozen-group-api", "frozen-group-api"])
+      expect(requests.map((request) => request.http?.headers?.["x-aigcfroge-session-id"])).toEqual([child.id, child.id])
+      expect(JSON.stringify(requests[1]?.messages)).toContain("Resume this exact frozen Group child")
+      expect(yield* compositions.get(child.id)).toEqual(childSnapshot)
+      expect((yield* sessions.get(child.id)).controller).toEqual(child.controller)
+      for (const id of [firstInput.id, secondInput.id]) {
+        const completed = yield* SessionInputResult.read(f.db, { sessionID: child.id, inputID: id })
+        if (completed.status !== "completed")
+          return yield* Effect.die(new Error("The frozen Group input did not complete"))
+        expect(
+          completed.assistant.attempts?.map((attempt) => ({
+            selection: attempt.selection,
+            model: attempt.model,
+            api: attempt.apiModelID,
+          })),
+        ).toEqual([{ selection: group, model: f.model, api: "frozen-group-api" }])
+      }
+    }),
+  ),
+)
 
 const location = Location.Ref.make({ directory: AbsolutePath.make("/project") })
 const correctionLayer = CorrectionStore.layer.pipe(Layer.provide(Config.testLayer()))

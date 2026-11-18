@@ -181,20 +181,26 @@ type Store = {
     task: Record<string, { items?: SessionTaskInfo[] }>
     operation: Record<string, { items: Record<string, SessionTaskOperationInfo>; listed: boolean }>
     goal: Record<string, { items: Record<string, SessionGoalInfo>; listed: boolean }>
-    communication: Record<string, {
-      items: Record<string, SessionCommunicationMessage>
-      listed: boolean
-      next?: string
-      capability?: SessionCommunicationCapability
-      version: number
-      sequence: Record<string, number>
-    }>
-    schedule: Record<string, {
-      rules: Record<string, ScheduleRule>
-      listed: boolean
-      occurrences: Record<string, ScheduleOccurrence>
-      runsListed: Record<string, boolean>
-    }>
+    communication: Record<
+      string,
+      {
+        items: Record<string, SessionCommunicationMessage>
+        listed: boolean
+        next?: string
+        capability?: SessionCommunicationCapability
+        version: number
+        sequence: Record<string, number>
+      }
+    >
+    schedule: Record<
+      string,
+      {
+        rules: Record<string, ScheduleRule>
+        listed: boolean
+        occurrences: Record<string, ScheduleOccurrence>
+        runsListed: Record<string, boolean>
+      }
+    >
     delegation: Record<string, { items?: DelegationLegacyState[] }>
     workflow: Record<string, { value?: WorkflowAssetWorkflowStatusResponse }>
     cache: Record<string, { value?: SessionInstanceCacheDiagnostics }>
@@ -372,9 +378,18 @@ export function createData(config: CreateDataInput) {
     { client: AigcForgeClient; location: string; keys: Set<string>; tail: Promise<void> }
   >()
   const delegationOwners = new Map<string, { client: AigcForgeClient; location: string }>()
-  const goalOwners = new Map<string, { client: AigcForgeClient; location: string; keys: Set<string>; tail: Promise<void> }>()
-  const communicationOwners = new Map<string, { client: AigcForgeClient; location: string; keys: Set<string>; tail: Promise<void> }>()
-  const scheduleOwners = new Map<string, { client: AigcForgeClient; location: string; keys: Set<string>; tail: Promise<void> }>()
+  const goalOwners = new Map<
+    string,
+    { client: AigcForgeClient; location: string; keys: Set<string>; tail: Promise<void> }
+  >()
+  const communicationOwners = new Map<
+    string,
+    { client: AigcForgeClient; location: string; keys: Set<string>; tail: Promise<void> }
+  >()
+  const scheduleOwners = new Map<
+    string,
+    { client: AigcForgeClient; location: string; keys: Set<string>; tail: Promise<void> }
+  >()
   const workflowOwners = new Map<string, { client: AigcForgeClient; directory: string }>()
   const cacheOwners = new Map<string, { client: AigcForgeClient; directory: string }>()
   const identityOwners = new Map<
@@ -385,14 +400,17 @@ export function createData(config: CreateDataInput) {
   const metaOwners = new Map<string, { client: AigcForgeClient; directory: string }>()
   const factOwners = new Map<string, { client: AigcForgeClient; directory: string; query: string }>()
   const hubOwners = new Map<string, AigcForgeClient>()
-  const discoveryOwners = new Map<string, {
-    client: AigcForgeClient
-    location: LocationRef
-    canonical?: string
-    slot: string
-    providerID: string
-    connection?: ModelSourceConnectionRef
-  }>()
+  const discoveryOwners = new Map<
+    string,
+    {
+      client: AigcForgeClient
+      location: LocationRef
+      canonical?: string
+      slot: string
+      providerID: string
+      connection?: ModelSourceConnectionRef
+    }
+  >()
   let memoryOwner: AigcForgeClient | undefined
   let activeUpdates: Map<string, DataSessionStatus | undefined> | undefined
   const pendingUpdates = new Map<string, Map<string, SessionInboxInfo | SessionInbox.Delivery | undefined>>()
@@ -425,7 +443,12 @@ export function createData(config: CreateDataInput) {
     const previous = operationOwners.get(sessionID)
     if (previous?.client !== client || previous.location !== locationKey(location)) {
       previous?.keys.forEach((key) => sync.forget(key))
-      operationOwners.set(sessionID, { client, location: locationKey(location), keys: new Set(), tail: Promise.resolve() })
+      operationOwners.set(sessionID, {
+        client,
+        location: locationKey(location),
+        keys: new Set(),
+        tail: Promise.resolve(),
+      })
       setStore("session", "operation", sessionID, reconcile({ items: {}, listed: false }))
     }
     const owner = operationOwners.get(sessionID)
@@ -441,37 +464,51 @@ export function createData(config: CreateDataInput) {
     lease.owner.keys.add(key)
     return sync.run(key, (current) => {
       // List and detail reads share one serial lane, so delayed HTTP snapshots cannot replace newer facts.
-      const read = lease.owner.tail.catch(() => undefined).then(async () => {
-        const owned = () =>
-          !disposed &&
-          current() &&
-          operationOwners.get(sessionID) === lease.owner &&
-          store.session.operation[sessionID] === lease.cache &&
-          api() === lease.owner.client &&
-          (!config.connection || config.connection.status() === "connected") &&
-          locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) === lease.owner.location
-        if (!owned()) return
-        const input = { sessionID, directory: lease.location.directory, workspace: lease.location.workspaceID }
-        const tasks = lease.owner.client["session-instance"].session.instance.session.task
-        const values = operationID
-          ? [await tasks.operation({ ...input, operationID })]
-          : await tasks.operations(input)
-        if (!owned()) return
-        if (operationID) {
-          values.forEach((value) => setStore("session", "operation", sessionID, "items", value.operationID, reconcile(value)))
-          return
-        }
-        batch(() => {
-          setStore("session", "operation", sessionID, "items", reconcile(Object.fromEntries(values.map((value) => [value.operationID, value]))))
-          setStore("session", "operation", sessionID, "listed", true)
+      const read = lease.owner.tail
+        .catch(() => undefined)
+        .then(async () => {
+          const owned = () =>
+            !disposed &&
+            current() &&
+            operationOwners.get(sessionID) === lease.owner &&
+            store.session.operation[sessionID] === lease.cache &&
+            api() === lease.owner.client &&
+            (!config.connection || config.connection.status() === "connected") &&
+            locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) === lease.owner.location
+          if (!owned()) return
+          const input = { sessionID, directory: lease.location.directory, workspace: lease.location.workspaceID }
+          const tasks = lease.owner.client["session-instance"].session.instance.session.task
+          const values = operationID
+            ? [await tasks.operation({ ...input, operationID })]
+            : await tasks.operations(input)
+          if (!owned()) return
+          if (operationID) {
+            values.forEach((value) =>
+              setStore("session", "operation", sessionID, "items", value.operationID, reconcile(value)),
+            )
+            return
+          }
+          batch(() => {
+            setStore(
+              "session",
+              "operation",
+              sessionID,
+              "items",
+              reconcile(Object.fromEntries(values.map((value) => [value.operationID, value]))),
+            )
+            setStore("session", "operation", sessionID, "listed", true)
+          })
         })
-      })
       lease.owner.tail = read
       return read
     })
   }
 
-  function rememberOperation(sessionID: string, value: SessionTaskOperationInfo, lease: ReturnType<typeof operationCache>) {
+  function rememberOperation(
+    sessionID: string,
+    value: SessionTaskOperationInfo,
+    lease: ReturnType<typeof operationCache>,
+  ) {
     if (
       !lease ||
       disposed ||
@@ -507,45 +544,73 @@ export function createData(config: CreateDataInput) {
     const key = `session.goal:${sessionID}:${goalID ?? "list"}`
     lease.owner.keys.add(key)
     return sync.run(key, (current) => {
-      const read = lease.owner.tail.catch(() => undefined).then(async () => {
-        const owned = () =>
-          !disposed && current() && goalOwners.get(sessionID) === lease.owner &&
-          store.session.goal[sessionID] === lease.cache && api() === lease.owner.client &&
-          (!config.connection || config.connection.status() === "connected") &&
-          locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) === lease.owner.location
-        if (!owned()) return
-        const before = structuredClone(unwrap(lease.cache.items))
-        const input = { sessionID, directory: lease.location.directory, workspace: lease.location.workspaceID }
-        const goals = lease.owner.client.sessionGoal
-        const values = goalID
-          ? [await goals.get({ ...input, goalID })].filter((value): value is SessionGoalInfo => value !== null)
-          : await goals.list(input)
-        if (!owned()) return
-        // Goals have retained terminal records. A full SSE snapshot observed during the read wins by identity.
-        const items = { ...unwrap(lease.cache.items), ...Object.fromEntries(values.map((value) => [
-          value.id,
-          JSON.stringify(before[value.id]) !== JSON.stringify(lease.cache.items[value.id]) && lease.cache.items[value.id]
-            ? unwrap(lease.cache.items[value.id])
-            : value,
-        ])) }
-        batch(() => {
-          setStore("session", "goal", sessionID, "items", reconcile(items))
-          if (!goalID) setStore("session", "goal", sessionID, "listed", true)
+      const read = lease.owner.tail
+        .catch(() => undefined)
+        .then(async () => {
+          const owned = () =>
+            !disposed &&
+            current() &&
+            goalOwners.get(sessionID) === lease.owner &&
+            store.session.goal[sessionID] === lease.cache &&
+            api() === lease.owner.client &&
+            (!config.connection || config.connection.status() === "connected") &&
+            locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) === lease.owner.location
+          if (!owned()) return
+          const before = structuredClone(unwrap(lease.cache.items))
+          const input = { sessionID, directory: lease.location.directory, workspace: lease.location.workspaceID }
+          const goals = lease.owner.client.sessionGoal
+          const values = goalID
+            ? [await goals.get({ ...input, goalID })].filter((value): value is SessionGoalInfo => value !== null)
+            : await goals.list(input)
+          if (!owned()) return
+          // Goals have retained terminal records. A full SSE snapshot observed during the read wins by identity.
+          const items = {
+            ...unwrap(lease.cache.items),
+            ...Object.fromEntries(
+              values.map((value) => [
+                value.id,
+                JSON.stringify(before[value.id]) !== JSON.stringify(lease.cache.items[value.id]) &&
+                lease.cache.items[value.id]
+                  ? unwrap(lease.cache.items[value.id])
+                  : value,
+              ]),
+            ),
+          }
+          batch(() => {
+            setStore("session", "goal", sessionID, "items", reconcile(items))
+            if (!goalID) setStore("session", "goal", sessionID, "listed", true)
+          })
         })
-      })
       lease.owner.tail = read
       return read
     })
   }
 
-  function rememberGoal(sessionID: string, value: SessionGoalInfo, lease: ReturnType<typeof goalCache>, before?: Store["session"]["goal"][string]["items"]) {
-    if (!lease || disposed || goalOwners.get(sessionID) !== lease.owner || api() !== lease.owner.client ||
+  function rememberGoal(
+    sessionID: string,
+    value: SessionGoalInfo,
+    lease: ReturnType<typeof goalCache>,
+    before?: Store["session"]["goal"][string]["items"],
+  ) {
+    if (
+      !lease ||
+      disposed ||
+      goalOwners.get(sessionID) !== lease.owner ||
+      api() !== lease.owner.client ||
       store.session.goal[sessionID] !== lease.cache ||
-      locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) !== lease.owner.location) return
+      locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) !== lease.owner.location
+    )
+      return
     const previous = lease.cache.items[value.id]
     if (previous && (previous.revision > value.revision || previous.updatedAt > value.updatedAt)) return
-    if (before && previous && JSON.stringify(before[value.id]) !== JSON.stringify(previous) &&
-      previous.revision >= value.revision && previous.updatedAt >= value.updatedAt) return
+    if (
+      before &&
+      previous &&
+      JSON.stringify(before[value.id]) !== JSON.stringify(previous) &&
+      previous.revision >= value.revision &&
+      previous.updatedAt >= value.updatedAt
+    )
+      return
     setStore("session", "goal", sessionID, "items", value.id, reconcile(value))
   }
 
@@ -556,7 +621,12 @@ export function createData(config: CreateDataInput) {
     const previous = communicationOwners.get(sessionID)
     if (previous?.client !== client || previous.location !== locationKey(location)) {
       previous?.keys.forEach((key) => sync.forget(key))
-      communicationOwners.set(sessionID, { client, location: locationKey(location), keys: new Set(), tail: Promise.resolve() })
+      communicationOwners.set(sessionID, {
+        client,
+        location: locationKey(location),
+        keys: new Set(),
+        tail: Promise.resolve(),
+      })
       setStore("session", "communication", sessionID, reconcile({ items: {}, listed: false, version: 0, sequence: {} }))
     }
     const owner = communicationOwners.get(sessionID)
@@ -573,68 +643,124 @@ export function createData(config: CreateDataInput) {
       : `session.communication:${sessionID}:page:${options?.cursor ?? "first"}`
     lease.owner.keys.add(key)
     return sync.run(key, (current) => {
-      const read = lease.owner.tail.catch(() => undefined).then(async () => {
-        const owned = () =>
-          !disposed && current() && communicationOwners.get(sessionID) === lease.owner &&
-          store.session.communication[sessionID] === lease.cache && api() === lease.owner.client &&
-          (!config.connection || config.connection.status() === "connected") &&
-          locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) === lease.owner.location
-        if (!owned()) return
-        const before = structuredClone(unwrap(lease.cache.items))
-        const input = { sessionID, directory: lease.location.directory, workspace: lease.location.workspaceID }
-        const communications = lease.owner.client.sessionCommunication
-        const page = options?.communicationID
-          ? { items: [await communications.read({ ...input, communicationID: options.communicationID })].filter((value): value is SessionCommunicationMessage => value !== null) }
-          : await communications.list({ ...input, cursor: options?.cursor, limit: 20 })
-        if (!owned()) return
-        const items = { ...unwrap(lease.cache.items), ...Object.fromEntries(page.items.map((value) => [
-          value.id,
-          JSON.stringify(before[value.id]) !== JSON.stringify(lease.cache.items[value.id]) && lease.cache.items[value.id]
-            ? unwrap(lease.cache.items[value.id])
-            : value,
-        ])) }
-        if (options?.communicationID && !page.items.length &&
-          JSON.stringify(before[options.communicationID]) === JSON.stringify(lease.cache.items[options.communicationID]))
-          delete items[options.communicationID]
-        batch(() => {
-          setStore("session", "communication", sessionID, "items", reconcile(items))
-          if ("capability" in page) {
-            setStore("session", "communication", sessionID, "capability", reconcile(page.capability))
-            setStore("session", "communication", sessionID, "next", page.next)
-            setStore("session", "communication", sessionID, "listed", true)
+      const read = lease.owner.tail
+        .catch(() => undefined)
+        .then(async () => {
+          const owned = () =>
+            !disposed &&
+            current() &&
+            communicationOwners.get(sessionID) === lease.owner &&
+            store.session.communication[sessionID] === lease.cache &&
+            api() === lease.owner.client &&
+            (!config.connection || config.connection.status() === "connected") &&
+            locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) === lease.owner.location
+          if (!owned()) return
+          const before = structuredClone(unwrap(lease.cache.items))
+          const input = { sessionID, directory: lease.location.directory, workspace: lease.location.workspaceID }
+          const communications = lease.owner.client.sessionCommunication
+          const page = options?.communicationID
+            ? {
+                items: [await communications.read({ ...input, communicationID: options.communicationID })].filter(
+                  (value): value is SessionCommunicationMessage => value !== null,
+                ),
+              }
+            : await communications.list({ ...input, cursor: options?.cursor, limit: 20 })
+          if (!owned()) return
+          const items = {
+            ...unwrap(lease.cache.items),
+            ...Object.fromEntries(
+              page.items.map((value) => [
+                value.id,
+                JSON.stringify(before[value.id]) !== JSON.stringify(lease.cache.items[value.id]) &&
+                lease.cache.items[value.id]
+                  ? unwrap(lease.cache.items[value.id])
+                  : value,
+              ]),
+            ),
           }
+          if (
+            options?.communicationID &&
+            !page.items.length &&
+            JSON.stringify(before[options.communicationID]) ===
+              JSON.stringify(lease.cache.items[options.communicationID])
+          )
+            delete items[options.communicationID]
+          batch(() => {
+            setStore("session", "communication", sessionID, "items", reconcile(items))
+            if ("capability" in page) {
+              setStore("session", "communication", sessionID, "capability", reconcile(page.capability))
+              setStore("session", "communication", sessionID, "next", page.next)
+              setStore("session", "communication", sessionID, "listed", true)
+            }
+          })
         })
-      })
       lease.owner.tail = read
       return read
     })
   }
 
-  function rememberCommunication(sessionID: string, value: SessionCommunicationMessage, lease: ReturnType<typeof communicationCache>, before?: Store["session"]["communication"][string]["items"]) {
-    if (!lease || disposed || communicationOwners.get(sessionID) !== lease.owner || api() !== lease.owner.client ||
+  function rememberCommunication(
+    sessionID: string,
+    value: SessionCommunicationMessage,
+    lease: ReturnType<typeof communicationCache>,
+    before?: Store["session"]["communication"][string]["items"],
+  ) {
+    if (
+      !lease ||
+      disposed ||
+      communicationOwners.get(sessionID) !== lease.owner ||
+      api() !== lease.owner.client ||
       store.session.communication[sessionID] !== lease.cache ||
-      locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) !== lease.owner.location) return
+      locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) !== lease.owner.location
+    )
+      return
     const previous = lease.cache.items[value.id]
-    setStore("session", "communication", sessionID, "items", value.id, reconcile(
-      previous && (before && JSON.stringify(before[value.id]) !== JSON.stringify(previous) ||
-        value.state === "pending" && previous.state !== "pending")
-        ? { ...value, state: previous.state }
-        : value,
-    ))
+    setStore(
+      "session",
+      "communication",
+      sessionID,
+      "items",
+      value.id,
+      reconcile(
+        previous &&
+          ((before && JSON.stringify(before[value.id]) !== JSON.stringify(previous)) ||
+            (value.state === "pending" && previous.state !== "pending"))
+          ? { ...value, state: previous.state }
+          : value,
+      ),
+    )
   }
 
-  function communicationLifecycle(sessionID: string, inboxID: string | undefined, state: SessionCommunicationMessage["state"], sequence?: number) {
+  function communicationLifecycle(
+    sessionID: string,
+    inboxID: string | undefined,
+    state: SessionCommunicationMessage["state"],
+    sequence?: number,
+  ) {
     communicationOwners.forEach((owner, participantID) => {
       const cache = store.session.communication[participantID]
       if (!cache || owner.client !== api()) return
-      const values = Object.values(cache.items).filter((value) => value.body.sessionID === sessionID && (!inboxID || value.body.inputID === inboxID))
+      const values = Object.values(cache.items).filter(
+        (value) => value.body.sessionID === sessionID && (!inboxID || value.body.inputID === inboxID),
+      )
       // An in-flight page may contain a carrier we have not loaded yet. Revoke that snapshot too.
       if (!values.length && participantID !== sessionID && ![...owner.keys].some((key) => sync.pending(key))) return
       const key = inboxID ? JSON.stringify([sessionID, inboxID]) : undefined
       if (key && sequence !== undefined && (cache.sequence[key] ?? -1) >= sequence) return
       batch(() => {
-        if (key && sequence !== undefined) setStore("session", "communication", participantID, "sequence", key, sequence)
-        values.forEach((value) => setStore("session", "communication", participantID, "items", value.id, "state", store.session.removed[sessionID] ? "removed" : state))
+        if (key && sequence !== undefined)
+          setStore("session", "communication", participantID, "sequence", key, sequence)
+        values.forEach((value) =>
+          setStore(
+            "session",
+            "communication",
+            participantID,
+            "items",
+            value.id,
+            "state",
+            store.session.removed[sessionID] ? "removed" : state,
+          ),
+        )
         result.session.communication.invalidate(participantID)
         setStore("session", "communication", participantID, "version", (version) => version + 1)
       })
@@ -648,8 +774,18 @@ export function createData(config: CreateDataInput) {
     const previous = scheduleOwners.get(sessionID)
     if (previous?.client !== client || previous.location !== locationKey(location)) {
       previous?.keys.forEach((key) => sync.forget(key))
-      scheduleOwners.set(sessionID, { client, location: locationKey(location), keys: new Set(), tail: Promise.resolve() })
-      setStore("session", "schedule", sessionID, reconcile({ rules: {}, listed: false, occurrences: {}, runsListed: {} }))
+      scheduleOwners.set(sessionID, {
+        client,
+        location: locationKey(location),
+        keys: new Set(),
+        tail: Promise.resolve(),
+      })
+      setStore(
+        "session",
+        "schedule",
+        sessionID,
+        reconcile({ rules: {}, listed: false, occurrences: {}, runsListed: {} }),
+      )
     }
     const owner = scheduleOwners.get(sessionID)
     const cache = store.session.schedule[sessionID]
@@ -663,67 +799,118 @@ export function createData(config: CreateDataInput) {
     const key = `session.schedule:${sessionID}:${scheduleID ?? "list"}`
     lease.owner.keys.add(key)
     return sync.run(key, (current) => {
-      const read = lease.owner.tail.catch(() => undefined).then(async () => {
-        const owned = () =>
-          !disposed && current() && scheduleOwners.get(sessionID) === lease.owner &&
-          store.session.schedule[sessionID] === lease.cache && api() === lease.owner.client &&
-          (!config.connection || config.connection.status() === "connected") &&
-          locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) === lease.owner.location
-        if (!owned()) return
-        const query = { directory: lease.location.directory, workspace: lease.location.workspaceID }
-        if (scheduleID) {
-          const before = structuredClone(unwrap(lease.cache.occurrences))
-          const values = await lease.owner.client.schedule.runs({ ...query, id: scheduleID })
+      const read = lease.owner.tail
+        .catch(() => undefined)
+        .then(async () => {
+          const owned = () =>
+            !disposed &&
+            current() &&
+            scheduleOwners.get(sessionID) === lease.owner &&
+            store.session.schedule[sessionID] === lease.cache &&
+            api() === lease.owner.client &&
+            (!config.connection || config.connection.status() === "connected") &&
+            locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) === lease.owner.location
           if (!owned()) return
-          const items = { ...unwrap(lease.cache.occurrences), ...Object.fromEntries(values.map((value) => [
-            value.id,
-            JSON.stringify(before[value.id]) !== JSON.stringify(lease.cache.occurrences[value.id]) && lease.cache.occurrences[value.id]
-              ? unwrap(lease.cache.occurrences[value.id])
-              : value,
-          ])) }
+          const query = { directory: lease.location.directory, workspace: lease.location.workspaceID }
+          if (scheduleID) {
+            const before = structuredClone(unwrap(lease.cache.occurrences))
+            const values = await lease.owner.client.schedule.runs({ ...query, id: scheduleID })
+            if (!owned()) return
+            const items = {
+              ...unwrap(lease.cache.occurrences),
+              ...Object.fromEntries(
+                values.map((value) => [
+                  value.id,
+                  JSON.stringify(before[value.id]) !== JSON.stringify(lease.cache.occurrences[value.id]) &&
+                  lease.cache.occurrences[value.id]
+                    ? unwrap(lease.cache.occurrences[value.id])
+                    : value,
+                ]),
+              ),
+            }
+            batch(() => {
+              setStore("session", "schedule", sessionID, "occurrences", reconcile(items))
+              setStore("session", "schedule", sessionID, "runsListed", scheduleID, true)
+            })
+            return
+          }
+          const before = structuredClone(unwrap(lease.cache.rules))
+          const values = await lease.owner.client.schedule.rules({ ...query, sessionID })
+          if (!owned()) return
+          const items = {
+            ...unwrap(lease.cache.rules),
+            ...Object.fromEntries(
+              values.map((value) => [
+                value.id,
+                JSON.stringify(before[value.id]) !== JSON.stringify(lease.cache.rules[value.id]) &&
+                lease.cache.rules[value.id]
+                  ? unwrap(lease.cache.rules[value.id])
+                  : value,
+              ]),
+            ),
+          }
           batch(() => {
-            setStore("session", "schedule", sessionID, "occurrences", reconcile(items))
-            setStore("session", "schedule", sessionID, "runsListed", scheduleID, true)
+            setStore("session", "schedule", sessionID, "rules", reconcile(items))
+            setStore("session", "schedule", sessionID, "listed", true)
           })
-          return
-        }
-        const before = structuredClone(unwrap(lease.cache.rules))
-        const values = await lease.owner.client.schedule.rules({ ...query, sessionID })
-        if (!owned()) return
-        const items = { ...unwrap(lease.cache.rules), ...Object.fromEntries(values.map((value) => [
-          value.id,
-          JSON.stringify(before[value.id]) !== JSON.stringify(lease.cache.rules[value.id]) && lease.cache.rules[value.id]
-            ? unwrap(lease.cache.rules[value.id])
-            : value,
-        ])) }
-        batch(() => {
-          setStore("session", "schedule", sessionID, "rules", reconcile(items))
-          setStore("session", "schedule", sessionID, "listed", true)
         })
-      })
       lease.owner.tail = read
       return read
     })
   }
 
-  function rememberScheduleRule(sessionID: string, value: ScheduleRule, lease: ReturnType<typeof scheduleCache>, before?: Store["session"]["schedule"][string]["rules"]) {
-    if (!lease || disposed || scheduleOwners.get(sessionID) !== lease.owner || api() !== lease.owner.client ||
+  function rememberScheduleRule(
+    sessionID: string,
+    value: ScheduleRule,
+    lease: ReturnType<typeof scheduleCache>,
+    before?: Store["session"]["schedule"][string]["rules"],
+  ) {
+    if (
+      !lease ||
+      disposed ||
+      scheduleOwners.get(sessionID) !== lease.owner ||
+      api() !== lease.owner.client ||
       store.session.schedule[sessionID] !== lease.cache ||
-      locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) !== lease.owner.location) return
+      locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) !== lease.owner.location
+    )
+      return
     const previous = lease.cache.rules[value.id]
     if (previous && (previous.revision > value.revision || previous.updatedAt > value.updatedAt)) return
-    if (before && previous && JSON.stringify(before[value.id]) !== JSON.stringify(previous) &&
-      previous.revision >= value.revision && previous.updatedAt >= value.updatedAt) return
+    if (
+      before &&
+      previous &&
+      JSON.stringify(before[value.id]) !== JSON.stringify(previous) &&
+      previous.revision >= value.revision &&
+      previous.updatedAt >= value.updatedAt
+    )
+      return
     setStore("session", "schedule", sessionID, "rules", value.id, reconcile(value))
   }
 
-  function rememberOccurrence(sessionID: string, value: ScheduleOccurrence, lease: ReturnType<typeof scheduleCache>, before?: Store["session"]["schedule"][string]["occurrences"]) {
-    if (!lease || disposed || scheduleOwners.get(sessionID) !== lease.owner || api() !== lease.owner.client ||
+  function rememberOccurrence(
+    sessionID: string,
+    value: ScheduleOccurrence,
+    lease: ReturnType<typeof scheduleCache>,
+    before?: Store["session"]["schedule"][string]["occurrences"],
+  ) {
+    if (
+      !lease ||
+      disposed ||
+      scheduleOwners.get(sessionID) !== lease.owner ||
+      api() !== lease.owner.client ||
       store.session.schedule[sessionID] !== lease.cache ||
-      locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) !== lease.owner.location) return
+      locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) !== lease.owner.location
+    )
+      return
     const previous = lease.cache.occurrences[value.id]
     if (previous && previous.updatedAt > value.updatedAt) return
-    if (before && previous && JSON.stringify(before[value.id]) !== JSON.stringify(previous) && previous.updatedAt >= value.updatedAt) return
+    if (
+      before &&
+      previous &&
+      JSON.stringify(before[value.id]) !== JSON.stringify(previous) &&
+      previous.updatedAt >= value.updatedAt
+    )
+      return
     setStore("session", "schedule", sessionID, "occurrences", value.id, reconcile(value))
   }
 
@@ -780,8 +967,11 @@ export function createData(config: CreateDataInput) {
     sync.invalidate(`session.permission:${sessionID}`)
     const requests = store.session.permission[sessionID]
     if (!requests) return
-    const remaining = requests.filter((request) =>
-      request.source?.type !== "operation" || request.source.sessionID !== sessionID || request.source.operationID !== operationID,
+    const remaining = requests.filter(
+      (request) =>
+        request.source?.type !== "operation" ||
+        request.source.sessionID !== sessionID ||
+        request.source.operationID !== operationID,
     )
     if (remaining.length !== requests.length) setStore("session", "permission", sessionID, remaining)
   }
@@ -1234,7 +1424,9 @@ export function createData(config: CreateDataInput) {
         ) {
           // The server projects the one source row. Read it through the original transcript owner.
           result.session.message.invalidate(event.data.sessionID)
-          settle(`task.operation.source:${event.data.sessionID}`, () => result.session.message.sync(event.data.sessionID))
+          settle(`task.operation.source:${event.data.sessionID}`, () =>
+            result.session.message.sync(event.data.sessionID),
+          )
         }
         return
       case "task.operation.changed":
@@ -1405,8 +1597,20 @@ export function createData(config: CreateDataInput) {
         const current = store.session.info[event.data.sessionID]
         const input = store.session.pending[event.data.sessionID]?.find((item) => item.id === event.data.inboxID)
 
-        if (current && (input?.type === "user" || store.session.message[event.data.sessionID]?.find((item) => item.id === event.data.inboxID)?.type === "user"))
-          setStore("session", "info", event.data.sessionID, "time", "message", Math.max(current.time.message ?? 0, event.created))
+        if (
+          current &&
+          (input?.type === "user" ||
+            store.session.message[event.data.sessionID]?.find((item) => item.id === event.data.inboxID)?.type ===
+              "user")
+        )
+          setStore(
+            "session",
+            "info",
+            event.data.sessionID,
+            "time",
+            "message",
+            Math.max(current.time.message ?? 0, event.created),
+          )
         communicationLifecycle(event.data.sessionID, event.data.inboxID, "visible", event.durable.seq)
         const admitted = result.session.input.has(event.data.sessionID, event.data.inboxID)
         removePending(event.data.sessionID, event.data.inboxID)
@@ -1460,7 +1664,11 @@ export function createData(config: CreateDataInput) {
             const key = JSON.stringify([communication.body.sessionID, communication.body.inputID])
             if ((lease.cache.sequence[key] ?? -1) >= event.durable.seq) continue
             const previous = lease.cache.items[communication.id]
-            const value = { ...communication, text, state: store.session.removed[communication.targetSessionID] ? "removed" : previous?.state ?? "pending" }
+            const value = {
+              ...communication,
+              text,
+              state: store.session.removed[communication.targetSessionID] ? "removed" : (previous?.state ?? "pending"),
+            }
             if (JSON.stringify(previous) === JSON.stringify(value)) continue
             batch(() => {
               setStore("session", "communication", sessionID, "sequence", key, event.durable.seq)
@@ -1528,9 +1736,16 @@ export function createData(config: CreateDataInput) {
       case "session.step.started":
         if (store.session.info[event.data.sessionID])
           setStore("session", "info", event.data.sessionID, "time", "message", (time) => {
-            const assistant = store.session.message[event.data.sessionID]?.find((item) => item.id === event.data.assistantMessageID)
+            const assistant = store.session.message[event.data.sessionID]?.find(
+              (item) => item.id === event.data.assistantMessageID,
+            )
 
-            return Math.max(time ?? 0, assistant?.type === "assistant" && assistant.attempts !== undefined ? assistant.time.created : event.data.started)
+            return Math.max(
+              time ?? 0,
+              assistant?.type === "assistant" && assistant.attempts !== undefined
+                ? assistant.time.created
+                : event.data.started,
+            )
           })
         message.update(event.data.sessionID, (draft, index) => {
           const position = index.get(event.data.assistantMessageID)
@@ -1608,7 +1823,11 @@ export function createData(config: CreateDataInput) {
           if (assistant.attempts?.some((attempt) => attempt.ordinal === started.ordinal)) return
           if (
             assistant.content.length === 0 &&
-            !assistant.attempts?.some((attempt) => attempt.terminal?.outputStarted || attempt.observations.some((observation) => observation.outputStarted))
+            !assistant.attempts?.some(
+              (attempt) =>
+                attempt.terminal?.outputStarted ||
+                attempt.observations.some((observation) => observation.outputStarted),
+            )
           )
             assistant.model = started.model
           assistant.agent = started.agent
@@ -1947,7 +2166,8 @@ export function createData(config: CreateDataInput) {
       case "permission.asked":
         if (
           event.data.source?.type === "operation" &&
-          result.session.task.operation.get(event.data.source.sessionID, event.data.source.operationID)?.phase === "cancelled"
+          result.session.task.operation.get(event.data.source.sessionID, event.data.source.operationID)?.phase ===
+            "cancelled"
         )
           return
         if (store.session.permission[event.data.sessionID]?.some((request) => request.id === event.data.id)) return
@@ -2020,7 +2240,10 @@ export function createData(config: CreateDataInput) {
         result.location.model.invalidate(location)
         refresh(() => result.location.model.sync(location))
         result.location.model.group.definition.invalidate(location)
-        if (result.location.model.group.definition.list(location) !== undefined || sync.has(`location.modelGroup:${locationKey(location)}`))
+        if (
+          result.location.model.group.definition.list(location) !== undefined ||
+          sync.has(`location.modelGroup:${locationKey(location)}`)
+        )
           refresh(() => result.location.model.group.definition.sync(location))
         break
       case "agent.updated":
@@ -2086,7 +2309,10 @@ export function createData(config: CreateDataInput) {
       case "config.updated":
         refreshDiscovery(location)
         result.location.model.group.definition.invalidate(location)
-        if (result.location.model.group.definition.list(location) !== undefined || sync.has(`location.modelGroup:${locationKey(location)}`))
+        if (
+          result.location.model.group.definition.list(location) !== undefined ||
+          sync.has(`location.modelGroup:${locationKey(location)}`)
+        )
           refresh(() => result.location.model.group.definition.sync(location))
         result.location.config.invalidate(location)
         if (result.location.config.list(location) !== undefined || sync.has(`location.config:${locationKey(location)}`))
@@ -2156,10 +2382,13 @@ export function createData(config: CreateDataInput) {
 
   function discoveryReads(ref?: LocationRef, providerID?: string, connection?: ModelSourceConnectionRef) {
     const location = ref && locationKey(ref)
-    return [...discoveryOwners.entries()].filter(([, owner]) =>
-      (!location || locationKey(owner.location) === location || owner.canonical === location) &&
-      (providerID === undefined || owner.providerID === providerID) &&
-      (!connection || !owner.connection || discoverySlot(owner.providerID, owner.connection) === discoverySlot(owner.providerID, connection)),
+    return [...discoveryOwners.entries()].filter(
+      ([, owner]) =>
+        (!location || locationKey(owner.location) === location || owner.canonical === location) &&
+        (providerID === undefined || owner.providerID === providerID) &&
+        (!connection ||
+          !owner.connection ||
+          discoverySlot(owner.providerID, owner.connection) === discoverySlot(owner.providerID, connection)),
     )
   }
 
@@ -2186,26 +2415,40 @@ export function createData(config: CreateDataInput) {
       const key = `location.providerDiscovery:${id}:${slot}`
       const client = api()
       const previous = discoveryOwners.get(key)
-      const owner = previous?.client === client ? previous : { client, location, slot, providerID, connection, canonical: undefined }
+      const owner =
+        previous?.client === client
+          ? previous
+          : { client, location, slot, providerID, connection, canonical: undefined }
       if (owner !== previous) {
         sync.forget(key)
         discoveryOwners.set(key, owner)
         setStore("location", id, (data) => ({
-          providerDiscovery: Object.fromEntries(Object.entries(data?.providerDiscovery ?? {}).filter(([key]) => key !== slot)),
+          providerDiscovery: Object.fromEntries(
+            Object.entries(data?.providerDiscovery ?? {}).filter(([key]) => key !== slot),
+          ),
         }))
       }
       return sync.run(key, async (current) => {
-        const response = await client.provider.discovery.get({ location: locationQuery(location), providerID, connection })
+        const response = await client.provider.discovery.get({
+          location: locationQuery(location),
+          providerID,
+          connection,
+        })
         if (
-          disposed || !current() || api() !== client || discoveryOwners.get(key) !== owner ||
+          disposed ||
+          !current() ||
+          api() !== client ||
+          discoveryOwners.get(key) !== owner ||
           (config.connection && config.connection.status() !== "connected")
         )
           return
         const canonical = locationKey(response.location)
         owner.canonical = canonical
-        new Set([id, canonical]).forEach((location) => setStore("location", location, (data) => ({
-          providerDiscovery: { ...data?.providerDiscovery, [slot]: response.data },
-        })))
+        new Set([id, canonical]).forEach((location) =>
+          setStore("location", location, (data) => ({
+            providerDiscovery: { ...data?.providerDiscovery, [slot]: response.data },
+          })),
+        )
       })
     },
     invalidate(providerID?: string, connection?: ModelSourceConnectionRef, ref?: LocationRef) {
@@ -2237,14 +2480,25 @@ export function createData(config: CreateDataInput) {
         )
           return
         batch(() => {
-          setStore("session", "removed", produce((draft) => { delete draft[info.id] }))
-          setStore("session", "info", info.id, reconcile({
-            ...info,
-            time: {
-              ...info.time,
-              message: Math.max(info.time.message ?? 0, store.session.info[info.id]?.time.message ?? 0) || undefined,
-            },
-          }))
+          setStore(
+            "session",
+            "removed",
+            produce((draft) => {
+              delete draft[info.id]
+            }),
+          )
+          setStore(
+            "session",
+            "info",
+            info.id,
+            reconcile({
+              ...info,
+              time: {
+                ...info.time,
+                message: Math.max(info.time.message ?? 0, store.session.info[info.id]?.time.message ?? 0) || undefined,
+              },
+            }),
+          )
           sync.complete(`session:${info.id}`)
           registerSession(info.id)
         })
@@ -2339,8 +2593,7 @@ export function createData(config: CreateDataInput) {
               !cache?.listed
             )
               return undefined
-            return Object.values(cache.items)
-              .filter((value) => taskID === undefined || value.taskID === taskID)
+            return Object.values(cache.items).filter((value) => taskID === undefined || value.taskID === taskID)
           },
           get(sessionID: string, operationID: string) {
             const cache = store.session.operation[sessionID]
@@ -2393,17 +2646,26 @@ export function createData(config: CreateDataInput) {
         list(sessionID: string) {
           const cache = store.session.goal[sessionID]
           const owner = goalOwners.get(sessionID)
-          if (disposed || owner?.client !== api() ||
+          if (
+            disposed ||
+            owner?.client !== api() ||
             owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) ||
-            !cache?.listed) return
-          return Object.values(cache.items).toSorted((left, right) =>
-            right.createdAt - left.createdAt || left.id.localeCompare(right.id))
+            !cache?.listed
+          )
+            return
+          return Object.values(cache.items).toSorted(
+            (left, right) => right.createdAt - left.createdAt || left.id.localeCompare(right.id),
+          )
         },
         get(sessionID: string, goalID: string) {
           const cache = store.session.goal[sessionID]
           const owner = goalOwners.get(sessionID)
-          if (disposed || owner?.client !== api() ||
-            owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation())) return
+          if (
+            disposed ||
+            owner?.client !== api() ||
+            owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation())
+          )
+            return
           return cache?.items[goalID]
         },
         sync(sessionID: string) {
@@ -2419,42 +2681,66 @@ export function createData(config: CreateDataInput) {
         async set(input: SessionGoalSetInput) {
           const lease = goalCache(input.sessionID)
           const before = structuredClone(unwrap(lease?.cache.items ?? {}))
-          const value = await api().sessionGoal.set({ ...input, directory: input.directory ?? lease?.location.directory, workspace: input.workspace ?? lease?.location.workspaceID })
+          const value = await api().sessionGoal.set({
+            ...input,
+            directory: input.directory ?? lease?.location.directory,
+            workspace: input.workspace ?? lease?.location.workspaceID,
+          })
           rememberGoal(input.sessionID, value, lease, before)
           return value
         },
         async edit(input: SessionGoalEditInput) {
           const lease = goalCache(input.sessionID)
           const before = structuredClone(unwrap(lease?.cache.items ?? {}))
-          const value = await api().sessionGoal.edit({ ...input, directory: input.directory ?? lease?.location.directory, workspace: input.workspace ?? lease?.location.workspaceID })
+          const value = await api().sessionGoal.edit({
+            ...input,
+            directory: input.directory ?? lease?.location.directory,
+            workspace: input.workspace ?? lease?.location.workspaceID,
+          })
           rememberGoal(input.sessionID, value, lease, before)
           return value
         },
         async pause(input: SessionGoalPauseInput) {
           const lease = goalCache(input.sessionID)
           const before = structuredClone(unwrap(lease?.cache.items ?? {}))
-          const value = await api().sessionGoal.pause({ ...input, directory: input.directory ?? lease?.location.directory, workspace: input.workspace ?? lease?.location.workspaceID })
+          const value = await api().sessionGoal.pause({
+            ...input,
+            directory: input.directory ?? lease?.location.directory,
+            workspace: input.workspace ?? lease?.location.workspaceID,
+          })
           rememberGoal(input.sessionID, value, lease, before)
           return value
         },
         async resume(input: SessionGoalResumeInput) {
           const lease = goalCache(input.sessionID)
           const before = structuredClone(unwrap(lease?.cache.items ?? {}))
-          const value = await api().sessionGoal.resume({ ...input, directory: input.directory ?? lease?.location.directory, workspace: input.workspace ?? lease?.location.workspaceID })
+          const value = await api().sessionGoal.resume({
+            ...input,
+            directory: input.directory ?? lease?.location.directory,
+            workspace: input.workspace ?? lease?.location.workspaceID,
+          })
           rememberGoal(input.sessionID, value, lease, before)
           return value
         },
         async cancel(input: SessionGoalCancelInput) {
           const lease = goalCache(input.sessionID)
           const before = structuredClone(unwrap(lease?.cache.items ?? {}))
-          const value = await api().sessionGoal.cancel({ ...input, directory: input.directory ?? lease?.location.directory, workspace: input.workspace ?? lease?.location.workspaceID })
+          const value = await api().sessionGoal.cancel({
+            ...input,
+            directory: input.directory ?? lease?.location.directory,
+            workspace: input.workspace ?? lease?.location.workspaceID,
+          })
           rememberGoal(input.sessionID, value, lease, before)
           return value
         },
         async confirm(input: SessionGoalConfirmInput) {
           const lease = goalCache(input.sessionID)
           const before = structuredClone(unwrap(lease?.cache.items ?? {}))
-          const value = await api().sessionGoal.confirm({ ...input, directory: input.directory ?? lease?.location.directory, workspace: input.workspace ?? lease?.location.workspaceID })
+          const value = await api().sessionGoal.confirm({
+            ...input,
+            directory: input.directory ?? lease?.location.directory,
+            workspace: input.workspace ?? lease?.location.workspaceID,
+          })
           rememberGoal(input.sessionID, value, lease, before)
           return value
         },
@@ -2463,38 +2749,59 @@ export function createData(config: CreateDataInput) {
         list(sessionID: string) {
           const cache = store.session.communication[sessionID]
           const owner = communicationOwners.get(sessionID)
-          if (disposed || owner?.client !== api() ||
+          if (
+            disposed ||
+            owner?.client !== api() ||
             owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) ||
-            !cache?.listed) return
-          return Object.values(cache.items).toSorted((left, right) =>
-            Number(right.createdAt) - Number(left.createdAt) || left.id.localeCompare(right.id))
+            !cache?.listed
+          )
+            return
+          return Object.values(cache.items).toSorted(
+            (left, right) => Number(right.createdAt) - Number(left.createdAt) || left.id.localeCompare(right.id),
+          )
         },
         get(sessionID: string, communicationID: string) {
           const cache = store.session.communication[sessionID]
           const owner = communicationOwners.get(sessionID)
-          if (disposed || owner?.client !== api() ||
-            owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation())) return
+          if (
+            disposed ||
+            owner?.client !== api() ||
+            owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation())
+          )
+            return
           return cache?.items[communicationID]
         },
         capability(sessionID: string) {
           const cache = store.session.communication[sessionID]
           const owner = communicationOwners.get(sessionID)
-          if (disposed || owner?.client !== api() ||
-            owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation())) return
+          if (
+            disposed ||
+            owner?.client !== api() ||
+            owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation())
+          )
+            return
           return cache?.capability
         },
         next(sessionID: string) {
           const cache = store.session.communication[sessionID]
           const owner = communicationOwners.get(sessionID)
-          if (disposed || owner?.client !== api() ||
-            owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation())) return
+          if (
+            disposed ||
+            owner?.client !== api() ||
+            owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation())
+          )
+            return
           return cache?.next
         },
         version(sessionID: string) {
           const cache = store.session.communication[sessionID]
           const owner = communicationOwners.get(sessionID)
-          if (disposed || owner?.client !== api() ||
-            owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation())) return 0
+          if (
+            disposed ||
+            owner?.client !== api() ||
+            owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation())
+          )
+            return 0
           return cache?.version ?? 0
         },
         sync(sessionID: string) {
@@ -2517,7 +2824,14 @@ export function createData(config: CreateDataInput) {
         async send(input: SessionCommunicationSendInput, options?: RequestOptions) {
           const lease = communicationCache(input.sessionID)
           const before = structuredClone(unwrap(lease?.cache.items ?? {}))
-          const value = await api().sessionCommunication.send({ ...input, directory: input.directory ?? lease?.location.directory, workspace: input.workspace ?? lease?.location.workspaceID }, options)
+          const value = await api().sessionCommunication.send(
+            {
+              ...input,
+              directory: input.directory ?? lease?.location.directory,
+              workspace: input.workspace ?? lease?.location.workspaceID,
+            },
+            options,
+          )
           rememberCommunication(input.sessionID, value, lease, before)
           result.session.communication.invalidate(input.sessionID)
           return value
@@ -2525,7 +2839,14 @@ export function createData(config: CreateDataInput) {
         async reply(input: SessionCommunicationReplyInput, options?: RequestOptions) {
           const lease = communicationCache(input.sessionID)
           const before = structuredClone(unwrap(lease?.cache.items ?? {}))
-          const value = await api().sessionCommunication.reply({ ...input, directory: input.directory ?? lease?.location.directory, workspace: input.workspace ?? lease?.location.workspaceID }, options)
+          const value = await api().sessionCommunication.reply(
+            {
+              ...input,
+              directory: input.directory ?? lease?.location.directory,
+              workspace: input.workspace ?? lease?.location.workspaceID,
+            },
+            options,
+          )
           rememberCommunication(input.sessionID, value, lease, before)
           result.session.communication.invalidate(input.sessionID)
           return value
@@ -2535,34 +2856,53 @@ export function createData(config: CreateDataInput) {
         list(sessionID: string) {
           const cache = store.session.schedule[sessionID]
           const owner = scheduleOwners.get(sessionID)
-          if (disposed || owner?.client !== api() ||
+          if (
+            disposed ||
+            owner?.client !== api() ||
             owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) ||
-            !cache?.listed) return
-          return Object.values(cache.rules).toSorted((left, right) =>
-            Number(right.createdAt) - Number(left.createdAt) || left.id.localeCompare(right.id))
+            !cache?.listed
+          )
+            return
+          return Object.values(cache.rules).toSorted(
+            (left, right) => Number(right.createdAt) - Number(left.createdAt) || left.id.localeCompare(right.id),
+          )
         },
         get(sessionID: string, scheduleID: string) {
           const cache = store.session.schedule[sessionID]
           const owner = scheduleOwners.get(sessionID)
-          if (disposed || owner?.client !== api() ||
-            owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation())) return
+          if (
+            disposed ||
+            owner?.client !== api() ||
+            owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation())
+          )
+            return
           return cache?.rules[scheduleID]
         },
         runs(sessionID: string, scheduleID: string) {
           const cache = store.session.schedule[sessionID]
           const owner = scheduleOwners.get(sessionID)
-          if (disposed || owner?.client !== api() ||
+          if (
+            disposed ||
+            owner?.client !== api() ||
             owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) ||
-            !cache?.runsListed[scheduleID]) return
+            !cache?.runsListed[scheduleID]
+          )
+            return
           return Object.values(cache.occurrences)
             .filter((value) => value.scheduleID === scheduleID)
-            .toSorted((left, right) => Number(right.scheduledAt) - Number(left.scheduledAt) || left.id.localeCompare(right.id))
+            .toSorted(
+              (left, right) => Number(right.scheduledAt) - Number(left.scheduledAt) || left.id.localeCompare(right.id),
+            )
         },
         occurrence(sessionID: string, occurrenceID: string) {
           const cache = store.session.schedule[sessionID]
           const owner = scheduleOwners.get(sessionID)
-          if (disposed || owner?.client !== api() ||
-            owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation())) return
+          if (
+            disposed ||
+            owner?.client !== api() ||
+            owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation())
+          )
+            return
           return cache?.occurrences[occurrenceID]
         },
         sync(sessionID: string) {
@@ -2579,7 +2919,11 @@ export function createData(config: CreateDataInput) {
           const lease = scheduleCache(sessionID)
           const location: LocationRef = store.session.info[sessionID]?.location ?? defaultLocation()
           const before = structuredClone(unwrap(lease?.cache.rules ?? {}))
-          const value = await api().schedule.create({ ...input, directory: location.directory, workspace: location.workspaceID })
+          const value = await api().schedule.create({
+            ...input,
+            directory: location.directory,
+            workspace: location.workspaceID,
+          })
           rememberScheduleRule(sessionID, value, lease, before)
           return value
         },
@@ -2587,7 +2931,12 @@ export function createData(config: CreateDataInput) {
           const lease = scheduleCache(input.sessionID)
           const location: LocationRef = store.session.info[input.sessionID]?.location ?? defaultLocation()
           const before = structuredClone(unwrap(lease?.cache.rules ?? {}))
-          const value = await api().schedule.edit({ id: input.id, payload: input.payload, directory: location.directory, workspace: location.workspaceID })
+          const value = await api().schedule.edit({
+            id: input.id,
+            payload: input.payload,
+            directory: location.directory,
+            workspace: location.workspaceID,
+          })
           rememberScheduleRule(input.sessionID, value, lease, before)
           return value
         },
@@ -2595,7 +2944,12 @@ export function createData(config: CreateDataInput) {
           const lease = scheduleCache(input.sessionID)
           const location: LocationRef = store.session.info[input.sessionID]?.location ?? defaultLocation()
           const before = structuredClone(unwrap(lease?.cache.rules ?? {}))
-          const value = await api().schedule.pause({ id: input.id, payload: input.payload, directory: location.directory, workspace: location.workspaceID })
+          const value = await api().schedule.pause({
+            id: input.id,
+            payload: input.payload,
+            directory: location.directory,
+            workspace: location.workspaceID,
+          })
           rememberScheduleRule(input.sessionID, value, lease, before)
           return value
         },
@@ -2603,7 +2957,12 @@ export function createData(config: CreateDataInput) {
           const lease = scheduleCache(input.sessionID)
           const location: LocationRef = store.session.info[input.sessionID]?.location ?? defaultLocation()
           const before = structuredClone(unwrap(lease?.cache.rules ?? {}))
-          const value = await api().schedule.resume({ id: input.id, payload: input.payload, directory: location.directory, workspace: location.workspaceID })
+          const value = await api().schedule.resume({
+            id: input.id,
+            payload: input.payload,
+            directory: location.directory,
+            workspace: location.workspaceID,
+          })
           rememberScheduleRule(input.sessionID, value, lease, before)
           return value
         },
@@ -2611,7 +2970,12 @@ export function createData(config: CreateDataInput) {
           const lease = scheduleCache(input.sessionID)
           const location: LocationRef = store.session.info[input.sessionID]?.location ?? defaultLocation()
           const before = structuredClone(unwrap(lease?.cache.rules ?? {}))
-          const value = await api().schedule.cancelRule({ id: input.id, payload: input.payload, directory: location.directory, workspace: location.workspaceID })
+          const value = await api().schedule.cancelRule({
+            id: input.id,
+            payload: input.payload,
+            directory: location.directory,
+            workspace: location.workspaceID,
+          })
           rememberScheduleRule(input.sessionID, value, lease, before)
           return value
         },
@@ -2619,7 +2983,12 @@ export function createData(config: CreateDataInput) {
           const lease = scheduleCache(input.sessionID)
           const location: LocationRef = store.session.info[input.sessionID]?.location ?? defaultLocation()
           const before = structuredClone(unwrap(lease?.cache.occurrences ?? {}))
-          const value = await api().schedule.runOnce({ id: input.id, payload: input.payload, directory: location.directory, workspace: location.workspaceID })
+          const value = await api().schedule.runOnce({
+            id: input.id,
+            payload: input.payload,
+            directory: location.directory,
+            workspace: location.workspaceID,
+          })
           rememberOccurrence(input.sessionID, value, lease, before)
           result.session.schedule.invalidate(input.sessionID)
           return value
@@ -2628,7 +2997,11 @@ export function createData(config: CreateDataInput) {
           const lease = scheduleCache(input.sessionID)
           const location: LocationRef = store.session.info[input.sessionID]?.location ?? defaultLocation()
           const before = structuredClone(unwrap(lease?.cache.occurrences ?? {}))
-          const value = await api().schedule.cancelRun({ occurrenceID: input.occurrenceID, directory: location.directory, workspace: location.workspaceID })
+          const value = await api().schedule.cancelRun({
+            occurrenceID: input.occurrenceID,
+            directory: location.directory,
+            workspace: location.workspaceID,
+          })
           rememberOccurrence(input.sessionID, value, lease, before)
           return value
         },
@@ -3230,29 +3603,35 @@ export function createData(config: CreateDataInput) {
           ])
           if (disposed || api() !== client || !current()) return
           const sessions = [info, ...children]
-          const accepted = sessions.filter((session) => (store.session.info[session.id]?.time.updated ?? -Infinity) <= session.time.updated)
+          const accepted = sessions.filter(
+            (session) => (store.session.info[session.id]?.time.updated ?? -Infinity) <= session.time.updated,
+          )
           batch(() => {
             setStore(
               "session",
               "info",
               produce((draft) => {
                 for (const session of accepted) {
-                    // Store events can mutate the cached object during publication.
-                    const canonical = session === info ? structuredClone(info) : undefined
-                    draft[session.id] = {
-                      ...session,
-                      time: {
-                        ...session.time,
-                        message: Math.max(session.time.message ?? 0, draft[session.id]?.time.message ?? 0) || undefined,
-                      },
-                    }
-                    if (canonical) adopted = { client, info: canonical }
+                  // Store events can mutate the cached object during publication.
+                  const canonical = session === info ? structuredClone(info) : undefined
+                  draft[session.id] = {
+                    ...session,
+                    time: {
+                      ...session.time,
+                      message: Math.max(session.time.message ?? 0, draft[session.id]?.time.message ?? 0) || undefined,
+                    },
+                  }
+                  if (canonical) adopted = { client, info: canonical }
                 }
               }),
             )
-            setStore("session", "removed", produce((draft) => {
-              for (const session of accepted) delete draft[session.id]
-            }))
+            setStore(
+              "session",
+              "removed",
+              produce((draft) => {
+                for (const session of accepted) delete draft[session.id]
+              }),
+            )
             for (const session of sessions) {
               sync.complete(`session:${session.id}`)
               registerSession(session.id)
@@ -3719,7 +4098,9 @@ export function createData(config: CreateDataInput) {
       model: {
         ...locationResource("model", (location) => api().model.list({ location }), { alias: true }),
         group: {
-          definition: locationResource("modelGroup", (location) => api().model.group.definition.get({ location }), { alias: true }),
+          definition: locationResource("modelGroup", (location) => api().model.group.definition.get({ location }), {
+            alias: true,
+          }),
         },
       },
       provider: {
@@ -3806,9 +4187,7 @@ function mergeMessageSnapshot(before: SessionMessageInfo, live: SessionMessageIn
           return index < live.length ? merge(before[index], current, value) : value
         }),
         ...live.filter((value, index) =>
-          tool(value)
-            ? !snapshot.some((part) => tool(part) && part.id === value.id)
-            : index >= snapshot.length,
+          tool(value) ? !snapshot.some((part) => tool(part) && part.id === value.id) : index >= snapshot.length,
         ),
       ]
     }

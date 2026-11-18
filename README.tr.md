@@ -68,12 +68,12 @@ nix run nixpkgs#aigcfroge           # veya en güncel geliştirme dalı için gi
 
 AigcForge ayrıca masaüstü uygulaması olarak da mevcuttur. Doğrudan [sürüm sayfasından](https://github.com/anomalyco/aigcfroge/releases) veya [aigcfroge.ai/download](https://aigcfroge.ai/download) adresinden indirebilirsiniz.
 
-| Platform              | İndirme                            |
-| --------------------- | ---------------------------------- |
+| Platform              | İndirme                             |
+| --------------------- | ----------------------------------- |
 | macOS (Apple Silicon) | `aigcfroge-desktop-mac-arm64.dmg`   |
 | macOS (Intel)         | `aigcfroge-desktop-mac-x64.dmg`     |
 | Windows               | `aigcfroge-desktop-windows-x64.exe` |
-| Linux                 | `.deb`, `.rpm` veya AppImage       |
+| Linux                 | `.deb`, `.rpm` veya AppImage        |
 
 ```bash
 # macOS (Homebrew)

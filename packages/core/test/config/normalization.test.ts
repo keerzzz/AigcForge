@@ -49,11 +49,17 @@ function withoutEmptyCompatibilityContainers(input: Record<string, unknown>) {
 
 describe("ConfigNormalize", () => {
   test("translates legacy reasoning fields and schema capabilities without requiring a model runtime", () => {
-    const result = decoded({ provider: { custom: { models: {
-      string: { interleaved: "reasoning_text", tool_call: false },
-      object: { interleaved: { field: "vendor_reasoning" }, modalities: { output: ["text", "image"] } },
-      boolean: { interleaved: true },
-    } } } })
+    const result = decoded({
+      provider: {
+        custom: {
+          models: {
+            string: { interleaved: "reasoning_text", tool_call: false },
+            object: { interleaved: { field: "vendor_reasoning" }, modalities: { output: ["text", "image"] } },
+            boolean: { interleaved: true },
+          },
+        },
+      },
+    })
     expect(result.providers?.custom?.models?.string).toMatchObject({
       compatibility: { reasoningField: "reasoning_text" },
       capabilities: { tools: false, input: ["text", "image"], output: ["text"] },
@@ -228,8 +234,15 @@ describe("ConfigNormalize", () => {
 
   test("normalizes Group selections without lowering or renaming their IDs", () => {
     expect(normalized({ model: "group:fallback" }).encoded.model).toEqual({ type: "group", groupID: "fallback" })
-    expect(normalized({ model: { type: "group", groupID: "google-vertex-anthropic" } }).encoded.model).toEqual({ type: "group", groupID: "google-vertex-anthropic" })
-    expect(normalized({ model: "group:vendor/chat#high" }).encoded.model).toEqual({ providerID: "group:vendor", model: "chat", variant: "high" })
+    expect(normalized({ model: { type: "group", groupID: "google-vertex-anthropic" } }).encoded.model).toEqual({
+      type: "group",
+      groupID: "google-vertex-anthropic",
+    })
+    expect(normalized({ model: "group:vendor/chat#high" }).encoded.model).toEqual({
+      providerID: "group:vendor",
+      model: "chat",
+      variant: "high",
+    })
   })
 
   test("migrates the legacy small model to the title agent", () => {

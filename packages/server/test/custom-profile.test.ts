@@ -424,73 +424,71 @@ it.live("rejects unsupported reference kinds and unsafe paths with typed HTTP er
   }),
 )
 
-it.live(
-  "borrows profile references by Location and distinguishes disabled composition from a missing source",
-  () =>
-    Effect.gen(function* () {
-      const test = yield* setup(referenceFiles)
-      const own = yield* references(test, "agent", referencePaths.agent)
-      expect(own.map((profile) => profile.relativePath)).toEqual(["team/alpha.yaml", "zeta.yaml"])
-      expect(yield* references(test, "agent", referencePaths.agent, `${test.project}/.`)).toEqual(own)
-      const other = yield* references(test, "agent", referencePaths.agent, test.other)
-      expect(other.map((profile) => profile.name)).toEqual([CustomProfile.Name.make("Other Location")])
-      expect(other.map((profile) => profile.relativePath)).toEqual(["other.yaml"])
-      expect(yield* references(test, "agent", referencePaths.agent)).toEqual(own)
-      const denied = yield* test.request("/custom-composition/references?kind=unknown&path=../escape.md", {
-        authenticated: false,
-      })
-      expect(denied.status).toBe(401)
-      expect(
-        yield* withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
-          references(test, "agent", referencePaths.agent),
-        ),
-      ).toEqual(own)
-      const composition = {
-        source: "temporary",
-        agents: candidate.profile.agents,
-        bindings: candidate.profile.bindings,
-        presentation: "native",
-        requestedCapabilities: [],
-      }
-      yield* withEnv({ AIGCFROGE_CUSTOM_MODE: "false" }, () =>
-        Effect.gen(function* () {
-          const start = yield* test.request("/custom-composition/start", { body: { composition } })
-          expect(start.status).toBe(400)
-          expect(yield* Effect.promise(() => start.json())).toMatchObject({
-            _tag: "UnsupportedProductModeError",
-            mode: "custom",
-          })
+it.live("borrows profile references by Location and distinguishes disabled composition from a missing source", () =>
+  Effect.gen(function* () {
+    const test = yield* setup(referenceFiles)
+    const own = yield* references(test, "agent", referencePaths.agent)
+    expect(own.map((profile) => profile.relativePath)).toEqual(["team/alpha.yaml", "zeta.yaml"])
+    expect(yield* references(test, "agent", referencePaths.agent, `${test.project}/.`)).toEqual(own)
+    const other = yield* references(test, "agent", referencePaths.agent, test.other)
+    expect(other.map((profile) => profile.name)).toEqual([CustomProfile.Name.make("Other Location")])
+    expect(other.map((profile) => profile.relativePath)).toEqual(["other.yaml"])
+    expect(yield* references(test, "agent", referencePaths.agent)).toEqual(own)
+    const denied = yield* test.request("/custom-composition/references?kind=unknown&path=../escape.md", {
+      authenticated: false,
+    })
+    expect(denied.status).toBe(401)
+    expect(
+      yield* withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
+        references(test, "agent", referencePaths.agent),
+      ),
+    ).toEqual(own)
+    const composition = {
+      source: "temporary",
+      agents: candidate.profile.agents,
+      bindings: candidate.profile.bindings,
+      presentation: "native",
+      requestedCapabilities: [],
+    }
+    yield* withEnv({ AIGCFROGE_CUSTOM_MODE: "false" }, () =>
+      Effect.gen(function* () {
+        const start = yield* test.request("/custom-composition/start", { body: { composition } })
+        expect(start.status).toBe(400)
+        expect(yield* Effect.promise(() => start.json())).toMatchObject({
+          _tag: "UnsupportedProductModeError",
+          mode: "custom",
+        })
 
-          const created = yield* test.request("/api/session", {
-            body: { agent: "build", mode: "coding", location: { directory: test.project } },
-          })
-          expect(created.status).toBe(200)
-          const source = Schema.decodeUnknownSync(Schema.Struct({ data: Session.Info }))(
-            yield* Effect.promise(() => created.json()),
-          ).data
-          expect(source.agent).toBe(Agent.ID.make("build"))
-          expect(source.mode).toBe("coding")
-          expect(source.location.directory).toBe(AbsolutePath.make(test.project))
-          expect(source.controller).toBeUndefined()
-          const upgrade = yield* test.request("/custom-composition/upgrade", {
-            body: { sessionID: source.id, composition },
-          })
-          expect(upgrade.status).toBe(400)
-          expect(yield* Effect.promise(() => upgrade.json())).toMatchObject({
-            _tag: "UnsupportedProductModeError",
-            mode: "custom",
-          })
+        const created = yield* test.request("/api/session", {
+          body: { agent: "build", mode: "coding", location: { directory: test.project } },
+        })
+        expect(created.status).toBe(200)
+        const source = Schema.decodeUnknownSync(Schema.Struct({ data: Session.Info }))(
+          yield* Effect.promise(() => created.json()),
+        ).data
+        expect(source.agent).toBe(Agent.ID.make("build"))
+        expect(source.mode).toBe("coding")
+        expect(source.location.directory).toBe(AbsolutePath.make(test.project))
+        expect(source.controller).toBeUndefined()
+        const upgrade = yield* test.request("/custom-composition/upgrade", {
+          body: { sessionID: source.id, composition },
+        })
+        expect(upgrade.status).toBe(400)
+        expect(yield* Effect.promise(() => upgrade.json())).toMatchObject({
+          _tag: "UnsupportedProductModeError",
+          mode: "custom",
+        })
 
-          const missing = yield* test.request("/custom-composition/upgrade", {
-            body: { sessionID: test.sessionID, composition },
-          })
-          expect(missing.status).toBe(404)
-          expect(yield* Effect.promise(() => missing.json())).toEqual({
-            _tag: "SessionNotFoundError",
-            sessionID: test.sessionID,
-            message: `Session not found: ${test.sessionID}`,
-          })
-        }),
-      )
-    }),
+        const missing = yield* test.request("/custom-composition/upgrade", {
+          body: { sessionID: test.sessionID, composition },
+        })
+        expect(missing.status).toBe(404)
+        expect(yield* Effect.promise(() => missing.json())).toEqual({
+          _tag: "SessionNotFoundError",
+          sessionID: test.sessionID,
+          message: `Session not found: ${test.sessionID}`,
+        })
+      }),
+    )
+  }),
 )

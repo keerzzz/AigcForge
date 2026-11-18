@@ -928,7 +928,8 @@ export const dict = {
     "Рекомендовано: 128×128px. Клацніть або перетягніть для завантаження зображення.",
   "project.settings.color.description": "Використовується для іконки проєкту, коли не встановлено власне зображення",
   "project.settings.worktree.startup.description": "Виконується один раз після створення нового робочого дерева",
-  "project.settings.worktree.startup.hint.base": "Використовуйте $AIGCFROGE_WORKTREE_BASE для базового робочого дерева.",
+  "project.settings.worktree.startup.hint.base":
+    "Використовуйте $AIGCFROGE_WORKTREE_BASE для базового робочого дерева.",
   "project.settings.worktree.startup.hint.new": "Використовуйте $AIGCFROGE_WORKTREE_PATH для нового робочого дерева.",
   "project.settings.extensions.empty.mcps.title": "Поки немає MCP",
   "project.settings.extensions.empty.mcps.description": "MCP, доступні для AigcForge, з’являться тут",

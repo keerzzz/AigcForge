@@ -103,7 +103,10 @@ describe("session diff", () => {
   })
 
   test.each([
-    ["missing final newlines", "@@ -1,2 +1,2 @@\n one\n-two\n\\ No newline at end of file\n+three\n\\ No newline at end of file\n"],
+    [
+      "missing final newlines",
+      "@@ -1,2 +1,2 @@\n one\n-two\n\\ No newline at end of file\n+three\n\\ No newline at end of file\n",
+    ],
     ["an added final newline", "@@ -1,2 +1,2 @@\n one\n-two\n\\ No newline at end of file\n+two\n"],
     ["CRLF lines", "@@ -1,3 +1,3 @@\n one\r\n-two\r\n+three\r\n four\r\n"],
     ["a new file", "@@ -0,0 +1,3 @@\n+one\n+two\n+three\n"],
@@ -119,13 +122,19 @@ describe("session diff", () => {
       { name: "a.ts", contents: contents.after },
     )
 
-    expect({ ...resolveFileDiff({ file: "a.ts", patch }), cacheKey: undefined }).toEqual({ ...expected, cacheKey: undefined })
+    expect({ ...resolveFileDiff({ file: "a.ts", patch }), cacheKey: undefined }).toEqual({
+      ...expected,
+      cacheKey: undefined,
+    })
   })
 
-  test.each(["a\tb.ts", "a\nb.ts", '"quoted"', " padded.ts "])("keeps the exact file name %j for complete patches", (file) => {
-    expect(resolveFileDiff({ file, patch: `${header}@@ -1,2 +1,2 @@\n one\n-old\n+new\n` }).name).toBe(file)
-    expect(resolveFileDiff({ file, patch: `${header}@@ -0,0 +0,0 @@\n` }).name).toBe(file)
-  })
+  test.each(["a\tb.ts", "a\nb.ts", '"quoted"', " padded.ts "])(
+    "keeps the exact file name %j for complete patches",
+    (file) => {
+      expect(resolveFileDiff({ file, patch: `${header}@@ -1,2 +1,2 @@\n one\n-old\n+new\n` }).name).toBe(file)
+      expect(resolveFileDiff({ file, patch: `${header}@@ -0,0 +0,0 @@\n` }).name).toBe(file)
+    },
+  )
 
   test("collapses unchanged runs in complete patches into the hunks of a fresh file diff", () => {
     const before = Array.from({ length: 40 }, (_, index) => `line ${index}\n`)
@@ -188,16 +197,16 @@ describe("session diff", () => {
     expect(resolveFileDiff({ file: "b.ts", patch }).name).toBe("b.ts")
   })
 
-  test.each([
-    "@@ -1 +1 @@\n-old\n+new\n",
-    "--- a.ts\t\n+++ a.ts\t\n@@ -1 +1 @@\n-old\n+new\n",
-  ])("reuses a highlight identity for the same cached patch: %s", (patch) => {
-    const first = resolveFileDiff({ file: "a.ts", patch })
-    expect(first.cacheKey).toBeString()
-    expect(resolveFileDiff({ file: "a.ts", patch }).cacheKey).toBe(first.cacheKey)
-    expect(resolveFileDiff({ file: "b.ts", patch }).cacheKey).not.toBe(first.cacheKey)
-    expect(resolveFileDiff({ file: "a.ts", patch: patch.replace("+new", "+next") }).cacheKey).not.toBe(first.cacheKey)
-  })
+  test.each(["@@ -1 +1 @@\n-old\n+new\n", "--- a.ts\t\n+++ a.ts\t\n@@ -1 +1 @@\n-old\n+new\n"])(
+    "reuses a highlight identity for the same cached patch: %s",
+    (patch) => {
+      const first = resolveFileDiff({ file: "a.ts", patch })
+      expect(first.cacheKey).toBeString()
+      expect(resolveFileDiff({ file: "a.ts", patch }).cacheKey).toBe(first.cacheKey)
+      expect(resolveFileDiff({ file: "b.ts", patch }).cacheKey).not.toBe(first.cacheKey)
+      expect(resolveFileDiff({ file: "a.ts", patch: patch.replace("+new", "+next") }).cacheKey).not.toBe(first.cacheKey)
+    },
+  )
 
   test("keys preloaded content diffs by file name and content", () => {
     const diff = { file: "a.ts", before: "one\n", after: "two\n", additions: 1, deletions: 1 }
@@ -212,8 +221,9 @@ describe("session diff", () => {
     const patch = "@@ -1 +1 @@\n-old\n+new\n"
     const first = resolveFileDiff({ file: "evicted.ts", patch })
 
-    const keys = Array.from({ length: 20 }, (_, index) =>
-      resolveFileDiff({ file: "evicted.ts", patch: patch.replace("+new", `+new${index}`) }).cacheKey,
+    const keys = Array.from(
+      { length: 20 },
+      (_, index) => resolveFileDiff({ file: "evicted.ts", patch: patch.replace("+new", `+new${index}`) }).cacheKey,
     )
 
     expect(keys).not.toContain(first.cacheKey)

@@ -5,7 +5,12 @@ import { migrations } from "./migration.gen"
 export function migrateDatabase(db: DatabaseSync) {
   db.exec("CREATE TABLE IF NOT EXISTS migration (id TEXT PRIMARY KEY, time_completed INTEGER NOT NULL)")
 
-  const applied = new Set(db.prepare("SELECT id FROM migration").all().map((row) => row.id))
+  const applied = new Set(
+    db
+      .prepare("SELECT id FROM migration")
+      .all()
+      .map((row) => row.id),
+  )
 
   // drafts.sqlite predates the journal: adopt its existing draft tables instead of creating them again.
   const legacy =

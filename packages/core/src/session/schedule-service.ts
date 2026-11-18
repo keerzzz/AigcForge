@@ -40,8 +40,12 @@ const toInfo = (row: typeof ScheduleTable.$inferSelect): Schedule.Info =>
     content: row.content,
     dueAt: row.due_at,
     timezone: row.timezone,
-    status: row.status === "paused" ? "cancelled"
-      : row.status === "pending" && row.active_occurrence_id ? "running" : row.status,
+    status:
+      row.status === "paused"
+        ? "cancelled"
+        : row.status === "pending" && row.active_occurrence_id
+          ? "running"
+          : row.status,
     attempts: row.attempts,
     ...(row.next_attempt_at !== null && row.next_attempt_at !== undefined
       ? { nextAttemptAt: row.next_attempt_at }
@@ -225,7 +229,12 @@ export const layer = Layer.effect(
         const rows = yield* db
           .select()
           .from(ScheduleTable)
-          .where(and(eq(ScheduleTable.kind, "reminder"), or(eq(ScheduleTable.status, "pending"), eq(ScheduleTable.status, "running"))))
+          .where(
+            and(
+              eq(ScheduleTable.kind, "reminder"),
+              or(eq(ScheduleTable.status, "pending"), eq(ScheduleTable.status, "running")),
+            ),
+          )
           .orderBy(ScheduleTable.due_at)
           .all()
           .pipe(Effect.orDie)
@@ -252,7 +261,12 @@ export const layer = Layer.effect(
         if (row.status !== "pending" && row.status !== "running") return toInfo(row)
         const updated = yield* db
           .update(ScheduleTable)
-          .set({ status: "cancelled", next_due_at: null, revision: row.revision + 1, time_updated: (yield* DateTime.nowAsDate).getTime() })
+          .set({
+            status: "cancelled",
+            next_due_at: null,
+            revision: row.revision + 1,
+            time_updated: (yield* DateTime.nowAsDate).getTime(),
+          })
           .where(
             and(eq(ScheduleTable.id, id), or(eq(ScheduleTable.status, "pending"), eq(ScheduleTable.status, "running"))),
           )
@@ -333,7 +347,13 @@ export const layer = Layer.effect(
       Effect.gen(function* () {
         const row = yield* db
           .update(ScheduleTable)
-          .set({ status, next_due_at: null, lease_owner: null, lease_expires_at: null, time_updated: (yield* DateTime.nowAsDate).getTime() })
+          .set({
+            status,
+            next_due_at: null,
+            lease_owner: null,
+            lease_expires_at: null,
+            time_updated: (yield* DateTime.nowAsDate).getTime(),
+          })
           .where(and(eq(ScheduleTable.id, id), eq(ScheduleTable.kind, "reminder"), eq(ScheduleTable.status, "running")))
           .returning()
           .get()
@@ -348,7 +368,12 @@ export const layer = Layer.effect(
       Effect.gen(function* () {
         const row = yield* db
           .update(ScheduleTable)
-          .set({ status: "pending", lease_owner: null, lease_expires_at: null, time_updated: (yield* DateTime.nowAsDate).getTime() })
+          .set({
+            status: "pending",
+            lease_owner: null,
+            lease_expires_at: null,
+            time_updated: (yield* DateTime.nowAsDate).getTime(),
+          })
           .where(and(eq(ScheduleTable.id, id), eq(ScheduleTable.kind, "reminder"), eq(ScheduleTable.status, "running")))
           .returning()
           .get()
@@ -359,11 +384,28 @@ export const layer = Layer.effect(
       }),
     )
 
-    return Service.of({ create, list, listPending, countPending, cancel, update, claim, settle, recoverClaim,
-      createRule: rules.create, getRule: rules.get, listRules: rules.list, editRule: rules.edit,
-      pauseRule: rules.pause, resumeRule: rules.resume, cancelRule: rules.cancel,
-      claimOccurrence: rules.claim, occurrence: rules.occurrence, runs: rules.runs,
-      unsettledOccurrences: rules.unsettled, advanceOccurrence: rules.advance,
+    return Service.of({
+      create,
+      list,
+      listPending,
+      countPending,
+      cancel,
+      update,
+      claim,
+      settle,
+      recoverClaim,
+      createRule: rules.create,
+      getRule: rules.get,
+      listRules: rules.list,
+      editRule: rules.edit,
+      pauseRule: rules.pause,
+      resumeRule: rules.resume,
+      cancelRule: rules.cancel,
+      claimOccurrence: rules.claim,
+      occurrence: rules.occurrence,
+      runs: rules.runs,
+      unsettledOccurrences: rules.unsettled,
+      advanceOccurrence: rules.advance,
       bindTask: rules.bindTask,
       deliverOccurrence: rules.deliver,
     })
@@ -522,7 +564,12 @@ export const makeAssistantCore = (input: {
       input.db
         .select()
         .from(ScheduleTable)
-        .where(and(eq(ScheduleTable.kind, "reminder"), or(eq(ScheduleTable.status, "pending"), eq(ScheduleTable.status, "running"))))
+        .where(
+          and(
+            eq(ScheduleTable.kind, "reminder"),
+            or(eq(ScheduleTable.status, "pending"), eq(ScheduleTable.status, "running")),
+          ),
+        )
         .all()
         .pipe(
           Effect.orDie,
@@ -592,7 +639,13 @@ export const makeAssistantCore = (input: {
               const delivered = inserted.length > 0
               yield* tx
                 .update(ScheduleTable)
-                .set({ status: "completed", next_due_at: null, lease_owner: null, lease_expires_at: null, time_updated: now })
+                .set({
+                  status: "completed",
+                  next_due_at: null,
+                  lease_owner: null,
+                  lease_expires_at: null,
+                  time_updated: now,
+                })
                 .where(eq(ScheduleTable.id, id))
                 .run()
               return {
@@ -725,4 +778,8 @@ export const daemonLayer = Layer.effectDiscard(
   }),
 )
 
-export const daemonNode = LayerNode.make({ name: "ScheduleDaemon", layer: daemonLayer, deps: [node, deliveryNode, Database.node, Bus.node] })
+export const daemonNode = LayerNode.make({
+  name: "ScheduleDaemon",
+  layer: daemonLayer,
+  deps: [node, deliveryNode, Database.node, Bus.node],
+})

@@ -218,21 +218,31 @@ describe("SessionComposition", () => {
         orchestrator: info,
         agents: [],
         executors: [],
-        bindings: { orchestrator: new Composition.SnapshotBindingData({ instructions: [], prompts: [], skills: [], commands: [] }) },
+        bindings: {
+          orchestrator: new Composition.SnapshotBindingData({
+            instructions: [],
+            prompts: [],
+            skills: [],
+            commands: [],
+          }),
+        },
       })
       yield* composition.attach(sessionID, frozenSnapshot(data))
       const selected = yield* SessionComposition.selectSessionAgent(composition, { id: sessionID, agent: info.id })
       expect(selected.info).toEqual(info)
       expect(selected.scope).toEqual({ _tag: "scoped", key: "orchestrator" })
       expect(CompositionConsumerView.getSkills(selected.snapshot, selected.scope)).toEqual([])
-      expect(yield* composition.assertAgentAllowed(sessionID, "build").pipe(Effect.flip))
-        .toMatchObject({ _tag: "SessionComposition.AgentDelegationForbiddenError" })
-      expect(yield* composition.selectAgent(sessionID, "meta").pipe(Effect.flip))
-        .toMatchObject({ _tag: "SessionComposition.AgentDelegationForbiddenError" })
+      expect(yield* composition.assertAgentAllowed(sessionID, "build").pipe(Effect.flip)).toMatchObject({
+        _tag: "SessionComposition.AgentDelegationForbiddenError",
+      })
+      expect(yield* composition.selectAgent(sessionID, "meta").pipe(Effect.flip)).toMatchObject({
+        _tag: "SessionComposition.AgentDelegationForbiddenError",
+      })
       const copied = yield* composition.copy(sessionID, copySessionID)
       expect(copied.data).toEqual(data)
-      expect(yield* SessionComposition.selectSessionAgent(composition, { id: copySessionID, agent: info.id }))
-        .toMatchObject({ info, scope: { _tag: "scoped", key: "orchestrator" } })
+      expect(
+        yield* SessionComposition.selectSessionAgent(composition, { id: copySessionID, agent: info.id }),
+      ).toMatchObject({ info, scope: { _tag: "scoped", key: "orchestrator" } })
     }),
   )
 

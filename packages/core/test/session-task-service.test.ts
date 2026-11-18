@@ -10,7 +10,13 @@ import { Project } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { Session } from "@aigcfroge/core/session"
-import { SessionInboxTable, SessionMessageTable, SessionTable, TaskOperationTable, TaskTable } from "@aigcfroge/core/session/sql"
+import {
+  SessionInboxTable,
+  SessionMessageTable,
+  SessionTable,
+  TaskOperationTable,
+  TaskTable,
+} from "@aigcfroge/core/session/sql"
 import { SessionTask } from "@aigcfroge/core/session/task"
 import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
 import { ScheduleTask } from "@aigcfroge/core/session/schedule-task"
@@ -98,7 +104,15 @@ describe("SessionTask", () => {
           .append(
             {
               sessionID,
-              tasks: [{ id: "tsk_claim_rollback", content: "start worker", status: "in_progress", priority: "medium", scheduledAt: 60_000 }],
+              tasks: [
+                {
+                  id: "tsk_claim_rollback",
+                  content: "start worker",
+                  status: "in_progress",
+                  priority: "medium",
+                  scheduledAt: 60_000,
+                },
+              ],
             },
             {
               claim: source,
@@ -115,7 +129,14 @@ describe("SessionTask", () => {
                     parentTaskRevision: task.revision,
                     source,
                   })
-                  expect(yield* database.db.select().from(ScheduleTable).where(eq(ScheduleTable.task_id, task.id)).get().pipe(Effect.orDie)).toMatchObject({
+                  expect(
+                    yield* database.db
+                      .select()
+                      .from(ScheduleTable)
+                      .where(eq(ScheduleTable.task_id, task.id))
+                      .get()
+                      .pipe(Effect.orDie),
+                  ).toMatchObject({
                     task_id: task.id,
                     status: "paused",
                   })
@@ -149,21 +170,45 @@ describe("SessionTask", () => {
       }),
     )
 
-    it.effect("MP05 a restored nullable operation key keeps the original Tool claim owned", () => Effect.gen(function* () {
-      yield* setup
-      const tasks = yield* SessionTask.Service
-      const database = yield* Database.Service
-      const [task] = yield* tasks.append({ sessionID, tasks: [{ content: "restored Tool worker", status: "in_progress", priority: "medium" }] }, { claim: source })
-      yield* database.db.update(KVTable).set({ value: {
-        parentTaskID: task.id, parentTaskRevision: task.revision, source, operationID: null,
-      } }).where(eq(KVTable.key, `task:claim:${sessionID}:${task.id}`)).run().pipe(Effect.orDie)
-      const rejected = yield* tasks.updateTask({ sessionID, id: task.id, content: "management overwrite" }, { management }).pipe(Effect.result)
-      expect(Result.isFailure(rejected)).toBe(true)
-      if (Result.isFailure(rejected)) expect(rejected.failure.reason).toBe("execution_owned")
-      expect((yield* tasks.get(sessionID))[0]).toEqual(task)
-      yield* tasks.releaseClaim({ sessionID, id: task.id, revision: task.revision, source })
-      expect(yield* database.db.select().from(KVTable).where(eq(KVTable.key, `task:claim:${sessionID}:${task.id}`)).get().pipe(Effect.orDie)).toBeUndefined()
-    }))
+    it.effect("MP05 a restored nullable operation key keeps the original Tool claim owned", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const database = yield* Database.Service
+        const [task] = yield* tasks.append(
+          { sessionID, tasks: [{ content: "restored Tool worker", status: "in_progress", priority: "medium" }] },
+          { claim: source },
+        )
+        yield* database.db
+          .update(KVTable)
+          .set({
+            value: {
+              parentTaskID: task.id,
+              parentTaskRevision: task.revision,
+              source,
+              operationID: null,
+            },
+          })
+          .where(eq(KVTable.key, `task:claim:${sessionID}:${task.id}`))
+          .run()
+          .pipe(Effect.orDie)
+        const rejected = yield* tasks
+          .updateTask({ sessionID, id: task.id, content: "management overwrite" }, { management })
+          .pipe(Effect.result)
+        expect(Result.isFailure(rejected)).toBe(true)
+        if (Result.isFailure(rejected)) expect(rejected.failure.reason).toBe("execution_owned")
+        expect((yield* tasks.get(sessionID))[0]).toEqual(task)
+        yield* tasks.releaseClaim({ sessionID, id: task.id, revision: task.revision, source })
+        expect(
+          yield* database.db
+            .select()
+            .from(KVTable)
+            .where(eq(KVTable.key, `task:claim:${sessionID}:${task.id}`))
+            .get()
+            .pipe(Effect.orDie),
+        ).toBeUndefined()
+      }),
+    )
 
     it.effect("one competing source claims a Task and an exact owner retry keeps its revision and events", () =>
       Effect.gen(function* () {
@@ -225,13 +270,16 @@ describe("SessionTask", () => {
             { source: management, revision: owned.revision },
             { source, revision: owned.revision + 1 },
           ],
-          (handoff) => Effect.gen(function* () {
-            const result = yield* tasks.patch(
-              { sessionID, id: owned.id, status: "in_progress", expectedRevision: owned.revision },
-              { claim: management, handoff },
-            ).pipe(Effect.result)
-            expect(Result.isFailure(result) && result.failure.reason).toBe("execution_owned")
-          }),
+          (handoff) =>
+            Effect.gen(function* () {
+              const result = yield* tasks
+                .patch(
+                  { sessionID, id: owned.id, status: "in_progress", expectedRevision: owned.revision },
+                  { claim: management, handoff },
+                )
+                .pipe(Effect.result)
+              expect(Result.isFailure(result) && result.failure.reason).toBe("execution_owned")
+            }),
         )
         expect(yield* tasks.get(sessionID)).toEqual([owned])
         const handed = yield* tasks.patch(
@@ -240,25 +288,30 @@ describe("SessionTask", () => {
         )
         if (!handed) return yield* Effect.die(new Error("Execution claim handoff is missing"))
         expect(handed.revision).toBe(owned.revision + 1)
-        expect(yield* tasks.patch(
-          { sessionID, id: owned.id, status: "in_progress", expectedRevision: owned.revision },
-          { claim: management },
-        )).toEqual(handed)
-        expect(yield* tasks.patch(
-          { sessionID, id: owned.id, status: "cancelled", expectedRevision: owned.revision },
-          { settle: { source, revision: owned.revision } },
-        )).toBeUndefined()
+        expect(
+          yield* tasks.patch(
+            { sessionID, id: owned.id, status: "in_progress", expectedRevision: owned.revision },
+            { claim: management },
+          ),
+        ).toEqual(handed)
+        expect(
+          yield* tasks.patch(
+            { sessionID, id: owned.id, status: "cancelled", expectedRevision: owned.revision },
+            { settle: { source, revision: owned.revision } },
+          ),
+        ).toBeUndefined()
         yield* tasks.releaseClaim({ sessionID, id: owned.id, source, revision: owned.revision })
-        const protectedEdit = yield* tasks.updateTask(
-          { sessionID, id: owned.id, content: "old A must not release B" },
-          { management },
-        ).pipe(Effect.result)
+        const protectedEdit = yield* tasks
+          .updateTask({ sessionID, id: owned.id, content: "old A must not release B" }, { management })
+          .pipe(Effect.result)
         expect(Result.isFailure(protectedEdit) && protectedEdit.failure.reason).toBe("execution_owned")
         expect(yield* tasks.get(sessionID)).toEqual([handed])
-        expect(yield* tasks.patch(
-          { sessionID, id: owned.id, status: "completed", expectedRevision: handed.revision },
-          { settle: { source: management, revision: handed.revision } },
-        )).toMatchObject({ status: "completed", revision: handed.revision + 1 })
+        expect(
+          yield* tasks.patch(
+            { sessionID, id: owned.id, status: "completed", expectedRevision: handed.revision },
+            { settle: { source: management, revision: handed.revision } },
+          ),
+        ).toMatchObject({ status: "completed", revision: handed.revision + 1 })
       }),
     )
 
@@ -2600,105 +2653,187 @@ for (const operation of ["update", "replaceLegacy"] as const) {
   )
 }
 
-
 describe("Task schedule write boundaries", () => {
-  scheduleIt.effect("MP05 ordinary updateTask rolls back its Task write when the linked Schedule write fails", () => Effect.gen(function* () {
-    yield* setup
-    const tasks = yield* SessionTask.Service
-    const schedules = yield* ScheduleService.Service
-    const database = yield* Database.Service
-    const now = (yield* DateTime.nowAsDate).getTime()
-    const dueAt = now + 60_000
-    const [task] = yield* tasks.append({ sessionID, tasks: [{ content: "original task", status: "scheduled", priority: "medium", scheduledAt: dueAt }] })
-    yield* database.db.transaction(() => ScheduleTask.sync(database.db, { sessionID, now, previous: [] })).pipe(Effect.orDie)
-    const rule = yield* schedules.getRule(ScheduleTask.idFor(task.id))
-    if (!rule) return yield* Effect.die(new Error("Expected the existing Task schedule"))
-    const before = yield* tasks.get(sessionID)
-    const scheduleBefore = yield* schedules.getRule(rule.id)
-    const published = yield* listenUpdates
-    yield* database.db.run(sql`
+  scheduleIt.effect("MP05 ordinary updateTask rolls back its Task write when the linked Schedule write fails", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const schedules = yield* ScheduleService.Service
+      const database = yield* Database.Service
+      const now = (yield* DateTime.nowAsDate).getTime()
+      const dueAt = now + 60_000
+      const [task] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "original task", status: "scheduled", priority: "medium", scheduledAt: dueAt }],
+      })
+      yield* database.db
+        .transaction(() => ScheduleTask.sync(database.db, { sessionID, now, previous: [] }))
+        .pipe(Effect.orDie)
+      const rule = yield* schedules.getRule(ScheduleTask.idFor(task.id))
+      if (!rule) return yield* Effect.die(new Error("Expected the existing Task schedule"))
+      const before = yield* tasks.get(sessionID)
+      const scheduleBefore = yield* schedules.getRule(rule.id)
+      const published = yield* listenUpdates
+      yield* database.db
+        .run(
+          sql`
       CREATE TEMP TRIGGER reject_task_schedule_update BEFORE UPDATE OF content ON schedule
       WHEN NEW.content = 'reject linked schedule'
       BEGIN SELECT RAISE(ABORT, 'Schedule sync rejected'); END
-    `).pipe(Effect.orDie)
-    yield* Effect.addFinalizer(() => database.db.run(sql`DROP TRIGGER IF EXISTS reject_task_schedule_update`).pipe(Effect.orDie))
-    const failed = yield* tasks.updateTask({ sessionID, id: task.id, content: "reject linked schedule" }).pipe(Effect.exit)
-    expect(Exit.isFailure(failed)).toBe(true)
-    if (Exit.isFailure(failed)) expect(Cause.pretty(failed.cause)).toContain("Schedule sync rejected")
-    expect(yield* tasks.get(sessionID)).toEqual(before)
-    expect(yield* schedules.getRule(rule.id)).toEqual(scheduleBefore)
-    expect(published).toEqual([])
-  }))
+    `,
+        )
+        .pipe(Effect.orDie)
+      yield* Effect.addFinalizer(() =>
+        database.db.run(sql`DROP TRIGGER IF EXISTS reject_task_schedule_update`).pipe(Effect.orDie),
+      )
+      const failed = yield* tasks
+        .updateTask({ sessionID, id: task.id, content: "reject linked schedule" })
+        .pipe(Effect.exit)
+      expect(Exit.isFailure(failed)).toBe(true)
+      if (Exit.isFailure(failed)) expect(Cause.pretty(failed.cause)).toContain("Schedule sync rejected")
+      expect(yield* tasks.get(sessionID)).toEqual(before)
+      expect(yield* schedules.getRule(rule.id)).toEqual(scheduleBefore)
+      expect(published).toEqual([])
+    }),
+  )
 
-  scheduleIt.effect("MP05 full write append legacy replacement reorder and deletion keep one Schedule per Task and retain run history", () => Effect.gen(function* () {
-    yield* setup
-    const tasks = yield* SessionTask.Service
-    const schedules = yield* ScheduleService.Service
-    const now = (yield* DateTime.nowAsDate).getTime()
-    const [first] = yield* tasks.update({ sessionID, tasks: [{ content: "first payload", status: "scheduled", priority: "medium", scheduledAt: now + 60_000 }] })
-    const firstRule = yield* schedules.getRule(ScheduleTask.idFor(first.id))
-    expect(firstRule?.nextDueAt).toBe(now + 60_000)
-    yield* tasks.update({ sessionID, tasks: [{ id: first.id, content: "edited payload", status: "scheduled", priority: "high", scheduledAt: now + 120_000 }] })
-    expect(yield* schedules.getRule(ScheduleTask.idFor(first.id))).toMatchObject({ content: "edited payload", nextDueAt: now + 120_000 })
-    const appended = yield* tasks.append({ sessionID, tasks: [{ id: "tsk_schedule_second", content: "second payload", status: "scheduled", priority: "low", scheduledAt: now + 180_000 }] })
-    const second = appended.find((task) => task.id !== first.id)
-    if (!second) return yield* Effect.die(new Error("Expected the appended Task"))
-    const replaced = yield* tasks.replaceLegacy({ sessionID, tasks: [{ content: "legacy first", status: "scheduled", priority: "high" }, { content: "legacy second", status: "scheduled", priority: "low" }] })
-    expect(replaced.map((task) => task.id)).toEqual([first.id, second.id])
-    const rules = yield* schedules.listRules(sessionID)
-    expect(rules.map((rule) => rule.taskID).sort()).toEqual([first.id, second.id].sort())
-    expect(rules.find((rule) => rule.taskID === first.id)).toMatchObject({ content: "legacy first", nextDueAt: now + 120_000 })
-    const reordered = yield* tasks.reorder({ sessionID, ids: [second.id, first.id] })
-    expect(reordered.map((task) => [task.id, task.nextRun])).toEqual([[second.id, now + 180_000], [first.id, now + 120_000]])
-    expect(yield* schedules.listRules(sessionID)).toEqual(rules)
-    const current = yield* schedules.getRule(ScheduleTask.idFor(first.id))
-    if (!current?.nextDueAt) return yield* Effect.die(new Error("Expected the linked Task schedule"))
-    yield* TestClock.setTime(current.nextDueAt)
-    const run = yield* schedules.claimOccurrence(current.id, current.nextDueAt, "task-history")
-    if (!run) return yield* Effect.die(new Error("Expected one recorded run"))
-    yield* tasks.removeTask({ sessionID, id: first.id })
-    expect((yield* schedules.getRule(current.id))?.status).toBe("cancelled")
-    expect(yield* schedules.runs(current.id)).toEqual([run])
-    expect((yield* tasks.get(sessionID)).map((task) => task.id)).toEqual([second.id])
-    yield* tasks.delete(sessionID)
-    expect(yield* tasks.get(sessionID)).toEqual([])
-    expect((yield* schedules.getRule(ScheduleTask.idFor(second.id)))?.status).toBe("cancelled")
-    expect(yield* schedules.runs(current.id)).toEqual([run])
-  }))
+  scheduleIt.effect(
+    "MP05 full write append legacy replacement reorder and deletion keep one Schedule per Task and retain run history",
+    () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const schedules = yield* ScheduleService.Service
+        const now = (yield* DateTime.nowAsDate).getTime()
+        const [first] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "first payload", status: "scheduled", priority: "medium", scheduledAt: now + 60_000 }],
+        })
+        const firstRule = yield* schedules.getRule(ScheduleTask.idFor(first.id))
+        expect(firstRule?.nextDueAt).toBe(now + 60_000)
+        yield* tasks.update({
+          sessionID,
+          tasks: [
+            {
+              id: first.id,
+              content: "edited payload",
+              status: "scheduled",
+              priority: "high",
+              scheduledAt: now + 120_000,
+            },
+          ],
+        })
+        expect(yield* schedules.getRule(ScheduleTask.idFor(first.id))).toMatchObject({
+          content: "edited payload",
+          nextDueAt: now + 120_000,
+        })
+        const appended = yield* tasks.append({
+          sessionID,
+          tasks: [
+            {
+              id: "tsk_schedule_second",
+              content: "second payload",
+              status: "scheduled",
+              priority: "low",
+              scheduledAt: now + 180_000,
+            },
+          ],
+        })
+        const second = appended.find((task) => task.id !== first.id)
+        if (!second) return yield* Effect.die(new Error("Expected the appended Task"))
+        const replaced = yield* tasks.replaceLegacy({
+          sessionID,
+          tasks: [
+            { content: "legacy first", status: "scheduled", priority: "high" },
+            { content: "legacy second", status: "scheduled", priority: "low" },
+          ],
+        })
+        expect(replaced.map((task) => task.id)).toEqual([first.id, second.id])
+        const rules = yield* schedules.listRules(sessionID)
+        expect(rules.map((rule) => rule.taskID).sort()).toEqual([first.id, second.id].sort())
+        expect(rules.find((rule) => rule.taskID === first.id)).toMatchObject({
+          content: "legacy first",
+          nextDueAt: now + 120_000,
+        })
+        const reordered = yield* tasks.reorder({ sessionID, ids: [second.id, first.id] })
+        expect(reordered.map((task) => [task.id, task.nextRun])).toEqual([
+          [second.id, now + 180_000],
+          [first.id, now + 120_000],
+        ])
+        expect(yield* schedules.listRules(sessionID)).toEqual(rules)
+        const current = yield* schedules.getRule(ScheduleTask.idFor(first.id))
+        if (!current?.nextDueAt) return yield* Effect.die(new Error("Expected the linked Task schedule"))
+        yield* TestClock.setTime(current.nextDueAt)
+        const run = yield* schedules.claimOccurrence(current.id, current.nextDueAt, "task-history")
+        if (!run) return yield* Effect.die(new Error("Expected one recorded run"))
+        yield* tasks.removeTask({ sessionID, id: first.id })
+        expect((yield* schedules.getRule(current.id))?.status).toBe("cancelled")
+        expect(yield* schedules.runs(current.id)).toEqual([run])
+        expect((yield* tasks.get(sessionID)).map((task) => task.id)).toEqual([second.id])
+        yield* tasks.delete(sessionID)
+        expect(yield* tasks.get(sessionID)).toEqual([])
+        expect((yield* schedules.getRule(ScheduleTask.idFor(second.id)))?.status).toBe("cancelled")
+        expect(yield* schedules.runs(current.id)).toEqual([run])
+      }),
+  )
 
-  scheduleIt.effect("MP05 get and listAll read canonical nextDue for terminal anchors and suppress the Task fallback for a paused rule", () => Effect.gen(function* () {
-    yield* setup
-    const tasks = yield* SessionTask.Service
-    const schedules = yield* ScheduleService.Service
-    const database = yield* Database.Service
-    const [task] = yield* tasks.append({ sessionID, tasks: [{ content: "recurring anchor", status: "scheduled", priority: "medium", recurrence: { cron: "* * * * *", enabled: true, timezone: "UTC" } }] })
-    yield* tasks.patch({ sessionID, id: task.id, status: "completed" })
-    const canonicalNext = (yield* DateTime.nowAsDate).getTime() + 420_123
-    yield* database.db.update(ScheduleTable).set({ next_due_at: canonicalNext }).where(eq(ScheduleTable.task_id, task.id)).run().pipe(Effect.orDie)
-    expect((yield* tasks.get(sessionID))[0]).toMatchObject({ status: "completed", nextRun: canonicalNext })
-    expect((yield* tasks.listAll()).find((row) => row.id === task.id)?.nextRun).toBe(canonicalNext)
-    expect((yield* tasks.patch({ sessionID, id: task.id, status: "failed" }))?.nextRun).toBe(canonicalNext)
-    yield* tasks.patch({ sessionID, id: task.id, status: "scheduled" })
-    const rule = yield* schedules.getRule(ScheduleTask.idFor(task.id))
-    if (!rule) return yield* Effect.die(new Error("Expected the canonical rule"))
-    yield* schedules.pauseRule(rule.id, rule.revision)
-    expect((yield* tasks.get(sessionID))[0]?.status).toBe("scheduled")
-    expect((yield* tasks.get(sessionID))[0]?.nextRun).toBeUndefined()
-    expect((yield* tasks.listAll()).find((row) => row.id === task.id)?.nextRun).toBeUndefined()
-  }))
+  scheduleIt.effect(
+    "MP05 get and listAll read canonical nextDue for terminal anchors and suppress the Task fallback for a paused rule",
+    () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const schedules = yield* ScheduleService.Service
+        const database = yield* Database.Service
+        const [task] = yield* tasks.append({
+          sessionID,
+          tasks: [
+            {
+              content: "recurring anchor",
+              status: "scheduled",
+              priority: "medium",
+              recurrence: { cron: "* * * * *", enabled: true, timezone: "UTC" },
+            },
+          ],
+        })
+        yield* tasks.patch({ sessionID, id: task.id, status: "completed" })
+        const canonicalNext = (yield* DateTime.nowAsDate).getTime() + 420_123
+        yield* database.db
+          .update(ScheduleTable)
+          .set({ next_due_at: canonicalNext })
+          .where(eq(ScheduleTable.task_id, task.id))
+          .run()
+          .pipe(Effect.orDie)
+        expect((yield* tasks.get(sessionID))[0]).toMatchObject({ status: "completed", nextRun: canonicalNext })
+        expect((yield* tasks.listAll()).find((row) => row.id === task.id)?.nextRun).toBe(canonicalNext)
+        expect((yield* tasks.patch({ sessionID, id: task.id, status: "failed" }))?.nextRun).toBe(canonicalNext)
+        yield* tasks.patch({ sessionID, id: task.id, status: "scheduled" })
+        const rule = yield* schedules.getRule(ScheduleTask.idFor(task.id))
+        if (!rule) return yield* Effect.die(new Error("Expected the canonical rule"))
+        yield* schedules.pauseRule(rule.id, rule.revision)
+        expect((yield* tasks.get(sessionID))[0]?.status).toBe("scheduled")
+        expect((yield* tasks.get(sessionID))[0]?.nextRun).toBeUndefined()
+        expect((yield* tasks.listAll()).find((row) => row.id === task.id)?.nextRun).toBeUndefined()
+      }),
+  )
 })
 
 describe("Task operation reservations", () => {
-  const request = (id: string, change: Partial<SessionTask.OperationRequest> = {}) => new SessionTask.OperationRequest({
-    operationID: SessionTask.OperationID.make(`top_${id}`),
-    inputID: SessionMessage.ID.make(`msg_operation_${id}`),
-    target: new SessionTask.OperationNewRootTarget({ type: "new_root", mode: ProductMode.ID.make("chat") }),
-    prompt: "complete this fixed request",
-    delivery: "queue",
-    resume: false,
-    ...change,
+  const request = (id: string, change: Partial<SessionTask.OperationRequest> = {}) =>
+    new SessionTask.OperationRequest({
+      operationID: SessionTask.OperationID.make(`top_${id}`),
+      inputID: SessionMessage.ID.make(`msg_operation_${id}`),
+      target: new SessionTask.OperationNewRootTarget({ type: "new_root", mode: ProductMode.ID.make("chat") }),
+      prompt: "complete this fixed request",
+      delivery: "queue",
+      resume: false,
+      ...change,
+    })
+  const source = new SessionTask.OperationUserSource({
+    type: "user_coordination",
+    sessionID,
+    agent: Agent.ID.make("meta"),
   })
-  const source = new SessionTask.OperationUserSource({ type: "user_coordination", sessionID, agent: Agent.ID.make("meta") })
   const reservation = (input: SessionTask.OperationRequest) => ({
     sessionID,
     request: input,
@@ -2708,236 +2843,503 @@ describe("Task operation reservations", () => {
     sourceMode: ProductMode.ID.make("coding"),
   })
 
-  it.effect("reserves without a Task and returns the saved blocked operation to a later exact retry", () => Effect.gen(function* () {
-    yield* setup
-    const tasks = yield* SessionTask.Service
-    const input = request("before_permission")
-    const first = yield* tasks.reserveOperation(reservation(input))
-    expect(first.created).toBe(true)
-    expect(first.operation.phase).toBe("reserved")
-    expect(first.operation.taskID).toBeUndefined()
-    expect(first.operation.targetSessionID).toBeDefined()
-    expect(yield* tasks.get(sessionID)).toEqual([])
-    const blocked = yield* tasks.advanceOperation({ sessionID, operationID: input.operationID, change: new SessionTask.OperationChange({ phase: "blocked", error: new SessionTask.OperationError({ code: "permission_denied", message: "denied before creating a target" }) }) })
-    const retry = yield* tasks.reserveOperation({ ...reservation(input), source: new SessionTask.OperationUserSource({ type: "user_coordination", sessionID, agent: Agent.ID.make("build") }) })
-    expect(retry.created).toBe(false)
-    expect(retry.operation).toEqual(blocked)
-    expect(yield* tasks.get(sessionID)).toEqual([])
-    const conflict = yield* tasks.reserveOperation(reservation(request("before_permission", { prompt: "changed request" }))).pipe(Effect.result)
-    expect(Result.isFailure(conflict)).toBe(true)
-    if (Result.isFailure(conflict)) expect(conflict.failure).toMatchObject({ reason: "request_changed" })
-    expect((yield* tasks.operations({ sessionID })).length).toBe(1)
-  }))
+  it.effect("reserves without a Task and returns the saved blocked operation to a later exact retry", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const input = request("before_permission")
+      const first = yield* tasks.reserveOperation(reservation(input))
+      expect(first.created).toBe(true)
+      expect(first.operation.phase).toBe("reserved")
+      expect(first.operation.taskID).toBeUndefined()
+      expect(first.operation.targetSessionID).toBeDefined()
+      expect(yield* tasks.get(sessionID)).toEqual([])
+      const blocked = yield* tasks.advanceOperation({
+        sessionID,
+        operationID: input.operationID,
+        change: new SessionTask.OperationChange({
+          phase: "blocked",
+          error: new SessionTask.OperationError({
+            code: "permission_denied",
+            message: "denied before creating a target",
+          }),
+        }),
+      })
+      const retry = yield* tasks.reserveOperation({
+        ...reservation(input),
+        source: new SessionTask.OperationUserSource({
+          type: "user_coordination",
+          sessionID,
+          agent: Agent.ID.make("build"),
+        }),
+      })
+      expect(retry.created).toBe(false)
+      expect(retry.operation).toEqual(blocked)
+      expect(yield* tasks.get(sessionID)).toEqual([])
+      const conflict = yield* tasks
+        .reserveOperation(reservation(request("before_permission", { prompt: "changed request" })))
+        .pipe(Effect.result)
+      expect(Result.isFailure(conflict)).toBe(true)
+      if (Result.isFailure(conflict)) expect(conflict.failure).toMatchObject({ reason: "request_changed" })
+      expect((yield* tasks.operations({ sessionID })).length).toBe(1)
+    }),
+  )
 
-  it.effect("matches immutable request before a Task revision check and retains history after Task deletion", () => Effect.gen(function* () {
-    yield* setup
-    const tasks = yield* SessionTask.Service
-    const [seed] = yield* tasks.append({ sessionID, tasks: [{ content: "task anchor", status: "pending", priority: "medium" }] })
-    const input = request("task_history", { taskID: seed.id, expectedRevision: seed.revision })
-    const admitted = yield* tasks.reserveOperation(reservation(input))
-    expect(admitted.operation.taskRevision).toBe(seed.revision + 1)
-    expect((yield* tasks.get(sessionID))[0]?.operationRef?.operationID).toBe(input.operationID)
-    const edited = yield* tasks.updateTask({ sessionID, id: seed.id, content: "a user edit while the result is held" })
-    if (!edited) return yield* Effect.die(new Error("The source Task edit was not saved"))
-    const failed = yield* tasks.advanceOperation({ sessionID, operationID: input.operationID, change: new SessionTask.OperationChange({ phase: "failed", error: new SessionTask.OperationError({ code: "prepare_failed", message: "no provider work" }) }) })
-    expect(failed.sourceSettlement).toBe("conflict")
-    expect((yield* tasks.get(sessionID))[0]).toEqual(edited)
-    expect((yield* tasks.reserveOperation(reservation(input))).operation).toEqual(failed)
-    yield* tasks.removeTask({ sessionID, id: seed.id })
-    expect(yield* tasks.get(sessionID)).toEqual([])
-    expect(yield* tasks.operations({ sessionID, taskID: seed.id })).toEqual([failed])
-  }))
+  it.effect("matches immutable request before a Task revision check and retains history after Task deletion", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const [seed] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "task anchor", status: "pending", priority: "medium" }],
+      })
+      const input = request("task_history", { taskID: seed.id, expectedRevision: seed.revision })
+      const admitted = yield* tasks.reserveOperation(reservation(input))
+      expect(admitted.operation.taskRevision).toBe(seed.revision + 1)
+      expect((yield* tasks.get(sessionID))[0]?.operationRef?.operationID).toBe(input.operationID)
+      const edited = yield* tasks.updateTask({
+        sessionID,
+        id: seed.id,
+        content: "a user edit while the result is held",
+      })
+      if (!edited) return yield* Effect.die(new Error("The source Task edit was not saved"))
+      const failed = yield* tasks.advanceOperation({
+        sessionID,
+        operationID: input.operationID,
+        change: new SessionTask.OperationChange({
+          phase: "failed",
+          error: new SessionTask.OperationError({ code: "prepare_failed", message: "no provider work" }),
+        }),
+      })
+      expect(failed.sourceSettlement).toBe("conflict")
+      expect((yield* tasks.get(sessionID))[0]).toEqual(edited)
+      expect((yield* tasks.reserveOperation(reservation(input))).operation).toEqual(failed)
+      yield* tasks.removeTask({ sessionID, id: seed.id })
+      expect(yield* tasks.get(sessionID)).toEqual([])
+      expect(yield* tasks.operations({ sessionID, taskID: seed.id })).toEqual([failed])
+    }),
+  )
 
-  it.effect("keeps a followup waiting under the original claim and cancelling it leaves its predecessor unchanged", () => Effect.gen(function* () {
-    yield* setup
-    const tasks = yield* SessionTask.Service
-    const database = yield* Database.Service
-    const [seed] = yield* tasks.append({ sessionID, tasks: [{ content: "one task with two operations", status: "pending", priority: "medium" }] })
-    const a = yield* tasks.reserveOperation(reservation(request("followup_a", { taskID: seed.id, expectedRevision: seed.revision })))
-    const b = yield* tasks.reserveOperation(reservation(request("followup_b", { taskID: seed.id, expectedRevision: a.operation.taskRevision })))
-    expect(b.operation.phase).toBe("waiting")
-    expect(b.operation.predecessorID).toBe(a.operation.operationID)
-    expect(b.operation.taskRevision).toBeUndefined()
-    const claim = yield* database.db.select().from(KVTable).where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`)).get().pipe(Effect.orDie)
-    expect(claim?.value).toMatchObject({ operationID: a.operation.operationID })
-    const cancelled = yield* tasks.advanceOperation({ sessionID, operationID: b.operation.operationID, change: new SessionTask.OperationChange({ cancelIntent: true, phase: "cancelled" }) })
-    expect(cancelled.phase).toBe("cancelled")
-    expect(yield* tasks.operation({ sessionID, operationID: a.operation.operationID })).toEqual(a.operation)
-    const remaining = yield* database.db.select().from(KVTable).where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`)).get().pipe(Effect.orDie)
-    expect(remaining?.value).toEqual(claim?.value)
-  }))
+  it.effect(
+    "keeps a followup waiting under the original claim and cancelling it leaves its predecessor unchanged",
+    () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const database = yield* Database.Service
+        const [seed] = yield* tasks.append({
+          sessionID,
+          tasks: [{ content: "one task with two operations", status: "pending", priority: "medium" }],
+        })
+        const a = yield* tasks.reserveOperation(
+          reservation(request("followup_a", { taskID: seed.id, expectedRevision: seed.revision })),
+        )
+        const b = yield* tasks.reserveOperation(
+          reservation(request("followup_b", { taskID: seed.id, expectedRevision: a.operation.taskRevision })),
+        )
+        expect(b.operation.phase).toBe("waiting")
+        expect(b.operation.predecessorID).toBe(a.operation.operationID)
+        expect(b.operation.taskRevision).toBeUndefined()
+        const claim = yield* database.db
+          .select()
+          .from(KVTable)
+          .where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`))
+          .get()
+          .pipe(Effect.orDie)
+        expect(claim?.value).toMatchObject({ operationID: a.operation.operationID })
+        const cancelled = yield* tasks.advanceOperation({
+          sessionID,
+          operationID: b.operation.operationID,
+          change: new SessionTask.OperationChange({ cancelIntent: true, phase: "cancelled" }),
+        })
+        expect(cancelled.phase).toBe("cancelled")
+        expect(yield* tasks.operation({ sessionID, operationID: a.operation.operationID })).toEqual(a.operation)
+        const remaining = yield* database.db
+          .select()
+          .from(KVTable)
+          .where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`))
+          .get()
+          .pipe(Effect.orDie)
+        expect(remaining?.value).toEqual(claim?.value)
+      }),
+  )
 
-  it.effect("protects operation claims from management and creates an optional Task only once", () => Effect.gen(function* () {
-    yield* setup
-    const tasks = yield* SessionTask.Service
-    const created = yield* tasks.append({
-      sessionID,
-      tasks: [
-        { content: "a", status: "pending", priority: "medium" },
-        { content: "b", status: "pending", priority: "medium" },
-        { content: "c", status: "pending", priority: "medium" },
-        { content: "d", status: "pending", priority: "medium" },
-      ],
-    })
-    yield* tasks.removeTask({ sessionID, id: created[0].id })
-    yield* tasks.removeTask({ sessionID, id: created[1].id })
-    expect((yield* tasks.get(sessionID)).map((task) => task.id)).toEqual([created[2].id, created[3].id])
-    const input = request("attach_once")
-    yield* tasks.reserveOperation(reservation(input))
-    yield* tasks.advanceOperation({ sessionID, operationID: input.operationID, change: new SessionTask.OperationChange({ phase: "permission_pending" }) })
-    const attached = yield* tasks.attachOperationTask({ sessionID, operationID: input.operationID })
-    expect(attached.taskID).toBeDefined()
-    expect((yield* tasks.attachOperationTask({ sessionID, operationID: input.operationID })).taskID).toBe(attached.taskID)
-    if (!attached.taskID) throw new Error("Expected the permitted operation's Task")
-    const visible = yield* tasks.get(sessionID)
-    expect(visible.length).toBe(3)
-    expect(visible.map((task) => task.id)).toEqual([created[2].id, created[3].id, attached.taskID])
-    const removal = yield* tasks.removeTask({ sessionID, id: attached.taskID }, { management: { type: "tool", messageID: "msg_management", id: "call-management" } }).pipe(Effect.result)
-    expect(Result.isFailure(removal)).toBe(true)
-    if (Result.isFailure(removal)) expect(removal.failure.reason).toBe("execution_owned")
-  }))
+  it.effect("protects operation claims from management and creates an optional Task only once", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const created = yield* tasks.append({
+        sessionID,
+        tasks: [
+          { content: "a", status: "pending", priority: "medium" },
+          { content: "b", status: "pending", priority: "medium" },
+          { content: "c", status: "pending", priority: "medium" },
+          { content: "d", status: "pending", priority: "medium" },
+        ],
+      })
+      yield* tasks.removeTask({ sessionID, id: created[0].id })
+      yield* tasks.removeTask({ sessionID, id: created[1].id })
+      expect((yield* tasks.get(sessionID)).map((task) => task.id)).toEqual([created[2].id, created[3].id])
+      const input = request("attach_once")
+      yield* tasks.reserveOperation(reservation(input))
+      yield* tasks.advanceOperation({
+        sessionID,
+        operationID: input.operationID,
+        change: new SessionTask.OperationChange({ phase: "permission_pending" }),
+      })
+      const attached = yield* tasks.attachOperationTask({ sessionID, operationID: input.operationID })
+      expect(attached.taskID).toBeDefined()
+      expect((yield* tasks.attachOperationTask({ sessionID, operationID: input.operationID })).taskID).toBe(
+        attached.taskID,
+      )
+      if (!attached.taskID) throw new Error("Expected the permitted operation's Task")
+      const visible = yield* tasks.get(sessionID)
+      expect(visible.length).toBe(3)
+      expect(visible.map((task) => task.id)).toEqual([created[2].id, created[3].id, attached.taskID])
+      const removal = yield* tasks
+        .removeTask(
+          { sessionID, id: attached.taskID },
+          { management: { type: "tool", messageID: "msg_management", id: "call-management" } },
+        )
+        .pipe(Effect.result)
+      expect(Result.isFailure(removal)).toBe(true)
+      if (Result.isFailure(removal)) expect(removal.failure.reason).toBe("execution_owned")
+    }),
+  )
 
-  it.effect("rejects input reuse and a different trusted origin before reserving another operation", () => Effect.gen(function* () {
-    yield* setup
-    const tasks = yield* SessionTask.Service
-    const first = request("input_owner")
-    yield* tasks.reserveOperation(reservation(first))
-    const second = request("different_owner", { inputID: first.inputID })
-    const inputConflict = yield* tasks.reserveOperation(reservation(second)).pipe(Effect.result)
-    expect(Result.isFailure(inputConflict)).toBe(true)
-    if (Result.isFailure(inputConflict)) expect(inputConflict.failure).toMatchObject({ reason: "input_owned" })
-    const sourceConflict = yield* tasks.reserveOperation({ ...reservation(first), source: new SessionTask.OperationToolSource({ type: "model_tool", sessionID, agent: Agent.ID.make("meta"), messageID: SessionMessage.ID.make("msg_other_source"), id: "call-other-source" }) }).pipe(Effect.result)
-    expect(Result.isFailure(sourceConflict)).toBe(true)
-    if (Result.isFailure(sourceConflict)) expect(sourceConflict.failure).toMatchObject({ reason: "source_changed" })
-    expect((yield* tasks.operations({ sessionID })).length).toBe(1)
-  }))
+  it.effect("rejects input reuse and a different trusted origin before reserving another operation", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const first = request("input_owner")
+      yield* tasks.reserveOperation(reservation(first))
+      const second = request("different_owner", { inputID: first.inputID })
+      const inputConflict = yield* tasks.reserveOperation(reservation(second)).pipe(Effect.result)
+      expect(Result.isFailure(inputConflict)).toBe(true)
+      if (Result.isFailure(inputConflict)) expect(inputConflict.failure).toMatchObject({ reason: "input_owned" })
+      const sourceConflict = yield* tasks
+        .reserveOperation({
+          ...reservation(first),
+          source: new SessionTask.OperationToolSource({
+            type: "model_tool",
+            sessionID,
+            agent: Agent.ID.make("meta"),
+            messageID: SessionMessage.ID.make("msg_other_source"),
+            id: "call-other-source",
+          }),
+        })
+        .pipe(Effect.result)
+      expect(Result.isFailure(sourceConflict)).toBe(true)
+      if (Result.isFailure(sourceConflict)) expect(sourceConflict.failure).toMatchObject({ reason: "source_changed" })
+      expect((yield* tasks.operations({ sessionID })).length).toBe(1)
+    }),
+  )
 
-  it.effect("MP05 preserves a trusted new target and always retains an existing target from the original request", () => Effect.gen(function* () {
-    yield* setup
-    const tasks = yield* SessionTask.Service
-    const targetSessionID = Session.ID.make("ses_preallocated_operation")
-    const created = yield* tasks.reserveOperation({ ...reservation(request("preallocated_target")), targetSessionID })
-    expect(created.operation.targetSessionID).toBe(targetSessionID)
-    const existingID = Session.ID.make("ses_existing_operation")
-    const existing = yield* tasks.reserveOperation({ ...reservation(request("existing_target", {
-      target: new SessionTask.OperationExistingRootTarget({ type: "existing_root", sessionID: existingID }),
-    })), targetSessionID })
-    expect(existing.operation.targetSessionID).toBe(existingID)
-  }))
+  it.effect("MP05 preserves a trusted new target and always retains an existing target from the original request", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const targetSessionID = Session.ID.make("ses_preallocated_operation")
+      const created = yield* tasks.reserveOperation({ ...reservation(request("preallocated_target")), targetSessionID })
+      expect(created.operation.targetSessionID).toBe(targetSessionID)
+      const existingID = Session.ID.make("ses_existing_operation")
+      const existing = yield* tasks.reserveOperation({
+        ...reservation(
+          request("existing_target", {
+            target: new SessionTask.OperationExistingRootTarget({ type: "existing_root", sessionID: existingID }),
+          }),
+        ),
+        targetSessionID,
+      })
+      expect(existing.operation.targetSessionID).toBe(existingID)
+    }),
+  )
 
-  it.effect("MP05 an exact Task CAS settles a restored pending source marker and a later user edit cannot change that first settlement", () => Effect.gen(function* () {
-    yield* setup
-    const tasks = yield* SessionTask.Service
-    const database = yield* Database.Service
-    const [seed] = yield* tasks.append({ sessionID, tasks: [{ content: "source anchor", status: "pending", priority: "medium" }] })
-    const reserved = yield* tasks.reserveOperation(reservation(request("source_marker", { taskID: seed.id, expectedRevision: seed.revision })))
-    yield* database.db.update(TaskOperationTable).set({ data: {
-      ...Schema.encodeSync(SessionTask.OperationInfo)(reserved.operation), sourceSettlement: "pending",
-    } }).where(and(eq(TaskOperationTable.source_session_id, sessionID), eq(TaskOperationTable.operation_id, reserved.operation.operationID))).run().pipe(Effect.orDie)
-    const change = new SessionTask.OperationChange({ phase: "failed", error: new SessionTask.OperationError({ code: "worker_failed", message: "original result" }) })
-    const settled = yield* tasks.advanceOperation({ sessionID, operationID: reserved.operation.operationID, change })
-    expect(settled.sourceSettlement).toBe("settled")
-    expect((yield* tasks.get(sessionID))[0]).toMatchObject({ status: "failed", revision: seed.revision + 2, outputDigest: "original result" })
-    expect(yield* database.db.select().from(KVTable).where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`)).get().pipe(Effect.orDie)).toBeUndefined()
-    const edited = yield* tasks.updateTask({ sessionID, id: seed.id, content: "later user edit" })
-    if (!edited) return yield* Effect.die(new Error("The later source Task edit was not saved"))
-    const retried = yield* tasks.advanceOperation({ sessionID, operationID: reserved.operation.operationID, change })
-    expect(retried.sourceSettlement).toBe("settled")
-    expect((yield* tasks.get(sessionID))[0]).toEqual(edited)
-  }))
+  it.effect(
+    "MP05 an exact Task CAS settles a restored pending source marker and a later user edit cannot change that first settlement",
+    () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const database = yield* Database.Service
+        const [seed] = yield* tasks.append({
+          sessionID,
+          tasks: [{ content: "source anchor", status: "pending", priority: "medium" }],
+        })
+        const reserved = yield* tasks.reserveOperation(
+          reservation(request("source_marker", { taskID: seed.id, expectedRevision: seed.revision })),
+        )
+        yield* database.db
+          .update(TaskOperationTable)
+          .set({
+            data: {
+              ...Schema.encodeSync(SessionTask.OperationInfo)(reserved.operation),
+              sourceSettlement: "pending",
+            },
+          })
+          .where(
+            and(
+              eq(TaskOperationTable.source_session_id, sessionID),
+              eq(TaskOperationTable.operation_id, reserved.operation.operationID),
+            ),
+          )
+          .run()
+          .pipe(Effect.orDie)
+        const change = new SessionTask.OperationChange({
+          phase: "failed",
+          error: new SessionTask.OperationError({ code: "worker_failed", message: "original result" }),
+        })
+        const settled = yield* tasks.advanceOperation({
+          sessionID,
+          operationID: reserved.operation.operationID,
+          change,
+        })
+        expect(settled.sourceSettlement).toBe("settled")
+        expect((yield* tasks.get(sessionID))[0]).toMatchObject({
+          status: "failed",
+          revision: seed.revision + 2,
+          outputDigest: "original result",
+        })
+        expect(
+          yield* database.db
+            .select()
+            .from(KVTable)
+            .where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`))
+            .get()
+            .pipe(Effect.orDie),
+        ).toBeUndefined()
+        const edited = yield* tasks.updateTask({ sessionID, id: seed.id, content: "later user edit" })
+        if (!edited) return yield* Effect.die(new Error("The later source Task edit was not saved"))
+        const retried = yield* tasks.advanceOperation({
+          sessionID,
+          operationID: reserved.operation.operationID,
+          change,
+        })
+        expect(retried.sourceSettlement).toBe("settled")
+        expect((yield* tasks.get(sessionID))[0]).toEqual(edited)
+      }),
+  )
 
-  it.effect("MP05 an old operation cannot settle or release another operation's current claim", () => Effect.gen(function* () {
-    yield* setup
-    const tasks = yield* SessionTask.Service
-    const database = yield* Database.Service
-    const [seed] = yield* tasks.append({ sessionID, tasks: [{ content: "shared source", status: "pending", priority: "medium" }] })
-    const first = yield* tasks.reserveOperation(reservation(request("old_claim", { taskID: seed.id, expectedRevision: seed.revision })))
-    const oldClaim = yield* database.db.select().from(KVTable).where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`)).get().pipe(Effect.orDie)
-    if (!oldClaim || first.operation.taskRevision === undefined) return yield* Effect.die(new Error("Expected the first operation claim"))
-    const permission = { type: "operation" as const, sessionID, operationID: first.operation.operationID }
-    yield* tasks.releaseClaim({ sessionID, id: seed.id, revision: first.operation.taskRevision, source: permission })
-    const [released] = yield* tasks.get(sessionID)
-    const next = yield* tasks.reserveOperation(reservation(request("new_claim", { taskID: seed.id, expectedRevision: released.revision })))
-    const before = yield* tasks.get(sessionID)
-    const currentClaim = yield* database.db.select().from(KVTable).where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`)).get().pipe(Effect.orDie)
-    const failed = yield* tasks.advanceOperation({ sessionID, operationID: first.operation.operationID,
-      change: new SessionTask.OperationChange({ phase: "failed", error: new SessionTask.OperationError({ code: "late_result", message: "late old result" }) }),
-    })
-    expect(failed.sourceSettlement).toBe("conflict")
-    expect(yield* tasks.get(sessionID)).toEqual(before)
-    expect(yield* tasks.operation({ sessionID, operationID: next.operation.operationID })).toEqual(next.operation)
-    expect(yield* database.db.select().from(KVTable).where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`)).get().pipe(Effect.orDie)).toEqual(currentClaim)
-  }))
+  it.effect("MP05 an old operation cannot settle or release another operation's current claim", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const database = yield* Database.Service
+      const [seed] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "shared source", status: "pending", priority: "medium" }],
+      })
+      const first = yield* tasks.reserveOperation(
+        reservation(request("old_claim", { taskID: seed.id, expectedRevision: seed.revision })),
+      )
+      const oldClaim = yield* database.db
+        .select()
+        .from(KVTable)
+        .where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`))
+        .get()
+        .pipe(Effect.orDie)
+      if (!oldClaim || first.operation.taskRevision === undefined)
+        return yield* Effect.die(new Error("Expected the first operation claim"))
+      const permission = { type: "operation" as const, sessionID, operationID: first.operation.operationID }
+      yield* tasks.releaseClaim({ sessionID, id: seed.id, revision: first.operation.taskRevision, source: permission })
+      const [released] = yield* tasks.get(sessionID)
+      const next = yield* tasks.reserveOperation(
+        reservation(request("new_claim", { taskID: seed.id, expectedRevision: released.revision })),
+      )
+      const before = yield* tasks.get(sessionID)
+      const currentClaim = yield* database.db
+        .select()
+        .from(KVTable)
+        .where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`))
+        .get()
+        .pipe(Effect.orDie)
+      const failed = yield* tasks.advanceOperation({
+        sessionID,
+        operationID: first.operation.operationID,
+        change: new SessionTask.OperationChange({
+          phase: "failed",
+          error: new SessionTask.OperationError({ code: "late_result", message: "late old result" }),
+        }),
+      })
+      expect(failed.sourceSettlement).toBe("conflict")
+      expect(yield* tasks.get(sessionID)).toEqual(before)
+      expect(yield* tasks.operation({ sessionID, operationID: next.operation.operationID })).toEqual(next.operation)
+      expect(
+        yield* database.db
+          .select()
+          .from(KVTable)
+          .where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`))
+          .get()
+          .pipe(Effect.orDie),
+      ).toEqual(currentClaim)
+    }),
+  )
 
-  it.effect("MP05 waiting operations retain reservation order when the predecessor releases its claim", () => Effect.gen(function* () {
-    yield* setup
-    const tasks = yield* SessionTask.Service
-    const database = yield* Database.Service
-    const [seed] = yield* tasks.append({ sessionID, tasks: [{ content: "ordered source", status: "pending", priority: "medium" }] })
-    const first = yield* tasks.reserveOperation(reservation(request("ordered_a", { taskID: seed.id, expectedRevision: seed.revision })))
-    const second = yield* tasks.reserveOperation(reservation(request("ordered_b", { taskID: seed.id, expectedRevision: first.operation.taskRevision })))
-    const third = yield* tasks.reserveOperation(reservation(request("ordered_c", { taskID: seed.id, expectedRevision: first.operation.taskRevision })))
-    expect(second.operation.predecessorID).toBe(first.operation.operationID)
-    expect(third.operation.predecessorID).toBe(second.operation.operationID)
-    expect((yield* tasks.claimWaitingOperation({ sessionID, operationID: third.operation.operationID })).phase).toBe("waiting")
-    yield* tasks.advanceOperation({ sessionID, operationID: first.operation.operationID, change: new SessionTask.OperationChange({ phase: "failed", error: new SessionTask.OperationError({ code: "first_done", message: "first finished" }) }) })
-    const [afterFirst] = yield* tasks.get(sessionID)
-    const fourth = yield* tasks.reserveOperation(reservation(request("ordered_d", { taskID: seed.id, expectedRevision: afterFirst.revision })))
-    expect(fourth.operation.phase).toBe("waiting")
-    expect(fourth.operation.predecessorID).toBe(third.operation.operationID)
-    const claimedSecond = yield* tasks.claimWaitingOperation({ sessionID, operationID: second.operation.operationID })
-    expect(claimedSecond.phase).toBe("reserved")
-    expect(claimedSecond.taskRevision).toBe(afterFirst.revision + 1)
-    expect((yield* tasks.claimWaitingOperation({ sessionID, operationID: third.operation.operationID })).phase).toBe("waiting")
-    yield* tasks.advanceOperation({ sessionID, operationID: second.operation.operationID, change: new SessionTask.OperationChange({ phase: "failed", error: new SessionTask.OperationError({ code: "second_done", message: "second finished" }) }) })
-    const claimedThird = yield* tasks.claimWaitingOperation({ sessionID, operationID: third.operation.operationID })
-    expect(claimedThird.phase).toBe("reserved")
-    const claim = yield* database.db.select().from(KVTable).where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`)).get().pipe(Effect.orDie)
-    expect(claim?.value).toMatchObject({ operationID: third.operation.operationID, parentTaskRevision: claimedThird.taskRevision })
-    yield* tasks.advanceOperation({ sessionID, operationID: third.operation.operationID, change: new SessionTask.OperationChange({ phase: "failed", error: new SessionTask.OperationError({ code: "third_done", message: "third finished" }) }) })
-    expect((yield* tasks.claimWaitingOperation({ sessionID, operationID: fourth.operation.operationID })).phase).toBe("reserved")
-  }))
+  it.effect("MP05 waiting operations retain reservation order when the predecessor releases its claim", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const database = yield* Database.Service
+      const [seed] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "ordered source", status: "pending", priority: "medium" }],
+      })
+      const first = yield* tasks.reserveOperation(
+        reservation(request("ordered_a", { taskID: seed.id, expectedRevision: seed.revision })),
+      )
+      const second = yield* tasks.reserveOperation(
+        reservation(request("ordered_b", { taskID: seed.id, expectedRevision: first.operation.taskRevision })),
+      )
+      const third = yield* tasks.reserveOperation(
+        reservation(request("ordered_c", { taskID: seed.id, expectedRevision: first.operation.taskRevision })),
+      )
+      expect(second.operation.predecessorID).toBe(first.operation.operationID)
+      expect(third.operation.predecessorID).toBe(second.operation.operationID)
+      expect((yield* tasks.claimWaitingOperation({ sessionID, operationID: third.operation.operationID })).phase).toBe(
+        "waiting",
+      )
+      yield* tasks.advanceOperation({
+        sessionID,
+        operationID: first.operation.operationID,
+        change: new SessionTask.OperationChange({
+          phase: "failed",
+          error: new SessionTask.OperationError({ code: "first_done", message: "first finished" }),
+        }),
+      })
+      const [afterFirst] = yield* tasks.get(sessionID)
+      const fourth = yield* tasks.reserveOperation(
+        reservation(request("ordered_d", { taskID: seed.id, expectedRevision: afterFirst.revision })),
+      )
+      expect(fourth.operation.phase).toBe("waiting")
+      expect(fourth.operation.predecessorID).toBe(third.operation.operationID)
+      const claimedSecond = yield* tasks.claimWaitingOperation({ sessionID, operationID: second.operation.operationID })
+      expect(claimedSecond.phase).toBe("reserved")
+      expect(claimedSecond.taskRevision).toBe(afterFirst.revision + 1)
+      expect((yield* tasks.claimWaitingOperation({ sessionID, operationID: third.operation.operationID })).phase).toBe(
+        "waiting",
+      )
+      yield* tasks.advanceOperation({
+        sessionID,
+        operationID: second.operation.operationID,
+        change: new SessionTask.OperationChange({
+          phase: "failed",
+          error: new SessionTask.OperationError({ code: "second_done", message: "second finished" }),
+        }),
+      })
+      const claimedThird = yield* tasks.claimWaitingOperation({ sessionID, operationID: third.operation.operationID })
+      expect(claimedThird.phase).toBe("reserved")
+      const claim = yield* database.db
+        .select()
+        .from(KVTable)
+        .where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`))
+        .get()
+        .pipe(Effect.orDie)
+      expect(claim?.value).toMatchObject({
+        operationID: third.operation.operationID,
+        parentTaskRevision: claimedThird.taskRevision,
+      })
+      yield* tasks.advanceOperation({
+        sessionID,
+        operationID: third.operation.operationID,
+        change: new SessionTask.OperationChange({
+          phase: "failed",
+          error: new SessionTask.OperationError({ code: "third_done", message: "third finished" }),
+        }),
+      })
+      expect((yield* tasks.claimWaitingOperation({ sessionID, operationID: fourth.operation.operationID })).phase).toBe(
+        "reserved",
+      )
+    }),
+  )
 
-  it.effect("MP05 a waiting operation claims the current revision and its later result preserves a newer user edit", () => Effect.gen(function* () {
-    yield* setup
-    const tasks = yield* SessionTask.Service
-    const database = yield* Database.Service
-    const [seed] = yield* tasks.append({ sessionID, tasks: [{ content: "editable source", status: "pending", priority: "medium" }] })
-    const first = yield* tasks.reserveOperation(reservation(request("edit_a", { taskID: seed.id, expectedRevision: seed.revision })))
-    const waiting = yield* tasks.reserveOperation(reservation(request("edit_b", { taskID: seed.id, expectedRevision: first.operation.taskRevision })))
-    yield* tasks.advanceOperation({ sessionID, operationID: first.operation.operationID, change: new SessionTask.OperationChange({ phase: "failed", error: new SessionTask.OperationError({ code: "source_done", message: "source finished" }) }) })
-    const edited = yield* tasks.updateTask({ sessionID, id: seed.id, content: "authoritative user revision" })
-    if (!edited) return yield* Effect.die(new Error("Expected the user field edit"))
-    const claimed = yield* tasks.claimWaitingOperation({ sessionID, operationID: waiting.operation.operationID })
-    expect(claimed.phase).toBe("reserved")
-    expect(claimed.taskRevision).toBe(edited.revision + 1)
-    expect((yield* tasks.get(sessionID))[0]?.content).toBe(edited.content)
-    const later = yield* tasks.updateTask({ sessionID, id: seed.id, content: "newer user revision" })
-    if (!later) return yield* Effect.die(new Error("The newer source Task revision was not saved"))
-    const failed = yield* tasks.advanceOperation({ sessionID, operationID: waiting.operation.operationID,
-      change: new SessionTask.OperationChange({ phase: "failed", error: new SessionTask.OperationError({ code: "late_result", message: "late waiting result" }) }),
-    })
-    expect(failed.sourceSettlement).toBe("conflict")
-    expect((yield* tasks.get(sessionID))[0]).toEqual(later)
-    expect(yield* database.db.select().from(KVTable).where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`)).get().pipe(Effect.orDie)).toBeUndefined()
-  }))
+  it.effect(
+    "MP05 a waiting operation claims the current revision and its later result preserves a newer user edit",
+    () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const database = yield* Database.Service
+        const [seed] = yield* tasks.append({
+          sessionID,
+          tasks: [{ content: "editable source", status: "pending", priority: "medium" }],
+        })
+        const first = yield* tasks.reserveOperation(
+          reservation(request("edit_a", { taskID: seed.id, expectedRevision: seed.revision })),
+        )
+        const waiting = yield* tasks.reserveOperation(
+          reservation(request("edit_b", { taskID: seed.id, expectedRevision: first.operation.taskRevision })),
+        )
+        yield* tasks.advanceOperation({
+          sessionID,
+          operationID: first.operation.operationID,
+          change: new SessionTask.OperationChange({
+            phase: "failed",
+            error: new SessionTask.OperationError({ code: "source_done", message: "source finished" }),
+          }),
+        })
+        const edited = yield* tasks.updateTask({ sessionID, id: seed.id, content: "authoritative user revision" })
+        if (!edited) return yield* Effect.die(new Error("Expected the user field edit"))
+        const claimed = yield* tasks.claimWaitingOperation({ sessionID, operationID: waiting.operation.operationID })
+        expect(claimed.phase).toBe("reserved")
+        expect(claimed.taskRevision).toBe(edited.revision + 1)
+        expect((yield* tasks.get(sessionID))[0]?.content).toBe(edited.content)
+        const later = yield* tasks.updateTask({ sessionID, id: seed.id, content: "newer user revision" })
+        if (!later) return yield* Effect.die(new Error("The newer source Task revision was not saved"))
+        const failed = yield* tasks.advanceOperation({
+          sessionID,
+          operationID: waiting.operation.operationID,
+          change: new SessionTask.OperationChange({
+            phase: "failed",
+            error: new SessionTask.OperationError({ code: "late_result", message: "late waiting result" }),
+          }),
+        })
+        expect(failed.sourceSettlement).toBe("conflict")
+        expect((yield* tasks.get(sessionID))[0]).toEqual(later)
+        expect(
+          yield* database.db
+            .select()
+            .from(KVTable)
+            .where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`))
+            .get()
+            .pipe(Effect.orDie),
+        ).toBeUndefined()
+      }),
+  )
 
-  scheduleIt.effect("MP05 execution cancellation retains recurrence while an explicit Task pause disables future admission", () => Effect.gen(function* () {
-    yield* setup
-    const tasks = yield* SessionTask.Service
-    const schedules = yield* ScheduleService.Service
-    const [seed] = yield* tasks.append({ sessionID, tasks: [{ content: "recurring worker", status: "scheduled", priority: "medium", recurrence: { cron: "* * * * *", enabled: true, timezone: "UTC" } }] })
-    const reserved = yield* tasks.reserveOperation(reservation(request("cancel_execution", { taskID: seed.id, expectedRevision: seed.revision })))
-    const cancelled = yield* tasks.advanceOperation({ sessionID, operationID: reserved.operation.operationID,
-      change: new SessionTask.OperationChange({ phase: "cancelled", cancelIntent: true }),
-    })
-    expect(cancelled.sourceSettlement).toBe("settled")
-    const rule = yield* schedules.getRule(ScheduleTask.idFor(seed.id))
-    expect(rule).toMatchObject({ status: "pending", recurrence: { enabled: true } })
-    expect((yield* tasks.get(sessionID))[0]).toMatchObject({ status: "cancelled", nextRun: rule?.nextDueAt })
-    yield* tasks.patch({ sessionID, id: seed.id, status: "scheduled" })
-    yield* tasks.patch({ sessionID, id: seed.id, status: "cancelled" })
-    expect((yield* schedules.getRule(ScheduleTask.idFor(seed.id)))?.status).toBe("paused")
-    expect((yield* tasks.get(sessionID))[0]?.nextRun).toBeUndefined()
-  }))
+  scheduleIt.effect(
+    "MP05 execution cancellation retains recurrence while an explicit Task pause disables future admission",
+    () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const schedules = yield* ScheduleService.Service
+        const [seed] = yield* tasks.append({
+          sessionID,
+          tasks: [
+            {
+              content: "recurring worker",
+              status: "scheduled",
+              priority: "medium",
+              recurrence: { cron: "* * * * *", enabled: true, timezone: "UTC" },
+            },
+          ],
+        })
+        const reserved = yield* tasks.reserveOperation(
+          reservation(request("cancel_execution", { taskID: seed.id, expectedRevision: seed.revision })),
+        )
+        const cancelled = yield* tasks.advanceOperation({
+          sessionID,
+          operationID: reserved.operation.operationID,
+          change: new SessionTask.OperationChange({ phase: "cancelled", cancelIntent: true }),
+        })
+        expect(cancelled.sourceSettlement).toBe("settled")
+        const rule = yield* schedules.getRule(ScheduleTask.idFor(seed.id))
+        expect(rule).toMatchObject({ status: "pending", recurrence: { enabled: true } })
+        expect((yield* tasks.get(sessionID))[0]).toMatchObject({ status: "cancelled", nextRun: rule?.nextDueAt })
+        yield* tasks.patch({ sessionID, id: seed.id, status: "scheduled" })
+        yield* tasks.patch({ sessionID, id: seed.id, status: "cancelled" })
+        expect((yield* schedules.getRule(ScheduleTask.idFor(seed.id)))?.status).toBe("paused")
+        expect((yield* tasks.get(sessionID))[0]?.nextRun).toBeUndefined()
+      }),
+  )
 })

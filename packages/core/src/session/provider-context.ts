@@ -24,11 +24,20 @@ export function provenance(
   const model = resolved.model
   const endpoint = model.route.endpoint
   if (sentURL === undefined && (!endpoint.baseURL || typeof endpoint.path !== "string")) return undefined
-  const url = sentURL === undefined
-    ? Endpoint.render({ baseURL: endpoint.baseURL, path: typeof endpoint.path === "string" ? endpoint.path : "", query: endpoint.query }, { request: undefined, body: undefined })
-    : URL.parse(sentURL)
+  const url =
+    sentURL === undefined
+      ? Endpoint.render(
+          {
+            baseURL: endpoint.baseURL,
+            path: typeof endpoint.path === "string" ? endpoint.path : "",
+            query: endpoint.query,
+          },
+          { request: undefined, body: undefined },
+        )
+      : URL.parse(sentURL)
   if (!url) return undefined
-  if (sentURL === undefined) Object.entries(request?.http?.query ?? {}).forEach(([key, value]) => url.searchParams.set(key, value))
+  if (sentURL === undefined)
+    Object.entries(request?.http?.query ?? {}).forEach(([key, value]) => url.searchParams.set(key, value))
   // The original WebSocket transport maps HTTP URLs to WS URLs for this same route.
   if (url.protocol === "wss:") url.protocol = "https:"
   if (url.protocol === "ws:") url.protocol = "http:"
@@ -46,7 +55,8 @@ export function provenance(
 }
 
 export const compatible = (source: Provenance, target: Provenance | undefined) =>
-  source.deployment !== undefined && target?.deployment !== undefined &&
+  source.deployment !== undefined &&
+  target?.deployment !== undefined &&
   isDeepStrictEqual({ ...source, connection: source.connection }, { ...target, connection: target.connection })
 
 /** A completed compaction that installed a native replacement window instead of a local summary. */

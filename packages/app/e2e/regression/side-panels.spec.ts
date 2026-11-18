@@ -2046,9 +2046,7 @@ test("MP03 Schedule keeps the saved target through revision edits and separates 
     name: "MP03 Schedule",
     directory,
     provider: provider({ id: "mp03-normal-model", name: "MP03 normal model" }),
-    profiles: [
-      CustomProfileFixture.info("build", { name: "MP03 saved profile", relativePath: "mp03-review.yaml" }),
-    ],
+    profiles: [CustomProfileFixture.info("build", { name: "MP03 saved profile", relativePath: "mp03-review.yaml" })],
     schedules,
     scheduleRuns: runs,
     identities,

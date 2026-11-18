@@ -88,7 +88,9 @@ const transaction = db.transaction(["documents", "blobs"], "readwrite")
 
 transaction.objectStore("documents").put(JSON.stringify({ entries: normal }), "aigcfroge.global.dat:prompt-history")
 
-transaction.objectStore("documents").put(JSON.stringify({ entries: shell }), "aigcfroge.global.dat:prompt-history-shell")
+transaction
+  .objectStore("documents")
+  .put(JSON.stringify({ entries: shell }), "aigcfroge.global.dat:prompt-history-shell")
 
 screenshots.forEach(({ id, blob }) => transaction.objectStore("blobs").put(blob, id))
 

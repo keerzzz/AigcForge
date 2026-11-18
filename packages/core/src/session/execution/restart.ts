@@ -233,8 +233,10 @@ export const layer = (options?: Options) =>
           const deferredParents = new Set(delegationRecovery.deferredParents)
           // Recover durable tool owners before generic Step cleanup can abort their pending work.
           yield* Effect.forEach(
-            (yield* store.listSuspended()).filter((sessionID) =>
-              !active.has(sessionID) && !deferredChildren.has(sessionID) && !deferredParents.has(sessionID)),
+            (yield* store.listSuspended()).filter(
+              (sessionID) =>
+                !active.has(sessionID) && !deferredChildren.has(sessionID) && !deferredParents.has(sessionID),
+            ),
             (sessionID) => SessionStep.reconcile(db, bus, goals, sessionID),
             { discard: true },
           )

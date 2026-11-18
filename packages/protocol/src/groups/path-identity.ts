@@ -10,15 +10,16 @@ export const PathIdentityGroup = HttpApiGroup.make("server.pathIdentity")
       query: LocationQuery,
       payload: PathIdentity.CompareInput,
       success: described(PathIdentity.Result, "Path identity comparison result"),
-    }).annotateMerge(locationQueryOpenApi)
+    })
+      .annotateMerge(locationQueryOpenApi)
       .annotateMerge(
-      OpenApi.annotations({
-        identifier: "pathIdentity.compare",
-        summary: "Compare local path identities",
-        description:
-          "Prove that two local path references identify the same filesystem object, or return a typed unknown result.",
-      }),
-    ),
+        OpenApi.annotations({
+          identifier: "pathIdentity.compare",
+          summary: "Compare local path identities",
+          description:
+            "Prove that two local path references identify the same filesystem object, or return a typed unknown result.",
+        }),
+      ),
   )
   .annotateMerge(
     OpenApi.annotations({

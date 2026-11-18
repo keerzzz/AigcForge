@@ -861,8 +861,16 @@ export const make = Effect.fn("SessionGoal.make")(function* () {
               reason: "attempt_not_found",
               message: "No persisted dispatch owns this usage",
             })
-          if (attempt.usage !== undefined && input.usage !== undefined && !isDeepStrictEqual(attempt.usage, input.usage))
-            return yield* new GoalError({ ...ref, reason: "usage_conflict", message: "Physical attempt usage conflicts with its persisted settlement" })
+          if (
+            attempt.usage !== undefined &&
+            input.usage !== undefined &&
+            !isDeepStrictEqual(attempt.usage, input.usage)
+          )
+            return yield* new GoalError({
+              ...ref,
+              reason: "usage_conflict",
+              message: "Physical attempt usage conflicts with its persisted settlement",
+            })
           if (attempt.settledAt !== undefined && (attempt.usage !== undefined || input.usage === undefined)) return goal
           const time = yield* now
           const settled = {

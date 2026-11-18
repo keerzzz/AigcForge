@@ -59,9 +59,7 @@ test("/new keeps the active session tab", async () => {
   await setup.waitForFrame((frame) => frame.includes("Session to clear"))
   await setup.mockInput.typeText("/new")
   setup.mockInput.pressEnter()
-  const frame = await setup.waitForFrame(
-    (frame) => frame.includes("New session") && frame.includes("Session to clear"),
-  )
+  const frame = await setup.waitForFrame((frame) => frame.includes("New session") && frame.includes("Session to clear"))
 
   expect(frame).toContain("Session to clear")
 })

@@ -230,11 +230,11 @@ export const makeDaemonTransport = Effect.fn("PersistentPty.makeDaemonTransport"
     const child = yield* Effect.tryPromise({
       try: () =>
         new Promise<ReturnType<typeof spawn>>((resolve, reject) => {
-          const child = spawn(
-            executable,
-            ["daemon", "--runtime-dir", root, "--name", id],
-            { detached: true, windowsHide: true, stdio: "ignore" },
-          )
+          const child = spawn(executable, ["daemon", "--runtime-dir", root, "--name", id], {
+            detached: true,
+            windowsHide: true,
+            stdio: "ignore",
+          })
           child.once("spawn", () => {
             child.unref()
             resolve(child)

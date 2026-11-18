@@ -76,7 +76,12 @@ export interface Interface {
     input: ApplyInput,
   ) => Effect.Effect<
     ApplyResult,
-    PathValidationError | ConflictError | FSUtil.Error | Environment.Failed | Environment.WrongKind | Environment.NotFound
+    | PathValidationError
+    | ConflictError
+    | FSUtil.Error
+    | Environment.Failed
+    | Environment.WrongKind
+    | Environment.NotFound
   >
   readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<ArtifactSnapshot | undefined>
 }

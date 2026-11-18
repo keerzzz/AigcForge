@@ -149,13 +149,17 @@ it.live(
         source: { type: "tool", messageID: toolIdentity.messageID, id: "mc04b-actual-failure" },
         packages: [{ directory: f.location.directory, status: "failed", executed: true, exitCode: 2 }],
       })
-      expect(failed.content?.flatMap((part) => part.type === "text" ? [part.text] : []).join("\n")).toContain(`[验证来源] verification.source=${JSON.stringify({ messageID: toolIdentity.messageID, id: "mc04b-actual-failure" })}`)
+      expect(failed.content?.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("\n")).toContain(
+        `[验证来源] verification.source=${JSON.stringify({ messageID: toolIdentity.messageID, id: "mc04b-actual-failure" })}`,
+      )
       const passed = yield* f.write("input.ts", 'export const value: string = "fixed"\n', "mc04b-actual-repair")
       expect(passed.metadata?.verification).toMatchObject({
         status: "passed",
         packages: [{ status: "passed", executed: true, exitCode: 0 }],
       })
-      expect(passed.content?.flatMap((part) => part.type === "text" ? [part.text] : []).join("\n")).toContain(`[验证来源] verification.source=${JSON.stringify({ messageID: toolIdentity.messageID, id: "mc04b-actual-repair" })}`)
+      expect(passed.content?.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("\n")).toContain(
+        `[验证来源] verification.source=${JSON.stringify({ messageID: toolIdentity.messageID, id: "mc04b-actual-repair" })}`,
+      )
       expect(failed.metadata?.verification).not.toEqual(passed.metadata?.verification)
     }),
   30_000,
@@ -228,11 +232,35 @@ it.live("reports an unavailable executable without recording a code correction",
 it.live("MC04b retains passed packages when another actual package check is unavailable", () =>
   Effect.gen(function* () {
     const f = yield* setup()
-    yield* f.fs.writeWithDirs(path.join(f.location.directory, "packages/first/package.json"), JSON.stringify({ packageManager: "bun@1.4.2", scripts: { typecheck: "bun -e 'process.exit(0)'" } }))
-    yield* f.fs.writeWithDirs(path.join(f.location.directory, "packages/second/package.json"), JSON.stringify({ packageManager: "bun@1.4.2", scripts: { typecheck: "mc04b-nonexistent-typechecker" } }))
-    const result = yield* executeTool(f.tools, { sessionID: f.sessionID, ...toolIdentity, call: { type: "tool-call", id: "mc04b-partial-packages", name: "patch", input: { patchText: "*** Begin Patch\n*** Add File: packages/first/input.ts\n+export const first = 1\n*** Add File: packages/second/input.ts\n+export const second = 2\n*** End Patch" } } })
+    yield* f.fs.writeWithDirs(
+      path.join(f.location.directory, "packages/first/package.json"),
+      JSON.stringify({ packageManager: "bun@1.4.2", scripts: { typecheck: "bun -e 'process.exit(0)'" } }),
+    )
+    yield* f.fs.writeWithDirs(
+      path.join(f.location.directory, "packages/second/package.json"),
+      JSON.stringify({ packageManager: "bun@1.4.2", scripts: { typecheck: "mc04b-nonexistent-typechecker" } }),
+    )
+    const result = yield* executeTool(f.tools, {
+      sessionID: f.sessionID,
+      ...toolIdentity,
+      call: {
+        type: "tool-call",
+        id: "mc04b-partial-packages",
+        name: "patch",
+        input: {
+          patchText:
+            "*** Begin Patch\n*** Add File: packages/first/input.ts\n+export const first = 1\n*** Add File: packages/second/input.ts\n+export const second = 2\n*** End Patch",
+        },
+      },
+    })
     expect(result.status).toBe("completed")
-    expect(result.metadata?.verification).toMatchObject({ status: "unavailable", packages: [{ status: "passed", executed: true, exitCode: 0 }, { status: "unavailable", executed: true, exitCode: 127 }] })
+    expect(result.metadata?.verification).toMatchObject({
+      status: "unavailable",
+      packages: [
+        { status: "passed", executed: true, exitCode: 0 },
+        { status: "unavailable", executed: true, exitCode: 127 },
+      ],
+    })
     expect((yield* f.store.facts(f.sessionID)).filter((fact) => fact.key.startsWith("verify:"))).toHaveLength(0)
   }),
 )
@@ -321,7 +349,10 @@ timeout.live("reports the real process timeout without producing a code correcti
         .map((item) => item.text)
         .join("\n"),
     ).toContain("超时")
-    expect(result.metadata?.verification).toMatchObject({ status: "unavailable", packages: [{ status: "unavailable", executed: null }] })
+    expect(result.metadata?.verification).toMatchObject({
+      status: "unavailable",
+      packages: [{ status: "unavailable", executed: null }],
+    })
     expect((yield* f.store.facts(f.sessionID)).filter((fact) => fact.key.startsWith("verify:"))).toHaveLength(0)
   }),
 )

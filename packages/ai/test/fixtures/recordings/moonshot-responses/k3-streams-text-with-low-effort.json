@@ -2,14 +2,7 @@
   "version": 1,
   "metadata": {
     "model": "kimi-k3",
-    "tags": [
-      "prefix:moonshot-responses",
-      "provider:moonshot",
-      "protocol:responses",
-      "text",
-      "reasoning",
-      "usage"
-    ],
+    "tags": ["prefix:moonshot-responses", "provider:moonshot", "protocol:responses", "text", "reasoning", "usage"],
     "name": "moonshot-responses/k3-streams-text-with-low-effort",
     "recordedAt": "2026-09-15T04:22:02.688Z"
   },

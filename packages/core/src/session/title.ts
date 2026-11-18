@@ -74,7 +74,9 @@ export const layer = Layer.effect(
         messages: [Message.user(input.text)],
       })
       if (prepared.event.result !== undefined) return prepared.event.result
-      const goalAttempts = yield* goals.beforeAttempt({ sessionID: input.session.id, kind: "auxiliary" }).pipe(Effect.orDie)
+      const goalAttempts = yield* goals
+        .beforeAttempt({ sessionID: input.session.id, kind: "auxiliary" })
+        .pipe(Effect.orDie)
       let goalUsage: SessionUsage.Recorded | undefined
       yield* llm.stream(prepared.request, prepared.options).pipe(
         Stream.runForEach((event) => {
@@ -93,7 +95,11 @@ export const layer = Layer.effect(
           }),
         ),
         Effect.onInterrupt(() => recordUsage.pipe(Effect.asVoid)),
-        Effect.ensuring(Effect.suspend(() => goals.settleAttempt({ refs: goalAttempts, usage: goalUsage?.tokens }).pipe(Effect.orDie))),
+        Effect.ensuring(
+          Effect.suspend(() =>
+            goals.settleAttempt({ refs: goalAttempts, usage: goalUsage?.tokens }).pipe(Effect.orDie),
+          ),
+        ),
       )
       yield* recordUsage
       if (failed) return

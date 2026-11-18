@@ -26,15 +26,22 @@ export function sameModel(left: Model.Selection | undefined, right: Model.Select
 }
 
 export function sameExecutor(left: SessionSchema.ExecutorBinding, right: SessionSchema.ExecutorBinding) {
-  return left.agent === right.agent && sameModel(left.model, right.model) && (!Model.Selection.isGroup(left.model) ||
-    (left.groupBehavior?.groupID === right.groupBehavior?.groupID && left.groupBehavior?.behaviorDigest === right.groupBehavior?.behaviorDigest))
+  return (
+    left.agent === right.agent &&
+    sameModel(left.model, right.model) &&
+    (!Model.Selection.isGroup(left.model) ||
+      (left.groupBehavior?.groupID === right.groupBehavior?.groupID &&
+        left.groupBehavior?.behaviorDigest === right.groupBehavior?.behaviorDigest))
+  )
 }
 
 export function bindingMatches(session: SessionSchema.Info) {
   if (session.controller?.kind !== "child") return true
   return (
-    session.agent === session.controller.executor.agent && sameModel(session.model, session.controller.executor.model) &&
-    (!Model.Selection.isGroup(session.controller.executor.model) || session.controller.executor.groupBehavior?.groupID === session.controller.executor.model.groupID)
+    session.agent === session.controller.executor.agent &&
+    sameModel(session.model, session.controller.executor.model) &&
+    (!Model.Selection.isGroup(session.controller.executor.model) ||
+      session.controller.executor.groupBehavior?.groupID === session.controller.executor.model.groupID)
   )
 }
 

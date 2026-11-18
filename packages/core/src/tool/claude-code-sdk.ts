@@ -145,62 +145,60 @@ export const makeClaudeCodeSdkAdapter = (
 
         const observe = Effect.runPromiseWith(yield* Effect.context())
 
-        const collected =
-          yield *
-          Effect.tryPromise({
-            try: async () => {
-              let summary = ""
-              let isError = false
-              let sawResult = false
-              let sessionId: string | undefined
-              let messageId: string | undefined
-              for await (const message of { [Symbol.asyncIterator]: () => sdkQuery.iterator }) {
-                if (message.session_id) {
-                  observedSessionId = message.session_id
-                }
-                const observation = Schema.decodeUnknownOption(DelegationReceipt.SdkObservation)(message)
-                if (onSdkObservation && Option.isSome(observation))
-                  await observe(onSdkObservation(observation.value), { signal: abortController.signal })
-                if (message.type !== "result") continue
-                sawResult = true
-                isError = message.is_error === true
-                summary =
-                  message.result ||
-                  (isError &&
-                  Option.isSome(observation) &&
-                  observation.value instanceof DelegationReceipt.SdkResultObservation
-                    ? (observation.value.errors?.join("\n") ?? "")
-                    : "")
-                sessionId = message.session_id
-                messageId = message.uuid
+        const collected = yield* Effect.tryPromise({
+          try: async () => {
+            let summary = ""
+            let isError = false
+            let sawResult = false
+            let sessionId: string | undefined
+            let messageId: string | undefined
+            for await (const message of { [Symbol.asyncIterator]: () => sdkQuery.iterator }) {
+              if (message.session_id) {
+                observedSessionId = message.session_id
               }
-              return { summary, isError, sawResult, sessionId, messageId, timedOut: false as const }
-            },
-            catch: (error) => new Error(errorMessage(error)),
-          }).pipe(
-            Effect.timeoutOrElse({
-              duration: Duration.millis(timeoutMs ?? 300_000),
-              orElse: () =>
-                Effect.succeed({
-                  summary: "",
-                  isError: true,
-                  sawResult: false,
-                  sessionId: observedSessionId ?? resumeId,
-                  messageId: undefined,
-                  timedOut: true as const,
-                }),
-            }),
-            Effect.catch((error) =>
+              const observation = Schema.decodeUnknownOption(DelegationReceipt.SdkObservation)(message)
+              if (onSdkObservation && Option.isSome(observation))
+                await observe(onSdkObservation(observation.value), { signal: abortController.signal })
+              if (message.type !== "result") continue
+              sawResult = true
+              isError = message.is_error === true
+              summary =
+                message.result ||
+                (isError &&
+                Option.isSome(observation) &&
+                observation.value instanceof DelegationReceipt.SdkResultObservation
+                  ? (observation.value.errors?.join("\n") ?? "")
+                  : "")
+              sessionId = message.session_id
+              messageId = message.uuid
+            }
+            return { summary, isError, sawResult, sessionId, messageId, timedOut: false as const }
+          },
+          catch: (error) => new Error(errorMessage(error)),
+        }).pipe(
+          Effect.timeoutOrElse({
+            duration: Duration.millis(timeoutMs ?? 300_000),
+            orElse: () =>
               Effect.succeed({
-                summary: errorMessage(error),
+                summary: "",
                 isError: true,
                 sawResult: false,
                 sessionId: observedSessionId ?? resumeId,
                 messageId: undefined,
-                timedOut: false as const,
+                timedOut: true as const,
               }),
-            ),
-          )
+          }),
+          Effect.catch((error) =>
+            Effect.succeed({
+              summary: errorMessage(error),
+              isError: true,
+              sawResult: false,
+              sessionId: observedSessionId ?? resumeId,
+              messageId: undefined,
+              timedOut: false as const,
+            }),
+          ),
+        )
 
         if (collected.timedOut) {
           return emptyResult(name, collected.sessionId, "execution Timed out", {

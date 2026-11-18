@@ -64,9 +64,7 @@
       "legacy_data": "旧 bash/工具输出及 Session 历史按现有兼容读取处理；不按旧 DTO 新建运行器。旧库升级与旧 shell 状态恢复仍属 P6/P0.4。",
       "acceptance": "真实项目中用 Build 执行成功/失败构建，核对 cwd、退出码、权限拒绝、取消、后台通知、不同 Session 并发。可用现有 tool-shell/session-shell/session-runner 测试作起点，尚未运行。",
       "owner": "Coding/Core 负责人；主智能体验收",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY"],
       "evidence_refs": [
         "O-BUILD",
         "O-AGENT-DEFAULT",
@@ -81,17 +79,8 @@
         "V-SHELL-EXECUTE",
         "V-STEP-STREAM"
       ],
-      "deciding_refs": [
-        "V-AGENT-DEFAULT",
-        "V-CONTEXT-PERMISSION",
-        "V-SHELL-PREPARE"
-      ],
-      "upstream_basis": [
-        "V-AGENT-DEFAULT",
-        "V-BUILD",
-        "V-SHELL-PREPARE",
-        "V-STEP-STREAM"
-      ],
+      "deciding_refs": ["V-AGENT-DEFAULT", "V-CONTEXT-PERMISSION", "V-SHELL-PREPARE"],
+      "upstream_basis": ["V-AGENT-DEFAULT", "V-BUILD", "V-SHELL-PREPARE", "V-STEP-STREAM"],
       "evidence_grade": "static_production_wiring",
       "runtime_verified": false
     },
@@ -111,9 +100,7 @@
       "legacy_data": "保留历史错误/内容和文件引用；当前文件存在性在实际调用时检查。旧文件状态不由旧 transcript 推断。",
       "acceptance": "对缺失文件、重复 oldString、Unicode/换行匹配、schema 错误、外目录和取消验证真实实现。现有 tool-read/tool-edit/tool-write/file-access 测试可复用，尚未运行。",
       "owner": "Coding/Core 文件工具负责人",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY"],
       "evidence_refs": [
         "O-READ-MISSING",
         "V-TOOL-SNAPSHOT",
@@ -123,16 +110,8 @@
         "V-EDIT-GUARD",
         "V-EVENT-CALL"
       ],
-      "deciding_refs": [
-        "V-TOOL-RUNTIME",
-        "V-READ-MISSING",
-        "V-EDIT-GUARD"
-      ],
-      "upstream_basis": [
-        "V-TOOL-RUNTIME",
-        "V-READ-MISSING",
-        "V-EDIT-GUARD"
-      ],
+      "deciding_refs": ["V-TOOL-RUNTIME", "V-READ-MISSING", "V-EDIT-GUARD"],
+      "upstream_basis": ["V-TOOL-RUNTIME", "V-READ-MISSING", "V-EDIT-GUARD"],
       "evidence_grade": "static_production_wiring",
       "runtime_verified": false
     },
@@ -152,24 +131,10 @@
       "legacy_data": "旧命令参数和历史消息仍是历史；旧 subtask/child 不能由新 builtin review 默认行为自动等价重建。",
       "acceptance": "无参数、commit、branch、PR 参数及附件都绑定一次；验证实际差异读取、反馈、取消。旧默认 subtask 语义另验 COD-04。现有 plugin/command 与 session-command 测试可复用，尚未运行。",
       "owner": "Coding/Core Command 负责人",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY"
-      ],
-      "evidence_refs": [
-        "O-REVIEW-DEFAULT",
-        "V-APP-COMMAND",
-        "V-REVIEW",
-        "V-COMMAND-APPEND",
-        "V-SESSION-PROMPT"
-      ],
-      "deciding_refs": [
-        "V-REVIEW",
-        "V-COMMAND-APPEND"
-      ],
-      "upstream_basis": [
-        "V-REVIEW",
-        "V-COMMAND-APPEND"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY"],
+      "evidence_refs": ["O-REVIEW-DEFAULT", "V-APP-COMMAND", "V-REVIEW", "V-COMMAND-APPEND", "V-SESSION-PROMPT"],
+      "deciding_refs": ["V-REVIEW", "V-COMMAND-APPEND"],
+      "upstream_basis": ["V-REVIEW", "V-COMMAND-APPEND"],
       "evidence_grade": "static_production_wiring",
       "runtime_verified": false
     },
@@ -189,10 +154,7 @@
       "legacy_data": "旧 review 默认来自 builtin 配置，不是必然存在于用户 config 的 subtask 字段；仅迁移显式配置不能覆盖旧默认。旧 child 历史保持原 ID/关联。",
       "acceptance": "默认 review、显式 subtask=false/true、不同 Agent/model、取消、重载与 child 导航对照；确认允许差异后才关闭。尚未运行。",
       "owner": "Coding/Core Command 与 Subagent 负责人；产品负责人确认允许差异",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY",
-        "V2-C-DELEGATION"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY", "V2-C-DELEGATION"],
       "evidence_refs": [
         "O-REVIEW-DEFAULT",
         "O-REVIEW-SUBTASK",
@@ -202,11 +164,7 @@
         "O-TASK-CHILD",
         "V-MIGRATE-COMMAND"
       ],
-      "deciding_refs": [
-        "O-REVIEW-SUBTASK",
-        "V-REVIEW",
-        "V-COMMAND-SUBAGENT"
-      ],
+      "deciding_refs": ["O-REVIEW-SUBTASK", "V-REVIEW", "V-COMMAND-SUBAGENT"],
       "evidence_grade": "static_behavior_difference",
       "runtime_verified": false,
       "unlock_condition": "复用既有 configured-subagent command 路径接入 builtin review，或记录明确允许的同 Session 差异，并完成用户流程验收。"
@@ -227,10 +185,7 @@
       "legacy_data": "既有 lsp config 可保留；活动 LSP 连接无持久恢复依据。legacy endpoint 按真实消费者决定适配/扩展/退役，不写空成功。",
       "acceptance": "九操作、1-based 坐标、无结果/缺文件/无 server、状态事件、配置启停与跨 Location 隔离均需实际 LSP 验收。尚未运行。",
       "owner": "Coding/Core LSP 负责人；App/Server 消费负责人",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY",
-        "V2-SERVER-LEGACY"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY", "V2-SERVER-LEGACY"],
       "evidence_refs": [
         "O-LSP-FLAG",
         "O-LSP-EXEC",
@@ -241,12 +196,7 @@
         "V-LSP-CONFIG",
         "V-INTERNAL-LIST"
       ],
-      "deciding_refs": [
-        "O-LSP-DISPATCH",
-        "O-LSP-STATUS",
-        "V-LSP-STUB",
-        "V-LSP-CONFIG"
-      ],
+      "deciding_refs": ["O-LSP-DISPATCH", "O-LSP-STATUS", "V-LSP-STUB", "V-LSP-CONFIG"],
       "evidence_grade": "static_missing_consumer",
       "runtime_verified": false,
       "unlock_condition": "在 V2 Location/Tool/lifecycle 建立实际 LSP 执行与状态消费者，完成九操作和运行状态验收。"
@@ -267,21 +217,9 @@
       "legacy_data": "旧诊断是当时工具输出；历史诊断不可当作当前 workspace 诊断。活动文档状态随新 Location 生命周期重建。",
       "acceptance": "真实错误写入→诊断→模型修正→错误消失；覆盖 edit/write/patch、格式化、跨文件、超时和重载。尚未运行。",
       "owner": "Coding/Core FileMutation 与 LSP 负责人",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY"
-      ],
-      "evidence_refs": [
-        "O-WRITE-DIAGNOSTIC",
-        "V-LSP-TODO",
-        "V-EDIT-GUARD",
-        "V-REQUEST-TOOL",
-        "V-STEP-TOOL"
-      ],
-      "deciding_refs": [
-        "O-WRITE-DIAGNOSTIC",
-        "V-LSP-TODO",
-        "V-REQUEST-TOOL"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY"],
+      "evidence_refs": ["O-WRITE-DIAGNOSTIC", "V-LSP-TODO", "V-EDIT-GUARD", "V-REQUEST-TOOL", "V-STEP-TOOL"],
+      "deciding_refs": ["O-WRITE-DIAGNOSTIC", "V-LSP-TODO", "V-REQUEST-TOOL"],
       "evidence_grade": "static_missing_consumer",
       "runtime_verified": false,
       "unlock_condition": "依托 COD-05 的真实服务，将修改后 diagnostics 接入 canonical tool outcome 并验收。"
@@ -302,9 +240,7 @@
       "legacy_data": "保留原工具警告；不将 CorrectionStore 当持久 Meta/Assistant memory 迁移。若要求跨重启保留，需另有存储与启用合同。",
       "acceptance": "有效/失效相对 Markdown/import、扩展名/index、裸 specifier 跳过、已捕获 executor、direct/CodeMode、timeout 与取消。现有 reference-checker/correction-extractor 测试只是起点，尚未运行。",
       "owner": "Coding/Core 校验与 Instructions 负责人",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY"],
       "evidence_refs": [
         "O-PROMPT-ASYNC",
         "O-RUNTIME-GATE",
@@ -319,12 +255,7 @@
         "V-TOOL-EXECUTE",
         "V-CORRECTION"
       ],
-      "deciding_refs": [
-        "O-REFERENCE-RESOLVE",
-        "O-SETTLE-CHECKS",
-        "V-REFERENCE-EXTRACT",
-        "V-REQUEST-TOOL"
-      ],
+      "deciding_refs": ["O-REFERENCE-RESOLVE", "O-SETTLE-CHECKS", "V-REFERENCE-EXTRACT", "V-REQUEST-TOOL"],
       "evidence_grade": "static_missing_consumer",
       "runtime_verified": false,
       "unlock_condition": "在当前实际工具结果/Instructions 边界接入有界引用提示，完成名称、路径与 CodeMode 的消费验收。"
@@ -345,10 +276,7 @@
       "legacy_data": "旧 Verify events 与警告保留原历史；无 durable failure counter 迁移。old packageDirectory 规则是仓库专用条件，不泛化为所有用户仓库合同。",
       "acceptance": "真实修改触发相应包 typecheck，成功/失败/timeout/skipped 与事件一致；非代码意图、无 path、失败额度与 direct/CodeMode 单独验证。尚未运行。",
       "owner": "Coding/Core 执行与验证负责人；产品负责人决定默认启用范围",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY",
-        "V2-D-AI"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY", "V2-D-AI"],
       "evidence_refs": [
         "O-VERIFIER",
         "O-SETTLE-CHECKS",
@@ -357,11 +285,7 @@
         "V-REQUEST-TOOL",
         "V-STEP-TOOL"
       ],
-      "deciding_refs": [
-        "O-VERIFIER",
-        "V-VERIFIER",
-        "V-REQUEST-TOOL"
-      ],
+      "deciding_refs": ["O-VERIFIER", "V-VERIFIER", "V-REQUEST-TOOL"],
       "evidence_grade": "static_missing_consumer",
       "runtime_verified": false,
       "unlock_condition": "确认默认启用范围并在 V2 实际修改结果边界接入有界 verifier；真实事件/提示/取消验收通过。"
@@ -382,10 +306,7 @@
       "legacy_data": "旧 fingerprint buffer 不持久化；旧工具 parts 与 Permission 历史保持原事实。不得把旧审批自动解释为本次任意工具授权。",
       "acceptance": "同输入达到阈值前后、副作用计数、变化输入、key order、providerExecuted、跨 Session、FIFO 淘汰、direct/CodeMode、取消及异常归类。现有 doom-loop 单元测试不是生产接线验收，尚未运行。",
       "owner": "Coding/Core Tool 与 Permission 负责人",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY",
-        "AUDIT-V2-PERMISSION"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY", "AUDIT-V2-PERMISSION"],
       "evidence_refs": [
         "O-LEGACY-DOOM",
         "O-CORE-DOOM",
@@ -397,13 +318,7 @@
         "V-REQUEST-TOOL",
         "V-TOOL-EXECUTE"
       ],
-      "deciding_refs": [
-        "O-LEGACY-DOOM",
-        "O-CORE-DOOM",
-        "O-SETTLE-CHECKS",
-        "V-CORE-DOOM",
-        "V-REQUEST-TOOL"
-      ],
+      "deciding_refs": ["O-LEGACY-DOOM", "O-CORE-DOOM", "O-SETTLE-CHECKS", "V-CORE-DOOM", "V-REQUEST-TOOL"],
       "evidence_grade": "static_missing_consumer",
       "runtime_verified": false,
       "unlock_condition": "已有 detector 接到真实 local invocation 的副作用前边界，默认 Permission 合同明确，行为验证通过。"
@@ -424,9 +339,7 @@
       "legacy_data": "无已证实的独立 symbol-verdict durable state 可迁移；旧 LSP/工具/typecheck 输出按历史保留。",
       "acceptance": "先确认严格门禁还是已有查询/引用提示合同；再用真实解析器验证成功、别名、动态符号、缺 server、超时与模型反馈。未运行。",
       "owner": "产品负责人；Coding/Core LSP 负责人",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY"],
       "evidence_refs": [
         "O-LSP-DISPATCH",
         "O-PROMPT-SYMBOL",
@@ -435,11 +348,7 @@
         "V-LSP-CONFIG",
         "PLAN-CODING"
       ],
-      "deciding_refs": [
-        "O-LSP-DISPATCH",
-        "O-REFERENCE-RESOLVE",
-        "O-VERIFIER"
-      ],
+      "deciding_refs": ["O-LSP-DISPATCH", "O-REFERENCE-RESOLVE", "O-VERIFIER"],
       "evidence_grade": "unproven_stronger_contract",
       "runtime_verified": false,
       "unlock_condition": "明确命名符号检查触发、范围和不可用时策略；不能用旧文件名或 plan 名词代替该裁决。"
@@ -460,9 +369,7 @@
       "legacy_data": "旧资产/记忆/Task 数据归各已确认 V2 owner；本预检没有迁移旧 registry 或旧 service runtime。",
       "acceptance": "核对真实有效注册、请求定义/executor 一致性、权限过滤和 reload/dispose。默认 Coding 目录仍待 COD-12，不能据此关闭各领域债务。未运行。",
       "owner": "Core 插件/工具负责人；各领域负责人",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY"],
       "evidence_refs": [
         "V-INCREMENT-PLUGINS",
         "V-INTERNAL-LIST",
@@ -471,11 +378,7 @@
         "V-TOOL-SNAPSHOT",
         "V-REQUEST"
       ],
-      "deciding_refs": [
-        "V-INTERNAL-LIST",
-        "V-CONTEXT-PERMISSION",
-        "V-TOOL-SNAPSHOT"
-      ],
+      "deciding_refs": ["V-INTERNAL-LIST", "V-CONTEXT-PERMISSION", "V-TOOL-SNAPSHOT"],
       "evidence_grade": "static_increment_registration_capture_only",
       "runtime_verified": false,
       "delivered_scope": "仅注册/激活来源→有效请求捕获，不含任何领域用户闭环或默认 Coding 产品批准。"
@@ -496,10 +399,7 @@
       "legacy_data": "旧 build/meta 默认选择和 config permission 需有明确迁移规则；不从 Session 旧名称推断新的 mode 或权限档位。",
       "acceptance": "裁决后检验默认 coding、显式 Agent 切换、非 Coding、Custom enabled/disabled、provider 原生/CodeMode、重载、目录与权限一致性。尚未运行。",
       "owner": "产品负责人；主智能体；Core Tool/Instructions 负责人",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY",
-        "AUDIT-V2-PERMISSION"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY", "AUDIT-V2-PERMISSION"],
       "evidence_refs": [
         "PLAN-DECISIONS",
         "V-APP-CREATE",
@@ -510,12 +410,7 @@
         "V-CONTEXT-PERMISSION",
         "V-TOOL-SNAPSHOT"
       ],
-      "deciding_refs": [
-        "V-AGENT-PERMISSION",
-        "V-CONTEXT-SELECT",
-        "V-CONTEXT-PERMISSION",
-        "V-TOOL-SNAPSHOT"
-      ],
+      "deciding_refs": ["V-AGENT-PERMISSION", "V-CONTEXT-SELECT", "V-CONTEXT-PERMISSION", "V-TOOL-SNAPSHOT"],
       "evidence_grade": "explicit_product_decision",
       "runtime_verified": false,
       "unlock_condition": "产品批准默认 Coding 增量工具/Instructions/自动校验范围，再以实际 capture 与用户消费验收。"
@@ -536,10 +431,7 @@
       "legacy_data": "旧 AI-SDK-shaped native-request/native-runtime 是 adapter 边界；不新建同型运行器。旧 transcript 转换与 session/tool 历史升级按实际 owner 验证。",
       "acceptance": "OpenAI Responses、Anthropic 与旧支持的 AigcForge-compatible 路径分别做 canonical prepare/stream/tool/finish fixtures；验证每 turn 单 stream、hosted skip、取消及 continuation。尚未运行。",
       "owner": "AI/Core Session 负责人",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI"],
       "evidence_refs": [
         "O-NATIVE-FLAG",
         "O-LLM-GATE",
@@ -554,18 +446,8 @@
         "V-STEP-TOOL",
         "V-EVENT-CALL"
       ],
-      "deciding_refs": [
-        "O-LLM-GATE",
-        "O-CORE-LLM-MODEL",
-        "V-MODEL-RESOLVE",
-        "V-REQUEST",
-        "V-STEP-STREAM"
-      ],
-      "upstream_basis": [
-        "V-MODEL-RESOLVE",
-        "V-REQUEST",
-        "V-STEP-STREAM"
-      ],
+      "deciding_refs": ["O-LLM-GATE", "O-CORE-LLM-MODEL", "V-MODEL-RESOLVE", "V-REQUEST", "V-STEP-STREAM"],
+      "upstream_basis": ["V-MODEL-RESOLVE", "V-REQUEST", "V-STEP-STREAM"],
       "evidence_grade": "static_production_wiring",
       "runtime_verified": false
     },
@@ -585,10 +467,7 @@
       "legacy_data": "现有 V1 config/Provider.packageName 可复用；不能断言所有旧 @llm facade/provider-native选项都已自动迁移。旧 model/API-id 别名与连接需样本验证。",
       "acceptance": "catalog id≠API id、显式/默认模型、variant、alias、native/aisdk:、endpoint 覆盖、key/OAuth 缺失、typed错误。model-resolver/provider/config fixtures 可复用，尚未运行。",
       "owner": "AI/Core Provider、Model 与 Integration 负责人",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI"],
       "evidence_refs": [
         "O-LLM-GATE",
         "O-LLM-MODEL",
@@ -600,16 +479,8 @@
         "V-PROVIDER-PACKAGE",
         "V-PROVIDER-CONFIG"
       ],
-      "deciding_refs": [
-        "V-MODEL-RESOLVE",
-        "V-MODEL-VARIANT",
-        "V-PROVIDER-PACKAGE"
-      ],
-      "upstream_basis": [
-        "V-MODEL-RESOLVE",
-        "V-MODEL-VARIANT",
-        "V-PROVIDER-CONFIG"
-      ],
+      "deciding_refs": ["V-MODEL-RESOLVE", "V-MODEL-VARIANT", "V-PROVIDER-PACKAGE"],
+      "upstream_basis": ["V-MODEL-RESOLVE", "V-MODEL-VARIANT", "V-PROVIDER-CONFIG"],
       "evidence_grade": "static_production_wiring",
       "runtime_verified": false
     },
@@ -629,10 +500,7 @@
       "legacy_data": "旧 provider/model option 与现有 settings schema/aliases逐项 fixture映射；AI 包 helper 去掉默认 verbosity 参数并不等于 Session 默认消失。旧显式 Agent option 不在此提供状态内。",
       "acceptance": "每一旧支持协议验证 generation、reasoning encrypted include、store、cache key、显式 verbosity/variant、大小写 headers 与 body覆盖。支持范围变化要按实际 hook函数对照。尚未运行。",
       "owner": "AI/Core Provider 与 Session hook 负责人",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI"],
       "evidence_refs": [
         "O-OPENAI-DEFAULT",
         "O-OPENAI-RESPONSES",
@@ -657,12 +525,7 @@
         "V-VERBOSITY-SUPPORT",
         "V-VERBOSITY-MODEL"
       ],
-      "upstream_basis": [
-        "V-PROVIDER-OVERLAY",
-        "V-MODEL-VARIANT",
-        "V-REQUEST",
-        "V-VERBOSITY-HOOK"
-      ],
+      "upstream_basis": ["V-PROVIDER-OVERLAY", "V-MODEL-VARIANT", "V-REQUEST", "V-VERBOSITY-HOOK"],
       "evidence_grade": "static_production_wiring_not_universal_wire_equivalence",
       "runtime_verified": false
     },
@@ -682,10 +545,7 @@
       "legacy_data": "复用 migrateAgent，补必要的逐协议转换/允许差异说明。旧 temperature/top_p、nested options 与 unknown option 是不同输入类别，不能一句『配置已迁移』覆盖。",
       "acceptance": "OpenAI Responses/compatible/Anthropic 等分别比较 Agent temperature/top_p、reasoning/其他 options、variant precedence、显式 body覆盖与不支持字段。确认 canonical final wire 后再决定最小改动。尚未运行。",
       "owner": "AI/Core Config 与 Provider 负责人",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI"],
       "evidence_refs": [
         "O-AGENT-OPTIONS",
         "O-AGENT-GENERATION",
@@ -723,10 +583,7 @@
       "legacy_data": "旧 text/reasoning/tool/provider metadata 与 V1/旧 V2历史需要真实转换样本；不能把所有 provider 定义存在当 universal replay parity。",
       "acceptance": "完整/取消 reasoning、tool args/result、hosted结果、usage/finish、model/provider/endpoint切换与 continuation fixtures逐一验证。现有 session-runner-message/tool-events/model-request tests可复用，尚未运行。",
       "owner": "Core Session/History 与 AI protocol 负责人",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI"],
       "evidence_refs": [
         "O-LLM-STREAM",
         "O-LLM-REQUEST",
@@ -737,18 +594,8 @@
         "V-PROVIDER-COMPATIBLE",
         "V-REQUEST"
       ],
-      "deciding_refs": [
-        "V-EVENT-CALL",
-        "V-EVENT-FINISH",
-        "V-HISTORY-STATE",
-        "V-PROVIDER-COMPATIBLE"
-      ],
-      "upstream_basis": [
-        "V-EVENT-CALL",
-        "V-EVENT-FINISH",
-        "V-HISTORY-STATE",
-        "V-PROVIDER-COMPATIBLE"
-      ],
+      "deciding_refs": ["V-EVENT-CALL", "V-EVENT-FINISH", "V-HISTORY-STATE", "V-PROVIDER-COMPATIBLE"],
+      "upstream_basis": ["V-EVENT-CALL", "V-EVENT-FINISH", "V-HISTORY-STATE", "V-PROVIDER-COMPATIBLE"],
       "evidence_grade": "static_production_wiring",
       "runtime_verified": false
     },
@@ -768,10 +615,7 @@
       "legacy_data": "旧 inline media/file history逐样本走当前 history/media兼容；旧库二进制/URI升级尚未运行。",
       "acceptance": "data/file附件、范围、MIME、大小、模型不支持、image预算、tool media结果、取消与重放；逐协议验证真实 request。现有 session-model-request/AI media fixtures尚未运行。",
       "owner": "Core Session/附件与 AI Media/Protocol 负责人",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI"],
       "evidence_refs": [
         "O-LLM-MEDIA",
         "O-LLM-REQUEST",
@@ -781,16 +625,8 @@
         "V-REQUEST",
         "V-HISTORY-STATE"
       ],
-      "deciding_refs": [
-        "V-ATTACHMENT",
-        "V-MEDIA-FILTER",
-        "V-REQUEST"
-      ],
-      "upstream_basis": [
-        "V-ATTACHMENT",
-        "V-MEDIA-FILTER",
-        "V-REQUEST"
-      ],
+      "deciding_refs": ["V-ATTACHMENT", "V-MEDIA-FILTER", "V-REQUEST"],
+      "upstream_basis": ["V-ATTACHMENT", "V-MEDIA-FILTER", "V-REQUEST"],
       "evidence_grade": "static_production_wiring",
       "runtime_verified": false
     },
@@ -810,10 +646,7 @@
       "legacy_data": "旧 summary/snipped history/opaque格式按真实adapter与projection处理；旧三水位的内部策略不直接等同新V2策略，允许差异与数据不变量需样本对照。",
       "acceptance": "manual/auto off/overflow、未知窗口、summary失败/格式、native trigger/endpoint、endpoint改写、model切换、重载与旧历史样本。现有 session-compaction/native-compaction/checkpoint transport tests尚未运行。",
       "owner": "Core Session/History 与 AI Compaction 负责人",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI"],
       "evidence_refs": [
         "O-COMPACTION",
         "V-COMPACTION",
@@ -822,16 +655,8 @@
         "V-MODEL-RESOLVE",
         "V-REQUEST"
       ],
-      "deciding_refs": [
-        "V-COMPACTION",
-        "V-COMPACTION-NATIVE",
-        "V-PROVIDER-COMPATIBLE"
-      ],
-      "upstream_basis": [
-        "V-COMPACTION",
-        "V-COMPACTION-NATIVE",
-        "V-PROVIDER-COMPATIBLE"
-      ],
+      "deciding_refs": ["V-COMPACTION", "V-COMPACTION-NATIVE", "V-PROVIDER-COMPATIBLE"],
+      "upstream_basis": ["V-COMPACTION", "V-COMPACTION-NATIVE", "V-PROVIDER-COMPATIBLE"],
       "evidence_grade": "static_production_wiring_not_old_policy_identity",
       "runtime_verified": false
     },
@@ -851,11 +676,7 @@
       "legacy_data": "旧WebSocket facade存在不证明旧native Session启用：LLMNative.model选择responses而非responsesWebSocket。旧in-flight状态不自动搬为可安全重试请求。",
       "acceptance": "HTTP/配置WS、frame错误/timeout、部分输出、provider observed、拒绝/取消、hosted/local、retry限额与typed cause；现有retry/transport测试尚未运行，不计入P0.4关闭。",
       "owner": "AI/Core Session/Transport 负责人；主智能体负责恢复验收",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI",
-        "AUDIT-V2-RECOVERY-ISOLATION"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI", "AUDIT-V2-RECOVERY-ISOLATION"],
       "evidence_refs": [
         "O-LLM-MODEL",
         "O-OPENAI-WS",
@@ -868,19 +689,8 @@
         "V-PROVIDER-COMPATIBLE",
         "V-TRANSPORT-SELECT"
       ],
-      "deciding_refs": [
-        "V-STEP-TOOL",
-        "V-REQUEST-TOOL",
-        "V-RETRY",
-        "V-TRANSPORT-BIND",
-        "V-TRANSPORT-SELECT"
-      ],
-      "upstream_basis": [
-        "V-STEP-STREAM",
-        "V-RETRY",
-        "V-TRANSPORT-BIND",
-        "V-TRANSPORT-SELECT"
-      ],
+      "deciding_refs": ["V-STEP-TOOL", "V-REQUEST-TOOL", "V-RETRY", "V-TRANSPORT-BIND", "V-TRANSPORT-SELECT"],
+      "upstream_basis": ["V-STEP-STREAM", "V-RETRY", "V-TRANSPORT-BIND", "V-TRANSPORT-SELECT"],
       "evidence_grade": "static_production_wiring_recovery_open",
       "runtime_verified": false
     },
@@ -900,12 +710,7 @@
       "legacy_data": "保留旧Task/child/model结果与裁决历史；不从旧judge输出推断当前revision已批准。",
       "acceptance": "0/1/N结果、缺cheap model、失败/短响应fallback、最大fanout、模型不可用、取消、结果/receipt归属。未运行。",
       "owner": "Work/Task/Delegation 与 AI/Core 负责人",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI",
-        "V2-C-DELEGATION",
-        "V2-C-FANOUT"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI", "V2-C-DELEGATION", "V2-C-FANOUT"],
       "evidence_refs": [
         "O-JUDGE",
         "O-JUDGE-CONSUMER",
@@ -915,12 +720,7 @@
         "V-SESSION-GENERATE",
         "V-MODEL-RESOLVE"
       ],
-      "deciding_refs": [
-        "O-JUDGE",
-        "O-JUDGE-CONSUMER",
-        "V-TASK-JUDGE-REJECT",
-        "V-MODEL-RESOLVE"
-      ],
+      "deciding_refs": ["O-JUDGE", "O-JUDGE-CONSUMER", "V-TASK-JUDGE-REJECT", "V-MODEL-RESOLVE"],
       "evidence_grade": "static_missing_product_consumer",
       "runtime_verified": false,
       "unlock_condition": "在当前Task results/Model边界补judge消费者和bounded fallback，完成取消、fanout与receipt用户流程验收。"
@@ -941,11 +741,7 @@
       "legacy_data": "旧<session_summary>/parent_context文本仍是历史输入；不得从旧summary反推完整parent history或新的授权。",
       "acceptance": "正常摘要、无cheap model、LLM失败/短结果、bounded fallback、child实际输入、重载、取消与跨Session可见域。未运行。",
       "owner": "Core Task/Delegation/History 与 AI 负责人",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI",
-        "V2-C-DELEGATION"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI", "V2-C-DELEGATION"],
       "evidence_refs": [
         "O-SUMMARY",
         "O-SUMMARY-CONSUMER",
@@ -954,12 +750,7 @@
         "V-CONTEXT-SELECT",
         "V-MODEL-RESOLVE"
       ],
-      "deciding_refs": [
-        "O-SUMMARY",
-        "O-SUMMARY-CONSUMER",
-        "V-SESSION-GENERATE",
-        "V-MODEL-RESOLVE"
-      ],
+      "deciding_refs": ["O-SUMMARY", "O-SUMMARY-CONSUMER", "V-SESSION-GENERATE", "V-MODEL-RESOLVE"],
       "evidence_grade": "static_missing_product_consumer",
       "runtime_verified": false,
       "unlock_condition": "在当前delegation child admission接入经授权context的bounded summary/fallback，并验证实际消费者。"
@@ -980,22 +771,9 @@
       "legacy_data": "无已证实的独立structured-output durable state可迁移；旧工具/schema输出保持历史。",
       "acceptance": "先明确用户入口与所有字段，再复用已有AI generate-object测试验证forced-call缺失、malformed/schema失败和实际消费；未运行。",
       "owner": "产品入口负责人；AI/Core 负责人",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI"
-      ],
-      "evidence_refs": [
-        "O-OBJECT",
-        "O-JUDGE",
-        "O-SUMMARY",
-        "V-OBJECT",
-        "V-TOOL-DEFINITION",
-        "PLAN-AI"
-      ],
-      "deciding_refs": [
-        "O-OBJECT",
-        "V-OBJECT"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI"],
+      "evidence_refs": ["O-OBJECT", "O-JUDGE", "O-SUMMARY", "V-OBJECT", "V-TOOL-DEFINITION", "PLAN-AI"],
+      "deciding_refs": ["O-OBJECT", "V-OBJECT"],
       "evidence_grade": "library_only_product_enablement_unproven",
       "runtime_verified": false,
       "unlock_condition": "有明确必要性、产品入口、输出确认/消费和取消/恢复合同后，直接复用现有V2 API。"
@@ -1016,25 +794,9 @@
       "legacy_data": "保留providerExecuted/state/result历史；不根据名称或缺本地日志推断provider未执行。",
       "acceptance": "确定入口后测试真正provider-native definition lowering、hosted events、零local副作用、history replay、取消/重试和实际UI消费。未运行。",
       "owner": "产品负责人；AI Protocol/Core Permission 负责人",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI",
-        "AUDIT-V2-PERMISSION"
-      ],
-      "evidence_refs": [
-        "O-LLM-STREAM",
-        "V-STEP-STREAM",
-        "V-EVENT-CALL",
-        "V-TOOL-DEFINITION",
-        "V-REQUEST",
-        "PLAN-AI"
-      ],
-      "deciding_refs": [
-        "O-LLM-STREAM",
-        "V-STEP-STREAM",
-        "V-TOOL-DEFINITION",
-        "V-REQUEST"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI", "AUDIT-V2-PERMISSION"],
+      "evidence_refs": ["O-LLM-STREAM", "V-STEP-STREAM", "V-EVENT-CALL", "V-TOOL-DEFINITION", "V-REQUEST", "PLAN-AI"],
+      "deciding_refs": ["O-LLM-STREAM", "V-STEP-STREAM", "V-TOOL-DEFINITION", "V-REQUEST"],
       "evidence_grade": "hosted_execution_boundary_present_enablement_unproven",
       "runtime_verified": false,
       "unlock_condition": "明确hosted功能必要性、definition producer、用户授权、结果consumer与未知执行恢复合同。"
@@ -1044,67 +806,32 @@
     {
       "id": "F1",
       "text": "LSP 查询、runtime status 和修改后 diagnostics 尚未迁移。配置列表与 not_implemented handler 不能当已运行 LSP。",
-      "refs": [
-        "O-LSP-DISPATCH",
-        "O-LSP-STATUS",
-        "V-LSP-CONFIG",
-        "V-LSP-STUB",
-        "V-LSP-TODO"
-      ]
+      "refs": ["O-LSP-DISPATCH", "O-LSP-STATUS", "V-LSP-CONFIG", "V-LSP-STUB", "V-LSP-TODO"]
     },
     {
       "id": "F2",
       "text": "DoomLoop、ReferenceChecker、Verifier 与 CorrectionStore 的旧执行链共有接线缺口。当前 canonical Tool/Runner 未调用；仅补 Layer 无法覆盖新工具名、CodeMode 和 Permission.Source。",
-      "refs": [
-        "O-SETTLE-CHECKS",
-        "V-STEP-TOOL",
-        "V-REQUEST-TOOL",
-        "V-TOOL-EXECUTE",
-        "V-REFERENCE-EXTRACT"
-      ]
+      "refs": ["O-SETTLE-CHECKS", "V-STEP-TOOL", "V-REQUEST-TOOL", "V-TOOL-EXECUTE", "V-REFERENCE-EXTRACT"]
     },
     {
       "id": "F3",
       "text": "旧 review 默认 subtask，当前 builtin review 直接提示当前 Session。V2 ConfigCommandPlugin 已有 child/SubagentJob 路径可复用。",
-      "refs": [
-        "O-REVIEW-DEFAULT",
-        "O-REVIEW-SUBTASK",
-        "V-REVIEW",
-        "V-COMMAND-SUBAGENT"
-      ]
+      "refs": ["O-REVIEW-DEFAULT", "O-REVIEW-SUBTASK", "V-REVIEW", "V-COMMAND-SUBAGENT"]
     },
     {
       "id": "F4",
       "text": "旧 Agent normalized options/generation 与 V2 migrateAgent 的 raw request.body 转换存在边界差异，需逐协议 wire fixture 决定兼容映射。尚未证明任意选项丢失或任意选项等价。",
-      "refs": [
-        "O-AGENT-OPTIONS",
-        "O-AGENT-GENERATION",
-        "V-MIGRATE-AGENT",
-        "V-CONFIG-AGENT-REQUEST",
-        "V-REQUEST-BODY"
-      ]
+      "refs": ["O-AGENT-OPTIONS", "O-AGENT-GENERATION", "V-MIGRATE-AGENT", "V-CONFIG-AGENT-REQUEST", "V-REQUEST-BODY"]
     },
     {
       "id": "F5",
       "text": "V2 canonical AI/Model/Provider、event/history、compaction 和 retry 已有生产消费者。旧 native opt-in 的准入由 statusWithFetch/fromCatalogModel 决定；不能数 provider facade 文件宣称旧 native 都启用。",
-      "refs": [
-        "O-LLM-GATE",
-        "O-CORE-LLM-MODEL",
-        "V-MODEL-RESOLVE",
-        "V-STEP-STREAM",
-        "V-COMPACTION",
-        "V-RETRY"
-      ]
+      "refs": ["O-LLM-GATE", "O-CORE-LLM-MODEL", "V-MODEL-RESOLVE", "V-STEP-STREAM", "V-COMPACTION", "V-RETRY"]
     },
     {
       "id": "F6",
       "text": "low verbosity 不应只按 AI package helper 判定：已注册 VerbosityPlugin 在实际 Session hooks 补默认，并按真实 model/variant 和支持规则决定。",
-      "refs": [
-        "V-VERBOSITY-HOOK",
-        "V-VERBOSITY-SUPPORT",
-        "V-VERBOSITY-MODEL",
-        "V-VERBOSITY-REGISTER"
-      ]
+      "refs": ["V-VERBOSITY-HOOK", "V-VERBOSITY-SUPPORT", "V-VERBOSITY-MODEL", "V-VERBOSITY-REGISTER"]
     },
     {
       "id": "F7",
@@ -1122,52 +849,25 @@
   "common_runtime": [
     {
       "text": "当前 App create 不传 mode 时按 ProductMode.Default=coding；Agent selection 与 Session mode 是不同状态。Build 不是唯一可能的配置默认 Agent。",
-      "refs": [
-        "V-APP-CREATE",
-        "V-MODE-DEFAULT",
-        "V-SESSION-CREATE",
-        "V-AGENT-DEFAULT"
-      ]
+      "refs": ["V-APP-CREATE", "V-MODE-DEFAULT", "V-SESSION-CREATE", "V-AGENT-DEFAULT"]
     },
     {
       "text": "当前 Session.prompt 先 reconcile id/type/delivery，再 prepare/admit/wake；durable 输入表是当前 SessionInboxTable(session_inbox)。本预检未验 payload retry 全部不变量或旧库升级。",
-      "refs": [
-        "V-SESSION-PROMPT",
-        "V-INBOX-ADMIT",
-        "V-INBOX-SQL"
-      ]
+      "refs": ["V-SESSION-PROMPT", "V-INBOX-ADMIT", "V-INBOX-SQL"]
     },
     {
       "text": "当前非 Custom Session 使用 Agent/Session 权限捕获 Location Tool 与 Instructions；本次捕获的 executor 在本次 request 内使用。Custom 冻结目录另有分支。",
-      "refs": [
-        "V-CONTEXT-SELECT",
-        "V-CONTEXT-PERMISSION",
-        "V-TOOL-SNAPSHOT",
-        "V-REQUEST"
-      ]
+      "refs": ["V-CONTEXT-SELECT", "V-CONTEXT-PERMISSION", "V-TOOL-SNAPSHOT", "V-REQUEST"]
     },
     {
       "text": "旧 legacy sync prompt 与按 shouldUseV2Runtime 选择的 promptAsync 是不同入口；旧 native LLM 开关又是 legacy stream 内的另一选择。所有旧增量在此按实际入口条件记账。",
-      "refs": [
-        "O-PROMPT-SYNC",
-        "O-PROMPT-ASYNC",
-        "O-RUNTIME-GATE",
-        "O-LLM-SELECT",
-        "O-LLM-GATE"
-      ]
+      "refs": ["O-PROMPT-SYNC", "O-PROMPT-ASYNC", "O-RUNTIME-GATE", "O-LLM-SELECT", "O-LLM-GATE"]
     }
   ],
   "review_scope_boundary": {
     "text": "/review 的模型反馈、WorkReviewMachine 状态机、Delegation review completion barrier 是不同合同。当前 Delegation canComplete 被 fold/service 消费，仅能说明 barrier 接线；不能据此关闭 review/revision、结果/receipt、Task UI 或 P4 生命周期整项。",
-    "refs": [
-      "V-REVIEW",
-      "V-REVIEW-BARRIER",
-      "V-REVIEW-FOLD"
-    ],
-    "still_open": [
-      "V2-C-DELEGATION",
-      "V2-C-DELEGATION-LIFE"
-    ],
+    "refs": ["V-REVIEW", "V-REVIEW-BARRIER", "V-REVIEW-FOLD"],
+    "still_open": ["V2-C-DELEGATION", "V2-C-DELEGATION-LIFE"],
     "owner": "Work/Task/Delegation 负责人；主智能体"
   },
   "approach_comparison": {
@@ -1817,9 +1517,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/app/src/new-session/composer-adapter.ts",
       "source_sha256": "b3d4afe192ddeebbd6435527450d9792c5a8bc7f24c6f1f19bc59f044b5df279",
-      "fixed_upstream_anchor_lines": [
-        97
-      ]
+      "fixed_upstream_anchor_lines": [97]
     },
     {
       "id": "V-APP-PROMPT",
@@ -1833,9 +1531,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/app/src/composer/submit.ts",
       "source_sha256": "94b48bf761890e50da2e915b3bd4c95ce993a312b2192073e1134e4b77de155a",
-      "fixed_upstream_anchor_lines": [
-        528
-      ]
+      "fixed_upstream_anchor_lines": [528]
     },
     {
       "id": "V-APP-COMMAND",
@@ -1849,9 +1545,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/app/src/composer/submit.ts",
       "source_sha256": "94b48bf761890e50da2e915b3bd4c95ce993a312b2192073e1134e4b77de155a",
-      "fixed_upstream_anchor_lines": [
-        440
-      ]
+      "fixed_upstream_anchor_lines": [440]
     },
     {
       "id": "V-SESSION-CREATE",
@@ -1865,9 +1559,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session.ts",
       "source_sha256": "cc61a9836e8580231e6a49729f1f60d72413dec820bd9d751c1e6f553e0160fe",
-      "fixed_upstream_anchor_lines": [
-        262
-      ]
+      "fixed_upstream_anchor_lines": [262]
     },
     {
       "id": "V-MODE-DEFAULT",
@@ -1894,9 +1586,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/agent.ts",
       "source_sha256": "acc75f0cab8d3dbd618cde19980b81e12dde2a41db47259a2ae9734b0576dd6e",
-      "fixed_upstream_anchor_lines": [
-        76
-      ]
+      "fixed_upstream_anchor_lines": [76]
     },
     {
       "id": "V-BUILD",
@@ -1910,9 +1600,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/plugin/agent.ts",
       "source_sha256": "fdc1581cc37632f5a7f09904958461d7f0be8a2d3835567e3794d253acfee8a3",
-      "fixed_upstream_anchor_lines": [
-        80
-      ]
+      "fixed_upstream_anchor_lines": [80]
     },
     {
       "id": "V-AGENT-PERMISSION",
@@ -1926,9 +1614,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/schema/src/agent.ts",
       "source_sha256": "a0d3788716a82f2d10ae17f78c46e18ca1dcfdfade7995ad37200d6795467928",
-      "fixed_upstream_anchor_lines": [
-        39
-      ]
+      "fixed_upstream_anchor_lines": [39]
     },
     {
       "id": "V-SESSION-PROMPT",
@@ -1942,9 +1628,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/session.ts",
       "source_sha256": "0f956ca6f797e8b0ce1ca46a7e9a80f683762d7978353937711e1abe3d8f97ff",
-      "fixed_upstream_anchor_lines": [
-        145
-      ]
+      "fixed_upstream_anchor_lines": [145]
     },
     {
       "id": "V-INBOX-ADMIT",
@@ -1958,9 +1642,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/inbox.ts",
       "source_sha256": "d09d20ff63e57d00870153df495cf3198cd2fc548245f1aeaf069692d321a2ef",
-      "fixed_upstream_anchor_lines": [
-        169
-      ]
+      "fixed_upstream_anchor_lines": [169]
     },
     {
       "id": "V-INBOX-SQL",
@@ -1974,9 +1656,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/sql.ts",
       "source_sha256": "81d4cfb9436b0f73cbf84999581d47a478d430d32e8cb5300344d3ee855136e8",
-      "fixed_upstream_anchor_lines": [
-        125
-      ]
+      "fixed_upstream_anchor_lines": [125]
     },
     {
       "id": "V-CONTEXT-SELECT",
@@ -1990,9 +1670,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/context.ts",
       "source_sha256": "25b11148445a0a3b1fca37ad1b95a33b0013acb9ce53173a0042cdb5eb74c63e",
-      "fixed_upstream_anchor_lines": [
-        121
-      ]
+      "fixed_upstream_anchor_lines": [121]
     },
     {
       "id": "V-CONTEXT-PERMISSION",
@@ -2006,9 +1684,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/context.ts",
       "source_sha256": "25b11148445a0a3b1fca37ad1b95a33b0013acb9ce53173a0042cdb5eb74c63e",
-      "fixed_upstream_anchor_lines": [
-        131
-      ]
+      "fixed_upstream_anchor_lines": [131]
     },
     {
       "id": "V-TOOL-SNAPSHOT",
@@ -2022,9 +1698,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool.ts",
       "source_sha256": "fd8aa2c7ff7a0f541dc43125703491753ea2603518d2cfb692ca9eaf8a40d5d6",
-      "fixed_upstream_anchor_lines": [
-        225
-      ]
+      "fixed_upstream_anchor_lines": [225]
     },
     {
       "id": "V-TOOL-EXECUTE",
@@ -2038,9 +1712,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool.ts",
       "source_sha256": "fd8aa2c7ff7a0f541dc43125703491753ea2603518d2cfb692ca9eaf8a40d5d6",
-      "fixed_upstream_anchor_lines": [
-        263
-      ]
+      "fixed_upstream_anchor_lines": [263]
     },
     {
       "id": "V-TOOL-DEFINITION",
@@ -2054,9 +1726,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/runtime.ts",
       "source_sha256": "6277c7f5c958d68f68db76e624db78057509a558862c20fdc51c7bc84b4b4a33",
-      "fixed_upstream_anchor_lines": [
-        21
-      ]
+      "fixed_upstream_anchor_lines": [21]
     },
     {
       "id": "V-TOOL-RUNTIME",
@@ -2070,9 +1740,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/runtime.ts",
       "source_sha256": "6277c7f5c958d68f68db76e624db78057509a558862c20fdc51c7bc84b4b4a33",
-      "fixed_upstream_anchor_lines": [
-        29
-      ]
+      "fixed_upstream_anchor_lines": [29]
     },
     {
       "id": "V-REQUEST",
@@ -2086,9 +1754,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/model-request.ts",
       "source_sha256": "72a2d29bdc297c1a032f43e50ecb5c31a44fc3aa18057c01a022a20860cf07f6",
-      "fixed_upstream_anchor_lines": [
-        236
-      ]
+      "fixed_upstream_anchor_lines": [236]
     },
     {
       "id": "V-REQUEST-TOOL",
@@ -2102,9 +1768,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/model-request.ts",
       "source_sha256": "72a2d29bdc297c1a032f43e50ecb5c31a44fc3aa18057c01a022a20860cf07f6",
-      "fixed_upstream_anchor_lines": [
-        402
-      ]
+      "fixed_upstream_anchor_lines": [402]
     },
     {
       "id": "V-STEP-TOOL",
@@ -2118,9 +1782,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/runner/step.ts",
       "source_sha256": "e9d1b6b2fc63c34f3cd0c77ba8979d3df76afd698a447c49c725d2765c2fcbf5",
-      "fixed_upstream_anchor_lines": [
-        95
-      ]
+      "fixed_upstream_anchor_lines": [95]
     },
     {
       "id": "V-STEP-STREAM",
@@ -2134,9 +1796,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/runner/step.ts",
       "source_sha256": "e9d1b6b2fc63c34f3cd0c77ba8979d3df76afd698a447c49c725d2765c2fcbf5",
-      "fixed_upstream_anchor_lines": [
-        111
-      ]
+      "fixed_upstream_anchor_lines": [111]
     },
     {
       "id": "V-READ-MISSING",
@@ -2150,9 +1810,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/plugin/read.ts",
       "source_sha256": "172a3182d6e3f5f21e811f67fa52119b79f538f7340b44da7090e537dd5f74a5",
-      "fixed_upstream_anchor_lines": [
-        152
-      ]
+      "fixed_upstream_anchor_lines": [152]
     },
     {
       "id": "V-EDIT-GUARD",
@@ -2166,9 +1824,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/plugin/edit.ts",
       "source_sha256": "069fb02c36a3a0bdb82f9a2724265e0523917fc20ecd80112a57fc00d8152544",
-      "fixed_upstream_anchor_lines": [
-        189
-      ]
+      "fixed_upstream_anchor_lines": [189]
     },
     {
       "id": "V-SHELL-PREPARE",
@@ -2182,9 +1838,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/plugin/shell.ts",
       "source_sha256": "2d4fd580684c4d9702210c484b4cd0329f90a0eed24d2045e6bf6dd644116ae6",
-      "fixed_upstream_anchor_lines": [
-        117
-      ]
+      "fixed_upstream_anchor_lines": [117]
     },
     {
       "id": "V-SHELL-EXECUTE",
@@ -2198,9 +1852,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/plugin/shell.ts",
       "source_sha256": "2d4fd580684c4d9702210c484b4cd0329f90a0eed24d2045e6bf6dd644116ae6",
-      "fixed_upstream_anchor_lines": [
-        201
-      ]
+      "fixed_upstream_anchor_lines": [201]
     },
     {
       "id": "V-REVIEW",
@@ -2214,9 +1866,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/plugin/command.ts",
       "source_sha256": "e3ac914b6af82453885f29539bfd2a3c308ae7421e63db221bcc9f0364215f0b",
-      "fixed_upstream_anchor_lines": [
-        43
-      ]
+      "fixed_upstream_anchor_lines": [43]
     },
     {
       "id": "V-COMMAND-APPEND",
@@ -2230,9 +1880,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/plugin/command.ts",
       "source_sha256": "e3ac914b6af82453885f29539bfd2a3c308ae7421e63db221bcc9f0364215f0b",
-      "fixed_upstream_anchor_lines": [
-        86
-      ]
+      "fixed_upstream_anchor_lines": [86]
     },
     {
       "id": "V-COMMAND-SUBAGENT",
@@ -2246,9 +1894,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/config/plugin/command.ts",
       "source_sha256": "9110720ec62e418b70934ddc402c14e9ff9e004cba392ab1975c4b3f62d82bba",
-      "fixed_upstream_anchor_lines": [
-        98
-      ]
+      "fixed_upstream_anchor_lines": [98]
     },
     {
       "id": "V-LSP-STUB",
@@ -2275,9 +1921,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/app/src/settings/workspaces/project-lsp.ts",
       "source_sha256": "0437e814df06dde7467d4e6311e39921f25e4954c5338a265dc24fe5faaea8fe",
-      "fixed_upstream_anchor_lines": [
-        5
-      ]
+      "fixed_upstream_anchor_lines": [5]
     },
     {
       "id": "V-LSP-TODO",
@@ -2291,9 +1935,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/file-mutation.ts",
       "source_sha256": "8bc94967938bdcf81570021e6c42e4f2afbd47b9ee5ba195b197b9ce1753890f",
-      "fixed_upstream_anchor_lines": [
-        131
-      ]
+      "fixed_upstream_anchor_lines": [131]
     },
     {
       "id": "V-REFERENCE-CHECK",
@@ -2386,9 +2028,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/plugin/internal.ts",
       "source_sha256": "0b1504efa42277d0dd1a90c0ca1016961f1898e3ab03e610aab06b177a761d26",
-      "fixed_upstream_anchor_lines": [
-        276
-      ]
+      "fixed_upstream_anchor_lines": [276]
     },
     {
       "id": "V-MODEL-RESOLVE",
@@ -2402,9 +2042,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/model-resolver.ts",
       "source_sha256": "24335680204e828f23eadc91b0e6f3fbe59785a6cde2a78d648b096a98e81a05",
-      "fixed_upstream_anchor_lines": [
-        196
-      ]
+      "fixed_upstream_anchor_lines": [196]
     },
     {
       "id": "V-MODEL-VARIANT",
@@ -2418,9 +2056,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/model-resolver.ts",
       "source_sha256": "24335680204e828f23eadc91b0e6f3fbe59785a6cde2a78d648b096a98e81a05",
-      "fixed_upstream_anchor_lines": [
-        137
-      ]
+      "fixed_upstream_anchor_lines": [137]
     },
     {
       "id": "V-PROVIDER-PACKAGE",
@@ -2434,9 +2070,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/provider.ts",
       "source_sha256": "7b6135228982caa33a87a24891eca6b3ac9ad2af5c16da644a4a18537c5c634c",
-      "fixed_upstream_anchor_lines": [
-        30
-      ]
+      "fixed_upstream_anchor_lines": [30]
     },
     {
       "id": "V-PROVIDER-OVERLAY",
@@ -2450,9 +2084,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/provider.ts",
       "source_sha256": "7b6135228982caa33a87a24891eca6b3ac9ad2af5c16da644a4a18537c5c634c",
-      "fixed_upstream_anchor_lines": [
-        186
-      ]
+      "fixed_upstream_anchor_lines": [186]
     },
     {
       "id": "V-PROVIDER-HEADERS",
@@ -2466,9 +2098,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/provider.ts",
       "source_sha256": "7b6135228982caa33a87a24891eca6b3ac9ad2af5c16da644a4a18537c5c634c",
-      "fixed_upstream_anchor_lines": [
-        205
-      ]
+      "fixed_upstream_anchor_lines": [205]
     },
     {
       "id": "V-PROVIDER-CONFIG",
@@ -2482,9 +2112,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/config/plugin/provider.ts",
       "source_sha256": "402c6377700ffc1ecc460f9bc2e6accdeb223685f5975bf6b1b353e847d05be6",
-      "fixed_upstream_anchor_lines": [
-        14
-      ]
+      "fixed_upstream_anchor_lines": [14]
     },
     {
       "id": "V-OPENAI-DEFAULT",
@@ -2498,9 +2126,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/ai/src/providers/openai-options.ts",
       "source_sha256": "c4d3d25c2a62e46060c34b3e14b37ea12236401715d0e68d9c6c5af605a4b29d",
-      "fixed_upstream_anchor_lines": [
-        35
-      ]
+      "fixed_upstream_anchor_lines": [35]
     },
     {
       "id": "V-OPENAI-RESPONSES",
@@ -2514,10 +2140,7 @@
       "occurrences_found": 2,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/ai/src/providers/openai.ts",
       "source_sha256": "fa5595a27ca45d6b407500e9d1712a0c548d82a9d53024b4439c89063f824199",
-      "fixed_upstream_anchor_lines": [
-        101,
-        173
-      ]
+      "fixed_upstream_anchor_lines": [101, 173]
     },
     {
       "id": "V-OPENAI-PACKAGE",
@@ -2531,9 +2154,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/ai/src/providers/openai.ts",
       "source_sha256": "fa5595a27ca45d6b407500e9d1712a0c548d82a9d53024b4439c89063f824199",
-      "fixed_upstream_anchor_lines": [
-        136
-      ]
+      "fixed_upstream_anchor_lines": [136]
     },
     {
       "id": "V-EVENT-CALL",
@@ -2547,9 +2168,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/runner/publish-llm-event.ts",
       "source_sha256": "9d5ecdba7ccf8df5e033cf3b6c0479fa7980109a7875fc310a43e1bab6e97ce7",
-      "fixed_upstream_anchor_lines": [
-        463
-      ]
+      "fixed_upstream_anchor_lines": [463]
     },
     {
       "id": "V-EVENT-FINISH",
@@ -2563,9 +2182,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/runner/publish-llm-event.ts",
       "source_sha256": "9d5ecdba7ccf8df5e033cf3b6c0479fa7980109a7875fc310a43e1bab6e97ce7",
-      "fixed_upstream_anchor_lines": [
-        540
-      ]
+      "fixed_upstream_anchor_lines": [540]
     },
     {
       "id": "V-HISTORY-STATE",
@@ -2579,9 +2196,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/runner/to-llm-message.ts",
       "source_sha256": "f6f481f8bb3152fbc429972dd1ac27247bfdcb6c68758ed8ba6941d8c7e65c7c",
-      "fixed_upstream_anchor_lines": [
-        153
-      ]
+      "fixed_upstream_anchor_lines": [153]
     },
     {
       "id": "V-PROVIDER-COMPATIBLE",
@@ -2595,9 +2210,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/provider-context.ts",
       "source_sha256": "47ef2a3939e12e422f3b393423298cab2865f0613705709d38200ef1658fd665",
-      "fixed_upstream_anchor_lines": [
-        38
-      ]
+      "fixed_upstream_anchor_lines": [38]
     },
     {
       "id": "V-ATTACHMENT",
@@ -2611,9 +2224,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/prompt.ts",
       "source_sha256": "91f6b9dd7ff0e7c25cac093dbc8e75690fd5560261649b6dce32e4de1bbf5328",
-      "fixed_upstream_anchor_lines": [
-        93
-      ]
+      "fixed_upstream_anchor_lines": [93]
     },
     {
       "id": "V-MEDIA-FILTER",
@@ -2627,9 +2238,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/model-request.ts",
       "source_sha256": "72a2d29bdc297c1a032f43e50ecb5c31a44fc3aa18057c01a022a20860cf07f6",
-      "fixed_upstream_anchor_lines": [
-        183
-      ]
+      "fixed_upstream_anchor_lines": [183]
     },
     {
       "id": "V-COMPACTION",
@@ -2643,9 +2252,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/compaction.ts",
       "source_sha256": "e22ec12a6bdddae22969d0e785684837e21b8e854687001390ebc8b746d97d32",
-      "fixed_upstream_anchor_lines": [
-        205
-      ]
+      "fixed_upstream_anchor_lines": [205]
     },
     {
       "id": "V-COMPACTION-NATIVE",
@@ -2659,9 +2266,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/compaction.ts",
       "source_sha256": "e22ec12a6bdddae22969d0e785684837e21b8e854687001390ebc8b746d97d32",
-      "fixed_upstream_anchor_lines": [
-        324
-      ]
+      "fixed_upstream_anchor_lines": [324]
     },
     {
       "id": "V-RETRY",
@@ -2675,9 +2280,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/runner/retry.ts",
       "source_sha256": "097c697be05c38f97d8e9b0e1f2800cea47a51e24d6da97f92370acf6f8b1a21",
-      "fixed_upstream_anchor_lines": [
-        64
-      ]
+      "fixed_upstream_anchor_lines": [64]
     },
     {
       "id": "V-TRANSPORT-BIND",
@@ -2691,9 +2294,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/model-transport.ts",
       "source_sha256": "d85d1fc0712d44409b25ee63b7f2639b76b954d689884aedb2bd5e168fd9983e",
-      "fixed_upstream_anchor_lines": [
-        509
-      ]
+      "fixed_upstream_anchor_lines": [509]
     },
     {
       "id": "V-TASK-JUDGE-REJECT",
@@ -2720,9 +2321,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/generate.ts",
       "source_sha256": "6d82f3e7c4ea23fe21107354c558fe924775cafc1d7351d0979dc72495fd5184",
-      "fixed_upstream_anchor_lines": [
-        39
-      ]
+      "fixed_upstream_anchor_lines": [39]
     },
     {
       "id": "V-SESSION-GENERATE",
@@ -2736,9 +2335,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/generate.ts",
       "source_sha256": "88344129a2420e5ec7e8969bdc8efa65a0faa7f822e7f1eddb0c58cce42c5e47",
-      "fixed_upstream_anchor_lines": [
-        26
-      ]
+      "fixed_upstream_anchor_lines": [26]
     },
     {
       "id": "V-OBJECT",
@@ -2752,9 +2349,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/ai/src/llm.ts",
       "source_sha256": "4a5561ff487204efdac017514400aeded748ee7b0d5ec15dd93d834468db6552",
-      "fixed_upstream_anchor_lines": [
-        123
-      ]
+      "fixed_upstream_anchor_lines": [123]
     },
     {
       "id": "V-REVIEW-BARRIER",
@@ -2833,9 +2428,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/v1/config/migrate.ts",
       "source_sha256": "0f76a10cd9661be1dbf591c6751a7813ad9cd82afc520980c6c339a8944d708a",
-      "fixed_upstream_anchor_lines": [
-        35
-      ]
+      "fixed_upstream_anchor_lines": [35]
     },
     {
       "id": "V-MIGRATE-COMMAND",
@@ -2849,9 +2442,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/v1/config/migrate.ts",
       "source_sha256": "0f76a10cd9661be1dbf591c6751a7813ad9cd82afc520980c6c339a8944d708a",
-      "fixed_upstream_anchor_lines": [
-        59
-      ]
+      "fixed_upstream_anchor_lines": [59]
     },
     {
       "id": "V-CONFIG-AGENT-REQUEST",
@@ -2865,9 +2456,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/config/plugin/agent.ts",
       "source_sha256": "31db9cc6c752d75f2102fb93c14bd7462d90df1a5f0fce0b78aaf23082d809ec",
-      "fixed_upstream_anchor_lines": [
-        111
-      ]
+      "fixed_upstream_anchor_lines": [111]
     },
     {
       "id": "V-REQUEST-BODY",
@@ -2895,9 +2484,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/plugin/verbosity.ts",
       "source_sha256": "bd22798413f67442993722b3132e811efdc3641ceba51b4337d49c38ea8079cd",
-      "fixed_upstream_anchor_lines": [
-        26
-      ]
+      "fixed_upstream_anchor_lines": [26]
     },
     {
       "id": "V-VERBOSITY-SUPPORT",
@@ -2911,9 +2498,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/plugin/verbosity.ts",
       "source_sha256": "bd22798413f67442993722b3132e811efdc3641ceba51b4337d49c38ea8079cd",
-      "fixed_upstream_anchor_lines": [
-        45
-      ]
+      "fixed_upstream_anchor_lines": [45]
     },
     {
       "id": "V-VERBOSITY-MODEL",
@@ -2927,9 +2512,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/plugin/verbosity.ts",
       "source_sha256": "bd22798413f67442993722b3132e811efdc3641ceba51b4337d49c38ea8079cd",
-      "fixed_upstream_anchor_lines": [
-        52
-      ]
+      "fixed_upstream_anchor_lines": [52]
     },
     {
       "id": "V-VERBOSITY-REGISTER",
@@ -2943,9 +2526,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/plugin/internal.ts",
       "source_sha256": "0b1504efa42277d0dd1a90c0ca1016961f1898e3ab03e610aab06b177a761d26",
-      "fixed_upstream_anchor_lines": [
-        234
-      ]
+      "fixed_upstream_anchor_lines": [234]
     },
     {
       "id": "V-TRANSPORT-SELECT",
@@ -2959,9 +2540,7 @@
       "occurrences_found": 1,
       "absolute_path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/model-request.ts",
       "source_sha256": "72a2d29bdc297c1a032f43e50ecb5c31a44fc3aa18057c01a022a20860cf07f6",
-      "fixed_upstream_anchor_lines": [
-        369
-      ]
+      "fixed_upstream_anchor_lines": [369]
     }
   ],
   "source_inventory": [
@@ -4140,11 +3719,7 @@
     {
       "id": "N-LSP-RUNTIME",
       "pattern": "LspTool|LSP[.]Service",
-      "roots": [
-        "packages/core/src",
-        "packages/util/src",
-        "packages/server/src"
-      ],
+      "roots": ["packages/core/src", "packages/util/src", "packages/server/src"],
       "expected_matches": 0,
       "scope": "当前内建 LSP 服务或工具引用；配置 schema、TODO、legacy stub 和外部 MCP 不在等价运行证明内。",
       "command": [
@@ -4176,10 +3751,7 @@
     {
       "id": "N-GENERATE-OBJECT-CONSUMER",
       "pattern": "generateObject[[:space:]]*[(]",
-      "roots": [
-        "packages/core/src",
-        "packages/server/src"
-      ],
+      "roots": ["packages/core/src", "packages/server/src"],
       "expected_matches": 0,
       "scope": "当前 Core/Server 产品调用；AI package 与它的 tests 属 library 层。",
       "command": [
@@ -4430,9 +4002,7 @@
     {
       "contract_id": "COD-01",
       "status": "V2 已提供",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY"],
       "owner": "Coding/Core 负责人；主智能体验收",
       "unlock_condition": "完成该项 acceptance 的真实生产验证；静态分类不关闭债务。",
       "close_debt": false
@@ -4440,9 +4010,7 @@
     {
       "contract_id": "COD-02",
       "status": "V2 已提供",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY"],
       "owner": "Coding/Core 文件工具负责人",
       "unlock_condition": "完成该项 acceptance 的真实生产验证；静态分类不关闭债务。",
       "close_debt": false
@@ -4450,9 +4018,7 @@
     {
       "contract_id": "COD-03",
       "status": "V2 已提供",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY"],
       "owner": "Coding/Core Command 负责人",
       "unlock_condition": "完成该项 acceptance 的真实生产验证；静态分类不关闭债务。",
       "close_debt": false
@@ -4460,10 +4026,7 @@
     {
       "contract_id": "COD-04",
       "status": "尚需迁移",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY",
-        "V2-C-DELEGATION"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY", "V2-C-DELEGATION"],
       "owner": "Coding/Core Command 与 Subagent 负责人；产品负责人确认允许差异",
       "unlock_condition": "复用既有 configured-subagent command 路径接入 builtin review，或记录明确允许的同 Session 差异，并完成用户流程验收。",
       "close_debt": false
@@ -4471,10 +4034,7 @@
     {
       "contract_id": "COD-05",
       "status": "尚需迁移",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY",
-        "V2-SERVER-LEGACY"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY", "V2-SERVER-LEGACY"],
       "owner": "Coding/Core LSP 负责人；App/Server 消费负责人",
       "unlock_condition": "在 V2 Location/Tool/lifecycle 建立实际 LSP 执行与状态消费者，完成九操作和运行状态验收。",
       "close_debt": false
@@ -4482,9 +4042,7 @@
     {
       "contract_id": "COD-06",
       "status": "尚需迁移",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY"],
       "owner": "Coding/Core FileMutation 与 LSP 负责人",
       "unlock_condition": "依托 COD-05 的真实服务，将修改后 diagnostics 接入 canonical tool outcome 并验收。",
       "close_debt": false
@@ -4492,9 +4050,7 @@
     {
       "contract_id": "COD-07",
       "status": "尚需迁移",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY"],
       "owner": "Coding/Core 校验与 Instructions 负责人",
       "unlock_condition": "在当前实际工具结果/Instructions 边界接入有界引用提示，完成名称、路径与 CodeMode 的消费验收。",
       "close_debt": false
@@ -4502,10 +4058,7 @@
     {
       "contract_id": "COD-08",
       "status": "尚需迁移",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY",
-        "V2-D-AI"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY", "V2-D-AI"],
       "owner": "Coding/Core 执行与验证负责人；产品负责人决定默认启用范围",
       "unlock_condition": "确认默认启用范围并在 V2 实际修改结果边界接入有界 verifier；真实事件/提示/取消验收通过。",
       "close_debt": false
@@ -4513,10 +4066,7 @@
     {
       "contract_id": "COD-09",
       "status": "尚需迁移",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY",
-        "AUDIT-V2-PERMISSION"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY", "AUDIT-V2-PERMISSION"],
       "owner": "Coding/Core Tool 与 Permission 负责人",
       "unlock_condition": "已有 detector 接到真实 local invocation 的副作用前边界，默认 Permission 合同明确，行为验证通过。",
       "close_debt": false
@@ -4524,9 +4074,7 @@
     {
       "contract_id": "COD-10",
       "status": "明确待裁决",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY"],
       "owner": "产品负责人；Coding/Core LSP 负责人",
       "unlock_condition": "明确命名符号检查触发、范围和不可用时策略；不能用旧文件名或 plan 名词代替该裁决。",
       "close_debt": false
@@ -4534,9 +4082,7 @@
     {
       "contract_id": "COD-11",
       "status": "自研增量已接线",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY"],
       "owner": "Core 插件/工具负责人；各领域负责人",
       "unlock_condition": "完成该项 acceptance 的真实生产验证；静态分类不关闭债务。",
       "close_debt": false
@@ -4544,10 +4090,7 @@
     {
       "contract_id": "COD-12",
       "status": "明确待裁决",
-      "debt_ids": [
-        "AUDIT-V2-CODING-PARITY",
-        "AUDIT-V2-PERMISSION"
-      ],
+      "debt_ids": ["AUDIT-V2-CODING-PARITY", "AUDIT-V2-PERMISSION"],
       "owner": "产品负责人；主智能体；Core Tool/Instructions 负责人",
       "unlock_condition": "产品批准默认 Coding 增量工具/Instructions/自动校验范围，再以实际 capture 与用户消费验收。",
       "close_debt": false
@@ -4555,10 +4098,7 @@
     {
       "contract_id": "AI-01",
       "status": "V2 已提供",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI"],
       "owner": "AI/Core Session 负责人",
       "unlock_condition": "完成该项 acceptance 的真实生产验证；静态分类不关闭债务。",
       "close_debt": false
@@ -4566,10 +4106,7 @@
     {
       "contract_id": "AI-02",
       "status": "V2 已提供",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI"],
       "owner": "AI/Core Provider、Model 与 Integration 负责人",
       "unlock_condition": "完成该项 acceptance 的真实生产验证；静态分类不关闭债务。",
       "close_debt": false
@@ -4577,10 +4114,7 @@
     {
       "contract_id": "AI-03",
       "status": "V2 已提供",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI"],
       "owner": "AI/Core Provider 与 Session hook 负责人",
       "unlock_condition": "完成该项 acceptance 的真实生产验证；静态分类不关闭债务。",
       "close_debt": false
@@ -4588,10 +4122,7 @@
     {
       "contract_id": "AI-04",
       "status": "尚需迁移",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI"],
       "owner": "AI/Core Config 与 Provider 负责人",
       "unlock_condition": "用既有 V2 config/provider 边界完成旧 Agent options 的 wire 对照，修复必要映射或记录明确允许差异。",
       "close_debt": false
@@ -4599,10 +4130,7 @@
     {
       "contract_id": "AI-05",
       "status": "V2 已提供",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI"],
       "owner": "Core Session/History 与 AI protocol 负责人",
       "unlock_condition": "完成该项 acceptance 的真实生产验证；静态分类不关闭债务。",
       "close_debt": false
@@ -4610,10 +4138,7 @@
     {
       "contract_id": "AI-06",
       "status": "V2 已提供",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI"],
       "owner": "Core Session/附件与 AI Media/Protocol 负责人",
       "unlock_condition": "完成该项 acceptance 的真实生产验证；静态分类不关闭债务。",
       "close_debt": false
@@ -4621,10 +4146,7 @@
     {
       "contract_id": "AI-07",
       "status": "V2 已提供",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI"],
       "owner": "Core Session/History 与 AI Compaction 负责人",
       "unlock_condition": "完成该项 acceptance 的真实生产验证；静态分类不关闭债务。",
       "close_debt": false
@@ -4632,11 +4154,7 @@
     {
       "contract_id": "AI-08",
       "status": "V2 已提供",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI",
-        "AUDIT-V2-RECOVERY-ISOLATION"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI", "AUDIT-V2-RECOVERY-ISOLATION"],
       "owner": "AI/Core Session/Transport 负责人；主智能体负责恢复验收",
       "unlock_condition": "完成该项 acceptance 的真实生产验证；静态分类不关闭债务。",
       "close_debt": false
@@ -4644,12 +4162,7 @@
     {
       "contract_id": "AI-09",
       "status": "尚需迁移",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI",
-        "V2-C-DELEGATION",
-        "V2-C-FANOUT"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI", "V2-C-DELEGATION", "V2-C-FANOUT"],
       "owner": "Work/Task/Delegation 与 AI/Core 负责人",
       "unlock_condition": "在当前Task results/Model边界补judge消费者和bounded fallback，完成取消、fanout与receipt用户流程验收。",
       "close_debt": false
@@ -4657,11 +4170,7 @@
     {
       "contract_id": "AI-10",
       "status": "尚需迁移",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI",
-        "V2-C-DELEGATION"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI", "V2-C-DELEGATION"],
       "owner": "Core Task/Delegation/History 与 AI 负责人",
       "unlock_condition": "在当前delegation child admission接入经授权context的bounded summary/fallback，并验证实际消费者。",
       "close_debt": false
@@ -4669,10 +4178,7 @@
     {
       "contract_id": "AI-11",
       "status": "明确待裁决",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI"],
       "owner": "产品入口负责人；AI/Core 负责人",
       "unlock_condition": "有明确必要性、产品入口、输出确认/消费和取消/恢复合同后，直接复用现有V2 API。",
       "close_debt": false
@@ -4680,11 +4186,7 @@
     {
       "contract_id": "AI-12",
       "status": "明确待裁决",
-      "debt_ids": [
-        "AUDIT-V2-LLM-PARITY",
-        "V2-D-AI",
-        "AUDIT-V2-PERMISSION"
-      ],
+      "debt_ids": ["AUDIT-V2-LLM-PARITY", "V2-D-AI", "AUDIT-V2-PERMISSION"],
       "owner": "产品负责人；AI Protocol/Core Permission 负责人",
       "unlock_condition": "明确hosted功能必要性、definition producer、用户授权、结果consumer与未知执行恢复合同。",
       "close_debt": false

@@ -13,12 +13,12 @@
 
 在从 HEAD 加八文件补丁导出的隔离副本验证，源码 tree 为 `16e2aa9782c6f23af0d3fb6c900af440a6cfc016`。workspace 包解析指向隔离副本；仅复用已安装外部依赖。所有命令运行前后源码哈希相同。机器记录见 [task-validation.json](evidence/v2-local-commits-2026-10-27/task-validation.json)。
 
-| 检查 | 结果 |
-| --- | --- |
-| Core Task 服务与三个 schedule 测试文件 | 115 pass / 0 fail / 344 expects |
-| Core 包 typecheck | exit 0 |
-| 隔离版本 Server Task HTTP | 6 pass / 0 fail / 148 expects |
-| 八文件 lint、四生产文件 AST、格式、diff check | 各 exit 0 |
+| 检查                                          | 结果                            |
+| --------------------------------------------- | ------------------------------- |
+| Core Task 服务与三个 schedule 测试文件        | 115 pass / 0 fail / 344 expects |
+| Core 包 typecheck                             | exit 0                          |
+| 隔离版本 Server Task HTTP                     | 6 pass / 0 fail / 148 expects   |
+| 八文件 lint、四生产文件 AST、格式、diff check | 各 exit 0                       |
 
 lint 运行现有一条规则。AST 保留 postinstall/runtime binary resolution 警告。原工作区的 HTTP 7 项与历史 Core 全包不是本次隔离提交的验证数字，不累计。保留原红测和类型失败记录，详细本地证据目录为 `docs/review/evidence/v2-continuation-2026-10-27/`。
 

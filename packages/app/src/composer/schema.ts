@@ -321,7 +321,12 @@ export const ComposerStore = Persistence.struct({
         modelID: Schema.String,
         variant: Persistence.optional(Schema.String),
       }),
-      Schema.Struct({ id: SessionMessage.ID, agent: Schema.String, type: Schema.Literal("group"), groupID: Schema.String }),
+      Schema.Struct({
+        id: SessionMessage.ID,
+        agent: Schema.String,
+        type: Schema.Literal("group"),
+        groupID: Schema.String,
+      }),
     ]),
   ),
   context: Persistence.struct({ items: Persistence.array(ContextEntry) }),

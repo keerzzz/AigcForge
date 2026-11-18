@@ -71,8 +71,5 @@ export type WordMethods = {
   /** A page's text layer. */
   readonly text: Method<{ readonly index: number }, readonly WordSpan[]>
   /** Where a bookmark sits in the pages laid out so far: its page and the height on it, in page pixels. */
-  readonly bookmark: Method<
-    { readonly name: string },
-    { readonly index: number; readonly y: number } | undefined
-  >
+  readonly bookmark: Method<{ readonly name: string }, { readonly index: number; readonly y: number } | undefined>
 }

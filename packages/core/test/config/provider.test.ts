@@ -48,7 +48,10 @@ describe("ConfigProviderPlugin.Plugin", () => {
                 settings: { compaction: { type: "native" } },
                 models: {
                   native: {},
-                  local: { settings: { compaction: { type: "summary" } }, package: "@aigcfroge/ai/providers/openai/chat" },
+                  local: {
+                    settings: { compaction: { type: "summary" } },
+                    package: "@aigcfroge/ai/providers/openai/chat",
+                  },
                   unsupported: { package: "@aigcfroge/ai/providers/openai/chat" },
                 },
               },
@@ -110,7 +113,12 @@ describe("ConfigProviderPlugin.Plugin", () => {
     { id: "openai", model: "gpt-5.6-sol", package: "@aigcfroge/ai/providers/openai/responses", plugin: OpenAIPlugin },
     { id: "xai", model: "grok-4.6", package: "@aigcfroge/ai/providers/xai", plugin: XAIPlugin },
     { id: "azure", model: "gpt-5.6-sol", package: "@aigcfroge/ai/providers/azure/responses", plugin: AzurePlugin },
-    { id: "custom-azure", model: "deployment", package: "@aigcfroge/ai/providers/azure/responses", plugin: AzurePlugin },
+    {
+      id: "custom-azure",
+      model: "deployment",
+      package: "@aigcfroge/ai/providers/azure/responses",
+      plugin: AzurePlugin,
+    },
   ]) {
     it.live(`configured provider transport overrides ${builtin.id} defaults`, () =>
       Effect.gen(function* () {

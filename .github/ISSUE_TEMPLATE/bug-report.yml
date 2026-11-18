@@ -1,5 +1,6 @@
 name: Bug report
 description: Report an issue that should be fixed (avoid pasting giant AI generated summaries or your issue may be closed/ignored)
+labels: ["bug"]
 body:
   - type: textarea
     id: description
@@ -21,8 +22,8 @@ body:
   - type: input
     id: aigcfroge-version
     attributes:
-      label: AigcForge version
-      description: What version of AigcForge are you using?
+      label: Aigcfroge version
+      description: What version of Aigcfroge are you using?
     validations:
       required: false
 

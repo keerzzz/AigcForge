@@ -878,9 +878,13 @@ it.live("executes full prompts and interrupts through the generated client and p
       expect(historyAfter.filter((message) => historyBefore.some((prior) => prior.id === message.id))).toMatchObject(
         historyBefore,
       )
-      const interrupted = historyBefore.filter((message) => message.type === "assistant").filter((message) => !message.time.completed)
+      const interrupted = historyBefore
+        .filter((message) => message.type === "assistant")
+        .filter((message) => !message.time.completed)
       expect(interrupted).toHaveLength(1)
-      const cancelled = historyAfter.filter((message) => message.type === "assistant").find((message) => message.id === interrupted[0].id)
+      const cancelled = historyAfter
+        .filter((message) => message.type === "assistant")
+        .find((message) => message.id === interrupted[0].id)
       expect(cancelled).toMatchObject({
         type: "assistant",
         finish: "error",

@@ -60,7 +60,10 @@ test("reports the latest physical model and usage without summing retry receipts
 
 test.each([
   { name: "running physical request", attempts: [{ ...fallback, terminal: undefined }] },
-  { name: "missing physical usage", attempts: [{ ...fallback, terminal: { ...fallback.terminal!, usage: undefined } }] },
+  {
+    name: "missing physical usage",
+    attempts: [{ ...fallback, terminal: { ...fallback.terminal!, usage: undefined } }],
+  },
   { name: "empty physical receipts", attempts: [] },
 ])("keeps $name unknown instead of reusing accumulated Step tokens", ({ attempts }) => {
   const result = sessionContextUsage([{ ...assistant, attempts: [...attempts] }])
@@ -70,10 +73,7 @@ test.each([
 })
 
 test("preserves legacy usage and ignores a legacy request before it reports usage", () => {
-  const messages: SessionMessageInfo[] = [
-    assistant,
-    { ...assistant, id: "msg_running", tokens: undefined },
-  ]
+  const messages: SessionMessageInfo[] = [assistant, { ...assistant, id: "msg_running", tokens: undefined }]
 
   expect(sessionContextUsage(messages)?.total).toBe(600)
   expect(sessionContextUsage(messages)?.message.id).toBe(assistant.id)

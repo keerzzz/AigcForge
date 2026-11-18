@@ -18,16 +18,16 @@
 
 [验证清单](evidence/v2-plugin-gui-2026-10-28/validation-manifest.json) 自动记录命令、cwd、退出码、原始 tally、源码/日志哈希。隔离树 `61aaccc0a73656045b44084547ca73bce97e1937`，十文件与主工作区逐字节一致，并固定二十四个后端来源。固定 Bun 1.4.2；主线程包内串行验证，子智能体未运行测试。
 
-| 检查 | 实测结果 |
-| --- | --- |
-| GUI 全包 | 245 pass / 1 skip / 0 fail；863 expects；33 文件 |
-| App unit / browser | 742 pass / 0 fail / 2232 expects；168 pass / 0 fail / 1778 expects |
-| 生产 fixture-entry 侧栏 keeper | 31 passed，含 Plugin 三条与现有共享生命周期回归 |
-| 扩展 host/graph | 25 passed |
-| GUI/App/E2E 类型 | 各 exit 0；其后仅两测试文件空行修订，manifest 保留实际差异 |
-| 增量 lint/AST/SDK 文档/格式/diff | 各 exit 0；九个 TS/TSX、五个生产 TS/TSX、十文件格式 |
-| 普通 App 生产构建 | exit 0；3156 个产物文件 |
-| 普通构建真实 GUI/TCP/FS/SQLite/CAS | 1 pass / 0 fail；137 expects；2 primary / 0 title |
+| 检查                               | 实测结果                                                           |
+| ---------------------------------- | ------------------------------------------------------------------ |
+| GUI 全包                           | 245 pass / 1 skip / 0 fail；863 expects；33 文件                   |
+| App unit / browser                 | 742 pass / 0 fail / 2232 expects；168 pass / 0 fail / 1778 expects |
+| 生产 fixture-entry 侧栏 keeper     | 31 passed，含 Plugin 三条与现有共享生命周期回归                    |
+| 扩展 host/graph                    | 25 passed                                                          |
+| GUI/App/E2E 类型                   | 各 exit 0；其后仅两测试文件空行修订，manifest 保留实际差异         |
+| 增量 lint/AST/SDK 文档/格式/diff   | 各 exit 0；九个 TS/TSX、五个生产 TS/TSX、十文件格式                |
+| 普通 App 生产构建                  | exit 0；3156 个产物文件                                            |
+| 普通构建真实 GUI/TCP/FS/SQLite/CAS | 1 pass / 0 fail；137 expects；2 primary / 0 title                  |
 
 新 parser 在旧实现上得到 57 pass / 11 fail，随后当前实现通过全包。类型检查发现 expected Candidate 的可选路径与 ready 必选路径不一致，已修正测试断言；lint 的九处测试空行已修。初始失败和后续成功均保留，不累计用例数。WSL 单个不适用用例跳过；构建 chunk/Sentry 警告和 AST binary resolution warning 保留。公共 Schema/Protocol/SDK 本片未变，前片生成校验不冒充本片重新生成。
 

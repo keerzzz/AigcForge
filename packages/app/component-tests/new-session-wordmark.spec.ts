@@ -17,7 +17,10 @@ for (const theme of ["light", "dark"]) {
       await expect(base.locator("path").nth(1)).toHaveAttribute("fill", "var(--icon-base)")
       await expect(base.locator("path").nth(9)).toHaveCSS(
         "fill",
-        await base.locator("path").nth(1).evaluate((element) => getComputedStyle(element).fill),
+        await base
+          .locator("path")
+          .nth(1)
+          .evaluate((element) => getComputedStyle(element).fill),
       )
       await expect(base.locator('path[fill="var(--icon-weak-base)"]')).toHaveCount(8)
 

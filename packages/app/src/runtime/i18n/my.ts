@@ -855,7 +855,8 @@ export const dict = {
   "project.settings.extensions.empty.mcps.title": "ထိုအချိန်တွင် MCP မရှိသေးပါ။",
   "project.settings.extensions.empty.mcps.description": "AigcForge အတွက် ရနိုင်သည့် MCP များသည် ဤနေရာတွင် ပြသမည်။",
   "project.settings.extensions.empty.plugins.title": "ထိုအချိန်တွင် plugin မရှိသေးပါ။",
-  "project.settings.extensions.empty.plugins.description": "AigcForge အတွက် ရနိုင်သည့် plugin များသည် ဤနေရာတွင် ပြသမည်။",
+  "project.settings.extensions.empty.plugins.description":
+    "AigcForge အတွက် ရနိုင်သည့် plugin များသည် ဤနေရာတွင် ပြသမည်။",
   "project.settings.extensions.empty.skills.title": "ထိုအချိန်တွင် ကျွမ်းကျင်မှု မရှိသေးပါ။",
   "project.settings.extensions.empty.skills.description":
     "AigcForge အတွက် ရနိုင်သည့် ကျွမ်းကျင်မှုများသည် ဤနေရာတွင် ပြသမည်။",

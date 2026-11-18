@@ -30,16 +30,16 @@ apply 的 [CAS 与完整回读](../../packages/core/src/plugin-asset-service.ts:
 
 [验证清单](evidence/v2-plugin-backend-2026-10-28/validation-manifest.json) 自动生成每次命令、cwd、退出码、源码 pins、原始 tally 和日志 SHA256。隔离树 `d184fb4ca43294f72b40e3a5590df9c7956e24bf`；十四个非生成文件与主工作区逐字节相同，三个生成文件以隔离树为提交权威。固定 Bun 1.4.2，包内串行测试，类型检查使用 GOMAXPROCS=2、GOMEMLIMIT=3GiB。
 
-| 验证范围 | 实测结果 |
-| --- | --- |
-| Core 声明/路径/回读/故障集 | 50 pass / 0 fail；156 expects；4 文件 |
-| Plugin supervisor reload 整组 | 9 pass / 0 fail；47 expects |
-| Server 全包 | 160 pass / 1 skip / 0 fail；7510 expects；43 文件 |
-| Schema Plugin | 8 pass / 0 fail；14 expects |
-| Client 全包 | 224 pass / 0 fail；906 expects |
-| Core/Schema/Protocol/Client/Server/GUI/App 类型 | 对应包脚本各 exit 0，版本差异由 manifest 列示 |
-| 正式生成与稳定性 | Client generate、OpenAPI generate/check、再次 generate 和生成物 diff 均通过 |
-| 定向 lint/AST/format/diff | 14 TS 文件、10 生产 TS 文件、17 文件与切片差异各 exit 0 |
+| 验证范围                                        | 实测结果                                                                    |
+| ----------------------------------------------- | --------------------------------------------------------------------------- |
+| Core 声明/路径/回读/故障集                      | 50 pass / 0 fail；156 expects；4 文件                                       |
+| Plugin supervisor reload 整组                   | 9 pass / 0 fail；47 expects                                                 |
+| Server 全包                                     | 160 pass / 1 skip / 0 fail；7510 expects；43 文件                           |
+| Schema Plugin                                   | 8 pass / 0 fail；14 expects                                                 |
+| Client 全包                                     | 224 pass / 0 fail；906 expects                                              |
+| Core/Schema/Protocol/Client/Server/GUI/App 类型 | 对应包脚本各 exit 0，版本差异由 manifest 列示                               |
+| 正式生成与稳定性                                | Client generate、OpenAPI generate/check、再次 generate 和生成物 diff 均通过 |
+| 定向 lint/AST/format/diff                       | 14 TS 文件、10 生产 TS 文件、17 文件与切片差异各 exit 0                     |
 
 Server 单个 hg skip、已有 MaxListenersExceededWarning、AST runtime binary resolution warning 保留。lint 当前配置仅一条规则，不夸大为全面审计。HTTP 使用真实 Web Request handler、runner、SQLite 和文件系统；不是 GUI、外部 provider 或真实 TCP 验收。
 

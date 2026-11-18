@@ -1,13 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:alibaba-chat",
-      "provider:alibaba",
-      "protocol:alibaba-chat",
-      "region:ap-southeast-1",
-      "image"
-    ],
+    "tags": ["prefix:alibaba-chat", "provider:alibaba", "protocol:alibaba-chat", "region:ap-southeast-1", "image"],
     "name": "alibaba-chat/qwen-3-8-flash-reads-image-bytes",
     "recordedAt": "2026-10-02T01:23:45.179Z"
   },

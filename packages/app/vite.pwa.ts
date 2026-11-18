@@ -40,13 +40,13 @@ export function serviceWorker(directory: string) {
             entries
               .filter((entry) => !onDemandAsset(entry.url))
               .map(async (entry) => ({
-              ...entry,
-              // A revision labels a cache entry; integrity rejects mixed deployments
-              // and HTML fallback responses instead of installing a broken build.
-              integrity: `sha256-${createHash("sha256")
-                .update(await readFile(resolve(directory, entry.url)))
-                .digest("base64")}`,
-            })),
+                ...entry,
+                // A revision labels a cache entry; integrity rejects mixed deployments
+                // and HTML fallback responses instead of installing a broken build.
+                integrity: `sha256-${createHash("sha256")
+                  .update(await readFile(resolve(directory, entry.url)))
+                  .digest("base64")}`,
+              })),
           ),
           warnings: [],
         }),

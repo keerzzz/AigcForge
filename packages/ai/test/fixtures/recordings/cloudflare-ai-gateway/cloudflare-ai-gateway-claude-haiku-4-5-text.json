@@ -5,12 +5,7 @@
     "route": "cloudflare-ai-gateway-messages",
     "transport": "http",
     "model": "claude-haiku-4-5",
-    "tags": [
-      "prefix:cloudflare-ai-gateway",
-      "provider:cloudflare-ai-gateway",
-      "text",
-      "golden"
-    ],
+    "tags": ["prefix:cloudflare-ai-gateway", "provider:cloudflare-ai-gateway", "text", "golden"],
     "name": "cloudflare-ai-gateway/cloudflare-ai-gateway-claude-haiku-4-5-text",
     "recordedAt": "2026-09-30T04:35:43.657Z"
   },

@@ -142,10 +142,7 @@ describe("VLLMPlugin", () => {
           expect(yield* modelState.get(providerID, Model.ID.make("second-model"))).toBeUndefined()
 
           state.failing = false
-          yield* eventually(
-            modelState.get(providerID, Model.ID.make("second-model")),
-            (model) => model !== undefined,
-          )
+          yield* eventually(modelState.get(providerID, Model.ID.make("second-model")), (model) => model !== undefined)
           expect(yield* modelState.get(providerID, Model.ID.make("first-model"))).toBeUndefined()
         }),
       ({ server }) => Effect.promise(() => server.stop(true)),
@@ -278,10 +275,7 @@ describe("VLLMPlugin", () => {
             requests.splice(0)
             yield* config.setEntries([configuration({ baseURL }), configuration({ apiKey: "next-secret" })])
             yield* bus.publish(Event.Updated, {})
-            yield* eventually(
-              providers.get(providerID),
-              (provider) => provider?.settings?.apiKey === "next-secret",
-            )
+            yield* eventually(providers.get(providerID), (provider) => provider?.settings?.apiKey === "next-secret")
             expect(requests).toContainEqual({ authorization: "Bearer next-secret", path: "/proxy/health" })
             expect(requests).toContainEqual({ authorization: "Bearer next-secret", path: "/proxy/v1/models" })
           }),

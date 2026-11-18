@@ -3,5 +3,8 @@
 // benchmark can split the time before the renderer gets its IPC port into Electron's own
 // initialisation, our entry, the main bundle and each layer.
 export const marks: { entry: number } & Partial<
-  Record<"ready" | "window" | "served" | "bundle" | "onboarding" | "logging" | "crash" | "storage" | "init" | "layers", number>
+  Record<
+    "ready" | "window" | "served" | "bundle" | "onboarding" | "logging" | "crash" | "storage" | "init" | "layers",
+    number
+  >
 > = { entry: Date.now() }

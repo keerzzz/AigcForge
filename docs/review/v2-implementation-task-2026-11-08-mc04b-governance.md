@@ -64,7 +64,6 @@ Root 完成限定真实模型与隔离 Native 验收、同步合同并签收 MC0
 
 选定简单方案为现 Task 工作流与保存事实的治理接线。独立治理数据库、调度器和跨领域事务没有新增用例依据。跨领域未知副作用恢复、规模 profiling 沿 MC10/V2-C-RECOVERY 等原 owner 和解除条件继续。
 
-
 ## 2026-11-08 Root 最终签收与验收边界
 
 本任务已由 [Root 最终接受](/home/keer/.codex/outputs/2026-11-08/mc04b-runtime-root-v1/root-final-acceptance.json)关闭。真实17请求完成L0/L1/L2、原版本评审修复与屏障复位，三个完整业务结果和八个父Tool全文消费通过。Native场景额外要求模型重复整个治理包装，该要求失败且原exit1保留；依据[范围裁定](/home/keer/.codex/outputs/2026-11-08/mc04b-runtime-root-v1/root-consumer-scope-decision.json)，同次补验采用完整业务正文与原typed owner关联，不把模型重抄控制包装作为额外关闭条件。原产品权限、版本/来源及完整父消费条件保持，同次资源已关闭。后继MC09完整消费者已派发，具体模型运行另由Root绑定。

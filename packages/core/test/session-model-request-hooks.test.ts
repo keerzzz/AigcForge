@@ -61,194 +61,405 @@ const transport = SessionModelTransport.Service.of({
 describe("SessionModelRequest HTTP hooks", () => {
   for (const kind of ["primary", "compaction"] as const) {
     for (const allowed of [true, false]) {
-      it.effect(`preserves ${kind} retry hook ${allowed ? "delay replacement" : "decline"} with its producing connection`, () => Effect.gen(function* () {
-        const hooks = yield* PluginHooks.Service
-        const observed: PluginHooks.Domains["session"]["retry"][] = []
-        yield* hooks.register("session", "retry", (event) => Effect.sync(() => {
-          observed.push({ ...event })
-          event.decision = allowed ? { retry: true, delay: 0 } : { retry: false }
-        }))
-        const selected = { ...model, connection: { type: "env" as const, name: "RETRY_HOOK_KEEPER" } }
-        const requests = yield* SessionModelRequest.Service.pipe(Effect.provide(SessionModelRequest.layer.pipe(Layer.fresh)))
-        const prepared = yield* requests[kind]({ session, agent: Agent.ID.make("build"), model: selected, system: [], messages: [] })
-        const decide = yield* SessionRunnerRetry.policy(session.id)
-        expect(yield* decide({
-          cause: new AIError({ reason: new TransportError({ message: "Retry keeper", transport: "http", operation: "request", delivery: "not-sent" }) }),
-          error: { type: "provider.transport", message: "Retry keeper" },
-          agent: Agent.ID.make("build"), model: selected.ref, hook: prepared.retry, retry: true,
-        })).toEqual(allowed ? { retry: true, attempt: 2, delay: 0 } : { retry: false, reason: "declined" })
-        expect(observed).toMatchObject([{ connection: selected.connection, attempt: 2 }])
-      }).pipe(Effect.provideService(SessionModelTransport.Service, transport)))
+      it.effect(
+        `preserves ${kind} retry hook ${allowed ? "delay replacement" : "decline"} with its producing connection`,
+        () =>
+          Effect.gen(function* () {
+            const hooks = yield* PluginHooks.Service
+            const observed: PluginHooks.Domains["session"]["retry"][] = []
+            yield* hooks.register("session", "retry", (event) =>
+              Effect.sync(() => {
+                observed.push({ ...event })
+                event.decision = allowed ? { retry: true, delay: 0 } : { retry: false }
+              }),
+            )
+            const selected = { ...model, connection: { type: "env" as const, name: "RETRY_HOOK_KEEPER" } }
+            const requests = yield* SessionModelRequest.Service.pipe(
+              Effect.provide(SessionModelRequest.layer.pipe(Layer.fresh)),
+            )
+            const prepared = yield* requests[kind]({
+              session,
+              agent: Agent.ID.make("build"),
+              model: selected,
+              system: [],
+              messages: [],
+            })
+            const decide = yield* SessionRunnerRetry.policy(session.id)
+            expect(
+              yield* decide({
+                cause: new AIError({
+                  reason: new TransportError({
+                    message: "Retry keeper",
+                    transport: "http",
+                    operation: "request",
+                    delivery: "not-sent",
+                  }),
+                }),
+                error: { type: "provider.transport", message: "Retry keeper" },
+                agent: Agent.ID.make("build"),
+                model: selected.ref,
+                hook: prepared.retry,
+                retry: true,
+              }),
+            ).toEqual(allowed ? { retry: true, attempt: 2, delay: 0 } : { retry: false, reason: "declined" })
+            expect(observed).toMatchObject([{ connection: selected.connection, attempt: 2 }])
+          }).pipe(Effect.provideService(SessionModelTransport.Service, transport)),
+      )
     }
   }
 
   for (const boundary of ["accepted", "rejected", "fallback"] as const) {
-    it.effect(`P3 records actual lazy WebSocket ${boundary} delivery with the original transport`, () => Effect.gen(function* () {
-      const hooks = yield* PluginHooks.Service
-      const url = "wss://selected-ws.test/responses?token=private-ws-query"
-      yield* hooks.register("session", "experimental.ws.handshake", (event) => Effect.sync(() => {
-        event.url = url
-        event.headers.authorization = "Bearer private-ws-header"
-      }))
-      const frames = yield* Queue.unbounded<string | Uint8Array, AIError>()
-      const connector: WebSocketConnector = {
-        open: () => boundary === "fallback"
-          ? Effect.fail(new AIError({ reason: new TransportError({ message: "Upgrade refused", transport: "websocket", operation: "request", delivery: "not-sent" }) }))
-          : Effect.succeed({
-              sendText: () => Queue.offer(frames, "provider-frame").pipe(Effect.asVoid),
-              messages: Stream.fromQueue(frames),
-              close: Queue.shutdown(frames).pipe(Effect.asVoid),
-            }),
-      }
-      const transport = Context.get(yield* Layer.build(SessionModelTransport.makeLayer(connector)), SessionModelTransport.Service)
-      const requests = yield* SessionModelRequest.Service.pipe(
-        Effect.provide(SessionModelRequest.layer.pipe(Layer.fresh)),
-        Effect.provideService(SessionModelTransport.Service, transport),
-      )
-      const prepared = yield* requests.primary({
-        session, agent: Agent.ID.make("build"),
-        model: SessionRunnerModel.resolved(OpenAIResponses.route.model({ id: "ws-model", provider: "test" }), {
-          capabilities: { tools: true, input: ["text"], output: ["text"] }, cost: [],
-          limit: { context: 200_000, output: 32_000 }, transport: "websocket",
-        }),
-        system: [], messages: [], webSocket: "session",
-      })
-      const observations: SessionAttempt.Observation[] = []
-      const options = prepared.optionsForAttempt?.((observation) => Effect.sync(() => { observations.push(observation) }))
-      if (options?.webSocket === undefined || options.http === undefined)
-        return yield* Effect.die(new Error("Attempt observation omitted a transport boundary"))
-      const http = options.http
-      const exchange: WebSocketChannelExchange = {
-        id: "ws-observation", connect: { url: "wss://base-ws.test/responses", headers: Headers.empty },
-        fallback: () => Stream.fromEffect(http(HttpClientRequest.post("https://fallback.test/responses"),
-          (sent) => Effect.succeed(HttpClientResponse.fromWeb(sent, new Response("{}", { status: 200 }))),
-        ).pipe(Effect.orDie, Effect.as("http-frame"))),
-        driver: {
-          create: () => Effect.succeed({ message: '{"private-ws-body":true}', mode: "full" }),
-          observe: (_create, frame): Effect.Effect<ChannelObservation, AIError> => boundary === "rejected"
-            ? Effect.succeed({ type: "rejected", recovery: "retry-full", error: new AIError({ reason: new TransportError({
-                message: "Provider rejected the response", transport: "websocket", operation: "read", phase: "receive", delivery: "rejected", recovery: "retry-full",
-              }) }) })
-            : Effect.succeed({ type: "completed", frame }),
-        },
-      }
-      const execution = yield* options.webSocket.execute(exchange)
-      expect(observations).toEqual([])
-      const result = yield* Stream.runCollect(execution.frames).pipe(Effect.result)
-      if (boundary === "rejected") expect(result).toMatchObject({ _tag: "Failure", failure: { reason: { delivery: "rejected" } } })
-      if (boundary !== "rejected") expect(result._tag).toBe("Success")
-      expect(observations.map((observation) => [observation.transport, observation.delivery])).toEqual(boundary === "fallback"
-        ? [["http", "unknown"], ["http", "accepted"]]
-        : [["websocket", "ambiguous"], ["websocket", boundary]])
-      if (boundary !== "fallback") expect(observations[0].deployment?.endpoint).toBe(Hash.sha256("https://selected-ws.test/responses?token=private-ws-query"))
-      const encoded = JSON.stringify(observations)
-      expect(encoded).not.toContain("private-ws-query")
-      expect(encoded).not.toContain("private-ws-header")
-      expect(encoded).not.toContain("private-ws-body")
-    }))
+    it.effect(`P3 records actual lazy WebSocket ${boundary} delivery with the original transport`, () =>
+      Effect.gen(function* () {
+        const hooks = yield* PluginHooks.Service
+        const url = "wss://selected-ws.test/responses?token=private-ws-query"
+        yield* hooks.register("session", "experimental.ws.handshake", (event) =>
+          Effect.sync(() => {
+            event.url = url
+            event.headers.authorization = "Bearer private-ws-header"
+          }),
+        )
+        const frames = yield* Queue.unbounded<string | Uint8Array, AIError>()
+        const connector: WebSocketConnector = {
+          open: () =>
+            boundary === "fallback"
+              ? Effect.fail(
+                  new AIError({
+                    reason: new TransportError({
+                      message: "Upgrade refused",
+                      transport: "websocket",
+                      operation: "request",
+                      delivery: "not-sent",
+                    }),
+                  }),
+                )
+              : Effect.succeed({
+                  sendText: () => Queue.offer(frames, "provider-frame").pipe(Effect.asVoid),
+                  messages: Stream.fromQueue(frames),
+                  close: Queue.shutdown(frames).pipe(Effect.asVoid),
+                }),
+        }
+        const transport = Context.get(
+          yield* Layer.build(SessionModelTransport.makeLayer(connector)),
+          SessionModelTransport.Service,
+        )
+        const requests = yield* SessionModelRequest.Service.pipe(
+          Effect.provide(SessionModelRequest.layer.pipe(Layer.fresh)),
+          Effect.provideService(SessionModelTransport.Service, transport),
+        )
+        const prepared = yield* requests.primary({
+          session,
+          agent: Agent.ID.make("build"),
+          model: SessionRunnerModel.resolved(OpenAIResponses.route.model({ id: "ws-model", provider: "test" }), {
+            capabilities: { tools: true, input: ["text"], output: ["text"] },
+            cost: [],
+            limit: { context: 200_000, output: 32_000 },
+            transport: "websocket",
+          }),
+          system: [],
+          messages: [],
+          webSocket: "session",
+        })
+        const observations: SessionAttempt.Observation[] = []
+        const options = prepared.optionsForAttempt?.((observation) =>
+          Effect.sync(() => {
+            observations.push(observation)
+          }),
+        )
+        if (options?.webSocket === undefined || options.http === undefined)
+          return yield* Effect.die(new Error("Attempt observation omitted a transport boundary"))
+        const http = options.http
+        const exchange: WebSocketChannelExchange = {
+          id: "ws-observation",
+          connect: { url: "wss://base-ws.test/responses", headers: Headers.empty },
+          fallback: () =>
+            Stream.fromEffect(
+              http(HttpClientRequest.post("https://fallback.test/responses"), (sent) =>
+                Effect.succeed(HttpClientResponse.fromWeb(sent, new Response("{}", { status: 200 }))),
+              ).pipe(Effect.orDie, Effect.as("http-frame")),
+            ),
+          driver: {
+            create: () => Effect.succeed({ message: '{"private-ws-body":true}', mode: "full" }),
+            observe: (_create, frame): Effect.Effect<ChannelObservation, AIError> =>
+              boundary === "rejected"
+                ? Effect.succeed({
+                    type: "rejected",
+                    recovery: "retry-full",
+                    error: new AIError({
+                      reason: new TransportError({
+                        message: "Provider rejected the response",
+                        transport: "websocket",
+                        operation: "read",
+                        phase: "receive",
+                        delivery: "rejected",
+                        recovery: "retry-full",
+                      }),
+                    }),
+                  })
+                : Effect.succeed({ type: "completed", frame }),
+          },
+        }
+        const execution = yield* options.webSocket.execute(exchange)
+        expect(observations).toEqual([])
+        const result = yield* Stream.runCollect(execution.frames).pipe(Effect.result)
+        if (boundary === "rejected")
+          expect(result).toMatchObject({ _tag: "Failure", failure: { reason: { delivery: "rejected" } } })
+        if (boundary !== "rejected") expect(result._tag).toBe("Success")
+        expect(observations.map((observation) => [observation.transport, observation.delivery])).toEqual(
+          boundary === "fallback"
+            ? [
+                ["http", "unknown"],
+                ["http", "accepted"],
+              ]
+            : [
+                ["websocket", "ambiguous"],
+                ["websocket", boundary],
+              ],
+        )
+        if (boundary !== "fallback")
+          expect(observations[0].deployment?.endpoint).toBe(
+            Hash.sha256("https://selected-ws.test/responses?token=private-ws-query"),
+          )
+        const encoded = JSON.stringify(observations)
+        expect(encoded).not.toContain("private-ws-query")
+        expect(encoded).not.toContain("private-ws-header")
+        expect(encoded).not.toContain("private-ws-body")
+      }),
+    )
   }
 
-  it.effect("P3 observes the final HTTP dispatch without hooks and preserves auxiliary options", () => Effect.gen(function* () {
-    const requests = yield* SessionModelRequest.Service.pipe(Effect.provide(SessionModelRequest.layer.pipe(Layer.fresh)))
-    const prepared = yield* requests.primary({ session, agent: Agent.ID.make("build"), model, system: [], messages: [] })
-    expect(prepared.options.http).toBeUndefined()
-    const observations: SessionAttempt.Observation[] = []
-    const http = prepared.optionsForAttempt?.((observation) => Effect.sync(() => { observations.push(observation) })).http
-    if (http === undefined) return yield* Effect.die(new Error("Attempt observer omitted HTTP dispatch"))
-    const url = "https://dispatch.test/v1/chat/completions?route=actual"
-    yield* http(HttpClientRequest.post(url), (sent) => Effect.succeed(HttpClientResponse.fromWeb(sent, new Response("{}", { status: 200 }))))
-    expect(observations.map((observation) => observation.delivery)).toEqual(["unknown", "accepted"])
-    expect(observations).toMatchObject([{ transport: "http", deployment: { endpoint: Hash.sha256(url), modelID: "gpt-5.5" } }, { transport: "http", deployment: { endpoint: Hash.sha256(url) } }])
-    expect(prepared.options.http).toBeUndefined()
-    expect(JSON.stringify(observations)).not.toContain(url)
-  }).pipe(Effect.provideService(SessionModelTransport.Service, transport)))
+  it.effect("P3 observes the final HTTP dispatch without hooks and preserves auxiliary options", () =>
+    Effect.gen(function* () {
+      const requests = yield* SessionModelRequest.Service.pipe(
+        Effect.provide(SessionModelRequest.layer.pipe(Layer.fresh)),
+      )
+      const prepared = yield* requests.primary({
+        session,
+        agent: Agent.ID.make("build"),
+        model,
+        system: [],
+        messages: [],
+      })
+      expect(prepared.options.http).toBeUndefined()
+      const observations: SessionAttempt.Observation[] = []
+      const http = prepared.optionsForAttempt?.((observation) =>
+        Effect.sync(() => {
+          observations.push(observation)
+        }),
+      ).http
+      if (http === undefined) return yield* Effect.die(new Error("Attempt observer omitted HTTP dispatch"))
+      const url = "https://dispatch.test/v1/chat/completions?route=actual"
+      yield* http(HttpClientRequest.post(url), (sent) =>
+        Effect.succeed(HttpClientResponse.fromWeb(sent, new Response("{}", { status: 200 }))),
+      )
+      expect(observations.map((observation) => observation.delivery)).toEqual(["unknown", "accepted"])
+      expect(observations).toMatchObject([
+        { transport: "http", deployment: { endpoint: Hash.sha256(url), modelID: "gpt-5.5" } },
+        { transport: "http", deployment: { endpoint: Hash.sha256(url) } },
+      ])
+      expect(prepared.options.http).toBeUndefined()
+      expect(JSON.stringify(observations)).not.toContain(url)
+    }).pipe(Effect.provideService(SessionModelTransport.Service, transport)),
+  )
 
-  it.effect("P3 observes the hook-selected HTTP URL and rejection without storing request secrets", () => Effect.gen(function* () {
-    const hooks = yield* PluginHooks.Service
-    const url = "https://final-dispatch.test/v1/chat/completions?token=private-query"
-    yield* hooks.register("session", "model.request", (event) => Effect.sync(() => { event.baseURL = "https://prepared.test/v1" }))
-    yield* hooks.register("session", "http.request", (event) => Effect.sync(() => {
-      event.request = new Request(url, { method: "POST", headers: { authorization: "Bearer private-header", "content-type": "application/json" }, body: '{"private-body":true}' })
-    }))
-    const requests = yield* SessionModelRequest.Service.pipe(Effect.provide(SessionModelRequest.layer.pipe(Layer.fresh)))
-    const prepared = yield* requests.primary({ session, agent: Agent.ID.make("build"), model, system: [], messages: [] })
-    const observations: SessionAttempt.Observation[] = []
-    const http = prepared.optionsForAttempt?.((observation) => Effect.sync(() => { observations.push(observation) })).http
-    if (http === undefined) return yield* Effect.die(new Error("Attempt observer omitted hooked dispatch"))
-    yield* http(HttpClientRequest.post("https://base.test/v1/chat/completions"), (sent) => {
-      expect(Option.getOrUndefined(HttpClientRequest.toUrl(sent))?.href).toBe(url)
-      return Effect.succeed(HttpClientResponse.fromWeb(sent, new Response("{}", { status: 401 })))
-    })
-    expect(observations.map((observation) => observation.delivery)).toEqual(["unknown", "rejected"])
-    expect(observations[0].deployment?.endpoint).toBe(Hash.sha256(url))
-    expect(observations[0].deployment?.endpoint).not.toBe(SessionProviderContext.provenance({ model: prepared.request.model, ref: model.ref })?.endpoint)
-    const encoded = JSON.stringify(observations)
-    expect(encoded).not.toContain(url)
-    expect(encoded).not.toContain("private-query")
-    expect(encoded).not.toContain("private-header")
-    expect(encoded).not.toContain("private-body")
-  }).pipe(Effect.provideService(SessionModelTransport.Service, transport)))
+  it.effect("P3 observes the hook-selected HTTP URL and rejection without storing request secrets", () =>
+    Effect.gen(function* () {
+      const hooks = yield* PluginHooks.Service
+      const url = "https://final-dispatch.test/v1/chat/completions?token=private-query"
+      yield* hooks.register("session", "model.request", (event) =>
+        Effect.sync(() => {
+          event.baseURL = "https://prepared.test/v1"
+        }),
+      )
+      yield* hooks.register("session", "http.request", (event) =>
+        Effect.sync(() => {
+          event.request = new Request(url, {
+            method: "POST",
+            headers: { authorization: "Bearer private-header", "content-type": "application/json" },
+            body: '{"private-body":true}',
+          })
+        }),
+      )
+      const requests = yield* SessionModelRequest.Service.pipe(
+        Effect.provide(SessionModelRequest.layer.pipe(Layer.fresh)),
+      )
+      const prepared = yield* requests.primary({
+        session,
+        agent: Agent.ID.make("build"),
+        model,
+        system: [],
+        messages: [],
+      })
+      const observations: SessionAttempt.Observation[] = []
+      const http = prepared.optionsForAttempt?.((observation) =>
+        Effect.sync(() => {
+          observations.push(observation)
+        }),
+      ).http
+      if (http === undefined) return yield* Effect.die(new Error("Attempt observer omitted hooked dispatch"))
+      yield* http(HttpClientRequest.post("https://base.test/v1/chat/completions"), (sent) => {
+        expect(Option.getOrUndefined(HttpClientRequest.toUrl(sent))?.href).toBe(url)
+        return Effect.succeed(HttpClientResponse.fromWeb(sent, new Response("{}", { status: 401 })))
+      })
+      expect(observations.map((observation) => observation.delivery)).toEqual(["unknown", "rejected"])
+      expect(observations[0].deployment?.endpoint).toBe(Hash.sha256(url))
+      expect(observations[0].deployment?.endpoint).not.toBe(
+        SessionProviderContext.provenance({ model: prepared.request.model, ref: model.ref })?.endpoint,
+      )
+      const encoded = JSON.stringify(observations)
+      expect(encoded).not.toContain(url)
+      expect(encoded).not.toContain("private-query")
+      expect(encoded).not.toContain("private-header")
+      expect(encoded).not.toContain("private-body")
+    }).pipe(Effect.provideService(SessionModelTransport.Service, transport)),
+  )
 
-  it.effect("P3 keeps a concurrent title rejection out of the primary's durable attempt observations", () => Effect.gen(function* () {
-    const hooks = yield* PluginHooks.Service
-    const database = yield* Database.Service
-    const bus = yield* Bus.Service
-    const store = yield* SessionStore.Service
-    const primaryURL = "https://primary-dispatch.test/v1/chat/completions"
-    const titleURL = "https://title-dispatch.test/v1/chat/completions"
-    const seen: Array<{ kind: SessionRequestKind; agent: Agent.ID; url: string }> = []
-    yield* hooks.register("session", "http.request", (event) => Effect.sync(() => {
-      event.request = new Request(event.kind === "title" ? titleURL : primaryURL, { method: "POST" })
-      seen.push({ kind: event.kind, agent: event.agent, url: event.request.url })
-    }))
-    yield* database.db.insert(ProjectTable).values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] }).onConflictDoNothing().run()
-    yield* database.db.insert(SessionTable).values({ id: session.id, project_id: Project.ID.global, slug: "hook-correlation", directory: "/project", version: "test" }).run()
-    const requests = yield* SessionModelRequest.Service.pipe(Effect.provide(SessionModelRequest.layer.pipe(Layer.fresh)))
-    const primary = yield* requests.primary({ session, agent: Agent.ID.make("build"), model, system: [], messages: [] })
-    const title = yield* requests.title({ session, agent: Agent.ID.make("title"), model: SessionRunnerModel.resolved(OpenAIChat.route.model({ id: "title-api-model", provider: "test" }), {
-      capabilities: { tools: true, input: ["text"], output: ["text"] }, cost: [], limit: { context: 32_000, output: 256 },
-    }), system: [], messages: [] })
-    const assistantMessageID = SessionMessage.ID.make("msg_title_primary")
-    yield* bus.publish(SessionEvent.Attempt.Started, { sessionID: session.id, assistantMessageID, ordinal: 0,
-      attemptID: "gatt_title_primary", agent: Agent.ID.make("build"), selection: model.ref, model: model.ref,
-      apiModelID: String(primary.request.model.id), quote: model.quote ?? { status: "unknown" }, goalRefs: [], transition: "initial", started: 0,
-    })
-    const primaryHTTP = primary.optionsForAttempt?.((observation) => bus.publish(SessionEvent.Attempt.Observed, {
-      sessionID: session.id, assistantMessageID, ordinal: 0, observation,
-    }).pipe(Effect.asVoid)).http
-    const titleHTTP = title.options.http
-    if (primaryHTTP === undefined || titleHTTP === undefined) return yield* Effect.die(new Error("Concurrent request fixture omitted HTTP dispatch"))
-    const blocked = yield* Deferred.make<void>()
-    const release = yield* Deferred.make<void>()
-    const running = yield* primaryHTTP(HttpClientRequest.post("https://initial-primary.test/chat/completions"), (sent) => Effect.gen(function* () {
-      expect(Option.getOrUndefined(HttpClientRequest.toUrl(sent))?.href).toBe(primaryURL)
-      yield* Deferred.succeed(blocked, undefined)
-      yield* Deferred.await(release)
-      return HttpClientResponse.fromWeb(sent, new Response("{}", { status: 200 }))
-    })).pipe(Effect.forkIn(yield* Effect.scope))
-    yield* awaitWithTimeout(Deferred.await(blocked), "Primary HTTP dispatch did not reach its held response")
-    yield* titleHTTP(HttpClientRequest.post("https://initial-title.test/chat/completions"), (sent) => {
-      expect(Option.getOrUndefined(HttpClientRequest.toUrl(sent))?.href).toBe(titleURL)
-      return Effect.succeed(HttpClientResponse.fromWeb(sent, new Response("{}", { status: 401 })))
-    })
-    expect(String(title.request.model.id)).toBe("title-api-model")
-    expect(yield* store.context(session.id)).toMatchObject([{ type: "assistant", id: assistantMessageID, attempts: [{
-      attemptID: "gatt_title_primary", apiModelID: String(primary.request.model.id),
-      observations: [{ delivery: "unknown", deployment: { endpoint: Hash.sha256(primaryURL), modelID: String(primary.request.model.id) } }],
-    }] }])
-    yield* Deferred.succeed(release, undefined)
-    yield* Fiber.join(running)
-    const context = yield* store.context(session.id)
-    expect(context).toHaveLength(1)
-    expect(context).toMatchObject([{ type: "assistant", id: assistantMessageID, attempts: [{ attemptID: "gatt_title_primary", observations: [
-      { delivery: "unknown", deployment: { endpoint: Hash.sha256(primaryURL), modelID: String(primary.request.model.id) } },
-      { delivery: "accepted", deployment: { endpoint: Hash.sha256(primaryURL), modelID: String(primary.request.model.id) } },
-    ] }] }])
-    expect(seen).toEqual([
-      { kind: "primary", agent: Agent.ID.make("build"), url: primaryURL },
-      { kind: "title", agent: Agent.ID.make("title"), url: titleURL },
-    ])
-  }).pipe(Effect.provideService(SessionModelTransport.Service, transport)))
+  it.effect("P3 keeps a concurrent title rejection out of the primary's durable attempt observations", () =>
+    Effect.gen(function* () {
+      const hooks = yield* PluginHooks.Service
+      const database = yield* Database.Service
+      const bus = yield* Bus.Service
+      const store = yield* SessionStore.Service
+      const primaryURL = "https://primary-dispatch.test/v1/chat/completions"
+      const titleURL = "https://title-dispatch.test/v1/chat/completions"
+      const seen: Array<{ kind: SessionRequestKind; agent: Agent.ID; url: string }> = []
+      yield* hooks.register("session", "http.request", (event) =>
+        Effect.sync(() => {
+          event.request = new Request(event.kind === "title" ? titleURL : primaryURL, { method: "POST" })
+          seen.push({ kind: event.kind, agent: event.agent, url: event.request.url })
+        }),
+      )
+      yield* database.db
+        .insert(ProjectTable)
+        .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
+        .onConflictDoNothing()
+        .run()
+      yield* database.db
+        .insert(SessionTable)
+        .values({
+          id: session.id,
+          project_id: Project.ID.global,
+          slug: "hook-correlation",
+          directory: "/project",
+          version: "test",
+        })
+        .run()
+      const requests = yield* SessionModelRequest.Service.pipe(
+        Effect.provide(SessionModelRequest.layer.pipe(Layer.fresh)),
+      )
+      const primary = yield* requests.primary({
+        session,
+        agent: Agent.ID.make("build"),
+        model,
+        system: [],
+        messages: [],
+      })
+      const title = yield* requests.title({
+        session,
+        agent: Agent.ID.make("title"),
+        model: SessionRunnerModel.resolved(OpenAIChat.route.model({ id: "title-api-model", provider: "test" }), {
+          capabilities: { tools: true, input: ["text"], output: ["text"] },
+          cost: [],
+          limit: { context: 32_000, output: 256 },
+        }),
+        system: [],
+        messages: [],
+      })
+      const assistantMessageID = SessionMessage.ID.make("msg_title_primary")
+      yield* bus.publish(SessionEvent.Attempt.Started, {
+        sessionID: session.id,
+        assistantMessageID,
+        ordinal: 0,
+        attemptID: "gatt_title_primary",
+        agent: Agent.ID.make("build"),
+        selection: model.ref,
+        model: model.ref,
+        apiModelID: String(primary.request.model.id),
+        quote: model.quote ?? { status: "unknown" },
+        goalRefs: [],
+        transition: "initial",
+        started: 0,
+      })
+      const primaryHTTP = primary.optionsForAttempt?.((observation) =>
+        bus
+          .publish(SessionEvent.Attempt.Observed, {
+            sessionID: session.id,
+            assistantMessageID,
+            ordinal: 0,
+            observation,
+          })
+          .pipe(Effect.asVoid),
+      ).http
+      const titleHTTP = title.options.http
+      if (primaryHTTP === undefined || titleHTTP === undefined)
+        return yield* Effect.die(new Error("Concurrent request fixture omitted HTTP dispatch"))
+      const blocked = yield* Deferred.make<void>()
+      const release = yield* Deferred.make<void>()
+      const running = yield* primaryHTTP(
+        HttpClientRequest.post("https://initial-primary.test/chat/completions"),
+        (sent) =>
+          Effect.gen(function* () {
+            expect(Option.getOrUndefined(HttpClientRequest.toUrl(sent))?.href).toBe(primaryURL)
+            yield* Deferred.succeed(blocked, undefined)
+            yield* Deferred.await(release)
+            return HttpClientResponse.fromWeb(sent, new Response("{}", { status: 200 }))
+          }),
+      ).pipe(Effect.forkIn(yield* Effect.scope))
+      yield* awaitWithTimeout(Deferred.await(blocked), "Primary HTTP dispatch did not reach its held response")
+      yield* titleHTTP(HttpClientRequest.post("https://initial-title.test/chat/completions"), (sent) => {
+        expect(Option.getOrUndefined(HttpClientRequest.toUrl(sent))?.href).toBe(titleURL)
+        return Effect.succeed(HttpClientResponse.fromWeb(sent, new Response("{}", { status: 401 })))
+      })
+      expect(String(title.request.model.id)).toBe("title-api-model")
+      expect(yield* store.context(session.id)).toMatchObject([
+        {
+          type: "assistant",
+          id: assistantMessageID,
+          attempts: [
+            {
+              attemptID: "gatt_title_primary",
+              apiModelID: String(primary.request.model.id),
+              observations: [
+                {
+                  delivery: "unknown",
+                  deployment: { endpoint: Hash.sha256(primaryURL), modelID: String(primary.request.model.id) },
+                },
+              ],
+            },
+          ],
+        },
+      ])
+      yield* Deferred.succeed(release, undefined)
+      yield* Fiber.join(running)
+      const context = yield* store.context(session.id)
+      expect(context).toHaveLength(1)
+      expect(context).toMatchObject([
+        {
+          type: "assistant",
+          id: assistantMessageID,
+          attempts: [
+            {
+              attemptID: "gatt_title_primary",
+              observations: [
+                {
+                  delivery: "unknown",
+                  deployment: { endpoint: Hash.sha256(primaryURL), modelID: String(primary.request.model.id) },
+                },
+                {
+                  delivery: "accepted",
+                  deployment: { endpoint: Hash.sha256(primaryURL), modelID: String(primary.request.model.id) },
+                },
+              ],
+            },
+          ],
+        },
+      ])
+      expect(seen).toEqual([
+        { kind: "primary", agent: Agent.ID.make("build"), url: primaryURL },
+        { kind: "title", agent: Agent.ID.make("title"), url: titleURL },
+      ])
+    }).pipe(Effect.provideService(SessionModelTransport.Service, transport)),
+  )
 
   it.effect("keeps disabled correction processing empty and preserves arbitrary AI message IDs", () =>
     Effect.gen(function* () {

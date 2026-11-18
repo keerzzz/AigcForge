@@ -18,7 +18,9 @@ test("input membership preserves its durable anchor and exact operation referenc
     membership: { anchorInputID: "msg_first" },
   })
   expect(() => decode({ ...payload, membership: { operationRef: membership.operationRef } })).toThrow()
-  expect(() => decode({ ...payload, membership: { ...membership, operationRef: { operationID: "top_input_result" } } })).toThrow()
+  expect(() =>
+    decode({ ...payload, membership: { ...membership, operationRef: { operationID: "top_input_result" } } }),
+  ).toThrow()
   expect(SessionEvent.InboxDelivered.durable).toEqual({ aggregate: "sessionID", version: 1 })
 })
 

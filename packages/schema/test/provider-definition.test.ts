@@ -15,7 +15,9 @@ describe("ProviderDefinition", () => {
       credential: { type: "keep" },
     } as const
     expect(Schema.encodeSync(ProviderDefinition.SaveInput)(decode(input))).toEqual(input)
-    expect(decode({ ...input, patch: { unset: [["models", "chat", "quote", "validUntil"]] } }).patch.unset).toEqual([["models", "chat", "quote", "validUntil"]])
+    expect(decode({ ...input, patch: { unset: [["models", "chat", "quote", "validUntil"]] } }).patch.unset).toEqual([
+      ["models", "chat", "quote", "validUntil"],
+    ])
     expect(() => decode({ ...input, patch: { set: { adoption: {} } } })).toThrow()
     expect(() => decode({ ...input, patch: { unset: [["adoption"]] } })).toThrow()
     expect(() => decode({ ...input, patch: { set: { models: { chat: { limit: { context: "long" } } } } } })).toThrow()
@@ -39,7 +41,9 @@ describe("ProviderDefinition", () => {
     } as const
     const decoded = Schema.decodeUnknownSync(ConfigProvider.Info)(input)
     expect(Schema.encodeSync(ConfigProvider.Info)(decoded)).toEqual(input)
-    const encoded = Schema.encodeSync(ProviderDefinition.Patch)(ProviderDefinition.Patch.make({ set: undefined, unset: undefined }))
+    const encoded = Schema.encodeSync(ProviderDefinition.Patch)(
+      ProviderDefinition.Patch.make({ set: undefined, unset: undefined }),
+    )
     expect(encoded).toEqual({})
     expect(ProviderDefinition.Info.ast.annotations?.identifier).toBe("ProviderDefinition.Info")
     expect(ProviderDefinition.SaveInput.ast.annotations?.identifier).toBe("ProviderDefinition.SaveInput")

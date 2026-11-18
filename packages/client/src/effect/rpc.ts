@@ -11,12 +11,7 @@ import type { RpcCallInput, RpcCallOutput } from "./api/api.js"
 type RpcEvent = Extract<AigcForgeEvent, { type: `rpc.${string}` }>
 type DecodeError<S> = S extends Schema.Top ? Schema.SchemaError : never
 
-export type RpcClient<
-  D extends Rpc.Definition,
-  E = never,
-  Options = RpcCallOptions,
-  EventError = E,
-> = {
+export type RpcClient<D extends Rpc.Definition, E = never, Options = RpcCallOptions, EventError = E> = {
   readonly [Name in keyof D["methods"]]: (
     ...args: RpcArguments<Rpc.Input<D["methods"][Name]["input"]>, Options>
   ) => Effect.Effect<
@@ -69,16 +64,16 @@ export function make<CallError, EventError>(
     // SAFETY: Every runtime key comes from this definition, and each value is decoded through its corresponding schema.
     // oxlint-disable-next-line typescript-eslint/no-unsafe-type-assertion
     return Object.assign(methods, {
-        events: {
-          subscribe: (name: keyof D["events"] & string) => {
-            const type = RpcRuntime.eventType(definition, name)
-            if (!Object.hasOwn(definition.events, name)) return Stream.fail(new Error(`Unknown RPC event: ${type}`))
-            const schema = definition.events[name]
-            return subscribe().pipe(
-              Stream.filter((event): event is RpcEvent => event.type === type),
-              Stream.mapEffect((event) => RpcRuntime.event(definition, name, schema, event)),
-            )
-          },
+      events: {
+        subscribe: (name: keyof D["events"] & string) => {
+          const type = RpcRuntime.eventType(definition, name)
+          if (!Object.hasOwn(definition.events, name)) return Stream.fail(new Error(`Unknown RPC event: ${type}`))
+          const schema = definition.events[name]
+          return subscribe().pipe(
+            Stream.filter((event): event is RpcEvent => event.type === type),
+            Stream.mapEffect((event) => RpcRuntime.event(definition, name, schema, event)),
+          )
+        },
       },
     }) as RpcClient<D, Exclude<CallError, RpcError | RpcInternalError> | Rpc.SystemError, RpcCallOptions, EventError>
   }

@@ -794,7 +794,8 @@ export const dict = {
   "server.connect.failed": "Tidak dapat menyambung. Semak alamat pelayan dan kata laluan, kemudian cuba lagi.",
   "server.connect.scan": "Imbas kod QR",
   "server.connect.scan.description": "Tujukan kamera anda ke kod QR yang dipaparkan oleh pasangan aigcfroge.",
-  "server.connect.scan.invalid": "Ini bukan kod pasangan AigcForge. Imbas kod yang ditunjukkan oleh pasangan aigcfroge.",
+  "server.connect.scan.invalid":
+    "Ini bukan kod pasangan AigcForge. Imbas kod yang ditunjukkan oleh pasangan aigcfroge.",
   "server.connect.camera": "Memasangkan kamera",
   "server.connect.camera.starting": "Membuka kamera…",
   "server.connect.mixedContent":

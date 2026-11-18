@@ -20,7 +20,9 @@ const globalLayer = Layer.succeed(
   Global.Service.of(Global.make({ data: "/data", config: "/config", tmp: "/tmp/aigcfroge" })),
 )
 const databaseLayer = Database.layer().pipe(Layer.provide(globalLayer))
-const busNodeLayer = AppNodeBuilder.build(LayerNode.group([Database.node, Bus.node]), [Bus.node.replace(Bus.configured())])
+const busNodeLayer = AppNodeBuilder.build(LayerNode.group([Database.node, Bus.node]), [
+  Bus.node.replace(Bus.configured()),
+])
 
 const it = testEffect(
   SessionTodo.defaultLayer.pipe(

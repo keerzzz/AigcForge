@@ -139,7 +139,8 @@ function CustomCompositionForm(props: { home: HomeController; owner: Owner; curr
   const created = () => (state.progress.type === "created" ? state.progress : undefined)
 
   const models = () => props.owner.context?.data.location.model.list({ directory: props.owner.directory ?? "" }) ?? []
-  const modelGroups = () => props.owner.context?.data.location.model.group.definition.list({ directory: props.owner.directory ?? "" })
+  const modelGroups = () =>
+    props.owner.context?.data.location.model.group.definition.list({ directory: props.owner.directory ?? "" })
 
   const modelOptions = createMemo(() => {
     const groups = modelGroups()?.effective ?? []
@@ -152,22 +153,29 @@ function CustomCompositionForm(props: { home: HomeController; owner: Owner; curr
 
         return {
           key: selectionKey({ type: "group", groupID: group.groupID }),
-          label: group.unavailable ? language.t("home.custom.model.groupUnavailable", {
-            model: label, reason: language.t(`model.group.unavailable.${group.unavailable}`),
-          }) : label,
+          label: group.unavailable
+            ? language.t("home.custom.model.groupUnavailable", {
+                model: label,
+                reason: language.t(`model.group.unavailable.${group.unavailable}`),
+              })
+            : label,
           model: { type: "group" as const, groupID: group.groupID },
           unavailable: group.unavailable,
         }
       }),
-      ...(selected && "type" in selected && !groups.some((group) => group.groupID === selected.groupID) ? [{
-        key: selectionKey(fromSelection(selected)),
-        label: language.t("home.custom.model.groupUnavailable", {
-          model: language.t("model.group.selection", { name: selected.groupID }),
-          reason: language.t("model.group.unavailable.missing"),
-        }),
-        model: selected,
-        unavailable: "missing" as const,
-      }] : []),
+      ...(selected && "type" in selected && !groups.some((group) => group.groupID === selected.groupID)
+        ? [
+            {
+              key: selectionKey(fromSelection(selected)),
+              label: language.t("home.custom.model.groupUnavailable", {
+                model: language.t("model.group.selection", { name: selected.groupID }),
+                reason: language.t("model.group.unavailable.missing"),
+              }),
+              model: selected,
+              unavailable: "missing" as const,
+            },
+          ]
+        : []),
       ...models().map((model) => ({
         key: selectionKey({ providerID: model.providerID, modelID: model.id }),
         label: `${model.name} (${model.providerID})`,
@@ -189,9 +197,12 @@ function CustomCompositionForm(props: { home: HomeController; owner: Owner; curr
       const label = language.t("model.group.selection", { name: group?.definition?.name || selected.groupID })
       const unavailable = group ? group.unavailable : "missing"
 
-      return unavailable ? language.t("home.custom.model.groupUnavailable", {
-        model: label, reason: language.t(`model.group.unavailable.${unavailable}`),
-      }) : label
+      return unavailable
+        ? language.t("home.custom.model.groupUnavailable", {
+            model: label,
+            reason: language.t(`model.group.unavailable.${unavailable}`),
+          })
+        : label
     }
 
     const info = models().find((model) => model.id === selected.id && model.providerID === selected.providerID)
@@ -233,7 +244,8 @@ function CustomCompositionForm(props: { home: HomeController; owner: Owner; curr
         context.data.location.model.group.definition.sync({ directory }),
       ])
 
-      if (current()) setState({ defaultModel: modelGroups()?.defaultSelection ?? selected.data ?? undefined, modelsLoading: false })
+      if (current())
+        setState({ defaultModel: modelGroups()?.defaultSelection ?? selected.data ?? undefined, modelsLoading: false })
     } catch (error) {
       if (current())
         setState({ modelsLoading: false, modelError: errorMessage(error, language.t("home.custom.error.models")) })

@@ -1,6 +1,21 @@
 export * as SessionStore from "./store.js"
 
-import { and, asc, desc, eq, getTableColumns, gt, isNotNull, isNull, like, lt, notInArray, or, sql, type SQL } from "drizzle-orm"
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  getTableColumns,
+  gt,
+  isNotNull,
+  isNull,
+  like,
+  lt,
+  notInArray,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm"
 import { Context, Effect, Layer, Schema } from "effect"
 import { Project } from "@aigcfroge/schema/project"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
@@ -108,7 +123,12 @@ const layer = Layer.effect(
 
     return Service.of({
       get: Effect.fnUntraced(function* (sessionID) {
-        const row = yield* db.select(fields).from(SessionTable).where(eq(SessionTable.id, sessionID)).get().pipe(Effect.orDie)
+        const row = yield* db
+          .select(fields)
+          .from(SessionTable)
+          .where(eq(SessionTable.id, sessionID))
+          .get()
+          .pipe(Effect.orDie)
         return row ? fromRow(row) : undefined
       }),
       list: Effect.fn("SessionStore.list")(function* (input = {}) {

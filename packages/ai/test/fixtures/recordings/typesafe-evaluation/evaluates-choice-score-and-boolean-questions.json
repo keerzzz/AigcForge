@@ -2,11 +2,7 @@
   "version": 1,
   "metadata": {
     "model": "jev-latest",
-    "tags": [
-      "prefix:typesafe-evaluation",
-      "provider:typesafe-ai",
-      "protocol:system-one"
-    ],
+    "tags": ["prefix:typesafe-evaluation", "provider:typesafe-ai", "protocol:system-one"],
     "name": "typesafe-evaluation/evaluates-choice-score-and-boolean-questions",
     "recordedAt": "2026-09-22T03:44:28.626Z"
   },

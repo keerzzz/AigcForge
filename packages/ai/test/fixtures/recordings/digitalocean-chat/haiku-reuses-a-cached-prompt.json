@@ -2,13 +2,7 @@
   "version": 1,
   "metadata": {
     "model": "anthropic-claude-haiku-4.5",
-    "tags": [
-      "prefix:digitalocean-chat",
-      "provider:digitalocean",
-      "protocol:digitalocean-chat",
-      "cache",
-      "usage"
-    ],
+    "tags": ["prefix:digitalocean-chat", "provider:digitalocean", "protocol:digitalocean-chat", "cache", "usage"],
     "name": "digitalocean-chat/haiku-reuses-a-cached-prompt",
     "recordedAt": "2026-10-01T07:36:36.689Z"
   },

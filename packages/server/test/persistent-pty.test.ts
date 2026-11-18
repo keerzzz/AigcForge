@@ -371,9 +371,10 @@ smoke(
       expect(process.kill(first.pid, 0)).toBeTrue()
 
       const replacementScope = yield* Scope.fork(scope)
-      const replacement = yield* ServerProcess.start<never, never>({ ...options, pty: { ...options.pty, handoff } }).pipe(
-        Effect.provideService(Scope.Scope, replacementScope),
-      )
+      const replacement = yield* ServerProcess.start<never, never>({
+        ...options,
+        pty: { ...options.pty, handoff },
+      }).pipe(Effect.provideService(Scope.Scope, replacementScope))
       const replacementBase = HttpServer.formatAddress(replacement.address)
       expect(
         (yield* request(replacementBase, "GET", `/api/experimental/session/${sessionID}/terminal`)).data,

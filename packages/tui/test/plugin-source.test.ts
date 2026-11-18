@@ -192,7 +192,7 @@ test("TUI plugins importing @aigcfroge/plugin/tui and solid-js alongside effect 
         'import { Effect, Schema } from "effect"; import { some } from "effect/Option"; export const helper = { Effect, Schema, some }',
       "node_modules/zod/package.json": '{"name":"zod","type":"module","exports":{".":"./index.js"}}',
       "node_modules/zod/index.js": "export const fromPluginZod = true",
-      "helper.ts": ['import { fromPluginZod }', 'from "zod"; export { fromPluginZod }'].join(" "),
+      "helper.ts": ["import { fromPluginZod }", 'from "zod"; export { fromPluginZod }'].join(" "),
       "tui.ts": [
         "import { createSignal }",
         'from "solid-js"',

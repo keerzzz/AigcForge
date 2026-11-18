@@ -47,15 +47,15 @@ App 的单元、browser 与 E2E 类型各有独立入口：
 
 其它拥有脚本的包用同一 launcher 的 `run --cwd=packages/<name> test/typecheck`，定向用例按其真实脚本传参；不把示例扩成每片全仓重跑。
 
-| 包/边界 | 脚本与注意事项 |
-| --- | --- |
-| Schema、AI、Client、Codegen、Server、GUI extensions、Desktop | 各有 test/typecheck；使用 manifest 中自己的测试预算与条件 |
-| Client | `generate`；`check:generated` = generate + generated diff，具有写入副作用 |
-| Protocol | `generate`、`check:generated`、typecheck；没有 test 脚本 |
-| App | `test:e2e:built` 需要匹配当前 production build，不可复用来源不明的端口 |
-| Storybook | 当前无 test/typecheck 脚本；不能编造命令 |
-| 根 lint | oxlint + GUI AST rules + SDK docs；不是纯增量命令 |
-| 根 lint:changed | 核对指定基线和实际 GUI 覆盖范围，不代表 Core/Codegen 全量 lint |
+| 包/边界                                                      | 脚本与注意事项                                                            |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| Schema、AI、Client、Codegen、Server、GUI extensions、Desktop | 各有 test/typecheck；使用 manifest 中自己的测试预算与条件                 |
+| Client                                                       | `generate`；`check:generated` = generate + generated diff，具有写入副作用 |
+| Protocol                                                     | `generate`、`check:generated`、typecheck；没有 test 脚本                  |
+| App                                                          | `test:e2e:built` 需要匹配当前 production build，不可复用来源不明的端口    |
+| Storybook                                                    | 当前无 test/typecheck 脚本；不能编造命令                                  |
+| 根 lint                                                      | oxlint + GUI AST rules + SDK docs；不是纯增量命令                         |
+| 根 lint:changed                                              | 核对指定基线和实际 GUI 覆盖范围，不代表 Core/Codegen 全量 lint            |
 
 正式生成入口：
 
@@ -73,14 +73,14 @@ App 的单元、browser 与 E2E 类型各有独立入口：
 
 每条命令记录 cwd、完整命令、退出码、实际用例/skip、源码与依赖身份；失败与后续成功分别保留。help/usage 的 exit0、生成零漂移、hash 数量、单包 green 均不能代替产品语义证明。
 
-| 影响面 | 必须观察的合同 |
-| --- | --- |
-| Session/权限/工具 | 准入与可见事实、取消/重试/恢复、权限快照与实际执行、普通 Coding 不回退 |
-| API/生成 | 请求与响应编码、错误/授权、optional/nullable、当前与 retained 合同和消费者 |
-| 资产 | 提案/审阅/取消/CAS/保存/发现/消费/编辑导入/引用删除；声明保存不等于运行安装 |
-| 路由/Panel | server/project/Session/Draft 身份、迟到响应、前进后退/重载、storage 加载与宽度恢复 |
-| 数据/存储 | 新库和旧库副本升级、实体/关系/快照/输入结果、重复启动和失败保留；不重编号 migration |
-| 服务/发布 | 同源 bundled CLI、认证/IPC/PTY、冷启动/复用/接管和产物可重建 |
+| 影响面            | 必须观察的合同                                                                      |
+| ----------------- | ----------------------------------------------------------------------------------- |
+| Session/权限/工具 | 准入与可见事实、取消/重试/恢复、权限快照与实际执行、普通 Coding 不回退              |
+| API/生成          | 请求与响应编码、错误/授权、optional/nullable、当前与 retained 合同和消费者          |
+| 资产              | 提案/审阅/取消/CAS/保存/发现/消费/编辑导入/引用删除；声明保存不等于运行安装         |
+| 路由/Panel        | server/project/Session/Draft 身份、迟到响应、前进后退/重载、storage 加载与宽度恢复  |
+| 数据/存储         | 新库和旧库副本升级、实体/关系/快照/输入结果、重复启动和失败保留；不重编号 migration |
+| 服务/发布         | 同源 bundled CLI、认证/IPC/PTY、冷启动/复用/接管和产物可重建                        |
 
 全部 batch 目标保留。某小节只关闭明确验证的合同；其它未交付范围继续在[唯一账本](technical-debt.md)，不能用技术债登记把核心功能算完成。
 

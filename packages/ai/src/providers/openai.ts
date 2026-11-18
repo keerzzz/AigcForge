@@ -99,9 +99,7 @@ export const configure = (input: Config = {}) => {
   const chatRoute = configuredRoute(OpenAIChat.route, input)
   const modelDefaults = defaults(input)
   const responses = (id: string | ModelID) =>
-    responsesRoute
-      .with(withOpenAIOptions(id, modelDefaults))
-      .model<OpenAIProviderOptionsInput>({ id })
+    responsesRoute.with(withOpenAIOptions(id, modelDefaults)).model<OpenAIProviderOptionsInput>({ id })
   const chat = (id: string | ModelID) =>
     chatRoute.with(withOpenAIOptions(id, modelDefaults)).model<OpenAIProviderOptionsInput>({
       id,

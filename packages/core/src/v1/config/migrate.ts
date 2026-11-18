@@ -186,11 +186,12 @@ function migrateModel(info: typeof ConfigProviderV1.Model.Type) {
   }
 
   const settings = options && ConfigProviderOptionsV1.model(options)
-  const compatibility = typeof info.interleaved === "string"
-    ? { reasoningField: info.interleaved }
-    : typeof info.interleaved === "object" && info.interleaved !== null
-      ? { reasoningField: info.interleaved.field }
-      : undefined
+  const compatibility =
+    typeof info.interleaved === "string"
+      ? { reasoningField: info.interleaved }
+      : typeof info.interleaved === "object" && info.interleaved !== null
+        ? { reasoningField: info.interleaved.field }
+        : undefined
   const costs = info.cost && [
     {
       input: info.cost.input,

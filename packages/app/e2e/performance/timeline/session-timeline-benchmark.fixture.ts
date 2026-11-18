@@ -240,7 +240,7 @@ export function performanceTurn(index: number) {
 
   const parts: ContentSeed[] = [
     ...(index % 5 === 0
-      ? [
+      ? ([
           {
             id: `prt_0000_${suffix}_reasoning`,
             sessionID,
@@ -249,7 +249,7 @@ export function performanceTurn(index: number) {
             text: `Reviewing the existing implementation. ${"constraint analysis ".repeat(20)}`,
             time: { start: 1690000001000 + index * 2_000, end: 1690000001200 + index * 2_000 },
           },
-        ] satisfies ContentSeed[]
+        ] satisfies ContentSeed[])
       : []),
     {
       id: `prt_0000_${suffix}_assistant`,
@@ -259,7 +259,7 @@ export function performanceTurn(index: number) {
       text: historicalMarkdown(index),
     },
     ...(index % 8 === 0
-      ? [
+      ? ([
           {
             id: `prt_0000_${suffix}_edit`,
             type: "tool",
@@ -278,10 +278,10 @@ export function performanceTurn(index: number) {
               completed: 1690000001400 + index * 2_000,
             },
           },
-        ] satisfies ContentSeed[]
+        ] satisfies ContentSeed[])
       : []),
     ...(index % 12 === 0
-      ? [
+      ? ([
           {
             id: `prt_0000_${suffix}_write`,
             type: "tool",
@@ -298,10 +298,10 @@ export function performanceTurn(index: number) {
               completed: 1690000001500 + index * 2_000,
             },
           },
-        ] satisfies ContentSeed[]
+        ] satisfies ContentSeed[])
       : []),
     ...(index % 16 === 0
-      ? [
+      ? ([
           {
             id: `prt_0000_${suffix}_patch`,
             type: "tool",
@@ -324,7 +324,7 @@ export function performanceTurn(index: number) {
               completed: 1690000001700 + index * 2_000,
             },
           },
-        ] satisfies ContentSeed[]
+        ] satisfies ContentSeed[])
       : []),
   ]
 
@@ -395,11 +395,7 @@ export function timelineEvent<
     | "session.text.ended"
     | "session.step.completed"
     | "session.execution.succeeded",
->(
-  type: Type,
-  data: Extract<AigcForgeEvent, { type: Type }>["data"],
-  durable = false,
-): AigcForgeEvent {
+>(type: Type, data: Extract<AigcForgeEvent, { type: Type }>["data"], durable = false): AigcForgeEvent {
   eventSequence++
 
   const event = {

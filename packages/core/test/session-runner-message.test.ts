@@ -25,55 +25,150 @@ const created = DateTime.makeUnsafe(0)
 const id = (value: string) => SessionMessage.ID.make(`msg_${value}`)
 const model = Model.Ref.make({ id: Model.ID.make("model"), providerID: Provider.ID.make("provider") })
 const build = Agent.defaultID
-const proofFor = (ref: Model.Ref, options: { apiModelID?: string; connection?: ModelSource.ConnectionRef; sentURL?: string } = {}) => {
-  const proof = SessionProviderContext.provenance(SessionRunnerModel.resolved(
-    LanguageModel.make({ id: options.apiModelID ?? ref.id, provider: ref.providerID, route: OpenAIChat.route }),
-    { capabilities: { tools: true, input: ["text"], output: ["text"] }, cost: [], limit: { context: 128_000, output: 4096 }, connection: options.connection },
-  ), options.sentURL)
+const proofFor = (
+  ref: Model.Ref,
+  options: { apiModelID?: string; connection?: ModelSource.ConnectionRef; sentURL?: string } = {},
+) => {
+  const proof = SessionProviderContext.provenance(
+    SessionRunnerModel.resolved(
+      LanguageModel.make({ id: options.apiModelID ?? ref.id, provider: ref.providerID, route: OpenAIChat.route }),
+      {
+        capabilities: { tools: true, input: ["text"], output: ["text"] },
+        cost: [],
+        limit: { context: 128_000, output: 4096 },
+        connection: options.connection,
+      },
+    ),
+    options.sentURL,
+  )
   if (proof === undefined) throw new Error("The lowering fixture requires a concrete observed endpoint")
   return proof
 }
-const receipted = (message: SessionMessage.Assistant, proof = proofFor(message.model)) => SessionMessage.Assistant.make({
-  ...message,
-  origin: new SessionMessage.ProducedOrigin({ kind: "step", sessionID: SessionID.make("ses_lowering"), id: Event.ID.make(`evt_${message.id}`), seq: Event.Seq.make(1) }),
-  attempts: [new SessionAttempt.Info({
-    ordinal: 0, attemptID: `attempt_${message.id}`, agent: message.agent, selection: message.model, model: message.model,
-    apiModelID: proof.modelID, ...(proof.connection === undefined ? {} : { connection: proof.connection }), preparedDeployment: proof,
-    quote: { status: "unknown" }, goalRefs: [], transition: "initial", started: 0,
-    observations: [new SessionAttempt.RecordedObservation({ observedAt: 0, deployment: proof, transport: "http", delivery: "accepted", outputStarted: true,
-      event: { id: Event.ID.make(`evt_observed_${message.id}`), seq: Event.Seq.make(2) },
-    })],
-  })],
-})
+const receipted = (message: SessionMessage.Assistant, proof = proofFor(message.model)) =>
+  SessionMessage.Assistant.make({
+    ...message,
+    origin: new SessionMessage.ProducedOrigin({
+      kind: "step",
+      sessionID: SessionID.make("ses_lowering"),
+      id: Event.ID.make(`evt_${message.id}`),
+      seq: Event.Seq.make(1),
+    }),
+    attempts: [
+      new SessionAttempt.Info({
+        ordinal: 0,
+        attemptID: `attempt_${message.id}`,
+        agent: message.agent,
+        selection: message.model,
+        model: message.model,
+        apiModelID: proof.modelID,
+        ...(proof.connection === undefined ? {} : { connection: proof.connection }),
+        preparedDeployment: proof,
+        quote: { status: "unknown" },
+        goalRefs: [],
+        transition: "initial",
+        started: 0,
+        observations: [
+          new SessionAttempt.RecordedObservation({
+            observedAt: 0,
+            deployment: proof,
+            transport: "http",
+            delivery: "accepted",
+            outputStarted: true,
+            event: { id: Event.ID.make(`evt_observed_${message.id}`), seq: Event.Seq.make(2) },
+          }),
+        ],
+      }),
+    ],
+  })
 
 describe("toLLMMessages", () => {
-  for (const boundary of ["historical", "prepared-only", "missing-deployment", "other-connection", "observed-route"] as const) {
+  for (const boundary of [
+    "historical",
+    "prepared-only",
+    "missing-deployment",
+    "other-connection",
+    "observed-route",
+  ] as const) {
     test(`P4 strips opaque state at ${boundary} while retaining readable reasoning and tool results`, () => {
       const target = proofFor(model, { connection: { type: "env", name: "ACCOUNT_A" } })
-      const proof = boundary === "observed-route" ? proofFor(model, { connection: target.connection, sentURL: "https://other-deployment.invalid/chat/completions" }) : target
-      const message = receipted(SessionMessage.Assistant.make({
-        id: id(`p4-${boundary}`), type: "assistant", agent: build, model,
-        content: [
-          SessionMessage.AssistantText.make({ type: "text", text: "Visible text", state: { phase: "opaque-text" } }),
-          SessionMessage.AssistantReasoning.make({ type: "reasoning", text: "Visible reasoning", state: { signature: "opaque-signature" } }),
-          SessionMessage.AssistantTool.make({ type: "tool", id: "local", name: "read", providerState: { proof: "opaque-call" }, providerResultState: { proof: "opaque-local" },
-            state: SessionMessage.ToolStateCompleted.make({ status: "completed", input: { path: "README.md" }, content: [{ type: "text", text: "Visible local result" }] }), time: { created, completed: created },
-          }),
-          SessionMessage.AssistantTool.make({ type: "tool", id: "hosted", name: "web_search", executed: true, providerState: { proof: "opaque-hosted-call" }, providerResultState: { proof: "opaque-hosted-result" },
-            state: SessionMessage.ToolStateCompleted.make({ status: "completed", input: { query: "Effect" }, content: [{ type: "text", text: "Visible hosted result" }] }), time: { created, completed: created },
-          }),
-        ], time: { created, completed: created },
-      }), proof)
-      const source = boundary === "historical" ? { ...message, origin: undefined } : {
-        ...message,
-        attempts: message.attempts?.map((attempt) => new SessionAttempt.Info({
-          ...attempt, preparedDeployment: target,
-          observations: boundary === "prepared-only" ? [] : attempt.observations.map((observation) => new SessionAttempt.RecordedObservation({
-            ...observation, deployment: boundary === "missing-deployment" ? Struct.omit(proof, ["deployment"]) : proof,
-          })),
-        })),
-      }
-      const destination = boundary === "other-connection" ? proofFor(model, { connection: { type: "env", name: "ACCOUNT_B" } }) : target
+      const proof =
+        boundary === "observed-route"
+          ? proofFor(model, {
+              connection: target.connection,
+              sentURL: "https://other-deployment.invalid/chat/completions",
+            })
+          : target
+      const message = receipted(
+        SessionMessage.Assistant.make({
+          id: id(`p4-${boundary}`),
+          type: "assistant",
+          agent: build,
+          model,
+          content: [
+            SessionMessage.AssistantText.make({ type: "text", text: "Visible text", state: { phase: "opaque-text" } }),
+            SessionMessage.AssistantReasoning.make({
+              type: "reasoning",
+              text: "Visible reasoning",
+              state: { signature: "opaque-signature" },
+            }),
+            SessionMessage.AssistantTool.make({
+              type: "tool",
+              id: "local",
+              name: "read",
+              providerState: { proof: "opaque-call" },
+              providerResultState: { proof: "opaque-local" },
+              state: SessionMessage.ToolStateCompleted.make({
+                status: "completed",
+                input: { path: "README.md" },
+                content: [{ type: "text", text: "Visible local result" }],
+              }),
+              time: { created, completed: created },
+            }),
+            SessionMessage.AssistantTool.make({
+              type: "tool",
+              id: "hosted",
+              name: "web_search",
+              executed: true,
+              providerState: { proof: "opaque-hosted-call" },
+              providerResultState: { proof: "opaque-hosted-result" },
+              state: SessionMessage.ToolStateCompleted.make({
+                status: "completed",
+                input: { query: "Effect" },
+                content: [{ type: "text", text: "Visible hosted result" }],
+              }),
+              time: { created, completed: created },
+            }),
+          ],
+          time: { created, completed: created },
+        }),
+        proof,
+      )
+      const source =
+        boundary === "historical"
+          ? { ...message, origin: undefined }
+          : {
+              ...message,
+              attempts: message.attempts?.map(
+                (attempt) =>
+                  new SessionAttempt.Info({
+                    ...attempt,
+                    preparedDeployment: target,
+                    observations:
+                      boundary === "prepared-only"
+                        ? []
+                        : attempt.observations.map(
+                            (observation) =>
+                              new SessionAttempt.RecordedObservation({
+                                ...observation,
+                                deployment:
+                                  boundary === "missing-deployment" ? Struct.omit(proof, ["deployment"]) : proof,
+                              }),
+                          ),
+                  }),
+              ),
+            }
+      const destination =
+        boundary === "other-connection" ? proofFor(model, { connection: { type: "env", name: "ACCOUNT_B" } }) : target
       const lowered = toLLMMessages([source], model, model.providerID, destination)
       const serialized = JSON.stringify(lowered)
       expect(serialized).toContain("Visible text")
@@ -91,11 +186,18 @@ describe("toLLMMessages", () => {
       id: id("communication"),
       type: "synthetic",
       text: "Should I preserve the existing response shape?",
-      metadata: { source: "share", communication: { id: "com_parser_question" },
-        actorSessionID: "ses_parser_worker", contentSourceSessionID: "ses_parser_worker", scope: "text" },
+      metadata: {
+        source: "share",
+        communication: { id: "com_parser_question" },
+        actorSessionID: "ses_parser_worker",
+        contentSourceSessionID: "ses_parser_worker",
+        scope: "text",
+      },
       time: { created },
     })
-    const text = toLLMMessages([communication], model)[0]?.content.flatMap((part) => part.type === "text" ? [part.text] : []).join("\n")
+    const text = toLLMMessages([communication], model)[0]
+      ?.content.flatMap((part) => (part.type === "text" ? [part.text] : []))
+      .join("\n")
     expect(text).toContain("com_parser_question")
     expect(text).toContain("ses_parser_worker")
     expect(text).toContain("replyTo")
@@ -1268,7 +1370,9 @@ Earlier work
       ].map((message) => receipted(message, proofFor(message.model, { apiModelID: "api-fast" }))),
       Model.Ref.make({ id: Model.ID.make("fast"), providerID: Provider.ID.make("provider") }),
       "provider",
-      proofFor(Model.Ref.make({ id: Model.ID.make("fast"), providerID: Provider.ID.make("provider") }), { apiModelID: "api-fast" }),
+      proofFor(Model.Ref.make({ id: Model.ID.make("fast"), providerID: Provider.ID.make("provider") }), {
+        apiModelID: "api-fast",
+      }),
     )
 
     expect(messages[0]?.content).toEqual([
@@ -1331,7 +1435,9 @@ Earlier work
       ].map((message) => receipted(message, proofFor(message.model, { apiModelID: "same" }))),
       Model.Ref.make({ id: Model.ID.make("same"), providerID: Provider.ID.make("provider") }),
       "provider",
-      proofFor(Model.Ref.make({ id: Model.ID.make("same"), providerID: Provider.ID.make("provider") }), { apiModelID: "same" }),
+      proofFor(Model.Ref.make({ id: Model.ID.make("same"), providerID: Provider.ID.make("provider") }), {
+        apiModelID: "same",
+      }),
     )
 
     expect(messages[0]?.content).toEqual([

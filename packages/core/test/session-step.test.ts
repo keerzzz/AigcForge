@@ -39,10 +39,20 @@ const it = testEffect(
     WorkArtifact.layer.pipe(
       Layer.provide(LocationMutation.layer.pipe(Layer.provide(tempLocationLayer))),
       Layer.provide(FileMutation.layer.pipe(Layer.provide(hostEnvironmentLayer))),
-      Layer.provideMerge(AppNodeBuilder.build(
-        LayerNode.group([Database.node, Bus.node, SessionGoal.node, SessionProjector.node, ToolOutput.node, SessionTask.node, FSUtil.node]),
-        [Bus.node.replace(Bus.configured({ persist: true }))],
-      )),
+      Layer.provideMerge(
+        AppNodeBuilder.build(
+          LayerNode.group([
+            Database.node,
+            Bus.node,
+            SessionGoal.node,
+            SessionProjector.node,
+            ToolOutput.node,
+            SessionTask.node,
+            FSUtil.node,
+          ]),
+          [Bus.node.replace(Bus.configured({ persist: true }))],
+        ),
+      ),
     ),
     TestLLM.testLayer(),
   ),
@@ -50,10 +60,28 @@ const it = testEffect(
 
 test("P3 distinguishes absent prices from explicit free quotes", () => {
   const model = LanguageModel.make({ id: "quote-test", provider: "test", route: OpenAIChat.route })
-  const options = { capabilities: { tools: true, input: ["text"], output: ["text"] }, limit: { context: 100_000, output: 1_000 }, cost: [] } satisfies Parameters<typeof SessionRunnerModel.resolved>[1]
+  const options = {
+    capabilities: { tools: true, input: ["text"], output: ["text"] },
+    limit: { context: 100_000, output: 1_000 },
+    cost: [],
+  } satisfies Parameters<typeof SessionRunnerModel.resolved>[1]
   expect(SessionRunnerModel.resolved(model, options).quote).toEqual({ status: "unknown" })
-  expect(SessionRunnerModel.resolved(model, { ...options, quote: { status: "free", prices: [] } }).quote).toEqual({ status: "free", prices: [] })
-  expect(SessionRunnerModel.resolved(model, { ...options, cost: [{ input: Money.USDPerMillionTokens.make(0), output: Money.USDPerMillionTokens.make(0), cache: { read: Money.USDPerMillionTokens.make(0), write: Money.USDPerMillionTokens.make(0) } }] }).quote?.status).toBe("free")
+  expect(SessionRunnerModel.resolved(model, { ...options, quote: { status: "free", prices: [] } }).quote).toEqual({
+    status: "free",
+    prices: [],
+  })
+  expect(
+    SessionRunnerModel.resolved(model, {
+      ...options,
+      cost: [
+        {
+          input: Money.USDPerMillionTokens.make(0),
+          output: Money.USDPerMillionTokens.make(0),
+          cache: { read: Money.USDPerMillionTokens.make(0), write: Money.USDPerMillionTokens.make(0) },
+        },
+      ],
+    }).quote?.status,
+  ).toBe("free")
 })
 
 for (const fixture of [
@@ -200,10 +228,23 @@ for (const fixture of [
           expect(message?.seq).toBeLessThan(completion[0].seq)
         }
         if (fixture.empty) {
-          expect(types).toEqual(["session.attempt.started.1", "session.attempt.ended.1", "session.step.started.1", "session.step.ended.1", "session.step.completed.1"])
+          expect(types).toEqual([
+            "session.attempt.started.1",
+            "session.attempt.ended.1",
+            "session.step.started.1",
+            "session.step.ended.1",
+            "session.step.completed.1",
+          ])
           expect(message?.type).toBe("assistant")
           expect(message?.data).toMatchObject({ content: [] })
-          expect(message?.data).toMatchObject({ finish: "unknown", cost: 0, tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } }, unknownPriceAttempts: 0, missingUsageAttempts: 1, attempts: [{ ordinal: 0, terminal: { status: "completed" } }] })
+          expect(message?.data).toMatchObject({
+            finish: "unknown",
+            cost: 0,
+            tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+            unknownPriceAttempts: 0,
+            missingUsageAttempts: 1,
+            attempts: [{ ordinal: 0, terminal: { status: "completed" } }],
+          })
           return
         }
         const terminal = fixture.finish === "stop" ? "session.step.ended.1" : "session.step.failed.1"
@@ -333,10 +374,21 @@ it.effect("does not complete a pending start snapshot when cancelled and complet
       expect(yield* Deferred.isDone(release)).toBe(false)
       expect(completed).toBe(0)
       const beforeRelease = yield* events()
-      expect(beforeRelease.map((event) => event.type)).toEqual(["session.attempt.started.1", "session.attempt.ended.1", "session.step.started.1", "session.step.failed.1"])
+      expect(beforeRelease.map((event) => event.type)).toEqual([
+        "session.attempt.started.1",
+        "session.attempt.ended.1",
+        "session.step.started.1",
+        "session.step.failed.1",
+      ])
       expect(
         yield* db.select().from(SessionMessageTable).where(eq(SessionMessageTable.id, cancelledID)).get(),
-      ).toMatchObject({ data: { finish: "error", missingUsageAttempts: 1, attempts: [{ ordinal: 0, terminal: { status: "cancelled", outputStarted: false, delivery: "unknown" } }] } })
+      ).toMatchObject({
+        data: {
+          finish: "error",
+          missingUsageAttempts: 1,
+          attempts: [{ ordinal: 0, terminal: { status: "cancelled", outputStarted: false, delivery: "unknown" } }],
+        },
+      })
       // The attempt and its scoped fibers are joined before readiness is released.
       yield* Deferred.succeed(release, undefined)
       expect(yield* events()).toEqual(beforeRelease)
@@ -354,7 +406,10 @@ it.effect("does not complete a pending start snapshot when cancelled and complet
     expect(completions[0].data).toMatchObject({ sessionID, assistantMessageID: normalID })
     const message = yield* db.select().from(SessionMessageTable).where(eq(SessionMessageTable.id, normalID)).get()
     expect(message?.data).toHaveProperty("completion", { id: completions[0].id, seq: completions[0].seq })
-    expect(message?.seq).toBe(recorded.find((event) => event.type === "session.attempt.started.1" && event.data.assistantMessageID === normalID)?.seq)
+    expect(message?.seq).toBe(
+      recorded.find((event) => event.type === "session.attempt.started.1" && event.data.assistantMessageID === normalID)
+        ?.seq,
+    )
     expect(message?.seq).toBeLessThan(completions[0].seq)
     expect(
       yield* db.select().from(SessionMessageTable).where(eq(SessionMessageTable.id, cancelledID)).get(),

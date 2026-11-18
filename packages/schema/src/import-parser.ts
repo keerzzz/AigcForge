@@ -2,19 +2,11 @@ export * as ImportParser from "./import-parser.js"
 
 import { Schema } from "effect"
 
-const Name = Schema.String.pipe(
-  Schema.check(Schema.isMinLength(1)),
-  Schema.check(Schema.isMaxLength(80)),
-)
+const Name = Schema.String.pipe(Schema.check(Schema.isMinLength(1)), Schema.check(Schema.isMaxLength(80)))
 
-const Description = Schema.String.pipe(
-  Schema.check(Schema.isMaxLength(300)),
-)
+const Description = Schema.String.pipe(Schema.check(Schema.isMaxLength(300)))
 
-const Template = Schema.String.pipe(
-  Schema.check(Schema.isMaxLength(100_000)),
-  Schema.check(Schema.isMinLength(1)),
-)
+const Template = Schema.String.pipe(Schema.check(Schema.isMaxLength(100_000)), Schema.check(Schema.isMinLength(1)))
 
 export class Candidate extends Schema.Class<Candidate>("ImportParser.Candidate")({
   kind: Schema.String,

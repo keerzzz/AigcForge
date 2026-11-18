@@ -102,11 +102,7 @@ export async function resolveSessionTarget(input: {
                 ...requestOptions(input.signal),
               )
             : switched
-        if (
-          !selectAgent &&
-          prepared.model &&
-          !sameModelSelection(prepared.model, current.model)
-        ) {
+        if (!selectAgent && prepared.model && !sameModelSelection(prepared.model, current.model)) {
           await input.client.session.switchModel(
             { sessionID: selected.id, model: prepared.model },
             ...requestOptions(input.signal),

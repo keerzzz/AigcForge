@@ -30,18 +30,27 @@ import type { Model } from "@aigcfroge/schema/model"
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
 type SessionMessageData = DistributiveOmit<(typeof SessionMessage.Info)["Encoded"], "type" | "id">
 
-export const SessionGoalTable = sqliteTable("session_goal", {
-  id: text().$type<SessionGoal.ID>().primaryKey(),
-  session_id: text().$type<SessionSchema.ID>().notNull().references(() => SessionTable.id, { onDelete: "cascade" }),
-  revision: integer().notNull(),
-  status: text().$type<SessionGoal.Status>().notNull(),
-  last_round_input_id: text().$type<SessionMessage.ID>(),
-  data: text({ mode: "json" }).$type<typeof SessionGoal.Info.Encoded>().notNull(),
-  ...Timestamps,
-}, (table) => [
-  index("session_goal_session_status").on(table.session_id, table.status),
-  uniqueIndex("session_goal_active").on(table.session_id).where(sql`${table.status} = 'active'`),
-])
+export const SessionGoalTable = sqliteTable(
+  "session_goal",
+  {
+    id: text().$type<SessionGoal.ID>().primaryKey(),
+    session_id: text()
+      .$type<SessionSchema.ID>()
+      .notNull()
+      .references(() => SessionTable.id, { onDelete: "cascade" }),
+    revision: integer().notNull(),
+    status: text().$type<SessionGoal.Status>().notNull(),
+    last_round_input_id: text().$type<SessionMessage.ID>(),
+    data: text({ mode: "json" }).$type<typeof SessionGoal.Info.Encoded>().notNull(),
+    ...Timestamps,
+  },
+  (table) => [
+    index("session_goal_session_status").on(table.session_id, table.status),
+    uniqueIndex("session_goal_active")
+      .on(table.session_id)
+      .where(sql`${table.status} = 'active'`),
+  ],
+)
 
 export const SessionTable = sqliteTable(
   "session_v2",

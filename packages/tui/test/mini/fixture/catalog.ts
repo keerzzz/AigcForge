@@ -1,5 +1,11 @@
 import { spyOn } from "bun:test"
-import type { LocationRef, ModelListOutput, AigcForgeClient, ProviderListOutput, ModelGroupRead } from "@aigcfroge/client/promise"
+import type {
+  LocationRef,
+  ModelListOutput,
+  AigcForgeClient,
+  ProviderListOutput,
+  ModelGroupRead,
+} from "@aigcfroge/client/promise"
 
 export function catalogProvider(id: string, name: string): ProviderListOutput["data"][number] {
   return {
@@ -56,7 +62,10 @@ export function stubCatalogLists(
   return {
     provider: spyOn(sdk.provider, "list").mockResolvedValue({ location, data: input.providers ?? [] } as never),
     model: spyOn(sdk.model, "list").mockResolvedValue({ location, data: input.models ?? [] } as never),
-    group: spyOn(sdk.model.group.definition, "get").mockResolvedValue({ location, data: input.groups ?? { targets: [], definitions: [], effective: [] } }),
+    group: spyOn(sdk.model.group.definition, "get").mockResolvedValue({
+      location,
+      data: input.groups ?? { targets: [], definitions: [], effective: [] },
+    }),
     agent: spyOn(sdk.agent, "list").mockResolvedValue(empty as never),
     reference: spyOn(sdk.reference, "list").mockResolvedValue(empty as never),
     command: spyOn(sdk.command, "list").mockResolvedValue(empty as never),

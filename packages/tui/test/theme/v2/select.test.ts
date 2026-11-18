@@ -20,6 +20,9 @@ test("selects the available mode when the requested mode is missing", () => {
   expect(themeModes(darkOnly)).toEqual(["dark"])
   expect(supportsThemeMode(lightOnly, "light")).toBeTrue()
   expect(supportsThemeMode(lightOnly, "dark")).toBeFalse()
-  expect(selectThemeMode(lightOnly, "dark")).toEqual({ theme: selectTheme(getAigcForgeTheme(), "light"), mode: "light" })
+  expect(selectThemeMode(lightOnly, "dark")).toEqual({
+    theme: selectTheme(getAigcForgeTheme(), "light"),
+    mode: "light",
+  })
   expect(selectThemeMode(darkOnly, "light")).toEqual({ theme: selectTheme(getAigcForgeTheme(), "dark"), mode: "dark" })
 })

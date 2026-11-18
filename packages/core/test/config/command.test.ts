@@ -74,32 +74,74 @@ const it = testEffect(
 const decode = Schema.decodeUnknownSync(Info)
 
 describe("ConfigCommandPlugin.Plugin", () => {
-  it.live("passes logical Groups and physical group-prefixed providers from JSON and Markdown commands", () => Effect.gen(function* () {
-    const tmp = yield* FSUtil.Service.use((fs) => fs.makeTempDirectoryScoped({ prefix: "command-group-" }))
-    const fs = yield* FSUtil.Service
-    yield* fs.writeWithDirs(path.join(tmp, "commands", "group.md"), "---\nmodel: group:fallback\n---\nReview $ARGUMENTS")
-    const commands = yield* Command.Service
-    const selections: Model.Selection[] = []
-    yield* ConfigCommandPlugin.Plugin.effect(host({
-      command: { list: () => Effect.die("unused command.list"), transform: commands.transform, reload: commands.reload },
-      session: {
-        switchModel: (input) => Effect.sync(() => { selections.push(input.model) }),
-        prompt: (input) => Effect.succeed(SessionInbox.User.make({
-          id: SessionMessage.ID.create(), sessionID: input.sessionID, time: { created: DateTime.makeUnsafe(0) }, type: "user", payload: { text: input.text }, delivery: input.delivery ?? "steer",
-        })),
-      },
-    })).pipe(Effect.provide(Config.testLayer([
-      new Document({ type: "document", info: decode({ commands: {
-        inline: { template: "Review", model: { type: "group", groupID: "fallback" } },
-        physical: { template: "Review", model: "group:vendor/chat#high" },
-      } }) }),
-      new Directory({ type: "directory", path: AbsolutePath.make(tmp) }),
-    ])))
-    yield* Effect.forEach(["inline", "group", "physical"], (name) => commands.execute({
-      name, invocation: { sessionID: Session.ID.make("ses_group_command"), prompt: { text: "changes" }, delivery: "queue" },
-    }))
-    expect(selections).toEqual([Model.Selection.parse("group:fallback"), Model.Selection.parse("group:fallback"), Model.Ref.parse("group:vendor/chat#high")])
-  }))
+  it.live("passes logical Groups and physical group-prefixed providers from JSON and Markdown commands", () =>
+    Effect.gen(function* () {
+      const tmp = yield* FSUtil.Service.use((fs) => fs.makeTempDirectoryScoped({ prefix: "command-group-" }))
+      const fs = yield* FSUtil.Service
+      yield* fs.writeWithDirs(
+        path.join(tmp, "commands", "group.md"),
+        "---\nmodel: group:fallback\n---\nReview $ARGUMENTS",
+      )
+      const commands = yield* Command.Service
+      const selections: Model.Selection[] = []
+      yield* ConfigCommandPlugin.Plugin.effect(
+        host({
+          command: {
+            list: () => Effect.die("unused command.list"),
+            transform: commands.transform,
+            reload: commands.reload,
+          },
+          session: {
+            switchModel: (input) =>
+              Effect.sync(() => {
+                selections.push(input.model)
+              }),
+            prompt: (input) =>
+              Effect.succeed(
+                SessionInbox.User.make({
+                  id: SessionMessage.ID.create(),
+                  sessionID: input.sessionID,
+                  time: { created: DateTime.makeUnsafe(0) },
+                  type: "user",
+                  payload: { text: input.text },
+                  delivery: input.delivery ?? "steer",
+                }),
+              ),
+          },
+        }),
+      ).pipe(
+        Effect.provide(
+          Config.testLayer([
+            new Document({
+              type: "document",
+              info: decode({
+                commands: {
+                  inline: { template: "Review", model: { type: "group", groupID: "fallback" } },
+                  physical: { template: "Review", model: "group:vendor/chat#high" },
+                },
+              }),
+            }),
+            new Directory({ type: "directory", path: AbsolutePath.make(tmp) }),
+          ]),
+        ),
+      )
+      yield* Effect.forEach(["inline", "group", "physical"], (name) =>
+        commands.execute({
+          name,
+          invocation: {
+            sessionID: Session.ID.make("ses_group_command"),
+            prompt: { text: "changes" },
+            delivery: "queue",
+          },
+        }),
+      )
+      expect(selections).toEqual([
+        Model.Selection.parse("group:fallback"),
+        Model.Selection.parse("group:fallback"),
+        Model.Ref.parse("group:vendor/chat#high"),
+      ])
+    }),
+  )
 
   for (const item of [
     ...["$&", "$$", "$`", "$'"].flatMap((input) => [
@@ -432,7 +474,9 @@ describeNative("ConfigCommandPlugin native watcher", () => {
     Effect.gen(function* () {
       const fs = yield* FSUtil.Service
       // Watcher events report real paths, so resolve the tempdir symlink up front.
-      const tmp = yield* fs.makeTempDirectoryScoped({ prefix: "aigcfroge-core-test-" }).pipe(Effect.flatMap(fs.realPath))
+      const tmp = yield* fs
+        .makeTempDirectoryScoped({ prefix: "aigcfroge-core-test-" })
+        .pipe(Effect.flatMap(fs.realPath))
       const global = path.join(tmp, "global")
       yield* fs.makeDirectory(path.join(global, "commands"), { recursive: true })
       yield* fs.makeDirectory(path.join(tmp, "project"))

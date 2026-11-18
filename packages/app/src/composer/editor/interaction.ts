@@ -71,7 +71,10 @@ export function createComposerEditor(input: {
   onContextRemove?: (item: ComposerComment) => void
   onEditor?: (element: HTMLElement) => void
   onSuggestionSelect?: (item: ComposerSuggestion) => (() => void) | void
-  referenceLabel?: (reference: SessionReference.RefEncoded) => { title: string; status: "ready" | "missing" | "offline" }
+  referenceLabel?: (reference: SessionReference.RefEncoded) => {
+    title: string
+    status: "ready" | "missing" | "offline"
+  }
   openReference?: (reference: SessionReference.RefEncoded) => void
   resolveReferences?: (text: string, signal: AbortSignal) => Promise<ComposerSessionPart[] | undefined>
   view: ComposerEditorView
@@ -523,12 +526,14 @@ export function createComposerEditor(input: {
           const inserted: ComposerPersistedState["prompt"] = []
           let cursor = 0
           references.forEach((reference) => {
-            if (reference.start > cursor) inserted.push({ type: "text", content: normalized.slice(cursor, reference.start), start: 0, end: 0 })
+            if (reference.start > cursor)
+              inserted.push({ type: "text", content: normalized.slice(cursor, reference.start), start: 0, end: 0 })
             inserted.push(reference)
             cursor = reference.end
           })
 
-          if (cursor < normalized.length) inserted.push({ type: "text", content: normalized.slice(cursor), start: 0, end: 0 })
+          if (cursor < normalized.length)
+            inserted.push({ type: "text", content: normalized.slice(cursor), start: 0, end: 0 })
           draft.replaceRange({ start, end: start + normalized.length }, inserted)
         })
 

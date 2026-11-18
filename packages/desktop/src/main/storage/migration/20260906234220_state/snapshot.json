@@ -2,9 +2,7 @@
   "version": "7",
   "dialect": "sqlite",
   "id": "5a2f8b7e-2765-4a0b-8877-a74ee2f29b20",
-  "prevIds": [
-    "463be56f-5f29-4831-9d00-1b9c6bd957e3"
-  ],
+  "prevIds": ["463be56f-5f29-4831-9d00-1b9c6bd957e3"],
   "ddl": [
     {
       "name": "blob",
@@ -99,28 +97,21 @@
       "table": "state"
     },
     {
-      "columns": [
-        "name",
-        "key"
-      ],
+      "columns": ["name", "key"],
       "nameExplicit": false,
       "name": "state_pk",
       "entityType": "pks",
       "table": "state"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "blob_pk",
       "table": "blob",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "key"
-      ],
+      "columns": ["key"],
       "nameExplicit": false,
       "name": "document_pk",
       "table": "document",

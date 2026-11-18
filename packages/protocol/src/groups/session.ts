@@ -802,7 +802,9 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
           follow: BooleanFromString.pipe(Schema.optional),
         },
         success: HttpApiSchema.StreamSse({
-          data: Schema.Union([SessionEvent.Durable, SessionTaskEvent.Durable, EventLog.Synced]).annotate({ identifier: "SessionLogItem" }),
+          data: Schema.Union([SessionEvent.Durable, SessionTaskEvent.Durable, EventLog.Synced]).annotate({
+            identifier: "SessionLogItem",
+          }),
         }),
         error: SessionNotFoundError,
       }).annotateMerge(

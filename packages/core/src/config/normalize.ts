@@ -199,7 +199,8 @@ export function normalize(input: unknown): Result {
   const model = own(input, "model")
     ? decodeValue(ConfigModel.Selection, input.model, ["model"], diagnostics)
     : undefined
-  if (model) encoded.model = "type" in model ? model : { ...model, providerID: ConfigMigrateV1.providerID(model.providerID) }
+  if (model)
+    encoded.model = "type" in model ? model : { ...model, providerID: ConfigMigrateV1.providerID(model.providerID) }
 
   const nativeAtomic = Struct.omit(Info.fields, [
     "update",

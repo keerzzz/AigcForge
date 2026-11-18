@@ -40,11 +40,14 @@ export function createRequestQueue(input: {
   stallMs?: number
   headersTimeoutMs?: number
   setupHeadersTimeoutMs?: number
-  log?: (message: string, data: {
-    limit: number
-    inflight: (Pick<Entry, "method" | "url"> & { ms: number })[]
-    queued: (Pick<Entry, "method" | "url"> & { ms: number })[]
-  }) => void
+  log?: (
+    message: string,
+    data: {
+      limit: number
+      inflight: (Pick<Entry, "method" | "url"> & { ms: number })[]
+      queued: (Pick<Entry, "method" | "url"> & { ms: number })[]
+    },
+  ) => void
   now?: () => number
 }) {
   const limit = input.limit ?? requestQueueLimit

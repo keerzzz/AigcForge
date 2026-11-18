@@ -199,7 +199,9 @@ export const provider = (options: Options): OAuthClientProvider => {
     redirectToAuthorization: (url) => {
       if (!redirect) throw refuse("user authorization")
       if (url.protocol !== "http:" && url.protocol !== "https:")
-        throw new Error(`MCP server "${options.config.url}" returned a ${url.protocol} authorization URL; only http and https are supported`)
+        throw new Error(
+          `MCP server "${options.config.url}" returned a ${url.protocol} authorization URL; only http and https are supported`,
+        )
       return redirect.open(url)
     },
     ...(options.invalidate ? { invalidateCredentials: options.invalidate } : {}),
@@ -376,7 +378,9 @@ export const authorize = (input: {
       if (!value) return fail("Missing authorization code", "missing_code")
       // The page waits for the token exchange so the browser never reports success for a rejected code.
       if (
-        !Effect.runSync(Deferred.succeed(code, { code: value, iss: url.searchParams.get("iss") ?? undefined, response }))
+        !Effect.runSync(
+          Deferred.succeed(code, { code: value, iss: url.searchParams.get("iss") ?? undefined, response }),
+        )
       )
         response.writeHead(409).end("OAuth callback already received")
     })

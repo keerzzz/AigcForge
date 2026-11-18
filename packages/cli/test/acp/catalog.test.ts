@@ -9,27 +9,51 @@ import { rpcError, secondModel, startWire } from "./wire-fixture"
 
 describe("acp catalog and config options over the wire", () => {
   test.each(["explicit variant", "group", "fallback"])("preserves the model catalog %s selection", async (mode) => {
-    const preferred = mode === "group"
-      ? Model.Selection.parse("group:fallback")
-      : mode === "explicit variant"
-      ? { ...Model.Ref.parse("test/test-model"), variant: Model.VariantID.make("high") }
-      : undefined
+    const preferred =
+      mode === "group"
+        ? Model.Selection.parse("group:fallback")
+        : mode === "explicit variant"
+          ? { ...Model.Ref.parse("test/test-model"), variant: Model.VariantID.make("high") }
+          : undefined
     await using acp = await startWire({
       fetch: (request) => {
         if (request.path !== "/api/model/group") return
-        return Response.json({ location: { directory: "/workspace" }, data: {
-          targets: [], definitions: [], effective: mode === "group" ? [{ groupID: "fallback", definition: {
-            name: "Fallback", enabled: true, members: [Model.Ref.parse("test/test-model")], strategy: "order", affinity: "turn",
-          } }] : [],
-          ...(preferred ? { defaultSelection: preferred } : {}),
-        } })
+        return Response.json({
+          location: { directory: "/workspace" },
+          data: {
+            targets: [],
+            definitions: [],
+            effective:
+              mode === "group"
+                ? [
+                    {
+                      groupID: "fallback",
+                      definition: {
+                        name: "Fallback",
+                        enabled: true,
+                        members: [Model.Ref.parse("test/test-model")],
+                        strategy: "order",
+                        affinity: "turn",
+                      },
+                    },
+                  ]
+                : [],
+            ...(preferred ? { defaultSelection: preferred } : {}),
+          },
+        })
       },
     })
-    const value = await Effect.runPromise(AigcForge.make({ baseUrl: acp.server.url }).pipe(
-      Effect.flatMap(ACPCatalog.make), Effect.flatMap((catalog) => catalog.get("/workspace")),
-      Effect.scoped, Effect.provide(FetchHttpClient.layer),
-    ))
-    expect(value.defaultModel).toEqual(preferred ?? { ...Model.Ref.parse("test/test-model"), variant: Model.VariantID.make("default") })
+    const value = await Effect.runPromise(
+      AigcForge.make({ baseUrl: acp.server.url }).pipe(
+        Effect.flatMap(ACPCatalog.make),
+        Effect.flatMap((catalog) => catalog.get("/workspace")),
+        Effect.scoped,
+        Effect.provide(FetchHttpClient.layer),
+      ),
+    )
+    expect(value.defaultModel).toEqual(
+      preferred ?? { ...Model.Ref.parse("test/test-model"), variant: Model.VariantID.make("default") },
+    )
   })
 
   test("switches model, effort, and mode against the warm catalog", async () => {

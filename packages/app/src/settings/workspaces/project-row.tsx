@@ -56,11 +56,12 @@ export function SettingsProjectRow(props: {
     const context = global.ensureServerCtx(props.server)
     const value = name === getFilename(props.project.worktree) ? "" : name
 
-    const saved = await (props.project.id && props.project.id !== "global"
-      ? context.sdk.api.project
-          .update({ projectID: props.project.id, name: value })
-          .then((project) => context.sync.project.update(project))
-      : Promise.resolve(context.sync.project.meta(props.project.worktree, { name: value }))
+    const saved = await (
+      props.project.id && props.project.id !== "global"
+        ? context.sdk.api.project
+            .update({ projectID: props.project.id, name: value })
+            .then((project) => context.sync.project.update(project))
+        : Promise.resolve(context.sync.project.meta(props.project.worktree, { name: value }))
     )
       .then(() => true)
       .catch((cause: unknown) => {

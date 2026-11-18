@@ -2,14 +2,7 @@
   "version": 1,
   "metadata": {
     "model": "muse-spark-1.3",
-    "tags": [
-      "prefix:meta-messages",
-      "provider:meta",
-      "protocol:meta-messages",
-      "text",
-      "reasoning",
-      "enabled"
-    ],
+    "tags": ["prefix:meta-messages", "provider:meta", "protocol:meta-messages", "text", "reasoning", "enabled"],
     "name": "meta-messages/streams-text-with-enabled-thinking",
     "recordedAt": "2026-09-29T05:29:50.023Z"
   },

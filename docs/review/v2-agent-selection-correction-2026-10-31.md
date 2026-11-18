@@ -339,7 +339,6 @@ Remaining TUI/Mini/App and frontend work keeps its original owner and unlock con
 
 §39历史检查点（当前见§40）：2026-11-02 当前MC02接续：[专项§39](../research/upstream-v2-sync/2026-10-29-meta-cpu-closure-plan.md#39-2026-11-02-mc02冻结目录与缺省执行偏好验收)已核冻结Meta目录工程与原生消费者：snapshot原始coder/writer保持，当前Session策略coder deny、writer ask，实际Flash/high一次HTTP200仅输出FROZEN_DIRECTORY_OK: writer；原生首发保持executorPreference缺省，executor POST0、prompt POST1、ACK200，Root21/21核对，独立结果复核与文档复核分别记录。Build、Plan、Meta公共注册及模型入口保持。前置原生fixture失败均0模型且保留；完整资产/CLI目录scope/source/adoption/执行实现版本与MC02–MC10/M01–M24仍开放，MC01绿色组不重开。
 
-
 §40历史检查点（当前见§41）：2026-11-02 当前MC02接续：[专项§40](../research/upstream-v2-sync/2026-10-29-meta-cpu-closure-plan.md#40-2026-11-02-mc02冻结skill资产目录验收)已有限接受冻结Skill目录：2生产文件＋2keeper，59/0、317断言；新Custom/Meta原生1次Flash/high HTTP200，仅列Root craft并保留Authored empty prompt，Root与独审24/24条件核对。快照不变，executor偏好缺省、executor POST0、prompt POST1、ACK200，实际工具调用0；真实Skill leaf未验。完整MC02原目录/来源scope/冻结版本余项仍开放；CLI真实执行归MC06，全模式执行实现绑定归原B04，MC03原依赖保持，MC01绿色组不重开。
 
 §43历史检查点（当前见§44）：2026-11-02 当前按[专项§43](../research/upstream-v2-sync/2026-10-29-meta-cpu-closure-plan.md#43-2026-11-02-mc03项目memory内容写入守卫验收)接续：MC01、MC02原退出保持接受；MC03逐次授权首片§42与新项目memory内容写入守卫已有限接受。八项既有凭据文本检测共享复用，Correction两项路径拒绝保持，安全文件引用可记录；RED0/2/2、GREEN31/0/101、格式后20/0/90分轮记录，新Flash/high2次HTTP200、一次脱敏Tool error与第二请求消费、SQL前后0事实，26/26条件通过。六actions/controller/runner均0；Source实际退出码未捕获。默认曝光、来源关系、旧事实读取/自动memory与纠错/CRUD/生命周期仍沿原MC03，完整MC03不关闭；CLI MC06、全模式B04、S1及历史owner/unlock保持。

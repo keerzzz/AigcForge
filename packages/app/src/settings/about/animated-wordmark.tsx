@@ -75,9 +75,7 @@ export function AnimatedWordmark(props: { active: boolean }) {
         </symbol>
       </defs>
       <For each={state.letters}>
-        {(letter, index) => (
-          <use href={`#settings-about-letter-${letter}`} x={index() * 30} width="24" height="42" />
-        )}
+        {(letter, index) => <use href={`#settings-about-letter-${letter}`} x={index() * 30} width="24" height="42" />}
       </For>
     </svg>
   )

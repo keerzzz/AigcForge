@@ -1165,9 +1165,18 @@ export function RunModelSelectBody(props: {
       const value: ModelPreferenceModel = { type: "group", groupID: group.groupID }
       const selected = props.current()
       const current = selected !== undefined && modelPreferenceKey(selected) === modelPreferenceKey(value)
-      return [{ value, providerName: "Model groups", category: "Model groups", display: group.definition.name,
-        footer: current ? "current" : `${group.definition.members.length} members`,
-        footerTone: current ? "selection" : undefined, keywords: `${group.groupID} ${group.definition.name}`, current }]
+      return [
+        {
+          value,
+          providerName: "Model groups",
+          category: "Model groups",
+          display: group.definition.name,
+          footer: current ? "current" : `${group.definition.members.length} members`,
+          footerTone: current ? "selection" : undefined,
+          keywords: `${group.groupID} ${group.definition.name}`,
+          current,
+        },
+      ]
     })
     return [...physical, ...groups]
   })

@@ -28,13 +28,13 @@
 
 ## 第一性裁决
 
-| 事实依据 | 选择 | 验证责任 |
-| --- | --- | --- |
-| Session ID被主键、inbox、事件aggregate、执行coordinator和receipt共同引用 | 保留持久ID；在宿主补不带假tab的目标引用和Panel挂载，布局source与内容target分开 | SC01–03验证跨server同ID、多source同target、替换/卸载/恢复与草稿寿命 |
-| 同ServerRuntime已有SharedEvents和一个Data，视图只是消费者 | 复用共享连接及数据；补初始水合、重连和旧响应处理，不新建SSE/状态缓存 | SC01使用原Client/Data keeper，SC03/07验证实际多会话视图 |
-| Fork复制真实历史，咨询只需参考，普通capture先生成用户草稿 | 三种动作保留各自语义；Fork公开through，咨询建普通Chat，资产沿原propose/review/apply | SC04–07验证边界、输入归属、用户发送与保存流程 |
-| 现Slot具备typed输入、排序与卸载；现回答操作位置缺失 | 扩展原SlotMap；Fork、资产和侧聊贡献轻量操作 | SC05/06/07补原host与App keeper，不加第二注册表 |
-| child/Meta/Delegation保存真实来源与执行绑定 | child先只读查看，正式控制沿原owner；视图位置不改变权限或回执 | Core/Server原subagent、Meta、Delegation keeper及SC09真实链 |
+| 事实依据                                                                 | 选择                                                                                | 验证责任                                                            |
+| ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Session ID被主键、inbox、事件aggregate、执行coordinator和receipt共同引用 | 保留持久ID；在宿主补不带假tab的目标引用和Panel挂载，布局source与内容target分开      | SC01–03验证跨server同ID、多source同target、替换/卸载/恢复与草稿寿命 |
+| 同ServerRuntime已有SharedEvents和一个Data，视图只是消费者                | 复用共享连接及数据；补初始水合、重连和旧响应处理，不新建SSE/状态缓存                | SC01使用原Client/Data keeper，SC03/07验证实际多会话视图             |
+| Fork复制真实历史，咨询只需参考，普通capture先生成用户草稿                | 三种动作保留各自语义；Fork公开through，咨询建普通Chat，资产沿原propose/review/apply | SC04–07验证边界、输入归属、用户发送与保存流程                       |
+| 现Slot具备typed输入、排序与卸载；现回答操作位置缺失                      | 扩展原SlotMap；Fork、资产和侧聊贡献轻量操作                                         | SC05/06/07补原host与App keeper，不加第二注册表                      |
+| child/Meta/Delegation保存真实来源与执行绑定                              | child先只读查看，正式控制沿原owner；视图位置不改变权限或回执                        | Core/Server原subagent、Meta、Delegation keeper及SC09真实链          |
 
 采用简单方案的已知代价已写入计划：咨询参考会沿正常历史参与压缩，需要精确原文时读取已保存输入。没有已运行的第二ID生成策略，不建立IdProvider；没有第二传输需求，不建立多协议SSE框架。
 

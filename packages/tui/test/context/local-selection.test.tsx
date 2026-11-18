@@ -1,7 +1,13 @@
 import { expect, test } from "bun:test"
 import { agent, model, renderLocal, session } from "../fixture/local"
 import { createApi, createEventStream, createFetch, directory, json, type FetchHandler } from "../fixture/tui-client"
-import type { SessionCreateInput, SessionInfo, SessionPromptInput, SessionSwitchAgentInput, ModelSelection } from "@aigcfroge/client"
+import type {
+  SessionCreateInput,
+  SessionInfo,
+  SessionPromptInput,
+  SessionSwitchAgentInput,
+  ModelSelection,
+} from "@aigcfroge/client"
 import { CliRenderEvents, InputRenderable, TextareaRenderable } from "@opentui/core"
 import { once } from "node:events"
 import { DialogVariant } from "../../src/component/dialog-variant"
@@ -138,36 +144,44 @@ test("new-session fallback still skips unavailable CLI and recent models", async
   expect(setup.local.model.available()).toBe(true)
 })
 
-test.each(["provider/chat#high", "provider/chat", undefined])("explicit CLI variant precedes saved preferences for %s", async (selected) => {
-  await using setup = await renderLocal({
-    models: [model("chat", ["low", "high"])],
-    args: selected ? { model: selected } : undefined,
-    preferences: { variant: { "provider/chat": "low" } },
-  })
-  expect(setup.local.model.selection()).toEqual({
-    providerID: "provider", modelID: "chat", variant: selected?.includes("#") ? "high" : "low",
-  })
-})
+test.each(["provider/chat#high", "provider/chat", undefined])(
+  "explicit CLI variant precedes saved preferences for %s",
+  async (selected) => {
+    await using setup = await renderLocal({
+      models: [model("chat", ["low", "high"])],
+      args: selected ? { model: selected } : undefined,
+      preferences: { variant: { "provider/chat": "low" } },
+    })
+    expect(setup.local.model.selection()).toEqual({
+      providerID: "provider",
+      modelID: "chat",
+      variant: selected?.includes("#") ? "high" : "low",
+    })
+  },
+)
 
-test.each(["coding", "work", "custom", undefined] as const)("ordinary Agent and Executor choices use Session mode %s", async (mode) => {
-  const saved = { ...session("ses_mode_" + mode), mode }
-  await using setup = await renderLocal({
-    agents: [
-      { ...agent("build"), mode: "all", originKind: "builtin", ordinaryModes: ProductMode.ID.literals.slice() },
-      { ...agent("authored"), mode: "all", originKind: "user", ordinaryModes: ["custom"] },
-      { ...agent("legacy"), mode: "all" },
-    ],
-    sessions: mode ? [saved] : [],
-  })
-  if (mode) {
-    await setup.data.session.sync(saved.id)
-    setup.route.navigate({ type: "session", sessionID: saved.id })
-    expect(setup.data.session.get(saved.id)?.mode).toBe(mode)
-  }
-  const expected = mode === "custom" ? ["build", "authored", "legacy"] : ["build", "legacy"]
-  expect(setup.local.agent.list().map((item) => item.id)).toEqual(expected)
-  expect(setup.local.executor.agent.list().map((item) => item.id)).toEqual(expected)
-})
+test.each(["coding", "work", "custom", undefined] as const)(
+  "ordinary Agent and Executor choices use Session mode %s",
+  async (mode) => {
+    const saved = { ...session("ses_mode_" + mode), mode }
+    await using setup = await renderLocal({
+      agents: [
+        { ...agent("build"), mode: "all", originKind: "builtin", ordinaryModes: ProductMode.ID.literals.slice() },
+        { ...agent("authored"), mode: "all", originKind: "user", ordinaryModes: ["custom"] },
+        { ...agent("legacy"), mode: "all" },
+      ],
+      sessions: mode ? [saved] : [],
+    })
+    if (mode) {
+      await setup.data.session.sync(saved.id)
+      setup.route.navigate({ type: "session", sessionID: saved.id })
+      expect(setup.data.session.get(saved.id)?.mode).toBe(mode)
+    }
+    const expected = mode === "custom" ? ["build", "authored", "legacy"] : ["build", "legacy"]
+    expect(setup.local.agent.list().map((item) => item.id)).toEqual(expected)
+    expect(setup.local.executor.agent.list().map((item) => item.id)).toEqual(expected)
+  },
+)
 
 test.each(["build", "plan"])("production Prompt creates the backend-default %s Agent", async (selected) => {
   const created = Promise.withResolvers<SessionCreateInput>()
@@ -217,9 +231,10 @@ test.each(["build", "plan"])("production Prompt creates the backend-default %s A
   })
   await setup.ready
   // Handoff acknowledges the first frame; submission also needs the catalog selection.
-  await setup.waitForFrame((frame) =>
-    frame.includes(selectedModel.id + " Provider · " + selectedModel.variant) &&
-    setup.renderer.currentFocusedRenderable instanceof TextareaRenderable,
+  await setup.waitForFrame(
+    (frame) =>
+      frame.includes(selectedModel.id + " Provider · " + selectedModel.variant) &&
+      setup.renderer.currentFocusedRenderable instanceof TextareaRenderable,
   )
   await setup.mockInput.typeText("ordinary selection")
   setup.mockInput.pressEnter()
@@ -407,7 +422,9 @@ async function publishSelection(
   await setup.waitFor(async () => {
     await Bun.sleep(10)
     const session = setup.data.session.get("ses_first")
-    return session?.agent === agent && session.model !== undefined && "id" in session.model && session.model.id === modelID
+    return (
+      session?.agent === agent && session.model !== undefined && "id" in session.model && session.model.id === modelID
+    )
   })
 }
 

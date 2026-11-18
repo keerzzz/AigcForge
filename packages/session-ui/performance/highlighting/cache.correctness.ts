@@ -31,5 +31,7 @@ test("reuses only matching patch, theme, and worker options", async ({ page }) =
   const plain = await page.evaluate(() => window.highlighting.mount(2))
   expect(plain.workerRequests).toBe(1)
   expect(plain.options.tokenizeMaxLineLength).toBe(1)
-  expect(await page.evaluate(() => window.highlighting.contents()!.after === window.highlighting.input.after[1])).toBe(true)
+  expect(await page.evaluate(() => window.highlighting.contents()!.after === window.highlighting.input.after[1])).toBe(
+    true,
+  )
 })

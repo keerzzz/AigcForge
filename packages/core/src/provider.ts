@@ -117,7 +117,10 @@ const builtins = new Map<string, () => Promise<unknown>>([
   ["@aigcfroge/ai/providers/xai", () => import("@aigcfroge/ai/providers/xai")],
   ["@aigcfroge/ai/providers/zai/chat", () => import("@aigcfroge/ai/providers/zai/chat")],
   ["@aigcfroge/ai/providers/zai-coding-plan/chat", () => import("@aigcfroge/ai/providers/zai-coding-plan/chat")],
-  ["@aigcfroge/ai/providers/zai-coding-plan/messages", () => import("@aigcfroge/ai/providers/zai-coding-plan/messages")],
+  [
+    "@aigcfroge/ai/providers/zai-coding-plan/messages",
+    () => import("@aigcfroge/ai/providers/zai-coding-plan/messages"),
+  ],
   [
     "@aigcfroge/ai/providers/zai-coding-plan/responses",
     () => import("@aigcfroge/ai/providers/zai-coding-plan/responses"),
@@ -324,95 +327,101 @@ const layer = Layer.effect(
     let byID = new Map<Integration.ID, Integration.Info>()
     let connectionSignature = ""
     const editor = (records: Records, input?: ConnectionInput): Editor => {
-        const maps = new WeakSet<ReadonlyMap<Model.ID, Model.Info>>()
-        const models = new WeakSet<Model.Info>()
-        const entry = (id: ID) => {
-          const current = records.get(id)
-          if (current) return current
-          const added = { provider: Info.empty(id) as MutableInfo, models: new Map<Model.ID, Model.Info>() }
-          records.set(id, added)
-          maps.add(added.models)
-          return added
-        }
-        const writable = (id: ID) => {
-          const record = entry(id)
-          if (maps.has(record.models)) return record.models as Map<Model.ID, Model.Info>
-          const owned = new Map(record.models)
-          record.models = owned
-          maps.add(owned)
-          return owned
-        }
-        return {
-          scope: input,
-          connection: (id) => {
-            const integration = byID.get(id)
-            if (input && id === (records.get(input.providerID)?.provider.integrationID ?? Integration.ID.make(input.providerID)))
-              return integration?.connections.find((connection) => IntegrationConnection.key(connection) === IntegrationConnection.key(input.connection))
-            return integration?.connections[0]
-          },
-          list: () => Array.from(records.values()),
-          get: (id) => records.get(id),
-          add: (definition) => {
-            records.set(definition.info.id, {
-              provider: structuredClone(definition.info) as MutableInfo,
-              models: index(definition.info.id, definition.models),
-              sourceConnection: definition.sourceConnection,
-            })
-          },
-          update: (id, update) => {
-            const record = entry(id)
-            update(record.provider)
-            record.provider.id = id
-            AISDKNative.rewrite(record.provider, {
-              specifier: record.provider.package,
-              providerID: id,
-              canonical: record.provider.canonical,
-            })
-          },
-          remove: (id) => {
-            records.delete(id)
-          },
-          models: {
-            set: (id, values) => {
-              entry(id).models = index(id, values)
-            },
-            update: (providerID, modelID, update) => {
-              const record = entry(providerID)
-              const target = writable(providerID)
-              const current = target.get(modelID)
-              const model = // An earlier add/set can publish and freeze an owned model within this fold.
-                (
-                  current && models.has(current) && !Object.isFrozen(current)
-                    ? current
-                    : current
-                      ? structuredClone(current)
-                      : Model.Info.default(providerID, modelID)
-                ) as DeepMutable<Model.Info>
-              update(model)
-              model.id = modelID
-              model.providerID = providerID
-              AISDKNative.rewrite(model, {
-                specifier: model.package ?? record.provider.package,
-                providerID,
-                canonical: model.canonical ?? record.provider.canonical,
-                modelID: model.modelID ?? modelID,
-              })
-              models.add(model)
-              target.set(modelID, model)
-            },
-            remove: (providerID, modelID) => {
-              if (!records.has(providerID)) return
-              writable(providerID).delete(modelID)
-            },
-          },
-        }
+      const maps = new WeakSet<ReadonlyMap<Model.ID, Model.Info>>()
+      const models = new WeakSet<Model.Info>()
+      const entry = (id: ID) => {
+        const current = records.get(id)
+        if (current) return current
+        const added = { provider: Info.empty(id) as MutableInfo, models: new Map<Model.ID, Model.Info>() }
+        records.set(id, added)
+        maps.add(added.models)
+        return added
       }
+      const writable = (id: ID) => {
+        const record = entry(id)
+        if (maps.has(record.models)) return record.models as Map<Model.ID, Model.Info>
+        const owned = new Map(record.models)
+        record.models = owned
+        maps.add(owned)
+        return owned
+      }
+      return {
+        scope: input,
+        connection: (id) => {
+          const integration = byID.get(id)
+          if (
+            input &&
+            id === (records.get(input.providerID)?.provider.integrationID ?? Integration.ID.make(input.providerID))
+          )
+            return integration?.connections.find(
+              (connection) => IntegrationConnection.key(connection) === IntegrationConnection.key(input.connection),
+            )
+          return integration?.connections[0]
+        },
+        list: () => Array.from(records.values()),
+        get: (id) => records.get(id),
+        add: (definition) => {
+          records.set(definition.info.id, {
+            provider: structuredClone(definition.info) as MutableInfo,
+            models: index(definition.info.id, definition.models),
+            sourceConnection: definition.sourceConnection,
+          })
+        },
+        update: (id, update) => {
+          const record = entry(id)
+          update(record.provider)
+          record.provider.id = id
+          AISDKNative.rewrite(record.provider, {
+            specifier: record.provider.package,
+            providerID: id,
+            canonical: record.provider.canonical,
+          })
+        },
+        remove: (id) => {
+          records.delete(id)
+        },
+        models: {
+          set: (id, values) => {
+            entry(id).models = index(id, values)
+          },
+          update: (providerID, modelID, update) => {
+            const record = entry(providerID)
+            const target = writable(providerID)
+            const current = target.get(modelID)
+            const model = // An earlier add/set can publish and freeze an owned model within this fold.
+              (
+                current && models.has(current) && !Object.isFrozen(current)
+                  ? current
+                  : current
+                    ? structuredClone(current)
+                    : Model.Info.default(providerID, modelID)
+              ) as DeepMutable<Model.Info>
+            update(model)
+            model.id = modelID
+            model.providerID = providerID
+            AISDKNative.rewrite(model, {
+              specifier: model.package ?? record.provider.package,
+              providerID,
+              canonical: model.canonical ?? record.provider.canonical,
+              modelID: model.modelID ?? modelID,
+            })
+            models.add(model)
+            target.set(modelID, model)
+          },
+          remove: (providerID, modelID) => {
+            if (!records.has(providerID)) return
+            writable(providerID).delete(modelID)
+          },
+        },
+      }
+    }
     const state = State.create<Map<string, Records>, Map<string, Editor>>({
       name: "provider",
-      initial: () => new Map<string, Records>([
-        ["", new Map<ID, MutableDefinition>()],
-        ...Array.from(requested.keys(), (key) => [key, new Map<ID, MutableDefinition>()] as const),
-      ]),
+      initial: () =>
+        new Map<string, Records>([
+          ["", new Map<ID, MutableDefinition>()],
+          ...Array.from(requested.keys(), (key) => [key, new Map<ID, MutableDefinition>()] as const),
+        ]),
       editor: (records) => new Map(Array.from(records, ([key, value]) => [key, editor(value, requested.get(key))])),
       notify: () => notify,
     })
@@ -441,24 +450,35 @@ const layer = Layer.effect(
         if (revision !== integrations.revision() || views !== state.get()) continue
         const records = views.get(key)
         if (!records) throw new Error("The provider connection view is unavailable")
-        const target = input && (records.get(input.providerID)?.provider.integrationID ?? Integration.ID.make(input.providerID))
-        const selected = new Map(connections.flatMap((integration) => {
-          const connection = input && integration.id === target
-            ? integration.connections.find((connection) => IntegrationConnection.key(connection) === IntegrationConnection.key(input.connection))
-            : integration.connections[0]
-          return connection ? [[integration.id, connection] as const] : []
-        }))
+        const target =
+          input && (records.get(input.providerID)?.provider.integrationID ?? Integration.ID.make(input.providerID))
+        const selected = new Map(
+          connections.flatMap((integration) => {
+            const connection =
+              input && integration.id === target
+                ? integration.connections.find(
+                    (connection) =>
+                      IntegrationConnection.key(connection) === IntegrationConnection.key(input.connection),
+                  )
+                : integration.connections[0]
+            return connection ? [[integration.id, connection] as const] : []
+          }),
+        )
         const available = Array.from(records.values()).filter((record) => {
           if (record.provider.activation === "disabled") return false
           const integrationID = record.provider.integrationID ?? Integration.ID.make(record.provider.id)
           const integration = byID.get(integrationID)
           const connection = selected.get(integrationID)
-          if (input && record.provider.id === input.providerID && (!connection || connection.status?.status === "needs_auth")) return false
+          if (
+            input &&
+            record.provider.id === input.providerID &&
+            (!connection || connection.status?.status === "needs_auth")
+          )
+            return false
           // Never combine the previous account's discovered endpoints/models with a new connection.
           if (
             record.sourceConnection &&
-            IntegrationConnection.key(record.sourceConnection) !==
-              IntegrationConnection.key(connection)
+            IntegrationConnection.key(record.sourceConnection) !== IntegrationConnection.key(connection)
           )
             return false
           if (record.provider.activation === "enabled") return true
@@ -468,12 +488,22 @@ const layer = Layer.effect(
         // A credential change that leaves the same definitions available is not a catalog change.
         const previous = cached.get(key)
         if (
-          previous && previous.records === records &&
+          previous &&
+          previous.records === records &&
           previous.value.available.length === available.length &&
           previous.value.available.every((record, index) => record === available[index])
         )
           return previous.value
-        const value = freeze({ scope: input, connections: selected, records, available, providers: available.map((record) => record.provider) }, true)
+        const value = freeze(
+          {
+            scope: input,
+            connections: selected,
+            records,
+            available,
+            providers: available.map((record) => record.provider),
+          },
+          true,
+        )
         cached.set(key, { records, value })
         return value
       }
@@ -498,9 +528,11 @@ const layer = Layer.effect(
     return Service.of({
       transform: (update) => state.transform((editors) => editors.forEach(update)),
       reload: state.reload,
-      get: Effect.fn("Provider.get")((id, connection) => connection
-        ? snapshot({ providerID: id, connection }).pipe(Effect.map((value) => value.records.get(id)?.provider))
-        : Effect.sync(() => freeze(state.get().get("")?.get(id)?.provider, true))),
+      get: Effect.fn("Provider.get")((id, connection) =>
+        connection
+          ? snapshot({ providerID: id, connection }).pipe(Effect.map((value) => value.records.get(id)?.provider))
+          : Effect.sync(() => freeze(state.get().get("")?.get(id)?.provider, true)),
+      ),
       all: Effect.fn("Provider.all")(() =>
         Effect.sync(() => Array.from(state.get().get("")?.values() ?? [], (record) => freeze(record.provider, true))),
       ),

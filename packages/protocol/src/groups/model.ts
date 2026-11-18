@@ -22,7 +22,9 @@ export const ModelGroup = HttpApiGroup.make("server.model")
       payload: ModelGroupSchema.SaveInput,
       success: Location.response(ModelGroupSchema.SaveResult),
       error: [InvalidRequestError, ServiceUnavailableError],
-    }).annotate(HttpApi.PayloadParseOptions, { onExcessProperty: "error", errors: "all" }).annotateMerge(locationQueryOpenApi),
+    })
+      .annotate(HttpApi.PayloadParseOptions, { onExcessProperty: "error", errors: "all" })
+      .annotateMerge(locationQueryOpenApi),
   )
   .add(
     HttpApiEndpoint.delete("model.group.definition.remove", "/api/model/group", {
@@ -30,7 +32,9 @@ export const ModelGroup = HttpApiGroup.make("server.model")
       payload: ModelGroupSchema.RemoveInput,
       success: Location.response(ModelGroupSchema.RemoveResult),
       error: [InvalidRequestError, ServiceUnavailableError],
-    }).annotate(HttpApi.PayloadParseOptions, { onExcessProperty: "error", errors: "all" }).annotateMerge(locationQueryOpenApi),
+    })
+      .annotate(HttpApi.PayloadParseOptions, { onExcessProperty: "error", errors: "all" })
+      .annotateMerge(locationQueryOpenApi),
   )
   .add(
     HttpApiEndpoint.get("model.list", "/api/model", {

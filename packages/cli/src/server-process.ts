@@ -124,7 +124,9 @@ const processEffect = Effect.fnUntraced(function* (options: Options) {
             gitbash: process.env.AIGCFROGE_GIT_BASH_PATH,
           },
           fs: {
-            filewatcher: !truthy(process.env.AIGCFROGE_FILEWATCHER_DISABLE ?? process.env.AIGCFROGE_DISABLE_FILEWATCHER),
+            filewatcher: !truthy(
+              process.env.AIGCFROGE_FILEWATCHER_DISABLE ?? process.env.AIGCFROGE_DISABLE_FILEWATCHER,
+            ),
             fff:
               process.env.AIGCFROGE_DISABLE_FFF === undefined
                 ? process.platform !== "win32"

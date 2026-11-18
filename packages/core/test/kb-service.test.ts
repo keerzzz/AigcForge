@@ -15,15 +15,16 @@ import { Global } from "@aigcfroge/util/global"
 import { KBService } from "@aigcfroge/core/session/kb-service"
 import { pollWithTimeout, testEffect } from "./lib/effect"
 
-const core = AppNodeBuilder.build(LayerNode.group([Database.node, Bus.node, FSUtil.node, Environment.node, Location.node]), [
-  Bus.node.replace(Bus.configured()),
-  Location.node.replace(
-    Layer.succeed(Location.Service, Location.Service.of(location({ directory: AbsolutePath.make("/") }))),
-  ),
-])
-const it = testEffect(
-  KBService.layer.pipe(Layer.provideMerge(FileMutation.layer), Layer.provideMerge(core)),
+const core = AppNodeBuilder.build(
+  LayerNode.group([Database.node, Bus.node, FSUtil.node, Environment.node, Location.node]),
+  [
+    Bus.node.replace(Bus.configured()),
+    Location.node.replace(
+      Layer.succeed(Location.Service, Location.Service.of(location({ directory: AbsolutePath.make("/") }))),
+    ),
+  ],
 )
+const it = testEffect(KBService.layer.pipe(Layer.provideMerge(FileMutation.layer), Layer.provideMerge(core)))
 
 // Real temp dirs exercise the file mirror; fsLayer backs onto the
 // node filesystem. Track created dirs so afterAll can remove them — the tests

@@ -66,7 +66,12 @@ export function staleAnswer(root: Composition.BuiltinRoot["id"], expected: strin
   }
 }
 
-export function startAnswer(input: Composition.StartInput, directory: string, value: Composition.Plan, projectID = "proj_custom_composition") {
+export function startAnswer(
+  input: Composition.StartInput,
+  directory: string,
+  value: Composition.Plan,
+  projectID = "proj_custom_composition",
+) {
   const root = value.input.source === "temporary" ? value.input.root : undefined
 
   const started = Schema.decodeUnknownSync(Schema.toCodecJson(Composition.StartResponse))({

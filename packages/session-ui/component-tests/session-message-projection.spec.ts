@@ -62,22 +62,29 @@ story("renders user image, file attachment, file reference, and agent reference"
   await expect(timeline.getByText("@explore", { exact: true })).toBeVisible()
 })
 
-story("mixed inline references retain exact server identity and follow deletion or disconnection", async ({ mount }) => {
-  const timeline = await mount("current-session-timeline-rows--conversation", { args: { scenario: "coordination" } })
-  const first = timeline.getByRole("button", { name: "Session Newest title A on server-a", exact: true })
-  const second = timeline.getByRole("button", { name: "Session Newest title B on server-b", exact: true })
-  await expect(timeline.getByText("@build", { exact: true })).toBeVisible()
-  await expect(timeline.getByText("@src/a.ts", { exact: true })).toBeVisible()
-  await expect(first).toBeEnabled()
-  await expect(second).toBeEnabled()
-  await second.click()
-  await expect(timeline.getByLabel("Opened Session reference")).toHaveText('{"serverID":"server-b","sessionID":"ses_same","title":"Saved title","scope":{"kind":"through","messageID":"msg_saved_boundary"}}')
-  await timeline.getByRole("button", { name: "Mark remote reference deleted", exact: true }).click()
-  await expect(second).toBeDisabled()
-  await expect(first).toBeEnabled()
-  await first.click()
-  await expect(timeline.getByLabel("Opened Session reference")).toHaveText('{"serverID":"server-a","sessionID":"ses_same","title":"Saved title","scope":{"kind":"identity"}}')
-  await timeline.getByRole("button", { name: "Disconnect remote reference", exact: true }).click()
-  await expect(second).toBeDisabled()
-  await expect(first).toBeEnabled()
-})
+story(
+  "mixed inline references retain exact server identity and follow deletion or disconnection",
+  async ({ mount }) => {
+    const timeline = await mount("current-session-timeline-rows--conversation", { args: { scenario: "coordination" } })
+    const first = timeline.getByRole("button", { name: "Session Newest title A on server-a", exact: true })
+    const second = timeline.getByRole("button", { name: "Session Newest title B on server-b", exact: true })
+    await expect(timeline.getByText("@build", { exact: true })).toBeVisible()
+    await expect(timeline.getByText("@src/a.ts", { exact: true })).toBeVisible()
+    await expect(first).toBeEnabled()
+    await expect(second).toBeEnabled()
+    await second.click()
+    await expect(timeline.getByLabel("Opened Session reference")).toHaveText(
+      '{"serverID":"server-b","sessionID":"ses_same","title":"Saved title","scope":{"kind":"through","messageID":"msg_saved_boundary"}}',
+    )
+    await timeline.getByRole("button", { name: "Mark remote reference deleted", exact: true }).click()
+    await expect(second).toBeDisabled()
+    await expect(first).toBeEnabled()
+    await first.click()
+    await expect(timeline.getByLabel("Opened Session reference")).toHaveText(
+      '{"serverID":"server-a","sessionID":"ses_same","title":"Saved title","scope":{"kind":"identity"}}',
+    )
+    await timeline.getByRole("button", { name: "Disconnect remote reference", exact: true }).click()
+    await expect(second).toBeDisabled()
+    await expect(first).toBeEnabled()
+  },
+)

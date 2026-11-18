@@ -23,6 +23,7 @@ export async function openHeldStart(page: Page, route: string) {
       await start.dispatchEvent("click")
       await expect(page.getByRole("button", { name: "Finish startup", exact: true, includeHidden: true })).toBeEnabled()
     },
-    finish: () => page.getByRole("button", { name: "Finish startup", exact: true, includeHidden: true }).dispatchEvent("click"),
+    finish: () =>
+      page.getByRole("button", { name: "Finish startup", exact: true, includeHidden: true }).dispatchEvent("click"),
   }
 }

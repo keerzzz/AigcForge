@@ -58,15 +58,21 @@ const decodeMetadataFile = Schema.decodeUnknownOption(Schema.Struct({ file: Sche
 
 const decodeTaskCoordination = Schema.decodeUnknownOption(Schema.toEncoded(SessionTask.TaskCoordination))
 
-const decodeCommunicationMetadata = Schema.decodeUnknownOption(Schema.Struct({
-  communication: Schema.Struct({ id: SessionCommunication.ID }),
-}))
+const decodeCommunicationMetadata = Schema.decodeUnknownOption(
+  Schema.Struct({
+    communication: Schema.Struct({ id: SessionCommunication.ID }),
+  }),
+)
 
-const decodeSharedSource = Schema.decodeUnknownOption(Schema.Struct({
-  source: Schema.Literal("share"), sourceSessionID: SessionID,
-  actorSessionID: Schema.optional(SessionID), contentSourceSessionID: Schema.optional(SessionID),
-  scope: Schema.Literals(["text", "reference", "output", "full", "result"]),
-}))
+const decodeSharedSource = Schema.decodeUnknownOption(
+  Schema.Struct({
+    source: Schema.Literal("share"),
+    sourceSessionID: SessionID,
+    actorSessionID: Schema.optional(SessionID),
+    contentSourceSessionID: Schema.optional(SessionID),
+    scope: Schema.Literals(["text", "reference", "output", "full", "result"]),
+  }),
+)
 
 type Projection = ReturnType<typeof createReactiveTimelineProjection>
 
@@ -577,11 +583,18 @@ export function createSessionTimelineRowRenderer(input: {
         const unavailable = group ? group.unavailable : data.store.modelGroups ? "missing" : undefined
         const name = group?.definition?.name || selection.groupID
 
-        return { providerID: undefined, variant: undefined, label: i18n.t("ui.sessionTimeline.notice.modelSwitched", {
-          model: unavailable ? i18n.t("ui.message.modelGroupUnavailable", {
-            name, reason: i18n.t(`ui.modelAttempts.group.${unavailable}`),
-          }) : i18n.t("ui.message.modelGroup", { name }),
-        }) }
+        return {
+          providerID: undefined,
+          variant: undefined,
+          label: i18n.t("ui.sessionTimeline.notice.modelSwitched", {
+            model: unavailable
+              ? i18n.t("ui.message.modelGroupUnavailable", {
+                  name,
+                  reason: i18n.t(`ui.modelAttempts.group.${unavailable}`),
+                })
+              : i18n.t("ui.message.modelGroup", { name }),
+          }),
+        }
       }
 
       const match = data.store.provider?.all?.get(selection.providerID)
@@ -598,13 +611,17 @@ export function createSessionTimelineRowRenderer(input: {
     const coordination = createMemo(() => {
       const value = message()
 
-      return value?.type === "synthetic" ? Option.getOrUndefined(decodeTaskCoordination(value.metadata?.coordination)) : undefined
+      return value?.type === "synthetic"
+        ? Option.getOrUndefined(decodeTaskCoordination(value.metadata?.coordination))
+        : undefined
     })
 
     const communicationID = createMemo(() => {
       const value = message()
 
-      return value?.type === "synthetic" ? Option.getOrUndefined(decodeCommunicationMetadata(value.metadata))?.communication.id : undefined
+      return value?.type === "synthetic"
+        ? Option.getOrUndefined(decodeCommunicationMetadata(value.metadata))?.communication.id
+        : undefined
     })
 
     const communication = createMemo(() => {
@@ -616,21 +633,24 @@ export function createSessionTimelineRowRenderer(input: {
     const shared = createMemo(() => {
       const record = communication()
 
-      if (record) return {
-        actorSessionID: record.actor.sessionID,
-        sourceSessionID: record.contentSource.sessionID,
-        targetSessionID: record.targetSessionID,
-        scope: record.contentSource.scope,
-      }
+      if (record)
+        return {
+          actorSessionID: record.actor.sessionID,
+          sourceSessionID: record.contentSource.sessionID,
+          targetSessionID: record.targetSessionID,
+          scope: record.contentSource.scope,
+        }
       const value = message()
       const source = value?.type === "synthetic" ? Option.getOrUndefined(decodeSharedSource(value.metadata)) : undefined
 
-      return source ? {
-        actorSessionID: source.actorSessionID,
-        sourceSessionID: source.contentSourceSessionID ?? source.sourceSessionID,
-        targetSessionID: input.sessionID(),
-        scope: source.scope,
-      } : undefined
+      return source
+        ? {
+            actorSessionID: source.actorSessionID,
+            sourceSessionID: source.contentSourceSessionID ?? source.sourceSessionID,
+            targetSessionID: input.sessionID(),
+            scope: source.scope,
+          }
+        : undefined
     })
 
     const text = createMemo(() => {
@@ -639,7 +659,8 @@ export function createSessionTimelineRowRenderer(input: {
       return value?.type === "synthetic" ? value.text : undefined
     })
 
-    const sessionTitle = (sessionID: string) => data.store.session.find((session) => session.id === sessionID)?.title ?? sessionID
+    const sessionTitle = (sessionID: string) =>
+      data.store.session.find((session) => session.id === sessionID)?.title ?? sessionID
 
     const content = createMemo(() => {
       const value = message()
@@ -691,47 +712,157 @@ export function createSessionTimelineRowRenderer(input: {
     return (
       <>
         <Show when={coordination()}>
-          {(task) => <div data-slot="session-timeline-coordination" class={`w-full min-w-0 py-2 ${inset()}`}>
-            <div data-slot="coordination-heading"><span>{i18n.t("ui.sessionTimeline.coordination.task")}</span>
-              <Show when={data.openTask}><Button type="button" size="small" variant="ghost" onClick={() => data.openTask?.(task().operationRef)}>{i18n.t("ui.sessionTimeline.coordination.details")}</Button></Show>
+          {(task) => (
+            <div data-slot="session-timeline-coordination" class={`w-full min-w-0 py-2 ${inset()}`}>
+              <div data-slot="coordination-heading">
+                <span>{i18n.t("ui.sessionTimeline.coordination.task")}</span>
+                <Show when={data.openTask}>
+                  <Button
+                    type="button"
+                    size="small"
+                    variant="ghost"
+                    onClick={() => data.openTask?.(task().operationRef)}
+                  >
+                    {i18n.t("ui.sessionTimeline.coordination.details")}
+                  </Button>
+                </Show>
+              </div>
+              <div data-slot="coordination-route">
+                <span>{i18n.t("ui.sessionTimeline.coordination.actor", { agent: task().actorAgent })}</span>
+                <Button
+                  type="button"
+                  size="small"
+                  variant="ghost"
+                  disabled={!data.navigateToSession}
+                  onClick={() => data.navigateToSession?.(task().actorSessionID)}
+                >
+                  {sessionTitle(task().actorSessionID)}
+                </Button>
+                <span>{i18n.t("ui.sessionTimeline.coordination.target")}</span>
+                <Button
+                  type="button"
+                  size="small"
+                  variant="ghost"
+                  disabled={!data.navigateToSession}
+                  onClick={() => data.navigateToSession?.(task().targetSessionID)}
+                >
+                  {sessionTitle(task().targetSessionID)}
+                </Button>
+              </div>
+              <Collapsible variant="ghost">
+                <Collapsible.Trigger type="button">
+                  <Collapsible.Arrow />
+                  {i18n.t("ui.sessionTimeline.coordination.input")}
+                </Collapsible.Trigger>
+                <Collapsible.Content>
+                  <pre>{text()}</pre>
+                </Collapsible.Content>
+              </Collapsible>
             </div>
-            <div data-slot="coordination-route"><span>{i18n.t("ui.sessionTimeline.coordination.actor", { agent: task().actorAgent })}</span>
-              <Button type="button" size="small" variant="ghost" disabled={!data.navigateToSession} onClick={() => data.navigateToSession?.(task().actorSessionID)}>{sessionTitle(task().actorSessionID)}</Button>
-              <span>{i18n.t("ui.sessionTimeline.coordination.target")}</span>
-              <Button type="button" size="small" variant="ghost" disabled={!data.navigateToSession} onClick={() => data.navigateToSession?.(task().targetSessionID)}>{sessionTitle(task().targetSessionID)}</Button>
-            </div>
-            <Collapsible variant="ghost">
-              <Collapsible.Trigger type="button">
-                <Collapsible.Arrow />
-                {i18n.t("ui.sessionTimeline.coordination.input")}
-              </Collapsible.Trigger>
-              <Collapsible.Content><pre>{text()}</pre></Collapsible.Content>
-            </Collapsible>
-          </div>}
+          )}
         </Show>
         <Show when={shared() || communicationID()}>
           <div data-slot="session-timeline-coordination" class={`w-full min-w-0 py-2 ${inset()}`}>
             <div data-slot="coordination-heading">
-              <span>{i18n.t(communication()?.actor.type === "system" ? "ui.sessionTimeline.coordination.systemDelivery" : communicationID() ? "ui.sessionTimeline.coordination.communication" : "ui.sessionTimeline.coordination.shared")}</span>
-              <Show when={communicationID()}>{(id) => <>
-                <code>{id()}</code>
-                <Show when={data.openCommunication}><Button type="button" size="small" variant="ghost" onClick={() => data.openCommunication?.({ sessionID: input.sessionID(), communicationID: id() })}>{i18n.t("ui.sessionTimeline.coordination.communicationDetails")}</Button></Show>
-              </>}</Show>
+              <span>
+                {i18n.t(
+                  communication()?.actor.type === "system"
+                    ? "ui.sessionTimeline.coordination.systemDelivery"
+                    : communicationID()
+                      ? "ui.sessionTimeline.coordination.communication"
+                      : "ui.sessionTimeline.coordination.shared",
+                )}
+              </span>
+              <Show when={communicationID()}>
+                {(id) => (
+                  <>
+                    <code>{id()}</code>
+                    <Show when={data.openCommunication}>
+                      <Button
+                        type="button"
+                        size="small"
+                        variant="ghost"
+                        onClick={() =>
+                          data.openCommunication?.({ sessionID: input.sessionID(), communicationID: id() })
+                        }
+                      >
+                        {i18n.t("ui.sessionTimeline.coordination.communicationDetails")}
+                      </Button>
+                    </Show>
+                  </>
+                )}
+              </Show>
             </div>
-            <Show when={shared()}>{(source) => <div data-slot="coordination-route">
-              <Show when={source().actorSessionID}>{(id) => <><span>{i18n.t("ui.sessionTimeline.coordination.sharedBy")}</span><Button type="button" size="small" variant="ghost" disabled={!data.navigateToSession} onClick={() => data.navigateToSession?.(id())}>{sessionTitle(id())}</Button></>}</Show>
-              <span>{i18n.t("ui.sessionTimeline.coordination.contentSource")}</span><Button type="button" size="small" variant="ghost" disabled={!data.navigateToSession} onClick={() => data.navigateToSession?.(source().sourceSessionID)}>{sessionTitle(source().sourceSessionID)}</Button>
-              <span>{i18n.t("ui.sessionTimeline.coordination.target")}</span><Button type="button" size="small" variant="ghost" disabled={!data.navigateToSession} onClick={() => data.navigateToSession?.(source().targetSessionID)}>{sessionTitle(source().targetSessionID)}</Button>
-              <span>{i18n.t(`ui.sessionTimeline.coordination.scope.${source().scope}`)}</span>
-              <Show when={communication()}>{(record) => <span>{i18n.t(`ui.sessionTimeline.coordination.state.${record().state}`)}</span>}</Show>
-            </div>}</Show>
-            <Show when={communication()?.replyTo}>{(id) => <div data-slot="coordination-route"><span>{i18n.t("ui.sessionTimeline.coordination.replyTo")}</span><Button type="button" size="small" variant="ghost" disabled={!data.openCommunication} onClick={() => data.openCommunication?.({ sessionID: input.sessionID(), communicationID: id() })}><code>{id()}</code></Button></div>}</Show>
+            <Show when={shared()}>
+              {(source) => (
+                <div data-slot="coordination-route">
+                  <Show when={source().actorSessionID}>
+                    {(id) => (
+                      <>
+                        <span>{i18n.t("ui.sessionTimeline.coordination.sharedBy")}</span>
+                        <Button
+                          type="button"
+                          size="small"
+                          variant="ghost"
+                          disabled={!data.navigateToSession}
+                          onClick={() => data.navigateToSession?.(id())}
+                        >
+                          {sessionTitle(id())}
+                        </Button>
+                      </>
+                    )}
+                  </Show>
+                  <span>{i18n.t("ui.sessionTimeline.coordination.contentSource")}</span>
+                  <Button
+                    type="button"
+                    size="small"
+                    variant="ghost"
+                    disabled={!data.navigateToSession}
+                    onClick={() => data.navigateToSession?.(source().sourceSessionID)}
+                  >
+                    {sessionTitle(source().sourceSessionID)}
+                  </Button>
+                  <span>{i18n.t("ui.sessionTimeline.coordination.target")}</span>
+                  <Button
+                    type="button"
+                    size="small"
+                    variant="ghost"
+                    disabled={!data.navigateToSession}
+                    onClick={() => data.navigateToSession?.(source().targetSessionID)}
+                  >
+                    {sessionTitle(source().targetSessionID)}
+                  </Button>
+                  <span>{i18n.t(`ui.sessionTimeline.coordination.scope.${source().scope}`)}</span>
+                  <Show when={communication()}>
+                    {(record) => <span>{i18n.t(`ui.sessionTimeline.coordination.state.${record().state}`)}</span>}
+                  </Show>
+                </div>
+              )}
+            </Show>
+            <Show when={communication()?.replyTo}>
+              {(id) => (
+                <div data-slot="coordination-route">
+                  <span>{i18n.t("ui.sessionTimeline.coordination.replyTo")}</span>
+                  <Button
+                    type="button"
+                    size="small"
+                    variant="ghost"
+                    disabled={!data.openCommunication}
+                    onClick={() => data.openCommunication?.({ sessionID: input.sessionID(), communicationID: id() })}
+                  >
+                    <code>{id()}</code>
+                  </Button>
+                </div>
+              )}
+            </Show>
             <Collapsible variant="ghost">
               <Collapsible.Trigger type="button">
                 <Collapsible.Arrow />
                 {i18n.t("ui.sessionTimeline.coordination.content")}
               </Collapsible.Trigger>
-              <Collapsible.Content><pre>{communication()?.text ?? text()}</pre></Collapsible.Content>
+              <Collapsible.Content>
+                <pre>{communication()?.text ?? text()}</pre>
+              </Collapsible.Content>
             </Collapsible>
           </div>
         </Show>
@@ -1105,7 +1236,11 @@ export function createSessionTimelineRowRenderer(input: {
   }
 
   function Attempts(props: { userMessageID: string }) {
-    return <AssistantAttemptsPopover messages={input.projection.assistantMessagesByParent().get(props.userMessageID) ?? []} />
+    return (
+      <AssistantAttemptsPopover
+        messages={input.projection.assistantMessagesByParent().get(props.userMessageID) ?? []}
+      />
+    )
   }
 
   function Row(props: { row: Accessor<TimelineRow.TimelineRow>; onSizeChange?: () => void }) {

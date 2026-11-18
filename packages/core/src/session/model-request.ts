@@ -67,7 +67,9 @@ export interface Prepared<Event = SessionRequest> {
   readonly request: LLMRequest
   readonly options: StreamOptions
   /** Primary attempts attach durable transport facts; auxiliary calls retain the original options. */
-  readonly optionsForAttempt?: (observe: (observation: SessionAttempt.Observation) => Effect.Effect<void>) => StreamOptions
+  readonly optionsForAttempt?: (
+    observe: (observation: SessionAttempt.Observation) => Effect.Effect<void>,
+  ) => StreamOptions
   readonly retry: (event: PluginHooks.Domains["session"]["retry"]) => Effect.Effect<void>
   /** Runs a tool call against the tools this request advertised. */
   readonly executeTool: (
@@ -345,10 +347,16 @@ export const layer = Layer.effect(
       // routing hook must not send an existing opaque window to another deployment; `prepare` has no
       // error channel, so like hook failures this surfaces as a defect.
       const selected = SessionProviderContext.provenance(model)
-      const sameDeployment = selected !== undefined && SessionProviderContext.compatible(
-        selected,
-        SessionProviderContext.provenance({ model: routed.model, ref: model.ref, connection: model.connection }, undefined, routed),
-      )
+      const sameDeployment =
+        selected !== undefined &&
+        SessionProviderContext.compatible(
+          selected,
+          SessionProviderContext.provenance(
+            { model: routed.model, ref: model.ref, connection: model.connection },
+            undefined,
+            routed,
+          ),
+        )
       if (
         !sameDeployment &&
         routed.messages.some((message) => message.content.some((part) => part.type === "compaction"))
@@ -356,105 +364,210 @@ export const layer = Layer.effect(
         return yield* Effect.die(
           new Error("Provider context is incompatible with the route selected by model request hooks"),
         )
-      const request = sameDeployment ? routed : LLMRequest.update(routed, {
-        messages: routed.messages.map((message) => message.role === "user" || message.role === "system" ? message : new Message({
-          ...message, providerMetadata: undefined,
-          content: message.content.map((part) => ({ ...part, providerMetadata: undefined })),
-        })),
-      })
-      const hasOpaqueHistory = request.messages.some((message) => message.role !== "user" && message.role !== "system" &&
-        (message.providerMetadata !== undefined || message.content.some((part) => part.type === "compaction" || ("providerMetadata" in part && part.providerMetadata !== undefined))))
-      const requestDeployment = SessionProviderContext.provenance({ model: request.model, ref: model.ref, connection: model.connection }, undefined, request)
+      const request = sameDeployment
+        ? routed
+        : LLMRequest.update(routed, {
+            messages: routed.messages.map((message) =>
+              message.role === "user" || message.role === "system"
+                ? message
+                : new Message({
+                    ...message,
+                    providerMetadata: undefined,
+                    content: message.content.map((part) => ({ ...part, providerMetadata: undefined })),
+                  }),
+            ),
+          })
+      const hasOpaqueHistory = request.messages.some(
+        (message) =>
+          message.role !== "user" &&
+          message.role !== "system" &&
+          (message.providerMetadata !== undefined ||
+            message.content.some(
+              (part) =>
+                part.type === "compaction" || ("providerMetadata" in part && part.providerMetadata !== undefined),
+            )),
+      )
+      const requestDeployment = SessionProviderContext.provenance(
+        { model: request.model, ref: model.ref, connection: model.connection },
+        undefined,
+        request,
+      )
 
       const hasHttpHooks =
         (yield* hooks.has("session", "http.request", model.ref.providerID)) ||
         (yield* hooks.has("session", "http.response", model.ref.providerID))
-      const optionsForAttempt = (observe?: (observation: SessionAttempt.Observation) => Effect.Effect<void>): StreamOptions => {
-        const recordTransport = (url: string | undefined, transport: SessionAttempt.Observation["transport"], delivery: SessionAttempt.Delivery) =>
-          observe === undefined ? Effect.void : Effect.gen(function* () {
-            yield* observe(new SessionAttempt.Observation({
-              observedAt: yield* Clock.currentTimeMillis,
-              deployment: url === undefined ? undefined : SessionProviderContext.provenance({ model: request.model, ref: model.ref, connection: model.connection }, url),
-              transport,
-              delivery,
-            }))
-          })
-        const http: StreamOptions["http"] = hasHttpHooks || observe !== undefined
-          ? (req, handler) => Effect.gen(function* () {
-              const before = hasHttpHooks ? yield* hooks.trigger("session", "http.request", {
-                ...scope,
-                request: yield* HttpClientRequest.toWeb(req),
-              }) : undefined
-              let sent = before === undefined ? req : HttpClientRequest.fromWeb(before.request)
-              if (before?.request.body)
-                sent = HttpClientRequest.bodyUint8Array(
-                  sent,
-                  new Uint8Array(yield* Effect.promise(() => before.request.clone().arrayBuffer())),
-                  before.request.headers.get("content-type") ?? undefined,
+      const optionsForAttempt = (
+        observe?: (observation: SessionAttempt.Observation) => Effect.Effect<void>,
+      ): StreamOptions => {
+        const recordTransport = (
+          url: string | undefined,
+          transport: SessionAttempt.Observation["transport"],
+          delivery: SessionAttempt.Delivery,
+        ) =>
+          observe === undefined
+            ? Effect.void
+            : Effect.gen(function* () {
+                yield* observe(
+                  new SessionAttempt.Observation({
+                    observedAt: yield* Clock.currentTimeMillis,
+                    deployment:
+                      url === undefined
+                        ? undefined
+                        : SessionProviderContext.provenance(
+                            { model: request.model, ref: model.ref, connection: model.connection },
+                            url,
+                          ),
+                    transport,
+                    delivery,
+                  }),
                 )
-              const url = Option.getOrUndefined(HttpClientRequest.toUrl(sent))?.href
-              if (kind === "primary" && hasOpaqueHistory && (requestDeployment === undefined || !SessionProviderContext.compatible(
-                requestDeployment,
-                url === undefined ? undefined : SessionProviderContext.provenance({ model: request.model, ref: model.ref, connection: model.connection }, url),
-              ))) return yield* Effect.die(new Error("Provider history is incompatible with the deployment selected by HTTP request hooks"))
-              yield* recordTransport(url, "http", "unknown")
-              const res = yield* handler(sent)
-              yield* recordTransport(url, "http", res.status >= 200 && res.status < 300 ? "accepted" :
-                res.status >= 400 && res.status < 500 ? "rejected" : "unknown")
-              const gatewayProvider = res.headers["x-magpie-provider"]
-              const gatewayModel = res.headers["x-magpie-model"]
-              if (observe !== undefined && (gatewayProvider !== undefined || gatewayModel !== undefined))
-                yield* observe(new SessionAttempt.Observation({
-                  observedAt: yield* Clock.currentTimeMillis,
-                  gatewayReport: { source: "response-headers", provider: gatewayProvider, model: gatewayModel },
-                }))
-              if (before === undefined) return res
-              const after = yield* hooks.trigger("session", "http.response", {
-                ...scope,
-                request: before.request,
-                response: new Response(
-                  [204, 205, 304].includes(res.status) ? null : yield* Stream.toReadableStreamEffect(res.stream),
-                  { status: res.status, headers: res.headers },
-                ),
               })
-              return HttpClientResponse.fromWeb(sent, after.response)
-            }).pipe(Effect.mapError((cause) => (cause instanceof Error ? cause : new Error(String(cause)))))
-          : undefined
+        const http: StreamOptions["http"] =
+          hasHttpHooks || observe !== undefined
+            ? (req, handler) =>
+                Effect.gen(function* () {
+                  const before = hasHttpHooks
+                    ? yield* hooks.trigger("session", "http.request", {
+                        ...scope,
+                        request: yield* HttpClientRequest.toWeb(req),
+                      })
+                    : undefined
+                  let sent = before === undefined ? req : HttpClientRequest.fromWeb(before.request)
+                  if (before?.request.body)
+                    sent = HttpClientRequest.bodyUint8Array(
+                      sent,
+                      new Uint8Array(yield* Effect.promise(() => before.request.clone().arrayBuffer())),
+                      before.request.headers.get("content-type") ?? undefined,
+                    )
+                  const url = Option.getOrUndefined(HttpClientRequest.toUrl(sent))?.href
+                  if (
+                    kind === "primary" &&
+                    hasOpaqueHistory &&
+                    (requestDeployment === undefined ||
+                      !SessionProviderContext.compatible(
+                        requestDeployment,
+                        url === undefined
+                          ? undefined
+                          : SessionProviderContext.provenance(
+                              { model: request.model, ref: model.ref, connection: model.connection },
+                              url,
+                            ),
+                      ))
+                  )
+                    return yield* Effect.die(
+                      new Error("Provider history is incompatible with the deployment selected by HTTP request hooks"),
+                    )
+                  yield* recordTransport(url, "http", "unknown")
+                  const res = yield* handler(sent)
+                  yield* recordTransport(
+                    url,
+                    "http",
+                    res.status >= 200 && res.status < 300
+                      ? "accepted"
+                      : res.status >= 400 && res.status < 500
+                        ? "rejected"
+                        : "unknown",
+                  )
+                  const gatewayProvider = res.headers["x-magpie-provider"]
+                  const gatewayModel = res.headers["x-magpie-model"]
+                  if (observe !== undefined && (gatewayProvider !== undefined || gatewayModel !== undefined))
+                    yield* observe(
+                      new SessionAttempt.Observation({
+                        observedAt: yield* Clock.currentTimeMillis,
+                        gatewayReport: { source: "response-headers", provider: gatewayProvider, model: gatewayModel },
+                      }),
+                    )
+                  if (before === undefined) return res
+                  const after = yield* hooks.trigger("session", "http.response", {
+                    ...scope,
+                    request: before.request,
+                    response: new Response(
+                      [204, 205, 304].includes(res.status) ? null : yield* Stream.toReadableStreamEffect(res.stream),
+                      { status: res.status, headers: res.headers },
+                    ),
+                  })
+                  return HttpClientResponse.fromWeb(sent, after.response)
+                }).pipe(Effect.mapError((cause) => (cause instanceof Error ? cause : new Error(String(cause)))))
+            : undefined
         let handshakeURL: string | undefined
-        const bound = input.webSocket === "session" && model.transport === "websocket"
-          ? transport.bind(session.id, {
-              provenance: (url) => SessionProviderContext.provenance({ model: request.model, ref: model.ref, connection: model.connection }, url),
-              handshake: (connect) => hooks.trigger("session", "experimental.ws.handshake", {
-                ...scope, url: connect.url, headers: connect.headers,
-              }).pipe(Effect.flatMap((event) => Effect.gen(function* () {
-                if (hasOpaqueHistory && (requestDeployment === undefined || !SessionProviderContext.compatible(requestDeployment,
-                  SessionProviderContext.provenance({ model: request.model, ref: model.ref, connection: model.connection }, event.url))))
-                  return yield* Effect.die(new Error("Provider history is incompatible with the deployment selected by WebSocket handshake hooks"))
-                handshakeURL = event.url
-                return { url: event.url, headers: event.headers }
-              }))),
-              send: (frame) => hooks.trigger("session", "experimental.ws.send", { ...scope, frame }).pipe(Effect.map((event) => event.frame)),
-              sent: (url) => recordTransport(url, "websocket", "ambiguous"),
-              receive: (frame) => hooks.trigger("session", "experimental.ws.receive", { ...scope, frame }).pipe(Effect.map((event) => event.frame)),
-            }, model.chunkTimeout)
-          : undefined
-        const webSocket: StreamOptions["webSocket"] = bound === undefined || observe === undefined ? bound : {
-          execute: (exchange) => Effect.gen(function* () {
-            let delivery: SessionAttempt.Delivery = "unknown"
-            return yield* bound.execute({
-              ...exchange,
-              driver: {
-                create: exchange.driver.create,
-                observe: (create, frame) => exchange.driver.observe(create, frame).pipe(Effect.tap((observation) => {
-                  const next = observation.type === "rejected" ? "rejected" : "accepted"
-                  if (next === delivery) return Effect.void
-                  delivery = next
-                  return recordTransport(handshakeURL ?? exchange.connect.url, "websocket", next)
-                })),
-              },
-            })
-          }),
-        }
+        const bound =
+          input.webSocket === "session" && model.transport === "websocket"
+            ? transport.bind(
+                session.id,
+                {
+                  provenance: (url) =>
+                    SessionProviderContext.provenance(
+                      { model: request.model, ref: model.ref, connection: model.connection },
+                      url,
+                    ),
+                  handshake: (connect) =>
+                    hooks
+                      .trigger("session", "experimental.ws.handshake", {
+                        ...scope,
+                        url: connect.url,
+                        headers: connect.headers,
+                      })
+                      .pipe(
+                        Effect.flatMap((event) =>
+                          Effect.gen(function* () {
+                            if (
+                              hasOpaqueHistory &&
+                              (requestDeployment === undefined ||
+                                !SessionProviderContext.compatible(
+                                  requestDeployment,
+                                  SessionProviderContext.provenance(
+                                    { model: request.model, ref: model.ref, connection: model.connection },
+                                    event.url,
+                                  ),
+                                ))
+                            )
+                              return yield* Effect.die(
+                                new Error(
+                                  "Provider history is incompatible with the deployment selected by WebSocket handshake hooks",
+                                ),
+                              )
+                            handshakeURL = event.url
+                            return { url: event.url, headers: event.headers }
+                          }),
+                        ),
+                      ),
+                  send: (frame) =>
+                    hooks
+                      .trigger("session", "experimental.ws.send", { ...scope, frame })
+                      .pipe(Effect.map((event) => event.frame)),
+                  sent: (url) => recordTransport(url, "websocket", "ambiguous"),
+                  receive: (frame) =>
+                    hooks
+                      .trigger("session", "experimental.ws.receive", { ...scope, frame })
+                      .pipe(Effect.map((event) => event.frame)),
+                },
+                model.chunkTimeout,
+              )
+            : undefined
+        const webSocket: StreamOptions["webSocket"] =
+          bound === undefined || observe === undefined
+            ? bound
+            : {
+                execute: (exchange) =>
+                  Effect.gen(function* () {
+                    let delivery: SessionAttempt.Delivery = "unknown"
+                    return yield* bound.execute({
+                      ...exchange,
+                      driver: {
+                        create: exchange.driver.create,
+                        observe: (create, frame) =>
+                          exchange.driver.observe(create, frame).pipe(
+                            Effect.tap((observation) => {
+                              const next = observation.type === "rejected" ? "rejected" : "accepted"
+                              if (next === delivery) return Effect.void
+                              delivery = next
+                              return recordTransport(handshakeURL ?? exchange.connect.url, "websocket", next)
+                            }),
+                          ),
+                      },
+                    })
+                  }),
+              }
         return { ...(http ? { http } : {}), ...(webSocket ? { webSocket } : {}) }
       }
 
@@ -463,10 +576,11 @@ export const layer = Layer.effect(
         request,
         options: optionsForAttempt(),
         optionsForAttempt,
-        retry: (event: Parameters<Prepared["retry"]>[0]) => Effect.gen(function* () {
-          const updated = yield* hooks.trigger("session", "retry", { ...event, connection: model.connection })
-          event.decision = updated.decision
-        }),
+        retry: (event: Parameters<Prepared["retry"]>[0]) =>
+          Effect.gen(function* () {
+            const updated = yield* hooks.trigger("session", "retry", { ...event, connection: model.connection })
+            event.decision = updated.decision
+          }),
         // Permission.assert and the question tool throw declines as defects so tools cannot
         // catch them and turn a "no" into model-visible output. Recover them here as failures.
         executeTool: (call: Parameters<Prepared["executeTool"]>[0]) =>

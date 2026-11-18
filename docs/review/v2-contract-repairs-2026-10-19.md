@@ -13,15 +13,15 @@
 
 统一 Bun 1.4.2；Core 测试从 `packages/core` 运行，Server 从 `packages/server` 运行。原始日志保留在 `evidence/v2-upgrade-2026-10-19/`。
 
-| 检查 | 退出与结果 |
-| --- | --- |
-| 原 HEAD Core 全量，UID 1000 / 无 capability / 独立网络 | exit 1；6954 pass / 365 skip / 7 fail / 106084 assertions，`baseline-core-user.json` / `.log` |
-| 原 HEAD 首次 root 映射网络隔离 | exit 1；6949 pass / 368 skip / 9 fail，`baseline-core-full.json` / `.log`；两个权限失败仅在该环境出现，已改普通用户重跑 |
-| 修复后 Config/Location/Bus 五文件 | exit 0；112 pass / 0 fail / 639 assertions，`core-contract-fixes.log` |
-| models-dev/process 两文件 | exit 0；40 pass / 0 fail / 167 assertions，`core-fixture-fixes.log` |
-| 七文件合并验证初轮 | exit 1；151 pass / 1 fail / 802 assertions，`core-contract-final.log`；并行 share 注册已生效，Location 精确工具列表尚未包含 share |
-| 七文件工具列表接线后 | exit 0；152 pass / 0 fail / 806 assertions，`core-contract-integrated.log`；包含 share 工作区改动，share 随下一批独立交付 |
-| Server 隔离后全量 | exit 0；86 pass / 1 skip / 0 fail / 5804 assertions，详见隔离报告 |
+| 检查                                                   | 退出与结果                                                                                                                        |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| 原 HEAD Core 全量，UID 1000 / 无 capability / 独立网络 | exit 1；6954 pass / 365 skip / 7 fail / 106084 assertions，`baseline-core-user.json` / `.log`                                     |
+| 原 HEAD 首次 root 映射网络隔离                         | exit 1；6949 pass / 368 skip / 9 fail，`baseline-core-full.json` / `.log`；两个权限失败仅在该环境出现，已改普通用户重跑           |
+| 修复后 Config/Location/Bus 五文件                      | exit 0；112 pass / 0 fail / 639 assertions，`core-contract-fixes.log`                                                             |
+| models-dev/process 两文件                              | exit 0；40 pass / 0 fail / 167 assertions，`core-fixture-fixes.log`                                                               |
+| 七文件合并验证初轮                                     | exit 1；151 pass / 1 fail / 802 assertions，`core-contract-final.log`；并行 share 注册已生效，Location 精确工具列表尚未包含 share |
+| 七文件工具列表接线后                                   | exit 0；152 pass / 0 fail / 806 assertions，`core-contract-integrated.log`；包含 share 工作区改动，share 随下一批独立交付         |
+| Server 隔离后全量                                      | exit 0；86 pass / 1 skip / 0 fail / 5804 assertions，详见隔离报告                                                                 |
 
 七文件命令：`../../script/bun run test --timeout 30000 test/config/normalization.test.ts test/config/config.test.ts test/config/watch.test.ts test/location-layer.test.ts test/bus-session-routing.test.ts test/plugin/models-dev.test.ts test/process/process.test.ts`。
 

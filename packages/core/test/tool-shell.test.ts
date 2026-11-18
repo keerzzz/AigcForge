@@ -877,15 +877,24 @@ describe("ShellTool", () => {
           })
           yield* publisher.publish(LLMEvent.toolCall(request.call))
           const snapshot = yield* registry.snapshot()
-          const output = yield* snapshot.execute({ ...request, progress: (value) => publisher.progress(request.call.id, value) })
+          const output = yield* snapshot.execute({
+            ...request,
+            progress: (value) => publisher.progress(request.call.id, value),
+          })
           expect(output.metadata).toMatchObject({ exit: 0, commandResult: { command: helloCommand, exit: 0 } })
           yield* publisher.toolExecution(request.call.id, request.call.name, output)
           const history = yield* sessions.context(sessionID)
           const messages = normalizeToolHistory(toLLMMessages(history, sessionModel))
-          const body = yield* OpenAIChat.protocol.body.from(LLM.request({
-            model: LanguageModel.make({ id: sessionModel.id, provider: sessionModel.providerID, route: OpenAIChat.route }),
-            messages,
-          }))
+          const body = yield* OpenAIChat.protocol.body.from(
+            LLM.request({
+              model: LanguageModel.make({
+                id: sessionModel.id,
+                provider: sessionModel.providerID,
+                route: OpenAIChat.route,
+              }),
+              messages,
+            }),
+          )
           expect(body.messages).toMatchObject([
             { role: "assistant", tool_calls: [{ id: request.call.id, function: { name: "shell" } }] },
             { role: "tool", tool_call_id: request.call.id, content: "hello" },
@@ -922,12 +931,28 @@ describe("ShellTool", () => {
             }).pipe(Effect.timeout("3 seconds"))
             expect(result.status).toBe("completed")
             expect(JSON.parse(result.output.output)).toEqual([
-              expect.objectContaining({ output: "one", exit: 0, truncated: false, status: "completed",
-                commandResult: expect.objectContaining({ command: command.replace("hello", "one"), exit: 0,
-                  outputDigest: "7692c3ad3540bb803c020b3aee66cd8887123234ea0c6e7143c0add73ff431ed" }) }),
-              expect.objectContaining({ output: "two", exit: 0, truncated: false, status: "completed",
-                commandResult: expect.objectContaining({ command: command.replace("hello", "two"), exit: 0,
-                  outputDigest: "3fc4ccfe745870e2c0d99f71f30ff0656c8dedd41cc1d7d3d376b0dbe685e2f3" }) }),
+              expect.objectContaining({
+                output: "one",
+                exit: 0,
+                truncated: false,
+                status: "completed",
+                commandResult: expect.objectContaining({
+                  command: command.replace("hello", "one"),
+                  exit: 0,
+                  outputDigest: "7692c3ad3540bb803c020b3aee66cd8887123234ea0c6e7143c0add73ff431ed",
+                }),
+              }),
+              expect.objectContaining({
+                output: "two",
+                exit: 0,
+                truncated: false,
+                status: "completed",
+                commandResult: expect.objectContaining({
+                  command: command.replace("hello", "two"),
+                  exit: 0,
+                  outputDigest: "3fc4ccfe745870e2c0d99f71f30ff0656c8dedd41cc1d7d3d376b0dbe685e2f3",
+                }),
+              }),
             ])
           }),
         )

@@ -22,15 +22,15 @@
 
 最终候选树为 `255b0cb3577c6371c92c5011a21502a207fe41e0`。七文件与工作区逐字节一致，manifest 另固定十个相关 owner/fixture 源文件。历史结果与最终源码的差异由 differencesFromFinal 决定。
 
-| 检查 | 实测结果与范围 |
-| --- | --- |
-| 最终 Server 全包 | 157 pass / 1 skip / 0 fail；7440 expects；42 文件 |
-| 最终 Core 资产/迁移/组合/Location 回归 | 31 pass / 0 fail；497 expects；4 文件 |
-| MCP 显式连接回归 | 48 pass / 0 fail；225 expects；1 文件，发生于最终类型导入清理前 |
-| MCP HTTP 定向 keeper | 3 pass / 0 fail；55 expects，最终 Server 全包包含这三个用例 |
-| Core / Server 包级类型 | exit 0；按各记录的源码 pins 判断版本 |
-| Client 正式生成 / OpenAPI check / 生成物 diff | 均 exit 0；没有公共生成物变化 |
-| 定向 lint / AST / Prettier / diff-check | 最终七文件 lint、六生产文件 AST、七文件格式及暂存差异均 exit 0 |
+| 检查                                          | 实测结果与范围                                                  |
+| --------------------------------------------- | --------------------------------------------------------------- |
+| 最终 Server 全包                              | 157 pass / 1 skip / 0 fail；7440 expects；42 文件               |
+| 最终 Core 资产/迁移/组合/Location 回归        | 31 pass / 0 fail；497 expects；4 文件                           |
+| MCP 显式连接回归                              | 48 pass / 0 fail；225 expects；1 文件，发生于最终类型导入清理前 |
+| MCP HTTP 定向 keeper                          | 3 pass / 0 fail；55 expects，最终 Server 全包包含这三个用例     |
+| Core / Server 包级类型                        | exit 0；按各记录的源码 pins 判断版本                            |
+| Client 正式生成 / OpenAPI check / 生成物 diff | 均 exit 0；没有公共生成物变化                                   |
+| 定向 lint / AST / Prettier / diff-check       | 最终七文件 lint、六生产文件 AST、七文件格式及暂存差异均 exit 0  |
 
 lint 当前配置仅 1 条规则，不能将其解释为全面审计。Server 的单个 Mercurial 跳过项由 `test/vcs.test.ts:164` 的 `Bun.which("hg")` 门禁决定；现有 MaxListenersExceededWarning 和 AST binary resolution warning 保留。测试均在包目录串行执行，类型检查使用 GOMAXPROCS=2、GOMEMLIMIT=3GiB。
 

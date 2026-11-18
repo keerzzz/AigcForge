@@ -256,9 +256,7 @@ export function DialogExportOptions(props: DialogExportOptionsProps) {
           paddingLeft={4}
           paddingRight={4}
           backgroundColor={
-            store.active === "export"
-              ? theme.background.action.primary.focused
-              : theme.background.action.primary.base
+            store.active === "export" ? theme.background.action.primary.focused : theme.background.action.primary.base
           }
           onMouseUp={() => confirm("export")}
         >

@@ -108,12 +108,7 @@ function nearestIndexed(indexed: RGBA[], color: RGBA): RGBA {
   return RGBA.clone(hit.item)
 }
 
-function map(
-  theme: ResolvedTheme,
-  indexed: RGBA[],
-  syntax?: SyntaxStyle,
-  system = false,
-): RunTheme {
+function map(theme: ResolvedTheme, indexed: RGBA[], syntax?: SyntaxStyle, system = false): RunTheme {
   // V1 system migration serializes colors; restore terminal defaults before quantizing scrollback.
   const exact = (color: RGBA) => {
     if (system && color.equals(theme.text.base)) return RGBA.defaultForeground(color)
@@ -191,14 +186,8 @@ function map(
   }
 }
 
-export const RUN_THEME_FALLBACK = map(
-  resolveThemeDocument(parseTheme(getAigcForgeTheme()), "dark"),
-  ansiPalette,
-)
-export const RUN_THEME_FALLBACK_LIGHT = map(
-  resolveThemeDocument(parseTheme(getAigcForgeTheme()), "light"),
-  ansiPalette,
-)
+export const RUN_THEME_FALLBACK = map(resolveThemeDocument(parseTheme(getAigcForgeTheme()), "dark"), ansiPalette)
+export const RUN_THEME_FALLBACK_LIGHT = map(resolveThemeDocument(parseTheme(getAigcForgeTheme()), "light"), ansiPalette)
 
 function monoTheme(mode: "dark" | "light"): RunTheme {
   const foreground = RGBA.defaultForeground(mode === "light" ? "#000000" : "#ffffff")

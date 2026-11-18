@@ -48,7 +48,9 @@ test.each(channels)("channel identity for $channel", async ({ channel, appId }) 
   for (const fpm of [config.deb?.fpm, config.rpm?.fpm]) {
     expect(fpm).toContainEqual(expect.stringContaining(`/usr/share/metainfo/${appId}.metainfo.xml`))
     expect(
-      fpm?.some((entry) => entry.endsWith("aigcfroge-desktop.desktop=/usr/share/applications/aigcfroge-desktop.desktop")),
+      fpm?.some((entry) =>
+        entry.endsWith("aigcfroge-desktop.desktop=/usr/share/applications/aigcfroge-desktop.desktop"),
+      ),
     ).toBe(channel === "prod")
   }
 })

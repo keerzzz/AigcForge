@@ -28,11 +28,7 @@ const task = {
 
 describe("Session Task event contract", () => {
   test("registers the current Task events and transitional todo projection once, without durable replay", () => {
-    const definitions = [
-      SessionTaskEvent.Updated,
-      SessionTaskEvent.TodoUpdated,
-      SessionTaskEvent.Progress,
-    ]
+    const definitions = [SessionTaskEvent.Updated, SessionTaskEvent.TodoUpdated, SessionTaskEvent.Progress]
     expect(SessionTaskEvent.Definitions.filter((definition) => definition.durability === "ephemeral")).toEqual(
       definitions,
     )
@@ -69,7 +65,9 @@ describe("Session Task event contract", () => {
       expect(EventManifest.Definitions.filter((item) => item.type === definition.type)).toEqual([definition])
       expect(EventManifest.Server.get(definition.type)).toBe(definition)
       expect(EventManifest.Latest.get(definition.type)).toBe(definition)
-      expect(EventManifest.Durable.get(Event.versionedType(definition.type, definition.durable.version))).toBe(definition)
+      expect(EventManifest.Durable.get(Event.versionedType(definition.type, definition.durable.version))).toBe(
+        definition,
+      )
       expect(DurableEventManifest.Durable.get(Event.versionedType(definition.type, definition.durable.version))).toBe(
         definition,
       )

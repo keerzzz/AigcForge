@@ -47,7 +47,9 @@ export async function collectNodeAssets(target: NodeTarget) {
       key,
       source: path.resolve(dir, "../ui/src/assets/audio", path.basename(key)),
     })),
-    ...(aigcfrogePty && target.aigcfrogePtyAsset ? [{ key: target.aigcfrogePtyAsset, source: aigcfrogePty.source }] : []),
+    ...(aigcfrogePty && target.aigcfrogePtyAsset
+      ? [{ key: target.aigcfrogePtyAsset, source: aigcfrogePty.source }]
+      : []),
     ...(await collectFiles(ptyRoot))
       .filter((relative) => !relative.endsWith(".map") && !relative.endsWith(".pdb"))
       .map((relative) => ({

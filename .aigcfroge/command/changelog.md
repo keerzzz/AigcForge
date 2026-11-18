@@ -1,5 +1,5 @@
 ---
-model: aigcfroge/gpt-5.4
+description: "Generate release notes"
 ---
 
 Create `UPCOMING_CHANGELOG.md` from the structured changelog input below.
@@ -18,22 +18,26 @@ Do not use `git log` or author metadata when deciding attribution.
 
 Rules:
 
-- Write the final file with release sections in this order:
-  `## Core`, `## TUI`, `## Desktop`, `## SDK`, `## Extensions`
-- Only include sections that have at least one notable entry
-- Within each release section, keep bug fixes grouped under `### Bugfixes`
-- Keep other notable entries under `### Improvements` when a section has bug fixes too
-- Omit empty subsections
+- Use `.github/RELEASE_NOTES_TEMPLATE.md` as the structural template.
+- Write both `## English` and `## 中文` sections in that order. Keep both languages complete and equivalent.
+- Within each language, keep release sections in this order:
+  `Core`, `TUI`, `Desktop`, `SDK`, `Extensions`
+  For Chinese headings use exactly: `核心`, `TUI`, `桌面端`, `SDK`, `扩展`
+- Within each release section, keep bug fixes under `#### Bug Fixes` / `#### 修复`
+- Keep other notable entries under `#### Improvements` / `#### 改进` when a section has bug fixes too
+- Only include sections and subsections that have at least one notable entry
 - Keep one bullet per commit you keep
 - Skip commits that are entirely internal, CI, tests, refactors, or otherwise not user-facing
-- Start each bullet with a capital letter
+- Start each English bullet with a capital letter
 - Prefer what changed for users over what code changed internally
 - Do not copy raw commit prefixes like `fix:` or `feat:` or trailing PR numbers like `(#123)`
+- Keep the same set of bullets and the same order in both languages
+- Do not translate code identifiers, file paths, provider/model IDs, or contributor handles
 - Community attribution is deterministic: only preserve an existing `(@username)` suffix from the changelog input
 - If an input bullet has no `(@username)` suffix, do not add one
 - Never add a new `(@username)` suffix from `git show`, commit authors, names, or email addresses
-- If no notable entries remain and there is no contributor block, write exactly `No notable changes.`
-- If no notable entries remain but there is a contributor block, omit all release sections and return only the contributor block
+- If no notable entries remain and there is no contributor block, write `No notable changes.` under English and `无重要变更。` under 中文, and leave the language sections otherwise empty
+- If no notable entries remain but there is a contributor block, keep the `## English` and `## 中文` headings, omit release sections, and append the contributor block once at the end
 - If the input contains `## Community Contributors Input`, append the block below that heading to the end of the final file verbatim
 - Do not add, remove, rewrite, or reorder contributor names or commit titles in that block
 - Do not derive the thank-you section from the main summary bullets

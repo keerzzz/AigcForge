@@ -1,11 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:google-transcription",
-      "provider:google",
-      "protocol:google-transcription"
-    ],
+    "tags": ["prefix:google-transcription", "provider:google", "protocol:google-transcription"],
     "name": "google-transcription/streams-speaker-turns",
     "recordedAt": "2026-09-23T13:04:11.224Z"
   },

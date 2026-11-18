@@ -25,7 +25,9 @@ export const resolve = Effect.fn("cli.server-connection.resolve")(function* (arg
     const password = yield* Env.password
     const endpoint = {
       url: args.server,
-      auth: password ? { type: "basic" as const, username: "aigcfroge", password: Redacted.value(password) } : undefined,
+      auth: password
+        ? { type: "basic" as const, username: "aigcfroge", password: Redacted.value(password) }
+        : undefined,
     } satisfies Endpoint
     const client = AigcForge.make({ baseUrl: endpoint.url, headers: Service.headers(endpoint) })
     const health = yield* Effect.tryPromise({

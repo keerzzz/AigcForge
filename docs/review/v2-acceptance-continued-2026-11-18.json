@@ -96,10 +96,7 @@
       "recommendation": "Recover durable tool owners first, clean eligible suspended Sessions, then recover Goals; retain cleanup before a permitted actual resume.",
       "red": "continued-core45",
       "green": "continued-core-recovery-task-fixed",
-      "intermediate": [
-        "continued-core-restart-probe",
-        "continued-core-recovery-task-green"
-      ],
+      "intermediate": ["continued-core-restart-probe", "continued-core-recovery-task-green"],
       "sourceSHA256": "a8c2c575c63d7394c1dc9fcd112bf178b49b1c1748f82fe43a15450772e43380",
       "redReceipt": {
         "name": "continued-core45",
@@ -497,13 +494,7 @@
     {
       "name": "continued-schema-green",
       "cwd": "/home/keer/workspace/aigcfroge-v2/packages/schema",
-      "command": [
-        "../../script/bun",
-        "run",
-        "test",
-        "--timeout",
-        "30000"
-      ],
+      "command": ["../../script/bun", "run", "test", "--timeout", "30000"],
       "startedUTC": "2026-11-18T05:14:32.416785+00:00",
       "exitCode": 0,
       "durationSeconds": 0.55,
@@ -655,13 +646,7 @@
     {
       "name": "continued-app-unit-final",
       "cwd": "/home/keer/workspace/aigcfroge-v2/packages/app",
-      "command": [
-        "../../script/bun",
-        "run",
-        "test:unit",
-        "--timeout",
-        "30000"
-      ],
+      "command": ["../../script/bun", "run", "test:unit", "--timeout", "30000"],
       "startedUTC": "2026-11-18T06:28:37.106876+00:00",
       "exitCode": 0,
       "durationSeconds": 7.21,
@@ -673,13 +658,7 @@
     {
       "name": "continued-app-browser-final",
       "cwd": "/home/keer/workspace/aigcfroge-v2/packages/app",
-      "command": [
-        "../../script/bun",
-        "run",
-        "test:browser",
-        "--timeout",
-        "30000"
-      ],
+      "command": ["../../script/bun", "run", "test:browser", "--timeout", "30000"],
       "startedUTC": "2026-11-18T06:28:44.354503+00:00",
       "exitCode": 0,
       "durationSeconds": 5.49,
@@ -691,13 +670,7 @@
     {
       "name": "continued-session-ui-unit-final",
       "cwd": "/home/keer/workspace/aigcfroge-v2/packages/session-ui",
-      "command": [
-        "../../script/bun",
-        "run",
-        "test",
-        "--timeout",
-        "30000"
-      ],
+      "command": ["../../script/bun", "run", "test", "--timeout", "30000"],
       "startedUTC": "2026-11-18T06:28:49.890519+00:00",
       "exitCode": 0,
       "durationSeconds": 1.08,
@@ -757,12 +730,7 @@
     {
       "name": "continued-lint-fixed",
       "cwd": "/home/keer/workspace/aigcfroge-v2",
-      "command": [
-        "./script/bun",
-        "run",
-        "lint:changed",
-        "HEAD"
-      ],
+      "command": ["./script/bun", "run", "lint:changed", "HEAD"],
       "startedUTC": "2026-11-18T07:12:29.986948+00:00",
       "exitCode": 0,
       "durationSeconds": 3.06,
@@ -771,11 +739,7 @@
     {
       "name": "continued-repository-check-fixed",
       "cwd": "/home/keer/workspace/aigcfroge-v2",
-      "command": [
-        "./script/bun",
-        "run",
-        "check"
-      ],
+      "command": ["./script/bun", "run", "check"],
       "startedUTC": "2026-11-18T07:19:29.518353+00:00",
       "exitCode": 0,
       "durationSeconds": 34.09,
@@ -784,11 +748,7 @@
     {
       "name": "continued-e2e-types-final",
       "cwd": "/home/keer/workspace/aigcfroge-v2/packages/app",
-      "command": [
-        "../../script/bun",
-        "run",
-        "typecheck:e2e"
-      ],
+      "command": ["../../script/bun", "run", "typecheck:e2e"],
       "startedUTC": "2026-11-18T07:21:11.230471+00:00",
       "exitCode": 0,
       "durationSeconds": 9.92,
@@ -915,11 +875,7 @@
     {
       "name": "continued-sc03-core-types",
       "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
-      "command": [
-        "../../script/bun",
-        "run",
-        "typecheck"
-      ],
+      "command": ["../../script/bun", "run", "typecheck"],
       "startedUTC": "2026-11-18T08:19:34.823231+00:00",
       "exitCode": 0,
       "durationSeconds": 2.78,
@@ -928,12 +884,7 @@
     {
       "name": "continued-sc03-core-lint",
       "cwd": "/home/keer/workspace/aigcfroge-v2",
-      "command": [
-        "./script/bun",
-        "run",
-        "oxlint",
-        "packages/core/test/schedule-rule.test.ts"
-      ],
+      "command": ["./script/bun", "run", "oxlint", "packages/core/test/schedule-rule.test.ts"],
       "startedUTC": "2026-11-18T08:20:18.633437+00:00",
       "exitCode": 0,
       "durationSeconds": 0.47,
@@ -967,11 +918,7 @@
     {
       "name": "continued-boundary-core-types",
       "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
-      "command": [
-        "../../script/bun",
-        "run",
-        "typecheck"
-      ],
+      "command": ["../../script/bun", "run", "typecheck"],
       "startedUTC": "2026-11-18T08:54:06.755071+00:00",
       "exitCode": 0,
       "durationSeconds": 4.16,
@@ -1216,10 +1163,7 @@
       "execExitCode": 0,
       "stopReceipt": "final-server-stop.json"
     },
-    "fixturePortsEmpty": [
-      18441,
-      18606
-    ],
+    "fixturePortsEmpty": [18441, 18606],
     "scope": "Root-owned isolated static fixtures and Playwright-managed Storybook only"
   },
   "finalIndexIdentity": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/session-boundaries/final-index-receipt.json owns current staged objects and document hashes; documents do not hash themselves",
@@ -1269,10 +1213,7 @@
         "hunks": 2,
         "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
         "runtimeReceipt": "continued-core45-final.json",
-        "deciders": [
-          "packages/core/src/composition-resolver.ts:39",
-          "packages/core/src/model-group.ts:307"
-        ]
+        "deciders": ["packages/core/src/composition-resolver.ts:39", "packages/core/src/model-group.ts:307"]
       },
       {
         "path": "packages/core/test/config/agent.test.ts",
@@ -1378,10 +1319,7 @@
         "hunks": 3,
         "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
         "runtimeReceipt": "continued-core45-final.json",
-        "deciders": [
-          "packages/core/src/agent.ts:136",
-          "packages/core/src/session.ts:519"
-        ]
+        "deciders": ["packages/core/src/agent.ts:136", "packages/core/src/session.ts:519"]
       },
       {
         "path": "packages/core/test/generate.test.ts",
@@ -1402,9 +1340,7 @@
         "hunks": 1,
         "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
         "runtimeReceipt": "continued-core45-final.json",
-        "deciders": [
-          "packages/core/src/model-resolver.ts:378"
-        ]
+        "deciders": ["packages/core/src/model-resolver.ts:378"]
       },
       {
         "path": "packages/core/test/meta-agent-integration.test.ts",
@@ -1428,10 +1364,7 @@
         "hunks": 3,
         "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
         "runtimeReceipt": "continued-core45-final.json",
-        "deciders": [
-          "packages/core/src/meta-agent/service.ts:413",
-          "packages/core/src/meta-agent/service.ts:496"
-        ]
+        "deciders": ["packages/core/src/meta-agent/service.ts:413", "packages/core/src/meta-agent/service.ts:496"]
       },
       {
         "path": "packages/core/test/model-group.test.ts",
@@ -1454,9 +1387,7 @@
         "hunks": 1,
         "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
         "runtimeReceipt": "continued-core45-final.json",
-        "deciders": [
-          "packages/core/src/model-resolver.ts:378"
-        ]
+        "deciders": ["packages/core/src/model-resolver.ts:378"]
       },
       {
         "path": "packages/core/test/permission-ask-bounds.test.ts",
@@ -1554,10 +1485,7 @@
         "hunks": 1,
         "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
         "runtimeReceipt": "continued-core45-final.json",
-        "deciders": [
-          "packages/core/src/provider/quota.ts:45",
-          "packages/core/src/provider/quota.ts:79"
-        ]
+        "deciders": ["packages/core/src/provider/quota.ts:45", "packages/core/src/provider/quota.ts:79"]
       },
       {
         "path": "packages/core/test/schedule-execution.test.ts",
@@ -1657,9 +1585,7 @@
         "hunks": 6,
         "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
         "runtimeReceipt": "continued-core45-final.json",
-        "deciders": [
-          "packages/core/src/session/session-identity.ts:288"
-        ]
+        "deciders": ["packages/core/src/session/session-identity.ts:288"]
       },
       {
         "path": "packages/core/test/session-inbox-admission.test.ts",
@@ -1693,10 +1619,7 @@
         "hunks": 4,
         "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
         "runtimeReceipt": "continued-core45-final.json",
-        "deciders": [
-          "packages/core/src/session/notification.ts:63",
-          "packages/core/src/session/runner/step.ts:241"
-        ]
+        "deciders": ["packages/core/src/session/notification.ts:63", "packages/core/src/session/runner/step.ts:241"]
       },
       {
         "path": "packages/core/test/session-projector.test.ts",
@@ -1845,10 +1768,7 @@
         "hunks": 2,
         "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
         "runtimeReceipt": "continued-core45-final.json",
-        "deciders": [
-          "packages/core/src/session/context.ts:157",
-          "packages/core/src/session/title.ts:107"
-        ]
+        "deciders": ["packages/core/src/session/context.ts:157", "packages/core/src/session/title.ts:107"]
       },
       {
         "path": "packages/core/test/tool-share.test.ts",
@@ -2197,10 +2117,7 @@
         "hunks": 7,
         "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-server-ai-review.json",
         "runtimeReceipt": "continued-server51.json",
-        "deciders": [
-          "packages/core/src/agent/asset-bridge.ts:40",
-          "packages/server/src/handlers/agent-asset.ts:30"
-        ]
+        "deciders": ["packages/core/src/agent/asset-bridge.ts:40", "packages/server/src/handlers/agent-asset.ts:30"]
       },
       {
         "path": "packages/server/test/delegation.test.ts",
@@ -2208,10 +2125,7 @@
         "hunks": 3,
         "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-server-ai-review.json",
         "runtimeReceipt": "continued-server51.json",
-        "deciders": [
-          "packages/core/src/session/runner/step.ts:288",
-          "packages/core/src/flag/flag.ts:60"
-        ]
+        "deciders": ["packages/core/src/session/runner/step.ts:288", "packages/core/src/flag/flag.ts:60"]
       },
       {
         "path": "packages/server/test/permission-source.test.ts",
@@ -2219,10 +2133,7 @@
         "hunks": 1,
         "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-server-ai-review.json",
         "runtimeReceipt": "continued-server51.json",
-        "deciders": [
-          "packages/protocol/src/groups/permission.ts:72",
-          "packages/core/src/permission.ts:431"
-        ]
+        "deciders": ["packages/protocol/src/groups/permission.ts:72", "packages/core/src/permission.ts:431"]
       },
       {
         "path": "packages/server/test/process.test.ts",
@@ -2230,10 +2141,7 @@
         "hunks": 2,
         "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-server-ai-review.json",
         "runtimeReceipt": "continued-server51.json",
-        "deciders": [
-          "packages/server/src/process.ts:108",
-          "packages/core/src/session/schedule-core.ts:114"
-        ]
+        "deciders": ["packages/server/src/process.ts:108", "packages/core/src/session/schedule-core.ts:114"]
       },
       {
         "path": "packages/server/test/provider-definition.test.ts",
@@ -2345,9 +2253,7 @@
     "core21": [
       {
         "path": "packages/core/test/agent-asset-bridge.test.ts",
-        "scopeLimits": [
-          "本 diff 未新增 Group asset conversion 用例；Group 配置转换由其他 selected keepers 覆盖。"
-        ]
+        "scopeLimits": ["本 diff 未新增 Group asset conversion 用例；Group 配置转换由其他 selected keepers 覆盖。"]
       },
       {
         "path": "packages/core/test/agent.test.ts",
@@ -2357,15 +2263,11 @@
       },
       {
         "path": "packages/core/test/config/agent.test.ts",
-        "scopeLimits": [
-          "这组检查 candidate 内容，没有在此用例执行用户资产导入或 Custom admission。"
-        ]
+        "scopeLimits": ["这组检查 candidate 内容，没有在此用例执行用户资产导入或 Custom admission。"]
       },
       {
         "path": "packages/core/test/config/command-subagent.test.ts",
-        "scopeLimits": [
-          "首次 Core45 与 Core2 回放失败已保留日志；当前修复的绿色回放仍由 Root 确认。"
-        ]
+        "scopeLimits": ["首次 Core45 与 Core2 回放失败已保留日志；当前修复的绿色回放仍由 Root 确认。"]
       },
       {
         "path": "packages/core/test/config/command.test.ts",
@@ -2375,9 +2277,7 @@
       },
       {
         "path": "packages/core/test/config/model.test.ts",
-        "scopeLimits": [
-          "纯配置边界用例，没有运行 provider。"
-        ]
+        "scopeLimits": ["纯配置边界用例，没有运行 provider。"]
       },
       {
         "path": "packages/core/test/config/normalization.test.ts",
@@ -2393,21 +2293,15 @@
       },
       {
         "path": "packages/core/test/composition-resolver.test.ts",
-        "scopeLimits": [
-          "该 diff 本身没有新增 Group adoption/assertion；运行原 keeper 验证依赖接线不改变原行为。"
-        ]
+        "scopeLimits": ["该 diff 本身没有新增 Group adoption/assertion；运行原 keeper 验证依赖接线不改变原行为。"]
       },
       {
         "path": "packages/core/test/mcp.test.ts",
-        "scopeLimits": [
-          "这是 fixture 接口完整性变更，没有新增 explicit connection MCP 行为测试。"
-        ]
+        "scopeLimits": ["这是 fixture 接口完整性变更，没有新增 explicit connection MCP 行为测试。"]
       },
       {
         "path": "packages/core/test/model-resolver.test.ts",
-        "scopeLimits": [
-          "新增 requested connection lookup 分支并非此 changed fixture 执行路径。"
-        ]
+        "scopeLimits": ["新增 requested connection lookup 分支并非此 changed fixture 执行路径。"]
       },
       {
         "path": "packages/core/test/permission-ask-bounds.test.ts",
@@ -2417,21 +2311,15 @@
       },
       {
         "path": "packages/core/test/model-group.test.ts",
-        "scopeLimits": [
-          "这里检查Group配置与default reader；rotate/weight的逐turn运行策略不是本文件所授予的覆盖。"
-        ]
+        "scopeLimits": ["这里检查Group配置与default reader；rotate/weight的逐turn运行策略不是本文件所授予的覆盖。"]
       },
       {
         "path": "packages/core/test/provider-definition.test.ts",
-        "scopeLimits": [
-          "catalog ready表示本地catalog状态；新增文件没有调用真实上游模型生成。"
-        ]
+        "scopeLimits": ["catalog ready表示本地catalog状态；新增文件没有调用真实上游模型生成。"]
       },
       {
         "path": "packages/core/test/provider-discovery.test.ts",
-        "scopeLimits": [
-          "本文件的quota字段合并不是实际订阅API；真实quota观测由两provider plugin新增keep​​ers覆盖。"
-        ]
+        "scopeLimits": ["本文件的quota字段合并不是实际订阅API；真实quota观测由两provider plugin新增keep​​ers覆盖。"]
       },
       {
         "path": "packages/core/test/provider-quota.test.ts",
@@ -2676,11 +2564,7 @@
       {
         "name": "continued-sc03-core-types",
         "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
-        "command": [
-          "../../script/bun",
-          "run",
-          "typecheck"
-        ],
+        "command": ["../../script/bun", "run", "typecheck"],
         "startedUTC": "2026-11-18T08:19:34.823231+00:00",
         "exitCode": 0,
         "durationSeconds": 2.78,
@@ -2689,12 +2573,7 @@
       {
         "name": "continued-sc03-core-lint",
         "cwd": "/home/keer/workspace/aigcfroge-v2",
-        "command": [
-          "./script/bun",
-          "run",
-          "oxlint",
-          "packages/core/test/schedule-rule.test.ts"
-        ],
+        "command": ["./script/bun", "run", "oxlint", "packages/core/test/schedule-rule.test.ts"],
         "startedUTC": "2026-11-18T08:20:18.633437+00:00",
         "exitCode": 0,
         "durationSeconds": 0.47,
@@ -2730,10 +2609,7 @@
     "acceptedUTC": "2026-11-18T09:10:15.729055+00:00",
     "authority": "Root",
     "status": "closed-offline-session-boundaries",
-    "ids": [
-      "SC02-NEXT-STEP",
-      "GROUP-CUSTOM-RESUME"
-    ],
+    "ids": ["SC02-NEXT-STEP", "GROUP-CUSTOM-RESUME"],
     "productionChanges": [],
     "testIdentities": [
       {
@@ -2814,11 +2690,7 @@
       {
         "name": "continued-boundary-core-types",
         "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
-        "command": [
-          "../../script/bun",
-          "run",
-          "typecheck"
-        ],
+        "command": ["../../script/bun", "run", "typecheck"],
         "startedUTC": "2026-11-18T08:54:06.755071+00:00",
         "exitCode": 0,
         "durationSeconds": 4.16,
@@ -2909,10 +2781,7 @@
       ]
     },
     "realProviderRequests": 0,
-    "preliminaryFixtureFailures": [
-      "continued-boundary-focused",
-      "continued-boundary-focused-fixed"
-    ],
+    "preliminaryFixtureFailures": ["continued-boundary-focused", "continued-boundary-focused-fixed"],
     "fixtureCorrections": "使用实际Database服务、运行后的Session重试基线、request.http.headers，以及实际read正文；未将fixture失败登记为生产缺陷。",
     "nonfinalOverlappingChecks": {
       "full": "continued-boundary-full-keepers",
@@ -2925,70 +2794,42 @@
       "commands": [
         {
           "cwd": "/home/keer/workspace/aigcfroge-v2",
-          "command": [
-            "git",
-            "rev-parse",
-            "--is-shallow-repository"
-          ],
+          "command": ["git", "rev-parse", "--is-shallow-repository"],
           "exitCode": 0,
           "stdout": "true",
           "stderr": ""
         },
         {
           "cwd": "/home/keer/workspace/aigcfroge-v2",
-          "command": [
-            "git",
-            "merge-base",
-            "main",
-            "v2-dev"
-          ],
+          "command": ["git", "merge-base", "main", "v2-dev"],
           "exitCode": 1,
           "stdout": "",
           "stderr": ""
         },
         {
           "cwd": "/home/keer/workspace/aigcfroge-v2",
-          "command": [
-            "git",
-            "merge-base",
-            "upstream/v2",
-            "v2-dev"
-          ],
+          "command": ["git", "merge-base", "upstream/v2", "v2-dev"],
           "exitCode": 0,
           "stdout": "4617210822bdbb31e5749751afbfb4584ccedac8",
           "stderr": ""
         },
         {
           "cwd": "/home/keer/workspace/aigcfroge-v2",
-          "command": [
-            "git",
-            "rev-list",
-            "--left-right",
-            "--count",
-            "upstream/v2...v2-dev"
-          ],
+          "command": ["git", "rev-list", "--left-right", "--count", "upstream/v2...v2-dev"],
           "exitCode": 0,
           "stdout": "0\t146",
           "stderr": ""
         },
         {
           "cwd": "/home/keer/workspace/aigcfroge",
-          "command": [
-            "git",
-            "branch",
-            "--show-current"
-          ],
+          "command": ["git", "branch", "--show-current"],
           "exitCode": 0,
           "stdout": "main",
           "stderr": ""
         },
         {
           "cwd": "/home/keer/workspace/aigcfroge",
-          "command": [
-            "git",
-            "rev-parse",
-            "HEAD"
-          ],
+          "command": ["git", "rev-parse", "HEAD"],
           "exitCode": 0,
           "stdout": "edbe67383d830aa40269ddf453c7f5617c940b46",
           "stderr": ""

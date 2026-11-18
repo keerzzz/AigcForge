@@ -15,7 +15,6 @@ import { nonEmptyToolContent, toolOutputText, type MiniToolPart } from "@aigcfro
 import { UI } from "./ui"
 import { isModelGroup, toModelSelection, type ModelPreferenceModel } from "@aigcfroge/tui/model-preference"
 
-
 type File = {
   url: string
   filename: string

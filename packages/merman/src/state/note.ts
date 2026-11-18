@@ -24,10 +24,7 @@ export interface StateDiagramNoteConnector {
   connectorY: number
 }
 
-export function stateDiagramNoteConnector(
-  bounds: NoteBounds,
-  target: TargetBounds,
-): StateDiagramNoteConnector {
+export function stateDiagramNoteConnector(bounds: NoteBounds, target: TargetBounds): StateDiagramNoteConnector {
   if (bounds.connector) return bounds.connector
   const noteX = bounds.note.position === "right" ? bounds.left - 1 : bounds.left + bounds.width
   const targetX = bounds.note.position === "right" ? target.left + target.width : target.left - 1

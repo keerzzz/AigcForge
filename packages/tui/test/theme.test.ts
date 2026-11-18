@@ -46,9 +46,7 @@ test("decodes native V2 themes lazily once", () => {
 })
 
 test("rejects invalid V2 themes when parsing", () => {
-  expect(() => parseTheme({ light: { categorical: [] } }, "invalid-v2")).toThrow(
-    "Invalid theme: invalid-v2",
-  )
+  expect(() => parseTheme({ light: { categorical: [] } }, "invalid-v2")).toThrow("Invalid theme: invalid-v2")
 })
 
 test("rejects invalid V1 themes when parsing", () => {

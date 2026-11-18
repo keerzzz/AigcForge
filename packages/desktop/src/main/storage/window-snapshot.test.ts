@@ -9,7 +9,9 @@ import { migrateDatabase } from "./migration"
 const roots: string[] = []
 
 // Bun's node:sqlite shim can retain file handles on Windows after close; only these owned test directories are removed.
-afterEach(() => Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }).catch(() => undefined))))
+afterEach(() =>
+  Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }).catch(() => undefined))),
+)
 
 test.each(["missing", "unreadable"])("a $s database distinguishes default enable state from unknown", async (input) => {
   const root = await mkdtemp(path.join(tmpdir(), "aigcfroge-window-snapshot-"))
@@ -36,6 +38,9 @@ test.each([false, true])("the early snapshot keeps explicit rows even with legac
 
   expect(readWindowSnapshot(root, ["shell"])).toEqual({
     storage: legacy ? {} : { shell: { items: { theme: "dark" }, revision: 0 } },
-    extensions: [{ id: "previous", enabled: false }, { id: "current", enabled: true }],
+    extensions: [
+      { id: "previous", enabled: false },
+      { id: "current", enabled: true },
+    ],
   })
 })

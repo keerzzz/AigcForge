@@ -189,46 +189,49 @@ it.live("interrupts pending watcher setup when the loader scope closes during mo
   }),
 )
 
-it.live("loads plugins and their transitive dependencies against the host's Effect and @aigcfroge/plugin instances", () =>
-  Effect.gen(function* () {
-    const directory = yield* tmpdirScoped()
-    const pluginDir = path.join(directory.path, "plugin")
-    const pluginEffectDir = path.join(pluginDir, "node_modules/effect")
-    const hostEffectDir = path.dirname(Bun.resolveSync("effect/package.json", import.meta.dir))
+it.live(
+  "loads plugins and their transitive dependencies against the host's Effect and @aigcfroge/plugin instances",
+  () =>
+    Effect.gen(function* () {
+      const directory = yield* tmpdirScoped()
+      const pluginDir = path.join(directory.path, "plugin")
+      const pluginEffectDir = path.join(pluginDir, "node_modules/effect")
+      const hostEffectDir = path.dirname(Bun.resolveSync("effect/package.json", import.meta.dir))
 
-    yield* Effect.promise(async () => {
-      await cp(path.join(hostEffectDir, "dist"), path.join(pluginEffectDir, "dist"), {
-        recursive: true,
-        filter: (src) => !src.endsWith(".d.ts") && !src.endsWith(".map") && !/httpApi(?:Scalar|Swagger)\.js$/.test(src),
-      })
-      const pkg = { ...(await Bun.file(path.join(hostEffectDir, "package.json")).json()), version: "4.0.0-rc.111" }
+      yield* Effect.promise(async () => {
+        await cp(path.join(hostEffectDir, "dist"), path.join(pluginEffectDir, "dist"), {
+          recursive: true,
+          filter: (src) =>
+            !src.endsWith(".d.ts") && !src.endsWith(".map") && !/httpApi(?:Scalar|Swagger)\.js$/.test(src),
+        })
+        const pkg = { ...(await Bun.file(path.join(hostEffectDir, "package.json")).json()), version: "4.0.0-rc.111" }
 
-      // Sabotage the plugin's own Effect copy with the version-skew failure modes so loading it would crash:
-      // 1. Effect.log reading an incompatible fiber log-level property (crashing host logger with logLevel.toUpperCase)
-      // 2. Effect.runPromise calling fiber.succeedWith on a host fiber
-      // 3. Schema.withDecodingDefault / Schema.Int / Schema.isPattern / Schema.Trim using foreign parser sentinels
-      const internalEffectPath = path.join(pluginEffectDir, "dist/internal/effect.js")
-      const originalInternalEffect = await Bun.file(internalEffectPath).text()
-      const logPattern =
-        /const logLevel = level \?\? fiber\.(?:currentLogLevel|cache\.logLevel);\r?\n\s*if \(isLogLevelGreaterThan\(fiber\.(?:minimumLogLevel|cache\.minimumLogLevel), logLevel\)\) \{/
-      const runPromisePattern = /const runPromiseExit = runPromiseExitWith\(context\);/
-      expect(logPattern.test(originalInternalEffect)).toBe(true)
-      expect(runPromisePattern.test(originalInternalEffect)).toBe(true)
+        // Sabotage the plugin's own Effect copy with the version-skew failure modes so loading it would crash:
+        // 1. Effect.log reading an incompatible fiber log-level property (crashing host logger with logLevel.toUpperCase)
+        // 2. Effect.runPromise calling fiber.succeedWith on a host fiber
+        // 3. Schema.withDecodingDefault / Schema.Int / Schema.isPattern / Schema.Trim using foreign parser sentinels
+        const internalEffectPath = path.join(pluginEffectDir, "dist/internal/effect.js")
+        const originalInternalEffect = await Bun.file(internalEffectPath).text()
+        const logPattern =
+          /const logLevel = level \?\? fiber\.(?:currentLogLevel|cache\.logLevel);\r?\n\s*if \(isLogLevelGreaterThan\(fiber\.(?:minimumLogLevel|cache\.minimumLogLevel), logLevel\)\) \{/
+        const runPromisePattern = /const runPromiseExit = runPromiseExitWith\(context\);/
+        expect(logPattern.test(originalInternalEffect)).toBe(true)
+        expect(runPromisePattern.test(originalInternalEffect)).toBe(true)
 
-      await writeFiles(pluginDir, {
-        "node_modules/effect/package.json": JSON.stringify(pkg),
-        "node_modules/effect/dist/internal/effect.js": originalInternalEffect
-          .replace(
-            logPattern,
-            "const logLevel = level ?? fiber.foreignSkew?.logLevel;\n    if (isLogLevelGreaterThan(fiber.foreignSkew?.minimumLogLevel, logLevel)) {",
-          )
-          .replace(
-            runPromisePattern,
-            "if (true) return (effect) => Promise.resolve().then(() => { const fiber = {}; return fiber.succeedWith(effect); });\n  const runPromiseExit = runPromiseExitWith(context);",
-          ),
-        "node_modules/transitive-dep/package.json":
-          '{"name":"transitive-dep","type":"module","exports":{".":"./index.js"}}',
-        "node_modules/transitive-dep/index.js": `import { Effect, Schema } from "effect"
+        await writeFiles(pluginDir, {
+          "node_modules/effect/package.json": JSON.stringify(pkg),
+          "node_modules/effect/dist/internal/effect.js": originalInternalEffect
+            .replace(
+              logPattern,
+              "const logLevel = level ?? fiber.foreignSkew?.logLevel;\n    if (isLogLevelGreaterThan(fiber.foreignSkew?.minimumLogLevel, logLevel)) {",
+            )
+            .replace(
+              runPromisePattern,
+              "if (true) return (effect) => Promise.resolve().then(() => { const fiber = {}; return fiber.succeedWith(effect); });\n  const runPromiseExit = runPromiseExitWith(context);",
+            ),
+          "node_modules/transitive-dep/package.json":
+            '{"name":"transitive-dep","type":"module","exports":{".":"./index.js"}}',
+          "node_modules/transitive-dep/index.js": `import { Effect, Schema } from "effect"
 import { some } from "effect/Option"
 export const depToolInput = Schema.Struct({
   mode: Schema.String.pipe(Schema.withDecodingDefault(Effect.succeed("from-dep"))),
@@ -236,11 +239,11 @@ export const depToolInput = Schema.Struct({
   code: Schema.Trim.check(Schema.isPattern(/^v[0-9]+$/)),
 })
 export const depCaptured = { Effect, Schema, some }`,
-        "node_modules/@aigcfroge/plugin/package.json":
-          '{"name":"@aigcfroge/plugin","type":"module","exports":{"./effect":"./effect.js","./rpc":"./rpc.js"}}',
-        "node_modules/@aigcfroge/plugin/effect.js": "export const Plugin = { define: (p) => p }",
-        "node_modules/@aigcfroge/plugin/rpc.js": "export const Rpc = { define: (d) => d }",
-        "index.ts": `import { Plugin } from "@aigcfroge/plugin/effect"
+          "node_modules/@aigcfroge/plugin/package.json":
+            '{"name":"@aigcfroge/plugin","type":"module","exports":{"./effect":"./effect.js","./rpc":"./rpc.js"}}',
+          "node_modules/@aigcfroge/plugin/effect.js": "export const Plugin = { define: (p) => p }",
+          "node_modules/@aigcfroge/plugin/rpc.js": "export const Rpc = { define: (d) => d }",
+          "index.ts": `import { Plugin } from "@aigcfroge/plugin/effect"
 import { Rpc } from "@aigcfroge/plugin/rpc"
 import { Effect, Schema } from "effect"
 import { some } from "effect/Option"
@@ -301,180 +304,188 @@ export default Plugin.define({
       }).pipe(Effect.orDie)
     }),
 })`,
+        })
       })
-    })
 
-    const modules = yield* PluginModule.make()
-    const plugins = yield* Plugin.Service
-    const tools = yield* Tool.Service
-    const rpc = yield* Rpc.Service
+      const modules = yield* PluginModule.make()
+      const plugins = yield* Plugin.Service
+      const tools = yield* Tool.Service
+      const rpc = yield* Rpc.Service
 
-    const definition = yield* modules.load({ type: "add", target: pluginDir, options: {} })
-    if ("pending" in definition || "blocked" in definition) return yield* Effect.die(new Error("Local plugin was not loaded"))
-    yield* plugins.activate([definition])
-    yield* plugins.awaitActivation
+      const definition = yield* modules.load({ type: "add", target: pluginDir, options: {} })
+      if ("pending" in definition || "blocked" in definition)
+        return yield* Effect.die(new Error("Local plugin was not loaded"))
+      yield* plugins.activate([definition])
+      yield* plugins.awaitActivation
 
-    expect(yield* plugins.list()).toMatchObject([{ id: "host-effect-fixture", state: { status: "active" } }])
+      expect(yield* plugins.list()).toMatchObject([{ id: "host-effect-fixture", state: { status: "active" } }])
 
-    const imported = yield* Effect.promise(() => import(path.join(pluginDir, "index.ts")))
-    expect(imported.captured.plugin.Effect).toBe(Effect)
-    expect(imported.captured.plugin.Schema).toBe(Schema)
-    expect(imported.captured.plugin.some).toBe(Option.some)
-    expect(imported.captured.plugin.nominal).toBe(Brand.nominal)
-    expect(imported.captured.dep.Effect).toBe(Effect)
-    expect(imported.captured.dep.Schema).toBe(Schema)
-    expect(imported.captured.dep.some).toBe(Option.some)
-    expect(imported.captured.pluginCount).toBe(0)
+      const imported = yield* Effect.promise(() => import(path.join(pluginDir, "index.ts")))
+      expect(imported.captured.plugin.Effect).toBe(Effect)
+      expect(imported.captured.plugin.Schema).toBe(Schema)
+      expect(imported.captured.plugin.some).toBe(Option.some)
+      expect(imported.captured.plugin.nominal).toBe(Brand.nominal)
+      expect(imported.captured.dep.Effect).toBe(Effect)
+      expect(imported.captured.dep.Schema).toBe(Schema)
+      expect(imported.captured.dep.some).toBe(Option.some)
+      expect(imported.captured.pluginCount).toBe(0)
 
-    const checkTool = (yield* tools.list()).find((tool) => tool.id === "check_tool")
-    expect(checkTool).toBeDefined()
-    if (!checkTool) return
+      const checkTool = (yield* tools.list()).find((tool) => tool.id === "check_tool")
+      expect(checkTool).toBeDefined()
+      if (!checkTool) return
 
-    const context = {
-      sessionID: Session.ID.make("ses_host_effect"),
-      agent: Agent.ID.make("build"),
-      messageID: SessionMessage.ID.make("msg_host_effect"),
-      id: Tool.CallID.make("call_host_effect"),
-      progress: () => Effect.void,
-    }
+      const context = {
+        sessionID: Session.ID.make("ses_host_effect"),
+        agent: Agent.ID.make("build"),
+        messageID: SessionMessage.ID.make("msg_host_effect"),
+        id: Tool.CallID.make("call_host_effect"),
+        progress: () => Effect.void,
+      }
 
-    expect(yield* execute(checkTool, { count: 3, code: "  v42  " }, context)).toEqual({
-      output: { formatted: "from-dep:v42:3" },
-      content: [{ type: "text", text: "from-dep:v42:3" }],
-    })
-    expect(yield* rpc.call("host-effect-rpc", "check", { tag: " v9 " })).toEqual({ value: "v9#5" })
-  }),
+      expect(yield* execute(checkTool, { count: 3, code: "  v42  " }, context)).toEqual({
+        output: { formatted: "from-dep:v42:3" },
+        content: [{ type: "text", text: "from-dep:v42:3" }],
+      })
+      expect(yield* rpc.call("host-effect-rpc", "check", { tag: " v9 " })).toEqual({ value: "v9#5" })
+    }),
 )
 
-it.live("redirects plugin dependencies with a nested Effect 3 installation to the host, allows effect/package.json, and fails loudly on unprovided subpaths", () =>
-  Effect.gen(function* () {
-    const directory = yield* tmpdirScoped()
-    const pluginDir = path.join(directory.path, "v3-dep-plugin")
-    const badDir = path.join(directory.path, "removed-subpath-plugin")
-    const v3DepDir = path.join(pluginDir, "node_modules/v3-dep")
+it.live(
+  "redirects plugin dependencies with a nested Effect 3 installation to the host, allows effect/package.json, and fails loudly on unprovided subpaths",
+  () =>
+    Effect.gen(function* () {
+      const directory = yield* tmpdirScoped()
+      const pluginDir = path.join(directory.path, "v3-dep-plugin")
+      const badDir = path.join(directory.path, "removed-subpath-plugin")
+      const v3DepDir = path.join(pluginDir, "node_modules/v3-dep")
 
-    yield* Effect.promise(() =>
-      writeFiles(directory.path, {
-        "v3-dep-plugin/node_modules/effect/package.json":
-          '{"name":"effect","version":"4.0.0-rc.111","type":"module","exports":{"./package.json":"./package.json"}}',
-        "v3-dep-plugin/node_modules/v3-dep/node_modules/effect/package.json":
-          '{"name":"effect","version":"3.19.19","type":"module","exports":{".":"./index.js","./Option":"./Option.js","./ReadonlyArray":"./ReadonlyArray.js"}}',
-        "v3-dep-plugin/node_modules/v3-dep/node_modules/effect/index.js":
-          "export const Effect = { major: 3 }; export const Schema = { major: 3 }",
-        "v3-dep-plugin/node_modules/v3-dep/node_modules/effect/Option.js": "export const some = () => ({ major: 3 })",
-        "v3-dep-plugin/node_modules/v3-dep/node_modules/effect/ReadonlyArray.js": "export const fromIterable = () => []",
-        "v3-dep-plugin/node_modules/v3-dep/package.json":
-          '{"name":"v3-dep","type":"module","exports":{".":"./index.js","./v3-only":"./v3-only.js"}}',
-        "v3-dep-plugin/node_modules/v3-dep/index.js":
-          'import { Effect, Schema } from "effect"; import { some } from "effect/Option"; export const v3DepCaptured = { Effect, Schema, some }',
-        "v3-dep-plugin/node_modules/v3-dep/v3-only.js":
-          'import { fromIterable } from "effect/ReadonlyArray"; export { fromIterable }',
-        "v3-dep-plugin/index.ts":
-          'import pkg from "effect/package.json" with { type: "json" }; import { v3DepCaptured } from "v3-dep"; export const effectPkgName = pkg.name; export { v3DepCaptured }; export default { id: "v3-dep-plugin", async setup() {} }',
-        "removed-subpath-plugin/node_modules/effect/package.json":
-          '{"name":"effect","type":"module","exports":{"./RemovedLegacySubpath":"./RemovedLegacySubpath.js"}}',
-        "removed-subpath-plugin/node_modules/effect/RemovedLegacySubpath.js": "export const legacy = true",
-        "removed-subpath-plugin/index.ts":
-          'import { legacy } from "effect/RemovedLegacySubpath"; export default { id: "removed-subpath", async setup() { void legacy } }',
-      }),
-    )
-
-    const modules = yield* PluginModule.make()
-    expect(yield* modules.load({ type: "add", target: pluginDir, options: {} })).toMatchObject({ id: "v3-dep-plugin" })
-
-    const imported = yield* Effect.promise(() => import(path.join(pluginDir, "index.ts")))
-    expect(imported.effectPkgName).toBe("effect")
-    expect(imported.v3DepCaptured.Effect).toBe(Effect)
-    expect(imported.v3DepCaptured.Schema).toBe(Schema)
-    expect(imported.v3DepCaptured.some).toBe(Option.some)
-    yield* Effect.promise(async () => {
-      await expect(import(path.join(v3DepDir, "v3-only.js"))).rejects.toThrow("effect/ReadonlyArray.js")
-    })
-
-    const exit = yield* modules.load({ type: "add", target: badDir, options: {} }).pipe(Effect.exit)
-    expect(Exit.isFailure(exit)).toBe(true)
-    if (Exit.isFailure(exit)) {
-      expect(String(Cause.squash(exit.cause))).toContain("effect/RemovedLegacySubpath.js")
-    }
-  }),
-)
-
-it.live("discovers exported specifiers from the resolved tree even when dist/ exists, and validates barrel loader routing, async loader dedup, and Windows foreign filters", () =>
-  Effect.gen(function* () {
-    const directory = yield* tmpdirScoped()
-    const consumerDir = path.join(directory.path, "consumer")
-    const asyncModPath = path.join(directory.path, "async-mod.ts")
-
-    yield* Effect.promise(() =>
-      writeFiles(directory.path, {
-        "consumer/node_modules/@aigcfroge/plugin/package.json": JSON.stringify({
-          name: "@aigcfroge/plugin",
-          type: "module",
-          exports: {
-            ".": "./src/promise/index.ts",
-            "./effect": "./src/effect/index.ts",
-            "./effect/*": "./src/effect/*.ts",
-          },
+      yield* Effect.promise(() =>
+        writeFiles(directory.path, {
+          "v3-dep-plugin/node_modules/effect/package.json":
+            '{"name":"effect","version":"4.0.0-rc.111","type":"module","exports":{"./package.json":"./package.json"}}',
+          "v3-dep-plugin/node_modules/v3-dep/node_modules/effect/package.json":
+            '{"name":"effect","version":"3.19.19","type":"module","exports":{".":"./index.js","./Option":"./Option.js","./ReadonlyArray":"./ReadonlyArray.js"}}',
+          "v3-dep-plugin/node_modules/v3-dep/node_modules/effect/index.js":
+            "export const Effect = { major: 3 }; export const Schema = { major: 3 }",
+          "v3-dep-plugin/node_modules/v3-dep/node_modules/effect/Option.js": "export const some = () => ({ major: 3 })",
+          "v3-dep-plugin/node_modules/v3-dep/node_modules/effect/ReadonlyArray.js":
+            "export const fromIterable = () => []",
+          "v3-dep-plugin/node_modules/v3-dep/package.json":
+            '{"name":"v3-dep","type":"module","exports":{".":"./index.js","./v3-only":"./v3-only.js"}}',
+          "v3-dep-plugin/node_modules/v3-dep/index.js":
+            'import { Effect, Schema } from "effect"; import { some } from "effect/Option"; export const v3DepCaptured = { Effect, Schema, some }',
+          "v3-dep-plugin/node_modules/v3-dep/v3-only.js":
+            'import { fromIterable } from "effect/ReadonlyArray"; export { fromIterable }',
+          "v3-dep-plugin/index.ts":
+            'import pkg from "effect/package.json" with { type: "json" }; import { v3DepCaptured } from "v3-dep"; export const effectPkgName = pkg.name; export { v3DepCaptured }; export default { id: "v3-dep-plugin", async setup() {} }',
+          "removed-subpath-plugin/node_modules/effect/package.json":
+            '{"name":"effect","type":"module","exports":{"./RemovedLegacySubpath":"./RemovedLegacySubpath.js"}}',
+          "removed-subpath-plugin/node_modules/effect/RemovedLegacySubpath.js": "export const legacy = true",
+          "removed-subpath-plugin/index.ts":
+            'import { legacy } from "effect/RemovedLegacySubpath"; export default { id: "removed-subpath", async setup() { void legacy } }',
         }),
-        "consumer/node_modules/@aigcfroge/plugin/src/promise/index.ts": "export const root = 'src'",
-        "consumer/node_modules/@aigcfroge/plugin/src/effect/index.ts": "export * as plugin from './plugin.ts'",
-        "consumer/node_modules/@aigcfroge/plugin/src/effect/plugin.ts": "export const leaf = 'src'",
-        "consumer/node_modules/@aigcfroge/plugin/src/unexported.ts": "export const secret = true",
-        "consumer/node_modules/@aigcfroge/plugin/dist/promise/index.js": "export const root = 'dist'",
-        "consumer/node_modules/@aigcfroge/plugin/dist/effect/index.js": "export const index = 'dist'",
-        "consumer/node_modules/@aigcfroge/plugin/dist/effect/plugin.js": "export const leaf = 'dist'",
-        "async-mod.ts": "await new Promise((r) => setTimeout(r, 20)); export const nonce = Math.random()",
-      }),
-    )
+      )
 
-    const discovered = discoverPluginRuntimeSpecifiers(consumerDir, ["@aigcfroge/plugin"])
-    expect(discovered.get("@aigcfroge/plugin")?.replaceAll("\\", "/")).toEndWith("src/promise/index.ts")
-    expect(discovered.get("@aigcfroge/plugin/effect")?.replaceAll("\\", "/")).toEndWith("src/effect/index.ts")
-    expect(discovered.get("@aigcfroge/plugin/effect/plugin")?.replaceAll("\\", "/")).toEndWith("src/effect/plugin.ts")
-    expect(discovered.has("@aigcfroge/plugin/unexported")).toBe(false)
+      const modules = yield* PluginModule.make()
+      expect(yield* modules.load({ type: "add", target: pluginDir, options: {} })).toMatchObject({
+        id: "v3-dep-plugin",
+      })
 
-    const hostDiscovered = discoverPluginRuntimeSpecifiers()
-    expect(hostDiscovered.has("effect/schema/SchemaJITCompiler")).toBe(true)
-    expect(hostDiscovered.has("effect/schema/SchemaJITCompiler/enable")).toBe(true)
-    expect(pluginRuntimeLoaderCode("effect/Option", hostDiscovered)).toBe('() => require("effect")["Option"]')
-    expect(pluginRuntimeLoaderCode("effect/testing", hostDiscovered)).toBe('() => require("effect/testing")')
-    expect(hostDiscovered.has("effect/http/MultipartParser/HeadersParser")).toBe(true)
-    expect(pluginRuntimeLoaderCode("effect/http/MultipartParser/HeadersParser", hostDiscovered)).toBe(
-      '() => require("effect/http/MultipartParser/HeadersParser")',
-    )
-    expect(pluginRuntimeLoaderCode("effect/schema/SchemaJITCompiler", hostDiscovered)).toBe(
-      '() => require("effect/schema")["SchemaJITCompiler"]',
-    )
-    expect(pluginRuntimeLoaderCode("effect/schema/SchemaJITCompiler/enable", hostDiscovered)).toBe(
-      '() => require("effect/schema/SchemaJITCompiler/enable")',
-    )
+      const imported = yield* Effect.promise(() => import(path.join(pluginDir, "index.ts")))
+      expect(imported.effectPkgName).toBe("effect")
+      expect(imported.v3DepCaptured.Effect).toBe(Effect)
+      expect(imported.v3DepCaptured.Schema).toBe(Schema)
+      expect(imported.v3DepCaptured.some).toBe(Option.some)
+      yield* Effect.promise(async () => {
+        await expect(import(path.join(v3DepDir, "v3-only.js"))).rejects.toThrow("effect/ReadonlyArray.js")
+      })
 
-    const loadAsync = createLoader(asyncModPath)
-    const first = loadAsync()
-    const second = loadAsync()
-    expect(first).toBeInstanceOf(Promise)
-    expect(first).toBe(second)
-    const [res1, res2] = yield* Effect.promise(() => Promise.all([first, second]))
-    expect(res1).toBe(res2)
+      const exit = yield* modules.load({ type: "add", target: badDir, options: {} }).pipe(Effect.exit)
+      expect(Exit.isFailure(exit)).toBe(true)
+      if (Exit.isFailure(exit)) {
+        expect(String(Cause.squash(exit.cause))).toContain("effect/RemovedLegacySubpath.js")
+      }
+    }),
+)
 
-    const winFilter = createForeignPackageFilter([
-      "C:\\runner\\_work\\aigcfroge\\node_modules\\.bun\\effect@4.0.0-rc.112\\node_modules\\effect",
-    ])
-    expect(
-      winFilter.test(
-        "C:\\runner\\_work\\aigcfroge\\node_modules\\.bun\\effect@4.0.0-rc.112\\node_modules\\effect\\dist\\index.js",
-      ),
-    ).toBe(false)
-    expect(
-      winFilter.test(
-        "C:/runner/_work/aigcfroge/node_modules/.bun/effect@4.0.0-rc.112/node_modules/effect/dist/index.js",
-      ),
-    ).toBe(false)
-    expect(winFilter.test("C:\\Users\\plugin\\node_modules\\effect\\dist\\index.js")).toBe(true)
-    expect(winFilter.test("C:/Users/plugin/node_modules/effect/dist/index.js")).toBe(true)
-    expect(winFilter.test("C:\\Users\\user\\.bun\\install\\cache\\effect@4.0.1@@@1\\dist\\index.js")).toBe(true)
-    expect(winFilter.test("C:/Users/user/.bun/install/cache/effect@4.0.1@@@1/dist/index.js")).toBe(true)
-  }),
+it.live(
+  "discovers exported specifiers from the resolved tree even when dist/ exists, and validates barrel loader routing, async loader dedup, and Windows foreign filters",
+  () =>
+    Effect.gen(function* () {
+      const directory = yield* tmpdirScoped()
+      const consumerDir = path.join(directory.path, "consumer")
+      const asyncModPath = path.join(directory.path, "async-mod.ts")
+
+      yield* Effect.promise(() =>
+        writeFiles(directory.path, {
+          "consumer/node_modules/@aigcfroge/plugin/package.json": JSON.stringify({
+            name: "@aigcfroge/plugin",
+            type: "module",
+            exports: {
+              ".": "./src/promise/index.ts",
+              "./effect": "./src/effect/index.ts",
+              "./effect/*": "./src/effect/*.ts",
+            },
+          }),
+          "consumer/node_modules/@aigcfroge/plugin/src/promise/index.ts": "export const root = 'src'",
+          "consumer/node_modules/@aigcfroge/plugin/src/effect/index.ts": "export * as plugin from './plugin.ts'",
+          "consumer/node_modules/@aigcfroge/plugin/src/effect/plugin.ts": "export const leaf = 'src'",
+          "consumer/node_modules/@aigcfroge/plugin/src/unexported.ts": "export const secret = true",
+          "consumer/node_modules/@aigcfroge/plugin/dist/promise/index.js": "export const root = 'dist'",
+          "consumer/node_modules/@aigcfroge/plugin/dist/effect/index.js": "export const index = 'dist'",
+          "consumer/node_modules/@aigcfroge/plugin/dist/effect/plugin.js": "export const leaf = 'dist'",
+          "async-mod.ts": "await new Promise((r) => setTimeout(r, 20)); export const nonce = Math.random()",
+        }),
+      )
+
+      const discovered = discoverPluginRuntimeSpecifiers(consumerDir, ["@aigcfroge/plugin"])
+      expect(discovered.get("@aigcfroge/plugin")?.replaceAll("\\", "/")).toEndWith("src/promise/index.ts")
+      expect(discovered.get("@aigcfroge/plugin/effect")?.replaceAll("\\", "/")).toEndWith("src/effect/index.ts")
+      expect(discovered.get("@aigcfroge/plugin/effect/plugin")?.replaceAll("\\", "/")).toEndWith("src/effect/plugin.ts")
+      expect(discovered.has("@aigcfroge/plugin/unexported")).toBe(false)
+
+      const hostDiscovered = discoverPluginRuntimeSpecifiers()
+      expect(hostDiscovered.has("effect/schema/SchemaJITCompiler")).toBe(true)
+      expect(hostDiscovered.has("effect/schema/SchemaJITCompiler/enable")).toBe(true)
+      expect(pluginRuntimeLoaderCode("effect/Option", hostDiscovered)).toBe('() => require("effect")["Option"]')
+      expect(pluginRuntimeLoaderCode("effect/testing", hostDiscovered)).toBe('() => require("effect/testing")')
+      expect(hostDiscovered.has("effect/http/MultipartParser/HeadersParser")).toBe(true)
+      expect(pluginRuntimeLoaderCode("effect/http/MultipartParser/HeadersParser", hostDiscovered)).toBe(
+        '() => require("effect/http/MultipartParser/HeadersParser")',
+      )
+      expect(pluginRuntimeLoaderCode("effect/schema/SchemaJITCompiler", hostDiscovered)).toBe(
+        '() => require("effect/schema")["SchemaJITCompiler"]',
+      )
+      expect(pluginRuntimeLoaderCode("effect/schema/SchemaJITCompiler/enable", hostDiscovered)).toBe(
+        '() => require("effect/schema/SchemaJITCompiler/enable")',
+      )
+
+      const loadAsync = createLoader(asyncModPath)
+      const first = loadAsync()
+      const second = loadAsync()
+      expect(first).toBeInstanceOf(Promise)
+      expect(first).toBe(second)
+      const [res1, res2] = yield* Effect.promise(() => Promise.all([first, second]))
+      expect(res1).toBe(res2)
+
+      const winFilter = createForeignPackageFilter([
+        "C:\\runner\\_work\\aigcfroge\\node_modules\\.bun\\effect@4.0.0-rc.112\\node_modules\\effect",
+      ])
+      expect(
+        winFilter.test(
+          "C:\\runner\\_work\\aigcfroge\\node_modules\\.bun\\effect@4.0.0-rc.112\\node_modules\\effect\\dist\\index.js",
+        ),
+      ).toBe(false)
+      expect(
+        winFilter.test(
+          "C:/runner/_work/aigcfroge/node_modules/.bun/effect@4.0.0-rc.112/node_modules/effect/dist/index.js",
+        ),
+      ).toBe(false)
+      expect(winFilter.test("C:\\Users\\plugin\\node_modules\\effect\\dist\\index.js")).toBe(true)
+      expect(winFilter.test("C:/Users/plugin/node_modules/effect/dist/index.js")).toBe(true)
+      expect(winFilter.test("C:\\Users\\user\\.bun\\install\\cache\\effect@4.0.1@@@1\\dist\\index.js")).toBe(true)
+      expect(winFilter.test("C:/Users/user/.bun/install/cache/effect@4.0.1@@@1/dist/index.js")).toBe(true)
+    }),
 )
 
 async function writeFiles(root: string, files: Record<string, string>) {

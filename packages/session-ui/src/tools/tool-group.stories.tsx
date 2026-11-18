@@ -155,7 +155,10 @@ const stickyParts: ContextGroupPart[] = [
             `sticky_grep_${index}`,
             "grep",
             "completed",
-            { path: "C:/tmp/aigcfroge/stack/packages/plugin-review-desktop/", pattern: 'turn"|lastTurn|session\\.diff' },
+            {
+              path: "C:/tmp/aigcfroge/stack/packages/plugin-review-desktop/",
+              pattern: 'turn"|lastTurn|session\\.diff',
+            },
             { metadata: { matches: 4 } },
           )
         : storyTool(

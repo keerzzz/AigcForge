@@ -45,7 +45,7 @@ A model value is built as `OpenAI.configure({ apiKey }).responses("gpt-5")` or `
 ```ts
 import { OpenAI, Google } from "@aigcfroge/ai/providers"
 
-const openai = OpenAI.configure({ apiKey })      // OpenAI(...) alone uses env auth (OPENAI_API_KEY)
+const openai = OpenAI.configure({ apiKey }) // OpenAI(...) alone uses env auth (OPENAI_API_KEY)
 
 LLM.request({ model: openai.responses("gpt-5"), prompt })
 Image.request({ model: openai.image("gpt-image-2"), prompt })
@@ -116,21 +116,21 @@ Effect.gen(function* () {
   const request = Image.request({
     model: openai.image("gpt-image-2"),
     prompt: "A robot tending a rooftop garden",
-    images: [yield* Media.file("./ref.png")],     // references / edit sources
+    images: [yield* Media.file("./ref.png")], // references / edit sources
     mask: yield* Media.file("./mask.png"),
     n: 2,
-    size: "1536x1024",                            // OpenAI sizes by pixels; Gemini/xAI take aspectRatio instead
+    size: "1536x1024", // OpenAI sizes by pixels; Gemini/xAI take aspectRatio instead
     format: "webp",
-    providerOptions: { quality: "high", background: "transparent" },   // typed per model
+    providerOptions: { quality: "high", background: "transparent" }, // typed per model
   })
 
   const response = yield* Image.generate(request) // ImageResponse
-  response.image                                  // Media.Asset (first)
-  response.images                                 // Media.Asset[]
-  response.usage                                  // Usage union (see below)
-  response.notices                                // moderation / partial-result notices
+  response.image // Media.Asset (first)
+  response.images // Media.Asset[]
+  response.usage // Usage union (see below)
+  response.notices // moderation / partial-result notices
 
-  Image.stream(request)                           // Stream<ImageEvent>
+  Image.stream(request) // Stream<ImageEvent>
   // ImageEvent: generation-queued | generation-progress | image-partial { index, image } | image { index, image } | finish { usage }
 })
 ```
@@ -153,36 +153,40 @@ Effect.gen(function* () {
     prompt: "Panning wide shot of a calico kitten sleeping in the sunshine",
     frames: { first: yield* Media.file("./start.png"), last: yield* Media.file("./end.png") },
     references: [yield* Media.file("./style.png")],
-    video: Media.bytes(previous, "video/mp4"),    // edit / extend source
+    video: Media.bytes(previous, "video/mp4"), // edit / extend source
     durationSeconds: 8,
     aspectRatio: "16:9",
     resolution: "1080p",
     audio: true,
     n: 1,
     seed: 7,
-    negativePrompt: "text, watermark",            // common, not provider-native
+    negativePrompt: "text, watermark", // common, not provider-native
     providerOptions: { personGeneration: "allow_adult" },
   })
 
   // Simple: wait for it.
   const response = yield* Video.generate(request, { poll: { interval: "10 seconds", timeout: "10 minutes" } })
-  response.video                                     // Media.Asset: url (expiresAt on Veo and Runway; transient `headers` for Veo downloads)
-  response.usage                                     // credits on Runway; the other three report none (xAI's usage.cost_in_usd_ticks is not decoded)
-  response.notices                                   // Veo raiMediaFilteredReasons → filtered, xAI respect_moderation → moderated
-  yield* response.video.materialize()                // pull bytes before the URL expires
+  response.video // Media.Asset: url (expiresAt on Veo and Runway; transient `headers` for Veo downloads)
+  response.usage // credits on Runway; the other three report none (xAI's usage.cost_in_usd_ticks is not decoded)
+  response.notices // Veo raiMediaFilteredReasons → filtered, xAI respect_moderation → moderated
+  yield* response.video.materialize() // pull bytes before the URL expires
 
   // Explicit generation control.
-  const generation = yield* Video.start(request)     // Generation<VideoResponse>
-  generation.id; generation.status; generation.progress; generation.position; generation.token
-  yield* generation.await({ poll })                  // VideoResponse
-  yield* generation.cancel()                         // fal PUT cancel_url, Runway DELETE /tasks/{id}; Veo and xAI succeed without a request
+  const generation = yield* Video.start(request) // Generation<VideoResponse>
+  generation.id
+  generation.status
+  generation.progress
+  generation.position
+  generation.token
+  yield* generation.await({ poll }) // VideoResponse
+  yield* generation.cancel() // fal PUT cancel_url, Runway DELETE /tasks/{id}; Veo and xAI succeed without a request
 
   // Resume from another process. The token is validated against the route's codec and refreshed once. It carries no
   // route identity, so persist the provider and model ID alongside it: `resume` needs the model.
   const resumed = yield* Video.resume(model, JSON.parse(saved))
 
   // Progress as a stream.
-  Video.stream(request, { poll })                    // Stream<VideoEvent>: generation-queued { id, position } | generation-progress { id, progress } | video { index, video } | finish { usage, notices }
+  Video.stream(request, { poll }) // Stream<VideoEvent>: generation-queued { id, position } | generation-progress { id, progress } | video { index, video } | finish { usage, notices }
 })
 ```
 
@@ -206,17 +210,17 @@ Shipped in phase 3 (`src/speech.ts`, `src/speech-client.ts`, protocols `openai-s
 const request = Speech.request({
   model: elevenlabs.speech("eleven_flash_v2_5"),
   text: "Hello from AigcForge.",
-  voice: "JBFqnCBsd6RMkjVDRZzb",                  // provider-native identifier, or { id }
-  format: "mp3",                                   // mp3 | wav | pcm | opus | aac | flac | (string & {})
+  voice: "JBFqnCBsd6RMkjVDRZzb", // provider-native identifier, or { id }
+  format: "mp3", // mp3 | wav | pcm | opus | aac | flac | (string & {})
   speed: 1.0,
   language: "en",
-  instructions: "Warm, unhurried.",                // only OpenAI; elsewhere fails typed
-  timestamps: true,                                // request alignment; routes without it fail typed
+  instructions: "Warm, unhurried.", // only OpenAI; elsewhere fails typed
+  timestamps: true, // request alignment; routes without it fail typed
   providerOptions: { voice_settings: { stability: 0.5 } },
 })
 
-const response = yield* Speech.generate(request)   // SpeechResponse: audio: Media.Asset, timestamps?, usage?, providerMetadata?
-yield* Speech.stream(request)                      // Stream<SpeechEvent>: generation-queued | generation-progress | audio-delta { chunk } | timestamps { items } | finish { audio, usage? }
+const response = yield * Speech.generate(request) // SpeechResponse: audio: Media.Asset, timestamps?, usage?, providerMetadata?
+yield * Speech.stream(request) // Stream<SpeechEvent>: generation-queued | generation-progress | audio-delta { chunk } | timestamps { items } | finish { audio, usage? }
 ```
 
 Execution is `MediaProtocol.stream` for every provider: one request whose body is framed and folded by a `step`
@@ -255,13 +259,13 @@ endpoints (character-level, NDJSON when streaming); Cartesia sets `add_timestamp
 
 Common-field lowering per provider:
 
-| Provider | `voice` | `speed` | `language` | `instructions` | `timestamps` | Usage |
-|---|---|---|---|---|---|---|
-| OpenAI | `voice` (name or `{ id }`) | `speed` | unsupported | `instructions` | unsupported | `tokens` from SSE `speech.audio.done` only |
-| Gemini | `prebuiltVoiceConfig.voiceName` | unsupported | `speechConfig.languageCode` | unsupported (direct in text) | unsupported | `tokens` from `usageMetadata` |
-| ElevenLabs | path voice id (required) | `voice_settings.speed` | `language_code` | unsupported | `with-timestamps` | `credits` from `character-cost` header |
-| Cartesia | `voice` (required) | `generation_config.speed` | `language` | unsupported | `add_timestamps` | none |
-| Deepgram | unsupported (voice is the model) | `speed` query | unsupported | unsupported | unsupported | `characters` from `dg-char-count` header |
+| Provider   | `voice`                          | `speed`                   | `language`                  | `instructions`               | `timestamps`      | Usage                                      |
+| ---------- | -------------------------------- | ------------------------- | --------------------------- | ---------------------------- | ----------------- | ------------------------------------------ |
+| OpenAI     | `voice` (name or `{ id }`)       | `speed`                   | unsupported                 | `instructions`               | unsupported       | `tokens` from SSE `speech.audio.done` only |
+| Gemini     | `prebuiltVoiceConfig.voiceName`  | unsupported               | `speechConfig.languageCode` | unsupported (direct in text) | unsupported       | `tokens` from `usageMetadata`              |
+| ElevenLabs | path voice id (required)         | `voice_settings.speed`    | `language_code`             | unsupported                  | `with-timestamps` | `credits` from `character-cost` header     |
+| Cartesia   | `voice` (required)               | `generation_config.speed` | `language`                  | unsupported                  | `add_timestamps`  | none                                       |
+| Deepgram   | unsupported (voice is the model) | `speed` query             | unsupported                 | unsupported                  | unsupported       | `characters` from `dg-char-count` header   |
 
 Deferred: `Speech.session(...)` — input-streaming TTS where text arrives incrementally over a WebSocket (ElevenLabs
 `stream-input`, Cartesia WebSocket contexts, Deepgram WebSocket speak) — is a separate scoped resource, not part of
@@ -276,19 +280,24 @@ Shipped as the second half of phase 3 (`src/transcription.ts`, `src/transcriptio
 ```ts
 const request = Transcription.request({
   model: openai.transcription("gpt-4o-transcribe-diarize"),
-  audio: yield* Media.file("./call.wav"),
-  language: "en",                                  // provider-native passthrough
-  timestamps: "segment",                           // none | segment | word
+  audio: yield * Media.file("./call.wav"),
+  language: "en", // provider-native passthrough
+  timestamps: "segment", // none | segment | word
   diarize: true,
-  speakers: 2,                                     // speaker count (AssemblyAI exact, ElevenLabs maximum)
+  speakers: 2, // speaker count (AssemblyAI exact, ElevenLabs maximum)
   providerOptions: { known_speaker_names: ["agent"] },
 })
 
-const response = yield* Transcription.generate(request)
-response.text; response.segments; response.words; response.language; response.durationSeconds; response.usage
-yield* Transcription.stream(request)               // Stream<TranscriptionEvent>: generation-queued | generation-progress | text-delta | segment | finish
-const generation = yield* Transcription.start(request) // queued routes only
-yield* Transcription.resume(model, token)
+const response = yield * Transcription.generate(request)
+response.text
+response.segments
+response.words
+response.language
+response.durationSeconds
+response.usage
+yield * Transcription.stream(request) // Stream<TranscriptionEvent>: generation-queued | generation-progress | text-delta | segment | finish
+const generation = yield * Transcription.start(request) // queued routes only
+yield * Transcription.resume(model, token)
 ```
 
 Transcription is the first modality whose providers span all three protocol kinds, and it needed no fourth kind.
@@ -332,13 +341,13 @@ Settled rules:
 - **Units.** AssemblyAI milliseconds and Gemini protobuf durations (`"0.400s"`) are normalized to seconds at the
   protocol boundary.
 
-| Provider | Kind | Audio input | `timestamps` | `diarize` | Unsupported | Usage |
-|---|---|---|---|---|---|---|
-| OpenAI | stream (`stream: true` in `stream` mode; `whisper-1` ignores `stream`, so it emits only `finish`) | multipart `file` (inline only) | `whisper-1` (`verbose_json`); diarize model: `segment` | `gpt-4o-transcribe-diarize` (`diarized_json`) | `speakers`; `prompt` on the diarize model | `tokens` or `seconds` |
-| Gemini | stream (`generateContent` / `streamGenerateContent`) | `inlineData` or Gemini Files `fileData` | `audioTranscriptionConfig.wordTimestamp` | `audioTranscriptionConfig.diarization` | `prompt`, `speakers` | `tokens` |
-| Deepgram | inline | raw body, or JSON `{ url }` | words always; `segment` → `utterances` | `diarize_model=latest` + `utterances` | `prompt`, `speakers` | `seconds` (`metadata.duration`) |
-| ElevenLabs | inline | multipart `file`, or `source_url` | words always; `segment` → `diarize` (speaker turns) | `diarize` | `prompt`; `webhook`, per-channel `use_multi_channel` | `seconds` (`audio_duration_secs`) |
-| AssemblyAI | queued (upload → submit → poll) | `/v2/upload` then `audio_url`, or a URL | words always; `segment` → `speaker_labels` | `speaker_labels` | — | `seconds` (`audio_duration`) |
+| Provider   | Kind                                                                                              | Audio input                             | `timestamps`                                           | `diarize`                                     | Unsupported                                          | Usage                             |
+| ---------- | ------------------------------------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------ | --------------------------------------------- | ---------------------------------------------------- | --------------------------------- |
+| OpenAI     | stream (`stream: true` in `stream` mode; `whisper-1` ignores `stream`, so it emits only `finish`) | multipart `file` (inline only)          | `whisper-1` (`verbose_json`); diarize model: `segment` | `gpt-4o-transcribe-diarize` (`diarized_json`) | `speakers`; `prompt` on the diarize model            | `tokens` or `seconds`             |
+| Gemini     | stream (`generateContent` / `streamGenerateContent`)                                              | `inlineData` or Gemini Files `fileData` | `audioTranscriptionConfig.wordTimestamp`               | `audioTranscriptionConfig.diarization`        | `prompt`, `speakers`                                 | `tokens`                          |
+| Deepgram   | inline                                                                                            | raw body, or JSON `{ url }`             | words always; `segment` → `utterances`                 | `diarize_model=latest` + `utterances`         | `prompt`, `speakers`                                 | `seconds` (`metadata.duration`)   |
+| ElevenLabs | inline                                                                                            | multipart `file`, or `source_url`       | words always; `segment` → `diarize` (speaker turns)    | `diarize`                                     | `prompt`; `webhook`, per-channel `use_multi_channel` | `seconds` (`audio_duration_secs`) |
+| AssemblyAI | queued (upload → submit → poll)                                                                   | `/v2/upload` then `audio_url`, or a URL | words always; `segment` → `speaker_labels`             | `speaker_labels`                              | —                                                    | `seconds` (`audio_duration`)      |
 
 Deferred: `Transcription.session(...)` — realtime STT over WebSocket (Deepgram live, AssemblyAI streaming, ElevenLabs
 realtime, OpenAI realtime transcription) — is the same future scoped `session` shape as input-streaming TTS and ships
@@ -416,24 +425,24 @@ Streams become `AsyncIterable` via `Stream.toAsyncIterable`. `AIError` is thrown
 
 ### Providers
 
-Existing facades gain per-modality selectors; the modality routes each facade provides (*italics* are not
+Existing facades gain per-modality selectors; the modality routes each facade provides (_italics_ are not
 implemented):
 
-| Facade | llm | image | video | speech | transcription | other |
-|---|---|---|---|---|---|---|
-| `OpenAI` | responses (default), chat | Images API (stream) | *Sora skipped (decision 8)* | ✓ | ✓ | |
-| `Google` | Gemini | Gemini-native | Veo | Gemini TTS | `gemini-3.5-transcribe` | |
-| `XAI` | ✓ | ✓ | ✓ | | | |
-| `ElevenLabs` | | | | ✓ | Scribe | *soundEffect, music (phase 5)* |
-| `Cartesia` | | | | ✓ | | |
-| `Deepgram` | | | | Aura | ✓ | |
-| `Fal` | | ✓ (queued) | ✓ | | | |
-| `AssemblyAI` | | | | | ✓ (queued) | |
-| `BlackForestLabs` | | ✓ (queued) | | | | |
-| `Replicate` | | ✓ (queued) | | | | |
-| `Stability` | | `image` (inline), `upscale()` (queued) | | | | |
-| `Runway` | | | ✓ | | | |
-| `Luma`, `Kling`, `MiniMax` | | *deferred* | *deferred* | | | |
+| Facade                     | llm                       | image                                  | video                       | speech     | transcription           | other                          |
+| -------------------------- | ------------------------- | -------------------------------------- | --------------------------- | ---------- | ----------------------- | ------------------------------ |
+| `OpenAI`                   | responses (default), chat | Images API (stream)                    | _Sora skipped (decision 8)_ | ✓          | ✓                       |                                |
+| `Google`                   | Gemini                    | Gemini-native                          | Veo                         | Gemini TTS | `gemini-3.5-transcribe` |                                |
+| `XAI`                      | ✓                         | ✓                                      | ✓                           |            |                         |                                |
+| `ElevenLabs`               |                           |                                        |                             | ✓          | Scribe                  | _soundEffect, music (phase 5)_ |
+| `Cartesia`                 |                           |                                        |                             | ✓          |                         |                                |
+| `Deepgram`                 |                           |                                        |                             | Aura       | ✓                       |                                |
+| `Fal`                      |                           | ✓ (queued)                             | ✓                           |            |                         |                                |
+| `AssemblyAI`               |                           |                                        |                             |            | ✓ (queued)              |                                |
+| `BlackForestLabs`          |                           | ✓ (queued)                             |                             |            |                         |                                |
+| `Replicate`                |                           | ✓ (queued)                             |                             |            |                         |                                |
+| `Stability`                |                           | `image` (inline), `upscale()` (queued) |                             |            |                         |                                |
+| `Runway`                   |                           |                                        | ✓                           |            |                         |                                |
+| `Luma`, `Kling`, `MiniMax` |                           | _deferred_                             | _deferred_                  |            |                         |                                |
 
 New facades follow the existing one-file-per-provider rule. The facade selector is the public path for media models; modality-specific package entrypoints (for example `@aigcfroge/ai/providers/openai/images`) are deferred until Core has a modality-aware model resolver.
 

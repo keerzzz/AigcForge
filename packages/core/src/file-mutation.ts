@@ -241,9 +241,7 @@ export const layer = Layer.effect(
               : null
 
             // Register temp cleanup on any failure or interruption.
-            yield* Effect.addFinalizer(() =>
-              environment.files.remove(tmp).pipe(Effect.catch(() => Effect.void)),
-            )
+            yield* Effect.addFinalizer(() => environment.files.remove(tmp).pipe(Effect.catch(() => Effect.void)))
 
             // The process-backed environment writes create the file but not the parent;
             // an absent directory surfaces as Failed, so ensure it first (mkdir on an

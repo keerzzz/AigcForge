@@ -376,12 +376,15 @@ function projectNext(events: StoredEvent[]) {
         reasoningIndexes.set(key, assistant.content.length)
         messages.set(assistant.id, {
           ...assistant,
-          content: [...assistant.content, {
-            type: "reasoning",
-            text: "",
-            ...(event.providerMetadata === undefined ? {} : { state: event.providerMetadata }),
-            time: { created: event.timestamp },
-          }],
+          content: [
+            ...assistant.content,
+            {
+              type: "reasoning",
+              text: "",
+              ...(event.providerMetadata === undefined ? {} : { state: event.providerMetadata }),
+              time: { created: event.timestamp },
+            },
+          ],
         })
         continue
       }
@@ -410,13 +413,16 @@ function projectNext(events: StoredEvent[]) {
         toolInputs.set(key, "")
         messages.set(assistant.id, {
           ...assistant,
-          content: [...assistant.content, {
-            type: "tool",
-            id: event.callID,
-            name: event.name,
-            time: { created: event.timestamp },
-            state: { status: "streaming", input: "" },
-          }],
+          content: [
+            ...assistant.content,
+            {
+              type: "tool",
+              id: event.callID,
+              name: event.name,
+              time: { created: event.timestamp },
+              state: { status: "streaming", input: "" },
+            },
+          ],
         })
         continue
       }
@@ -438,37 +444,46 @@ function projectNext(events: StoredEvent[]) {
         ...("result" in event && event.result !== undefined ? { result: event.result } : {}),
         ...("outputPaths" in event && event.outputPaths !== undefined ? { outputPaths: event.outputPaths } : {}),
       }
-      const next = event.type === "session.next.tool.called.1"
-        ? {
-            ...tool,
-            executed: event.provider.executed,
-            ...(event.provider.metadata === undefined ? {} : { providerState: event.provider.metadata }),
-            time: { ...tool.time, ran: event.timestamp },
-            state: { status: "running", input: event.input, metadata: { legacy } },
-          }
-        : {
-            ...tool,
-            executed: event.provider.executed || tool.executed === true,
-            ...(event.provider.metadata === undefined ? {} : { providerResultState: event.provider.metadata }),
-            time: { ...tool.time, completed: event.timestamp },
-            state: event.type === "session.next.tool.success.1"
-              ? {
-                  status: "completed",
-                  input: tool.state.status === "streaming" ? {} : tool.state.input,
-                  content: event.content.length ? event.content : [{ type: "text", text: "" }],
-                  metadata: { ...event.structured, legacy },
-                }
-              : {
-                  status: "error",
-                  input: tool.state.status === "streaming" ? {} : tool.state.input,
-                  error: event.error,
-                  metadata: { ...(tool.state.status === "streaming" ? {} : tool.state.metadata), legacy },
-                },
-          }
-      messages.set(assistant.id, decode(EncodedMessage, {
-        ...assistant,
-        content: assistant.content.map((block, position) => position === index ? next : block),
-      }, "Invalid recovered legacy tool settlement"))
+      const next =
+        event.type === "session.next.tool.called.1"
+          ? {
+              ...tool,
+              executed: event.provider.executed,
+              ...(event.provider.metadata === undefined ? {} : { providerState: event.provider.metadata }),
+              time: { ...tool.time, ran: event.timestamp },
+              state: { status: "running", input: event.input, metadata: { legacy } },
+            }
+          : {
+              ...tool,
+              executed: event.provider.executed || tool.executed === true,
+              ...(event.provider.metadata === undefined ? {} : { providerResultState: event.provider.metadata }),
+              time: { ...tool.time, completed: event.timestamp },
+              state:
+                event.type === "session.next.tool.success.1"
+                  ? {
+                      status: "completed",
+                      input: tool.state.status === "streaming" ? {} : tool.state.input,
+                      content: event.content.length ? event.content : [{ type: "text", text: "" }],
+                      metadata: { ...event.structured, legacy },
+                    }
+                  : {
+                      status: "error",
+                      input: tool.state.status === "streaming" ? {} : tool.state.input,
+                      error: event.error,
+                      metadata: { ...(tool.state.status === "streaming" ? {} : tool.state.metadata), legacy },
+                    },
+            }
+      messages.set(
+        assistant.id,
+        decode(
+          EncodedMessage,
+          {
+            ...assistant,
+            content: assistant.content.map((block, position) => (position === index ? next : block)),
+          },
+          "Invalid recovered legacy tool settlement",
+        ),
+      )
       continue
     }
 

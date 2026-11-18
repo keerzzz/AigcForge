@@ -167,7 +167,12 @@ function fixture(input: { session?: Commit; agents?: Agent[]; config?: ConfigMod
           },
         },
         provider: { list: () => state.providers },
-        model: { list: () => state.models, group: { definition: { list: () => ({ targets: [], definitions: [], effective: [] }), sync: async () => {} } } },
+        model: {
+          list: () => state.models,
+          group: {
+            definition: { list: () => ({ targets: [], definitions: [], effective: [] }), sync: async () => {} },
+          },
+        },
         integration: { list: () => [] },
       },
     },
@@ -274,7 +279,9 @@ test.each(["build", "meta"])("preserves %s model identity and label after its ca
 
   expect(model.current()).toBeUndefined()
   expect(model.identity()).toMatchObject({
-    id: "b", name: "Model b", provider: { id: "provider", name: "Provider" },
+    id: "b",
+    name: "Model b",
+    provider: { id: "provider", name: "Provider" },
     unavailable: "This model is unavailable. Its saved selection is preserved.",
   })
 

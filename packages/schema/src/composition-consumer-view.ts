@@ -34,8 +34,7 @@ export function isScopedGraph(snapshot: Composition.Snapshot): boolean {
 
 export function resolveScope(snapshot: Composition.Snapshot, session: SessionLike): Scope {
   if (!isScopedGraph(snapshot)) return { _tag: "unscoped" }
-  const agent =
-    session.agent ?? (!session.parentID && snapshot.version === 2 ? (snapshot.data.root?.id ?? "meta") : "")
+  const agent = session.agent ?? (!session.parentID && snapshot.version === 2 ? (snapshot.data.root?.id ?? "meta") : "")
   const scope = resolveScopeForAgent(snapshot, agent)
   if (scope._tag !== "scoped") return scope
   // The same identity mapping serves both entry points; the Session row also fixes its role.

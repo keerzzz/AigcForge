@@ -239,7 +239,9 @@ export function ProviderModelGroup(props: {
                 />
                 <Menu.Portal>
                   <Menu.Content>
-                    <Menu.Item onSelect={() => setVisibility(true)}>{language.t("settings.models.enableAll")}</Menu.Item>
+                    <Menu.Item onSelect={() => setVisibility(true)}>
+                      {language.t("settings.models.enableAll")}
+                    </Menu.Item>
                     <Menu.Item onSelect={() => setVisibility(false)}>
                       {language.t("settings.models.disableAll")}
                     </Menu.Item>

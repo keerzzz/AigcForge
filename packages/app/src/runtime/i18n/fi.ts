@@ -67,7 +67,8 @@ export const dict = {
   "project.settings.extensions.empty.mcps.title": "Ei vielä MCPs:tä",
   "project.settings.extensions.empty.mcps.description": "MCPs saatavilla AigcForge näkyy tässä",
   "project.settings.extensions.empty.plugins.title": "Ei vielä lisäosia",
-  "project.settings.extensions.empty.plugins.description": "AigcForge:lle saatavilla olevat laajennukset näkyvät täällä",
+  "project.settings.extensions.empty.plugins.description":
+    "AigcForge:lle saatavilla olevat laajennukset näkyvät täällä",
   "project.settings.extensions.empty.skills.title": "Ei taitoja vielä",
   "project.settings.extensions.empty.skills.description": "AigcForge:n käytettävissä olevat taidot näkyvät täällä",
   "project.settings.extensions.lsp.configured": "Konfiguroidut kielipalvelimet",

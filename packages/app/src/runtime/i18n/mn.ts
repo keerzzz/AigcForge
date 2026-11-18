@@ -839,7 +839,8 @@ export const dict = {
   "project.settings.icon.description": "Зөвлөж байна: 128×128 пиксел. Зураг оруулахын тулд дарж эсвэл чирнэ үү.",
   "project.settings.color.description": "Өөрчлөн зураг тогтоогоогүй үед төсөлд зориулсан дүрсэнд ашиглана",
   "project.settings.worktree.startup.description": "Шинэ ажлын мод үүсгэсний дараа нэг удаа ажиллана",
-  "project.settings.worktree.startup.hint.base": "Үндсэн ажиллах модыг заахын тулд $AIGCFROGE_WORKTREE_BASE-ийг ашигла.",
+  "project.settings.worktree.startup.hint.base":
+    "Үндсэн ажиллах модыг заахын тулд $AIGCFROGE_WORKTREE_BASE-ийг ашигла.",
   "project.settings.worktree.startup.hint.new": "Шинэ ажиллах модны хувьд $AIGCFROGE_WORKTREE_PATH-г ашиглана уу.",
   "project.settings.extensions.empty.mcps.title": "Одоогоор MCP байхгүй",
   "project.settings.extensions.empty.mcps.description": "AigcForge-д зориулсан MCP-ууд энд гарч ирнэ",

@@ -21,7 +21,11 @@ const current = Layer.succeed(
   Location.Service,
   Location.Service.of({
     directory: AbsolutePath.make("/project"),
-    project: { id: Project.ID.global, directory: AbsolutePath.make("/project"), canonical: AbsolutePath.make("/project") },
+    project: {
+      id: Project.ID.global,
+      directory: AbsolutePath.make("/project"),
+      canonical: AbsolutePath.make("/project"),
+    },
   }),
 )
 const it = testEffect(
@@ -119,14 +123,14 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
       const bus = yield* Bus.Service
       const update = { grantID: "grt_commit_seam", status: "active" as const, timeUpdated: 1 }
 
-      const staleRevision = yield* GrantEvent.publish(bus, { ...update, revision: 7 }, () =>
-        Effect.succeed(true),
-      ).pipe(Effect.exit)
+      const staleRevision = yield* GrantEvent.publish(bus, { ...update, revision: 7 }, () => Effect.succeed(true)).pipe(
+        Effect.exit,
+      )
       expectCommitRejected(staleRevision, 7)
 
-      const rejectedRow = yield* GrantEvent.publish(bus, { ...update, revision: 1 }, () =>
-        Effect.succeed(false),
-      ).pipe(Effect.exit)
+      const rejectedRow = yield* GrantEvent.publish(bus, { ...update, revision: 1 }, () => Effect.succeed(false)).pipe(
+        Effect.exit,
+      )
       expectCommitRejected(rejectedRow, 1)
 
       // Positive control: the same call with a matching revision and an accepted

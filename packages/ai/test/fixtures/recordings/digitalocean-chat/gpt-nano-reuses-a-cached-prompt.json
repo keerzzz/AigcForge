@@ -2,13 +2,7 @@
   "version": 1,
   "metadata": {
     "model": "openai-gpt-5-nano",
-    "tags": [
-      "prefix:digitalocean-chat",
-      "provider:digitalocean",
-      "protocol:digitalocean-chat",
-      "cache",
-      "usage"
-    ],
+    "tags": ["prefix:digitalocean-chat", "provider:digitalocean", "protocol:digitalocean-chat", "cache", "usage"],
     "name": "digitalocean-chat/gpt-nano-reuses-a-cached-prompt",
     "recordedAt": "2026-10-01T07:36:40.074Z"
   },

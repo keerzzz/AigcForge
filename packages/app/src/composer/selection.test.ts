@@ -290,7 +290,16 @@ async function browserKeepers() {
           agent: { list: () => state.agents },
           config: { list: () => [], sync: async () => {} },
           provider: { list: () => state.providers, sync: async () => {} },
-          model: { list: () => state.models, sync: async () => {}, group: { definition: { list: () => ({ targets: [], definitions: [], effective: state.groups }), sync: async () => {} } } },
+          model: {
+            list: () => state.models,
+            sync: async () => {},
+            group: {
+              definition: {
+                list: () => ({ targets: [], definitions: [], effective: state.groups }),
+                sync: async () => {},
+              },
+            },
+          },
           integration: { list: () => [], sync: async () => {} },
         },
       },
@@ -425,22 +434,37 @@ async function browserKeepers() {
   }
 
   test("Meta and executor groups retain distinct identities through canonical ACK and persisted choices", () => {
-    const group = (groupID: string, modelID: string): ModelGroupCurrent => ({ groupID, definition: {
-      name: groupID, enabled: true, members: [{ providerID: "provider", id: modelID }], strategy: "order", affinity: "turn",
-    } })
+    const group = (groupID: string, modelID: string): ModelGroupCurrent => ({
+      groupID,
+      definition: {
+        name: groupID,
+        enabled: true,
+        members: [{ providerID: "provider", id: modelID }],
+        strategy: "order",
+        affinity: "turn",
+      },
+    })
 
-    const f = fixture({ groups: [group("meta-route", "a"), group("executor-route", "b"), group("alternate-route", "c")] })
+    const f = fixture({
+      groups: [group("meta-route", "a"), group("executor-route", "b"), group("alternate-route", "c")],
+    })
     const mounted = f.mount()
     const local = mounted.local
     local.model.set({ type: "group", groupID: "meta-route" }, { recent: true })
     local.executor.model.set({ type: "group", groupID: "executor-route" }, { recent: true })
 
-    const expected = { agent: "meta", model: { type: "group" as const, groupID: "meta-route" },
-      executorPreference: { agent: "build", model: { type: "group" as const, groupID: "executor-route" } } }
+    const expected = {
+      agent: "meta",
+      model: { type: "group" as const, groupID: "meta-route" },
+      executorPreference: { agent: "build", model: { type: "group" as const, groupID: "executor-route" } },
+    }
 
     const actual: Canonical = { ...root("a"), model: expected.model, executorPreference: expected.executorPreference }
     const acknowledge = local.model.trackSessionCommit("ses_a", expected)
-    const other: Canonical = { ...actual, executorPreference: { agent: "build", model: { type: "group", groupID: "alternate-route" } } }
+    const other: Canonical = {
+      ...actual,
+      executorPreference: { agent: "build", model: { type: "group", groupID: "alternate-route" } },
+    }
     f.publish(other, "session.executor.selected")
     expect(acknowledge(canonical(other))).toBe("failed")
     expect(local.model.key()).toEqual(expected.model)
@@ -450,7 +474,11 @@ async function browserKeepers() {
     expect(local.model.key()).toEqual(expected.model)
     expect(local.executor.model.key()).toEqual(expected.executorPreference.model)
     expect(local.model.identity()).toMatchObject({ type: "group", groupID: "meta-route", unavailable: undefined })
-    expect(local.executor.model.identity()).toMatchObject({ type: "group", groupID: "executor-route", unavailable: undefined })
+    expect(local.executor.model.identity()).toMatchObject({
+      type: "group",
+      groupID: "executor-route",
+      unavailable: undefined,
+    })
     expect(local.model.variant.current()).toBeUndefined()
     expect(local.executor.model.variant.current()).toBeUndefined()
     flushPersisted()
@@ -460,7 +488,12 @@ async function browserKeepers() {
     expect(restored.executor.preference()).toEqual(expected.executorPreference)
     f.set("groups", 0, "unavailable", "disabled")
     expect(restored.model.key()).toEqual(expected.model)
-    expect(restored.model.identity()).toMatchObject({ type: "group", groupID: "meta-route", name: "meta-route", unavailable: "model.group.unavailable.disabled" })
+    expect(restored.model.identity()).toMatchObject({
+      type: "group",
+      groupID: "meta-route",
+      name: "meta-route",
+      unavailable: "model.group.unavailable.disabled",
+    })
     expect(restored.model.identity()).not.toHaveProperty("provider")
   })
 

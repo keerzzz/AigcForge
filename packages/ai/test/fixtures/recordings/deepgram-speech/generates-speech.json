@@ -1,11 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:deepgram-speech",
-      "provider:deepgram",
-      "protocol:deepgram-speech"
-    ],
+    "tags": ["prefix:deepgram-speech", "provider:deepgram", "protocol:deepgram-speech"],
     "name": "deepgram-speech/generates-speech",
     "recordedAt": "2026-09-23T10:20:47.609Z"
   },

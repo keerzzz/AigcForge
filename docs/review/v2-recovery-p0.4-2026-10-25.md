@@ -100,10 +100,10 @@ child claim 的保留关系由 [SessionStore.releaseChildClaims:228](../../packa
 
 V2-C-RECOVERY 的多个 unresolved 输入顺序、子树 cleanup 与中途故障，V2-C-WORKFLOW-EVENTS 的无日志恢复、删除/压缩/保留期和 receipt/通知生命周期继续按既有账本开放。仅投影无事件与全部 Coding/Custom 组合尚未形成完整独立验收矩阵。现行计划与账本同步本地部分实现、追加验证及限定审批；主线继续 P0.3 和剩余 matrix，提交与剩余验收仍开放，不关闭 P0.4、相关整项或 P0，不表示最终切换完成。
 
-
 **最新反向124范围已限定审批。** 前文“待复审”均保留其历史时点。[最新四文件回归](evidence/v2-recovery-p0.4-2026-10-25/recovery-reverse-workflow-final-tests.json) 为124 pass /0 fail /1229 expect；[类型](evidence/v2-recovery-p0.4-2026-10-25/recovery-reverse-workflow-final-typecheck.json) 与 [七文件lint](evidence/v2-recovery-p0.4-2026-10-25/recovery-reverse-workflow-final-lint.json) exit0。独立复审findings=[]，主线于2026-10-25T18:51:46.939735+00:00完成 [七文件输入增量审批](evidence/v2-recovery-p0.4-2026-10-25/protocol-approval-reverse-workflow.json)。Workflow测试SHA f9e7a8…，三生产SHA与123不变；只复用旧三生产Effect检查。新case与eq/sql、KV import、KV.node四项逆还原逐字节回到e5b444…稳定源。
 
 实际时序为健康Workflow先调度并在gate等待，同Sweep保留Delegation故障child后释放gate；健康step/root两个精确输入完成。选择性marker失败回滚Task，重复/cold保持fault claim/预算2/input/旧marker；解除trigger后recovery_required写回与release/ACK一次发生，fault input和parent notice仍pending。使用真实SQLite与现有服务，模型边界仍是TestLLM/resolver。单case格式前1 pass/58 expect不与124累计。反向组合已交付；成功Delegation/receipt/通知消费、完整配置/Location/lifecycle、managed-server/provider、并发/进程kill/逐写入点crash/release→ACK继续开放。
+
 # 成功 internal Task 交付与原通知消费增量
 
 2026-10-25 UTC，主线在真实 SQLite/SessionRunner/Delegation/Task/Restart owner 上补齐成功 child 写回后通知的磁盘重开消费。最终输入：[p04-success-delivery-final-input.json](evidence/v2-recovery-p0.4-2026-10-25/p04-success-delivery-final-input.json)；独立复审：[p04-success-delivery-review.md](evidence/v2-recovery-p0.4-2026-10-25/p04-success-delivery-review.md)，findings=[]；主线限定批准：[protocol-approval-success-delivery.json](evidence/v2-recovery-p0.4-2026-10-25/protocol-approval-success-delivery.json)。P0.4 整项保持 open。

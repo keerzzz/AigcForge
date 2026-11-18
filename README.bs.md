@@ -68,12 +68,12 @@ nix run nixpkgs#aigcfroge           # ili github:anomalyco/aigcfroge za najnovij
 
 AigcForge je dostupan i kao desktop aplikacija. Preuzmi je direktno sa [stranice izdanja](https://github.com/anomalyco/aigcfroge/releases) ili sa [aigcfroge.ai/download](https://aigcfroge.ai/download).
 
-| Platforma             | Preuzimanje                        |
-| --------------------- | ---------------------------------- |
+| Platforma             | Preuzimanje                         |
+| --------------------- | ----------------------------------- |
 | macOS (Apple Silicon) | `aigcfroge-desktop-mac-arm64.dmg`   |
 | macOS (Intel)         | `aigcfroge-desktop-mac-x64.dmg`     |
 | Windows               | `aigcfroge-desktop-windows-x64.exe` |
-| Linux                 | `.deb`, `.rpm`, ili AppImage       |
+| Linux                 | `.deb`, `.rpm`, ili AppImage        |
 
 ```bash
 # macOS (Homebrew)

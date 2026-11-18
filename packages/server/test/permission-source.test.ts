@@ -149,9 +149,8 @@ it.live("Permission HTTP and asked events retain trusted operation provenance th
     const found = yield* test.request(`/api/session/${test.sessionID}/permission/${pending.id}`)
     expect(found.status).toBe(200)
     expect(
-      Schema.decodeUnknownSync(Schema.Struct({ data: Permission.Request }))(
-        yield* Effect.promise(() => found.json()),
-      ).data.source,
+      Schema.decodeUnknownSync(Schema.Struct({ data: Permission.Request }))(yield* Effect.promise(() => found.json()))
+        .data.source,
     ).toEqual(source)
     const replied = yield* test.request(`/api/session/${test.sessionID}/permission/${pending.id}/reply`, {
       decision: "once",
@@ -207,14 +206,15 @@ it.live("Permission HTTP rejects an operation independently of sibling operation
     const listed = yield* test.request(`/api/session/${test.sessionID}/permission`)
     expect(listed.status).toBe(200)
     expect(
-      requestsFromJson(yield* Effect.promise(() => listed.json())).data.map((request) => request.id).toSorted(),
+      requestsFromJson(yield* Effect.promise(() => listed.json()))
+        .data.map((request) => request.id)
+        .toSorted(),
     ).toEqual([second.id, toolID].toSorted())
     const found = yield* test.request(`/api/session/${test.sessionID}/permission/${second.id}`)
     expect(found.status).toBe(200)
     expect(
-      Schema.decodeUnknownSync(Schema.Struct({ data: Permission.Request }))(
-        yield* Effect.promise(() => found.json()),
-      ).data.source,
+      Schema.decodeUnknownSync(Schema.Struct({ data: Permission.Request }))(yield* Effect.promise(() => found.json()))
+        .data.source,
     ).toEqual(
       new Permission.OperationSource({
         type: "operation",

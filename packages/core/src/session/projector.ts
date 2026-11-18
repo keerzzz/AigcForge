@@ -79,12 +79,14 @@ function applyUsage(db: DatabaseService, sessionID: SessionSchema.ID, value: Usa
       tokens_reasoning: sql`${SessionTable.tokens_reasoning} + ${value.tokens.reasoning}`,
       tokens_cache_read: sql`${SessionTable.tokens_cache_read} + ${value.tokens.cache.read}`,
       tokens_cache_write: sql`${SessionTable.tokens_cache_write} + ${value.tokens.cache.write}`,
-      unknown_price_attempts: value.unknownPriceAttempts === undefined
-        ? sql`${SessionTable.unknown_price_attempts}`
-        : sql`coalesce(${SessionTable.unknown_price_attempts}, 0) + ${value.unknownPriceAttempts}`,
-      missing_usage_attempts: value.missingUsageAttempts === undefined
-        ? sql`${SessionTable.missing_usage_attempts}`
-        : sql`coalesce(${SessionTable.missing_usage_attempts}, 0) + ${value.missingUsageAttempts}`,
+      unknown_price_attempts:
+        value.unknownPriceAttempts === undefined
+          ? sql`${SessionTable.unknown_price_attempts}`
+          : sql`coalesce(${SessionTable.unknown_price_attempts}, 0) + ${value.unknownPriceAttempts}`,
+      missing_usage_attempts:
+        value.missingUsageAttempts === undefined
+          ? sql`${SessionTable.missing_usage_attempts}`
+          : sql`coalesce(${SessionTable.missing_usage_attempts}, 0) + ${value.missingUsageAttempts}`,
       time_updated: timeUpdated ?? sql`${SessionTable.time_updated}`,
     })
     .where(eq(SessionTable.id, sessionID))
@@ -482,11 +484,18 @@ const projectStepTerminal = Effect.fn("SessionProjector.projectStepTerminal")(fu
   db: DatabaseService,
   event: SessionEvent.Step.Ended | SessionEvent.Step.Failed,
 ) {
-  const row = yield* db.select().from(SessionMessageTable).where(and(
-    eq(SessionMessageTable.session_id, event.data.sessionID),
-    eq(SessionMessageTable.id, event.data.assistantMessageID),
-    eq(SessionMessageTable.type, "assistant"),
-  )).get().pipe(Effect.orDie)
+  const row = yield* db
+    .select()
+    .from(SessionMessageTable)
+    .where(
+      and(
+        eq(SessionMessageTable.session_id, event.data.sessionID),
+        eq(SessionMessageTable.id, event.data.assistantMessageID),
+        eq(SessionMessageTable.type, "assistant"),
+      ),
+    )
+    .get()
+    .pipe(Effect.orDie)
   const assistant = row === undefined ? undefined : decodeMessage({ ...row.data, id: row.id, type: row.type })
   const accounting = {
     cost: event.data.cost,
@@ -496,48 +505,80 @@ const projectStepTerminal = Effect.fn("SessionProjector.projectStepTerminal")(fu
   }
   if (assistant?.type === "assistant" && assistant.attempts !== undefined) {
     if (assistant.attempts.length === 0 || assistant.attempts.some((attempt) => attempt.terminal === undefined))
-      return yield* Effect.die(new Bus.InvalidDurableEventError({ type: event.type, message: "Logical settlement requires every physical attempt terminal" }))
+      return yield* Effect.die(
+        new Bus.InvalidDurableEventError({
+          type: event.type,
+          message: "Logical settlement requires every physical attempt terminal",
+        }),
+      )
     if (!isDeepStrictEqual(accounting, SessionUsage.aggregate(assistant.attempts)))
-      return yield* Effect.die(new Bus.InvalidDurableEventError({ type: event.type, message: "Logical accounting conflicts with persisted physical receipts" }))
+      return yield* Effect.die(
+        new Bus.InvalidDurableEventError({
+          type: event.type,
+          message: "Logical accounting conflicts with persisted physical receipts",
+        }),
+      )
     if (assistant.unknownPriceAttempts !== undefined || assistant.missingUsageAttempts !== undefined) {
-      const terminal = event.type === SessionEvent.Step.Ended.type ? {
-        finish: event.data.finish,
-        needsContinuation: event.data.needsContinuation,
-        rawFinish: event.data.rawFinish,
-        providerState: event.data.providerState,
-        error: undefined,
-      } : {
-        finish: event.data.finish ?? "error",
-        needsContinuation: undefined,
-        rawFinish: event.data.rawFinish,
-        providerState: event.data.providerState,
-        error: event.data.error,
-      }
-      if (!isDeepStrictEqual({
-        ...accounting,
-        ...terminal,
-      }, {
-        cost: assistant.cost,
-        tokens: assistant.tokens,
-        unknownPriceAttempts: assistant.unknownPriceAttempts,
-        missingUsageAttempts: assistant.missingUsageAttempts,
-        finish: assistant.finish,
-        needsContinuation: assistant.needsContinuation,
-        rawFinish: assistant.rawFinish,
-        providerState: assistant.providerState,
-        error: assistant.error,
-      }))
-        return yield* Effect.die(new Bus.InvalidDurableEventError({ type: event.type, message: "Conflicting logical Step settlement" }))
+      const terminal =
+        event.type === SessionEvent.Step.Ended.type
+          ? {
+              finish: event.data.finish,
+              needsContinuation: event.data.needsContinuation,
+              rawFinish: event.data.rawFinish,
+              providerState: event.data.providerState,
+              error: undefined,
+            }
+          : {
+              finish: event.data.finish ?? "error",
+              needsContinuation: undefined,
+              rawFinish: event.data.rawFinish,
+              providerState: event.data.providerState,
+              error: event.data.error,
+            }
+      if (
+        !isDeepStrictEqual(
+          {
+            ...accounting,
+            ...terminal,
+          },
+          {
+            cost: assistant.cost,
+            tokens: assistant.tokens,
+            unknownPriceAttempts: assistant.unknownPriceAttempts,
+            missingUsageAttempts: assistant.missingUsageAttempts,
+            finish: assistant.finish,
+            needsContinuation: assistant.needsContinuation,
+            rawFinish: assistant.rawFinish,
+            providerState: assistant.providerState,
+            error: assistant.error,
+          },
+        )
+      )
+        return yield* Effect.die(
+          new Bus.InvalidDurableEventError({ type: event.type, message: "Conflicting logical Step settlement" }),
+        )
       return
     }
   }
-  if (assistant === undefined && (accounting.unknownPriceAttempts !== undefined || accounting.missingUsageAttempts !== undefined))
-    return yield* Effect.die(new Bus.InvalidDurableEventError({ type: event.type, message: "Logical receipt has no owned Assistant" }))
+  if (
+    assistant === undefined &&
+    (accounting.unknownPriceAttempts !== undefined || accounting.missingUsageAttempts !== undefined)
+  )
+    return yield* Effect.die(
+      new Bus.InvalidDurableEventError({ type: event.type, message: "Logical receipt has no owned Assistant" }),
+    )
   yield* run(db, event)
   if (event.data.cost !== undefined && event.data.tokens !== undefined) {
-    yield* applyUsage(db, event.data.sessionID, {
-      ...accounting, cost: event.data.cost, tokens: event.data.tokens,
-    }, event.created)
+    yield* applyUsage(
+      db,
+      event.data.sessionID,
+      {
+        ...accounting,
+        cost: event.data.cost,
+        tokens: event.data.tokens,
+      },
+      event.created,
+    )
     return
   }
   yield* touch(db, event)
@@ -550,13 +591,30 @@ const layer = Layer.effectDiscard(
     const metas = yield* MetaAgentService.Service
     const compositions = yield* SessionComposition.Service
     const projectGroupBehavior = Effect.fnUntraced(function* (event: SessionEvent.Created | SessionEvent.Forked) {
-      const row = yield* db.select().from(SessionTable).where(eq(SessionTable.id, event.data.sessionID)).get().pipe(Effect.orDie)
+      const row = yield* db
+        .select()
+        .from(SessionTable)
+        .where(eq(SessionTable.id, event.data.sessionID))
+        .get()
+        .pipe(Effect.orDie)
       if (row === undefined) return
-      const behavior = row.controller?.kind === "child" ? row.controller.executor.groupBehavior : event.data.groupBehavior
+      const behavior =
+        row.controller?.kind === "child" ? row.controller.executor.groupBehavior : event.data.groupBehavior
       if (yield* compositions.exists(event.data.sessionID))
-        yield* compositions.updateGroupBehavior(event.data.sessionID, behavior, row.agent ?? undefined).pipe(Effect.orDie)
-      if (row.controller?.kind === "root" && row.model !== null && (yield* metas.get(row.controller.metaAgentID)) !== undefined)
-        yield* metas.setModel({ id: row.controller.metaAgentID, model: Schema.decodeUnknownSync(Model.Selection)(row.model), groupBehavior: behavior, updated: event.created })
+        yield* compositions
+          .updateGroupBehavior(event.data.sessionID, behavior, row.agent ?? undefined)
+          .pipe(Effect.orDie)
+      if (
+        row.controller?.kind === "root" &&
+        row.model !== null &&
+        (yield* metas.get(row.controller.metaAgentID)) !== undefined
+      )
+        yield* metas.setModel({
+          id: row.controller.metaAgentID,
+          model: Schema.decodeUnknownSync(Model.Selection)(row.model),
+          groupBehavior: behavior,
+          updated: event.created,
+        })
     })
     yield* bus.project(SessionEvent.Created, (event) =>
       Effect.gen(function* () {
@@ -751,7 +809,12 @@ const layer = Layer.effectDiscard(
     )
     yield* bus.project(SessionEvent.ModelSelected, (event) =>
       Effect.gen(function* () {
-        const row = yield* db.select().from(SessionTable).where(eq(SessionTable.id, event.data.sessionID)).get().pipe(Effect.orDie)
+        const row = yield* db
+          .select()
+          .from(SessionTable)
+          .where(eq(SessionTable.id, event.data.sessionID))
+          .get()
+          .pipe(Effect.orDie)
         yield* run(db, event)
         yield* db
           .update(SessionTable)
@@ -760,9 +823,16 @@ const layer = Layer.effectDiscard(
           .run()
           .pipe(Effect.orDie)
         if (row?.controller?.kind === "root" && row.agent === "meta")
-          yield* metas.setModel({ id: row.controller.metaAgentID, model: event.data.model, groupBehavior: event.data.groupBehavior, updated: event.created })
+          yield* metas.setModel({
+            id: row.controller.metaAgentID,
+            model: event.data.model,
+            groupBehavior: event.data.groupBehavior,
+            updated: event.created,
+          })
         if (row !== undefined && (yield* compositions.exists(event.data.sessionID)))
-          yield* compositions.updateGroupBehavior(event.data.sessionID, event.data.groupBehavior, row.agent ?? undefined).pipe(Effect.orDie)
+          yield* compositions
+            .updateGroupBehavior(event.data.sessionID, event.data.groupBehavior, row.agent ?? undefined)
+            .pipe(Effect.orDie)
       }),
     )
     yield* bus.project(SessionEvent.ExecutorSelected, (event) =>
@@ -813,7 +883,9 @@ const layer = Layer.effectDiscard(
     })
     yield* bus.project(SessionEvent.MessageContentUpdated, (event) => run(db, event))
     yield* bus.project(SessionEvent.UsageRecorded, (event) => applyUsage(db, event.data.sessionID, event.data))
-    yield* bus.project(SessionEvent.Forked, (event) => projectFork(db, event).pipe(Effect.andThen(projectGroupBehavior(event))))
+    yield* bus.project(SessionEvent.Forked, (event) =>
+      projectFork(db, event).pipe(Effect.andThen(projectGroupBehavior(event))),
+    )
     yield* bus.project(SessionEvent.InboxDelivered, (event) =>
       Effect.gen(function* () {
         const input = yield* SessionInbox.projectDelivered(db, {
@@ -882,10 +954,20 @@ const layer = Layer.effectDiscard(
         yield* TaskOperation.projectAdmission(db, event).pipe(Effect.orDie)
         if (event.data.communication) {
           if (event.data.item.type !== "synthetic")
-            return yield* Effect.die(new SessionCommunication.Error({ sessionID: event.data.sessionID,
-              communicationID: event.data.communication.id, reason: "invalid_carrier", message: "Communication requires its original synthetic Inbox carrier" }))
-          yield* CommunicationRecord.project(db, { record: event.data.communication, text: event.data.item.payload.text,
-            inputID: event.data.inboxID, sessionID: event.data.sessionID }).pipe(Effect.orDie)
+            return yield* Effect.die(
+              new SessionCommunication.Error({
+                sessionID: event.data.sessionID,
+                communicationID: event.data.communication.id,
+                reason: "invalid_carrier",
+                message: "Communication requires its original synthetic Inbox carrier",
+              }),
+            )
+          yield* CommunicationRecord.project(db, {
+            record: event.data.communication,
+            text: event.data.item.payload.text,
+            inputID: event.data.inboxID,
+            sessionID: event.data.sessionID,
+          }).pipe(Effect.orDie)
         }
         yield* db
           .update(SessionTable)
@@ -1035,26 +1117,43 @@ const layer = Layer.effectDiscard(
         yield* InstructionState.reset(db, event.data.sessionID)
       }),
     )
-    yield* bus.project(SessionTaskEvent.OperationReserved, (event) => Effect.gen(function* () {
-      yield* TaskOperation.projectReserved(db, event.data, event.created, event.durable.seq)
-      if (event.data.source.type === "model_tool") return
-      yield* insertMessage(db, event, {
-        id: TaskOperation.statusMessageID({ sessionID: event.data.sessionID, operationID: event.data.request.operationID }),
-        type: "synthetic",
-        origin: new SessionMessage.ProducedOrigin({ kind: "core-synthetic", sessionID: event.data.sessionID, id: event.id, seq: event.durable.seq }),
-        text: `Task coordination: ${event.data.request.description ?? event.data.request.prompt}`,
-        description: event.data.request.description,
-        metadata: { coordination: new SessionTask.TaskCoordination({
-          kind: "task",
-          operationRef: { sourceSessionID: event.data.sessionID, operationID: event.data.request.operationID },
-          actorSessionID: event.data.sessionID,
-          actorAgent: event.data.source.agent,
-          targetSessionID: event.data.targetSessionID,
-        }) },
-        time: { created: DateTime.makeUnsafe(event.created) },
-      })
-      yield* db.update(SessionTable).set({ time_updated: event.created }).where(eq(SessionTable.id, event.data.sessionID)).run().pipe(Effect.orDie)
-    }))
+    yield* bus.project(SessionTaskEvent.OperationReserved, (event) =>
+      Effect.gen(function* () {
+        yield* TaskOperation.projectReserved(db, event.data, event.created, event.durable.seq)
+        if (event.data.source.type === "model_tool") return
+        yield* insertMessage(db, event, {
+          id: TaskOperation.statusMessageID({
+            sessionID: event.data.sessionID,
+            operationID: event.data.request.operationID,
+          }),
+          type: "synthetic",
+          origin: new SessionMessage.ProducedOrigin({
+            kind: "core-synthetic",
+            sessionID: event.data.sessionID,
+            id: event.id,
+            seq: event.durable.seq,
+          }),
+          text: `Task coordination: ${event.data.request.description ?? event.data.request.prompt}`,
+          description: event.data.request.description,
+          metadata: {
+            coordination: new SessionTask.TaskCoordination({
+              kind: "task",
+              operationRef: { sourceSessionID: event.data.sessionID, operationID: event.data.request.operationID },
+              actorSessionID: event.data.sessionID,
+              actorAgent: event.data.source.agent,
+              targetSessionID: event.data.targetSessionID,
+            }),
+          },
+          time: { created: DateTime.makeUnsafe(event.created) },
+        })
+        yield* db
+          .update(SessionTable)
+          .set({ time_updated: event.created })
+          .where(eq(SessionTable.id, event.data.sessionID))
+          .run()
+          .pipe(Effect.orDie)
+      }),
+    )
     yield* bus.project(SessionTaskEvent.OperationChanged, (event) =>
       TaskOperation.projectChanged(db, event.data, event.created, event.durable.seq),
     )

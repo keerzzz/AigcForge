@@ -92,7 +92,9 @@ export function createDraftStore(
           : db
               .all<{
                 id: string
-              }>(sql`SELECT ref.id FROM (${referenced(value)}) AS ref WHERE ref.id NOT IN (SELECT ${blobs.id} FROM ${blobs})`)
+              }>(
+                sql`SELECT ref.id FROM (${referenced(value)}) AS ref WHERE ref.id NOT IN (SELECT ${blobs.id} FROM ${blobs})`,
+              )
               .map((row) => row.id)
 
       if (!strict || missing.length === 0) writer.set(key, value)

@@ -6,8 +6,5 @@
   "existingDecisionsPreserved": "p1-product-decisions-2026-10-26-followup.json remains unchanged for scoped approval hashes",
   "implementationStatus": "Not yet implemented or behavior verified",
   "owner": "/root, Core/Protocol/Server/Client/App",
-  "notDecidedByThisRecord": [
-    "Specific wire format or storage design",
-    "Work task execution/recovery semantics"
-  ]
+  "notDecidedByThisRecord": ["Specific wire format or storage design", "Work task execution/recovery semantics"]
 }

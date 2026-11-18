@@ -48,7 +48,8 @@ export const inspect = Effect.fn("cli.plugin.inspect")(function* (selected?: str
     ...new Set(
       (info.plugins ?? []).flatMap((entry) => {
         const target = typeof entry === "string" ? entry : entry.package
-        if (target.startsWith("-") || target === "*" || target.endsWith(".*") || target.startsWith("aigcfroge.")) return []
+        if (target.startsWith("-") || target === "*" || target.endsWith(".*") || target.startsWith("aigcfroge."))
+          return []
         return [target]
       }),
     ),
@@ -76,7 +77,8 @@ export const inspect = Effect.fn("cli.plugin.inspect")(function* (selected?: str
     { concurrency: "unbounded" },
   )
   const items = [...serverItems, ...tuiItems]
-  if (selected !== undefined && !items.length) return yield* Effect.fail(new Error(`Plugin is not configured: ${selected}`))
+  if (selected !== undefined && !items.length)
+    return yield* Effect.fail(new Error(`Plugin is not configured: ${selected}`))
   return { client, location, items }
 })
 

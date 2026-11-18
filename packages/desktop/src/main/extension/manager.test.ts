@@ -13,17 +13,26 @@ test.each([
   { name: "an old enabled setting", rows: [{ id: "older", enabled: true }], expected: true },
   {
     name: "the newest old setting",
-    rows: [{ id: "older", enabled: false }, { id: "previous", enabled: true }],
+    rows: [
+      { id: "older", enabled: false },
+      { id: "previous", enabled: true },
+    ],
     expected: true,
   },
   {
     name: "the current enabled setting",
-    rows: [{ id: "previous", enabled: false }, { id: "current", enabled: true }],
+    rows: [
+      { id: "previous", enabled: false },
+      { id: "current", enabled: true },
+    ],
     expected: true,
   },
   {
     name: "the current disabled setting",
-    rows: [{ id: "previous", enabled: true }, { id: "current", enabled: false }],
+    rows: [
+      { id: "previous", enabled: true },
+      { id: "current", enabled: false },
+    ],
     expected: false,
   },
 ])("both hosts resolve $name from real database rows, and a new setting wins", (input) => {
@@ -40,9 +49,13 @@ test.each([
   manager.setEnabled(definition.id, !input.expected)
   expect(manager.enabled(definition.id)).toBe(!input.expected)
   expect(extensionEnabled(definition, readEnableState(database.db.$client))).toBe(!input.expected)
-  expect(database.db.select().from(extension).all().filter((row) => row.id !== definition.id)).toEqual(
-    before.filter((row) => row.id !== definition.id),
-  )
+  expect(
+    database.db
+      .select()
+      .from(extension)
+      .all()
+      .filter((row) => row.id !== definition.id),
+  ).toEqual(before.filter((row) => row.id !== definition.id))
   database.close()
 })
 

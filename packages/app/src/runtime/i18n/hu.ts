@@ -793,7 +793,8 @@ export const dict = {
   "server.connect.failed": "Nem sikerült csatlakozni. Ellenőrizze a szerver címét és jelszavát, majd próbálja újra.",
   "server.connect.scan": "QR-kód beolvasása",
   "server.connect.scan.description": "Irányítsa kameráját a aigcfroge pair által mutatott QR kódra.",
-  "server.connect.scan.invalid": "Ez nem egy AigcForge párosítási kód. Olvassa be a aigcfroge pair által mutatott kódot.",
+  "server.connect.scan.invalid":
+    "Ez nem egy AigcForge párosítási kód. Olvassa be a aigcfroge pair által mutatott kódot.",
   "server.connect.camera": "Kamera párosítása",
   "server.connect.camera.starting": "Kamera nyitása…",
   "server.connect.mixedContent":

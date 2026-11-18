@@ -45,11 +45,11 @@ R2 最终归档后的旧 delegation 不再用于追加；`appendTurn` 在 [servi
 
 ## 精确白名单：2 生产 + 1 测试
 
-| 文件 | 必要差额 |
-| --- | --- |
-| `packages/core/src/delegation/execution.ts` | [captureArtifact:423](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/execution.ts:423)复用 repo discovery/head 与 [bounded rawGit:287](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/execution.ts:287)读取实际 parent/tree。新 HEAD 分支验证上述关系、target SHA 与 previous 相等、对实际 H1 运行[原完整 artifactDiff:324](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/execution.ts:324)并逐字等于 previous。返回实际 H1 的 commit/digest/classification target，分类 base 仍为 previous H0/D0；结束前回读 HEAD 仍为 H1。[prepareArtifact:352](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/execution.ts:352)的可信 previous 准入与原 Location/FileAccess/source、stage-0、100644、symlink、64 KiB strict UTF-8、Git exit/truncation 守卫保持。 |
-| `packages/core/src/delegation/service.ts` | [recordRevision:986](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/service.ts:986)的共享 commit 相等条件 [:1071](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/service.ts:1071)也必须修订：仅在本次 digest 尚无 record、且当前可信完成 proof 的机械分类为 no_code_change 时允许 commit 不同。`previous:1023` 是“本次 digest 的已有记录”，前驱是 `admission:1024`，不要混淆。保留 `:1007–1010` 当前 receipt/source/commit/kind 绑定、`:1058` 原 producer 完整 lineage、location/repository/path/base SHA、锁内 `:1118` latest 校验、原 no_change 和已完成 input 精确重入；Service 不再读 Git。新 digest 首次必须是 `recorded`。 |
-| `packages/core/test/meta-agent-integration.test.ts` | 复用 `metaSetup:149`、`mc07Result:237`、`mc07Build:250`、TestLLM 和已有 R2 keeper。新增 `MC07 no_code_change` 主 keeper及该新放行关系必要负例；实际 shell/Git、Task/child input、DB/Bus、capture、recordRevision、review barrier、complete 与父消费全部经过现有实现。 |
+| 文件                                                | 必要差额                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/core/src/delegation/execution.ts`         | [captureArtifact:423](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/execution.ts:423)复用 repo discovery/head 与 [bounded rawGit:287](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/execution.ts:287)读取实际 parent/tree。新 HEAD 分支验证上述关系、target SHA 与 previous 相等、对实际 H1 运行[原完整 artifactDiff:324](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/execution.ts:324)并逐字等于 previous。返回实际 H1 的 commit/digest/classification target，分类 base 仍为 previous H0/D0；结束前回读 HEAD 仍为 H1。[prepareArtifact:352](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/execution.ts:352)的可信 previous 准入与原 Location/FileAccess/source、stage-0、100644、symlink、64 KiB strict UTF-8、Git exit/truncation 守卫保持。 |
+| `packages/core/src/delegation/service.ts`           | [recordRevision:986](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/service.ts:986)的共享 commit 相等条件 [:1071](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/service.ts:1071)也必须修订：仅在本次 digest 尚无 record、且当前可信完成 proof 的机械分类为 no_code_change 时允许 commit 不同。`previous:1023` 是“本次 digest 的已有记录”，前驱是 `admission:1024`，不要混淆。保留 `:1007–1010` 当前 receipt/source/commit/kind 绑定、`:1058` 原 producer 完整 lineage、location/repository/path/base SHA、锁内 `:1118` latest 校验、原 no_change 和已完成 input 精确重入；Service 不再读 Git。新 digest 首次必须是 `recorded`。                                                                                                                                                      |
+| `packages/core/test/meta-agent-integration.test.ts` | 复用 `metaSetup:149`、`mc07Result:237`、`mc07Build:250`、TestLLM 和已有 R2 keeper。新增 `MC07 no_code_change` 主 keeper及该新放行关系必要负例；实际 shell/Git、Task/child input、DB/Bus、capture、recordRevision、review barrier、complete 与父消费全部经过现有实现。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 `digest.ts/review.ts/fold.ts/task.ts`、Git/Shell/Permission owner、公共 Schema/事件/SQL/Client/generated 与仓内文档不在写白名单。若必要修改越界或合同无法实现，向 Root 回传具体决定函数和最小差额；范围内常规修复直接推进。
 
@@ -91,21 +91,21 @@ git diff --check -- packages/core/src/delegation/execution.ts packages/core/src/
 
 本片当前 **真实 Source/Native/Codex/产品模型预算均 0**，不启动、探活、重试、换模型或写/运行真实 harness。下表只是供 Root 后续冻结的候选，不可执行，也不借用旧 R1/R2 未耗槽：
 
-| 未来请求 owner | 最短新身份链 | 候选 physical/Source |
-| --- | --- | --- |
-| 新 Root | 发 R1；消费 R1 发 review；消费 approval 发 H1；消费新 revision 发 complete；消费 complete 终答 | 5 |
-| Implementer Child | write＋完成；一次 shell＋完成 | 4 |
-| Reviewer Child | 对真实 R1 typed approved | 1 |
-| 合计 | 一个新用户目标，完整连贯链 | 10 |
+| 未来请求 owner    | 最短新身份链                                                                                   | 候选 physical/Source |
+| ----------------- | ---------------------------------------------------------------------------------------------- | -------------------- |
+| 新 Root           | 发 R1；消费 R1 发 review；消费 approval 发 H1；消费新 revision 发 complete；消费 complete 终答 | 5                    |
+| Implementer Child | write＋完成；一次 shell＋完成                                                                  | 4                    |
+| Reviewer Child    | 对真实 R1 typed approved                                                                       | 1                    |
+| 合计              | 一个新用户目标，完整连贯链                                                                     | 10                   |
 
 若 Root 另选 Native 入口，候选 Native 1、外部/Codex 0；未来产品模型沿 DeepSeek Flash/high，由 Root 单独冻结。另行结束 R1 父终答再补输入会增加请求，不能默认仍为 10；不加人为输出 token 上限。
 
-| 保留项 | Owner / unlock |
-| --- | --- |
-| 泛化 HEAD 关系、多路径/untracked/binary/rename/delete/mode、其它 child commit、并发 writer | 原 artifact capture owner / V2-C-DELEGATION；实际用例、必要 owning 文件授权与独立 keeper。 |
-| fanout 前置/后提交故障、补偿与 reconcile | V2-C-FANOUT / 原资源 owner；独立故障任务和资源授权。 |
-| source 单因素冲突、Job cause 正文与 Git 授权相对时序 | 原 MC07-R1 Root / 原治理及 capture owner；相应 owning 比较或具体正文/时序保证的直接证据。 |
-| 外部 artifact completion | 原外部 completion owner；正式设计与验证。 |
-| 未知效果窗口、完整恢复、Meta/UI/全模式及 MC08/MC04b/MC09/MC10 | V2-C-RECOVERY/MC10、AUDIT-V2-MODE-META/V2-VALIDATION与各原 owner；沿原依赖、独立恢复设计和真实消费者验收。 |
+| 保留项                                                                                     | Owner / unlock                                                                                             |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| 泛化 HEAD 关系、多路径/untracked/binary/rename/delete/mode、其它 child commit、并发 writer | 原 artifact capture owner / V2-C-DELEGATION；实际用例、必要 owning 文件授权与独立 keeper。                 |
+| fanout 前置/后提交故障、补偿与 reconcile                                                   | V2-C-FANOUT / 原资源 owner；独立故障任务和资源授权。                                                       |
+| source 单因素冲突、Job cause 正文与 Git 授权相对时序                                       | 原 MC07-R1 Root / 原治理及 capture owner；相应 owning 比较或具体正文/时序保证的直接证据。                  |
+| 外部 artifact completion                                                                   | 原外部 completion owner；正式设计与验证。                                                                  |
+| 未知效果窗口、完整恢复、Meta/UI/全模式及 MC08/MC04b/MC09/MC10                              | V2-C-RECOVERY/MC10、AUDIT-V2-MODE-META/V2-VALIDATION与各原 owner；沿原依赖、独立恢复设计和真实消费者验收。 |
 
 上述是原账本移交摘要；Root 同步唯一 `docs/technical-debt.md`，本片不另建债务账本。**MC07 整体继续开放。**

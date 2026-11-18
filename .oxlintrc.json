@@ -1,17 +1,20 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicolo-ribaudo/oxc-project.github.io/refs/heads/json-schema/src/public/.oxlintrc.schema.json",
   "jsPlugins": [
-    { "name": "anti-slop", "specifier": "./script/oxlint/anti-slop/index.ts" },
-    { "name": "anti-slop-effect", "specifier": "./script/oxlint/anti-slop/effect/index.ts" }
+    {
+      "name": "anti-slop",
+      "specifier": "./script/oxlint/anti-slop/index.ts"
+    },
+    {
+      "name": "anti-slop-effect",
+      "specifier": "./script/oxlint/anti-slop/effect/index.ts"
+    }
   ],
+  "options": {
+    "typeAware": true
+  },
   "categories": {
-    "correctness": "off",
-    "suspicious": "off",
-    "pedantic": "off",
-    "perf": "off",
-    "style": "off",
-    "restriction": "off",
-    "nursery": "off"
+    "suspicious": "warn"
   },
   "rules": {
     "no-restricted-globals": [
@@ -20,7 +23,52 @@
         "name": "Reflect",
         "message": "Use typed property access or direct invocation. Suppress this rule only for genuine reflection."
       }
-    ]
+    ],
+    "typescript/no-base-to-string": "warn",
+    // Effect uses `function*` with Effect.gen/Effect.fnUntraced that don't always yield
+    "require-yield": "off",
+    // SolidJS uses `let ref: T | undefined` for JSX ref bindings assigned at runtime
+    "no-unassigned-vars": "off",
+    // SolidJS tracks reactive deps by reading properties inside createEffect
+    "no-unused-expressions": "off",
+    // Intentional control char matching (ANSI escapes, null byte sanitization)
+    "no-control-regex": "off",
+    // SST and plugin tools require triple-slash references
+    "triple-slash-reference": "off",
+
+    // Suspicious category: suppress noisy rules
+    // Effect's nested function* closures inherently shadow outer scope
+    "no-shadow": "off",
+    // Namespace-heavy codebase makes this too noisy
+    "unicorn/consistent-function-scoping": "off",
+    // Opinionated — .sort()/.reverse() mutation is fine in this codebase
+    "unicorn/no-array-sort": "off",
+    "unicorn/no-array-reverse": "off",
+    // Not relevant — this isn't a DOM event handler codebase
+    "unicorn/prefer-add-event-listener": "off",
+    // Bundler handles module resolution
+    "unicorn/require-module-specifiers": "off",
+    // postMessage target origin not relevant for this codebase
+    "unicorn/require-post-message-target-origin": "off",
+    // Side-effectful constructors are intentional in some places
+    "no-new": "off",
+
+    // These type-aware rules are valuable for new code but too noisy on the legacy tree.
+    // `script/lint-changed.ts` re-enables them for added lines so regressions still fail lint.
+    "typescript/consistent-return": "off",
+    "typescript/no-unsafe-type-assertion": "off",
+    "typescript/unbound-method": "off",
+    // Effect.gen requires function* captures; the five existing sites are documented inline.
+    "typescript/no-this-alias": "warn",
+    // Caller-side typing helpers are retained with documented per-site exemptions.
+    "typescript/no-unnecessary-type-parameters": "warn",
+    // Default lexicographic sort on string[] is intentional and deterministic.
+    "typescript/require-array-sort-compare": ["warn", { "ignoreStringArrays": true }],
+
+    // Type-aware: catch unhandled promises
+    "typescript/no-floating-promises": "warn",
+    // Warn when spreading non-plain objects (Headers, class instances, etc.)
+    "typescript/no-misused-spread": "warn"
   },
   "overrides": [
     {
@@ -142,16 +190,46 @@
           }
         ]
       }
+    },
+    {
+      "files": ["**/test/**", "**/*.test.*", "**/e2e/**"],
+      "rules": {
+        // Bun matchers are typed as void even though rejects/resolves are awaitable at runtime.
+        // The incremental lint gate ignores only those matcher diagnostics and catches other new sync awaits.
+        "typescript/await-thenable": "off"
+      }
+    },
+    {
+      // The app's context layer is below pages: a context that reaches up into a page
+      // makes the page's module graph load for anything that touches the context, and
+      // it inverts the ownership of shared types. Shared shapes belong in `@/utils`.
+      // This replaces three `toContain` assertions on `layout.tsx`'s source text, which
+      // any re-export or formatting change would have fooled.
+      "files": ["packages/app/src/context/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@/pages/*", "@/pages/**"],
+                "message": "The context layer must not import from pages. Put shared types in @/utils."
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
   "ignorePatterns": [
-    "docs/review/evidence/**",
     "**/node_modules",
     "**/dist",
     "**/.build",
     "**/.sst",
     "**/*.d.ts",
     "**/sdk.gen.ts",
+    "packages/sdk/js/src/**/gen/**",
+    "docs/review/evidence/**",
     ".agent/**",
     ".agents/**",
     ".claude/**",

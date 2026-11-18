@@ -6,15 +6,15 @@
 
 在现有右侧Panel底座增加可持续侧聊，补齐普通子智能体的协作入口和子会话查看，完善Meta的真实执行概览。主聊天、侧聊、子会话共享现有ServerRuntime、SSE和Client Data，分别持有自己的会话身份、草稿与视图状态。回答下方通过既有扩展体系增加操作位置，接入Fork、存为资产和侧聊。
 
-| 项目 | 本次基线 |
-| --- | --- |
-| 实施工作区 | `/home/keer/workspace/aigcfroge-v2` |
-| 分支 | `v2-dev`，沿当前分支续接 |
-| HEAD | `0a09f6bccdb71f1234eea759eb99e8a336d1d4da` |
-| 历史参考 | `/home/keer/workspace/aigcfroge`，不作为V2实现目录 |
+| 项目         | 本次基线                                                                                                                                         |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 实施工作区   | `/home/keer/workspace/aigcfroge-v2`                                                                                                              |
+| 分支         | `v2-dev`，沿当前分支续接                                                                                                                         |
+| HEAD         | `0a09f6bccdb71f1234eea759eb99e8a336d1d4da`                                                                                                       |
+| 历史参考     | `/home/keer/workspace/aigcfroge`，不作为V2实现目录                                                                                               |
 | 原右侧栏计划 | [2026-11-09统一右侧栏](/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/2026-11-09-unified-right-sidebar-implementation-plan.md) |
-| 工作树保护 | [修改前快照](/home/keer/.codex/outputs/2026-11-10/side-chat-plan/before.json)：六份已有文档WIP、空暂存区 |
-| 调查来源 | [本地包版本与提取哈希](/home/keer/.codex/outputs/2026-11-10/side-chat-research/evidence.json) |
+| 工作树保护   | [修改前快照](/home/keer/.codex/outputs/2026-11-10/side-chat-plan/before.json)：六份已有文档WIP、空暂存区                                         |
+| 调查来源     | [本地包版本与提取哈希](/home/keer/.codex/outputs/2026-11-10/side-chat-research/evidence.json)                                                    |
 
 已确认的产品要求继续适用：新标签引导页读取扩展注册项并按当前模式筛选；上下文和审查参与同一注册；任务由智能体生成，在输入框上方只读展示；文件默认打开独立标签，显式预览开关控制复用；窄栏仍可关闭标签；图标复用现有目录；简体中文补齐并去除中英文边界空格。
 
@@ -28,12 +28,12 @@
 
 第一性依据：连接承载服务器事件，会话承载持久执行，标签承载查看位置。一个会话可以被多个视图查看；关闭其中一个视图不能等价为取消执行。多个会话可以经同一服务器连接更新；每个视图另建连接和Data会增加重复消费与生命周期分歧。因而复用共同传输、按身份隔离会话、在现有Panel注册视图，是当前最小方案。
 
-| 层次 | 查证与判断 |
-| --- | --- |
-| fact | 现有SSE已共享，多Session数据已由同一Data按ID管理；当前会话UI仍多处依赖主路由。旧`/btw`只保存问答，调用源会话的generate，关闭会删除记录并取消请求。 |
-| hypothesis | 直接把当前主会话组件装进侧栏，会让草稿、请求或事件同步跟随主路由。该假设解释“显示了子聊天，但输入或审批落到主聊天”的失败模式。 |
-| inference | `createActiveComposerAdapter`虽接收Session ID，仍从路由Provider读取draft/server/location；`requests/model`仍读取路由；因此显式目标ID必须贯穿这些消费者，单独替换Timeline参数不足。证据见下节。 |
-| recommendation | 补齐宿主拥有的显式会话内容挂载能力；从已有主会话与子会话查看两个真实路径提取必要共用部分，再接持续侧聊。沿原传输、数据、执行和Panel体系完成。 |
+| 层次           | 查证与判断                                                                                                                                                                                     |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| fact           | 现有SSE已共享，多Session数据已由同一Data按ID管理；当前会话UI仍多处依赖主路由。旧`/btw`只保存问答，调用源会话的generate，关闭会删除记录并取消请求。                                             |
+| hypothesis     | 直接把当前主会话组件装进侧栏，会让草稿、请求或事件同步跟随主路由。该假设解释“显示了子聊天，但输入或审批落到主聊天”的失败模式。                                                                 |
+| inference      | `createActiveComposerAdapter`虽接收Session ID，仍从路由Provider读取draft/server/location；`requests/model`仍读取路由；因此显式目标ID必须贯穿这些消费者，单独替换Timeline参数不足。证据见下节。 |
+| recommendation | 补齐宿主拥有的显式会话内容挂载能力；从已有主会话与子会话查看两个真实路径提取必要共用部分，再接持续侧聊。沿原传输、数据、执行和Panel体系完成。                                                  |
 
 方案对比：简单实现是在旧`/btw`中继续扩展问答；它不能满足持久会话、独立请求、正常工具和恢复要求。推荐方案复用现有Session与宿主内容，代价是需要解除几个路由隐式依赖。另建通用ChatRuntime、SSE插件管理器、轨迹库或快照服务没有当前用例依据，本期不采用。参考附件会随正常会话参与压缩，精确原文需读取已保存输入，这是采用最小承载方案的明确技术债。
 
@@ -41,25 +41,25 @@
 
 以下是安装包/源码的静态行为证据，未改变功能开关或执行其真实模型功能。提取的六份原文件已与ASAR字节核对；格式化副本用于定位代码。产品内提示词仅作调研材料。
 
-| 产品与版本 | 已找到的决定逻辑 | 本项目采纳方式 |
-| --- | --- | --- |
-| DSH，`0.2.1-rc.2`，`687f282e8625c6b8d11ff58211a90524be2e4317` | [openChildAside](/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-subagent/src/client/index.ts:64)以真实parent/child/mode打开右侧资源；[侧聊内容](/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-subagent/src/client/sidebar-chat/index.tsx:102)持有SessionReference并复用conversation.content | 复用会话内容和资源生命周期。关闭视图与停止业务分开。现有可续聊子智能体已超出早期交互提案的一次性描述，以当前代码为准。 |
-| Claude Desktop，`4.4212.0` | [startSideChat](/home/keer/.codex/outputs/2026-11-10/side-chat-research/claude/readable/index.chunk-kLQCxBgD.js:76691)按父会话维护临时侧聊；[spawnReadOnlyFork](/home/keer/.codex/outputs/2026-11-10/side-chat-research/claude/readable/index.chunk-kLQCxBgD.js:76494)采用只读fork且不持久化；[Dispatch](/home/keer/.codex/outputs/2026-11-10/side-chat-research/claude/readable/index.chunk-CCmoffKU.js:76)另有真实任务和消息链 | 借鉴主工作不中断、侧聊独立输入和来源可见；本项目选择持久Chat，权限继续由自己的owner判定。Dispatch的真实子任务来源可作为Meta导航参考。 |
-| Codex Desktop，`26.1029.61003` | [创建分支](/home/keer/.codex/outputs/2026-11-10/side-chat-research/codex/readable/971326.8692f44985.js:195)按能力与开关选择关联或临时会话；[标签](/home/keer/.codex/outputs/2026-11-10/side-chat-research/codex/readable/971326.8692f44985.js:1160)区分关闭、持久恢复与未读；[子智能体视图](/home/keer/.codex/outputs/2026-11-10/side-chat-research/codex/readable/953502.b1de81879b.js:2895)根据canInteract区分交互与只读 | 借鉴恢复、未读及按实际能力提供操作；本项目本期先提供子会话查看。不能把所有外部participant都当成本地可输入Session。 |
+| 产品与版本                                                    | 已找到的决定逻辑                                                                                                                                                                                                                                                                                                                                                                                                                 | 本项目采纳方式                                                                                                                        |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| DSH，`0.2.1-rc.2`，`687f282e8625c6b8d11ff58211a90524be2e4317` | [openChildAside](/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-subagent/src/client/index.ts:64)以真实parent/child/mode打开右侧资源；[侧聊内容](/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-subagent/src/client/sidebar-chat/index.tsx:102)持有SessionReference并复用conversation.content                                                                                           | 复用会话内容和资源生命周期。关闭视图与停止业务分开。现有可续聊子智能体已超出早期交互提案的一次性描述，以当前代码为准。                |
+| Claude Desktop，`4.4212.0`                                    | [startSideChat](/home/keer/.codex/outputs/2026-11-10/side-chat-research/claude/readable/index.chunk-kLQCxBgD.js:76691)按父会话维护临时侧聊；[spawnReadOnlyFork](/home/keer/.codex/outputs/2026-11-10/side-chat-research/claude/readable/index.chunk-kLQCxBgD.js:76494)采用只读fork且不持久化；[Dispatch](/home/keer/.codex/outputs/2026-11-10/side-chat-research/claude/readable/index.chunk-CCmoffKU.js:76)另有真实任务和消息链 | 借鉴主工作不中断、侧聊独立输入和来源可见；本项目选择持久Chat，权限继续由自己的owner判定。Dispatch的真实子任务来源可作为Meta导航参考。 |
+| Codex Desktop，`26.1029.61003`                                | [创建分支](/home/keer/.codex/outputs/2026-11-10/side-chat-research/codex/readable/971326.8692f44985.js:195)按能力与开关选择关联或临时会话；[标签](/home/keer/.codex/outputs/2026-11-10/side-chat-research/codex/readable/971326.8692f44985.js:1160)区分关闭、持久恢复与未读；[子智能体视图](/home/keer/.codex/outputs/2026-11-10/side-chat-research/codex/readable/953502.b1de81879b.js:2895)根据canInteract区分交互与只读       | 借鉴恢复、未读及按实际能力提供操作；本项目本期先提供子会话查看。不能把所有外部participant都当成本地可输入Session。                    |
 
 三者没有可直接映射为本项目完整Meta领域的统一产品合同。Meta概览仍以本项目Controller、Session、Delegation、Workflow和结果来源为准。
 
 ## 4. 当前源码接缝与缺口
 
-| Owner | 已有能力 | 本期差额 |
-| --- | --- | --- |
-| Panel/扩展 | [引导页](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/panel-launcher/renderer.tsx:29)读取`MenuItem(session.panel)`；[Panel](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/sdk/registries.ts:230)支持多标签、恢复和关闭 | 侧聊注册入口和实例；子会话查看复用相同内容能力。引导页无须添加硬编码模块清单。 |
-| 旧BTW | [Store](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/btw/index.ts:5)只存id/question/answer；[generate](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/btw/model.ts:33)调用源Session；[close](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/btw/renderer.tsx:94)删除并取消 | 新侧聊走独立Session；旧问答可阅读，显式继续时转参考创建新会话。 |
-| App会话内容 | [screen](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/screen.tsx:216)已有活动区域和Timeline缓存；[Composer adapter](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/composer/adapter.ts:9)仍隐含route providers | 目标server/session/location、draft、模型选择、附件、请求、队列和停止操作显式绑定。只提取内容，不嵌套整个SessionScreen。 |
-| 宿主上下文 | [MountedSession](/home/keer/workspace/aigcfroge-v2/packages/app/src/runtime/extension/mounted-session.ts:44)、[ServerRef](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/sdk/host-apis.ts:13)已有路由会话和live server访问 | 增加最小宿主内容能力；`ctx.sessions.current()`及`ctx.screen.current()`继续代表主路由。Panel的源会话与内容目标明确分开。 |
-| 协作 | [管理扩展](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/session-management/renderer.tsx:32)已有协作/Meta/运行/产物；[delegation.sync](/home/keer/workspace/aigcfroge-v2/packages/client/src/solid/data.ts:1678)只读正式Delegation | 增加普通subagent的真实child/Job展示，分组保留领域身份。 |
-| 普通子智能体 | [工具执行](/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/plugin/subagent.ts:230)创建child Session和Job；[运行菜单](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/header/session-running-menu.tsx:114)可导航 | 支持在右栏打开真实child。不能依据“协作列表没显示”判断其执行不存在。 |
-| 独立咨询创建 | [公共create](/home/keer/workspace/aigcfroge-v2/packages/protocol/src/groups/session.ts:227)、[fork](/home/keer/workspace/aigcfroge-v2/packages/core/src/session.ts:969)、[share](/home/keer/workspace/aigcfroge-v2/packages/core/src/session/share-v2.ts:170)均存在 | 缺少“按消息边界冻结源参考、创建独立Chat并准入新问题”的公共完整操作。SC04补此合同。 |
+| Owner        | 已有能力                                                                                                                                                                                                                                                                                                                  | 本期差额                                                                                                                |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Panel/扩展   | [引导页](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/panel-launcher/renderer.tsx:29)读取`MenuItem(session.panel)`；[Panel](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/sdk/registries.ts:230)支持多标签、恢复和关闭                                                                   | 侧聊注册入口和实例；子会话查看复用相同内容能力。引导页无须添加硬编码模块清单。                                          |
+| 旧BTW        | [Store](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/btw/index.ts:5)只存id/question/answer；[generate](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/btw/model.ts:33)调用源Session；[close](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/btw/renderer.tsx:94)删除并取消 | 新侧聊走独立Session；旧问答可阅读，显式继续时转参考创建新会话。                                                         |
+| App会话内容  | [screen](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/screen.tsx:216)已有活动区域和Timeline缓存；[Composer adapter](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/composer/adapter.ts:9)仍隐含route providers                                                                                  | 目标server/session/location、draft、模型选择、附件、请求、队列和停止操作显式绑定。只提取内容，不嵌套整个SessionScreen。 |
+| 宿主上下文   | [MountedSession](/home/keer/workspace/aigcfroge-v2/packages/app/src/runtime/extension/mounted-session.ts:44)、[ServerRef](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/sdk/host-apis.ts:13)已有路由会话和live server访问                                                                                 | 增加最小宿主内容能力；`ctx.sessions.current()`及`ctx.screen.current()`继续代表主路由。Panel的源会话与内容目标明确分开。 |
+| 协作         | [管理扩展](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/session-management/renderer.tsx:32)已有协作/Meta/运行/产物；[delegation.sync](/home/keer/workspace/aigcfroge-v2/packages/client/src/solid/data.ts:1678)只读正式Delegation                                                                        | 增加普通subagent的真实child/Job展示，分组保留领域身份。                                                                 |
+| 普通子智能体 | [工具执行](/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/plugin/subagent.ts:230)创建child Session和Job；[运行菜单](/home/keer/workspace/aigcfroge-v2/packages/app/src/session/header/session-running-menu.tsx:114)可导航                                                                                       | 支持在右栏打开真实child。不能依据“协作列表没显示”判断其执行不存在。                                                     |
+| 独立咨询创建 | [公共create](/home/keer/workspace/aigcfroge-v2/packages/protocol/src/groups/session.ts:227)、[fork](/home/keer/workspace/aigcfroge-v2/packages/core/src/session.ts:969)、[share](/home/keer/workspace/aigcfroge-v2/packages/core/src/session/share-v2.ts:170)均存在                                                       | 缺少“按消息边界冻结源参考、创建独立Chat并准入新问题”的公共完整操作。SC04补此合同。                                      |
 
 ## 5. SSE底座：共享传输，按会话插拔消费者
 
@@ -109,12 +109,12 @@ SC01同时覆盖初始messages/pending读取与新输入交付、流式事件重
 
 ### 6.1 四种对象分别使用原owner
 
-| 对象 | 身份与内容 | 操作 |
-| --- | --- | --- |
-| 独立侧聊 | 新普通Chat root，同Source/Location，明确普通Agent；源会话只是参考来源 | 正常持续对话、工具、自己的请求和队列；停当前侧聊；打开为主会话；选中文本插入源草稿 |
-| 普通subagent | 已保存parentID、child Session、Job generation和来源 | 查看；沿原subagent控制入口停止/续派；首次交付不开放通用子会话Composer |
-| 正式Delegation | 原delegation/participant/turn/delivery/receipt及实际transport | 复用现有steer、interrupt、result、reconcile；本地child可查看，外部participant显示真实交付和外部链接 |
-| 普通fork | 原Session fork合同和继承语义 | 保留独立fork入口；不充当跨模式咨询创建的替代品 |
+| 对象           | 身份与内容                                                            | 操作                                                                                                |
+| -------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| 独立侧聊       | 新普通Chat root，同Source/Location，明确普通Agent；源会话只是参考来源 | 正常持续对话、工具、自己的请求和队列；停当前侧聊；打开为主会话；选中文本插入源草稿                  |
+| 普通subagent   | 已保存parentID、child Session、Job generation和来源                   | 查看；沿原subagent控制入口停止/续派；首次交付不开放通用子会话Composer                               |
+| 正式Delegation | 原delegation/participant/turn/delivery/receipt及实际transport         | 复用现有steer、interrupt、result、reconcile；本地child可查看，外部participant显示真实交付和外部链接 |
+| 普通fork       | 原Session fork合同和继承语义                                          | 保留独立fork入口；不充当跨模式咨询创建的替代品                                                      |
 
 普通子会话的公共prompt并未全面禁止人类输入，但[投影器](/home/keer/workspace/aigcfroge-v2/packages/core/src/session/projector.ts:488)默认`attended=false`，[权限计算](/home/keer/workspace/aigcfroge-v2/packages/core/src/permission/effective.ts:158)会把ask降为deny；直接prompt也不会创建新的SubagentJob generation。因而本期仅查看的选择具有实际边界依据。若后继开放直接续聊，需单独明确attended、当前Session状态、Job通知和父会话结果归属。
 
@@ -192,12 +192,12 @@ Meta概览从实际controller的sessions/Task/Delegation/Workflow组成：显示
 
 本节补充的是回答操作，不与顶部整会话Fork、用户旧问题重试、subagent fork或临时侧聊混称。上游固定为本地`upstream/v2@4617210822bdbb31e5749751afbfb4584ccedac8`，未把该ref称为远端实时最新版。其八份[源码副本及哈希](/home/keer/.codex/outputs/2026-11-10/fork-research/opencode-v2/evidence.json)从同一仓库的固定Git对象导出。
 
-| 产品 | 回答入口与实际截断规则 | 新会话与更新方式 |
-| --- | --- | --- |
-| DSH | [回答尾部按钮](/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-chat/src/client/chat/TurnTailNodeView.tsx:28)按session/fork能力显示，使用该轮`turn/end`的seq；[buildForkSeed](/home/keer/Documents/web/deepseek-harness-master/packages/core/session/src/fork.ts:21)取包含边界事件的前缀。包含该回答、工具与之前事件。 | [forkAt](/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-chat/src/client/apply.ts:285)创建后切换主聊天；普通分支沿原Workspace，不自动prompt或回滚文件。持久性依配置的SessionPersistence。新目标沿Remote/Gateway follow接snapshot及后续帧，不是本项目的全局SSE实现。 |
-| Claude Desktop的Code界面 | [回答轮次回调](/home/keer/.codex/outputs/2026-11-10/fork-research/claude/readable/c96d752d0-BKceltwO.js:114497)排除当前在飞轮次；[bze](/home/keer/.codex/outputs/2026-11-10/fork-research/claude/readable/c96d752d0-BKceltwO.js:34810)查下一有效用户输入，作为排除边界。主进程[copyTranscriptUntil](/home/keer/.codex/outputs/2026-11-10/side-chat-research/claude/readable/index.chunk-kLQCxBgD.js:34671)在该UUID前停止，保留本轮回答；无后续输入则复制当前JSONL。 | 新local Session持久保存并按既有工作区规则放置；[普通Fork完成](/home/keer/.codex/outputs/2026-11-10/fork-research/claude/readable/c60746e70-CVrve7GC.js:700)重置新目标查询并导航，不发送新prompt。另有带autoSubmit的其他入口，不混用其语义。 |
-| Codex Desktop | 回答“More actions”中的“Branch in new chat”按已完成turn操作，粒度是turn而非被点击的文本块。新server按lastTurnId fork，旧server先fork再按剩余turn数rollback，因此保留该回答所在轮次。详见[本地Fork报告](/home/keer/.codex/outputs/2026-11-10/fork-research/codex/report.md)。 | 按实际Git/工作区条件选择目的地；返回后导航新会话并聚焦Composer。入口没有自动发送新问题。安装包内桥接、IPC与查询链按原实现运行，不据此宣称使用HTTP SSE。 |
-| OpenCode v2固定ref | [回答下方](/home/keer/.codex/outputs/2026-11-10/fork-research/opencode-v2/packages/session-ui/src/message/message-content.tsx:665)只有复制。Fork命令打开[用户消息选择框](/home/keer/.codex/outputs/2026-11-10/fork-research/opencode-v2/packages/app/src/session/commands/fork-dialog.tsx:38)，传`before:userID`，排除该用户问题及之后回答，再把问题/附件恢复成草稿。 | [projector](/home/keer/.codex/outputs/2026-11-10/fork-research/opencode-v2/packages/core/src/session/projector.ts:139)复制持久历史为新root并保留fork lineage。HTTP ACK后remember、跳转并读取新历史；后续更新复用原SSE/Data。Client不从`session.forked`事件重建全部历史。 |
+| 产品                     | 回答入口与实际截断规则                                                                                                                                                                                                                                                                                                                                                                                                                                              | 新会话与更新方式                                                                                                                                                                                                                                                                        |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DSH                      | [回答尾部按钮](/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-chat/src/client/chat/TurnTailNodeView.tsx:28)按session/fork能力显示，使用该轮`turn/end`的seq；[buildForkSeed](/home/keer/Documents/web/deepseek-harness-master/packages/core/session/src/fork.ts:21)取包含边界事件的前缀。包含该回答、工具与之前事件。                                                                                                                           | [forkAt](/home/keer/Documents/web/deepseek-harness-master/packages/client/ui-chat/src/client/apply.ts:285)创建后切换主聊天；普通分支沿原Workspace，不自动prompt或回滚文件。持久性依配置的SessionPersistence。新目标沿Remote/Gateway follow接snapshot及后续帧，不是本项目的全局SSE实现。 |
+| Claude Desktop的Code界面 | [回答轮次回调](/home/keer/.codex/outputs/2026-11-10/fork-research/claude/readable/c96d752d0-BKceltwO.js:114497)排除当前在飞轮次；[bze](/home/keer/.codex/outputs/2026-11-10/fork-research/claude/readable/c96d752d0-BKceltwO.js:34810)查下一有效用户输入，作为排除边界。主进程[copyTranscriptUntil](/home/keer/.codex/outputs/2026-11-10/side-chat-research/claude/readable/index.chunk-kLQCxBgD.js:34671)在该UUID前停止，保留本轮回答；无后续输入则复制当前JSONL。 | 新local Session持久保存并按既有工作区规则放置；[普通Fork完成](/home/keer/.codex/outputs/2026-11-10/fork-research/claude/readable/c60746e70-CVrve7GC.js:700)重置新目标查询并导航，不发送新prompt。另有带autoSubmit的其他入口，不混用其语义。                                             |
+| Codex Desktop            | 回答“More actions”中的“Branch in new chat”按已完成turn操作，粒度是turn而非被点击的文本块。新server按lastTurnId fork，旧server先fork再按剩余turn数rollback，因此保留该回答所在轮次。详见[本地Fork报告](/home/keer/.codex/outputs/2026-11-10/fork-research/codex/report.md)。                                                                                                                                                                                         | 按实际Git/工作区条件选择目的地；返回后导航新会话并聚焦Composer。入口没有自动发送新问题。安装包内桥接、IPC与查询链按原实现运行，不据此宣称使用HTTP SSE。                                                                                                                                 |
+| OpenCode v2固定ref       | [回答下方](/home/keer/.codex/outputs/2026-11-10/fork-research/opencode-v2/packages/session-ui/src/message/message-content.tsx:665)只有复制。Fork命令打开[用户消息选择框](/home/keer/.codex/outputs/2026-11-10/fork-research/opencode-v2/packages/app/src/session/commands/fork-dialog.tsx:38)，传`before:userID`，排除该用户问题及之后回答，再把问题/附件恢复成草稿。                                                                                               | [projector](/home/keer/.codex/outputs/2026-11-10/fork-research/opencode-v2/packages/core/src/session/projector.ts:139)复制持久历史为新root并保留fork lineage。HTTP ACK后remember、跳转并读取新历史；后续更新复用原SSE/Data。Client不从`session.forked`事件重建全部历史。                |
 
 配置继承也不等于把全部环境回滚到那个时间点：DSH模型可取截断前request/header，但preset来自当前projection；Claude有专门模型选择，其他多数字段从当前父Session取值；OpenCode的fork采用最新Instructions。本项目普通Fork继续沿原继承规则，参考侧聊则使用独立Chat合同。
 
@@ -247,16 +247,16 @@ V2已有七类资产的[候选读取](/home/keer/workspace/aigcfroge-v2/packages
 
 ### 11.1 各层事实与职责
 
-| 层 | 当前ID/关系用途 | 本期处理 |
-| --- | --- | --- |
-| Schema | [SessionID](/home/keer/workspace/aigcfroge-v2/packages/schema/src/session-id.ts:5)为唯一品牌身份，默认生成`ses_`＋descending；[Session.Info](/home/keer/workspace/aigcfroge-v2/packages/schema/src/session.ts:60)分别定义parentID、fork来源、Location、controller | 保持原ID及兼容规则。现有显式创建/导入ID已覆盖调用方指定身份，无第二个已验证生成算法需要插件化。 |
-| 存储/事件 | [SessionTable](/home/keer/workspace/aigcfroge-v2/packages/core/src/session/sql.ts:27)以ID为主键，消息/inbox/历史投影依此归属；Bus按Session aggregate提交 | UI挂载不写parentID、fork lineage或消息归属。仅真正新建/Fork才由原owner创建新ID和记录。 |
-| 执行 | [SessionExecution](/home/keer/workspace/aigcfroge-v2/packages/core/src/session/execution.ts:90)按ID解析保存Location，并由coordinator调度；runner/工具/权限沿该Session执行 | 视图替换、卸载不触发创建、prompt、resume或interrupt。用户发送/停止通过目标Session原API。 |
-| 权限/委派 | attended、controller/source、Job generation及receipt共同决定交互和交付身份 | 将child挂到侧栏不改变执行亲缘关系。正式参与协作继续走Delegation，不把“被显示在A旁边”解释为“由A拥有”。 |
-| Server/Protocol | 一个server内的API接收原Session ID；数据与操作属于该服务边界 | 不把远端URL拼入后端Session ID，不增设全局Session注册服务。跨server选择由客户端已注册ServerRef解析。 |
-| Client/SSE | 每个ServerController拥有Data，内部按Session ID索引 | 同server多个目标共享；不同server沿自己的连接/认证/数据。跨server同名ID必须保持隔离。 |
-| App/GUI | [SessionRef](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/sdk/host-apis.ts:38)的key是server＋Session，但还包含真实shell tab；Panel的source与screen属于原工作区 | 保留该source owner，新增不要求shell tab的最小目标描述；不能假造tab、修改主路由或复制MountedSession来冒充挂载目标。 |
-| 草稿/桌面恢复 | [composer target](/home/keer/workspace/aigcfroge-v2/packages/app/src/composer/persistence.tsx:113)已有显式scope/target；原Panel与Store持久化视图偏好 | 目标草稿按原scope保存；Panel存目标身份和必要视图偏好，不重复保存会话历史、权限或运行状态。等待IPC storage加载后恢复。 |
+| 层              | 当前ID/关系用途                                                                                                                                                                                                                                                   | 本期处理                                                                                                              |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Schema          | [SessionID](/home/keer/workspace/aigcfroge-v2/packages/schema/src/session-id.ts:5)为唯一品牌身份，默认生成`ses_`＋descending；[Session.Info](/home/keer/workspace/aigcfroge-v2/packages/schema/src/session.ts:60)分别定义parentID、fork来源、Location、controller | 保持原ID及兼容规则。现有显式创建/导入ID已覆盖调用方指定身份，无第二个已验证生成算法需要插件化。                       |
+| 存储/事件       | [SessionTable](/home/keer/workspace/aigcfroge-v2/packages/core/src/session/sql.ts:27)以ID为主键，消息/inbox/历史投影依此归属；Bus按Session aggregate提交                                                                                                          | UI挂载不写parentID、fork lineage或消息归属。仅真正新建/Fork才由原owner创建新ID和记录。                                |
+| 执行            | [SessionExecution](/home/keer/workspace/aigcfroge-v2/packages/core/src/session/execution.ts:90)按ID解析保存Location，并由coordinator调度；runner/工具/权限沿该Session执行                                                                                         | 视图替换、卸载不触发创建、prompt、resume或interrupt。用户发送/停止通过目标Session原API。                              |
+| 权限/委派       | attended、controller/source、Job generation及receipt共同决定交互和交付身份                                                                                                                                                                                        | 将child挂到侧栏不改变执行亲缘关系。正式参与协作继续走Delegation，不把“被显示在A旁边”解释为“由A拥有”。                 |
+| Server/Protocol | 一个server内的API接收原Session ID；数据与操作属于该服务边界                                                                                                                                                                                                       | 不把远端URL拼入后端Session ID，不增设全局Session注册服务。跨server选择由客户端已注册ServerRef解析。                   |
+| Client/SSE      | 每个ServerController拥有Data，内部按Session ID索引                                                                                                                                                                                                                | 同server多个目标共享；不同server沿自己的连接/认证/数据。跨server同名ID必须保持隔离。                                  |
+| App/GUI         | [SessionRef](/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/sdk/host-apis.ts:38)的key是server＋Session，但还包含真实shell tab；Panel的source与screen属于原工作区                                                                                   | 保留该source owner，新增不要求shell tab的最小目标描述；不能假造tab、修改主路由或复制MountedSession来冒充挂载目标。    |
+| 草稿/桌面恢复   | [composer target](/home/keer/workspace/aigcfroge-v2/packages/app/src/composer/persistence.tsx:113)已有显式scope/target；原Panel与Store持久化视图偏好                                                                                                              | 目标草稿按原scope保存；Panel存目标身份和必要视图偏好，不重复保存会话历史、权限或运行状态。等待IPC storage加载后恢复。 |
 
 现有私有composer逻辑可用tab描述符索引任意Session的草稿存储；这个存储键不等于已注册shell tab，不能将它提升为公开SessionRef。命名也避免混用现有只读`SessionIdentityProjection`：它表达产品状态，不提供ID生成或挂载管理。
 
@@ -278,11 +278,11 @@ Panel仍由**source工作区**持有；其中的内容读取**target会话**。�
 
 ### 11.3 “插拔其他会话”的三种语义
 
-| 用户动作 | 行为与已有owner |
-| --- | --- |
-| 挂入另一会话 | 多个独立会话并列显示/操作，使用本节target与原Panel；不会把历史自动送入主会话模型。 |
-| 引用另一会话 | 用户明确选择范围，通过§7的Session-owned冻结参考或原分享/草稿能力准入新的输入。挂载/卸载本身不修改模型上下文；已发送参考也不因卸载而消失。 |
-| 让另一智能体参与当前任务 | 沿Task/Delegation/subagent的真实参与者、来源、receipt和结果交付。外部Codex/Claude thread ID仍属各自transport，不能伪造成本地Session ID。 |
+| 用户动作                 | 行为与已有owner                                                                                                                           |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| 挂入另一会话             | 多个独立会话并列显示/操作，使用本节target与原Panel；不会把历史自动送入主会话模型。                                                        |
+| 引用另一会话             | 用户明确选择范围，通过§7的Session-owned冻结参考或原分享/草稿能力准入新的输入。挂载/卸载本身不修改模型上下文；已发送参考也不因卸载而消失。 |
+| 让另一智能体参与当前任务 | 沿Task/Delegation/subagent的真实参与者、来源、receipt和结果交付。外部Codex/Claude thread ID仍属各自transport，不能伪造成本地Session ID。  |
 
 合并两份正在执行的历史不等价为挂载，现有分支、事件序号、inbox和回执没有自动合并合同。本期实现会话引用与内容挂载，已足以支撑后继“选择已有会话加入当前工作区”的界面；后继选择器复用现server/session列表，不需要更换ID体系。跨server内容查看使用各自ServerRef；跨server上下文搬运若要成为产品功能，需沿实际导出/引用边界明确数据传递，不能隐式加入主会话。
 
@@ -298,18 +298,18 @@ Panel仍由**source工作区**持有；其中的内容读取**target会话**。�
 
 顺序：`SC00 → SC01 → SC02 → SC03 → SC04 → SC05 → SC06 → SC07 → SC08 → SC09`。后端SC04的只读合同设计可与SC01–03并行；共享文件写入和全部测试/构建由主执行者串行调度。
 
-| 切片 | 具体落点与工作 | 该片完成标准 |
-| --- | --- | --- |
-| SC00 合同与基线 | 核对本分支差额、WIP和产物；更新DESIGN中请求归属及新侧聊合同；确定新操作、参考格式、失败/重试规则、界面任务单；独立复审 | 产品选择、文件owner和测试场景明确；所有拟新增API均有标记；已有WIP逐项保护。此后不重复为普通可逆修复立项。 |
-| SC01 共享连接与显式目标 | `client/src/solid/data.ts`、`app/src/session/session-resolution.ts`、`app/src/runtime/server/{runtime.tsx,client.tsx}`及会话挂载owner；复用目录持有和会话sync/invalidations，将多个目标的水合、重连和释放接通 | 主会话与真实child数据消费共享一个Data/SSE；API轮换、晚订阅、释放一个保留其余、多目标重同步通过。SC03再验证实际Panel。没有差额的SSE文件不为架构图而改动。 |
-| SC02 协作覆盖 | `gui-extensions/src/session-management/{renderer.tsx,delegation-panel.tsx}`、Client现子会话/Job读取；需要的最小数据映射放当前owner | 同时显示普通subagent和正式Delegation；空/运行/失败/结束有真实状态；控制仍命中原owner，精确结果和receipt保持。 |
-| SC03 共用会话内容与child查看 | `app/src/session/{screen.tsx,model.ts}`、`runtime/extension/{host-apis.tsx,mounted-session.ts}`、GUI SDK及session-management；补§11目标引用，连接运行菜单/工具结果 | 主Timeline、独立root与只读child使用同一内容实现；不嵌套全屏Shell，不伪造SessionRef.tab，不改主current语义；相同目标复用标签、关闭不停止；路由/附件/草稿/焦点不串目标。SDK文档同片。 |
-| SC04 持久咨询创建 | `schema/src/session*`与Prompt合同、`protocol/src/groups/session.ts`、`core/src/session.ts`和`session/{history.ts,prompt.ts}`、`server/src/handlers/session.ts`；正式Client生成 | 普通五模式及Meta来源均可建立普通Chat root；边界与引用准确；源会话没有新inbox/claim/模型调用；首问准入先于wake；重复、取消、故障恢复不重复创建/执行。 |
-| SC05 回答操作与Fork | SDK SlotMap、App timeline桥接、SessionUI renderer；原Protocol/Core fork补through，生成Client；会话管理扩展贡献Fork动作 | 两种Fork边界各正确；回答整轮不被文本块边界截短；新分支持久、可导航、无自动prompt；原复制反馈不变；轻量Slot规范及SDK文档同片。 |
-| SC06 存为资产 | `skill-proposals`贡献回答捕获/现提案跳转；App既有new-session/draft owner及所需最小SDK入口 | 非Chat最新已完成回答准确预填Chat草稿，用户发送后七类提案沿原链；明确保存、冲突和发现/采用边界；异步目标及多server身份不串，取消不写文件。 |
-| SC07 侧聊交互 | 复用并演进`gui-extensions/src/btw/`，登记Panel/MenuItem/Command及回答Slot；App现composer persistence、adapter、selection、requests、queue与SDK目标访问 | 多侧聊持续输入、流式/停止、附件、询问/权限、未读、恢复、插入源草稿成立；新旧存储兼容；打开和恢复零模型调用；窄栏关闭按钮与中文输入正常。 |
-| SC08 Meta与模式联动 | `session-management/meta-agent-panel.tsx`与原协作/运行/产物导航；使用现Meta服务及Data | 按真实controller展示；普通child、Delegation、Workflow能追到原详情；模式引导正确，Task只读dock不回退；无模拟进度。 |
-| SC09 集成与桌面 | 受影响包检查、App production性能、匹配本轮源码的CLI与Desktop、隔离原生验收；原账本登记接受或剩余缺口 | 所有核心场景有实际工件；同源UI/CLI与真实调用一致；历史retained Bus问题在其owner修复并验收后才可关闭对应执行合同。 |
+| 切片                         | 具体落点与工作                                                                                                                                                                                                | 该片完成标准                                                                                                                                                                        |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SC00 合同与基线              | 核对本分支差额、WIP和产物；更新DESIGN中请求归属及新侧聊合同；确定新操作、参考格式、失败/重试规则、界面任务单；独立复审                                                                                        | 产品选择、文件owner和测试场景明确；所有拟新增API均有标记；已有WIP逐项保护。此后不重复为普通可逆修复立项。                                                                           |
+| SC01 共享连接与显式目标      | `client/src/solid/data.ts`、`app/src/session/session-resolution.ts`、`app/src/runtime/server/{runtime.tsx,client.tsx}`及会话挂载owner；复用目录持有和会话sync/invalidations，将多个目标的水合、重连和释放接通 | 主会话与真实child数据消费共享一个Data/SSE；API轮换、晚订阅、释放一个保留其余、多目标重同步通过。SC03再验证实际Panel。没有差额的SSE文件不为架构图而改动。                            |
+| SC02 协作覆盖                | `gui-extensions/src/session-management/{renderer.tsx,delegation-panel.tsx}`、Client现子会话/Job读取；需要的最小数据映射放当前owner                                                                            | 同时显示普通subagent和正式Delegation；空/运行/失败/结束有真实状态；控制仍命中原owner，精确结果和receipt保持。                                                                       |
+| SC03 共用会话内容与child查看 | `app/src/session/{screen.tsx,model.ts}`、`runtime/extension/{host-apis.tsx,mounted-session.ts}`、GUI SDK及session-management；补§11目标引用，连接运行菜单/工具结果                                            | 主Timeline、独立root与只读child使用同一内容实现；不嵌套全屏Shell，不伪造SessionRef.tab，不改主current语义；相同目标复用标签、关闭不停止；路由/附件/草稿/焦点不串目标。SDK文档同片。 |
+| SC04 持久咨询创建            | `schema/src/session*`与Prompt合同、`protocol/src/groups/session.ts`、`core/src/session.ts`和`session/{history.ts,prompt.ts}`、`server/src/handlers/session.ts`；正式Client生成                                | 普通五模式及Meta来源均可建立普通Chat root；边界与引用准确；源会话没有新inbox/claim/模型调用；首问准入先于wake；重复、取消、故障恢复不重复创建/执行。                                |
+| SC05 回答操作与Fork          | SDK SlotMap、App timeline桥接、SessionUI renderer；原Protocol/Core fork补through，生成Client；会话管理扩展贡献Fork动作                                                                                        | 两种Fork边界各正确；回答整轮不被文本块边界截短；新分支持久、可导航、无自动prompt；原复制反馈不变；轻量Slot规范及SDK文档同片。                                                       |
+| SC06 存为资产                | `skill-proposals`贡献回答捕获/现提案跳转；App既有new-session/draft owner及所需最小SDK入口                                                                                                                     | 非Chat最新已完成回答准确预填Chat草稿，用户发送后七类提案沿原链；明确保存、冲突和发现/采用边界；异步目标及多server身份不串，取消不写文件。                                           |
+| SC07 侧聊交互                | 复用并演进`gui-extensions/src/btw/`，登记Panel/MenuItem/Command及回答Slot；App现composer persistence、adapter、selection、requests、queue与SDK目标访问                                                        | 多侧聊持续输入、流式/停止、附件、询问/权限、未读、恢复、插入源草稿成立；新旧存储兼容；打开和恢复零模型调用；窄栏关闭按钮与中文输入正常。                                            |
+| SC08 Meta与模式联动          | `session-management/meta-agent-panel.tsx`与原协作/运行/产物导航；使用现Meta服务及Data                                                                                                                         | 按真实controller展示；普通child、Delegation、Workflow能追到原详情；模式引导正确，Task只读dock不回退；无模拟进度。                                                                   |
+| SC09 集成与桌面              | 受影响包检查、App production性能、匹配本轮源码的CLI与Desktop、隔离原生验收；原账本登记接受或剩余缺口                                                                                                          | 所有核心场景有实际工件；同源UI/CLI与真实调用一致；历史retained Bus问题在其owner修复并验收后才可关闭对应执行合同。                                                                   |
 
 每片先复用最近keeper构造可信红证，再做最小改动和绿证。必要新增抽象随两个真实消费者落地；不能只增加一个未使用的通用接口。实施会话主执行者负责SDK/宿主共享接缝、合并与测试槽；可委派GUI/Backend子智能体处理独占文件。当前规划会话的Root逐片审查并放行下一片，独立Reviewer辅助只读复核。文件发生交叉时交回单一owner，不并发修改同文件。
 
@@ -317,18 +317,18 @@ Panel仍由**source工作区**持有；其中的内容读取**target会话**。�
 
 以下是实施时运行的检查，本次计划编制未运行产品测试或模型。
 
-| 合同 | 最强验证owner与现有keeper |
-| --- | --- |
-| SSE共享、容量、取消、晚订阅 | [client/shared-events.test](/home/keer/workspace/aigcfroge-v2/packages/client/test/shared-events.test.ts:94)：扩展同源多消费者及卸载场景 |
+| 合同                            | 最强验证owner与现有keeper                                                                                                                                                                                                                      |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SSE共享、容量、取消、晚订阅     | [client/shared-events.test](/home/keer/workspace/aigcfroge-v2/packages/client/test/shared-events.test.ts:94)：扩展同源多消费者及卸载场景                                                                                                       |
 | 重连/心跳/API轮换、无replay假设 | [solid-connection.test](/home/keer/workspace/aigcfroge-v2/packages/client/test/solid-connection.test.ts:71)与[App server client.test](/home/keer/workspace/aigcfroge-v2/packages/app/src/runtime/server/client.test.ts:25)：增加多目标失效恢复 |
-| ApprovalPresence与SSE错误 | [approval-stream.test](/home/keer/workspace/aigcfroge-v2/packages/server/test/approval-stream.test.ts:125)、[sse-failure.test](/home/keer/workspace/aigcfroge-v2/packages/server/test/sse-failure.test.ts)：区分全局live流与session.log持久流 |
-| 创建/边界/首问/取消/恢复 | Core `session-create.test.ts`、`session-generate.test.ts`及新操作最近owner；真实SQLite、受控模型请求捕获；Schema/Server/Client证明wire字段和错误映射 |
-| 原子智能体与Meta/Delegation | Core `tool-subagent.test.ts`、`subagent-lifetime.test.ts`、`delegation-execution.test.ts`、`permission.test.ts`：保留source、attended、Job generation、writeback与receipt匹配 |
-| Panel与草稿/请求/关闭 | App `btw-sidebar.spec.ts`、`subagent-child-navigation.spec.ts`、`side-panels.spec.ts`、`session-request-docks.spec.ts`、composer/extension-host/extension-graph component tests |
-| 回答操作/Fork/资产 | SDK `registries.typecheck`；原Fork Core/Server keeper扩展through；App真实点击证明边界、无自动执行、草稿来源及提案保存；资产CAS/目标/读回沿原七类owner，不把默认工作区旧测试当V2通过 |
-| 可见体验 | 中英文/既有locale恢复、中文IME组合输入、长标题和窄宽度、暗亮主题、键盘与RTL混排；使用真实状态和点击验证，不以截图代替关闭/停止合同 |
-| 性能 | 匹配源码与production产物的streaming三场景；挂载/路由变化补tabs，启动依赖变化补entry；增加主＋两侧聊同时流式场景，检查重复订阅/渲染、历史抖动和草稿焦点 |
-| 同源桌面 | 新CLI＋App＋Electron绑定同次源码，独立profile/Source；主聊天持续运行时打开、发送、停止、关闭、恢复侧聊；普通subagent、正式Delegation、Meta各验真实对应链路 |
+| ApprovalPresence与SSE错误       | [approval-stream.test](/home/keer/workspace/aigcfroge-v2/packages/server/test/approval-stream.test.ts:125)、[sse-failure.test](/home/keer/workspace/aigcfroge-v2/packages/server/test/sse-failure.test.ts)：区分全局live流与session.log持久流  |
+| 创建/边界/首问/取消/恢复        | Core `session-create.test.ts`、`session-generate.test.ts`及新操作最近owner；真实SQLite、受控模型请求捕获；Schema/Server/Client证明wire字段和错误映射                                                                                           |
+| 原子智能体与Meta/Delegation     | Core `tool-subagent.test.ts`、`subagent-lifetime.test.ts`、`delegation-execution.test.ts`、`permission.test.ts`：保留source、attended、Job generation、writeback与receipt匹配                                                                  |
+| Panel与草稿/请求/关闭           | App `btw-sidebar.spec.ts`、`subagent-child-navigation.spec.ts`、`side-panels.spec.ts`、`session-request-docks.spec.ts`、composer/extension-host/extension-graph component tests                                                                |
+| 回答操作/Fork/资产              | SDK `registries.typecheck`；原Fork Core/Server keeper扩展through；App真实点击证明边界、无自动执行、草稿来源及提案保存；资产CAS/目标/读回沿原七类owner，不把默认工作区旧测试当V2通过                                                            |
+| 可见体验                        | 中英文/既有locale恢复、中文IME组合输入、长标题和窄宽度、暗亮主题、键盘与RTL混排；使用真实状态和点击验证，不以截图代替关闭/停止合同                                                                                                             |
+| 性能                            | 匹配源码与production产物的streaming三场景；挂载/路由变化补tabs，启动依赖变化补entry；增加主＋两侧聊同时流式场景，检查重复订阅/渲染、历史抖动和草稿焦点                                                                                         |
+| 同源桌面                        | 新CLI＋App＋Electron绑定同次源码，独立profile/Source；主聊天持续运行时打开、发送、停止、关闭、恢复侧聊；普通subagent、正式Delegation、Meta各验真实对应链路                                                                                     |
 
 命令通过[实际manifest和验证入口](/home/keer/workspace/aigcfroge-v2/docs/testing.md:18)选取，使用`/home/keer/workspace/aigcfroge-v2/script/bun`。Core走`run --cwd=packages/core test`包wrapper；App分别运行`typecheck`和`typecheck:e2e`；公开合同变更正式运行Client `generate`和Protocol生成检查；GUI SDK变更同步TSDoc/README source blocks并运行sdk-docs。禁止手改生成文件或从根运行产品测试。测试/构建串行，E2E使用workers=1、retries=0，不靠固定sleep等待完成。
 

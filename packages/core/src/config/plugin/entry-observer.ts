@@ -12,8 +12,12 @@ export const observe = Effect.fnUntraced(function* (
 ) {
   let entries = yield* config.entries()
   const loaded = {
-    get entries() { return config.current?.() ?? entries },
-    set entries(next: readonly Entry[]) { entries = [...next] },
+    get entries() {
+      return config.current?.() ?? entries
+    },
+    set entries(next: readonly Entry[]) {
+      entries = [...next]
+    },
   }
   const refresh = config.entries().pipe(
     Effect.tap((entries) => Effect.sync(() => (loaded.entries = entries))),

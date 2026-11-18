@@ -139,9 +139,12 @@ export const DialogFork: Component = () => {
       const label = language.t("model.group.selection", { name: group?.definition?.name || model.groupID })
       const unavailable = group ? group.unavailable : read ? "missing" : undefined
 
-      return unavailable ? language.t("home.custom.model.groupUnavailable", {
-        model: label, reason: language.t(`model.group.unavailable.${unavailable}`),
-      }) : label
+      return unavailable
+        ? language.t("home.custom.model.groupUnavailable", {
+            model: label,
+            reason: language.t(`model.group.unavailable.${unavailable}`),
+          })
+        : label
     }
 
     return language.t("dialog.fork.modelRef", {

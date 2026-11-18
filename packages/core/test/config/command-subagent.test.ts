@@ -36,7 +36,11 @@ const it = testEffect(
           resolve: (session) =>
             Effect.succeed(
               SessionRunnerModel.resolved(
-                LanguageModel.make({ id: session.model && !Model.Selection.isGroup(session.model) ? session.model.id : "parent", provider: "test", route: OpenAIChat.route }),
+                LanguageModel.make({
+                  id: session.model && !Model.Selection.isGroup(session.model) ? session.model.id : "parent",
+                  provider: "test",
+                  route: OpenAIChat.route,
+                }),
                 {
                   capabilities: { tools: true, input: ["text"], output: ["text"] },
                   cost: [],
@@ -161,10 +165,12 @@ function project(
       agent: Agent.ID.make("build"),
       model: parentModel,
     })
-    expect(yield* Plugin.awaitActivation.pipe(
-      Effect.andThen(Agent.Service.use((agents) => agents.get(Agent.ID.make("general")))),
-      Effect.provide(LocationServiceMap.Service.get(parent.location)),
-    )).toMatchObject({
+    expect(
+      yield* Plugin.awaitActivation.pipe(
+        Effect.andThen(Agent.Service.use((agents) => agents.get(Agent.ID.make("general")))),
+        Effect.provide(LocationServiceMap.Service.get(parent.location)),
+      ),
+    ).toMatchObject({
       id: "general",
       originKind: "builtin",
       mode: "subagent",

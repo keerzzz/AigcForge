@@ -17,9 +17,7 @@ export function loadRuntimeModules(): Readonly<Record<string, RuntimeModuleLoade
   const entries = discoverPluginRuntimeSpecifiers()
   const effectEntry = entries.get("effect")
   if (effectEntry) require(effectEntry)
-  return Object.fromEntries(
-    [...entries.entries()].map(([specifier, resolved]) => [specifier, createLoader(resolved)]),
-  )
+  return Object.fromEntries([...entries.entries()].map(([specifier, resolved]) => [specifier, createLoader(resolved)]))
 }
 
 export function discoverPluginRuntimeSpecifiers(

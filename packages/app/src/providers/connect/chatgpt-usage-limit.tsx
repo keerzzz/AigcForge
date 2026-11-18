@@ -34,12 +34,7 @@ export function DialogChatGPTUsageLimit() {
         >
           {language.t("provider.connect.chatgptUsageLimit.manage")}
         </Button>
-        <Button
-          variant="ghost"
-          size="large"
-          class="mt-2 w-full"
-          onClick={() => dialog.close()}
-        >
+        <Button variant="ghost" size="large" class="mt-2 w-full" onClick={() => dialog.close()}>
           {language.t("provider.connect.chatgptUsageLimit.close")}
         </Button>
       </div>

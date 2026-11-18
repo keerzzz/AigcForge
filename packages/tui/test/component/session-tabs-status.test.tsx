@@ -248,7 +248,9 @@ for (const orientation of ["horizontal", "vertical"] as const) {
         ])
       }
       app.renderer.resize(60, 20)
-      setClosed(Array.from({ length: 11 }, (_, index) => ({ sessionID: `closed-${index}`, title: `History ${index + 1}` })))
+      setClosed(
+        Array.from({ length: 11 }, (_, index) => ({ sessionID: `closed-${index}`, title: `History ${index + 1}` })),
+      )
       await app.renderOnce()
       const historyRows = app.captureCharFrame().split("\n")
       const newRow = historyRows.findIndex((line) => line.includes("+ New session"))

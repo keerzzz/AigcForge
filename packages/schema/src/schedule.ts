@@ -180,7 +180,15 @@ export class Mutation extends Schema.Class<Mutation>("Schedule.Mutation")({
 }) {}
 
 export const OccurrenceStatus = Schema.Literals([
-  "claimed", "admitted", "running", "completed", "failed", "cancelled", "blocked", "skipped", "recovery_required",
+  "claimed",
+  "admitted",
+  "running",
+  "completed",
+  "failed",
+  "cancelled",
+  "blocked",
+  "skipped",
+  "recovery_required",
 ]).annotate({ identifier: "Schedule.OccurrenceStatus" })
 export type OccurrenceStatus = typeof OccurrenceStatus.Type
 

@@ -248,10 +248,7 @@ function tone(name: string) {
   return agentPalette[hash % agentPalette.length]
 }
 
-function taskAgent(
-  raw: JsonValue | undefined,
-  list?: readonly { name: string; color?: string }[],
-) {
+function taskAgent(raw: JsonValue | undefined, list?: readonly { name: string; color?: string }[]) {
   if (!Predicate.isString(raw) || !raw) return {}
   const key = raw.toLowerCase()
   const item = list?.find((entry) => entry.name === raw || entry.name.toLowerCase() === key)

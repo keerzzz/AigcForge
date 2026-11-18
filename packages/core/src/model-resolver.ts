@@ -134,8 +134,15 @@ export interface Resolved {
 }
 
 export interface Interface {
-  readonly resolve: (requested?: Ref, connection?: ModelSource.ConnectionRef) => Effect.Effect<Resolved | undefined, Error>
-  readonly resolveModel: (model: Info, variant?: VariantID, connection?: ModelSource.ConnectionRef) => Effect.Effect<Resolved, Error>
+  readonly resolve: (
+    requested?: Ref,
+    connection?: ModelSource.ConnectionRef,
+  ) => Effect.Effect<Resolved | undefined, Error>
+  readonly resolveModel: (
+    model: Info,
+    variant?: VariantID,
+    connection?: ModelSource.ConnectionRef,
+  ) => Effect.Effect<Resolved, Error>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/ModelResolver") {}
@@ -375,7 +382,11 @@ export const layer = Layer.effect(
     const integrations = yield* Integration.Service
     const npm = yield* Npm.Service
     const aisdk = yield* AISDK.Service
-    const load = Effect.fn("ModelResolver.load")(function* (selected: Info, variant?: VariantID, requested?: ModelSource.ConnectionRef) {
+    const load = Effect.fn("ModelResolver.load")(function* (
+      selected: Info,
+      variant?: VariantID,
+      requested?: ModelSource.ConnectionRef,
+    ) {
       const provider = yield* providers.get(selected.providerID, requested)
       const integrationID = provider?.integrationID ?? Integration.ID.make(selected.providerID)
       const connection = requested
@@ -396,9 +407,12 @@ export const layer = Layer.effect(
           package: selected.package ?? provider?.package ?? "unknown",
           detail: "The selected connection no longer has a credential",
         })
-      const connectionRef: ModelSource.ConnectionRef | undefined = connection?.type === "credential"
-        ? { type: "credential", id: connection.id }
-        : connection?.type === "env" ? { type: "env", name: connection.name } : undefined
+      const connectionRef: ModelSource.ConnectionRef | undefined =
+        connection?.type === "credential"
+          ? { type: "credential", id: connection.id }
+          : connection?.type === "env"
+            ? { type: "env", name: connection.name }
+            : undefined
       const selectedVariant = yield* withVariant(selected, variant)
       const runtimeInfo: RuntimeInfo = {
         ...selectedVariant,
@@ -450,7 +464,8 @@ export const layer = Layer.effect(
                 ),
               )
         if (!selected || (connection && !selected.enabled)) return undefined
-        const current = !requested && connection ? yield* models.get(selected.providerID, selected.id, connection) : selected
+        const current =
+          !requested && connection ? yield* models.get(selected.providerID, selected.id, connection) : selected
         if (!current || (connection && !current.enabled)) return undefined
         return yield* load(current, requested?.variant, connection)
       }),

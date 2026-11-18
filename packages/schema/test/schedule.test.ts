@@ -21,16 +21,28 @@ const valid = {
 
 describe("Schedule current rules", () => {
   test("public targets reject the retained internal child route", () => {
-    expect(() => Schema.decodeUnknownSync(Schedule.Create)({
-      sessionID: "ses_rules", kind: "prompt", content: "scheduled work", dueAt: 60_000, timezone: "UTC",
-      target: { policy: "legacy_child", agentID: "build" },
-    })).toThrow()
+    expect(() =>
+      Schema.decodeUnknownSync(Schedule.Create)({
+        sessionID: "ses_rules",
+        kind: "prompt",
+        content: "scheduled work",
+        dueAt: 60_000,
+        timezone: "UTC",
+        target: { policy: "legacy_child", agentID: "build" },
+      }),
+    ).toThrow()
   })
 
   test("creation does not encode caller-supplied source or claim fields", () => {
     const input = Schema.decodeUnknownSync(Schedule.Create)({
-      sessionID: "ses_rules", kind: "reminder", content: "reminder", dueAt: 60_000, timezone: "UTC",
-      sourceAgent: "meta", revision: 99, activeOccurrenceID: "sco_fake",
+      sessionID: "ses_rules",
+      kind: "reminder",
+      content: "reminder",
+      dueAt: 60_000,
+      timezone: "UTC",
+      sourceAgent: "meta",
+      revision: 99,
+      activeOccurrenceID: "sco_fake",
     })
     const encoded = Schema.encodeSync(Schedule.Create)(input)
     expect(Object.hasOwn(encoded, "sourceAgent")).toBe(false)
@@ -45,18 +57,42 @@ describe("Schedule current rules", () => {
   })
 
   test("occurrence optional provenance fields omit undefined on the wire", () => {
-    const snapshot = new Schedule.Rule({ id: Schedule.ID.make("sch_rules"), sessionID: SessionID.make("ses_rules"),
-      kind: "reminder", content: "reminder", dueAt: 60_000, timezone: "UTC", revision: 1, status: "pending",
-      executionPolicy: new Schedule.ExecutionPolicy({ delivery: "queue", missed: "catch_up" }), createdAt: 0, updatedAt: 0,
+    const snapshot = new Schedule.Rule({
+      id: Schedule.ID.make("sch_rules"),
+      sessionID: SessionID.make("ses_rules"),
+      kind: "reminder",
+      content: "reminder",
+      dueAt: 60_000,
+      timezone: "UTC",
+      revision: 1,
+      status: "pending",
+      executionPolicy: new Schedule.ExecutionPolicy({ delivery: "queue", missed: "catch_up" }),
+      createdAt: 0,
+      updatedAt: 0,
     })
-    const run = new Schedule.Occurrence({ id: Schedule.OccurrenceID.make("sco_rules"), scheduleID: snapshot.id,
-      sessionID: snapshot.sessionID, ruleRevision: 1, snapshot, scheduledAt: 60_000, claimedAt: 60_000,
-      claimOwner: "schedule-host", caughtUp: false, status: "claimed", inputID: SessionMessage.ID.make("msg_rules"),
-      operationID: SessionTask.OperationID.make("top_rules"), createdAt: 60_000, updatedAt: 60_000,
-      admission: undefined, actorAgent: undefined, receipt: undefined, goalInputID: undefined,
+    const run = new Schedule.Occurrence({
+      id: Schedule.OccurrenceID.make("sco_rules"),
+      scheduleID: snapshot.id,
+      sessionID: snapshot.sessionID,
+      ruleRevision: 1,
+      snapshot,
+      scheduledAt: 60_000,
+      claimedAt: 60_000,
+      claimOwner: "schedule-host",
+      caughtUp: false,
+      status: "claimed",
+      inputID: SessionMessage.ID.make("msg_rules"),
+      operationID: SessionTask.OperationID.make("top_rules"),
+      createdAt: 60_000,
+      updatedAt: 60_000,
+      admission: undefined,
+      actorAgent: undefined,
+      receipt: undefined,
+      goalInputID: undefined,
     })
     const encoded = Schema.encodeSync(Schedule.Occurrence)(run)
-    for (const key of ["admission", "actorAgent", "receipt", "goalInputID"]) expect(Object.hasOwn(encoded, key)).toBe(false)
+    for (const key of ["admission", "actorAgent", "receipt", "goalInputID"])
+      expect(Object.hasOwn(encoded, key)).toBe(false)
   })
 })
 

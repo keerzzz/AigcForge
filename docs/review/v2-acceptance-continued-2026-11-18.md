@@ -4,37 +4,37 @@
 
 本轮复用现有owner和keeper：修正Task追加位置、调整恢复的清理顺序、按UI消费字段解码diagnostic，并使用已有依赖补丁机制修复Drawer收尾。简单实现保留了原持久化与UI状态owner。新增技术债是维护Corvu 0.2.4补丁；升级到已修复上游版本并通过原快速Escape/隐藏/焦点keeper后移除。
 
-| 新缺陷 | 可执行事实与修复 | 证据 |
-| --- | --- | --- |
-| CONT-01 错误坐标显示NaN | 原file-tool观察到`[NaN:NaN]`；按message、severity与有限start坐标解码，保持severity=1、顺序、前3项和原disclosure | 原红/绿与最终33组件在机器索引 |
-| CONT-02 恢复提前中止待消费外部结果 | 原MC06-R1的Tool恢复后变为aborted；先恢复durable owner、排除deferred父子，再清理其余Step与恢复Goal | 原Core45红；最终Recovery5 254/0与Core45 1475/43skip/0 |
-| CONT-03 删除间隙后Task附加顺序错误 | 原append使用row count；原read按position排序。使用末个保留position+1，既有重复attach、claim与删除约束保持 | 原SC04 0/1红；最终Task/Recovery与Core45绿 |
-| CONT-04 快速Escape后modal残留 | Escape时焦点已在Drawer内；关闭位移到达后无transitionend，内部open和焦点未收尾。检查延迟callback的当前意图，无直属running/pending transform过渡时复用closeDrawer | 原17/2与原时序5/1红；最终Composer19通过 |
+| 新缺陷                             | 可执行事实与修复                                                                                                                                                | 证据                                                  |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| CONT-01 错误坐标显示NaN            | 原file-tool观察到`[NaN:NaN]`；按message、severity与有限start坐标解码，保持severity=1、顺序、前3项和原disclosure                                                 | 原红/绿与最终33组件在机器索引                         |
+| CONT-02 恢复提前中止待消费外部结果 | 原MC06-R1的Tool恢复后变为aborted；先恢复durable owner、排除deferred父子，再清理其余Step与恢复Goal                                                               | 原Core45红；最终Recovery5 254/0与Core45 1475/43skip/0 |
+| CONT-03 删除间隙后Task附加顺序错误 | 原append使用row count；原read按position排序。使用末个保留position+1，既有重复attach、claim与删除约束保持                                                        | 原SC04 0/1红；最终Task/Recovery与Core45绿             |
+| CONT-04 快速Escape后modal残留      | Escape时焦点已在Drawer内；关闭位移到达后无transitionend，内部open和焦点未收尾。检查延迟callback的当前意图，无直属running/pending transform过渡时复用closeDrawer | 原17/2与原时序5/1红；最终Composer19通过               |
 
 fact、hypothesis、inference、recommendation与源码SHA分别保存于机器索引。三个Server增强keeper的坏owner负控都真实失败，随后owner逐字节恢复：behavior缺失、非法operation ID被接受、legacy_child公共目标被接受均被原keeper捕获。两处Server品牌断言只改为canonical expected constructors，精确相等断言保持，原17项回放与仓库类型检查通过。
 
-| 验证范围 | 原始tally | 执行收据 |
-| --- | --- | --- |
-| Core 45文件 | 1475 pass / 43 skip / 0 fail / 13684 expects | [continued-core45-final](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-core45-final.json) |
-| Core 原4文件 | 460 pass / 0 fail / 2805 expects | [continued-core-four-depth-final](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-core-four-depth-final.json) |
-| Core 本地录制HTTP | 2 pass / 0 fail / 18 expects | [continued-core-recorded-replay](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-core-recorded-replay.json) |
-| Core Recovery/Task 5文件 | 254 pass / 0 fail / 2234 expects | [continued-core-recovery-task-fixed](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-core-recovery-task-fixed.json) |
-| Schema 全51文件 | 487 pass / 0 fail / 1995 expects | [continued-schema-green](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-schema-green.json) |
-| 旧库与V1迁移 | 51 pass / 0 fail / 237 expects | [continued-core-migrations](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-core-migrations.json) |
-| Server 全51文件 | 253 pass / 1 skip / 0 fail / 10327 expects | [continued-server51](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-server51.json) |
-| Server 三keeper增强 | 22 pass / 0 fail / 516 expects | [continued-server-keeper-strengthened](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-server-keeper-strengthened.json) |
-| Server 两品牌断言文件 | 17 pass / 0 fail / 307 expects | [continued-server-brand-keepers](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-server-brand-keepers.json) |
-| App unit | 814 pass / 0 fail / 2394 expects | [continued-app-unit-final](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-app-unit-final.json) |
-| App browser | 172 pass / 0 fail / 1827 expects | [continued-app-browser-final](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-app-browser-final.json) |
-| Session UI unit | 256 pass / 0 fail / 684 expects | [continued-session-ui-unit-final](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-session-ui-unit-final.json) |
-| Timeline/Tool components | 33 pass | [continued-timeline-components](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-timeline-components.json) |
-| Composer components | 19 pass | [continued-composer-components-fixed](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-composer-components-fixed.json) |
-| 严格GUI lint | exit 0 | [continued-lint-fixed](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-lint-fixed.json) |
-| 仓库check | exit 0 | [continued-repository-check-fixed](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-repository-check-fixed.json) |
-| E2E类型 | exit 0 | [continued-e2e-types-final](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-e2e-types-final.json) |
-| 最终App构建 | exit 0 | [continued-app-final-build](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-app-final-build.json) |
-| production Timeline几何 | 8 pass | [continued-timeline-geometry](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-timeline-geometry.json) |
-| 三目标流式场景 | 1 pass | [continued-three-target-final](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-three-target-final.json) |
+| 验证范围                 | 原始tally                                    | 执行收据                                                                                                                            |
+| ------------------------ | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Core 45文件              | 1475 pass / 43 skip / 0 fail / 13684 expects | [continued-core45-final](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-core45-final.json)                             |
+| Core 原4文件             | 460 pass / 0 fail / 2805 expects             | [continued-core-four-depth-final](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-core-four-depth-final.json)           |
+| Core 本地录制HTTP        | 2 pass / 0 fail / 18 expects                 | [continued-core-recorded-replay](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-core-recorded-replay.json)             |
+| Core Recovery/Task 5文件 | 254 pass / 0 fail / 2234 expects             | [continued-core-recovery-task-fixed](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-core-recovery-task-fixed.json)     |
+| Schema 全51文件          | 487 pass / 0 fail / 1995 expects             | [continued-schema-green](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-schema-green.json)                             |
+| 旧库与V1迁移             | 51 pass / 0 fail / 237 expects               | [continued-core-migrations](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-core-migrations.json)                       |
+| Server 全51文件          | 253 pass / 1 skip / 0 fail / 10327 expects   | [continued-server51](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-server51.json)                                     |
+| Server 三keeper增强      | 22 pass / 0 fail / 516 expects               | [continued-server-keeper-strengthened](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-server-keeper-strengthened.json) |
+| Server 两品牌断言文件    | 17 pass / 0 fail / 307 expects               | [continued-server-brand-keepers](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-server-brand-keepers.json)             |
+| App unit                 | 814 pass / 0 fail / 2394 expects             | [continued-app-unit-final](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-app-unit-final.json)                         |
+| App browser              | 172 pass / 0 fail / 1827 expects             | [continued-app-browser-final](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-app-browser-final.json)                   |
+| Session UI unit          | 256 pass / 0 fail / 684 expects              | [continued-session-ui-unit-final](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-session-ui-unit-final.json)           |
+| Timeline/Tool components | 33 pass                                      | [continued-timeline-components](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-timeline-components.json)               |
+| Composer components      | 19 pass                                      | [continued-composer-components-fixed](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-composer-components-fixed.json)   |
+| 严格GUI lint             | exit 0                                       | [continued-lint-fixed](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-lint-fixed.json)                                 |
+| 仓库check                | exit 0                                       | [continued-repository-check-fixed](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-repository-check-fixed.json)         |
+| E2E类型                  | exit 0                                       | [continued-e2e-types-final](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-e2e-types-final.json)                       |
+| 最终App构建              | exit 0                                       | [continued-app-final-build](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-app-final-build.json)                       |
+| production Timeline几何  | 8 pass                                       | [continued-timeline-geometry](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-timeline-geometry.json)                   |
+| 三目标流式场景           | 1 pass                                       | [continued-three-target-final](/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-three-target-final.json)                 |
 
 SC02与Custom Group恢复请求已完成离线验收，见[本轮接受](/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/session-boundaries/root-acceptance.json)。原两个keeper补足自然read→下一请求→cancel→idle的唯一终态，以及真实asset Custom child在live Group成员修改后的同ID恢复请求/物理API断言。最终串行完整两文件为185 pass / 0 fail / 1632 expects，Core类型通过，接续lint为0 warning/0 error；两个负对照各1 fail且生产SHA恢复。前三轮fixture修正及短暂检查槽重叠保留原记录，重叠轮不授最终信用。77文件集合保持；当前358块由Git重新生成，两文件信用由当前SHA审读及新完整串行keeper授予。
 

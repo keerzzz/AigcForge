@@ -146,9 +146,7 @@ export const make = Effect.fnUntraced(function* (input: {
           return yield* input.connection.extNotification(ACPChild.UpdateMethod, { ...output.update, update })
         }).pipe(
           Effect.catchCause((cause) =>
-            Cause.hasInterruptsOnly(cause)
-              ? Effect.void
-              : Effect.logWarning("ACP child session update failed", cause),
+            Cause.hasInterruptsOnly(cause) ? Effect.void : Effect.logWarning("ACP child session update failed", cause),
           ),
         )
       case "PermissionAsk": {

@@ -172,9 +172,19 @@ const run = (snapshots: Layer.Layer<Snapshot.Service>) =>
     Effect.provide(snapshots),
     Effect.provide(
       Layer.merge(
-        AppNodeBuilder.build(LayerNode.group([Database.node, Bus.node, SessionGoal.node, SessionTask.node, WorkArtifact.node, FSUtil.node, SessionProjector.node, ToolOutput.node]), [
-          Bus.node.replace(Bus.configured({ persist: true })),
-        ]),
+        AppNodeBuilder.build(
+          LayerNode.group([
+            Database.node,
+            Bus.node,
+            SessionGoal.node,
+            SessionTask.node,
+            WorkArtifact.node,
+            FSUtil.node,
+            SessionProjector.node,
+            ToolOutput.node,
+          ]),
+          [Bus.node.replace(Bus.configured({ persist: true }))],
+        ),
         TestLLM.testLayer(),
       ),
     ),

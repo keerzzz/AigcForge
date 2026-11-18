@@ -2,11 +2,7 @@
   "version": 1,
   "metadata": {
     "model": "openai.gpt-oss-120b",
-    "tags": [
-      "prefix:bedrock-mantle",
-      "provider:amazon-bedrock",
-      "protocol:open-responses"
-    ],
+    "tags": ["prefix:bedrock-mantle", "provider:amazon-bedrock", "protocol:open-responses"],
     "name": "bedrock-mantle/streams-text",
     "recordedAt": "2026-09-15T04:26:04.409Z"
   },

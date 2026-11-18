@@ -42,11 +42,7 @@ export function createForeignPackageFilter(rootsInput: Iterable<string> = resolv
   const roots = [...new Set(rootsInput)]
   if (roots.length === 0) return new RegExp(suffix)
   const escaped = roots
-    .map((value) =>
-      value
-        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-        .replace(/(?:\\\/|\\\\|\/)+/g, "[/\\\\]"),
-    )
+    .map((value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/(?:\\\/|\\\\|\/)+/g, "[/\\\\]"))
     .join("|")
   return new RegExp(`^(?!(?:${escaped})[/\\\\]).*${suffix}`)
 }

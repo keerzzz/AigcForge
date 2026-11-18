@@ -40,7 +40,9 @@ export const DialogManageModels: Component = () => {
 
   const lifetime = { active: true }
 
-  onCleanup(() => { lifetime.active = false })
+  onCleanup(() => {
+    lifetime.active = false
+  })
 
   createEffect(() => {
     const api = sdk.api
@@ -57,18 +59,36 @@ export const DialogManageModels: Component = () => {
     })
   })
 
-  const editable = (item: ModelItem) => data.location.provider.definition.list(location())?.definitions.find((definition) =>
-    definition.providerID === item.provider.id && definition.target?.writable && definition.definition.models?.[item.id])
+  const editable = (item: ModelItem) =>
+    data.location.provider.definition
+      .list(location())
+      ?.definitions.find(
+        (definition) =>
+          definition.providerID === item.provider.id &&
+          definition.target?.writable &&
+          definition.definition.models?.[item.id],
+      )
 
   const edit = (item: ModelItem) => {
     const definition = editable(item)
 
     if (!definition) return
-    void dialog.show(() => <Dialog size="large" preventBackdropDismiss>
-      <DialogHeader><DialogTitle>{language.t("provider.custom.title")}</DialogTitle></DialogHeader>
-      <DialogBody><CustomProviderForm directory={directory()} providerID={item.provider.id} modelID={item.id}
-        targetPath={definition.target?.path} autofocus={false} /></DialogBody>
-    </Dialog>)
+    void dialog.show(() => (
+      <Dialog size="large" preventBackdropDismiss>
+        <DialogHeader>
+          <DialogTitle>{language.t("provider.custom.title")}</DialogTitle>
+        </DialogHeader>
+        <DialogBody>
+          <CustomProviderForm
+            directory={directory()}
+            providerID={item.provider.id}
+            modelID={item.id}
+            targetPath={definition.target?.path}
+            autofocus={false}
+          />
+        </DialogBody>
+      </Dialog>
+    ))
   }
 
   const handleConnectProvider = () => {
@@ -121,13 +141,24 @@ export const DialogManageModels: Component = () => {
       <SettingsList variant="catalog">
         <For each={props.items}>
           {(item) => (
-            <SettingsRow title={<Tooltip placement="right-start" gutter={12} openDelay={0}
-              value={<ModelTooltip model={item} v2 />}><span tabIndex={0}>{item.name}</span></Tooltip>}
-              description={item.api.id}>
+            <SettingsRow
+              title={
+                <Tooltip placement="right-start" gutter={12} openDelay={0} value={<ModelTooltip model={item} v2 />}>
+                  <span tabIndex={0}>{item.name}</span>
+                </Tooltip>
+              }
+              description={item.api.id}
+            >
               <div class="flex items-center gap-3">
                 <Show when={editable(item)}>
-                  <Button size="small" variant="ghost" onClick={() => edit(item)}
-                    aria-label={language.t("provider.model.edit", { model: item.name })}>{language.t("common.edit")}</Button>
+                  <Button
+                    size="small"
+                    variant="ghost"
+                    onClick={() => edit(item)}
+                    aria-label={language.t("provider.model.edit", { model: item.name })}
+                  >
+                    {language.t("common.edit")}
+                  </Button>
                 </Show>
                 <Switch
                   checked={local.model.visible({ modelID: item.id, providerID: item.provider.id })}
@@ -178,7 +209,11 @@ export const DialogManageModels: Component = () => {
         </div>
         <div data-slot="manage-models-scroll" class="relative min-h-0 flex-1">
           <div class="settings-panel settings-models h-full px-4 pt-1 pb-4">
-            <Show when={store.error}><p role="alert" class="text-13-regular text-text-base">{store.error}</p></Show>
+            <Show when={store.error}>
+              <p role="alert" class="text-13-regular text-text-base">
+                {store.error}
+              </p>
+            </Show>
             <Show
               when={!list.grouped.loading}
               fallback={

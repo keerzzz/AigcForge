@@ -34,8 +34,14 @@ describe("run session shared", () => {
     const group = { type: "group" as const, groupID: "fallback" }
     spyOn(sdk.message, "list").mockResolvedValue({ data: [userMessage("msg-group", "Hello")], cursor: {} })
     spyOn(sdk.session, "get").mockResolvedValue({
-      id: "ses-group", projectID: "project", title: "Group", model: group, location: { directory: "/tmp" },
-      cost: 0, tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } }, time: { created: 1, updated: 1 },
+      id: "ses-group",
+      projectID: "project",
+      title: "Group",
+      model: group,
+      location: { directory: "/tmp" },
+      cost: 0,
+      tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+      time: { created: 1, updated: 1 },
     })
     const adopted = await resolveCurrentSession(sdk, "ses-group")
     expect(adopted.model).toEqual(group)

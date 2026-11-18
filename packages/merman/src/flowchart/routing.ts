@@ -805,9 +805,10 @@ function routeViaBus(
   return {
     ...route,
     labelAxis: route.labelAxis === undefined ? undefined : bus.axis === "x" ? "y" : "x",
-    points: bus.axis === "x"
-      ? pathThrough([start, { x: bus.coordinate, y: start.y }, { x: bus.coordinate, y: approach.y }, approach, end])
-      : pathThrough([start, { x: start.x, y: bus.coordinate }, { x: approach.x, y: bus.coordinate }, approach, end]),
+    points:
+      bus.axis === "x"
+        ? pathThrough([start, { x: bus.coordinate, y: start.y }, { x: bus.coordinate, y: approach.y }, approach, end])
+        : pathThrough([start, { x: start.x, y: bus.coordinate }, { x: approach.x, y: bus.coordinate }, approach, end]),
   }
 }
 
@@ -832,18 +833,23 @@ function routePathKey(segments: ReturnType<typeof routeSegments>) {
     if (spans) spans.push(current.span)
     if (!spans) lanes.set(key, [current.span])
   }
-  return [...lanes].sort(([left], [right]) => left.localeCompare(right)).map(([key, spans]) => {
-    const merged = spans.sort((left, right) => left.start - right.start).reduce<{ start: number; end: number }[]>((result, span) => {
-      const previous = result.at(-1)
-      if (previous && span.start <= previous.end + 1) {
-        previous.end = Math.max(previous.end, span.end)
-        return result
-      }
-      result.push({ ...span })
-      return result
-    }, [])
-    return `${key}:${merged.map((span) => `${span.start}:${span.end}`).join(",")}`
-  }).join("|")
+  return [...lanes]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, spans]) => {
+      const merged = spans
+        .sort((left, right) => left.start - right.start)
+        .reduce<{ start: number; end: number }[]>((result, span) => {
+          const previous = result.at(-1)
+          if (previous && span.start <= previous.end + 1) {
+            previous.end = Math.max(previous.end, span.end)
+            return result
+          }
+          result.push({ ...span })
+          return result
+        }, [])
+      return `${key}:${merged.map((span) => `${span.start}:${span.end}`).join(",")}`
+    })
+    .join("|")
 }
 
 function routeCost(
@@ -859,10 +865,7 @@ function routeCost(
       0,
     ),
   }
-  if (
-    maximum &&
-    (geometry.length > maximum.length || geometry.bends > maximum.bends)
-  ) {
+  if (maximum && (geometry.length > maximum.length || geometry.bends > maximum.bends)) {
     return { ...geometry, crossings: Infinity }
   }
   return {
@@ -925,17 +928,26 @@ function labelIntersectsRoutePaths(
 }
 
 function pathsIntersect(left: ReturnType<typeof routeSegments>, right: ReturnType<typeof routeSegments>): boolean {
-  return left.some((current) => right.some((other) => {
-    if (current.segment.axis === other.segment.axis) {
-      return coordinate(current.segment.from, current.segment.axis === "x" ? "y" : "x") ===
-        coordinate(other.segment.from, other.segment.axis === "x" ? "y" : "x") &&
-        current.span.start <= other.span.end && other.span.start <= current.span.end
-    }
-    const horizontal = current.segment.axis === "x" ? current : other
-    const vertical = current.segment.axis === "y" ? current : other
-    return vertical.segment.from.x >= horizontal.span.start && vertical.segment.from.x <= horizontal.span.end &&
-      horizontal.segment.from.y >= vertical.span.start && horizontal.segment.from.y <= vertical.span.end
-  }))
+  return left.some((current) =>
+    right.some((other) => {
+      if (current.segment.axis === other.segment.axis) {
+        return (
+          coordinate(current.segment.from, current.segment.axis === "x" ? "y" : "x") ===
+            coordinate(other.segment.from, other.segment.axis === "x" ? "y" : "x") &&
+          current.span.start <= other.span.end &&
+          other.span.start <= current.span.end
+        )
+      }
+      const horizontal = current.segment.axis === "x" ? current : other
+      const vertical = current.segment.axis === "y" ? current : other
+      return (
+        vertical.segment.from.x >= horizontal.span.start &&
+        vertical.segment.from.x <= horizontal.span.end &&
+        horizontal.segment.from.y >= vertical.span.start &&
+        horizontal.segment.from.y <= vertical.span.end
+      )
+    }),
+  )
 }
 
 function endpointDisjoint(left: FlowchartEdge, right: FlowchartEdge): boolean {
@@ -953,7 +965,7 @@ function isSharedRouteEndpoint(
     const target = other.points.at(-1)
     return Boolean(
       (role !== "target" && other.edge.from === nodeId && source && samePoint(point, source)) ||
-      (role !== "source" && other.edge.to === nodeId && target && samePoint(point, target)),
+        (role !== "source" && other.edge.to === nodeId && target && samePoint(point, target)),
     )
   })
 }
@@ -970,9 +982,11 @@ function endpointConflictsWithRoutes(
     const otherSource = other.points[0]
     const otherTarget = other.points.at(-1)
     return (
-      (otherSource && samePoint(target, otherSource) &&
+      (otherSource &&
+        samePoint(target, otherSource) &&
         !(existing && route.edge.to === other.edge.from && samePoint(existing.points.at(-1)!, otherSource))) ||
-      (otherTarget && samePoint(source, otherTarget) &&
+      (otherTarget &&
+        samePoint(source, otherTarget) &&
         !(existing && route.edge.from === other.edge.to && samePoint(existing.points[0]!, otherTarget)))
     )
   })
@@ -1003,7 +1017,10 @@ function pathRunsAlongFrame(points: readonly FlowchartPoint[], bounds: Flowchart
   return false
 }
 
-function subgraphTitleBounds(bounds: FlowchartSubgraphBounds, measure = diagramTextWidth): {
+function subgraphTitleBounds(
+  bounds: FlowchartSubgraphBounds,
+  measure = diagramTextWidth,
+): {
   left: number
   top: number
   width: number
@@ -1022,29 +1039,33 @@ function paintedRouteBounds(
   segments: ReturnType<typeof routeSegments>,
   labels: Record<DiagramAxis, readonly ReturnType<typeof diagramBoundsFromRect>[]>,
 ) {
-  return diagramBoundsFromBounds(segments.flatMap((current) => {
-    const axis = current.segment.axis
-    const covered = (bound: ReturnType<typeof diagramBoundsFromRect>) =>
-      axis === "x"
-        ? current.segment.from.y >= bound.top && current.segment.from.y < bound.top + bound.height
-        : current.segment.from.x >= bound.left && current.segment.from.x < bound.left + bound.width
-    const start = labels[axis].reduce((value, bound) => {
-      if (!covered(bound)) return value
-      const first = axis === "x" ? bound.left : bound.top
-      const last = first + (axis === "x" ? bound.width : bound.height) - 1
-      return value >= first && value <= last ? last + 1 : value
-    }, current.span.start)
-    const end = labels[axis].reduceRight((value, bound) => {
-      if (!covered(bound)) return value
-      const first = axis === "x" ? bound.left : bound.top
-      const last = first + (axis === "x" ? bound.width : bound.height) - 1
-      return value >= first && value <= last ? first - 1 : value
-    }, current.span.end)
-    if (start > end) return []
-    return [axis === "x"
-      ? diagramBoundsFromRect(start, current.segment.from.y, end - start + 1, 1)
-      : diagramBoundsFromRect(current.segment.from.x, start, 1, end - start + 1)]
-  }))
+  return diagramBoundsFromBounds(
+    segments.flatMap((current) => {
+      const axis = current.segment.axis
+      const covered = (bound: ReturnType<typeof diagramBoundsFromRect>) =>
+        axis === "x"
+          ? current.segment.from.y >= bound.top && current.segment.from.y < bound.top + bound.height
+          : current.segment.from.x >= bound.left && current.segment.from.x < bound.left + bound.width
+      const start = labels[axis].reduce((value, bound) => {
+        if (!covered(bound)) return value
+        const first = axis === "x" ? bound.left : bound.top
+        const last = first + (axis === "x" ? bound.width : bound.height) - 1
+        return value >= first && value <= last ? last + 1 : value
+      }, current.span.start)
+      const end = labels[axis].reduceRight((value, bound) => {
+        if (!covered(bound)) return value
+        const first = axis === "x" ? bound.left : bound.top
+        const last = first + (axis === "x" ? bound.width : bound.height) - 1
+        return value >= first && value <= last ? first - 1 : value
+      }, current.span.end)
+      if (start > end) return []
+      return [
+        axis === "x"
+          ? diagramBoundsFromRect(start, current.segment.from.y, end - start + 1, 1)
+          : diagramBoundsFromRect(current.segment.from.x, start, 1, end - start + 1),
+      ]
+    }),
+  )
 }
 
 function paintedRouteRowEnd(
@@ -1060,9 +1081,10 @@ function paintedRouteRowEnd(
       return Math.max(right, x + 1)
     }
     if (row !== current.segment.from.y) return right
-    const end = labels.reduceRight((value, bound) =>
-      value >= bound.left && value < bound.left + bound.width ? bound.left - 1 : value,
-    current.span.end)
+    const end = labels.reduceRight(
+      (value, bound) => (value >= bound.left && value < bound.left + bound.width ? bound.left - 1 : value),
+      current.span.end,
+    )
     return end >= current.span.start ? Math.max(right, end + 1) : right
   }, -Infinity)
 }
@@ -1073,12 +1095,14 @@ function routeArrowHeads(route: FlowchartEdgeRoute, measure = diagramTextWidth) 
   const end = route.points.at(-1)
   const previous = route.points.at(-2)
   return {
-    target: end && previous && route.edge.arrowhead !== false
-      ? { point: end, width: measure(diagramArrowHeadBetween(previous, end)) }
-      : undefined,
-    source: start && second && route.edge.sourceArrowhead
-      ? { point: start, width: measure(diagramArrowHeadBetween(second, start)) }
-      : undefined,
+    target:
+      end && previous && route.edge.arrowhead !== false
+        ? { point: end, width: measure(diagramArrowHeadBetween(previous, end)) }
+        : undefined,
+    source:
+      start && second && route.edge.sourceArrowhead
+        ? { point: start, width: measure(diagramArrowHeadBetween(second, start)) }
+        : undefined,
   }
 }
 
@@ -1089,10 +1113,13 @@ function routeRefinementGeometry(
   diagram: FlowchartDiagram,
   measure = diagramTextWidth,
 ) {
-  const labels = routes.map((route) => route.edge.label ? flowchartRouteLabelLayout(route, measure) : undefined)
-  const paint = labels.flatMap((label) => label?.lines.map((line, index) =>
-    diagramBoundsFromRect(label.point.x, label.point.y + index, measure(line), 1),
-  ) ?? [])
+  const labels = routes.map((route) => (route.edge.label ? flowchartRouteLabelLayout(route, measure) : undefined))
+  const paint = labels.flatMap(
+    (label) =>
+      label?.lines.map((line, index) =>
+        diagramBoundsFromRect(label.point.x, label.point.y + index, measure(line), 1),
+      ) ?? [],
+  )
   const labelPaint = {
     x: [...paint].sort((left, right) => left.left - right.left),
     y: [...paint].sort((left, right) => left.top - right.top),
@@ -1103,18 +1130,16 @@ function routeRefinementGeometry(
     if (row) row.push(bound)
     if (!row) labelPaintRows.set(bound.top, [bound])
   }
-  const labelInk = labels.flatMap((label) => label?.lines.flatMap((line, index) => {
-    // Canvas trims only ASCII space cells. Other graphemes, including wide spaces, retain their cells.
-    const text = line.replace(/ +$/, "")
-    const leading = text.match(/^ */)![0].length
-    if (leading === text.length) return []
-    return [diagramBoundsFromRect(
-      label.point.x + leading,
-      label.point.y + index,
-      measure(text.slice(leading)),
-      1,
-    )]
-  }) ?? [])
+  const labelInk = labels.flatMap(
+    (label) =>
+      label?.lines.flatMap((line, index) => {
+        // Canvas trims only ASCII space cells. Other graphemes, including wide spaces, retain their cells.
+        const text = line.replace(/ +$/, "")
+        const leading = text.match(/^ */)![0].length
+        if (leading === text.length) return []
+        return [diagramBoundsFromRect(label.point.x + leading, label.point.y + index, measure(text.slice(leading)), 1)]
+      }) ?? [],
+  )
   const segments = routes.map(routeSegments)
   const nodeBounds = [...bounds.values()]
   const frames = [...subgraphBounds.values()]
@@ -1151,12 +1176,14 @@ function routeRefinementGeometry(
     titles: frames.flatMap((bound) => {
       if (!bound.label) return []
       const lines = splitDiagramLines(bound.label)
-      return lines.map((line, index) => diagramBoundsFromRect(
-        bound.left + 2,
-        (bound.labelSide === "top" ? bound.top : bound.top + bound.height - lines.length) + index,
-        measure(` ${line} `),
-        1,
-      ))
+      return lines.map((line, index) =>
+        diagramBoundsFromRect(
+          bound.left + 2,
+          (bound.labelSide === "top" ? bound.top : bound.top + bound.height - lines.length) + index,
+          measure(` ${line} `),
+          1,
+        ),
+      )
     }),
     rowEnds,
     arrows: routes.map((route) => routeArrowHeads(route, measure)),
@@ -1180,25 +1207,35 @@ function measuredRouteWidth(
   inkBounds: ReturnType<typeof diagramBoundsFromRect>,
 ) {
   const replacement = routeArrowHeads(route, geometry.measure)
-  const arrows = geometry.arrows.map((current, index) => index === routeIndex ? replacement : current)
+  const arrows = geometry.arrows.map((current, index) => (index === routeIndex ? replacement : current))
   const cells = new Map<string, { point: FlowchartPoint; width: number }>()
   // Edge merging retains the first arrow at a cell. Source arrows are painted after all target arrows.
-  for (const arrow of [...arrows.flatMap((current) => current.target ?? []), ...arrows.flatMap((current) => current.source ?? [])]) {
+  for (const arrow of [
+    ...arrows.flatMap((current) => current.target ?? []),
+    ...arrows.flatMap((current) => current.source ?? []),
+  ]) {
     const key = `${arrow.point.x}:${arrow.point.y}`
     if (cells.has(key)) continue
     if (
-      geometry.nodeBounds.some((bound) =>
-        arrow.point.x >= bound.left && arrow.point.x < bound.left + bound.width &&
-        arrow.point.y >= bound.top && arrow.point.y < bound.top + bound.height,
+      geometry.nodeBounds.some(
+        (bound) =>
+          arrow.point.x >= bound.left &&
+          arrow.point.x < bound.left + bound.width &&
+          arrow.point.y >= bound.top &&
+          arrow.point.y < bound.top + bound.height,
       ) ||
-      (geometry.labelPaintRows.get(arrow.point.y) ?? []).some((bound) =>
-        arrow.point.x >= bound.left && arrow.point.x < bound.left + bound.width,
+      (geometry.labelPaintRows.get(arrow.point.y) ?? []).some(
+        (bound) => arrow.point.x >= bound.left && arrow.point.x < bound.left + bound.width,
       ) ||
-      geometry.titles.some((bound) =>
-        arrow.point.x >= bound.left && arrow.point.x < bound.left + bound.width &&
-        arrow.point.y >= bound.top && arrow.point.y < bound.top + bound.height,
+      geometry.titles.some(
+        (bound) =>
+          arrow.point.x >= bound.left &&
+          arrow.point.x < bound.left + bound.width &&
+          arrow.point.y >= bound.top &&
+          arrow.point.y < bound.top + bound.height,
       )
-    ) continue
+    )
+      continue
     cells.set(key, arrow)
   }
   const extraWidth = new Map<number, number>()
@@ -1208,20 +1245,23 @@ function measuredRouteWidth(
   }
   const source = geometry.bounds.get(route.edge.from)
   const connector = source && route.points[0] ? flowchartSourceConnector(source, route.points[0]) : undefined
-  return Math.max(inkBounds.left + inkBounds.width, ...[...extraWidth].map(([row, extra]) =>
-    extra + Math.max(
-      geometry.rowEnds.get(row) ?? -Infinity,
-      ...geometry.segments.map((current, index) => paintedRouteRowEnd(
-        index === routeIndex ? segments : current,
-        row,
-        geometry.labelPaintRows.get(row) ?? [],
-      )),
-      ...geometry.connectors.map((current, index) => {
-        const point = index === routeIndex ? connector : current
-        return point?.y === row ? point.x + 1 : -Infinity
-      }),
+  return Math.max(
+    inkBounds.left + inkBounds.width,
+    ...[...extraWidth].map(
+      ([row, extra]) =>
+        extra +
+        Math.max(
+          geometry.rowEnds.get(row) ?? -Infinity,
+          ...geometry.segments.map((current, index) =>
+            paintedRouteRowEnd(index === routeIndex ? segments : current, row, geometry.labelPaintRows.get(row) ?? []),
+          ),
+          ...geometry.connectors.map((current, index) => {
+            const point = index === routeIndex ? connector : current
+            return point?.y === row ? point.x + 1 : -Infinity
+          }),
+        ),
     ),
-  ))
+  )
 }
 
 function avoidNodeObstacles(
@@ -1268,14 +1308,16 @@ function avoidNodeObstacles(
     ? refinement.segments.filter((_, index) => index !== routeIndex)
     : otherRoutes.map(routeSegments)
   const otherLabels = refinement
-    ? refinement.labels.flatMap((label, index) => label && index !== routeIndex ? [label] : [])
+    ? refinement.labels.flatMap((label, index) => (label && index !== routeIndex ? [label] : []))
     : otherRoutes.flatMap((otherRoute) =>
         otherRoute.edge.label ? [flowchartRouteLabelLayout(otherRoute, measure)] : [],
       )
-  const otherLabelTextBounds = otherLabels.flatMap((label) => label.lines.flatMap((line, index) => {
-    const width = measure(line) - 2
-    return width > 0 ? [{ left: label.point.x + 1, top: label.point.y + index, width, height: 1 }] : []
-  }))
+  const otherLabelTextBounds = otherLabels.flatMap((label) =>
+    label.lines.flatMap((line, index) => {
+      const width = measure(line) - 2
+      return width > 0 ? [{ left: label.point.x + 1, top: label.point.y + index, width, height: 1 }] : []
+    }),
+  )
   const frameObstacles = allSubgraphBounds.map((bound) => ({
     bound,
     title: bound.label.length > 0 ? subgraphTitleBounds(bound, measure) : undefined,
@@ -1305,18 +1347,28 @@ function avoidNodeObstacles(
         pathRunsAlongFrame(candidate.points, current.bound) ||
         (current.title && pathIntersectsBounds(candidate.points, current.title)),
     )
-  const intersectsRoutingObstacle = (candidate: FlowchartEdgeRoute, segments?: ReturnType<typeof routeSegments>): boolean => {
-    if (intersectsStructuralObstacle(candidate) || endpointConflictsWithRoutes(candidate, otherRoutes, refine ? route : undefined)) return true
+  const intersectsRoutingObstacle = (
+    candidate: FlowchartEdgeRoute,
+    segments?: ReturnType<typeof routeSegments>,
+  ): boolean => {
+    if (
+      intersectsStructuralObstacle(candidate) ||
+      endpointConflictsWithRoutes(candidate, otherRoutes, refine ? route : undefined)
+    )
+      return true
     const current = segments ?? routeSegments(candidate)
     return otherRoutes.some(
-      (other, index) => endpointDisjoint(candidate.edge, other.edge) && pathsIntersect(current, otherRouteSegments[index]!),
+      (other, index) =>
+        endpointDisjoint(candidate.edge, other.edge) && pathsIntersect(current, otherRouteSegments[index]!),
     )
   }
   const intersectsObstacle = (candidate: FlowchartEdgeRoute, segments?: ReturnType<typeof routeSegments>): boolean => {
     if (leavesOwner(candidate) || intersectsRoutingObstacle(candidate, segments)) return true
-    const label = refinement ? refinement.labels[routeIndex] : candidate.edge.label
-      ? flowchartRouteLabelLayout(candidate, measure)
-      : undefined
+    const label = refinement
+      ? refinement.labels[routeIndex]
+      : candidate.edge.label
+        ? flowchartRouteLabelLayout(candidate, measure)
+        : undefined
     return (
       (!refinement &&
         (allNodeBounds.some((bound) => labelIntersectsBounds(label, bound)) ||
@@ -1456,40 +1508,44 @@ function avoidNodeObstacles(
   const sourceSides = sourceJunction ? [sideForOutsidePoint(from, source)] : targetSides
   const terminalSides = targetJunction ? [sideForOutsidePoint(to, target)] : targetSides
   const currentTargetSide = sideForOutsidePoint(to, route.points.at(-1)!)
-  const preservedTargets = refine ? [] : buses.map((bus) => routeViaBus(route, route.points[0]!, to, currentTargetSide, bus))
-  const sameSides: FlowchartEdgeRoute[] = refine ? [] : [
-    ...candidateRightBusXs.map(
-      (busX): FlowchartEdgeRoute => ({
-        ...route,
-        labelAxis: route.labelAxis === undefined ? undefined : "y",
-        points: pathViaLane(boundsSidePoint(from, "right"), lane("x", busX), boundsSidePoint(to, "right")),
-      }),
-    ),
-    ...candidateLeftBusXs.map(
-      (busX): FlowchartEdgeRoute => ({
-        ...route,
-        labelAxis: route.labelAxis === undefined ? undefined : "y",
-        points: pathViaLane(boundsSidePoint(from, "left"), lane("x", busX), boundsSidePoint(to, "left")),
-      }),
-    ),
-    ...candidateTopBusYs.map(
-      (busY): FlowchartEdgeRoute => ({
-        ...route,
-        labelAxis: route.labelAxis === undefined ? undefined : "x",
-        points: pathViaLane(boundsSidePoint(from, "top"), lane("y", busY), boundsSidePoint(to, "top")),
-      }),
-    ),
-    ...candidateBottomBusYs.map(
-      (busY): FlowchartEdgeRoute => ({
-        ...route,
-        labelAxis: route.labelAxis === undefined ? undefined : "x",
-        points: pathViaLane(boundsSidePoint(from, "bottom"), lane("y", busY), boundsSidePoint(to, "bottom")),
-      }),
-    ),
-  ]
-  const preservedSources = refine ? [] : targetSides.flatMap((targetSide) =>
-    buses.map((bus) => routeViaBus(route, route.points[0]!, to, targetSide, bus)),
-  )
+  const preservedTargets = refine
+    ? []
+    : buses.map((bus) => routeViaBus(route, route.points[0]!, to, currentTargetSide, bus))
+  const sameSides: FlowchartEdgeRoute[] = refine
+    ? []
+    : [
+        ...candidateRightBusXs.map(
+          (busX): FlowchartEdgeRoute => ({
+            ...route,
+            labelAxis: route.labelAxis === undefined ? undefined : "y",
+            points: pathViaLane(boundsSidePoint(from, "right"), lane("x", busX), boundsSidePoint(to, "right")),
+          }),
+        ),
+        ...candidateLeftBusXs.map(
+          (busX): FlowchartEdgeRoute => ({
+            ...route,
+            labelAxis: route.labelAxis === undefined ? undefined : "y",
+            points: pathViaLane(boundsSidePoint(from, "left"), lane("x", busX), boundsSidePoint(to, "left")),
+          }),
+        ),
+        ...candidateTopBusYs.map(
+          (busY): FlowchartEdgeRoute => ({
+            ...route,
+            labelAxis: route.labelAxis === undefined ? undefined : "x",
+            points: pathViaLane(boundsSidePoint(from, "top"), lane("y", busY), boundsSidePoint(to, "top")),
+          }),
+        ),
+        ...candidateBottomBusYs.map(
+          (busY): FlowchartEdgeRoute => ({
+            ...route,
+            labelAxis: route.labelAxis === undefined ? undefined : "x",
+            points: pathViaLane(boundsSidePoint(from, "bottom"), lane("y", busY), boundsSidePoint(to, "bottom")),
+          }),
+        ),
+      ]
+  const preservedSources = refine
+    ? []
+    : targetSides.flatMap((targetSide) => buses.map((bus) => routeViaBus(route, route.points[0]!, to, targetSide, bus)))
   const attachments = sourceSides.flatMap((sourceSide) =>
     terminalSides.flatMap((targetSide) =>
       buses.map((bus) => routeViaBus(route, boundsSidePoint(from, sourceSide), to, targetSide, bus)),
@@ -1500,7 +1556,7 @@ function avoidNodeObstacles(
     const labels = [...otherLabels, ...(label ? [label] : [])]
     const fixedBounds = diagramBoundsFromBounds([
       ...routingBounds,
-      ...refinement.pathBounds.flatMap((bound, index) => bound && index !== routeIndex ? [bound] : []),
+      ...refinement.pathBounds.flatMap((bound, index) => (bound && index !== routeIndex ? [bound] : [])),
       ...labels.map((current) =>
         diagramBoundsFromRect(current.point.x, current.point.y, current.width, current.height),
       ),
@@ -1512,24 +1568,35 @@ function avoidNodeObstacles(
     const fixedInkBounds = diagramBoundsFromBounds([
       ...routingBounds,
       ...refinement.labelInk,
-      ...refinement.inkBounds.flatMap((bound, index) => bound && index !== routeIndex ? [bound] : []),
+      ...refinement.inkBounds.flatMap((bound, index) => (bound && index !== routeIndex ? [bound] : [])),
     ])
     if (!fixedInkBounds) return route
     const currentInkBounds = diagramBoundsFromBounds([
       fixedInkBounds,
       ...(refinement.inkBounds[routeIndex] ? [refinement.inkBounds[routeIndex]!] : []),
     ])!
-    const currentWidth = measuredRouteWidth(routeIndex, route, refinement.segments[routeIndex]!, refinement, currentInkBounds)
-    const parallelPaths = new Set(refinement.pathKeys.flatMap((key, index) =>
-      index !== routeIndex && routes[index]!.edge.from === route.edge.from && routes[index]!.edge.to === route.edge.to
-        ? [key]
-        : [],
-    ))
+    const currentWidth = measuredRouteWidth(
+      routeIndex,
+      route,
+      refinement.segments[routeIndex]!,
+      refinement,
+      currentInkBounds,
+    )
+    const parallelPaths = new Set(
+      refinement.pathKeys.flatMap((key, index) =>
+        index !== routeIndex && routes[index]!.edge.from === route.edge.from && routes[index]!.edge.to === route.edge.to
+          ? [key]
+          : [],
+      ),
+    )
     const otherSegments = otherRouteSegments.flat()
     const cost = routeCost(refinement.segments[routeIndex]!, otherSegments)
     const shortcuts = route.points.flatMap((start, startIndex) =>
       route.points.slice(startIndex + 2).flatMap((end, offset) =>
-        [{ x: end.x, y: start.y }, { x: start.x, y: end.y }].map((corner) => ({
+        [
+          { x: end.x, y: start.y },
+          { x: start.x, y: end.y },
+        ].map((corner) => ({
           ...route,
           points: pathThrough([
             ...route.points.slice(0, startIndex),
@@ -1542,49 +1609,56 @@ function avoidNodeObstacles(
       ),
     )
     // Late label placement changes the obstacle inputs. Reuse the same port/lane factory with local lanes.
-    const local = from.id === to.id ? [] : sourceSides.flatMap((sourceSide) =>
-      terminalSides.flatMap((targetSide) => {
-        const start = boundsSidePoint(from, sourceSide)
-        const approach = targetApproach(boundsSidePoint(to, targetSide), targetSide)
-        return [
-          lane("x", start.x),
-          lane("y", start.y),
-          lane("x", approach.x),
-          lane("y", approach.y),
-        ].map((bus) => routeViaBus(route, start, to, targetSide, bus))
-      }),
-    )
+    const local =
+      from.id === to.id
+        ? []
+        : sourceSides.flatMap((sourceSide) =>
+            terminalSides.flatMap((targetSide) => {
+              const start = boundsSidePoint(from, sourceSide)
+              const approach = targetApproach(boundsSidePoint(to, targetSide), targetSide)
+              return [lane("x", start.x), lane("y", start.y), lane("x", approach.x), lane("y", approach.y)].map((bus) =>
+                routeViaBus(route, start, to, targetSide, bus),
+              )
+            }),
+          )
     const sourceInset = diagram.nodes.find((node) => node.id === from.id)?.shape === "decision" ? 2 : 1
     const targetInset = diagram.nodes.find((node) => node.id === to.id)?.shape === "decision" ? 2 : 1
-    const aligned = from.id === to.id ? [] : sourceSides.flatMap((sourceSide) =>
-      terminalSides.flatMap((targetSide) => {
-        const axis = sourceSide === "top" || sourceSide === "bottom" ? "x" : "y"
-        if ((targetSide === "top" || targetSide === "bottom" ? "x" : "y") !== axis) return []
-        const start = Math.max(
-          (axis === "x" ? from.left : from.top) + sourceInset,
-          (axis === "x" ? to.left : to.top) + targetInset,
-        )
-        const end = Math.min(
-          (axis === "x" ? from.left + from.width : from.top + from.height) - sourceInset - 1,
-          (axis === "x" ? to.left + to.width : to.top + to.height) - targetInset - 1,
-        )
-        if (start > end) return []
-        return [...new Set([
-          centerCoordinate(from, axis),
-          centerCoordinate(to, axis),
-          ...otherLabels.flatMap((current) => [
-            coordinate(current.point, axis) - 1,
-            coordinate(current.point, axis) + (axis === "x" ? current.width : current.height),
-          ]),
-        ])].filter((value) => value >= start && value <= end).map((value) => ({
-          ...route,
-          points: orthogonalPath(
-            withCoordinate(boundsSidePoint(from, sourceSide), axis, value),
-            withCoordinate(boundsSidePoint(to, targetSide), axis, value),
-          ),
-        }))
-      }),
-    )
+    const aligned =
+      from.id === to.id
+        ? []
+        : sourceSides.flatMap((sourceSide) =>
+            terminalSides.flatMap((targetSide) => {
+              const axis = sourceSide === "top" || sourceSide === "bottom" ? "x" : "y"
+              if ((targetSide === "top" || targetSide === "bottom" ? "x" : "y") !== axis) return []
+              const start = Math.max(
+                (axis === "x" ? from.left : from.top) + sourceInset,
+                (axis === "x" ? to.left : to.top) + targetInset,
+              )
+              const end = Math.min(
+                (axis === "x" ? from.left + from.width : from.top + from.height) - sourceInset - 1,
+                (axis === "x" ? to.left + to.width : to.top + to.height) - targetInset - 1,
+              )
+              if (start > end) return []
+              return [
+                ...new Set([
+                  centerCoordinate(from, axis),
+                  centerCoordinate(to, axis),
+                  ...otherLabels.flatMap((current) => [
+                    coordinate(current.point, axis) - 1,
+                    coordinate(current.point, axis) + (axis === "x" ? current.width : current.height),
+                  ]),
+                ]),
+              ]
+                .filter((value) => value >= start && value <= end)
+                .map((value) => ({
+                  ...route,
+                  points: orthogonalPath(
+                    withCoordinate(boundsSidePoint(from, sourceSide), axis, value),
+                    withCoordinate(boundsSidePoint(to, targetSide), axis, value),
+                  ),
+                }))
+            }),
+          )
     const seen = new Set<string>()
     return (
       [...shortcuts, ...(from.id === to.id ? selfLoops : [...aligned, ...local, ...attachments])]
@@ -1610,7 +1684,9 @@ function avoidNodeObstacles(
             record.cost.length <= cost.length &&
             record.cost.bends <= cost.bends &&
             record.cost.crossings <= cost.crossings &&
-            (record.cost.length < cost.length || record.cost.bends < cost.bends || record.cost.crossings < cost.crossings),
+            (record.cost.length < cost.length ||
+              record.cost.bends < cost.bends ||
+              record.cost.crossings < cost.crossings),
         )
         .sort(
           (left, right) =>
@@ -1655,7 +1731,9 @@ function avoidNodeObstacles(
           }
           // The renderer consumes the frozen labelPoint, not a hypothetical default label for new points.
           if (intersectsObstacle(record.candidate, record.segments)) return false
-          return measuredRouteWidth(routeIndex, record.candidate, record.segments, refinement, renderedInk) === currentWidth
+          return (
+            measuredRouteWidth(routeIndex, record.candidate, record.segments, refinement, renderedInk) === currentWidth
+          )
         })?.candidate ?? route
     )
   }
@@ -1710,8 +1788,9 @@ export function refineFlowchartRoutes(
     if (routes.every((route, index) => route === previous[index])) break
   }
   const placementFor = flowchartLabelPlacement(diagram, targetWidth)
-  const cohorts = groupRecords(routes.map((route, index) => ({ route, index })), (record) =>
-    `${record.route.edge.from}:${record.route.points[0]?.x}:${record.route.points[0]?.y}`,
+  const cohorts = groupRecords(
+    routes.map((route, index) => ({ route, index })),
+    (record) => `${record.route.edge.from}:${record.route.points[0]?.x}:${record.route.points[0]?.y}`,
   )
   for (const cohort of cohorts.values()) {
     if (cohort.length < 2 || !cohort[0]!.route.points[0]) continue
@@ -1762,8 +1841,9 @@ export function refineFlowchartRoutes(
       continue
     }
     if (
-      (["left", "top", "width", "height"] as const).some((field) =>
-        proposed.bounds[field] !== original.bounds[field] || proposed.inkBounds[field] !== original.inkBounds[field],
+      (["left", "top", "width", "height"] as const).some(
+        (field) =>
+          proposed.bounds[field] !== original.bounds[field] || proposed.inkBounds[field] !== original.inkBounds[field],
       ) ||
       proposed.width !== original.width
     ) {
@@ -1781,27 +1861,35 @@ export function refineFlowchartRoutes(
             !samePoint(current.points[0]!, previous.points[0]!)) ||
           (isSharedRouteEndpoint(previous.edge.to, previous.points.at(-1)!, originalOthers) &&
             !samePoint(current.points.at(-1)!, previous.points.at(-1)!))
-        ) return false
-        if (trial.some((other, otherIndex) =>
-          otherIndex !== index && other.edge.from === current.edge.from && other.edge.to === current.edge.to &&
-          trialGeometry.pathKeys[otherIndex] === trialGeometry.pathKeys[index],
-        )) return false
-        const contacts = [current.points[0]!, current.points.at(-1)!, flowchartSourceConnector(from, current.points[0]!)]
-        if (trialGeometry.labels.some((label) => contacts.some((point) =>
-          labelIntersectsBounds(label, { left: point.x, top: point.y, width: 1, height: 1 }),
-        ))) return false
-        const validation = { path: false, label: false }
-        avoidNodeObstacles(
-          current,
-          trial,
-          bounds,
-          subgraphBounds,
-          index,
-          diagram,
-          trialGeometry,
-          measure,
-          (clear) => { validation.path = clear },
         )
+          return false
+        if (
+          trial.some(
+            (other, otherIndex) =>
+              otherIndex !== index &&
+              other.edge.from === current.edge.from &&
+              other.edge.to === current.edge.to &&
+              trialGeometry.pathKeys[otherIndex] === trialGeometry.pathKeys[index],
+          )
+        )
+          return false
+        const contacts = [
+          current.points[0]!,
+          current.points.at(-1)!,
+          flowchartSourceConnector(from, current.points[0]!),
+        ]
+        if (
+          trialGeometry.labels.some((label) =>
+            contacts.some((point) =>
+              labelIntersectsBounds(label, { left: point.x, top: point.y, width: 1, height: 1 }),
+            ),
+          )
+        )
+          return false
+        const validation = { path: false, label: false }
+        avoidNodeObstacles(current, trial, bounds, subgraphBounds, index, diagram, trialGeometry, measure, (clear) => {
+          validation.path = clear
+        })
         if (!validation.path) return false
         const placement = placementFor(current.edge)
         avoidLabelOverlap(
@@ -1812,11 +1900,14 @@ export function refineFlowchartRoutes(
           placement.targetWidth,
           placement.includeLabelWidth,
           measure,
-          (clear) => { validation.label = clear },
+          (clear) => {
+            validation.label = clear
+          },
         )
         return validation.label
       })
-    ) continue
+    )
+      continue
     for (const record of cohort) routes[record.index] = trial[record.index]!
     Object.assign(geometry, trialGeometry)
   }
@@ -1844,9 +1935,9 @@ function refinementDiagramSnapshot(
   const bounds = diagramBoundsFromBounds([
     ...fixed,
     ...geometry.pathBounds.flatMap((bound) => bound ?? []),
-    ...geometry.labels.flatMap((label) => label
-      ? [diagramBoundsFromRect(label.point.x, label.point.y, label.width, label.height)]
-      : []),
+    ...geometry.labels.flatMap((label) =>
+      label ? [diagramBoundsFromRect(label.point.x, label.point.y, label.width, label.height)] : [],
+    ),
   ])
   const inkBounds = diagramBoundsFromBounds([
     ...fixed,
@@ -1861,13 +1952,16 @@ function refinementDiagramSnapshot(
     inkBounds,
     width: measuredRouteWidth(0, route, segments, geometry, inkBounds),
     // Compare every physical segment pair once, matching the layout audit's crossingCount.
-    cost: geometry.segments.map((current, index) =>
-      routeCost(current, geometry.segments.slice(index + 1).flat()),
-    ).reduce((total, current) => ({
-      length: total.length + current.length,
-      bends: total.bends + current.bends,
-      crossings: total.crossings + current.crossings,
-    }), { length: 0, bends: 0, crossings: 0 }),
+    cost: geometry.segments
+      .map((current, index) => routeCost(current, geometry.segments.slice(index + 1).flat()))
+      .reduce(
+        (total, current) => ({
+          length: total.length + current.length,
+          bends: total.bends + current.bends,
+          crossings: total.crossings + current.crossings,
+        }),
+        { length: 0, bends: 0, crossings: 0 },
+      ),
   }
 }
 
@@ -1888,21 +1982,18 @@ function flowchartLabelPlacement(diagram: FlowchartDiagram, targetWidth?: number
     const fromContainers = containers(edge.from)
     if (![...containers(edge.to)].some((id) => fromContainers.has(id))) return false
     const targets = new Set(
-      edges
-        .filter((candidate) => candidate.label && candidate.from === edge.from)
-        .map((candidate) => candidate.to),
+      edges.filter((candidate) => candidate.label && candidate.from === edge.from).map((candidate) => candidate.to),
     )
     const sources = new Set(
-      edges
-        .filter((candidate) => candidate.label && candidate.to === edge.to)
-        .map((candidate) => candidate.from),
+      edges.filter((candidate) => candidate.label && candidate.to === edge.to).map((candidate) => candidate.from),
     )
     return targets.size > 1 || sources.size > 1
   }
   return (edge: FlowchartEdge) => {
     const grouped = groupedLabelEdge(edge)
     return {
-      targetWidth: targetWidth !== undefined && subgraphs.length > 0 && grouped ? Math.max(1, targetWidth - 5) : targetWidth,
+      targetWidth:
+        targetWidth !== undefined && subgraphs.length > 0 && grouped ? Math.max(1, targetWidth - 5) : targetWidth,
       includeLabelWidth: subgraphs.length === 0 || grouped,
     }
   }
@@ -2063,7 +2154,16 @@ export function routeFlowchartEdges(
     routes.push({ edge, points: edgePath(from, to, directionForEdge(edge), leftBoundary) })
   }
   for (let index = routes.length - 1; index >= 0; index--) {
-    routes[index] = avoidNodeObstacles(routes[index]!, routes, bounds, subgraphBounds, index, routedDiagram, undefined, measure)
+    routes[index] = avoidNodeObstacles(
+      routes[index]!,
+      routes,
+      bounds,
+      subgraphBounds,
+      index,
+      routedDiagram,
+      undefined,
+      measure,
+    )
   }
   const placementFor = flowchartLabelPlacement(routedDiagram, targetWidth)
   return routes.reduce<FlowchartEdgeRoute[]>((resolved, route, index) => {

@@ -52,10 +52,7 @@ export function createComposerEditorActions(input: ComposerStateStoreInput) {
     setText(content: string) {
       batch(() =>
         setStore()((state) => ({
-          prompt: [
-            { type: "text", content, start: 0, end: content.length },
-            ...state.prompt.filter(isAttachment),
-          ],
+          prompt: [{ type: "text", content, start: 0, end: content.length }, ...state.prompt.filter(isAttachment)],
           cursor: content.length,
           retry: undefined,
         })),

@@ -97,8 +97,16 @@ mode: subagent`)
     { name: "unqualified model", frontmatter: "model: example/chat", model: "example/chat" },
     { name: "embedded native variant", frontmatter: "model: example/chat#high", model: "example/chat#high" },
     { name: "logical Group shorthand", frontmatter: "model: group:fallback", model: "group:fallback" },
-    { name: "structured logical Group", frontmatter: "model:\n  type: group\n  groupID: fallback", model: "group:fallback" },
-    { name: "Group-prefixed physical provider", frontmatter: "model: group:vendor/chat#high", model: "group:vendor/chat#high" },
+    {
+      name: "structured logical Group",
+      frontmatter: "model:\n  type: group\n  groupID: fallback",
+      model: "group:fallback",
+    },
+    {
+      name: "Group-prefixed physical provider",
+      frontmatter: "model: group:vendor/chat#high",
+      model: "group:vendor/chat#high",
+    },
     {
       name: "structured native variant",
       frontmatter: "model:\n  providerID: example\n  model: chat\n  variant: high",

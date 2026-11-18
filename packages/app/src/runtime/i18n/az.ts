@@ -798,7 +798,8 @@ export const dict = {
   "server.connect.failed": "Bağlana bilmədik. Server ünvanını və şifrəni yoxlayın, sonra yenidən cəhd edin.",
   "server.connect.scan": "QR kodu skan edin",
   "server.connect.scan.description": "Kameranızı aigcfroge pair tərəfindən göstərilən QR koda yönəldin.",
-  "server.connect.scan.invalid": "Bu, AigcForge qoşulma kodu deyil. aigcfroge pair tərəfindən göstərilən kodu skan edin.",
+  "server.connect.scan.invalid":
+    "Bu, AigcForge qoşulma kodu deyil. aigcfroge pair tərəfindən göstərilən kodu skan edin.",
   "server.connect.camera": "Kamera cütləşdirilir",
   "server.connect.camera.starting": "Kamera açılır…",
   "server.connect.mixedContent":

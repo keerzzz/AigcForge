@@ -2,14 +2,7 @@
   "version": 1,
   "metadata": {
     "model": "kimi-k3",
-    "tags": [
-      "prefix:moonshot-messages",
-      "provider:moonshot",
-      "protocol:messages",
-      "tool",
-      "tool-choice",
-      "usage"
-    ],
+    "tags": ["prefix:moonshot-messages", "provider:moonshot", "protocol:messages", "tool", "tool-choice", "usage"],
     "name": "moonshot-messages/k3-respects-tool-choice-required",
     "recordedAt": "2026-09-29T05:28:21.798Z"
   },

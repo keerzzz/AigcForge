@@ -225,9 +225,7 @@ it.live("uses environment tokens rather than the account identifier and bypasses
           type: "env",
           name: "SNOWFLAKE_CORTEX_TOKEN",
         })
-        expect((yield* test.providers.get(providerID))?.package).toBe(
-          "@aigcfroge/ai/providers/openai-compatible",
-        )
+        expect((yield* test.providers.get(providerID))?.package).toBe("@aigcfroge/ai/providers/openai-compatible")
         expect(yield* test.hooks.has("aisdk", "sdk", providerID)).toBe(false)
 
         yield* test.stop

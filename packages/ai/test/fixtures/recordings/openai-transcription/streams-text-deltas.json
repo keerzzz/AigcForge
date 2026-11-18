@@ -1,11 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:openai-transcription",
-      "provider:openai",
-      "protocol:openai-transcription"
-    ],
+    "tags": ["prefix:openai-transcription", "provider:openai", "protocol:openai-transcription"],
     "name": "openai-transcription/streams-text-deltas",
     "recordedAt": "2026-09-23T12:31:59.149Z"
   },

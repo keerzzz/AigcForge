@@ -796,7 +796,8 @@ export const dict = {
   "server.connect.failed": "সংযোগ করা যায়নি। সার্ভার ঠিকানা এবং পাসওয়ার্ড পরীক্ষা করুন, তারপর আবার চেষ্টা করুন.",
   "server.connect.scan": "QR কোড স্ক্যান করুন",
   "server.connect.scan.description": "আপনার ক্যামেরাকে ওপেনকোড পেয়ার দ্বারা দেখানো QR কোডে নির্দেশ করুন৷",
-  "server.connect.scan.invalid": "এটি একটি AigcForge পেয়ারিং কোড নয়৷ ওপেনকোড পেয়ার দ্বারা দেখানো কোডটি স্ক্যান করুন।",
+  "server.connect.scan.invalid":
+    "এটি একটি AigcForge পেয়ারিং কোড নয়৷ ওপেনকোড পেয়ার দ্বারা দেখানো কোডটি স্ক্যান করুন।",
   "server.connect.camera": "পেয়ারিং ক্যামেরা",
   "server.connect.camera.starting": "ক্যামেরা খোলা হচ্ছে...",
   "server.connect.mixedContent":

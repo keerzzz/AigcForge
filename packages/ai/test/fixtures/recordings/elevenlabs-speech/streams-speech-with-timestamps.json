@@ -1,11 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:elevenlabs-speech",
-      "provider:elevenlabs",
-      "protocol:elevenlabs-speech"
-    ],
+    "tags": ["prefix:elevenlabs-speech", "provider:elevenlabs", "protocol:elevenlabs-speech"],
     "name": "elevenlabs-speech/streams-speech-with-timestamps",
     "recordedAt": "2026-09-23T08:38:05.801Z"
   },

@@ -38,13 +38,13 @@ R1 前置已正式闭环，见 [Root 最终接受](/home/keer/.codex/outputs/202
 
 Root 必须在正式派发中确认这五个文件；本候选不授权编辑。
 
-| 实际文件 | 决定函数及必要变化 |
-| --- | --- |
-| [execution.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/execution.ts:75) | `ArtifactBaseline:75`、`TaskLink:90`、`prepareArtifact:318`、`captureArtifact:367`、`govern:521`、`dispatch:1099`：冻结可信 previous、相对 previous 分类、保留精确重入及原 settlement；`close` 接口 `:206`、实现 `:2707` 透传私有完成意图。 |
-| [service.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/service.ts:42) | `RevisionReference:42`、`Governance:61`、`proofFor:298`、`revision:375`、`recordRevision:968`：读出原 proof、分别比较原 producer 与新 input、有限同 digest 复用；`recordReview:1035` 仅适配既有 proof read 结果；`close:1312` 在原 mutation lock 内把 fresh barrier 与 Closing 串联。 |
-| [task.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/plugin/task.ts:34) | `Input:34`、commands `:75`、permissions `:123`、management `:199`、路由 `:638`、artifact `:733`、Turn/dispatch `:781`、response `:910`：复用显式同 child 路由；增加 `complete` 命令、原权限与准确 aggregate 结果。 |
-| [meta-agent-integration.test.ts](/home/keer/workspace/aigcfroge-v2/packages/core/test/meta-agent-integration.test.ts:147) | 复用 `metaSetup:147`、`mc07Build:243`、`mc07Result:230`；新增 `MC07 R2` keeper；保留 `:679` 的恢复 HEAD 后冒领负例，按新准入边界更新预期。 |
-| [tool-task.test.ts](/home/keer/workspace/aigcfroge-v2/packages/core/test/tool-task.test.ts:920) | 扩现真实 Task/Permission 管理命令 keeper，证明 complete 的 deny/ask/source、提前 close 和保留取消归档的拒绝。 |
+| 实际文件                                                                                                                  | 决定函数及必要变化                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [execution.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/execution.ts:75)                            | `ArtifactBaseline:75`、`TaskLink:90`、`prepareArtifact:318`、`captureArtifact:367`、`govern:521`、`dispatch:1099`：冻结可信 previous、相对 previous 分类、保留精确重入及原 settlement；`close` 接口 `:206`、实现 `:2707` 透传私有完成意图。                                           |
+| [service.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/service.ts:42)                                | `RevisionReference:42`、`Governance:61`、`proofFor:298`、`revision:375`、`recordRevision:968`：读出原 proof、分别比较原 producer 与新 input、有限同 digest 复用；`recordReview:1035` 仅适配既有 proof read 结果；`close:1312` 在原 mutation lock 内把 fresh barrier 与 Closing 串联。 |
+| [task.ts](/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/plugin/task.ts:34)                                     | `Input:34`、commands `:75`、permissions `:123`、management `:199`、路由 `:638`、artifact `:733`、Turn/dispatch `:781`、response `:910`：复用显式同 child 路由；增加 `complete` 命令、原权限与准确 aggregate 结果。                                                                    |
+| [meta-agent-integration.test.ts](/home/keer/workspace/aigcfroge-v2/packages/core/test/meta-agent-integration.test.ts:147) | 复用 `metaSetup:147`、`mc07Build:243`、`mc07Result:230`；新增 `MC07 R2` keeper；保留 `:679` 的恢复 HEAD 后冒领负例，按新准入边界更新预期。                                                                                                                                            |
+| [tool-task.test.ts](/home/keer/workspace/aigcfroge-v2/packages/core/test/tool-task.test.ts:920)                           | 扩现真实 Task/Permission 管理命令 keeper，证明 complete 的 deny/ask/source、提前 close 和保留取消归档的拒绝。                                                                                                                                                                         |
 
 `digest.ts`、`review.ts`、`fold.ts`、parser、Git/Snapshot/AppProcess、公共 Schema/事件/SQL/Protocol/Server/Client/generated 和仓内文档保持只读。必要差额应先回传具体决定函数，由 Root 更新白名单；不得削弱合同以保住文件数。
 
@@ -75,13 +75,13 @@ Root 必须在正式派发中确认这五个文件；本候选不授权编辑。
 
 `recordRevision` 保留旧同 producing input 的 exact reentry 分支和所有异主拒绝；仅增加可证明的同 child 延续例外。
 
-| 比较 | 必须成立的关系 |
-| --- | --- |
-| 当前 input | 新 receipt/source 与当前 user、TaskLink、Governance、completed Session input 匹配；原 source 不拿来代替新 source。 |
-| previous 与原 producer | previous receipt/source 与原 RevisionRecorded 指向的完成 proof 匹配；previous.artifact 与原 proof.artifact 完整相等，包含原 changeKind。 |
-| 新 artifact 与原内容 | 比较 `location/repository/path/commitSha/baseSha256/targetSha256/normalizedDiff/revisionDigest`；另要求本次 artifact/input changeKind 均为 no_change。原 event 的 rework 保留。 |
-| 首次结算 | previous digest 仍为 current latest，且等于本次 digest；不同 participant/child/path、伪 previous、过时 digest 或历史 digest 往返均拒绝。 |
-| 已接受精确重入 | 匹配 completed Delivery、`TaskSettlement.status=completed`、原保存治理 receipt/source 和 producer lineage；可返回该原结果，不因后来出现 R2 再要求旧 digest 为 latest。缺这些完成事实不能走此分支。 |
+| 比较                   | 必须成立的关系                                                                                                                                                                                     |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 当前 input             | 新 receipt/source 与当前 user、TaskLink、Governance、completed Session input 匹配；原 source 不拿来代替新 source。                                                                                 |
+| previous 与原 producer | previous receipt/source 与原 RevisionRecorded 指向的完成 proof 匹配；previous.artifact 与原 proof.artifact 完整相等，包含原 changeKind。                                                           |
+| 新 artifact 与原内容   | 比较 `location/repository/path/commitSha/baseSha256/targetSha256/normalizedDiff/revisionDigest`；另要求本次 artifact/input changeKind 均为 no_change。原 event 的 rework 保留。                    |
+| 首次结算               | previous digest 仍为 current latest，且等于本次 digest；不同 participant/child/path、伪 previous、过时 digest 或历史 digest 往返均拒绝。                                                           |
+| 已接受精确重入         | 匹配 completed Delivery、`TaskSettlement.status=completed`、原保存治理 receipt/source 和 producer lineage；可返回该原结果，不因后来出现 R2 再要求旧 digest 为 latest。缺这些完成事实不能走此分支。 |
 
 合法 no_change 返回 reused，不发布第二个 RevisionRecorded，不改原 event/producer/changeKind。新 TaskLink、input、Delivery、Task settlement 和父 Tool 仍属于新调用。producer 指针由已验证 lineage 产生，并保存在原 settlement；重复结算返回原完整值和原来源。
 
@@ -111,14 +111,14 @@ complete 顺序必须全部实现：
 
 所有正向事实通过真实 Task→Session→DB/Bus→Permission/Location/Git→原 settlement 产生。模型响应用既有 TestLLM/offline catalogue 控制。不得手种 revision/review、复制 digest/copy/barrier 算法或加入 test-only 生产 seam。用现 readiness/Deferred/Bus/llm.wait/awaitIdle；不固定 sleep。
 
-| Keeper | RED→green 要观察的事实 |
-| --- | --- |
-| `MC07 R2 same child repair` | 真实 R1 与 typed changes_requested→原 child 新输入实际 write/edit 产 R2；原 HEAD/blob/base SHA 不变、diff/target/digest 准确；旧 review 不允许完成，当前 typed R2 approval 后通过；新/旧 receipt、完整父消费成立。 |
-| `MC07 R2 no_change producer` | R1 approved 后不恢复 HEAD；原 child 新输入无改动，reused、revision 事件仍一条，原 producer 不变，新 input/receipt/source 与完整 diff 进入父请求；随后真实 R2 出现后再重入该 completed no_change input，结果逐项相等、领域事件不增。 |
-| `MC07 R2 admission lineage` | 保留原 `:679` 的真实恢复 HEAD 负例，提前在准入拒绝、新 child input/revision 为 0；再覆盖其它 participant/child、伪或过时 previous、current target/diff 漂移、当前 read deny/ask reject。已提交的原 domain/resource 事实准确保留，不要求虚假的全额回滚。 |
-| `MC07 R2 sticky retraction` | 真实 rejected R1→真实 R2 approved 仍 blocked；正确 participant 的显式 Task retraction 经 task_reconcile ask/once；错误 participant/deny 无撤回，撤回前后原 review/history 保留，撤回本身不批准。 |
+| Keeper                              | RED→green 要观察的事实                                                                                                                                                                                                                                                                                                                                                                                             |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `MC07 R2 same child repair`         | 真实 R1 与 typed changes_requested→原 child 新输入实际 write/edit 产 R2；原 HEAD/blob/base SHA 不变、diff/target/digest 准确；旧 review 不允许完成，当前 typed R2 approval 后通过；新/旧 receipt、完整父消费成立。                                                                                                                                                                                                 |
+| `MC07 R2 no_change producer`        | R1 approved 后不恢复 HEAD；原 child 新输入无改动，reused、revision 事件仍一条，原 producer 不变，新 input/receipt/source 与完整 diff 进入父请求；随后真实 R2 出现后再重入该 completed no_change input，结果逐项相等、领域事件不增。                                                                                                                                                                                |
+| `MC07 R2 admission lineage`         | 保留原 `:679` 的真实恢复 HEAD 负例，提前在准入拒绝、新 child input/revision 为 0；再覆盖其它 participant/child、伪或过时 previous、current target/diff 漂移、当前 read deny/ask reject。已提交的原 domain/resource 事实准确保留，不要求虚假的全额回滚。                                                                                                                                                            |
+| `MC07 R2 sticky retraction`         | 真实 rejected R1→真实 R2 approved 仍 blocked；正确 participant 的显式 Task retraction 经 task_reconcile ask/once；错误 participant/deny 无撤回，撤回前后原 review/history 保留，撤回本身不批准。                                                                                                                                                                                                                   |
 | `MC07 R2 complete after permission` | 同父 Step 的真实 complete 在 task_close 或 task_archive ask 挂起时，另一真实 Task 追加原 child 新工作；等 Turn/child request readiness 后 once。fresh barrier 拒绝，无新 Closing/DeliveryCancelled，新输入仍可完成。允许 task_close/拒绝 task_archive 时也拒绝且无关闭/完成/归档事件；两项 ask 各有正确 action/resource/source。正常 complete 证明 cleanup→Completed→Archived→完整父消费及重复 complete 不增事件。 |
-| `MC07 R2 close preserves failure` | 提前真实 Task.close 保留 cancelled Delivery，complete 准确拒绝。历史 `archivedFrom=cancelled` 仅作 retained lifecycle 兼容负例，review/revision 仍由真实 Task 产生；不能声称 Task 已能生产 cancelled aggregate。旧失败、取消、recovery_required 与 external refusal 回归保持。 |
+| `MC07 R2 close preserves failure`   | 提前真实 Task.close 保留 cancelled Delivery，complete 准确拒绝。历史 `archivedFrom=cancelled` 仅作 retained lifecycle 兼容负例，review/revision 仍由真实 Task 产生；不能声称 Task 已能生产 cancelled aggregate。旧失败、取消、recovery_required 与 external refusal 回归保持。                                                                                                                                     |
 
 原 R1 精确重入、source/owner 与 failed/cancelled/mixed-cause keeper继续保留。source 单因素证明缺口沿原 owner/unlock；新 no_change 的 current/previous source 比较须在 owning boundary 获执行证据，不能只靠 caller 字符串。
 
@@ -172,12 +172,12 @@ before/after 内容与模式、最小 delta、每轮 command/cwd/exit/tally/sour
 
 复用原 R1 保存身份→原 reviewer 新 typed changes_requested 或 rejected 与父消费→原 implementer/child 新输入实际产 R2→当前 R2 typed approval 与父消费→同 child 新 no_change receipt/原 producer/copy有效性→必要的显式 retraction→fresh barrier→原 close cleanup→Completed→Archived→父模型准确消费与同次退出。实际选择 changes_requested/rejected 和请求数由 Root 按冻结场景决定；不施加人为输出 token 上限、不借 R1 已耗额度。
 
-| 原账本/owner | 本片后的保留范围及 unlock |
-| --- | --- |
-| V2-C-DELEGATION / V2-C-DELEGATION-LIFE，主智能体/Root及状态语义 Owner | 本 R2 阶段 B 未派发；解除需上述 keeper、工程独审、限定真实同 child 链和 Root 签收。 |
-| 原 artifact capture owner / V2-C-DELEGATION | **真实 no_code_change producer/copy 未交付**：classifier 要求 commit 变而完整 diff 相同，本片固定 HEAD；解除需明确基准/新 commit 关系、真实 producer、完整证据与独立 keeper/授权。纯 copyable 测试不解除。其它文件类型、多路径、child commit、并发写者同归原 owner。 |
-| V2-C-FANOUT，原资源 owner/主智能体 | 前置/后提交故障、补偿、reconcile；独立故障小节和资源 owner 授权后解除。 |
-| V2-C-RECOVERY / MC10，原实现 owner/Root | 未知副作用、revision 后父 Tool 未持久、完整崩溃恢复、旧失败 supersession；独立恢复设计与崩溃证据后解除。 |
-| AUDIT-V2-MODE-META / V2-VALIDATION，原 owner | 只取得本片实际交付信用；全部 MC07、后继 MC08/MC04b/MC09/MC10 沿原条件。 |
+| 原账本/owner                                                          | 本片后的保留范围及 unlock                                                                                                                                                                                                                                            |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| V2-C-DELEGATION / V2-C-DELEGATION-LIFE，主智能体/Root及状态语义 Owner | 本 R2 阶段 B 未派发；解除需上述 keeper、工程独审、限定真实同 child 链和 Root 签收。                                                                                                                                                                                  |
+| 原 artifact capture owner / V2-C-DELEGATION                           | **真实 no_code_change producer/copy 未交付**：classifier 要求 commit 变而完整 diff 相同，本片固定 HEAD；解除需明确基准/新 commit 关系、真实 producer、完整证据与独立 keeper/授权。纯 copyable 测试不解除。其它文件类型、多路径、child commit、并发写者同归原 owner。 |
+| V2-C-FANOUT，原资源 owner/主智能体                                    | 前置/后提交故障、补偿、reconcile；独立故障小节和资源 owner 授权后解除。                                                                                                                                                                                              |
+| V2-C-RECOVERY / MC10，原实现 owner/Root                               | 未知副作用、revision 后父 Tool 未持久、完整崩溃恢复、旧失败 supersession；独立恢复设计与崩溃证据后解除。                                                                                                                                                             |
+| AUDIT-V2-MODE-META / V2-VALIDATION，原 owner                          | 只取得本片实际交付信用；全部 MC07、后继 MC08/MC04b/MC09/MC10 沿原条件。                                                                                                                                                                                              |
 
 唯一未交付账本仍是 [technical-debt.md](/home/keer/workspace/aigcfroge-v2/docs/technical-debt.md)。上表是本候选的范围移交，不是第二账本；Root 在本片关闭前将真实未交付差额同步原账本。

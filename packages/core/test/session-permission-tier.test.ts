@@ -30,7 +30,9 @@ const it = testEffect(
 )
 
 let counter = 0
-const insertSession = (input: { permissionTier?: "propose" | "full"; attended?: 0 | 1 | null; parentID?: Session.ID } = {}) =>
+const insertSession = (
+  input: { permissionTier?: "propose" | "full"; attended?: 0 | 1 | null; parentID?: Session.ID } = {},
+) =>
   Effect.gen(function* () {
     const { db } = yield* Database.Service
     counter += 1

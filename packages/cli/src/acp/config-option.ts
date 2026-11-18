@@ -70,9 +70,9 @@ export function configOptions(catalog: Catalog, selection: Selection): SessionCo
       name: "Session Mode",
       category: "mode",
       type: "select",
-      currentValue: selection.modeID ?? (modes.some((agent) => agent.id === catalog.defaultModeID)
-        ? catalog.defaultModeID
-        : (modes[0]?.id ?? "")),
+      currentValue:
+        selection.modeID ??
+        (modes.some((agent) => agent.id === catalog.defaultModeID) ? catalog.defaultModeID : (modes[0]?.id ?? "")),
       options: [
         ...modes.map((mode) => ({
           value: mode.id,
@@ -131,7 +131,14 @@ function modelOptions(
   const efforts =
     child || (!model && executor)
       ? [effort]
-      : [...new Set([...variants, DEFAULT_VARIANT_VALUE, implicitValue, ...(physical?.variant ? [physical.variant] : [])])]
+      : [
+          ...new Set([
+            ...variants,
+            DEFAULT_VARIANT_VALUE,
+            implicitValue,
+            ...(physical?.variant ? [physical.variant] : []),
+          ]),
+        ]
   return [
     {
       id: executor ? "executor-model" : "model",
@@ -147,33 +154,42 @@ function modelOptions(
             ...catalog.models
               .toSorted((a, b) => Order.String(a.providerID, b.providerID) || a.name.localeCompare(b.name))
               .map((item) => ({ value: advertisedModel(item), name: item.providerID + "/" + item.name })),
-            ...(catalog.groups ?? []).flatMap((item) => item.definition && !item.unavailable
-              ? [{ value: `group:${item.groupID}`, name: item.definition.name, description: "Model group" }]
-              : []),
-            ...(model && (group ? !catalog.groups?.some((item) => item.groupID === group.groupID && item.definition && !item.unavailable) : !findModel(catalog.models, model))
+            ...(catalog.groups ?? []).flatMap((item) =>
+              item.definition && !item.unavailable
+                ? [{ value: `group:${item.groupID}`, name: item.definition.name, description: "Model group" }]
+                : [],
+            ),
+            ...(model &&
+            (group
+              ? !catalog.groups?.some((item) => item.groupID === group.groupID && item.definition && !item.unavailable)
+              : !findModel(catalog.models, model))
               ? [{ value: currentValue, name: currentValue, description: "Unavailable model; saved selection" }]
               : []),
             ...(!model && !executor ? [{ value: "", name: "Unavailable model" }] : []),
           ],
     },
-    ...(group ? [] : [{
-      id: executor ? "executor-effort" : "effort",
-      name: executor || child ? "Executor Effort" : "Effort",
-      description: child ? bindingDescription : "Available effort levels for this model",
-      category: "thought_level",
-      type: "select",
-      currentValue: effort,
-      options: efforts.map((variant) => ({
-        value: variant,
-        name:
-          variant === implicitValue
-            ? "Implicit default"
-            : variant
-                .split(/[_-]/)
-                .map((part) => (part ? part.charAt(0).toUpperCase() + part.slice(1) : part))
-                .join(" "),
-      })),
-    } satisfies SessionConfigOption]),
+    ...(group
+      ? []
+      : [
+          {
+            id: executor ? "executor-effort" : "effort",
+            name: executor || child ? "Executor Effort" : "Effort",
+            description: child ? bindingDescription : "Available effort levels for this model",
+            category: "thought_level",
+            type: "select",
+            currentValue: effort,
+            options: efforts.map((variant) => ({
+              value: variant,
+              name:
+                variant === implicitValue
+                  ? "Implicit default"
+                  : variant
+                      .split(/[_-]/)
+                      .map((part) => (part ? part.charAt(0).toUpperCase() + part.slice(1) : part))
+                      .join(" "),
+            })),
+          } satisfies SessionConfigOption,
+        ]),
   ]
 }
 
@@ -307,7 +323,9 @@ const requireModel = Effect.fnUntraced(function* (
     canonical &&
     current &&
     (advertisedModel(current) === value ||
-      (!Model.Selection.isGroup(current) && current.variant && advertisedModel(current) + "/" + current.variant === value))
+      (!Model.Selection.isGroup(current) &&
+        current.variant &&
+        advertisedModel(current) + "/" + current.variant === value))
   )
     return current
   const selected = parseModelSelection(value, catalog.models)
@@ -322,7 +340,9 @@ const requireModel = Effect.fnUntraced(function* (
   if (selected.variant && !selectedVariant) return yield* new ACPError.InvalidEffortError({ effort: selected.variant })
   const variant =
     selectedVariant?.id ??
-    (current && !Model.Selection.isGroup(current) && current.providerID === model.providerID &&
+    (current &&
+    !Model.Selection.isGroup(current) &&
+    current.providerID === model.providerID &&
     current.id === model.id &&
     (current.variant === DEFAULT_VARIANT_VALUE || model.variants.some((variant) => variant.id === current.variant))
       ? current.variant

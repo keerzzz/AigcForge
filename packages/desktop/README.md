@@ -30,7 +30,7 @@ application's resources directory, and packaging fails if it is missing.
 
 CLI preparation uses these channel rules:
 
-| Channel                                | Without `AIGCFROGE_CLI_DIST`    | With `AIGCFROGE_CLI_DIST`                      |
+| Channel                                | Without `AIGCFROGE_CLI_DIST`   | With `AIGCFROGE_CLI_DIST`                     |
 | -------------------------------------- | ------------------------------ | --------------------------------------------- |
 | `dev`, `local`, unset, or unrecognized | Download the dev CLI           | Download the dev CLI; ignore the distribution |
 | `beta`                                 | Download the beta CLI          | Copy the supplied CLI; fail if it is missing  |

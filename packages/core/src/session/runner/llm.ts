@@ -131,8 +131,14 @@ const layer = Layer.effect(
               }
               if (pending?.type === "move")
                 return DrainResult.Moved({ continuation: continuing ? { step } : undefined })
-              if (pending?.type === "synthetic" && !(yield* goals.beforeRoundDelivery({ sessionID, inputID: pending.id }).pipe(Effect.orDie))) {
-                yield* SessionInbox.serialized(sessionID, bus.publish(SessionEvent.InboxCancelled, { sessionID, inboxID: pending.id }))
+              if (
+                pending?.type === "synthetic" &&
+                !(yield* goals.beforeRoundDelivery({ sessionID, inputID: pending.id }).pipe(Effect.orDie))
+              ) {
+                yield* SessionInbox.serialized(
+                  sessionID,
+                  bus.publish(SessionEvent.InboxCancelled, { sessionID, inboxID: pending.id }),
+                )
                 continue
               }
               if (pending?.type === "compaction") {
@@ -331,155 +337,193 @@ const layer = Layer.effect(
       let reason: SessionAttempt.Failure | undefined
       return yield* Effect.gen(function* () {
         while (true) {
-        // Reuse boundary preparation once; retries refresh context without delivering more input.
-        const selected = initial === undefined ? yield* prepareContext(sessionID) : undefined
-        const observed = selected ? yield* context.load(selected, turn.binding) : first
-        turn.binding = observed.model.binding
-        const correctionAppended = initial === undefined ? yield* syncCorrections(sessionID, observed.messages) : false
-        const appended =
-          initial === undefined
-            ? yield* memoryAdmission.append({ loaded: observed, trigger, budget: memoryBudget })
-            : false
-        const loaded =
-          (appended || correctionAppended) && selected ? yield* reloadMemoryContext(observed, selected) : observed
-        initial = undefined
-        const compacted = yield* compaction.compact({ reason: "auto", context: compactionContext(loaded) })
-        if (compacted.status === "failed") return yield* new StepFailedError({ error: compacted.error })
-        if (compacted.status === "completed") {
-          assistantMessageID = SessionMessage.ID.create()
-          boundary = {}
-          continue
-        }
-        const stepLimitReached = loaded.agent.info.steps !== undefined && step >= loaded.agent.info.steps
-        const transcript = SessionModelRequest.baseTranscript({
-          agent: loaded.agent.info,
-          model: loaded.model,
-          tools: loaded.tools,
-          initial: loaded.initial,
-          messages: loaded.messages,
-        })
-        const prepared = yield* context.request.primary({
-          session: loaded.session,
-          agent: loaded.agent.id,
-          request: loaded.agent.info.request,
-          model: loaded.model,
-          tools: loaded.tools,
-          system: transcript.system,
-          messages: stepLimitReached
-            ? [...transcript.messages, Message.assistant(MAX_STEPS_PROMPT)]
-            : transcript.messages,
-          // Keep tool definitions on the final Step to preserve the provider's cached prefix.
-          toolChoice: stepLimitReached ? "none" : undefined,
-          webSocket: "session",
-          inputTokens: SessionCompaction.estimatePrompt(loaded),
-        })
-        const outcome = yield* steps.attempt({
-          isLocationClosed: lifecycle.isClosed,
-          sessionID,
-          assistantMessageID,
-          resultAnchorInputID,
-          completeStep: corrections.enabled ? corrections.completeStep(sessionID) : undefined,
-          agent: loaded.agent.id,
-          model: loaded.model,
-          selection: loaded.model.selection ?? loaded.session.model ?? loaded.model.ref,
-          behaviorDigest: loaded.model.binding?.behavior.behaviorDigest,
-          boundary,
-          transition,
-          reason,
-          prepared,
-          retry: (cause, error, proposed, outputStarted) => Effect.gen(function* () {
-            const current = yield* store.get(sessionID)
-            if (current === undefined) return yield* Effect.die(new Error(`Session not found: ${sessionID}`))
-            const next = loaded.model.binding !== undefined && SessionRunnerModel.fallbackEligible(cause, loaded.model.binding.behavior.strategy)
-              ? yield* context.resolveModel({ ...current, agent: loaded.agent.id }, {
-                  binding: loaded.model.binding, advance: { from: loaded.model, cause },
-                }).pipe(Effect.catchTag("ModelGroup.Unavailable", (error) =>
-                  error.reason === "no-candidates" &&
-                  !(cause.reason._tag === "Authentication" || cause.reason._tag === "QuotaExceeded" ||
-                    (cause.reason._tag === "InvalidRequest" && cause.reason.classification === "model-not-found"))
-                    ? Effect.undefined : Effect.fail(error)))
-              : undefined
-            const binding = next === undefined ? loaded.model.binding : next.binding
-            const decision = yield* retry.decide({
-              cause,
-              error,
-              agent: loaded.agent.id,
-              model: loaded.model.ref,
-              hook: prepared.retry,
-              retry: proposed || next !== undefined,
-            })
-            if (!decision.retry && binding !== undefined && decision.reason !== "declined")
-              return yield* new StepFailedError({ error: { type: "model-group.retry-budget", message: `Model group "${binding.behavior.groupID}" exhausted the retry allowance` } })
-            if (decision.retry) {
-              turn.binding = binding
-              transition = outputStarted ? "continuation" : next === undefined ? "retry" : "fallback"
-              reason = SessionStep.failureDetails(cause)
-            }
-            return decision
-          }),
-          recoverContinuation,
-          recoverOverflow: Effect.suspend(() =>
-            recoverOverflow
-              ? Effect.gen(function* () {
-                  const selected = yield* context.select(sessionID).pipe(Effect.orDie)
-                  const observed = yield* reloadMemoryContext(loaded, selected)
-                  const appended = yield* syncCorrections(sessionID, observed.messages)
-                  const refreshed = appended ? yield* reloadMemoryContext(observed, selected) : observed
-                  const result = yield* compaction.compact({
-                    reason: "overflow",
-                    context: compactionContext(refreshed),
-                  })
-                  return result.status === "completed"
+          // Reuse boundary preparation once; retries refresh context without delivering more input.
+          const selected = initial === undefined ? yield* prepareContext(sessionID) : undefined
+          const observed = selected ? yield* context.load(selected, turn.binding) : first
+          turn.binding = observed.model.binding
+          const correctionAppended =
+            initial === undefined ? yield* syncCorrections(sessionID, observed.messages) : false
+          const appended =
+            initial === undefined
+              ? yield* memoryAdmission.append({ loaded: observed, trigger, budget: memoryBudget })
+              : false
+          const loaded =
+            (appended || correctionAppended) && selected ? yield* reloadMemoryContext(observed, selected) : observed
+          initial = undefined
+          const compacted = yield* compaction.compact({ reason: "auto", context: compactionContext(loaded) })
+          if (compacted.status === "failed") return yield* new StepFailedError({ error: compacted.error })
+          if (compacted.status === "completed") {
+            assistantMessageID = SessionMessage.ID.create()
+            boundary = {}
+            continue
+          }
+          const stepLimitReached = loaded.agent.info.steps !== undefined && step >= loaded.agent.info.steps
+          const transcript = SessionModelRequest.baseTranscript({
+            agent: loaded.agent.info,
+            model: loaded.model,
+            tools: loaded.tools,
+            initial: loaded.initial,
+            messages: loaded.messages,
+          })
+          const prepared = yield* context.request.primary({
+            session: loaded.session,
+            agent: loaded.agent.id,
+            request: loaded.agent.info.request,
+            model: loaded.model,
+            tools: loaded.tools,
+            system: transcript.system,
+            messages: stepLimitReached
+              ? [...transcript.messages, Message.assistant(MAX_STEPS_PROMPT)]
+              : transcript.messages,
+            // Keep tool definitions on the final Step to preserve the provider's cached prefix.
+            toolChoice: stepLimitReached ? "none" : undefined,
+            webSocket: "session",
+            inputTokens: SessionCompaction.estimatePrompt(loaded),
+          })
+          const outcome = yield* steps.attempt({
+            isLocationClosed: lifecycle.isClosed,
+            sessionID,
+            assistantMessageID,
+            resultAnchorInputID,
+            completeStep: corrections.enabled ? corrections.completeStep(sessionID) : undefined,
+            agent: loaded.agent.id,
+            model: loaded.model,
+            selection: loaded.model.selection ?? loaded.session.model ?? loaded.model.ref,
+            behaviorDigest: loaded.model.binding?.behavior.behaviorDigest,
+            boundary,
+            transition,
+            reason,
+            prepared,
+            retry: (cause, error, proposed, outputStarted) =>
+              Effect.gen(function* () {
+                const current = yield* store.get(sessionID)
+                if (current === undefined) return yield* Effect.die(new Error(`Session not found: ${sessionID}`))
+                const next =
+                  loaded.model.binding !== undefined &&
+                  SessionRunnerModel.fallbackEligible(cause, loaded.model.binding.behavior.strategy)
+                    ? yield* context
+                        .resolveModel(
+                          { ...current, agent: loaded.agent.id },
+                          {
+                            binding: loaded.model.binding,
+                            advance: { from: loaded.model, cause },
+                          },
+                        )
+                        .pipe(
+                          Effect.catchTag("ModelGroup.Unavailable", (error) =>
+                            error.reason === "no-candidates" &&
+                            !(
+                              cause.reason._tag === "Authentication" ||
+                              cause.reason._tag === "QuotaExceeded" ||
+                              (cause.reason._tag === "InvalidRequest" &&
+                                cause.reason.classification === "model-not-found")
+                            )
+                              ? Effect.undefined
+                              : Effect.fail(error),
+                          ),
+                        )
+                    : undefined
+                const binding = next === undefined ? loaded.model.binding : next.binding
+                const decision = yield* retry.decide({
+                  cause,
+                  error,
+                  agent: loaded.agent.id,
+                  model: loaded.model.ref,
+                  hook: prepared.retry,
+                  retry: proposed || next !== undefined,
                 })
-              : Effect.succeed(false),
-          ),
-        })
-        const completed = yield* SessionStep.Outcome.$match(outcome, {
-          Reprepare: Effect.fnUntraced(function* () {
-            turn.binding = (yield* context.resolveModel({ ...loaded.session, agent: loaded.agent.id }, {
-              binding: loaded.model.binding, reprepare: true,
-            })).binding
-          }),
-          Completed: (outcome) => Effect.succeed(outcome.needsContinuation),
-          Retry: (outcome) =>
-            retry.wait({
-              decision: outcome.decision,
-              error: outcome.error,
-              assistantMessageID,
+                if (!decision.retry && binding !== undefined && decision.reason !== "declined")
+                  return yield* new StepFailedError({
+                    error: {
+                      type: "model-group.retry-budget",
+                      message: `Model group "${binding.behavior.groupID}" exhausted the retry allowance`,
+                    },
+                  })
+                if (decision.retry) {
+                  turn.binding = binding
+                  transition = outputStarted ? "continuation" : next === undefined ? "retry" : "fallback"
+                  reason = SessionStep.failureDetails(cause)
+                }
+                return decision
+              }),
+            recoverContinuation,
+            recoverOverflow: Effect.suspend(() =>
+              recoverOverflow
+                ? Effect.gen(function* () {
+                    const selected = yield* context.select(sessionID).pipe(Effect.orDie)
+                    const observed = yield* reloadMemoryContext(loaded, selected)
+                    const appended = yield* syncCorrections(sessionID, observed.messages)
+                    const refreshed = appended ? yield* reloadMemoryContext(observed, selected) : observed
+                    const result = yield* compaction.compact({
+                      reason: "overflow",
+                      context: compactionContext(refreshed),
+                    })
+                    return result.status === "completed"
+                  })
+                : Effect.succeed(false),
+            ),
+          })
+          const completed = yield* SessionStep.Outcome.$match(outcome, {
+            Reprepare: Effect.fnUntraced(function* () {
+              turn.binding = (yield* context.resolveModel(
+                { ...loaded.session, agent: loaded.agent.id },
+                {
+                  binding: loaded.model.binding,
+                  reprepare: true,
+                },
+              )).binding
             }),
-          Continue: Effect.fnUntraced(function* (outcome) {
-            yield* retry.wait({
-              decision: outcome.decision,
-              error: outcome.error,
-              assistantMessageID,
-            })
-            yield* bus.publish(SessionEvent.Synthetic, { sessionID, text: CONTINUE_AFTER_INCOMPLETE_STREAM })
-            assistantMessageID = SessionMessage.ID.create()
-            boundary = {}
-            transition = "continuation"
-          }),
-          Compacted: Effect.fnUntraced(function* (outcome) {
-            recoverOverflow = false
-            assistantMessageID = SessionMessage.ID.create()
-            boundary = {}
-            transition = "continuation"
-            reason = outcome.reason
-          }),
-          RecoverFull: Effect.fnUntraced(function* (outcome) {
-            recoverContinuation = false
-            transition = "retry"
-            reason = outcome.reason
-          }),
-        })
+            Completed: (outcome) => Effect.succeed(outcome.needsContinuation),
+            Retry: (outcome) =>
+              retry.wait({
+                decision: outcome.decision,
+                error: outcome.error,
+                assistantMessageID,
+              }),
+            Continue: Effect.fnUntraced(function* (outcome) {
+              yield* retry.wait({
+                decision: outcome.decision,
+                error: outcome.error,
+                assistantMessageID,
+              })
+              yield* bus.publish(SessionEvent.Synthetic, { sessionID, text: CONTINUE_AFTER_INCOMPLETE_STREAM })
+              assistantMessageID = SessionMessage.ID.create()
+              boundary = {}
+              transition = "continuation"
+            }),
+            Compacted: Effect.fnUntraced(function* (outcome) {
+              recoverOverflow = false
+              assistantMessageID = SessionMessage.ID.create()
+              boundary = {}
+              transition = "continuation"
+              reason = outcome.reason
+            }),
+            RecoverFull: Effect.fnUntraced(function* (outcome) {
+              recoverContinuation = false
+              transition = "retry"
+              reason = outcome.reason
+            }),
+          })
           if (completed !== undefined) return completed
         }
-      }).pipe(Effect.onExit((exit) => SessionStep.reconcile(db, bus, goals, sessionID, {
-        assistantMessageID,
-        status: Exit.isFailure(exit) && Cause.hasInterrupts(exit.cause) ? lifecycle.isClosed() ? "interrupted" : "cancelled" : "failed",
-        error: Exit.isFailure(exit) ? Cause.hasInterruptsOnly(exit.cause)
-          ? { type: "aborted", message: "Step interrupted" }
-          : toSessionError(Cause.squash(exit.cause)) : undefined,
-      })))
+      }).pipe(
+        Effect.onExit((exit) =>
+          SessionStep.reconcile(db, bus, goals, sessionID, {
+            assistantMessageID,
+            status:
+              Exit.isFailure(exit) && Cause.hasInterrupts(exit.cause)
+                ? lifecycle.isClosed()
+                  ? "interrupted"
+                  : "cancelled"
+                : "failed",
+            error: Exit.isFailure(exit)
+              ? Cause.hasInterruptsOnly(exit.cause)
+                ? { type: "aborted", message: "Step interrupted" }
+                : toSessionError(Cause.squash(exit.cause))
+              : undefined,
+          }),
+        ),
+      )
     })
 
     const settleStaleCompactions = Effect.fn("SessionRunner.settleStaleCompactions")(function* (

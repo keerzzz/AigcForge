@@ -48,7 +48,9 @@ export const ProviderInstanceModel = Schema.Struct({
   ),
   experimental: Schema.optional(Schema.Boolean),
   status: Schema.optional(Schema.Literals(["alpha", "beta", "deprecated", "active"])),
-  provider: Schema.optional(Schema.Struct({ npm: Schema.optional(Schema.String), api: Schema.optional(Schema.String) })),
+  provider: Schema.optional(
+    Schema.Struct({ npm: Schema.optional(Schema.String), api: Schema.optional(Schema.String) }),
+  ),
   options: Schema.optional(Schema.Record(Schema.String, Schema.Any)),
   headers: Schema.optional(Schema.Record(Schema.String, Schema.String)),
   variants: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)).annotate({

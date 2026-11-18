@@ -757,31 +757,71 @@ function CoordinationStory() {
     reference: string
     navigation: string
     remote: "available" | "missing" | "disconnected"
-  }>({ task: "None", communication: "None", communicationsLoaded: false, reference: "None", navigation: "None", remote: "available" })
+  }>({
+    task: "None",
+    communication: "None",
+    communicationsLoaded: false,
+    reference: "None",
+    navigation: "None",
+    remote: "available",
+  })
 
   const communications: SessionCommunicationMessage[] = [
     {
-      id: "com_mp03_public_notice", actor: { type: "user", sessionID: "ses_mp03_notice_actor" },
-      contentSource: { sessionID: "ses_mp03_content_source", scope: "output" }, targetSessionID: "ses_mp03_notice_target",
+      id: "com_mp03_public_notice",
+      actor: { type: "user", sessionID: "ses_mp03_notice_actor" },
+      contentSource: { sessionID: "ses_mp03_content_source", scope: "output" },
+      targetSessionID: "ses_mp03_notice_target",
       body: { sessionID: "ses_mp03_notice_target", inputID: "msg_mp03_public_notice", digest: "a".repeat(64) },
-      requestDigest: "b".repeat(64), delivery: "queue", trigger: false, createdAt: STORY_TIME + 2,
-      text: "Complete retained communication\nThe second line stays intact.", state: "visible",
+      requestDigest: "b".repeat(64),
+      delivery: "queue",
+      trigger: false,
+      createdAt: STORY_TIME + 2,
+      text: "Complete retained communication\nThe second line stays intact.",
+      state: "visible",
     },
     {
-      id: "com_mp03_result_notice", actor: { type: "system", sessionID: "ses_mp03_notice_target",
-        origin: { type: "task_operation", operation: { sourceSessionID: "ses_mp03_notice_actor", operationID: "top_mp03_notice" } } },
-      contentSource: { sessionID: "ses_mp03_content_source", scope: "result" }, targetSessionID: "ses_mp03_notice_actor",
+      id: "com_mp03_result_notice",
+      actor: {
+        type: "system",
+        sessionID: "ses_mp03_notice_target",
+        origin: {
+          type: "task_operation",
+          operation: { sourceSessionID: "ses_mp03_notice_actor", operationID: "top_mp03_notice" },
+        },
+      },
+      contentSource: { sessionID: "ses_mp03_content_source", scope: "result" },
+      targetSessionID: "ses_mp03_notice_actor",
       body: { sessionID: "ses_mp03_notice_actor", inputID: "msg_mp03_result_notice", digest: "c".repeat(64) },
-      requestDigest: "d".repeat(64), delivery: "steer", trigger: false, createdAt: STORY_TIME + 3,
-      text: "Complete short-metadata result\nThe saved target stays exact.", state: "visible",
+      requestDigest: "d".repeat(64),
+      delivery: "steer",
+      trigger: false,
+      createdAt: STORY_TIME + 3,
+      text: "Complete short-metadata result\nThe saved target stays exact.",
+      state: "visible",
     },
   ]
 
   const text = "Use @build with @src/a.ts and @saved from A plus @saved from B."
 
   const references: SessionReference.MentionEncoded[] = [
-    { reference: { serverID: "server-a", sessionID: "ses_same", title: "Saved title", scope: { kind: "identity" } }, start: text.indexOf("@saved"), end: text.indexOf("@saved") + 6, content: "@saved" },
-    { reference: { serverID: "server-b", sessionID: "ses_same", title: "Saved title", scope: { kind: "through", messageID: "msg_saved_boundary" } }, start: text.lastIndexOf("@saved"), end: text.lastIndexOf("@saved") + 6, content: "@saved" },
+    {
+      reference: { serverID: "server-a", sessionID: "ses_same", title: "Saved title", scope: { kind: "identity" } },
+      start: text.indexOf("@saved"),
+      end: text.indexOf("@saved") + 6,
+      content: "@saved",
+    },
+    {
+      reference: {
+        serverID: "server-b",
+        sessionID: "ses_same",
+        title: "Saved title",
+        scope: { kind: "through", messageID: "msg_saved_boundary" },
+      },
+      start: text.lastIndexOf("@saved"),
+      end: text.lastIndexOf("@saved") + 6,
+      content: "@saved",
+    },
   ]
 
   const document: SessionDocument = {
@@ -789,34 +829,123 @@ function CoordinationStory() {
     sessionID: "ses_mp03_notice_target",
     status: { type: "idle" },
     messages: [
-      { id: "msg_mp03_task_notice", type: "synthetic", text: "Task coordination: Inspect the saved result", time: { created: STORY_TIME }, metadata: { coordination: { kind: "task", operationRef: { sourceSessionID: "ses_mp03_notice_actor", operationID: "top_mp03_notice" }, actorSessionID: "ses_mp03_notice_actor", actorAgent: "meta", targetSessionID: "ses_mp03_notice_target" } } },
-      { id: "msg_mp03_share_notice", type: "synthetic", text: "Complete saved result body", time: { created: STORY_TIME + 1 }, metadata: { source: "share", sourceSessionID: "ses_mp03_content_source", actorSessionID: "ses_mp03_notice_actor", contentSourceSessionID: "ses_mp03_content_source", scope: "result" } },
-      { id: "msg_mp03_public_notice", type: "synthetic", text: "Public communication carrier", time: { created: STORY_TIME + 2 }, metadata: { source: "share", communication: { id: "com_mp03_public_notice" } } },
-      { id: "msg_mp03_result_notice", type: "synthetic", text: "Actor result carrier", time: { created: STORY_TIME + 3 }, metadata: { communication: { id: "com_mp03_result_notice" } } },
-      { id: "msg_mp03_references", type: "user", text, time: { created: STORY_TIME + 4 }, agents: [{ name: "build", mention: { text: "@build", start: 4, end: 10 } }], files: [{ name: "a.ts", mime: "text/plain", data: "", source: { type: "uri", uri: "src/a.ts" }, mention: { text: "@src/a.ts", start: 16, end: 25 } }] },
+      {
+        id: "msg_mp03_task_notice",
+        type: "synthetic",
+        text: "Task coordination: Inspect the saved result",
+        time: { created: STORY_TIME },
+        metadata: {
+          coordination: {
+            kind: "task",
+            operationRef: { sourceSessionID: "ses_mp03_notice_actor", operationID: "top_mp03_notice" },
+            actorSessionID: "ses_mp03_notice_actor",
+            actorAgent: "meta",
+            targetSessionID: "ses_mp03_notice_target",
+          },
+        },
+      },
+      {
+        id: "msg_mp03_share_notice",
+        type: "synthetic",
+        text: "Complete saved result body",
+        time: { created: STORY_TIME + 1 },
+        metadata: {
+          source: "share",
+          sourceSessionID: "ses_mp03_content_source",
+          actorSessionID: "ses_mp03_notice_actor",
+          contentSourceSessionID: "ses_mp03_content_source",
+          scope: "result",
+        },
+      },
+      {
+        id: "msg_mp03_public_notice",
+        type: "synthetic",
+        text: "Public communication carrier",
+        time: { created: STORY_TIME + 2 },
+        metadata: { source: "share", communication: { id: "com_mp03_public_notice" } },
+      },
+      {
+        id: "msg_mp03_result_notice",
+        type: "synthetic",
+        text: "Actor result carrier",
+        time: { created: STORY_TIME + 3 },
+        metadata: { communication: { id: "com_mp03_result_notice" } },
+      },
+      {
+        id: "msg_mp03_references",
+        type: "user",
+        text,
+        time: { created: STORY_TIME + 4 },
+        agents: [{ name: "build", mention: { text: "@build", start: 4, end: 10 } }],
+        files: [
+          {
+            name: "a.ts",
+            mime: "text/plain",
+            data: "",
+            source: { type: "uri", uri: "src/a.ts" },
+            mention: { text: "@src/a.ts", start: 16, end: 25 },
+          },
+        ],
+      },
     ],
   }
 
   return (
     <CurrentSessionProviders document={document}>
-      <DataProvider directory="C:/workspaces/aigcfroge" sessionID={document.sessionID}
-        data={{ session: [
-          { id: "ses_mp03_notice_actor", title: "Actual actor", time: { created: STORY_TIME, updated: STORY_TIME } },
-          { id: "ses_mp03_notice_target", title: "Notice target", time: { created: STORY_TIME, updated: STORY_TIME } },
-          { id: "ses_mp03_content_source", title: "Saved content source", time: { created: STORY_TIME, updated: STORY_TIME } },
-        ], session_status: {}, session_diff: {} }}
+      <DataProvider
+        directory="C:/workspaces/aigcfroge"
+        sessionID={document.sessionID}
+        data={{
+          session: [
+            { id: "ses_mp03_notice_actor", title: "Actual actor", time: { created: STORY_TIME, updated: STORY_TIME } },
+            {
+              id: "ses_mp03_notice_target",
+              title: "Notice target",
+              time: { created: STORY_TIME, updated: STORY_TIME },
+            },
+            {
+              id: "ses_mp03_content_source",
+              title: "Saved content source",
+              time: { created: STORY_TIME, updated: STORY_TIME },
+            },
+          ],
+          session_status: {},
+          session_diff: {},
+        }}
         onOpenTask={(reference) => setState("task", JSON.stringify(reference))}
-        onCommunication={(reference) => state.communicationsLoaded && reference.sessionID === document.sessionID
-          ? communications.find((record) => record.id === reference.communicationID) : undefined}
+        onCommunication={(reference) =>
+          state.communicationsLoaded && reference.sessionID === document.sessionID
+            ? communications.find((record) => record.id === reference.communicationID)
+            : undefined
+        }
         onOpenCommunication={(reference) => setState("communication", JSON.stringify(reference))}
         onNavigateToSession={(sessionID) => setState("navigation", sessionID)}
         onOpenSessionReference={(reference) => setState("reference", JSON.stringify(reference))}
-        onSessionReferenceState={(reference) => ({ title: reference.serverID === "server-a" ? "Newest title A" : "Newest title B", status: reference.serverID === "server-b" ? state.remote : "available" })}
+        onSessionReferenceState={(reference) => ({
+          title: reference.serverID === "server-a" ? "Newest title A" : "Newest title B",
+          status: reference.serverID === "server-b" ? state.remote : "available",
+        })}
       >
         <section class="mx-auto flex w-full max-w-3xl flex-col gap-4 p-6">
-          <div class="flex flex-wrap gap-2"><Button size="small" onClick={() => setState("remote", "missing")}>Mark remote reference deleted</Button><Button size="small" onClick={() => setState("remote", "disconnected")}>Disconnect remote reference</Button><Button size="small" onClick={() => setState("communicationsLoaded", true)}>Load retained communications</Button></div>
-          <SessionTimeline document={document} presentation={{ msg_mp03_references: { displayText: text, sessionReferences: references } }} />
-          <output aria-label="Opened Task operation">{state.task}</output><output aria-label="Opened communication">{state.communication}</output><output aria-label="Opened Session reference">{state.reference}</output><output aria-label="Opened Session">{state.navigation}</output>
+          <div class="flex flex-wrap gap-2">
+            <Button size="small" onClick={() => setState("remote", "missing")}>
+              Mark remote reference deleted
+            </Button>
+            <Button size="small" onClick={() => setState("remote", "disconnected")}>
+              Disconnect remote reference
+            </Button>
+            <Button size="small" onClick={() => setState("communicationsLoaded", true)}>
+              Load retained communications
+            </Button>
+          </div>
+          <SessionTimeline
+            document={document}
+            presentation={{ msg_mp03_references: { displayText: text, sessionReferences: references } }}
+          />
+          <output aria-label="Opened Task operation">{state.task}</output>
+          <output aria-label="Opened communication">{state.communication}</output>
+          <output aria-label="Opened Session reference">{state.reference}</output>
+          <output aria-label="Opened Session">{state.navigation}</output>
         </section>
       </DataProvider>
     </CurrentSessionProviders>

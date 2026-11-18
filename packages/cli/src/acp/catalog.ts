@@ -16,9 +16,20 @@ export type Catalog = {
   readonly models: ReadonlyArray<Model.Info>
   readonly defaultModel: Model.Selection
   readonly groups?: ReadonlyArray<ModelGroup.Current>
-  readonly modes: ReadonlyArray<{ id: Agent.ID; name: string; description?: string; ordinaryModes?: ReadonlyArray<ProductMode.ID> }>
+  readonly modes: ReadonlyArray<{
+    id: Agent.ID
+    name: string
+    description?: string
+    ordinaryModes?: ReadonlyArray<ProductMode.ID>
+  }>
   readonly defaultModeID: Agent.ID
-  readonly executors?: ReadonlyArray<{ id: Agent.ID; name: string; description?: string; model?: Model.Selection; ordinaryModes?: ReadonlyArray<ProductMode.ID> }>
+  readonly executors?: ReadonlyArray<{
+    id: Agent.ID
+    name: string
+    description?: string
+    model?: Model.Selection
+    ordinaryModes?: ReadonlyArray<ProductMode.ID>
+  }>
   readonly commands: ReadonlyArray<Command.Info>
 }
 
@@ -156,11 +167,15 @@ const read = Effect.fnUntraced(function* (client: AigcForgeClient, cwd: string) 
   const preferred = defaultResult.data.defaultSelection
   // The parallel default read can name a model missing from this list.
   const physical = preferred && !Model.Selection.isGroup(preferred) ? findModel(models, preferred) : models[0]
-  const defaultModel = preferred && (Model.Selection.isGroup(preferred) || physical) ? preferred : physical && Model.Ref.make({
-    providerID: physical.providerID,
-    id: physical.id,
-    variant: physical.variants.find((variant) => variant.id === "default")?.id,
-  })
+  const defaultModel =
+    preferred && (Model.Selection.isGroup(preferred) || physical)
+      ? preferred
+      : physical &&
+        Model.Ref.make({
+          providerID: physical.providerID,
+          id: physical.id,
+          variant: physical.variants.find((variant) => variant.id === "default")?.id,
+        })
   if (!defaultModel) return yield* new ACPError.CatalogNotReadyError({ reason: "models" })
   const agents = agentResult.data.filter((agent) => agent.mode !== "subagent" && !agent.hidden)
   // Core lists its resolved default agent first, the same one a new session runs.
@@ -170,11 +185,22 @@ const read = Effect.fnUntraced(function* (client: AigcForgeClient, cwd: string) 
     models,
     defaultModel,
     groups: defaultResult.data.effective,
-    modes: agents.map((agent) => ({ id: agent.id, name: agent.name, description: agent.description, ordinaryModes: agent.ordinaryModes })),
+    modes: agents.map((agent) => ({
+      id: agent.id,
+      name: agent.name,
+      description: agent.description,
+      ordinaryModes: agent.ordinaryModes,
+    })),
     defaultModeID: defaultAgent.id,
     executors: agentResult.data
       .filter((agent) => agent.id !== "meta" && agent.mode !== "primary" && !agent.hidden)
-      .map((agent) => ({ id: agent.id, name: agent.name, description: agent.description, model: agent.model, ordinaryModes: agent.ordinaryModes })),
+      .map((agent) => ({
+        id: agent.id,
+        name: agent.name,
+        description: agent.description,
+        model: agent.model,
+        ordinaryModes: agent.ordinaryModes,
+      })),
     commands: commandResult.data.filter((command) => !builtinCommands.has(command.name)),
   } satisfies Catalog
 })

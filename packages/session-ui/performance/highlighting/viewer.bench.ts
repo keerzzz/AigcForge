@@ -20,7 +20,9 @@ for (const large of [false, true]) {
     const complete = await page.evaluate(() => {
       const contents = window.highlighting.contents()!
 
-      return contents.before === window.highlighting.input.before && contents.after === window.highlighting.input.after[1]
+      return (
+        contents.before === window.highlighting.input.before && contents.after === window.highlighting.input.after[1]
+      )
     })
 
     expect(complete).toBe(true)
@@ -37,12 +39,18 @@ for (const large of [false, true]) {
       return heap
     })()
 
-    report({ cold, remount, changed, retention }, {
-      browser: browser.version(),
-      dimensions: await page.evaluate(() => window.highlighting.dimensions),
-      build: JSON.parse(await readFile(path.join(process.env.HIGHLIGHT_BUNDLE!, "build.json"), "utf8")),
-    })
+    report(
+      { cold, remount, changed, retention },
+      {
+        browser: browser.version(),
+        dimensions: await page.evaluate(() => window.highlighting.dimensions),
+        build: JSON.parse(await readFile(path.join(process.env.HIGHLIGHT_BUNDLE!, "build.json"), "utf8")),
+      },
+    )
 
-    if (process.env.HIGHLIGHT_SCREENSHOTS) await page.screenshot({ path: path.join(process.env.HIGHLIGHT_SCREENSHOTS, `${large ? "large" : "diff"}-${info.repeatEachIndex}.png`) })
+    if (process.env.HIGHLIGHT_SCREENSHOTS)
+      await page.screenshot({
+        path: path.join(process.env.HIGHLIGHT_SCREENSHOTS, `${large ? "large" : "diff"}-${info.repeatEachIndex}.png`),
+      })
   })
 }

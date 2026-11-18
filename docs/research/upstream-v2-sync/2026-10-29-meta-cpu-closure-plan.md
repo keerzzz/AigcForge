@@ -226,18 +226,18 @@ V2是同一Git仓注册工作树，common dir为默认工作区的`.git`；默�
 
 默认来源为 `main@edbe67383d830aa40269ddf453c7f5617c940b46` 与相关WIP；可见历史初始导入至今1333提交，不把改名/生成/依赖/文档重复算能力。V2固定基准不变。
 
-| 内容 | 已核默认来源 | 当前V2静态状态 |
-| --- | --- | --- |
-| Meta核心行为文本 | `core/src/plugin/agent.ts:104`完整PROMPT_META | `core/src/plugin/agent.ts:8`短模板，已注册/消费但不完整 |
-| 用户入口/执行者 | 默认Agent/产品策略、Meta路由/提问/委派 | 普通默认按配置/build，按最新裁决保留；旧Custom固定meta不推广为普通根规则 |
-| 协议生成/cards | `aigcfroge/src/tool/delegation-protocol.ts:26`、`agent/protocol.ts` | 未找到内置工具/cards完整注册链 |
-| 身份/关联/步骤/统计 | `core/src/meta-agent/service.ts`与SQL、TaskDriverFill | 服务表存在，未找到create/attach/writeStep生产调用；历史M:N与step归属需处理 |
-| 项目记忆与纠错 | memory工具/源、CorrectionStore/Extractor/Facts | memory工具注册但默认Meta权限隐藏、record要求附着；当前Instructions未接memory/纠错源 |
-| 质量治理 | DoomLoop/ReferenceChecker/Verifier/VerificationRouter、tool hooks | 文件存在但未进入已查根层/runner；L1/L2提示不等于真正Judge调度 |
-| 内部持久协作 | Delegation/Participant/Turn/Delivery/receipt/barrier | 内部task/child/inbox/wake/结果实线，依retained Bus；保持已交付部分 |
-| 外部协作/Judge/attended | JSONL/SDK/ACP/app-server、TaskDriverFill/Judge | 适配器存在，task明确拒绝external-cli/judge/attended；不能只删拒绝分支 |
-| revision/review/关闭恢复 | role检查、粘性批准/拒绝、生命周期/人工恢复 | 部分服务/纯barrier已有；写入生产者、外部通知与完整恢复须补 |
-| 客户端与UI | Hub、状态、Cache诊断、决策与任务卡 | Task面板实线；Agent Hub为not_implemented，不能把SDK方法当产品已接线 |
+| 内容                     | 已核默认来源                                                        | 当前V2静态状态                                                                      |
+| ------------------------ | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Meta核心行为文本         | `core/src/plugin/agent.ts:104`完整PROMPT_META                       | `core/src/plugin/agent.ts:8`短模板，已注册/消费但不完整                             |
+| 用户入口/执行者          | 默认Agent/产品策略、Meta路由/提问/委派                              | 普通默认按配置/build，按最新裁决保留；旧Custom固定meta不推广为普通根规则            |
+| 协议生成/cards           | `aigcfroge/src/tool/delegation-protocol.ts:26`、`agent/protocol.ts` | 未找到内置工具/cards完整注册链                                                      |
+| 身份/关联/步骤/统计      | `core/src/meta-agent/service.ts`与SQL、TaskDriverFill               | 服务表存在，未找到create/attach/writeStep生产调用；历史M:N与step归属需处理          |
+| 项目记忆与纠错           | memory工具/源、CorrectionStore/Extractor/Facts                      | memory工具注册但默认Meta权限隐藏、record要求附着；当前Instructions未接memory/纠错源 |
+| 质量治理                 | DoomLoop/ReferenceChecker/Verifier/VerificationRouter、tool hooks   | 文件存在但未进入已查根层/runner；L1/L2提示不等于真正Judge调度                       |
+| 内部持久协作             | Delegation/Participant/Turn/Delivery/receipt/barrier                | 内部task/child/inbox/wake/结果实线，依retained Bus；保持已交付部分                  |
+| 外部协作/Judge/attended  | JSONL/SDK/ACP/app-server、TaskDriverFill/Judge                      | 适配器存在，task明确拒绝external-cli/judge/attended；不能只删拒绝分支               |
+| revision/review/关闭恢复 | role检查、粘性批准/拒绝、生命周期/人工恢复                          | 部分服务/纯barrier已有；写入生产者、外部通知与完整恢复须补                          |
+| 客户端与UI               | Hub、状态、Cache诊断、决策与任务卡                                  | Task面板实线；Agent Hub为not_implemented，不能把SDK方法当产品已接线                 |
 
 这是静态取证，不是运行验收；未读的完整状态机分支、测试/真实运行数据由MC00与对应小节明确补齐。所有Meta内容不因flag默认关闭就从保留范围删除。
 
@@ -245,32 +245,32 @@ V2是同一Git仓注册工作树，common dir为默认工作区的`.git`；默�
 
 M键只作本方案引用，功能状态映射原[唯一账本](../../technical-debt.md)，不创建第二状态真源。每行都要有定义/提供者/消费者、来源版本、触发与结果证据。
 
-| 键 | 必保内容 | 优化与目标owner | 关闭证据 |
-| --- | --- | --- | --- |
-| M01 | 身份与正常Agent选择兼容 | Session/Agent/MetaService；Build/Plan/Meta并列、default_agent原owner；选中Meta时启用其统筹能力 | 列表/模型/new/fork/switch/重试/重载一致，普通根不补挂，Meta启停持久可核验 |
-| M02 | 分析未知/分类/路由/直接回答 | 选Meta时保留认知流程，intent/engine/prerouter辅助统筹；Build/Plan沿共同V2执行 | 问答/@目标/多步骤正确，Agent选择不改产品分类或混用模型 |
-| M03 | 协议全文约束提取与身份纪律 | governance由真实Instructions/Discovery；协议文件的产品名不改Meta身份 | 全局/项目/目录规则传递、相冲突时明确澄清 |
-| M04 | Agent Card/Protocol Card与委派协议工具 | 原工具行为与cards，经V2Tools/CLI资源接缝；结构化规格/约束/未知/验收 | card有/无、未知engine、工具可见与执行、内外输入一致 |
-| M05 | Agent/CLI/资产能力目录 | Agent/Asset/adapter owner，按scope/权限/采用版本生成，空列表不是检测故障 | 零资产/更新/删除/缺依赖/权限/跨位置、实际执行同源 |
-| M06 | 稳定Meta身份/模型/会话关联 | 复用MetaService/SQL，Created同txn附着，明确metaID+role/M:N | 创建回滚、ID重试/并发、根与child、旧库未知归属 |
-| M07 | subagent/tool/外CLI step记录与统计 | 关联级归属+稳定调用/receipt/attempt；聚合由真实事实派生，不能用Date.now作业务序号 | 多Meta/多Session隔离、重复结算、失败取消/成本范围 |
-| M08 | 项目事实memory记录/检索/删除/自动消费 | 复用memory owner与权限；事实/来源/项目/附着明确，数据不能提权 | Meta附着、项目隔离、授权、重复ID、重开/删除/消费 |
-| M09 | 用户纠错/检测纠错/事实反馈 | CorrectionStore/Extractor，步数语义明确，Ref缓存可回收/从事实重建 | 重复抽取/替代、TTL、session隔离、秘密拒绝、正确事实消费 |
-| M10 | 文件/符号/引用与反向引用 | Reference/FS/Ripgrep及可选Codegraph；缺服务/超时显式观测，不能伪造验证通过 | 真实坏引用/工具路径、缺MCP、超时与typed错误 |
-| M11 | Doom-loop/PreToolUse/PostToolUse | Tool hooks/Permission/Step结算；稳定语义指纹、计数/Scope而非永久全局数组 | 相同语义输入、重试、权限拒绝、reload注销、取消 |
-| M12 | 机械Verifier与PGE L0/L1/L2 | package/process/Job owner；验证去重与配置化；升级要真正调度/结果，不仅文案 | 红代码→类型失败→结果/事件；关闭PGE仍机械验证/权限 |
-| M13 | Cache/Token/耗时/诊断 | Step/Usage/现有Cache/trace读模型；不重复记录完整prompt | prefix变化/重试/compaction、leaf/family/Meta范围与UI |
-| M14 | 内部子会话/前后台/steer/queue | Session/Job/Delegation，持久准入先wake、不重建TaskDriver | 同一child多轮、安全边界、queue idle、取消与结果 |
-| M15 | 持久Delegation/Participant/Turn/Delivery | 复用Service/fold/receipt，M:N保持，命令串行、不同委派并行 | 独立协作身份、多target/多turn、重复输入与readback |
-| M16 | 外部CLI发现/配置/复用/恢复/进度 | 唯一adapter registry与descriptor/可选方法，绑定thread与turn/parent/scope | JSONL/SDK/ACP/app-server真实能力、resume/错误/超时 |
-| M17 | attended与人类审批 | Permission/Question真实waiter和外部callback；能力缺失拒绝 | 父调用source、回复/拒绝/取消/迟到、无callback只读边界 |
-| M18 | revision/review与completion barrier | 生产者记录实际文件revision与角色；复用pure barrier/copy policy | 实际R1/R2、outdated/sticky reject、缺/坏review不批准 |
-| M19 | fanout/repair/retry/reconcile | 同Delegation准入原子、投递按来源幂等，前后失败分开 | 前置第二目标失败无输入；后失败保结果/资源、未知不重放 |
-| M20 | Workflow/分支/跳过/通知与任务关联 | 现有Workflow/Task/Session owner，不复刻已删pipeline/fanout | frozen definition、非旧Custom强耦合目标、分支错误/取消/恢复 |
-| M21 | 多模型Judge/上下文摘要/内部分享 | V2AI/Model/Job与现有结果；每child实际指定模型，质量/降级结构化 | 模型确实不同、部分/全部失败、仲裁/摘要不可用状态 |
-| M22 | Meta扩展与生命周期 | 复用Plugin/typed hooks的intent/adapter/middleware接缝，零注册no-op | 注册/真实消费/注销、依赖失败/重载、权限不提升 |
-| M23 | Hub/Meta状态/任务/缓存/产物消费 | ClientData与App/GUI/session-ui；原scope、storage加载与稳定屏幕 | 同名多个participant、结果跳转/controls、长标题/窄屏/键盘 |
-| M24 | interrupt/close/complete/archive/purge/软过期/重启 | 现有协调/持久事实、子先父、retain/人工恢复分层 | root/child/CLI冷开、停止不复活、archive保历史、purge授权 |
+| 键  | 必保内容                                           | 优化与目标owner                                                                                | 关闭证据                                                                  |
+| --- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| M01 | 身份与正常Agent选择兼容                            | Session/Agent/MetaService；Build/Plan/Meta并列、default_agent原owner；选中Meta时启用其统筹能力 | 列表/模型/new/fork/switch/重试/重载一致，普通根不补挂，Meta启停持久可核验 |
+| M02 | 分析未知/分类/路由/直接回答                        | 选Meta时保留认知流程，intent/engine/prerouter辅助统筹；Build/Plan沿共同V2执行                  | 问答/@目标/多步骤正确，Agent选择不改产品分类或混用模型                    |
+| M03 | 协议全文约束提取与身份纪律                         | governance由真实Instructions/Discovery；协议文件的产品名不改Meta身份                           | 全局/项目/目录规则传递、相冲突时明确澄清                                  |
+| M04 | Agent Card/Protocol Card与委派协议工具             | 原工具行为与cards，经V2Tools/CLI资源接缝；结构化规格/约束/未知/验收                            | card有/无、未知engine、工具可见与执行、内外输入一致                       |
+| M05 | Agent/CLI/资产能力目录                             | Agent/Asset/adapter owner，按scope/权限/采用版本生成，空列表不是检测故障                       | 零资产/更新/删除/缺依赖/权限/跨位置、实际执行同源                         |
+| M06 | 稳定Meta身份/模型/会话关联                         | 复用MetaService/SQL，Created同txn附着，明确metaID+role/M:N                                     | 创建回滚、ID重试/并发、根与child、旧库未知归属                            |
+| M07 | subagent/tool/外CLI step记录与统计                 | 关联级归属+稳定调用/receipt/attempt；聚合由真实事实派生，不能用Date.now作业务序号              | 多Meta/多Session隔离、重复结算、失败取消/成本范围                         |
+| M08 | 项目事实memory记录/检索/删除/自动消费              | 复用memory owner与权限；事实/来源/项目/附着明确，数据不能提权                                  | Meta附着、项目隔离、授权、重复ID、重开/删除/消费                          |
+| M09 | 用户纠错/检测纠错/事实反馈                         | CorrectionStore/Extractor，步数语义明确，Ref缓存可回收/从事实重建                              | 重复抽取/替代、TTL、session隔离、秘密拒绝、正确事实消费                   |
+| M10 | 文件/符号/引用与反向引用                           | Reference/FS/Ripgrep及可选Codegraph；缺服务/超时显式观测，不能伪造验证通过                     | 真实坏引用/工具路径、缺MCP、超时与typed错误                               |
+| M11 | Doom-loop/PreToolUse/PostToolUse                   | Tool hooks/Permission/Step结算；稳定语义指纹、计数/Scope而非永久全局数组                       | 相同语义输入、重试、权限拒绝、reload注销、取消                            |
+| M12 | 机械Verifier与PGE L0/L1/L2                         | package/process/Job owner；验证去重与配置化；升级要真正调度/结果，不仅文案                     | 红代码→类型失败→结果/事件；关闭PGE仍机械验证/权限                         |
+| M13 | Cache/Token/耗时/诊断                              | Step/Usage/现有Cache/trace读模型；不重复记录完整prompt                                         | prefix变化/重试/compaction、leaf/family/Meta范围与UI                      |
+| M14 | 内部子会话/前后台/steer/queue                      | Session/Job/Delegation，持久准入先wake、不重建TaskDriver                                       | 同一child多轮、安全边界、queue idle、取消与结果                           |
+| M15 | 持久Delegation/Participant/Turn/Delivery           | 复用Service/fold/receipt，M:N保持，命令串行、不同委派并行                                      | 独立协作身份、多target/多turn、重复输入与readback                         |
+| M16 | 外部CLI发现/配置/复用/恢复/进度                    | 唯一adapter registry与descriptor/可选方法，绑定thread与turn/parent/scope                       | JSONL/SDK/ACP/app-server真实能力、resume/错误/超时                        |
+| M17 | attended与人类审批                                 | Permission/Question真实waiter和外部callback；能力缺失拒绝                                      | 父调用source、回复/拒绝/取消/迟到、无callback只读边界                     |
+| M18 | revision/review与completion barrier                | 生产者记录实际文件revision与角色；复用pure barrier/copy policy                                 | 实际R1/R2、outdated/sticky reject、缺/坏review不批准                      |
+| M19 | fanout/repair/retry/reconcile                      | 同Delegation准入原子、投递按来源幂等，前后失败分开                                             | 前置第二目标失败无输入；后失败保结果/资源、未知不重放                     |
+| M20 | Workflow/分支/跳过/通知与任务关联                  | 现有Workflow/Task/Session owner，不复刻已删pipeline/fanout                                     | frozen definition、非旧Custom强耦合目标、分支错误/取消/恢复               |
+| M21 | 多模型Judge/上下文摘要/内部分享                    | V2AI/Model/Job与现有结果；每child实际指定模型，质量/降级结构化                                 | 模型确实不同、部分/全部失败、仲裁/摘要不可用状态                          |
+| M22 | Meta扩展与生命周期                                 | 复用Plugin/typed hooks的intent/adapter/middleware接缝，零注册no-op                             | 注册/真实消费/注销、依赖失败/重载、权限不提升                             |
+| M23 | Hub/Meta状态/任务/缓存/产物消费                    | ClientData与App/GUI/session-ui；原scope、storage加载与稳定屏幕                                 | 同名多个participant、结果跳转/controls、长标题/窄屏/键盘                  |
+| M24 | interrupt/close/complete/archive/purge/软过期/重启 | 现有协调/持久事实、子先父、retain/人工恢复分层                                                 | root/child/CLI冷开、停止不复活、archive保历史、purge授权                  |
 
 全部内容保留是用户能力/协议/数据语义不遗漏；旧实现的重复、无消费者或错误流程可有证据地替换，不把缺陷固化成新架构。对接口/事件语义改变必须写允许差异、迁移与验收。
 
@@ -360,20 +360,20 @@ Meta明确任务/目标/验证/权限 → 建同Delegation的implementer/reviewe
 
 MC编号仅本专项小节，不重编号P/B、DB migration或既有账本ID。每节按已授权目标填写具体任务单，完成受影响测试、类型/必要生成/lint、独立审查和同源产物核对；有明确源码定位或既有失败证据的修复直接实施，不另设修复前RED门槛；产品小节由验收负责人做真实隔离Electron＋已授权模型，具体模型和请求上限写入该轮任务单，失败退原小节修复。早期每片都验它的用户链，不到MC09/10才第一次验桌面/数据/恢复。
 
-| 小节 | 交付/复用范围 | 依赖与退出 |
-| --- | --- | --- |
-| MC00 | Meta全内容M01–M24/默认源码/目标根层/剩余状态机与keeper矩阵；WIP/owner/备份/检查点；具体任务单 | 本方案文本通过不替代MC00逐片取证；无消费者/未读/冲突明确，不能批量搬文件 |
-| MC01 | 普通Agent/default、模型与new/fork/switch/API兼容；选Meta的身份、关联、稳定step与最小receipt | 三Agent/default实际消费，Meta启停持久性、回滚/重试/旧身份；问答/委派实证，不新增旁路 |
-| MC02 | 完整Meta行为模板、协议工具/cards、Agent/CLI/资产目录与来源scope/冻结版本 | 依MC01，目录/扫描失败与空列表分开；内外委派有完整约束，动态更新不串场 |
-| MC03 | 项目memory权限/附着/CRUD/数据消费，纠错Extractor/Store/Facts与生命周期 | 依MC01/02，来源/秘密/项目与session隔离、缓存计数/重复注入/旧库与取消回滚 |
-| MC04a | DoomLoop、引用/反向引用、基础Verifier和pre/post hooks真实结算 | 依MC01/03；机械结果/失败/不可用，回收/权限，中断/defect保留，不假装Judge已运行 |
-| MC05 | 内部持久协作/多participant/Turn投递/step统计、steer/queue/取消/通知最小完整链 | 复用MC01已有task基线；事务/receipt/幂等/保留事件策略，MC01所需最小闭环前置核对 |
-| MC06 | 唯一CLI registry与实际SDK/ACP/JSONL/app-server、thread/turn binding、attended权限桥 | 依MC02/05；方法/权限/版本/只读边界、resume/错误/冷开/取消，不能只删unavailable guard |
-| MC07 | 实际revision/review生产者、pure barrier、fanout/repair/reconcile与前后失败语义 | 依MC05/06；R1/R2/粘性拒绝、同D原子准入/child独立结算、未知副作用与可逆补偿 |
-| MC08 | Workflow与Task/Meta消费、指定多模型Judge、摘要/分享与显式质量状态 | 依对应MC05–07，模型实际不同，分支/失败/停止/通知/费用预算；不复刻旧pipeline |
-| MC04b | PGE L0→真实L1Judge→L2委派的完整治理流程 | 依MC04a/05/07/08；显式开启和预算、每级真动作/结果/复位，失败不误升权限 |
-| MC09 | Client公开合同/Data、Meta状态/身份/memory、Hub与已有Task/decision/cache/产物UI | 数据/接口随各片同步；最终跨scope、同名participant、重载/IPCstore/长标题/明暗/窄屏/键盘不串或悬挂；2026-11-08 Root 已接受，见本页当前状态 |
-| MC10 | 多领域恢复、旧数据副本、已选模式/Meta、当前规模与packaged同源产物 | 2026-11-08 原六类已由 Root 接受；实际P2故障/冷P3及PTY/IPC/storage通过，见本页当前状态；新Custom归原B04.0/B06 |
+| 小节  | 交付/复用范围                                                                                 | 依赖与退出                                                                                                                               |
+| ----- | --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| MC00  | Meta全内容M01–M24/默认源码/目标根层/剩余状态机与keeper矩阵；WIP/owner/备份/检查点；具体任务单 | 本方案文本通过不替代MC00逐片取证；无消费者/未读/冲突明确，不能批量搬文件                                                                 |
+| MC01  | 普通Agent/default、模型与new/fork/switch/API兼容；选Meta的身份、关联、稳定step与最小receipt   | 三Agent/default实际消费，Meta启停持久性、回滚/重试/旧身份；问答/委派实证，不新增旁路                                                     |
+| MC02  | 完整Meta行为模板、协议工具/cards、Agent/CLI/资产目录与来源scope/冻结版本                      | 依MC01，目录/扫描失败与空列表分开；内外委派有完整约束，动态更新不串场                                                                    |
+| MC03  | 项目memory权限/附着/CRUD/数据消费，纠错Extractor/Store/Facts与生命周期                        | 依MC01/02，来源/秘密/项目与session隔离、缓存计数/重复注入/旧库与取消回滚                                                                 |
+| MC04a | DoomLoop、引用/反向引用、基础Verifier和pre/post hooks真实结算                                 | 依MC01/03；机械结果/失败/不可用，回收/权限，中断/defect保留，不假装Judge已运行                                                           |
+| MC05  | 内部持久协作/多participant/Turn投递/step统计、steer/queue/取消/通知最小完整链                 | 复用MC01已有task基线；事务/receipt/幂等/保留事件策略，MC01所需最小闭环前置核对                                                           |
+| MC06  | 唯一CLI registry与实际SDK/ACP/JSONL/app-server、thread/turn binding、attended权限桥           | 依MC02/05；方法/权限/版本/只读边界、resume/错误/冷开/取消，不能只删unavailable guard                                                     |
+| MC07  | 实际revision/review生产者、pure barrier、fanout/repair/reconcile与前后失败语义                | 依MC05/06；R1/R2/粘性拒绝、同D原子准入/child独立结算、未知副作用与可逆补偿                                                               |
+| MC08  | Workflow与Task/Meta消费、指定多模型Judge、摘要/分享与显式质量状态                             | 依对应MC05–07，模型实际不同，分支/失败/停止/通知/费用预算；不复刻旧pipeline                                                              |
+| MC04b | PGE L0→真实L1Judge→L2委派的完整治理流程                                                       | 依MC04a/05/07/08；显式开启和预算、每级真动作/结果/复位，失败不误升权限                                                                   |
+| MC09  | Client公开合同/Data、Meta状态/身份/memory、Hub与已有Task/decision/cache/产物UI                | 数据/接口随各片同步；最终跨scope、同名participant、重载/IPCstore/长标题/明暗/窄屏/键盘不串或悬挂；2026-11-08 Root 已接受，见本页当前状态 |
+| MC10  | 多领域恢复、旧数据副本、已选模式/Meta、当前规模与packaged同源产物                             | 2026-11-08 原六类已由 Root 接受；实际P2故障/冷P3及PTY/IPC/storage通过，见本页当前状态；新Custom归原B04.0/B06                             |
 
 新Custom作为单独产品装配小节设计，与Meta统筹及基础组合合同衔接，不复刻默认旧Custom；全项目其它功能继续按原范围，不因先完成Meta就删除。
 
@@ -392,17 +392,17 @@ MC编号仅本专项小节，不重编号P/B、DB migration或既有账本ID。�
 
 ## 9. 验收矩阵与方案完成定义
 
-| 类别 | 必须验证 |
-| --- | --- |
-| 入口/身份 | 五模式/API的Build/Plan/Meta及default_agent，Agent/模型/提交/readback一致；同ID/并发/异常/旧会话/new-managed fork，Meta/Session/step归属不混 |
-| 内容/目录 | 完整协议/cards、零资产/目录失败、权限/版本/来源/跨位置、指定目标不可用与信息实际消费 |
-| memory/纠错 | 附着/项目/动作授权、秘密拒绝、确认/删除/旧库、重复/TTL/取消；外部内容不提权 |
-| 机械/PGE | 真坏路径/红代码/超时/不可用/doom、hook生命周期、L0/真实L1/L2结果、显式预算、关增强不关权限 |
-| 内外协作 | 同child/thread多轮、role/source binding、steer/queue、attended、SDK/ACP/JSONL/app-server各自真实能力 |
-| 审查与故障 | R1/R2、copy policy/sticky reject、无reviewer不卡死、坏/缺receipt不批准、前置失败/后故障、unknown不重放 |
-| 结果/治理 | 指定Judge模型、部分失败/摘要fallback质量；repeat通知/ACK、close/complete/archive/purge/soft-expired分层 |
-| 数据/平台 | 新库/真实旧库副本、迁移身份/历史unknown、retain on/off、取消不复活/claim预算、多领域隔离、同源CLI/packaged/nativePTY与服务接管 |
-| UI/性能 | 三主场景及五模式来源、sameID跨server、迟到请求/存储、long title/明暗/窄屏/键盘；production前后同条件raw样本，非机器硬阈值 |
+| 类别        | 必须验证                                                                                                                                    |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 入口/身份   | 五模式/API的Build/Plan/Meta及default_agent，Agent/模型/提交/readback一致；同ID/并发/异常/旧会话/new-managed fork，Meta/Session/step归属不混 |
+| 内容/目录   | 完整协议/cards、零资产/目录失败、权限/版本/来源/跨位置、指定目标不可用与信息实际消费                                                        |
+| memory/纠错 | 附着/项目/动作授权、秘密拒绝、确认/删除/旧库、重复/TTL/取消；外部内容不提权                                                                 |
+| 机械/PGE    | 真坏路径/红代码/超时/不可用/doom、hook生命周期、L0/真实L1/L2结果、显式预算、关增强不关权限                                                  |
+| 内外协作    | 同child/thread多轮、role/source binding、steer/queue、attended、SDK/ACP/JSONL/app-server各自真实能力                                        |
+| 审查与故障  | R1/R2、copy policy/sticky reject、无reviewer不卡死、坏/缺receipt不批准、前置失败/后故障、unknown不重放                                      |
+| 结果/治理   | 指定Judge模型、部分失败/摘要fallback质量；repeat通知/ACK、close/complete/archive/purge/soft-expired分层                                     |
+| 数据/平台   | 新库/真实旧库副本、迁移身份/历史unknown、retain on/off、取消不复活/claim预算、多领域隔离、同源CLI/packaged/nativePTY与服务接管              |
+| UI/性能     | 三主场景及五模式来源、sameID跨server、迟到请求/存储、long title/明暗/窄屏/键盘；production前后同条件raw样本，非机器硬阈值                   |
 
 确定性TDD验证协议/CAS/权限/状态机/取消/故障；真实Flash验证模型兼容与用户操作，不能替代它们。每个合同一个最强owner，扩展既有keeper，不添加测试专用生产开关/exports/DOM标记。命令只在单包运行，Core走wrapper、App补E2E typecheck、Protocol无test脚本；公共API后正式Client.generate。
 
@@ -522,7 +522,7 @@ Native4 inspection为32/32；原生Agent菜单为Build、Meta、Plan，Model菜�
 
 [中断独审](/home/keer/.codex/outputs/2026-11-01/mc01-native-zero-provider-continuation-v1/reboot-interruption-review.json)重新核对77份持久冻结文件，missing0/changed0；原case限定接受保持。电脑重启清除了两个原`/tmp`数据目录和当前inspection/registration。3084/9377拒连，不能复用旧PID、补写owned close退出码或把新fixture称为原八会话恢复。[重启前正式冷读](/home/keer/.codex/outputs/2026-11-01/mc01-native-zero-provider-continuation-v1/eight-session-cold-readback.json)保留原exit1；八份历史一致，角色六行和私有HOME比较通过。当前整轮同数据原生冷重开记为interrupted，完整八tab恢复及结束证据未完成。
 
-[逐字段归因](/home/keer/.codex/outputs/2026-11-01/mc01-post-reboot-continuation-v1/cold-event-reconciliation.json)确认唯一变化为time.updated，八项均精确等于对应session.permissions.1的event.created。实际owner是packages/plugin-browser/src/connection.ts:30的grant：attach追加一条browser allow *，scope释放在:45–49删除第一条匹配规则；packages/core/src/session/projector.ts:681同时更新权限和时间，不写历史消息。fork在projector.ts:178继承父权限，故五个fork关闭后2→1符合已读决定函数；没有规则身份标记，不能据此宣称全部浏览器授权已清空。该归因不证明首次Build未准入原因，不授权修改Browser或Session合同。
+[逐字段归因](/home/keer/.codex/outputs/2026-11-01/mc01-post-reboot-continuation-v1/cold-event-reconciliation.json)确认唯一变化为time.updated，八项均精确等于对应session.permissions.1的event.created。实际owner是packages/plugin-browser/src/connection.ts:30的grant：attach追加一条browser allow \*，scope释放在:45–49删除第一条匹配规则；packages/core/src/session/projector.ts:681同时更新权限和时间，不写历史消息。fork在projector.ts:178继承父权限，故五个fork关闭后2→1符合已读决定函数；没有规则身份标记，不能据此宣称全部浏览器授权已清空。该归因不证明首次Build未准入原因，不授权修改Browser或Session合同。
 
 [接续预检](/home/keer/.codex/outputs/2026-11-01/mc01-post-reboot-continuation-v1/reboot-preflight.json)复核14557个唯一源码/runtime/output文件，missing0/changed0，无需重建。Root准备独立持久目录中的普通Build/Plan导入fixture及三个T185/T188原生fork，使用正式Client与现有owner，不伪造assistant或模型结果。此新任务只补普通来源行为，不能恢复丢失的八会话、证明跨模式/default/new或重置真实模型预算。任务单与源审、实际执行结果分别记账；源码、依赖、Git及S1保护保持。
 
@@ -794,7 +794,6 @@ v1在放行前因辅助脚本错误要求executorPreference为空而失败，真
 
 完整MC02余项仍为Agent/CLI/资产的scope、source、revision/adoption与执行实现绑定。原B04.0/B04.3–4的[只读合同调查](/home/keer/.codex/outputs/2026-11-02/mc02-b04-source-contract-investigation-v1/provider-readonly-v1.json)仅提出frozen Skill资产正文与权限可见性可能失配、历史prompt显示名缺捕获的有限候选，未实施、未RED/GREEN。Root及原Agent/Composition/Instructions/资产owner负责，解除需具体目录身份合同、复用决定、有限文件任务、keeper、独审及真实消费者；不借路径替换擅改用户命名。CLI真实执行属MC06，全模式实现版本仍属原B04；MC03依赖原MC01/MC02不因登记owner即放行。MC02–MC10、Meta M01–M24、S1、历史证据owner/unlock保持，后续文档-only无模型/服务/构建或Git写入。
 
-
 ## 40. 2026-11-02 MC02冻结Skill资产目录验收
 
 §40历史检查点（当前见§41）：2026-11-02 当前MC02接续：[专项§40](2026-10-29-meta-cpu-closure-plan.md#40-2026-11-02-mc02冻结skill资产目录验收)已有限接受冻结Skill目录：2生产文件＋2keeper，59/0、317断言；新Custom/Meta原生1次Flash/high HTTP200，仅列Root craft并保留Authored empty prompt，Root与独审24/24条件核对。快照不变，executor偏好缺省、executor POST0、prompt POST1、ACK200，实际工具调用0；真实Skill leaf未验。完整MC02原目录/来源scope/冻结版本余项仍开放；CLI真实执行归MC06，全模式执行实现绑定归原B04，MC03原依赖保持，MC01绿色组不重开。
@@ -819,7 +818,6 @@ v1在放行前因辅助脚本错误要求executorPreference为空而失败，真
 
 §41进入MC03时的历史准备（当前见§42）：沿原项目memory权限/附着/CRUD/数据消费与纠错Extractor/Store/Facts生命周期。已完成[首片只读调查](/home/keer/.codex/outputs/2026-11-02/mc03-first-slice-investigation-v1.json)；首片候选限memory_record/search逐次调用授权，权限由现有Permission owner判定，尚未生产实施。完整MC03、后续MC/M01–M24、B04、MC06、S1及历史owner/unlock保留；不把本目录或有限memory候选当作全Meta完成。
 
-
 ## 42. 2026-11-02 MC03项目memory逐次权限验收
 
 [MC02最终原退出接受](/home/keer/.codex/outputs/2026-11-02/mc02-live-asset-publication-v1/root-mc02-original-exit-acceptance-v1.json)已核六项退出，含七文档独审；MC03前置已放行，§41的产品/文档分步记录保留。MC01绿色组不重开。
@@ -834,7 +832,6 @@ v1在放行前因辅助脚本错误要求executorPreference为空而失败，真
 
 完整MC03保持开放：附着/项目写入合同、query/delete与CRUD公共覆盖、秘密/来源保护、跨project/session与旧库、自动memory/纠错Extractor/Store/Facts消费、缓存计数/TTL/重复注入与取消回滚均沿原任务及账本owner/unlock。CLI执行MC06、全模式执行实现绑定B04、S1和历史恢复范围保持；本授权首片不放行依赖完整MC03的MC04a或完成M01–M24。
 
-
 ## 43. 2026-11-02 MC03项目memory内容写入守卫验收
 
 本片依§42已接受逐次权限，不重播绿色组。范围限2生产文件MetaAgentMemory与CorrectionExtractor、2keeper。复用既有八项凭据文本模式形成共享谓词，Correction原两项.env/auth.json路径拒绝保持；项目memory可继续记录“不提交.env/auth.json”等安全文件引用。既有Meta附着检查后、生成ID/时间/insert前返回固定SensitiveContentError，无输入/凭据内容回显；Tool仍先逐次授权，沿原mapError转Tool error，decline/interrupt不被吞。显式project路由、原source字段与CRUD API保持，未新增project/Session/Meta来源关系规则。见[Root工程接受](/home/keer/.codex/outputs/2026-11-02/mc03-memory-content-guard-v1/root-engineering-acceptance-v1.json)、[源码独审](/home/keer/.codex/outputs/2026-11-02/mc03-memory-content-guard-v1/implementation-source-review-v1.json)与[源冻结](/home/keer/.codex/outputs/2026-11-02/mc03-memory-content-guard-v1/source-freeze-v1.json)。
@@ -848,7 +845,6 @@ Root原生26/26条件核对通过，六actions/controller/runner退出0；Electr
 本例selected permissions还含现有browser allow，实际wire仅advertise memory_record，browser未执行/未验；renderer model POST曾记net::ERR_ABORTED，最终selection/ref与原生prompt ACK仍正常，不能称所有renderer请求无错。公开sentinel在首条assistant reasoning中也保留，脱敏只覆盖固定Tool error/result及最终可见marker。
 
 这是新写入的有限启发式守卫，不是全部秘密检测或旧事实/历史transcript清洗。公开fixture的Tool input和原用户prompt按现协议持久化，脱敏合同仅覆盖错误消息；真实记忆来源校验、旧事实读取/自动注入保护、默认曝光、附着/CRUD完整边界、跨project/session/旧库、纠错Extractor/Store/Facts、logical Step TTL/缓存/重复注入/取消仍沿原MC03具体任务与账本owner/unlock。自动memory/纠错继续§5.4普通数据历史边界，不能因protocol标签升System；本片不放行MC04a或完成MC03/M01–M24，CLI MC06、全模式绑定B04及S1保持。文档仅在原生关闭后更新，单独核引用与事实。
-
 
 ## 44. 2026-11-02 MC03项目memory普通data自动准入有限验收
 
@@ -865,7 +861,6 @@ Root原生26/26条件核对通过，六actions/controller/runner退出0；Electr
 六actions均返回ok，controller/runner实际退出码均0；Electron关闭，gateway exit0，三个自有PID消失、3084/9379/4397释放。Source实际退出码未捕获，processEnded不等于0。关闭时80份证据、7586源/7文档/12生成/3331helper按[原生冻结](/home/keer/.codex/outputs/2026-11-02/mc03-memory-data-admission-native-v1/native-evidence-freeze-v1.json)核对无漂移，build/generate/Git写0。文档更新在关闭后单独核引用、事实与差异，不据此重跑绿色工程或原生。
 
 冷窗没有delivered user且没有当前drain captured human trigger时为unknown：跳过新memory读取/追加，不从synthetic、摘要或pending猜人类。跨压缩/重启durable trigger恢复由Root与原Session/history/recovery owner持有；解除需原MC03单独明确派发的恢复合同、keeper、独审及实际consumer，不是重复额度审批。完整MC03仍开：Correction Extractor/Store/Facts普通data消费、logical Step TTL/缓存/去重/取消、真实SourceSession/SourceStep关系、默认曝光、附着/项目/完整CRUD、个人memory、跨project/session/旧库与完整秘密检测保持原owner/unlock。MC04a仍依完整MC03，CLI MC06、全mode执行B04与S1保持。
-
 
 ## 45. 2026-11-02 MC03受控Session项目memory归属有限验收
 
@@ -959,7 +954,6 @@ MC01、MC02及MC03§42–§47既有有限信用保持。§47项目memory查询/�
 
 §48交接时的历史候选（当前P1见§49）：后续仅沿已有[P1冷trigger/纠错恢复候选](/home/keer/.codex/outputs/2026-11-03/mc03-cold-trigger-correction-recovery-candidate-v1.json)接续（SHA256 `dcdb7dbd09876b82b3b00ba93b41f6cd20de64bf9a2878b39f9c20b1fac31716`），该候选仍未正式派发。旧无source/birth/witness记录的兼容行为正在等待用户答复，保持未裁决状态；PersonalMemory HTTP有限片不由此取得MC03 hard exit或B08整体完成信用。该引用接续原唯一账本与原owner/unlock，不建立第二backlog。
 
-
 ## 49. 2026-11-03 MC03冷trigger与正常完成身份工程进度
 
 本节接续原MC03/P1，不新增MC或平行backlog。§48 PersonalMemory既有HTTP管理接受保持原范围。Root继续作为唯一仓内实施者，子智能体只读复审，测试、类型、生成与原生资源串行；默认工作区只读、Git写未授权，S1归属保持。
@@ -996,7 +990,7 @@ Stage C实施前的原接续范围为真实来源、no-op durable receipt、20-s
 
 2026-11-03 §52原MC03零模型进度：受控readiness keeper使用实际SessionStep/Bus/SessionProjector/DB和Deferred信号，在pending Snapshot期间interrupt/join，late release不生成完成事件；正常对照仅一次Completed，投影完成id/seq与回调一致。最终1 pass/0 fail/5 filtered/23 expects、actual exit0，Core类型、格式、lint与diff通过；首轮缺cost.cache失败保留。仅新增既有session-step.test.ts一个keeper，无本轮生产修改、新registry或模型循环。见[keeper接受](/home/keer/.codex/outputs/2026-11-03/mc03-readiness-root-v2/root-engineering-acceptance-v1.json)。私有publication/readiness宿主改为在声明resume时取current Location Snapshot，并捕获实际Source Scope供既有FiberSet runtime；首次缺Scope的type exit2/TS2345与后继exit0分开保留，独审及[工程准备接受](/home/keer/.codex/outputs/2026-11-03/mc03-publication-readiness-source-root-v3/root-engineering-preparation-acceptance-v1.json)不取得真实publication/public resume/cancellation信用。
 
-原来源/有效目录场景仍用同DB、同Source/Writer及原账本：旧Source slot1取消保留；无startup sweep的显式Source resume产生slot2 complete200/high，真实User、Started/Ended/Completed和meta_step owner/root/provenance准确关联，Source tails为空，仅[正常Source子范围接受](/home/keer/.codex/outputs/2026-11-03/mc03-source-directory-continuation-root-v5/root-source-native-acceptance-v1.json)。无证据legacy row只作负面夹具，不取得来源信用。v3/v4在模型前的断言失败新增请求0；决定函数BrowserConnection.grant/release（packages/plugin-browser/src/connection.ts:30）解释Native临时browser/*/allow，权限匹配由PermissionEffective.evaluate（packages/core/src/permission/effective.ts:36）决定，精确browser action不匹配memory；原raw deny→effective ask及三owning once门禁保持。v5首次Writer Native ACK200，但编辑器填入文本仅丢一个换行，harness精确文本期望失败；旧memory_record在未答复ask后取消，memory0，slot3虽complete200仍不接受工具。v6保留完整旧User/eventprefix，以明确的新Native单行输入重验，释放前新id/正文/hash均核对；ACK200与slot4上游503分别记录，provider.internal、idle failed、claim清空、工具/新ask/once/记忆新增均0。全场景实际4/8（Source2＋Writer2），v5/v6 command/controller/runner exit1保留，取消不退款、无generic retry或人工token限制。见[provider暂停结算](/home/keer/.codex/outputs/2026-11-03/mc03-source-directory-continuation-root-v6/root-provider-pause-disposition-v1.json)。用户明确暂停DeepSeek后Root关闭自有网关，final close成功：Electron0、gateway0、Source进程结束但数字exit仍unknown，三端口free；不以HTTP200/目录暴露/空Assistant代替真实工具消费。
+原来源/有效目录场景仍用同DB、同Source/Writer及原账本：旧Source slot1取消保留；无startup sweep的显式Source resume产生slot2 complete200/high，真实User、Started/Ended/Completed和meta_step owner/root/provenance准确关联，Source tails为空，仅[正常Source子范围接受](/home/keer/.codex/outputs/2026-11-03/mc03-source-directory-continuation-root-v5/root-source-native-acceptance-v1.json)。无证据legacy row只作负面夹具，不取得来源信用。v3/v4在模型前的断言失败新增请求0；决定函数BrowserConnection.grant/release（packages/plugin-browser/src/connection.ts:30）解释Native临时browser/\*/allow，权限匹配由PermissionEffective.evaluate（packages/core/src/permission/effective.ts:36）决定，精确browser action不匹配memory；原raw deny→effective ask及三owning once门禁保持。v5首次Writer Native ACK200，但编辑器填入文本仅丢一个换行，harness精确文本期望失败；旧memory_record在未答复ask后取消，memory0，slot3虽complete200仍不接受工具。v6保留完整旧User/eventprefix，以明确的新Native单行输入重验，释放前新id/正文/hash均核对；ACK200与slot4上游503分别记录，provider.internal、idle failed、claim清空、工具/新ask/once/记忆新增均0。全场景实际4/8（Source2＋Writer2），v5/v6 command/controller/runner exit1保留，取消不退款、无generic retry或人工token限制。见[provider暂停结算](/home/keer/.codex/outputs/2026-11-03/mc03-source-directory-continuation-root-v6/root-provider-pause-disposition-v1.json)。用户明确暂停DeepSeek后Root关闭自有网关，final close成功：Electron0、gateway0、Source进程结束但数字exit仍unknown，三端口free；不以HTTP200/目录暴露/空Assistant代替真实工具消费。
 
 未完成项继续登记原MC03 owner：来源/有效目录的新三次调用与owning ask/once204、step_unverified、成功record/search模型消费，以及真实checkpoint publication失败→public resume与pending readiness取消/正常尾项。用户暂停真实模型期间只做零模型工程/文档核对；解除条件为用户允许恢复模型验收、路由可用且具体有限任务重新绑定/复审，不自动重试、重置账本或重播已接受TTL/CRUD/P1。原Inbox publication失败、Location decline、并行Session及必要恢复仍按§46与债务账本逐项核证，不能用checkpoint切口覆盖。CLI执行归MC06、全模式执行绑定归B04，个人Inspector/UI/整体在飞恢复保留原B08/MC09/MC10 owner/unlock，S1归属不转移。MC03Complete=false、MC04aUnlocked=false；默认工作区只读、Git写未授权，旧WIP/历史失败均保留。
 

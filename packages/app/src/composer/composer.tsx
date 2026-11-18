@@ -47,13 +47,18 @@ export function Composer(props: {
             title={language.t("command.model.choose")}
             keybind={command.keybindParts("model.choose")}
             model={props.model.model.selection}
-            provider={(() => { const selected = selectedModel();
+            provider={(() => {
+              const selected = selectedModel()
 
- return selected && "provider" in selected ? selected.provider : undefined })()}
-            modelName={(() => { const selected = selectedModel();
+              return selected && "provider" in selected ? selected.provider : undefined
+            })()}
+            modelName={(() => {
+              const selected = selectedModel()
 
- return selected && "type" in selected
-              ? language.t("model.group.selection", { name: selected.name }) : selected?.name ?? language.t("dialog.model.select.title") })()}
+              return selected && "type" in selected
+                ? language.t("model.group.selection", { name: selected.name })
+                : (selected?.name ?? language.t("dialog.model.select.title"))
+            })()}
             unavailable={props.model.model.selection.identity?.()?.unavailable}
             onClose={props.model.restoreFocus}
             onUnpaidClick={() => dialog.show(() => <DialogSelectModelUnpaid model={props.model.model.selection} />)}
@@ -109,7 +114,9 @@ function ComposerModelControl(props: {
         value={
           <>
             {props.title}
-            <Show when={props.unavailable}><span>{props.unavailable}</span></Show>
+            <Show when={props.unavailable}>
+              <span>{props.unavailable}</span>
+            </Show>
             <Keybind keys={props.keybind} variant="neutral" />
           </>
         }

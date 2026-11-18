@@ -174,9 +174,10 @@ function captureImages(renderer: CliRenderer): SimulationProtocol.Frontend.Captu
   return all(renderer.root).flatMap((renderable) => {
     if (!(renderable instanceof ImageRenderable) || !renderable.visible || renderable.isDestroyed || !renderable.image)
       return []
-    const fitted = renderable.fit === "cover"
-      ? { width: renderable.width, height: renderable.height }
-      : renderable.getFittedSize(renderable.width, renderable.height)
+    const fitted =
+      renderable.fit === "cover"
+        ? { width: renderable.width, height: renderable.height }
+        : renderable.getFittedSize(renderable.width, renderable.height)
     if (fitted.width <= 0 || fitted.height <= 0) return []
     const x = renderable.screenX + Math.floor((renderable.width - fitted.width) / 2)
     const y = renderable.screenY + Math.floor((renderable.height - fitted.height) / 2)
@@ -200,15 +201,17 @@ function captureImages(renderer: CliRenderer): SimulationProtocol.Frontend.Captu
       const rgba = new Uint8Array(raw.width * raw.height * 4)
       for (let row = 0; row < raw.height; row++)
         rgba.set(raw.data.subarray(row * raw.stride, row * raw.stride + raw.width * 4), row * raw.width * 4)
-      return [{
-        x,
-        y,
-        width: fitted.width,
-        height: fitted.height,
-        pixelWidth: raw.width,
-        pixelHeight: raw.height,
-        rgba: Base64.encode(rgba),
-      }]
+      return [
+        {
+          x,
+          y,
+          width: fitted.width,
+          height: fitted.height,
+          pixelWidth: raw.width,
+          pixelHeight: raw.height,
+          rgba: Base64.encode(rgba),
+        },
+      ]
     } finally {
       extracted?.dispose()
     }

@@ -16,29 +16,29 @@
 
 root 独占隔离仓，使用固定 Bun 1.4.2 串行执行。测试均在包 cwd；类型走包脚本与资源限制。原始命令、cwd、退出码、tally、日志 SHA 和各轮相对最终源码的差异见 [validation-manifest](evidence/v2-prompt-placement-gui-2026-10-28/validation-manifest.json)。实际执行权威为前后工作字节；sourceTree 只是较早的普通 index reference。
 
-| 执行面 | 机械提取原始结果（不累计重跑） | 日志 label |
-| --- | --- | --- |
-| Core 相关 8 文件（Core 生产最终字节） |  212 pass;  0 fail;  1687 expect() calls; Ran 212 tests across 8 files. [10.79s] | `core-related` |
-| Server 全包（后续仅测试期望/格式变化） |  192 pass;  1 skip;  0 fail;  8991 expect() calls; Ran 193 tests across 44 files. [115.43s] | `server-full` |
-| Server Prompt 最终测试 |  11 pass;  0 fail;  346 expect() calls; Ran 11 tests across 1 file. [13.17s] | `server-proposer-final` |
-| GUI 全包最终测试 |  423 pass;  1 skip;  0 fail;  1505 expect() calls; Ran 424 tests across 33 files. [1.80s] | `gui-tests-final` |
-| App unit 与 browser 最终测试 |  742 pass;  0 fail;  2232 expect() calls; Ran 742 tests across 107 files. [3.33s];  168 pass;  0 fail;  1778 expect() calls; Ran 168 tests across 38 files. [5.53s] | `app-tests-final` |
-| 七族侧栏、composer、mobile focus 最终回归 | [WebServer] Found 2 warnings while optimizing generated CSS:;   107 passed (5.1m) | `side-composer-closed` |
-| Host/graph（光标修复前，非最终光标证据） |   25 passed (1.2m) | `host-graph` |
-| Core 类型（Core 生产最终字节） | exit 0 | `core-types` |
-| Server 类型 | exit 0 | `server-types-formatted` |
-| GUI 类型 | exit 0 | `gui-types-final` |
-| App 类型 | exit 0 | `app-types-final` |
-| App E2E 类型 | exit 0 | `app-e2e-types-final` |
-| 11 文件 scoped lint | Found 0 warnings and 0 errors. | `lint-clean-final` |
-| GUI lint:changed，显式本片基线 | lint:changed: 0 problem(s) in 0 of 9 changed files since 28b73ea65d | `lint-changed-final` |
-| 11 文件 AST | exit 0 | `ast-clean-final` |
-| 11 文件格式 | All matched files use Prettier code style! | `format-clean-final` |
-| 限定 diff --check | exit 0 | `diff-clean-final` |
-| SDK 文档 | sdk-docs: 155 declarations, 645 members and 191 parameters documented in 10 files; 15 guide blocks match their source; 0 problem(s) | `sdk-docs-final` |
-| 普通 App 最终构建 | Found 2 warnings while optimizing generated CSS: | `app-build-final` |
-| 真实 GUI light/worktree |  1 pass;  0 fail | `real-chain-light-final` |
-| 真实 GUI dark/clone |  1 pass;  0 fail | `real-chain-dark-final` |
+| 执行面                                    | 机械提取原始结果（不累计重跑）                                                                                                                                | 日志 label               |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| Core 相关 8 文件（Core 生产最终字节）     | 212 pass; 0 fail; 1687 expect() calls; Ran 212 tests across 8 files. [10.79s]                                                                                 | `core-related`           |
+| Server 全包（后续仅测试期望/格式变化）    | 192 pass; 1 skip; 0 fail; 8991 expect() calls; Ran 193 tests across 44 files. [115.43s]                                                                       | `server-full`            |
+| Server Prompt 最终测试                    | 11 pass; 0 fail; 346 expect() calls; Ran 11 tests across 1 file. [13.17s]                                                                                     | `server-proposer-final`  |
+| GUI 全包最终测试                          | 423 pass; 1 skip; 0 fail; 1505 expect() calls; Ran 424 tests across 33 files. [1.80s]                                                                         | `gui-tests-final`        |
+| App unit 与 browser 最终测试              | 742 pass; 0 fail; 2232 expect() calls; Ran 742 tests across 107 files. [3.33s]; 168 pass; 0 fail; 1778 expect() calls; Ran 168 tests across 38 files. [5.53s] | `app-tests-final`        |
+| 七族侧栏、composer、mobile focus 最终回归 | [WebServer] Found 2 warnings while optimizing generated CSS:; 107 passed (5.1m)                                                                               | `side-composer-closed`   |
+| Host/graph（光标修复前，非最终光标证据）  | 25 passed (1.2m)                                                                                                                                              | `host-graph`             |
+| Core 类型（Core 生产最终字节）            | exit 0                                                                                                                                                        | `core-types`             |
+| Server 类型                               | exit 0                                                                                                                                                        | `server-types-formatted` |
+| GUI 类型                                  | exit 0                                                                                                                                                        | `gui-types-final`        |
+| App 类型                                  | exit 0                                                                                                                                                        | `app-types-final`        |
+| App E2E 类型                              | exit 0                                                                                                                                                        | `app-e2e-types-final`    |
+| 11 文件 scoped lint                       | Found 0 warnings and 0 errors.                                                                                                                                | `lint-clean-final`       |
+| GUI lint:changed，显式本片基线            | lint:changed: 0 problem(s) in 0 of 9 changed files since 28b73ea65d                                                                                           | `lint-changed-final`     |
+| 11 文件 AST                               | exit 0                                                                                                                                                        | `ast-clean-final`        |
+| 11 文件格式                               | All matched files use Prettier code style!                                                                                                                    | `format-clean-final`     |
+| 限定 diff --check                         | exit 0                                                                                                                                                        | `diff-clean-final`       |
+| SDK 文档                                  | sdk-docs: 155 declarations, 645 members and 191 parameters documented in 10 files; 15 guide blocks match their source; 0 problem(s)                           | `sdk-docs-final`         |
+| 普通 App 最终构建                         | Found 2 warnings while optimizing generated CSS:                                                                                                              | `app-build-final`        |
+| 真实 GUI light/worktree                   | 1 pass; 0 fail                                                                                                                                                | `real-chain-light-final` |
+| 真实 GUI dark/clone                       | 1 pass; 0 fail                                                                                                                                                | `real-chain-dark-final`  |
 
 Server 的 hg skip、GUI 的 WSL skip 为各自既有跳过。Server 监听器、Vite 配置/构建以及 AST binary fallback 等环境警告保留，未声明全轮无警告。Server 全包后仅测试 canonical 期望与格式变化，最终 Prompt keeper 和 Server 类型已复验。Core 生产未再变化，因此保留已有相关测试与类型结果；Host/graph 是较早字节，最终光标证据是 active/inactive keeper、107 项回归、App 测试及两条真实链。
 

@@ -1,10 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:cohere",
-      "provider:cohere"
-    ],
+    "tags": ["prefix:cohere", "provider:cohere"],
     "name": "cohere/streams-native-thinking-with-a-budget",
     "recordedAt": "2026-10-02T02:36:14.669Z"
   },

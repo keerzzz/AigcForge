@@ -33,10 +33,10 @@ export type RpcClient<D extends Rpc.PortableDefinition, Options = RpcCallOptions
   }
 }
 
-type RpcEventPayloadFor<
-  D extends Rpc.PortableDefinition,
-  Name extends keyof D["events"] & string,
-> = Omit<RpcEvent, "type" | "data"> & {
+type RpcEventPayloadFor<D extends Rpc.PortableDefinition, Name extends keyof D["events"] & string> = Omit<
+  RpcEvent,
+  "type" | "data"
+> & {
   type: `rpc.${D["id"]}.${Name}`
   data: Rpc.EventData<D["events"][Name]["schema"]>
 }

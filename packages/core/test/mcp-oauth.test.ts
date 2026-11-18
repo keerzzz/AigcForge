@@ -166,10 +166,7 @@ describe("MCP OAuth", () => {
       fetch(request) {
         if (request.method !== "POST" || new URL(request.url).pathname !== "/token")
           return new Response(null, { status: 404 })
-        return Response.json(
-          { error: "invalid_client", error_description: "bad_client_secret" },
-          { status: 400 },
-        )
+        return Response.json({ error: "invalid_client", error_description: "bad_client_secret" }, { status: 400 })
       },
     })
 

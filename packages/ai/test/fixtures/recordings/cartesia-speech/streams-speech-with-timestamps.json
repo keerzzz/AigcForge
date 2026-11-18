@@ -1,11 +1,7 @@
 {
   "version": 1,
   "metadata": {
-    "tags": [
-      "prefix:cartesia-speech",
-      "provider:cartesia",
-      "protocol:cartesia-speech"
-    ],
+    "tags": ["prefix:cartesia-speech", "provider:cartesia", "protocol:cartesia-speech"],
     "name": "cartesia-speech/streams-speech-with-timestamps",
     "recordedAt": "2026-09-23T09:59:12.928Z"
   },

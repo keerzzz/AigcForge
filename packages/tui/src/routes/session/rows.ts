@@ -35,7 +35,9 @@ const CoordinationNotice = Schema.Union([
 ])
 
 function visibleSynthetic(input: { description?: string; metadata?: Record<string, unknown> }) {
-  return Boolean(input.description?.trim()) || Option.isSome(Schema.decodeUnknownOption(CoordinationNotice)(input.metadata))
+  return (
+    Boolean(input.description?.trim()) || Option.isSome(Schema.decodeUnknownOption(CoordinationNotice)(input.metadata))
+  )
 }
 
 /**

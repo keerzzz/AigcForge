@@ -51,7 +51,7 @@ const addLegacyPlugin = Effect.fn(function* (http?: HttpClient.HttpClient) {
   const plugin = yield* Plugin.Service
   const host = yield* PluginHost.make(plugin, OpenAIPlugin.id)
   const effect = OpenAIPlugin.effect(host)
-  yield* (http ? effect.pipe(Effect.provideService(HttpClient.HttpClient, http)) : effect)
+  yield* http ? effect.pipe(Effect.provideService(HttpClient.HttpClient, http)) : effect
 })
 
 const addGithubCopilotPlugin = Effect.fn(function* () {
@@ -951,149 +951,290 @@ describe("ChatGPTPlugin", () => {
     }),
   )
 
-  it.live("resolves an inactive token-sharing account through its own builtin catalog and route without switching Codex", () =>
-    Effect.gen(function* () {
-      const catalog = yield* Provider.Service
-      const models = yield* Model.Service
-      const credentials = yield* Credential.Service
-      const integrations = yield* Integration.Service
-      const hooks = yield* PluginHooks.Service
-      const resolver = yield* ModelResolver.Service
-      const legacyID = Model.ID.make("codex-picker")
-      const sharingID = Model.ID.make("sharing-picker")
-      yield* catalog.transform((editor) => {
-        editor.update(Provider.ID.openai, (provider) => { provider.package = "@aigcfroge/ai/providers/openai" })
-        editor.models.update(Provider.ID.openai, legacyID, (model) => { model.modelID = Model.ID.make("gpt-5.5") })
-        editor.models.update(Provider.ID.openai, sharingID, (model) => { model.modelID = Model.ID.make("gpt-6.1-sol") })
-      })
-      const codex = yield* credentials.create({
-        integrationID: Integration.ID.make("openai"),
-        value: Credential.OAuth.make({
-          type: "oauth", methodID: Integration.MethodID.make("chatgpt-browser"),
-          access: "codex-account-a", refresh: "codex-refresh-a", expires: Date.now() + 3_600_000,
-          metadata: { accountID: "account-a" },
-        }),
-      })
-      const sharing = yield* credentials.create({
-        integrationID: Integration.ID.make("openai"), activate: false,
-        value: Credential.OAuth.make({
-          type: "oauth", methodID: Integration.MethodID.make("chatgpt-token-sharing"),
-          access: "sharing-account-b", refresh: "sharing-refresh-b", expires: Date.now() + 3_600_000,
-          metadata: { clientID: "client-b", scopes: ["chatgpt.tokens.use.direct"] },
-        }),
-      })
-      const connectionA = { type: "credential" as const, id: codex.id }
-      const connectionB = { type: "credential" as const, id: sharing.id }
-      const directoryRequests: Array<{ url: string; authorization?: string }> = []
-      const http = HttpClient.make((request) => Effect.sync(() => {
-        directoryRequests.push({ url: request.url, authorization: request.headers.authorization })
-        return HttpClientResponse.fromWeb(request, Response.json({ models: [{
-          slug: "gpt-6.1-sol", display_name: "Account B Sol", visibility: "list", supported_in_api: true,
-          context_window: 31_000, input_modalities: ["text"], supported_reasoning_levels: [{ effort: "low" }],
-        }] }))
-      }))
-      yield* addLegacyPlugin()
-      yield* addPlugin(http)
-      const modelB = yield* pollWithTimeout(
-        models.get(Provider.ID.openai, sharingID, connectionB).pipe(Effect.map((model) => model?.limit.context === 31_000 ? model : undefined)),
-        "Inactive token-sharing account did not publish its own model directory",
-      )
-      const modelA = required(yield* models.get(Provider.ID.openai, legacyID, connectionA))
-      expect(yield* integrations.connection.active(Integration.ID.make("openai"))).toMatchObject(connectionA)
-      expect(directoryRequests).toEqual([{ url: "https://api.openai.com/v1/models", authorization: "Bearer sharing-account-b" }])
-      expect(yield* models.get(Provider.ID.openai, legacyID, connectionB)).toBeUndefined()
-      expect(String(modelB.modelID)).toBe("gpt-6.1-sol")
-      expect(modelB.capabilities.input).toEqual(["text"])
-      expect(modelA.limit.context).toBe(400_000)
-      const sourceB = (yield* catalog.snapshot({ providerID: Provider.ID.openai, connection: connectionB })).available.find((source) => source.provider.id === Provider.ID.openai)
-      expect(sourceB?.sourceConnection).toMatchObject(connectionB)
-      yield* models.transform((editor) => { editor.update(Provider.ID.openai, sharingID, (model) => { model.name = "Curated account B" }) })
-      const resolvedA = yield* resolver.resolveModel(modelA, undefined, connectionA)
-      const resolvedB = yield* resolver.resolveModel(modelB, undefined, connectionB)
-      expect(resolvedA.model.route.endpoint.baseURL).toBe("https://chatgpt.com/backend-api/codex")
-      expect(resolvedB.model.route.endpoint.baseURL).toBe("https://api.openai.com/v1")
-      expect(resolvedB.ref).toMatchObject({ id: sharingID, providerID: Provider.ID.openai })
-      expect(resolvedB.connection).toEqual(connectionB)
-      expect(required(yield* models.get(Provider.ID.openai, sharingID, connectionB)).name).toBe("Curated account B")
-      for (const [resolved, token, apiID] of [[resolvedA, "codex-account-a", "gpt-5.5"], [resolvedB, "sharing-account-b", "gpt-6.1-sol"]] as const) {
-        const request = LLM.request({ model: resolved.model, messages: [Message.user("fixture")] })
-        const compiled = yield* compileRequest(request)
-        expect(compiled.body).toMatchObject({ model: apiID })
-        const url = String(resolved.model.route.endpoint.baseURL)
-        expect((yield* resolved.model.route.auth.apply({ request, method: "POST", url, body: JSON.stringify(compiled.body), headers: HttpClientRequest.post(url).headers })).authorization).toBe(`Bearer ${token}`)
-      }
-      const requestA = yield* hooks.trigger("session", "model.request", {
-        sessionID: Session.ID.make("ses_builtin_a"), agent: Agent.ID.make("build"), kind: "primary",
-        model: resolvedA.ref, connection: connectionA, baseURL: "https://api.openai.com/v1", headers: {},
-      })
-      const requestB = yield* hooks.trigger("session", "model.request", {
-        sessionID: Session.ID.make("ses_builtin_b"), agent: Agent.ID.make("build"), kind: "primary",
-        model: resolvedB.ref, connection: connectionB, baseURL: "https://api.openai.com/v1", headers: {},
-      })
-      expect(requestA.baseURL).toBe("https://chatgpt.com/backend-api/codex")
-      expect(requestA.headers.originator).toBe("aigcfroge")
-      expect(requestB.baseURL).toBe("https://api.openai.com/v1")
-      expect(requestB.headers).toEqual({ "session-id": "ses_builtin_b", "thread-id": "ses_builtin_b", "x-client-request-id": "ses_builtin_b" })
-      expect(yield* integrations.connection.active(Integration.ID.make("openai"))).toMatchObject(connectionA)
-    }).pipe(Effect.provide(ModelResolver.layer)),
+  it.live(
+    "resolves an inactive token-sharing account through its own builtin catalog and route without switching Codex",
+    () =>
+      Effect.gen(function* () {
+        const catalog = yield* Provider.Service
+        const models = yield* Model.Service
+        const credentials = yield* Credential.Service
+        const integrations = yield* Integration.Service
+        const hooks = yield* PluginHooks.Service
+        const resolver = yield* ModelResolver.Service
+        const legacyID = Model.ID.make("codex-picker")
+        const sharingID = Model.ID.make("sharing-picker")
+        yield* catalog.transform((editor) => {
+          editor.update(Provider.ID.openai, (provider) => {
+            provider.package = "@aigcfroge/ai/providers/openai"
+          })
+          editor.models.update(Provider.ID.openai, legacyID, (model) => {
+            model.modelID = Model.ID.make("gpt-5.5")
+          })
+          editor.models.update(Provider.ID.openai, sharingID, (model) => {
+            model.modelID = Model.ID.make("gpt-6.1-sol")
+          })
+        })
+        const codex = yield* credentials.create({
+          integrationID: Integration.ID.make("openai"),
+          value: Credential.OAuth.make({
+            type: "oauth",
+            methodID: Integration.MethodID.make("chatgpt-browser"),
+            access: "codex-account-a",
+            refresh: "codex-refresh-a",
+            expires: Date.now() + 3_600_000,
+            metadata: { accountID: "account-a" },
+          }),
+        })
+        const sharing = yield* credentials.create({
+          integrationID: Integration.ID.make("openai"),
+          activate: false,
+          value: Credential.OAuth.make({
+            type: "oauth",
+            methodID: Integration.MethodID.make("chatgpt-token-sharing"),
+            access: "sharing-account-b",
+            refresh: "sharing-refresh-b",
+            expires: Date.now() + 3_600_000,
+            metadata: { clientID: "client-b", scopes: ["chatgpt.tokens.use.direct"] },
+          }),
+        })
+        const connectionA = { type: "credential" as const, id: codex.id }
+        const connectionB = { type: "credential" as const, id: sharing.id }
+        const directoryRequests: Array<{ url: string; authorization?: string }> = []
+        const http = HttpClient.make((request) =>
+          Effect.sync(() => {
+            directoryRequests.push({ url: request.url, authorization: request.headers.authorization })
+            return HttpClientResponse.fromWeb(
+              request,
+              Response.json({
+                models: [
+                  {
+                    slug: "gpt-6.1-sol",
+                    display_name: "Account B Sol",
+                    visibility: "list",
+                    supported_in_api: true,
+                    context_window: 31_000,
+                    input_modalities: ["text"],
+                    supported_reasoning_levels: [{ effort: "low" }],
+                  },
+                ],
+              }),
+            )
+          }),
+        )
+        yield* addLegacyPlugin()
+        yield* addPlugin(http)
+        const modelB = yield* pollWithTimeout(
+          models
+            .get(Provider.ID.openai, sharingID, connectionB)
+            .pipe(Effect.map((model) => (model?.limit.context === 31_000 ? model : undefined))),
+          "Inactive token-sharing account did not publish its own model directory",
+        )
+        const modelA = required(yield* models.get(Provider.ID.openai, legacyID, connectionA))
+        expect(yield* integrations.connection.active(Integration.ID.make("openai"))).toMatchObject(connectionA)
+        expect(directoryRequests).toEqual([
+          { url: "https://api.openai.com/v1/models", authorization: "Bearer sharing-account-b" },
+        ])
+        expect(yield* models.get(Provider.ID.openai, legacyID, connectionB)).toBeUndefined()
+        expect(String(modelB.modelID)).toBe("gpt-6.1-sol")
+        expect(modelB.capabilities.input).toEqual(["text"])
+        expect(modelA.limit.context).toBe(400_000)
+        const sourceB = (yield* catalog.snapshot({
+          providerID: Provider.ID.openai,
+          connection: connectionB,
+        })).available.find((source) => source.provider.id === Provider.ID.openai)
+        expect(sourceB?.sourceConnection).toMatchObject(connectionB)
+        yield* models.transform((editor) => {
+          editor.update(Provider.ID.openai, sharingID, (model) => {
+            model.name = "Curated account B"
+          })
+        })
+        const resolvedA = yield* resolver.resolveModel(modelA, undefined, connectionA)
+        const resolvedB = yield* resolver.resolveModel(modelB, undefined, connectionB)
+        expect(resolvedA.model.route.endpoint.baseURL).toBe("https://chatgpt.com/backend-api/codex")
+        expect(resolvedB.model.route.endpoint.baseURL).toBe("https://api.openai.com/v1")
+        expect(resolvedB.ref).toMatchObject({ id: sharingID, providerID: Provider.ID.openai })
+        expect(resolvedB.connection).toEqual(connectionB)
+        expect(required(yield* models.get(Provider.ID.openai, sharingID, connectionB)).name).toBe("Curated account B")
+        for (const [resolved, token, apiID] of [
+          [resolvedA, "codex-account-a", "gpt-5.5"],
+          [resolvedB, "sharing-account-b", "gpt-6.1-sol"],
+        ] as const) {
+          const request = LLM.request({ model: resolved.model, messages: [Message.user("fixture")] })
+          const compiled = yield* compileRequest(request)
+          expect(compiled.body).toMatchObject({ model: apiID })
+          const url = String(resolved.model.route.endpoint.baseURL)
+          expect(
+            (yield* resolved.model.route.auth.apply({
+              request,
+              method: "POST",
+              url,
+              body: JSON.stringify(compiled.body),
+              headers: HttpClientRequest.post(url).headers,
+            })).authorization,
+          ).toBe(`Bearer ${token}`)
+        }
+        const requestA = yield* hooks.trigger("session", "model.request", {
+          sessionID: Session.ID.make("ses_builtin_a"),
+          agent: Agent.ID.make("build"),
+          kind: "primary",
+          model: resolvedA.ref,
+          connection: connectionA,
+          baseURL: "https://api.openai.com/v1",
+          headers: {},
+        })
+        const requestB = yield* hooks.trigger("session", "model.request", {
+          sessionID: Session.ID.make("ses_builtin_b"),
+          agent: Agent.ID.make("build"),
+          kind: "primary",
+          model: resolvedB.ref,
+          connection: connectionB,
+          baseURL: "https://api.openai.com/v1",
+          headers: {},
+        })
+        expect(requestA.baseURL).toBe("https://chatgpt.com/backend-api/codex")
+        expect(requestA.headers.originator).toBe("aigcfroge")
+        expect(requestB.baseURL).toBe("https://api.openai.com/v1")
+        expect(requestB.headers).toEqual({
+          "session-id": "ses_builtin_b",
+          "thread-id": "ses_builtin_b",
+          "x-client-request-id": "ses_builtin_b",
+        })
+        expect(yield* integrations.connection.active(Integration.ID.make("openai"))).toMatchObject(connectionA)
+      }).pipe(Effect.provide(ModelResolver.layer)),
   )
 
-  it.effect("reads Codex quota only on demand for its connection and keeps expired successful facts after a failed refresh", () =>
-    Effect.gen(function* () {
-      const providers = yield* Provider.Service
-      const models = yield* Model.Service
-      const credentials = yield* Credential.Service
-      const integrations = yield* Integration.Service
-      const hooks = yield* PluginHooks.Service
-      const id = Model.ID.make("gpt-5.5")
-      yield* providers.transform((editor) => {
-        editor.update(Provider.ID.openai, (provider) => { provider.package = "@aigcfroge/ai/providers/openai" })
-        editor.models.update(Provider.ID.openai, id, () => {})
-      })
-      const accountA = yield* credentials.create({
-        integrationID: Integration.ID.make("openai"),
-        value: Credential.OAuth.make({ type: "oauth", methodID: Integration.MethodID.make("chatgpt-browser"), access: "codex-a", refresh: "refresh-a", expires: Date.now() + 3_600_000, metadata: { accountID: "account-a" } }),
-      })
-      const accountB = yield* credentials.create({
-        integrationID: Integration.ID.make("openai"), activate: false,
-        value: Credential.OAuth.make({ type: "oauth", methodID: Integration.MethodID.make("chatgpt-browser"), access: "codex-b", refresh: "refresh-b", expires: Date.now() + 3_600_000, metadata: { accountID: "account-b" } }),
-      })
-      const connectionA = { type: "credential" as const, id: accountA.id }
-      const connectionB = { type: "credential" as const, id: accountB.id }
-      const reads: Array<{ url: string; authorization?: string; account?: string }> = []
-      let status = 200
-      const http = HttpClient.make((request) => Effect.sync(() => {
-        reads.push({ url: request.url, authorization: request.headers.authorization, account: request.headers["chatgpt-account-id"] })
-        return HttpClientResponse.fromWeb(request, Response.json({
-          plan_type: "free", rate_limit: { allowed: true, primary_window: { used_percent: 25, limit_window_seconds: 18_000, reset_after_seconds: 600 } },
-          credits: { balance: "3.5", unlimited: false },
-        }, { status }))
-      }))
-      yield* addLegacyPlugin(http)
-      yield* models.available({ providerID: Provider.ID.openai, connection: connectionB })
-      yield* hooks.trigger("session", "model.request", {
-        sessionID: Session.ID.make("ses_quota"), agent: Agent.ID.make("build"), kind: "primary",
-        model: Model.Ref.make({ providerID: Provider.ID.openai, id }), connection: connectionB, headers: {},
-      })
-      expect(reads).toEqual([])
-      const input = { sessionID: Session.ID.make("ses_quota"), model: Model.Ref.make({ providerID: Provider.ID.openai, id }), connection: connectionB }
-      const observed = yield* Effect.all([hooks.trigger("session", "model.quota", input), hooks.trigger("session", "model.quota", { ...input })], { concurrency: "unbounded" })
-      expect(reads).toEqual([{ url: "https://chatgpt.com/backend-api/wham/usage", authorization: "Bearer codex-b", account: "account-b" }])
-      expect(observed[0].quota).toMatchObject({ status: "known", source: "openai-codex", connection: connectionB, observedAt: 0, freshUntil: 300_000, plan: "free", freePlan: true, allowed: true, credits: { balance: 3.5, unlimited: false } })
-      expect(observed[1].quota).toEqual(observed[0].quota)
-      expect(observed[0].quota?.windows).toEqual([{ id: "primary", unit: "chatgpt-share", usedRatio: 0.25, resetAt: 600_000, spanMs: 18_000_000, scope: "account" }])
-      expect(required(yield* models.get(Provider.ID.openai, id, connectionB)).metadata?.quota).toEqual(observed[0].quota)
-      expect(required(yield* models.get(Provider.ID.openai, id, connectionA)).metadata?.quota).toBeUndefined()
-      yield* TestClock.adjust(300_001)
-      status = 503
-      const stale = yield* hooks.trigger("session", "model.quota", { ...input })
-      expect(reads).toHaveLength(2)
-      expect(stale.quota).toMatchObject({ status: "unknown", connection: connectionB, observedAt: 0, freshUntil: 300_000, reason: "transport", windows: [{ usedRatio: 0.25 }] })
-      expect(required(yield* models.get(Provider.ID.openai, id, connectionB)).metadata?.quota).toEqual(stale.quota)
-      expect((yield* hooks.trigger("session", "model.quota", { ...input })).quota).toEqual(stale.quota)
-      expect(reads).toHaveLength(2)
-      expect(yield* integrations.connection.active(Integration.ID.make("openai"))).toMatchObject(connectionA)
-    }),
+  it.effect(
+    "reads Codex quota only on demand for its connection and keeps expired successful facts after a failed refresh",
+    () =>
+      Effect.gen(function* () {
+        const providers = yield* Provider.Service
+        const models = yield* Model.Service
+        const credentials = yield* Credential.Service
+        const integrations = yield* Integration.Service
+        const hooks = yield* PluginHooks.Service
+        const id = Model.ID.make("gpt-5.5")
+        yield* providers.transform((editor) => {
+          editor.update(Provider.ID.openai, (provider) => {
+            provider.package = "@aigcfroge/ai/providers/openai"
+          })
+          editor.models.update(Provider.ID.openai, id, () => {})
+        })
+        const accountA = yield* credentials.create({
+          integrationID: Integration.ID.make("openai"),
+          value: Credential.OAuth.make({
+            type: "oauth",
+            methodID: Integration.MethodID.make("chatgpt-browser"),
+            access: "codex-a",
+            refresh: "refresh-a",
+            expires: Date.now() + 3_600_000,
+            metadata: { accountID: "account-a" },
+          }),
+        })
+        const accountB = yield* credentials.create({
+          integrationID: Integration.ID.make("openai"),
+          activate: false,
+          value: Credential.OAuth.make({
+            type: "oauth",
+            methodID: Integration.MethodID.make("chatgpt-browser"),
+            access: "codex-b",
+            refresh: "refresh-b",
+            expires: Date.now() + 3_600_000,
+            metadata: { accountID: "account-b" },
+          }),
+        })
+        const connectionA = { type: "credential" as const, id: accountA.id }
+        const connectionB = { type: "credential" as const, id: accountB.id }
+        const reads: Array<{ url: string; authorization?: string; account?: string }> = []
+        let status = 200
+        const http = HttpClient.make((request) =>
+          Effect.sync(() => {
+            reads.push({
+              url: request.url,
+              authorization: request.headers.authorization,
+              account: request.headers["chatgpt-account-id"],
+            })
+            return HttpClientResponse.fromWeb(
+              request,
+              Response.json(
+                {
+                  plan_type: "free",
+                  rate_limit: {
+                    allowed: true,
+                    primary_window: { used_percent: 25, limit_window_seconds: 18_000, reset_after_seconds: 600 },
+                  },
+                  credits: { balance: "3.5", unlimited: false },
+                },
+                { status },
+              ),
+            )
+          }),
+        )
+        yield* addLegacyPlugin(http)
+        yield* models.available({ providerID: Provider.ID.openai, connection: connectionB })
+        yield* hooks.trigger("session", "model.request", {
+          sessionID: Session.ID.make("ses_quota"),
+          agent: Agent.ID.make("build"),
+          kind: "primary",
+          model: Model.Ref.make({ providerID: Provider.ID.openai, id }),
+          connection: connectionB,
+          headers: {},
+        })
+        expect(reads).toEqual([])
+        const input = {
+          sessionID: Session.ID.make("ses_quota"),
+          model: Model.Ref.make({ providerID: Provider.ID.openai, id }),
+          connection: connectionB,
+        }
+        const observed = yield* Effect.all(
+          [hooks.trigger("session", "model.quota", input), hooks.trigger("session", "model.quota", { ...input })],
+          { concurrency: "unbounded" },
+        )
+        expect(reads).toEqual([
+          { url: "https://chatgpt.com/backend-api/wham/usage", authorization: "Bearer codex-b", account: "account-b" },
+        ])
+        expect(observed[0].quota).toMatchObject({
+          status: "known",
+          source: "openai-codex",
+          connection: connectionB,
+          observedAt: 0,
+          freshUntil: 300_000,
+          plan: "free",
+          freePlan: true,
+          allowed: true,
+          credits: { balance: 3.5, unlimited: false },
+        })
+        expect(observed[1].quota).toEqual(observed[0].quota)
+        expect(observed[0].quota?.windows).toEqual([
+          {
+            id: "primary",
+            unit: "chatgpt-share",
+            usedRatio: 0.25,
+            resetAt: 600_000,
+            spanMs: 18_000_000,
+            scope: "account",
+          },
+        ])
+        expect(required(yield* models.get(Provider.ID.openai, id, connectionB)).metadata?.quota).toEqual(
+          observed[0].quota,
+        )
+        expect(required(yield* models.get(Provider.ID.openai, id, connectionA)).metadata?.quota).toBeUndefined()
+        yield* TestClock.adjust(300_001)
+        status = 503
+        const stale = yield* hooks.trigger("session", "model.quota", { ...input })
+        expect(reads).toHaveLength(2)
+        expect(stale.quota).toMatchObject({
+          status: "unknown",
+          connection: connectionB,
+          observedAt: 0,
+          freshUntil: 300_000,
+          reason: "transport",
+          windows: [{ usedRatio: 0.25 }],
+        })
+        expect(required(yield* models.get(Provider.ID.openai, id, connectionB)).metadata?.quota).toEqual(stale.quota)
+        expect((yield* hooks.trigger("session", "model.quota", { ...input })).quota).toEqual(stale.quota)
+        expect(reads).toHaveLength(2)
+        expect(yield* integrations.connection.active(Integration.ID.make("openai"))).toMatchObject(connectionA)
+      }),
   )
 
   it.effect("keeps token-sharing quota unsupported without issuing a usage request", () =>
@@ -1104,21 +1245,44 @@ describe("ChatGPTPlugin", () => {
       const hooks = yield* PluginHooks.Service
       const id = Model.ID.make("gpt-5.5")
       yield* providers.transform((editor) => {
-        editor.update(Provider.ID.openai, (provider) => { provider.package = "@aigcfroge/ai/providers/openai" })
+        editor.update(Provider.ID.openai, (provider) => {
+          provider.package = "@aigcfroge/ai/providers/openai"
+        })
         editor.models.update(Provider.ID.openai, id, () => {})
       })
       const entry = yield* credentials.create({
         integrationID: Integration.ID.make("openai"),
-        value: Credential.OAuth.make({ type: "oauth", methodID: Integration.MethodID.make("chatgpt-token-sharing"), access: "sharing-token", refresh: "sharing-refresh", expires: Date.now() + 3_600_000, metadata: { clientID: "sharing-client", scopes: ["chatgpt.tokens.use.direct"] } }),
+        value: Credential.OAuth.make({
+          type: "oauth",
+          methodID: Integration.MethodID.make("chatgpt-token-sharing"),
+          access: "sharing-token",
+          refresh: "sharing-refresh",
+          expires: Date.now() + 3_600_000,
+          metadata: { clientID: "sharing-client", scopes: ["chatgpt.tokens.use.direct"] },
+        }),
       })
       const connection = { type: "credential" as const, id: entry.id }
       const reads: string[] = []
-      yield* addPlugin(HttpClient.make((request) => Effect.sync(() => {
-        reads.push(request.url)
-        return HttpClientResponse.fromWeb(request, Response.json({}, { status: 503 }))
-      })))
-      const observed = yield* hooks.trigger("session", "model.quota", { sessionID: Session.ID.make("ses_sharing_quota"), model: Model.Ref.make({ providerID: Provider.ID.openai, id }), connection })
-      expect(observed.quota).toEqual({ status: "unsupported", source: "chatgpt-token-sharing", connection, reason: "unsupported", windows: [] })
+      yield* addPlugin(
+        HttpClient.make((request) =>
+          Effect.sync(() => {
+            reads.push(request.url)
+            return HttpClientResponse.fromWeb(request, Response.json({}, { status: 503 }))
+          }),
+        ),
+      )
+      const observed = yield* hooks.trigger("session", "model.quota", {
+        sessionID: Session.ID.make("ses_sharing_quota"),
+        model: Model.Ref.make({ providerID: Provider.ID.openai, id }),
+        connection,
+      })
+      expect(observed.quota).toEqual({
+        status: "unsupported",
+        source: "chatgpt-token-sharing",
+        connection,
+        reason: "unsupported",
+        windows: [],
+      })
       expect(required(yield* models.get(Provider.ID.openai, id, connection)).metadata?.quota).toEqual(observed.quota)
       expect(reads.filter((url) => !url.endsWith("/models"))).toEqual([])
     }),
