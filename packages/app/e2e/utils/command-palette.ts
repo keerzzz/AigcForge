@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test"
+import { expect, type Locator, type Page } from "@playwright/test"
 import { NO_PROVIDER, project, sessionHref } from "./app"
 import { mockAigcForgeServer } from "./mock-server"
 import { APP_READY_TIMEOUT } from "./waits"
@@ -23,6 +23,10 @@ export function captureConsoleWarnings(page: Page) {
   })
 
   return warnings
+}
+
+export function commandOption(dialog: Locator, title: string) {
+  return dialog.getByRole("option").filter({ has: dialog.page().getByText(title, { exact: true }) })
 }
 
 export async function openCommandPalette(page: Page, home = false) {

@@ -1,6 +1,6 @@
 import type { AigcForgeEvent } from "@aigcfroge/client/promise"
 import { expect, test } from "@playwright/test"
-import { openCommandPalette, paletteSession } from "../utils/command-palette"
+import { commandOption, openCommandPalette, paletteSession } from "../utils/command-palette"
 
 test.use({ serviceWorkers: "block" })
 
@@ -23,10 +23,7 @@ test("failed event-driven reads report an error and recover without an unhandled
   await requested
   await expect(page.getByText("Request failed", { exact: true })).toBeVisible()
   await palette.input.fill("copy session")
-  await expect(palette.dialog.getByRole("option", { name: "Copy Session ID", exact: true })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  )
+  await expect(commandOption(palette.dialog, "Copy Session ID")).toHaveAttribute("aria-selected", "true")
   await palette.input.press("Escape")
   await page.unroute(path)
   await palette.push([

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test"
-import { captureConsoleWarnings, openCommandPalette, paletteSession } from "../utils/command-palette"
+import { captureConsoleWarnings, commandOption, openCommandPalette, paletteSession } from "../utils/command-palette"
 
 test.use({ serviceWorkers: "block", permissions: ["clipboard-read", "clipboard-write"] })
 
@@ -12,7 +12,7 @@ test("copies the session ID while file and session searches are still pending", 
     await route.fallback()
   })
   await input.pressSequentially("copy session")
-  const copy = dialog.getByRole("option", { name: "Copy Session ID", exact: true })
+  const copy = commandOption(dialog, "Copy Session ID")
   await expect(copy).toHaveAttribute("aria-selected", "true")
   await input.press("Enter")
   await expect(dialog).toHaveCount(0)
@@ -65,7 +65,7 @@ test("appends search results without resetting the selected command", async ({ p
     })
   })
   await input.fill("copy")
-  const project = dialog.getByRole("option", { name: "Copy Project ID", exact: true })
+  const project = commandOption(dialog, "Copy Project ID")
   await expect(project).toBeVisible()
   // Select a non-first command with the keyboard before remote results arrive.
   await input.press("ArrowDown")
@@ -78,11 +78,8 @@ test("appends search results without resetting the selected command", async ({ p
   await expect(dialog.getByRole("option", { name: /Copy fixture/ })).toBeVisible()
   await expect(project).toHaveAttribute("aria-selected", "true")
   await input.fill("copy session")
-  await expect(dialog.getByRole("option", { name: "Copy Session ID", exact: true })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  )
-  await expect(dialog.getByRole("option", { name: "Copy Project ID", exact: true })).toHaveCount(0)
+  await expect(commandOption(dialog, "Copy Session ID")).toHaveAttribute("aria-selected", "true")
+  await expect(commandOption(dialog, "Copy Project ID")).toHaveCount(0)
 })
 
 test("keeps the automatically selected file when session results arrive later", async ({ page }) => {
@@ -143,7 +140,7 @@ test("navigation replaces commands without retaining disposed owners", async ({ 
   await expect(dialog.getByRole("textbox")).toBeFocused()
   await expect(dialog.getByRole("textbox")).toHaveAttribute("placeholder", "Search files, commands, and sessions")
   await dialog.getByRole("textbox").fill("copy session")
-  await expect(dialog.getByRole("option", { name: "Copy Session ID", exact: true })).toHaveCount(0)
+  await expect(commandOption(dialog, "Copy Session ID")).toHaveCount(0)
   await dialog.getByRole("textbox").press("Escape")
   await expect(dialog).toHaveCount(0)
   const tabs = page.locator("[data-titlebar-tab-link]")
@@ -173,9 +170,6 @@ test("navigation replaces commands without retaining disposed owners", async ({ 
   await page.keyboard.press("ControlOrMeta+Shift+P")
   await expect(dialog.getByRole("textbox")).toBeFocused()
   await dialog.getByRole("textbox").fill("copy session")
-  await expect(dialog.getByRole("option", { name: "Copy Session ID", exact: true })).toHaveAttribute(
-    "aria-selected",
-    "true",
-  )
+  await expect(commandOption(dialog, "Copy Session ID")).toHaveAttribute("aria-selected", "true")
   expect(warnings).toEqual([])
 })
