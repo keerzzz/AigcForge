@@ -1,13 +1,9 @@
 import { GlobalRegistrator } from "@happy-dom/global-registrator"
-import { SolidJsxPlugin } from "./solid-jsx-plugin"
 
 GlobalRegistrator.register()
 
-// Register the Solid JSX compiler before any test file imports `.tsx`: Bun's
-// built-in transpiler would turn Solid JSX into React jsx() calls.
-Bun.plugin(SolidJsxPlugin.solidJsxPlugin)
-
 const originalGetContext = HTMLCanvasElement.prototype.getContext
+
 // @ts-expect-error - we're overriding with a simplified mock
 HTMLCanvasElement.prototype.getContext = function (contextType: string, _options?: unknown) {
   if (contextType === "2d") {
@@ -76,5 +72,6 @@ HTMLCanvasElement.prototype.getContext = function (contextType: string, _options
       }),
     } as unknown as CanvasRenderingContext2D
   }
+
   return originalGetContext.call(this, contextType as "2d", _options)
 }

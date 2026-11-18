@@ -52,3 +52,45 @@ test("reports missing correctness without throwing", () => {
   expect(result.firstCorrectObservedMs).toBeNull()
   expect(result.stableObservedMs).toBeNull()
 })
+
+test("does not report stability for only two correct samples", () => {
+  const result = classifySessionSwitch([
+    { observedAtMs: 16, destination: ["destination"], source: [], hasVisibleRows: true, last: true, bottomErrorPx: 0 },
+    { observedAtMs: 32, destination: ["destination"], source: [], hasVisibleRows: true, last: true, bottomErrorPx: 0 },
+  ])
+
+  expect(result.firstCorrectObservedMs).toBe(16)
+  expect(result.stableObservedMs).toBeNull()
+})
+
+test("requires an explicitly tracked part to be visible", () => {
+  const result = classifySessionSwitch([
+    {
+      observedAtMs: 16,
+      destination: ["destination"],
+      source: [],
+      hasVisibleRows: true,
+      last: true,
+      requiredPartVisible: false,
+      bottomErrorPx: 0,
+    },
+  ])
+
+  expect(result.firstCorrectObservedMs).toBeNull()
+})
+
+test("can measure content correctness without requiring a bottom anchor", () => {
+  const result = classifySessionSwitch([
+    {
+      observedAtMs: 16,
+      destination: ["destination"],
+      source: [],
+      hasVisibleRows: true,
+      last: true,
+      requiredPartVisible: true,
+      bottomAnchorRequired: false,
+    },
+  ])
+
+  expect(result.firstCorrectObservedMs).toBe(16)
+})

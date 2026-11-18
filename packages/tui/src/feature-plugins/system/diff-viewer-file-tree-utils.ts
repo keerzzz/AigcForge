@@ -1,8 +1,3 @@
-// Paths branch softly through the screen,
-// A quiet tree of changed designs;
-// Each leaf remembers what has been,
-// And waits where careful light aligns.
-
 export type FileTreeItem = {
   readonly file: string
   readonly status?: "added" | "deleted" | "modified"
@@ -59,7 +54,7 @@ export function buildFileTree(files: readonly FileTreeItem[]): FileTree {
     )
 
     addFileTreeNode(nodes, roots, {
-      name: segments[segments.length - 1],
+      name: segments[segments.length - 1]!,
       parent: parent.id,
       depth: parent.depth,
       kind: "file",
@@ -76,7 +71,7 @@ export function buildFileTree(files: readonly FileTreeItem[]): FileTree {
 export function flattenFileTree(tree: FileTree, expanded?: ReadonlySet<number>): FileTreeRow[] {
   const rows: FileTreeRow[] = []
   const visit = (id: number, depth: number) => {
-    const node = tree.nodes[id]
+    const node = tree.nodes[id]!
     if (node.kind === "file") {
       rows.push({
         id: node.id,
@@ -89,7 +84,7 @@ export function flattenFileTree(tree: FileTree, expanded?: ReadonlySet<number>):
     }
 
     const chain = collapsedFileTreeDirectoryChain(tree, node.id)
-    const last = chain[chain.length - 1]
+    const last = chain[chain.length - 1]!
     rows.push({
       id: node.id,
       depth,
@@ -104,75 +99,35 @@ export function flattenFileTree(tree: FileTree, expanded?: ReadonlySet<number>):
 }
 
 function collapsedFileTreeDirectoryChain(tree: FileTree, id: number): FileTreeNode[] {
-  const node = tree.nodes[id]
-  const child = node.children.length === 1 ? tree.nodes[node.children[0]] : undefined
+  const node = tree.nodes[id]!
+  const child = node.children.length === 1 ? tree.nodes[node.children[0]!] : undefined
   if (child?.kind !== "directory") return [node]
   return [node, ...collapsedFileTreeDirectoryChain(tree, child.id)]
 }
 
 export function compareFileTreeNodes(tree: FileTree, left: number, right: number) {
-  const leftNode = tree.nodes[left]
-  const rightNode = tree.nodes[right]
+  const leftNode = tree.nodes[left]!
+  const rightNode = tree.nodes[right]!
   if (leftNode.kind !== rightNode.kind) return leftNode.kind === "directory" ? -1 : 1
   if (leftNode.name < rightNode.name) return -1
   if (leftNode.name > rightNode.name) return 1
   return left - right
 }
 
-export function moveFileTreeSelection(rows: readonly FileTreeRow[], selected: number | undefined, offset: number) {
-  if (rows.length === 0) return undefined
-  const index = selected === undefined ? -1 : rows.findIndex((row) => row.id === selected)
-  if (index === -1) return rows[0].id
-  return rows[Math.max(0, Math.min(rows.length - 1, index + offset))].id
-}
-
-export function moveFileTreeSelectionToFirstChild(rows: readonly FileTreeRow[], selected: number | undefined) {
-  const index = selected === undefined ? -1 : rows.findIndex((row) => row.id === selected)
-  const row = index === -1 ? undefined : rows[index]
-  if (row?.kind !== "directory") return selected
-  const child = rows[index + 1]
-  return child && child.depth > row.depth ? child.id : selected
-}
-
-export function moveFileTreeSelectionToParent(rows: readonly FileTreeRow[], selected: number | undefined) {
-  const index = selected === undefined ? -1 : rows.findIndex((row) => row.id === selected)
-  const row = index === -1 ? undefined : rows[index]
-  if (!row || row.depth === 0) return selected
-  return rows.findLast((item, itemIndex) => itemIndex < index && item.depth < row.depth)?.id ?? selected
-}
-
-export function moveFileTreeSelectionToFile(
-  rows: readonly FileTreeRow[],
-  selected: number | undefined,
-  offset: number,
-) {
-  const fileRows = rows.filter((row) => row.fileIndex !== undefined)
-  if (fileRows.length === 0) return undefined
-  const selectedIndex = selected === undefined ? -1 : rows.findIndex((row) => row.id === selected)
-  if (selectedIndex === -1) return offset < 0 ? fileRows[fileRows.length - 1].id : fileRows[0].id
-  const next =
-    offset < 0
-      ? fileRows.findLast((row) => rows.findIndex((item) => item.id === row.id) < selectedIndex)
-      : fileRows.find((row) => rows.findIndex((item) => item.id === row.id) > selectedIndex)
-  return next?.id ?? (offset < 0 ? fileRows[0].id : fileRows[fileRows.length - 1].id)
-}
-
 export function fileTreeFileSelection(tree: FileTree, fileIndex: number) {
   const node = tree.nodes.find((item) => item.kind === "file" && item.fileIndex === fileIndex)
   if (!node) return undefined
   return {
-    highlightedNode: node.id,
     expandedNodes: fileTreeParentDirectories(tree, node.id),
   }
 }
 
 export function singlePatchFileIndex(
   selected: number | undefined,
-  active: number | undefined,
   current: number | undefined,
   first: number | undefined,
 ) {
-  return selected ?? active ?? current ?? first
+  return selected ?? current ?? first
 }
 
 export function orderedPatchFileIndexes(rows: readonly FileTreeRow[]) {
@@ -202,24 +157,11 @@ export function toggleFileTreeDirectory(tree: FileTree, expanded: ReadonlySet<nu
   return next
 }
 
-export function setFileTreeDirectoryExpanded(
-  tree: FileTree,
-  expanded: ReadonlySet<number>,
-  selected: number | undefined,
-  value: boolean,
-) {
-  if (selected === undefined || tree.nodes[selected]?.kind !== "directory") return expanded
-  const next = new Set(expanded)
-  if (value) next.add(selected)
-  else next.delete(selected)
-  return next
-}
-
 function addFileTreeNode(nodes: FileTreeNode[], roots: number[], input: Omit<FileTreeNode, "id" | "children">) {
   const id = nodes.length
   nodes.push({ ...input, id, children: [] })
   if (input.parent === undefined) roots.push(id)
-  else nodes[input.parent].children.push(id)
+  else nodes[input.parent]!.children.push(id)
   return id
 }
 

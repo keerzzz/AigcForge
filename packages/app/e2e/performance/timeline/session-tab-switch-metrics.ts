@@ -4,17 +4,27 @@ export type SessionSwitchSample = {
   source: string[]
   hasVisibleRows: boolean
   last: boolean
+  requiredPartVisible?: boolean
+  bottomAnchorRequired?: boolean
   bottomErrorPx?: number
+  review?: {
+    fileHost: boolean
+    fileHostReplaced: boolean
+    header: string
+    replacedLevels: string[]
+  }
 }
 
 export function classifySessionSwitch(samples: SessionSwitchSample[]) {
   const firstDestination = samples.findIndex((sample) => sample.destination.length > 0)
   const firstCorrect = samples.findIndex(isCorrectDestination)
   const stable = samples.findIndex((_, index) => isStableSessionSwitch(samples.slice(index, index + 3)))
+
   return {
+    samples,
     firstDestinationObservedMs: samples[firstDestination]?.observedAtMs ?? null,
     firstCorrectObservedMs: samples[firstCorrect]?.observedAtMs ?? null,
-    stableObservedMs: samples[stable + 2]?.observedAtMs ?? null,
+    stableObservedMs: stable < 0 ? null : samples[stable + 2].observedAtMs,
     wrongDestinationSamples: samples
       .slice(firstDestination)
       .filter((sample) => sample.destination.length > 0 && !sample.last).length,
@@ -23,6 +33,10 @@ export function classifySessionSwitch(samples: SessionSwitchSample[]) {
       (sample) => sample.hasVisibleRows && sample.destination.length === 0 && sample.source.length === 0,
     ).length,
     sourceSamples: samples.filter((sample) => sample.source.length > 0).length,
+    reviewFileHostMissingSamples: samples.filter((sample) => sample.review && !sample.review.fileHost).length,
+    reviewFileHostReplacedSamples: samples.filter((sample) => sample.review?.fileHostReplaced).length,
+    reviewHeaders: [...new Set(samples.flatMap((sample) => (sample.review ? [sample.review.header] : [])))],
+    reviewReplacedLevels: [...new Set(samples.flatMap((sample) => sample.review?.replacedLevels ?? []))],
   }
 }
 
@@ -31,7 +45,8 @@ export function isCorrectDestination(sample: SessionSwitchSample) {
     sample.destination.length > 0 &&
     sample.source.length === 0 &&
     sample.last &&
-    Math.abs(sample.bottomErrorPx ?? Infinity) <= 1
+    sample.requiredPartVisible !== false &&
+    (sample.bottomAnchorRequired === false || Math.abs(sample.bottomErrorPx ?? Infinity) <= 1)
   )
 }
 

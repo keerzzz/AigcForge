@@ -7,14 +7,17 @@ function fn(value: unknown): value is (...args: never[]) => unknown {
 
 function pick(mod: Record<string, unknown>, name?: string) {
   if (name && fn(mod[name])) return mod[name]
+
   if (fn(mod.default)) return mod.default
 
   const preferred = Object.keys(mod)
     .filter((k) => k[0] && k[0] === k[0].toUpperCase())
     .find((k) => fn(mod[k]))
+
   if (preferred) return mod[preferred]
 
   const first = Object.keys(mod).find((k) => fn(mod[k]))
+
   if (first) return mod[first]
 
   return () => {
@@ -33,7 +36,7 @@ export function create(input: {
   name?: string
   args?: Record<string, unknown>
 }) {
-  const component = pick(input.mod, input.name) as ValidComponent
+  const component = pick(input.mod, input.name) as unknown as ValidComponent
 
   return {
     meta: {

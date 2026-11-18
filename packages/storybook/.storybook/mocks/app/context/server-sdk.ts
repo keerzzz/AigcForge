@@ -1,23 +1,60 @@
-// The real ServerSDK context resolves a live ServerConnection and opens an SSE
-// event stream against a running instance, which Storybook has no equivalent of.
-// Stories only need the subscribe seam, so `listen` registers nothing and hands
-// back a no-op unsubscribe; no event is ever delivered here.
-type ServerEvent = { name: string; details: unknown }
+const providers = [
+  "opencode-go",
+  "opencode",
+  "anthropic",
+  "openai",
+  "google",
+  "openrouter",
+  "vercel",
+  "github-copilot",
+  "302ai",
+  "abacus",
+  "abliteration",
+  "alibaba",
+  "alibaba-cn",
+  "alibaba-coding-plan",
+]
 
-const serverSDK = {
-  event: {
-    listen(_listener: (event: ServerEvent) => void) {
-      return () => {}
+const client = {
+  provider: {
+    auth: async () => ({
+      data: Object.fromEntries(providers.map((provider) => [provider, [{ type: "api", label: "API key" }]])),
+    }),
+    oauth: {
+      authorize: async (input: { method?: number }) => ({
+        data: {
+          url: "https://example.com/oauth",
+          method: input.method === 1 ? ("code" as const) : ("auto" as const),
+          instructions: input.method === 1 ? "Paste the authorization code" : "Confirmation code: ABCD-EFGH",
+        },
+      }),
+      callback: async (input: { method?: number }) => {
+        if (input.method === 0) return new Promise<never>(() => {})
+        return { data: undefined }
+      },
     },
-    on(_name: string, _listener: (details: unknown) => void) {
-      return () => {}
-    },
-    start() {
-      return Promise.resolve()
-    },
+  },
+  auth: {
+    set: async () => ({ data: true }),
+  },
+  global: {
+    dispose: async () => ({ data: true }),
+  },
+}
+
+const api = {
+  form: {
+    reply: async () => ({ data: true }),
+    cancel: async () => ({ data: true }),
   },
 }
 
 export function useServerSDK() {
-  return () => serverSDK
+  return {
+    scope: ServerScope.local,
+    url: "http://storybook.local",
+    api,
+    client,
+  }
 }
+import { ServerScope } from "@/runtime/server/scope"

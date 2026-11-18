@@ -1,56 +1,12 @@
-import { HttpApi, OpenApi } from "effect/unstable/httpapi"
-import { SchemaErrorMiddleware } from "./middleware/schema-error"
-import { MessageGroup } from "./groups/message"
-import { ModelGroup } from "./groups/model"
-import { ProviderGroup } from "./groups/provider"
-import { SessionGroup } from "./groups/session"
-import { PermissionGroup } from "./groups/permission"
-import { GrantGroup } from "./groups/grant"
-import { FileSystemGroup } from "./groups/fs"
-import { CommandGroup } from "./groups/command"
-import { SkillGroup } from "./groups/skill"
-import { EventGroup } from "./groups/event"
-import { AgentGroup } from "./groups/agent"
-import { HealthGroup } from "./groups/health"
-import { PtyGroup } from "./groups/pty"
-import { QuestionGroup } from "./groups/question"
-import { ReferenceGroup } from "./groups/reference"
-import { Authorization } from "./middleware/authorization"
-import { LocationGroup } from "./groups/location"
-import { PathIdentityGroup } from "./groups/path-identity"
-import { IntegrationGroup } from "./groups/integration"
-import { CredentialGroup } from "./groups/credential"
-import { ProjectCopyGroup } from "./groups/project-copy"
-import { DelegationGroup } from "./groups/delegation"
+import { makeDefaultApi } from "@opencode/protocol/api"
+import { LocationMiddleware } from "./location"
+import { FormLocationMiddleware } from "./middleware/form-location"
+import { SessionLocationMiddleware } from "./middleware/session-location"
 
-export const Api = HttpApi.make("server")
-  .add(HealthGroup)
-  .add(LocationGroup)
-  .add(PathIdentityGroup)
-  .add(AgentGroup)
-  .add(SessionGroup)
-  .add(MessageGroup)
-  .add(ModelGroup)
-  .add(ProviderGroup)
-  .add(IntegrationGroup)
-  .add(CredentialGroup)
-  .add(PermissionGroup)
-  .add(GrantGroup)
-  .add(FileSystemGroup)
-  .add(CommandGroup)
-  .add(SkillGroup)
-  .add(EventGroup)
-  .add(PtyGroup)
-  .add(QuestionGroup)
-  .add(ReferenceGroup)
-  .add(ProjectCopyGroup)
-  .add(DelegationGroup)
-  .annotateMerge(
-    OpenApi.annotations({
-      title: "aigcfroge HttpApi",
-      version: "0.0.1",
-      description: "Experimental HttpApi surface for selected instance routes.",
-    }),
-  )
-  .middleware(Authorization)
-  .middleware(SchemaErrorMiddleware)
+export const Api = makeDefaultApi({
+  locationMiddleware: LocationMiddleware,
+  // FormLocationMiddleware contains the temporary `sessionID === "global"` MCP elicitation hack.
+  // Do not use that sentinel with general session APIs.
+  formLocationMiddleware: FormLocationMiddleware,
+  sessionLocationMiddleware: SessionLocationMiddleware,
+})

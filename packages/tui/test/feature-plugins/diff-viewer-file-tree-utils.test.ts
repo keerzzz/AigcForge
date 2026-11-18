@@ -4,13 +4,8 @@ import {
   buildFileTree,
   fileTreeFileSelection,
   flattenFileTree,
-  moveFileTreeSelection,
-  moveFileTreeSelectionToFirstChild,
-  moveFileTreeSelectionToFile,
-  moveFileTreeSelectionToParent,
   movePatchFileIndex,
   orderedPatchFileIndexes,
-  setFileTreeDirectoryExpanded,
   showDiffViewerFileTree,
   singlePatchFileIndex,
   toggleFileTreeDirectory,
@@ -69,14 +64,11 @@ describe("diff viewer file tree utilities", () => {
 
   test("collapses unary directory chains while flattening", () => {
     const rows = flattenFileTree(
-      buildFileTree([
-        { file: "packages/aigcfroge/src/cli/app.ts" },
-        { file: "packages/aigcfroge/src/server/server.ts" },
-      ]),
+      buildFileTree([{ file: "packages/opencode/src/cli/app.ts" }, { file: "packages/opencode/src/server/server.ts" }]),
     )
 
     expect(rows.map((row) => `${"  ".repeat(row.depth)}${row.kind}:${row.name}`)).toEqual([
-      "directory:packages/aigcfroge/src",
+      "directory:packages/opencode/src",
       "  directory:cli",
       "    file:app.ts",
       "  directory:server",
@@ -85,10 +77,10 @@ describe("diff viewer file tree utilities", () => {
   })
 
   test("does not collapse a directory into a file row", () => {
-    const rows = flattenFileTree(buildFileTree([{ file: "packages/aigcfroge/src/app.ts" }]))
+    const rows = flattenFileTree(buildFileTree([{ file: "packages/opencode/src/app.ts" }]))
 
     expect(rows.map((row) => `${"  ".repeat(row.depth)}${row.kind}:${row.name}`)).toEqual([
-      "directory:packages/aigcfroge/src",
+      "directory:packages/opencode/src",
       "  file:app.ts",
     ])
   })
@@ -96,15 +88,15 @@ describe("diff viewer file tree utilities", () => {
   test("stops collapsing at branches", () => {
     const rows = flattenFileTree(
       buildFileTree([
-        { file: "packages/aigcfroge/src/cli/app.ts" },
-        { file: "packages/aigcfroge/src/server/server.ts" },
+        { file: "packages/opencode/src/cli/app.ts" },
+        { file: "packages/opencode/src/server/server.ts" },
         { file: "packages/readme.md" },
       ]),
     )
 
     expect(rows.map((row) => `${"  ".repeat(row.depth)}${row.kind}:${row.name}`)).toEqual([
       "directory:packages",
-      "  directory:aigcfroge/src",
+      "  directory:opencode/src",
       "    directory:cli",
       "      file:app.ts",
       "    directory:server",
@@ -143,14 +135,14 @@ describe("diff viewer file tree utilities", () => {
 
   test("collapses expanded unary children under the first visible directory id", () => {
     const tree = buildFileTree([
-      { file: "packages/aigcfroge/src/cli/app.ts" },
-      { file: "packages/aigcfroge/src/server/server.ts" },
+      { file: "packages/opencode/src/cli/app.ts" },
+      { file: "packages/opencode/src/server/server.ts" },
     ])
     const packages = tree.nodes.find((node) => node.kind === "directory" && node.name === "packages")!
 
-    expect(flattenFileTree(tree, new Set()).map((row) => row.name)).toEqual(["packages/aigcfroge/src"])
+    expect(flattenFileTree(tree, new Set()).map((row) => row.name)).toEqual(["packages/opencode/src"])
     expect(flattenFileTree(tree, new Set([packages.id])).map((row) => row.name)).toEqual([
-      "packages/aigcfroge/src",
+      "packages/opencode/src",
       "cli",
       "server",
     ])
@@ -177,92 +169,18 @@ describe("diff viewer file tree utilities", () => {
     ])
   })
 
-  test("moves selection across visible rows and clamps to bounds", () => {
-    const rows = flattenFileTree(buildFileTree([{ file: "src/config/tui.ts" }, { file: "README.md" }]))
-
-    expect(moveFileTreeSelection(rows, undefined, 1)).toBe(rows[0].id)
-    expect(moveFileTreeSelection(rows, rows[0].id, 1)).toBe(rows[1].id)
-    expect(moveFileTreeSelection(rows, rows[1].id, 99)).toBe(rows[rows.length - 1].id)
-    expect(moveFileTreeSelection(rows, rows[1].id, -99)).toBe(rows[0].id)
-    expect(moveFileTreeSelection([], undefined, 1)).toBeUndefined()
-  })
-
-  test("moves directory selection to first visible child", () => {
-    const rows = flattenFileTree(buildFileTree([{ file: "src/config/tui.ts" }, { file: "src/session/index.ts" }]))
-    const src = rows.find((row) => row.kind === "directory" && row.name === "src")!
-    const config = rows.find((row) => row.kind === "directory" && row.name === "config")!
-    const tui = rows.find((row) => row.name === "tui.ts")!
-
-    expect(moveFileTreeSelectionToFirstChild(rows, src.id)).toBe(config.id)
-    expect(moveFileTreeSelectionToFirstChild(rows, tui.id)).toBe(tui.id)
-    expect(moveFileTreeSelectionToFirstChild(rows, undefined)).toBeUndefined()
-  })
-
-  test("moves collapsed chain selection to first visible child", () => {
-    const rows = flattenFileTree(
-      buildFileTree([
-        { file: "packages/aigcfroge/src/cli/app.ts" },
-        { file: "packages/aigcfroge/src/server/server.ts" },
-      ]),
-    )
-    const packages = rows.find((row) => row.kind === "directory" && row.name === "packages/aigcfroge/src")!
-    const cli = rows.find((row) => row.kind === "directory" && row.name === "cli")!
-
-    expect(moveFileTreeSelectionToFirstChild(rows, packages.id)).toBe(cli.id)
-  })
-
-  test("moves file and collapsed directory selection to visible parent", () => {
-    const rows = flattenFileTree(
-      buildFileTree([
-        { file: "packages/aigcfroge/src/cli/app.ts" },
-        { file: "packages/aigcfroge/src/server/server.ts" },
-      ]),
-    )
-    const root = rows.find((row) => row.kind === "directory" && row.name === "packages/aigcfroge/src")!
-    const cli = rows.find((row) => row.kind === "directory" && row.name === "cli")!
-    const app = rows.find((row) => row.name === "app.ts")!
-
-    expect(moveFileTreeSelectionToParent(rows, app.id)).toBe(cli.id)
-    expect(moveFileTreeSelectionToParent(rows, cli.id)).toBe(root.id)
-    expect(moveFileTreeSelectionToParent(rows, root.id)).toBe(root.id)
-    expect(moveFileTreeSelectionToParent(rows, undefined)).toBeUndefined()
-  })
-
-  test("moves file selection relative to the highlighted row", () => {
-    const rows = flattenFileTree(
-      buildFileTree([{ file: "src/config/tui.ts" }, { file: "src/session/index.ts" }, { file: "README.md" }]),
-    )
-    const config = rows.find((row) => row.kind === "directory" && row.name === "config")!
-    const session = rows.find((row) => row.kind === "directory" && row.name === "session")!
-    const tui = rows.find((row) => row.name === "tui.ts")!
-    const index = rows.find((row) => row.name === "index.ts")!
-    const readme = rows.find((row) => row.name === "README.md")!
-
-    expect(moveFileTreeSelectionToFile(rows, undefined, 1)).toBe(tui.id)
-    expect(moveFileTreeSelectionToFile(rows, undefined, -1)).toBe(readme.id)
-    expect(moveFileTreeSelectionToFile(rows, config.id, 1)).toBe(tui.id)
-    expect(moveFileTreeSelectionToFile(rows, session.id, -1)).toBe(tui.id)
-    expect(moveFileTreeSelectionToFile(rows, tui.id, 1)).toBe(index.id)
-    expect(moveFileTreeSelectionToFile(rows, index.id, -1)).toBe(tui.id)
-    expect(moveFileTreeSelectionToFile(rows, readme.id, 1)).toBe(readme.id)
-  })
-
-  test("selects a file tree node and expands its parents for a patch file", () => {
+  test("finds the parent directories to expand for a patch file", () => {
     const tree = buildFileTree([{ file: "src/config/tui.ts" }, { file: "src/session/index.ts" }, { file: "README.md" }])
     const selection = fileTreeFileSelection(tree, 1)
 
-    expect(selection?.highlightedNode).toBe(
-      tree.nodes.find((node) => node.kind === "file" && node.name === "index.ts")?.id,
-    )
-    expect([...selection!.expandedNodes].map((id) => tree.nodes[id].name)).toEqual(["session", "src"])
+    expect([...selection!.expandedNodes].map((id) => tree.nodes[id]!.name)).toEqual(["session", "src"])
     expect(fileTreeFileSelection(tree, 99)).toBeUndefined()
   })
 
   test("prefers the selected file when choosing the single patch file", () => {
-    expect(singlePatchFileIndex(2, 1, 0, 3)).toBe(2)
-    expect(singlePatchFileIndex(undefined, 1, 0, 3)).toBe(1)
-    expect(singlePatchFileIndex(undefined, undefined, 0, 3)).toBe(0)
-    expect(singlePatchFileIndex(undefined, undefined, undefined, 3)).toBe(3)
+    expect(singlePatchFileIndex(2, 0, 3)).toBe(2)
+    expect(singlePatchFileIndex(undefined, 0, 3)).toBe(0)
+    expect(singlePatchFileIndex(undefined, undefined, 3)).toBe(3)
   })
 
   test("orders patches by the flattened file tree order", () => {
@@ -312,21 +230,5 @@ describe("diff viewer file tree utilities", () => {
 
     expect(toggleFileTreeDirectory(tree, reopened, readme.id)).toBe(reopened)
     expect(toggleFileTreeDirectory(tree, reopened, undefined)).toBe(reopened)
-  })
-
-  test("sets only selected directory expansion", () => {
-    const tree = buildFileTree([{ file: "src/config/tui.ts" }, { file: "README.md" }])
-    const src = tree.nodes.find((node) => node.kind === "directory" && node.name === "src")!
-    const readme = tree.nodes.find((node) => node.kind === "file" && node.name === "README.md")!
-    const expanded = allExpandedFileTreeDirectories(tree)
-
-    const collapsed = setFileTreeDirectoryExpanded(tree, expanded, src.id, false)
-    expect(collapsed.has(src.id)).toBe(false)
-
-    const reopened = setFileTreeDirectoryExpanded(tree, collapsed, src.id, true)
-    expect(reopened.has(src.id)).toBe(true)
-
-    expect(setFileTreeDirectoryExpanded(tree, reopened, readme.id, false)).toBe(reopened)
-    expect(setFileTreeDirectoryExpanded(tree, reopened, undefined, false)).toBe(reopened)
   })
 })

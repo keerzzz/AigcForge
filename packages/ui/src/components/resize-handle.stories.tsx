@@ -43,6 +43,7 @@ export default {
 export const Basic = {
   render: () => {
     const [size, setSize] = createSignal(240)
+
     return (
       <div style={{ display: "grid", gap: "8px" }}>
         <div style={{ color: "var(--text-weak)", "font-size": "12px" }}>Size: {size()}px</div>
@@ -55,7 +56,6 @@ export const Basic = {
           }}
         />
         <mod.ResizeHandle
-          label="Resize panel"
           direction="horizontal"
           size={size()}
           min={120}
@@ -71,6 +71,7 @@ export const Basic = {
 export const Vertical = {
   render: () => {
     const [size, setSize] = createSignal(180)
+
     return (
       <div style={{ display: "grid", gap: "8px", width: "220px" }}>
         <div style={{ color: "var(--text-weak)", "font-size": "12px" }}>Size: {size()}px</div>
@@ -82,7 +83,6 @@ export const Vertical = {
           }}
         />
         <mod.ResizeHandle
-          label="Resize panel"
           direction="vertical"
           size={size()}
           min={120}
@@ -101,8 +101,10 @@ export const Collapse = {
       size: 200,
       collapsed: false,
     })
+
     const size = () => state.size
     const collapsed = () => state.collapsed
+
     return (
       <div style={{ display: "grid", gap: "8px" }}>
         <div style={{ color: "var(--text-weak)", "font-size": "12px" }}>
@@ -117,7 +119,6 @@ export const Collapse = {
           }}
         />
         <mod.ResizeHandle
-          label="Resize panel"
           direction="horizontal"
           size={size()}
           min={80}
@@ -138,6 +139,7 @@ export const Collapse = {
 export const EdgeStart = {
   render: () => {
     const [size, setSize] = createSignal(240)
+
     return (
       <div style={{ display: "grid", gap: "8px" }}>
         <div style={{ color: "var(--text-weak)", "font-size": "12px" }}>Size: {size()}px</div>
@@ -150,7 +152,6 @@ export const EdgeStart = {
           }}
         />
         <mod.ResizeHandle
-          label="Resize panel"
           direction="horizontal"
           edge="start"
           size={size()}

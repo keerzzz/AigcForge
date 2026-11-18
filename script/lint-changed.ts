@@ -1,187 +1,52 @@
-import { ChangedLines } from "@aigcfroge/script/changed-lines"
-
-const { addedLinesOfFile, findBadBunCwdRun, isCommandGateExempt, normalizePath, parseAddedLines, resolveBaseline } =
-  ChangedLines
-
-const guardedRules = [
-  "typescript/no-unsafe-type-assertion",
-  "typescript/consistent-return",
-  "typescript/unbound-method",
-  "typescript/await-thenable",
-  // Only ever reported as warnings by `.oxlintrc.json` (suspicious: warn), so nothing else fails on
-  // them. Gating them here — against added lines only — keeps dead imports and redundant casts from
-  // accumulating in new code without re-litigating the existing tree.
-  "typescript/no-unnecessary-type-assertion",
-  "eslint/no-unused-vars",
-] as const
-
-const guardedRuleIDs = new Set(
-  guardedRules.map((rule) => {
-    const [plugin, name] = [rule.slice(0, rule.indexOf("/")), rule.slice(rule.indexOf("/") + 1)]
-    return plugin === "eslint" ? `eslint(${name})` : `typescript-eslint(${name})`
-  }),
-)
-const sourcePattern = /\.(?:[cm]?[jt]s|[jt]sx)$/
-const markdownPattern = /\.mdx?$/
-
-const target = await resolveBaseline(process.env)
-const base = (await git(["merge-base", "HEAD", target])).trim()
-const diff = await git(["diff", "--unified=0", "--no-color", base, "--"])
-const added = parseAddedLines(diff)
-
-for (const file of (await git(["ls-files", "--others", "--exclude-standard", "-z"])).split("\0").filter(Boolean)) {
-  if (!sourcePattern.test(file) && !markdownPattern.test(file)) continue
-  added.set(file, addedLinesOfFile(await Bun.file(file).text()))
-}
-
-// Markdown command gate: `bun --cwd <pkg> run <script>` silently does nothing
-// on bun, so newly added instances in docs are rejected; history is untouched.
-const markdownViolations: Array<{ file: string; line: number; text: string }> = []
-for (const [file, lines] of added) {
-  if (!markdownPattern.test(file) || Bun.file(file).size === 0) continue
-  // Meta documentation quotes the bad form to describe it (isCommandGateExempt).
-  if (isCommandGateExempt(file)) continue
-  for (const violation of findBadBunCwdRun(lines, await Bun.file(file).text())) {
-    markdownViolations.push({ file, ...violation })
-  }
-}
-if (markdownViolations.length > 0) {
-  console.error("Incremental lint found new `bun --cwd <pkg> run <script>` commands (silent no-op on bun):")
-  for (const violation of markdownViolations) {
-    console.error(`${violation.file}:${violation.line} ${violation.text}`)
-  }
-  process.exit(1)
-}
-
-const files = Array.from(added.keys()).filter((file) => sourcePattern.test(file) && Bun.file(file).size > 0)
-if (files.length === 0) {
-  console.log("Incremental lint passed: no changed JavaScript or TypeScript files")
-  process.exit(0)
-}
-
-const lint = Bun.spawn(
-  [
-    "./node_modules/.bin/oxlint",
-    "-c",
-    ".oxlintrc.json",
-    ...guardedRules.flatMap((rule) => ["-W", rule]),
-    "--format",
-    "json",
-    "--",
-    ...files,
-  ],
-  { stdout: "pipe", stderr: "pipe" },
-)
-const [stdout, stderr, exitCode] = await Promise.all([
-  new Response(lint.stdout).text(),
-  new Response(lint.stderr).text(),
-  lint.exited,
-])
-
-if (exitCode !== 0) {
-  process.stderr.write(stderr)
-  process.stderr.write(stdout)
-  process.exit(exitCode)
-}
-
-const output = parseOutput(stdout)
-const diagnostics = Array.isArray(output)
-  ? output.filter(isDiagnostic)
-  : output && typeof output === "object" && "diagnostics" in output && Array.isArray(output.diagnostics)
-    ? output.diagnostics.filter(isDiagnostic)
-    : []
-const sources = new Map(await Promise.all(files.map(async (file) => [file, await Bun.file(file).text()] as const)))
-const violations = diagnostics.filter((diagnostic) => {
-  if (!guardedRuleIDs.has(ruleID(diagnostic))) return false
-  const file = normalizePath(diagnostic.filename)
-  const lines = added.get(file)
-  if (!lines) return false
-  if (!diagnostic.labels.some((label) => lines.has(label.span.line))) return false
-  if (!ruleID(diagnostic).includes("await-thenable")) return true
-  return !isBunAsyncMatcher(diagnostic, sources.get(file) ?? "")
-})
-
-if (violations.length === 0) {
-  const lineCount = Array.from(added.values()).reduce((total, lines) => total + lines.size, 0)
-  console.log(`Incremental lint passed: ${files.length} changed files, ${lineCount} added lines`)
-  process.exit(0)
-}
-
-console.error("Incremental lint found new violations:")
-for (const diagnostic of violations) {
-  const span = diagnostic.labels[0]?.span
-  console.error(`${normalizePath(diagnostic.filename)}:${span?.line ?? 1}:${span?.column ?? 1} ${ruleID(diagnostic)}`)
-  console.error(`  ${diagnostic.message}`)
-}
-process.exit(1)
+#!/usr/bin/env bun
+// Fails when a GUI package file this branch adds or edits has any oxlint problem, including warn-level rules (anti-slop):
+// a change that touches a file leaves the whole file clean. Untouched files and other packages are not checked.
+// Usage: bun script/lint-changed.ts [base-ref]   (default: merge base with upstream/v2, origin/v2, or v2)
+import { $ } from "bun"
 
 type Diagnostic = {
-  filename: string
   message: string
-  code?: string
-  ruleId?: string
-  labels: Array<{ span: { offset: number; length: number; line: number; column: number } }>
+  code: string
+  filename: string
+  labels: { span: { line: number; column: number } }[]
 }
 
-async function git(args: string[]) {
-  const child = Bun.spawn(["git", ...args], { stdout: "pipe", stderr: "pipe" })
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-    child.exited,
-  ])
-  if (exitCode === 0) return stdout
-  throw new Error(`git ${args.join(" ")} failed: ${stderr.trim()}`)
+const base = await resolveBase(process.argv[2] ?? process.env.LINT_BASE)
+const tracked = (await $`git diff --name-only --diff-filter=ACMR ${base}`.text()).split("\n")
+const untracked = (await $`git ls-files --others --exclude-standard`.text()).split("\n")
+// The packages .oxlintrc.json applies the anti-slop rules to.
+const packages = ["packages/app/", "packages/desktop/", "packages/gui-extensions/", "packages/ui/", "packages/session-ui/"]
+const files = [...new Set([...tracked, ...untracked])].filter(
+  (file) =>
+    /\.(ts|tsx)$/.test(file) && packages.some((prefix) => file.startsWith(prefix)) && Bun.file(file).size > 0,
+)
+
+if (files.length === 0) {
+  console.log(`lint:changed: no changed TypeScript files since ${base.slice(0, 10)}`)
+  process.exit(0)
 }
 
-function parseOutput(input: string): unknown {
-  try {
-    return JSON.parse(input)
-  } catch (error) {
-    throw new Error("oxlint returned invalid JSON", { cause: error })
-  }
+const report = JSON.parse(await $`bunx oxlint --format json ${files}`.nothrow().quiet().text()) as {
+  diagnostics: Diagnostic[]
 }
 
-function isDiagnostic(value: unknown): value is Diagnostic {
-  if (!value || typeof value !== "object") return false
-  if (!("filename" in value) || typeof value.filename !== "string") return false
-  if (!("message" in value) || typeof value.message !== "string") return false
-  if (!("labels" in value) || !Array.isArray(value.labels)) return false
-  if (!("code" in value) && !("ruleId" in value)) return false
-  return value.labels.every(isLabel)
-}
+report.diagnostics.forEach((diagnostic) => {
+  const span = diagnostic.labels[0]?.span
+  console.log(`${diagnostic.filename}:${span?.line}:${span?.column}  ${diagnostic.code}  ${diagnostic.message}`)
+})
+const dirty = new Set(report.diagnostics.map((diagnostic) => diagnostic.filename))
+console.log(
+  `lint:changed: ${report.diagnostics.length} problem(s) in ${dirty.size} of ${files.length} changed files since ${base.slice(0, 10)}`,
+)
+process.exit(report.diagnostics.length > 0 ? 1 : 0)
 
-function isLabel(value: unknown): value is Diagnostic["labels"][number] {
-  if (!value || typeof value !== "object" || !("span" in value)) return false
-  const span = value.span
-  if (!span || typeof span !== "object") return false
-  return (
-    "offset" in span &&
-    typeof span.offset === "number" &&
-    "length" in span &&
-    typeof span.length === "number" &&
-    "line" in span &&
-    typeof span.line === "number" &&
-    "column" in span &&
-    typeof span.column === "number"
+async function resolveBase(explicit: string | undefined) {
+  if (explicit) return (await $`git rev-parse ${explicit}`.text()).trim()
+  const refs = ["upstream/v2", "origin/v2", "v2"]
+  const found = await Promise.all(
+    refs.map(async (ref) => (await $`git rev-parse --verify --quiet ${ref}`.nothrow().quiet()).exitCode === 0),
   )
-}
-
-function ruleID(diagnostic: Diagnostic) {
-  return diagnostic.ruleId ?? diagnostic.code ?? "unknown"
-}
-
-function isBunAsyncMatcher(diagnostic: Diagnostic, source: string) {
-  const snippets = diagnostic.labels.map((label) =>
-    source.slice(label.span.offset, label.span.offset + label.span.length),
-  )
-  if (snippets.some((snippet) => /\.(?:rejects|resolves)\b/.test(snippet))) return true
-
-  const line = diagnostic.labels[0]?.span.line ?? 1
-  return /\.(?:rejects|resolves)\b/.test(
-    source
-      .split(/\r?\n/)
-      .slice(Math.max(0, line - 1), line + 5)
-      .join("\n"),
-  )
+  const ref = refs.find((_, index) => found[index])
+  if (!ref) throw new Error("lint:changed: no v2 ref found; pass a base ref")
+  return (await $`git merge-base HEAD ${ref}`.text()).trim()
 }

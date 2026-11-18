@@ -1,9 +1,17 @@
-import type { Message, Session, Part, ToolPart, SnapshotFileDiff, SessionStatus, Provider } from "@aigcfroge/sdk/v2"
-import { createSimpleContext } from "@aigcfroge/ui/context"
+import type {
+  FileDiffInfo,
+  SessionInfo,
+  SessionStatus,
+  ShellOutputInput,
+  ShellOutputOutput,
+} from "@opencode/client/promise"
+import { createSimpleContext } from "@opencode/ui/context"
 import { PreloadMultiFileDiffResult } from "@pierre/diffs/ssr"
 
-export type NormalizedProviderListResponse = {
-  all: Map<string, Provider>
+export type SessionSummary = Pick<SessionInfo, "id" | "parentID" | "title" | "time">
+
+type ProviderCatalog = {
+  all: Map<string, { models: Record<string, { name: string }> }>
   default: {
     [key: string]: string
   }
@@ -15,25 +23,16 @@ type Data = {
     name: string
     color?: string
   }[]
-  provider?: NormalizedProviderListResponse
-  session: Session[]
+  provider?: ProviderCatalog
+  session: SessionSummary[]
   session_status: {
     [sessionID: string]: SessionStatus
   }
   session_diff: {
-    [sessionID: string]: SnapshotFileDiff[]
+    [sessionID: string]: FileDiffInfo[]
   }
   session_diff_preload?: {
-    [sessionID: string]: PreloadMultiFileDiffResult<any>[]
-  }
-  message: {
-    [sessionID: string]: Message[]
-  }
-  part: {
-    [messageID: string]: Part[]
-  }
-  part_text_accum_delta?: {
-    [partID: string]: string
+    [sessionID: string]: PreloadMultiFileDiffResult<unknown, undefined>[]
   }
 }
 
@@ -41,16 +40,16 @@ export type NavigateToSessionFn = (sessionID: string) => void
 
 export type SessionHrefFn = (sessionID: string) => string
 
-export type QuestionActionFn = (part: Pick<ToolPart, "sessionID" | "messageID" | "callID">) => (() => void) | undefined
-
 export const { use: useData, provider: DataProvider } = createSimpleContext({
   name: "Data",
   init: (props: {
     data: Data
     directory: string
+    sessionID?: string
+    shellRunning?: (id: string) => boolean
+    shellOutput?: (input: ShellOutputInput) => Promise<ShellOutputOutput>
     onNavigateToSession?: NavigateToSessionFn
     onSessionHref?: SessionHrefFn
-    onQuestionAction?: QuestionActionFn
   }) => {
     return {
       get store() {
@@ -59,9 +58,13 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
       get directory() {
         return props.directory
       },
+      get sessionID() {
+        return props.sessionID
+      },
       navigateToSession: props.onNavigateToSession,
       sessionHref: props.onSessionHref,
-      questionAction: props.onQuestionAction,
+      shellRunning: props.shellRunning,
+      shellOutput: props.shellOutput,
     }
   },
 })

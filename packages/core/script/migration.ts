@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 
-import { $ } from "bun"
 import fs from "fs/promises"
 import os from "os"
 import path from "path"
@@ -28,7 +27,7 @@ if (args.values.check) {
 await generate()
 
 async function generate() {
-  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-core-migration-"))
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-core-migration-"))
   const incremental = path.join(temporary, "incremental")
   const full = path.join(temporary, "full")
   try {
@@ -49,7 +48,7 @@ async function generate() {
           renderMigration(name, await Bun.file(path.join(incremental, name, "migration.sql")).text()),
         ),
       )
-      await fs.copyFile(path.join(incremental, name, "snapshot.json"), snapshot)
+      await Bun.write(snapshot, await formatJson(await Bun.file(path.join(incremental, name, "snapshot.json")).text()))
     }
 
     await fs.mkdir(full)
@@ -62,7 +61,7 @@ async function generate() {
 }
 
 async function check() {
-  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-core-migration-check-"))
+  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-core-migration-check-"))
   const incremental = path.join(temporary, "incremental")
   const full = path.join(temporary, "full")
   try {
@@ -100,9 +99,14 @@ async function drizzle(temporary: string, output: string, name?: string) {
 export default { ...config, out: ${JSON.stringify(output)} }
 `,
   )
-  await $`bun drizzle-kit generate --config ${config} ${name ? ["--name", name] : []}`.cwd(
-    path.join(root, "packages/core"),
-  )
+  const child = Bun.spawn(["bun", "drizzle-kit", "generate", "--config", config, ...(name ? ["--name", name] : [])], {
+    cwd: path.join(root, "packages/core"),
+    stdin: "inherit",
+    stdout: "inherit",
+    stderr: "inherit",
+  })
+  const exit = await child.exited
+  if (exit !== 0) throw new Error(`Drizzle generation failed with exit code ${exit}.`)
 }
 
 async function generatedMigrations(directory: string) {
@@ -115,7 +119,7 @@ async function generatedMigrations(directory: string) {
 async function generatedSql(directory: string) {
   const generated = await generatedMigrations(directory)
   if (generated.length !== 1) throw new Error(`Expected one full schema migration, found ${generated.length}.`)
-  return Bun.file(path.join(directory, generated[0], "migration.sql")).text()
+  return Bun.file(path.join(directory, generated[0]!, "migration.sql")).text()
 }
 
 async function typescriptMigrations() {
@@ -126,30 +130,34 @@ async function typescriptMigrations() {
 
 function renderMigration(name: string, sql: string) {
   return `import { Effect } from "effect"
-import type { DatabaseMigration } from "../migration"
+import type { DatabaseMigration } from "../migration.js"
 
-export default {
+const migration: DatabaseMigration.Migration = {
   id: ${JSON.stringify(name)},
   up(tx) {
     return Effect.gen(function* () {
 ${renderStatements(sql)}
     })
   },
-} satisfies DatabaseMigration.Migration
+}
+
+export default migration
 `
 }
 
 function renderSchema(sql: string) {
   return `import { Effect } from "effect"
-import type { DatabaseMigration } from "./migration"
+import type { DatabaseMigration } from "./migration.js"
 
-export default {
+const schema: Omit<DatabaseMigration.Migration, "id"> = {
   up(tx) {
     return Effect.gen(function* () {
 ${renderStatements(sql)}
     })
   },
-} satisfies Omit<DatabaseMigration.Migration, "id">
+}
+
+export default schema
 `
 }
 
@@ -184,13 +192,25 @@ async function formatTypescript(input: string) {
   })
 }
 
-function renderRegistry(names: string[]) {
-  return `import type { DatabaseMigration } from "./migration"
+// Drizzle emits every array multi-line; format the snapshot so regeneration
+// diffs stay minimal against the prettier-styled checked-in copy.
+async function formatJson(input: string) {
+  const prettier = await import("prettier")
+  const babel = await import("prettier/plugins/babel")
+  const estree = await import("prettier/plugins/estree")
+  return prettier.format(input, {
+    parser: "json",
+    plugins: [babel.default, estree.default],
+    printWidth: 120,
+  })
+}
 
-export const migrations = (
-  await Promise.all([
-${names.map((name) => `    import("./migration/${name}"),`).join("\n")}
-  ])
-).map((module) => module.default) satisfies DatabaseMigration.Migration[]
+function renderRegistry(names: string[]) {
+  return `import type { DatabaseMigration } from "./migration.js"
+${names.map((name, index) => `import m${index.toString().padStart(2, "0")} from "./migration/${name}.js"`).join("\n")}
+
+export const migrations = [
+${names.map((_, index) => `  m${index.toString().padStart(2, "0")},`).join("\n")}
+] satisfies DatabaseMigration.Migration[]
 `
 }

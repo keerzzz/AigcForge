@@ -1,21 +1,20 @@
-export * as Workspace from "./workspace"
+export * as Workspace from "./workspace.js"
 
 import { Schema } from "effect"
-import { ascending } from "./identifier"
-import { withStatics } from "./schema"
+import { WorkspaceEvent } from "./workspace-event.js"
+import { WorkspaceID } from "./workspace-id.js"
 
-export const ID = Schema.String.check(Schema.isStartsWith("wrk")).pipe(
-  Schema.brand("WorkspaceV2.ID"),
-  withStatics((schema) => {
-    const create = () => schema.make("wrk_" + ascending())
-    return {
-      ascending: (id?: string) => {
-        if (!id) return create()
-        if (!id.startsWith("wrk")) throw new Error(`ID ${id} does not start with wrk`)
-        return schema.make(id)
-      },
-      create,
-    }
+export const ID = WorkspaceID
+export type ID = WorkspaceID
+
+export const DestroyResult = Schema.Struct({
+  destroyed: Schema.Boolean.annotate({
+    description: "True when this request transitioned the workspace from existing to destroyed.",
   }),
-)
-export type ID = typeof ID.Type
+}).annotate({
+  identifier: "WorkspaceDestroyResult",
+  description: "Reports whether this request destroyed an existing workspace.",
+})
+export interface DestroyResult extends Schema.Schema.Type<typeof DestroyResult> {}
+
+export const Event = WorkspaceEvent

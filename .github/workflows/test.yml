@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - dev
+      - v2
   pull_request:
   workflow_dispatch:
 
@@ -21,6 +22,36 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  affected:
+    name: affected packages
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    outputs:
+      app: ${{ steps.packages.outputs.app }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: package.json
+
+      - name: Find affected packages
+        id: packages
+        env:
+          TURBO_SCM_BASE: ${{ github.event_name == 'pull_request' && format('{0}^1', github.sha) || github.event.before }}
+          TURBO_SCM_HEAD: ${{ github.sha }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "app=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          bun x turbo@2.10.2 ls --affected --filter=@opencode/app --output=json > affected.json
+          bun -e 'const result = await Bun.file("affected.json").json(); console.log(`app=${result.packages.count > 0}`)' >> "$GITHUB_OUTPUT"
+
   unit:
     name: unit (${{ matrix.settings.name }})
     strategy:
@@ -28,9 +59,9 @@ jobs:
       matrix:
         settings:
           - name: linux
-            host: ubuntu-latest
+            host: blacksmith-4vcpu-ubuntu-2404
           - name: windows
-            host: windows-latest
+            host: blacksmith-4vcpu-windows-2025
     runs-on: ${{ matrix.settings.host }}
     defaults:
       run:
@@ -40,6 +71,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -49,14 +81,18 @@ jobs:
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
 
+      - name: Test Effect simplification rules
+        if: runner.os == 'Linux'
+        run: bun run test:effect-simplification-rules
+
+      - name: Check Effect simplifications
+        if: runner.os == 'Linux'
+        run: bun run lint:effect-simplifications
+
       - name: Configure git identity
         run: |
-          git config --global user.email "bot@aigcfroge.dev"
-          git config --global user.name "aigcfroge"
-
-      - name: Install ripgrep on Windows
-        if: runner.os == 'Windows'
-        run: choco install ripgrep --yes --no-progress
+          git config --global user.email "bot@opencode.ai"
+          git config --global user.name "opencode"
 
       - name: Cache Turbo
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -68,175 +104,118 @@ jobs:
             turbo-${{ runner.os }}-
 
       - name: Run unit tests
-        # The 2026-09-21 CI run completed core's 2,493 Windows tests (0 failures)
-        # but timed out before aigcfroge's 3,320 tests finished. Linux's same
-        # aigcfroge suite took 20m; Windows is slower for subprocess-heavy tests.
-        # This is a kill switch, not a substitute for the per-test 90s bound.
-        timeout-minutes: ${{ runner.os == 'Windows' && 90 || 40 }}
-        run: GITHUB_ACTIONS=false bun turbo test
+        timeout-minutes: 20
+        run: |
+          # The runners have four vCPUs, and each Bun test process performs its own concurrent work.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            GITHUB_ACTIONS=false bun turbo test --concurrency=3
+            exit 0
+          fi
+          GITHUB_ACTIONS=false bun turbo test --affected --concurrency=3
         env:
-          AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || '' }}
+          OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || 'false' }}
+          TURBO_SCM_BASE: ${{ github.event_name == 'pull_request' && format('{0}^1', github.sha) || github.event.before }}
+          TURBO_SCM_HEAD: ${{ github.sha }}
 
-      - name: Run HttpApi exerciser — coverage + auth (gate)
+      - name: Verify published codemode package
         if: runner.os == 'Linux'
-        working-directory: packages/aigcfroge
-        run: bun run script/httpapi-exercise.ts --mode coverage --fail-on-missing --fail-on-skip && bun run script/httpapi-exercise.ts --mode auth --fail-on-missing --fail-on-skip
+        working-directory: packages/codemode
+        run: bun run script/publish.ts --dry-run
 
-      - name: Run HttpApi exerciser — effect (advisory, remaining runtime failures)
-        # EventV2 transaction ownership is fixed, but the complete effect suite
-        # still has unrelated failures; keep it advisory until the exact run is green.
+      - name: Verify packed workerd SDK
         if: runner.os == 'Linux'
-        working-directory: packages/aigcfroge
-        continue-on-error: true
-        timeout-minutes: 30
-        run: bun run script/httpapi-exercise.ts --mode effect
+        timeout-minutes: 15
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            bun turbo verify:package --filter=@opencode/sdk
+            exit 0
+          fi
+          bun turbo verify:package --affected --filter=@opencode/sdk
+        env:
+          TURBO_SCM_BASE: ${{ github.event_name == 'pull_request' && format('{0}^1', github.sha) || github.event.before }}
+          TURBO_SCM_HEAD: ${{ github.sha }}
 
-  e4:
-    name: e4 (${{ matrix.settings.name }})
-    # The real-backend harness builds the production app and boots a real backend,
-    # a real PTY and a real SQLite DB on PRs as well as dev/dispatch runs.
-    # Each run uses isolated HOME/config/data and a loopback test provider;
-    # no external provider credentials or existing services are required.
-    #
-    # Default and V2 run the full suite. Custom runs its positive runtime case
-    # with the global V2 switch off, so Custom's own routing is exercised.
-    strategy:
-      fail-fast: false
-      matrix:
-        settings:
-          - name: linux
-            host: ubuntu-latest
-    runs-on: ${{ matrix.settings.host }}
-    env:
-      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.playwright-browsers
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify compiled service lifecycle
+        if: always()
+        timeout-minutes: 10
+        working-directory: packages/cli
+        env:
+          NODE_OPTIONS: ${{ runner.os == 'Windows' && '--max-old-space-size=4096' || '' }}
+        run: |
+          bun run script/build.ts --single --skip-install
+          bun run script/service-smoke.ts
 
-      - name: Setup Node
+      - name: Setup Node build runtime
+        if: always()
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          # Same pin as the e2e job: Playwright 1.59 hangs extracting Chromium on 24.16.
-          node-version: "24.15"
+          node-version: "26.4.0"
 
-      - name: Setup Bun
-        uses: ./.github/actions/setup-bun
-
-      - name: Configure git identity
-        run: |
-          git config --global user.email "bot@aigcfroge.dev"
-          git config --global user.name "aigcfroge"
-
-      - name: Read Playwright version
-        id: playwright-version
-        run: |
-          version=$(node -e 'console.log(require("./package.json").workspaces.catalog["@playwright/test"])')
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ${{ github.workspace }}/.playwright-browsers
-          key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ steps.playwright-version.outputs.version }}-chromium
-
-      - name: Install Playwright system dependencies
-        working-directory: packages/app
-        run: bunx playwright install-deps chromium
-
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        working-directory: packages/app
-        run: bunx playwright install chromium
-
-      - name: Run E4 — default runtime
-        # The run dir points into the workspace so the orchestrator's evidence
-        # (manifest, teardown gate, orchestrator.log) can be uploaded; otherwise it
-        # would live in the runner's tmpdir and vanish with it.
-        env:
-          CI: true
-          E4_RUN_DIR: ${{ github.workspace }}/packages/app/e2e/real/run-evidence/default
-        run: bun --cwd packages/app test:e2e --config e2e/real/playwright.config.ts --project=chromium-real --workers=1 --retries=0
-        # Kill switch, not a wait-for-green budget: the harness polls readiness
-        # rather than sleeping, so this only bounds a hang. Local wall on an idle
-        # machine: 13.4m default, 7.0m flag-on (cold production build included),
-        # and the worst case inside a single run is the 600s backend health poll.
-        timeout-minutes: 45
-
-      - name: Run E4 — V2 variant
-        env:
-          CI: true
-          E4_V2_RUNTIME: "1"
-          E4_RUN_DIR: ${{ github.workspace }}/packages/app/e2e/real/run-evidence/v2
-        run: bun --cwd packages/app test:e2e --config e2e/real/playwright.config.ts --project=chromium-real --workers=1 --retries=0
-        timeout-minutes: 45
-
-      - name: Run E4 — Custom variant
-        env:
-          CI: true
-          E4_V2_RUNTIME: "0"
-          E4_CUSTOM_MODE: "1"
-          E4_RUN_DIR: ${{ github.workspace }}/packages/app/e2e/real/run-evidence/custom
-        run: bun --cwd packages/app test:e2e e2e/real/canonical-runtime.spec.ts --config e2e/real/playwright.config.ts --project=chromium-real --workers=1 --retries=0
-        timeout-minutes: 45
-
-      - name: Upload E4 evidence
-        # Always: a failed harness is exactly when the teardown report and the
-        # preserved run dir matter most. This is the durable half of the evidence
-        # the S5 archive had to keep by hand.
+      - name: Verify Node build
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: e4-evidence-${{ github.run_attempt }}
-          if-no-files-found: ignore
-          retention-days: 14
-          path: |
-            packages/app/e2e/real/run-evidence
-            packages/app/e2e/real/test-results
+        timeout-minutes: 15
+        working-directory: packages/cli
+        env:
+          NODE_OPTIONS: ${{ runner.os == 'Windows' && '--max-old-space-size=4096' || '' }}
+        run: |
+          bun run script/build-node.ts --single --skip-install --outdir=dist/node
+          bun run script/service-smoke.ts --node
+
+      - name: Check generated client
+        if: runner.os == 'Linux'
+        working-directory: packages/client
+        run: bun run check:generated
+
+      - name: Check generated documentation
+        if: runner.os == 'Linux'
+        working-directory: services/www
+        run: bun run check:generated
 
   e2e:
     name: e2e (${{ matrix.settings.name }})
+    needs: affected
     strategy:
       fail-fast: false
       matrix:
         settings:
           - name: linux
-            host: ubuntu-latest
+            host: blacksmith-4vcpu-ubuntu-2404
           - name: windows
-            host: windows-latest
+            host: blacksmith-4vcpu-windows-2025
     runs-on: ${{ matrix.settings.host }}
     env:
+      E2E_ENABLED: ${{ needs.affected.outputs.app == 'true' && github.ref_name != 'v2' && github.head_ref != 'v2' }}
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.playwright-browsers
     defaults:
       run:
         shell: bash
     steps:
       - name: Checkout repository
+        if: env.E2E_ENABLED == 'true'
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node
+        if: env.E2E_ENABLED == 'true'
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           # Playwright 1.59 hangs while extracting Chromium with Node 24.16.
           node-version: "24.15"
 
       - name: Setup Bun
+        if: env.E2E_ENABLED == 'true'
         uses: ./.github/actions/setup-bun
 
       - name: Read Playwright version
+        if: env.E2E_ENABLED == 'true'
         id: playwright-version
         run: |
           version=$(node -e 'console.log(require("./package.json").workspaces.catalog["@playwright/test"])')
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Cache Playwright browsers
+        if: env.E2E_ENABLED == 'true'
         id: playwright-cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
@@ -244,40 +223,44 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ steps.playwright-version.outputs.version }}-chromium
 
       - name: Install Playwright system dependencies
-        if: runner.os == 'Linux'
+        if: env.E2E_ENABLED == 'true' && runner.os == 'Linux'
         working-directory: packages/app
         run: bunx playwright install-deps chromium
 
       - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        if: env.E2E_ENABLED == 'true' && steps.playwright-cache.outputs.cache-hit != 'true'
         working-directory: packages/app
         run: bunx playwright install chromium
 
-      - name: Run app e2e tests
-        # `chromium` is the business suite. The other three projects are the
-        # presentation matrix and filter on `PRESENTATION_GREP` (e2e/presentation-matrix.ts):
-        # theme/locale/viewport survive, but the suite is no longer multiplied by four
-        # (~1030 instances before, ~218 after, measured with `playwright test --list`).
-        # Windows keeps the baseline Chromium project so the OS split does not multiply
-        # the slowest runner. No continue-on-error: the matrix is a real gate. The Linux
-        # budget was sized for the unfiltered matrix; the first CI run after the filter
-        # is what should resize it, not this comment.
-        run: |
-          if [ "$RUNNER_OS" = "Linux" ]; then
-            bun --cwd packages/app test:e2e:local --project=chromium --project=chromium-dark --project=chromium-zh --project=chromium-narrow
-          else
-            bun --cwd packages/app test:e2e:local --project=chromium
-          fi
+      - name: Run app e2e tests against production build
+        if: env.E2E_ENABLED == 'true'
+        run: bun --cwd packages/app test:e2e:built
         env:
           CI: true
-          # At five workers, the 2,000-project fan-out made Linux exceed its
-          # per-case budget and Windows hit ERR_NO_BUFFER_SPACE mid-suite.
-          # Reduce contention before widening any individual test timeout.
-          PLAYWRIGHT_WORKERS: ${{ runner.os == 'Windows' && '2' || '3' }}
-        timeout-minutes: ${{ runner.os == 'Linux' && 90 || 50 }}
+        timeout-minutes: 30
+
+      - name: Verify service worker precaching and upgrades
+        if: env.E2E_ENABLED == 'true'
+        working-directory: packages/app
+        run: bunx playwright test --config e2e/service-worker/playwright.config.ts
+        timeout-minutes: 5
+
+      - name: Run session UI component tests
+        if: ${{ !cancelled() && env.E2E_ENABLED == 'true' }}
+        run: bun --cwd packages/session-ui test:components
+        env:
+          CI: true
+        timeout-minutes: 15
+
+      - name: Run app component tests
+        if: ${{ !cancelled() && env.E2E_ENABLED == 'true' }}
+        run: bun --cwd packages/app test:components
+        env:
+          CI: true
+        timeout-minutes: 15
 
       - name: Upload Playwright artifacts
-        if: always()
+        if: always() && env.E2E_ENABLED == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: playwright-${{ matrix.settings.name }}-${{ github.run_attempt }}
@@ -286,3 +269,7 @@ jobs:
           path: |
             packages/app/e2e/test-results
             packages/app/e2e/playwright-report
+            packages/session-ui/component-tests/test-results
+            packages/session-ui/component-tests/playwright-report
+            packages/app/component-tests/test-results
+            packages/app/component-tests/playwright-report

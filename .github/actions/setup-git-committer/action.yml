@@ -1,49 +1,33 @@
 name: "Setup Git Committer"
-description: "Configure git user"
+description: "Create app token and configure git user"
 inputs:
-  aigcfroge-app-id:
-    description: "Aigcfroge GitHub App ID"
-    required: false
-  aigcfroge-app-secret:
-    description: "Aigcfroge GitHub App private key"
-    required: false
-  require-app:
-    description: "Fail instead of falling back when an unattended workflow requires an App"
-    required: false
-    default: "false"
+  opencode-app-id:
+    description: "OpenCode GitHub App ID"
+    required: true
+  opencode-app-secret:
+    description: "OpenCode GitHub App private key"
+    required: true
 outputs:
   token:
-    description: "GitHub App token or GitHub Token"
-    value: ${{ steps.apptoken.outputs.token || github.token }}
+    description: "GitHub App token"
+    value: ${{ steps.apptoken.outputs.token }}
   app-slug:
     description: "GitHub App slug"
-    value: ${{ steps.apptoken.outputs.app-slug || 'github-actions' }}
+    value: ${{ steps.apptoken.outputs.app-slug }}
 runs:
   using: "composite"
   steps:
-    - name: Require configured GitHub App
-      if: inputs.require-app == 'true'
-      shell: bash
-      env:
-        APP_ID: ${{ inputs.aigcfroge-app-id }}
-        APP_PRIVATE_KEY: ${{ inputs.aigcfroge-app-secret }}
-      run: |
-        if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
-          echo "::error::AIGCFROGE_APP_ID and AIGCFROGE_APP_SECRET are required for unattended release PRs"
-          exit 1
-        fi
     - name: Create app token
       id: apptoken
-      if: inputs.aigcfroge-app-id != '' && inputs.aigcfroge-app-secret != ''
       uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
       with:
-        app-id: ${{ inputs.aigcfroge-app-id }}
-        private-key: ${{ inputs.aigcfroge-app-secret }}
+        app-id: ${{ inputs.opencode-app-id }}
+        private-key: ${{ inputs.opencode-app-secret }}
         owner: ${{ github.repository_owner }}
 
     - name: Configure git user
       run: |
-        slug="${{ steps.apptoken.outputs.app-slug || 'github-actions' }}"
+        slug="${{ steps.apptoken.outputs.app-slug }}"
         git config --global user.name "${slug}[bot]"
         git config --global user.email "${slug}[bot]@users.noreply.github.com"
       shell: bash
@@ -55,7 +39,5 @@ runs:
 
     - name: Configure git remote
       run: |
-        token="${{ steps.apptoken.outputs.token || github.token }}"
-        echo "::add-mask::$token"
-        git remote set-url origin https://x-access-token:${token}@github.com/${{ github.repository }}
+        git remote set-url origin https://x-access-token:${{ steps.apptoken.outputs.token }}@github.com/${{ github.repository }}
       shell: bash

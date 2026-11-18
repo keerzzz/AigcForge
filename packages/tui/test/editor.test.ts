@@ -11,7 +11,7 @@ afterEach(() => {
 
 test("rejects when the external editor cannot start", async () => {
   delete process.env.VISUAL
-  process.env.EDITOR = "aigcfroge-editor-that-does-not-exist"
+  process.env.EDITOR = "opencode-editor-that-does-not-exist"
   const renderer = {
     suspend() {},
     resume() {},
@@ -19,7 +19,6 @@ test("rejects when the external editor cannot start", async () => {
     currentRenderBuffer: { clear() {} },
   }
 
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- test needs invalid renderer shape to exercise rejection path
   await expect(openEditor({ value: "original", renderer: renderer as never })).rejects.toThrow()
 })
 

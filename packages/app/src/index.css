@@ -1,6 +1,7 @@
-@import "@aigcfroge/ui/styles/tailwind";
-@import "@aigcfroge/session-ui/styles";
-@import "@aigcfroge/ui/v2/styles/tailwind.css";
+@import "@opencode/ui/styles/tailwind";
+@import "@opencode/session-ui/styles";
+@import "@opencode/ui/styles/tokens";
+@import "tw-animate-css";
 
 @font-face {
   font-family: "JetBrainsMono Nerd Font Mono";
@@ -16,6 +17,14 @@
   font-style: normal;
 }
 
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("@ibm/plex/IBM-Plex-Mono/fonts/complete/woff2/IBMPlexMono-Text.woff2") format("woff2");
+  font-weight: 440;
+  font-style: normal;
+  font-display: swap;
+}
+
 @media (display-mode: standalone) {
   /* WebKit excludes safe-area insets from dvh in installed apps. */
   #root {
@@ -23,381 +32,229 @@
   }
 }
 
+/* iOS can report navigator.standalone without matching display-mode. */
+#root[data-standalone="true"] {
+  height: 100vh;
+}
+
 @layer components {
-  /* M7 决策 5 (2026-08-05 统一): ONE segment-sweep mechanism for both states.
-     Env pulse (no todos) and task pulse (todos) are the same 14px highlight
-     whose center sweeps from --pulse-from-pct to --pulse-to-pct — no JS frame
-     loop, no separate clip-path scan. from = line start / first node, to =
-     line end (no todos) or anchor (todos). */
-  @keyframes session-progress-segment-sweep {
-    0%,
-    100% {
-      left: var(--pulse-from-pct, 0%);
-      transform: translateX(-50%);
-    }
-    50% {
-      left: var(--pulse-to-pct, 100%);
-      transform: translateX(-50%);
-    }
+  [data-slot="session-chat-panel"][data-scrollbar-hidden="true"]
+    [data-slot="session-timeline-scroll"]
+    > .scroll-view__thumb {
+    visibility: hidden;
   }
 
-  /* M7 unified track: absolute, below the h-12 title row. 34px band = label/统计
-     top row (0-12px) + 2px line/10px nodes bottom row + 16px breathing below the
-     line, so the track's bottom whitespace matches the 16px title pl-4 left inset
-     (unified composite margins, 2026-08-05). Env pulse and task line share one
-     vertical position (决策 1/3 — no layout jump when tasks appear). */
-  [data-component="session-progress"] {
-    position: absolute;
-    top: 48px;
-    left: 0;
-    right: 0;
-    height: 34px;
-    overflow: visible;
-    pointer-events: none;
+  [data-slot="session-side-panel-presence"][data-opened="true"] {
+    animation: side-region-presence-in 240ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  [data-component="session-progress-track-area"] {
-    position: absolute;
-    top: 11px;
-    left: var(--session-progress-inset);
-    right: var(--session-progress-inset);
-    height: 10px;
-    pointer-events: none;
+  [data-slot="session-side-panel-presence"][data-opened="false"] {
+    animation: side-region-presence-out 240ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
 
-  [data-component="session-progress-bar"] {
-    position: absolute;
-    top: 5px;
-    left: 0;
-    height: 2px;
-    width: var(--session-progress-pulse-width);
-    border-radius: 999px;
-    will-change: transform;
-    animation: session-progress-segment-sweep 2.4s ease-in-out infinite;
-    /* 决策 5 soft glow. Tradeoff vs the plan's color-mix(--v2-icon-icon-accent)
-       wording: the agent tint (v1 token, inline) is preserved and softened via
-       opacity instead of being dropped — prompt §2 "保持 agent tint 语义". */
-    opacity: 0.5;
-  }
-
-  /* No-todo placeholder track (2026-08-05, unified model): the running state
-     ALWAYS shows the track skeleton — a semi-transparent line + start/end
-     endpoint dots — and the pulse scans from the start dot to the end dot.
-     When todos arrive the task nodes replace these dots (first/last land on
-     the same 16px insets). */
-  [data-component="session-progress-track"] {
-    position: absolute;
-    top: 5px;
-    left: 0;
-    right: 0;
-    height: 2px;
-    border-radius: 999px;
-    background: var(--v2-border-border-base);
-    opacity: 0.5;
-  }
-
-  [data-component="session-progress-endpoint"] {
-    position: absolute;
-    top: 0;
-    width: 10px;
-    height: 10px;
-    margin-left: -5px;
-    border-radius: 999px;
-    border: 1.5px solid var(--v2-icon-icon-accent);
-    background: transparent;
-    opacity: 0.5;
-    pointer-events: none;
-  }
-
-  [data-component="session-progress-endpoint"][data-end="start"] {
-    left: 0;
-  }
-
-  [data-component="session-progress-endpoint"][data-end="end"] {
-    left: 100%;
-  }
-
-  /* Only the environment pulse fades during "hiding"; the task strip persists
-     into idle static retention (决策 2) and must not fade then pop back. */
-  [data-component="session-progress"][data-state="hiding"] [data-component="session-progress-bar"] {
-    opacity: 0;
-    transition: opacity 220ms ease-out;
-  }
-
-  /* Task strip fills the track band; only interactive elements receive events.
-     The env pulse and the strip are mutually exclusive (message-timeline
-     renders one or the other), so no :has() freeze is needed. */
-  [data-component="session-todo-progress"] {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-  }
-
-  [data-component="session-todo-progress-label"] {
-    position: absolute;
-    top: 0;
-    left: var(--session-progress-inset);
-    height: 12px;
-    font-size: 10px;
-    line-height: 12px;
-    color: var(--v2-text-text-muted);
-    user-select: none;
-  }
-
-  [data-component="session-todo-progress-track"] {
-    position: absolute;
-    top: 5px;
-    left: 0;
-    right: 0;
-    height: 2px;
-    border-radius: 999px;
-    background: var(--v2-border-border-base);
-  }
-
-  [data-component="session-todo-progress-fill"] {
-    position: absolute;
-    top: 5px;
-    left: 0;
-    height: 2px;
-    background: var(--v2-icon-icon-accent);
-    will-change: clip-path;
-  }
-
-  /* 14px fixed pulse segment width (shared by env + task pulse). The pulse uses
-     track-local percentages and translateX(-50%) so its center aligns with node
-     centers and line endpoints without measuring the DOM width. */
-  [data-component="session-todo-progress-pulse"] {
-    position: absolute;
-    top: 5px;
-    left: 0;
-    height: 2px;
-    width: var(--session-progress-pulse-width);
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--v2-icon-icon-accent) 60%, transparent);
-    animation: session-progress-segment-sweep 1.4s ease-in-out infinite;
-  }
-
-  /* P2: when a determinate progressPct is set, rest at that position instead of
-     sweeping. Higher specificity than the reduced-motion rule so it wins in both
-     normal and reduced-motion contexts. */
-  [data-component="session-todo-progress-pulse"][data-determinate="true"] {
-    left: var(--pulse-progress-pct);
-    transform: translateX(-50%);
-    animation: none;
-  }
-
-  [data-component="session-todo-progress-node"] {
-    position: absolute;
-    top: 0;
-    width: 10px;
-    height: 10px;
-    margin-left: -5px;
-    border-radius: 999px;
-    border: 1.5px solid var(--v2-background-bg-deep);
-    background: var(--v2-icon-icon-accent);
-    padding: 0;
-    cursor: pointer;
-    pointer-events: auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: transform 120ms var(--tool-motion-ease, cubic-bezier(0.22, 1, 0.36, 1));
-  }
-
-  [data-component="session-todo-progress-node"]:hover {
-    transform: scale(1.4);
-  }
-
-  [data-component="session-todo-progress-node"][data-state="pending"] {
-    background: transparent;
-    border-color: var(--v2-icon-icon-accent);
-  }
-
-  [data-component="session-todo-progress-node"][data-state="completed"] {
-    background: var(--v2-icon-icon-accent);
-    color: var(--v2-icon-icon-contrast);
-  }
-
-  [data-component="session-todo-progress-node"][data-state="cancelled"] {
-    background: var(--v2-icon-icon-muted);
-    border-color: var(--v2-icon-icon-muted);
-    color: var(--v2-icon-icon-contrast);
-  }
-
-  [data-component="session-todo-progress-node"][data-state="scheduled"] {
-    background: transparent;
-    border-color: var(--v2-state-fg-warning);
-    border-style: dashed;
-  }
-
-  [data-component="session-todo-progress-node"][data-state="failed"] {
-    background: var(--v2-state-fg-danger);
-    border-color: var(--v2-state-fg-danger);
-    color: var(--v2-icon-icon-contrast);
-  }
-
-  [data-component="session-todo-progress-node"][data-state="in_progress"][data-anchor] {
-    animation: session-todo-progress-node-pulse 1.6s infinite;
-  }
-
-  @keyframes session-todo-progress-node-pulse {
-    0%,
-    100% {
-      box-shadow: 0 0 0 0 color-mix(in srgb, var(--v2-icon-icon-accent) 60%, transparent);
-    }
-    50% {
-      box-shadow: 0 0 0 4px transparent;
-    }
-  }
-
-  [data-component="session-todo-progress-check"] {
-    width: 6px;
-    height: 6px;
-  }
-
-  /* Plan §5.5: marks the gaps left when >20 nodes downsample to
-     first/anchor/last. Pure indicator (aria-hidden); hover title repeats the
-     done/total summary, the full list stays in the fold-over panel. */
-  [data-component="session-todo-progress-ellipsis"] {
-    position: absolute;
-    top: 0;
-    height: 10px;
-    margin-left: -5px;
-    font-size: 8px;
-    line-height: 10px;
-    color: var(--v2-text-text-muted);
-    user-select: none;
-  }
-
-  [data-component="session-todo-progress-stats"] {
-    position: absolute;
-    right: var(--session-progress-inset);
-    top: 0;
-    height: 12px;
-    font-size: 10px;
-    line-height: 12px;
-    color: var(--v2-text-text-muted);
-    user-select: none;
-    background: none;
-    border: none;
-    padding: 0;
-    font-family: inherit;
-    cursor: pointer;
-    pointer-events: auto;
-  }
-
-  [data-component="session-todo-progress-stats"]:hover {
-    color: var(--v2-text-text-base);
-  }
-
-  /* M7 决策 2: all-complete flips the stats to the success color, width
-     unchanged (only the color changes). */
-  [data-component="session-todo-progress-stats"][data-complete="true"] {
-    color: var(--v2-state-fg-success);
-  }
-
-  [data-component="session-todo-progress-panel"] {
-    position: absolute;
-    top: 34px;
-    right: var(--session-progress-inset);
-    min-width: 220px;
-    max-width: min(320px, calc(100vw - 24px));
-    max-height: 220px;
-    overflow-y: auto;
-    padding: 6px;
-    border-radius: var(--radius-md);
-    background: var(--v2-background-bg-layer-01);
-    border: 1px solid var(--v2-border-border-base);
-    box-shadow: var(--v2-elevation-floating);
-    pointer-events: auto;
-  }
-
-  [data-slot="session-todo-progress-checkbox-label"][data-status="completed"] {
-    color: var(--v2-text-text-muted);
-    text-decoration: line-through;
-  }
-
-  [data-slot="session-todo-progress-checkbox-label"][data-status="cancelled"] {
-    color: var(--v2-text-text-muted);
-    opacity: 0.7;
-  }
-
-  [data-slot="session-todo-progress-checkbox-label"][data-status="failed"] {
-    color: var(--v2-state-fg-danger);
-  }
-
-  [data-slot="session-todo-progress-checkbox-label"][data-status="scheduled"] {
-    color: var(--v2-state-fg-warning);
-  }
-
-  [data-component="session-scheduled-chip"] {
-    white-space: nowrap;
-    user-select: none;
-  }
-
-  [data-component="session-scheduled-list"] {
-    max-height: 260px;
-    overflow-y: auto;
-  }
-
-  [data-component="session-scheduled-popover"] [data-slot="checkbox-v2-label-text"] {
-    font-size: var(--font-size-small);
-    font-weight: var(--font-weight-regular);
-    color: var(--v2-text-text-base);
-  }
-
-  [data-component="session-scheduled-popover"] [data-slot="checkbox-v2-description"] {
-    font-size: var(--font-size-small);
-    font-weight: var(--font-weight-regular);
-    color: var(--v2-text-text-muted);
-  }
-
-  [data-component="agent-task-hub-agent"][data-selected] {
-    background: var(--v2-background-bg-layer-01);
-  }
-
-  [data-component="agent-task-hub-task"][data-status="completed"],
-  [data-component="agent-task-hub-task"][data-status="cancelled"],
-  [data-component="agent-task-hub-task"][data-status="failed"] {
-    color: var(--v2-text-text-muted);
-  }
-
-  [data-component="getting-started"] {
+  #review-panel {
     container-type: inline-size;
-    container-name: getting-started;
   }
 
-  [data-component="dropdown-menu-content"].desktop-app-menu,
-  [data-component="dropdown-menu-sub-content"].desktop-app-menu {
+  /* Like the composer toolbar, fade only clipped content without reserving layout space.
+     The fade contracts as overflow clears; the second mask preserves the header divider. */
+  #review-panel .session-review-v2-tabs-bar {
+    --session-review-header-fade: clamp(0px, calc(100% - 100cqi), 24px);
+    mask-image:
+      linear-gradient(
+        to right,
+        #000 calc(100cqi - 40px - var(--session-review-header-fade)),
+        transparent calc(100cqi - 40px)
+      ),
+      linear-gradient(to top, #000 1px, transparent 1px);
+
+    &:dir(rtl) {
+      mask-image:
+        linear-gradient(
+          to left,
+          #000 calc(100cqi - 40px - var(--session-review-header-fade)),
+          transparent calc(100cqi - 40px)
+        ),
+        linear-gradient(to top, #000 1px, transparent 1px);
+    }
+  }
+
+  /* The panel's width animation supplies the slide; only fade its fixed-width contents. */
+  [data-slot="session-side-region-presence"][data-opened] [data-slot="session-review-content"] {
+    transition: opacity 200ms ease-out 40ms;
+  }
+
+  /* Cached contents must stay transparent even after the presence animation finishes. */
+  #review-panel[aria-hidden="true"] > [data-slot="session-review-content"] {
+    opacity: 0;
+  }
+
+  [data-slot="session-side-region-presence"][data-opened="false"] [data-slot="session-review-content"] {
+    transition: opacity 160ms ease-out;
+  }
+
+  @starting-style {
+    [data-slot="session-side-region-presence"][data-opened="true"] [data-slot="session-review-content"] {
+      opacity: 0;
+    }
+  }
+
+  [data-slot="session-side-region-presence"][data-opened="true"] {
+    animation: side-region-presence-in 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  [data-slot="session-side-region-presence"][data-opened="false"] {
+    animation: side-region-presence-out 240ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  [data-slot="terminal-panel-presence"][data-opened="true"] {
+    animation: terminal-panel-presence-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  [data-slot="terminal-panel-presence"][data-opened="false"] {
+    animation: terminal-panel-presence-out 200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  [data-slot="side-terminal-panel-presence"][data-opened="true"] {
+    animation: side-terminal-panel-presence-in 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  [data-slot="side-terminal-panel-presence"][data-opened="false"] {
+    animation: side-terminal-panel-presence-out 240ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  [data-component="terminal-panel"][data-size-animated="true"][data-opened="true"] {
+    animation: terminal-panel-size-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  [data-component="terminal-panel"][data-size-animated="true"][data-opened="false"] {
+    animation: terminal-panel-size-out 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-slot="terminal-panel-presence"],
+    [data-slot="side-terminal-panel-presence"],
+    [data-slot="session-side-panel-presence"],
+    [data-slot="session-review-content"],
+    [data-slot="session-side-region-presence"],
+    [data-component="terminal-panel"] {
+      animation: none !important;
+    }
+
+    [data-slot="session-review-content"] {
+      transition: none !important;
+    }
+  }
+
+  @keyframes terminal-panel-presence-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes terminal-panel-presence-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes side-terminal-panel-presence-in {
+    from {
+      opacity: 0.999999;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes side-terminal-panel-presence-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0.999999;
+      visibility: hidden;
+    }
+  }
+
+  /* Presence needs an animation lifetime, but the panel frame must never fade. */
+  @keyframes side-region-presence-in {
+    from,
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes side-region-presence-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 1;
+      visibility: hidden;
+    }
+  }
+
+  @keyframes terminal-panel-size-in {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--terminal-panel-height);
+    }
+  }
+
+  @keyframes terminal-panel-size-out {
+    from {
+      height: var(--terminal-panel-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+
+  ::highlight(timeline-search-hit) {
+    background-color: color-mix(in srgb, var(--v2-icon-icon-accent) 28%, transparent);
+  }
+
+  ::highlight(timeline-search-hit-active) {
+    background-color: var(--v2-icon-icon-accent);
+    color: var(--v2-background-bg-deep);
+  }
+
+  [data-component="menu-v2-content"].desktop-app-menu {
     min-width: 160px;
     padding: 2px;
   }
 
-  [data-component="dropdown-menu-content"].desktop-app-menu {
+  [data-component="menu-v2-content"].desktop-app-menu:not(.desktop-app-menu-sub) {
     width: 160px;
   }
 
-  [data-component="dropdown-menu-sub-content"].desktop-app-menu {
+  [data-component="menu-v2-content"].desktop-app-menu-sub {
     width: max-content;
     min-width: 240px;
     max-width: min(320px, calc(100vw - 24px));
   }
 
-  [data-component="dropdown-menu-content"].desktop-app-menu [data-slot="dropdown-menu-group-label"] {
+  [data-component="menu-v2-content"].desktop-app-menu [data-slot="menu-v2-group-label"] {
     display: flex;
     align-items: center;
     height: 28px;
     padding: 0 12px;
-    font-size: var(--font-size-small);
+    font-size: var(--font-size-x-small);
     font-weight: var(--font-weight-medium);
     line-height: 1;
     color: var(--text-weak);
   }
 
-  [data-component="dropdown-menu-content"].desktop-app-menu [data-slot="dropdown-menu-item"],
-  [data-component="dropdown-menu-content"].desktop-app-menu [data-slot="dropdown-menu-sub-trigger"],
-  [data-component="dropdown-menu-sub-content"].desktop-app-menu [data-slot="dropdown-menu-item"],
-  [data-component="dropdown-menu-sub-content"].desktop-app-menu [data-slot="dropdown-menu-sub-trigger"] {
+  [data-component="menu-v2-content"].desktop-app-menu [data-component="menu-v2-item"] {
     min-height: 28px;
     padding: 0 12px;
     gap: 8px;
@@ -405,44 +262,55 @@
     line-height: 1;
   }
 
-  [data-component="dropdown-menu-content"].desktop-app-menu [data-slot="dropdown-menu-item-label"],
-  [data-component="dropdown-menu-sub-content"].desktop-app-menu [data-slot="dropdown-menu-item-label"] {
+  [data-component="menu-v2-content"].desktop-app-menu [data-slot="menu-v2-item-content"] {
     white-space: nowrap;
   }
 
-  [data-slot="desktop-app-menu-keybind"] {
+  [data-component="menu-v2-content"].desktop-app-menu [data-slot="menu-v2-item-shortcut"] {
     margin-left: auto;
     color: var(--text-weak);
-    font-size: var(--font-size-small);
+    font-size: var(--font-size-x-small);
     font-weight: var(--font-weight-regular);
     white-space: nowrap;
   }
 
-  [data-slot="desktop-app-menu-chevron"] {
-    display: flex;
-    margin-left: auto;
-    color: var(--icon-base);
-  }
-
-  [data-component="getting-started-actions"] {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem; /* gap-3 */
-  }
-
-  [data-component="getting-started-actions"] > [data-component="button"] {
+  .home-session-group-header::before {
+    content: "";
+    position: absolute;
+    top: -12px;
+    left: 0;
     width: 100%;
+    height: 12px;
+    background: var(--v2-background-bg-base);
   }
 
-  @container getting-started (min-width: 17rem) {
-    [data-component="getting-started-actions"] {
-      flex-direction: row;
-      align-items: center;
-    }
-
-    [data-component="getting-started-actions"] > [data-component="button"] {
-      width: auto;
-    }
+  .home-session-group-header::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    height: 16px;
+    pointer-events: none;
+    background: linear-gradient(
+      180deg,
+      var(--v2-background-bg-base) 0%,
+      color-mix(in srgb, var(--v2-background-bg-base) 92.0456%, transparent) 7.93%,
+      color-mix(in srgb, var(--v2-background-bg-base) 84.9947%, transparent) 14.14%,
+      color-mix(in srgb, var(--v2-background-bg-base) 78.6813%, transparent) 19%,
+      color-mix(in srgb, var(--v2-background-bg-base) 72.9394%, transparent) 22.85%,
+      color-mix(in srgb, var(--v2-background-bg-base) 67.6028%, transparent) 26.05%,
+      color-mix(in srgb, var(--v2-background-bg-base) 62.5055%, transparent) 28.95%,
+      color-mix(in srgb, var(--v2-background-bg-base) 57.4815%, transparent) 31.91%,
+      color-mix(in srgb, var(--v2-background-bg-base) 52.3647%, transparent) 35.27%,
+      color-mix(in srgb, var(--v2-background-bg-base) 46.989%, transparent) 39.4%,
+      color-mix(in srgb, var(--v2-background-bg-base) 41.1884%, transparent) 44.65%,
+      color-mix(in srgb, var(--v2-background-bg-base) 34.7969%, transparent) 51.36%,
+      color-mix(in srgb, var(--v2-background-bg-base) 27.6484%, transparent) 59.9%,
+      color-mix(in srgb, var(--v2-background-bg-base) 19.5767%, transparent) 70.62%,
+      color-mix(in srgb, var(--v2-background-bg-base) 10.416%, transparent) 83.87%,
+      transparent 100%
+    );
   }
 
   [data-slot="titlebar-update-loader"] {
@@ -459,18 +327,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    [data-component="session-progress-bar"],
-    [data-component="session-todo-progress-pulse"],
-    [data-component="session-todo-progress-node"][data-state="in_progress"][data-anchor] {
-      animation: none !important;
-    }
-
-    [data-component="session-progress-bar"],
-    [data-component="session-todo-progress-pulse"] {
-      left: var(--pulse-to-pct, 50%);
-      transform: translateX(-50%);
-    }
-
     [data-slot="titlebar-update-loader"] {
       animation: none;
     }
@@ -482,43 +338,227 @@
     }
   }
 
-  @keyframes fade-in {
+  @keyframes home-projects-fade-top {
+    from {
+      visibility: hidden;
+    }
+    to {
+      visibility: visible;
+    }
+  }
+
+  @keyframes home-projects-fade-bottom {
+    from {
+      visibility: visible;
+    }
+    to {
+      visibility: hidden;
+    }
+  }
+
+  @keyframes session-dropzone-enter {
     from {
       opacity: 0;
     }
-    to {
-      opacity: 1;
+  }
+
+  @keyframes session-dropzone-content-enter {
+    from {
+      opacity: 0;
+      transform: translateY(4px) scale(0.96);
     }
   }
-}
 
-/* Assistant knowledge base wikilink decoration (assistant-kb-tab / assistant-note-editor preview):
-   resolved -> accent, dangling (target title does not exist) -> warning highlight. */
-[data-wikilink] {
-  cursor: pointer;
-}
-[data-wikilink][data-dangling="true"] {
-  color: var(--v2-state-fg-warning);
-  text-decoration: underline dotted;
-}
-[data-wikilink][data-dangling="false"] {
-  color: var(--v2-text-text-accent);
-}
+  @keyframes session-dropzone-upload-enter {
+    from {
+      opacity: 0;
+      transform: translateY(4px) scale(0.92);
+    }
+  }
 
-/* Assistant citation anchor badge: [note title](kb://<id>) surviving sanitization
-   is rendered by marked as standard links, styled here as a badge (pure CSS in app layer,
-   without touching session-ui shared rendering). kb:// links only appear in assistant answers. */
-a[href^="kb://"]
-{
-  display: inline-block;
-  margin: 0 0.125rem;
-  padding: 0 0.375rem;
-  border-radius: 9999px;
-  border: 0.5px solid var(--v2-border-border-base);
-  background: var(--v2-background-bg-layer-02);
-  color: var(--v2-text-text-accent);
-  font-size: 0.8125rem;
-  line-height: 1.5;
-  text-decoration: none;
-  vertical-align: baseline;
+  @keyframes session-dropzone-stripes-drift {
+    to {
+      background-position: 33.941px 0;
+    }
+  }
+
+  [data-component="session-dropzone"][data-visible="true"] {
+    animation: session-dropzone-enter 200ms cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+
+  [data-component="session-dropzone"][data-visible="true"] [data-slot="session-dropzone-content"] {
+    animation: session-dropzone-content-enter 200ms cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+
+  [data-component="session-dropzone"][data-visible="true"] [data-slot="session-dropzone-upload"] {
+    animation: session-dropzone-upload-enter 240ms cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+
+  [data-component="session-dropzone"][data-visible="true"] [data-slot="session-dropzone-stripes"] {
+    animation: session-dropzone-stripes-drift 3s linear infinite;
+  }
+
+  [data-component="session-dropzone"] {
+    --session-dropzone-wash: 4%;
+    --session-dropzone-stripe: 7%;
+    --session-dropzone-card: var(--v2-background-bg-base);
+  }
+
+  [data-color-scheme="dark"] [data-component="session-dropzone"] {
+    --session-dropzone-wash: 6%;
+    --session-dropzone-stripe: 14%;
+    --session-dropzone-card: var(--v2-background-bg-layer-01);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-component="session-dropzone"][data-visible="true"],
+    [data-component="session-dropzone"][data-visible="true"] [data-slot="session-dropzone-content"],
+    [data-component="session-dropzone"][data-visible="true"] [data-slot="session-dropzone-upload"],
+    [data-component="session-dropzone"][data-visible="true"] [data-slot="session-dropzone-stripes"] {
+      animation: none;
+    }
+  }
+
+  [data-slot="home-projects-scroll"] {
+    timeline-scope: --home-projects-scroll;
+  }
+
+  [data-slot="model-selector-scroll"] {
+    timeline-scope: --model-selector-scroll;
+  }
+
+  [data-slot="manage-models-scroll"] {
+    timeline-scope: --manage-models-scroll;
+  }
+
+  [data-slot="home-projects-scroll"]::before,
+  [data-slot="home-projects-scroll"]::after,
+  [data-slot="model-selector-scroll"]::before,
+  [data-slot="model-selector-scroll"]::after,
+  [data-slot="manage-models-scroll"]::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    height: 16px;
+    pointer-events: none;
+    visibility: hidden;
+  }
+
+  [data-slot="home-projects-scroll"]::before {
+    top: 0;
+    background: linear-gradient(to bottom, var(--v2-background-bg-base), transparent);
+  }
+
+  [data-slot="model-selector-scroll"]::before {
+    top: 0;
+    height: 12px;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 80%, transparent) 0%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 78.3336%, transparent) 4.7%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 76.4824%, transparent) 8.9%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 74.368%, transparent) 12.8%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 71.9123%, transparent) 16.56%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 69.037%, transparent) 20.37%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 65.664%, transparent) 24.4%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 61.715%, transparent) 28.83%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 57.1117%, transparent) 33.84%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 51.776%, transparent) 39.6%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 45.6296%, transparent) 46.3%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 38.5944%, transparent) 54.1%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 30.592%, transparent) 63.2%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 21.5443%, transparent) 73.76%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 11.373%, transparent) 85.97%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 0%, transparent) 100%
+    );
+  }
+
+  [data-slot="manage-models-scroll"]::before {
+    top: 0;
+    background: linear-gradient(to bottom, var(--v2-background-bg-base), transparent);
+  }
+
+  [data-slot="home-projects-scroll"]::after {
+    bottom: 0;
+    background: linear-gradient(to top, var(--v2-background-bg-base), transparent);
+  }
+
+  [data-slot="model-selector-scroll"]::after {
+    bottom: 0;
+    height: 12px;
+    background: linear-gradient(
+      0deg,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 80%, transparent) 0%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 78.3336%, transparent) 4.7%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 76.4824%, transparent) 8.9%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 74.368%, transparent) 12.8%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 71.9123%, transparent) 16.56%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 69.037%, transparent) 20.37%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 65.664%, transparent) 24.4%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 61.715%, transparent) 28.83%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 57.1117%, transparent) 33.84%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 51.776%, transparent) 39.6%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 45.6296%, transparent) 46.3%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 38.5944%, transparent) 54.1%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 30.592%, transparent) 63.2%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 21.5443%, transparent) 73.76%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 11.373%, transparent) 85.97%,
+      color-mix(in srgb, var(--v2-background-bg-layer-01) 0%, transparent) 100%
+    );
+  }
+
+  @supports (animation-timeline: --home-projects-scroll) and (timeline-scope: --home-projects-scroll) {
+    [data-slot="home-projects-scroll"] .scroll-view__viewport {
+      scroll-timeline: --home-projects-scroll y;
+    }
+
+    [data-slot="home-projects-scroll"]::before {
+      animation: home-projects-fade-top linear both;
+      animation-timeline: --home-projects-scroll;
+      animation-range: 0 0.1px;
+    }
+
+    [data-slot="home-projects-scroll"]::after {
+      animation: home-projects-fade-bottom linear both;
+      animation-timeline: --home-projects-scroll;
+      animation-range: calc(100% - 1.1px) calc(100% - 1px);
+    }
+  }
+
+  @supports (animation-timeline: --model-selector-scroll) and (timeline-scope: --model-selector-scroll) {
+    [data-slot="model-selector-scroll"] .scroll-view__viewport {
+      scroll-timeline: --model-selector-scroll y;
+    }
+
+    [data-slot="model-selector-scroll"]::before {
+      animation: home-projects-fade-top linear both;
+      animation-timeline: --model-selector-scroll;
+      animation-range: 0 0.1px;
+    }
+
+    [data-slot="model-selector-scroll"]::after {
+      animation: home-projects-fade-bottom linear both;
+      animation-timeline: --model-selector-scroll;
+      animation-range: calc(100% - 1.1px) calc(100% - 1px);
+    }
+  }
+
+  @supports (animation-timeline: --manage-models-scroll) and (timeline-scope: --manage-models-scroll) {
+    [data-slot="manage-models-scroll"] .settings-panel {
+      scroll-timeline: --manage-models-scroll y;
+    }
+
+    [data-slot="manage-models-scroll"]::before {
+      animation: home-projects-fade-top linear both;
+      animation-timeline: --manage-models-scroll;
+      animation-range: 0 0.1px;
+    }
+  }
+
+  :root body [data-slot="session-turn-diffs-header"] {
+    height: 24px;
+    padding-block: 0;
+  }
 }

@@ -1,48 +1,70 @@
-export * as SessionV2 from "./session"
-export * from "./session/schema"
+export * as Session from "./session.js"
+export * from "./session/schema.js"
 
-import { DateTime, Effect, Exit, Layer, Schema, Context, Stream, Option } from "effect"
-import { ListAnchor } from "@aigcfroge/schema/session"
-import { Composition } from "@aigcfroge/schema/composition"
-import { and, asc, desc, eq, gt, like, lt, or, type SQL } from "drizzle-orm"
-import { ProjectV2 } from "./project"
-import { WorkspaceV2 } from "./workspace"
-import { ModelV2 } from "./model"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
-import { PermissionTier } from "@aigcfroge/schema/permission-tier"
-import { Location } from "./location"
-import { SessionMessage } from "./session/message"
-import { Prompt } from "./session/prompt"
-import { EventV2 } from "./event"
-import { Database } from "./database/database"
-import { SessionProjector } from "./session/projector"
-import { SessionMessageTable, SessionTable } from "./session/sql"
-import { SessionSchema } from "./session/schema"
-import { AbsolutePath, PositiveInt, RelativePath } from "./schema"
-import { AgentV2 } from "./agent"
-import { WorkPreset } from "@aigcfroge/schema/work-preset"
-import { WorkContract } from "@aigcfroge/schema/work-contract"
-import { SessionV1 } from "./v1/session"
-import { InstallationVersion } from "./installation/version"
-import { Slug } from "./util/slug"
-import { ProductModeAgentPolicy } from "./product-mode-agent-policy"
-import { ProductModePolicy } from "./product-mode-policy"
-import { ProjectTable } from "./project/sql"
-import { SessionComposition } from "./session/composition"
-import { CompositionResolver } from "./composition-resolver"
-import { CompositionConsumerView } from "./composition/consumer-view"
-import { LocationServiceMap } from "./location-layer"
+import { Effect, Layer, Schema, Context, Stream } from "effect"
+import { LLMClient } from "@opencode/ai"
+import { ListAnchor } from "@opencode/schema/session"
+import { and, desc, eq } from "drizzle-orm"
+import { Project } from "./project.js"
+import { Model } from "@opencode/schema/model"
+import { Location } from "./location.js"
+import type { FileSystem } from "./filesystem.js"
+import { SessionMessage } from "./session/message.js"
+import { PromptInput } from "@opencode/schema/prompt-input"
+import { Bus } from "./bus.js"
+import { Instance } from "./instance/service.js"
+import { Database } from "./database/database.js"
+import { SessionProjector } from "./session/projector.js"
+import { SessionMessageTable } from "./session/sql.js"
+import { SessionSchema } from "./session/schema.js"
+import { RelativePath } from "./schema.js"
+import { Agent } from "@opencode/schema/agent"
+import type { Permission } from "@opencode/schema/permission"
+import { App } from "./app.js"
+import { Slug } from "./util/slug.js"
 import path from "path"
-import { fromRow } from "./session/info"
-import { SessionStore } from "./session/store"
-import type { SessionRunner } from "./session/runner/index"
-import { SessionExecution } from "./session/execution"
-import { MessageDecodeError } from "./session/error"
-import { SessionEvent } from "./session/event"
-import { SessionInput } from "./session/input"
-import { ToolSummary } from "./session/tool-summary"
-import { SessionLegacyHistory } from "./session/legacy-history"
-import { TaskDriver } from "./tool/task-driver"
+import { SessionRunner } from "./session/runner/index.js"
+import { SessionStore } from "./session/store.js"
+import { SessionExecution } from "./session/execution.js"
+import {
+  AttachmentError,
+  BusyError,
+  CompactionConflictError,
+  ForkEmptyError,
+  InboxConflictError,
+  MessageDecodeError,
+  MessageNotFoundError,
+  NotFoundError,
+  PromptConflictError,
+  SkillNotFoundError,
+  SyntheticConflictError,
+} from "./session/error.js"
+import { Node } from "@opencode/util/effect/app-node"
+import { LayerNode } from "@opencode/util/effect/layer-node"
+import { SessionEvent } from "./session/event.js"
+import { SessionInbox } from "./session/inbox.js"
+import { InstructionState } from "./session/instruction-state.js"
+import { SessionGenerate } from "./session/generate.js"
+import { SessionCommand } from "./session/command.js"
+import {
+  SessionMove,
+  DestinationNotFoundError,
+  DestinationNotDirectoryError,
+  DestinationUnavailableError,
+} from "./session/move.js"
+import { SessionModelTransport } from "./session/model-transport.js"
+import { llmClient } from "./effect/app-node-platform.js"
+import { Snapshot } from "./snapshot.js"
+import { Session } from "./session/session.js"
+import { SessionDiff, TurnRangeError } from "./session/diff.js"
+import { LocationServiceMap } from "./location-service-map.js"
+import { FSUtil } from "@opencode/util/fs-util"
+import type { EventLog } from "@opencode/schema/event-log"
+import type { FileDiff } from "@opencode/schema/file-diff"
+import { Job } from "./job.js"
+import type { Command } from "./command.js"
+import { SessionEnvironment } from "./session/environment.js"
+import { InstructionEntry } from "./session/instruction-entry.js"
 
 // get project -> project.locations
 //
@@ -55,442 +77,225 @@ import { TaskDriver } from "./tool/task-driver"
 
 export { ListAnchor }
 
-const ListInputBase = {
-  workspaceID: WorkspaceV2.ID.pipe(Schema.optional),
-  mode: ProductMode.ID.pipe(Schema.optional),
-  search: Schema.String.pipe(Schema.optional),
-  limit: PositiveInt.pipe(Schema.optional),
-  order: Schema.Literals(["asc", "desc"]).pipe(Schema.optional),
-  anchor: ListAnchor.pipe(Schema.optional),
-}
+export const ListInput = SessionStore.ListInput
+export type ListInput = SessionStore.ListInput
 
-const ListDirectoryInput = Schema.Struct({
-  ...ListInputBase,
-  directory: AbsolutePath,
-})
-
-const ListProjectInput = Schema.Struct({
-  ...ListInputBase,
-  project: ProjectV2.ID,
-  subpath: RelativePath.pipe(Schema.optional),
-})
-
-const ListAllInput = Schema.Struct(ListInputBase)
-
-export const ListInput = Schema.Union([ListDirectoryInput, ListProjectInput, ListAllInput])
-export type ListInput = typeof ListInput.Type
-
-type CreateInput = {
+type CreateBaseInput = {
   id?: SessionSchema.ID
-  parentID?: SessionSchema.ID
-  mode?: ProductMode.ID
-  presetCategoryId?: WorkPreset.Category
-  agent?: AgentV2.ID
-  model?: ModelV2.Ref
-  location: Location.Ref
-  attended?: boolean
-  permissionTier?: PermissionTier.ID
   title?: string
+  agent?: Agent.ID
+  model?: Model.Ref
+  metadata?: SessionSchema.Metadata
+  permissions?: Permission.Ruleset
 }
+type CreateInput = CreateBaseInput &
+  ({ location: Location.Ref; parentID?: never } | { parentID: SessionSchema.ID; location?: never })
 
-export class CreateCustomInput extends Schema.Class<CreateCustomInput>("Session.CreateCustomInput")({
-  id: Schema.optional(SessionSchema.ID),
-  location: Location.Ref,
-  composition: Composition.CompositionInput,
-  expectedPlanDigest: Schema.optional(Composition.Digest),
-  title: Schema.optional(Schema.String),
-}) {}
+type CompactInput = Parameters<Session.Handle["compact"]>[0] & { sessionID: SessionSchema.ID }
 
-export class UpgradeCustomInput extends Schema.Class<UpgradeCustomInput>("Session.UpgradeCustomInput")({
-  sessionID: SessionSchema.ID,
-  composition: Composition.CompositionInput,
-  expectedPlanDigest: Schema.optional(Composition.Digest),
-  title: Schema.optional(Schema.String),
-}) {}
-
-type CompactInput = {
+type ForkInput = {
   sessionID: SessionSchema.ID
-  prompt?: Prompt
+  before?: SessionMessage.ID
 }
 
-export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("Session.NotFoundError", {
-  sessionID: SessionSchema.ID,
-}) {}
-
-export class OperationUnavailableError extends Schema.TaggedErrorClass<OperationUnavailableError>()(
-  "Session.OperationUnavailableError",
-  {
-    operation: Schema.Literals(["move", "shell", "skill", "switchAgent", "compact", "wait"]),
-  },
-) {}
-
-export { ContextSnapshotDecodeError, MessageDecodeError } from "./session/error"
-
-export class PromptConflictError extends Schema.TaggedErrorClass<PromptConflictError>()("Session.PromptConflictError", {
-  sessionID: SessionSchema.ID,
-  messageID: SessionMessage.ID,
-}) {}
-
-export class CommandUnavailableError extends Schema.TaggedErrorClass<CommandUnavailableError>()(
-  "Session.CommandUnavailableError",
-  {
-    sessionID: SessionSchema.ID,
-    command: Schema.String,
-    reason: Schema.Literals(["not-custom", "unbound", "ambiguous", "legacy"]),
-  },
-) {
-  override get message() {
-    return `Command ${this.command} is unavailable for session ${this.sessionID}: ${this.reason}`
-  }
+export {
+  AttachmentError,
+  BusyError,
+  CompactionConflictError,
+  InboxConflictError,
+  MessageDecodeError,
+  MessageNotFoundError,
+  NotFoundError,
+  PromptConflictError,
+  SkillNotFoundError,
+  SyntheticConflictError,
 }
+type InboxItemRef = { readonly sessionID: SessionSchema.ID; readonly inboxID: SessionMessage.ID }
 
-export class SyntheticConflictError extends Schema.TaggedErrorClass<SyntheticConflictError>()(
-  "Session.SyntheticConflictError",
-  {
-    sessionID: SessionSchema.ID,
-    messageID: SessionMessage.ID,
-  },
-) {
-  override get message() {
-    return `Synthetic message ${this.messageID} conflicts with existing Session history`
-  }
-}
-
-export class UpgradeSourceModeError extends Schema.TaggedErrorClass<UpgradeSourceModeError>()(
-  "Session.UpgradeSourceModeError",
-  {
-    sessionID: SessionSchema.ID,
-    mode: ProductMode.ID,
-  },
-) {}
-
-export class SessionBusyError extends Schema.TaggedErrorClass<SessionBusyError>()("Session.SessionBusyError", {
-  sessionID: SessionSchema.ID,
-}) {}
-
-export type Error =
-  | NotFoundError
-  | MessageDecodeError
-  | OperationUnavailableError
-  | PromptConflictError
-  | CommandUnavailableError
-  | SyntheticConflictError
-  | UpgradeSourceModeError
-  | SessionBusyError
-  | ProductModePolicy.UnsupportedProductModeError
-  | Composition.ResolveError
-  | SessionComposition.SnapshotNotFoundError
-  | SessionComposition.SnapshotDecodeError
-  | SessionComposition.SnapshotAlreadyExistsError
-  | SessionComposition.AgentDelegationForbiddenError
+export { DestinationNotFoundError, DestinationNotDirectoryError, DestinationUnavailableError }
+export { TurnRangeError }
 
 export interface Interface {
-  readonly list: (input?: ListInput) => Effect.Effect<SessionSchema.Info[]>
-  readonly create: (
-    input: CreateInput,
-  ) => Effect.Effect<
-    SessionSchema.Info,
-    | ProductModePolicy.UnsupportedProductModeError
-    | ProductModeAgentPolicy.AgentNotAllowedError
-    | PromptConflictError
-    | SessionComposition.SnapshotNotFoundError
-    | SessionComposition.SnapshotDecodeError
-    | SessionComposition.AgentDelegationForbiddenError
-  >
-  readonly createCustom: (
-    input: CreateCustomInput,
-  ) => Effect.Effect<
-    { session: SessionSchema.Info; snapshot: Composition.Snapshot },
-    | Composition.ResolveError
-    | PromptConflictError
-    | ProductModePolicy.UnsupportedProductModeError
-    | SessionComposition.SnapshotAlreadyExistsError
-    | SessionComposition.SnapshotDecodeError
-  >
-  readonly upgradeCustom: (
-    input: UpgradeCustomInput,
-  ) => Effect.Effect<
-    { session: SessionSchema.Info; snapshot: Composition.Snapshot },
-    | NotFoundError
-    | UpgradeSourceModeError
-    | SessionBusyError
-    | Composition.ResolveError
-    | PromptConflictError
-    | ProductModePolicy.UnsupportedProductModeError
-    | SessionComposition.SnapshotAlreadyExistsError
-    | SessionComposition.SnapshotDecodeError
-  >
+  readonly list: (input?: ListInput) => Effect.Effect<{
+    readonly data: SessionSchema.Info[]
+  }>
+  readonly create: (input: CreateInput) => Effect.Effect<SessionSchema.Info, NotFoundError>
+  readonly fork: (
+    input: ForkInput,
+  ) => Effect.Effect<SessionSchema.Info, NotFoundError | MessageNotFoundError | ForkEmptyError>
   readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<SessionSchema.Info, NotFoundError>
-  readonly children: (sessionID: SessionSchema.ID) => Effect.Effect<SessionSchema.Info[], NotFoundError>
-  readonly messages: (input: {
-    sessionID: SessionSchema.ID
-    limit?: number
-    order?: "asc" | "desc"
-    cursor?: {
-      id: SessionMessage.ID
-      direction: "previous" | "next"
-    }
-  }) => Effect.Effect<SessionMessage.Message[], NotFoundError | MessageDecodeError>
+  readonly environment: (input: {
+    readonly sessionID: SessionSchema.ID
+    readonly variables?: SessionEnvironment.Variables
+  }) => Effect.Effect<SessionEnvironment.Variables | undefined, NotFoundError>
+  readonly view: (input: { sessionID: SessionSchema.ID; idle: number }) => Effect.Effect<void, NotFoundError>
+  readonly remove: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError>
+  readonly messages: (
+    input: SessionStore.MessagesInput,
+  ) => Effect.Effect<SessionMessage.Info[], NotFoundError | MessageDecodeError>
   readonly message: (input: {
     sessionID: SessionSchema.ID
     messageID: SessionMessage.ID
-  }) => Effect.Effect<SessionMessage.Message | undefined>
+  }) => Effect.Effect<SessionMessage.Info | undefined>
   readonly context: (
     sessionID: SessionSchema.ID,
-  ) => Effect.Effect<SessionMessage.Message[], NotFoundError | MessageDecodeError>
-  readonly events: (input: {
+  ) => Effect.Effect<SessionMessage.Info[], NotFoundError | MessageDecodeError>
+  /** Structured diffs of the files changed by a turn or range of turns; see `SessionDiff.turn`. */
+  readonly diff: (input: {
+    readonly sessionID: SessionSchema.ID
+    readonly from?: SessionMessage.ID
+    readonly to?: SessionMessage.ID
+    readonly context?: number
+  }) => Effect.Effect<
+    readonly FileDiff.Info[],
+    NotFoundError | MessageNotFoundError | TurnRangeError | Snapshot.Error | FileSystem.DirectoryNotFoundError
+  >
+  /**
+   * Durable admitted session work not yet visible in projected history,
+   * ordered by admission. Includes unpromoted user and synthetic inputs and
+   * unhandled compaction barriers.
+   */
+  readonly inbox: (sessionID: SessionSchema.ID) => Effect.Effect<SessionInbox.Info[], NotFoundError>
+  readonly cancelInbox: (input: InboxItemRef) => Effect.Effect<void, NotFoundError | InboxConflictError>
+  readonly steerInbox: (input: InboxItemRef) => Effect.Effect<void, NotFoundError | InboxConflictError>
+  readonly queueInbox: (input: InboxItemRef) => Effect.Effect<void, NotFoundError | InboxConflictError>
+  /**
+   * Durable, ordered session log read. Replays durable session bus after
+   * the exclusive `after` cursor, emits a `Synced` marker at the captured
+   * replay watermark, then continues live when `follow` is set.
+   * The marker's seq may exceed the last emitted event because other durable
+   * bus share the aggregate's sequence space.
+   */
+  readonly log: (input: {
     sessionID: SessionSchema.ID
     after?: number
-  }) => Stream.Stream<SessionEvent.DurableEvent, NotFoundError>
-  readonly switchAgent: (input: {
+    follow?: boolean
+  }) => Stream.Stream<SessionEvent.DurableEvent | EventLog.Synced, NotFoundError>
+  readonly switchAgent: (input: { sessionID: SessionSchema.ID; agent: Agent.ID }) => Effect.Effect<void, NotFoundError>
+  readonly switchModel: (input: { sessionID: SessionSchema.ID; model: Model.Ref }) => Effect.Effect<void, NotFoundError>
+  readonly rename: (input: { sessionID: SessionSchema.ID; title: string }) => Effect.Effect<void, NotFoundError>
+  readonly setMetadata: (input: {
     sessionID: SessionSchema.ID
-    agent: string
-  }) => Effect.Effect<
-    void,
-    | NotFoundError
-    | ProductModePolicy.UnsupportedProductModeError
-    | ProductModeAgentPolicy.AgentNotAllowedError
-    | SessionComposition.AgentDelegationForbiddenError
-    | SessionComposition.SnapshotNotFoundError
-    | SessionComposition.SnapshotDecodeError
-  >
-  readonly switchModel: (input: {
-    sessionID: SessionSchema.ID
-    model: ModelV2.Ref
-  }) => Effect.Effect<void, NotFoundError | ProductModePolicy.UnsupportedProductModeError>
-  readonly remove: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError>
-  readonly removeMessage: (input: {
-    sessionID: SessionSchema.ID
-    messageID: SessionMessage.ID
+    metadata: SessionSchema.Metadata
   }) => Effect.Effect<void, NotFoundError>
-  readonly setTitle: (input: { sessionID: SessionSchema.ID; title: string }) => Effect.Effect<void, NotFoundError>
-  /**
-   * S2: selection + input in one all-or-nothing request, so a client never has
-   * to compose "switch, then send" across two calls and be left half-applied.
-   */
-  readonly admitWithSelection: (input: {
-    id?: SessionMessage.ID
+  readonly setPermissions: (input: {
     sessionID: SessionSchema.ID
-    prompt: Prompt
-    delivery?: SessionInput.Delivery
-    delegationOrigin?: SessionInput.DelegationOrigin
-    resume?: boolean
-    agent?: string
-    model?: ModelV2.Ref
-  }) => Effect.Effect<
-    SessionInput.Admitted,
-    | NotFoundError
-    | PromptConflictError
-    | ProductModeAgentPolicy.AgentNotAllowedError
-    | SessionComposition.AgentDelegationForbiddenError
-    | ProductModePolicy.UnsupportedProductModeError
-    | SessionComposition.SnapshotNotFoundError
-    | SessionComposition.SnapshotDecodeError
-  >
-  readonly prompt: (input: {
-    id?: SessionMessage.ID
+    permissions: Permission.Ruleset
+  }) => Effect.Effect<void, NotFoundError>
+  readonly move: SessionMove.Interface["move"]
+  readonly prompt: (
+    input: Parameters<Session.Handle["prompt"]>[0] & { sessionID: SessionSchema.ID },
+  ) => ReturnType<Session.Handle["prompt"]>
+  /** Generates text from current Session context without admitting input or mutating history. */
+  readonly generate: (input: {
     sessionID: SessionSchema.ID
-    prompt: Prompt
-    delivery?: SessionInput.Delivery
-    delegationOrigin?: SessionInput.DelegationOrigin
-    resume?: boolean
-  }) => Effect.Effect<
-    SessionInput.Admitted,
-    | NotFoundError
-    | PromptConflictError
-    | ProductModePolicy.UnsupportedProductModeError
-    | SessionComposition.SnapshotNotFoundError
-    | SessionComposition.SnapshotDecodeError
-  >
-  readonly shell: (input: {
-    id?: SessionMessage.ID
-    sessionID: SessionSchema.ID
-    command: string
-    resume?: boolean
-  }) => Effect.Effect<
-    SessionInput.Admitted,
-    | NotFoundError
-    | PromptConflictError
-    | ProductModeAgentPolicy.CommandDeniedError
-    | ProductModePolicy.UnsupportedProductModeError
-    | SessionComposition.SnapshotNotFoundError
-    | SessionComposition.SnapshotDecodeError
-  >
-  readonly skill: (input: {
-    id?: SessionMessage.ID
-    sessionID: SessionSchema.ID
-    skill: string
-    resume?: boolean
-  }) => Effect.Effect<
-    SessionInput.Admitted,
-    | NotFoundError
-    | PromptConflictError
-    | ProductModePolicy.UnsupportedProductModeError
-    | SessionComposition.SnapshotNotFoundError
-    | SessionComposition.SnapshotDecodeError
-  >
+    prompt: string
+  }) => Effect.Effect<string, NotFoundError | SessionGenerate.Error>
   readonly command: (input: {
-    id?: SessionMessage.ID
     sessionID: SessionSchema.ID
     command: string
-    arguments?: string
-    context?: Prompt
-    resume?: boolean
-  }) => Effect.Effect<
-    SessionInput.Admitted,
-    | NotFoundError
-    | PromptConflictError
-    | CommandUnavailableError
-    | ProductModePolicy.UnsupportedProductModeError
-    | SessionComposition.SnapshotNotFoundError
-    | SessionComposition.SnapshotDecodeError
-  >
-  readonly compact: (input: CompactInput) => Effect.Effect<void, NotFoundError | OperationUnavailableError>
-  readonly wait: (id: SessionSchema.ID) => Effect.Effect<void, NotFoundError | OperationUnavailableError>
-  readonly resume: (
-    sessionID: SessionSchema.ID,
-  ) => Effect.Effect<
-    void,
-    | NotFoundError
-    | SessionRunner.RunError
-    | SessionComposition.SnapshotNotFoundError
-    | SessionComposition.SnapshotDecodeError
-  >
-  readonly injectSynthetic: (input: {
-    id?: SessionMessage.ID
-    sessionID: SessionSchema.ID
     text: string
-  }) => Effect.Effect<void, NotFoundError | SyntheticConflictError | SessionRunner.RunError>
-  readonly interrupt: (sessionID: SessionSchema.ID) => Effect.Effect<void>
-  readonly toolSummary: (
-    sessionID: SessionSchema.ID,
-  ) => Effect.Effect<ToolSummary.Summary[], NotFoundError | MessageDecodeError>
+    files?: PromptInput.Prompt["files"]
+    agents?: PromptInput.Prompt["agents"]
+    skills?: PromptInput.Prompt["skills"]
+    delivery?: SessionInbox.Delivery
+  }) => Effect.Effect<
+    void,
+    NotFoundError | Command.NotFoundError | Command.ExecutionError | FileSystem.DirectoryNotFoundError
+  >
+  readonly shell: (
+    input: Parameters<Session.Handle["shell"]>[0] & { sessionID: SessionSchema.ID },
+  ) => ReturnType<Session.Handle["shell"]>
+  readonly skill: (
+    input: Parameters<Session.Handle["skill"]>[0] & { sessionID: SessionSchema.ID },
+  ) => ReturnType<Session.Handle["skill"]>
+  readonly compact: (
+    input: CompactInput,
+  ) => Effect.Effect<SessionInbox.Compaction, NotFoundError | CompactionConflictError>
+  readonly wait: (id: SessionSchema.ID) => Effect.Effect<void, NotFoundError>
+  readonly active: Effect.Effect<ReadonlySet<SessionSchema.ID>>
+  readonly background: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError>
+  readonly resume: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError | SessionRunner.RunError>
+  readonly interrupt: (sessionID: SessionSchema.ID, options?: { readonly resume?: boolean }) => Effect.Effect<boolean>
+  readonly synthetic: (
+    input: Parameters<Session.Handle["synthetic"]>[0] & { sessionID: SessionSchema.ID },
+  ) => ReturnType<Session.Handle["synthetic"]>
+  readonly revert: {
+    readonly stage: (input: {
+      sessionID: SessionSchema.ID
+      messageID: SessionMessage.ID
+      files?: boolean
+    }) => Effect.Effect<
+      SessionSchema.Revert,
+      NotFoundError | MessageNotFoundError | BusyError | Snapshot.Error | FileSystem.DirectoryNotFoundError
+    >
+    readonly clear: (
+      sessionID: SessionSchema.ID,
+    ) => Effect.Effect<void, NotFoundError | BusyError | Snapshot.Error | FileSystem.DirectoryNotFoundError>
+    readonly commit: (sessionID: SessionSchema.ID) => Effect.Effect<void, NotFoundError | BusyError>
+  }
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/Session") {}
+export class Service extends Context.Service<Service, Interface>()("@opencode/Session") {}
 
-export const layer = Layer.effect(
+const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
-    const db = (yield* Database.Service).db
-    const events = yield* EventV2.Service
-    const projects = yield* ProjectV2.Service
+    const app = yield* App.Metadata
+    const database = yield* Database.Service
+    const db = database.db
+    const bus = yield* Bus.Service
+    const projects = yield* Project.Service
     const execution = yield* SessionExecution.Service
+    const llm = yield* LLMClient.Service
+    const transport = yield* SessionModelTransport.Service
     const store = yield* SessionStore.Service
-    const sessionComposition = yield* SessionComposition.Service
-    const decodeMessage = Schema.decodeUnknownEffect(SessionMessage.Message)
+    const instances = yield* Instance.Service
+    const moves = yield* SessionMove.Service
+    const jobs = yield* Job.Service
+    const environments = yield* SessionEnvironment.Service
+    const locations = yield* LocationServiceMap.Service
+    const sessions = yield* Session.make()
     const isDurableSessionEvent = Schema.is(SessionEvent.Durable)
-    const decode = (row: typeof SessionMessageTable.$inferSelect) =>
-      decodeMessage({ ...row.data, id: row.id, type: row.type }).pipe(
-        Effect.mapError(
-          () =>
-            new MessageDecodeError({
-              sessionID: SessionSchema.ID.make(row.session_id),
-              messageID: SessionMessage.ID.make(row.id),
-            }),
-        ),
-      )
-
-    const resolveCompositionResolver = (locationRef: Location.Ref) =>
-      Effect.gen(function* () {
-        const context = yield* Effect.context<never>()
-        const directResolver = Context.getOption(context, CompositionResolver.Service)
-        if (Option.isSome(directResolver)) return directResolver.value
-
-        const map = Context.getOption(context, LocationServiceMap)
-        if (Option.isSome(map)) {
-          const locLayer = map.value.get(locationRef)
-          return yield* CompositionResolver.Service.pipe(Effect.provide(locLayer), Effect.orDie)
-        }
-
-        return yield* Effect.die("No CompositionResolver or LocationServiceMap available in context")
-      })
-
-    const resolveAgent = (
-      input: CreateInput,
-      mode: ProductMode.ID,
-      parent: SessionSchema.Info | undefined,
-      parentSnapshot: Composition.Snapshot | undefined,
-    ) =>
-      Effect.gen(function* () {
-        if (parent && parentSnapshot) {
-          const defaultAgentID =
-            parentSnapshot.version === 1 ? parentSnapshot.data.agentID : (parentSnapshot.data.agents[0]?.id ?? "meta")
-          const agentID: string = input.agent ?? defaultAgentID
-          yield* sessionComposition.assertAgentAllowed(parent.id, agentID)
-          return AgentV2.ID.make(agentID)
-        }
-        if (mode === "custom") {
-          return AgentV2.ID.make(yield* ProductModeAgentPolicy.enforcePrimary(mode, input.agent))
-        }
-        return AgentV2.ID.make(yield* ProductModeAgentPolicy.enforcePrimary(mode, input.agent ?? parent?.agent))
-      })
 
     const result = Service.of({
-      create: Effect.fn("V2Session.create")(function* (input) {
+      create: Effect.fn("Session.create")(function* (input) {
         const sessionID = input.id ?? SessionSchema.ID.create()
         const recorded = yield* store.get(sessionID)
-        if (recorded) {
-          yield* ProductModePolicy.assertRuntimeSupported(recorded.mode)
-          return recorded
-        }
+        if (recorded) return recorded
         const parent = input.parentID ? yield* store.get(input.parentID) : undefined
-        const mode = parent?.mode ?? input.mode ?? ProductMode.Default
-        if (mode === "custom") {
-          if (!parent) yield* ProductModePolicy.assertCreationSupported(mode)
-          yield* ProductModePolicy.assertRuntimeSupported(mode)
-        } else {
-          yield* ProductModePolicy.assertCreationSupported(mode)
-        }
-        // A custom parent freezes its composition once; fetch the snapshot up
-        // front as the delegation contract (agent identity) and the digest
-        // baseline for child snapshot reconciliation after projection.
-        const parentSnapshot = parent?.mode === "custom" ? yield* sessionComposition.get(parent.id) : undefined
-        const agent = yield* resolveAgent(input, mode, parent, parentSnapshot)
-        const project = yield* projects.resolve(input.location.directory)
-        yield* db
-          .insert(ProjectTable)
-          .values({ id: project.id, worktree: project.directory, vcs: project.vcs?.type, sandboxes: [] })
-          .onConflictDoNothing()
-          .run()
-          .pipe(Effect.orDie)
-        const now = Date.now()
-        const info = SessionV1.SessionInfo.make({
-          id: sessionID,
-          slug: Slug.create(),
-          version: InstallationVersion,
-          projectID: project.id,
-          parentID: input.parentID,
-          mode,
-          directory: input.location.directory,
-          path: path.relative(project.directory, input.location.directory).replaceAll("\\", "/"),
-          workspaceID: input.location.workspaceID ? WorkspaceV2.ID.make(input.location.workspaceID) : undefined,
-          title: input.title ?? `New session - ${new Date(now).toISOString()}`,
-          agent,
-          model: input.model
-            ? {
-                id: ModelV2.ID.make(input.model.id),
-                providerID: input.model.providerID,
-                variant: input.model.variant,
-              }
-            : undefined,
-          cost: 0,
-          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-          time: { created: now, updated: now },
-          attended: input.attended,
-          permissionTier: input.permissionTier ?? PermissionTier.Default,
-          metadata:
-            mode === "work" || input.presetCategoryId
-              ? {
-                  ...(input.presetCategoryId ? { presetCategoryId: input.presetCategoryId } : {}),
-                  ...(mode === "work"
-                    ? { workContract: WorkContract.AdHoc.make({ source: "ad-hoc", contractVersion: 1 }) }
-                    : {}),
-                }
-              : undefined,
-        })
-        const projected = yield* events
-          .publish(SessionV1.Event.Created, { sessionID, info }, { location: input.location })
+        if (input.parentID && parent === undefined) return yield* new NotFoundError({ sessionID: input.parentID })
+        const location = parent?.location ?? input.location
+        if (location === undefined)
+          return yield* Effect.die(new Error("Session.create requires either location or an existing parentID"))
+        const project = yield* projects.resolve(location.directory)
+        const projected = yield* bus
+          .publish(
+            SessionEvent.Created,
+            {
+              sessionID,
+              slug: Slug.create(),
+              version: app.version,
+              projectID: project.id,
+              parentID: input.parentID,
+              location,
+              subpath: RelativePath.make(path.relative(project.directory, location.directory).replaceAll("\\", "/")),
+              title: input.title,
+              agent: input.agent,
+              // Children inherit metadata and permissions the way they inherit
+              // location, so host policies that read them treat the family uniformly.
+              metadata: input.metadata ?? parent?.metadata,
+              permissions: input.permissions ?? parent?.permissions,
+              model: input.model
+                ? {
+                    id: Model.ID.make(input.model.id),
+                    providerID: input.model.providerID,
+                    variant: input.model.variant,
+                  }
+                : undefined,
+            },
+            { location },
+          )
           .pipe(
             Effect.as({ type: "created" } as const),
             Effect.catchDefect((defect) => {
@@ -507,689 +312,184 @@ export const layer = Layer.effect(
                 )
             }),
           )
-        if (projected.type === "existing") {
-          if (parentSnapshot) {
-            // Lost the projection race for a custom child: only an identical
-            // frozen digest reconciles the retry, anything else is a conflict.
-            const existing = yield* sessionComposition.read(sessionID)
-            if (!existing || existing.digest !== parentSnapshot.digest) {
-              return yield* new PromptConflictError({ sessionID, messageID: SessionMessage.ID.create() })
-            }
-          }
-          return projected.session
-        }
-        if (parent && parentSnapshot) {
-          const existing = yield* sessionComposition.read(sessionID)
-          if (existing && existing.digest !== parentSnapshot.digest) {
-            return yield* new PromptConflictError({ sessionID, messageID: SessionMessage.ID.create() })
-          }
-          if (!existing) {
-            yield* sessionComposition
-              .copy(parent.id, sessionID)
-              .pipe(
-                Effect.catchTag(
-                  "SessionComposition.SnapshotAlreadyExistsError",
-                  () => new PromptConflictError({ sessionID, messageID: SessionMessage.ID.create() }),
-                ),
-              )
-          }
-        }
+        if (projected.type === "existing") return projected.session
         // TODO: Restore recorded sessions onto replacement synchronized workspaces in a future API slice.
         return yield* result.get(sessionID).pipe(Effect.orDie)
       }),
-      createCustom: Effect.fn("V2Session.createCustom")(function* (input) {
-        yield* ProductModePolicy.assertRuntimeSupported("custom")
-        const sessionID = input.id ?? SessionSchema.ID.create()
-        const resolver = yield* resolveCompositionResolver(input.location)
-        const snapshot = yield* resolver.freeze({ input: input.composition, sessionID })
-
-        if (input.expectedPlanDigest && snapshot.digest !== input.expectedPlanDigest) {
-          return yield* new Composition.ResolveError({
-            code: "stale_composition_plan",
-            message: `Composition plan digest mismatch: expected ${input.expectedPlanDigest}, got ${snapshot.digest}`,
-          })
-        }
-
-        const recorded = yield* store.get(sessionID)
-        if (recorded) {
-          if (recorded.mode !== "custom") {
-            return yield* new PromptConflictError({ sessionID, messageID: SessionMessage.ID.create() })
-          }
-          const recordedSnapshot = yield* sessionComposition.read(sessionID)
-          if (recordedSnapshot && recordedSnapshot.digest === snapshot.digest) {
-            return { session: recorded, snapshot: recordedSnapshot }
-          }
-          return yield* new PromptConflictError({ sessionID, messageID: SessionMessage.ID.create() })
-        }
-
-        const project = yield* projects.resolve(input.location.directory)
-        yield* db
-          .insert(ProjectTable)
-          .values({ id: project.id, worktree: project.directory, vcs: project.vcs?.type, sandboxes: [] })
-          .onConflictDoNothing()
-          .run()
-          .pipe(Effect.orDie)
-
-        const now = Date.now()
-        const info = SessionV1.SessionInfo.make({
-          id: sessionID,
-          slug: Slug.create(),
-          version: InstallationVersion,
-          projectID: project.id,
-          mode: "custom",
-          directory: input.location.directory,
-          path: path.relative(project.directory, input.location.directory).replaceAll("\\", "/"),
-          workspaceID: input.location.workspaceID ? WorkspaceV2.ID.make(input.location.workspaceID) : undefined,
-          title: input.title ?? `Custom session - ${new Date(now).toISOString()}`,
-          agent: AgentV2.ID.make("meta"),
-          cost: 0,
-          tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
-          time: { created: now, updated: now },
-          permissionTier: PermissionTier.Default,
-        })
-
-        const projected = yield* events
-          .publish(
-            SessionV1.Event.Created,
-            { sessionID, info },
-            {
-              location: input.location,
-              commit: (_seq, tx) => SessionComposition.insertSnapshot(tx, sessionID, snapshot),
-            },
+      fork: Effect.fn("Session.fork")(function* (input) {
+        const parent = yield* result.get(input.sessionID)
+        const boundary = yield* db
+          .select({ id: SessionMessageTable.id })
+          .from(SessionMessageTable)
+          .where(
+            and(
+              eq(SessionMessageTable.session_id, input.sessionID),
+              input.before ? eq(SessionMessageTable.id, input.before) : undefined,
+            ),
           )
-          .pipe(
-            Effect.as({ type: "created" } as const),
-            Effect.catchDefect((defect) => {
-              if (!(defect instanceof SessionProjector.SessionAlreadyProjected)) {
-                return Effect.die(defect)
-              }
-              return store
-                .get(sessionID)
-                .pipe(
-                  Effect.flatMap((session) =>
-                    session ? Effect.succeed({ type: "existing", session } as const) : Effect.die(defect),
-                  ),
-                )
+          .orderBy(desc(SessionMessageTable.seq))
+          .limit(1)
+          .get()
+          .pipe(Effect.orDie)
+        if (!boundary && input.before)
+          return yield* new MessageNotFoundError({
+            sessionID: input.sessionID,
+            messageID: input.before,
+          })
+        if (!boundary) return yield* new ForkEmptyError({ sessionID: input.sessionID })
+        const sessionID = SessionSchema.ID.create()
+        const inherited = yield* db
+          .transaction(() =>
+            Effect.all({
+              instructions: InstructionState.current(db, parent.id),
+              instructionEntries: InstructionEntry.snapshot(db, parent.id),
             }),
           )
-
-        if (projected.type === "existing") {
-          const existingSnapshot = yield* sessionComposition.read(sessionID)
-          if (existingSnapshot && existingSnapshot.digest === snapshot.digest) {
-            return { session: projected.session, snapshot: existingSnapshot }
-          }
-          return yield* new PromptConflictError({ sessionID, messageID: SessionMessage.ID.create() })
-        }
-
-        const createdSession = yield* result.get(sessionID).pipe(Effect.orDie)
-        return { session: createdSession, snapshot }
-      }),
-      upgradeCustom: Effect.fn("V2Session.upgradeCustom")(function* (input) {
-        const source = yield* result.get(input.sessionID)
-        if (source.mode !== "custom") {
-          return yield* new UpgradeSourceModeError({ sessionID: input.sessionID, mode: source.mode })
-        }
-        if (yield* execution.isActive(input.sessionID)) {
-          return yield* new SessionBusyError({ sessionID: input.sessionID })
-        }
-        // Upgrading never mutates the source session or its snapshot row: the
-        // new composition is frozen fresh at the source's location and attached
-        // to a newly created session, leaving the source readable for frozen
-        // replay.
-        return yield* result.createCustom({
-          location: source.location,
-          composition: input.composition,
-          expectedPlanDigest: input.expectedPlanDigest,
-          title: input.title,
+          .pipe(Effect.orDie)
+        // The fork adopts the parent's newest instruction values rather than the
+        // values in effect at the boundary; copied history may contain frozen
+        // instruction-update text the initial baseline already reflects.
+        yield* bus.publish(SessionEvent.Forked, {
+          sessionID,
+          parentID: parent.id,
+          boundary: { type: input.before ? "before" : "through", messageID: boundary.id },
+          ...inherited,
         })
+        return yield* result.get(sessionID).pipe(Effect.orDie)
       }),
-      get: Effect.fn("V2Session.get")(function* (sessionID) {
-        const session = yield* store.get(sessionID)
-        if (!session) return yield* new NotFoundError({ sessionID })
-        // Assistant adopts legacy transcripts before any canonical read or admission.
-        if (session.mode === "assistant") yield* SessionLegacyHistory.adopt(db, events, sessionID)
-        return session
-      }),
-      children: Effect.fn("V2Session.children")(function* (sessionID) {
-        yield* result.get(sessionID)
-        return yield* store.children(sessionID)
-      }),
-      list: Effect.fn("V2Session.list")(function* (input = {}) {
-        const direction = input.anchor?.direction ?? "next"
-        const requestedOrder = input.order ?? "desc"
-        const order = direction === "previous" ? (requestedOrder === "asc" ? "desc" : "asc") : requestedOrder
-        const sortColumn = SessionTable.time_created
-        const conditions: SQL[] = []
-        if ("directory" in input) conditions.push(eq(SessionTable.directory, input.directory))
-        if (input.workspaceID) conditions.push(eq(SessionTable.workspace_id, input.workspaceID))
-        if (input.mode) conditions.push(eq(SessionTable.mode, input.mode))
-        if ("project" in input) conditions.push(eq(SessionTable.project_id, input.project))
-        if (input.search) conditions.push(like(SessionTable.title, `%${input.search}%`))
-        if (input.anchor) {
-          conditions.push(
-            order === "asc"
-              ? or(
-                  gt(sortColumn, input.anchor.time),
-                  and(eq(sortColumn, input.anchor.time), gt(SessionTable.id, input.anchor.id)),
-                )!
-              : or(
-                  lt(sortColumn, input.anchor.time),
-                  and(eq(sortColumn, input.anchor.time), lt(SessionTable.id, input.anchor.id)),
-                )!,
-          )
-        }
-        const query = db
-          .select()
-          .from(SessionTable)
-          .where(conditions.length > 0 ? and(...conditions) : undefined)
-          .orderBy(
-            order === "asc" ? asc(sortColumn) : desc(sortColumn),
-            order === "asc" ? asc(SessionTable.id) : desc(SessionTable.id),
-          )
-        const rows = yield* (input.limit === undefined ? query.all() : query.limit(input.limit).all()).pipe(
-          Effect.orDie,
-        )
-        return (direction === "previous" ? rows.toReversed() : rows).map((row) => fromRow(row))
-      }),
-      messages: Effect.fn("V2Session.messages")(function* (input) {
+      get: (sessionID) => sessions.forSession(sessionID).get(),
+      environment: Effect.fn("Session.environment")(function* (input) {
         yield* result.get(input.sessionID)
-        const direction = input.cursor?.direction ?? "next"
-        const requestedOrder = input.order ?? "desc"
-        const order = direction === "previous" ? (requestedOrder === "asc" ? "desc" : "asc") : requestedOrder
-        const anchor = input.cursor
-          ? yield* db
-              .select({ seq: SessionMessageTable.seq })
-              .from(SessionMessageTable)
-              .where(
-                and(eq(SessionMessageTable.session_id, input.sessionID), eq(SessionMessageTable.id, input.cursor.id)),
-              )
-              .get()
-              .pipe(Effect.orDie)
-          : undefined
-        if (input.cursor && !anchor) return []
-        const boundary = anchor
-          ? order === "asc"
-            ? gt(SessionMessageTable.seq, anchor.seq)
-            : lt(SessionMessageTable.seq, anchor.seq)
-          : undefined
-        const where = boundary
-          ? and(eq(SessionMessageTable.session_id, input.sessionID), boundary)
-          : eq(SessionMessageTable.session_id, input.sessionID)
-        const query = db
-          .select()
-          .from(SessionMessageTable)
-          .where(where)
-          .orderBy(order === "asc" ? asc(SessionMessageTable.seq) : desc(SessionMessageTable.seq))
-        const rows = yield* (input.limit === undefined ? query.all() : query.limit(input.limit).all()).pipe(
-          Effect.orDie,
-        )
-        return yield* Effect.forEach(direction === "previous" ? rows.toReversed() : rows, decode)
+        if (input.variables !== undefined) yield* environments.set(input.sessionID, input.variables)
+        return yield* environments.get(input.sessionID)
       }),
-      message: Effect.fn("V2Session.message")(function* (input) {
-        const stored = yield* store.message(input.messageID)
-        return stored?.sessionID === input.sessionID ? stored.message : undefined
+      view: (input) => sessions.forSession(input.sessionID).view(input),
+      remove: Effect.fn("Session.remove")(function* (sessionID) {
+        yield* result.get(sessionID)
+        yield* execution.interrupt(sessionID)
+        yield* execution.awaitIdle(sessionID)
+        yield* transport.close(sessionID)
+        const children = yield* result.list({ parentID: sessionID })
+        yield* Effect.forEach(children.data, (child) => result.remove(child.id), { concurrency: 1, discard: true })
+        yield* environments.clear(sessionID)
+        yield* bus.publish(SessionEvent.Deleted, { sessionID })
+        yield* bus.remove(sessionID)
       }),
-      context: Effect.fn("V2Session.context")(function* (sessionID) {
+      list: Effect.fn("Session.list")(function* (input) {
+        return { data: yield* store.list(input) }
+      }),
+      messages: Effect.fn("Session.messages")(function* (input) {
+        yield* result.get(input.sessionID)
+        return yield* store.messages(input)
+      }),
+      message: (input) => sessions.forSession(input.sessionID).message(input.messageID),
+      context: Effect.fn("Session.context")(function* (sessionID) {
         yield* result.get(sessionID)
         return yield* store.context(sessionID)
       }),
-      events: (input) =>
+      diff: Effect.fn("Session.diff")(function* (input) {
+        const session = yield* result.get(input.sessionID)
+        const active = yield* execution.isActive(input.sessionID)
+        return yield* SessionDiff.turn(db, locations, {
+          session,
+          active,
+          from: input.from,
+          to: input.to,
+          context: input.context,
+        })
+      }),
+      inbox: (sessionID) => sessions.forSession(sessionID).inbox(),
+      cancelInbox: (input) => sessions.forSession(input.sessionID).cancelInbox(input.inboxID),
+      steerInbox: (input) => sessions.forSession(input.sessionID).steerInbox(input.inboxID),
+      queueInbox: (input) => sessions.forSession(input.sessionID).queueInbox(input.inboxID),
+      log: (input) =>
         Stream.unwrap(
           result
             .get(input.sessionID)
-            .pipe(Effect.as(events.durable({ aggregateID: input.sessionID, after: input.after }))),
-        ).pipe(Stream.filter((event): event is SessionEvent.DurableEvent => isDurableSessionEvent(event))),
-      prompt: Effect.fn("V2Session.prompt")((input) =>
-        Effect.uninterruptible(
-          Effect.gen(function* () {
-            const session = yield* result.get(input.sessionID)
-            yield* ProductModePolicy.assertRuntimeSupported(session.mode)
-            if (session.mode === "custom") {
-              yield* sessionComposition.get(input.sessionID)
-            }
-            const messageID = input.id ?? SessionMessage.ID.create()
-            const delivery = input.delivery ?? "steer"
-            const expected = {
-              sessionID: input.sessionID,
-              messageID,
-              prompt: input.prompt,
-              delivery,
-              delegationOrigin: input.delegationOrigin,
-            }
-            const admitted = yield* SessionInput.admit(db, events, {
-              id: messageID,
-              sessionID: input.sessionID,
-              prompt: input.prompt,
-              delivery,
-              delegationOrigin: input.delegationOrigin,
-            }).pipe(
-              Effect.catchDefect((defect) =>
-                defect instanceof SessionInput.LifecycleConflict
-                  ? new PromptConflictError({ sessionID: input.sessionID, messageID })
-                  : Effect.die(defect),
-              ),
-            )
-            if (!SessionInput.equivalent(admitted, expected))
-              return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
-            if (input.resume !== false) yield* execution.wake(admitted.sessionID)
-            return admitted
-          }),
+            .pipe(Effect.as(bus.log({ aggregateID: input.sessionID, after: input.after, follow: input.follow }))),
+        ).pipe(
+          Stream.filter(
+            (item): item is SessionEvent.DurableEvent | EventLog.Synced =>
+              Bus.isSynced(item) || isDurableSessionEvent(item),
+          ),
         ),
-      ),
-      /**
-       * S2: one request that carries selection AND an input, all-or-nothing.
-       *
-       * Everything that can be rejected is decided BEFORE the first durable
-       * write, so a rejected request leaves the session exactly as it was. That
-       * is the defect this replaces: `admitCanonical` committed switchAgent,
-       * then switchModel, then the prompt as three independent commits, so a
-       * prompt the server went on to reject still left the session on a
-       * different agent, and an abort between the writes produced a selection
-       * combination nobody asked for.
-       *
-       * Selection is also idempotent here: re-applying the agent the session
-       * already holds appends no event. The V1 path guarded that
-       * (`prompt.ts` compared against `current.agent`); the S4 adapter dropped
-       * the guard and wrote one AgentSwitched per request.
-       *
-       * Remaining window, deliberately not closed here: a crash BETWEEN the
-       * selection events and the inbox insert still leaves selection applied.
-       * Closing it needs an EventV2 batch primitive that commits N durable
-       * events in one transaction and defers every notification until after
-       * that commit — nesting today's `publish` calls inside an outer
-       * transaction would notify subscribers about events that can still roll
-       * back. Tracked in docs/technical-debt.md.
-       */
-      admitWithSelection: Effect.fn("V2Session.admitWithSelection")((input) =>
-        Effect.uninterruptible(
-          Effect.gen(function* () {
-            const session = yield* result.get(input.sessionID)
-            yield* ProductModePolicy.assertRuntimeSupported(session.mode)
-            if (session.mode === "custom") {
-              yield* sessionComposition.get(input.sessionID)
-            }
-
-            const messageID = input.id ?? SessionMessage.ID.create()
-            const delivery = input.delivery ?? "steer"
-            const expected = {
-              sessionID: input.sessionID,
-              messageID,
-              prompt: input.prompt,
-              delivery,
-              delegationOrigin: input.delegationOrigin,
-            }
-
-            // Validate the input against any row that already holds this ID
-            // before touching selection, so a conflict cannot leave the session
-            // switched. `admit` is idempotent, but it runs after selection.
-            const existing = yield* SessionInput.find(db, messageID)
-            if (existing !== undefined && !SessionInput.equivalent(existing, expected)) {
-              return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
-            }
-
-            // Validate selection through the same owners `switchAgent` uses.
-            const nextAgent =
-              input.agent !== undefined && input.agent !== session.agent ? AgentV2.ID.make(input.agent) : undefined
-            if (nextAgent !== undefined) {
-              if (session.mode === "custom") {
-                yield* sessionComposition.assertAgentAllowed(input.sessionID, nextAgent)
-              }
-              // Custom children legitimately hold non-primary agents (R6-3);
-              // every other session keeps the five-mode primary gate.
-              if (!(session.mode === "custom" && session.parentID !== undefined)) {
-                yield* ProductModeAgentPolicy.enforcePrimary(session.mode, nextAgent)
-              }
-            }
-            const nextModel =
-              input.model !== undefined &&
-              (session.model?.id !== input.model.id ||
-                session.model?.providerID !== input.model.providerID ||
-                session.model?.variant !== input.model.variant)
-                ? input.model
-                : undefined
-
-            // One transaction for selection AND the input. Projectors run inside
-            // it, so the session row updates and the inbox insert land together
-            // or not at all, and no subscriber hears about any of it until the
-            // whole batch has committed.
-            const timestamp = yield* DateTime.now
-            const admitted =
-              existing ??
-              (yield* Effect.gen(function* () {
-                const committed = yield* events.publishBatch([
-                  ...(nextAgent === undefined
-                    ? []
-                    : [
-                        EventV2.batchEntry(SessionEvent.AgentSwitched, {
-                          sessionID: input.sessionID,
-                          messageID: SessionMessage.ID.create(),
-                          timestamp,
-                          agent: nextAgent,
-                        }),
-                      ]),
-                  ...(nextModel === undefined
-                    ? []
-                    : [
-                        EventV2.batchEntry(SessionEvent.ModelSwitched, {
-                          sessionID: input.sessionID,
-                          messageID: SessionMessage.ID.create(),
-                          timestamp,
-                          model: nextModel,
-                        }),
-                      ]),
-                  EventV2.batchEntry(SessionEvent.PromptAdmitted, {
-                    messageID,
-                    sessionID: input.sessionID,
-                    timestamp,
-                    prompt: input.prompt,
-                    delivery,
-                    ...(input.delegationOrigin === undefined ? {} : { delegationOrigin: input.delegationOrigin }),
-                  }),
-                ])
-                const promoted = committed.find((event) => event.type === SessionEvent.PromptAdmitted.type)
-                if (promoted?.durable === undefined) {
-                  return yield* Effect.die("Prompt admission event is missing aggregate sequence")
-                }
-                return SessionInput.Admitted.make({
-                  kind: "prompt",
-                  admittedSeq: promoted.durable.seq,
-                  id: messageID,
-                  sessionID: input.sessionID,
-                  prompt: input.prompt,
-                  delivery,
-                  ...(input.delegationOrigin === undefined ? {} : { delegationOrigin: input.delegationOrigin }),
-                  timeCreated: timestamp,
-                })
-              }))
-            if (!SessionInput.equivalent(admitted, expected))
-              return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
-            // One request, one wake — and an exact retry wakes nothing, because
-            // the row it would have created already existed.
-            if (existing === undefined && input.resume !== false) yield* execution.wake(admitted.sessionID)
-            return admitted
-          }),
-        ),
-      ),
-      shell: Effect.fn("V2Session.shell")((input) =>
-        Effect.uninterruptible(
-          Effect.gen(function* () {
-            const session = yield* result.get(input.sessionID)
-            yield* ProductModePolicy.assertRuntimeSupported(session.mode)
-            if (session.mode === "custom") {
-              yield* sessionComposition.get(input.sessionID)
-            }
-            // V2 shell policy guard: deny shell in chat mode
-            const commandVerdict = ProductModeAgentPolicy.checkCommandAllowed(session.mode ?? "coding")
-            if (!commandVerdict.allowed) return yield* commandVerdict.error
-            const messageID = input.id ?? SessionMessage.ID.create()
-            const delivery: SessionInput.Delivery = "queue"
-            const expected = { sessionID: input.sessionID, messageID, command: input.command, delivery }
-            const admitted = yield* SessionInput.admitShell(db, events, {
-              id: messageID,
-              sessionID: input.sessionID,
-              command: input.command,
-            }).pipe(
-              Effect.catchDefect((defect) =>
-                defect instanceof SessionInput.LifecycleConflict
-                  ? new PromptConflictError({ sessionID: input.sessionID, messageID })
-                  : Effect.die(defect),
-              ),
-            )
-            if (!SessionInput.equivalentShell(admitted, expected))
-              return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
-            if (input.resume !== false) yield* execution.wake(admitted.sessionID)
-            return admitted
-          }),
-        ),
-      ),
-      skill: Effect.fn("V2Session.skill")((input) =>
-        Effect.uninterruptible(
-          Effect.gen(function* () {
-            const session = yield* result.get(input.sessionID)
-            yield* ProductModePolicy.assertRuntimeSupported(session.mode)
-            if (session.mode === "custom") {
-              yield* sessionComposition.get(input.sessionID)
-            }
-            const messageID = input.id ?? SessionMessage.ID.create()
-            const delivery: SessionInput.Delivery = "steer"
-            const expected = { sessionID: input.sessionID, messageID, skill: input.skill, delivery }
-            const admitted = yield* SessionInput.admitSkill(db, events, {
-              id: messageID,
-              sessionID: input.sessionID,
-              skill: input.skill,
-            }).pipe(
-              Effect.catchDefect((defect) =>
-                defect instanceof SessionInput.LifecycleConflict
-                  ? new PromptConflictError({ sessionID: input.sessionID, messageID })
-                  : Effect.die(defect),
-              ),
-            )
-            if (!SessionInput.equivalentSkill(admitted, expected))
-              return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
-            if (input.resume !== false) yield* execution.wake(admitted.sessionID)
-            return admitted
-          }),
-        ),
-      ),
-      command: Effect.fn("V2Session.command")((input) =>
-        Effect.uninterruptible(
-          Effect.gen(function* () {
-            const session = yield* result.get(input.sessionID)
-            yield* ProductModePolicy.assertRuntimeSupported(session.mode)
-            // Snapshot commands are a Custom Mode capability (S10 matrix). Every
-            // other mode must fail closed: a live-store name is not a frozen
-            // catalog entry, so it must never inherit Custom runtime behavior.
-            if (session.mode !== "custom") {
-              return yield* new CommandUnavailableError({
-                sessionID: input.sessionID,
-                command: input.command,
-                reason: "not-custom",
-              })
-            }
-            const snapshot = yield* sessionComposition.get(input.sessionID)
-            const scope = CompositionConsumerView.resolveScope(snapshot, session)
-            // Fail closed on any consumer that cannot be mapped onto the frozen
-            // binding graph; the flat arrays are never a fallback (D5-A).
-            if (!CompositionConsumerView.isBindingSatisfied(snapshot, scope)) {
-              return yield* new CommandUnavailableError({
-                sessionID: input.sessionID,
-                command: input.command,
-                reason: "unbound",
-              })
-            }
-            const catalog = CompositionConsumerView.getCommands(snapshot, scope)
-            const matches = catalog.filter((entry) => entry.name === input.command)
-            if (matches.length === 0) {
-              return yield* new CommandUnavailableError({
-                sessionID: input.sessionID,
-                command: input.command,
-                reason: "unbound",
-              })
-            }
-            if (matches.length > 1) {
-              return yield* new CommandUnavailableError({
-                sessionID: input.sessionID,
-                command: input.command,
-                reason: "ambiguous",
-              })
-            }
-            const entry = matches[0]
-            // D6: a legacy snapshot decodes invocation to "" and must fail
-            // closed instead of inheriting execution ability.
-            if (entry.invocation === "") {
-              return yield* new CommandUnavailableError({
-                sessionID: input.sessionID,
-                command: input.command,
-                reason: "legacy",
-              })
-            }
-            const messageID = input.id ?? SessionMessage.ID.create()
-            const delivery: SessionInput.Delivery = "steer"
-            const expected = {
-              sessionID: input.sessionID,
-              messageID,
-              command: entry.name,
-              relativePath: entry.relativePath,
-              revision: entry.revision,
-              consumer: scope._tag === "scoped" ? scope.key : "orchestrator",
-              arguments: input.arguments ?? "",
-              context: input.context ?? Prompt.make({ text: "" }),
-              snapshotDigest: snapshot.digest,
-              delivery,
-            }
-            const admission = yield* SessionInput.admitCommand(db, events, {
-              id: messageID,
-              sessionID: input.sessionID,
-              command: expected.command,
-              relativePath: expected.relativePath,
-              revision: expected.revision,
-              consumer: expected.consumer,
-              arguments: expected.arguments,
-              context: expected.context,
-              snapshotDigest: expected.snapshotDigest,
-              delivery: expected.delivery,
-            }).pipe(
-              Effect.catchDefect((defect) =>
-                defect instanceof SessionInput.LifecycleConflict
-                  ? new PromptConflictError({ sessionID: input.sessionID, messageID })
-                  : Effect.die(defect),
-              ),
-            )
-            if (!SessionInput.equivalentCommand(admission.admitted, expected))
-              return yield* new PromptConflictError({ sessionID: input.sessionID, messageID })
-            // Exact retry with the same message ID creates no second row and no
-            // second wake: the wake fires only for a fresh admission.
-            if (admission.created && input.resume !== false) yield* execution.wake(input.sessionID)
-            return admission.admitted
-          }),
-        ),
-      ),
-      switchAgent: Effect.fn("V2Session.switchAgent")(function* (input) {
+      prompt: (input) => sessions.forSession(input.sessionID).prompt(input),
+      generate: Effect.fn("Session.generate")(function* (input) {
         const session = yield* result.get(input.sessionID)
-        yield* ProductModePolicy.assertRuntimeSupported(session.mode)
-        // Custom sessions may only switch within their frozen Snapshot pool;
-        // without this gate a post-creation swap would bypass the same
-        // allowlist that guards `create` and delegated dispatch.
-        if (session.mode === "custom") {
-          yield* sessionComposition.assertAgentAllowed(input.sessionID, input.agent)
-        }
-        // P1-4: enforce the five-mode primary-agent policy at switch time for
-        // every session except custom children. Custom children legitimately
-        // hold non-primary agents (R6-3: authorized at creation against the
-        // parent Snapshot allowlist), so they keep the pool check only. Custom
-        // roots must stay `meta`; without this gate a post-creation swap would
-        // persist an agent that bricks the next provider turn.
-        if (!(session.mode === "custom" && session.parentID !== undefined)) {
-          yield* ProductModeAgentPolicy.enforcePrimary(session.mode, input.agent)
-        }
-        yield* events.publish(SessionEvent.AgentSwitched, {
-          sessionID: input.sessionID,
-          messageID: SessionMessage.ID.create(),
-          timestamp: yield* DateTime.now,
-          agent: input.agent,
-        })
+        return yield* SessionGenerate.generate({ session, prompt: input.prompt }).pipe(
+          Effect.provideService(Instance.Service, instances),
+          Effect.provideService(Database.Service, database),
+          Effect.provideService(LLMClient.Service, llm),
+        )
       }),
-      switchModel: Effect.fn("V2Session.switchModel")(function* (input) {
+      command: Effect.fn("Session.command")(function* (input) {
         const session = yield* result.get(input.sessionID)
-        yield* ProductModePolicy.assertRuntimeSupported(session.mode)
-        yield* events.publish(SessionEvent.ModelSwitched, {
-          sessionID: input.sessionID,
-          messageID: SessionMessage.ID.create(),
-          timestamp: yield* DateTime.now,
-          model: input.model,
-        })
+        return yield* SessionCommand.execute({ ...input, session }).pipe(
+          Effect.provideService(Instance.Service, instances),
+        )
       }),
-      remove: Effect.fn("V2Session.remove")(function* (sessionID: SessionSchema.ID) {
-        // Deletion must remain available when legacy history cannot be adopted.
-        if (!(yield* store.get(sessionID))) return yield* new NotFoundError({ sessionID })
-        yield* execution.interrupt(sessionID)
-        // Delete events, messages, and session row. Foreign key cascade
-        // handles session_input, session_message, etc. when the session row
-        // is deleted. Event table is separate, so delete events explicitly.
-        yield* db.delete(SessionTable).where(eq(SessionTable.id, sessionID)).run().pipe(Effect.orDie)
-      }),
-      removeMessage: Effect.fn("V2Session.removeMessage")(function* (input) {
-        yield* result.get(input.sessionID)
-        yield* db
-          .delete(SessionMessageTable)
-          .where(and(eq(SessionMessageTable.session_id, input.sessionID), eq(SessionMessageTable.id, input.messageID)))
-          .run()
-          .pipe(Effect.orDie)
-      }),
-      setTitle: Effect.fn("V2Session.setTitle")(function* (input) {
-        yield* result.get(input.sessionID)
-        yield* db
-          .update(SessionTable)
-          .set({ title: input.title })
-          .where(eq(SessionTable.id, input.sessionID))
-          .run()
-          .pipe(Effect.orDie)
-      }),
-      compact: Effect.fn("V2Session.compact")(function* (input) {
-        yield* result.get(input.sessionID)
-        return yield* new OperationUnavailableError({ operation: "compact" })
-      }),
-      wait: Effect.fn("V2Session.wait")(function* (sessionID) {
+      shell: (input) => sessions.forSession(input.sessionID).shell(input),
+      skill: (input) => sessions.forSession(input.sessionID).skill(input),
+      switchAgent: (input) => sessions.forSession(input.sessionID).switchAgent(input),
+      switchModel: (input) => sessions.forSession(input.sessionID).switchModel(input),
+      rename: (input) => sessions.forSession(input.sessionID).rename(input),
+      setMetadata: (input) => sessions.forSession(input.sessionID).setMetadata(input),
+      setPermissions: (input) => sessions.forSession(input.sessionID).setPermissions(input),
+      move: moves.move,
+      compact: (input) => sessions.forSession(input.sessionID).compact(input),
+      wait: (sessionID) => sessions.forSession(sessionID).wait(),
+      active: execution.active,
+      background: Effect.fn("Session.background")(function* (sessionID) {
         yield* result.get(sessionID)
-        return yield* new OperationUnavailableError({ operation: "wait" })
+        const backgrounded = yield* jobs.backgroundAll({ sessionID })
+        if (backgrounded.length === 0) return
+        yield* result
+          .synthetic({
+            sessionID,
+            text: [
+              "User requested that active blocking work be moved to the background.",
+              "",
+              "Backgrounded work:",
+              ...backgrounded.map((job) => `- ${job.type}: ${job.title && job.title.length > 0 ? job.title : job.id}`),
+              "",
+              "The backgrounded work is still unfinished. Move on to other work if you can. If there is nothing else useful to do, finish your response. Do not wait, sleep, poll, or report the backgrounded work as complete until a later completion notification is added to the conversation.",
+            ].join("\n"),
+          })
+          .pipe(Effect.catchTag("Session.SyntheticConflictError", Effect.die))
       }),
-      resume: Effect.fn("V2Session.resume")(function* (sessionID) {
-        const session = yield* result.get(sessionID)
-        // D12 (S3): same kill-switch gate as the drain — resume must not be a
-        // silent no-op when custom mode is off; the HTTP layer maps the typed
-        // UnsupportedProductModeError to 400.
-        yield* ProductModePolicy.assertRuntimeSupported(session.mode)
-        if (session.mode === "custom") {
-          yield* sessionComposition.get(sessionID)
-        }
-        yield* execution.resume(sessionID)
-      }),
-      injectSynthetic: Effect.fn("V2Session.injectSynthetic")(function* (input) {
-        yield* result.get(input.sessionID)
-        const messageID = input.id ?? SessionMessage.ID.create()
-        const admission = yield* SessionInput.admitSynthetic(db, events, {
-          id: messageID,
-          sessionID: input.sessionID,
-          text: input.text,
-        })
-        if (!SessionInput.equivalentSynthetic(admission.admitted, input)) {
-          return yield* new SyntheticConflictError({ sessionID: input.sessionID, messageID })
-        }
-        if (admission.created) yield* execution.wake(input.sessionID)
-      }),
-      interrupt: Effect.fn("V2Session.interrupt")((sessionID) =>
-        Effect.uninterruptible(
-          Effect.gen(function* () {
-            // Interrupt the session's own drain fiber.
-            yield* execution.interrupt(sessionID)
-            // Cascade to children so their BackgroundJob drains are also stopped.
-            // Children cannot nest further (task tool prevents recursive
-            // delegation via isChildSession), so depth is at most 1.
-            const children = yield* store.children(sessionID)
-            yield* Effect.forEach(children, (child) => execution.interrupt(child.id))
-            if (yield* TaskDriver.isInstalled()) yield* TaskDriver.interrupt(sessionID)
-          }),
-        ),
-      ),
-      toolSummary: Effect.fn("V2Session.toolSummary")(function* (sessionID) {
-        yield* result.get(sessionID)
-        const messages = yield* result.messages({ sessionID, order: "asc" })
-        return ToolSummary.fromMessages(messages)
-      }),
+      resume: (sessionID) => sessions.forSession(sessionID).resume(),
+      synthetic: (input) => sessions.forSession(input.sessionID).synthetic(input),
+      interrupt: (sessionID, options) => sessions.forSession(sessionID).interrupt(options),
+      revert: {
+        stage: (input) => sessions.forSession(input.sessionID).revert.stage(input),
+        clear: (sessionID) => sessions.forSession(sessionID).revert.clear(),
+        commit: (sessionID) => sessions.forSession(sessionID).revert.commit(),
+      },
     })
 
     return result
   }),
-).pipe(Layer.provide(SessionComposition.layer))
-
-// The record-only service must not memoize the live layer with a noop owner.
-// Keep its shared database/event dependencies outside the fresh service boundary.
-export const defaultLayer = Layer.fresh(layer).pipe(
-  Layer.provide(SessionExecution.noopLayer),
-  Layer.provide(SessionStore.defaultLayer),
-  Layer.provide(SessionProjector.defaultLayer),
-  Layer.provide(EventV2.defaultLayer),
-  Layer.provide(Database.defaultLayer),
-  Layer.provide(ProjectV2.defaultLayer),
-  Layer.orDie,
 )
+
+export const node: LayerNode.Provider<Service, never, typeof Node.tags.values.global> = Node.makeGlobalNode({
+  service: Service,
+  layer,
+  deps: [
+    Job.node,
+    SessionEnvironment.node,
+    Database.node,
+    Bus.node,
+    Project.node,
+    SessionExecution.node,
+    SessionModelTransport.node,
+    llmClient,
+    SessionStore.node,
+    Instance.node,
+    SessionInbox.node,
+    SessionMove.node,
+    SessionProjector.node,
+    LocationServiceMap.node,
+    FSUtil.node,
+    App.node,
+  ],
+})

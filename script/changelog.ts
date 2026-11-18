@@ -11,7 +11,6 @@ const { values, positionals } = parseArgs({
   options: {
     from: { type: "string", short: "f" },
     to: { type: "string", short: "t" },
-    model: { type: "string" },
     variant: { type: "string", default: "low" },
     quiet: { type: "boolean", default: false },
     print: { type: "boolean", default: false },
@@ -28,14 +27,13 @@ if (values.help) {
   console.log(`
 Usage: bun script/changelog.ts [options]
 
-Generates UPCOMING_CHANGELOG.md by running the aigcfroge changelog command.
+Generates UPCOMING_CHANGELOG.md by running the opencode changelog command.
 
 Options:
   -f, --from <version>   Starting version (default: latest non-draft GitHub release)
   -t, --to <ref>         Ending ref (default: HEAD)
-      --model <name>     Model override in provider/model form (e.g. google/gemini-3.7-flash)
-      --variant <name>   Thinking variant for aigcfroge run (default: low)
-      --quiet            Suppress aigcfroge command output unless it fails
+      --variant <name>   Thinking variant for opencode run (default: low)
+      --quiet            Suppress opencode command output unless it fails
       --print            Print the generated UPCOMING_CHANGELOG.md after success
   -h, --help             Show this help message
 
@@ -50,16 +48,8 @@ Examples:
 await rm(file, { force: true })
 
 const quiet = values.quiet
-const bunBin = process.argv[0] || "bun"
-const entry = path.join(root, "packages/aigcfroge/src/index.ts")
-const hasBinary = Boolean(Bun.which("aigcfroge"))
-const cmd = hasBinary ? ["aigcfroge", "run"] : [bunBin, "run", "--conditions=browser", entry, "run"]
-
-// Changelog generation inspects diffs and writes a file. Keep it on the build
-// agent instead of the interactive meta default, which can stall without a turn.
-cmd.push("--agent", "build")
+const cmd = ["opencode", "run"]
 cmd.push("--variant", values.variant)
-if (values.model) cmd.push("--model", values.model)
 cmd.push("--command", "changelog", "--", ...args)
 
 const proc = Bun.spawn(cmd, {

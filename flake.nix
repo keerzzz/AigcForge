@@ -1,5 +1,5 @@
 {
-  description = "Aigcfroge development flake";
+  description = "OpenCode development flake";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -12,7 +12,6 @@
         "aarch64-linux"
         "x86_64-linux"
         "aarch64-darwin"
-        "x86_64-darwin"
       ];
       forEachSystem = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
       rev = self.shortRev or self.dirtyShortRev or "dirty";
@@ -22,7 +21,7 @@
         default = pkgs.mkShell {
           packages = with pkgs; [
             bun
-            nodejs_20
+            nodejs
             pkg-config
             openssl
             git
@@ -39,11 +38,11 @@
             };
           in
           rec {
-            aigcfroge = final.callPackage ./nix/aigcfroge.nix {
+            opencode = final.callPackage ./nix/opencode.nix {
               inherit node_modules;
             };
-            aigcfroge-desktop = final.callPackage ./nix/desktop.nix {
-              inherit aigcfroge;
+            opencode-desktop = final.callPackage ./nix/desktop.nix {
+              inherit opencode;
             };
           };
       };
@@ -56,12 +55,12 @@
           };
         in
         rec {
-          default = aigcfroge;
-          aigcfroge = pkgs.callPackage ./nix/aigcfroge.nix {
+          default = opencode;
+          opencode = pkgs.callPackage ./nix/opencode.nix {
             inherit node_modules;
           };
-          aigcfroge-desktop = pkgs.callPackage ./nix/desktop.nix {
-            inherit aigcfroge;
+          opencode-desktop = pkgs.callPackage ./nix/desktop.nix {
+            inherit opencode;
           };
           # Updater derivation with fakeHash - build fails and reveals correct hash
           node_modules_updater = node_modules.override {

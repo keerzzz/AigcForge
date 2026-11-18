@@ -17,7 +17,6 @@ jobs:
           script: |
             const pr = context.payload.pull_request;
             const login = pr.user.login;
-            const defaultBranch = context.payload.repository.default_branch;
 
             // Skip PRs older than Feb 18, 2026 at 6PM EST (Feb 19, 2026 00:00 UTC)
             const cutoff = new Date('2026-02-19T00:00:00Z');
@@ -28,12 +27,12 @@ jobs:
             }
 
             // Check if author is a team member or bot
-            if (login === 'aigcfroge-agent[bot]') return;
+            if (login === 'opencode-agent[bot]') return;
             const { data: file } = await github.rest.repos.getContent({
               owner: context.repo.owner,
               repo: context.repo.repo,
               path: '.github/TEAM_MEMBERS',
-              ref: defaultBranch
+              ref: 'dev'
             });
             const members = Buffer.from(file.content, 'base64').toString().split('\n').map(l => l.trim()).filter(Boolean);
             if (members.includes(login)) {
@@ -101,9 +100,9 @@ jobs:
             - \`refactor:\` or \`refactor(scope):\` code refactoring
             - \`test:\` or \`test(scope):\` adding or updating tests
 
-            Where \`scope\` is the package name (e.g., \`app\`, \`desktop\`, \`aigcfroge\`).
+            Where \`scope\` is the package name (e.g., \`app\`, \`desktop\`, \`opencode\`).
 
-            See [CONTRIBUTING.md](../blob/${defaultBranch}/CONTRIBUTING.md#pr-titles) for details.`);
+            See [CONTRIBUTING.md](../blob/dev/CONTRIBUTING.md#pr-titles) for details.`);
               return;
             }
 
@@ -136,7 +135,16 @@ jobs:
 
             const linkedIssues = result.repository.pullRequest.closingIssuesReferences.totalCount;
 
-            if (linkedIssues === 0) {
+            // GitHub only populates closingIssuesReferences when a PR targets the repository's
+            // default branch (dev). PRs targeting other branches like v2 always return totalCount 0.
+            // Fall back to checking the PR description for closing keywords (e.g. Closes #123).
+            const body = pr.body || '';
+            const issueMatch = body.match(/### Issue for this PR\s*\n([\s\S]*?)(?=###|$)/);
+            const issueContent = issueMatch ? issueMatch[1].trim() : body;
+            const hasBodyIssueRef = /(closes|fixes|resolves)\s+#\d+/i.test(issueContent) || /#\d+/.test(issueContent);
+            const hasLinkedIssue = linkedIssues > 0 || hasBodyIssueRef;
+
+            if (!hasLinkedIssue) {
               await addLabel('needs:issue');
               await comment('issue', `Thanks for your contribution!
 
@@ -146,7 +154,7 @@ jobs:
             1. Open an issue describing the bug/feature (if one doesn't exist)
             2. Add \`Fixes #<number>\` or \`Closes #<number>\` to this PR description
 
-            See [CONTRIBUTING.md](../blob/${defaultBranch}/CONTRIBUTING.md#issue-first-policy) for details.`);
+            See [CONTRIBUTING.md](../blob/dev/CONTRIBUTING.md#issue-first-policy) for details.`);
               return;
             }
 
@@ -165,7 +173,6 @@ jobs:
           script: |
             const pr = context.payload.pull_request;
             const login = pr.user.login;
-            const defaultBranch = context.payload.repository.default_branch;
 
             // Skip PRs older than Feb 18, 2026 at 6PM EST (Feb 19, 2026 00:00 UTC)
             const cutoff = new Date('2026-02-19T00:00:00Z');
@@ -176,12 +183,12 @@ jobs:
             }
 
             // Check if author is a team member or bot
-            if (login === 'aigcfroge-agent[bot]') return;
+            if (login === 'opencode-agent[bot]') return;
             const { data: file } = await github.rest.repos.getContent({
               owner: context.repo.owner,
               repo: context.repo.repo,
               path: '.github/TEAM_MEMBERS',
-              ref: defaultBranch
+              ref: 'dev'
             });
             const members = Buffer.from(file.content, 'base64').toString().split('\n').map(l => l.trim()).filter(Boolean);
             if (members.includes(login)) {
@@ -203,7 +210,7 @@ jobs:
             const hasIssueSection = /### Issue for this PR/.test(body);
 
             if (!hasWhatSection || !hasTypeSection || !hasVerifySection || !hasChecklistSection || !hasIssueSection) {
-              issues.push(`PR description is missing required template sections. Please use the [PR template](../blob/${defaultBranch}/.github/pull_request_template.md).`);
+              issues.push('PR description is missing required template sections. Please use the [PR template](../blob/dev/.github/pull_request_template.md).');
             }
 
             // Check: "What does this PR do?" has real content (not just placeholder text)
@@ -295,12 +302,12 @@ jobs:
               const existing = comments.find(c => c.body.includes(marker));
 
               const body_text = `${marker}
-            This PR doesn't fully meet our [contributing guidelines](../blob/${defaultBranch}/CONTRIBUTING.md) and [PR template](../blob/${defaultBranch}/.github/pull_request_template.md).
+            This PR doesn't fully meet our [contributing guidelines](../blob/dev/CONTRIBUTING.md) and [PR template](../blob/dev/.github/pull_request_template.md).
 
             **What needs to be fixed:**
             ${issues.map(i => `- ${i}`).join('\n')}
 
-            Please edit this PR description to address the above within **2 hours**, or it will be automatically closed.
+            Please edit this PR description to address the above within **72 hours**, or it will be automatically closed.
 
             If you believe this was flagged incorrectly, please let a maintainer know.`;
 

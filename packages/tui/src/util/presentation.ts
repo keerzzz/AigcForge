@@ -1,7 +1,4 @@
-const logo = {
-  left: ["                   ", "█▀▀█ █▀▀█ █▀▀█ █▀▀▄", "█__█ █__█ █^^^ █__█", "▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀~~▀"],
-  right: ["             ▄     ", "█▀▀▀ █▀▀█ █▀▀█ █▀▀█", "█___ █__█ █__█ █^^^", "▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀"],
-}
+import { logo } from "../logo"
 
 const reset = "\x1b[0m"
 const bold = "\x1b[1m"
@@ -9,7 +6,6 @@ const dim = "\x1b[90m"
 
 function wordmark(pad = "") {
   const draw = (line: string, fg: string, shadow: string, bg: string) =>
-    // eslint-disable-next-line no-misused-spread -- terminal wordmark renders char-by-char; code-point splitting is intentional for cell-based drawing
     [...line]
       .map((char) => {
         if (char === "_") return `${bg} ${reset}`
@@ -33,7 +29,7 @@ export function sessionEpilogue(input: { title: string; sessionID?: string }) {
     ...wordmark("  "),
     "",
     `  ${weak("Session")}${bold}${input.title}${reset}`,
-    `  ${weak("Continue")}${bold}aigcfroge -s ${input.sessionID}${reset}`,
+    `  ${weak("Continue")}${bold}opencode -s ${input.sessionID}${reset}`,
     "",
   ].join("\n")
 }

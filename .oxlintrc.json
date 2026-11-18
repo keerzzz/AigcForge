@@ -1,82 +1,142 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicolo-ribaudo/oxc-project.github.io/refs/heads/json-schema/src/public/.oxlintrc.schema.json",
-  "options": {
-    "typeAware": true
-  },
+  "jsPlugins": [
+    { "name": "anti-slop", "specifier": "./script/oxlint/anti-slop/index.ts" },
+    { "name": "anti-slop-effect", "specifier": "./script/oxlint/anti-slop/effect/index.ts" }
+  ],
   "categories": {
-    "suspicious": "warn"
+    "correctness": "off",
+    "suspicious": "off",
+    "pedantic": "off",
+    "perf": "off",
+    "style": "off",
+    "restriction": "off",
+    "nursery": "off"
   },
   "rules": {
-    "typescript/no-base-to-string": "warn",
-    // Effect uses `function*` with Effect.gen/Effect.fnUntraced that don't always yield
-    "require-yield": "off",
-    // SolidJS uses `let ref: T | undefined` for JSX ref bindings assigned at runtime
-    "no-unassigned-vars": "off",
-    // SolidJS tracks reactive deps by reading properties inside createEffect
-    "no-unused-expressions": "off",
-    // Intentional control char matching (ANSI escapes, null byte sanitization)
-    "no-control-regex": "off",
-    // SST and plugin tools require triple-slash references
-    "triple-slash-reference": "off",
-
-    // Suspicious category: suppress noisy rules
-    // Effect's nested function* closures inherently shadow outer scope
-    "no-shadow": "off",
-    // Namespace-heavy codebase makes this too noisy
-    "unicorn/consistent-function-scoping": "off",
-    // Opinionated — .sort()/.reverse() mutation is fine in this codebase
-    "unicorn/no-array-sort": "off",
-    "unicorn/no-array-reverse": "off",
-    // Not relevant — this isn't a DOM event handler codebase
-    "unicorn/prefer-add-event-listener": "off",
-    // Bundler handles module resolution
-    "unicorn/require-module-specifiers": "off",
-    // postMessage target origin not relevant for this codebase
-    "unicorn/require-post-message-target-origin": "off",
-    // Side-effectful constructors are intentional in some places
-    "no-new": "off",
-
-    // These type-aware rules are valuable for new code but too noisy on the legacy tree.
-    // `script/lint-changed.ts` re-enables them for added lines so regressions still fail lint.
-    "typescript/consistent-return": "off",
-    "typescript/no-unsafe-type-assertion": "off",
-    "typescript/unbound-method": "off",
-    // Effect.gen requires function* captures; the five existing sites are documented inline.
-    "typescript/no-this-alias": "warn",
-    // Caller-side typing helpers are retained with documented per-site exemptions.
-    "typescript/no-unnecessary-type-parameters": "warn",
-    // Default lexicographic sort on string[] is intentional and deterministic.
-    "typescript/require-array-sort-compare": ["warn", { "ignoreStringArrays": true }],
-
-    // Type-aware: catch unhandled promises
-    "typescript/no-floating-promises": "warn",
-    // Warn when spreading non-plain objects (Headers, class instances, etc.)
-    "typescript/no-misused-spread": "warn"
+    "no-restricted-globals": [
+      "error",
+      {
+        "name": "Reflect",
+        "message": "Use typed property access or direct invocation. Suppress this rule only for genuine reflection."
+      }
+    ]
   },
   "overrides": [
     {
-      "files": ["**/test/**", "**/*.test.*", "**/e2e/**"],
+      "files": [
+        "packages/app/**",
+        "packages/desktop/**",
+        "packages/gui-extensions/**",
+        "packages/ui/**",
+        "packages/session-ui/**"
+      ],
       "rules": {
-        // Bun matchers are typed as void even though rejects/resolves are awaitable at runtime.
-        // The incremental lint gate ignores only those matcher diagnostics and catches other new sync awaits.
-        "typescript/await-thenable": "off"
+        "oxc/no-accumulating-spread": "warn",
+        "anti-slop/no-array-filter-map": "warn",
+        "anti-slop/no-reduce-accumulator-copy": "warn",
+        "anti-slop/no-chained-type-assertions": "warn",
+        "anti-slop/no-conditional-empty-object-spread": "warn",
+        "anti-slop/no-known-value-widening": "warn",
+        "anti-slop/no-module-mocking": "warn",
+        "anti-slop/no-object-parameters": "warn",
+        "anti-slop/no-reflect-apply": "warn",
+        "anti-slop/no-reflect-get": "warn",
+        "anti-slop/no-runtime-typeof": "warn",
+        "anti-slop/no-shape-in-symbol-names": "warn",
+        "anti-slop/no-unknown-parameters": "warn",
+        "anti-slop/no-unknown-returns": "warn",
+        "anti-slop/no-unknown-type-aliases": "warn",
+        "anti-slop/no-unsafe-dictionary-type": "warn",
+        "anti-slop/no-widen-then-assert": "warn",
+        "anti-slop/require-readable-spacing": "warn",
+        "anti-slop/require-safety-comment-for-type-assertion": "warn"
       }
     },
     {
-      // The app's context layer is below pages: a context that reaches up into a page
-      // makes the page's module graph load for anything that touches the context, and
-      // it inverts the ownership of shared types. Shared shapes belong in `@/utils`.
-      // This replaces three `toContain` assertions on `layout.tsx`'s source text, which
-      // any re-export or formatting change would have fooled.
-      "files": ["packages/app/src/context/**"],
+      "files": ["packages/app/**", "packages/desktop/**", "packages/gui-extensions/**", "packages/session-ui/**"],
+      "rules": {
+        "anti-slop-effect/no-manual-effect-error-tag": "warn",
+        "anti-slop-effect/no-manual-tag-comparison": "warn",
+        "anti-slop-effect/no-manual-tagged-construction": "warn",
+        "anti-slop-effect/no-service-constructor-imports": "warn",
+        "anti-slop-effect/prefer-effect-match": "warn"
+      }
+    },
+    {
+      "files": ["packages/gui-extensions/src/*.ts", "packages/gui-extensions/src/*.tsx"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "solid-js",
+                "importNames": ["createEffect", "createRenderEffect", "createComputed"],
+                "message": "Extension code runs side effects through the SDK: createKeyed(source, fn, { otherwise }) per provider generation or value, createMemo or a plain function for derived values, createLatest for async data, createVisitState for per-visit state, and the handler for logic a user action causes. An escape hatch needs an oxlint-disable comment with a reason."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/gui-extensions/src/*/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "solid-js",
+                "importNames": ["createEffect", "createRenderEffect", "createComputed"],
+                "message": "Extension code runs side effects through the SDK: createKeyed(source, fn, { otherwise }) per provider generation or value, createMemo or a plain function for derived values, createLatest for async data, createVisitState for per-visit state, and the handler for logic a user action causes. An escape hatch needs an oxlint-disable comment with a reason."
+              }
+            ],
+            "patterns": [
+              {
+                "regex": "^@opencode/(app|desktop)(/|$)",
+                "message": "GUI extensions never import the app or desktop packages. Use the SDK."
+              },
+              {
+                "regex": "^@/",
+                "message": "GUI extensions never import app internals. Use the SDK."
+              },
+              {
+                "group": ["../*/*", "!../*/contract", "!../sdk/*"],
+                "message": "Import another extension only through its contract.ts."
+              },
+              {
+                "regex": "\\.css$",
+                "message": "Import CSS with ?inline and contribute it with ctx.add(Style, css)."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/gui-extensions/src/sdk/**"],
       "rules": {
         "no-restricted-imports": [
           "error",
           {
             "patterns": [
               {
-                "group": ["@/pages/*", "@/pages/**"],
-                "message": "The context layer must not import from pages. Put shared types in @/utils."
+                "regex": "^@opencode/(app|desktop)(/|$)",
+                "message": "GUI extensions never import the app or desktop packages. Use the SDK."
+              },
+              {
+                "regex": "^@/",
+                "message": "GUI extensions never import app internals. Use the SDK."
+              },
+              {
+                "group": ["../*/*", "!../*/contract", "!../sdk/*"],
+                "message": "Import another extension only through its contract.ts."
+              },
+              {
+                "regex": "\\.css$",
+                "message": "Import CSS with ?inline and contribute it with ctx.add(Style, css)."
               }
             ]
           }
@@ -91,6 +151,17 @@
     "**/.sst",
     "**/*.d.ts",
     "**/sdk.gen.ts",
-    "packages/sdk/js/src/**/gen/**"
+    ".agent/**",
+    ".agents/**",
+    ".claude/**",
+    ".codex/**",
+    ".continue/**",
+    ".cursor/**",
+    ".gemini/**",
+    ".opencode/**",
+    ".pi/**",
+    ".roo/**",
+    ".windsurf/**",
+    "script/oxlint/anti-slop/**"
   ]
 }

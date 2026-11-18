@@ -1,32 +1,36 @@
-import { Message, Model, Part, Session, SessionStatus, SnapshotFileDiff, UserMessage } from "@aigcfroge/sdk/v2"
-import { SessionTurn } from "@aigcfroge/session-ui/session-turn"
-import { SessionReview } from "@aigcfroge/session-ui/session-review"
-import { DataProvider } from "@aigcfroge/session-ui/context"
-import { FileComponentProvider } from "@aigcfroge/ui/context/file"
-import { WorkerPoolProvider } from "@aigcfroge/ui/context/worker-pool"
+import { SessionTimeline } from "@opencode/session-ui/timeline"
+import type { SessionDocument } from "@opencode/session-ui/document"
+import type { SessionMessageInfo } from "@opencode/client/promise"
+import { SessionReview } from "@opencode/session-ui/session-review"
+import { DataProvider } from "@opencode/session-ui/context"
+import { FileComponentProvider } from "@opencode/ui/context/file"
+import { WorkerPoolProvider } from "@opencode/ui/context/worker-pool"
+import { withTimestampedFallback } from "@opencode/util/session-title-fallback"
 import { createAsync, query, useParams } from "@solidjs/router"
-import { createMemo, createSignal, ErrorBoundary, For, Match, Show, Switch } from "solid-js"
+import { createMemo, createSignal, ErrorBoundary, Match, Show, Switch, type JSX } from "solid-js"
 import { Share } from "~/core/share"
-import { Logo, Mark } from "@aigcfroge/ui/logo"
-import { IconButtonV2 } from "@aigcfroge/ui/v2/icon-button-v2"
-import { ProviderIcon } from "@aigcfroge/ui/provider-icon"
-import { iife } from "@aigcfroge/core/util/iife"
-import { Binary } from "@aigcfroge/core/util/binary"
-import { NamedError } from "@aigcfroge/core/util/error"
+import { readShareDocument } from "~/core/share-document"
+import { Logo, Mark } from "@opencode/ui/logo"
+import { IconButton } from "@opencode/ui/icon-button"
+import { Icon } from "@opencode/ui/icon"
+import { ProviderIcon } from "@opencode/ui/provider-icon"
+import { iife } from "@opencode/core/util/iife"
+import { Binary } from "@opencode/util/binary"
+import { NamedError } from "@opencode/core/util/error"
 import { DateTime } from "luxon"
 import { createStore } from "solid-js/store"
 import NotFound from "../[...404]"
-import { TabsV2 } from "@aigcfroge/ui/v2/tabs-v2"
-import { MessageNav } from "@aigcfroge/session-ui/message-nav"
-import { FileSSR } from "@aigcfroge/session-ui/file-ssr"
+import { Tabs } from "@opencode/ui/tabs"
+import { MessageNav } from "@opencode/session-ui/message-nav"
+import { FileSSR } from "@opencode/session-ui/file-ssr"
 import { clientOnly } from "@solidjs/start"
 import { Meta, Title } from "@solidjs/meta"
 import { Base64 } from "js-base64"
 import { getRequestEvent } from "solid-js/web"
 
 const ClientOnlyWorkerPoolProvider = clientOnly(() =>
-  import("@aigcfroge/session-ui/pierre/worker").then((m) => ({
-    default: (props: { children: any }) => (
+  import("@opencode/session-ui/pierre/worker").then((m) => ({
+    default: (props: { children: JSX.Element }) => (
       <WorkerPoolProvider pools={m.getWorkerPools()}>{props.children}</WorkerPoolProvider>
     ),
   })),
@@ -59,66 +63,17 @@ const getData = query(async (shareID) => {
   "use server"
   const share = await Share.get(shareID)
   if (!share) throw new SessionDataMissingError({ sessionID: shareID })
-  const data = await Share.data(shareID)
-  const result: {
-    sessionID: string
-    shareID: string
-    session: Session[]
-    session_diff: {
-      [sessionID: string]: SnapshotFileDiff[]
-    }
-    session_status: {
-      [sessionID: string]: SessionStatus
-    }
-    message: {
-      [sessionID: string]: Message[]
-    }
-    part: {
-      [messageID: string]: Part[]
-    }
-    model: {
-      [sessionID: string]: Model[]
-    }
-  } = {
+  const document = await readShareDocument(await Share.data(shareID))
+  return {
     sessionID: share.sessionID,
     shareID,
-    session: [],
-    session_diff: {
-      [share.sessionID]: [],
-    },
-    session_status: {
-      [share.sessionID]: {
-        type: "idle",
-      },
-    },
-    message: {},
-    part: {},
-    model: {},
+    session: [document.session],
+    session_diff: { [share.sessionID]: document.diffs },
+    session_status: { [share.sessionID]: { type: "idle" as const } },
+    messages: { [share.sessionID]: document.messages },
+    model: { [share.sessionID]: document.models },
+    version: document.version,
   }
-  for (const item of data) {
-    switch (item.type) {
-      case "session":
-        result.session.push(item.data)
-        break
-      case "session_diff":
-        result.session_diff[share.sessionID] = item.data
-        break
-      case "message":
-        result.message[item.data.sessionID] = result.message[item.data.sessionID] ?? []
-        result.message[item.data.sessionID].push(item.data)
-        break
-      case "part":
-        result.part[item.data.messageID] = result.part[item.data.messageID] ?? []
-        result.part[item.data.messageID].push(item.data)
-        break
-      case "model":
-        result.model[share.sessionID] = item.data
-        break
-    }
-  }
-  const match = Binary.search(result.session, share.sessionID, (s) => s.id)
-  if (!match.found) throw new SessionDataMissingError({ sessionID: share.sessionID })
-  return result
 }, "getShareData")
 
 export default function () {
@@ -155,19 +110,20 @@ export default function () {
       <Meta name="robots" content="noindex, nofollow" />
       <Show when={data()}>
         {(data) => {
-          const match = createMemo(() => Binary.search(data().session, data().sessionID, (s) => s.id))
+          const match = createMemo(() => Binary.search(data().session, data().sessionID, (session) => session.id))
           if (!match().found) throw new Error(`Session ${data().sessionID} not found`)
           const info = createMemo(() => data().session[match().index])
+          const title = createMemo(() => withTimestampedFallback(info()))
           const ogImage = createMemo(() => {
             const models = new Set<string>()
-            const messages = data().message[data().sessionID] ?? []
+            const messages = data().messages[data().sessionID] ?? []
             for (const msg of messages) {
-              if (msg.role === "assistant" && msg.modelID) {
-                models.add(msg.modelID)
+              if (msg.type === "assistant") {
+                models.add(msg.model.id)
               }
             }
             const modelIDs = Array.from(models)
-            const encodedTitle = encodeURIComponent(Base64.encode(encodeURIComponent(info().title.substring(0, 700))))
+            const encodedTitle = encodeURIComponent(Base64.encode(encodeURIComponent(title().substring(0, 700))))
             let modelParam: string
             if (modelIDs.length === 1) {
               modelParam = modelIDs[0]
@@ -178,47 +134,59 @@ export default function () {
             } else {
               modelParam = "unknown"
             }
-            const version = `v${info().version}`
-            return `https://social-cards.sst.dev/aigcfroge-share/${encodedTitle}.png?model=${modelParam}&version=${version}&id=${data().shareID}`
+            return `https://social-cards.sst.dev/opencode-share/${encodedTitle}.png?model=${modelParam}&version=v${data().version}&id=${data().shareID}`
           })
 
           return (
             <>
-              <Show when={info().title}>
-                <Title>{info().title} | Aigcfroge</Title>
-              </Show>
-              <Meta name="description" content="aigcfroge - The AI coding agent built for the terminal." />
+              <Title>{title()} | OpenCode</Title>
+              <Meta name="description" content="opencode - The AI coding agent built for the terminal." />
               <Meta property="og:image" content={ogImage()} />
               <Meta name="twitter:image" content={ogImage()} />
               <ClientOnlyWorkerPoolProvider>
                 <FileComponentProvider component={FileSSR}>
-                  <DataProvider data={data()} directory={info().directory}>
+                  <DataProvider data={data()} directory={info().location.directory} sessionID={data().sessionID}>
                     {iife(() => {
                       const [store, setStore] = createStore({
                         messageId: undefined as string | undefined,
                       })
-                      const messages = createMemo(() =>
-                        data().sessionID
-                          ? (data().message[data().sessionID]?.filter((m) => m.role === "user") ?? []).sort(
-                              (a, b) => a.time.created - b.time.created,
-                            )
-                          : [],
-                      )
-                      const firstUserMessage = createMemo(() => messages().at(0))
+                      const messages = createMemo(() => data().messages[data().sessionID] ?? [])
+                      const userMessages = createMemo(() => messages().filter((message) => message.type === "user"))
+                      const firstUserMessage = createMemo(() => userMessages().at(0))
                       const activeMessage = createMemo(
-                        () => messages().find((m) => m.id === store.messageId) ?? firstUserMessage(),
+                        () => userMessages().find((message) => message.id === store.messageId) ?? firstUserMessage(),
                       )
-                      function setActiveMessage(message: UserMessage | undefined) {
-                        if (message) {
-                          setStore("messageId", message.id)
-                        } else {
-                          setStore("messageId", undefined)
-                        }
+                      function setActiveMessage(message: Extract<SessionMessageInfo, { type: "user" }> | undefined) {
+                        setStore("messageId", message?.id)
                       }
-                      const provider = createMemo(() => activeMessage()?.model?.providerID)
-                      const modelID = createMemo(() => activeMessage()?.model?.modelID)
-                      const model = createMemo(() => data().model[data().sessionID]?.find((m) => m.id === modelID()))
                       const diffs = createMemo(() => data().session_diff[data().sessionID] ?? [])
+                      const document = createMemo(
+                        () =>
+                          ({
+                            sessionID: data().sessionID,
+                            messages: messages(),
+                            status: { type: "idle" },
+                            diffs: diffs(),
+                          }) satisfies SessionDocument,
+                      )
+                      const activeDocument = createMemo(() => {
+                        const active = activeMessage()
+                        if (!active) return document()
+                        const start = messages().findIndex((message) => message.id === active.id)
+                        if (start < 0) return document()
+                        const relativeEnd = messages()
+                          .slice(start + 1)
+                          .findIndex((message) => message.type === "user" || message.type === "shell")
+                        const end = relativeEnd < 0 ? messages().length : start + relativeEnd + 1
+                        return { ...document(), messages: messages().slice(start, end) }
+                      })
+                      const assistant = createMemo(() =>
+                        activeDocument().messages.find((message) => message.type === "assistant"),
+                      )
+                      const selectedModel = createMemo(() => assistant()?.model ?? info().model)
+                      const provider = createMemo(() => selectedModel()?.providerID)
+                      const modelID = createMemo(() => selectedModel()?.id)
+                      const model = createMemo(() => data().model[data().sessionID]?.find((m) => m.id === modelID()))
                       const [diffStyle, setDiffStyle] = createSignal<"unified" | "split">("unified")
 
                       const title = () => (
@@ -226,12 +194,12 @@ export default function () {
                           <div class="flex flex-col gap-2 sm:flex-row sm:gap-4 sm:items-center sm:h-8 justify-start self-stretch">
                             <div class="pl-[2.5px] pr-2 flex items-center gap-1.75 bg-surface-strong shadow-xs-border-base w-fit">
                               <Mark class="shrink-0 w-3 my-0.5" />
-                              <div class="text-12-mono text-text-base">v{info().version}</div>
+                              <div class="text-12-mono text-text-base">v{data().version}</div>
                             </div>
                             <div class="flex gap-4 items-center">
                               <div class="flex gap-2 items-center">
                                 <Show when={provider()}>
-                                  {(p) => <ProviderIcon id={p()} class="size-3.5 shrink-0 text-icon-strong-base" />}
+                                  <ProviderIcon id={provider()!} class="size-3.5 shrink-0 text-icon-strong-base" />
                                 </Show>
                                 <div class="text-12-regular text-text-base">{model()?.name ?? modelID()}</div>
                               </div>
@@ -240,27 +208,15 @@ export default function () {
                               </div>
                             </div>
                           </div>
-                          <div class="text-left text-16-medium text-text-strong">{info().title}</div>
+                          <div class="text-left text-16-medium text-text-strong">{title()}</div>
                         </div>
                       )
 
                       const turns = () => (
                         <div class="relative mt-2 pb-8 min-w-0 w-full h-full overflow-y-auto no-scrollbar">
                           <div class="px-4 py-6">{title()}</div>
-                          <div class="flex flex-col gap-15 items-start justify-start mt-4">
-                            <For each={messages()}>
-                              {(message) => (
-                                <SessionTurn
-                                  sessionID={data().sessionID}
-                                  messageID={message.id}
-                                  classes={{
-                                    root: "min-w-0 w-full relative",
-                                    content: "flex flex-col justify-between !overflow-visible",
-                                    container: "px-4",
-                                  }}
-                                />
-                              )}
-                            </For>
+                          <div class="mt-4 flex items-start justify-start">
+                            <SessionTimeline document={document()} class="min-w-0 w-full" />
                           </div>
                           <div class="px-4 flex items-center justify-center pt-20 pb-8 shrink-0">
                             <Logo class="w-58.5 opacity-12" />
@@ -274,23 +230,23 @@ export default function () {
                         <div class="relative bg-background-stronger w-screen h-screen overflow-hidden flex flex-col">
                           <header class="h-12 px-6 py-2 flex items-center justify-between self-stretch bg-background-base border-b border-border-weak-base">
                             <div class="">
-                              <a href="https://aigcfroge.ai">
+                              <a href="https://opencode.ai">
                                 <Mark />
                               </a>
                             </div>
                             <div class="flex gap-3 items-center">
-                              <IconButtonV2
+                              <IconButton
                                 as={"a"}
-                                href="https://github.com/keerzzz/AigcForge"
+                                href="https://github.com/anomalyco/opencode"
                                 target="_blank"
-                                icon="github"
+                                icon={<Icon name="github" />}
                                 variant="ghost"
                               />
-                              <IconButtonV2
+                              <IconButton
                                 as={"a"}
-                                href="https://aigcfroge.ai/discord"
+                                href="https://opencode.ai/discord"
                                 target="_blank"
-                                icon="discord"
+                                icon={<Icon name="discord" />}
                                 variant="ghost"
                               />
                             </div>
@@ -316,34 +272,22 @@ export default function () {
                                   {title()}
                                 </div>
                                 <div class="flex items-start justify-start h-full min-h-0">
-                                  <Show when={messages().length > 1}>
+                                  <Show when={userMessages().length > 1}>
                                     <MessageNav
                                       class="sticky top-0 shrink-0 py-2 pl-4"
-                                      messages={messages()}
+                                      messages={userMessages()}
                                       current={activeMessage()}
                                       size="compact"
                                       onMessageSelect={setActiveMessage}
-                                      getLabel={(message) =>
-                                        data()
-                                          .part[message.id]?.find((part) => part.type === "text")
-                                          ?.text.trim()
-                                          .split("\n")[0]
-                                      }
+                                      getLabel={(message) => message.text.trim().split("\n")[0]}
                                     />
                                   </Show>
-                                  <SessionTurn
-                                    sessionID={data().sessionID}
-                                    messageID={store.messageId ?? firstUserMessage()!.id!}
-                                    classes={{
-                                      root: "grow",
-                                      content: "flex flex-col justify-between",
-                                      container: "w-full pb-20 px-6",
-                                    }}
-                                  >
+                                  <div class="flex min-w-0 grow flex-col justify-between">
+                                    <SessionTimeline document={activeDocument()} class="w-full px-6 pb-20" />
                                     <div classList={{ "w-full flex items-center justify-center pb-8 shrink-0": true }}>
                                       <Logo class="w-58.5 opacity-12" />
                                     </div>
-                                  </SessionTurn>
+                                  </div>
                                 </div>
                               </div>
                               <Show when={diffs().length > 0}>
@@ -363,19 +307,23 @@ export default function () {
                             </div>
                             <Switch>
                               <Match when={diffs().length > 0}>
-                                <TabsV2 classList={{ "md:hidden": wide(), "lg:hidden": !wide() }}>
-                                  <TabsV2.List>
-                                    <TabsV2.Trigger value="session" class="w-1/2">
+                                <Tabs classList={{ "md:hidden": wide(), "lg:hidden": !wide() }}>
+                                  <Tabs.List>
+                                    <Tabs.Trigger value="session" class="w-1/2" classes={{ button: "w-full" }}>
                                       Session
-                                    </TabsV2.Trigger>
-                                    <TabsV2.Trigger value="review" class="w-1/2 !border-r-0">
+                                    </Tabs.Trigger>
+                                    <Tabs.Trigger
+                                      value="review"
+                                      class="w-1/2 !border-r-0"
+                                      classes={{ button: "w-full" }}
+                                    >
                                       {diffs().length} Files Changed
-                                    </TabsV2.Trigger>
-                                  </TabsV2.List>
-                                  <TabsV2.Content value="session" class="!overflow-hidden">
+                                    </Tabs.Trigger>
+                                  </Tabs.List>
+                                  <Tabs.Content value="session" class="!overflow-hidden">
                                     {turns()}
-                                  </TabsV2.Content>
-                                  <TabsV2.Content value="review" class="!overflow-hidden hidden data-[selected]:block">
+                                  </Tabs.Content>
+                                  <Tabs.Content value="review" class="!overflow-hidden hidden data-[selected]:block">
                                     <div class="relative h-full pt-8 overflow-y-auto no-scrollbar">
                                       <SessionReview
                                         diffs={diffs()}
@@ -386,8 +334,8 @@ export default function () {
                                         }}
                                       />
                                     </div>
-                                  </TabsV2.Content>
-                                </TabsV2>
+                                  </Tabs.Content>
+                                </Tabs>
                               </Match>
                               <Match when={true}>
                                 <div

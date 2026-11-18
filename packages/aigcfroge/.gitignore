@@ -1,9 +1,0 @@
-research
-dist
-dist-*
-gen
-app.log
-temporary-*.md
-.artifacts
-
-.cache/

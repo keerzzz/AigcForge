@@ -1,19 +1,20 @@
-import { release } from "node:os"
 import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core"
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import { createSignal, For, Show } from "solid-js"
 import { getScrollAcceleration } from "../util/scroll"
 import { useClipboard } from "../context/clipboard"
-import { InstallationVersion } from "@aigcfroge/core/installation/version"
 import { useExit } from "../context/exit"
+import { useTuiApp } from "../context/runtime"
+import { describeOS, describeTerminal } from "../util/system"
 
 export function ErrorComponent(props: { error: Error; reset: () => void; mode?: "dark" | "light" }) {
   const term = useTerminalDimensions()
   const exit = useExit()
   const clipboard = useClipboard()
-  const [copied, setCopied] = createSignal(false)
+  const app = useTuiApp()
+  const [copyState, setCopyState] = createSignal<"idle" | "copied" | "failed">("idle")
 
-  // Safe fallback palette per mode (mirrors theme/assets/aigcfroge.json) since the
+  // Safe fallback palette per mode (mirrors theme/assets/opencode.json) since the
   // theme context may be the thing that crashed.
   const isLight = props.mode === "light"
   const colors = isLight
@@ -42,14 +43,22 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
 
   const message = props.error.message || "An unknown error occurred."
   const stack = props.error.stack || "No stack trace available."
-  const issueURL = buildIssueURL(message, stack)
+  const issueURL = buildIssueURL(message, stack, app.version)
 
   const copyReport = () => {
-    void clipboard.write?.(issueURL.toString()).then(() => setCopied(true))
+    void clipboard
+      .write(issueURL.toString())
+      .then(() => setCopyState("copied"))
+      .catch(() => setCopyState("failed"))
   }
 
   const actions = [
-    { key: "c", label: () => (copied() ? "✓ Copied" : "Copy report"), copy: true, onUse: copyReport },
+    {
+      key: "c",
+      label: () => ({ idle: "Copy report", copied: "✓ Copied", failed: "Copy failed" })[copyState()],
+      copy: true,
+      onUse: copyReport,
+    },
     { key: "r", label: () => "Restart", onUse: props.reset },
     { key: "q", label: () => "Quit", onUse: () => exit() },
   ]
@@ -108,7 +117,7 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
         {/* Headline */}
         <box flexDirection="column" alignItems="center" flexShrink={0}>
           <text attributes={TextAttributes.BOLD} fg={colors.text}>
-            aigcfroge crashed
+            OpenCode crashed
           </text>
           <Show when={showSubtext()}>
             <text fg={colors.muted}>An unexpected error stopped the session.</text>
@@ -134,13 +143,20 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
           <For each={actions}>
             {(action, index) => {
               const isSelected = () => selected() === index()
-              const isCopied = () => action.copy && copied()
+              const copyColor = () =>
+                action.copy
+                  ? copyState() === "copied"
+                    ? colors.success
+                    : copyState() === "failed"
+                      ? colors.error
+                      : undefined
+                  : undefined
               return (
                 <box flexDirection="column" alignItems="center" flexShrink={0}>
                   <box
                     onMouseDown={() => setSelected(index())}
                     onMouseUp={() => action.onUse()}
-                    backgroundColor={isCopied() ? colors.success : isSelected() ? colors.primary : colors.element}
+                    backgroundColor={copyColor() ?? (isSelected() ? colors.primary : colors.element)}
                     minWidth={15}
                     alignItems="center"
                     paddingLeft={2}
@@ -148,7 +164,7 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
                   >
                     <text
                       attributes={TextAttributes.BOLD}
-                      fg={isCopied() || isSelected() ? colors.onPrimary : colors.text}
+                      fg={copyColor() || isSelected() ? colors.onPrimary : colors.text}
                     >
                       {action.label()}
                     </text>
@@ -188,11 +204,13 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
         <Show when={showFooter()}>
           <box flexDirection="column" alignItems="center" flexShrink={0}>
             <text fg={colors.muted}>
-              {copied()
+              {copyState() === "copied"
                 ? "Report copied — paste it into a new GitHub issue."
-                : "Copy the report and open a GitHub issue to help us fix this."}
+                : copyState() === "failed"
+                  ? "Clipboard write failed. Try again or report the crash manually."
+                  : "Copy the report and open a GitHub issue to help us fix this."}
             </text>
-            <text fg={colors.muted}>aigcfroge {InstallationVersion}</text>
+            <text fg={colors.muted}>OpenCode {app.version}</text>
           </box>
         </Show>
       </box>
@@ -200,18 +218,18 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
   )
 }
 
-function buildIssueURL(message: string, stack: string) {
+function buildIssueURL(message: string, stack: string, version: string) {
   // Field keys match the ids in .github/ISSUE_TEMPLATE/bug-report.yml so the issue
   // form opens pre-filled. Populating os/terminal/reproduce keeps the report past
   // the contributing-guidelines compliance check, which pushes for system info.
-  const url = new URL("https://github.com/keerzzz/AigcForge/issues/new?template=bug-report.yml")
+  const url = new URL("https://github.com/anomalyco/opencode/issues/new?template=bug-report.yml")
   url.searchParams.set("title", `TUI crash: ${message}`)
-  url.searchParams.set("aigcfroge-version", InstallationVersion)
+  url.searchParams.set("opencode-version", version)
   url.searchParams.set("os", describeOS())
   url.searchParams.set("terminal", describeTerminal())
   url.searchParams.set(
     "reproduce",
-    "Reported automatically from the aigcfroge crash screen. If you can, describe what you were doing when it crashed.",
+    "Reported automatically from the OpenCode crash screen. If you can, describe what you were doing when it crashed.",
   )
 
   // Budget the stack against the fully URL-encoded length (not the raw length) so
@@ -219,8 +237,8 @@ function buildIssueURL(message: string, stack: string) {
   // clipped trace is obvious. searchParams.set handles encoding without throwing,
   // so measuring url.toString() is both correct and safe on any input.
   const MAX_URL_LENGTH = 6000
-  const marker = "\n... (truncated)"
-  const head = `The aigcfroge TUI crashed with an unexpected error.\n\n**Error:** ${message}\n\n**Stack trace:**\n`
+  const marker = "\n… (truncated)"
+  const head = `The OpenCode TUI crashed with an unexpected error.\n\n**Error:** ${message}\n\n**Stack trace:**\n`
   const setBody = (body: string) => url.searchParams.set("description", head + "```\n" + body + "\n```")
 
   setBody(stack)
@@ -237,23 +255,4 @@ function buildIssueURL(message: string, stack: string) {
   }
   setBody(stack.slice(0, lo) + marker)
   return url
-}
-
-function describeOS() {
-  const name =
-    process.platform === "darwin"
-      ? "macOS"
-      : process.platform === "win32"
-        ? "Windows"
-        : process.platform === "linux"
-          ? "Linux"
-          : process.platform
-  return `${name} ${release()} (${process.arch})`
-}
-
-function describeTerminal() {
-  const program = process.env.TERM_PROGRAM || process.env.TERM || "unknown"
-  const version = process.env.TERM_PROGRAM_VERSION ? ` ${process.env.TERM_PROGRAM_VERSION}` : ""
-  const multiplexer = process.env.TMUX ? " in tmux" : process.env.STY ? " in screen" : ""
-  return `${program}${version}${multiplexer}`
 }

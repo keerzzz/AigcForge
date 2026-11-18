@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-
-BUMP_TYPE=${1:-patch}
-RELEASE_MODE=${2:-desktop-draft}
-
-gh workflow run publish.yml --ref main -f bump="$BUMP_TYPE" -f release_mode="$RELEASE_MODE"

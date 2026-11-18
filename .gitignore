@@ -11,9 +11,10 @@ node_modules
 playground
 tmp
 dist
+dist-node
 ts-dist
 .turbo
-.aigcfroge/
+.typecheck-profiles
 **/.serena
 .serena/
 **/.omo
@@ -25,51 +26,14 @@ Session.vim
 a.out
 target
 .scripts
+.cache
 .direnv/
 
 # Local dev files
 opencode-dev
 UPCOMING_CHANGELOG.md
+RELEASE_REVIEW.md
 logs/
 *.bun-build
 tsconfig.tsbuildinfo
-*storybook*.log
-.codegraph/
-.reasonix/
-
-# Project protocol skills tracked under the otherwise local .aigcfroge directory.
-!.aigcfroge/
-.aigcfroge/*
-!.aigcfroge/skills/
-.aigcfroge/skills/*
-!.aigcfroge/skills/enterprise-code-standard/
-!.aigcfroge/skills/enterprise-code-standard/**
-!.aigcfroge/skills/reuse-first-refactor/
-!.aigcfroge/skills/reuse-first-refactor/**
-!.aigcfroge/skills/quality-to-pr/
-!.aigcfroge/skills/quality-to-pr/**
-!.aigcfroge/skills/effect/
-!.aigcfroge/skills/effect/**
-!.aigcfroge/skills/database/
-!.aigcfroge/skills/database/**
-!.aigcfroge/skills/frontend-theming/
-!.aigcfroge/skills/frontend-theming/**
-!.aigcfroge/skills/protocols/
-!.aigcfroge/skills/protocols/**
-
-# Migration marker files
-.command-asset-migration-*
-**/.command-asset-migration-*
-
-# FUSE unlink placeholders — the editor regenerates these on mounted volumes
-# (/media/win_data) every time a still-open file is deleted, so they must never
-# be picked up by `git add -A`.
-.fuse_hidden*
-**/.fuse_hidden*
-
-
-# dogfood/QA run output (report + text evidence are committed under docs/review/)
-dogfood-output/
-
-# E4 harness evidence: CI uploads it as an artifact, never committed.
-packages/app/e2e/real/run-evidence/
+/artifacts/

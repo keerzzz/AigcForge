@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
 
-import { Release } from "@aigcfroge/script/release"
-
 import { $ } from "bun"
 import { parseArgs } from "util"
 
@@ -24,8 +22,8 @@ type Diff = {
   message: string
 }
 
-const repo = process.env.GH_REPO ?? "keerzzz/AigcForge"
-const bot = ["actions-user", "github-actions[bot]", "aigcfroge", "aigcfroge-agent[bot]"]
+const repo = process.env.GH_REPO ?? "anomalyco/opencode"
+const bot = ["actions-user", "github-actions[bot]", "opencode", "opencode-agent[bot]"]
 const team = [
   ...(await Bun.file(new URL("../.github/TEAM_MEMBERS", import.meta.url))
     .text()
@@ -33,7 +31,7 @@ const team = [
     .then((x) => x.filter((x) => x && !x.startsWith("#")))),
   ...bot,
 ]
-const order = ["Core", "TUI", "Desktop", "SDK"] as const
+const order = ["Core", "TUI", "Desktop", "SDK", "Extensions"] as const
 const sections = {
   core: "Core",
   tui: "TUI",
@@ -41,6 +39,8 @@ const sections = {
   tauri: "Desktop",
   sdk: "SDK",
   plugin: "SDK",
+  "extensions/vscode": "Extensions",
+  github: "Extensions",
 } as const
 
 function ref(input: string) {
@@ -74,7 +74,7 @@ async function diff(base: string, head: string) {
 }
 
 function section(areas: Set<string>) {
-  const priority = ["core", "tui", "app", "tauri", "sdk", "plugin"]
+  const priority = ["core", "tui", "app", "tauri", "sdk", "plugin", "extensions/vscode", "github"]
   for (const area of priority) {
     if (areas.has(area)) return sections[area as keyof typeof sections]
   }
@@ -119,7 +119,8 @@ async function commits(from: string, to: string) {
     data.set(item.sha, { login: item.login, message: item.message.split("\n")[0] ?? "" })
   }
 
-  const log = await $`git log ${base}..${head} --format=%H`.text()
+  const log =
+    await $`git log ${base}..${head} --format=%H -- packages/opencode packages/plugin packages/desktop packages/app sdks/vscode packages/extensions github`.text()
 
   const list: Commit[] = []
   for (const hash of log.split("\n").filter(Boolean)) {
@@ -130,24 +131,13 @@ async function commits(from: string, to: string) {
     const diff = await $`git diff-tree --no-commit-id --name-only -r ${hash}`.text()
     const areas = new Set<string>()
 
-    for (const file of diff.split("\n").filter(Boolean).filter(Release.affectsDesktop)) {
-      if (file.startsWith("packages/aigcfroge/src/cli/cmd/")) {
-        areas.add("tui")
-        continue
-      }
-      if (file.startsWith("packages/desktop/src-tauri/")) {
-        areas.add("tauri")
-        continue
-      }
-      if (file.startsWith("packages/desktop/") || file.startsWith("packages/app/")) {
-        areas.add("app")
-        continue
-      }
-      if (file.startsWith("packages/sdk/") || file.startsWith("packages/plugin/")) {
-        areas.add("sdk")
-        continue
-      }
-      areas.add("core")
+    for (const file of diff.split("\n").filter(Boolean)) {
+      if (file.startsWith("packages/opencode/src/cli/cmd/")) areas.add("tui")
+      else if (file.startsWith("packages/opencode/")) areas.add("core")
+      else if (file.startsWith("packages/desktop/src-tauri/")) areas.add("tauri")
+      else if (file.startsWith("packages/desktop/") || file.startsWith("packages/app/")) areas.add("app")
+      else if (file.startsWith("packages/plugin/")) areas.add("sdk")
+      else if (file.startsWith("sdks/vscode/") || file.startsWith("github/")) areas.add("extensions/vscode")
     }
 
     if (areas.size === 0) continue
@@ -286,7 +276,7 @@ Examples:
     process.exit(0)
   }
 
-  const to = values.to
+  const to = values.to!
   const from = values.from ?? (await latest())
   const list = await commits(from, to)
   console.log(format(from, to, list, await thanks(from, to, !values.from)))

@@ -1,4 +1,4 @@
-import { Database } from "bun:sqlite"
+import { Database } from "#zed-sqlite"
 import { statSync } from "node:fs"
 import { readFile as readFileAsync } from "node:fs/promises"
 import os from "node:os"
@@ -186,16 +186,12 @@ function isZedActiveEditorRow(row: ZedEditorRow): row is ZedActiveEditorRow {
 
 export function resolveZedDbPath() {
   const candidates = [
-    process.env.AIGCFROGE_ZED_DB,
+    process.env.OPENCODE_ZED_DB,
     path.join(os.homedir(), "Library", "Application Support", "Zed", "db", "0-stable", "db.sqlite"),
     path.join(os.homedir(), ".local", "share", "zed", "db", "0-stable", "db.sqlite"),
   ].filter((item): item is string => Boolean(item))
 
   return candidates.find((item) => isFile(item))
-}
-
-export function isZedTerminal() {
-  return process.env.ZED_TERM === "true" || process.env.TERM_PROGRAM?.toLowerCase() === "zed"
 }
 
 function isFile(item: string) {
@@ -218,11 +214,6 @@ function zedWorkspacePaths(value: string | null) {
   const parsed = parseJson(value)
   if (Array.isArray(parsed)) return parsed.filter((item): item is string => typeof item === "string")
   return value.split(/\r?\n/).filter(Boolean)
-}
-
-export function offsetToPosition(text: string, offset: number) {
-  const stringOffset = utf8ByteOffsetToStringIndex(text, offset)
-  return offsetsToSelection(text, stringOffset, stringOffset).start
 }
 
 function utf8ByteOffsetToStringIndex(text: string, byteOffset: number) {

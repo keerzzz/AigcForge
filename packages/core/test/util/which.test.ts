@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import fs from "fs/promises"
 import path from "path"
-import { which } from "@aigcfroge/core/util/which"
+import { which } from "@opencode/core/util/which"
 import { tmpdir } from "../fixture/tmpdir"
 
 async function cmd(dir: string, name: string, exec = true) {
@@ -40,7 +40,7 @@ function same(a: string | null, b: string) {
 
 describe("util.which", () => {
   test("returns null when command is missing", () => {
-    expect(which("aigcfroge-missing-command-for-test")).toBeNull()
+    expect(which("opencode-missing-command-for-test")).toBeNull()
   })
 
   test("finds a command from PATH override", async () => {
@@ -96,20 +96,5 @@ describe("util.which", () => {
     const file = await cmd(bin, "mixed")
 
     same(which("mixed", envPath(bin)), file)
-  })
-
-  test("finds a command through the login-shell PATH when the process PATH is missing", async () => {
-    await using tmp = await tmpdir()
-    const bin = path.join(tmp.path, "bin")
-    await fs.mkdir(bin)
-    const file = await cmd(bin, "login-cli")
-
-    // Explicitly-empty PATH (e.g. GUI-launched process) + a login-shell env that
-    // still carries the directory where the binary lives.
-    same(which("login-cli", { PATH: "" }, { PATH: bin }), file)
-  })
-
-  test("returns null when a missing PATH has no login-shell fallback either", () => {
-    expect(which("aigcfroge-no-login-cli", { PATH: "" })).toBeNull()
   })
 })
