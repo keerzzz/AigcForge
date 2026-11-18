@@ -1,6 +1,6 @@
-import { FSUtil } from "@opencode/util/fs-util"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { Effect, FileSystem } from "effect"
-import { HttpServerError, HttpServerRequest, HttpServerResponse } from "effect/http"
+import { FindMyWay, HttpRouter, HttpServerError, HttpServerRequest, HttpServerResponse } from "effect/http"
 import { createHash } from "node:crypto"
 import { load, type AssetMap, type BrotliMap } from "../app-assets"
 
@@ -9,6 +9,14 @@ export const handler = Effect.fn("cli.web-ui.handler")(function* (options?: {
   readonly brotli?: BrotliMap
 }) {
   const fileSystem = yield* FileSystem.FileSystem
+  const { Api } = yield* Effect.promise(() => import("@aigcfroge/server/api"))
+  const routes = FindMyWay.make<void>(yield* HttpRouter.RouterConfig)
+  // /api is forwarded by prefix below. Only retained endpoints outside it need path matching.
+  new Set(
+    Object.values(Api.groups)
+      .flatMap((group) => Object.values(group.endpoints).map((endpoint) => endpoint.path))
+      .filter((pathname) => pathname !== "/api" && !pathname.startsWith("/api/")),
+  ).forEach((pathname) => routes.all(pathname, undefined))
   const assets = options?.assets
     ? Effect.succeed({ files: options.assets, brotli: options.brotli })
     : yield* Effect.cached(load().pipe(Effect.provideService(FileSystem.FileSystem, fileSystem)))
@@ -21,7 +29,8 @@ export const handler = Effect.fn("cli.web-ui.handler")(function* (options?: {
         url.pathname === "/api" ||
         url.pathname.startsWith("/api/") ||
         url.pathname.startsWith("/auth/") ||
-        url.pathname === "/openapi.json"
+        url.pathname === "/openapi.json" ||
+        routes.find("GET", url.pathname) !== undefined
       )
         return yield* api.pipe(
           Effect.catchIf(isRouteNotFound, () => Effect.succeed(HttpServerResponse.empty({ status: 404 }))),

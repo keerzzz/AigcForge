@@ -1,16 +1,16 @@
 import { Effect } from "effect"
-import { define } from "@opencode/plugin/effect/plugin"
+import { define } from "@aigcfroge/plugin/effect/plugin"
 import { Provider } from "../../provider.js"
 
 export const VercelPlugin = define({
-  id: "opencode.provider.vercel",
+  id: "aigcfroge.provider.vercel",
   effect: Effect.fn(function* (ctx) {
     yield* ctx.provider.transform((evt) => {
       for (const item of evt.list()) {
         if (!Provider.isAISDK(item.provider.package)) continue
         if (Provider.packageName(item.provider.package) !== "@ai-sdk/vercel") continue
         evt.update(item.provider.id, (provider) => {
-          provider.headers = { ...provider.headers, "http-referer": "https://opencode.ai/", "x-title": "opencode" }
+          provider.headers = { ...provider.headers, "http-referer": "https://aigcfroge.ai/", "x-title": "aigcfroge" }
         })
       }
     })

@@ -1,8 +1,9 @@
 import { Predicate } from "effect"
-import { base64Encode } from "@opencode/util/encode"
-import type { SessionMessageUser } from "@opencode/client/promise"
-import { Session } from "@opencode/schema/session"
-import { startTransition } from "solid-js"
+import { base64Encode } from "@aigcfroge/util/encode"
+import { ClientError, type SessionMessageUser } from "@aigcfroge/client/promise"
+import { Session } from "@aigcfroge/schema/session"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { onCleanup, startTransition } from "solid-js"
 import type { NewSessionComposerAdapter } from "@/composer/adapter"
 import { useComposerState } from "@/composer/persistence"
 import { createComposerControls, createComposerModelSelection } from "@/composer/selection"
@@ -18,9 +19,11 @@ import { showToast } from "@/shell/notifications/toast"
 import { SessionRouteKey, SessionStateKey } from "@/runtime/server/scope"
 import { clearSessionMessageHandoff, setSessionMessageHandoff } from "@/session/handoff"
 import type { DraftMcpControls } from "./mcp"
+import { toSelection } from "@/providers/models/key"
 
 export function createNewSessionComposerAdapter(props: {
   draftID: string
+  mode: () => ProductMode.GenericSessionMode | undefined
   worktree: () => string
   branch: () => string | undefined
   submitted: () => void
@@ -35,7 +38,12 @@ export function createNewSessionComposerAdapter(props: {
   const tabs = useTabs()
   const location = useWorkspaceLocation()
   const language = useLanguage()
-  const model = createComposerModelSelection({ agent: () => local.agent.current() })
+  const model = createComposerModelSelection({ draftID: props.draftID })
+  let disposed = false
+  let generation = 0
+  onCleanup(() => {
+    disposed = true
+  })
   const controls = createComposerControls({ model })
 
   const adapter: NewSessionComposerAdapter = {
@@ -46,7 +54,23 @@ export function createNewSessionComposerAdapter(props: {
     working: () => false,
     submitted: props.submitted,
     async start(selection, submission, message) {
+      const mode = props.mode()
+
+      if (!mode) {
+        showToast({
+          variant: "error",
+          title: language.t("prompt.toast.sessionCreateFailed.title"),
+          description: language.t("newSession.mode.unsupported"),
+        })
+
+        return
+      }
+
+      const attempt = ++generation
       const draftID = props.draftID
+      const owner = serverSDK.api
+      const draftLocation = tabs.draft(draftID).location
+      const savedLocation = draftLocation ? { ...draftLocation } : undefined
       const currentDirectory = location().directory
 
       const projectDirectory =
@@ -62,16 +86,30 @@ export function createNewSessionComposerAdapter(props: {
           ? tabs.prepareSession(draftID, { server: server.key, sessionId: id }, { message, selection })
           : undefined
 
+      const owned = () => attempt === generation && owner === serverSDK.api
+      // A worktree submission transfers to the pending Session when navigation disposes this draft.
+      const current = () => owned() && (pending ? !!tabs.pendingSession(server.key, id) : !disposed)
+
+      const requireOwner = () => {
+        if (!owned()) throw new ClientError("Transport", { detail: "Session submission owner changed" })
+      }
+
       await pending?.ready
 
-      const sessionDirectory = await resolveSessionDirectory({
-        projectDirectory,
-        worktree,
-        branch,
-        data,
-        serverSDK,
-        language,
-      })
+      if (!current()) return
+
+      const sessionDirectory =
+        savedLocation?.directory ??
+        (await resolveSessionDirectory({
+          projectDirectory,
+          worktree,
+          branch,
+          data,
+          serverSDK,
+          language,
+        }))
+
+      if (!current()) return
 
       if (!sessionDirectory) {
         await pending?.rollback()
@@ -86,7 +124,11 @@ export function createNewSessionComposerAdapter(props: {
         await pending.rollback(sessionDirectory)
       }
 
-      if (!(await props.mcp.prepare(sessionDirectory, mcp))) {
+      const prepared = await props.mcp.prepare(sessionDirectory, mcp)
+
+      if (!current()) return
+
+      if (!prepared) {
         await rollback()
 
         if (pending) props.mcp.remember(sessionDirectory, mcp)
@@ -96,18 +138,17 @@ export function createNewSessionComposerAdapter(props: {
 
       const created = data.session.create({
         id,
+        mode,
         agent: selection.agent,
-        model: {
-          id: selection.model.modelID,
-          providerID: selection.model.providerID,
-          variant: selection.variant,
-        },
-        location: { directory: sessionDirectory },
+        executorPreference: selection.executorPreference,
+        model: toSelection(selection.model, selection.variant),
+        location: savedLocation ?? { directory: sessionDirectory },
       })
 
       const creation = created.request.then(
         () => ({ ok: true as const }),
         (error) => {
+          if (!current()) return { ok: false as const, error }
           showToast({
             title: language.t("prompt.toast.sessionCreateFailed.title"),
             description: errorMessage(language, error),
@@ -117,7 +158,11 @@ export function createNewSessionComposerAdapter(props: {
         },
       )
 
-      if (pending && !(await creation).ok) {
+      const canonical = await creation
+
+      if (!current()) return
+
+      if (!canonical.ok) {
         await rollback()
 
         return
@@ -127,8 +172,11 @@ export function createNewSessionComposerAdapter(props: {
         const result = await creation
 
         if (!result.ok) throw result.error
+        requireOwner()
+        const value = await run()
+        requireOwner()
 
-        return run()
+        return value
       }
 
       const sessionKey = SessionStateKey.from(
@@ -136,13 +184,22 @@ export function createNewSessionComposerAdapter(props: {
         SessionRouteKey.fromRoute(base64Encode(sessionDirectory), created.id),
       )
 
+      const transferred = Promise.withResolvers<boolean>()
+
       const cleanupReady = startTransition(() => {
+        if (!current()) {
+          transferred.resolve(false)
+
+          return
+        }
+
         if (!pending) tabs.updateDraft(draftID, { worktree: undefined, branch: undefined })
         local.session.promote(sessionDirectory, created.id, {
           agent: selection.agent,
           model: selection.model,
           variant: selection.variant ?? null,
           choices: model.remembered(),
+          executorPreference: selection.executorPreference,
         })
 
         if (!pending) tabs.promoteDraft(draftID, { server: server.key, sessionId: created.id })
@@ -153,31 +210,68 @@ export function createNewSessionComposerAdapter(props: {
           ),
           { preserveDraft: !!pending },
         )
+        transferred.resolve(true)
       })
+
+      // Admission needs the transfer callback; full transition cleanup still follows the first send.
+      void cleanupReady.catch(transferred.reject)
+
+      if (!(await transferred.promise) || !owned()) return
 
       return {
         cleanupReady,
         complete: pending ? () => pending.complete(submission.target()) : undefined,
+        trackSessionCommit: (sessionID, selection) =>
+          local.model.trackSessionCommit(sessionID, selection, () => sessionID === created.id && owned()),
         session: {
           id: created.id,
           directory: sessionDirectory,
           handoff: createMessageHandoff(sessionKey, created.id, serverSDK.event),
           api: {
-            command: (input) => afterCreation(() => serverSDK.api.session.command(input)),
-            shell: (input) => afterCreation(() => serverSDK.api.session.shell(input)),
-            switchAgent: (input) => afterCreation(() => serverSDK.api.session.switchAgent(input)),
-            switchModel: (input) => afterCreation(() => serverSDK.api.session.switchModel(input)),
-            revert: { commit: (input) => afterCreation(() => serverSDK.api.session.revert.commit(input)) },
+            command: (input) => afterCreation(() => owner.session.command(input)),
+            shell: (input) => afterCreation(() => owner.session.shell(input)),
+            switchAgent: (input) => afterCreation(() => owner.session.switchAgent(input)),
+            switchModel: (input) => afterCreation(() => owner.session.switchModel(input)),
+            selectExecutor: (input) => afterCreation(() => owner.session.selectExecutor(input)),
+            revert: { commit: (input) => afterCreation(() => owner.session.revert.commit(input)) },
           },
           data: {
             location: data.location,
             session: {
-              setStatus: data.session.setStatus,
-              prompt: (input) =>
-                data.session.prompt({
+              setStatus: (sessionID, status) => {
+                if (!owned()) return
+                data.session.setStatus(sessionID, status)
+              },
+              selectExecutor: (input) => afterCreation(() => data.session.selectExecutor(input)),
+              invalidate: (sessionID) => {
+                requireOwner()
+                data.session.invalidate(sessionID)
+              },
+              sync: (sessionID, options) => afterCreation(() => data.session.sync(sessionID, options)),
+              readback: (sessionID, options) =>
+                afterCreation(async () => {
+                  if (options?.children) return data.session.readback(sessionID, options)
+                  const info = await owner.session.get({ sessionID })
+                  requireOwner()
+
+                  if (!data.session.get(sessionID)) return
+                  // Keep the response independent of cache publication after the Draft transfers ownership.
+                  data.session.remember(structuredClone(info))
+
+                  return info
+                }),
+              prompt: (input) => {
+                requireOwner()
+
+                return data.session.prompt({
                   ...input,
                   gate: Promise.all([input.gate, afterCreation(async () => undefined)]),
-                }),
+                  prepare: () =>
+                    afterCreation(async () => {
+                      await input.prepare?.()
+                    }),
+                })
+              },
             },
           },
           current: () => data.session.get(created.id),

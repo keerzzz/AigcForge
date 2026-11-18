@@ -1,6 +1,6 @@
 export * as ToolInputRepairPlugin from "./tool-input-repair.js"
 
-import { define } from "@opencode/plugin/effect/plugin"
+import { define } from "@aigcfroge/plugin/effect/plugin"
 import { Effect, JsonSchema, Option, Predicate, Schema } from "effect"
 import { definition } from "../tool/runtime.js"
 
@@ -19,7 +19,7 @@ const decodeJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unkno
 const maxDepth = 6
 
 export const Plugin = define({
-  id: "opencode.tool.input.repair",
+  id: "aigcfroge.tool.input.repair",
   effect: (ctx) =>
     ctx.tool.hook("execute.before", (event) =>
       Effect.gen(function* () {

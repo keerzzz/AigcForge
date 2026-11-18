@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { FileNotFoundError, SessionNotFoundError } from "@opencode/client/promise"
+import type { FileNotFoundError, SessionNotFoundError } from "@aigcfroge/client/promise"
 import type { ConfigInvalidError, ProviderModelNotFoundError } from "./errors"
 import { formatServerError, isSessionNotFoundError, parseReadableConfigInvalidError } from "./errors"
 
@@ -16,18 +16,18 @@ function fill(text: string, vars?: Record<string, string | number>) {
 }
 
 function useLanguageMock() {
-  const dict: Record<string, string> = {
-    "error.chain.unknown": "Erro desconhecido",
-    "error.chain.configInvalid": "Arquivo de config em {{path}} invalido",
-    "error.chain.configInvalidWithMessage": "Arquivo de config em {{path}} invalido: {{message}}",
-    "error.chain.modelNotFound": "Modelo nao encontrado: {{provider}}/{{model}}",
-    "error.chain.didYouMean": "Voce quis dizer: {{suggestions}}",
-    "error.chain.checkConfig": "Revise provider/model no config",
-  }
+  const dict = new Map([
+    ["error.chain.unknown", "Erro desconhecido"],
+    ["error.chain.configInvalid", "Arquivo de config em {{path}} invalido"],
+    ["error.chain.configInvalidWithMessage", "Arquivo de config em {{path}} invalido: {{message}}"],
+    ["error.chain.modelNotFound", "Modelo nao encontrado: {{provider}}/{{model}}"],
+    ["error.chain.didYouMean", "Voce quis dizer: {{suggestions}}"],
+    ["error.chain.checkConfig", "Revise provider/model no config"],
+  ])
 
   return {
     t(key: string, vars?: Record<string, string | number>) {
-      const text = dict[key]
+      const text = dict.get(key)
 
       if (!text) return key
 
@@ -43,7 +43,7 @@ describe("parseReadableConfigInvalidError", () => {
     const error = {
       name: "ConfigInvalidError",
       data: {
-        path: "opencode.config.ts",
+        path: "aigcfroge.config.ts",
         issues: [
           { path: ["settings", "host"], message: "Required" },
           { path: ["mode"], message: "Invalid" },
@@ -54,7 +54,7 @@ describe("parseReadableConfigInvalidError", () => {
     const result = parseReadableConfigInvalidError(error, language.t)
 
     expect(result).toBe(
-      ["Arquivo de config em opencode.config.ts invalido: settings.host: Required", "mode: Invalid"].join("\n"),
+      ["Arquivo de config em aigcfroge.config.ts invalido: settings.host: Required", "mode: Invalid"].join("\n"),
     )
   })
 })
@@ -82,6 +82,8 @@ describe("formatServerError", () => {
     {
       name: "typed server error message",
       error: {
+        // SAFETY: this raw server response satisfies the exported client error contract; serialization is under test.
+        // oxlint-disable-next-line anti-slop-effect/no-manual-tagged-construction
         _tag: "FileNotFoundError",
         path: "deleted.txt",
         message: "File not found: deleted.txt",
@@ -120,6 +122,37 @@ describe("formatServerError", () => {
       }),
       expected: "Arquivo de config em config invalido: Missing host",
     },
+    {
+      name: "model error with missing required fields",
+      error: { name: "ProviderModelNotFoundError", data: {} },
+      expected: "Erro desconhecido",
+    },
+    {
+      name: "config error with a non-string message",
+      error: { name: "ConfigInvalidError", data: { message: 42 } },
+      expected: "Erro desconhecido",
+    },
+    {
+      name: "config error with invalid issue fields and a readable outer message",
+      error: {
+        name: "ConfigInvalidError",
+        message: "Configuration could not be read",
+        data: { issues: [{ message: null, path: 42 }] },
+      },
+      expected: "Configuration could not be read",
+    },
+    {
+      name: "model error with invalid suggestions",
+      error: { name: "ProviderModelNotFoundError", data: { providerID: "x", modelID: "y", suggestions: [42] } },
+      expected: "Erro desconhecido",
+    },
+    {
+      name: "SDK-wrapped malformed error retaining the original message",
+      error: new Error("Request failed with status 400", {
+        cause: { body: { name: "ConfigInvalidError", data: { issues: [null] } } },
+      }),
+      expected: "Request failed with status 400",
+    },
   ])("formats a $name", ({ error, expected }) => {
     expect(formatServerError(error, language.t)).toBe(expected)
   })
@@ -127,6 +160,8 @@ describe("formatServerError", () => {
 
 describe("isSessionNotFoundError", () => {
   const body = {
+    // SAFETY: this raw serialized response satisfies SessionNotFoundError and exercises the formatter's wire boundary.
+    // oxlint-disable-next-line anti-slop-effect/no-manual-tagged-construction
     _tag: "SessionNotFoundError",
     sessionID: "ses_missing",
     message: "Session not found",
@@ -142,7 +177,12 @@ describe("isSessionNotFoundError", () => {
     expect(
       isSessionNotFoundError(
         new Error("Provider not found", {
-          cause: { body: { _tag: "ProviderNotFoundError", providerID: "missing" }, status: 404 },
+          cause: {
+            // SAFETY: a different raw server error intentionally verifies that the SessionNotFound predicate rejects it.
+            // oxlint-disable-next-line anti-slop-effect/no-manual-tagged-construction
+            body: { _tag: "ProviderNotFoundError", providerID: "missing" },
+            status: 404,
+          },
         }),
         "ses_tab",
       ),

@@ -1,8 +1,8 @@
 import { ErrorBoundary, createEffect, createMemo, Show, type ParentProps } from "solid-js"
 import { useParams } from "@solidjs/router"
-import { DataProvider } from "@opencode/session-ui/context"
-import { SessionUserMessage } from "@opencode/session-ui/message"
-import { TextShimmer } from "@opencode/ui/text-shimmer"
+import { DataProvider } from "@aigcfroge/session-ui/context"
+import { SessionUserMessage } from "@aigcfroge/session-ui/message"
+import { TextShimmer } from "@aigcfroge/ui/text-shimmer"
 import { CommentsProvider } from "@/composer/comments"
 import { readPromptPresentation } from "@/composer/comment-note"
 import { FileProvider } from "@/workspaces/files/model"
@@ -26,6 +26,7 @@ import { SessionErrorFallback } from "./route-error"
 import { createSessionResolution } from "./session-resolution"
 import { SessionScreenView } from "./screen"
 import { PreparingComposer } from "./preparing-composer"
+import { toSelection } from "@/providers/models/key"
 
 export function TargetSessionRouteContent() {
   const params = useParams<{ serverKey: string; id: string }>()
@@ -72,11 +73,7 @@ function PreparingSession(props: { sessionID: string; pending: PendingSession })
               message={props.pending.message}
               comments={readPromptPresentation(props.pending.message.metadata)?.comments}
               historicalAgent={props.pending.selection.agent}
-              historicalModel={{
-                id: props.pending.selection.model.modelID,
-                providerID: props.pending.selection.model.providerID,
-                variant: props.pending.selection.variant,
-              }}
+              historicalModel={toSelection(props.pending.selection.model, props.pending.selection.variant)}
             />
             <div
               role="status"

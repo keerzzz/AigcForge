@@ -44,3 +44,22 @@ test("plugins cannot select unavailable variants or variants without a model", a
   expect(none.variant.list()).toEqual([])
   expect(none.variant.set(undefined)).toBe(false)
 })
+
+test("TUI selects and remembers Groups while legacy plugin model access keeps its physical contract", async () => {
+  const group = { type: "group" as const, groupID: "fallback" }
+  await using setup = await renderLocal({ groups: { targets: [], definitions: [], defaultSelection: group,
+    effective: [{ groupID: group.groupID, definition: { name: "Fast fallback", enabled: true, members: [{ providerID: "provider", id: "first" }], strategy: "order", affinity: "turn" } }],
+  } })
+  setup.local.model.set(group, { recent: true })
+  expect(setup.local.model.current()).toEqual(group)
+  expect(setup.local.model.selection()).toEqual(group)
+  expect(setup.local.model.parsed()).toEqual({ provider: "Model group", model: "Fast fallback", reasoning: false })
+  expect(setup.local.model.variant.list()).toEqual([])
+  setup.local.model.variant.set("high")
+  expect(setup.local.model.selection()).toEqual(group)
+  expect(pluginModel(setup.local).current()).toBeUndefined()
+  expect(pluginModel(setup.local).variant.set(undefined)).toBe(false)
+  setup.local.model.toggleFavorite(group)
+  expect(setup.local.model.favorite()).toEqual([group])
+  expect(setup.local.model.recent()).toEqual([group])
+})

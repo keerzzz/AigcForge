@@ -1,7 +1,7 @@
-import { base64Encode } from "@opencode/util/encode"
-import { createSimpleContext } from "@opencode/ui/context"
+import { base64Encode } from "@aigcfroge/util/encode"
+import { createSimpleContext } from "@aigcfroge/ui/context"
 import { useParams, useSearchParams } from "@solidjs/router"
-import { createMemo, createResource, createRoot, getOwner, onCleanup } from "solid-js"
+import { createMemo, createResource, createRoot, getOwner, onCleanup, untrack } from "solid-js"
 import { requireServerKey } from "@/shell/routes/session"
 import { ServerConnection } from "@/runtime/server/registry"
 import { useServerSDK } from "@/runtime/server/client"
@@ -46,7 +46,8 @@ const WORKSPACE_KEY = "__workspace__"
 const MAX_PROMPT_SESSIONS = 20
 
 export function selectPromptTab(tabs: Tab[], scope: PromptScope, server: ServerConnection.Key) {
-  if ("draftID" in scope) return tabs.find((tab) => tab.type === "draft" && tab.draftID === scope.draftID)
+  if ("draftID" in scope)
+    return tabs.find((tab) => tab.type === "draft" && tab.server === server && tab.draftID === scope.draftID)
 
   if (!scope.id) return
 
@@ -68,15 +69,18 @@ type ComposerCacheEntry = {
 }
 
 export const createTabComposerState = (
-  tabs: ReturnType<typeof useTabs>,
+  tabs: Pick<ReturnType<typeof useTabs>, "state">,
   tab: Tab,
   ...args: Parameters<typeof createComposerState>
-) => tabs.state(tab, "prompt", () => createComposerState(...args))
+) =>
+  tabs.state(tab, "draftID" in args[1] ? "prompt" : `prompt:${JSON.stringify([args[0], scopeKey(args[1])])}`, () =>
+    createComposerState(...args),
+  )
 
 export const { use: useComposerState, provider: ComposerPersistenceProvider } = createSimpleContext({
   name: "ComposerState",
   gate: false,
-  init: () => {
+  init: (props: { scope?: () => PromptScope; target?: () => { server: ServerConnection.Key; scope: ServerScope } }) => {
     const params = useParams<{ serverKey?: string; id?: string }>()
     const sdk = useWorkspaceLocation()
     const [search] = useSearchParams<{ draftId?: string }>()
@@ -107,15 +111,17 @@ export const { use: useComposerState, provider: ComposerPersistenceProvider } = 
     const serverKey = () =>
       params.serverKey ? requireServerKey(params.serverKey) : ServerConnection.key(serverSDK.server)
 
-    const scope = (): PromptScope =>
+    const routeScope = (): PromptScope =>
       search.draftId ? { draftID: search.draftId } : { dir: base64Encode(sdk().directory), id: params.id }
 
     const load = (scope: PromptScope, target?: { server?: ServerConnection.Key; scope: ServerScope }) => {
-      const current = selectPromptTab(tabs.store, scope, target?.server ?? serverKey())
+      const server = target?.server ?? serverKey()
+      const serverScope = target?.scope ?? serverSDK.scope
+      const current = untrack(() => selectPromptTab(tabs.store, scope, server))
 
-      if (current) return createTabComposerState(tabs, current, target?.scope ?? serverSDK.scope, scope)
+      if (current) return createTabComposerState(tabs, current, serverScope, scope)
 
-      const key = target ? `${target.scope}:${scopeKey(scope)}` : scopeKey(scope)
+      const key = JSON.stringify([server, serverScope, scopeKey(scope)])
       const existing = cache.get(key)
 
       if (existing) {
@@ -127,7 +133,7 @@ export const { use: useComposerState, provider: ComposerPersistenceProvider } = 
 
       const entry = createRoot(
         (dispose) => ({
-          value: createComposerState(target?.scope ?? serverSDK.scope, scope),
+          value: createComposerState(serverScope, scope),
           dispose,
         }),
         owner,
@@ -139,10 +145,15 @@ export const { use: useComposerState, provider: ComposerPersistenceProvider } = 
       return entry.value
     }
 
-    const session = createMemo(() => load(scope()))
+    const session = createMemo(() => load(props.scope?.() ?? routeScope(), props.target?.()))
 
-    const pick = (scope?: PromptScope, target?: { server?: ServerConnection.Key; scope: ServerScope }) =>
-      scope ? load(scope, target) : session()
+    const pick = (scope?: PromptScope, target?: { server?: ServerConnection.Key; scope: ServerScope }) => {
+      if (scope) return load(scope, target ?? props.target?.())
+
+      if (target) return load(props.scope?.() ?? routeScope(), target)
+
+      return session()
+    }
 
     const ready = createComposerReady(session)
 
@@ -160,8 +171,11 @@ export const { use: useComposerState, provider: ComposerPersistenceProvider } = 
 
     return {
       ready,
-      capture: (scope?: PromptScope, target?: { server?: ServerConnection.Key; scope: ServerScope }) =>
-        pick(scope, target).capture(),
+      capture: (scope?: PromptScope, target?: { server?: ServerConnection.Key; scope: ServerScope }) => {
+        const state = pick(scope, target)
+
+        return Object.assign(state.capture(), { ready: state.ready })
+      },
       current: withSuspense(() => session().current()),
       cursor: withSuspense(() => session().cursor()),
       model: {

@@ -318,7 +318,7 @@ export function compile<A, E>(root: Graph<A, E>, options: CompileOptions = {}): 
   }) as Layer.Layer<A, E>
 }
 
-class BuildResult extends Context.Service<BuildResult, Context.Context<never>>()("@opencode/LayerNode/BuildResult") {}
+class BuildResult extends Context.Service<BuildResult, Context.Context<never>>()("@aigcfroge/LayerNode/BuildResult") {}
 
 function buildContext(layer: RuntimeLayer, memoMap: Layer.MemoMap, scope: Scope.Scope) {
   // Preserve the exact output context before Effect appends its own memo-map metadata.

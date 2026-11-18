@@ -1,9 +1,9 @@
 import { render, useRenderer, useTerminalDimensions } from "@opentui/solid"
 import { registerOpencodeSpinner } from "./component/register-spinner"
 import { Effect, Latch } from "effect"
-import { Service, type Endpoint } from "@opencode/client/effect/service"
-import { OpenCode, type SessionInfo } from "@opencode/client"
-import { Global } from "@opencode/util/global"
+import { Service, type Endpoint } from "@aigcfroge/client/effect/service"
+import { AigcForge, type SessionInfo } from "@aigcfroge/client"
+import { Global } from "@aigcfroge/util/global"
 import { ClipboardProvider, useClipboard } from "./context/clipboard"
 import { LogProvider, type LogSink } from "./context/log"
 import { ExitProvider, useExit } from "./context/exit"
@@ -32,6 +32,7 @@ import {
 } from "solid-js"
 import {
   TuiLifecycleProvider,
+  createTuiLifecycle,
   TuiAppProvider,
   TuiPathsProvider,
   TuiStartupProvider,
@@ -81,10 +82,11 @@ import { PromptHistoryProvider } from "./prompt/history"
 import { FrecencyProvider } from "./prompt/frecency"
 import { PromptStashProvider } from "./prompt/stash"
 import { Toast, ToastProvider, useToast } from "./ui/toast"
-import { isFallbackTitle } from "@opencode/util/session-title-fallback"
-import * as Model from "./util/model"
+import { isFallbackTitle } from "@aigcfroge/util/session-title-fallback"
+import { parse } from "./util/model"
+import { isModelGroup } from "./model-preference"
 import { ArgsProvider, useArgs, type Args } from "./context/args"
-import { openUrl } from "@opencode/util/open"
+import { openUrl } from "@aigcfroge/util/open"
 import { PromptRefProvider, usePromptRef } from "./context/prompt"
 import { Config, ConfigProvider, useConfig } from "./config"
 import { newSessionLocation } from "./config/new-session-location"
@@ -154,13 +156,13 @@ const appBindingCommands = [
   "variant.cycle",
   "variant.list",
   "provider.connect",
-  "opencode.settings",
-  "opencode.status",
-  "opencode.update",
+  "aigcfroge.settings",
+  "aigcfroge.status",
+  "aigcfroge.update",
   "server.pair",
   "service.restart",
   "location.reload",
-  "opencode.debug",
+  "aigcfroge.debug",
   "theme.switch",
   "theme.switch_mode",
   "theme.mode.lock",
@@ -209,7 +211,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
     terminalSuspend: process.platform !== "win32",
   })
   const options = { baseUrl: input.server.endpoint.url, headers: Service.headers(input.server.endpoint) }
-  const api = OpenCode.make(options)
+  const api = AigcForge.make(options)
   const location = yield* Effect.tryPromise(() => api.file.list({ location: { directory: process.cwd() } })).pipe(
     Effect.map((response) => response.location),
     Effect.catch(() => Effect.tryPromise(() => api.location.get())),
@@ -223,13 +225,13 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
         reconnect: async (signal: AbortSignal) => {
           const endpoint = await managed.reconnect(signal)
           const next = { baseUrl: endpoint.url, headers: Service.headers(endpoint) }
-          return { api: OpenCode.make(next), url: endpoint.url }
+          return { api: AigcForge.make(next), url: endpoint.url }
         },
         restart: managed.restart,
       }
     : undefined
   const exit = { epilogue: undefined as string | undefined, reason: undefined as unknown }
-  const result = yield* Effect.scoped(
+  yield* Effect.scoped(
     Effect.gen(function* () {
       const options = {
         externalOutputMode: "passthrough",
@@ -251,8 +253,8 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
             Effect.sync(() => destroyRenderer(renderer)),
           )
         }
-        if (process.env.OPENCODE_DRIVE) {
-          const { Drive } = yield* Effect.promise(() => import("@opencode/simulation/frontend"))
+        if (process.env.AIGCFROGE_DRIVE) {
+          const { Drive } = yield* Effect.promise(() => import("@aigcfroge/simulation/frontend"))
           return yield* Drive.create(options, input.app.version)
         }
         return yield* Effect.acquireRelease(
@@ -271,15 +273,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
             Effect.catch((error) => Effect.sync(() => log("error", "Failed to dispose TUI clipboard", { error }))),
           ),
       )
-      const finalizers = new Set<() => Promise<void>>()
-      yield* Effect.addFinalizer(() =>
-        Effect.promise(async () => {
-          const results = await Promise.allSettled([...finalizers].reverse().map((finalizer) => finalizer()))
-          results
-            .filter((result): result is PromiseRejectedResult => result.status === "rejected")
-            .forEach((result) => log("error", "Failed to dispose TUI resource", { error: result.reason }))
-        }),
-      )
+      const lifecycle = yield* createTuiLifecycle(log)
       const shutdown = yield* Latch.make()
       const onSighup = () => destroyRenderer(renderer)
       yield* Effect.acquireRelease(
@@ -301,7 +295,12 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                   destroyRenderer(renderer)
                 }}
               >
-                <EpilogueProvider set={(value) => (exit.epilogue = value)}>
+                <EpilogueProvider
+                  set={(value) => {
+                    if (renderer.isDestroyed) return
+                    exit.epilogue = value
+                  }}
+                >
                   <TuiAppProvider value={input.app}>
                     <ErrorBoundary
                       fallback={(error, reset) => (
@@ -318,15 +317,8 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                           worktree: global.data + "/worktree",
                         }}
                       >
-                        <StorageProvider>
-                          <TuiLifecycleProvider
-                            value={{
-                              add(finalizer) {
-                                finalizers.add(finalizer)
-                                return () => finalizers.delete(finalizer)
-                              },
-                            }}
-                          >
+                        <StorageProvider lifecycle={lifecycle}>
+                          <TuiLifecycleProvider value={lifecycle}>
                             <TuiTerminalEnvironmentProvider
                               value={{
                                 platform: process.platform,
@@ -335,21 +327,21 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                             >
                               <TuiStartupProvider
                                 value={{
-                                  initialRoute: process.env.OPENCODE_STORY
+                                  initialRoute: process.env.AIGCFROGE_STORY
                                     ? {
                                         type: "plugin",
-                                        id: "opencode.storybook",
+                                        id: "aigcfroge.storybook",
                                         name: "storybook",
-                                        // OPENCODE_STORY=1 opens the index; any other value opens that story.
+                                        // AIGCFROGE_STORY=1 opens the index; any other value opens that story.
                                         data:
-                                          process.env.OPENCODE_STORY === "1"
+                                          process.env.AIGCFROGE_STORY === "1"
                                             ? undefined
-                                            : { story: process.env.OPENCODE_STORY },
+                                            : { story: process.env.AIGCFROGE_STORY },
                                       }
-                                    : process.env.OPENCODE_ROUTE
-                                      ? JSON.parse(process.env.OPENCODE_ROUTE)
+                                    : process.env.AIGCFROGE_ROUTE
+                                      ? JSON.parse(process.env.AIGCFROGE_ROUTE)
                                       : undefined,
-                                  skipInitialLoading: Boolean(process.env.OPENCODE_FAST_BOOT),
+                                  skipInitialLoading: Boolean(process.env.AIGCFROGE_FAST_BOOT),
                                 }}
                               >
                                 <ClipboardProvider value={clipboard}>
@@ -441,14 +433,16 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
         }
       })
       yield* shutdown.await
-      return { epilogue: exit.epilogue, reason: exit.reason }
     }),
+  ).pipe(
+    Effect.onExit(() =>
+      Effect.sync(() => {
+        if (exit.reason !== undefined)
+          process.stderr.write((cliErrorMessage(exit.reason) ?? errorFormat(exit.reason)) + "\n")
+        if (exit.epilogue) process.stdout.write(exit.epilogue + "\n")
+      }),
+    ),
   )
-  yield* Effect.sync(() => {
-    if (result.reason !== undefined)
-      process.stderr.write((cliErrorMessage(result.reason) ?? errorFormat(result.reason)) + "\n")
-    if (result.epilogue) process.stdout.write(result.epilogue + "\n")
-  })
 })
 
 function App() {
@@ -602,14 +596,14 @@ function App() {
     if (!terminalTitleEnabled()) return
 
     if (route.data.type === "home") {
-      renderer.setTerminalTitle("OpenCode")
+      renderer.setTerminalTitle("AigcForge")
       return
     }
 
     if (route.data.type === "session") {
       const title = session?.title
       if (!title || isFallbackTitle(title)) {
-        renderer.setTerminalTitle("OpenCode")
+        renderer.setTerminalTitle("AigcForge")
         return
       }
 
@@ -628,14 +622,14 @@ function App() {
     batch(() => {
       if (args.agent) local.agent.set(args.agent)
       if (args.model) {
-        const { providerID, modelID } = Model.parse(args.model)
-        if (!providerID || !modelID)
+        const selected = parse(args.model)
+        if (!isModelGroup(selected) && (!selected.providerID || !selected.modelID))
           return toast.show({
             variant: "warning",
             message: `Invalid model format: ${args.model}`,
             duration: 3000,
           })
-        local.model.set({ providerID, modelID }, { recent: true })
+        local.model.set(selected, { recent: true })
       }
       if (args.sessionID && !args.fork) {
         route.navigate({
@@ -958,7 +952,7 @@ function App() {
         category: "Integration",
       },
       {
-        name: "opencode.settings",
+        name: "aigcfroge.settings",
         title: "Open settings",
         suggested: true,
         slash: { name: "settings" },
@@ -968,7 +962,7 @@ function App() {
         category: "System",
       },
       {
-        name: "opencode.status",
+        name: "aigcfroge.status",
         title: "View status",
         slash: { name: "status" },
         run: () => {
@@ -979,8 +973,8 @@ function App() {
       ...(updater.open
         ? [
             {
-              name: "opencode.update",
-              title: "Update OpenCode",
+              name: "aigcfroge.update",
+              title: "Update AigcForge",
               slash: { name: "update" },
               run: () => updater.open?.("manual"),
               category: "System",
@@ -1034,7 +1028,7 @@ function App() {
         category: "System",
       },
       {
-        name: "opencode.debug",
+        name: "aigcfroge.debug",
         title: "View debug info",
         slash: { name: "debug" },
         run: () => {
@@ -1086,7 +1080,7 @@ function App() {
         name: "docs.open",
         title: "Open docs",
         run: () => {
-          openUrl("https://opencode.ai/docs").catch(() => {})
+          openUrl("https://aigcfroge.ai/docs").catch(() => {})
           dialog.clear()
         },
         category: "System",
@@ -1386,7 +1380,7 @@ function App() {
           <PaneResizeHandle resize={tabsResize} left={tabsResize.size() - 1} />
         </Show>
       </box>
-      <Show when={devtools() && !(route.data.type === "plugin" && route.data.id === "opencode.stats")}>
+      <Show when={devtools() && !(route.data.type === "plugin" && route.data.id === "aigcfroge.stats")}>
         <DevToolsBar />
       </Show>
       <Show when={!startup.skipInitialLoading}>

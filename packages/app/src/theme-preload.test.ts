@@ -30,7 +30,7 @@ describe("theme preload", () => {
     ({ stored, systemDark, scheme, background }) => {
       setSystemDark(systemDark)
 
-      if (stored) localStorage.setItem("opencode-color-scheme", stored)
+      if (stored) localStorage.setItem("aigcfroge-color-scheme", stored)
       run()
 
       expect(document.documentElement.dataset.theme).toBe("oc-2")
@@ -40,12 +40,12 @@ describe("theme preload", () => {
   )
 
   test.each([
-    { scheme: undefined, key: "opencode-theme-css-light", css: "--background-base:#fff;", expected: "light" },
-    { scheme: "dark", key: "opencode-theme-css-dark", css: "--background-base:#010203;", expected: "dark" },
+    { scheme: undefined, key: "aigcfroge-theme-css-light", css: "--background-base:#fff;", expected: "light" },
+    { scheme: "dark", key: "aigcfroge-theme-css-dark", css: "--background-base:#010203;", expected: "dark" },
   ])("restores the cached $expected css of a custom theme", ({ scheme, key, css, expected }) => {
-    localStorage.setItem("opencode-theme-id", "nightowl")
+    localStorage.setItem("aigcfroge-theme-id", "nightowl")
 
-    if (scheme) localStorage.setItem("opencode-color-scheme", scheme)
+    if (scheme) localStorage.setItem("aigcfroge-color-scheme", scheme)
     localStorage.setItem(key, css)
     run()
 

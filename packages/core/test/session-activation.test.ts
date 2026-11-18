@@ -1,17 +1,17 @@
 import { describe, expect, setDefaultTimeout } from "bun:test"
 import { Effect } from "effect"
 import path from "path"
-import { Bus } from "@opencode/core/bus"
-import { Database } from "@opencode/core/database/database"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { Watcher } from "@opencode/core/filesystem/watcher"
-import { LocationServiceMap } from "@opencode/core/location-service-map"
-import { AbsolutePath } from "@opencode/core/schema"
-import { Session } from "@opencode/core/session"
-import { SessionExecution } from "@opencode/core/session/execution"
-import { SessionProjector } from "@opencode/core/session/projector"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { Global } from "@opencode/util/global"
+import { Bus } from "@aigcfroge/core/bus"
+import { Database } from "@aigcfroge/core/database/database"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { Watcher } from "@aigcfroge/core/filesystem/watcher"
+import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Session } from "@aigcfroge/core/session"
+import { SessionExecution } from "@aigcfroge/core/session/execution"
+import { SessionProjector } from "@aigcfroge/core/session/projector"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Global } from "@aigcfroge/util/global"
 import { tempGlobalLayer } from "./fixture/global"
 import { offlineModels } from "./fixture/models"
 import { tmpdirScoped } from "./fixture/tmpdir"
@@ -36,7 +36,7 @@ const project = Effect.gen(function* () {
   const tmp = yield* tmpdirScoped()
   yield* Effect.promise(() =>
     Bun.write(
-      path.join(tmp.path, ".opencode/plugins/prompt.ts"),
+      path.join(tmp.path, ".aigcfroge/plugins/prompt.ts"),
       `export default {
         id: "prompt-readiness",
         async setup(ctx) {

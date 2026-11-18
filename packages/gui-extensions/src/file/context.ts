@@ -16,6 +16,11 @@ export interface OpenRequest {
 export interface FileShared {
   readonly changes: Accessor<Live<Changes>>
   readonly browser: Accessor<Live<Browser>>
+  /** Whether desktop tree clicks reuse a temporary file tab. */
+  readonly preview: {
+    enabled(): boolean
+    set(enabled: boolean): void
+  }
   readonly tree: {
     tab(): TreeTab
     setTab(tab: TreeTab): void
@@ -35,7 +40,7 @@ export interface FileShared {
   readonly installed: Map<string, Promise<boolean>>
   /** The open-in-app choice. Desktop only. */
   readonly app?: { current(): OpenApp; set(app: OpenApp): void }
-  /** The "Open in" buttons' request in flight, shared so the tab strip's and a panel header's agree across tab switches. */
+  /** The "Open in" request in flight, shared by file and review toolbars across tab switches. */
   readonly request: OpenRequest
   /** The last selection of each file tab, readable before a session's file view state loads. */
   readonly handoff: {

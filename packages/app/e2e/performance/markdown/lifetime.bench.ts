@@ -1,6 +1,6 @@
-import type { SessionMessageInfo } from "@opencode/client/promise"
+import type { SessionMessageInfo } from "@aigcfroge/client/promise"
 import { benchmark, expect } from "../benchmark"
-import { mockOpenCodeServer } from "../../utils/mock-server"
+import { mockAigcForgeServer } from "../../utils/mock-server"
 import { fixture, installStressSessionTabs, installTimelineSettings } from "../../utils/session-fixture"
 import { sessionHref } from "../../utils/app"
 import { completedAnswer } from "../../../../session-ui/performance/markdown-lifetime/answer"
@@ -26,7 +26,7 @@ for (const size of ["typical", "large"]) {
             id: `msg_2_${id}_assistant`,
             type: "assistant",
             time: { created: 1700000001000, completed: 1700000008000 },
-            model: { id: "claude-opus-4-6", providerID: "opencode" },
+            model: { id: "claude-opus-4-6", providerID: "aigcfroge" },
             agent: "build",
             cost: 0.01,
             tokens: { input: 100, output: 200, reasoning: 0, cache: { read: 0, write: 0 } },
@@ -45,7 +45,7 @@ for (const size of ["typical", "large"]) {
       ]),
     )
 
-    await mockOpenCodeServer(page, {
+    await mockAigcForgeServer(page, {
       sessions: fixture.sessions.filter((session) => session.id !== fixture.childID),
       provider: fixture.provider,
       directory: fixture.directory,

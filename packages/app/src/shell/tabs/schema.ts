@@ -1,6 +1,8 @@
 export * as TabStorage from "./schema"
 
 import { Schema, SchemaGetter } from "effect"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { Location } from "@aigcfroge/schema/location"
 import { ServerKey } from "@/runtime/server/persistence"
 import { Persistence } from "@/runtime/persistence/schema"
 
@@ -19,6 +21,10 @@ export const Draft = Persistence.struct({
   draftID: Schema.String,
   server: ServerKey,
   directory: Schema.String,
+  // An explicit capture keeps its saved placement until the user chooses another project or workspace.
+  location: Persistence.optional(Schema.toEncoded(Location.Ref)),
+  // Preserve unsupported stored modes so only an omitted field can default to Coding.
+  mode: Schema.optional(Schema.Unknown),
   worktree: Persistence.optional(Schema.String),
   branch: Persistence.optional(Schema.String),
   mcp: Persistence.optional(Persistence.struct({ target: Schema.String, states: Persistence.record(Schema.Boolean) })),
@@ -67,6 +73,17 @@ export const ClosedTab = Persistence.struct({
 })
 
 export const Closed = Persistence.array(ClosedTab)
+
+/** Resolve the ordinary creation mode without replacing an unsupported persisted choice. */
+export function genericMode(draft: typeof Draft.Type | undefined): ProductMode.GenericSessionMode | undefined {
+  if (!draft) return
+  // Read the missing key too so a legacy draft reacts to its first mode selection.
+  const mode = draft.mode
+
+  if (!Object.hasOwn(draft, "mode")) return ProductMode.Default
+
+  if (ProductMode.isID(mode) && ProductMode.isGenericSessionMode(mode)) return mode
+}
 
 /** A tab keeps its route only when it differs from the session, and the route's parent only with the route. */
 function withRoute(tab: typeof Session.Type) {

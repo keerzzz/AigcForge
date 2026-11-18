@@ -1,6 +1,6 @@
 export * as ConfigMigrateV1 from "./migrate.js"
 
-import { ConfigAgent } from "@opencode/schema/config/agent"
+import { ConfigAgent } from "@aigcfroge/schema/config/agent"
 import { Schema } from "effect"
 import { ConfigAgentV1 } from "./agent.js"
 import { ConfigCommandV1 } from "./command.js"
@@ -9,7 +9,7 @@ import { ConfigPermissionV1 } from "./permission.js"
 import { ConfigProviderV1 } from "./provider.js"
 import { ConfigProviderOptionsV1 } from "./provider-options.js"
 import { Provider } from "../../provider.js"
-import { Model } from "../../model.js"
+import { Model } from "@aigcfroge/schema/model"
 
 const decodeOptions = { errors: "all", onExcessProperty: "ignore" } as const
 const decodeAgent = Schema.decodeUnknownSync(Schema.fromJsonString(ConfigAgent.Info), decodeOptions)
@@ -186,7 +186,11 @@ function migrateModel(info: typeof ConfigProviderV1.Model.Type) {
   }
 
   const settings = options && ConfigProviderOptionsV1.model(options)
-  const compatibility = Model.compatibility(info.interleaved)
+  const compatibility = typeof info.interleaved === "string"
+    ? { reasoningField: info.interleaved }
+    : typeof info.interleaved === "object" && info.interleaved !== null
+      ? { reasoningField: info.interleaved.field }
+      : undefined
   const costs = info.cost && [
     {
       input: info.cost.input,

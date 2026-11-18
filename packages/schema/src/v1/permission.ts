@@ -9,6 +9,7 @@ import { SessionID } from "../session-id.js"
 
 export const ID = Schema.String.check(Schema.isStartingWith("per")).pipe(
   Schema.brand("PermissionV1.ID"),
+  Schema.annotate({ identifier: "PermissionV1.ID" }),
   statics((schema) => ({ ascending: (id?: string) => schema.make(id ?? "per_" + ascending()) })),
 )
 export type ID = typeof ID.Type

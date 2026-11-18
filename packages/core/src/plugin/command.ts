@@ -1,15 +1,19 @@
 export * as CommandPlugin from "./command.js"
 
-import { define } from "@opencode/plugin/effect/plugin"
-import { Effect, Stream } from "effect"
+import { define } from "@aigcfroge/plugin/effect/plugin"
+import { Effect, Schema, Stream } from "effect"
 import { Bus } from "../bus.js"
 import { Location } from "../location.js"
 import { Mcp } from "../mcp/index.js"
+import { MetaAgentService } from "../meta-agent/service.js"
+import { SessionGoal } from "../session/goal.js"
+import { SessionExecution } from "../session/execution.js"
+import { ScheduleService } from "../session/schedule-service.js"
 import PROMPT_INITIALIZE from "./command/initialize.txt"
 import PROMPT_REVIEW from "./command/review.txt"
 
 export const Plugin = define({
-  id: "opencode.command",
+  id: "aigcfroge.command",
   effect: Effect.fn(function* (ctx) {
     const location = yield* Location.Service
     const mcp = yield* Mcp.Service
@@ -79,6 +83,64 @@ export const Plugin = define({
             }).pipe(Effect.asVoid),
         })
       }
+    })
+  }),
+})
+
+export const MetaCommands = define({
+  id: "aigcfroge.command.meta",
+  effect: Effect.fn("MetaCommands.Plugin")(function* (ctx) {
+    const goals = yield* SessionGoal.Service
+    const execution = yield* SessionExecution.Service
+    const schedules = yield* ScheduleService.Service
+    const metas = yield* MetaAgentService.Service
+    yield* ctx.command.transform((editor) => {
+      editor.add({
+        name: "goal",
+        description: "Goal status; /goal <objective>; /goal {objective,conditions,budget}; /goal pause|resume|cancel",
+        execute: (input) => Effect.gen(function* () {
+          const text = input.prompt.text.trim()
+          yield* metas.assertCoordination(input.sessionID)
+          const saved = yield* goals.list(input.sessionID)
+          if (text === "") {
+            yield* ctx.session.synthetic({ sessionID: input.sessionID,
+              text: JSON.stringify(Schema.encodeSync(Schema.Array(SessionGoal.Info))(saved)), resume: false })
+            return
+          }
+          const current = saved.find((goal) => goal.status === "active") ?? saved.findLast((goal) => goal.status === "paused")
+          if (text === "pause" || text === "resume" || text === "cancel") {
+            if (!current) return yield* Effect.fail(new Error("This Session has no active or paused Goal"))
+            const ref = { sessionID: input.sessionID, goalID: current.id, expectedRevision: current.revision }
+            if (text === "pause") { yield* goals.pause(ref); return }
+            if (text === "cancel") { yield* goals.cancel(ref); return }
+            const resumed = yield* goals.resume(ref)
+            const advanced = yield* goals.advance({ sessionID: input.sessionID, goalID: resumed.id })
+            if (advanced.state === "admitted") yield* execution.wake(input.sessionID)
+            return
+          }
+          const config = text.startsWith("{")
+            ? yield* Schema.decodeUnknownEffect(Schema.fromJsonString(SessionGoal.CreateInput))(text)
+            : SessionGoal.CreateInput.make({ objective: text, conditions: [SessionGoal.Condition.make({ id: "acceptance", kind: "human_acceptance", description: text })], budget: {} })
+          const goal = yield* goals.set({ ...config, sessionID: input.sessionID })
+          const advanced = yield* goals.advance({ sessionID: input.sessionID, goalID: goal.id })
+          if (advanced.state === "admitted") yield* execution.wake(input.sessionID)
+        }),
+      })
+      editor.add({
+        name: "schedule",
+        description: "Read schedules or ask Meta to create/change one using an explicit timezone and target",
+        execute: (input) => Effect.gen(function* () {
+          yield* metas.assertCoordination(input.sessionID)
+          if (input.prompt.text.trim() === "") {
+            yield* ctx.session.synthetic({ sessionID: input.sessionID,
+              text: JSON.stringify(yield* schedules.listRules(input.sessionID)), resume: false })
+            return
+          }
+          yield* ctx.session.prompt({ ...input.prompt, sessionID: input.sessionID,
+            text: "Manage a persistent Schedule with the schedule tool. Resolve the requested timezone and target; use the saved rule revision for edits.\n" + input.prompt.text,
+            delivery: input.delivery })
+        }),
+      })
     })
   }),
 })

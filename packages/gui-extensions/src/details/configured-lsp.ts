@@ -1,4 +1,4 @@
-import type { ConfigEntry } from "@opencode/client"
+import type { ConfigEntry } from "@aigcfroge/client"
 import { Predicate } from "effect"
 
 export function configuredLsps(entries: readonly ConfigEntry[]) {

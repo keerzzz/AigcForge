@@ -2,6 +2,9 @@ import { castDraft, produce, type WritableDraft } from "immer"
 import { DateTime, Effect, Match, pipe, Schema } from "effect"
 import { SessionEvent } from "./event.js"
 import { SessionMessage } from "./message.js"
+import { SessionAttempt } from "@aigcfroge/schema/session-attempt"
+import { Bus } from "../bus.js"
+import { isDeepStrictEqual } from "node:util"
 
 export interface Adapter {
   readonly getAgent: () => Effect.Effect<SessionMessage.AgentSelected["agent"] | undefined>
@@ -43,10 +46,14 @@ export function update(adapter: Adapter, event: SessionEvent.DurableEvent) {
   const latestReasoning = (assistant: DraftAssistant) =>
     assistant.content.findLast((item): item is DraftReasoning => item.type === "reasoning" && !item.time?.completed)
 
-  const updateOwnedAssistant = (messageID: SessionMessage.ID, recipe: (draft: DraftAssistant) => void) =>
+  const updateOwnedAssistant = (messageID: SessionMessage.ID, recipe: (draft: DraftAssistant) => void, required = false) =>
     Effect.gen(function* () {
       const assistant = yield* adapter.getAssistant(messageID)
-      if (!assistant) return
+      if (!assistant) {
+        if (required)
+          return yield* Effect.die(new Bus.InvalidDurableEventError({ type: event.type, message: "Receipt has no owned Assistant" }))
+        return
+      }
       yield* adapter.updateAssistant(produce(assistant, recipe))
     })
 
@@ -88,6 +95,10 @@ export function update(adapter: Adapter, event: SessionEvent.DurableEvent) {
           )
         }),
       "session.usage.recorded": () => Effect.void,
+      "session.next.verify.started": () => Effect.void,
+      "session.next.verify.passed": () => Effect.void,
+      "session.next.verify.failed": () => Effect.void,
+      "session.executor.selected": () => Effect.void,
       "session.agent.selected": (event) =>
         Effect.gen(function* () {
           const previous = event.data.previous ?? (yield* adapter.getAgent())
@@ -167,6 +178,12 @@ export function update(adapter: Adapter, event: SessionEvent.DurableEvent) {
             metadata: event.data.metadata,
             id: SessionMessage.ID.fromEvent(event.id),
             type: "synthetic",
+            origin: new SessionMessage.ProducedOrigin({
+              kind: "core-synthetic",
+              sessionID: event.data.sessionID,
+              id: event.id,
+              seq: event.durable.seq,
+            }),
             time: { created },
           }),
         )
@@ -216,6 +233,12 @@ export function update(adapter: Adapter, event: SessionEvent.DurableEvent) {
         Effect.gen(function* () {
           const existing = yield* adapter.getAssistant(event.data.assistantMessageID)
           if (existing) {
+            if (existing.attempts !== undefined) {
+              yield* adapter.updateAssistant(produce(existing, (draft) => {
+                if (event.data.snapshot) draft.snapshot = { ...draft.snapshot, start: event.data.snapshot }
+              }))
+              return
+            }
             yield* adapter.updateAssistant(
               produce(existing, (draft) => {
                 draft.agent = event.data.agent
@@ -223,6 +246,16 @@ export function update(adapter: Adapter, event: SessionEvent.DurableEvent) {
                 draft.retry = undefined
                 draft.error = undefined
                 draft.finish = undefined
+                draft.needsContinuation = undefined
+                draft.completion = undefined
+                draft.origin = castDraft(
+                  new SessionMessage.ProducedOrigin({
+                    kind: "step",
+                    sessionID: event.data.sessionID,
+                    id: event.id,
+                    seq: event.durable.seq,
+                  }),
+                )
                 draft.rawFinish = undefined
                 draft.providerState = undefined
                 draft.time.created = DateTime.makeUnsafe(event.data.started)
@@ -246,6 +279,12 @@ export function update(adapter: Adapter, event: SessionEvent.DurableEvent) {
             SessionMessage.Assistant.make({
               id: event.data.assistantMessageID,
               type: "assistant",
+              origin: new SessionMessage.ProducedOrigin({
+                kind: "step",
+                sessionID: event.data.sessionID,
+                id: event.id,
+                seq: event.durable.seq,
+              }),
               agent: event.data.agent,
               model: event.data.model,
               metadata: event.metadata,
@@ -255,19 +294,89 @@ export function update(adapter: Adapter, event: SessionEvent.DurableEvent) {
             }),
           )
         }),
+      "session.attempt.started": (event) => Effect.gen(function* () {
+        const started = new SessionAttempt.Started(event.data)
+        const existing = yield* adapter.getAssistant(event.data.assistantMessageID)
+        if (existing) {
+          const prior = existing.attempts?.find((attempt) => attempt.ordinal === started.ordinal)
+          if (prior) {
+            if (!isDeepStrictEqual(new SessionAttempt.Started(prior), started))
+              return yield* Effect.die(new Bus.InvalidDurableEventError({ type: event.type, message: "Conflicting physical attempt start" }))
+            return
+          }
+          if (existing.unknownPriceAttempts !== undefined || existing.completion !== undefined)
+            return yield* Effect.die(new Bus.InvalidDurableEventError({ type: event.type, message: "A settled Assistant cannot own a new attempt" }))
+          if (started.ordinal !== (existing.attempts?.length ?? 0) ||
+              existing.attempts?.some((attempt) => attempt.terminal === undefined || attempt.attemptID === started.attemptID))
+            return yield* Effect.die(new Bus.InvalidDurableEventError({ type: event.type, message: "Physical attempts must start in order after their predecessor settles" }))
+          yield* adapter.updateAssistant(produce(existing, (draft) => {
+            const outputStarted = existing.attempts?.some((attempt) => attempt.terminal?.outputStarted ||
+              attempt.observations.some((observation) => observation.outputStarted)) ?? existing.content.length > 0
+            if (!outputStarted) draft.model = castDraft(started.model)
+            draft.agent = started.agent
+            draft.attempts = castDraft([...(existing.attempts ?? []), new SessionAttempt.Info({ ...started, observations: [] })])
+            draft.retry = undefined
+            draft.error = undefined
+            draft.finish = undefined
+            draft.rawFinish = undefined
+            draft.needsContinuation = undefined
+          }))
+          return
+        }
+        if (started.ordinal !== 0)
+          return yield* Effect.die(new Bus.InvalidDurableEventError({ type: event.type, message: "The first physical attempt must have ordinal zero" }))
+        const current = yield* adapter.getCurrentAssistant()
+        if (current) yield* adapter.updateAssistant(produce(current, (draft) => {
+          draft.retry = undefined
+          draft.time.completed ??= created
+        }))
+        yield* adapter.appendMessage(SessionMessage.Assistant.make({
+          id: event.data.assistantMessageID,
+          type: "assistant",
+          origin: new SessionMessage.ProducedOrigin({ kind: "step", sessionID: event.data.sessionID, id: event.id, seq: event.durable.seq }),
+          agent: started.agent,
+          model: started.model,
+          attempts: [new SessionAttempt.Info({ ...started, observations: [] })],
+          metadata: event.metadata,
+          content: [],
+          time: { created: DateTime.makeUnsafe(started.started) },
+        }))
+      }),
+      "session.attempt.observed": (event) => updateOwnedAssistant(event.data.assistantMessageID, (draft) => {
+        const attempt = draft.attempts?.find((item) => item.ordinal === event.data.ordinal)
+        if (!attempt) throw new Bus.InvalidDurableEventError({ type: event.type, message: "Observation has no persisted attempt" })
+        if (attempt.observations.some((observation) => observation.event.id === event.id)) return
+        attempt.observations.push(castDraft(new SessionAttempt.RecordedObservation({
+          ...event.data.observation, event: { id: event.id, seq: event.durable.seq },
+        })))
+        attempt.observations.sort((a, b) => a.event.seq - b.event.seq)
+      }, true),
+      "session.attempt.ended": (event) => updateOwnedAssistant(event.data.assistantMessageID, (draft) => {
+        const attempt = draft.attempts?.find((item) => item.ordinal === event.data.ordinal)
+        if (!attempt) throw new Bus.InvalidDurableEventError({ type: event.type, message: "Terminal has no persisted attempt" })
+        if (attempt.terminal) {
+          if (!isDeepStrictEqual(attempt.terminal, event.data.terminal))
+            throw new Bus.InvalidDurableEventError({ type: event.type, message: "Conflicting physical attempt terminal" })
+          return
+        }
+        attempt.terminal = castDraft(event.data.terminal)
+      }, true),
       "session.step.streamed": (event) => {
         return updateOwnedAssistant(event.data.assistantMessageID, (draft) => {
-          draft.time.streamed = created
+          draft.time.streamed ??= created
         })
       },
       "session.step.ended": (event) => {
         return updateOwnedAssistant(event.data.assistantMessageID, (draft) => {
           draft.time.completed = created
           draft.finish = event.data.finish
+          draft.needsContinuation = event.data.needsContinuation
           draft.rawFinish = event.data.rawFinish
           draft.providerState = castDraft(event.data.providerState)
           draft.cost = event.data.cost
           draft.tokens = event.data.tokens
+          draft.unknownPriceAttempts = event.data.unknownPriceAttempts
+          draft.missingUsageAttempts = event.data.missingUsageAttempts
           projectTerminalSnapshot(draft, event)
         })
       },
@@ -275,6 +384,8 @@ export function update(adapter: Adapter, event: SessionEvent.DurableEvent) {
         return updateOwnedAssistant(event.data.assistantMessageID, (draft) => {
           draft.time.completed = created
           draft.finish = event.data.finish ?? "error"
+          draft.needsContinuation = undefined
+          draft.completion = undefined
           draft.rawFinish = event.data.rawFinish
           draft.providerState = castDraft(event.data.providerState)
           draft.error = castDraft(event.data.error)
@@ -282,10 +393,17 @@ export function update(adapter: Adapter, event: SessionEvent.DurableEvent) {
           if (event.data.cost !== undefined && event.data.tokens !== undefined) {
             draft.cost = event.data.cost
             draft.tokens = castDraft(event.data.tokens)
+            draft.unknownPriceAttempts = event.data.unknownPriceAttempts
+            draft.missingUsageAttempts = event.data.missingUsageAttempts
           }
           projectTerminalSnapshot(draft, event)
         })
       },
+      "session.step.completed": (event) =>
+        updateOwnedAssistant(event.data.assistantMessageID, (draft) => {
+          draft.completion = { id: event.id, seq: event.durable.seq }
+          draft.time.completed ??= created
+        }),
       "session.text.started": (event) => {
         return updateOwnedAssistant(event.data.assistantMessageID, (draft) => {
           draft.content.push(castDraft(SessionMessage.AssistantText.make({ type: "text", text: "" })))

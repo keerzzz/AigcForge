@@ -228,7 +228,7 @@ export function RunFormBody(props: {
     try {
       if (props.openExternal) await props.openExternal(field.url)
       else {
-        const { openUrl } = await import("@opencode/util/open")
+        const { openUrl } = await import("@aigcfroge/util/open")
         await openUrl(field.url)
       }
       setState((previous) => formSetExternalReady(previous, field.key))

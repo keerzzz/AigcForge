@@ -5,7 +5,7 @@ set -e
 base="$1"
 shift
 here="$(cd "$(dirname "$0")/.." && pwd)"
-out="${SNAPSHOT_BENCH_ROOT:-${TMPDIR:-/tmp}}/opencode-snapshot-parity-results"
+out="${SNAPSHOT_BENCH_ROOT:-${TMPDIR:-/tmp}}/aigcfroge-snapshot-parity-results"
 mkdir -p "$out"
 cp "$here/script/snapshot-parity.ts" "$base/packages/core/script/snapshot-parity.ts"
 variants="${*:-user empty split-index skip-hash autocrlf-and-no-untracked-cache fsmonitor template-hook}"

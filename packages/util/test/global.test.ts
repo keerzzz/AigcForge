@@ -8,7 +8,7 @@ import { Global } from "../src/global.js"
 
 describe("global", () => {
   test("importing the module does not create directories", () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-global-import-"))
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "aigcfroge-global-import-"))
     const directories = ["data", "cache", "config", "state", "tmp"].map((directory) => path.join(root, directory))
     const module = pathToFileURL(path.join(import.meta.dir, "../src/global.ts")).href
     const result = Bun.spawnSync({
@@ -25,12 +25,12 @@ describe("global", () => {
     })
 
     expect(result.exitCode, result.stderr.toString()).toBe(0)
-    directories.forEach((directory) => expect(fs.existsSync(path.join(directory, "opencode"))).toBe(false))
+    directories.forEach((directory) => expect(fs.existsSync(path.join(directory, "aigcfroge"))).toBe(false))
     fs.rmSync(root, { recursive: true, force: true })
   })
 
   test("building layerWith creates service directories and preserves an explicit tmp", async () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-global-layer-"))
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "aigcfroge-global-layer-"))
     const directories = {
       data: path.join(root, "data"),
       config: path.join(root, "config"),
@@ -49,7 +49,7 @@ describe("global", () => {
   })
 
   test("building a layer with default tmp creates and canonicalizes it", () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "opencode-global-layer-"))
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "aigcfroge-global-layer-"))
     const directories = ["data", "cache", "config", "state", "tmp"].map((directory) => path.join(root, directory))
     const module = pathToFileURL(path.join(import.meta.dir, "../src/global.ts")).href
     const result = Bun.spawnSync({
@@ -77,15 +77,15 @@ describe("global", () => {
     })
 
     expect(result.exitCode, result.stderr.toString()).toBe(0)
-    expect(result.stdout.toString()).toBe(fs.realpathSync(path.join(directories[4], "opencode")))
+    expect(result.stdout.toString()).toBe(fs.realpathSync(path.join(directories[4], "aigcfroge")))
     const created = [
-      path.join(directories[0], "opencode"),
-      path.join(directories[1], "opencode", "bin"),
-      path.join(directories[2], "opencode"),
-      path.join(directories[3], "opencode"),
-      path.join(directories[0], "opencode", "log"),
-      path.join(directories[0], "opencode", "repos"),
-      path.join(directories[4], "opencode"),
+      path.join(directories[0], "aigcfroge"),
+      path.join(directories[1], "aigcfroge", "bin"),
+      path.join(directories[2], "aigcfroge"),
+      path.join(directories[3], "aigcfroge"),
+      path.join(directories[0], "aigcfroge", "log"),
+      path.join(directories[0], "aigcfroge", "repos"),
+      path.join(directories[4], "aigcfroge"),
     ]
     created.forEach((directory) => expect(fs.statSync(directory).isDirectory()).toBe(true))
     fs.rmSync(root, { recursive: true, force: true })

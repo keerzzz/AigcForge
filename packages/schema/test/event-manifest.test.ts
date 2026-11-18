@@ -14,11 +14,15 @@ import {
   Workspace,
 } from "../src/index.js"
 import { EventManifest } from "../src/event-manifest.js"
+import { DelegationEvent } from "../src/delegation-event.js"
+import { Event } from "../src/event.js"
 import { FileSystemV1 } from "../src/filesystem-v1.js"
 import { McpEvent } from "../src/mcp-event.js"
 import { SessionEvent } from "../src/session-event.js"
 import { SessionID } from "../src/session-id.js"
 import { SessionMessage } from "../src/session-message.js"
+import { SessionTaskEvent } from "../src/session-task-event.js"
+import { Schedule } from "../src/schedule.js"
 import { WorkspaceEvent } from "../src/workspace-event.js"
 
 describe("public event manifest", () => {
@@ -46,6 +50,13 @@ describe("public event manifest", () => {
   })
 
   test("uses canonical definitions for current public events", () => {
+    expect(SessionEvent.Definitions.filter((definition) => definition.type === "session.executor.selected")).toEqual([
+      SessionEvent.ExecutorSelected,
+    ])
+    expect(EventManifest.Server.get("session.executor.selected")).toBe(SessionEvent.ExecutorSelected)
+    expect(EventManifest.Latest.get("session.executor.selected")).toBe(SessionEvent.ExecutorSelected)
+    expect(EventManifest.Durable.get("session.executor.selected.1")).toBe(SessionEvent.ExecutorSelected)
+    expect(SessionEvent.ExecutorSelected.data.fields.executorPreference).toBe(Session.ExecutorPreference)
     expect(Session.Event).toBe(SessionEvent)
     expect(Session.Event.Definitions).toBe(SessionEvent.Definitions)
     expect(Workspace.Event).toBe(WorkspaceEvent)
@@ -105,7 +116,11 @@ describe("public event manifest", () => {
         "session.created.1",
         "session.deleted.2",
         "session.agent.selected.1",
+        "session.attempt.started.1",
+        "session.attempt.observed.1",
+        "session.attempt.ended.1",
         "session.model.selected.1",
+        "session.executor.selected.1",
         "session.moved.1",
         "session.renamed.1",
         "session.metadata.updated.1",
@@ -130,6 +145,7 @@ describe("public event manifest", () => {
         "session.step.started.1",
         "session.step.streamed.1",
         "session.step.ended.1",
+        "session.step.completed.1",
         "session.step.failed.1",
         "session.text.started.1",
         "session.text.ended.1",
@@ -147,7 +163,20 @@ describe("public event manifest", () => {
         "session.revert.staged.1",
         "session.revert.cleared.1",
         "session.revert.committed.1",
+        "session.next.verify.started.1",
+        "session.next.verify.passed.1",
+        "session.next.verify.failed.1",
         "worktree.resolved.1",
+        "workflow.run.updated.1",
+        ...DelegationEvent.Definitions.map((definition) =>
+          Event.versionedType(definition.type, definition.durable.version),
+        ),
+        ...SessionTaskEvent.DurableDefinitions.map((definition) =>
+          Event.versionedType(definition.type, definition.durable.version),
+        ),
+        ...Schedule.DurableDefinitions.map((definition) =>
+          Event.versionedType(definition.type, definition.durable.version),
+        ),
       ].toSorted(),
     )
     expect(SessionEvent.DurableDefinitions).toEqual([

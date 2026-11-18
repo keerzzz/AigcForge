@@ -1,7 +1,7 @@
 export * as ConfigServerV1 from "./server"
 
 import { Schema } from "effect"
-import { PositiveInt } from "@opencode/core/schema"
+import { PositiveInt } from "@aigcfroge/core/schema"
 
 export const Server = Schema.Struct({
   port: Schema.optional(PositiveInt).annotate({
@@ -10,7 +10,7 @@ export const Server = Schema.Struct({
   hostname: Schema.optional(Schema.String).annotate({ description: "Hostname to listen on" }),
   mdns: Schema.optional(Schema.Boolean).annotate({ description: "Enable mDNS service discovery" }),
   mdnsDomain: Schema.optional(Schema.String).annotate({
-    description: "Custom domain name for mDNS service (default: opencode.local)",
+    description: "Custom domain name for mDNS service (default: aigcfroge.local)",
   }),
   cors: Schema.optional(Schema.mutable(Schema.Array(Schema.String))).annotate({
     description: "Additional domains to allow for CORS",

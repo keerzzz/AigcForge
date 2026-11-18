@@ -3,11 +3,11 @@ import { Context, Effect, Layer, Stream } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/http"
 import { ChildProcess } from "effect/process"
 import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner"
-import { CrossSpawnSpawner } from "@opencode/util/cross-spawn-spawner"
-import { makeGlobalNode } from "@opencode/util/effect/app-node"
-import { httpClient } from "@opencode/util/effect/app-node-platform"
-import { FSUtil } from "@opencode/util/fs-util"
-import { Global } from "@opencode/util/global"
+import { CrossSpawnSpawner } from "@aigcfroge/util/cross-spawn-spawner"
+import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { httpClient } from "@aigcfroge/util/effect/app-node-platform"
+import { FSUtil } from "@aigcfroge/util/fs-util"
+import { Global } from "@aigcfroge/util/global"
 import { which } from "../util/which.js"
 
 export namespace RipgrepBinary {
@@ -26,9 +26,9 @@ export namespace RipgrepBinary {
     readonly filepath: Effect.Effect<string, Error>
   }
 
-  export class Service extends Context.Service<Service, Interface>()("@opencode/RipgrepBinary") {}
+  export class Service extends Context.Service<Service, Interface>()("@aigcfroge/RipgrepBinary") {}
 
-  const layer = Layer.effect(
+  export const layer = Layer.effect(
     Service,
     Effect.gen(function* () {
       const fs = yield* FSUtil.Service

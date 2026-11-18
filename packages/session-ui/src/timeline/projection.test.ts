@@ -4,7 +4,7 @@ import type {
   SessionMessageAssistant,
   SessionMessageAssistantTool,
   SessionMessageInfo,
-} from "@opencode/client/promise"
+} from "@aigcfroge/client/promise"
 import { createStore } from "solid-js/store"
 import {
   createTimelineProjection,
@@ -219,6 +219,125 @@ describe("reuseTimelineRows", () => {
 })
 
 describe("createTimelineProjection", () => {
+  const settled = {
+    id: "assistant-settled",
+    type: "assistant",
+    agent: "build",
+    model: { id: "model", providerID: "provider" },
+    content: [{ type: "text", text: "settled answer" }],
+    needsContinuation: false,
+    time: { created: 2, completed: 3 },
+  } satisfies SessionMessageAssistant
+
+  test("SC05 indexes each complete answer group through its final assistant before the next user", () => {
+    const messages = [
+      { id: "user-1", type: "user", text: "first", time: { created: 1 } },
+      { ...settled, id: "assistant-1", needsContinuation: true },
+      {
+        ...settled,
+        id: "assistant-1-tool",
+        needsContinuation: true,
+        content: [
+          {
+            id: "tool-1",
+            type: "tool",
+            name: "read",
+            state: {
+              status: "completed",
+              input: { path: "result.txt" },
+              content: [{ type: "text", text: "result" }],
+              metadata: {},
+            },
+            time: { created: 4, ran: 5, completed: 6 },
+          },
+        ],
+        time: { created: 4, completed: 7 },
+      },
+      { ...settled, id: "assistant-1-final", time: { created: 8, completed: 9 } },
+      { id: "user-2", type: "user", text: "second", time: { created: 10 } },
+      { ...settled, id: "assistant-2", time: { created: 11, completed: 12 } },
+    ] satisfies SessionMessageInfo[]
+
+    const result = createTimelineProjection({
+      sessionMessages: messages,
+      status: { type: "idle" },
+      reasoningMode: "full",
+    })
+
+    expect(result.assistantMessagesByParent.get("user-1")?.map((message) => message.id)).toEqual([
+      "assistant-1",
+      "assistant-1-tool",
+      "assistant-1-final",
+    ])
+    expect(result.responseByParent.get("user-1")).toEqual({
+      completed: true,
+      latest: false,
+      boundary: { type: "through", messageID: "assistant-1-final" },
+    })
+    expect(result.responseByParent.get("user-2")).toEqual({
+      completed: true,
+      latest: true,
+      boundary: { type: "through", messageID: "assistant-2" },
+    })
+  })
+
+  test.each([
+    { name: "an unfinished assistant", assistant: { ...settled, time: { created: 2 } } },
+    { name: "a provider continuation", assistant: { ...settled, needsContinuation: true } },
+    { name: "unknown completion", assistant: { ...settled, needsContinuation: undefined } },
+    {
+      name: "a running tool",
+      assistant: {
+        ...settled,
+        content: [
+          { type: "text", text: "tool is still running" },
+          {
+            id: "tool-running",
+            type: "tool",
+            name: "read",
+            state: { status: "running", input: { path: "result.txt" }, metadata: {} },
+            time: { created: 2, ran: 3 },
+          },
+        ],
+      },
+    },
+  ] satisfies { name: string; assistant: SessionMessageAssistant }[])(
+    "SC05 keeps $name without a legal boundary when only the next user is loaded",
+    ({ assistant }) => {
+      const result = createTimelineProjection({
+        sessionMessages: [
+          { id: "user-1", type: "user", text: "first", time: { created: 1 } },
+          assistant,
+          { id: "user-2", type: "user", text: "next user is not completion evidence", time: { created: 4 } },
+        ],
+        status: { type: "idle" },
+        reasoningMode: "full",
+      })
+
+      expect(result.responseByParent.get("user-1")).toEqual({ completed: false, latest: true, boundary: undefined })
+      expect(result.responseByParent.has("user-2")).toBe(false)
+    },
+  )
+
+  test("SC05 uses a following Idle as completion evidence while keeping the boundary on the answer", () => {
+    const result = createTimelineProjection({
+      sessionMessages: [
+        { id: "user-1", type: "user", text: "first", time: { created: 1 } },
+        { ...settled, needsContinuation: undefined },
+        { id: "idle-1", type: "idle", outcome: "succeeded", time: { created: 4 } },
+        { id: "user-2", type: "user", text: "next user", time: { created: 5 } },
+      ],
+      status: { type: "busy" },
+      reasoningMode: "full",
+    })
+
+    expect(result.responseByParent.get("user-1")).toEqual({
+      completed: true,
+      latest: true,
+      boundary: { type: "through", messageID: settled.id },
+    })
+  })
+
   test("builds current message, parent, context, and row indexes", () => {
     const selectedModel = { id: "selected", providerID: "provider" } satisfies ModelRef
     const assistantModel = { id: "assistant", providerID: "provider", variant: "fast" } satisfies ModelRef
@@ -258,7 +377,7 @@ describe("createTimelineProjection", () => {
     expect(result.sessionMessageByID.get("assistant-1")).toBe(messages[3])
     expect(result.assistantMessagesByParent.get("user-1")?.map((message) => message.id)).toEqual(["assistant-1"])
     expect(result.assistantMessagesByParent.has("user-2")).toBe(false)
-    expect(result.userContextByID.get("user-1")).toEqual({ agent: "build", model: assistantModel })
+    expect(result.userContextByID.get("user-1")).toEqual({ agent: "build", model: selectedModel })
     expect(result.userContextByID.get("user-2")).toEqual({
       agent: "review",
       model: { id: "override", providerID: "custom", variant: "precise" },
@@ -300,7 +419,7 @@ describe("createTimelineProjection", () => {
     expect(second.rows[1]).toBe(first.rows[1])
   })
 
-  test("indexes a leading partial assistant turn under its projected turn ID", () => {
+  test("SC05 indexes a leading partial assistant turn without fabricating a response boundary", () => {
     const messages = [
       {
         id: "assistant-1",
@@ -308,6 +427,7 @@ describe("createTimelineProjection", () => {
         agent: "build",
         model: { id: "model", providerID: "provider" },
         content: [{ type: "text", text: "partial answer" }],
+        needsContinuation: true,
         time: { created: 2, completed: 3 },
       },
       {
@@ -316,6 +436,7 @@ describe("createTimelineProjection", () => {
         agent: "build",
         model: { id: "model", providerID: "provider" },
         content: [{ type: "text", text: "final answer" }],
+        needsContinuation: false,
         time: { created: 4, completed: 5 },
       },
     ] satisfies SessionMessageInfo[]
@@ -330,6 +451,22 @@ describe("createTimelineProjection", () => {
       "assistant-1",
       "assistant-2",
     ])
+    expect(result.responseByParent.get("assistant-1")).toEqual({ completed: false, latest: true, boundary: undefined })
+    expect(result.responseByParent.has("user-1")).toBe(false)
+
+    const completePage = createTimelineProjection({
+      sessionMessages: [{ id: "user-1", type: "user", text: "loaded earlier user", time: { created: 1 } }, ...messages],
+      status: { type: "idle" },
+      reasoningMode: "full",
+      previousRows: result.rows,
+    })
+
+    expect(completePage.responseByParent.has("assistant-1")).toBe(false)
+    expect(completePage.responseByParent.get("user-1")).toEqual({
+      completed: true,
+      latest: true,
+      boundary: { type: "through", messageID: "assistant-2" },
+    })
   })
 })
 
@@ -359,8 +496,8 @@ describe("reasoningHeading", () => {
     expect(reasoningHeading("## First step\n\nDetails.\n\n## Second step\n\nMore details.")).toBe("Second step")
     expect(reasoningHeading("<h2>First step</h2>\n<p>Body</p>\n<h3>Second step</h3>")).toBe("Second step")
     expect(reasoningHeading("First step\n===\n\nSecond step\n---")).toBe("Second step")
-    expect(
-      reasoningHeading("**Designing Interactive Experience**\n\n**Note** that this line ends with **bold**"),
-    ).toBe("Designing Interactive Experience")
+    expect(reasoningHeading("**Designing Interactive Experience**\n\n**Note** that this line ends with **bold**")).toBe(
+      "Designing Interactive Experience",
+    )
   })
 })

@@ -3,7 +3,7 @@ import type {
   SessionMessageAssistant,
   SessionMessageInfo,
   TokenUsageInfo,
-} from "@opencode/client/promise"
+} from "@aigcfroge/client/promise"
 
 type ProviderMetricEventType =
   | "session.step.started"

@@ -2,9 +2,9 @@ export * as Plugin from "./service.js"
 
 // The service tag lives apart from the layer so Session entry points can wait on activation without
 // importing the plugin host, which itself depends on Session.
-import { Plugin } from "@opencode/schema/plugin"
-import type { Plugin as PluginDefinition } from "@opencode/plugin/effect/plugin"
-import { Context, type Effect, type Exit } from "effect"
+import { Plugin } from "@aigcfroge/schema/plugin"
+import type { Plugin as PluginDefinition } from "@aigcfroge/plugin/effect/plugin"
+import { Context, type Effect, type Exit, Schema } from "effect"
 
 export interface Interface {
   readonly activate: (plugins: readonly Generation[], failures?: readonly Failure[]) => Effect.Effect<void>
@@ -18,13 +18,20 @@ export interface Interface {
 
 export type Failure = Plugin.Info & { readonly state: Extract<Plugin.State, { readonly status: "failed" }> }
 
+/** Stable implementation/configuration evidence, separate from the activation revision. */
+export class Producer extends Schema.Class<Producer>("Plugin.Producer")({
+  id: Schema.String,
+  revision: Schema.String,
+}) {}
+
 export type Generation = PluginDefinition & {
   readonly revision: string
   readonly source?: Plugin.Source
   readonly features?: Plugin.Features
+  readonly producer?: Producer
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/Plugin") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Plugin") {}
 
 /**
  * Session entry points wait here before reading plugin-provided state such as commands, skills, hooks,

@@ -3,7 +3,7 @@ import * as path from "node:path"
 
 import { CLI_TARGET } from "./utils"
 
-if (!CLI_TARGET) throw new Error("OPENCODE_CLI_TARGET not defined")
+if (!CLI_TARGET) throw new Error("AIGCFROGE_CLI_TARGET not defined")
 
 const BUNDLE_DIR = "dist"
 

@@ -1,10 +1,10 @@
 export * as PlanPlugin from "./plan.js"
 
-import { Message, ToolFailure } from "@opencode/ai"
-import { define } from "@opencode/plugin/effect/plugin"
-import { Agent } from "@opencode/schema/agent"
-import type { SessionEvent } from "@opencode/schema/session-event"
-import { Global } from "@opencode/util/global"
+import { Message, ToolFailure } from "@aigcfroge/ai"
+import { define } from "@aigcfroge/plugin/effect/plugin"
+import { Agent } from "@aigcfroge/schema/agent"
+import type { SessionEvent } from "@aigcfroge/schema/session-event"
+import { Global } from "@aigcfroge/util/global"
 import { Effect, Stream } from "effect"
 import path from "path"
 import { Permission } from "../permission.js"
@@ -25,16 +25,23 @@ You are NO LONGER in Plan mode. The previous Plan restrictions no longer apply. 
 </system-reminder>`
 
 export const Plugin = define({
-  id: "opencode.plan",
+  id: "aigcfroge.plan",
   effect: Effect.fn(function* (ctx) {
     const global = yield* Global.Service
-    const directory = path.join(global.home, ".opencode", "plan")
+    const directory = path.join(global.home, ".aigcfroge", "plan")
     const enterReminder = enter(directory)
     yield* ctx.agent.transform((editor) => {
       editor.update(plan, (item) => {
+        item.originKind = "builtin"
         item.name = Agent.Name.make("Plan")
         item.description = "Read-only agent for exploring the codebase and planning work before implementation."
         item.mode = "primary"
+        item.card = {
+          capabilities: ["architecture_design", "requirements_analysis", "planning"],
+          constraints: ["read only; explicitly requested plan files use the existing Plan directory exception"],
+          protocol:
+            "Explore requirements and discuss the plan with the user. Do not implement changes or delegate implementation. Create or update plan files only when explicitly requested, within the existing Plan directory. Report assumptions, evidence and verification needs.",
+        }
         item.permissions.push({ action: "question", resource: "*", effect: "allow" })
         item.permissions.push({ action: "edit", resource: "*", effect: "deny" })
         item.permissions.push({ action: "edit", resource: path.join(directory, "*"), effect: "allow" })

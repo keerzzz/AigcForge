@@ -6,11 +6,11 @@ import { isSortable } from "@dnd-kit/solid/sortable"
 import { Accessibility, AutoScroller, Feedback, PointerActivationConstraints } from "@dnd-kit/dom"
 import { RestrictToHorizontalAxis } from "@dnd-kit/abstract/modifiers"
 import { RestrictToElement } from "@dnd-kit/dom/modifiers"
-import { Tabs } from "@opencode/ui/tabs"
-import { IconButton } from "@opencode/ui/icon-button"
-import { Icon } from "@opencode/ui/icon"
-import { Tooltip } from "@opencode/ui/tooltip"
-import { Keybind } from "@opencode/ui/keybind"
+import { Tabs } from "@aigcfroge/ui/tabs"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { Icon } from "@aigcfroge/ui/icon"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { Keybind } from "@aigcfroge/ui/keybind"
 import { createKeyed, useExtension, usePanel, type MountedSession } from "../sdk"
 import type { TerminalModel, TerminalWorkspace } from "./model"
 import type { LocalPTY } from "./state"
@@ -221,7 +221,11 @@ export default function TerminalPanel(props: { model: TerminalModel; session: Mo
         <div class="flex flex-col h-full pointer-events-none">
           <div
             class="h-10 flex items-center gap-2 px-2 border-b border-border-weaker-base bg-v2-background-bg-base overflow-hidden"
-            classList={{ "pe-12": frame.reserve() }}
+            style={{
+              "padding-inline-end": frame.reserve()
+                ? "calc(var(--session-header-actions-width, 28px) + 20px)"
+                : undefined,
+            }}
           >
             <For each={handoff()}>
               {(title) => (
@@ -314,7 +318,11 @@ export default function TerminalPanel(props: { model: TerminalModel; session: Mo
             </Tabs>
             {/* Reserve outside the scroll viewport so overflowing tabs cannot cover the toggle. */}
             <Show when={frame.reserve()}>
-              <div class="w-12 shrink-0" aria-hidden />
+              <div
+                class="shrink-0"
+                style={{ width: "calc(var(--session-header-actions-width, 28px) + 20px)" }}
+                aria-hidden
+              />
             </Show>
           </div>
           <div class="flex-1 min-h-0 relative">

@@ -138,7 +138,7 @@ describe("prompt persistence", () => {
     )
 
     expect(state.list).toEqual(["https://example.com"])
-    expect(localStorage.getItem("opencode.global.dat:server")).toBe(JSON.stringify({ list: ["https://example.com"] }))
+    expect(localStorage.getItem("aigcfroge.global.dat:server")).toBe(JSON.stringify({ list: ["https://example.com"] }))
     expect(localStorage.getItem("server.v3")).toBeNull()
   })
 

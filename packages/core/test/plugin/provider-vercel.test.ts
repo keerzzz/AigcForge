@@ -1,11 +1,11 @@
-import { AISDK } from "@opencode/core/aisdk"
+import { AISDK } from "@aigcfroge/core/aisdk"
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
-import { Model } from "@opencode/core/model"
-import { Plugin } from "@opencode/core/plugin"
-import { PluginHost } from "@opencode/core/plugin/host"
-import { VercelPlugin } from "@opencode/core/plugin/provider/vercel"
-import { Provider } from "@opencode/core/provider"
+import { Model } from "@aigcfroge/core/model"
+import { Plugin } from "@aigcfroge/core/plugin"
+import { PluginHost } from "@aigcfroge/core/plugin/host"
+import { VercelPlugin } from "@aigcfroge/core/plugin/provider/vercel"
+import { Provider } from "@aigcfroge/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -30,8 +30,8 @@ describe("VercelPlugin", () => {
       yield* addPlugin()
       expect((yield* catalog.get(Provider.ID.make("vercel")))?.headers).toEqual({
         Existing: "1",
-        "http-referer": "https://opencode.ai/",
-        "x-title": "opencode",
+        "http-referer": "https://aigcfroge.ai/",
+        "x-title": "aigcfroge",
       })
     }),
   )

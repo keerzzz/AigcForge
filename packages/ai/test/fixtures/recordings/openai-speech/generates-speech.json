@@ -18,7 +18,7 @@
         "headers": {
           "content-type": "application/json"
         },
-        "body": "{\"model\":\"gpt-4o-mini-tts\",\"input\":\"Hello from OpenCode.\",\"voice\":\"coral\"}"
+        "body": "{\"model\":\"gpt-4o-mini-tts\",\"input\":\"Hello from AigcForge.\",\"voice\":\"coral\"}"
       },
       "response": {
         "status": 200,

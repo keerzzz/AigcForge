@@ -1,4 +1,4 @@
-import type { FormAnswer, FormField, FormInfo, FormValue } from "@opencode/client/promise"
+import type { FormAnswer, FormField, FormInfo, FormValue } from "@aigcfroge/client/promise"
 import {
   formCustom,
   formDisplayValue,

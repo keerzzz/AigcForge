@@ -3,29 +3,29 @@ import fs from "fs/promises"
 import path from "path"
 import { Deferred, Duration, Effect, Fiber, Layer, LayerMap, Schedule } from "effect"
 import { TestClock } from "effect/testing"
-import { define } from "@opencode/plugin/effect/plugin"
-import { Event } from "@opencode/schema/config"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { Global } from "@opencode/util/global"
-import { Npm } from "@opencode/util/npm"
-import { Bus } from "@opencode/core/bus"
-import { Command } from "@opencode/core/command"
-import { Database } from "@opencode/core/database/database"
-import { Watcher } from "@opencode/core/filesystem/watcher"
-import { ManagedPolicy } from "@opencode/core/managed-policy"
-import { Instance } from "@opencode/core/instance"
-import { LocationServiceMap } from "@opencode/core/location-services"
-import { Location } from "@opencode/core/location"
-import { Plugin } from "@opencode/core/plugin"
-import { Rpc } from "@opencode/core/rpc"
-import { SdkPlugins } from "@opencode/core/plugin/sdk"
-import { AbsolutePath } from "@opencode/core/schema"
+import { define } from "@aigcfroge/plugin/effect/plugin"
+import { Event } from "@aigcfroge/schema/config"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Global } from "@aigcfroge/util/global"
+import { Npm } from "@aigcfroge/util/npm"
+import { Bus } from "@aigcfroge/core/bus"
+import { Command } from "@aigcfroge/core/command"
+import { Database } from "@aigcfroge/core/database/database"
+import { Watcher } from "@aigcfroge/core/filesystem/watcher"
+import { ManagedPolicy } from "@aigcfroge/core/managed-policy"
+import { Instance } from "@aigcfroge/core/instance"
+import { LocationServiceMap } from "@aigcfroge/core/location-services"
+import { Location } from "@aigcfroge/core/location"
+import { Plugin } from "@aigcfroge/core/plugin"
+import { Rpc } from "@aigcfroge/core/rpc"
+import { SdkPlugins } from "@aigcfroge/core/plugin/sdk"
+import { AbsolutePath } from "@aigcfroge/core/schema"
 import { tempGlobalLayer } from "../fixture/global"
 import { offlineModels } from "../fixture/models"
 import { tmpdirScoped } from "../fixture/tmpdir"
 import { advance } from "../lib/clock"
-import { testEffect } from "../lib/effect"
+import { awaitWithTimeout, pollWithTimeout, testEffect } from "../lib/effect"
 
 // Real Location boot with plugin-directory discovery, so local plugin files are loaded and reloaded.
 setDefaultTimeout(15_000)
@@ -144,7 +144,7 @@ describe("PluginSupervisor reload", () => {
         yield* Effect.promise(async () => {
           await Bun.write(file, entry)
           await Bun.write(helper, source(1))
-          await Bun.write(path.join(directory.path, ".opencode/opencode.json"), JSON.stringify({ plugins: [root] }))
+          await Bun.write(path.join(directory.path, ".aigcfroge/aigcfroge.json"), JSON.stringify({ plugins: [root] }))
         })
         const watcher = yield* Watcher.Test
         const locations = yield* LocationServiceMap.Service
@@ -199,14 +199,14 @@ describe("PluginSupervisor reload", () => {
         const directory = yield* tmpdirScoped()
         const file = path.join(
           directory.path,
-          mode === "discovered" ? ".opencode/plugins/greeter.ts" : "external/greeter/index.ts",
+          mode === "discovered" ? ".aigcfroge/plugins/greeter.ts" : "external/greeter/index.ts",
         )
         yield* Effect.promise(async () => {
           await Bun.write(file, greeter("greet-v1"))
           await fs.utimes(file, new Date(0), new Date(0))
           if (mode === "configured") {
             await Bun.write(
-              path.join(directory.path, ".opencode/opencode.json"),
+              path.join(directory.path, ".aigcfroge/aigcfroge.json"),
               JSON.stringify({ plugins: [path.dirname(file)] }),
             )
           }
@@ -248,10 +248,99 @@ describe("PluginSupervisor reload", () => {
     )
   })
 
+  it.live("adding and deleting a declaration refreshes an existing plugin with a missing optional dependency", () =>
+    Effect.gen(function* () {
+      const directory = yield* tmpdirScoped()
+      const file = path.join(directory.path, ".aigcfroge/plugins/directory-refresh.ts")
+      const declaration = path.join(path.dirname(file), "review.plugin.yaml")
+      // Observations must not change the source directory fingerprint or trigger config watches themselves.
+      const markers = {
+        evaluation: path.join(directory.path, "observations/evaluation.log"),
+        setup: path.join(directory.path, "observations/setup.log"),
+        cleanup: path.join(directory.path, "observations/cleanup.log"),
+      }
+      const source = `import { appendFileSync, readFileSync } from "node:fs"
+        const optional = await import("./not-installed").then(() => "present", () => "fallback")
+        appendFileSync(${JSON.stringify(markers.evaluation)}, "evaluate\\n")
+        const generation = readFileSync(${JSON.stringify(markers.evaluation)}, "utf8").split("\\n").length - 1
+        export default {
+          id: "directory-refresh",
+          async setup(ctx) {
+            appendFileSync(${JSON.stringify(markers.setup)}, "setup\\n")
+            await ctx.command.transform((editor) => editor.add({
+              name: "directory-refresh-generation",
+              description: optional + ":" + generation,
+              execute: async () => {},
+            }))
+            return () => appendFileSync(${JSON.stringify(markers.cleanup)}, "cleanup\\n")
+          },
+        }`
+
+      yield* Effect.promise(async () => {
+        await Promise.all(Object.values(markers).map((marker) => Bun.write(marker, "")))
+        await Bun.write(file, source)
+      })
+
+      const watcher = yield* Watcher.Test
+      const locations = yield* LocationServiceMap.Service
+
+      yield* Effect.gen(function* () {
+        const plugins = yield* Plugin.Service
+        const commands = yield* Command.Service
+        // Finish plugin cleanup while its observation files still exist.
+        yield* Effect.addFinalizer(plugins.close)
+
+        const expectGeneration = Effect.fnUntraced(function* (generation: number) {
+          // emit only queues notifications; wait for the actual new registration before awaiting readiness.
+          yield* pollWithTimeout(
+            commands
+              .get("directory-refresh-generation")
+              .pipe(Effect.map((command) => (command?.description === `fallback:${generation}` ? command : undefined))),
+            `Plugin generation ${generation} was not registered`,
+          )
+          yield* awaitWithTimeout(plugins.awaitActivation, `Plugin generation ${generation} did not settle`)
+
+          expect(
+            yield* Effect.promise(() =>
+              Promise.all(
+                [markers.evaluation, markers.setup, markers.cleanup].map((marker) => Bun.file(marker).text()),
+              ),
+            ),
+          ).toEqual(["evaluate\n".repeat(generation), "setup\n".repeat(generation), "cleanup\n".repeat(generation - 1)])
+          expect((yield* plugins.list()).filter((plugin) => plugin.source.type === "local")).toEqual([
+            {
+              id: Plugin.ID.make("directory-refresh"),
+              source: { type: "local", path: file },
+              state: { status: "active" },
+              features: { server: true },
+            },
+          ])
+        })
+
+        yield* expectGeneration(1)
+        expect(yield* watcher.subscriptions()).toContainEqual({ path: path.dirname(file), type: "directory" })
+
+        yield* Effect.promise(() =>
+          Bun.write(declaration, "kind: plugin\nname: review\ndescription: Saved declaration\nversion: 1.0.0\n"),
+        )
+        yield* watcher.emit({ path: declaration, type: "create" })
+        yield* expectGeneration(2)
+
+        yield* Effect.promise(() => fs.rm(declaration))
+        yield* watcher.emit({ path: declaration, type: "delete" })
+        yield* expectGeneration(3)
+        expect(yield* Effect.promise(() => Bun.file(file).text())).toBe(source)
+      }).pipe(
+        Effect.scoped,
+        Effect.provide(locations.get(Location.Ref.make({ directory: AbsolutePath.make(directory.path) }))),
+      )
+    }),
+  )
+
   it.live("keeps the running generation when an updated local plugin fails to import", () =>
     Effect.gen(function* () {
       const directory = yield* tmpdirScoped()
-      const file = path.join(directory.path, ".opencode/plugins/greeter.ts")
+      const file = path.join(directory.path, ".aigcfroge/plugins/greeter.ts")
       // Local plugin revisions key on mtime, so give each rewrite a distinct timestamp.
       const write = (content: string, mtime: Date) =>
         Effect.promise(async () => {
@@ -302,7 +391,7 @@ describe("PluginSupervisor reload", () => {
       )
       yield* Effect.promise(() => Bun.write(path.join(npm.directory, "server.ts"), greeter("greet-pkg")))
       yield* Effect.promise(() =>
-        Bun.write(path.join(directory.path, ".opencode/opencode.json"), JSON.stringify({ plugins: ["fixture-pkg"] })),
+        Bun.write(path.join(directory.path, ".aigcfroge/aigcfroge.json"), JSON.stringify({ plugins: ["fixture-pkg"] })),
       )
       const bus = yield* Bus.Service
       const locations = yield* LocationServiceMap.Service
@@ -345,7 +434,7 @@ it.live("applies organization integration changes to running external plugins", 
     const directory = yield* tmpdirScoped()
     const root = path.join(directory.path, "external/policy-fixture")
     const entered = path.join(directory.path, "entered")
-    const configuration = path.join(directory.path, ".opencode/opencode.json")
+    const configuration = path.join(directory.path, ".aigcfroge/aigcfroge.json")
     yield* Effect.promise(async () => {
       await Bun.write(
         path.join(root, "index.ts"),

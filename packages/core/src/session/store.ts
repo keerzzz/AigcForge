@@ -1,21 +1,23 @@
 export * as SessionStore from "./store.js"
 
-import { and, asc, desc, eq, gt, isNotNull, isNull, like, lt, notInArray, or, sql, type SQL } from "drizzle-orm"
+import { and, asc, desc, eq, getTableColumns, gt, isNotNull, isNull, like, lt, notInArray, or, sql, type SQL } from "drizzle-orm"
 import { Context, Effect, Layer, Schema } from "effect"
-import { Project } from "@opencode/schema/project"
-import { Workspace } from "@opencode/schema/workspace"
-import { AbsolutePath, PositiveInt, RelativePath } from "@opencode/schema/schema"
+import { Project } from "@aigcfroge/schema/project"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { Workspace } from "@aigcfroge/schema/workspace"
+import { AbsolutePath, PositiveInt, RelativePath } from "@aigcfroge/schema/schema"
 import { Database } from "../database/database.js"
-import { makeGlobalNode } from "@opencode/util/effect/app-node"
+import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
 import { SessionHistory } from "./history.js"
 import { MessageDecodeError } from "./error.js"
 import { SessionMessage } from "./message.js"
-import { Session } from "@opencode/schema/session"
+import { Session } from "@aigcfroge/schema/session"
 import { SessionMessageTable, SessionTable } from "./sql.js"
 import { fromRow } from "./info.js"
 
 const ListInputBase = {
   workspaceID: Workspace.ID.pipe(Schema.optional),
+  mode: ProductMode.ID.pipe(Schema.optional),
   search: Schema.String.pipe(Schema.optional),
   limit: PositiveInt.pipe(Schema.optional),
   order: Schema.Literals(["asc", "desc"]).pipe(Schema.optional),
@@ -57,7 +59,9 @@ export interface Interface {
   readonly context: (sessionID: Session.ID) => Effect.Effect<SessionMessage.Info[], MessageDecodeError>
   readonly message: (
     messageID: SessionMessage.ID,
-  ) => Effect.Effect<{ readonly sessionID: Session.ID; readonly message: SessionMessage.Info } | undefined>
+  ) => Effect.Effect<
+    { readonly sessionID: Session.ID; readonly seq: number; readonly message: SessionMessage.Info } | undefined
+  >
   /**
    * Top-level Sessions holding an execution claim. Recoverable background
    * children are resumed separately through their durable Job records.
@@ -76,7 +80,10 @@ export interface Interface {
    * Clears orphaned child claims except children owned by recoverable
    * background subagent jobs.
    */
-  readonly releaseChildClaims: (recoverable: ReadonlyArray<Session.ID>) => Effect.Effect<void>
+  readonly releaseChildClaims: (
+    recoverable: ReadonlyArray<Session.ID>,
+    options?: { readonly preserveCustom?: boolean },
+  ) => Effect.Effect<void>
   /**
    * Durably counts one more resume of an orphaned claim, returning the new
    * total — or undefined when the Session no longer exists.
@@ -84,16 +91,24 @@ export interface Interface {
   readonly countResume: (sessionID: Session.ID) => Effect.Effect<number | undefined>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/SessionStore") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionStore") {}
 
 const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const { db } = yield* Database.Service
+    const fields = {
+      ...getTableColumns(SessionTable),
+      last_message: sql<number>`coalesce((
+        select max(${SessionMessageTable.time_created}) from ${SessionMessageTable}
+        where ${SessionMessageTable.session_id} = ${SessionTable.id}
+          and ${SessionMessageTable.type} in ('user', 'assistant')
+      ), ${SessionTable.time_created})`,
+    }
 
     return Service.of({
       get: Effect.fnUntraced(function* (sessionID) {
-        const row = yield* db.select().from(SessionTable).where(eq(SessionTable.id, sessionID)).get().pipe(Effect.orDie)
+        const row = yield* db.select(fields).from(SessionTable).where(eq(SessionTable.id, sessionID)).get().pipe(Effect.orDie)
         return row ? fromRow(row) : undefined
       }),
       list: Effect.fn("SessionStore.list")(function* (input = {}) {
@@ -104,6 +119,9 @@ const layer = Layer.effect(
         const conditions: SQL[] = []
         if ("directory" in input) conditions.push(eq(SessionTable.directory, input.directory))
         if (input.workspaceID) conditions.push(eq(SessionTable.workspace_id, input.workspaceID))
+
+        if (input.mode !== undefined) conditions.push(eq(SessionTable.mode, input.mode))
+
         if ("project" in input) conditions.push(eq(SessionTable.project_id, input.project))
         if ("project" in input && input.subpath !== undefined) conditions.push(eq(SessionTable.path, input.subpath))
         if (input.search) conditions.push(like(SessionTable.title, `%${input.search}%`))
@@ -125,7 +143,7 @@ const layer = Layer.effect(
           )
         }
         const query = db
-          .select()
+          .select(fields)
           .from(SessionTable)
           .where(conditions.length > 0 ? and(...conditions) : undefined)
           .orderBy(
@@ -187,6 +205,7 @@ const layer = Layer.effect(
         return row
           ? {
               sessionID: Session.ID.make(row.session_id),
+              seq: row.seq,
               message: yield* SessionHistory.decodeMessageRow(row).pipe(Effect.orDie),
             }
           : undefined
@@ -222,7 +241,7 @@ const layer = Layer.effect(
           .run()
           .pipe(Effect.orDie)
       }),
-      releaseChildClaims: Effect.fn("SessionStore.releaseChildClaims")((recoverable) =>
+      releaseChildClaims: Effect.fn("SessionStore.releaseChildClaims")((recoverable, options) =>
         db
           .update(SessionTable)
           .set({ time_suspended: null, resume_attempts: 0, time_updated: sql`${SessionTable.time_updated}` })
@@ -230,6 +249,9 @@ const layer = Layer.effect(
             and(
               isNotNull(SessionTable.time_suspended),
               isNotNull(SessionTable.parent_id),
+              options?.preserveCustom
+                ? or(isNull(SessionTable.mode), notInArray(SessionTable.mode, ["custom"]))
+                : undefined,
               recoverable.length > 0 ? notInArray(SessionTable.id, Array.from(recoverable)) : undefined,
             ),
           )

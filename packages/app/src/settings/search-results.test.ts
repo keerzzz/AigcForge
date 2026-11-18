@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { dict } from "@opencode/ui/i18n/en"
+import { dict } from "@aigcfroge/ui/i18n/en"
 import en from "@/runtime/i18n/en"
 import { settingsSearchIndex, type SettingsSearchServer } from "./search-index"
 import { rankSettings } from "./search-results"
@@ -7,7 +7,7 @@ import type { SettingsView } from "./surface"
 
 const strings: Record<string, string> = { ...dict, ...en }
 
-const project = { id: "proj_opencode", name: "OpenCode", worktree: "/projects/opencode", expanded: false }
+const project = { id: "proj_aigcfroge", name: "AigcForge", worktree: "/projects/aigcfroge", expanded: false }
 
 const servers: SettingsSearchServer[] = [
   { key: "local", name: "Local server", connected: true, projects: [project] },
@@ -82,8 +82,8 @@ describe("settings search index", () => {
   test("retains project avatars and excludes color when a custom icon owns its appearance", () => {
     const withIcon = { ...project, icon: { color: "orange", override: "data:image/png;base64,example" } }
     const items = index({ servers: [{ ...servers[0], projects: [withIcon] }] })
-    expect(rankSettings("opencode", items, root)[0].projectInfo).toEqual(withIcon)
-    expect(rankSettings("opencode color", items, root)).toEqual([])
+    expect(rankSettings("aigcforge", items, root)[0].projectInfo).toEqual(withIcon)
+    expect(rankSettings("aigcforge color", items, root)).toEqual([])
   })
 })
 
@@ -99,10 +99,10 @@ describe("settings search ranking", () => {
   })
 
   test("qualifies project settings by project name and supports explicit server names", () => {
-    const matches = rankSettings("opencode name", index(), root)
+    const matches = rankSettings("aigcforge name", index(), root)
     expect(matches.map((item) => item.view.target)).toEqual(["settings-project-name", "settings-project-name"])
-    expect(rankSettings("Build server opencode name", index(), root).map((item) => item.server)).toEqual(["remote"])
-    expect(rankSettings("opencode skills", index(), root).map((item) => item.view.subtab)).toEqual(["skills", "skills"])
+    expect(rankSettings("Build server aigcforge name", index(), root).map((item) => item.server)).toEqual(["remote"])
+    expect(rankSettings("aigcforge skills", index(), root).map((item) => item.view.subtab)).toEqual(["skills", "skills"])
   })
 
   test("project names alone find projects, including names that are setting labels", () => {
@@ -112,7 +112,7 @@ describe("settings search ranking", () => {
         .filter((item) => item.project)
         .map((item) => item.entity),
     ).toEqual([true])
-    expect(rankSettings("opencode", index(), root).map((item) => item.entity)).toEqual([true, true])
+    expect(rankSettings("aigcforge", index(), root).map((item) => item.entity)).toEqual([true, true])
   })
 
   test("normalizes whitespace, case, and Unicode in qualified names", () => {
@@ -125,7 +125,7 @@ describe("settings search ranking", () => {
   test("does not search paths or use the Projects category to match unrelated names", () => {
     const items = index({ servers: [{ ...servers[0], projects: [{ ...project, name: "codename" }] }] })
     expect(rankSettings("project name", items, root).some((item) => item.project)).toBe(false)
-    expect(rankSettings("/projects/opencode", items, root)).toEqual([])
+    expect(rankSettings("/projects/aigcfroge", items, root)).toEqual([])
   })
 
   test("ranks equivalent matches by origin without merging different servers", () => {
@@ -137,7 +137,7 @@ describe("settings search ranking", () => {
       parent: "server",
     }
 
-    expect(rankSettings("opencode name", index(), origin).map((item) => item.server)).toEqual(["remote", "local"])
+    expect(rankSettings("aigcforge name", index(), origin).map((item) => item.server)).toEqual(["remote", "local"])
   })
 
   test("supports synonyms and fuzzy title matches while rejecting unrelated queries", () => {

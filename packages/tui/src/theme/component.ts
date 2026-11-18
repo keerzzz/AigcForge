@@ -1,6 +1,6 @@
 import type { RGBA } from "@opentui/core"
 import type { Accessor } from "solid-js"
-import type { ResolvedTheme, SurfaceName } from "@opencode/theme/tui"
+import type { ResolvedTheme, SurfaceName } from "@aigcfroge/theme/tui"
 
 export function createComponentTheme(
   view: Accessor<ResolvedTheme>,

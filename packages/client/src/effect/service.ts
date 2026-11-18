@@ -11,7 +11,7 @@ export { headers }
 /** Contents of the local service registration file. */
 export type Info = import("../service.js").Info
 
-// Find, start, and stop the local opencode background service.
+// Find, start, and stop the local aigcfroge background service.
 //
 // The service daemon advertises itself through a registration file in the
 // user's state directory: url, pid, version, and the private password, with
@@ -58,7 +58,7 @@ export const ensure = Effect.fn("service.ensure")(function* (options: EnsureOpti
       options.onStart?.(reason, previousVersion)
     })
   const spawnContender = Effect.gen(function* () {
-    const [command, ...args] = options.command ?? ["opencode", "serve", "--service"]
+    const [command, ...args] = options.command ?? ["aigcfroge", "serve", "--service"]
     if (command === undefined) return yield* Effect.fail(new Error("Missing service command"))
     const env = yield* Effect.tryPromise(() => PtyHandoff.environment(options.file ?? fallback(), options.env))
     return yield* Effect.try({

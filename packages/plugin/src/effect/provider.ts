@@ -1,7 +1,9 @@
-import type { ProviderApi } from "@opencode/client/effect/api"
-import type { Model } from "@opencode/schema/model"
-import type { Provider } from "@opencode/schema/provider"
-import type { ConnectionInfo } from "@opencode/client"
+import type { ProviderApi } from "@aigcfroge/client/effect/api"
+import type { Model } from "@aigcfroge/schema/model"
+import type { Provider } from "@aigcfroge/schema/provider"
+import type { Connection } from "@aigcfroge/schema/connection"
+import type { ModelSource } from "@aigcfroge/schema/model-source"
+import type { ConnectionInfo } from "@aigcfroge/client"
 import type { Effect, Types } from "effect"
 import type { Transform } from "./registration.js"
 
@@ -13,6 +15,8 @@ export interface ProviderRecord {
 }
 
 export interface ProviderEditor {
+  readonly scope?: { readonly providerID: Provider.ID; readonly connection: ModelSource.ConnectionRef }
+  connection(integrationID: string): Connection.Info | undefined
   list(): readonly ProviderRecord[]
   get(providerID: string): ProviderRecord | undefined
   /** A discovered account-specific inventory can be bound to the connection that produced it. */

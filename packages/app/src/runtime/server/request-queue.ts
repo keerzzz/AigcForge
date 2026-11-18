@@ -34,13 +34,17 @@ function isSetupRequest(method: string, pathname: string) {
 }
 
 export function createRequestQueue(input: {
-  fetch: typeof globalThis.fetch
+  fetch: (...args: Parameters<typeof globalThis.fetch>) => ReturnType<typeof globalThis.fetch>
   limit?: number
   slowLimit?: number
   stallMs?: number
   headersTimeoutMs?: number
   setupHeadersTimeoutMs?: number
-  log?: (message: string, data: Record<string, unknown>) => void
+  log?: (message: string, data: {
+    limit: number
+    inflight: (Pick<Entry, "method" | "url"> & { ms: number })[]
+    queued: (Pick<Entry, "method" | "url"> & { ms: number })[]
+  }) => void
   now?: () => number
 }) {
   const limit = input.limit ?? requestQueueLimit

@@ -2,6 +2,14 @@ import { describe, expect, test } from "bun:test"
 import { formatRef, parse, switchLabel } from "../../src/util/model"
 
 describe("util.model", () => {
+  test("parses and labels logical Groups independently of physical providers", () => {
+    expect(parse("group:fallback")).toEqual({ type: "group", groupID: "fallback" })
+    expect(parse("group:vendor/chat")).toEqual({ providerID: "group:vendor", modelID: "chat" })
+    expect(parse("group:vendor/chat#high")).toEqual({ providerID: "group:vendor", modelID: "chat", variant: "high" })
+    expect(formatRef({ type: "group", groupID: "fallback" })).toBe("group:fallback")
+    expect(switchLabel({ type: "group", groupID: "fallback" })).toBe("Switched model to group:fallback")
+    expect(switchLabel({ type: "group", groupID: "fallback" }, undefined, undefined, [{ groupID: "fallback", definition: { name: "Resilient", enabled: true, members: [], strategy: "order", affinity: "turn" } }])).toBe("Switched model to Resilient")
+  })
   test("splits provider from a nested model identifier", () => {
     expect(parse("provider/org/model")).toEqual({ providerID: "provider", modelID: "org/model" })
     expect(parse("invalid")).toEqual({ providerID: "invalid", modelID: "" })

@@ -8,8 +8,8 @@ import type {
   PanelTab,
   SessionRef,
   SessionScreen,
-} from "@opencode/gui-extensions/sdk"
-import type { Bridge, BridgeMessage, EnableState, Installed } from "@opencode/gui-extensions/sdk/bridge"
+} from "@aigcfroge/gui-extensions/sdk"
+import type { Bridge, BridgeMessage, EnableState, Installed } from "@aigcfroge/gui-extensions/sdk/bridge"
 import { expect, sourceURL, story } from "../../storybook/playwright/story"
 
 const fixture = sourceURL(new URL("./extension-host.fixture.tsx", import.meta.url))
@@ -315,6 +315,7 @@ story(
                 // Setup runs before the interface mounts, as every built-in's does.
                 ctx.layout.open("fixture:main", session)
                 ctx.layout.settings("fixture")
+                ctx.sessions.open({ source: session, sessionID: "child", reveal: "tool" })
                 // A dialog waits for the interface too; one its handle closes meanwhile never shows.
                 ctx.dialogs.open(text("kept"))
                 ctx.dialogs.open(text("cancelled")).close()
@@ -351,7 +352,7 @@ story(
       await wait(300)
       const before = read()
       host.attach()
-      await until(() => host.writes.length === 2 && shown().length > 0)
+      await until(() => host.writes.length === 3 && shown().length > 0)
       const after = read()
       host.unmount()
 
@@ -365,7 +366,7 @@ story(
         font: "fixture mono",
         prefs: 1,
         ready: true,
-        writes: ["open fixture:main", "settings fixture"],
+        writes: ["open fixture:main", "settings fixture", "session local\nses_fixture child tool"],
         dialogs: ["kept"],
       },
     })
@@ -1003,7 +1004,9 @@ story("startup enable state does not wait for the manager, and live updates beat
 
       const failed = mountExtensions({
         bridge: { ...bridge, manager: { ...bridge.manager, initial, list: () => reply.promise } },
-        definitions: [{ id: "disabled", renderer: async () => ({ default: () => void setups.push("wrongly enabled") }) }],
+        definitions: [
+          { id: "disabled", renderer: async () => ({ default: () => void setups.push("wrongly enabled") }) },
+        ],
       })
 
       await new Promise((resolve) => setTimeout(resolve, 50))

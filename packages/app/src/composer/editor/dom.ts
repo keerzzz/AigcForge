@@ -1,13 +1,17 @@
 function getNodeLength(node: Node): number {
-  if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).tagName === "BR") return 1
+  if (node instanceof HTMLElement && node.dataset.content !== undefined) return node.dataset.content.length
+
+  if (node instanceof Element && node.tagName === "BR") return 1
 
   return (node.textContent ?? "").replace(/\u200B/g, "").length
 }
 
 export function getTextLength(node: Node): number {
+  if (node instanceof HTMLElement && node.dataset.content !== undefined) return node.dataset.content.length
+
   if (node.nodeType === Node.TEXT_NODE) return (node.textContent ?? "").replace(/\u200B/g, "").length
 
-  if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).tagName === "BR") return 1
+  if (node instanceof Element && node.tagName === "BR") return 1
   let length = 0
 
   for (const child of Array.from(node.childNodes)) {
@@ -38,8 +42,8 @@ export function setCursorPosition(parent: HTMLElement, position: number) {
   while (node) {
     const length = getNodeLength(node)
     const isText = node.nodeType === Node.TEXT_NODE
-    const isPill = node.nodeType === Node.ELEMENT_NODE && !!(node as HTMLElement).dataset.mention
-    const isBreak = node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).tagName === "BR"
+    const isPill = node instanceof HTMLElement && !!node.dataset.mention
+    const isBreak = node instanceof Element && node.tagName === "BR"
 
     if (isText && remaining <= length) {
       const range = document.createRange()

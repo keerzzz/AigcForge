@@ -1,6 +1,18 @@
-import type { SessionMessageAssistant, SessionMessageAssistantTool, SessionMessageUser } from "@opencode/client/promise"
+import type {
+  SessionMessageAssistant,
+  SessionMessageAssistantTool,
+  SessionMessageUser,
+  ModelSelection,
+} from "@aigcfroge/client/promise"
+import type { SessionReference } from "@aigcfroge/schema/session-reference"
 import { Match, Switch, type ComponentProps } from "solid-js"
-import type { SessionUserActions, SessionUserAttachmentReference, SessionUserComment } from "../actions"
+import type {
+  SessionResponseActionInput,
+  SessionResponseActions,
+  SessionUserActions,
+  SessionUserAttachmentReference,
+  SessionUserComment,
+} from "../actions"
 import { AssistantReasoningContent, AssistantTextContent, CurrentUserMessageDisplay } from "./message-content"
 import {
   CurrentContextToolGroup,
@@ -22,8 +34,9 @@ export function SessionUserMessage(props: {
   displayText?: string
   comments?: SessionUserComment[]
   references?: SessionUserAttachmentReference[]
+  sessionReferences?: SessionReference.MentionEncoded[]
   historicalAgent: string
-  historicalModel: SessionMessageAssistant["model"]
+  historicalModel: ModelSelection
   actions?: SessionUserActions
 }) {
   return (
@@ -33,6 +46,7 @@ export function SessionUserMessage(props: {
       text={props.displayText ?? props.message.text}
       comments={props.comments}
       references={props.references}
+      sessionReferences={props.sessionReferences}
       agent={props.historicalAgent}
       model={props.historicalModel}
       actions={props.actions}
@@ -45,6 +59,9 @@ export function SessionAssistantContent(props: {
   content: SessionMessageAssistant["content"][number]
   contentID: string
   showAssistantCopyPartID?: string | null
+  response?: SessionResponseActionInput
+  responseActions?: SessionResponseActions
+  attempts?: readonly SessionMessageAssistant[]
   turnDurationMs?: number | null
   defaultOpen?: boolean
   reasoningDefaultOpen?: boolean
@@ -61,6 +78,9 @@ export function SessionAssistantContent(props: {
             text={content().text}
             message={props.message}
             showCopy={props.showAssistantCopyPartID === props.contentID}
+            response={props.response}
+            responseActions={props.responseActions}
+            attempts={props.attempts}
             turnDurationMs={props.turnDurationMs}
           />
         )}

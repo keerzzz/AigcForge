@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { SessionNotification } from "@agentclientprotocol/sdk"
-import type { OpenCodeEventEncoded } from "@opencode/protocol/groups/event"
+import type { AigcForgeEventEncoded } from "@aigcfroge/protocol/groups/event"
 import { Schema } from "effect"
 import { mkdir } from "node:fs/promises"
 import path from "node:path"
@@ -331,7 +331,7 @@ describe("acp prompt turns over the wire", () => {
     expect(acp.server.submissions).toHaveLength(2)
   })
 
-  test.each<[string, (sessionID: string) => OpenCodeEventEncoded, object]>([
+  test.each<[string, (sessionID: string) => AigcForgeEventEncoded, object]>([
     [
       "an execution auth failure",
       (sessionID) => failed(sessionID, { type: "provider.auth", message: "missing key" }),

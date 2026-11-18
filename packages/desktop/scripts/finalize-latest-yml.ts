@@ -11,9 +11,9 @@ const repo = process.env.GH_REPO
 
 if (!repo) throw new Error("GH_REPO is required")
 
-const version = process.env.OPENCODE_VERSION
+const version = process.env.AIGCFROGE_VERSION
 
-if (!version) throw new Error("OPENCODE_VERSION is required")
+if (!version) throw new Error("AIGCFROGE_VERSION is required")
 
 type FileEntry = {
   url: string

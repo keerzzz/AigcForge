@@ -1,7 +1,7 @@
 import { expect } from "bun:test"
-import { SdkPlugins } from "@opencode/core/plugin/sdk"
-import { define } from "@opencode/plugin/effect/plugin"
-import { Rpc } from "@opencode/schema/rpc"
+import { SdkPlugins } from "@aigcfroge/core/plugin/sdk"
+import { define } from "@aigcfroge/plugin/effect/plugin"
+import { Rpc } from "@aigcfroge/schema/rpc"
 import { Context, Effect, Layer, Schema } from "effect"
 import { HttpEffect, HttpRouter, HttpServer } from "effect/http"
 import { tmpdirScoped } from "../../core/test/fixture/tmpdir"
@@ -52,7 +52,7 @@ for (const method of ["handler", "schema"] as const) {
       const handler = Context.get(context, HttpRouter.HttpRouter)
         .asHttpEffect()
         .pipe(HttpEffect.toWebHandlerWith(context))
-      const url = new URL(`/api/rpc/broken/${method}`, "http://opencode.local")
+      const url = new URL(`/api/rpc/broken/${method}`, "http://aigcfroge.local")
       url.searchParams.set("location[directory]", directory.path)
       const response = yield* Effect.promise(() =>
         handler(

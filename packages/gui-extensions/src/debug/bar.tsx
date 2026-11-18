@@ -1,7 +1,7 @@
 import { batch, createMemo, createSignal, onCleanup, onMount, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { makeEventListener } from "@solid-primitives/event-listener"
-import { Tooltip } from "@opencode/ui/tooltip"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
 import { createKeyed, useExtension } from "../sdk"
 import {
   applyProviderMetricEvent,

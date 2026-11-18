@@ -1,15 +1,19 @@
-import { Agent } from "@opencode/core/agent"
+import { Agent } from "@aigcfroge/core/agent"
 import { Effect } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
 import { Api } from "../api"
 import { response } from "../location"
-import { AgentNotFoundError } from "@opencode/protocol/errors"
+import { AgentNotFoundError } from "@aigcfroge/protocol/errors"
 
 export const AgentHandler = HttpApiBuilder.group(Api, "server.agent", (handlers) =>
   handlers
     .handle("agent.list", () =>
       Effect.gen(function* () {
-        return yield* response(Agent.Service.use((agent) => agent.list()))
+        return yield* response(
+          Agent.Service.use((agent) => agent.list()).pipe(
+            Effect.map((agents) => agents.map((agent) => ({ ...agent, ordinaryModes: Agent.ordinaryModes(agent) }))),
+          ),
+        )
       }),
     )
     .handle(
@@ -21,7 +25,7 @@ export const AgentHandler = HttpApiBuilder.group(Api, "server.agent", (handlers)
             agentID: ctx.params.agentID,
             message: `Agent not found: ${ctx.params.agentID}`,
           })
-        return yield* response(Effect.succeed(agent))
+        return yield* response(Effect.succeed({ ...agent, ordinaryModes: Agent.ordinaryModes(agent) }))
       }),
     ),
 )

@@ -1,6 +1,6 @@
 import { expect } from "bun:test"
-import { OpenCode, type SessionMessageInfo } from "@opencode/client"
-import { Session } from "@opencode/schema/session"
+import { AigcForge, type SessionMessageInfo } from "@aigcfroge/client"
+import { Session } from "@aigcfroge/schema/session"
 import { Effect } from "effect"
 import { it } from "../../core/test/lib/effect"
 import { ServerFetch } from "../src/fetch"
@@ -10,10 +10,12 @@ const messages: SessionMessageInfo[] = [
   {
     id: "msg_assistant",
     type: "assistant",
+    origin: { kind: "historical" },
     agent: "build",
     model: { providerID: "test", id: "test" },
     content: [{ type: "text", text: "First answer" }],
     finish: "stop",
+    needsContinuation: false,
     time: { created: 400, completed: 500 },
   },
   { id: "msg_b", type: "user", text: "Second request", time: { created: 100 } },
@@ -21,6 +23,7 @@ const messages: SessionMessageInfo[] = [
   {
     id: "msg_compaction",
     type: "compaction",
+    origin: { kind: "historical" },
     status: "completed",
     reason: "manual",
     summary: "Conversation summary",
@@ -40,8 +43,8 @@ const setup = Effect.gen(function* () {
     models: { fetch: false },
     fs: { filewatcher: false },
   })
-  const api = OpenCode.make({
-    baseUrl: "http://opencode.local",
+  const api = AigcForge.make({
+    baseUrl: "http://aigcfroge.local",
     fetch: Object.assign((input: string | URL | Request, init?: RequestInit) => handler(new Request(input, init)), {
       preconnect: fetch.preconnect,
     }),
@@ -92,7 +95,7 @@ it.live("rejects unknown message type filters at the HTTP boundary", () =>
     yield* Effect.promise(async () => {
       for (const type of ["unknown", "tool", "User", ""]) {
         const response = await fixture.handler(
-          new Request(`http://opencode.local/api/session/${fixture.sessionID}/message?type=${type}`),
+          new Request(`http://aigcfroge.local/api/session/${fixture.sessionID}/message?type=${type}`),
         )
         expect(response.status).toBe(400)
         expect(await response.json()).toMatchObject({ _tag: "InvalidRequestError" })

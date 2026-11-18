@@ -55,6 +55,21 @@ export const Info = Schema.Struct({
 }).annotate({ identifier: "Shell.Info" })
 export interface Info extends Schema.Schema.Type<typeof Info> {}
 
+/** Actual terminal process identity captured by the Shell owner, before output truncation. */
+export const CommandResult = Schema.Struct({
+  id: ID,
+  command: Schema.String,
+  cwd: Schema.String,
+  exit: optional(Schema.Finite),
+  signal: optional(Schema.String),
+  timeout: Schema.Boolean,
+  truncated: Schema.Boolean,
+  outputDigest: Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/)),
+  started: NonNegativeInt,
+  completed: NonNegativeInt,
+}).annotate({ identifier: "Shell.CommandResult" })
+export interface CommandResult extends Schema.Schema.Type<typeof CommandResult> {}
+
 const Created = ephemeral({ type: "shell.created", schema: { info: Info } })
 const Exited = ephemeral({ type: "shell.exited", schema: { id: ID, exit: optional(Schema.Finite), status: Status } })
 const Deleted = ephemeral({ type: "shell.deleted", schema: { id: ID } })

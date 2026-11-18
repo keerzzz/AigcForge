@@ -1,13 +1,13 @@
 export * as SessionTransfer from "./transfer.js"
 
-import { SessionTransfer } from "@opencode/schema/session-transfer"
-import { Tool } from "@opencode/schema/tool"
-import { Skill } from "@opencode/schema/skill"
+import { SessionTransfer } from "@aigcfroge/schema/session-transfer"
+import { Tool } from "@aigcfroge/schema/tool"
+import { Skill } from "@aigcfroge/schema/skill"
 import { eq } from "drizzle-orm"
 import { Clock, Context, DateTime, Effect, Layer, Schema } from "effect"
 import { map } from "effect/Array"
 import path from "path"
-import { makeGlobalNode } from "@opencode/util/effect/app-node"
+import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
 import { App } from "../app.js"
 import { Bus } from "../bus.js"
 import { Database } from "../database/database.js"
@@ -41,7 +41,7 @@ export interface Interface {
   }) => Effect.Effect<Session.Info, ImportConflictError | Session.NotFoundError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/SessionTransfer") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionTransfer") {}
 
 const layer = Layer.effect(
   Service,
@@ -75,7 +75,11 @@ const layer = Layer.effect(
         yield* upsertProject(db, project).pipe(Effect.orDie)
         const importedAt = yield* Clock.currentTimeMillis
         const messages = input.data.messages.filter(isSettled).map((message, index) => {
-          const encoded = encodeMessage(message)
+          const encoded = encodeMessage({
+            ...message,
+            origin: { kind: "historical" },
+            ...(message.type === "assistant" ? { completion: undefined } : {}),
+          })
           const { id: _, type, ...data } = encoded
           return {
             id: message.id,

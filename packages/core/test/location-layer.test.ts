@@ -1,9 +1,9 @@
-import type { FileSystem } from "@opencode/core/filesystem"
+import type { FileSystem } from "@aigcfroge/core/filesystem"
 import fs from "fs/promises"
 import path from "path"
 import { describe, expect } from "bun:test"
-import { Config } from "@opencode/schema/config"
-import { Money } from "@opencode/schema/money"
+import { Config } from "@aigcfroge/schema/config"
+import { Money } from "@aigcfroge/schema/money"
 import {
   Cause,
   DateTime,
@@ -23,23 +23,23 @@ import {
   Stream,
 } from "effect"
 import { TestClock } from "effect/testing"
-import { Agent } from "@opencode/core/agent"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { Global } from "@opencode/util/global"
-import { LocationServiceMap, type LocationServices } from "@opencode/core/location-services"
-import { LocationActivity } from "@opencode/core/location-activity"
-import { Location } from "@opencode/core/location"
-import { LocationWatcher } from "@opencode/core/filesystem/location-watcher"
-import { Plugin } from "@opencode/core/plugin"
-import { Model } from "@opencode/core/model"
-import { Project } from "@opencode/core/project"
-import { Provider } from "@opencode/core/provider"
-import { AbsolutePath } from "@opencode/core/schema"
-import { Session } from "@opencode/core/session"
-import { Workspace } from "@opencode/core/workspace"
-import { SessionEvent } from "@opencode/core/session/event"
-import { SessionRunnerModel } from "@opencode/core/session/runner/model"
+import { Agent } from "@aigcfroge/core/agent"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Global } from "@aigcfroge/util/global"
+import { LocationServiceMap, type LocationServices } from "@aigcfroge/core/location-services"
+import { LocationActivity } from "@aigcfroge/core/location-activity"
+import { Location } from "@aigcfroge/core/location"
+import { LocationWatcher } from "@aigcfroge/core/filesystem/location-watcher"
+import { Plugin } from "@aigcfroge/core/plugin"
+import { Model } from "@aigcfroge/core/model"
+import { Project } from "@aigcfroge/core/project"
+import { Provider } from "@aigcfroge/core/provider"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Session } from "@aigcfroge/core/session"
+import { Workspace } from "@aigcfroge/core/workspace"
+import { SessionEvent } from "@aigcfroge/core/session/event"
+import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
 import { tmpdir, tmpdirScoped } from "./fixture/tmpdir"
 import { tempGlobalLayer } from "./fixture/global"
 import { offlineModels } from "./fixture/models"
@@ -105,7 +105,7 @@ describe("LocationServiceMap", () => {
           if (failure === "config reference") {
             yield* Effect.promise(() => fs.mkdir(directory))
             yield* Effect.promise(() =>
-              fs.writeFile(path.join(directory, "opencode.json"), JSON.stringify({ username: "{file:username.txt}" })),
+              fs.writeFile(path.join(directory, "aigcfroge.json"), JSON.stringify({ username: "{file:username.txt}" })),
             )
           }
           const first = yield* Effect.exit(load)
@@ -149,7 +149,7 @@ describe("LocationServiceMap", () => {
         if (failure === "config reference") {
           yield* Effect.promise(() => fs.mkdir(directory))
           yield* Effect.promise(() =>
-            fs.writeFile(path.join(directory, "opencode.json"), JSON.stringify({ username: "{file:username.txt}" })),
+            fs.writeFile(path.join(directory, "aigcfroge.json"), JSON.stringify({ username: "{file:username.txt}" })),
           )
         }
 
@@ -421,7 +421,7 @@ describe("LocationServiceMap", () => {
             const locations = yield* LocationServiceMap.Service
             const directory = AbsolutePath.make(dir.path)
             const alternate = AbsolutePath.make(directory.replaceAll("\\", "/"))
-            const absent = Location.Ref.make({ directory: alternate })
+            const absent = { directory: alternate }
             const present = Location.Ref.make({ directory, workspaceID: undefined })
             // The two shapes are not structurally Equal: own-key sets differ.
             expect(Object.keys(absent)).toEqual(["directory"])
@@ -487,14 +487,46 @@ describe("LocationServiceMap", () => {
             "edit",
             "glob",
             "grep",
+            "kb_create",
+            "kb_delete",
+            "kb_list_dangling",
+            "kb_read",
+            "kb_search",
+            "kb_update",
+            "list_assets",
+            "memory_propose",
+            "memory_record",
+            "memory_search",
             "patch",
+            "propose_agent_asset",
+            "propose_command_asset",
+            "propose_mcp_asset",
+            "propose_note",
+            "propose_plugin_asset",
+            "propose_prompt_asset",
+            "propose_skill_asset",
+            "propose_workflow_asset",
             "question",
             "read",
+            "reminder_cancel",
+            "reminder_create",
+            "reminder_update",
+            "share",
             "shell",
             "skill",
             "subagent",
+            "task",
+            "task_create",
+            "task_delete",
+            "task_reorder",
+            "task_schedule",
+            "task_spawn",
+            "task_update",
+            "taskwrite",
+            "todowrite",
             "webfetch",
             "websearch",
+            "work-preset",
             "write",
           ])
           const allowedState = yield* update(allowed.path, allowedID)
@@ -506,14 +538,46 @@ describe("LocationServiceMap", () => {
             "edit",
             "glob",
             "grep",
+            "kb_create",
+            "kb_delete",
+            "kb_list_dangling",
+            "kb_read",
+            "kb_search",
+            "kb_update",
+            "list_assets",
+            "memory_propose",
+            "memory_record",
+            "memory_search",
             "patch",
+            "propose_agent_asset",
+            "propose_command_asset",
+            "propose_mcp_asset",
+            "propose_note",
+            "propose_plugin_asset",
+            "propose_prompt_asset",
+            "propose_skill_asset",
+            "propose_workflow_asset",
             "question",
             "read",
+            "reminder_cancel",
+            "reminder_create",
+            "reminder_update",
+            "share",
             "shell",
             "skill",
             "subagent",
+            "task",
+            "task_create",
+            "task_delete",
+            "task_reorder",
+            "task_schedule",
+            "task_spawn",
+            "task_update",
+            "taskwrite",
+            "todowrite",
             "webfetch",
             "websearch",
+            "work-preset",
             "write",
           ])
         }),
@@ -527,7 +591,7 @@ describe("LocationServiceMap", () => {
         Effect.gen(function* () {
           yield* Effect.promise(() =>
             fs.writeFile(
-              path.join(dir.path, "opencode.json"),
+              path.join(dir.path, "aigcfroge.json"),
               JSON.stringify({ agents: { plan: { disabled: true } } }),
             ),
           )
@@ -556,7 +620,7 @@ describe("LocationServiceMap", () => {
           const location = Location.Ref.make({ directory: AbsolutePath.make(dir.path) })
           yield* Effect.promise(() =>
             fs.writeFile(
-              path.join(dir.path, "opencode.json"),
+              path.join(dir.path, "aigcfroge.json"),
               JSON.stringify({
                 providers: {
                   unavailable: {
@@ -659,7 +723,7 @@ describe("LocationServiceMap", () => {
             const modelState = yield* Model.Service
             yield* providers.transform((editor) => {
               editor.update(Provider.ID.make("aliased"), (provider) => {
-                provider.package = "@opencode/ai/providers/openai"
+                provider.package = "@aigcfroge/ai/providers/openai"
               })
               editor.models.update(Provider.ID.make("aliased"), Model.ID.make("fast"), (model) => {
                 // Catalog id and package model id intentionally differ, like gpt-5.5-fast -> gpt-5.5.

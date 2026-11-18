@@ -10,7 +10,9 @@ export type SessionTabState = {
 
 /** A launcher tab (e.g. the file browser) stays replaceable by the next preview even after reload. */
 const sessionTabPreview = (current: SessionTabState, launchers: ReadonlySet<string>) =>
-  current.preview ?? current.tabs.all.find((tab) => launchers.has(tab))
+  current.tabs.active && launchers.has(current.tabs.active)
+    ? current.tabs.active
+    : (current.preview ?? current.tabs.all.find((tab) => launchers.has(tab)))
 
 export function previewSessionTab(
   current: SessionTabState,
@@ -44,7 +46,7 @@ export function previewSessionTab(
   }
 }
 
-/** A `first` tab is stored first and keeps the preview tab, so closing it selects the first remaining tab. */
+/** A `first` tab keeps ordinary previews, consuming a selected launcher before taking the first stored position. */
 export function openSessionTab(
   current: SessionTabState,
   tab: string,
@@ -52,11 +54,15 @@ export function openSessionTab(
   first = false,
 ): SessionTabState {
   const preview = sessionTabPreview(current, launchers)
+  // Replacing a selected launcher must not pin a different file that is still a preview.
+  const retained = current.preview !== preview && current.preview !== tab ? current.preview : undefined
 
   if (first) {
+    const launcher = current.tabs.active && launchers.has(current.tabs.active) ? current.tabs.active : undefined
+
     return {
-      tabs: { all: [tab, ...current.tabs.all.filter((item) => item !== tab)], active: tab },
-      preview,
+      tabs: { all: [tab, ...current.tabs.all.filter((item) => item !== tab && item !== launcher)], active: tab },
+      preview: launcher ? retained : (current.preview ?? preview),
     }
   }
 
@@ -65,16 +71,17 @@ export function openSessionTab(
 
   if (existingIndex !== -1) {
     if (previewIndex === -1 || preview === tab) {
-      return { tabs: { all: current.tabs.all, active: tab } }
+      return { tabs: { all: current.tabs.all, active: tab }, preview: retained }
     }
 
     return {
       tabs: { all: current.tabs.all.filter((item) => item !== preview), active: tab },
+      preview: retained,
     }
   }
 
   if (previewIndex === -1) {
-    return { tabs: { all: [...current.tabs.all, tab], active: tab } }
+    return { tabs: { all: [...current.tabs.all, tab], active: tab }, preview: retained }
   }
 
   return {
@@ -82,6 +89,7 @@ export function openSessionTab(
       all: current.tabs.all.map((item, index) => (index === previewIndex ? tab : item)),
       active: tab,
     },
+    preview: retained,
   }
 }
 

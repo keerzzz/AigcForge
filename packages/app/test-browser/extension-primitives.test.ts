@@ -10,7 +10,7 @@ import {
   type Context,
   type Persisted,
   type SessionRef,
-} from "@opencode/gui-extensions/sdk"
+} from "@aigcfroge/gui-extensions/sdk"
 import type { Platform } from "@/runtime/platform/platform"
 import { flushPersisted } from "@/runtime/persistence/persist"
 import { Persist, persisted, removePersisted } from "@/runtime/persistence/storage"
@@ -351,7 +351,7 @@ describe("extension primitives", () => {
   ])("store writes: $name becomes the whole stored value", (row) => {
     const key = `extension-update-${crypto.randomUUID()}`
 
-    localStorage.setItem(`opencode.global.dat:${key}`, JSON.stringify({ items: ["a"], note: "kept" }))
+    localStorage.setItem(`aigcfroge.global.dat:${key}`, JSON.stringify({ items: ["a"], note: "kept" }))
 
     const root = createRoot((dispose) => {
       const pair = persisted(Persist.global(key), Noted, { items: [] }, web)
@@ -363,7 +363,7 @@ describe("extension primitives", () => {
     flushPersisted()
     expect({
       value: root.handle.value,
-      stored: JSON.parse(localStorage.getItem(`opencode.global.dat:${key}`) ?? "null"),
+      stored: JSON.parse(localStorage.getItem(`aigcfroge.global.dat:${key}`) ?? "null"),
     }).toEqual({ value: row.expected, stored: row.expected })
     root.dispose()
   })

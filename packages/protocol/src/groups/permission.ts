@@ -1,9 +1,10 @@
-import { Agent } from "@opencode/schema/agent"
-import { Location } from "@opencode/schema/location"
-import { Permission } from "@opencode/schema/permission"
-import { PermissionSaved } from "@opencode/schema/permission-saved"
-import { Project } from "@opencode/schema/project"
-import { Session } from "@opencode/schema/session"
+import { Agent } from "@aigcfroge/schema/agent"
+import { Location } from "@aigcfroge/schema/location"
+import { Permission } from "@aigcfroge/schema/permission"
+import { PermissionSaved } from "@aigcfroge/schema/permission-saved"
+import { Project } from "@aigcfroge/schema/project"
+import { Session } from "@aigcfroge/schema/session"
+import { optional } from "@aigcfroge/schema/schema"
 import { Context, Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiMiddleware, HttpApiSchema, OpenApi } from "effect/http-api"
 import { LocationNotFoundError, PermissionNotFoundError, SessionNotFoundError } from "../errors.js"
@@ -68,7 +69,7 @@ export const makePermissionGroup = <
           resources: Permission.Request.fields.resources,
           save: Permission.Request.fields.save,
           metadata: Permission.Request.fields.metadata,
-          source: Permission.Request.fields.source,
+          source: Permission.ToolSource.pipe(optional),
           agent: Agent.ID.pipe(Schema.optional),
         }),
         success: Schema.Struct({

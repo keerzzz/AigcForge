@@ -33,7 +33,7 @@ describe("acp error boundary over the wire", () => {
       })
       const unavailable = {
         code: -32603,
-        message: "Internal error: OpenCode server is unavailable",
+        message: "Internal error: AigcForge server is unavailable",
         data: { errorName: "ServerUnavailable" },
       }
 

@@ -1,8 +1,8 @@
-import { Plugin } from "@opencode/plugin/tui"
+import { Plugin } from "@aigcfroge/plugin/tui"
 import { createLatexCodeBlockRenderer } from "./markdown"
 
 export default Plugin.define({
-  id: "opencode.latex",
+  id: "aigcfroge.latex",
   setup(context) {
     const render = createLatexCodeBlockRenderer(context.renderer, () => ({
       text: context.theme.text.base,

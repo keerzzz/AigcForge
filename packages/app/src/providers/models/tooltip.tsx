@@ -1,4 +1,5 @@
-import { Show, type Component, type JSX } from "solid-js"
+import type { ModelSourceMetadata, ModelSourceOrigins } from "@aigcfroge/client/promise"
+import { For, Show, type Component, type JSX } from "solid-js"
 import { useLanguage } from "@/runtime/i18n/language"
 
 type InputKey = "text" | "image" | "audio" | "video" | "pdf"
@@ -19,16 +20,21 @@ type ModelInfo = {
     input: Array<string>
   }
   reasoning?: boolean
+  metadata?: ModelSourceMetadata
+  origins?: ModelSourceOrigins
   limit: {
     context: number
   }
 }
 
-function ModelTooltipRow(props: { name: JSX.Element; value: JSX.Element }) {
+function ModelTooltipRow(props: { name: JSX.Element; value: JSX.Element; source?: JSX.Element }) {
   return (
     <div class="flex min-w-0 items-center gap-4">
       <span class="shrink-0 text-v2-text-text-muted">{props.name}</span>
-      <span class="ml-auto min-w-0 truncate text-right text-v2-text-text-base">{props.value}</span>
+      <span class="ml-auto flex min-w-0 flex-col gap-0.5 text-right text-v2-text-text-base">
+        <span class="break-words">{props.value}</span>
+        <Show when={props.source}><span class="text-11-regular text-v2-text-text-muted">{props.source}</span></Show>
+      </span>
     </div>
   )
 }
@@ -94,7 +100,7 @@ export const ModelTooltip: Component<{ model: ModelInfo; latest?: boolean; free?
     if (props.model.capabilities) {
       const input = props.model.capabilities.input
       const order: Array<InputKey> = ["text", "image", "audio", "video", "pdf"]
-      const entries = order.filter((key) => input[key]).map((key) => inputLabel(key))
+      const entries = order.flatMap((key) => input[key] ? [inputLabel(key)] : [])
 
       return entries.length ? entries.join(", ") : undefined
     }
@@ -119,18 +125,53 @@ export const ModelTooltip: Component<{ model: ModelInfo; latest?: boolean; free?
   }
 
   const context = () => language.t("model.tooltip.context", { limit: props.model.limit.context.toLocaleString() })
-  const contextLimit = () => props.model.limit.context.toLocaleString(language.intl())
+  const source = (value: string | undefined) => value ? language.t("provider.model.origin." + value) : undefined
+
+  const contextLimit = () => props.model.metadata?.limit?.context !== undefined
+    ? props.model.metadata.limit.context.toLocaleString(language.intl())
+    : props.model.origins?.limit?.context === "runtime-default"
+      ? props.model.limit.context.toLocaleString(language.intl())
+      : language.t("provider.model.unknown")
+
+  const modalities = (field: "input" | "output") => {
+    const value = props.model.metadata?.capabilities?.[field]
+
+    if (value === undefined) return language.t("provider.model.unknown")
+
+    return value.length ? value.map(inputLabel).join(", ") : language.t("provider.model.modalities.none")
+  }
+
+  const prices = () => {
+    const quote = props.model.metadata?.quote
+
+    return quote && quote.status !== "unknown" ? quote.prices : []
+  }
 
   if (props.v2) {
     return (
-      <div class="flex w-[180px] flex-col gap-2">
-        <ModelTooltipRow name={language.t("model.tooltip.model")} value={name()} />
+      <div class="flex w-[280px] max-w-[calc(100vw_-_32px)] flex-col gap-2">
+        <ModelTooltipRow name={language.t("model.tooltip.model")} value={name()} source={source(props.model.origins?.name)} />
         <ModelTooltipRow name={language.t("model.tooltip.provider")} value={props.model.provider.name} />
-        <Show when={inputs()}>
-          {(value) => <ModelTooltipRow name={language.t("model.tooltip.inputs")} value={value()} />}
-        </Show>
-        <ModelTooltipRow name={language.t("model.tooltip.reasoning")} value={reasoning()} />
-        <ModelTooltipRow name={language.t("model.tooltip.context.label")} value={contextLimit()} />
+        <ModelTooltipRow name={language.t("model.tooltip.inputs")}
+          value={modalities("input")}
+          source={source(props.model.origins?.capabilities?.input)} />
+        <ModelTooltipRow name={language.t("provider.model.outputs")} value={modalities("output")}
+          source={source(props.model.origins?.capabilities?.output)} />
+        <ModelTooltipRow name={language.t("provider.model.tools")}
+          value={props.model.metadata?.capabilities?.tools === undefined ? language.t("provider.model.unknown")
+            : language.t(props.model.metadata.capabilities.tools ? "provider.model.override.supported" : "provider.model.override.unsupported")}
+          source={source(props.model.origins?.capabilities?.tools)} />
+        <ModelTooltipRow name={language.t("model.tooltip.context.label")} value={contextLimit()}
+          source={source(props.model.origins?.limit?.context)} />
+        <ModelTooltipRow name={language.t("provider.model.price")}
+          value={language.t("provider.model.quote." + (props.model.metadata?.quote?.status ?? "unknown"))}
+          source={source(props.model.origins?.quote)} />
+        <For each={prices()}>
+          {(price) => <div class="flex flex-col gap-0.5 text-11-regular text-v2-text-text-muted">
+            <Show when={price.tier}>{(tier) => <span>{language.t("provider.model.priceTier", { tokens: tier().size })}</span>}</Show>
+            <p>{language.t("provider.model.prices", { input: price.input, output: price.output })}</p>
+          </div>}
+        </For>
       </div>
     )
   }

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, or, sql } from "drizzle-orm"
+import { and, asc, desc, eq, gte, lt, lte, or, sql } from "drizzle-orm"
 import { Effect, Schema } from "effect"
 import { Database } from "../database/database.js"
 import { MessageDecodeError } from "./error.js"
@@ -20,6 +20,15 @@ const decode = Schema.decodeUnknownEffect(SessionMessage.Info)
  */
 export type Boundary = "latest" | "local" | SessionProviderContext.Provenance
 
+export type UpperBound = { readonly type: "before" | "through"; readonly seq: number }
+
+const withinUpperBound = (upper: UpperBound | undefined) =>
+  upper === undefined
+    ? undefined
+    : upper.type === "before"
+      ? lt(SessionMessageTable.seq, upper.seq)
+      : lte(SessionMessageTable.seq, upper.seq)
+
 const replayable = (message: SessionMessage.Info, boundary: Boundary) =>
   !SessionProviderContext.isCheckpoint(message) ||
   boundary === "latest" ||
@@ -29,6 +38,7 @@ export const latestCompaction = Effect.fnUntraced(function* (
   db: DatabaseService,
   sessionID: SessionSchema.ID,
   boundary: Boundary,
+  upper?: UpperBound,
 ) {
   return yield* db
     .select({ seq: SessionMessageTable.seq })
@@ -38,17 +48,26 @@ export const latestCompaction = Effect.fnUntraced(function* (
         eq(SessionMessageTable.session_id, sessionID),
         eq(SessionMessageTable.type, "compaction"),
         sql`json_extract(${SessionMessageTable.data}, '$.status') = 'completed'`,
+        withinUpperBound(upper),
         boundary === "latest"
           ? undefined
           : or(
               sql`json_extract(${SessionMessageTable.data}, '$.providerContext') is null`,
-              boundary === "local"
+              boundary === "local" || boundary.deployment === undefined
                 ? undefined
                 : and(
-                    ...Object.entries(boundary).map(
-                      ([key, value]) =>
-                        sql`json_extract(${SessionMessageTable.data}, ${`$.providerContext.provenance.${key}`}) = ${value}`,
+                    ...(["providerID", "provider", "modelID", "route", "protocol", "endpoint", "deployment"] as const).map(
+                      (key) =>
+                        sql`json_extract(${SessionMessageTable.data}, ${`$.providerContext.provenance.${key}`}) = ${boundary[key]}`,
                     ),
+                    boundary.connection === undefined
+                      ? sql`json_extract(${SessionMessageTable.data}, '$.providerContext.provenance.connection') is null`
+                      : and(
+                          sql`json_extract(${SessionMessageTable.data}, '$.providerContext.provenance.connection.type') = ${boundary.connection.type}`,
+                          boundary.connection.type === "credential"
+                            ? sql`json_extract(${SessionMessageTable.data}, '$.providerContext.provenance.connection.id') = ${boundary.connection.id}`
+                            : sql`json_extract(${SessionMessageTable.data}, '$.providerContext.provenance.connection.name') = ${boundary.connection.name}`,
+                        ),
                   ),
             ),
       ),
@@ -75,12 +94,13 @@ export const decodeMessageRow = (row: typeof SessionMessageTable.$inferSelect) =
     ),
   )
 
-const messageEntries = Effect.fnUntraced(function* (
+const rawMessageEntries = Effect.fnUntraced(function* (
   db: DatabaseService,
   sessionID: SessionSchema.ID,
   boundary: Boundary,
+  upper?: UpperBound,
 ) {
-  const compaction = yield* latestCompaction(db, sessionID, boundary)
+  const compaction = yield* latestCompaction(db, sessionID, boundary, upper)
   const rows = yield* db
     .select()
     .from(SessionMessageTable)
@@ -88,14 +108,32 @@ const messageEntries = Effect.fnUntraced(function* (
       and(
         eq(SessionMessageTable.session_id, sessionID),
         compaction ? gte(SessionMessageTable.seq, compaction.seq) : undefined,
+        withinUpperBound(upper),
       ),
     )
     .orderBy(asc(SessionMessageTable.seq))
     .all()
     .pipe(Effect.orDie)
-  const entries = yield* Effect.forEach(rows, (row) =>
+  return yield* Effect.forEach(rows, (row) =>
     decodeMessageRow(row).pipe(Effect.map((message) => ({ seq: row.seq, message }))),
   )
+})
+
+/** A bounded textual window retains native and instruction rows so a reference can account for omissions. */
+export const boundedEntries = Effect.fn("SessionHistory.boundedEntries")(function* (
+  db: DatabaseService,
+  sessionID: SessionSchema.ID,
+  upper: UpperBound,
+) {
+  return yield* rawMessageEntries(db, sessionID, "local", upper)
+})
+
+const messageEntries = Effect.fnUntraced(function* (
+  db: DatabaseService,
+  sessionID: SessionSchema.ID,
+  boundary: Boundary,
+) {
+  const entries = yield* rawMessageEntries(db, sessionID, boundary)
   // Re-expansion may cross a native checkpoint whose completion already advanced the instruction
   // epoch: the baseline supersedes the chronological updates before it. Forks seed their baseline
   // at sequence 0 but retain parent sequences, so the copied checkpoint still retires them.

@@ -22,7 +22,7 @@ describe("ElevenLabs Transcription recorded", () => {
       const response = yield* Transcription.generate(request)
 
       expect(response.text).toMatch(TRANSCRIPT)
-      expect(response.words?.map((word) => word.text)).toEqual(["Hello", "from", "OpenCode"])
+      expect(response.words?.map((word) => word.text)).toEqual(["Hello", "from", "AigcForge"])
       expect(response.words?.every((word) => word.speaker === undefined && (word.confidence ?? 0) > 0)).toBe(true)
       expect(response.segments).toBeUndefined()
       expect(response.language).toBe("eng")

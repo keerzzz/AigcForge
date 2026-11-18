@@ -3,16 +3,17 @@ import { Component, ComponentProps, createEffect, createMemo, For, JSX, Show, Su
 import { createStore } from "solid-js/store"
 import { createMediaQuery } from "@solid-primitives/media"
 import { useLocal, type ModelSelection } from "@/providers/models/selection"
-import { useDialog } from "@opencode/ui/context/dialog"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { popularProviders } from "@/providers/catalog/providers"
-import { Button } from "@opencode/ui/button"
-import { Badge } from "@opencode/ui/badge"
-import { Dialog, DialogBody, DialogHeader, DialogTitleGroup } from "@opencode/ui/dialog"
-import { Icon } from "@opencode/ui/icon"
-import { ScrollView } from "@opencode/ui/scroll-view"
-import { Tooltip } from "@opencode/ui/tooltip"
-import { Menu } from "@opencode/ui/menu"
-import { TextInput } from "@opencode/ui/text-input"
+import { Button } from "@aigcfroge/ui/button"
+import { Badge } from "@aigcfroge/ui/badge"
+import { Dialog, DialogBody, DialogHeader, DialogTitleGroup } from "@aigcfroge/ui/dialog"
+import { Icon } from "@aigcfroge/ui/icon"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { ScrollView } from "@aigcfroge/ui/scroll-view"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { Menu } from "@aigcfroge/ui/menu"
+import { TextInput } from "@aigcfroge/ui/text-input"
 import { ModelTooltip } from "./tooltip"
 import { useLanguage } from "@/runtime/i18n/language"
 import { ExternalLink } from "@/runtime/platform/external-link"
@@ -23,6 +24,8 @@ import { handleDocumentSearchKeydown } from "@/shell/commands/search-keydown"
 import { createMenuDismissController } from "@/shell/commands/menu-dismiss"
 import { createEventListener } from "@solid-primitives/event-listener"
 import { matchesModelSearch } from "./search"
+import { selectionKey } from "./key"
+import type { ModelGroupCurrent } from "@aigcfroge/client/promise"
 import { SettingsList } from "@/settings/list"
 import {
   CONSOLE_GROUP_KEY,
@@ -39,14 +42,15 @@ const MobilePanelDrawer = lazy(async () => {
   return { default: MobilePanelDrawer }
 })
 
-const isFree = (provider: string, cost: { input: number } | undefined) =>
-  provider === "opencode" && (!cost || cost.input === 0)
-
 type ModelState = ModelSelection
 
 type ModelItem = ReturnType<ModelState["list"]>[number]
 
-const modelKey = (model: ModelItem) => `${model.provider.id}:${model.id}`
+const isFree = (model: ModelItem) => model.metadata?.quote?.status === "free"
+
+const modelKey = (model: ModelItem) => selectionKey({ providerID: model.provider.id, modelID: model.id })
+
+const groupKey = (group: Pick<ModelGroupCurrent, "groupID">) => selectionKey({ type: "group", groupID: group.groupID })
 
 const manageKey = "action:manage"
 
@@ -96,6 +100,7 @@ const ModelList: Component<{
     ),
   )
   const models = createMemo(() => controller.models(store.search))
+  const modelGroupOptions = () => controller.modelGroups(store.search)
   const modelGroups = createMemo(() => controller.groups(models()))
   const managed = createMemo(() => consoleModelGroup(controller.all()))
   const expanded = (provider: string) => store.search.length > 0 || !store.collapsed[provider]
@@ -109,12 +114,18 @@ const ModelList: Component<{
   let scrollRef: HTMLDivElement | undefined
 
   const setSearch = (value: string) => {
+    const group = controller.modelGroups(value).find((group) => !group.unavailable)
     const first = controller.models(value).find((item) => value.length > 0 || !store.collapsed[item.provider.id])
-    setStore({ search: value, active: first ? modelKey(first) : "" })
+    setStore({ search: value, active: group ? groupKey(group) : first ? modelKey(first) : "" })
   }
 
   const moveActive = (delta: number) => {
-    const keys = visibleModels().map(modelKey)
+    const keys = [
+      ...modelGroupOptions()
+        .filter((group) => !group.unavailable)
+        .map(groupKey),
+      ...visibleModels().map(modelKey),
+    ]
 
     if (keys.length === 0) return
     const index = keys.indexOf(store.active)
@@ -128,6 +139,14 @@ const ModelList: Component<{
   }
 
   const selectActive = () => {
+    const group = modelGroupOptions().find((group) => !group.unavailable && groupKey(group) === store.active)
+
+    if (group) {
+      controller.selectGroup(group)
+
+      return
+    }
+
     const item = visibleModels().find((item) => modelKey(item) === store.active)
 
     if (item) controller.select(item)
@@ -156,13 +175,11 @@ const ModelList: Component<{
                     placement="right-start"
                     gutter={12}
                     openDelay={0}
-                    value={
-                      <ModelTooltip model={item} latest={item.latest} free={isFree(item.provider.id, item.cost)} v2 />
-                    }
+                    value={<ModelTooltip model={item} latest={item.latest} free={isFree(item)} v2 />}
                   >
                     <span class="min-w-0 truncate">{item.name}</span>
                   </Tooltip>
-                  <Show when={isFree(item.provider.id, item.cost)}>
+                  <Show when={isFree(item)}>
                     <Badge class="shrink-0">{language.t("model.tag.free")}</Badge>
                   </Show>
                   <Show when={item.latest}>
@@ -232,8 +249,47 @@ const ModelList: Component<{
           class="settings-panel settings-models pt-1 pb-4"
           classList={{ "h-full px-4": !props.mobile, "max-h-[min(360px,40dvh)]": props.mobile }}
         >
+          <Show when={modelGroupOptions().length}>
+            <section class="settings-section" aria-label={language.t("model.group.title")}>
+              <h3 class="pb-2 text-13-medium text-text-base">{language.t("model.group.title")}</h3>
+              <SettingsList variant="catalog">
+                <For each={modelGroupOptions()}>
+                  {(group) => (
+                    <button
+                      type="button"
+                      data-component="settings-row"
+                      data-option-key={groupKey(group)}
+                      aria-pressed={controller.current() === groupKey(group)}
+                      disabled={!!group.unavailable}
+                      class="-mx-4 w-[calc(100%+32px)] px-4 text-start first:rounded-t-lg last:rounded-b-lg hover:bg-v2-overlay-simple-overlay-hover focus-visible:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none disabled:opacity-60"
+                      classList={{ "bg-v2-overlay-simple-overlay-hover": store.active === groupKey(group) }}
+                      onMouseEnter={() => setStore("active", groupKey(group))}
+                      onMouseLeave={() => setStore("active", "")}
+                      onClick={() => controller.selectGroup(group)}
+                    >
+                      <div data-slot="settings-row-copy">
+                        <div data-slot="settings-row-title" class="min-w-0 truncate">
+                          {group.definition?.name || group.groupID}
+                        </div>
+                        <div data-slot="settings-row-description">
+                          {group.unavailable
+                            ? language.t(`model.group.unavailable.${group.unavailable}`)
+                            : language.plural("model.group.members", group.definition?.members.length ?? 0)}
+                        </div>
+                      </div>
+                      <div data-slot="settings-row-control" class="size-4">
+                        <Show when={controller.current() === groupKey(group)}>
+                          <Icon name="check" size="small" class="shrink-0 text-v2-icon-icon-base" />
+                        </Show>
+                      </div>
+                    </button>
+                  )}
+                </For>
+              </SettingsList>
+            </section>
+          </Show>
           <Show
-            when={models().length > 0}
+            when={models().length > 0 || modelGroupOptions().length > 0}
             fallback={<div class="settings-models-status">{language.t("dialog.model.empty")}</div>}
           >
             <ProviderModelSections
@@ -301,6 +357,8 @@ export function ModelSelectorPopover(props: {
           trigger={props.trigger}
           models={controller.models}
           groups={controller.groups}
+          modelGroups={controller.modelGroups}
+          selectGroup={controller.selectGroup}
           current={controller.current()}
           chatgptPlan={chatgptPlan()}
           select={controller.select}
@@ -462,6 +520,15 @@ function createModelSelectorController(input: {
 
   return {
     all: () => model.list().filter((item) => (input.provider() ? item.provider.id === input.provider() : true)),
+    modelGroups: (search: string) =>
+      input.provider()
+        ? []
+        : model
+            .groups()
+            .filter((group) =>
+              matchesModelSearch(search.trim(), [group.definition?.name ?? group.groupID, group.groupID]),
+            )
+            .sort((a, b) => (a.definition?.name ?? a.groupID).localeCompare(b.definition?.name ?? b.groupID)),
     models: (search: string) => {
       const query = search.trim()
 
@@ -481,12 +548,21 @@ function createModelSelectorController(input: {
       return Array.from(byProvider, ([category, items]) => ({ category, items })).sort(sortModelGroups)
     },
     current: () => {
-      const value = model.current()
+      const value = model.identity?.() ?? model.current()
 
-      return value ? modelKey(value) : undefined
+      if (!value) return
+
+      return "type" in value && value.type === "group"
+        ? groupKey(value)
+        : selectionKey({ providerID: value.provider.id, modelID: value.id })
     },
     select: (item: ModelItem) => {
       model.set({ modelID: item.id, providerID: item.provider.id }, { recent: true })
+      input.onSelect()
+    },
+    selectGroup: (group: ModelGroupCurrent) => {
+      if (group.unavailable) return
+      model.set({ type: "group", groupID: group.groupID }, { recent: true })
       input.onSelect()
     },
   }
@@ -496,9 +572,11 @@ export function ModelSelectorPopoverView(props: {
   trigger: ModelSelectorTrigger
   models: (search: string) => ModelItem[]
   groups: (models: ModelItem[]) => { category: string; items: ModelItem[] }[]
+  modelGroups?: (search: string) => ModelGroupCurrent[]
   current: string | undefined
   chatgptPlan?: boolean
   select: (item: ModelItem) => void
+  selectGroup?: (group: ModelGroupCurrent) => void
   onManage: () => void
   onClose: () => void
 }) {
@@ -509,8 +587,16 @@ export function ModelSelectorPopoverView(props: {
   const dismiss = createMenuDismissController(() => contentRef)
 
   const models = createMemo(() => props.models(store.search))
+  const modelGroupOptions = () => props.modelGroups?.(store.search) ?? []
   const groups = createMemo(() => props.groups(models()))
-  const keys = () => [...groups().flatMap((group) => group.items.map(modelKey)), manageKey]
+
+  const keys = () => [
+    ...modelGroupOptions()
+      .filter((group) => !group.unavailable)
+      .map(groupKey),
+    ...groups().flatMap((group) => group.items.map(modelKey)),
+    manageKey,
+  ]
 
   const initialActive = () => {
     const selected = props.current
@@ -554,6 +640,16 @@ export function ModelSelectorPopoverView(props: {
   }
 
   const selectActive = () => {
+    const group = modelGroupOptions().find((group) => !group.unavailable && groupKey(group) === store.active)
+
+    if (group) {
+      dismiss.preventTriggerRestore()
+      setOpen(false)
+      dismiss.afterClose(() => props.selectGroup?.(group))
+
+      return
+    }
+
     const item = models().find((item) => modelKey(item) === store.active)
 
     if (item) {
@@ -576,8 +672,9 @@ export function ModelSelectorPopoverView(props: {
   }
 
   const setSearch = (value: string) => {
+    const group = props.modelGroups?.(value).find((group) => !group.unavailable)
     const first = props.models(value)[0]
-    setStore({ search: value, active: first ? modelKey(first) : manageKey })
+    setStore({ search: value, active: group ? groupKey(group) : first ? modelKey(first) : manageKey })
   }
 
   createEffect(() => {
@@ -651,23 +748,60 @@ export function ModelSelectorPopoverView(props: {
                 }}
               />
               <Show when={store.search.trim()}>
-                <button
+                <IconButton
                   type="button"
-                  class="flex size-5 items-center justify-center rounded-sm bg-transparent text-v2-icon-icon-faint transition-colors hover:text-v2-icon-icon-base focus-visible:text-v2-icon-icon-base active:text-v2-icon-icon-base"
-                  onPointerDown={(event) => event.preventDefault()}
+                  icon={<Icon name="circle-xmark" />}
+                  variant="ghost"
+                  size="small"
+                  class="size-5 shrink-0"
+                  onPointerDown={(event: Parameters<JSX.EventHandler<HTMLButtonElement, PointerEvent>>[0]) =>
+                    event.preventDefault()
+                  }
                   onClick={() => setSearch("")}
                   aria-label={language.t("common.clear")}
-                >
-                  <Icon name="circle-xmark" />
-                </button>
+                />
               </Show>
             </div>
           </div>
           <div class="h-px bg-v2-border-border-muted" />
           <ScrollView data-slot="model-selector-scroll" class="max-h-[220px] min-h-0">
             <div class="flex flex-col p-0.5 pt-0">
+              <Show when={modelGroupOptions().length}>
+                <Menu.Group>
+                  <Menu.GroupLabel class="px-3">{language.t("model.group.title")}</Menu.GroupLabel>
+                  <Menu.RadioGroup value={props.current}>
+                    <For each={modelGroupOptions()}>
+                      {(group) => (
+                        <Menu.RadioItem
+                          value={groupKey(group)}
+                          data-option-key={groupKey(group)}
+                          disabled={!!group.unavailable}
+                          data-selected-model={props.current === groupKey(group) ? true : undefined}
+                          class="w-full"
+                          classList={{ "!bg-v2-overlay-simple-overlay-hover": store.active === groupKey(group) }}
+                          onMouseEnter={() => setStore("active", groupKey(group))}
+                          onSelect={() => {
+                            dismiss.preventTriggerRestore()
+                            setOpen(false)
+                            dismiss.afterClose(() => props.selectGroup?.(group))
+                          }}
+                        >
+                          <span class="flex min-w-0 flex-col">
+                            <span class="truncate">{group.definition?.name || group.groupID}</span>
+                            <Show when={group.unavailable}>
+                              <span class="text-12-regular text-text-weak">
+                                {language.t(`model.group.unavailable.${group.unavailable}`)}
+                              </span>
+                            </Show>
+                          </span>
+                        </Menu.RadioItem>
+                      )}
+                    </For>
+                  </Menu.RadioGroup>
+                </Menu.Group>
+              </Show>
               <Show
-                when={models().length > 0}
+                when={models().length > 0 || modelGroupOptions().length > 0}
                 fallback={
                   <div class="flex h-12 items-center px-3 text-[13px] font-[440] leading-5 tracking-[-0.04px] text-v2-text-text-faint">
                     {language.t("dialog.model.empty")}
@@ -688,14 +822,7 @@ export function ModelSelectorPopoverView(props: {
                               placement="right-start"
                               gutter={6}
                               openDelay={0}
-                              value={
-                                <ModelTooltip
-                                  model={item}
-                                  latest={item.latest}
-                                  free={isFree(item.provider.id, item.cost)}
-                                  v2
-                                />
-                              }
+                              value={<ModelTooltip model={item} latest={item.latest} free={isFree(item)} v2 />}
                             >
                               <Menu.RadioItem
                                 value={modelKey(item)}
@@ -710,7 +837,7 @@ export function ModelSelectorPopoverView(props: {
                                 onSelect={() => selectModel(item)}
                               >
                                 <span class="min-w-0 truncate leading-5">{item.name}</span>
-                                <Show when={isFree(item.provider.id, item.cost)}>
+                                <Show when={isFree(item)}>
                                   <Badge class="shrink-0">{language.t("model.tag.free")}</Badge>
                                 </Show>
                                 <Show when={item.latest}>

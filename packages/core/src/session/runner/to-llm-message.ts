@@ -6,13 +6,15 @@ import {
   ToolResultPart,
   type ContentPart,
   type ProviderMetadata,
-} from "@opencode/ai"
-import type { Model } from "@opencode/schema/model"
+} from "@aigcfroge/ai"
+import { Model } from "@aigcfroge/schema/model"
+import { SessionCommunication } from "@aigcfroge/schema/session-communication"
+import { SessionID } from "@aigcfroge/schema/session-id"
 import { Option, Schema } from "effect"
 import { fileURLToPath } from "url"
 import { SessionMessage } from "../message.js"
 import { SessionProviderContext } from "../provider-context.js"
-import type { FileAttachment } from "@opencode/schema/prompt"
+import type { FileAttachment } from "@aigcfroge/schema/prompt"
 
 const imageMimes = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"])
 
@@ -102,6 +104,11 @@ const userAttachmentContent = (files: readonly FileAttachment[]) => {
 }
 
 const decodeToolInput = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown))
+const decodeCommunication = Schema.decodeUnknownOption(Schema.Struct({
+  source: Schema.Literal("share"),
+  communication: Schema.Struct({ id: SessionCommunication.ID }),
+  actorSessionID: SessionID,
+}))
 
 const providerMetadata = (
   provider: string,
@@ -150,10 +157,13 @@ const toolResult = (tool: SessionMessage.AssistantTool, providerMetadata: Provid
   }
 }
 
-const assistant = (message: SessionMessage.Assistant, model: Model.Ref, providerMetadataKey: string) => {
+const assistant = (message: SessionMessage.Assistant, model: Model.Ref, providerMetadataKey: string, target?: SessionProviderContext.Provenance) => {
   const sameProvider = String(message.model.providerID) === String(model.providerID)
-  const sameModel = sameProvider && String(message.model.id) === String(model.id)
-  const reuseProviderMetadata = sameModel && message.error === undefined
+  const attempt = message.origin?.kind === "step" ? message.attempts?.findLast((attempt) =>
+    attempt.terminal?.outputStarted || attempt.observations.some((observation) => observation.outputStarted)) : undefined
+  const source = attempt?.observations.findLast((observation) => observation.deployment !== undefined)?.deployment
+  const replayable = source !== undefined && SessionProviderContext.compatible(source, target)
+  const reuseProviderMetadata = replayable && message.error === undefined
   const reasoningInterrupted = message.content.some(
     (item) => item.type === "reasoning" && item.time !== undefined && item.time.completed === undefined,
   )
@@ -186,23 +196,20 @@ const assistant = (message: SessionMessage.Assistant, model: Model.Ref, provider
     // replay it.
     const reuseToolProviderMetadata =
       reuseProviderMetadata ||
-      (sameModel && item.executed === true && (item.state.status === "completed" || item.state.status === "error"))
+      (replayable && item.executed === true && (item.state.status === "completed" || item.state.status === "error"))
     const call = toolCall(
       item,
       reuseToolProviderMetadata ? providerMetadata(providerMetadataKey, item.providerState) : undefined,
     )
     if (item.executed !== true) return [call]
     // Hosted tools (e.g. google_search) run inside the provider, so their
-    // result payload (`providerResultState`) is provider-format data rather
-    // than model-scoped proof: it stays replayable across models of the same
-    // provider. After a model switch, echo only that payload — never fall
-    // back to `providerState`, whose call-side values are bound to the old
-    // model.
+    // result payload is opaque provider data. Both sides require the actual
+    // producing deployment and connection before any opaque state is replayed.
     const result = toolResult(
       item,
       reuseToolProviderMetadata
         ? providerMetadata(providerMetadataKey, item.providerResultState ?? item.providerState)
-        : sameProvider && item.providerResultState !== undefined
+        : replayable && sameProvider && item.providerResultState !== undefined
           ? providerMetadata(providerMetadataKey, item.providerResultState)
           : undefined,
     )
@@ -242,6 +249,7 @@ const variantEffort = (variant: Model.VariantID | undefined) => {
 const modelSwitched = (message: SessionMessage.ModelSelected, model: Model.Ref): Message[] => {
   const previous = message.previous
   if (previous === undefined) return []
+  if (Model.Selection.isGroup(message.model) || Model.Selection.isGroup(previous)) return []
   const same = (ref: Model.Ref) => ref.providerID === model.providerID && ref.id === model.id
   if (!same(message.model) || !same(previous)) return []
   const to = variantEffort(message.model.variant)
@@ -250,7 +258,7 @@ const modelSwitched = (message: SessionMessage.ModelSelected, model: Model.Ref):
   return [Message.effort({ effort: to.effort, previous: from.effort })]
 }
 
-function toLLMMessage(message: SessionMessage.Info, model: Model.Ref, providerMetadataKey: string): Message[] {
+function toLLMMessage(message: SessionMessage.Info, model: Model.Ref, providerMetadataKey: string, target?: SessionProviderContext.Provenance): Message[] {
   switch (message.type) {
     case "agent-switched":
     case "idle":
@@ -284,8 +292,12 @@ function toLLMMessage(message: SessionMessage.Info, model: Model.Ref, providerMe
           },
         }),
       ]
-    case "synthetic":
-      return [Message.make({ id: message.id, role: "user", content: message.text })]
+    case "synthetic": {
+      const communication = decodeCommunication(message.metadata)
+      return [Message.make({ id: message.id, role: "user", content: Option.isSome(communication)
+        ? `[Session communication ${communication.value.communication.id} from session ${communication.value.actorSessionID}]\n${message.text}\n\nReply with share using replyTo="${communication.value.communication.id}".`
+        : message.text })]
+    }
     case "skill":
       return [Message.make({ id: message.id, role: "user", content: message.text, metadata: message.metadata })]
     case "system":
@@ -302,12 +314,12 @@ function toLLMMessage(message: SessionMessage.Info, model: Model.Ref, providerMe
         }),
       ]
     case "assistant":
-      return assistant(message, model, providerMetadataKey)
+      return assistant(message, model, providerMetadataKey, target)
     case "compaction":
       if (message.status !== "completed") return []
-      // History selection only keeps native windows the target model can replay.
       if (SessionProviderContext.isCheckpoint(message))
-        return [...SessionProviderContext.decode(message.providerContext)]
+        return SessionProviderContext.compatible(message.providerContext.provenance, target)
+          ? [...SessionProviderContext.decode(message.providerContext)] : []
       return [
         Message.make({
           id: message.id,
@@ -326,9 +338,10 @@ function toLLMMessage(message: SessionMessage.Info, model: Model.Ref, providerMe
   }
 }
 
-/** Translate projected Session history into canonical @opencode/ai context. */
+/** Translate projected Session history into canonical @aigcfroge/ai context. */
 export const toLLMMessages = (
   messages: readonly SessionMessage.Info[],
   model: Model.Ref,
   providerMetadataKey: string = model.providerID,
-) => messages.flatMap((message) => toLLMMessage(message, model, providerMetadataKey))
+  target?: SessionProviderContext.Provenance,
+) => messages.flatMap((message) => toLLMMessage(message, model, providerMetadataKey, target))

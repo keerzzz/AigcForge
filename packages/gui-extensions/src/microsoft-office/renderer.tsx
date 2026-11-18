@@ -1,6 +1,6 @@
 import { lazy, Suspense, type Component } from "solid-js"
-import { Loader } from "@opencode/ui/loader"
-import type { ArtifactKind } from "@opencode/util/artifact"
+import { Loader } from "@aigcfroge/ui/loader"
+import type { ArtifactKind } from "@aigcfroge/util/artifact"
 import { FileViewer, type FileViewerProps } from "../file/contract"
 import { bindExtension, type Setup } from "../sdk"
 import type MicrosoftOffice from "./index"

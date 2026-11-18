@@ -6,19 +6,19 @@ import { isSortable, useSortable } from "@dnd-kit/solid/sortable"
 import { AutoScroller, Feedback, PointerActivationConstraints } from "@dnd-kit/dom"
 import { RestrictToVerticalAxis } from "@dnd-kit/abstract/modifiers"
 import { RestrictToElement } from "@dnd-kit/dom/modifiers"
-import { ScrollView } from "@opencode/ui/scroll-view"
+import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import {
   displayName,
   getProjectAvatarSource,
   getProjectAvatarVariant,
   ProjectAvatar,
-} from "@opencode/ui/project-avatar"
-import { Icon } from "@opencode/ui/icon"
-import { IconButton } from "@opencode/ui/icon-button"
-import { Button } from "@opencode/ui/button"
-import { Spinner } from "@opencode/ui/spinner"
-import { Menu } from "@opencode/ui/menu"
-import { Tooltip } from "@opencode/ui/tooltip"
+} from "@aigcfroge/ui/project-avatar"
+import { Icon } from "@aigcfroge/ui/icon"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { Button } from "@aigcfroge/ui/button"
+import { Spinner } from "@aigcfroge/ui/spinner"
+import { Menu } from "@aigcfroge/ui/menu"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
 import type { HomeProjectSelection, LocalProject } from "@/shell/state/layout"
 import { ServerConnection } from "@/runtime/server/registry"
 import { useLanguage } from "@/runtime/i18n/language"
@@ -42,6 +42,7 @@ const projectContextMenuID = (server: ServerConnection.Any, directory: string) =
   `project:${ServerConnection.key(server)}:${directory}`
 
 export type HomeProjectsViewProps = {
+  docked?: boolean
   dropdown?: boolean
   language: ReturnType<typeof useLanguage>
   servers: ServerConnection.Any[]
@@ -66,7 +67,11 @@ export type HomeProjectsViewProps = {
   onHideServer: (server: ServerConnection.Any) => void
   onMoveProject: (server: ServerConnection.Any, worktree: string, index: number) => void
   onSelectProject: (server: ServerConnection.Any, directory: string) => void
+  onToggleProject?: (server: ServerConnection.Any, project: LocalProject) => void
+  projectChildren?: (server: ServerConnection.Any, project: LocalProject) => JSX.Element
+  projectStatus?: (server: ServerConnection.Any, project: LocalProject) => JSX.Element
   onAddProjects: (server: ServerConnection.Any, directories: string[]) => void
+  canCreateSession: boolean
   onOpenProjectNewSession: (server: ServerConnection.Any, directory: string) => void
   canImportSession: boolean
   onImportSession: (server: ServerConnection.Any, project: LocalProject) => void
@@ -170,11 +175,13 @@ function HomeProjectsPanel(props: HomeProjectsViewProps) {
   return (
     <aside
       class={
-        props.dropdown
-          ? "flex max-h-[min(60dvh,calc(var(--kb-popper-content-available-height)-12px))] min-h-0 min-w-0 flex-col overflow-hidden"
-          : `
+        props.docked
+          ? "flex h-full min-h-0 min-w-0 flex-col gap-4 overflow-hidden py-3 ps-3"
+          : props.dropdown
+            ? "flex max-h-[min(60dvh,calc(var(--kb-popper-content-available-height)-12px))] min-h-0 min-w-0 flex-col overflow-hidden"
+            : `
         mt-6 flex min-h-0 min-w-0 flex-col gap-4 overflow-hidden
-        lg:sticky lg:top-14 lg:mt-14 lg:h-[calc(100cqh-56px)] lg:self-start lg:pt-[52px]
+        lg:sticky lg:top-0 lg:mt-0 lg:h-[100cqh] lg:self-start lg:pt-6
       `
       }
       aria-label={props.language.t("home.projects")}
@@ -456,7 +463,7 @@ function HomeServerRow(props: {
         <div
           data-slot="home-row-actions"
           class={`
-          hover-reveal absolute bottom-0 right-1 top-0 flex items-center gap-1 rounded-r-[6px] pl-2
+          hover-reveal absolute bottom-0 end-1 top-0 flex items-center gap-1 rounded-e-[6px] ps-2
           group-hover/server:opacity-100 focus-within:opacity-100 data-[menu=true]:opacity-100
         `}
           data-menu={props.contextMenuOpen(contextMenuID())}
@@ -672,12 +679,12 @@ function HomeProjectRow(
     if (props.contextMenuOpen(id)) props.onSetContextMenuOpen(id, false)
   })
 
-  return (
+  const row = (
     <div
-      ref={sortable.ref}
+      ref={props.projectChildren ? undefined : sortable.ref}
       class="group/project relative flex h-7 min-w-0 items-center rounded-[6px]"
       classList={{ "z-10": sortable.isDragSource() }}
-      data-home-row
+      data-home-row={props.docked ? "docked" : ""}
       data-dimmed={serverUnreachable()}
       data-dragging={sortable.isDragSource()}
       data-selected={props.selected ? "" : undefined}
@@ -692,9 +699,11 @@ function HomeProjectRow(
         class="disabled:opacity-60"
         classList={{
           "bg-v2-background-bg-layer-01 text-v2-text-text-base": sortable.isDragSource(),
+          "flex-1": !!props.projectStatus,
         }}
         data-selected={props.selected ? "" : undefined}
         aria-current={props.selected ? "page" : undefined}
+        aria-expanded={props.onToggleProject ? props.project.expanded : undefined}
         disabled={serverUnreachable()}
         onPointerDown={(event) => {
           // Same-server mouse selection happens on pointerdown (like tabs),
@@ -719,6 +728,15 @@ function HomeProjectRow(
           // toggle selection as part of a reorder.
           if (event.defaultPrevented) return
 
+          if (props.onToggleProject) {
+            if ((event.detail === 0 || pointerDownSelected === undefined) && !props.selected)
+              props.onSelectProject(props.server, props.project.worktree)
+            props.onToggleProject(props.server, props.project)
+            pointerDownSelected = undefined
+
+            return
+          }
+
           // Keyboard activation and touch taps keep the original toggle.
           if (event.detail === 0 || pointerDownSelected === undefined) {
             props.onSelectProject(props.server, props.project.worktree)
@@ -732,15 +750,20 @@ function HomeProjectRow(
           pointerDownSelected = undefined
         }}
       >
-        <HomeProjectAvatar project={props.project} />
+        <Show when={props.docked} fallback={<HomeProjectAvatar project={props.project} />}>
+          <Icon name={props.project.expanded ? "folder-open" : "folder"} size="small" class="shrink-0" />
+        </Show>
         <span data-slot="home-row-label" class={HOME_PROJECT_NAV_LABEL}>
           {displayName(props.project)}
         </span>
       </HomeProjectNavButton>
+      <Show when={props.projectStatus}>
+        <div class="me-16 flex shrink-0 items-center gap-1">{props.projectStatus?.(props.server, props.project)}</div>
+      </Show>
       <div
         data-slot="home-row-actions"
         class={`
-          hover-reveal absolute bottom-0 right-1 top-0 flex items-center gap-1 rounded-r-[6px] pl-2
+          hover-reveal absolute bottom-0 end-1 top-0 flex items-center gap-1 rounded-e-[6px] ps-2
           group-hover/project:opacity-100 focus-within:opacity-100 data-[menu=true]:opacity-100
         `}
         data-menu={props.contextMenuOpen(contextMenuID())}
@@ -762,9 +785,11 @@ function HomeProjectRow(
           />
           <Menu.Portal>
             <Menu.Content>
-              <Menu.Item onSelect={() => props.onOpenProjectNewSession(props.server, props.project.worktree)}>
-                {props.language.t("command.session.new")}
-              </Menu.Item>
+              <Show when={props.canCreateSession}>
+                <Menu.Item onSelect={() => props.onOpenProjectNewSession(props.server, props.project.worktree)}>
+                  {props.language.t("command.session.new")}
+                </Menu.Item>
+              </Show>
               <Show when={props.canImportSession}>
                 <Menu.Item onSelect={() => props.onImportSession(props.server, props.project)}>
                   {props.language.t("command.session.import")}
@@ -794,16 +819,31 @@ function HomeProjectRow(
             </Menu.Content>
           </Menu.Portal>
         </Menu>
-        <IconButton
-          data-action="home-project-new-session"
-          variant="ghost-muted"
-          size="small"
-          icon={<Icon name="edit" />}
-          aria-label={props.language.t("command.session.new")}
-          onClick={() => props.onOpenProjectNewSession(props.server, props.project.worktree)}
-        />
+        <Show when={props.canCreateSession}>
+          <IconButton
+            data-action="home-project-new-session"
+            variant="ghost-muted"
+            size="small"
+            icon={<Icon name="edit" />}
+            aria-label={props.language.t("command.session.new")}
+            onClick={() => props.onOpenProjectNewSession(props.server, props.project.worktree)}
+          />
+        </Show>
       </div>
     </div>
+  )
+
+  return (
+    <Show when={props.projectChildren} fallback={row}>
+      {(children) => (
+        <div ref={sortable.ref} class="relative min-w-0" classList={{ "z-10": sortable.isDragSource() }}>
+          {row}
+          <Show when={props.project.expanded}>
+            <div class="min-w-0 ps-5">{children()(props.server, props.project)}</div>
+          </Show>
+        </div>
+      )}
+    </Show>
   )
 }
 

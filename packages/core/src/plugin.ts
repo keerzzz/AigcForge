@@ -1,9 +1,9 @@
 export * as Plugin from "./plugin.js"
-export { Event, ID, Info, Source, State } from "@opencode/schema/plugin"
+export { Event, ID, Info, Source, State } from "@aigcfroge/schema/plugin"
 
-import { Plugin } from "@opencode/schema/plugin"
-import { Node } from "@opencode/util/effect/app-node"
-import { LayerNode } from "@opencode/util/effect/layer-node"
+import { Plugin } from "@aigcfroge/schema/plugin"
+import { Node } from "@aigcfroge/util/effect/app-node"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
 import type { PersistentPty } from "./persistent-pty.js"
 import { Cause, Context, Effect, Exit, Latch, Layer, Logger, Queue, References, Scope, Semaphore } from "effect"
 import { Bus } from "./bus.js"
@@ -11,14 +11,16 @@ import { KV } from "./kv.js"
 import { PluginHost } from "./plugin/host.js"
 import { type Failure, type Generation, Service } from "./plugin/service.js"
 import { State } from "./state.js"
+import { Tool } from "./tool.js"
 
-export { awaitActivation, type Generation, type Interface, Service } from "./plugin/service.js"
+export { awaitActivation, type Generation, type Interface, Producer, Service } from "./plugin/service.js"
 
 const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const bus = yield* Bus.Service
     const kv = yield* KV.Service
+    const tools = yield* Tool.Service
     const scope = yield* Scope.make()
     // One slot per requested definition in activation order, including ones whose setup failed, so
     // the prefix diff below stays index-aligned and a failed revision is not retried until it changes.
@@ -62,7 +64,14 @@ const layer = Layer.effect(
         })
       })
       const exit = yield* Effect.suspend(() =>
-        plugin.effect({ ...host, storage: PluginHost.storage(kv, plugin.id) }),
+        plugin.effect({
+          ...host,
+          storage: PluginHost.storage(kv, plugin.id),
+          tool: {
+            ...host.tool,
+            transform: (callback) => tools.transform(callback, plugin.producer),
+          },
+        }),
       ).pipe(
         grouped,
         inherit,

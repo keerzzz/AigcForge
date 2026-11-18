@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import fs from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import { OPENCODE_VERSION } from "../src/version"
+import { AIGCFROGE_VERSION } from "../src/version"
 
 const info = {
   id: "ses_export_test",
@@ -43,7 +43,7 @@ const sanitizedTransfer = {
 }
 
 const status = () =>
-  Response.json({ version: OPENCODE_VERSION, pid: process.pid, urls: [], paths: { tmp: "/tmp/opencode" } })
+  Response.json({ version: AIGCFROGE_VERSION, pid: process.pid, urls: [], paths: { tmp: "/tmp/aigcfroge" } })
 
 function run(args: string[], stdin?: string) {
   const child = Bun.spawn([process.execPath, "run", "src/index.ts", ...args], {
@@ -151,7 +151,7 @@ test("export reports a missing session without a stack trace", async () => {
 })
 
 test("import validates a file and sends it to the resolved location", async () => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-import-"))
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-import-"))
   const file = path.join(root, "session.json")
   await fs.writeFile(file, JSON.stringify(transfer))
   let imported: unknown
@@ -187,7 +187,12 @@ test("import validates a file and sends it to the resolved location", async () =
 
     expect(exitCode).toBe(0)
     expect(stdout).toBe(`Imported session: ${info.id}${os.EOL}`)
-    expect(imported).toEqual({ ...transfer, location: { directory: root } })
+    // Legacy transfers omit these fields; the canonical Session decoder supplies their product defaults.
+    expect(imported).toEqual({
+      ...transfer,
+      info: { ...transfer.info, mode: "coding", permissionTier: "propose" },
+      location: { directory: root },
+    })
   } finally {
     await server.stop(true)
     await fs.rm(root, { recursive: true, force: true })
@@ -195,7 +200,7 @@ test("import validates a file and sends it to the resolved location", async () =
 })
 
 test("import reports an existing session without a stack trace", async () => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-import-conflict-"))
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-import-conflict-"))
   const file = path.join(root, "session.json")
   await fs.writeFile(file, JSON.stringify(transfer))
   const server = Bun.serve({

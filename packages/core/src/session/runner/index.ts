@@ -1,19 +1,25 @@
 export * as SessionRunner from "./index.js"
 
 import type { FileSystem } from "../../filesystem.js"
-import type { AIError } from "@opencode/ai"
+import type { AIError } from "@aigcfroge/ai"
 import { Context, Data, Effect } from "effect"
 import { SessionSchema } from "../schema.js"
 import type { Promotable } from "../inbox.js"
 import type { AgentNotFoundError, MessageDecodeError, StepFailedError } from "../error.js"
 import { SessionRunnerModel } from "./model.js"
 import type { Instructions } from "../../instructions/index.js"
+import type { SessionContext } from "../context.js"
+import type { SessionMemoryAdmission } from "../memory-admission.js"
+import type { CorrectionStore } from "../correction-store.js"
 
 export type RunError =
   | AIError
   | SessionRunnerModel.Error
   | MessageDecodeError
   | AgentNotFoundError
+  | SessionContext.Error
+  | SessionMemoryAdmission.Error
+  | CorrectionStore.InvalidEntryError
   | StepFailedError
   | Instructions.InitializationBlocked
   | FileSystem.DirectoryNotFoundError
@@ -39,4 +45,4 @@ export interface Interface {
   }) => Effect.Effect<DrainResult, RunError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/SessionRunner") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionRunner") {}

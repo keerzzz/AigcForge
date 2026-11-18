@@ -7,7 +7,7 @@ test("custom origins extend the defaults without allowing other origins", () => 
   expect(isAllowedCorsOrigin("http://192.168.1.10:3001", options)).toBe(true)
   expect(isAllowedCorsOrigin("https://example.com", options)).toBe(true)
   expect(isAllowedCorsOrigin("http://localhost:3001", options)).toBe(true)
-  expect(isAllowedCorsOrigin("https://app.opencode.ai", options)).toBe(true)
+  expect(isAllowedCorsOrigin("https://app.aigcfroge.ai", options)).toBe(true)
   expect(isAllowedCorsOrigin(undefined, options)).toBe(true)
   expect(isAllowedCorsOrigin("http://192.168.1.10:3002", options)).toBe(false)
   expect(isAllowedCorsOrigin("https://example.com.evil.test", options)).toBe(false)

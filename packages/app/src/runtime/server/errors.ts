@@ -1,20 +1,26 @@
-export type ConfigInvalidError = {
-  name: "ConfigInvalidError"
-  data: {
-    path?: string
-    message?: string
-    issues?: Array<{ message: string; path: string[] }>
-  }
-}
+import { Option, Predicate, Schema } from "effect"
 
-export type ProviderModelNotFoundError = {
-  name: "ProviderModelNotFoundError"
-  data: {
-    providerID: string
-    modelID: string
-    suggestions?: string[]
-  }
-}
+export class ConfigInvalidError extends Schema.Class<ConfigInvalidError>("App.ConfigInvalidError")({
+  name: Schema.Literal("ConfigInvalidError"),
+  data: Schema.Struct({
+    path: Schema.optional(Schema.String),
+    message: Schema.optional(Schema.String),
+    issues: Schema.optional(Schema.Array(Schema.Struct({ message: Schema.String, path: Schema.Array(Schema.String) }))),
+  }),
+}) {}
+
+export class ProviderModelNotFoundError extends Schema.Class<ProviderModelNotFoundError>(
+  "App.ProviderModelNotFoundError",
+)({
+  name: Schema.Literal("ProviderModelNotFoundError"),
+  data: Schema.Struct({
+    providerID: Schema.String,
+    modelID: Schema.String,
+    suggestions: Schema.optional(Schema.Array(Schema.String)),
+  }),
+}) {}
+
+const decodeNamedError = Schema.decodeUnknownOption(Schema.Union([ConfigInvalidError, ProviderModelNotFoundError]))
 
 type Translator = (key: string, vars?: Record<string, string | number>) => string
 
@@ -27,37 +33,39 @@ function tr(translator: Translator | undefined, key: string, text: string, vars?
   return out
 }
 
-export function formatServerError(error: unknown, translate?: Translator, fallback?: string) {
-  const unwrapped = unwrapNamedError(error)
+export function formatServerError(cause: unknown, translate?: Translator, fallback?: string) {
+  const unwrapped = unwrapNamedError(cause)
+  const named = decodeNamedError(unwrapped)
 
-  if (isConfigInvalidErrorLike(unwrapped)) return parseReadableConfigInvalidError(unwrapped, translate)
+  if (Option.isSome(named)) {
+    if (named.value.name === "ConfigInvalidError") return parseReadableConfigInvalidError(named.value, translate)
 
-  if (isProviderModelNotFoundErrorLike(unwrapped)) return parseReadableProviderModelNotFoundError(unwrapped, translate)
+    return parseReadableProviderModelNotFoundError(named.value, translate)
+  }
 
   if (
-    typeof unwrapped === "object" &&
-    unwrapped !== null &&
+    Predicate.isObject(unwrapped) &&
     "message" in unwrapped &&
-    typeof unwrapped.message === "string" &&
+    Predicate.isString(unwrapped.message) &&
     unwrapped.message
   )
     return unwrapped.message
 
-  if (error instanceof Error && error.message) return error.message
+  if (cause instanceof Error && cause.message) return cause.message
 
-  if (typeof error === "string" && error) return error
+  if (Predicate.isString(cause) && cause) return cause
 
   if (fallback) return fallback
 
   return tr(translate, "error.chain.unknown", "Unknown error")
 }
 
-function unwrapNamedError(error: unknown): unknown {
-  if (!(error instanceof Error) || !error.cause || typeof error.cause !== "object") return error
+function unwrapNamedError(cause: unknown) {
+  if (!(cause instanceof Error) || !Predicate.isObject(cause.cause)) return cause
 
-  if ("body" in error.cause) return (error.cause as Record<string, unknown>).body
+  if ("body" in cause.cause) return cause.cause.body
 
-  return error.cause
+  return cause.cause
 }
 
 // Client-synthesized session not-found errors share one constructor and
@@ -69,31 +77,18 @@ export function sessionNotFoundError(sessionID: string) {
   return new Error(sessionNotFoundMessage(sessionID))
 }
 
-export function isLocalSessionNotFoundError(error: unknown, sessionID: string) {
-  return error instanceof Error && error.message === sessionNotFoundMessage(sessionID)
+export function isLocalSessionNotFoundError(cause: unknown, sessionID: string) {
+  return cause instanceof Error && cause.message === sessionNotFoundMessage(sessionID)
 }
 
-export function isSessionNotFoundError(error: unknown, sessionID: string) {
-  const unwrapped = unwrapNamedError(error)
+export function isSessionNotFoundError(cause: unknown, sessionID: string) {
+  const unwrapped = unwrapNamedError(cause)
 
-  if (typeof unwrapped !== "object" || unwrapped === null) return false
-  const value = unwrapped as Record<string, unknown>
-
-  return value._tag === "SessionNotFoundError" && value.sessionID === sessionID
-}
-
-function isConfigInvalidErrorLike(error: unknown): error is ConfigInvalidError {
-  if (typeof error !== "object" || error === null) return false
-  const o = error as Record<string, unknown>
-
-  return o.name === "ConfigInvalidError" && typeof o.data === "object" && o.data !== null
-}
-
-function isProviderModelNotFoundErrorLike(error: unknown): error is ProviderModelNotFoundError {
-  if (typeof error !== "object" || error === null) return false
-  const o = error as Record<string, unknown>
-
-  return o.name === "ProviderModelNotFoundError" && typeof o.data === "object" && o.data !== null
+  return (
+    Predicate.isTagged(unwrapped, "SessionNotFoundError") &&
+    "sessionID" in unwrapped &&
+    unwrapped.sessionID === sessionID
+  )
 }
 
 export function parseReadableConfigInvalidError(errorInput: ConfigInvalidError, translator?: Translator) {
@@ -125,7 +120,7 @@ function parseReadableProviderModelNotFoundError(errorInput: ProviderModelNotFou
   const m = errorInput.data.modelID.trim()
   const list = (errorInput.data.suggestions ?? []).map((v) => v.trim()).filter(Boolean)
   const body = tr(translator, "error.chain.modelNotFound", `Model not found: ${p}/${m}`, { provider: p, model: m })
-  const tail = tr(translator, "error.chain.checkConfig", "Check your config (opencode.json) provider/model names")
+  const tail = tr(translator, "error.chain.checkConfig", "Check your config (aigcfroge.json) provider/model names")
 
   if (list.length) {
     const suggestions = list.slice(0, 5).join(", ")
@@ -137,3 +132,5 @@ function parseReadableProviderModelNotFoundError(errorInput: ProviderModelNotFou
 
   return [body, tail].join("\n")
 }
+
+export * as ServerErrors from "./errors"

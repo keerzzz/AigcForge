@@ -103,13 +103,13 @@ test.each([false, true])(
       app.footer.event({
         type: "models",
         providers: [
-          { id: "opencode", name: "Anomaly / OpenCode", models: { "gpt-5.6-sol": { name: "GPT-5.6 Sol (50% Off)" } } },
+          { id: "aigcfroge", name: "Anomaly / AigcForge", models: { "gpt-5.6-sol": { name: "GPT-5.6 Sol (50% Off)" } } },
         ],
       })
       app.footer.event({
         type: "model",
         model: "GPT-5.6 Sol (50% Off)",
-        selection: { providerID: "opencode", modelID: "gpt-5.6-sol" },
+        selection: { providerID: "aigcfroge", modelID: "gpt-5.6-sol" },
       })
       app.footer.event({ type: "variants", variants: ["max"], current: "max" })
       app.footer.event({ type: "stream.patch", patch: { usage: { tokens: 14100, percent: 1, cost: 0.04 } } })
@@ -124,7 +124,7 @@ test.each([false, true])(
         const model = width === 112 ? "GPT-5.6 Sol (50% Off) [max]" : mono ? "GPT-5.6... [max]" : "GPT-5.6\u2026 [max]"
         expect(row).toBe(
           (width === 112
-            ? ["Build", model, "14.1K (1%)", "Anomaly / OpenCode", "$0.04", "ctrl+p menu"]
+            ? ["Build", model, "14.1K (1%)", "Anomaly / AigcForge", "$0.04", "ctrl+p menu"]
             : width === 40
               ? ["Build", model, "1% ctx"]
               : ["Build", model]

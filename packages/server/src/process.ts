@@ -1,13 +1,14 @@
 export * as ServerProcess from "./process"
 
 import { NodeHttpServer } from "@effect/platform-node"
-import { Bus } from "@opencode/core/bus"
-import { SessionRestart } from "@opencode/core/session/execution/restart"
-import { InstallationEvent } from "@opencode/schema/installation-event"
-import { hasPtyConnectTicketURL } from "@opencode/protocol/groups/pty"
-import { hasPersistentPtyConnectTicketURL } from "@opencode/protocol/groups/persistent-pty"
-import { isPairingConnectURL } from "@opencode/protocol/groups/server"
-import { Global } from "@opencode/util/global"
+import { Bus } from "@aigcfroge/core/bus"
+import { SessionRestart } from "@aigcfroge/core/session/execution/restart"
+import { ScheduleExecution } from "@aigcfroge/core/session/schedule-execution"
+import { InstallationEvent } from "@aigcfroge/schema/installation-event"
+import { hasPtyConnectTicketURL } from "@aigcfroge/protocol/groups/pty"
+import { hasPersistentPtyConnectTicketURL } from "@aigcfroge/protocol/groups/persistent-pty"
+import { isPairingConnectURL } from "@aigcfroge/protocol/groups/server"
+import { Global } from "@aigcfroge/util/global"
 import { Cause, Context, Effect, Exit, Latch, Layer, Option, Ref, Scope } from "effect"
 import { HttpMiddleware, HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/http"
 import { NetAddress } from "effect/net"
@@ -104,6 +105,13 @@ export const start = Effect.fn("ServerProcess.start")(function* <E, R>(
       ).pipe(Layer.provideMerge(NodeHttpServer.layerHttpServices)),
       applicationScope,
     )
+    const schedules = Context.get(context, ScheduleExecution.Service)
+    const bootBus = Context.get(context, Bus.Service)
+    yield* schedules.recover()
+    yield* ScheduleExecution.daemon(schedules, { recover: false }).pipe(
+      Effect.provideService(Bus.Service, bootBus),
+      Effect.provideService(Scope.Scope, applicationScope),
+    )
     if (lifecycle) {
       yield* installRestartContinuity(Context.get(context, SessionRestart.Service)).pipe(
         Effect.provideService(Scope.Scope, applicationScope),
@@ -178,7 +186,7 @@ function dispatch(
   urls: () => ReadonlyArray<string>,
   tmp: string,
 ): App {
-  const auth = ServerAuth.Config.of({ password: Option.some(password), username: "opencode" })
+  const auth = ServerAuth.Config.of({ password: Option.some(password), username: "aigcfroge" })
   return Effect.gen(function* () {
     const request = yield* HttpServerRequest.HttpServerRequest
     const url = new URL(request.url, "http://localhost")
@@ -222,7 +230,7 @@ function unavailable(status: Status.State) {
       {
         code: "service_failed",
         message: "The background service could not start.",
-        action: "Run `opencode service restart` after checking the service logs.",
+        action: "Run `aigcfroge service restart` after checking the service logs.",
       },
       { status: 503 },
     )

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
-import { Panel, type StoreDeclaration } from "@opencode/gui-extensions/sdk"
+import { Panel, type StoreDeclaration } from "@aigcfroge/gui-extensions/sdk"
 import type { Platform } from "@/runtime/platform/platform"
 import { persisted, removePersisted } from "@/runtime/persistence/storage"
 import { legacyKeys } from "@/runtime/extension/panel-keys"
@@ -26,15 +26,15 @@ test.each([
   {
     name: "namespace extension.summary.* → extension.details.*",
     home: () =>
-      imported("details", "prefs", details.stores.prefs, "opencode.global.dat:extension.details.prefs", [
-        ["opencode.global.dat:extension.summary.prefs", { projectExpanded: false, serverExpanded: false }],
+      imported("details", "prefs", details.stores.prefs, "aigcfroge.global.dat:extension.details.prefs", [
+        ["aigcfroge.global.dat:extension.summary.prefs", { projectExpanded: false, serverExpanded: false }],
       ]),
     expected: { projectExpanded: false, serverExpanded: false },
   },
   {
     name: "settings sessionSummary, from before extensions → extension.details.prefs",
     home: () =>
-      imported("details", "prefs", details.stores.prefs, "opencode.global.dat:extension.details.prefs", [
+      imported("details", "prefs", details.stores.prefs, "aigcfroge.global.dat:extension.details.prefs", [
         ["settings.v3", { sessionSummary: { projectExpanded: false, serverExpanded: true } }],
       ]),
     expected: { projectExpanded: false, serverExpanded: true },
@@ -43,8 +43,8 @@ test.each([
     // An older home without the field holds no value, so the import reads on to the next one.
     name: "layout review.diffStyle, from the unprefixed layout when the newer one lacks it → extension.review.diff",
     home: () =>
-      imported("review", "diff", review.stores.diff, "opencode.global.dat:extension.review.diff", [
-        ["opencode.global.dat:layout", { fileTree: { opened: true } }],
+      imported("review", "diff", review.stores.diff, "aigcfroge.global.dat:extension.review.diff", [
+        ["aigcfroge.global.dat:layout", { fileTree: { opened: true } }],
         ["layout", { review: { diffStyle: "unified" } }],
       ]),
     expected: { diffStyle: "unified" },
@@ -56,7 +56,7 @@ test.each([
         "updater",
         "releaseNotes",
         updater.stores.releaseNotes,
-        "opencode.global.dat:extension.updater.releaseNotes",
+        "aigcfroge.global.dat:extension.updater.releaseNotes",
         [["settings.v3", { general: { releaseNotes: false } }]],
       ),
     expected: { enabled: false },
@@ -64,7 +64,7 @@ test.each([
   {
     name: "Preferences mobileDiffWrap → extension.review.mobileDiff",
     home: () =>
-      imported("review", "mobileDiff", review.stores.mobileDiff, "opencode.global.dat:extension.review.mobileDiff", [
+      imported("review", "mobileDiff", review.stores.mobileDiff, "aigcfroge.global.dat:extension.review.mobileDiff", [
         ["settings.v3", { general: { mobileDiffWrap: false } }],
       ]),
     expected: { wrap: false },
@@ -72,7 +72,7 @@ test.each([
   {
     name: "What's New highlights.v1 → extension.updater.seen",
     home: () =>
-      imported("updater", "seen", updater.stores.seen, "opencode.global.dat:extension.updater.seen", [
+      imported("updater", "seen", updater.stores.seen, "aigcfroge.global.dat:extension.updater.seen", [
         ["highlights.v1", { version: "2.0.20" }],
       ]),
     expected: { version: "2.0.20" },
@@ -149,6 +149,7 @@ function contextPanels() {
 
   const fake = {
     t: (key: string) => key,
+    stores: { display: { value: context.stores.display.initial } },
     add: (registry: { readonly id: string }, item: () => Panel) => {
       if (registry.id === Panel.id) panels.push({ extension: context.id, value: item() })
 
@@ -157,7 +158,7 @@ function contextPanels() {
   }
 
   createRoot((dispose) => {
-    // SAFETY: this setup reads only `t` and `add`, and contributes its Panel in the reactive form, a function returning
+    // SAFETY: this setup reads only `t`, `add`, and the display store, and contributes its Panel in the reactive form, a function returning
     // it, which `add` calls for the Panel registry only.
     // oxlint-disable-next-line anti-slop/no-chained-type-assertions -- see SAFETY above
     contextSetup(fake as unknown as Parameters<typeof contextSetup>[0])

@@ -3,17 +3,32 @@ import { type HomeProjectSelection, useLayout } from "@/shell/state/layout"
 import { ServerConnection, useServers } from "@/runtime/server/registry"
 import { useTabs } from "@/shell/tabs/tabs"
 import { toggleHomeProjectSelection } from "@/shell/layout/helpers"
-import { createEffect, createMemo, startTransition } from "solid-js"
-import type { SessionInfo } from "@opencode/client/promise"
+import { createEffect, createMemo, on, startTransition, type Accessor } from "solid-js"
+import type { SessionInfo } from "@aigcfroge/client/promise"
 import { pathKey } from "@/workspaces/path-key"
 import { addProjects } from "./projects/add"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { useNavigate } from "@solidjs/router"
+import { ModeRoute } from "@/shell/routes/mode"
+import { useLanguage } from "@/runtime/i18n/language"
+import { showToast } from "@/shell/notifications/toast"
 
-export function createHomeController() {
+export function createHomeController(input: { mode?: Accessor<ProductMode.ID | undefined> } = {}) {
   const layout = useLayout()
   const global = useGlobal()
   const servers = useServers()
   const tabs = useTabs()
   const selection = layout.home.selection
+  const navigate = useNavigate()
+  const language = useLanguage()
+
+  const currentMode = createMemo(() => {
+    if (input.mode) return input.mode()
+
+    const route = layout.route()
+
+    return route.type === "mode" ? route.mode : layout.home.mode()
+  })
 
   const focusedServer = createMemo<ServerConnection.Any | undefined>(
     () => servers.visible.find((conn) => ServerConnection.key(conn) === selection().server) ?? servers.visible[0],
@@ -31,6 +46,16 @@ export function createHomeController() {
       selectedProject() ??
       projects().find((project) => project.worktree === focusedServerCtx()?.projects.last()) ??
       projects()[0],
+  )
+
+  createEffect(
+    on(
+      [focusedServerCtx, () => newSessionProject()?.worktree, () => focusedServerCtx()?.sdk.connection.status()],
+      ([ctx, directory, status]) => {
+        if (!ctx || !directory || status !== "connected") return
+        void ctx.data.location.vcs.sync({ directory }).catch(() => undefined)
+      },
+    ),
   )
 
   createEffect(() => {
@@ -76,10 +101,27 @@ export function createHomeController() {
   }
 
   function openProjectNewSession(conn: ServerConnection.Any, directory: string) {
+    const mode = currentMode()
+
+    if (mode === undefined) return
+
+    if (mode === "custom") {
+      setSelection({ server: ServerConnection.key(conn), directory })
+      navigate(ModeRoute.href(mode))
+
+      return
+    }
+
+    if (!ProductMode.isGenericSessionMode(mode)) {
+      showToast({ description: language.t("mode.navigation.customCreation") })
+
+      return
+    }
+
     const ctx = global.ensureServerCtx(conn)
     ctx.projects.open(directory)
     ctx.projects.touch(directory)
-    void tabs.newDraft({ server: ServerConnection.key(conn), directory })
+    void tabs.newDraft({ server: ServerConnection.key(conn), directory, mode })
   }
 
   function openProjectSession(conn: ServerConnection.Any, directory: string, session: SessionInfo) {
@@ -95,6 +137,25 @@ export function createHomeController() {
   }
 
   return {
+    mode: {
+      workspace: createMemo(() => {
+        const route = layout.route()
+
+        return route.type === "mode" ? route.mode : undefined
+      }),
+      current: currentMode,
+      select: (mode: ProductMode.ID | undefined) => {
+        if (layout.route().type === "mode") {
+          if (mode === undefined) layout.home.setMode(undefined)
+
+          navigate(mode ? ModeRoute.href(mode) : "/")
+
+          return
+        }
+
+        layout.home.setMode(mode)
+      },
+    },
     selection: {
       value: selection,
       set: setSelection,
@@ -137,9 +198,18 @@ export function createHomeController() {
       },
       openNewSession: () => {
         const conn = focusedServer()
-        const project = newSessionProject()
+        const route = layout.route()
+        const custom = currentMode() === "custom"
+        const project = custom && route.type === "mode" ? selectedProject() : newSessionProject()
 
-        if (!conn || !project) return
+        if (!conn) return
+
+        if (!project) {
+          if (custom) showToast({ description: language.t("home.custom.project.required") })
+
+          return
+        }
+
         openProjectNewSession(conn, project.worktree)
       },
       openProjectNewSession,

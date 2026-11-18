@@ -1,12 +1,12 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "version": "2.0.26",
-  "name": "@opencode/core",
+  "name": "@aigcfroge/core",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/anomalyco/opencode.git",
+    "url": "git+https://github.com/anomalyco/aigcfroge.git",
     "directory": "packages/core"
   },
   "publishConfig": {
@@ -79,7 +79,7 @@
     "@effect/platform-node": "catalog:",
     "@effect/sql-sqlite-bun": "catalog:",
     "@modelcontextprotocol/server": "2.0.0",
-    "@opencode/http-recorder": "workspace:*",
+    "@aigcfroge/http-recorder": "workspace:*",
     "@parcel/watcher-darwin-arm64": "2.5.1",
     "@parcel/watcher-darwin-x64": "2.5.1",
     "@parcel/watcher-linux-arm64-glibc": "2.5.1",
@@ -96,23 +96,26 @@
     "fast-check": "catalog:"
   },
   "dependencies": {
+    "@agentclientprotocol/sdk": "catalog:",
     "@ai-sdk/cohere": "3.0.27",
     "@ai-sdk/perplexity": "3.0.26",
     "@ai-sdk/provider": "3.0.8",
     "@ai-sdk/provider-utils": "4.0.23",
     "@ai-sdk/vercel": "2.0.39",
+    "@aigcfroge/ai": "workspace:*",
+    "@aigcfroge/codemode": "workspace:*",
+    "@aigcfroge/plugin": "workspace:*",
+    "@aigcfroge/plugin-browser": "workspace:*",
+    "@aigcfroge/schema": "workspace:*",
+    "@aigcfroge/util": "workspace:*",
+    "@anthropic-ai/claude-agent-sdk": "catalog:",
     "@ff-labs/fff-bun": "0.10.5",
     "@ff-labs/fff-node": "0.10.5",
     "@lydell/node-pty": "catalog:",
     "@modelcontextprotocol/client": "2.0.0",
     "@modelcontextprotocol/core": "2.0.0",
+    "@openai/codex-sdk": "catalog:",
     "@opencode-ai/pty": "0.2.0",
-    "@opencode/ai": "workspace:*",
-    "@opencode/codemode": "workspace:*",
-    "@opencode/plugin": "workspace:*",
-    "@opencode/plugin-browser": "workspace:*",
-    "@opencode/schema": "workspace:*",
-    "@opencode/util": "workspace:*",
     "@parcel/watcher": "2.5.1",
     "@silvia-odwyer/photon-node": "0.3.4",
     "@standard-schema/spec": "catalog:",
@@ -134,6 +137,7 @@
     "tree-sitter-powershell": "0.25.10",
     "web-tree-sitter": "0.25.10",
     "which": "6.0.1",
+    "yaml": "2.9.0",
     "zod": "catalog:"
   }
 }

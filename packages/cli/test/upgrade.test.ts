@@ -84,20 +84,20 @@ describe("upgrade command", () => {
 })
 
 async function cli(args: string[], env: Record<string, string> = {}, entry = "fixture/upgrade.ts") {
-  const root = await mkdtemp(path.join(os.tmpdir(), "opencode-upgrade-"))
+  const root = await mkdtemp(path.join(os.tmpdir(), "aigcfroge-upgrade-"))
   try {
     const child = Bun.spawn(
-      [process.execPath, "--define", 'OPENCODE_VERSION="0.0.0-beta-old"', path.join(import.meta.dir, entry), ...args],
+      [process.execPath, "--define", 'AIGCFROGE_VERSION="0.0.0-beta-old"', path.join(import.meta.dir, entry), ...args],
       {
         cwd: path.join(import.meta.dir, ".."),
         env: {
           ...process.env,
-          OPENCODE_TEST_HOME: root,
+          AIGCFROGE_TEST_HOME: root,
           XDG_DATA_HOME: path.join(root, "data"),
           XDG_CONFIG_HOME: path.join(root, "config"),
           XDG_CACHE_HOME: path.join(root, "cache"),
           XDG_STATE_HOME: path.join(root, "state"),
-          OPENCODE_DISABLE_AUTOUPDATE: "1",
+          AIGCFROGE_DISABLE_AUTOUPDATE: "1",
           ...env,
         },
         stdout: "pipe",
@@ -113,7 +113,7 @@ async function cli(args: string[], env: Record<string, string> = {}, entry = "fi
       .split("\n")
       .filter((line) => line.startsWith("EVENT "))
       .map((line) => JSON.parse(line.slice(6)))
-    expect(await Bun.file(path.join(root, "state", "opencode", "service-local.json")).exists()).toBe(false)
+    expect(await Bun.file(path.join(root, "state", "aigcfroge", "service-local.json")).exists()).toBe(false)
     return { stdout, stderr, exitCode, events }
   } finally {
     await rm(root, { recursive: true, force: true })

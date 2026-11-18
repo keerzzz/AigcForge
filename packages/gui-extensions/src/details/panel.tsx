@@ -1,6 +1,8 @@
-import { DiffChanges } from "@opencode/ui/diff-changes"
-import { Icon } from "@opencode/ui/icon"
-import { containsDirectory, getFilename } from "@opencode/util/path"
+import { Button } from "@aigcfroge/ui/button"
+import { DiffChanges } from "@aigcfroge/ui/diff-changes"
+import { Icon } from "@aigcfroge/ui/icon"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { containsDirectory, getFilename } from "@aigcfroge/util/path"
 import { createMemo, Show } from "solid-js"
 import { useExtension, type Project, type MountedSession } from "../sdk"
 import { workspaceDirectories } from "./paths"
@@ -106,7 +108,7 @@ export default function SessionDetailsPanel(props: DetailsPanelProps) {
             </Show>
           </div>
           <Show when={props.onReview}>
-            <button type="button" class="session-summary-row" onClick={() => props.onReview?.()}>
+            <Button variant="ghost-muted" type="button" class="session-summary-row" onClick={() => props.onReview?.()}>
               <Icon name="review" class="shrink-0 text-v2-icon-icon-muted" />
               <span class="session-summary-label flex items-center gap-2">
                 <Show
@@ -125,7 +127,7 @@ export default function SessionDetailsPanel(props: DetailsPanelProps) {
                   )}
                 </Show>
               </span>
-            </button>
+            </Button>
           </Show>
         </ProjectDetailsCard>
         <Show
@@ -148,14 +150,15 @@ export default function SessionDetailsPanel(props: DetailsPanelProps) {
               <Icon name="outline-worktree" class="shrink-0 text-v2-icon-icon-muted" />
               <span class="min-w-0 truncate">{ctx.t("move.title")}</span>
             </SessionWorkspaceMenu>
-            <button
+            <IconButton
+              variant="ghost-muted"
+              size="small"
               type="button"
               class="session-summary-dismiss"
               aria-label={ctx.t("common.dismiss")}
               onClick={props.onMoveDismiss}
-            >
-              <Icon name="xmark-small" />
-            </button>
+              icon={<Icon name="xmark-small" />}
+            />
           </div>
         </Show>
       </div>

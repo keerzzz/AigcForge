@@ -1,5 +1,5 @@
-import { Browser } from "@opencode/plugin-browser/rpc"
-import { DialogProvider } from "@opencode/ui/context/dialog"
+import { Browser } from "@aigcfroge/plugin-browser/rpc"
+import { DialogProvider } from "@aigcfroge/ui/context/dialog"
 import {
   batch,
   createSignal,

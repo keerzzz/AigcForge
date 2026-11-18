@@ -1,7 +1,6 @@
 import { createEffect, createMemo } from "solid-js"
 import { createStore } from "solid-js/store"
-import type { FormInfo, PermissionRequest } from "@opencode/client/promise"
-import { useParams } from "@solidjs/router"
+import type { FormInfo, PermissionRequest } from "@aigcfroge/client/promise"
 import { showToast } from "@/shell/notifications/toast"
 import { useServerSDK } from "@/runtime/server/client"
 import { useLanguage } from "@/runtime/i18n/language"
@@ -11,9 +10,11 @@ import { sessionPermissionRequest, sessionFormRequest, sessionTreeIDs } from "@/
 import { createWebSearchRequest } from "./websearch"
 import { createSessionBackground } from "@/session/requests/background"
 import { useData } from "@/runtime/server/current"
+import { useSessionContent, useSessionParams } from "../content-context"
 
 export function createSessionRequestModel() {
-  const params = useParams()
+  const params = useSessionParams()
+  const content = useSessionContent()
   const sdk = useWorkspaceLocation()
   const serverSDK = useServerSDK()
   const data = useData()
@@ -23,9 +24,10 @@ export function createSessionRequestModel() {
     const id = params.id
 
     if (!id || serverSDK.connection.status() !== "connected") return
-    void Promise.all([data.shell.sync({ directory: sdk().directory }), data.session.permission.sync(id)]).catch(
-      () => undefined,
-    )
+    void Promise.all([
+      data.shell.sync({ directory: sdk().directory }),
+      ...sessionTreeIDs(data.session.list(), id).map((sessionID) => data.session.permission.sync(sessionID)),
+    ]).catch(() => undefined)
   })
   createEffect(() => {
     const id = params.id
@@ -82,6 +84,11 @@ export function createSessionRequestModel() {
     return !!permissionRequest() || !!questionRequest() || !!websearch.request()
   })
 
+  const requestSessionID = () =>
+    permissionRequest()?.sessionID ?? questionRequest()?.sessionID ?? websearch.request()?.sessionID
+
+  const ownsResponse = (sessionID?: string) => content?.ownsRequest(sessionID ?? requestSessionID()) ?? true
+
   const primary = () => {
     const id = params.id
 
@@ -135,7 +142,7 @@ export function createSessionRequestModel() {
   const decide = (response: "once" | "always" | "reject") => {
     const perm = permissionRequest()
 
-    if (!perm) return
+    if (!perm || !ownsResponse(perm.sessionID)) return
 
     if (store.responding === perm.id) return
 
@@ -155,6 +162,8 @@ export function createSessionRequestModel() {
 
   return {
     blocked,
+    ownsResponse,
+    openResponseOwner: (sessionID?: string) => content?.openRequestOwner(sessionID ?? requestSessionID()),
     questionRequest,
     websearch,
     permissionRequest,

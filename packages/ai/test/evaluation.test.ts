@@ -2,7 +2,7 @@ import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
 import { HttpClientRequest } from "effect/http"
 import { Evaluation, EvaluationClient } from "../src/experimental.js"
-import { OpenCodeZen, OpenRouter, TypeSafeAI, VercelAIGateway } from "../src/providers.js"
+import { AigcForgeZen, OpenRouter, TypeSafeAI, VercelAIGateway } from "../src/providers.js"
 import { it } from "./lib/effect.js"
 import { dynamicResponse } from "./lib/http.js"
 
@@ -116,9 +116,9 @@ describe("experimental Evaluation", () => {
     ),
   )
 
-  it.effect("configures the OpenCode Zen System One endpoint", () =>
+  it.effect("configures the AigcForge Zen System One endpoint", () =>
     Evaluation.run({
-      model: OpenCodeZen.configure({ apiKey: "zen-key", baseURL: "https://zen.test/v1" }).experimental.evaluation(
+      model: AigcForgeZen.configure({ apiKey: "zen-key", baseURL: "https://zen.test/v1" }).experimental.evaluation(
         "jev-1.13",
       ),
       state: "hello",
@@ -128,7 +128,7 @@ describe("experimental Evaluation", () => {
         Effect.sync(() => {
           expect(response.answers.greeting.probability).toBe(0.99)
           expect(response.usage?.providerMetadata).toEqual({
-            opencode: { input_tokens: 10, output_tokens: 2 },
+            aigcfroge: { input_tokens: 10, output_tokens: 2 },
           })
         }),
       ),

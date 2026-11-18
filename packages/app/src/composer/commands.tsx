@@ -2,7 +2,7 @@ import { useCommand, type CommandOption } from "@/shell/commands/command"
 import { useLanguage } from "@/runtime/i18n/language"
 import { DialogSelectModel } from "@/providers/models/select-dialog"
 import { useLocal, type ModelSelection } from "@/providers/models/selection"
-import { useDialog } from "@opencode/ui/context/dialog"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { getCursorPosition, setCursorPosition } from "./editor/dom"
 import { useSessionLayout } from "@/session/session-layout"
 import { createSessionOwnership } from "@/session/session-ownership"
@@ -15,7 +15,9 @@ const withCategory = (category: string) => {
   })
 }
 
-export const useComposerCommands = (input: { model?: ModelSelection } = {}) => {
+export const useComposerCommands = (
+  input: { model?: ModelSelection; editor?: () => HTMLElement | undefined; register?: boolean } = {},
+) => {
   const command = useCommand()
   const dialog = useDialog()
   const language = useLanguage()
@@ -36,7 +38,11 @@ export const useComposerCommands = (input: { model?: ModelSelection } = {}) => {
 
   const chooseModel = () => {
     const owner = sessionOwnership.capture()
-    const editor = document.querySelector<HTMLElement>('[data-component="composer-editor"]')
+
+    const editor = input.editor
+      ? input.editor()
+      : document.querySelector<HTMLElement>('[data-component="composer-editor"]')
+
     const selection = window.getSelection()
 
     const cursor =
@@ -46,7 +52,11 @@ export const useComposerCommands = (input: { model?: ModelSelection } = {}) => {
       // Kobalte restores focus during its teardown effect; defer past it so the
       // composer keeps focus and the caret returns to where the user left it.
       requestAnimationFrame(() => {
-        const editor = document.querySelector<HTMLElement>('[data-component="composer-editor"]')
+        if (!owner.current()) return
+
+        const editor = input.editor
+          ? input.editor()
+          : document.querySelector<HTMLElement>('[data-component="composer-editor"]')
 
         if (!editor) return
         editor.focus()
@@ -60,7 +70,7 @@ export const useComposerCommands = (input: { model?: ModelSelection } = {}) => {
     })
   }
 
-  command.register("composer", () => [
+  const commands = () => [
     modelCommand({
       id: "model.choose",
       title: language.t("command.model.choose"),
@@ -100,5 +110,9 @@ export const useComposerCommands = (input: { model?: ModelSelection } = {}) => {
       disabled: !local.agent.visible(),
       onSelect: () => local.agent.move(-1),
     }),
-  ])
+  ]
+
+  if (input.register !== false) command.register("composer", commands)
+
+  return commands
 }

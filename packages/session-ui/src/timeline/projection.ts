@@ -1,12 +1,13 @@
 import type {
-  ModelRef,
+  ModelSelection,
   SessionMessageAssistant,
   SessionMessageIdle,
   SessionMessageInfo,
   SessionMessageShell,
   SessionMessageUser,
   SessionStatus,
-} from "@opencode/client/promise"
+} from "@aigcfroge/client/promise"
+import { SessionError } from "@aigcfroge/schema/session-error"
 import { Effect, Option, Predicate, Schema } from "effect"
 import { createMemo, mapArray, type Accessor } from "solid-js"
 import {
@@ -17,6 +18,7 @@ import {
 } from "../message/current-tool-state"
 import { TimelineRow, type PartGroup, type PartRef, type TimelineRowMap } from "./timeline-row"
 import { timelineCategory, timelineNoticeRequired, type TimelineDetail } from "./detail"
+import type { SessionResponseActionInput } from "../actions"
 
 export { TimelineRow, type PartGroup, type PartRef, type TimelineRowMap }
 
@@ -44,6 +46,8 @@ const decodeJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unkno
 
 const decodeString = Schema.decodeUnknownOption(Schema.String)
 
+const sameError = Schema.toEquivalence(SessionError.Error)
+
 // A field of the wrong type decodes as absent, so one bad field does not discard its neighbours.
 function lenient<S extends Schema.Top>(schema: S) {
   return Schema.optionalKey(schema.pipe(Schema.catchDecoding(() => Effect.succeedNone)))
@@ -53,12 +57,12 @@ const decodeLocalAgent = Schema.decodeUnknownOption(Schema.Struct({ agent: Schem
 
 const decodeLocalModel = Schema.decodeUnknownOption(
   Schema.Struct({
-    model: Schema.Struct({
+    model: Schema.Union([Schema.Struct({ type: Schema.Literal("group"), groupID: Schema.String }), Schema.Struct({
       id: lenient(Schema.String),
       modelID: lenient(Schema.String),
       providerID: Schema.String,
       variant: lenient(Schema.String),
-    }),
+    })]),
   }),
 )
 
@@ -84,6 +88,7 @@ export type TimelineProjectionInput = {
 
 export function createTimelineProjection(input: TimelineProjectionInput) {
   const sessionMessageByID = new Map(input.sessionMessages.map((message) => [message.id, message] as const))
+  const answers = indexAnswerGroups(input.sessionMessages, input.pendingInputIDs)
 
   const projection = Timeline.constructSessionMessageRows(
     input.sessionMessages,
@@ -112,7 +117,8 @@ export function createTimelineProjection(input: TimelineProjectionInput) {
 
   return {
     activeMessageID: projection.activeMessageID,
-    assistantMessagesByParent: indexAssistantMessages(input.sessionMessages),
+    assistantMessagesByParent: answers.assistants,
+    responseByParent: answers.responses,
     lastAssistantGroupKey,
     messageByID: sessionMessageByID,
     messageRowIndex,
@@ -139,7 +145,9 @@ export function createReactiveTimelineProjection(input: {
   )
 
   const userContextByID = createMemo(() => indexUserContext(input.sessionMessages()))
-  const assistantMessagesByParent = createMemo(() => indexAssistantMessages(input.sessionMessages()))
+  const answers = createMemo(() => indexAnswerGroups(input.sessionMessages(), input.pendingInputIDs?.()))
+  const assistantMessagesByParent = createMemo(() => answers().assistants)
+  const responseByParent = createMemo(() => answers().responses)
 
   // Row structure depends on the empty/non-empty boundary, not each text delta.
   // Keep the original content objects so row renderers still read live text.
@@ -210,6 +218,7 @@ export function createReactiveTimelineProjection(input: {
   return {
     activeMessageID,
     assistantMessagesByParent,
+    responseByParent,
     lastAssistantGroupKey,
     messageByID: sessionMessageByID,
     messageRowIndex,
@@ -286,7 +295,8 @@ export namespace Timeline {
 
         const lastStep = current?.entries.findLast((entry) => entry.type === "assistant" || entry.type === "idle")
 
-        if (lastStep?.type === "assistant" && lastStep.message.error && !isInterrupted(lastStep.message.error)) return
+        if (lastStep?.type === "assistant" && lastStep.message.error && !isInterrupted(lastStep.message.error) &&
+          sameError(lastStep.message.error, message.error)) return
 
         if (current && !current.shell) {
           current.entries.push({ type: "idle", message })
@@ -408,7 +418,8 @@ export namespace Timeline {
               messages.flatMap((message) =>
                 message.type === "compaction" ||
                 message.type === "model-switched" ||
-                message.type === "location-switched"
+                message.type === "location-switched" ||
+                timelineNoticeRequired(message)
                   ? [message.id]
                   : [],
               ),
@@ -526,10 +537,10 @@ export namespace Timeline {
 
       if (lastStep?.type !== "assistant") return
 
-      if (isActive && lastAssistant?.retry) rows.push(new TimelineRow.Retry({ userMessageID: turnID }))
+      if (isActive && lastAssistant?.retry) rows.push(new TimelineRow.Retry({ userMessageID: turnID, messageID: lastAssistant.id }))
       else if (lastAssistant?.error && !isInterrupted(lastAssistant.error))
         rows.push(
-          new TimelineRow.Error({ userMessageID: turnID, text: unwrapErrorMessage(lastAssistant.error.message) }),
+          new TimelineRow.Error({ userMessageID: turnID, messageID: lastAssistant.id, text: unwrapErrorMessage(lastAssistant.error.message) }),
         )
     }
 
@@ -548,6 +559,7 @@ export namespace Timeline {
             rows.push(
               new TimelineRow.Error({
                 userMessageID: turnID,
+                messageID: entry.message.id,
                 text: unwrapErrorMessage(entry.message.error.message),
               }),
             )
@@ -676,9 +688,9 @@ export function reuseTimelineRows(previous: TimelineRow.TimelineRow[] | undefine
 }
 
 function indexUserContext(messages: SessionMessageInfo[]) {
-  const result = new Map<string, { agent: string; model: ModelRef }>()
+  const result = new Map<string, { agent: string; model: ModelSelection }>()
   let agent = ""
-  let model: ModelRef = { id: "", providerID: "" }
+  let model: ModelSelection = { id: "", providerID: "" }
   let userID: string | undefined
 
   messages.forEach((message) => {
@@ -689,7 +701,7 @@ function indexUserContext(messages: SessionMessageInfo[]) {
     if (message.type === "user") {
       userID = message.id
       const localModel = Option.getOrUndefined(decodeLocalModel(message.metadata))?.model
-      const localModelID = localModel?.id ?? localModel?.modelID
+      const localModelID = localModel && !("type" in localModel) ? localModel.id ?? localModel.modelID : undefined
 
       result.set(message.id, {
         agent: Option.match(decodeLocalAgent(message.metadata), {
@@ -697,7 +709,9 @@ function indexUserContext(messages: SessionMessageInfo[]) {
           onSome: (local) => local.agent,
         }),
         model:
-          localModel && localModelID
+          localModel && "type" in localModel
+            ? localModel
+            : localModel && localModelID
             ? { id: localModelID, providerID: localModel.providerID, variant: localModel.variant }
             : model,
       })
@@ -707,27 +721,52 @@ function indexUserContext(messages: SessionMessageInfo[]) {
 
     if (message.type !== "assistant") return
     agent = message.agent
-    model = message.model
 
-    if (userID) result.set(userID, { agent, model })
+    // A physical fallback can populate old history without replacing an authored logical selection.
+    if (!("type" in model) && !model.id) model = message.model
+
+    if (userID) {
+      const selected = result.get(userID)?.model
+      result.set(userID, { agent, model: selected && ("type" in selected || selected.id) ? selected : message.model })
+    }
   })
 
   return result
 }
 
-function indexAssistantMessages(messages: SessionMessageInfo[]) {
-  const result = new Map<string, SessionMessageAssistant[]>()
+function indexAnswerGroups(messages: SessionMessageInfo[], pendingInputIDs?: ReadonlySet<string>) {
+  const assistants = new Map<string, SessionMessageAssistant[]>()
+  const groups = new Map<string, SessionMessageInfo[]>()
   let userID: string | undefined
 
   messages.forEach((message) => {
-    if (message.type === "user") userID = message.id
+    if (message.type === "user") {
+      userID = message.id
+      groups.set(userID, [message])
 
-    if (message.type === "shell") userID = undefined
+      return
+    }
+
+    if (message.type === "shell") {
+      userID = undefined
+
+      return
+    }
+
+    if (pendingInputIDs?.has(message.id)) return
+
+    if (!userID && message.type === "assistant") userID = message.id
+
+    if (!userID) return
+
+    const group = groups.get(userID)
+
+    if (group) group.push(message)
+
+    if (!group) groups.set(userID, [message])
 
     if (message.type !== "assistant") return
-
-    if (!userID) userID = message.id
-    const existing = result.get(userID)
+    const existing = assistants.get(userID)
 
     if (existing) {
       existing.push(message)
@@ -735,10 +774,46 @@ function indexAssistantMessages(messages: SessionMessageInfo[]) {
       return
     }
 
-    result.set(userID, [message])
+    assistants.set(userID, [message])
   })
 
-  return result
+  const latest = [...assistants.keys()].findLast((id) => !pendingInputIDs?.has(id))
+  const responses = new Map<string, Pick<SessionResponseActionInput, "completed" | "latest" | "boundary">>()
+  assistants.forEach((items, id) => {
+    const group = groups.get(id)!
+    const lastAssistant = items.at(-1)!
+
+    // Idle witnesses the runner ending; it is not a displayed answer entry.
+    const ended =
+      lastAssistant.needsContinuation === false ||
+      group.slice(group.indexOf(lastAssistant) + 1).some((message) => message.type === "idle")
+
+    const completed =
+      group[0].type === "user" &&
+      !pendingInputIDs?.has(id) &&
+      ended &&
+      group.every((message) => {
+        if (message.type === "compaction") return message.status !== "running"
+
+        if (message.type !== "assistant") return true
+
+        return (
+          message.time.completed !== undefined &&
+          message.content.every(
+            (content) => content.type !== "tool" || !["streaming", "running"].includes(content.state.status),
+          )
+        )
+      })
+
+    const last = group.findLast((message) => message.type !== "idle")!
+    responses.set(id, {
+      completed,
+      latest: id === latest,
+      boundary: completed ? { type: "through", messageID: last.id } : undefined,
+    })
+  })
+
+  return { assistants, responses }
 }
 
 function stabilizeGroupKey(
@@ -1005,5 +1080,5 @@ function isNotice(message: SessionMessageInfo): message is Notice {
 
   if (message.type !== "synthetic") return true
 
-  return !!message.description?.trim() || timelineNoticeRequired(message)
+  return !!message.description?.trim() || message.metadata?.source === "share" || timelineNoticeRequired(message)
 }

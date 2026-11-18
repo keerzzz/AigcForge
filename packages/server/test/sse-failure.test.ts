@@ -1,9 +1,9 @@
 import { expect } from "bun:test"
-import { OpenCode } from "@opencode/client/effect"
-import { ClientApi } from "@opencode/protocol/client"
-import { Authorization } from "@opencode/protocol/middleware/authorization"
-import { Event } from "@opencode/schema/event"
-import { Session } from "@opencode/schema/session"
+import { AigcForge } from "@aigcfroge/client/effect"
+import { ClientApi } from "@aigcfroge/protocol/client"
+import { Authorization } from "@aigcfroge/protocol/middleware/authorization"
+import { Event } from "@aigcfroge/schema/event"
+import { Session } from "@aigcfroge/schema/session"
 import { Cause, Effect, Exit, Layer, Stream } from "effect"
 import { HttpClient, HttpClientResponse, HttpRouter, HttpServer } from "effect/http"
 import { HttpApi, HttpApiBuilder, HttpApiGroup } from "effect/http-api"
@@ -41,7 +41,7 @@ const fetchLog = (request: Request) => Effect.promise(() => handler(request))
 
 it.live("encodes a mid-stream session log failure as the reserved SSE failure event", () =>
   Effect.gen(function* () {
-    const response = yield* fetchLog(new Request("http://opencode.local/api/experimental/session/ses_test/log"))
+    const response = yield* fetchLog(new Request("http://aigcfroge.local/api/experimental/session/ses_test/log"))
     const body = yield* Effect.promise(() => response.text())
     expect(response.headers.get("content-type")).toContain("text/event-stream")
     expect(body).toContain("event: effect/http-api/stream/failure")
@@ -57,7 +57,7 @@ it.live("the generated Effect client fails the session log stream with the serve
     )
     const received: unknown[] = []
     const exit = yield* Effect.gen(function* () {
-      const client = yield* OpenCode.make({ baseUrl: "http://opencode.local" })
+      const client = yield* AigcForge.make({ baseUrl: "http://aigcfroge.local" })
       return yield* client.session
         .log({ sessionID: Session.ID.make("ses_test") })
         .pipe(Stream.runForEach((item) => Effect.sync(() => received.push(item))))

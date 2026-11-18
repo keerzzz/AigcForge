@@ -3,30 +3,31 @@ import path from "path"
 import { describe, expect } from "bun:test"
 import { DateTime, Deferred, Effect, Fiber, Layer, Option, PubSub, Schema, Stream } from "effect"
 import { advance, drain } from "../lib/clock"
-import { Directory, Document, Event, Info } from "@opencode/schema/config"
-import { Session } from "@opencode/core/session"
-import { SessionExecution } from "@opencode/core/session/execution"
-import { Job } from "@opencode/core/job"
-import { SubagentJob } from "@opencode/core/session/subagent-job"
-import { Agent } from "@opencode/core/agent"
-import { SessionInbox } from "@opencode/schema/session-inbox"
-import { SessionMessage } from "@opencode/schema/session-message"
-import { Command } from "@opencode/core/command"
-import { Config } from "@opencode/core/config"
-import { ConfigCommandPlugin } from "@opencode/core/config/plugin/command"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { FSUtil } from "@opencode/util/fs-util"
-import { Bus } from "@opencode/core/bus"
-import { Credential } from "@opencode/core/credential"
-import { WellKnown } from "@opencode/core/wellknown"
-import { Global } from "@opencode/util/global"
-import { AppProcess } from "@opencode/util/process"
-import { Location } from "@opencode/core/location"
-import { Mcp } from "@opencode/core/mcp/index"
-import { AbsolutePath } from "@opencode/core/schema"
-import { ShellSelect } from "@opencode/core/shell/select"
-import { Watcher } from "@opencode/core/filesystem/watcher"
+import { Directory, Document, Event, Info } from "@aigcfroge/schema/config"
+import { Session } from "@aigcfroge/core/session"
+import { SessionExecution } from "@aigcfroge/core/session/execution"
+import { Job } from "@aigcfroge/core/job"
+import { SubagentJob } from "@aigcfroge/core/session/subagent-job"
+import { Agent } from "@aigcfroge/core/agent"
+import { SessionInbox } from "@aigcfroge/schema/session-inbox"
+import { SessionMessage } from "@aigcfroge/schema/session-message"
+import { Command } from "@aigcfroge/core/command"
+import { Config } from "@aigcfroge/core/config"
+import { ConfigCommandPlugin } from "@aigcfroge/core/config/plugin/command"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { FSUtil } from "@aigcfroge/util/fs-util"
+import { Bus } from "@aigcfroge/core/bus"
+import { Credential } from "@aigcfroge/core/credential"
+import { WellKnown } from "@aigcfroge/core/wellknown"
+import { Global } from "@aigcfroge/util/global"
+import { AppProcess } from "@aigcfroge/util/process"
+import { Location } from "@aigcfroge/core/location"
+import { Model } from "@aigcfroge/core/model"
+import { Mcp } from "@aigcfroge/core/mcp/index"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { ShellSelect } from "@aigcfroge/core/shell/select"
+import { Watcher } from "@aigcfroge/core/filesystem/watcher"
 import { emptyCredentialNode, emptyWellknownNode } from "../fixture/config-nodes"
 import { emptyConfigLayer, emptyMcpLayer, testLocationLayer } from "../fixture/mcp"
 import { location } from "../fixture/location"
@@ -73,6 +74,33 @@ const it = testEffect(
 const decode = Schema.decodeUnknownSync(Info)
 
 describe("ConfigCommandPlugin.Plugin", () => {
+  it.live("passes logical Groups and physical group-prefixed providers from JSON and Markdown commands", () => Effect.gen(function* () {
+    const tmp = yield* FSUtil.Service.use((fs) => fs.makeTempDirectoryScoped({ prefix: "command-group-" }))
+    const fs = yield* FSUtil.Service
+    yield* fs.writeWithDirs(path.join(tmp, "commands", "group.md"), "---\nmodel: group:fallback\n---\nReview $ARGUMENTS")
+    const commands = yield* Command.Service
+    const selections: Model.Selection[] = []
+    yield* ConfigCommandPlugin.Plugin.effect(host({
+      command: { list: () => Effect.die("unused command.list"), transform: commands.transform, reload: commands.reload },
+      session: {
+        switchModel: (input) => Effect.sync(() => { selections.push(input.model) }),
+        prompt: (input) => Effect.succeed(SessionInbox.User.make({
+          id: SessionMessage.ID.create(), sessionID: input.sessionID, time: { created: DateTime.makeUnsafe(0) }, type: "user", payload: { text: input.text }, delivery: input.delivery ?? "steer",
+        })),
+      },
+    })).pipe(Effect.provide(Config.testLayer([
+      new Document({ type: "document", info: decode({ commands: {
+        inline: { template: "Review", model: { type: "group", groupID: "fallback" } },
+        physical: { template: "Review", model: "group:vendor/chat#high" },
+      } }) }),
+      new Directory({ type: "directory", path: AbsolutePath.make(tmp) }),
+    ])))
+    yield* Effect.forEach(["inline", "group", "physical"], (name) => commands.execute({
+      name, invocation: { sessionID: Session.ID.make("ses_group_command"), prompt: { text: "changes" }, delivery: "queue" },
+    }))
+    expect(selections).toEqual([Model.Selection.parse("group:fallback"), Model.Selection.parse("group:fallback"), Model.Ref.parse("group:vendor/chat#high")])
+  }))
+
   for (const item of [
     ...["$&", "$$", "$`", "$'"].flatMap((input) => [
       { template: "Explain $ARGUMENTS.", input, expected: `Explain ${input}.` },
@@ -377,7 +405,7 @@ Review files`,
           )
 
           yield* configTest.emitChange({ type: "create", path: path.join(tmp.path, "notes", "todo.md") })
-          yield* configTest.emitChange({ type: "update", path: path.join(tmp.path, "opencode.json") })
+          yield* configTest.emitChange({ type: "update", path: path.join(tmp.path, "aigcfroge.json") })
           yield* drain
           expect(reloads).toBe(0)
 
@@ -404,7 +432,7 @@ describeNative("ConfigCommandPlugin native watcher", () => {
     Effect.gen(function* () {
       const fs = yield* FSUtil.Service
       // Watcher events report real paths, so resolve the tempdir symlink up front.
-      const tmp = yield* fs.makeTempDirectoryScoped({ prefix: "opencode-core-test-" }).pipe(Effect.flatMap(fs.realPath))
+      const tmp = yield* fs.makeTempDirectoryScoped({ prefix: "aigcfroge-core-test-" }).pipe(Effect.flatMap(fs.realPath))
       const global = path.join(tmp, "global")
       yield* fs.makeDirectory(path.join(global, "commands"), { recursive: true })
       yield* fs.makeDirectory(path.join(tmp, "project"))

@@ -1,0 +1,54 @@
+[data-component="session-panel-launcher"] {
+  height: 100%;
+  overflow: auto;
+  padding: 32px 20px;
+
+  [data-slot="launcher-content"] {
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+
+  h2 {
+    margin: 0 8px 16px;
+    color: var(--text-strong);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: var(--line-height-base);
+  }
+
+  p {
+    margin: 0 8px;
+    color: var(--text-weak);
+    font-size: 13px;
+    line-height: var(--line-height-base);
+  }
+
+  [data-slot="launcher-items"] {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  [data-slot="launcher-items"] > [data-component="button-v2"] {
+    justify-content: start;
+    gap: 10px;
+    min-height: 40px;
+    height: auto;
+    width: 100%;
+    padding: 8px;
+    text-align: start;
+    white-space: normal;
+
+    > span {
+      flex: 1;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    > [data-component="icon"],
+    > [data-component="keybind"] {
+      flex: none;
+    }
+  }
+}

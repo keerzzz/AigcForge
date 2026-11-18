@@ -1,20 +1,25 @@
-import { Button } from "@opencode/ui/button"
-import { Badge } from "@opencode/ui/badge"
-import { useDialog } from "@opencode/ui/context/dialog"
-import { Icon } from "@opencode/ui/icon"
-import { Menu } from "@opencode/ui/menu"
-import { OpenCodeLogo } from "@/providers/opencode-logo"
+import { Button } from "@aigcfroge/ui/button"
+import { Badge } from "@aigcfroge/ui/badge"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { Icon } from "@aigcfroge/ui/icon"
+import { Menu } from "@aigcfroge/ui/menu"
+import { Select } from "@aigcfroge/ui/select"
+import { Switch } from "@aigcfroge/ui/switch"
+import { Dialog, DialogBody, DialogHeader, DialogTitle } from "@aigcfroge/ui/dialog"
+import type { ModelSourceConnectionRef, ProviderDefinitionInfo } from "@aigcfroge/client/promise"
+import { AigcForgeLogo } from "@/providers/aigcfroge-logo"
 import { showToast } from "@/shell/notifications/toast"
 import { popularProviders, useProviders } from "@/providers/catalog/providers"
 import { consoleProviderGroup } from "@/providers/catalog/console"
 import { useIntegrations } from "@/providers/catalog/integrations"
-import { createEffect, createMemo, type Component, For, Show } from "solid-js"
+import { createEffect, createMemo, type Component, For, onCleanup, Show, untrack } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useServerSDK } from "@/runtime/server/client"
 import { useData } from "@/runtime/server/current"
 import { CONSOLE_INTEGRATION, CONSOLE_PROVIDERS } from "@/providers/connect/controller"
 import { DialogConnectProvider, useProviderConnectController } from "@/providers/connect/dialog"
+import { CustomProviderForm } from "@/providers/credentials/dialog"
 import { ProviderModelIcon } from "@/providers/models/provider-group"
 import { SettingsList } from "@/settings/list"
 import { activeProviderAccount, providerAccounts, type ProviderAccount } from "./accounts"
@@ -24,9 +29,28 @@ type ProviderSource = "env" | "api" | "account" | "config" | "custom"
 
 type ProviderItem = ReturnType<ReturnType<typeof useProviders>["connected"]>[number]
 
+type ProviderSettingsState = {
+  disconnecting: Record<string, "removing" | "removed" | "absent" | undefined>
+  consoleExpanded: boolean
+  connecting: boolean
+  credentialID?: string
+  definitionLoading: boolean
+  definitionError?: string
+  definitionAction?: string
+  discoveryExpanded?: string
+  discoveryConnection?: ModelSourceConnectionRef
+  discoveryBusy: boolean
+  discoveryError?: string
+}
+
+type DiscoveryRequestState = {
+  generation: number
+  controller: AbortController | undefined
+}
+
 const PROVIDER_NOTES = [
-  { match: (id: string) => id === "opencode", key: "dialog.provider.opencode.note" },
-  { match: (id: string) => id === "opencode-go", key: "dialog.provider.opencodeGo.tagline" },
+  { match: (id: string) => id === "aigcfroge", key: "dialog.provider.aigcfroge.note" },
+  { match: (id: string) => id === "aigcfroge-go", key: "dialog.provider.aigcfrogeGo.tagline" },
   { match: (id: string) => id === "anthropic", key: "dialog.provider.anthropic.note" },
   { match: (id: string) => id.startsWith("github-copilot"), key: "dialog.provider.copilot.note" },
   { match: (id: string) => id === "openai", key: "dialog.provider.openai.note" },
@@ -46,13 +70,279 @@ export const SettingsProviders: Component<{
   const providers = useProviders(() => props.directory)
   const integrations = useIntegrations(() => props.directory)
   const providerConnect = useProviderConnectController()
+  const definition = data.location.provider.definition
+  const discovery = data.location.provider.discovery
+  const location = () => props.directory ? { directory: props.directory } : undefined
+  const lifetime = { active: true, generation: 0 }
 
-  const [state, setState] = createStore({
-    disconnecting: {} as Record<string, "removing" | "removed" | "absent" | undefined>,
+  const discoveryRequest: DiscoveryRequestState = {
+    generation: 0, controller: undefined,
+  }
+
+  const [state, setState] = createStore<ProviderSettingsState>({
+    disconnecting: {},
     consoleExpanded: false,
     connecting: false,
-    credentialID: undefined as string | undefined,
+    credentialID: undefined,
+    definitionLoading: false,
+    definitionError: undefined,
+    definitionAction: undefined,
+    discoveryBusy: false,
   })
+
+  onCleanup(() => { lifetime.active = false; cancelDiscovery() })
+  createEffect(() => {
+    const client = serverSdk.api
+    const ref = location()
+
+    if (serverSdk.connection.status() !== "connected") return
+    untrack(() => void loadDefinitions(client, ref))
+  })
+
+  async function loadDefinitions(client = serverSdk.api, ref = location()) {
+    const generation = ++lifetime.generation
+    setState({ definitionLoading: true, definitionError: undefined })
+
+    try {
+      await definition.sync(ref)
+    } catch (error) {
+      if (!lifetime.active || client !== serverSdk.api || generation !== lifetime.generation) return
+      setState("definitionError", error instanceof Error ? error.message : String(error))
+    } finally {
+      if (lifetime.active && client === serverSdk.api && generation === lifetime.generation)
+        setState("definitionLoading", false)
+    }
+  }
+
+  const savedDefinitions = () => definition.list(location())?.definitions ?? []
+  const definitionKey = (item: ProviderDefinitionInfo) => item.providerID + "\n" + (item.target?.path ?? item.source.path ?? item.source.scope)
+
+  createEffect(() => {
+    const client = serverSdk.api
+    const ref = location()
+    const status = serverSdk.connection.status()
+    const key = state.discoveryExpanded
+    const connection = state.discoveryConnection
+    untrack(() => {
+      cancelDiscovery()
+
+      if (status !== "connected" || !key) return
+      const item = savedDefinitions().find((item) => definitionKey(item) === key)
+
+      if (!item) return
+      const generation = discoveryRequest.generation
+      // oxlint-disable-next-line anti-slop/no-unknown-parameters -- SAFETY: Promise rejection values are opaque; the handler guards Error before producing display text.
+      void discovery.sync(item.providerID, connection, ref).catch((error: unknown) => {
+        if (!lifetime.active || client !== serverSdk.api || generation !== discoveryRequest.generation) return
+        setState("discoveryError", error instanceof Error ? error.message : String(error))
+      })
+    })
+  })
+
+  const definitionStatus = (item: ProviderDefinitionInfo) => {
+    const adoption = item.definition.adoption
+
+    if (adoption && adoption.phase !== "ready")
+      return language.t(adoption.phase === "draft" ? "settings.providers.definitions.draft" : "settings.providers.definitions.applying")
+
+    return language.t(item.definition.disabled ? "settings.providers.definitions.disabled" : "settings.providers.definitions.enabled")
+  }
+
+  const editDefinition = (item?: ProviderDefinitionInfo) => {
+    void dialog.show(() => (
+      <Dialog size="large" preventBackdropDismiss>
+        <DialogHeader><DialogTitle>{language.t("provider.custom.title")}</DialogTitle></DialogHeader>
+        <DialogBody>
+          <CustomProviderForm directory={props.directory} defaultLocation={props.directory === undefined}
+            providerID={item?.providerID} targetPath={item?.target?.path}
+            onSaved={() => { definition.invalidate(location()); void loadDefinitions() }} />
+        </DialogBody>
+      </Dialog>
+    ), () => { definition.invalidate(location()); void loadDefinitions() })
+  }
+
+  async function changeDefinition(item: ProviderDefinitionInfo, action: "toggle" | "remove" | "source" | "sync", value?: boolean) {
+    const target = item.target
+
+    if (!target?.writable || state.definitionAction) return
+    const client = serverSdk.api
+    const ref = location()
+    const generation = lifetime.generation
+    setState({ definitionAction: definitionKey(item), definitionError: undefined })
+
+    try {
+      if (action === "remove") {
+        const response = await client.provider.definition.remove({ providerID: item.providerID,
+          target: { scope: target.scope, path: target.path }, expectedDigest: target.digest, location: ref })
+
+        if (!lifetime.active || client !== serverSdk.api || generation !== lifetime.generation) return
+
+        if (response.data.definition.status === "conflict" || response.data.definition.status === "failed")
+          throw new Error(response.data.definition.message ?? language.t("provider.custom.status.failed"))
+        showToast({ variant: "success", icon: "circle-check",
+          title: language.t("settings.providers.definitions.removed"),
+          description: response.data.inherited.length ? language.t("settings.providers.definitions.inherited", {
+            sources: response.data.inherited.map((source) => source.path ?? source.scope).join(", "),
+          }) : undefined })
+      }
+
+      if (action !== "remove") {
+        const response = await client.provider.definition.save({ providerID: item.providerID,
+          target: { scope: target.scope, path: target.path }, expectedDigest: target.digest,
+          submissionID: crypto.randomUUID(), patch: { set: action === "toggle" ? { disabled: !item.definition.disabled }
+            : { discovery: action === "source" ? { enabled: value } : { autoSync: value } } },
+          credential: { type: "keep" }, location: ref })
+
+        if (!lifetime.active || client !== serverSdk.api || generation !== lifetime.generation) return
+
+        if (response.data.definition.status === "conflict" || response.data.definition.status === "failed")
+          throw new Error(response.data.definition.message ?? language.t("provider.custom.status.failed"))
+      }
+
+      definition.invalidate(ref)
+      data.location.provider.invalidate(ref)
+      data.location.model.invalidate(ref)
+      discovery.invalidate(item.providerID, undefined, ref)
+      await Promise.all([definition.sync(ref), data.location.provider.sync(ref), data.location.model.sync(ref),
+        discovery.sync(item.providerID, state.discoveryConnection, ref)])
+    } catch (error) {
+      if (lifetime.active && client === serverSdk.api && generation === lifetime.generation)
+        setState("definitionError", error instanceof Error ? error.message : String(error))
+    } finally {
+      if (lifetime.active && client === serverSdk.api && generation === lifetime.generation)
+        setState("definitionAction", undefined)
+    }
+  }
+
+  function cancelDiscovery() {
+    discoveryRequest.generation++
+    discoveryRequest.controller?.abort()
+    discoveryRequest.controller = undefined
+    setState({ discoveryBusy: false, discoveryError: undefined })
+  }
+
+  function expandDiscovery(item: ProviderDefinitionInfo) {
+    const key = definitionKey(item)
+    setState({ discoveryExpanded: state.discoveryExpanded === key ? undefined : key, discoveryConnection: undefined })
+  }
+
+  async function refreshDiscovery(item: ProviderDefinitionInfo) {
+    if (state.discoveryBusy || state.definitionAction) return
+    cancelDiscovery()
+    const client = serverSdk.api
+    const ref = location()
+    const connection = state.discoveryConnection
+    const generation = discoveryRequest.generation
+    const controller = new AbortController()
+    discoveryRequest.controller = controller
+    const fresh = () => lifetime.active && client === serverSdk.api && generation === discoveryRequest.generation && !controller.signal.aborted
+    setState("discoveryBusy", true)
+
+    try {
+      await client.provider.discovery.refresh({ providerID: item.providerID, connection, force: true, location: ref },
+        { signal: controller.signal })
+
+      if (!fresh()) return
+      discovery.invalidate(item.providerID, connection, ref)
+      await discovery.sync(item.providerID, connection, ref)
+    } catch (error) {
+      if (fresh()) setState("discoveryError", error instanceof Error ? error.message : String(error))
+    } finally {
+      if (fresh()) { setState("discoveryBusy", false); discoveryRequest.controller = undefined }
+    }
+  }
+
+  function DiscoveryControls(control: { item: ProviderDefinitionInfo }) {
+    const list = () => discovery.get(control.item.providerID, state.discoveryConnection, location())
+
+    const options = () => [{ key: "active", label: language.t("provider.discovery.activeConnection"), connection: undefined },
+      ...control.item.connections.flatMap<{ key: string; label: string; connection: ModelSourceConnectionRef }>((connection) => {
+        if (connection.type === "credential") return [{ key: "credential:" + connection.id, label: connection.label,
+          connection: { type: "credential", id: connection.id } }]
+
+        if (connection.type === "env") return [{ key: "env:" + connection.name, label: connection.name,
+          connection: { type: "env", name: connection.name } }]
+
+        return []
+      })]
+
+    const key = () => {
+      if (state.discoveryConnection?.type === "credential") return "credential:" + state.discoveryConnection.id
+
+      if (state.discoveryConnection?.type === "env") return "env:" + state.discoveryConnection.name
+
+      return "active"
+    }
+
+    return <section class="flex basis-full min-w-0 flex-col gap-3 border-t border-border-weak pt-3"
+      aria-label={language.t("provider.discovery.title")}>
+      <Select options={options()} current={options().find((item) => item.key === key())} value={(item) => item.key}
+        label={(item) => item.label} disabled={state.discoveryBusy} aria-label={language.t("provider.discovery.connection")}
+        onSelect={(option) => {
+          if (!option) return
+          setState("discoveryConnection", option.connection)
+        }} />
+      <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <Switch checked={control.item.definition.discovery?.enabled ?? true}
+          onChange={(value) => void changeDefinition(control.item, "source", value)}
+          disabled={!control.item.target?.writable || state.definitionAction !== undefined || state.discoveryBusy}>
+          {language.t("provider.discovery.source")}
+        </Switch>
+        <Switch checked={control.item.definition.discovery?.autoSync ?? false}
+          onChange={(value) => void changeDefinition(control.item, "sync", value)}
+          disabled={!control.item.target?.writable || state.definitionAction !== undefined || state.discoveryBusy}>
+          {language.t("provider.discovery.autoSync")}
+        </Switch>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <Button size="small" variant="neutral" onClick={() => void refreshDiscovery(control.item)}
+          disabled={state.discoveryBusy || state.definitionAction !== undefined || control.item.definition.discovery?.enabled === false}>
+          {language.t("provider.discovery.refresh")}
+        </Button>
+        <Show when={state.discoveryBusy}>
+          <Button size="small" variant="ghost" onClick={cancelDiscovery}>{language.t("provider.discovery.cancel")}</Button>
+        </Show>
+        <Button size="small" variant="ghost" onClick={() => editDefinition(control.item)}
+          disabled={!control.item.target?.writable || state.definitionAction !== undefined}>
+          {language.t("provider.discovery.manage", { provider: control.item.definition.name ?? control.item.providerID })}
+        </Button>
+      </div>
+      <p role="status" class="text-12-regular text-text-weak">{language.t("provider.discovery.phase." +
+        (state.discoveryBusy ? "fetching" : list()?.status.phase ?? "idle"))}</p>
+      <Show when={state.discoveryError}><p role="alert" class="text-13-regular text-text-base">{state.discoveryError}</p></Show>
+      <Show when={list()}>
+        {(read) => <>
+          <Show when={read().status.error}>{(error) => <p role="alert" class="text-13-regular text-text-base">{error().message}</p>}</Show>
+          <Show when={read().status.identity}>
+            {(identity) => <p class="text-12-regular text-text-weak break-all">{identity().listURL}</p>}
+          </Show>
+          <Show when={read().status.lastSuccessAt}>
+            {(time) => <p class="text-12-regular text-text-weak">{language.t("provider.discovery.lastSuccess", {
+              time: new Date(time()).toLocaleString(language.intl()),
+            })}</p>}
+          </Show>
+          <Show when={read().inventory && (read().status.phase === "failed" || read().status.phase === "partial")}>
+            <p class="text-12-regular text-text-weak">{language.t("provider.discovery.previousSuccess", {
+              time: new Date(read().inventory!.observedAt).toLocaleString(language.intl()),
+            })}</p>
+          </Show>
+          <Show when={read().inventory && !read().status.cachePersisted}>
+            <p class="text-12-regular text-text-weak">{language.t("provider.discovery.cacheNotSaved")}</p>
+          </Show>
+          <For each={read().managed}>
+            {(model) => <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 text-12-regular">
+              <div class="min-w-0 flex-1">
+                <p class="text-text-base break-all">{model.metadata.name ?? model.ref.id}</p>
+                <p class="text-text-weak break-all">{model.ref.id} · {model.modelID}</p>
+                <Show when={model.origins.name}><p class="text-text-weak">{language.t("provider.model.origin." + model.origins.name)}</p></Show>
+              </div>
+              <span class="text-text-weak">{language.t("provider.discovery.membership." + model.membership)}</span>
+            </div>}
+          </For>
+        </>}
+      </Show>
+    </section>
+  }
 
   const updateDisconnecting = (ids: string[], status: "removing" | "removed" | "absent" | undefined) =>
     setState("disconnecting", (current) => ({
@@ -60,7 +350,7 @@ export const SettingsProviders: Component<{
       ...Object.fromEntries(ids.map((id) => [id, status])),
     }))
 
-  // Console-managed providers (`opencode-go`, `console-*`) connect through the `opencode`
+  // Console-managed providers (`aigcfroge-go`, `console-*`) connect through the `aigcfroge`
   // integration, so the lookup must follow `integrationID` rather than the provider id.
   const integration = (item: ProviderItem) => {
     const id = item.integrationID ?? item.id
@@ -112,7 +402,7 @@ export const SettingsProviders: Component<{
       .find((item) => item.id === CONSOLE_INTEGRATION)
       ?.connections.some((connection) => connection.type === "credential" || connection.type === "env")
 
-    // Hides the free `opencode` row while a new Console grant is still loading its workspace providers.
+    // Hides the free `aigcfroge` row while a new Console grant is still loading its workspace providers.
     const consoleTransition =
       state.connecting &&
       CONSOLE_PROVIDERS.has(providerConnect.selected() ?? "") &&
@@ -122,13 +412,13 @@ export const SettingsProviders: Component<{
     return connected
       .filter(
         (provider) =>
-          provider.id !== "opencode" ||
+          provider.id !== "aigcfroge" ||
           (!consoleTransition &&
             (managedConsole !== undefined ||
               consoleConnected ||
               Object.values(provider.models).some((model) => model.cost.input > 0))),
       )
-      .toSorted((a, b) => Number(b.id === "opencode-go") - Number(a.id === "opencode-go"))
+      .toSorted((a, b) => Number(b.id === "aigcfroge-go") - Number(a.id === "aigcfroge-go"))
   })
 
   createEffect(() => {
@@ -159,7 +449,7 @@ export const SettingsProviders: Component<{
 
   const popular = createMemo(() => {
     const connectedIDs = new Set(connected().map((p) => p.id))
-    // The Console account (integration `opencode`) shares its id with the Zen provider. A stored API
+    // The Console account (integration `aigcfroge`) shares its id with the Zen provider. A stored API
     // key, including one imported from a v1 auth.json, makes Zen "connected" without any account, so
     // the Popular list keeps the sign-in row until the active credential is an OAuth grant. Until the
     // integration list arrives the row is still the models.dev Zen provider, so dedupe it as before.
@@ -260,9 +550,9 @@ export const SettingsProviders: Component<{
           description: language.t("provider.disconnect.toast.disconnected.description", { provider: name }),
         })
       })
-      .catch((err: unknown) => {
+      .catch((cause: unknown) => {
         updateDisconnecting(ids, undefined)
-        const message = err instanceof Error ? err.message : String(err)
+        const message = cause instanceof Error ? cause.message : String(cause)
         showToast({
           title: language.t("common.requestFailed"),
           description: language.tDynamic("provider.disconnect.toast.failed.description", message, { provider: name }),
@@ -282,8 +572,8 @@ export const SettingsProviders: Component<{
     ])
   }
 
-  const accountError = (error: unknown) => {
-    const message = error instanceof Error ? error.message : String(error)
+  const accountError = (cause: unknown) => {
+    const message = cause instanceof Error ? cause.message : String(cause)
     showToast({ title: language.t("common.requestFailed"), description: message })
   }
 
@@ -409,6 +699,68 @@ export const SettingsProviders: Component<{
       </div>
 
       <div class="settings-tab-body settings-tab-body--sectioned settings-providers">
+        <div class="settings-section">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h3 class="settings-section-title">{language.t("settings.providers.section.definitions")}</h3>
+            <div class="flex flex-wrap gap-2">
+              <Button size="small" variant="ghost" onClick={() => { definition.invalidate(location()); void loadDefinitions() }}
+                disabled={state.definitionLoading}>{language.t("settings.providers.definitions.refresh")}</Button>
+              <Button size="small" variant="neutral" icon="plus" onClick={() => editDefinition()}>
+                {language.t("settings.providers.definitions.add")}
+              </Button>
+            </div>
+          </div>
+          <Show when={state.definitionError}><p role="alert" class="text-13-regular text-text-base">{state.definitionError}</p></Show>
+          <SettingsList variant="catalog">
+            <Show when={savedDefinitions().length > 0} fallback={
+              <div class="settings-provider-empty">{language.t(state.definitionLoading
+                ? "settings.providers.definitions.loading" : "settings.providers.definitions.empty")}</div>
+            }>
+              <For each={savedDefinitions()}>
+                {(item) => (
+                  <div class="settings-provider-row">
+                    <div class="flex w-full min-w-0 flex-col gap-3">
+                      <div class="settings-provider-lead min-w-0">
+                        <ProviderModelIcon provider={{ id: item.providerID, name: item.definition.name ?? item.providerID }}
+                          class="settings-provider-icon shrink-0" />
+                        <div class="settings-provider-copy min-w-0">
+                          <div class="settings-provider-main">
+                            <span class="settings-provider-name truncate">{item.definition.name ?? item.providerID}</span>
+                            <Badge>{definitionStatus(item)}</Badge>
+                          </div>
+                          <p class="text-12-regular text-text-weak break-all">{item.providerID} · {item.source.path ?? language.t("settings.providers.definitions.virtual")}</p>
+                        </div>
+                      </div>
+                      <div class="flex flex-wrap gap-2">
+                        <Button size="small" variant="ghost-muted" onClick={() => expandDiscovery(item)}
+                          aria-expanded={state.discoveryExpanded === definitionKey(item)}>
+                          {language.t("provider.discovery.title")}
+                        </Button>
+                        <Button size="small" variant="ghost-muted" onClick={() => editDefinition(item)}
+                          disabled={!item.target?.writable || state.definitionAction !== undefined}
+                          aria-label={language.t("settings.providers.definitions.edit", { provider: item.definition.name ?? item.providerID })}>
+                          {language.t("common.edit")}
+                        </Button>
+                        <Button size="small" variant="ghost-muted" onClick={() => void changeDefinition(item, "toggle")}
+                          disabled={!item.target?.writable || state.definitionAction !== undefined ||
+                            Boolean(item.definition.adoption && item.definition.adoption.phase !== "ready")}>
+                          {language.t(item.definition.disabled ? "settings.providers.definitions.allow" : "settings.providers.definitions.disable")}
+                        </Button>
+                        <Button size="small" variant="ghost-muted" onClick={() => void changeDefinition(item, "remove")}
+                          disabled={!item.target?.writable || state.definitionAction !== undefined}>
+                          {language.t("settings.providers.definitions.remove")}
+                        </Button>
+                      </div>
+                      <Show when={state.discoveryExpanded === definitionKey(item)}>
+                        <DiscoveryControls item={item} />
+                      </Show>
+                    </div>
+                  </div>
+                )}
+              </For>
+            </Show>
+          </SettingsList>
+        </div>
         <div class="settings-section" data-component="connected-providers-section">
           <h3 class="settings-section-title">{language.t("settings.providers.section.connected")}</h3>
           <SettingsList variant="catalog">
@@ -465,11 +817,11 @@ export const SettingsProviders: Component<{
                         <div class="settings-provider-console group">
                           <div class="settings-provider-console-header">
                             <div class="settings-provider-lead">
-                              <OpenCodeLogo class="settings-provider-icon size-4 shrink-0" />
+                              <AigcForgeLogo class="settings-provider-icon size-4 shrink-0" />
                               <div class="settings-provider-console-summary">
                                 <div class="settings-provider-main">
                                   <span class="settings-provider-name truncate">
-                                    {language.t("provider.connect.opencode.name")}
+                                    {language.t("provider.connect.aigcfroge.name")}
                                   </span>
                                   <Badge>{group().workspace}</Badge>
                                 </div>
@@ -505,13 +857,13 @@ export const SettingsProviders: Component<{
                                 <Button
                                   size="normal"
                                   variant="ghost-muted"
-                                  onClick={() => void disconnect(item, language.t("provider.connect.opencode.name"))}
+                                  onClick={() => void disconnect(item, language.t("provider.connect.aigcfroge.name"))}
                                 >
                                   {language.t("common.disconnect")}
                                 </Button>
                               }
                             >
-                              <AccountMenu provider={item} name={language.t("provider.connect.opencode.name")} />
+                              <AccountMenu provider={item} name={language.t("provider.connect.aigcfroge.name")} />
                             </Show>
                           </div>
                           <Show when={state.consoleExpanded}>
@@ -559,7 +911,7 @@ export const SettingsProviders: Component<{
                         <span class="settings-provider-name">
                           {item.name}
                         </span>
-                        <Show when={item.id === "opencode" || item.id === "opencode-go"}>
+                        <Show when={item.id === "aigcfroge" || item.id === "aigcfroge-go"}>
                           <Badge>{language.t("dialog.provider.tag.recommended")}</Badge>
                         </Show>
                       </div>

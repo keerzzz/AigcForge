@@ -1,4 +1,4 @@
-import type { ExperimentalPersistentPtyConnectTokenInput, OpenCodeClient, PtyConnectTokenInput } from "../promise"
+import type { ExperimentalPersistentPtyConnectTokenInput, AigcForgeClient, PtyConnectTokenInput } from "../promise"
 
 export type PtyClientOptions = {
   readonly url: string
@@ -18,13 +18,13 @@ export type PersistentPtyConnectInput = {
   readonly takeover?: boolean
 }
 
-export function createPtyClient(api: OpenCodeClient, options: PtyClientOptions) {
+export function createPtyClient(api: AigcForgeClient, options: PtyClientOptions) {
   return {
     async connect(input: PtyConnectInput) {
       const result = await api.pty.connect.token({
         ptyID: input.ptyID,
         location: input.location,
-        "x-opencode-ticket": "1",
+        "x-aigcfroge-ticket": "1",
       })
       const baseUrl = new URL(options.url)
       if (!baseUrl.pathname.endsWith("/")) baseUrl.pathname += "/"
@@ -41,12 +41,12 @@ export function createPtyClient(api: OpenCodeClient, options: PtyClientOptions) 
   }
 }
 
-export function createPersistentPtyClient(api: OpenCodeClient, options: PtyClientOptions) {
+export function createPersistentPtyClient(api: AigcForgeClient, options: PtyClientOptions) {
   return {
     async connect(input: PersistentPtyConnectInput) {
       const token = await api.experimental.persistentPty.connectToken({
         ptyID: input.ptyID,
-        "x-opencode-ticket": "1",
+        "x-aigcfroge-ticket": "1",
       })
       const baseUrl = new URL(options.url)
       if (!baseUrl.pathname.endsWith("/")) baseUrl.pathname += "/"

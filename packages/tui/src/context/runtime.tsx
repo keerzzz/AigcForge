@@ -1,4 +1,6 @@
 import { createComponent, createContext, type JSX, useContext } from "solid-js"
+import { Effect } from "effect"
+import type { LogSink } from "./log"
 
 export type TuiApp = Readonly<{
   name: string
@@ -26,6 +28,26 @@ export type TuiStartup = Readonly<{
 export type TuiLifecycle = Readonly<{
   add(finalizer: () => Promise<void>): () => void
 }>
+
+export const createTuiLifecycle = Effect.fn("TuiLifecycle.create")(function* (log: LogSink) {
+  const finalizers = new Set<() => Promise<void>>()
+  yield* Effect.addFinalizer(() =>
+    Effect.promise(async () => {
+      const failures = (await Promise.allSettled([...finalizers].reverse().map(async (finalizer) => finalizer())))
+        .filter((result): result is PromiseRejectedResult => result.status === "rejected")
+        .map((result): unknown => result.reason)
+      failures.forEach((error) => log("error", "Failed to dispose TUI resource", { error }))
+      if (failures.length === 1) throw failures[0]
+      if (failures.length > 1) throw new AggregateError(failures, "Failed to dispose TUI resources")
+    }),
+  )
+  return {
+    add(finalizer: () => Promise<void>) {
+      finalizers.add(finalizer)
+      return () => finalizers.delete(finalizer)
+    },
+  } satisfies TuiLifecycle
+})
 
 const PathsContext = createContext<TuiPaths>()
 const AppContext = createContext<TuiApp>()

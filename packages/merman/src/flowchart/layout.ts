@@ -14,7 +14,7 @@ import {
   flowchartVerticalBranchLabelGap,
 } from "./labels.js"
 import type { FlowchartDiagramRenderOptions } from "./options.js"
-import { avoidFlowchartFrameBorders, routeFlowchartEdges } from "./routing.js"
+import { avoidFlowchartFrameBorders, refineFlowchartRoutes, routeFlowchartEdges } from "./routing.js"
 import type {
   FlowchartDiagram,
   FlowchartDirection,
@@ -1125,6 +1125,7 @@ function layoutFlowchartWithDirection(
     avoidFlowchartFrameBorders(routes, bounds, subgraphBounds)
   }
   freezeRouteLabelPoints(routes)
+  refineFlowchartRoutes(routes, bounds, subgraphBounds, diagram, targetWidth)
   const allBounds = [...bounds.values(), ...subgraphBounds.values(), ...routeRenderBounds(routes)]
   const dx = Math.max(0, -Math.min(0, ...allBounds.map((bound) => bound.left)))
   const dy = Math.max(0, -Math.min(0, ...allBounds.map((bound) => bound.top)))

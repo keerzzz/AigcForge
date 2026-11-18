@@ -1,5 +1,6 @@
 import { createServer, type ServerResponse } from "node:http"
-import type { OpenCodeEvent } from "@opencode/client/promise"
+import type { AigcForgeEvent } from "@aigcfroge/client/promise"
+import { Predicate } from "effect"
 import { benchmark, benchmarkDiagnostics, expect } from "../benchmark"
 import {
   buildInitialStreamEvent,
@@ -22,11 +23,11 @@ declare global {
 benchmark.use({ traceScope: "interaction" })
 
 for (const scenario of [
-  { historyTurns: 40, historyShape: "mixed" },
-  { historyTurns: 320, historyShape: "mixed" },
-  { historyTurns: 320, historyShape: "tool-heavy" },
+  { historyTurns: 40, historyLayout: "mixed" },
+  { historyTurns: 320, historyLayout: "mixed" },
+  { historyTurns: 320, historyLayout: "tool-heavy" },
 ] as const) {
-  benchmark(`text projection ${scenario.historyTurns} ${scenario.historyShape}`, async ({ page, report }) => {
+  benchmark(`text projection ${scenario.historyTurns} ${scenario.historyLayout}`, async ({ page, report }) => {
     benchmark.setTimeout(120_000)
     const responses = new Set<ServerResponse>()
 
@@ -46,10 +47,10 @@ for (const scenario of [
     await new Promise<void>((resolve) => source.listen(0, "127.0.0.1", resolve))
     const address = source.address()
 
-    if (!address || typeof address === "string") throw new Error("Missing fixture SSE address")
+    if (!address || Predicate.isString(address)) throw new Error("Missing fixture SSE address")
     let timer: ReturnType<typeof setInterval> | undefined
 
-    const send = (events: OpenCodeEvent[]) =>
+    const send = (events: AigcForgeEvent[]) =>
       responses.forEach((response) => events.forEach((event) => response.write(`data: ${JSON.stringify(event)}\n\n`)))
 
     try {
@@ -186,7 +187,7 @@ for (const scenario of [
 
       if (process.env.PROJECTION_SCREENSHOT)
         await page.screenshot({
-          path: `${process.env.PROJECTION_SCREENSHOT}-${scenario.historyTurns}-${scenario.historyShape}.png`,
+          path: `${process.env.PROJECTION_SCREENSHOT}-${scenario.historyTurns}-${scenario.historyLayout}.png`,
         })
     } finally {
       clearInterval(timer)

@@ -1,10 +1,11 @@
-import type { Data } from "@opencode/client/solid"
-import type { SessionMessageUser } from "@opencode/client/promise"
+import type { Data } from "@aigcfroge/client/solid"
+import type { SessionExecutorPreference, SessionController, SessionMessageUser, SessionInfo } from "@aigcfroge/client/promise"
 import type { Accessor } from "solid-js"
 import type { ModelSelection } from "@/providers/models/selection"
 import type { ServerSDK } from "@/runtime/server/client"
 import type { ComposerStateTarget } from "./submission-state"
 import type { createComposerSubmission } from "./submission-state"
+import type { ModelKey } from "@/providers/models/key"
 
 export type ComposerControls = {
   agents: {
@@ -13,6 +14,12 @@ export type ComposerControls = {
     current: string
     visible: boolean
     select: (name: string | undefined) => void
+  }
+  executor?: {
+    selection: ModelSelection
+    paid: boolean
+    loading: boolean
+    preference: () => SessionExecutorPreference | undefined
   }
   model: {
     selection: ModelSelection
@@ -23,8 +30,9 @@ export type ComposerControls = {
 
 export type ComposerSelection = {
   agent: string
-  model: { providerID: string; modelID: string }
+  model: ModelKey
   variant?: string
+  executorPreference?: SessionExecutorPreference
 }
 
 export type ComposerDelivery = "steer" | "queue"
@@ -65,6 +73,7 @@ export type ComposerSession = {
     switchAgent: (
       input: Parameters<ServerSDK["api"]["session"]["switchAgent"]>[0],
     ) => ReturnType<ServerSDK["api"]["session"]["switchAgent"]>
+    selectExecutor?: ServerSDK["api"]["session"]["selectExecutor"]
     switchModel: (
       input: Parameters<ServerSDK["api"]["session"]["switchModel"]>[0],
     ) => ReturnType<ServerSDK["api"]["session"]["switchModel"]>
@@ -79,12 +88,18 @@ export type ComposerSession = {
     session: {
       prompt: (input: Parameters<Data["session"]["prompt"]>[0]) => ReturnType<Data["session"]["prompt"]>
       setStatus: Data["session"]["setStatus"]
+      selectExecutor?: Data["session"]["selectExecutor"]
+      sync?: Data["session"]["sync"]
+      readback?: Data["session"]["readback"]
+      invalidate?: Data["session"]["invalidate"]
     }
   }
   current: Accessor<
     | {
         agent?: string
-        model?: { id: string; providerID: string; variant?: string }
+        controller?: SessionController
+        executorPreference?: SessionExecutorPreference
+        model?: SessionInfo["model"]
         revert?: { messageID: string }
       }
     | undefined
@@ -113,7 +128,15 @@ export type NewSessionComposerAdapter = ComposerAdapterBase & {
     selection: ComposerSelection,
     submission: ReturnType<typeof createComposerSubmission>,
     message: SessionMessageUser,
-  ) => Promise<{ session: ComposerSession; cleanupReady: Promise<void>; complete?: () => Promise<void> } | undefined>
+  ) => Promise<
+    | {
+        session: ComposerSession
+        cleanupReady: Promise<void>
+        complete?: () => Promise<void>
+        trackSessionCommit?: ModelSelection["trackSessionCommit"]
+      }
+    | undefined
+  >
 }
 
 export type ComposerAdapter = ActiveComposerAdapter | NewSessionComposerAdapter

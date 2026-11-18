@@ -1,5 +1,5 @@
-import type { SessionInfo } from "@opencode/client/promise"
-import { displayName } from "@opencode/ui/project-avatar"
+import type { SessionInfo } from "@aigcfroge/client/promise"
+import { displayName } from "@aigcfroge/ui/project-avatar"
 import { pathKey } from "@/workspaces/path-key"
 import { isProjectDirectory } from "@/workspaces/paths"
 import type { ServerConnection } from "@/runtime/server/registry"
@@ -131,14 +131,4 @@ export function resolveSessionDetailsProject<
   return withProjectAppearance(metadata, resolveProjectForSession(session, opened, stored))
 }
 
-export const errorMessage = (err: unknown, fallback: string) => {
-  if (err && typeof err === "object" && "data" in err) {
-    const data = (err as { data?: { message?: string } }).data
-
-    if (data?.message) return data.message
-  }
-
-  if (err instanceof Error) return err.message
-
-  return fallback
-}
+export { errorMessage } from "@aigcfroge/util/error"

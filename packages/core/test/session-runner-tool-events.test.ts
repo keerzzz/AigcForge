@@ -1,27 +1,27 @@
 import { expect, test } from "bun:test"
 import { Cause, Deferred, Effect, Exit, Fiber, Schema } from "effect"
 import { eq } from "drizzle-orm"
-import { LLMEvent } from "@opencode/ai"
-import { Money } from "@opencode/schema/money"
-import { Bus } from "@opencode/core/bus"
-import { Database } from "@opencode/core/database/database"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { EventTable } from "@opencode/core/event/sql"
-import { Event } from "@opencode/schema/event"
-import { Agent } from "@opencode/core/agent"
-import { SessionEvent } from "@opencode/core/session/event"
-import { SessionMessage } from "@opencode/core/session/message"
-import { Session } from "@opencode/core/session"
-import { SessionProjector } from "@opencode/core/session/projector"
-import { SessionMessageTable, SessionTable } from "@opencode/core/session/sql"
-import { Project } from "@opencode/core/project"
-import { ProjectTable } from "@opencode/core/project/sql"
-import { Model } from "@opencode/core/model"
-import { Provider } from "@opencode/core/provider"
-import { AbsolutePath, RelativePath } from "@opencode/core/schema"
-import { Snapshot } from "@opencode/core/snapshot"
-import { createLLMEventPublisher } from "@opencode/core/session/runner/publish-llm-event"
-import { LayerNode } from "@opencode/util/effect/layer-node"
+import { LLMEvent } from "@aigcfroge/ai"
+import { Money } from "@aigcfroge/schema/money"
+import { Bus } from "@aigcfroge/core/bus"
+import { Database } from "@aigcfroge/core/database/database"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { EventTable } from "@aigcfroge/core/event/sql"
+import { Event } from "@aigcfroge/schema/event"
+import { Agent } from "@aigcfroge/core/agent"
+import { SessionEvent } from "@aigcfroge/core/session/event"
+import { SessionMessage } from "@aigcfroge/core/session/message"
+import { Session } from "@aigcfroge/core/session"
+import { SessionProjector } from "@aigcfroge/core/session/projector"
+import { SessionMessageTable, SessionTable } from "@aigcfroge/core/session/sql"
+import { Project } from "@aigcfroge/core/project"
+import { ProjectTable } from "@aigcfroge/core/project/sql"
+import { Model } from "@aigcfroge/core/model"
+import { Provider } from "@aigcfroge/core/provider"
+import { AbsolutePath, RelativePath } from "@aigcfroge/core/schema"
+import { Snapshot } from "@aigcfroge/core/snapshot"
+import { createLLMEventPublisher } from "@aigcfroge/core/session/runner/publish-llm-event"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
 import { it, testEffect } from "./lib/effect"
 import { TestClock } from "effect/testing"
 
@@ -34,6 +34,7 @@ const capture = (
     readonly interruptProgress?: boolean
     readonly beforeTextDelta?: Effect.Effect<void>
     readonly pendingSnapshot?: Effect.Effect<Snapshot.ID | undefined>
+    readonly onToolSuccess?: (eventID: Event.ID) => Effect.Effect<void>
   },
 ) => {
   const published: Array<{ readonly type: string; readonly data: unknown }> = []
@@ -61,10 +62,11 @@ const capture = (
       agent: Agent.ID.make("build"),
       model: {
         id: Model.ID.make("model"),
-        providerID: Provider.ID.opencode,
+        providerID: Provider.ID.aigcfroge,
       },
       providerMetadataKey,
       pendingSnapshot: options?.pendingSnapshot,
+      onToolSuccess: options?.onToolSuccess,
       started: 0,
       assistantMessageID: SessionMessage.ID.create(),
     }),
@@ -136,88 +138,137 @@ test("provider-executed success derives content and retains provider result stat
   })
 })
 
+test("keeps a committed local result settled when its success consumer fails", async () => {
+  const { published, publisher } = capture("openai", { onToolSuccess: () => Effect.die("Result consumer failed") })
+  await Effect.runPromise(publisher.publish(call))
+  const exit = await Effect.runPromise(publisher.toolExecution(call.id, call.name, {
+    content: [{ type: "text", text: "Completed result" }],
+  }).pipe(Effect.exit))
+  expect(Exit.isFailure(exit)).toBe(true)
+  expect(await Effect.runPromise(publisher.failUnsettledTools({ type: "tool.execution", message: "Consumer failed" }))).toBe(false)
+  expect(published.filter((event) => event.type === "session.tool.success.2")).toHaveLength(1)
+  expect(published.filter((event) => event.type === "session.tool.failed.2")).toHaveLength(0)
+})
+
 testEffect(
   AppNodeBuilder.build(LayerNode.group([Database.node, Bus.node, SessionProjector.node]), [
     Bus.node.replace(Bus.configured({ persist: true })),
   ]),
-).effect("commits a hosted tool result when cancellation races with the aggregate lock", () =>
+).effect("records a local tool failure when its success payload cannot be committed", () =>
   Effect.gen(function* () {
-    const database = yield* Database.Service
+    const db = (yield* Database.Service).db
     const bus = yield* Bus.Service
-    const held = yield* Deferred.make<void>()
-    const release = yield* Deferred.make<void>()
-    const queued = yield* Deferred.make<void>()
     const assistantMessageID = SessionMessage.ID.create()
-    yield* database.db
-      .insert(ProjectTable)
-      .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
-      .run()
-    yield* database.db
-      .insert(SessionTable)
-      .values({ id: sessionID, project_id: Project.ID.global, slug: "publish", directory: "/project", version: "test" })
-      .run()
-    const publisher = createLLMEventPublisher(
-      {
-        publish: (definition, data, options) =>
-          (definition.type === SessionEvent.Tool.Success.type ? Deferred.succeed(queued, undefined) : Effect.void).pipe(
-            Effect.andThen(bus.publish(definition, data, options)),
-          ),
-      },
-      {
-        sessionID,
-        assistantMessageID,
-        agent: Agent.defaultID,
-        model: { id: Model.ID.make("test-model"), providerID: Provider.ID.opencode },
-        providerMetadataKey: "openai",
-        started: 0,
-      },
-    )
-    yield* publisher.publish(LLMEvent.toolCall({ ...call, providerExecuted: true }))
-    yield* Effect.acquireRelease(
-      bus.listen((event) =>
-        event.type === SessionEvent.Renamed.type
-          ? Deferred.succeed(held, undefined).pipe(Effect.andThen(Deferred.await(release)))
-          : Effect.void,
-      ),
-      (unsubscribe) => unsubscribe,
-    )
-    // Listener delivery holds the aggregate lock after this unrelated event commits.
-    const holder = yield* bus
-      .publish(SessionEvent.Renamed, { sessionID, title: "Hold publication" })
-      .pipe(Effect.forkScoped({ startImmediately: true }))
-    yield* Deferred.await(held)
-    const publication = yield* publisher
-      .publish(LLMEvent.toolResult({ ...hostedResult, providerExecuted: true }))
-      .pipe(Effect.forkScoped({ startImmediately: true }))
-    yield* Effect.addFinalizer(() => Deferred.succeed(release, undefined))
-    yield* Deferred.await(queued)
-    const cancellation = yield* Fiber.interrupt(publication).pipe(Effect.forkChild({ startImmediately: true }))
-    yield* Effect.yieldNow
-
-    expect(cancellation.pollUnsafe()).toBeUndefined()
-    yield* Deferred.succeed(release, undefined)
-    yield* Fiber.join(holder)
-    yield* Fiber.join(cancellation)
-    expect(Exit.hasInterrupts(yield* Fiber.await(publication))).toBe(true)
-    expect(yield* publisher.failUnsettledTools({ type: "aborted", message: "Interrupted" })).toBe(false)
-
-    const events = yield* database.db
-      .select({ type: EventTable.type })
-      .from(EventTable)
-      .where(eq(EventTable.aggregate_id, sessionID))
-      .all()
-    expect(events.filter((event) => event.type === "session.tool.success.2")).toHaveLength(1)
-    expect(events.some((event) => event.type === "session.tool.failed.2")).toBe(false)
-    const message = yield* database.db
-      .select()
-      .from(SessionMessageTable)
-      .where(eq(SessionMessageTable.id, assistantMessageID))
-      .get()
-    expect(message?.data).toMatchObject({
-      content: [{ type: "tool", id: call.id, executed: true, state: { status: "completed" } }],
+    yield* db.insert(ProjectTable).values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] }).run()
+    yield* db.insert(SessionTable).values({ id: sessionID, project_id: Project.ID.global, slug: "invalid-result", directory: "/project", version: "test" }).run()
+    const publisher = createLLMEventPublisher(bus, {
+      sessionID,
+      assistantMessageID,
+      agent: Agent.defaultID,
+      model: { id: Model.ID.make("test-model"), providerID: Provider.ID.aigcfroge },
+      providerMetadataKey: "openai",
+      started: 0,
     })
+    yield* publisher.publish(call)
+    const failed = yield* publisher.toolExecution(call.id, call.name, {
+      content: [{ type: "text", text: "Executed output" }],
+      metadata: { commandResult: { signal: undefined } },
+    }).pipe(Effect.exit)
+    expect(Exit.isFailure(failed)).toBe(true)
+    expect(yield* publisher.failUnsettledTools({ type: "tool.execution", message: "Result persistence failed" })).toBe(true)
+    const row = yield* db.select().from(SessionMessageTable).where(eq(SessionMessageTable.id, assistantMessageID)).get()
+    expect(row?.data).toMatchObject({ content: [{ type: "tool", state: { status: "error", error: { message: "Result persistence failed" } } }] })
+    const events = yield* db.select({ type: EventTable.type }).from(EventTable).where(eq(EventTable.aggregate_id, sessionID)).all()
+    expect(events.filter((event) => event.type === "session.tool.success.2")).toHaveLength(0)
+    expect(events.filter((event) => event.type === "session.tool.failed.2")).toHaveLength(1)
   }),
 )
+
+for (const executed of [false, true]) {
+  testEffect(
+    AppNodeBuilder.build(LayerNode.group([Database.node, Bus.node, SessionProjector.node]), [
+      Bus.node.replace(Bus.configured({ persist: true })),
+    ]),
+  ).effect(`commits a ${executed ? "hosted" : "local"} tool result when cancellation races with the aggregate lock`, () =>
+    Effect.gen(function* () {
+      const database = yield* Database.Service
+      const bus = yield* Bus.Service
+      const held = yield* Deferred.make<void>()
+      const release = yield* Deferred.make<void>()
+      const queued = yield* Deferred.make<void>()
+      const assistantMessageID = SessionMessage.ID.create()
+      yield* database.db
+        .insert(ProjectTable)
+        .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
+        .run()
+      yield* database.db
+        .insert(SessionTable)
+        .values({ id: sessionID, project_id: Project.ID.global, slug: "publish", directory: "/project", version: "test" })
+        .run()
+      const publisher = createLLMEventPublisher(
+        {
+          publish: (definition, data, options) =>
+            (definition.type === SessionEvent.Tool.Success.type ? Deferred.succeed(queued, undefined) : Effect.void).pipe(
+              Effect.andThen(bus.publish(definition, data, options)),
+            ),
+        },
+        {
+          sessionID,
+          assistantMessageID,
+          agent: Agent.defaultID,
+          model: { id: Model.ID.make("test-model"), providerID: Provider.ID.aigcfroge },
+          providerMetadataKey: "openai",
+          started: 0,
+        },
+      )
+      yield* publisher.publish(LLMEvent.toolCall({ ...call, providerExecuted: executed }))
+      yield* Effect.acquireRelease(
+        bus.listen((event) =>
+          event.type === SessionEvent.Renamed.type
+            ? Deferred.succeed(held, undefined).pipe(Effect.andThen(Deferred.await(release)))
+            : Effect.void,
+        ),
+        (unsubscribe) => unsubscribe,
+      )
+      // Listener delivery holds the aggregate lock after this unrelated event commits.
+      const holder = yield* bus
+        .publish(SessionEvent.Renamed, { sessionID, title: "Hold publication" })
+        .pipe(Effect.forkScoped({ startImmediately: true }))
+      yield* Deferred.await(held)
+      const publication = yield* (executed
+        ? publisher.publish(LLMEvent.toolResult({ ...hostedResult, providerExecuted: true }))
+        : publisher.toolExecution(call.id, call.name, { content: [{ type: "text", text: "Local completed result" }] }))
+        .pipe(Effect.forkScoped({ startImmediately: true }))
+      yield* Effect.addFinalizer(() => Deferred.succeed(release, undefined))
+      yield* Deferred.await(queued)
+      const cancellation = yield* Fiber.interrupt(publication).pipe(Effect.forkChild({ startImmediately: true }))
+      yield* Effect.yieldNow
+
+      expect(cancellation.pollUnsafe()).toBeUndefined()
+      yield* Deferred.succeed(release, undefined)
+      yield* Fiber.join(holder)
+      yield* Fiber.join(cancellation)
+      expect(Exit.hasInterrupts(yield* Fiber.await(publication))).toBe(true)
+      expect(yield* publisher.failUnsettledTools({ type: "aborted", message: "Interrupted" })).toBe(false)
+
+      const events = yield* database.db
+        .select({ type: EventTable.type })
+        .from(EventTable)
+        .where(eq(EventTable.aggregate_id, sessionID))
+        .all()
+      expect(events.filter((event) => event.type === "session.tool.success.2")).toHaveLength(1)
+      expect(events.some((event) => event.type === "session.tool.failed.2")).toBe(false)
+      const message = yield* database.db
+        .select()
+        .from(SessionMessageTable)
+        .where(eq(SessionMessageTable.id, assistantMessageID))
+        .get()
+      expect(message?.data).toMatchObject({
+        content: [{ type: "tool", id: call.id, executed, state: { status: "completed" } }],
+      })
+    }),
+  )
+}
 
 test("interrupted progress metadata remains in the terminal failure snapshot", async () => {
   const { published, publisher } = capture("anthropic", { interruptProgress: true })

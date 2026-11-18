@@ -1,6 +1,10 @@
-import { useDialog } from "@opencode/ui/context/dialog"
-import { Tooltip } from "@opencode/ui/tooltip"
-import { Icon } from "@opencode/ui/icon"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { Icon } from "@aigcfroge/ui/icon"
+import { Button } from "@aigcfroge/ui/button"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { Select } from "@aigcfroge/ui/select"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { Show, createMemo, createSignal } from "solid-js"
 import { Schema } from "effect"
 import createPresence from "solid-presence"
@@ -38,7 +42,14 @@ export function NewSessionView(props: {
   composer: ComposerModel
   project: PromptProjectController
   workspace: NewSessionWorkspaceController
+  mode: {
+    current: () => ProductMode.GenericSessionMode | undefined
+    select: (mode: ProductMode.GenericSessionMode) => void
+  }
 }) {
+  const language = useLanguage()
+  const modes = ProductMode.ID.literals.filter(ProductMode.isGenericSessionMode)
+
   const [onboarding, setOnboarding, , onboardingReady] = persisted(
     Persist.global("workspace-onboarding"),
     WorkspaceOnboardingSchema,
@@ -69,35 +80,55 @@ export function NewSessionView(props: {
               <Show when={props.project.empty()}>
                 <PromptProjectAddButton controller={props.project} />
               </Show>
-              <Show when={props.project.selected()}>
+              <div class="flex flex-col gap-2">
                 <div class="flex min-h-7 min-w-0 flex-row flex-wrap items-center justify-center gap-0 text-v2-text-text-faint">
-                  <PromptProjectSelector controller={props.project} placement="bottom" />
-                  <Show
-                    when={props.workspace.bar.visible()}
-                    fallback={
-                      <PromptGitStatus
+                  <Select
+                    aria-label={language.t("newSession.mode.label")}
+                    placeholder={language.t("newSession.mode.placeholder")}
+                    options={modes}
+                    current={props.mode.current()}
+                    label={(mode) => language.t(`newSession.mode.${mode}`)}
+                    invalid={!props.mode.current()}
+                    placement="bottom"
+                    onSelect={(mode) => {
+                      if (!mode) return
+                      props.mode.select(mode)
+                    }}
+                  />
+                  <Show when={props.project.selected()}>
+                    <PromptProjectSelector controller={props.project} placement="bottom" />
+                    <Show
+                      when={props.workspace.bar.visible()}
+                      fallback={
+                        <PromptGitStatus
+                          branch={props.workspace.bar.branch()}
+                          noGit={!props.workspace.project.git()}
+                          class="ms-1"
+                        />
+                      }
+                    >
+                      <PromptWorkspaceSelector
+                        value={props.workspace.selection.value()}
+                        projectRoot={props.workspace.project.root()}
+                        workspaces={props.workspace.project.workspaces()}
+                        branches={props.workspace.project.branches()}
                         branch={props.workspace.bar.branch()}
-                        noGit={!props.workspace.project.git()}
-                        class="ms-1"
+                        onboarding={onboardingReady() && !onboarding.used}
+                        onChange={select}
+                        onCreate={props.workspace.selection.create}
+                        onSearch={props.workspace.project.searchBranches}
+                        onDone={props.composer.restoreFocus}
+                        onViewAll={props.workspace.project.openAll}
                       />
-                    }
-                  >
-                    <PromptWorkspaceSelector
-                      value={props.workspace.selection.value()}
-                      projectRoot={props.workspace.project.root()}
-                      workspaces={props.workspace.project.workspaces()}
-                      branches={props.workspace.project.branches()}
-                      branch={props.workspace.bar.branch()}
-                      onboarding={onboardingReady() && !onboarding.used}
-                      onChange={select}
-                      onCreate={props.workspace.selection.create}
-                      onSearch={props.workspace.project.searchBranches}
-                      onDone={props.composer.restoreFocus}
-                      onViewAll={props.workspace.project.openAll}
-                    />
+                    </Show>
                   </Show>
                 </div>
-              </Show>
+                <Show when={!props.mode.current()}>
+                  <p role="alert" class="text-center text-[13px] leading-text-compact text-v2-state-fg-danger">
+                    {language.t("newSession.mode.unsupported")}
+                  </p>
+                </Show>
+              </div>
             </div>
           </div>
         </div>
@@ -211,9 +242,11 @@ function NewSessionTips(props: {
           class="group/new-session-tip pointer-events-auto relative flex h-6 max-w-full items-center transition-[opacity,transform] duration-[250ms] ease-[cubic-bezier(0.215,0.61,0.355,1)] motion-reduce:transition-none"
           classList={{ "data-[visible=false]:animate-out fade-out slide-out-to-bottom-4": true }}
         >
-          <button
+          <Button
             type="button"
-            class="flex h-6 min-w-0 items-center rounded-[4px] pl-1.5 text-[13px] leading-text-compact tracking-[-0.04px] text-v2-text-text-faint transition-[background-color,color] duration-150 ease-in-out hover:bg-v2-overlay-simple-overlay-hover hover:text-v2-text-text-muted focus-visible:bg-v2-overlay-simple-overlay-hover focus-visible:text-v2-text-text-muted focus-visible:outline-none"
+            variant="ghost"
+            size="small"
+            class="h-6 min-w-0 text-text-weak"
             onClick={open}
           >
             <span class="truncate">
@@ -222,21 +255,21 @@ function NewSessionTips(props: {
             <span class="flex size-6 shrink-0 items-center justify-center" aria-hidden="true">
               <Icon name="chevron-down" size="small" class="-rotate-90" />
             </span>
-          </button>
+          </Button>
           <Tooltip
             class="hover-reveal absolute left-full top-0 flex h-6 w-7 items-center justify-end delay-0 duration-0 group-hover/new-session-tip:delay-[250ms] group-hover/new-session-tip:duration-150 group-hover/new-session-tip:opacity-100 focus-within:delay-0 focus-within:duration-0 focus-within:opacity-100"
             placement="top"
             openDelay={1000}
             value={language.t("common.dismiss")}
           >
-            <button
+            <IconButton
               type="button"
-              class="flex size-6 items-center justify-center rounded-[4px] text-v2-icon-icon-muted transition-[background-color,color] duration-150 ease-in-out hover:bg-v2-overlay-simple-overlay-hover hover:text-v2-icon-icon-base focus-visible:bg-v2-overlay-simple-overlay-hover focus-visible:text-v2-icon-icon-base focus-visible:outline-none"
+              variant="ghost"
+              size="small"
               aria-label={language.t("common.dismiss")}
               onClick={dismiss}
-            >
-              <Icon name="xmark-small" />
-            </button>
+              icon={<Icon name="xmark-small" />}
+            />
           </Tooltip>
         </div>
       </div>

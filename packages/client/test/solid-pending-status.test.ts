@@ -1,14 +1,14 @@
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 import { createData, type CreateDataInput } from "../src/solid"
-import { OpenCode, type OpenCodeEvent } from "../src/promise"
+import { AigcForge, type AigcForgeEvent } from "../src/promise"
 
 const sessionID = "ses_pending"
 
 function fixture() {
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
-  const api = OpenCode.make({
-    baseUrl: "http://opencode.local",
+  const api = AigcForge.make({
+    baseUrl: "http://aigcfroge.local",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
       return request.method === "GET" ? Response.json({ data: [] }) : Response.json({ data: {} })
@@ -35,7 +35,7 @@ function fixture() {
         created: seq,
         durable: { aggregateID: sessionID, seq, version: 1 },
         data: { sessionID, ...payload },
-      } as OpenCodeEvent
+      } as AigcForgeEvent
       listeners.forEach((listener) => listener({ name: event.type, details: event }))
     }
     return {

@@ -2,14 +2,14 @@ import { describe, expect, test } from "bun:test"
 import { Clock, Effect, Schedule } from "effect"
 import { TestClock } from "effect/testing"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
-import { Credential } from "@opencode/core/credential"
-import { Integration } from "@opencode/core/integration"
-import { Model } from "@opencode/core/model"
-import { Plugin } from "@opencode/core/plugin"
-import { PluginHost } from "@opencode/core/plugin/host"
-import { Provider } from "@opencode/core/provider"
-import { ProviderPlugins } from "@opencode/core/plugin/provider"
-import { DigitalOceanPlugin } from "@opencode/core/plugin/provider/digitalocean"
+import { Credential } from "@aigcfroge/core/credential"
+import { Integration } from "@aigcfroge/core/integration"
+import { Model } from "@aigcfroge/core/model"
+import { Plugin } from "@aigcfroge/core/plugin"
+import { PluginHost } from "@aigcfroge/core/plugin/host"
+import { Provider } from "@aigcfroge/core/provider"
+import { ProviderPlugins } from "@aigcfroge/core/plugin/provider"
+import { DigitalOceanPlugin } from "@aigcfroge/core/plugin/provider/digitalocean"
 import { drain } from "../lib/clock"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
@@ -38,7 +38,7 @@ const discovery = Effect.gen(function* () {
   const models = yield* Model.Service
   yield* providers.transform((draft) => {
     draft.update(providerID, (provider) => {
-      provider.package = "@opencode/ai/providers/openai-compatible"
+      provider.package = "@aigcfroge/ai/providers/openai-compatible"
       provider.settings = { baseURL: "https://inference.do-ai.run/v1" }
     })
     draft.models.update(providerID, Model.ID.make("snapshot-model"), () => {})
@@ -74,7 +74,7 @@ const status = Effect.fn(function* (attempt: Integration.Attempt) {
 
 describe("DigitalOceanPlugin", () => {
   test("is registered alongside the other provider plugins", () => {
-    expect(ProviderPlugins.map((item) => item.id)).toContain("opencode.provider.digitalocean")
+    expect(ProviderPlugins.map((item) => item.id)).toContain("aigcfroge.provider.digitalocean")
   })
 
   it.effect("registers browser OAuth alongside generic key and environment methods", () =>
@@ -109,7 +109,7 @@ describe("DigitalOceanPlugin", () => {
       expect(yield* fixture.models.get(providerID, Model.ID.make("router:alpha"))).toMatchObject({
         name: "alpha",
         family: "digitalocean-inference-routers",
-        package: "@opencode/ai/providers/openai-compatible",
+        package: "@aigcfroge/ai/providers/openai-compatible",
         settings: { baseURL: "https://inference.do-ai.run/v1" },
         capabilities: { tools: true, input: ["text"], output: ["text"] },
         limit: { context: 128_000, output: 8_192 },

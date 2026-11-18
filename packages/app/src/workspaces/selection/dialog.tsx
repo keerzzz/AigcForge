@@ -1,14 +1,14 @@
 import "@pierre/trees/web-components"
 import { FileTree } from "@pierre/trees"
-import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from "@opencode/ui/dialog"
-import { Button } from "@opencode/ui/button"
-import { TextInput } from "@opencode/ui/text-input"
-import { useDialog } from "@opencode/ui/context/dialog"
+import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from "@aigcfroge/ui/dialog"
+import { Button } from "@aigcfroge/ui/button"
+import { TextInput } from "@aigcfroge/ui/text-input"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { createEffect, createMemo, createResource, createSignal, For, onCleanup, onMount, Show } from "solid-js"
 import { useGlobal } from "@/runtime/server/runtime"
 import { useLanguage } from "@/runtime/i18n/language"
 import { ServerConnection } from "@/runtime/server/registry"
-import type { LocationRef } from "@opencode/client/promise"
+import type { LocationRef } from "@aigcfroge/client/promise"
 import {
   absoluteTreePath,
   activeTreeNavigation,
@@ -31,7 +31,7 @@ import {
   pickerAbsolutePath,
 } from "./domain"
 import "./dialog.css"
-import { Divider } from "@opencode/ui/divider"
+import { Divider } from "@aigcfroge/ui/divider"
 
 interface DirectoryPickerDialogProps {
   title?: string

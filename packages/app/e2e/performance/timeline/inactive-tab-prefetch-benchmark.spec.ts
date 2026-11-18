@@ -1,5 +1,5 @@
 import { benchmark, expect } from "../benchmark"
-import { mockOpenCodeServer } from "../../utils/mock-server"
+import { mockAigcForgeServer } from "../../utils/mock-server"
 import { expectSessionTitle } from "../../utils/waits"
 import { fixture, installStressSessionTabs } from "../../utils/session-fixture"
 import { sessionHref } from "../../utils/app"
@@ -79,7 +79,7 @@ for (const close of [false, true]) {
           return body
         }
       })
-      await mockOpenCodeServer(page, {
+      await mockAigcForgeServer(page, {
         ...fixture,
         sessions,
         pageMessages: (id) => ({ items: pages[id] ?? [] }),
@@ -124,7 +124,7 @@ for (const close of [false, true]) {
       await expectSessionTitle(page, sessions[0].title)
 
       const heap =
-        process.env.OPENCODE_PERFORMANCE_MEMORY === "1"
+        process.env.AIGCFROGE_PERFORMANCE_MEMORY === "1"
           ? await cdp.send("HeapProfiler.collectGarbage").then(() => cdp.send("Runtime.getHeapUsage"))
           : undefined
 

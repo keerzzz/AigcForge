@@ -1,7 +1,8 @@
 import { Schema, SchemaGetter, Struct } from "effect"
-import { checksum } from "@opencode/util/encode"
-import { SessionMessage } from "@opencode/schema/session-message"
-import { Skill } from "@opencode/schema/skill"
+import { checksum } from "@aigcfroge/util/encode"
+import { SessionMessage } from "@aigcfroge/schema/session-message"
+import { Skill } from "@aigcfroge/schema/skill"
+import { SessionReference } from "@aigcfroge/schema/session-reference"
 import { Persistence } from "@/runtime/persistence/schema"
 import { FileSelection, SelectedLineRange } from "@/workspaces/files/types"
 
@@ -58,6 +59,14 @@ export const SkillPart = Persistence.struct({
 })
 
 export type SkillPart = typeof SkillPart.Type
+
+export const SessionPart = Persistence.struct({
+  type: Schema.Literal("session"),
+  ...PartBase,
+  reference: Schema.toEncoded(SessionReference.Ref),
+})
+
+export type SessionPart = typeof SessionPart.Type
 
 const ImageFields = {
   type: Schema.Literal("image"),
@@ -121,6 +130,7 @@ export const ContentPart = Schema.Union([
   FileAttachmentPart,
   AgentPart,
   SkillPart,
+  SessionPart,
   ImageAttachmentPart,
   PathAttachmentPart,
 ])
@@ -131,11 +141,14 @@ export const Prompt = Persistence.array(ContentPart)
 
 export type Prompt = typeof Prompt.Type
 
-export const PromptModel = Persistence.struct({
-  providerID: Schema.String,
-  modelID: Schema.String,
-  variant: Persistence.optional(Schema.NullOr(Schema.String)),
-})
+export const PromptModel = Schema.Union([
+  Persistence.struct({
+    providerID: Schema.String,
+    modelID: Schema.String,
+    variant: Persistence.optional(Schema.NullOr(Schema.String)),
+  }),
+  Persistence.struct({ type: Schema.Literal("group"), groupID: Schema.String }),
+])
 
 export type PromptModel = typeof PromptModel.Type
 
@@ -300,13 +313,16 @@ export const ComposerStore = Persistence.struct({
   model: Persistence.optional(PromptModel),
   mode: Persistence.optional(Schema.Literals(["normal", "shell"])),
   retry: Persistence.optional(
-    Schema.Struct({
-      id: SessionMessage.ID,
-      agent: Schema.String,
-      providerID: Schema.String,
-      modelID: Schema.String,
-      variant: Persistence.optional(Schema.String),
-    }),
+    Schema.Union([
+      Schema.Struct({
+        id: SessionMessage.ID,
+        agent: Schema.String,
+        providerID: Schema.String,
+        modelID: Schema.String,
+        variant: Persistence.optional(Schema.String),
+      }),
+      Schema.Struct({ id: SessionMessage.ID, agent: Schema.String, type: Schema.Literal("group"), groupID: Schema.String }),
+    ]),
   ),
   context: Persistence.struct({ items: Persistence.array(ContextEntry) }),
 })

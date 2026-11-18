@@ -734,13 +734,13 @@ sequenceDiagram
   test("renders br-delimited message labels across multiple rows", () => {
     const output = renderSequenceDiagram(`
 sequenceDiagram
-  Browser->>Server: POST connect-token<br/>· Basic (cached by browser)<br/>· X-OpenCode-Ticket: 1
+  Browser->>Server: POST connect-token<br/>· Basic (cached by browser)<br/>· X-AigcForge-Ticket: 1
 `)
 
     expect(output).toContain("POST connect-token")
     expect(output).toContain("· Basic (cached by browser)")
-    expect(output).toContain("· X-OpenCode-Ticket: 1")
-    expect(output.indexOf("· X-OpenCode-Ticket: 1")).toBeLessThan(output.indexOf("├"))
+    expect(output).toContain("· X-AigcForge-Ticket: 1")
+    expect(output.indexOf("· X-AigcForge-Ticket: 1")).toBeLessThan(output.indexOf("├"))
   })
 
   test("renders br-delimited notes as rows without source tags", () => {

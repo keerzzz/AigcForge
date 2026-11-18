@@ -2,7 +2,7 @@ import { createStore, produce, reconcile } from "solid-js/store"
 import { Predicate, Schema, SchemaGetter } from "effect"
 import { batch, createEffect, createMemo, onCleanup, onMount, untrack, type Accessor } from "solid-js"
 import { useLocation } from "@solidjs/router"
-import { createSimpleContext } from "@opencode/ui/context"
+import { createSimpleContext } from "@aigcfroge/ui/context"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { ServerConnection, useServers } from "@/runtime/server/registry"
 import { usePlatform } from "@/runtime/platform/platform"
@@ -10,6 +10,7 @@ import type { Project } from "@/runtime/server/types"
 import { Persist, persisted, removePersisted } from "@/runtime/persistence/storage"
 import { Persistence } from "@/runtime/persistence/schema"
 import { TabStorage } from "@/shell/tabs/schema"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { createScrollPersistence, type SessionScroll } from "./scroll"
 import { SessionStateKey } from "@/runtime/server/scope"
 import { createSessionKeyReader, ensureSessionKey, pruneSessionKeys } from "./helpers"
@@ -41,6 +42,7 @@ export type TabRegions = {
 
 export type LayoutRoute =
   | { type: "home" }
+  | { type: "mode"; mode: ProductMode.ID }
   | { type: "settings" }
   | { type: "connect" }
   | { type: "draft"; draftID: string }
@@ -50,6 +52,12 @@ export const currentRoute = (pathname: string, search: string): LayoutRoute => {
   const parts = pathname.split("/").filter(Boolean)
 
   if (parts.length === 0) return { type: "home" }
+
+  if (parts[0] === "mode") {
+    if (parts.length === 2 && ProductMode.isID(parts[1])) return { type: "mode", mode: parts[1] }
+
+    return { type: "home" }
+  }
 
   if (parts[0] === "settings") return { type: "settings" }
 
@@ -122,6 +130,7 @@ export const layoutSchema = Persistence.struct({
   sessionTabs: Persistence.record(Persistence.fallback(sessionTabsSchema, () => ({ all: [] }))),
   sessionView: Persistence.record(Persistence.fallback(sessionViewSchema, () => ({ scroll: {} }))),
   home: Persistence.struct({
+    sessionMode: Persistence.optional(ProductMode.ID),
     selection: Persistence.struct({
       server: Schema.optional(TabStorage.ServerKey),
       directory: Schema.optional(Schema.String),
@@ -354,6 +363,10 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
       route: useCurrentRoute(),
       ready,
       home: {
+        mode: createMemo(() => store.home.sessionMode),
+        setMode(mode: ProductMode.ID | undefined) {
+          setStore("home", "sessionMode", mode)
+        },
         selection: createMemo(() => store.home.selection),
         setSelection(selection: HomeProjectSelection) {
           setStore("home", "selection", reconcile(selection))
@@ -379,6 +392,16 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
             if (scopedReady()) return add()
             void scopedReady.promise?.then(add)
           })
+        },
+      },
+      sidebar: {
+        opened: createMemo(() => store.sidebar.opened),
+        width: createMemo(() => store.sidebar.width),
+        toggle() {
+          setStore("sidebar", "opened", (opened) => !opened)
+        },
+        resize(width: number) {
+          setStore("sidebar", "width", width)
         },
       },
       fileTree: {

@@ -1,4 +1,4 @@
-import { isUnauthorizedError, OpenCode } from "@opencode/client/promise"
+import { isUnauthorizedError, AigcForge } from "@aigcfroge/client/promise"
 import { Option, Schema } from "effect"
 import { checkServerHealth } from "@/runtime/server/health"
 import { normalizeServerUrl } from "@/runtime/server/registry"
@@ -23,7 +23,7 @@ const decodePayload = Schema.decodeUnknownOption(
   Schema.fromJsonString(Schema.Struct({ code: Schema.String, urls: Schema.Array(Schema.String) })),
 )
 
-// `opencode pair` prints links carrying a single-use code that the server exchanges for a session token.
+// `aigcfroge pair` prints links carrying a single-use code that the server exchanges for a session token.
 // Its QR code carries the same code with every reachable server address as {"code","urls"} JSON.
 export function pairingLink(value: string) {
   const trimmed = value.trim()
@@ -84,7 +84,7 @@ export type Redeemed =
 // Every address may reach the same server, but the code is single-use, so at most one attempt succeeds.
 export function redeemPairingLink(link: { urls: ReadonlyArray<string>; code: string }) {
   const attempts = link.urls.map((url) =>
-    OpenCode.make({ baseUrl: url })
+    AigcForge.make({ baseUrl: url })
       .server.connect({ code: link.code }, { signal: AbortSignal.timeout(5_000) })
       .then((session): Pairing => ({ url, password: session.token })),
   )

@@ -1,9 +1,9 @@
 export * as SessionRunnerRetry from "./retry.js"
 
-import { AIError, isRetryable } from "@opencode/ai"
-import { Agent } from "@opencode/schema/agent"
-import { Model } from "@opencode/schema/model"
-import { SessionError } from "@opencode/schema/session-error"
+import { AIError, isRetryable } from "@aigcfroge/ai"
+import { Agent } from "@aigcfroge/schema/agent"
+import { Model } from "@aigcfroge/schema/model"
+import { SessionError } from "@aigcfroge/schema/session-error"
 import { Clock, Duration, Effect, Pull, Schedule } from "effect"
 import { Bus } from "../../bus.js"
 import type { PluginHooks } from "../../plugin/hooks.js"
@@ -27,6 +27,7 @@ export interface Decision {
   readonly attempt: number
   readonly delay: number
 }
+export type DecisionResult = Decision | { readonly retry: false; readonly reason?: "exhausted" | "timeout-exhausted" | "declined" }
 
 /** Bound provider-requested delays so a hostile or buggy retry-after cannot stall a session for hours. */
 const RETRY_AFTER_MAX = Duration.toMillis("15 minutes")
@@ -70,7 +71,7 @@ export const policy = (sessionID: SessionSchema.ID) =>
       Effect.gen(function* () {
         const now = yield* Clock.currentTimeMillis
         const next = yield* step(now, input).pipe(Pull.catchDone(() => Effect.succeed(undefined)))
-        if (!next) return { retry: false as const }
+        if (!next) return { retry: false, reason: "exhausted" } satisfies DecisionResult
         const [, duration] = next
         attempt++
         if (isTimeout(input.cause)) timeouts++
@@ -84,7 +85,10 @@ export const policy = (sessionID: SessionSchema.ID) =>
           decision: input.retry && timeouts <= MAX_TIMEOUT_RETRIES ? { retry: true, delay } : { retry: false },
         }
         yield* input.hook(event)
-        if (!event.decision.retry) return event.decision
+        if (!event.decision.retry) return {
+          retry: false,
+          reason: input.retry && timeouts > MAX_TIMEOUT_RETRIES ? "timeout-exhausted" : "declined",
+        } satisfies DecisionResult
         const normalized =
           Number.isFinite(event.decision.delay) && event.decision.delay >= 0 ? Math.ceil(event.decision.delay) : delay
         return { retry: true as const, attempt, delay: normalized }

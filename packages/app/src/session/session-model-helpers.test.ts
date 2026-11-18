@@ -18,7 +18,7 @@ test.each([
   syncPromptModel(
     {
       model: {
-        current: () => ({ id: effective.modelID, provider: { id: effective.providerID } }),
+        key: () => ({ providerID: effective.providerID, modelID: effective.modelID }),
         variant: { current: () => effective.variant },
       },
     },

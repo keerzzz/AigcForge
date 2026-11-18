@@ -1,4 +1,4 @@
-import { DialogProvider } from "@opencode/ui/context/dialog"
+import { DialogProvider } from "@aigcfroge/ui/context/dialog"
 import {
   Panel,
   type Appearance,
@@ -15,7 +15,7 @@ import {
   type Storage,
   type StoreOptions,
   type Workspaces,
-} from "@opencode/gui-extensions/sdk"
+} from "@aigcfroge/gui-extensions/sdk"
 import {
   createComponent,
   createMemo,
@@ -35,14 +35,14 @@ import { ServerScope } from "@/runtime/server/scope"
 import { ExtensionHostProvider, useExtensionHost, type HostApiFactories } from "../src/runtime/extension/host"
 import { createHostApis } from "../src/runtime/extension/host-apis"
 import { createInstalled } from "../src/runtime/extension/installed"
-import { extensionEnabled } from "@opencode/gui-extensions/sdk/bridge"
+import { extensionEnabled } from "@aigcfroge/gui-extensions/sdk/bridge"
 import { createRegion, RegionContent } from "../src/runtime/extension/panels"
 import { ExtensionSlot } from "../src/runtime/extension/render"
 import { persistedHandle } from "../src/runtime/extension/stores"
 import { LanguageProvider } from "../src/runtime/i18n/language"
 import { GuiExtensionsSettings } from "../src/runtime/extension/settings-page-dev"
 
-export { bindExtension, useExtension, Contract, createKeyed, Panel, Slot, Store } from "@opencode/gui-extensions/sdk"
+export { bindExtension, useExtension, Contract, createKeyed, Panel, Slot, Store } from "@aigcfroge/gui-extensions/sdk"
 
 export { Schema }
 
@@ -100,7 +100,22 @@ function fakeApis(storage: (extension: string) => Storage): HostApiFactories {
     servers: () => servers,
     workspaces: () => workspaces,
     desktop: () => undefined,
-    sessions: () => ({ list: () => [], current: () => undefined }),
+    sessions: () => ({
+      list: () => [],
+      current: () => undefined,
+      target: (input) => ({
+        key: `${input.server.id}\n${input.sessionID}`,
+        id: input.sessionID,
+        server: input.server,
+        location: undefined,
+      }),
+      content: () => null,
+      open() {},
+      openTask: () => false,
+      openCommunication: () => false,
+      draft: async () => undefined,
+      insertText: async () => undefined,
+    }),
     screen: () => ({ current: () => undefined }),
     layout: () => layout,
     storage,
@@ -324,6 +339,10 @@ const web: Platform = {
 function standIn(overrides: Partial<Interface>): Interface {
   return {
     sessions: () => [],
+    openSession() {},
+    draft: async () => undefined,
+    insertText: async () => undefined,
+    content: () => null,
     current: () => undefined,
     screen: () => undefined,
     scope: () => ServerScope.local,
@@ -505,6 +524,7 @@ export function mountHostApis(input: { definitions: readonly Definition[] }) {
   const layout = standIn({}).layout
 
   const mounted = standIn({
+    openSession: (input) => void writes.push(`session ${input.source.key} ${input.sessionID} ${input.reveal ?? ""}`),
     layout: {
       ...layout,
       open(key) {

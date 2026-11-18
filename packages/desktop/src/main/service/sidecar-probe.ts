@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 import path from "node:path"
 import { app } from "electron"
-import type { Endpoint } from "@opencode/client/service"
+import type { Endpoint } from "@aigcfroge/client/service"
 
 // The main thread idles between showing the first window and evaluating the main bundle, waiting
 // for the renderer's asset requests. That slot is long enough to find out whether a compatible
@@ -15,7 +15,7 @@ export function startSidecarProbe() {
   const version = bundledVersion()
 
   if (!version) return
-  probe = import("@opencode/client/service")
+  probe = import("@aigcfroge/client/service")
     .then(({ Service }) => Service.discover({ version }))
     .catch(() => undefined)
 }
@@ -26,7 +26,7 @@ export function sidecarProbe() {
 
 function bundledVersion() {
   try {
-    return readFileSync(path.join(process.resourcesPath, "opencode-cli.version"), "utf8").trim()
+    return readFileSync(path.join(process.resourcesPath, "aigcfroge-cli.version"), "utf8").trim()
   } catch {
     return ""
   }

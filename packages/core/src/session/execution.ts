@@ -1,11 +1,13 @@
 export * as SessionExecution from "./execution.js"
 
+import { ProductModePolicy } from "../product-mode-policy.js"
+
 import { Cause, Context, Effect, Exit, Layer } from "effect"
 import { Bus } from "../bus.js"
 import { Database } from "../database/database.js"
 import { Job } from "../job.js"
 import { Instance } from "../instance/service.js"
-import { makeGlobalNode } from "@opencode/util/effect/app-node"
+import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
 import { SessionEvent } from "./event.js"
 import { SessionRunCoordinator } from "./run-coordinator.js"
 import { SessionRunner } from "./runner/index.js"
@@ -13,6 +15,7 @@ import { SessionSchema } from "./schema.js"
 import { SessionStore } from "./store.js"
 import { toSessionError } from "./to-session-error.js"
 import { SessionInbox } from "./inbox.js"
+import { SessionInputResult } from "./input-result.js"
 
 export interface Interface {
   /** Snapshots active execution owned by this process. */
@@ -43,7 +46,7 @@ export interface Interface {
 }
 
 /** Routes execution from a Session ID to its selected instance's runner. */
-export class Service extends Context.Service<Service, Interface>()("@opencode/SessionExecution") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionExecution") {}
 
 type InterruptReason = "user" | "shutdown" | "inactivity"
 
@@ -92,6 +95,7 @@ export const layer = Layer.effect(
     ): Effect.fn.Return<void, SessionRunner.RunError> {
       const session = yield* store.get(sessionID)
       if (!session) return yield* Effect.die(new Error(`Session not found: ${sessionID}`))
+      yield* ProductModePolicy.assertRuntimeSupported(session.mode)
       const result = yield* SessionRunner.Service.use((runner) =>
         runner.drain({ sessionID, force, continuation, promotable }),
       ).pipe(
@@ -121,8 +125,13 @@ export const layer = Layer.effect(
           sessionID,
           Effect.gen(function* () {
             const outcome = terminal(exit, reason)
+            const resultAnchorInputID = (yield* SessionInputResult.current(db, sessionID))?.anchorInputID
             if (outcome.type === "succeeded") {
-              yield* bus.publish(SessionEvent.Execution.Succeeded, { sessionID }, releaseOnCommit(sessionID))
+              yield* bus.publish(
+                SessionEvent.Execution.Succeeded,
+                { sessionID, resultAnchorInputID },
+                releaseOnCommit(sessionID),
+              )
               return
             }
             if (outcome.type === "interrupted") {
@@ -130,7 +139,7 @@ export const layer = Layer.effect(
               if (outcome.reason !== "shutdown") yield* jobs.cancel(sessionID)
               yield* bus.publish(
                 SessionEvent.Execution.Interrupted,
-                { sessionID, reason: outcome.reason },
+                { sessionID, reason: outcome.reason, resultAnchorInputID },
                 outcome.reason === "shutdown" ? undefined : releaseOnCommit(sessionID),
               )
               return
@@ -140,11 +149,27 @@ export const layer = Layer.effect(
               {
                 sessionID,
                 error: outcome.error,
+                resultAnchorInputID,
               },
               releaseOnCommit(sessionID),
             )
           }),
         ),
+    })
+
+    const resume = Effect.fn("SessionExecution.resume")(function* (sessionID: SessionSchema.ID) {
+      const session = yield* store.get(sessionID)
+      if (session) yield* ProductModePolicy.assertRuntimeSupported(session.mode)
+      return yield* coordinator.run(sessionID)
+    })
+    const wake = Effect.fn("SessionExecution.wake")(function* (
+      sessionID: SessionSchema.ID,
+      promotable: SessionInbox.Promotable = "input",
+    ) {
+      const session = yield* store.get(sessionID)
+      if (session?.mode === "custom" && !ProductModePolicy.isCustomModeEnabled()) return
+      if ((yield* SessionInputResult.automaticState(db, sessionID)) !== "ready") return
+      yield* coordinator.wake(sessionID, promotable)
     })
 
     return Service.of({
@@ -165,11 +190,11 @@ export const layer = Layer.effect(
           const next = yield* SessionInbox.nextPromotable(db, sessionID, "input")
           if (next === undefined) return interrupted
           if (next.delivery === "steer" || next.type === "compaction" || next.type === "move")
-            yield* coordinator.wake(sessionID, "steer")
+            yield* wake(sessionID, "steer")
           return interrupted
         }),
-      resume: coordinator.run,
-      wake: coordinator.wake,
+      resume,
+      wake,
       awaitIdle: coordinator.awaitIdle,
     })
   }),

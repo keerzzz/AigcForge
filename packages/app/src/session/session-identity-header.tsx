@@ -1,14 +1,14 @@
-import type { SessionInfo } from "@opencode/client/promise"
-import { Icon } from "@opencode/ui/icon"
-import { IconButton } from "@opencode/ui/icon-button"
-import { Menu } from "@opencode/ui/menu"
+import type { SessionInfo } from "@aigcfroge/client/promise"
+import { Icon } from "@aigcfroge/ui/icon"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { Menu } from "@aigcfroge/ui/menu"
 import {
   displayName,
   getProjectAvatarSource,
   getProjectAvatarVariant,
   ProjectAvatar,
-} from "@opencode/ui/project-avatar"
-import { Tooltip } from "@opencode/ui/tooltip"
+} from "@aigcfroge/ui/project-avatar"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 import { useNavigate } from "@solidjs/router"
 import { createMemo, For, Show, type ParentProps } from "solid-js"
@@ -23,10 +23,11 @@ import { tabKey, useTabs } from "@/shell/tabs/tabs"
 import { useSettingsSurface } from "@/settings/surface"
 import { pathKey } from "@/workspaces/path-key"
 import { isProjectDirectory, isWorkspaceDirectory } from "@/workspaces/paths"
-import { sessionHref } from "@/shell/routes/session"
+import { useRelatedSessionRoute } from "@/shell/routes/session"
 import { showToast } from "@/shell/notifications/toast"
 import { sessionTitle } from "./title"
 import { SessionWorkingIndicator } from "./header/session-working-indicator"
+import { SessionCompositionSummary } from "./composition-summary"
 import "./session-identity-header.css"
 
 export function SessionTitleHeader(props: ParentProps) {
@@ -290,20 +291,10 @@ export function SessionAncestorTrail(props: {
 // `reveal` names a tool call or shell the opened timeline scrolls to and expands.
 export function useOpenSessionRoute() {
   const server = useServer()
-  const tabs = useTabs()
-  const navigate = useNavigate()
+  const open = useRelatedSessionRoute()
 
-  return (from: string, id: string, reveal?: string) => {
-    const tab = tabs.store.find(
-      (item) =>
-        item.type === "session" &&
-        item.server === server.key &&
-        (item.sessionId === from || item.routeSessionId === from),
-    )
-
-    if (tab?.type === "session") tabs.rememberSessionRoute(tab, id, server.ctx.data.session.get(id)?.parentID)
-    navigate(sessionHref(server.key, id), reveal ? { state: { reveal } } : undefined)
-  }
+  return (from: string, id: string, reveal?: string) =>
+    open({ server: server.key, from, sessionID: id, parentID: server.ctx.data.session.get(id)?.parentID, reveal })
 }
 
 export function SessionIdentityHeader(props: ParentProps<{ sessionID: string; session?: SessionInfo }>) {
@@ -415,6 +406,9 @@ export function SessionIdentityHeader(props: ParentProps<{ sessionID: string; se
             </div>
           </div>
         </div>
+        <Show when={props.session?.mode === "custom" ? props.session : undefined} keyed>
+          {(session) => <SessionCompositionSummary session={session} />}
+        </Show>
       </SessionTitleHeader>
     </Show>
   )

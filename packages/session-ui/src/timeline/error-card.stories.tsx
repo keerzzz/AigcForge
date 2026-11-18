@@ -4,7 +4,7 @@ import { CurrentSessionTimelineStory } from "../storybook/current-session-story"
 import { SessionTimeline } from "./session-timeline"
 
 export default {
-  title: "OpenCode/Conversation/Error card",
+  title: "AigcForge/Conversation/Error card",
   id: "current-session-error-card",
   component: SessionTimeline,
   parameters: { layout: "fullscreen" },
@@ -66,7 +66,7 @@ const executionErrorsDocument = {
       id: "msg_story_exec_idle_1",
       type: "idle",
       outcome: "failed",
-      error: { type: "provider.no-route", message: "Model unavailable: opencode/gpt-5.2" },
+      error: { type: "provider.no-route", message: "Model unavailable: aigcfroge/gpt-5.2" },
       time: { created: STORY_TIME + 40_500 },
     },
     {

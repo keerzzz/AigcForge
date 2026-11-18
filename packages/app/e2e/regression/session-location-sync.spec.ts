@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
-import { base64Encode } from "@opencode/util/encode"
+import { base64Encode } from "@aigcfroge/util/encode"
 import { fixture } from "../utils/session-fixture"
-import { mockOpenCodeServer } from "../utils/mock-server"
+import { mockAigcForgeServer } from "../utils/mock-server"
 import { installSseTransport } from "../utils/sse-transport"
 
 for (const endpoint of ["/api/location", "/api/agent"]) {
@@ -10,7 +10,7 @@ for (const endpoint of ["/api/location", "/api/agent"]) {
       const recovery = recoveryRequests(page)
       const directory = "/projects/working-tree"
       const sessionID = "ses_location_sync_failure"
-      await mockOpenCodeServer(page, {
+      await mockAigcForgeServer(page, {
         directory: fixture.directory,
         project: fixture.project,
         provider: fixture.provider,
@@ -75,7 +75,7 @@ test("replaces the composer when the location is not found and recovers by movin
   const session = { id: sessionID, projectID: fixture.project.id, directory, title: "Missing location" }
   const moves: unknown[] = []
   const transport = await installSseTransport(page, { server: fixture.serverKey })
-  await mockOpenCodeServer(page, {
+  await mockAigcForgeServer(page, {
     directory: fixture.directory,
     project: fixture.project,
     provider: fixture.provider,
@@ -147,7 +147,7 @@ test("follows a live session move while the agent catalog is still loading", asy
     )
   })
   const transport = await installSseTransport(page, { server: fixture.serverKey })
-  await mockOpenCodeServer(page, {
+  await mockAigcForgeServer(page, {
     directory: fixture.directory,
     project: fixture.project,
     provider: fixture.provider,
@@ -214,7 +214,7 @@ test("keeps the side panel's tabs and selection when the session moves", async (
   const sessionID = "ses_location_moved_tabs"
   const session = { id: sessionID, projectID: fixture.project.id, directory, title: "Moved tabs" }
   const transport = await installSseTransport(page, { server: fixture.serverKey })
-  await mockOpenCodeServer(page, {
+  await mockAigcForgeServer(page, {
     directory: fixture.directory,
     project: fixture.project,
     provider: fixture.provider,
@@ -285,7 +285,7 @@ test("refreshes a session moved during disconnection without losing the draft", 
   const sessionID = "ses_location_reconnect"
   const session = { id: sessionID, projectID: fixture.project.id, directory, title: "Reconnected session" }
   const transport = await installSseTransport(page, { server: fixture.serverKey })
-  await mockOpenCodeServer(page, {
+  await mockAigcForgeServer(page, {
     directory: fixture.directory,
     project: fixture.project,
     provider: fixture.provider,
@@ -328,7 +328,7 @@ test("ignores an old failed location read after reconnecting", async ({ page }) 
   const requested = Promise.withResolvers<void>()
   const release = Promise.withResolvers<void>()
   const transport = await installSseTransport(page, { server: fixture.serverKey })
-  await mockOpenCodeServer(page, {
+  await mockAigcForgeServer(page, {
     directory: fixture.directory,
     project: fixture.project,
     provider: fixture.provider,

@@ -106,7 +106,7 @@ export const createSshController = Effect.fn("Ssh.controller")(function* (input:
 
     if (process.platform !== "win32") {
       target.args.unshift("-o", "ControlMaster=auto", "-o", "ControlPersist=60", "-o", `ControlPath=${control}`)
-      // Close only our local SSH master. The remote OpenCode service owns its
+      // Close only our local SSH master. The remote AigcForge service owns its
       // own lifetime and must survive disconnect, failure, and app shutdown.
       yield* Effect.addFinalizer(() =>
         run({ args: ["-o", `ControlPath=${control}`, "-O", "exit", target.host], timeout: 2000 }).pipe(Effect.ignore),
@@ -414,7 +414,7 @@ const checkHealth = Effect.fn("Ssh.checkHealth")(function* (http: SshHttp) {
 
   return yield* client
     .get(`${http.url}/api/info`, {
-      headers: { authorization: `Basic ${Buffer.from(`opencode:${http.password}`).toString("base64")}` },
+      headers: { authorization: `Basic ${Buffer.from(`aigcfroge:${http.password}`).toString("base64")}` },
     })
     .pipe(
       Effect.timeout(2000),

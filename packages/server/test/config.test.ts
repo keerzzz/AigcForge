@@ -1,19 +1,19 @@
 import fs from "node:fs/promises"
 import path from "node:path"
 import { expect } from "bun:test"
-import { Config } from "@opencode/schema/config"
+import { Config } from "@aigcfroge/schema/config"
 import { Effect, Schema } from "effect"
 import { tmpdir } from "../../core/test/fixture/tmpdir"
 import { it } from "../../core/test/lib/effect"
 import { startServer } from "./fixture/server"
-import { AbsolutePath } from "@opencode/schema/schema"
+import { AbsolutePath } from "@aigcfroge/schema/schema"
 
 it.live("returns ordered config entries for the requested directory", () =>
   Effect.gen(function* () {
-    const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("opencode-config-endpoint-")))
+    const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("aigcfroge-config-endpoint-")))
     const global = path.join(tmp.path, "global")
     const project = path.join(tmp.path, "project")
-    const config = path.join(project, "opencode.json")
+    const config = path.join(project, "aigcfroge.json")
     yield* Effect.promise(() =>
       Promise.all([fs.mkdir(global, { recursive: true }), fs.mkdir(project, { recursive: true })]),
     )
@@ -61,9 +61,9 @@ it.live("returns ordered config entries for the requested directory", () =>
 
 it.live("updates the global shell without replacing unrelated JSONC", () =>
   Effect.gen(function* () {
-    const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("opencode-config-shells-")))
+    const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("aigcfroge-config-shells-")))
     const global = path.join(tmp.path, "global")
-    const config = path.join(global, "opencode.jsonc")
+    const config = path.join(global, "aigcfroge.jsonc")
     yield* Effect.promise(() => fs.mkdir(global, { recursive: true }))
     yield* Effect.promise(() =>
       fs.writeFile(

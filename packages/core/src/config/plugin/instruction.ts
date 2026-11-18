@@ -1,9 +1,9 @@
 export * as ConfigInstructionPlugin from "./instruction.js"
 
-import { define } from "@opencode/plugin/effect/plugin"
-import { FSUtil } from "@opencode/util/fs-util"
-import { Global } from "@opencode/util/global"
-import { sameDirectory } from "@opencode/util/path"
+import { define } from "@aigcfroge/plugin/effect/plugin"
+import { FSUtil } from "@aigcfroge/util/fs-util"
+import { Global } from "@aigcfroge/util/global"
+import { sameDirectory } from "@aigcfroge/util/path"
 import { dirname, join } from "path"
 import { Effect, PubSub, Semaphore, Stream } from "effect"
 import { Watcher } from "../../filesystem/watcher.js"
@@ -17,7 +17,7 @@ type Loaded =
   | { readonly type: "unavailable" }
 
 export const Plugin = define({
-  id: "opencode.config.instruction",
+  id: "aigcfroge.config.instruction",
   effect: Effect.fn(function* () {
     const discovery = yield* InstructionDiscovery.Service
     // Nothing this plugin watches or loads can contribute when both scopes

@@ -1,9 +1,9 @@
-import { ConfigPolicyPlugin } from "@opencode/core/config/plugin/policy"
-import { Mcp } from "@opencode/core/mcp/index"
-import { Skill } from "@opencode/core/skill"
-import { ID } from "@opencode/schema/event"
+import { ConfigPolicyPlugin } from "@aigcfroge/core/config/plugin/policy"
+import { Mcp } from "@aigcfroge/core/mcp/index"
+import { Skill } from "@aigcfroge/core/skill"
+import { ID } from "@aigcfroge/schema/event"
 import { Effect, Stream } from "effect"
-import { host } from "../plugin/host"
+import { host, noProviders } from "../plugin/host"
 
 // Exercise the real policy plugin against supplied catalogs without unrelated provider/permission setup.
 export const registerIntegrationPolicy = Effect.fn(function* (input: {
@@ -21,6 +21,7 @@ export const registerIntegrationPolicy = Effect.fn(function* (input: {
           ),
       },
       provider: {
+        ...noProviders,
         list: () => Effect.die("unused provider.list"),
         get: () => Effect.die("unused provider.get"),
         transform: () => Effect.succeed({ dispose: Effect.void }),

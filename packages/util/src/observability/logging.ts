@@ -3,7 +3,7 @@ import path from "path"
 import { Global } from "../global.js"
 import { runID } from "./shared.js"
 
-// One log file is shared by every opencode process on the machine and only ever appended to, so it
+// One log file is shared by every aigcfroge process on the machine and only ever appended to, so it
 // is bounded by compacting in place instead of rotating: once it passes LOG_MAX_BYTES the head is
 // dropped so roughly LOG_KEEP_BYTES remain, rounded forward to the next line boundary.
 export const LOG_MAX_BYTES = 50 * 1024 * 1024
@@ -57,8 +57,8 @@ function format(input: unknown) {
 }
 
 export function file(local = true, channel = "local") {
-  if (!local) return path.join(Global.Path.log, "opencode.log")
-  return path.join(Global.Path.log, `opencode-${channel.replace(/[^a-zA-Z0-9._-]/g, "-")}.log`)
+  if (!local) return path.join(Global.Path.log, "aigcfroge.log")
+  return path.join(Global.Path.log, `aigcfroge-${channel.replace(/[^a-zA-Z0-9._-]/g, "-")}.log`)
 }
 
 export function fileLogger(target = file(), id: string = runID()) {
@@ -90,7 +90,7 @@ export const trim = Effect.fn("Logging.trim")(function* (
   const max = options.max ?? LOG_MAX_BYTES
   const keep = options.keep ?? LOG_KEEP_BYTES
   const fs = yield* FileSystem.FileSystem
-  // Every opencode process on the machine runs this against the same file. Two trimmers racing
+  // Every aigcfroge process on the machine runs this against the same file. Two trimmers racing
   // would have one compute its cut from a size the other already shrank, so only one may proceed
   // and the rest skip until the next interval. mkdir is the atomic primitive on every platform.
   // acquireRelease keeps the mkdir uninterruptible, so a scope closing mid-call cannot leave a lock
@@ -157,12 +157,12 @@ function lineStart(handle: FileSystem.File, from: number) {
 }
 
 const stderrLogger = Logger.make((options) => {
-  if (process.env.OPENCODE_PRINT_LOGS !== "1") return
+  if (process.env.AIGCFROGE_PRINT_LOGS !== "1") return
   process.stderr.write(formatter().log(options) + "\n")
 })
 
 export function minimumLogLevel() {
-  const value = process.env.OPENCODE_LOG_LEVEL?.toUpperCase()
+  const value = process.env.AIGCFROGE_LOG_LEVEL?.toUpperCase()
   const levels = {
     DEBUG: "Debug",
     INFO: "Info",

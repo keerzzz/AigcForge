@@ -1,8 +1,8 @@
 import { Schema } from "effect"
-import { Tool } from "@opencode/schema/tool"
+import { Tool } from "@aigcfroge/schema/tool"
 import { ModelID, ProviderID, RouteID } from "./ids.js"
 
-export const ProviderFailureClassification = Schema.Literals(["context-overflow", "payload-too-large"])
+export const ProviderFailureClassification = Schema.Literals(["context-overflow", "payload-too-large", "model-not-found"])
 export type ProviderFailureClassification = typeof ProviderFailureClassification.Type
 
 export class HttpContext extends Schema.Class<HttpContext>("AI.HttpContext")({

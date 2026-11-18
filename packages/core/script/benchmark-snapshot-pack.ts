@@ -14,7 +14,7 @@ import { AppNodeBuilder } from "../src/effect/app-node-builder"
 import { Git } from "../src/git"
 import { AbsolutePath } from "../src/schema"
 
-const root = path.join(process.env.SNAPSHOT_BENCH_ROOT ?? os.tmpdir(), "opencode-snapshot-pack")
+const root = path.join(process.env.SNAPSHOT_BENCH_ROOT ?? os.tmpdir(), "aigcfroge-snapshot-pack")
 await fs.mkdir(root, { recursive: true })
 
 // Local objects only: alternates are hidden so borrowed source objects do not count.

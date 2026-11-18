@@ -10,7 +10,7 @@ function handle(harness: Harness, request: SimulationProtocol.Frontend.Request, 
       return SimulationProtocol.Handshake.dispatch(
         {
           role: "ui",
-          server: { name: "opencode", version },
+          server: { name: "aigcfroge", version },
           capabilities: SimulationProtocol.Frontend.Capabilities,
         },
         request.params,
@@ -65,7 +65,7 @@ export const start = Effect.fn("SimulationServer.start")(function* (
 ) {
   return yield* SimulationControlServer.start({
     endpoint,
-    label: "opencode drive ui websocket",
+    label: "aigcfroge drive ui websocket",
     data: () => ({ drive: true as const }),
     decode: SimulationProtocol.Frontend.decodeRequestEffect,
     handle: (_socket, request) => handle(harness, request, version),

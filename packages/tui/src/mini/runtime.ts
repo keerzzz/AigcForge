@@ -1,4 +1,4 @@
-// Top-level orchestrator for `opencode mini`.
+// Top-level orchestrator for `aigcfroge mini`.
 //
 // Wires the boot sequence, lifecycle (renderer + footer), stream transport,
 // and prompt queue together into a single session loop. The frontend paints
@@ -8,11 +8,12 @@
 //   3. starts the stream transport (SDK event subscription), lazily for fresh
 //      local sessions,
 //   4. runs the prompt queue until the footer closes.
-import { SessionMessage } from "@opencode/schema/session-message"
-import type { LocationRef } from "@opencode/client/promise"
+import { SessionMessage } from "@aigcfroge/schema/session-message"
+import type { LocationRef, ModelGroupCurrent } from "@aigcfroge/client/promise"
 import type { Config } from "../config"
 import { newSessionLocation } from "../config/new-session-location"
 import { errorMessage } from "../util/error"
+import { isModelGroup, modelPreferenceKey, sameModelSelection, toModelPreference, toModelSelection } from "../model-preference"
 import { loadRunAgents, loadRunCommands, loadRunReferences } from "./catalog.shared"
 import {
   resolveMiniSettings,
@@ -28,6 +29,8 @@ import type {
   LocalReplayRow,
   MiniHost,
   MiniSettings,
+  MiniSessionSelection,
+  MiniModelDomain,
   RunInput,
   RunPrompt,
   RunProvider,
@@ -44,6 +47,7 @@ type CreateSessionInput = {
   agent: string | undefined
   model: RunInput["model"]
   variant: string | undefined
+  selection?: MiniSessionSelection
 }
 
 type CreateSession = (sdk: RunInput["sdk"], input: CreateSessionInput, signal?: AbortSignal) => Promise<ResolvedSession>
@@ -110,6 +114,7 @@ type ResolvedSession = {
   variant: string | undefined
   agent?: string | undefined
   resume?: boolean
+  selection?: MiniSessionSelection
 }
 
 type RuntimeState = {
@@ -118,6 +123,7 @@ type RuntimeState = {
   model: RunInput["model"]
   defaultModel: RunInput["model"]
   providers: RunProvider[]
+  groups: ModelGroupCurrent[]
   variants: string[]
   activeVariant: string | undefined
   sessionID: string
@@ -131,6 +137,7 @@ type RuntimeState = {
   selectSubagent?: (sessionID: string | undefined) => void
   session?: Promise<void>
   stream?: Promise<StreamState>
+  selection?: MiniSessionSelection
 }
 
 type ClientAttempt = {
@@ -140,7 +147,7 @@ type ClientAttempt = {
 }
 
 function variantsFor(providers: RunProvider[], model: RunInput["model"]) {
-  if (!model) {
+  if (!model || isModelGroup(model)) {
     return []
   }
 
@@ -151,7 +158,7 @@ function formRequestOptions(location: LocationRef | undefined) {
   if (!location) return
   return {
     headers: {
-      "x-opencode-directory": encodeURIComponent(location.directory),
+      "x-aigcfroge-directory": encodeURIComponent(location.directory),
     },
   }
 }
@@ -214,6 +221,7 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
     model: ctx.model ?? session.model,
     defaultModel: undefined,
     providers: [],
+    groups: [],
     variants: [],
     activeVariant: resolveVariant(ctx.variant, session.variant, savedVariant, []),
     sessionID: "",
@@ -221,6 +229,101 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
     localRows: [],
     agent: ctx.agent,
     location: ctx.location,
+  }
+  const choices = { session: 0, executor: 0 }
+  const canonicalChoice = (
+    domain: MiniModelDomain,
+    change: { agent?: string; model?: MiniSessionSelection["model"]; variant?: string; variantOnly?: boolean },
+  ) => {
+    const attempt = clientAttempt()
+    const sessionID = state.sessionID
+    ++choices[domain]
+    const previous = state.switching
+    const current = () => currentClient(attempt) && state.sessionID === sessionID
+    const task = (async () => {
+      await previous?.catch(() => {})
+      if (!current()) return
+      const selection = state.selection
+      try {
+        if (selection?.controller?.kind === "child")
+          throw new Error("Child Agent selection is fixed by its first binding")
+        if (domain === "executor" && (selection?.agent !== "meta" || selection.controller?.kind !== "root"))
+          throw new Error("Select Meta before changing its delegation preference")
+        const selected =
+          domain === "session"
+            ? state.model && toModelSelection(state.model, state.activeVariant)
+            : selection?.executorPreference?.model
+        if (change.variantOnly && selected && isModelGroup(selected))
+          throw new Error("Model groups use each member's configured variant")
+        const model = change.variantOnly
+          ? selected && { ...selected, variant: change.variant }
+          : (change.model ?? (change.agent ? selected : undefined))
+        if (change.variantOnly && !model) throw new Error("Select a model before selecting its variant")
+        if (domain === "session") {
+          if (change.agent)
+            await attempt.sdk.session.switchAgent({ sessionID, agent: change.agent, model }, { signal: attempt.signal })
+          if (!change.agent) {
+            if (!model) throw new Error("Session model is required")
+            await attempt.sdk.session.switchModel({ sessionID, model }, { signal: attempt.signal })
+          }
+          if (!current()) return
+        }
+        const info =
+          domain === "executor"
+            ? await attempt.sdk.session.selectExecutor(
+                {
+                  sessionID,
+                  payload: {
+                    agent: change.agent ?? selection?.executorPreference?.agent ?? "",
+                    model: change.agent
+                      ? selection?.executorPreference?.agent === change.agent
+                        ? selection.executorPreference.model
+                        : undefined
+                      : model,
+                  },
+                },
+                { signal: attempt.signal },
+              )
+            : await attempt.sdk.session.get({ sessionID }, { signal: attempt.signal })
+        if (!current()) return
+        if (
+          info.id !== sessionID ||
+          (domain === "session" && change.agent && info.agent !== change.agent) ||
+          (domain === "session" &&
+            model &&
+            !sameModelSelection(info.model, model)) ||
+          !applySelection(info, domain === "session" && change.agent === "meta")
+        )
+          throw new Error("Could not confirm the Session selection")
+      } catch (error) {
+        if (!current()) return
+        const info = await attempt.sdk.session.get({ sessionID }, { signal: attempt.signal }).catch(() => undefined)
+        if (!current()) return
+        if (info?.id === sessionID) applySelection(info, domain === "session" && change.agent === "meta")
+        footer.event({ type: "stream.patch", patch: { status: errorMessage(error) } })
+      }
+    })()
+    state.switching = task
+    void task.finally(() => {
+      if (state.switching === task) state.switching = undefined
+    })
+    return task
+  }
+  const applySelection = (selection: MiniSessionSelection, requireMeta = false) => {
+    if (
+      requireMeta &&
+      selection.agent === "meta" &&
+      (selection.controller?.kind !== "root" ||
+        selection.controller.rootSessionID !== state.sessionID ||
+        !selection.model)
+    )
+      return false
+    state.selection = selection
+    state.agent = selection.agent
+    state.model = selection.model ? toModelPreference(selection.model) : undefined
+    state.activeVariant = selection.model && !isModelGroup(selection.model) ? selection.model.variant : undefined
+    footer.event({ type: "selection", selection })
+    return true
   }
   const settleForm = async (sessionID: string, formID: string) => {
     if (!state.stream) return
@@ -275,7 +378,10 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
     onFormReply: async (next) => {
       if (state.demo?.formReply(next)) return
       try {
-        await state.sdk.session.form.reply(next, formRequestOptions(next.sessionID === "global" ? next.location : undefined))
+        await state.sdk.session.form.reply(
+          next,
+          formRequestOptions(next.sessionID === "global" ? next.location : undefined),
+        )
       } catch (error) {
         if (!formAlreadySettled(error)) throw error
       }
@@ -284,13 +390,21 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
     onFormCancel: async (next) => {
       if (state.demo?.formCancel(next)) return
       try {
-        await state.sdk.session.form.cancel(next, formRequestOptions(next.sessionID === "global" ? next.location : undefined))
+        await state.sdk.session.form.cancel(
+          next,
+          formRequestOptions(next.sessionID === "global" ? next.location : undefined),
+        )
       } catch (error) {
         if (!formAlreadySettled(error)) throw error
       }
       await settleForm(next.sessionID, next.formID)
     },
     onCycleVariant: () => {
+      if (state.selection?.controller) {
+        const variant = cycleVariant(state.activeVariant, state.variants)
+        void canonicalChoice("session", { variant, variantOnly: true })
+        return
+      }
       const model = state.model ?? state.defaultModel
       if (!model || state.variants.length === 0) {
         return {
@@ -303,15 +417,24 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
       void input.host.preferences.saveVariant(model, state.activeVariant)
       return {
         status: state.activeVariant ? `variant ${state.activeVariant}` : "variant default",
-        modelLabel: formatModelLabel(model, state.activeVariant, state.providers),
+        modelLabel: formatModelLabel(model, state.activeVariant, state.providers, state.groups),
         variant: state.activeVariant,
       }
     },
-    onAgentSelect: (agent) => {
+    onAgentSelect: (agent, domain: MiniModelDomain = "session") => {
+      if (domain === "executor") return canonicalChoice(domain, { agent })
+      if (state.selection?.controller || (agent === "meta" && state.sessionID))
+        return canonicalChoice("session", { agent })
+      ++choices.session
       state.agent = agent
     },
-    onModelSelect: async (model) => {
-      if (state.model?.providerID === model.providerID && state.model.modelID === model.modelID) {
+    onModelSelect: async (model, domain: MiniModelDomain = "session") => {
+      if (state.selection?.controller)
+        return canonicalChoice(domain, { model: toModelSelection(model) })
+      if (domain === "executor")
+        return canonicalChoice(domain, { model: toModelSelection(model) })
+      ++choices.session
+      if (state.model && modelPreferenceKey(state.model) === modelPreferenceKey(model)) {
         return
       }
 
@@ -320,7 +443,7 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
       state.variants = variantsFor(state.providers, model)
       const switching = input.host.preferences.resolveVariant(model).then((saved) => {
         const current = state.model
-        if (!current || current.providerID !== model.providerID || current.modelID !== model.modelID) {
+        if (!current || modelPreferenceKey(current) !== modelPreferenceKey(model)) {
           return
         }
 
@@ -333,18 +456,21 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
       }
 
       const current = state.model
-      if (!current || current.providerID !== model.providerID || current.modelID !== model.modelID) {
+      if (!current || modelPreferenceKey(current) !== modelPreferenceKey(model)) {
         return
       }
 
       return {
-        modelLabel: formatModelLabel(model, state.activeVariant, state.providers),
-        status: `model ${model.modelID}`,
+        modelLabel: formatModelLabel(model, state.activeVariant, state.providers, state.groups),
+        status: `model ${modelPreferenceKey(model)}`,
         variant: state.activeVariant,
         variants: state.variants,
       }
     },
-    onVariantSelect: async (variant) => {
+    onVariantSelect: async (variant, domain: MiniModelDomain = "session") => {
+      if (state.selection?.controller || domain === "executor")
+        return canonicalChoice(domain, { variant, variantOnly: true })
+      ++choices.session
       const model = state.model ?? state.defaultModel
       if (!model || state.variants.length === 0) {
         return {
@@ -363,7 +489,7 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
       void input.host.preferences.saveVariant(model, state.activeVariant)
       return {
         status: state.activeVariant ? `variant ${state.activeVariant}` : "variant default",
-        modelLabel: formatModelLabel(model, state.activeVariant, state.providers),
+        modelLabel: formatModelLabel(model, state.activeVariant, state.providers, state.groups),
         variant: state.activeVariant,
         variants: state.variants,
       }
@@ -461,8 +587,10 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
     const task = input
       .resolveSession(state.sdk, runtimeController.signal)
       .then(async (next) => {
-        if (next.sdk) updateClient(next.sdk)
         if (footer.isClosed || runtimeController.signal.aborted) return
+        if (next.sdk) updateClient(next.sdk)
+        const attempt = clientAttempt()
+        const current = () => currentClient(attempt) && state.sessionID === next.sessionID
         state.sessionID = next.sessionID
         state.sessionTitle = next.sessionTitle ?? state.sessionTitle
         shell.setTitle(state.sessionTitle)
@@ -470,10 +598,15 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
         state.location = next.location
         state.model = next.model
         state.activeVariant = next.variant
-        footer.event({ type: "agent", agent: state.agent })
+        state.selection = next.selection
+        if (next.selection) applySelection(next.selection)
+        footer.event({
+          type: "agent",
+          agent: state.agent,
+        })
         if (!next.resume) return
-        const resumed = await resolveSessionInfo(state.sdk, next.sessionID, next.model, runtimeController.signal)
-        if (footer.isClosed || runtimeController.signal.aborted) return
+        const resumed = await resolveSessionInfo(attempt.sdk, next.sessionID, next.model, attempt.signal)
+        if (!current()) return
         session.first = resumed.first
         session.history = resumed.history
         session.model = resumed.model
@@ -481,8 +614,14 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
         state.shown = !resumed.first
         state.history = [...resumed.history]
         state.model = next.model ?? resumed.model
-        const resumedSavedVariant = state.model ? await input.host.preferences.resolveVariant(state.model) : undefined
-        state.activeVariant = resolveVariant(next.variant, resumed.variant, resumedSavedVariant, [])
+        const resumedSavedVariant =
+          !state.selection?.controller && state.model
+            ? await input.host.preferences.resolveVariant(state.model)
+            : undefined
+        if (!current()) return
+        state.activeVariant = state.selection?.controller
+          ? state.selection.model && !isModelGroup(state.selection.model) ? state.selection.model.variant : undefined
+          : resolveVariant(next.variant, resumed.variant, resumedSavedVariant, [])
         session.variant = state.activeVariant
         footer.event({ type: "history", history: resumed.history })
         footer.event({ type: "first", first: resumed.first })
@@ -515,7 +654,7 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
       if (
         !info ||
         !currentModelLoad(generation, sdk) ||
-        (selected && (state.model?.providerID !== selected.providerID || state.model.modelID !== selected.modelID))
+        (selected && (!state.model || modelPreferenceKey(state.model) !== modelPreferenceKey(selected)))
       )
         return
       applyModelInfo(
@@ -552,6 +691,7 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
     if (footer.isClosed) return
     await ensureSession()
     if (footer.isClosed) return
+    loadModelGroups(clientAttempt())
     modelLoadStarted = true
     return requestModelLoad()
   })
@@ -621,18 +761,20 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
     state.providers = info.providers
     const model = state.model ?? state.defaultModel
     state.variants = variantsFor(state.providers, model)
-    state.activeVariant = boot
-      ? resolveVariant(ctx.variant, current, saved, state.variants)
-      : current && !state.variants.includes(current)
-        ? undefined
-        : current
+    state.activeVariant = state.selection
+      ? state.activeVariant
+      : boot
+        ? resolveVariant(ctx.variant, current, saved, state.variants)
+        : current && !state.variants.includes(current)
+          ? undefined
+          : current
     if (footer.isClosed) return
-    footer.event({ type: "models", providers: info.providers })
+    footer.event({ type: "models", providers: info.providers, groups: state.groups })
     footer.event({ type: "variants", variants: state.variants, current: state.activeVariant })
     if (model)
       footer.event({
         type: "model",
-        model: formatModelLabel(model, state.activeVariant, state.providers),
+        model: formatModelLabel(model, state.activeVariant, state.providers, state.groups),
         selection: model,
       })
   }
@@ -645,17 +787,17 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
         task: Promise<void>
       }
     | undefined
-  let defaultModelLoad: Promise<void> | undefined
-  let defaultModelQueued = false
-  const loadDefaultModel = (attempt: ClientAttempt) => {
-    if (state.model || !currentClient(attempt)) return
-    if (defaultModelLoad) {
-      defaultModelQueued = true
+  let modelGroupsLoad: Promise<void> | undefined
+  let modelGroupsQueued = false
+  const loadModelGroups = (attempt: ClientAttempt) => {
+    if (!currentClient(attempt)) return
+    if (modelGroupsLoad) {
+      modelGroupsQueued = true
       return
     }
-    defaultModelQueued = false
-    defaultModelLoad = attempt.sdk.model
-      .default(
+    modelGroupsQueued = false
+    modelGroupsLoad = attempt.sdk.model.group.definition
+      .get(
         {
           location: {
             directory: state.location.directory,
@@ -664,10 +806,17 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
         { signal: attempt.signal },
       )
       .then(async (result) => {
-        if (!result.data || state.model || !currentClient(attempt)) return
-        const model = { providerID: result.data.providerID, modelID: result.data.id }
+        if (!currentClient(attempt)) return
+        state.groups = result.data.effective
+        footer.event({ type: "models", providers: state.providers, groups: state.groups })
+        if (state.model) {
+          footer.event({ type: "model", model: formatModelLabel(state.model, state.activeVariant, state.providers, state.groups), selection: state.model })
+          return
+        }
+        if (!result.data.defaultSelection) return
+        const model = toModelPreference(result.data.defaultSelection)
         const changed =
-          state.defaultModel?.providerID !== model.providerID || state.defaultModel.modelID !== model.modelID
+          !state.defaultModel || modelPreferenceKey(state.defaultModel) !== modelPreferenceKey(model)
         const saved = changed ? await input.host.preferences.resolveVariant(model) : undefined
         if (state.model || !currentClient(attempt)) return
         state.defaultModel = model
@@ -677,14 +826,14 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
         footer.event({ type: "variants", variants: state.variants, current: state.activeVariant })
         footer.event({
           type: "model",
-          model: formatModelLabel(model, state.activeVariant, state.providers),
+          model: formatModelLabel(model, state.activeVariant, state.providers, state.groups),
           selection: model,
         })
       })
       .catch(() => {})
       .finally(() => {
-        defaultModelLoad = undefined
-        if (defaultModelQueued) loadDefaultModel(clientAttempt())
+        modelGroupsLoad = undefined
+        if (modelGroupsQueued) loadModelGroups(clientAttempt())
       })
   }
   const requestCatalogRefresh = (signal?: AbortSignal): Promise<void> => {
@@ -718,7 +867,7 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
         if (!currentClient(attempt)) return
         if (catalog) applyCatalog(catalog, attempt)
         if (info) applyModelInfo(info, state.activeVariant, attempt)
-        loadDefaultModel(attempt)
+        loadModelGroups(attempt)
       }
     })()
     refresh.task = task
@@ -750,11 +899,11 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
     })
   }
 
-  const createDemo = async () => {
+  const createDemo = async (sessionID = state.sessionID) => {
     const { createRunDemo } = await import("./demo")
     return createRunDemo({
       footer,
-      sessionID: state.sessionID,
+      sessionID,
       thinking: thinking(),
     })
   }
@@ -810,7 +959,7 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
         },
         trace: log,
         onCatalogRefresh: requestCatalogRefresh,
-        contextLimit: (model) =>
+        contextLimit: (model) => isModelGroup(model) ? undefined :
           state.providers.find((provider) => provider.id === model.providerID)?.models[model.modelID]?.limit?.context,
       })
       if (footer.isClosed) {
@@ -914,6 +1063,7 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
             agent: state.agent,
             model: state.model,
             variant: state.activeVariant,
+            selection: state.selection,
             prompt,
             files: input.files,
             includeFiles: false,
@@ -932,41 +1082,85 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
       },
       onNewSession: createSession
         ? async () => {
+            const attempt = clientAttempt()
+            const owner = { sessionID: state.sessionID, stream: state.stream }
+            const generations = { ...choices }
+            const current = () =>
+              currentClient(attempt) &&
+              choices.session === generations.session &&
+              choices.executor === generations.executor &&
+              state.sessionID === owner.sessionID &&
+              state.stream === owner.stream
             try {
+              if (!current()) return
               await state.switching?.catch(() => {})
-              const created = await createSession(
-                state.sdk,
-                {
-                  location: newSessionLocation(
-                    (await tuiConfigTask).session.new_location,
-                    input.directory,
-                    state.location,
-                  ),
-                  agent: state.agent,
-                  model: state.model,
-                  variant: state.activeVariant,
+              if (!current()) return
+              const selection = {
+                location: { ...state.location },
+                agent: state.agent,
+                model: state.model ? { ...state.model } : undefined,
+                variant: state.activeVariant,
+                selection: state.selection && {
+                  ...state.selection,
+                  model: state.selection.model && { ...state.selection.model },
+                  executorPreference:
+                    state.agent === "meta" && state.selection.executorPreference
+                      ? {
+                          ...state.selection.executorPreference,
+                          model: state.selection.executorPreference.model && {
+                            ...state.selection.executorPreference.model,
+                          },
+                        }
+                      : undefined,
                 },
-                runtimeController.signal,
+              }
+              const tuiConfig = await tuiConfigTask
+              if (!current()) return
+              const created = await createSession(
+                attempt.sdk,
+                {
+                  location: newSessionLocation(tuiConfig.session.new_location, input.directory, selection.location),
+                  agent: selection.agent,
+                  model: selection.model,
+                  variant: selection.variant,
+                  selection: selection.selection,
+                },
+                attempt.signal,
               )
+              if (!current()) return
               if (!created.sessionID) throw new Error("Failed to create session")
+              const demo = input.demo ? await createDemo(created.sessionID) : undefined
+              if (!current()) return
               await footer.idle().catch(() => {})
-              await state.stream?.then((item) => item.handle.close()).catch(() => {})
+              if (!current()) return
+              const previous = await owner.stream?.catch(() => undefined)
+              if (!current()) return
+              await previous?.handle.close().catch(() => {})
+              if (!current()) return
               state.stream = undefined
               state.session = undefined
               state.selectSubagent = undefined
               state.shown = false
               state.sessionID = created.sessionID
               state.sessionTitle = created.sessionTitle
+              owner.sessionID = state.sessionID
+              owner.stream = state.stream
+              if (!current()) return
               shell.setTitle(state.sessionTitle)
-              state.agent = created.agent ?? state.agent
+              state.agent = created.agent ?? selection.agent
               state.location = created.location
               state.model = created.model
               state.activeVariant = created.variant
-              footer.event({ type: "agent", agent: state.agent })
+              state.selection = created.selection
+              if (created.selection) applySelection(created.selection, selection.agent === "meta")
+              footer.event({
+                type: "agent",
+                agent: state.agent,
+              })
               state.history = []
               state.localRows = []
               includeFiles = true
-              state.demo = input.demo ? await createDemo() : undefined
+              state.demo = demo
               log?.write("session.new", {
                 sessionID: state.sessionID,
               })
@@ -996,7 +1190,9 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
                 source: "system",
               })
               await state.demo?.start()
+              if (!current()) return
             } catch (error) {
+              if (!current()) return
               footer.event({
                 type: "stream.patch",
                 patch: {
@@ -1030,6 +1226,7 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
               agent: state.agent,
               model: state.model,
               variant: state.activeVariant,
+              selection: state.selection,
               prompt,
               files: input.files,
               includeFiles,

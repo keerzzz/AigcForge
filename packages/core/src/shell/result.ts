@@ -1,13 +1,15 @@
 export * as ShellResult from "./result.js"
 
-import type { Shell } from "@opencode/schema/shell"
+import { Shell } from "@aigcfroge/schema/shell"
+import { Hash } from "@aigcfroge/util/hash"
+import { Schema } from "effect"
 
 export type Result = {
   info: Shell.Info
   capture: { output: string; truncated: boolean } | undefined
 }
 
-type Output = { output: string; truncated: boolean; exit?: number; signal?: string; timeout?: boolean }
+type Output = { output: string; truncated: boolean; exit?: number; signal?: string; timeout?: boolean; commandResult?: Shell.CommandResult }
 
 const missing = "Shell command output is no longer available."
 export const unavailable: Shell.Output = {
@@ -24,6 +26,18 @@ export function output(result: Result): Output {
     ...(result.info.exit !== undefined ? { exit: result.info.exit } : {}),
     ...(result.info.signal !== undefined ? { signal: result.info.signal } : {}),
     ...(result.info.status === "timeout" ? { timeout: true } : {}),
+    ...(result.capture !== undefined && result.info.time.completed !== undefined ? { commandResult: {
+      id: result.info.id,
+      command: result.info.command,
+      cwd: result.info.cwd,
+      exit: result.info.exit,
+      signal: result.info.signal,
+      timeout: result.info.status === "timeout",
+      truncated: result.capture.truncated,
+      outputDigest: Hash.sha256(result.capture.output),
+      started: result.info.time.started,
+      completed: result.info.time.completed,
+    } } : {}),
   }
 }
 
@@ -39,6 +53,7 @@ export function metadata(output: Output) {
     ...(output.exit !== undefined ? { exit: output.exit } : {}),
     ...(output.signal !== undefined ? { signal: output.signal } : {}),
     ...(output.timeout !== undefined ? { timeout: output.timeout } : {}),
+    ...(output.commandResult !== undefined ? { commandResult: Schema.encodeSync(Shell.CommandResult)(output.commandResult) } : {}),
   }
 }
 

@@ -1,4 +1,4 @@
-import { Plugin } from "@opencode/plugin/tui"
+import { Plugin } from "@aigcfroge/plugin/tui"
 import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core"
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid"
 import { createMemo, createSignal, Show } from "solid-js"
@@ -21,7 +21,7 @@ const instructions = [
 ].join(" ")
 
 export default Plugin.define({
-  id: "opencode.btw",
+  id: "aigcfroge.btw",
   setup(context) {
     const [pending, setPending] = createSignal(0)
 

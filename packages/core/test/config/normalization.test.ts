@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Arbitrary, Duration, Effect, Schema } from "effect"
-import { ConfigNormalize } from "@opencode/core/config/normalize"
-import { Info } from "@opencode/schema/config"
+import { ConfigNormalize } from "@aigcfroge/core/config/normalize"
+import { Info } from "@aigcfroge/schema/config"
 
 const options = { errors: "all", onExcessProperty: "ignore" } as const
 
@@ -48,6 +48,23 @@ function withoutEmptyCompatibilityContainers(input: Record<string, unknown>) {
 }
 
 describe("ConfigNormalize", () => {
+  test("translates legacy reasoning fields and schema capabilities without requiring a model runtime", () => {
+    const result = decoded({ provider: { custom: { models: {
+      string: { interleaved: "reasoning_text", tool_call: false },
+      object: { interleaved: { field: "vendor_reasoning" }, modalities: { output: ["text", "image"] } },
+      boolean: { interleaved: true },
+    } } } })
+    expect(result.providers?.custom?.models?.string).toMatchObject({
+      compatibility: { reasoningField: "reasoning_text" },
+      capabilities: { tools: false, input: ["text", "image"], output: ["text"] },
+    })
+    expect(result.providers?.custom?.models?.object).toMatchObject({
+      compatibility: { reasoningField: "vendor_reasoning" },
+      capabilities: { tools: true, input: ["text", "image"], output: ["text", "image"] },
+    })
+    expect(result.providers?.custom?.models?.boolean?.compatibility).toBeUndefined()
+  })
+
   test("accepts tool.use without losing statement order", () => {
     const policies = [
       { action: "tool.use", effect: "deny", resource: "shell:*" },
@@ -105,6 +122,18 @@ describe("ConfigNormalize", () => {
     if (typeof info.warming === "boolean" || info.warming === undefined) throw new Error("expected warming info")
     expect(Duration.toMillis(info.warming.interval ?? Duration.zero)).toBe(240_000)
     expect(Duration.toMillis(info.warming.duration ?? Duration.zero)).toBe(1_800_000)
+  })
+
+  test("preserves native meta and external delegation configuration", () => {
+    const input = {
+      meta: { verifier: { escalation_enabled: true } },
+      cli_agents: { reviewer: { command: "review-agent", transport: "acp" } },
+      subagent_attended_default: false,
+    }
+    const result = normalized(input)
+    expect(result.diagnostics).toEqual([])
+    expect(result.encoded).toEqual(input)
+    expect(decoded(input)).toEqual(Schema.decodeUnknownSync(Info)(input))
   })
 
   test("preserves arbitrary JSON-round-tripped native configuration", () => {
@@ -195,6 +224,12 @@ describe("ConfigNormalize", () => {
       providerID: "anthropic",
       model: "claude",
     })
+  })
+
+  test("normalizes Group selections without lowering or renaming their IDs", () => {
+    expect(normalized({ model: "group:fallback" }).encoded.model).toEqual({ type: "group", groupID: "fallback" })
+    expect(normalized({ model: { type: "group", groupID: "google-vertex-anthropic" } }).encoded.model).toEqual({ type: "group", groupID: "google-vertex-anthropic" })
+    expect(normalized({ model: "group:vendor/chat#high" }).encoded.model).toEqual({ providerID: "group:vendor", model: "chat", variant: "high" })
   })
 
   test("migrates the legacy small model to the title agent", () => {

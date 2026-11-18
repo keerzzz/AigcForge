@@ -1,6 +1,6 @@
-import type { OpenCodeClient } from "@opencode/client"
-import type { GenerateApi, PluginApi } from "@opencode/client/promise/api"
-import type { Location } from "@opencode/schema/location"
+import type { AigcForgeClient } from "@aigcfroge/client"
+import type { GenerateApi, PluginApi } from "@aigcfroge/client/promise/api"
+import type { Location } from "@aigcfroge/schema/location"
 import type { PluginOptions } from "../options.js"
 import type { App } from "../app.js"
 import type { AgentDomain } from "./agent.js"
@@ -32,7 +32,7 @@ export interface Context {
   readonly command: CommandDomain
   readonly event: EventDomain
   readonly experimental: {
-    readonly terminal: Pick<OpenCodeClient["experimental"]["persistentPty"], "read">
+    readonly terminal: Pick<AigcForgeClient["experimental"]["persistentPty"], "read">
   }
   readonly integration: IntegrationDomain
   readonly mcp: MCPDomain

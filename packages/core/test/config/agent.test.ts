@@ -2,21 +2,23 @@ import { describe, expect, test } from "bun:test"
 import fs from "fs/promises"
 import path from "path"
 import { Effect, Fiber, Schema, Stream } from "effect"
-import { Agent } from "@opencode/core/agent"
-import { Bus } from "@opencode/core/bus"
-import { Config } from "@opencode/core/config"
-import { Directory, Document, Event, Info } from "@opencode/schema/config"
-import { Model } from "@opencode/schema/model"
-import { ConfigAgentPlugin } from "@opencode/core/config/plugin/agent"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { FSUtil } from "@opencode/util/fs-util"
-import { Global } from "@opencode/util/global"
-import { Permission } from "@opencode/core/permission"
-import { AgentPlugin } from "@opencode/core/plugin/agent"
-import { AbsolutePath } from "@opencode/core/schema"
-import { ConfigNormalize } from "@opencode/core/config/normalize"
-import { ConfigAgentV1 } from "@opencode/core/v1/config/agent"
+import { Agent } from "@aigcfroge/core/agent"
+import { Bus } from "@aigcfroge/core/bus"
+import { Config } from "@aigcfroge/core/config"
+import { Directory, Document, Event, Info } from "@aigcfroge/schema/config"
+import { Model } from "@aigcfroge/schema/model"
+import { ConfigAgentPlugin } from "@aigcfroge/core/config/plugin/agent"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { FSUtil } from "@aigcfroge/util/fs-util"
+import { Global } from "@aigcfroge/util/global"
+import { Permission } from "@aigcfroge/core/permission"
+import { AgentPlugin } from "@aigcfroge/core/plugin/agent"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { ConfigNormalize } from "@aigcfroge/core/config/normalize"
+import { ConfigAgentV1 } from "@aigcfroge/core/v1/config/agent"
+import { AgentAssetBridge } from "@aigcfroge/core/agent/asset-bridge"
+import { AgentAsset } from "@aigcfroge/schema/agent-asset"
 import { advance, drain } from "../lib/clock"
 import { tmpdir, tmpdirScoped } from "../fixture/tmpdir"
 import { testEffect } from "../lib/effect"
@@ -61,10 +63,42 @@ test("keeps schema fields and name out of legacy agent options", () => {
 })
 
 describe("ConfigAgentPlugin.Plugin", () => {
+  for (const legacy of [false, true]) {
+    it.live(`retains a protocol card in ${legacy ? "legacy" : "native"} Markdown registration`, () =>
+      Effect.gen(function* () {
+        const agent =
+          yield* loadMarkdownAgent(`${legacy ? "temperature: 0.4\noptions:\n  card: provider-option\n" : ""}card:
+  capabilities: [review]
+  constraints: [read only]
+  protocol: "Exact protocol bytes."
+mode: subagent`)
+        expect(agent.card).toEqual({
+          capabilities: ["review"],
+          constraints: ["read only"],
+          protocol: "Exact protocol bytes.",
+        })
+        expect(agent.request.body.card).toBe(legacy ? "provider-option" : undefined)
+      }),
+    )
+  }
+  it.live("retains a broken protocol card rather than an absent Markdown declaration", () =>
+    Effect.gen(function* () {
+      const broken = yield* loadMarkdownAgent("card:\n  capabilities: [review]\n  constraints: []\n  protocol: '   '")
+      expect(broken.card).toEqual({ _tag: "InvalidCard", reason: "empty_protocol" })
+    }),
+  )
+  it.live("preserves an absent protocol card in a fresh Markdown registration", () =>
+    Effect.gen(function* () {
+      expect((yield* loadMarkdownAgent("mode: subagent")).card).toBeUndefined()
+    }),
+  )
   for (const item of [
     { name: "separate legacy variant", frontmatter: "model: example/chat\nvariant: high", model: "example/chat#high" },
     { name: "unqualified model", frontmatter: "model: example/chat", model: "example/chat" },
     { name: "embedded native variant", frontmatter: "model: example/chat#high", model: "example/chat#high" },
+    { name: "logical Group shorthand", frontmatter: "model: group:fallback", model: "group:fallback" },
+    { name: "structured logical Group", frontmatter: "model:\n  type: group\n  groupID: fallback", model: "group:fallback" },
+    { name: "Group-prefixed physical provider", frontmatter: "model: group:vendor/chat#high", model: "group:vendor/chat#high" },
     {
       name: "structured native variant",
       frontmatter: "model:\n  providerID: example\n  model: chat\n  variant: high",
@@ -104,7 +138,7 @@ permissions:
     effect: deny`
               : item.frontmatter,
           )
-          expect(agent.model).toEqual(item.model === undefined ? undefined : Model.Ref.parse(item.model))
+          expect(agent.model).toEqual(item.model === undefined ? undefined : Model.Selection.parse(item.model))
           expect(agent.request).toEqual({
             settings: {},
             headers: native ? { "x-agent": "native" } : {},
@@ -143,7 +177,9 @@ permissions:
   it.effect("matches POSIX paths against home-relative permissions", () =>
     Effect.gen(function* () {
       const permissions = yield* loadHomePermissions("/home/test")
-      expect(Permission.evaluate("external_directory", "/home/test/p/opencode/src/*", permissions).effect).toBe("allow")
+      expect(Permission.evaluate("external_directory", "/home/test/p/aigcfroge/src/*", permissions).effect).toBe(
+        "allow",
+      )
       expect(Permission.evaluate("external_directory", "/home/test/cache/files/*", permissions).effect).toBe("deny")
       expect(Permission.evaluate("external_directory", "/some/~/path", permissions).effect).toBe("deny")
       expect(Permission.evaluate("external_directory", "$HOMELESS/private/*", permissions).effect).toBe("deny")
@@ -162,7 +198,7 @@ permissions:
         effect: "allow",
       })
       expect(
-        Permission.evaluate("external_directory", "C:\\Users\\test\\p\\opencode\\src\\*", permissions).effect,
+        Permission.evaluate("external_directory", "C:\\Users\\test\\p\\aigcfroge\\src\\*", permissions).effect,
       ).toBe("allow")
       expect(Permission.evaluate("external_directory", "C:\\Users\\test\\cache\\files\\*", permissions).effect).toBe(
         "deny",
@@ -191,12 +227,12 @@ permissions:
                   "*.env.*": "deny",
                   "*.env.example": "allow",
                   "*.dev.vars": "deny",
-                  "~/.local/share/opencode/mcp-auth.json": "deny",
-                  "$HOME/.local/share/opencode/mcp-auth.json": "deny",
+                  "~/.local/share/aigcfroge/mcp-auth.json": "deny",
+                  "$HOME/.local/share/aigcfroge/mcp-auth.json": "deny",
                 },
                 external_directory: {
                   "*": "ask",
-                  "~/.local/share/opencode/*": "deny",
+                  "~/.local/share/aigcfroge/*": "deny",
                 },
               },
             }),
@@ -212,7 +248,7 @@ permissions:
                   { action: "external_directory", resource: "*", effect: "allow" },
                   {
                     action: "external_directory",
-                    resource: "~/.local/share/opencode/*",
+                    resource: "~/.local/share/aigcfroge/*",
                     effect: "deny",
                   },
                   { action: "read", resource: "*.env", effect: "deny" },
@@ -229,8 +265,8 @@ permissions:
 
       const build = yield* agents.get(Agent.defaultID)
       if (!build) throw new Error("expected configured build agent")
-      const opencodeData = path.join(global.home, ".local", "share", "opencode", "*")
-      const mcpAuth = path.join(global.home, ".local", "share", "opencode", "mcp-auth.json")
+      const aigcfrogeData = path.join(global.home, ".local", "share", "aigcfroge", "*")
+      const mcpAuth = path.join(global.home, ".local", "share", "aigcfroge", "mcp-auth.json")
       expect(build.permissions).toEqual([
         ...defaultPermissions,
         { action: "question", resource: "*", effect: "allow" },
@@ -245,17 +281,17 @@ permissions:
         { action: "read", resource: mcpAuth, effect: "deny" },
         { action: "read", resource: mcpAuth, effect: "deny" },
         { action: "external_directory", resource: "*", effect: "ask" },
-        { action: "external_directory", resource: opencodeData, effect: "deny" },
+        { action: "external_directory", resource: aigcfrogeData, effect: "deny" },
         { action: "*", resource: "*", effect: "allow" },
         { action: "external_directory", resource: "*", effect: "allow" },
-        { action: "external_directory", resource: opencodeData, effect: "deny" },
+        { action: "external_directory", resource: aigcfrogeData, effect: "deny" },
         { action: "read", resource: "*.env", effect: "deny" },
       ])
       expect(Permission.evaluate("shell", "bun test", build.permissions).effect).toBe("allow")
       expect(Permission.evaluate("edit", "src/index.ts", build.permissions).effect).toBe("allow")
       expect(Permission.evaluate("webfetch", "https://example.com", build.permissions).effect).toBe("allow")
       expect(Permission.evaluate("read", ".env", build.permissions).effect).toBe("deny")
-      expect(Permission.evaluate("external_directory", opencodeData, build.permissions).effect).toBe("deny")
+      expect(Permission.evaluate("external_directory", aigcfrogeData, build.permissions).effect).toBe("deny")
       expect(Permission.evaluate("external_directory", "/outside/*", build.permissions).effect).toBe("allow")
     }),
   )
@@ -366,6 +402,7 @@ permissions:
                 hidden: true,
                 color: "#ff6b6b",
                 steps: 12,
+                handoffs: [{ label: "Report", agent: "writer", prompt: "Write the review", send: true }],
                 request: {
                   headers: { first: "one", shared: "first" },
                   body: { enabled: true, profile: "review", effort: "medium" },
@@ -396,6 +433,7 @@ permissions:
       const reviewer = yield* agents.get(Agent.ID.make("reviewer"))
       if (!reviewer) throw new Error("expected configured reviewer agent")
       expect(reviewer).toMatchObject({
+        originKind: "user",
         system: "Review carefully.",
         description: "Reviews changes",
         mode: "subagent",
@@ -403,11 +441,28 @@ permissions:
         color: "#ff6b6b",
         steps: 12,
         model: { providerID: "anthropic", id: "claude-sonnet" },
+        handoffs: [{ label: "Report", agent: "writer", prompt: "Write the review", send: true }],
       })
       expect(reviewer.request).toEqual({
         settings: {},
         headers: { first: "one", shared: "last", second: "two" },
         body: { enabled: true, profile: "review", retries: 2, effort: "high" },
+      })
+      const candidate = yield* ConfigAgentPlugin.candidate(reviewer.id).pipe(Effect.provide(Config.testLayer(entries)))
+      if (!candidate) throw new Error("Expected a complete Config import candidate")
+      expect(candidate.source).toBe(AgentAsset.Source.make("Review carefully."))
+      expect(AgentAssetBridge.parseAgentAssetConfig(candidate.config)).toMatchObject({
+        model: { providerID: "anthropic", model: "claude-sonnet" },
+        mode: "subagent",
+        hidden: true,
+        color: "#ff6b6b",
+        steps: 12,
+        handoffs: [{ label: "Report", agent: "writer", prompt: "Write the review", send: true }],
+        request: {
+          headers: { first: "one", shared: "last", second: "two" },
+          body: { enabled: true, profile: "review", retries: 2, effort: "high" },
+        },
+        permissions: defaultPermissions,
       })
     }),
   )
@@ -430,6 +485,64 @@ permissions:
       )
 
       expect(yield* agents.get(build)).toBeUndefined()
+    }),
+  )
+
+  it.effect("retains builtin origins across disabling and recreating IDs and resets preceding declarations", () =>
+    Effect.gen(function* () {
+      const agents = yield* Agent.Service
+      const build = Agent.ID.make("build")
+      yield* agents.transform((editor) =>
+        editor.update(build, (agent) => {
+          agent.originKind = "builtin"
+          agent.hidden = true
+        }),
+      )
+      const entries = [
+        new Document({
+          type: "document",
+          info: decode({ agents: { build: { disabled: true }, user: { system: "Old body", steps: 7 } } }),
+        }),
+        new Document({
+          type: "document",
+          info: decode({ agents: { user: { disabled: true }, peer: { description: "Peer" } } }),
+        }),
+        new Document({
+          type: "document",
+          info: decode({
+            agents: { build: { description: "Re-enabled builtin" }, user: { description: "Fresh user" } },
+          }),
+        }),
+      ]
+      yield* ConfigAgentPlugin.Plugin.effect(host({ agent: agentHost(agents) })).pipe(
+        Effect.provide(Config.testLayer(entries)),
+      )
+      expect(yield* agents.get(build)).toMatchObject({
+        originKind: "builtin",
+        hidden: false,
+        description: "Re-enabled builtin",
+      })
+      const user = yield* agents.get(Agent.ID.make("user"))
+      expect(user).toMatchObject({ originKind: "user", description: "Fresh user" })
+      expect(user?.system).toBeUndefined()
+      expect(user?.steps).toBeUndefined()
+      expect((yield* agents.list()).map((agent) => agent.id)).toEqual([
+        build,
+        Agent.ID.make("peer"),
+        Agent.ID.make("user"),
+      ])
+      expect(yield* ConfigAgentPlugin.candidate(build).pipe(Effect.provide(Config.testLayer(entries)))).toBeUndefined()
+      const imported = yield* ConfigAgentPlugin.candidate(Agent.ID.make("user")).pipe(
+        Effect.provide(Config.testLayer(entries)),
+      )
+      if (!imported) throw new Error("Expected the re-created user declaration")
+      expect(imported.source).toBe(AgentAsset.Source.make(""))
+      expect(AgentAssetBridge.parseAgentAssetConfig(imported.config)).toMatchObject({
+        mode: "primary",
+        hidden: false,
+        handoffs: [],
+        permissions: defaultPermissions,
+      })
     }),
   )
 
@@ -623,7 +736,7 @@ Use native v2 fields.`,
           )
 
           yield* configTest.emitChange({ type: "create", path: path.join(tmp.path, "commands", "review.md") })
-          yield* configTest.emitChange({ type: "update", path: path.join(tmp.path, "opencode.json") })
+          yield* configTest.emitChange({ type: "update", path: path.join(tmp.path, "aigcfroge.json") })
           yield* drain
           expect(reloads).toBe(0)
 

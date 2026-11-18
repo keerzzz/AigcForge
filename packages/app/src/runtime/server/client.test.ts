@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
-import type { OpenCodeEvent } from "@opencode/client/promise"
+import type { AigcForgeEvent } from "@aigcfroge/client/promise"
 import { createRoot } from "solid-js"
-import { createOpenCodeEventSource, createServerTransport } from "./client"
+import { createAigcForgeEventSource, createServerTransport } from "./client"
 
 const permission = {
   id: "evt_permission",
@@ -15,16 +15,16 @@ const permission = {
     resources: ["src/**"],
     source: { type: "tool", messageID: "msg_1", id: "call_1" },
   },
-} satisfies Extract<OpenCodeEvent, { type: "permission.asked" }>
+} satisfies Extract<AigcForgeEvent, { type: "permission.asked" }>
 
 function setup() {
-  return createRoot((dispose) => ({ ...createOpenCodeEventSource(), dispose }))
+  return createRoot((dispose) => ({ ...createAigcForgeEventSource(), dispose }))
 }
 
 describe("server event stream", () => {
   test("publishes the original current event with exact data", () => {
     const server = setup()
-    const received: OpenCodeEvent[] = []
+    const received: AigcForgeEvent[] = []
     let requestID: string | undefined
 
     server.event.on("permission.asked", (event) => {
@@ -41,16 +41,16 @@ describe("server event stream", () => {
 
   test("filters locations without changing workspace identity", () => {
     const server = setup()
-    const repo: OpenCodeEvent[] = []
-    const other: OpenCodeEvent[] = []
-    const all: OpenCodeEvent[] = []
+    const repo: AigcForgeEvent[] = []
+    const other: AigcForgeEvent[] = []
+    const all: AigcForgeEvent[] = []
     let workspaceID: string | undefined
 
     const global = {
       id: "evt_connected",
       type: "server.connected",
       data: {},
-    } satisfies Extract<OpenCodeEvent, { type: "server.connected" }>
+    } satisfies Extract<AigcForgeEvent, { type: "server.connected" }>
 
     const repoEvents = server.event.location("/repo")
     repoEvents.on("permission.asked", (event) => {
@@ -89,7 +89,7 @@ describe("server event stream", () => {
 test("rotates HTTP and PTY clients together", async () => {
   const requests: Array<{ url: string; authorization: string | null }> = []
 
-  const fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+  const fetch: NonNullable<Parameters<typeof createServerTransport>[0]["fetch"]> = async (input, init) => {
     const request = input instanceof Request ? input : new Request(input, init)
     requests.push({ url: request.url, authorization: request.headers.get("authorization") })
 
@@ -97,14 +97,16 @@ test("rotates HTTP and PTY clients together", async () => {
       version: "2.0.0-test",
       pid: 1,
       urls: [request.url],
-      paths: { tmp: "/tmp/opencode" },
+      paths: { tmp: "/tmp/aigcfroge" },
     })
-  }) as typeof globalThis.fetch
+  }
 
   const transport = createServerTransport({
     http: { url: "http://127.0.0.1:4100", password: "first" },
     fetch,
   })
+
+  const observed = createRoot((dispose) => ({ api: () => transport.api, dispose }))
 
   const initialPty = transport.pty
 
@@ -115,6 +117,8 @@ test("rotates HTTP and PTY clients together", async () => {
     password: "second",
   })
 
+  expect(observed.api()).toBe(replacement)
+
   await transport.api.server.info()
 
   expect(replacement).toBe(transport.api)
@@ -123,11 +127,19 @@ test("rotates HTTP and PTY clients together", async () => {
   expect(requests).toEqual([
     {
       url: "http://127.0.0.1:4100/api/info",
-      authorization: `Basic ${btoa("opencode:first")}`,
+      authorization: `Basic ${btoa("aigcfroge:first")}`,
     },
     {
       url: "http://127.0.0.1:4200/api/info",
-      authorization: `Basic ${btoa("opencode:second")}`,
+      authorization: `Basic ${btoa("aigcfroge:second")}`,
     },
   ])
+  const sameOrigin = transport.update({ url: "http://127.0.0.1:4200", password: "third" })
+  expect(observed.api()).toBe(sameOrigin)
+  await observed.api().server.info()
+  expect(requests[2]).toEqual({
+    url: "http://127.0.0.1:4200/api/info",
+    authorization: `Basic ${btoa("aigcfroge:third")}`,
+  })
+  observed.dispose()
 })

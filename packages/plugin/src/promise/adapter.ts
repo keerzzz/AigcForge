@@ -1,6 +1,6 @@
-import { Tool } from "@opencode/schema/tool"
-import type { Rpc } from "@opencode/schema/rpc"
-import type { RpcCallOptions, RpcEventPayload } from "@opencode/client/promise/api"
+import { Tool } from "@aigcfroge/schema/tool"
+import type { Rpc } from "@aigcfroge/schema/rpc"
+import type { RpcCallOptions, RpcEventPayload } from "@aigcfroge/client/promise/api"
 import { Effect, Schema, SchemaAST, Stream } from "effect"
 import type { Scope } from "effect"
 import { HttpApiEndpoint, HttpApiSchema } from "effect/http-api"
@@ -178,7 +178,12 @@ function compileEndpoint(endpoint: HttpApiEndpoint.Top) {
     endpoint.params,
     endpoint.query === undefined ? undefined : Schema.toType(endpoint.query),
     endpoint.headers,
-    ...payloadSchemas,
+    ...payloadSchemas.map((schema) => {
+      const type = Schema.toType(schema).ast
+      return SchemaAST.isObjects(type) && type.indexSignatures.length === 0
+        ? schema
+        : Schema.Struct({ payload: schema })
+    }),
   ].filter((schema): schema is Schema.Top => schema !== undefined) as Array<RuntimeSchema>
   const success = (successSchemas[0] ?? HttpApiSchema.NoContent) as RuntimeSchema
   const noContent = HttpApiSchema.isNoContent(success.ast)
@@ -218,8 +223,8 @@ export function fromPromise(plugin: Plugin) {
     id: plugin.id,
     effect: (host) =>
       Effect.gen(function* () {
-        const [{ ClientApi }, { OpenCodeEvent }] = yield* Effect.promise(() =>
-          Promise.all([import("@opencode/protocol/client"), import("@opencode/protocol/groups/event")]),
+        const [{ ClientApi }, { AigcForgeEvent }] = yield* Effect.promise(() =>
+          Promise.all([import("@aigcfroge/protocol/client"), import("@aigcfroge/protocol/groups/event")]),
         )
         const AgentEndpoints = ClientApi.groups["server.agent"].endpoints
         const CommandEndpoints = ClientApi.groups["server.command"].endpoints
@@ -288,6 +293,9 @@ export function fromPromise(plugin: Plugin) {
               }),
             )
 
+        const eventStream = () =>
+          host.event.subscribe().pipe(Stream.mapEffect((event) => Schema.encodeUnknownEffect(AigcForgeEvent)(event)))
+
         const context2: PromiseContext = {
           app: host.app,
           location: host.location,
@@ -322,14 +330,14 @@ export function fromPromise(plugin: Plugin) {
             reload: () => run(host.command.reload()),
           },
           event: {
-            subscribe: (options) =>
-              streams(
-                host.event.subscribe().pipe(
-                  Stream.mapEffect((event) => Schema.encodeUnknownEffect(OpenCodeEvent)(event)),
-                  Stream.map((event) => event as unknown as PromiseEvent),
-                ),
-                options,
-              ),
+            subscribe: Object.assign(
+              (options?: Parameters<PromiseContext["event"]["subscribe"]>[0]) =>
+                streams(eventStream().pipe(Stream.map((event) => event as unknown as PromiseEvent)), options),
+              {
+                raw: (options?: Parameters<PromiseContext["event"]["subscribe"]["raw"]>[0]): AsyncIterable<unknown> =>
+                  streams(eventStream(), options),
+              },
+            ),
           },
           experimental: {
             terminal: {
@@ -340,6 +348,13 @@ export function fromPromise(plugin: Plugin) {
             text: adaptApiMethod(GenerateEndpoints["generate.text"], host.generate.text),
           },
           model: {
+            group: {
+              definition: {
+                get: adaptApiMethod(ModelEndpoints["model.group.definition.get"], host.model.group.definition.get),
+                save: adaptApiMethod(ModelEndpoints["model.group.definition.save"], host.model.group.definition.save),
+                remove: adaptApiMethod(ModelEndpoints["model.group.definition.remove"], host.model.group.definition.remove),
+              },
+            },
             list: adaptApiMethod(ModelEndpoints["model.list"], host.model.list),
             default: adaptApiMethod(ModelEndpoints["model.default"], host.model.default),
             transform: transform(host.model),
@@ -348,6 +363,16 @@ export function fromPromise(plugin: Plugin) {
           provider: {
             list: adaptApiMethod(ProviderEndpoints["provider.list"], host.provider.list),
             get: adaptApiMethod(ProviderEndpoints["provider.get"], host.provider.get),
+            discovery: {
+              get: adaptApiMethod(ProviderEndpoints["provider.discovery.get"], host.provider.discovery.get),
+              preview: adaptApiMethod(ProviderEndpoints["provider.discovery.preview"], host.provider.discovery.preview),
+              refresh: adaptApiMethod(ProviderEndpoints["provider.discovery.refresh"], host.provider.discovery.refresh),
+            },
+            definition: {
+              get: adaptApiMethod(ProviderEndpoints["provider.definition.get"], host.provider.definition.get),
+              save: adaptApiMethod(ProviderEndpoints["provider.definition.save"], host.provider.definition.save),
+              remove: adaptApiMethod(ProviderEndpoints["provider.definition.remove"], host.provider.definition.remove),
+            },
             transform: transform(host.provider),
             reload: () => run(host.provider.reload()),
           },

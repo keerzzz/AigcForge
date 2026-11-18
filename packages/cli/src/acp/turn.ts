@@ -1,6 +1,6 @@
 import type { CancelNotification, PromptRequest, PromptResponse, RequestError } from "@agentclientprotocol/sdk"
-import type { OpenCodeClient, OpenCodeEvent } from "@opencode/client/effect"
-import { TokenUsage } from "@opencode/schema/token-usage"
+import type { AigcForgeClient, AigcForgeEvent } from "@aigcfroge/client/effect"
+import { TokenUsage } from "@aigcfroge/schema/token-usage"
 import {
   Cause,
   Context,
@@ -37,13 +37,13 @@ export interface Interface {
 }
 
 /** Core acknowledges an interrupt before its cleanup settles, and its shell tool waits 3s before SIGKILL. */
-export const CancelDrainTimeout = Context.Reference<Duration.Input>("@opencode/cli/acp/Turn/CancelDrainTimeout", {
+export const CancelDrainTimeout = Context.Reference<Duration.Input>("@aigcfroge/cli/acp/Turn/CancelDrainTimeout", {
   defaultValue: () => "5 seconds",
 })
 
 type Subscription = {
   readonly scope: Scope.Closeable
-  readonly events: Queue.Dequeue<OpenCodeEvent, unknown>
+  readonly events: Queue.Dequeue<AigcForgeEvent, unknown>
   readonly askQueue: Queue.Queue<Effect.Effect<void, ACPError.Error | RequestError>>
   readonly settled: Map<string, Deferred.Deferred<void>>
 }
@@ -57,7 +57,7 @@ type Turn = {
 }
 
 export const make = Effect.fnUntraced(function* (input: {
-  readonly client: OpenCodeClient
+  readonly client: AigcForgeClient
   readonly connection: ACPConnection.Interface
   readonly sessions: ACPSessions.Interface
   readonly catalog: ACPCatalog.Interface
@@ -330,7 +330,9 @@ export const make = Effect.fnUntraced(function* (input: {
       const used = state.usage ? TokenUsage.total(state.usage.last) : 0
       if (!used) return
       const catalog = yield* input.catalog.get(attached.cwd)
-      const model = findModel(catalog.models, currentModel(catalog, yield* Ref.get(attached.selection)))
+      const selected = currentModel(catalog, yield* Ref.get(attached.selection))
+      if (!selected) return
+      const model = findModel(catalog.models, selected)
       if (!model?.limit.context) return
       const info = yield* input.client.session.get({ sessionID: attached.id }).pipe(Effect.catch(ACPClient.classify))
       yield* input.connection.sessionUpdate({

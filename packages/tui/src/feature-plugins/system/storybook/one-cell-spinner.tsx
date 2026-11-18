@@ -1,4 +1,4 @@
-import type { Plugin } from "@opencode/plugin/tui"
+import type { Plugin } from "@aigcfroge/plugin/tui"
 import { TextAttributes, type ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
 import { batch, createEffect, createMemo, createSignal, For, Show } from "solid-js"
@@ -32,7 +32,7 @@ function OneCellSpinnerStory(props: { context: Plugin.Context }) {
   const previewWidth = () => (solo() ? Math.min(dimensions().width, 64) : dimensions().width)
   const speeds = createMemo(() => (dimensions().width >= 60 ? [0.5, 1, 2] : [speed()]))
   const splash = createMemo(() =>
-    entrySplashLayout({ width: Math.max(1, previewWidth() - 8), version: "1.18.4", detail: "~/src/opencode" }),
+    entrySplashLayout({ width: Math.max(1, previewWidth() - 8), version: "1.18.4", detail: "~/src/aigcfroge" }),
   )
   let scroll: ScrollBoxRenderable | undefined
   const revealSelected = () => {

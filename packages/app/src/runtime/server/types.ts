@@ -1,4 +1,15 @@
-import type { ProjectListOutput, WorktreeDirectory } from "@opencode/client/promise"
+import type {
+  AgentListOutput,
+  ConfigInstanceConfigInstanceGetOutput,
+  ModelListOutput,
+  ModelSourceMetadata,
+  ModelSourceOrigins,
+  ProjectListOutput,
+  ProviderAuthMethods,
+  ProviderListOutput,
+  WorktreeDirectory,
+} from "@aigcfroge/client/promise"
+import type { ProductMode } from "@aigcfroge/schema/product-mode"
 
 export type Project = Omit<ProjectListOutput[number], "canonical"> & {
   worktree: string
@@ -59,11 +70,15 @@ export type Agent = {
   temperature?: number
   color?: string
   permission: Array<{ permission: string; pattern: string; action: "allow" | "deny" | "ask" }>
-  model?: { modelID: string; providerID: string }
+  model?: { modelID: string; providerID: string; variant?: string } | { type: "group"; groupID: string }
   variant?: string
   prompt?: string
-  options: Record<string, unknown>
+  options: AgentListOutput["data"][number]["request"]["settings"]
   steps?: number
+  originKind?: "builtin" | "user"
+  ordinaryModes?: ReadonlyArray<ProductMode.ID>
+  originRelativePath?: string
+  originRevision?: string
 }
 
 export type Model = {
@@ -76,6 +91,8 @@ export type Model = {
   }
   name: string
   family?: string
+  metadata?: ModelSourceMetadata
+  origins?: ModelSourceOrigins
   capabilities: {
     temperature: boolean
     reasoning: boolean
@@ -122,10 +139,13 @@ export type Model = {
     output: number
   }
   status: "alpha" | "beta" | "deprecated" | "active"
-  options: Record<string, unknown>
+  options: NonNullable<ModelListOutput["data"][number]["settings"]>
   headers: Record<string, string>
   release_date: string
-  variants?: Record<string, Record<string, unknown>>
+  variants?: Record<
+    string,
+    NonNullable<ModelListOutput["data"][number]["variants"][number]["settings"]>
+  >
 }
 
 export type Provider = {
@@ -137,7 +157,7 @@ export type Provider = {
   source: "env" | "config" | "custom" | "api"
   env: string[]
   key?: string
-  options: Record<string, unknown>
+  options: NonNullable<ProviderListOutput["data"][number]["settings"]>
   models: Record<string, Model>
 }
 
@@ -147,26 +167,6 @@ export type ProviderListResponse = {
   connected: string[]
 }
 
-export type ProviderAuthResponse = Record<string, unknown>
+export type ProviderAuthResponse = ProviderAuthMethods
 
-export type Config = {
-  model?: string
-  small_model?: string
-  default_agent?: string
-  username?: string
-  share?: "manual" | "auto" | "disabled"
-  autoshare?: boolean
-  shell?: string
-  plugin?: Array<string | [string, Record<string, unknown>]>
-  provider?: Record<string, { npm?: string; models?: Record<string, unknown> }>
-  mcp?: Record<string, unknown>
-  agent?: Record<string, unknown>
-  command?: Record<string, unknown>
-  instructions?: string[]
-  disabled_providers?: string[]
-  enabled_providers?: string[]
-  permission?: string | Record<string, unknown>
-  tools?: Record<string, boolean>
-  experimental?: Record<string, unknown>
-  [key: string]: unknown
-}
+export type Config = ConfigInstanceConfigInstanceGetOutput

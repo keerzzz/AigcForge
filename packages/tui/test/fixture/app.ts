@@ -1,7 +1,7 @@
 import { createTestRenderer } from "@opentui/core/testing"
-import { Effect, FileSystem } from "effect"
+import { Effect, Exit, FileSystem } from "effect"
 import path from "node:path"
-import { Global } from "@opencode/util/global"
+import { Global } from "@aigcfroge/util/global"
 import type { TuiInput } from "../../src/app"
 import type { Config } from "../../src/config"
 import { tmpdir } from "./fixture"
@@ -15,6 +15,7 @@ export async function createAppFixture(
     config?: Config.Info
     args?: TuiInput["args"]
     fetch?: FetchHandler
+    log?: TuiInput["log"]
   } = {},
 ) {
   const { run } = await import("../../src/app")
@@ -27,6 +28,13 @@ export async function createAppFixture(
   })
   setup.renderer.start()
   const ready = Promise.withResolvers<void>()
+  const exit = Promise.withResolvers<Exit.Exit<void, unknown>>()
+  const controller = new AbortController()
+  let mounted = false
+  let shutdownStarted = false
+  setup.renderer.once("destroy", () => {
+    shutdownStarted = true
+  })
   const events = createEventStream()
   const calls = createFetch(input.fetch, events)
   const server = Bun.serve({ port: 0, fetch: (request) => calls.fetch(request) })
@@ -36,9 +44,16 @@ export async function createAppFixture(
       server: { endpoint: { url: server.url.toString() } },
       config: { get: async () => input.config ?? { animations: false }, update: async () => ({}) },
       packages: { prepare: async () => ({ directory: "" }) },
-      terminalHandoff: async () => ({ renderer: setup.renderer, mode: "dark", complete: ready.resolve }),
+      terminalHandoff: async () => ({
+        renderer: setup.renderer,
+        mode: "dark",
+        complete: () => {
+          mounted = true
+          ready.resolve()
+        },
+      }),
       args: input.args ?? {},
-      log: () => {},
+      log: input.log ?? (() => {}),
     }).pipe(
       Effect.provide(
         Global.layerWith({
@@ -54,20 +69,42 @@ export async function createAppFixture(
         }),
       ),
       Effect.provide(FileSystem.layerNoop({})),
+      Effect.onExit((result) => Effect.sync(() => exit.resolve(result))),
     ),
+    { signal: controller.signal },
   )
+  let disposing: Promise<void> | undefined
   return {
     ...setup,
+    task,
+    exit: exit.promise,
+    directory: root.path,
     events,
+    server,
     ready: ready.promise,
-    async [Symbol.asyncDispose]() {
-      try {
-        if (!setup.renderer.isDestroyed) setup.renderer.destroy()
-        await task
-      } finally {
-        await server.stop()
-        await root[Symbol.asyncDispose]()
-      }
+    [Symbol.asyncDispose]() {
+      return (disposing ??= (async () => {
+        // The same barrier is shared by repeated disposal calls. Cleanup errors retain
+        // the original task failure through native async-disposal suppression.
+        await using _directory = root
+        await using _connection = {
+          async [Symbol.asyncDispose]() {
+            await server.stop(true)
+          },
+        }
+        await using _running = {
+          async [Symbol.asyncDispose]() {
+            if (!mounted) controller.abort()
+            await task
+          },
+        }
+        try {
+          if (!setup.renderer.isDestroyed) setup.renderer.destroy()
+        } catch (error) {
+          if (!shutdownStarted) controller.abort()
+          throw error
+        }
+      })())
     },
   }
 }

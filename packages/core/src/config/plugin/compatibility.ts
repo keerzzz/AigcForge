@@ -1,7 +1,7 @@
 export * as ConfigCompatibilityPlugin from "./compatibility.js"
 
-import { define } from "@opencode/plugin/effect/plugin"
-import { FSUtil } from "@opencode/util/fs-util"
+import { define } from "@aigcfroge/plugin/effect/plugin"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import path from "path"
 import { Effect, FiberMap, PubSub, Semaphore, Stream } from "effect"
 import { Config } from "../../config.js"
@@ -10,7 +10,7 @@ import { Skill } from "../../skill.js"
 import { SkillFile } from "./skill-file.js"
 
 export const Plugin = define({
-  id: "opencode.config.compatibility",
+  id: "aigcfroge.config.compatibility",
   effect: Effect.fn(function* (ctx) {
     const config = yield* Config.Service
     const fs = yield* FSUtil.Service

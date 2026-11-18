@@ -1,20 +1,23 @@
 import { describe, expect } from "bun:test"
-import { Effect, Layer, RcMap, Scope } from "effect"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { Database } from "@opencode/core/database/database"
-import { Bus } from "@opencode/core/bus"
-import { Instance } from "@opencode/core/instance/service"
-import { Location } from "@opencode/core/location"
-import { Project } from "@opencode/core/project"
-import { AbsolutePath } from "@opencode/core/schema"
-import { Session } from "@opencode/core/session"
-import { SessionExecution } from "@opencode/core/session/execution"
-import { SessionModelTransport } from "@opencode/core/session/model-transport"
-import { SessionProjector } from "@opencode/core/session/projector"
-import { SessionStore } from "@opencode/core/session/store"
-import { SessionEnvironment } from "@opencode/core/session/environment"
-import { LocationServiceMap } from "@opencode/core/location-services"
+import { Cause, Context, Effect, Exit, Layer, RcMap, Scope } from "effect"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Database } from "@aigcfroge/core/database/database"
+import { Bus } from "@aigcfroge/core/bus"
+import { Instance } from "@aigcfroge/core/instance/service"
+import { Location } from "@aigcfroge/core/location"
+import { Project } from "@aigcfroge/core/project"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Session } from "@aigcfroge/core/session"
+import { Job } from "@aigcfroge/core/job"
+import { SessionEvent } from "@aigcfroge/core/session/event"
+import { SessionTable } from "@aigcfroge/core/session/sql"
+import { SessionExecution } from "@aigcfroge/core/session/execution"
+import { SessionModelTransport } from "@aigcfroge/core/session/model-transport"
+import { SessionProjector } from "@aigcfroge/core/session/projector"
+import { SessionStore } from "@aigcfroge/core/session/store"
+import { SessionEnvironment } from "@aigcfroge/core/session/environment"
+import { LocationServiceMap } from "@aigcfroge/core/location-services"
 import { testEffect } from "./lib/effect"
 import { globalProjectNode } from "./lib/project"
 import { offlineModels } from "./fixture/models"
@@ -101,6 +104,140 @@ describe("Session.remove", () => {
       expect(Array.from(yield* RcMap.keys(locations.rcMap))).toEqual([])
       expect((yield* sessions.list()).data).toEqual([])
     }),
+  )
+
+  testEffect(Layer.empty).live(
+    "MC10 retains the parent and remaining child after partial cleanup and retries only the remainder",
+    () =>
+      Effect.gen(function* () {
+        const directory = yield* tmpdirScoped()
+        const timeline: { type: "interrupt" | "idle" | "close" | "deleted"; sessionID: Session.ID }[] = []
+        const failOnce = new Set<Session.ID>()
+        const failure = new Error("Second child transport cleanup failed")
+        const context = yield* Layer.build(
+          AppNodeBuilder.build(
+            LayerNode.group([
+              Database.node,
+              Bus.node,
+              Job.node,
+              SessionProjector.node,
+              SessionStore.node,
+              SessionEnvironment.node,
+              Session.node,
+              Instance.node,
+              LocationServiceMap.node,
+            ]),
+            [
+              Database.node.replace(Database.configured({ path: `${directory.path}/partial-cleanup.sqlite` })),
+              Project.node.replace(globalProjectNode),
+              SessionExecution.node.replace(
+                Layer.effect(
+                  SessionExecution.Service,
+                  Effect.gen(function* () {
+                    const execution = yield* SessionExecution.Service
+                    return SessionExecution.Service.of({
+                      ...execution,
+                      interrupt: (sessionID, options) =>
+                        execution
+                          .interrupt(sessionID, options)
+                          .pipe(Effect.tap(() => Effect.sync(() => timeline.push({ type: "interrupt", sessionID })))),
+                      awaitIdle: (sessionID) =>
+                        execution
+                          .awaitIdle(sessionID)
+                          .pipe(Effect.tap(() => Effect.sync(() => timeline.push({ type: "idle", sessionID })))),
+                    })
+                  }),
+                ).pipe(Layer.provide(SessionExecution.noopLayer)),
+              ),
+              SessionModelTransport.node.replace(
+                Layer.effect(
+                  SessionModelTransport.Service,
+                  Effect.gen(function* () {
+                    const original = yield* SessionModelTransport.Service
+                    return SessionModelTransport.Service.of({
+                      ...original,
+                      close: (sessionID) =>
+                        Effect.gen(function* () {
+                          timeline.push({ type: "close", sessionID })
+                          if (failOnce.delete(sessionID)) return yield* Effect.die(failure)
+                          yield* original.close(sessionID)
+                        }),
+                    })
+                  }),
+                ).pipe(Layer.provide(transport)),
+              ),
+              offlineModels,
+            ],
+          ),
+        )
+        const sessions = Context.get(context, Session.Service)
+        const bus = Context.get(context, Bus.Service)
+        const jobs = Context.get(context, Job.Service)
+        const database = Context.get(context, Database.Service)
+        const environments = Context.get(context, SessionEnvironment.Service)
+        const parent = yield* sessions.create({
+          location: Location.Ref.make({ directory: AbsolutePath.make(directory.path) }),
+          title: "Partial cleanup parent",
+        })
+        yield* sessions.create({ parentID: parent.id, title: "First created child" })
+        yield* sessions.create({ parentID: parent.id, title: "Second created child" })
+        // The production list decides cleanup order; creation time may be equal.
+        const children = (yield* sessions.list({ parentID: parent.id })).data
+        expect(children).toHaveLength(2)
+        const first = children[0]
+        const second = children[1]
+        if (!first || !second) return yield* Effect.die(new Error("Cleanup children missing"))
+        yield* sessions.environment({ sessionID: parent.id, variables: { SESSION_ENV: "parent" } })
+        yield* sessions.environment({ sessionID: first.id, variables: { SESSION_ENV: "first" } })
+        yield* sessions.environment({ sessionID: second.id, variables: { SESSION_ENV: "second" } })
+        const before = yield* database.db.select().from(SessionTable).all()
+        failOnce.add(second.id)
+        yield* bus.project(SessionEvent.Deleted, (event) =>
+          Effect.sync(() => timeline.push({ type: "deleted", sessionID: event.data.sessionID })),
+        )
+        const interruptedCleanup = yield* sessions.remove(parent.id).pipe(Effect.exit)
+        if (Exit.isSuccess(interruptedCleanup))
+          return yield* Effect.die(new Error("Expected child cleanup failure missing"))
+        expect(Cause.squash(interruptedCleanup.cause)).toBe(failure)
+        expect(timeline).toEqual([
+          { type: "interrupt", sessionID: parent.id },
+          { type: "idle", sessionID: parent.id },
+          { type: "close", sessionID: parent.id },
+          { type: "interrupt", sessionID: first.id },
+          { type: "idle", sessionID: first.id },
+          { type: "close", sessionID: first.id },
+          { type: "deleted", sessionID: first.id },
+          { type: "interrupt", sessionID: second.id },
+          { type: "idle", sessionID: second.id },
+          { type: "close", sessionID: second.id },
+        ])
+        expect(yield* database.db.select().from(SessionTable).all()).toEqual(
+          before.filter((row) => row.id !== first.id),
+        )
+        expect(yield* environments.get(parent.id)).toEqual({ SESSION_ENV: "parent" })
+        expect(yield* environments.get(second.id)).toEqual({ SESSION_ENV: "second" })
+        expect(yield* environments.get(first.id)).toBeUndefined()
+        expect((yield* sessions.get(second.id)).parentID).toBe(parent.id)
+        expect(yield* jobs.isDeletingSession(parent.id)).toBe(false)
+        expect(yield* jobs.isDeletingSession(second.id)).toBe(false)
+        yield* sessions.remove(parent.id)
+        expect(timeline.filter((event) => event.type === "deleted").map((event) => event.sessionID)).toEqual([
+          first.id,
+          second.id,
+          parent.id,
+        ])
+        expect(timeline.filter((event) => event.type === "close").map((event) => event.sessionID)).toEqual([
+          parent.id,
+          first.id,
+          second.id,
+          parent.id,
+          second.id,
+        ])
+        expect(yield* database.db.select().from(SessionTable).all()).toEqual([])
+        expect(yield* environments.get(parent.id)).toBeUndefined()
+        expect(yield* environments.get(second.id)).toBeUndefined()
+        expect(yield* jobs.isDeletingSession(parent.id)).toBe(false)
+      }),
   )
 
   it.effect("fails when the session does not exist", () =>

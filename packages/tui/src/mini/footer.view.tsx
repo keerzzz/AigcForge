@@ -8,7 +8,7 @@
 // All state comes from the parent RunFooter through SolidJS signals.
 // The view itself is stateless except for derived memos.
 /** @jsxImportSource @opentui/solid */
-import { useRenderer, useTerminalDimensions } from "@opentui/solid"
+import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/solid"
 import { TextBuffer, TextBufferView } from "@opentui/core"
 import { For, Match, Show, Switch, createEffect, createMemo, createSignal, onCleanup } from "solid-js"
 import { OneCellSpinner } from "../component/one-cell-spinner"
@@ -24,7 +24,7 @@ import {
   RunSubagentSelectBody,
   RunVariantSelectBody,
 } from "./footer.command"
-import { FOOTER_MENU_ROWS, RunFooterMenu } from "./footer.menu"
+import { FOOTER_MENU_ROWS, RunFooterMenu, RunExecutorSelectBody } from "./footer.menu"
 import { RunFooterSubagentBody } from "./footer.subagent"
 import { RunPromptBody, createPromptState } from "./footer.prompt"
 import { promptAppend } from "./prompt.shared"
@@ -36,11 +36,13 @@ import { footerStatuslinePolicy } from "./footer.width"
 import { Keymap } from "../context/keymap"
 import type { ClipboardService } from "../context/clipboard"
 import { modelInfo } from "./variant.shared"
+import type { ModelGroupCurrent } from "@aigcfroge/client/promise"
 import { monoShortcut } from "./mono"
 import { stringWidth } from "../util/string-width"
 import { formatContextUsage } from "../util/session"
 import { errorMessage } from "../util/error"
 import { createSingleFlight } from "../util/single-flight"
+import { isModelGroup } from "../model-preference"
 
 import type {
   FooterPromptRoute,
@@ -52,6 +54,8 @@ import type {
   FormReply,
   MiniSettingChange,
   MiniSettings,
+  MiniSessionSelection,
+  MiniModelDomain,
   PermissionReply,
   QueuedPromptAction,
   RunAgent,
@@ -87,9 +91,13 @@ type RunFooterViewProps = {
   references: () => RunReference[]
   commands: () => RunCommand[] | undefined
   providers: () => RunProvider[] | undefined
+  groups?: () => ModelGroupCurrent[]
   currentAgent: () => string
   currentAgentID: () => string | undefined
   currentModel: () => RunInput["model"]
+  selection?: () => MiniSessionSelection | undefined
+  modelDomain?: () => MiniModelDomain
+  onModelDomainSelect?: (domain: MiniModelDomain) => void
   variants: () => string[]
   currentVariant: () => string | undefined
   state: () => FooterState
@@ -116,7 +124,7 @@ type RunFooterViewProps = {
   onExitRequest?: () => boolean
   onRequestExit?: (fn: (() => boolean) | undefined) => void
   onExit: () => void
-  onAgentSelect: (agent: string) => void
+  onAgentSelect: (agent: string, domain?: MiniModelDomain) => void
   onModelSelect: (model: NonNullable<RunInput["model"]>) => void
   onVariantSelect: (variant: string | undefined) => void
   onRows: (rows: number) => void
@@ -189,7 +197,7 @@ export function RunFooterView(props: RunFooterViewProps) {
   const foregroundSubagents = createMemo(() => activeTabs().some((item) => !item.background))
   const model = createMemo(() => {
     const current = props.currentModel()
-    return current ? modelInfo(props.providers(), current) : undefined
+    return current ? modelInfo(props.providers(), current, props.groups?.()) : undefined
   })
   const detail = createMemo(() => {
     const current = route()
@@ -289,14 +297,23 @@ export function RunFooterView(props: RunFooterViewProps) {
   }
 
   const openModel = () => {
+    if (props.selection?.()?.controller?.kind === "child")
+      return props.onStatus("Child Agent selection is fixed by its first binding")
+    props.onModelDomainSelect?.("session")
     openRoute({ type: "model" })
   }
 
   const openAgent = () => {
+    if (props.selection?.()?.controller?.kind === "child")
+      return props.onStatus("Child Agent selection is fixed by its first binding")
+    props.onModelDomainSelect?.("session")
     openRoute({ type: "agent" })
   }
 
   const openVariant = () => {
+    if (props.selection?.()?.controller?.kind === "child")
+      return props.onStatus("Child Agent selection is fixed by its first binding")
+    props.onModelDomainSelect?.("session")
     openRoute({ type: "variant" })
   }
 
@@ -425,6 +442,19 @@ export function RunFooterView(props: RunFooterViewProps) {
     return props.currentAgent()
   })
   const modelStatus = createMemo(() => {
+    const selection = props.selection?.()
+    if (selection?.controller) {
+      const label = (ref: MiniSessionSelection["model"]) => {
+        if (!ref) return "Default"
+        if (isModelGroup(ref)) return modelInfo(props.providers(), ref, props.groups?.()).model
+        return `${ref.providerID}/${ref.id}${ref.variant === undefined ? "" : `#${ref.variant}`}`
+      }
+      return {
+        model: label(selection.controller.kind === "child" ? selection.controller.executor.model : selection.model),
+        provider: undefined,
+        variant: undefined,
+      }
+    }
     const current = model()?.model ?? props.state().model.trim()
     if (!footerDetails() || !prompt() || shell() || !current) return
     return {
@@ -557,6 +587,19 @@ export function RunFooterView(props: RunFooterViewProps) {
       },
     ],
   }))
+
+  useKeyboard((event) => {
+    if (event.defaultPrevented || event.name.toLowerCase() !== "tab") return
+    const selection = props.selection?.()
+    if (
+      (!agenting() && !modeling() && !varianting()) ||
+      selection?.agent !== "meta" ||
+      selection.controller?.kind !== "root"
+    )
+      return
+    event.preventDefault()
+    props.onModelDomainSelect?.(props.modelDomain?.() === "executor" ? "session" : "executor")
+  })
 
   Keymap.createLayer(() => ({
     enabled: active().type === "prompt" && route().type === "composer" && !composer.visible(),
@@ -862,43 +905,118 @@ export function RunFooterView(props: RunFooterViewProps) {
                           />
                         </Match>
                         <Match when={agenting()}>
-                          <RunAgentSelectBody
-                            theme={theme}
-                            agents={props.agents}
-                            current={props.currentAgentID}
-                            onClose={closePanel}
-                            onSelect={(agent) => {
-                              props.onAgentSelect(agent)
-                              closePanel()
-                            }}
-                            mono={props.mono}
-                          />
+                          <Show when={props.selection?.()?.controller?.kind !== "child"}>
+                            <Show
+                              when={
+                                props.selection?.()?.agent === "meta" &&
+                                props.selection?.()?.controller?.kind === "root"
+                              }
+                            >
+                              <box flexDirection="row" gap={2}>
+                                <text onMouseDown={() => props.onModelDomainSelect?.("session")}>
+                                  {props.modelDomain?.() === "executor" ? "Session Agent" : "[Session Agent]"}
+                                </text>
+                                <text onMouseDown={() => props.onModelDomainSelect?.("executor")}>
+                                  {props.modelDomain?.() === "executor"
+                                    ? "[Delegation preference]"
+                                    : "Delegation preference"}
+                                </text>
+                                <text>Tab switches domain</text>
+                              </box>
+                            </Show>
+                            <Show
+                              when={
+                                props.modelDomain?.() === "executor" &&
+                                props.selection?.()?.agent === "meta" &&
+                                props.selection?.()?.controller?.kind === "root"
+                              }
+                              fallback={
+                                <RunAgentSelectBody
+                                  theme={theme}
+                                  agents={props.agents}
+                                  current={props.currentAgentID}
+                                  onClose={closePanel}
+                                  onSelect={(agent) => {
+                                    props.onAgentSelect(agent, "session")
+                                    closePanel()
+                                  }}
+                                  mono={props.mono}
+                                />
+                              }
+                            >
+                              <RunExecutorSelectBody
+                                theme={theme}
+                                agents={props.agents}
+                                current={() => props.selection?.()?.executorPreference?.agent}
+                                onClose={closePanel}
+                                onSelect={(agent) => props.onAgentSelect(agent, "executor")}
+                                mono={props.mono}
+                              />
+                            </Show>
+                          </Show>
                         </Match>
                         <Match when={modeling()}>
-                          <RunModelSelectBody
-                            theme={theme}
-                            providers={props.providers}
-                            current={props.currentModel}
-                            onClose={closePanel}
-                            onSelect={(model) => {
-                              props.onModelSelect(model)
-                              closePanel()
-                            }}
-                            mono={props.mono}
-                          />
+                          <Show when={props.selection?.()?.controller?.kind !== "child"}>
+                            <Show
+                              when={
+                                props.selection?.()?.agent === "meta" &&
+                                props.selection?.()?.controller?.kind === "root"
+                              }
+                            >
+                              <box flexDirection="row" gap={2}>
+                                <text onMouseDown={() => props.onModelDomainSelect?.("session")}>
+                                  {props.modelDomain?.() === "session" ? "[Session model]" : "Session model"}
+                                </text>
+                                <text onMouseDown={() => props.onModelDomainSelect?.("executor")}>
+                                  {props.modelDomain?.() === "executor" ? "[Executor model]" : "Executor model"}
+                                </text>
+                                <text>Tab switches domain</text>
+                              </box>
+                            </Show>
+                            <RunModelSelectBody
+                              theme={theme}
+                              providers={props.providers}
+                              groups={props.groups}
+                              current={props.currentModel}
+                              onClose={closePanel}
+                              onSelect={(model) => {
+                                props.onModelSelect(model)
+                                closePanel()
+                              }}
+                              mono={props.mono}
+                            />
+                          </Show>
                         </Match>
                         <Match when={varianting()}>
-                          <RunVariantSelectBody
-                            theme={theme}
-                            variants={props.variants}
-                            current={props.currentVariant}
-                            onClose={closePanel}
-                            onSelect={(variant) => {
-                              props.onVariantSelect(variant)
-                              closePanel()
-                            }}
-                            mono={props.mono}
-                          />
+                          <Show when={props.selection?.()?.controller?.kind !== "child"}>
+                            <Show
+                              when={
+                                props.selection?.()?.agent === "meta" &&
+                                props.selection?.()?.controller?.kind === "root"
+                              }
+                            >
+                              <box flexDirection="row" gap={2}>
+                                <text onMouseDown={() => props.onModelDomainSelect?.("session")}>
+                                  {props.modelDomain?.() === "session" ? "[Session variant]" : "Session variant"}
+                                </text>
+                                <text onMouseDown={() => props.onModelDomainSelect?.("executor")}>
+                                  {props.modelDomain?.() === "executor" ? "[Executor variant]" : "Executor variant"}
+                                </text>
+                                <text>Tab switches domain</text>
+                              </box>
+                            </Show>
+                            <RunVariantSelectBody
+                              theme={theme}
+                              variants={props.variants}
+                              current={props.currentVariant}
+                              onClose={closePanel}
+                              onSelect={(variant) => {
+                                props.onVariantSelect(variant)
+                                closePanel()
+                              }}
+                              mono={props.mono}
+                            />
+                          </Show>
                         </Match>
                         <Match when={setting()}>
                           <RunSettingsBody

@@ -4,8 +4,8 @@ import type {
   ElicitationSchema,
   EnumOption,
 } from "@agentclientprotocol/sdk"
-import type { OpenCodeClient } from "@opencode/client/effect"
-import { Form } from "@opencode/schema/form"
+import type { AigcForgeClient } from "@aigcfroge/client/effect"
+import { Form } from "@aigcfroge/schema/form"
 import { Effect, Option, Schema } from "effect"
 import type { Capabilities } from "./capabilities"
 import { ACPChild } from "./child"
@@ -23,7 +23,7 @@ const Credential = /password|passphrase|secret|token|api[_ -]?key|credential|pri
 const ToolSource = Schema.Struct({ tool: Schema.Struct({ id: Schema.String }) })
 
 type Input = {
-  readonly client: OpenCodeClient
+  readonly client: AigcForgeClient
   readonly connection: ACPConnection.Interface
   readonly form: Form.Info
   readonly requestedSchema: ElicitationSchema
@@ -35,7 +35,7 @@ type Input = {
 export const UnshownQuestionMessage =
   "The question couldn't be shown to the user in this client. Continue without an answer: make reasonable assumptions and state them, or ask the user in your reply if you can't proceed."
 
-function cancel(client: OpenCodeClient, form: Form.Info, message?: string) {
+function cancel(client: AigcForgeClient, form: Form.Info, message?: string) {
   return client.session.form.cancel({ sessionID: form.sessionID, formID: form.id, message }).pipe(
     Effect.catchTag(["FormAlreadySettledError", "FormNotFoundError"], () => Effect.void),
     Effect.catch(() =>
@@ -65,7 +65,7 @@ export function requestedSchema(form: AskedForm, capabilities: Capabilities): El
 }
 
 // The question tool returns the message to the model, so the turn continues instead of ending as interrupted.
-export function cancelUnshown(client: OpenCodeClient, form: Form.Info) {
+export function cancelUnshown(client: AigcForgeClient, form: Form.Info) {
   return cancel(client, form, form.metadata?.kind === QuestionKind ? UnshownQuestionMessage : undefined).pipe(
     Effect.uninterruptible,
   )

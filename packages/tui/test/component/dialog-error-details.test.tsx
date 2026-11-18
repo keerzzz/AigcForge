@@ -20,7 +20,7 @@ import { createTuiResolvedConfig } from "../fixture/tui-runtime"
 for (const width of [40, 100]) {
   test(`error details stay compact at ${width} columns and investigate only prepares a draft`, async () => {
     await using temporary = await tmpdir()
-    const source = "/private/var/folders/very-long-temporary-directory/opencode/project/plugins/broken/index.ts"
+    const source = "/private/var/folders/very-long-temporary-directory/aigcfroge/project/plugins/broken/index.ts"
     const copied: string[] = []
     const submitted: string[] = []
     let route: ReturnType<typeof useRoute> | undefined

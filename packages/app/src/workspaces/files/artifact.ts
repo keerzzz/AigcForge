@@ -1,5 +1,5 @@
-import { artifactKind, artifactMime, type ArtifactKind } from "@opencode/util/artifact"
-import { bytesToBase64 } from "@opencode/util/base64"
+import { artifactKind, artifactMime, type ArtifactKind } from "@aigcfroge/util/artifact"
+import { bytesToBase64 } from "@aigcfroge/util/base64"
 import type { FileContent } from "@/runtime/server/types"
 
 /** Kinds whose bytes are kept as base64 so media elements can play them without a text round trip. */

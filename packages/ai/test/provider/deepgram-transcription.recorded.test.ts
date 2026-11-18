@@ -22,7 +22,7 @@ describe("Deepgram Transcription recorded", () => {
       const response = yield* Transcription.generate(request)
 
       expect(response.text).toMatch(TRANSCRIPT)
-      expect(response.words?.map((word) => word.text)).toEqual(["Hello", "from", "OpenCode."])
+      expect(response.words?.map((word) => word.text)).toEqual(["Hello", "from", "AigcForge."])
       expect(response.words?.every((word) => word.speaker === "0" && word.confidence !== undefined)).toBe(true)
       expect(response.segments).toEqual([
         { text: response.text, startSeconds: expect.any(Number), endSeconds: expect.any(Number), speaker: "0" },

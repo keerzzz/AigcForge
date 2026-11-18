@@ -1,30 +1,31 @@
 import { expect, test } from "bun:test"
-import { LLMClient, LanguageModel, Message, ToolDefinition } from "@opencode/ai"
-import { OpenAI } from "@opencode/ai/providers"
-import { Agent } from "@opencode/core/agent"
-import { Bus } from "@opencode/core/bus"
-import { Database } from "@opencode/core/database/database"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { llmClient } from "@opencode/core/effect/app-node-platform"
-import { Instructions } from "@opencode/core/instructions/index"
-import { PluginHooks } from "@opencode/core/plugin/hooks"
-import { Location } from "@opencode/core/location"
-import { Project } from "@opencode/core/project"
-import { ProjectTable } from "@opencode/core/project/sql"
-import { AbsolutePath } from "@opencode/core/schema"
-import { SessionCompaction } from "@opencode/core/session/compaction"
-import { SessionEvent } from "@opencode/core/session/event"
-import { SessionHistory } from "@opencode/core/session/history"
-import { SessionInbox } from "@opencode/core/session/inbox"
-import { InstructionState } from "@opencode/core/session/instruction-state"
-import { SessionMessage } from "@opencode/core/session/message"
-import { SessionModelRequest } from "@opencode/core/session/model-request"
-import { SessionProjector } from "@opencode/core/session/projector"
-import { SessionProviderContext } from "@opencode/core/session/provider-context"
-import { SessionRunnerModel } from "@opencode/core/session/runner/model"
-import { SessionSchema } from "@opencode/core/session/schema"
-import { SessionStore } from "@opencode/core/session/store"
-import { LayerNode } from "@opencode/util/effect/layer-node"
+import { LLMClient, LanguageModel, Message, ToolDefinition } from "@aigcfroge/ai"
+import { OpenAI } from "@aigcfroge/ai/providers"
+import { Agent } from "@aigcfroge/core/agent"
+import { Bus } from "@aigcfroge/core/bus"
+import { Database } from "@aigcfroge/core/database/database"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { llmClient } from "@aigcfroge/core/effect/app-node-platform"
+import { Instructions } from "@aigcfroge/core/instructions/index"
+import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
+import { Location } from "@aigcfroge/core/location"
+import { Project } from "@aigcfroge/core/project"
+import { ProjectTable } from "@aigcfroge/core/project/sql"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { SessionCompaction } from "@aigcfroge/core/session/compaction"
+import { SessionEvent } from "@aigcfroge/core/session/event"
+import { SessionHistory } from "@aigcfroge/core/session/history"
+import { SessionInbox } from "@aigcfroge/core/session/inbox"
+import { InstructionState } from "@aigcfroge/core/session/instruction-state"
+import { SessionMessage } from "@aigcfroge/core/session/message"
+import { SessionModelRequest } from "@aigcfroge/core/session/model-request"
+import { SessionProjector } from "@aigcfroge/core/session/projector"
+import { SessionProviderContext } from "@aigcfroge/core/session/provider-context"
+import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
+import type { ModelSource } from "@aigcfroge/schema/model-source"
+import { SessionSchema } from "@aigcfroge/core/session/schema"
+import { SessionStore } from "@aigcfroge/core/session/store"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
 import { DateTime, Deferred, Effect, Fiber, Schema } from "effect"
 import { testEffect } from "./lib/effect"
 
@@ -48,7 +49,7 @@ const it = testEffect(
   ),
 )
 
-const setup = Effect.fnUntraced(function* (options: { endpoint?: boolean } = {}) {
+const setup = Effect.fnUntraced(function* (options: { endpoint?: boolean; request?: Agent.Info["request"]; connection?: ModelSource.ConnectionRef } = {}) {
   const endpoint = options.endpoint ?? false
   const db = (yield* Database.Service).db
   const bus = yield* Bus.Service
@@ -62,6 +63,7 @@ const setup = Effect.fnUntraced(function* (options: { endpoint?: boolean } = {})
   const state = { failure: false, flaky: false, hang: false, overflow: false, calls: 0 }
   const bodies: Record<string, unknown>[] = []
   const headers: Headers[] = []
+  const paths: string[] = []
   const server = yield* Effect.acquireRelease(
     Effect.sync(() =>
       Bun.serve({
@@ -69,6 +71,7 @@ const setup = Effect.fnUntraced(function* (options: { endpoint?: boolean } = {})
         port: 0,
         async fetch(request) {
           state.calls++
+          paths.push(new URL(request.url).pathname)
           headers.push(request.headers)
           bodies.push(
             Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown)))(
@@ -149,6 +152,7 @@ const setup = Effect.fnUntraced(function* (options: { endpoint?: boolean } = {})
       cost: [],
       limit: { context: 200_000, output: 32_000 },
       compaction: { type: "native" },
+      connection: options.connection,
     },
   )
   const sessionID = SessionSchema.ID.create()
@@ -201,10 +205,22 @@ const setup = Effect.fnUntraced(function* (options: { endpoint?: boolean } = {})
       model,
       initial: history.initial,
       messages: history.messages,
-      agent: { id: Agent.defaultID, info: Agent.Info.default(Agent.defaultID) },
+      agent: {
+        id: Agent.defaultID,
+        info: {
+          ...Agent.Info.default(Agent.defaultID),
+          request: options.request ?? Agent.Info.default(Agent.defaultID).request,
+        },
+      },
       tools: {
         definitions: [
           ToolDefinition.make({ name: "read", description: "Read a file", inputSchema: { type: "object" } }),
+        ],
+        catalog: [
+          {
+            ...ToolDefinition.make({ name: "read", description: "Read a file", inputSchema: { type: "object" } }),
+            placement: "direct" as const,
+          },
         ],
         execute: () => Effect.die("Compaction must never dispatch tools"),
       },
@@ -239,6 +255,7 @@ const setup = Effect.fnUntraced(function* (options: { endpoint?: boolean } = {})
     requests,
     bodies,
     headers,
+    paths,
     state,
     blocked,
     sessionID,
@@ -248,6 +265,79 @@ const setup = Effect.fnUntraced(function* (options: { endpoint?: boolean } = {})
     compaction,
   }
 })
+
+it.live("P4 proves the actual compact endpoint before binding its replacement to the generation deployment and account", () => Effect.gen(function* () {
+  const connection = { type: "env" as const, name: "NATIVE_ACCOUNT_A" }
+  const fixture = yield* setup({ endpoint: true, connection })
+  yield* fixture.prompt("Original visible request")
+  expect(yield* fixture.compact).toEqual({ status: "completed" })
+  const checkpoint = yield* fixture.checkpoint
+  expect(fixture.paths).toEqual(["/responses/compact"])
+  expect(checkpoint.provenance.connection).toEqual(connection)
+  expect(checkpoint.provenance.deployment).toBeDefined()
+  expect(SessionProviderContext.compatible(checkpoint.provenance, SessionProviderContext.provenance(fixture.model))).toBe(true)
+  const db = (yield* Database.Service).db
+  const history = yield* SessionHistory.load(db, fixture.sessionID, SessionProviderContext.provenance({
+    ...fixture.model, connection: { type: "env", name: "NATIVE_ACCOUNT_B" },
+  }) ?? "local")
+  expect(history.filter((message) => message.type === "user").map((message) => message.text)).toEqual(["Original visible request"])
+  expect(history.some(SessionProviderContext.isCheckpoint)).toBe(false)
+  expect(yield* fixture.checkpoint).toEqual(checkpoint)
+}))
+
+it.live("P4 retains readable history and declines a native checkpoint rerouted by the HTTP hook", () => Effect.gen(function* () {
+  const fixture = yield* setup({ endpoint: true, connection: { type: "env", name: "NATIVE_ACCOUNT_A" } })
+  yield* fixture.prompt("Original visible request")
+  yield* fixture.hooks.register("session", "http.request", (event) => Effect.sync(() => {
+    const url = new URL(event.request.url)
+    url.pathname = "/rerouted/compact"
+    event.request = new Request(url.toString(), event.request)
+  }))
+  expect(yield* fixture.compact).toMatchObject({ status: "failed", error: {
+    type: "provider.unsupported-operation", message: "Native compaction did not prove the producing connection and deployment",
+  } })
+  expect(fixture.paths).toEqual(["/rerouted/compact"])
+  const history = (yield* fixture.load).messages
+  expect(history.some(SessionProviderContext.isCheckpoint)).toBe(false)
+  expect(history.filter((message) => message.type === "user").map((message) => message.text)).toEqual(["Original visible request"])
+}))
+
+for (const endpoint of [false, true])
+  it.live(`sends context Agent headers and body through native compaction ${endpoint ? "endpoint" : "trigger"}`, () =>
+    Effect.gen(function* () {
+      const fixture = yield* setup({
+        endpoint,
+        request: {
+          settings: { agentOnly: true },
+          headers: { "X-Agent": "native-compaction" },
+          body: {
+            prompt_cache_key: "native-agent",
+            reasoning: { effort: "low" },
+            metadata: { source: "native-agent" },
+            temperature: 0.75,
+          },
+        },
+      })
+      yield* fixture.prompt("Retain the user request while compacting")
+      expect(yield* fixture.compact).toEqual({ status: "completed" })
+      expect(fixture.bodies).toHaveLength(1)
+      expect(fixture.bodies[0]).toMatchObject({
+        prompt_cache_key: "native-agent",
+        reasoning: { effort: "low" },
+      })
+      // The standalone endpoint retains only its smaller request contract.
+      if (endpoint) {
+        expect(fixture.bodies[0]).not.toHaveProperty("metadata")
+        expect(fixture.bodies[0]).not.toHaveProperty("temperature")
+      }
+      if (!endpoint)
+        expect(fixture.bodies[0]).toMatchObject({ metadata: { source: "native-agent" }, temperature: 0.75 })
+      expect(fixture.bodies[0]).not.toHaveProperty("agentOnly")
+      expect(fixture.headers[0]?.get("x-agent")).toBe("native-compaction")
+      expect(fixture.headers[0]?.get("x-http-hook")).toBe("compaction")
+      expect(fixture.headers[0]?.get("x-aigcfroge-session-id")).toBe(fixture.sessionID)
+    }),
+  )
 
 it.live(
   "manual trigger persists and continues, retains earlier users repeatedly, and preserves context on failure/cancellation",

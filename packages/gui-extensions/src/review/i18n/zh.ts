@@ -1,4 +1,7 @@
 export default {
+  "settings.display.hidden": "审查已隐藏",
+  "settings.display.restore": "打开设置",
+  "settings.display.title": "显示审查",
   "tab.title": "审查",
   "tab.count.one": "{{count}} 个文件已更改",
   "tab.count.other": "{{count}} 个文件已更改",
@@ -6,7 +9,7 @@ export default {
   "mobile.title.other": "更改",
   "empty.git": "尚无未提交的更改",
   "empty.branch": "尚无分支更改",
-  "git.title": "创建 Git 仓库",
+  "git.title": "创建Git仓库",
   "git.description": "在此项目中跟踪、审查和撤消更改",
   loadingChanges: "正在加载更改…",
   noChanges: "无更改",

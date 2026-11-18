@@ -1,4 +1,4 @@
-import type { Panel } from "@opencode/gui-extensions/sdk"
+import type { Panel } from "@aigcfroge/gui-extensions/sdk"
 
 /** The key the host stores a panel tab under. */
 export function panelKey(extension: string, id: string) {

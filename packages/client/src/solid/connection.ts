@@ -1,6 +1,6 @@
 import { batch, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
-import type { OpenCodeClient, OpenCodeEvent } from "../promise"
+import type { AigcForgeClient, AigcForgeEvent } from "../promise"
 
 export type ClientConnectionStatus = "connected" | "connecting" | "reconnecting"
 export type ClientConnectionEvent = {
@@ -14,8 +14,8 @@ export type ClientConnectionEvent = {
 }
 
 export type ClientConnectionOptions = {
-  readonly reconnect?: (signal: AbortSignal) => Promise<OpenCodeClient>
-  readonly onEvent: (event: OpenCodeEvent) => void
+  readonly reconnect?: (signal: AbortSignal) => Promise<AigcForgeClient>
+  readonly onEvent: (event: AigcForgeEvent) => void
   readonly flushInterval?: number
   readonly pageLifecycle?: boolean
   /**
@@ -37,7 +37,7 @@ export const defaultIdleTimeout = 45_000
 // returns to the foreground is probably half-open after the device slept.
 export const foregroundIdleThreshold = 20_000
 
-export function createClientConnection(initialApi: OpenCodeClient, options: ClientConnectionOptions) {
+export function createClientConnection(initialApi: AigcForgeClient, options: ClientConnectionOptions) {
   const abort = new AbortController()
   const history: ClientConnectionEvent[] = []
   const idleTimeout = options.idleTimeout ?? defaultIdleTimeout
@@ -47,7 +47,7 @@ export function createClientConnection(initialApi: OpenCodeClient, options: Clie
     error?: string
   }>({ status: "connecting", attempt: 0 })
   let api = initialApi
-  let pending: OpenCodeEvent[] = []
+  let pending: AigcForgeEvent[] = []
   let flushTimer: ReturnType<typeof setTimeout> | undefined
   let stream: AbortController | undefined
   let current: AbortController | undefined
@@ -62,7 +62,7 @@ export function createClientConnection(initialApi: OpenCodeClient, options: Clie
     if (history.length > connectionHistoryLimit) history.shift()
   }
 
-  function publish(event: OpenCodeEvent) {
+  function publish(event: AigcForgeEvent) {
     pending.push(event)
     if (flushTimer) return
     flushTimer = setTimeout(() => {
@@ -169,6 +169,11 @@ export function createClientConnection(initialApi: OpenCodeClient, options: Clie
         })
         if (abort.signal.aborted || controller.signal.aborted || !started || generation !== active) return
         if (next) {
+          if (api !== next) {
+            pending = []
+            if (flushTimer) clearTimeout(flushTimer)
+            flushTimer = undefined
+          }
           api = next
           if (attempt === 1) continue
         }
@@ -206,6 +211,18 @@ export function createClientConnection(initialApi: OpenCodeClient, options: Clie
     stream?.abort()
     // Nothing is listening once stopped, so consumers must treat their data as stale until start() reconnects.
     setConnection({ status: "connecting", attempt: 0, error: undefined })
+  }
+
+  // A new API owns a new event stream; buffered events still belong to the previous API.
+  function replaceApi(next: AigcForgeClient) {
+    if (api === next) return
+    api = next
+    pending = []
+    if (flushTimer) clearTimeout(flushTimer)
+    flushTimer = undefined
+    if (!started) return
+    stop()
+    void start()
   }
 
   // Drop the live request so the reconnect loop replaces it now instead of waiting for the idle watchdog.
@@ -254,6 +271,7 @@ export function createClientConnection(initialApi: OpenCodeClient, options: Clie
     internal: {
       history: () => history.slice(),
       resync,
+      replaceApi,
     },
   }
 }

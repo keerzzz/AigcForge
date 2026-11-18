@@ -1,6 +1,7 @@
 import { Schema } from "effect"
-import { Skill } from "@opencode/schema/skill"
-import { Location } from "@opencode/schema/location"
+import { Composition } from "@aigcfroge/schema/composition"
+import { Skill } from "@aigcfroge/schema/skill"
+import { Location } from "@aigcfroge/schema/location"
 
 export class LocationNotFoundError extends Schema.TaggedError<LocationNotFoundError>()(
   "LocationNotFoundError",
@@ -145,6 +146,15 @@ export class AgentNotFoundError extends Schema.TaggedError<AgentNotFoundError>()
   { httpApiStatus: 404 },
 ) {}
 
+export class GrantNotFoundError extends Schema.TaggedError<GrantNotFoundError>()(
+  "GrantNotFoundError",
+  {
+    grantID: Schema.String,
+    message: Schema.String,
+  },
+  { httpApiStatus: 404 },
+) {}
+
 export class SessionNotFoundError extends Schema.TaggedError<SessionNotFoundError>()(
   "SessionNotFoundError",
   {
@@ -264,4 +274,58 @@ export class ShellNotFoundError extends Schema.TaggedError<ShellNotFoundError>()
     message: Schema.String,
   },
   { httpApiStatus: 404 },
+) {}
+
+/** Fork-retained instance-API 404: preserves the fork wire shape ({ name, data: { message } }). */
+export class ApiNotFoundError extends Schema.TaggedError<ApiNotFoundError>()(
+  "NotFoundError",
+  {
+    name: Schema.Literal("NotFoundError"),
+    data: Schema.Struct({ message: Schema.String }),
+  },
+  { httpApiStatus: 404 },
+) {}
+
+/** Fork-retained: custom mode composition surface (ADR-17~21). */
+export class UnsupportedProductModeError extends Schema.TaggedError<UnsupportedProductModeError>()(
+  "UnsupportedProductModeError",
+  {
+    mode: Schema.String,
+    message: Schema.String,
+  },
+  { httpApiStatus: 400 },
+) {}
+
+/** Fork-retained: composition resolution failure with structured diagnostics. */
+export class CompositionResolveError extends Schema.TaggedError<CompositionResolveError>()(
+  "CompositionResolveError",
+  {
+    code: Schema.String,
+    message: Schema.String,
+    diagnostics: Schema.optional(Schema.Array(Composition.Diagnostic)),
+  },
+  { httpApiStatus: 422 },
+) {}
+
+/** Fork-retained question surface: pending question request not found. */
+export class QuestionNotFoundError extends Schema.TaggedError<QuestionNotFoundError>()(
+  "QuestionNotFoundError",
+  {
+    requestID: Schema.String,
+    message: Schema.String,
+  },
+  { httpApiStatus: 404 },
+) {}
+
+/** Fork-retained: VCS patch apply failure reasons (shared by workspace and instance routes). */
+export class ApiVcsApplyError extends Schema.TaggedError<ApiVcsApplyError>()(
+  "VcsApplyError",
+  {
+    name: Schema.Literal("VcsApplyError"),
+    data: Schema.Struct({
+      message: Schema.String,
+      reason: Schema.Literals(["non-git", "not-clean", "stage-failed", "unstage-failed", "commit-failed"]),
+    }),
+  },
+  { httpApiStatus: 400 },
 ) {}

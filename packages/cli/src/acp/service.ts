@@ -1,9 +1,9 @@
-import type { OpenCodeClient } from "@opencode/client/effect"
-import { SessionsCursor } from "@opencode/protocol/groups/session"
-import { AbsolutePath } from "@opencode/schema/schema"
-import { FSUtil } from "@opencode/util/fs-util"
+import type { AigcForgeClient } from "@aigcfroge/client/effect"
+import { SessionsCursor } from "@aigcfroge/protocol/groups/session"
+import { AbsolutePath } from "@aigcfroge/schema/schema"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { DateTime, Effect, Ref, Schema } from "effect"
-import { withTimestampedFallback } from "@opencode/util/session-title-fallback"
+import { withTimestampedFallback } from "@aigcfroge/util/session-title-fallback"
 import type {
   AuthenticateRequest,
   AuthenticateResponse,
@@ -33,19 +33,18 @@ import type {
   SetSessionModeRequest,
   SetSessionModeResponse,
 } from "@agentclientprotocol/sdk"
-import { OPENCODE_VERSION } from "../version"
+import { AIGCFROGE_VERSION } from "../version"
 import { ACPCapabilities, type Capabilities } from "./capabilities"
 import type { ACPCatalog } from "./catalog"
 import { ACPClient } from "./client"
-import { configOptions, resolveChange } from "./config-option"
 import type { ACPConnection } from "./connection"
 import { ACPDirectories } from "./directories"
 import { ACPError } from "./error"
 import { ACPReplay } from "./replay"
-import type { ACPSessions, Attached, SupportedMcpServer } from "./sessions"
+import type { ACPSessions, SupportedMcpServer } from "./sessions"
 import type { ACPTurn } from "./turn"
 
-const AuthMethodID = "opencode-login"
+const AuthMethodID = "aigcfroge-login"
 
 export interface Interface {
   readonly initialize: (input: InitializeRequest) => Effect.Effect<InitializeResponse>
@@ -66,34 +65,13 @@ export interface Interface {
 }
 
 export function make(input: {
-  readonly client: OpenCodeClient
+  readonly client: AigcForgeClient
   readonly connection: ACPConnection.Interface
   readonly catalog: ACPCatalog.Interface
   readonly sessions: ACPSessions.Interface
   readonly capabilities: Ref.Ref<Capabilities>
   readonly turn: ACPTurn.Interface
 }): Interface {
-  const currentOptions = Effect.fnUntraced(function* (attached: Attached) {
-    return configOptions(yield* input.catalog.get(attached.cwd), yield* Ref.get(attached.selection))
-  })
-
-  const withReload = <A>(attached: Attached, attempt: Effect.Effect<A, ACPError.Failure>) => {
-    const retry = () => input.catalog.reload(attached.cwd).pipe(Effect.andThen(attempt))
-    return attempt.pipe(
-      Effect.catchTags({ ACPInvalidModelError: retry, ACPInvalidModeError: retry, ACPInvalidEffortError: retry }),
-    )
-  }
-
-  const select = Effect.fnUntraced(function* (attached: Attached, configId: string, value: string) {
-    const change = yield* resolveChange(
-      yield* input.catalog.get(attached.cwd),
-      yield* Ref.get(attached.selection),
-      configId,
-      value,
-    )
-    yield* input.sessions.select(attached, change)
-  })
-
   const getSession = Effect.fnUntraced(function* (sessionId: string, cwd: string) {
     const sessionID = yield* ACPClient.decodeSessionID(sessionId)
     const session = yield* input.client.session.get({ sessionID }).pipe(Effect.catch(ACPClient.classify))
@@ -106,14 +84,14 @@ export function make(input: {
     initialize: Effect.fnUntraced(function* (params) {
       yield* Ref.set(input.capabilities, ACPCapabilities.parse(params.clientCapabilities))
       const authMethod: AuthMethod = {
-        description: "Run `opencode auth login` in the terminal",
-        name: "Login with opencode",
+        description: "Run `aigcfroge auth login` in the terminal",
+        name: "Login with aigcfroge",
         id: AuthMethodID,
         ...(params.clientCapabilities?.auth?.terminal ? { type: "terminal" as const, args: ["--login"] } : {}),
       }
       if (params.clientCapabilities?._meta?.["terminal-auth"] === true) {
         authMethod._meta = {
-          "terminal-auth": { command: "opencode", args: ["auth", "login"], label: "OpenCode Login" },
+          "terminal-auth": { command: "aigcfroge", args: ["auth", "login"], label: "AigcForge Login" },
         }
       }
       return {
@@ -126,7 +104,7 @@ export function make(input: {
           _meta: { [ACPCapabilities.ChildSessionUpdates]: true },
         },
         authMethods: [authMethod],
-        agentInfo: { name: "OpenCode", version: OPENCODE_VERSION },
+        agentInfo: { name: "AigcForge", version: AIGCFROGE_VERSION },
       }
     }),
     authenticate: Effect.fnUntraced(function* (params) {
@@ -148,20 +126,22 @@ export function make(input: {
     loadSession: Effect.fnUntraced(function* (params) {
       const directories = yield* ACPDirectories.parse(params.cwd, params.additionalDirectories)
       const mcpServers = yield* supportedMcpServers(params.mcpServers)
+      const snapshot = yield* input.sessions.snapshot(params.sessionId)
       const session = yield* getSession(params.sessionId, params.cwd)
+      yield* input.sessions.validateSnapshot(params.sessionId, snapshot)
       yield* ACPDirectories.activate(input.client, session, directories)
-      const attachment = yield* input.sessions.attach(session, session.location.directory, mcpServers)
+      const attachment = yield* input.sessions.attach(session, session.location.directory, mcpServers, snapshot)
       return yield* ACPReplay.history(
         input.client,
         input.connection,
         attachment.attached,
         yield* Ref.get(input.capabilities),
       ).pipe(
-        Effect.andThen(currentOptions(attachment.attached)),
+        Effect.andThen(input.sessions.options(attachment.attached)),
         Effect.map((configOptions) => ({ configOptions })),
         Effect.onError(() => input.sessions.release(attachment.attached)),
       )
-    }),
+    }, Effect.scoped),
     listSessions: Effect.fnUntraced(function* (params) {
       const page = yield* input.client.session
         .list({
@@ -203,11 +183,13 @@ export function make(input: {
     resumeSession: Effect.fnUntraced(function* (params) {
       const directories = yield* ACPDirectories.parse(params.cwd, params.additionalDirectories)
       const mcpServers = yield* supportedMcpServers(params.mcpServers)
+      const snapshot = yield* input.sessions.snapshot(params.sessionId)
       const session = yield* getSession(params.sessionId, params.cwd)
+      yield* input.sessions.validateSnapshot(params.sessionId, snapshot)
       yield* ACPDirectories.activate(input.client, session, directories)
-      const attachment = yield* input.sessions.attach(session, session.location.directory, mcpServers)
+      const attachment = yield* input.sessions.attach(session, session.location.directory, mcpServers, snapshot)
       return { configOptions: attachment.configOptions }
-    }),
+    }, Effect.scoped),
     closeSession: Effect.fnUntraced(function* (params) {
       yield* input.turn.close(params.sessionId)
       yield* input.sessions.detach(params.sessionId)
@@ -225,14 +207,11 @@ export function make(input: {
     }),
     setSessionConfigOption: Effect.fnUntraced(function* (params) {
       const attached = yield* input.sessions.require(params.sessionId)
-      const value = params.value
-      if (typeof value !== "string") return yield* new ACPError.InvalidConfigOptionError({ configId: params.configId })
-      yield* withReload(attached, select(attached, params.configId, value))
-      return { configOptions: yield* currentOptions(attached) }
+      return { configOptions: yield* input.sessions.select(attached, params.configId, params.value) }
     }),
     setSessionMode: Effect.fnUntraced(function* (params) {
       const attached = yield* input.sessions.require(params.sessionId)
-      yield* withReload(attached, select(attached, "mode", params.modeId))
+      yield* input.sessions.select(attached, "mode", params.modeId)
       return {}
     }),
     prompt: input.turn.prompt,

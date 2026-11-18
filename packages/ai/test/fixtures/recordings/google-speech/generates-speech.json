@@ -18,7 +18,7 @@
         "headers": {
           "content-type": "application/json"
         },
-        "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Say: Hello from OpenCode.\"}]}],\"generationConfig\":{\"responseModalities\":[\"AUDIO\"],\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"Kore\"}}}}}"
+        "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Say: Hello from AigcForge.\"}]}],\"generationConfig\":{\"responseModalities\":[\"AUDIO\"],\"speechConfig\":{\"voiceConfig\":{\"prebuiltVoiceConfig\":{\"voiceName\":\"Kore\"}}}}}"
       },
       "response": {
         "status": 200,

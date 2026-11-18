@@ -1,6 +1,6 @@
 export * as SessionV1 from "./session.js"
 
-import { Effect, Schema, Types } from "effect"
+import { Effect, Schema } from "effect"
 import { durable, ephemeral, inventory } from "../event.js"
 import { Project } from "../project.js"
 import { Provider } from "../provider.js"
@@ -16,12 +16,14 @@ const Timestamp = Schema.Finite.check(Schema.isGreaterThanOrEqualTo(0))
 
 export const MessageID = Schema.String.check(Schema.isStartingWith("msg")).pipe(
   Schema.brand("SessionV1.MessageID"),
+  Schema.annotate({ identifier: "SessionV1.MessageID" }),
   statics((schema) => ({ ascending: (id?: string) => schema.make(id ?? "msg_" + ascending()) })),
 )
 export type MessageID = typeof MessageID.Type
 
 export const PartID = Schema.String.check(Schema.isStartingWith("prt")).pipe(
   Schema.brand("SessionV1.PartID"),
+  Schema.annotate({ identifier: "SessionV1.PartID" }),
   statics((schema) => ({ ascending: (id?: string) => schema.make(id ?? "prt_" + ascending()) })),
 )
 export type PartID = typeof PartID.Type
@@ -76,6 +78,7 @@ export const Format = Schema.Union([OutputFormatText, OutputFormatJsonSchema]).a
   discriminator: "type",
   identifier: "SessionV1.OutputFormat",
 })
+export type Format = typeof Format.Type
 export type OutputFormat = Schema.Schema.Type<typeof Format>
 
 const partBase = {
@@ -89,7 +92,7 @@ export const SnapshotPart = Schema.Struct({
   type: Schema.Literal("snapshot"),
   snapshot: Schema.String,
 }).annotate({ identifier: "SessionV1.SnapshotPart" })
-export type SnapshotPart = Types.DeepMutable<Schema.Schema.Type<typeof SnapshotPart>>
+export type SnapshotPart = Schema.Schema.Type<typeof SnapshotPart>
 
 export const PatchPart = Schema.Struct({
   ...partBase,
@@ -97,7 +100,7 @@ export const PatchPart = Schema.Struct({
   hash: Schema.String,
   files: Schema.Array(Schema.String),
 }).annotate({ identifier: "SessionV1.PatchPart" })
-export type PatchPart = Types.DeepMutable<Schema.Schema.Type<typeof PatchPart>>
+export type PatchPart = Schema.Schema.Type<typeof PatchPart>
 
 export const TextPart = Schema.Struct({
   ...partBase,
@@ -113,7 +116,7 @@ export const TextPart = Schema.Struct({
   ),
   metadata: Schema.optional(Schema.Record(Schema.String, Schema.Any)),
 }).annotate({ identifier: "SessionV1.TextPart" })
-export type TextPart = Types.DeepMutable<Schema.Schema.Type<typeof TextPart>>
+export type TextPart = Schema.Schema.Type<typeof TextPart>
 
 export const ReasoningPart = Schema.Struct({
   ...partBase,
@@ -125,7 +128,7 @@ export const ReasoningPart = Schema.Struct({
     end: Schema.optional(NonNegativeInt),
   }),
 }).annotate({ identifier: "SessionV1.ReasoningPart" })
-export type ReasoningPart = Types.DeepMutable<Schema.Schema.Type<typeof ReasoningPart>>
+export type ReasoningPart = Schema.Schema.Type<typeof ReasoningPart>
 
 const filePartSourceBase = {
   text: Schema.Struct({
@@ -167,6 +170,7 @@ export const FilePartSource = Schema.Union([FileSource, SymbolSource, ResourceSo
   discriminator: "type",
   identifier: "SessionV1.FilePartSource",
 })
+export type FilePartSource = typeof FilePartSource.Type
 
 export const FilePart = Schema.Struct({
   ...partBase,
@@ -176,7 +180,7 @@ export const FilePart = Schema.Struct({
   url: Schema.String,
   source: Schema.optional(FilePartSource),
 }).annotate({ identifier: "SessionV1.FilePart" })
-export type FilePart = Types.DeepMutable<Schema.Schema.Type<typeof FilePart>>
+export type FilePart = Schema.Schema.Type<typeof FilePart>
 
 export const AgentPart = Schema.Struct({
   ...partBase,
@@ -190,7 +194,7 @@ export const AgentPart = Schema.Struct({
     }),
   ),
 }).annotate({ identifier: "SessionV1.AgentPart" })
-export type AgentPart = Types.DeepMutable<Schema.Schema.Type<typeof AgentPart>>
+export type AgentPart = Schema.Schema.Type<typeof AgentPart>
 
 export const CompactionPart = Schema.Struct({
   ...partBase,
@@ -199,7 +203,7 @@ export const CompactionPart = Schema.Struct({
   overflow: Schema.optional(Schema.Boolean),
   tail_start_id: Schema.optional(MessageID),
 }).annotate({ identifier: "SessionV1.CompactionPart" })
-export type CompactionPart = Types.DeepMutable<Schema.Schema.Type<typeof CompactionPart>>
+export type CompactionPart = Schema.Schema.Type<typeof CompactionPart>
 
 export const SubtaskPart = Schema.Struct({
   ...partBase,
@@ -215,7 +219,7 @@ export const SubtaskPart = Schema.Struct({
   ),
   command: Schema.optional(Schema.String),
 }).annotate({ identifier: "SessionV1.SubtaskPart" })
-export type SubtaskPart = Types.DeepMutable<Schema.Schema.Type<typeof SubtaskPart>>
+export type SubtaskPart = Schema.Schema.Type<typeof SubtaskPart>
 
 export const RetryPart = Schema.Struct({
   ...partBase,
@@ -226,7 +230,7 @@ export const RetryPart = Schema.Struct({
     created: NonNegativeInt,
   }),
 }).annotate({ identifier: "SessionV1.RetryPart" })
-export type RetryPart = Omit<Types.DeepMutable<Schema.Schema.Type<typeof RetryPart>>, "error"> & {
+export type RetryPart = Omit<Schema.Schema.Type<typeof RetryPart>, "error"> & {
   error: APIError
 }
 
@@ -235,7 +239,7 @@ export const StepStartPart = Schema.Struct({
   type: Schema.Literal("step-start"),
   snapshot: Schema.optional(Schema.String),
 }).annotate({ identifier: "SessionV1.StepStartPart" })
-export type StepStartPart = Types.DeepMutable<Schema.Schema.Type<typeof StepStartPart>>
+export type StepStartPart = Schema.Schema.Type<typeof StepStartPart>
 
 export const StepFinishPart = Schema.Struct({
   ...partBase,
@@ -254,14 +258,14 @@ export const StepFinishPart = Schema.Struct({
     }),
   }),
 }).annotate({ identifier: "SessionV1.StepFinishPart" })
-export type StepFinishPart = Types.DeepMutable<Schema.Schema.Type<typeof StepFinishPart>>
+export type StepFinishPart = Schema.Schema.Type<typeof StepFinishPart>
 
 export const ToolStatePending = Schema.Struct({
   status: Schema.Literal("pending"),
   input: Schema.Record(Schema.String, Schema.Any),
   raw: Schema.String,
 }).annotate({ identifier: "SessionV1.ToolStatePending" })
-export type ToolStatePending = Types.DeepMutable<Schema.Schema.Type<typeof ToolStatePending>>
+export type ToolStatePending = Schema.Schema.Type<typeof ToolStatePending>
 
 export const ToolStateRunning = Schema.Struct({
   status: Schema.Literal("running"),
@@ -272,7 +276,7 @@ export const ToolStateRunning = Schema.Struct({
     start: NonNegativeInt,
   }),
 }).annotate({ identifier: "SessionV1.ToolStateRunning" })
-export type ToolStateRunning = Types.DeepMutable<Schema.Schema.Type<typeof ToolStateRunning>>
+export type ToolStateRunning = Schema.Schema.Type<typeof ToolStateRunning>
 
 export const ToolStateCompleted = Schema.Struct({
   status: Schema.Literal("completed"),
@@ -287,7 +291,7 @@ export const ToolStateCompleted = Schema.Struct({
   }),
   attachments: Schema.optional(Schema.Array(FilePart)),
 }).annotate({ identifier: "SessionV1.ToolStateCompleted" })
-export type ToolStateCompleted = Types.DeepMutable<Schema.Schema.Type<typeof ToolStateCompleted>>
+export type ToolStateCompleted = Schema.Schema.Type<typeof ToolStateCompleted>
 
 export const ToolStateError = Schema.Struct({
   status: Schema.Literal("error"),
@@ -299,7 +303,7 @@ export const ToolStateError = Schema.Struct({
     end: NonNegativeInt,
   }),
 }).annotate({ identifier: "SessionV1.ToolStateError" })
-export type ToolStateError = Types.DeepMutable<Schema.Schema.Type<typeof ToolStateError>>
+export type ToolStateError = Schema.Schema.Type<typeof ToolStateError>
 
 export const ToolState = Schema.Union([
   ToolStatePending,
@@ -320,7 +324,7 @@ export const ToolPart = Schema.Struct({
   state: ToolState,
   metadata: Schema.optional(Schema.Record(Schema.String, Schema.Any)),
 }).annotate({ identifier: "SessionV1.ToolPart" })
-export type ToolPart = Omit<Types.DeepMutable<Schema.Schema.Type<typeof ToolPart>>, "state"> & {
+export type ToolPart = Omit<Schema.Schema.Type<typeof ToolPart>, "state"> & {
   state: ToolState
 }
 
@@ -352,7 +356,7 @@ export const User = Schema.Struct({
   system: Schema.optional(Schema.String),
   tools: Schema.optional(Schema.Record(Schema.String, Schema.Boolean)),
 }).annotate({ identifier: "SessionV1.UserMessage" })
-export type User = Types.DeepMutable<Schema.Schema.Type<typeof User>>
+export type User = Schema.Schema.Type<typeof User>
 
 export const Part = Schema.Union([
   TextPart,
@@ -408,7 +412,7 @@ export const TextPartInput = Schema.Struct({
   ),
   metadata: Schema.optional(Schema.Record(Schema.String, Schema.Any)),
 }).annotate({ identifier: "SessionV1.TextPartInput" })
-export type TextPartInput = Types.DeepMutable<Schema.Schema.Type<typeof TextPartInput>>
+export type TextPartInput = Schema.Schema.Type<typeof TextPartInput>
 
 export const FilePartInput = Schema.Struct({
   id: Schema.optional(PartID),
@@ -418,7 +422,7 @@ export const FilePartInput = Schema.Struct({
   url: Schema.String,
   source: Schema.optional(FilePartSource),
 }).annotate({ identifier: "SessionV1.FilePartInput" })
-export type FilePartInput = Types.DeepMutable<Schema.Schema.Type<typeof FilePartInput>>
+export type FilePartInput = Schema.Schema.Type<typeof FilePartInput>
 
 export const AgentPartInput = Schema.Struct({
   id: Schema.optional(PartID),
@@ -432,7 +436,7 @@ export const AgentPartInput = Schema.Struct({
     }),
   ),
 }).annotate({ identifier: "SessionV1.AgentPartInput" })
-export type AgentPartInput = Types.DeepMutable<Schema.Schema.Type<typeof AgentPartInput>>
+export type AgentPartInput = Schema.Schema.Type<typeof AgentPartInput>
 
 export const SubtaskPartInput = Schema.Struct({
   id: Schema.optional(PartID),
@@ -448,7 +452,7 @@ export const SubtaskPartInput = Schema.Struct({
   ),
   command: Schema.optional(Schema.String),
 }).annotate({ identifier: "SessionV1.SubtaskPartInput" })
-export type SubtaskPartInput = Types.DeepMutable<Schema.Schema.Type<typeof SubtaskPartInput>>
+export type SubtaskPartInput = Schema.Schema.Type<typeof SubtaskPartInput>
 
 export const Assistant = Schema.Struct({
   ...messageBase,
@@ -483,7 +487,7 @@ export const Assistant = Schema.Struct({
   variant: Schema.optional(Schema.String),
   finish: Schema.optional(Schema.String),
 }).annotate({ identifier: "SessionV1.AssistantMessage" })
-export type Assistant = Omit<Types.DeepMutable<Schema.Schema.Type<typeof Assistant>>, "error"> & {
+export type Assistant = Omit<Schema.Schema.Type<typeof Assistant>, "error"> & {
   error?: AssistantError
 }
 

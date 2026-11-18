@@ -2,7 +2,7 @@
 import { Avatar } from "./avatar"
 
 const docs = `### Overview
-Avatar matching OpenCode DS variants from Figma.
+Avatar matching AigcForge DS variants from Figma.
 
 Use in user lists and headers.
 

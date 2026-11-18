@@ -1,13 +1,14 @@
-import type { SessionApi } from "@opencode/client/effect/api"
-import type { GenerationOptionsFields, Message, SystemPart } from "@opencode/ai"
-import type { Agent } from "@opencode/schema/agent"
-import type { Model } from "@opencode/schema/model"
-import type { PromptInput } from "@opencode/schema/prompt-input"
-import type { Session } from "@opencode/schema/session"
-import type { SessionInbox } from "@opencode/schema/session-inbox"
-import type { SessionError } from "@opencode/schema/session-error"
-import type { SessionMessage } from "@opencode/schema/session-message"
-import type { TokenUsage } from "@opencode/schema/token-usage"
+import type { SessionApi } from "@aigcfroge/client/effect/api"
+import type { GenerationOptionsFields, Message, SystemPart } from "@aigcfroge/ai"
+import type { Agent } from "@aigcfroge/schema/agent"
+import type { Model } from "@aigcfroge/schema/model"
+import type { ModelSource } from "@aigcfroge/schema/model-source"
+import type { PromptInput } from "@aigcfroge/schema/prompt-input"
+import type { Session } from "@aigcfroge/schema/session"
+import type { SessionInbox } from "@aigcfroge/schema/session-inbox"
+import type { SessionError } from "@aigcfroge/schema/session-error"
+import type { SessionMessage } from "@aigcfroge/schema/session-message"
+import type { TokenUsage } from "@aigcfroge/schema/token-usage"
 import type { JsonSchema, Types } from "effect"
 import type { ModelHooks } from "./registration.js"
 
@@ -25,6 +26,7 @@ export type SessionRequestOptions = Types.DeepMutable<GenerationOptionsFields> &
 export interface SessionRequest {
   readonly sessionID: Session.ID
   readonly model: Model.Ref
+  readonly connection?: ModelSource.ConnectionRef
   system: Array<SystemPart>
   messages: Array<Message>
   options: SessionRequestOptions
@@ -64,15 +66,25 @@ export interface SessionModelRequest {
   readonly sessionID: Session.ID
   readonly agent: Agent.ID
   readonly model: Model.Ref
+  readonly connection?: ModelSource.ConnectionRef
   readonly kind: SessionRequestKind
   baseURL?: string
   headers: Record<string, string>
+}
+
+/** Requested only when a model selection needs account quota observations. */
+export interface SessionModelQuota {
+  readonly sessionID: Session.ID
+  readonly model: Model.Ref
+  readonly connection?: ModelSource.ConnectionRef
+  quota?: ModelSource.Quota
 }
 
 export interface SessionHttpRequest {
   readonly sessionID: Session.ID
   readonly agent: Agent.ID
   readonly model: Model.Ref
+  readonly connection?: ModelSource.ConnectionRef
   readonly kind: SessionRequestKind
   request: Request
 }
@@ -81,6 +93,7 @@ export interface SessionHttpResponse {
   readonly sessionID: Session.ID
   readonly agent: Agent.ID
   readonly model: Model.Ref
+  readonly connection?: ModelSource.ConnectionRef
   readonly kind: SessionRequestKind
   readonly request: Request
   response: Response
@@ -94,6 +107,7 @@ export interface SessionWebSocketHandshake {
   readonly sessionID: Session.ID
   readonly agent: Agent.ID
   readonly model: Model.Ref
+  readonly connection?: ModelSource.ConnectionRef
   readonly kind: SessionRequestKind
   url: string
   headers: Record<string, string>
@@ -108,6 +122,7 @@ export interface SessionWebSocketSend {
   readonly sessionID: Session.ID
   readonly agent: Agent.ID
   readonly model: Model.Ref
+  readonly connection?: ModelSource.ConnectionRef
   readonly kind: SessionRequestKind
   frame: string
 }
@@ -120,6 +135,7 @@ export interface SessionWebSocketReceive {
   readonly sessionID: Session.ID
   readonly agent: Agent.ID
   readonly model: Model.Ref
+  readonly connection?: ModelSource.ConnectionRef
   readonly kind: SessionRequestKind
   frame: string
 }
@@ -130,6 +146,7 @@ export interface SessionRetry {
   readonly sessionID: Session.ID
   readonly agent: Agent.ID
   readonly model: Model.Ref
+  readonly connection?: ModelSource.ConnectionRef
   readonly error: SessionError.Error
   readonly attempt: number
   decision: SessionRetryDecision
@@ -142,6 +159,7 @@ export interface SessionHooks {
   readonly generate: SessionGenerate
   readonly title: SessionTitle
   readonly "model.request": SessionModelRequest
+  readonly "model.quota": SessionModelQuota
   readonly "http.request": SessionHttpRequest
   readonly "http.response": SessionHttpResponse
   readonly "experimental.ws.handshake": SessionWebSocketHandshake

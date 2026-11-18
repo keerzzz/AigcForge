@@ -1,12 +1,12 @@
-import { Instance } from "@opencode/core/instance/service"
-import { Location } from "@opencode/core/location"
-import { Permission } from "@opencode/core/permission"
-import { PermissionSaved } from "@opencode/core/permission/saved"
-import { Session } from "@opencode/core/session"
+import { Instance } from "@aigcfroge/core/instance/service"
+import { Location } from "@aigcfroge/core/location"
+import { Permission } from "@aigcfroge/core/permission"
+import { PermissionSaved } from "@aigcfroge/core/permission/saved"
+import { Session } from "@aigcfroge/core/session"
 import { Effect } from "effect"
 import { HttpApiBuilder, HttpApiSchema } from "effect/http-api"
 import { Api } from "../api"
-import { PermissionNotFoundError } from "@opencode/protocol/errors"
+import { PermissionNotFoundError } from "@aigcfroge/protocol/errors"
 import { locationErrors, response, sessionInfo } from "../location"
 import { missingSession } from "./session-error"
 
@@ -49,6 +49,7 @@ export const PermissionHandler = HttpApiBuilder.group(Api, "server.permission", 
                 resources: ctx.payload.resources,
                 save: ctx.payload.save,
                 metadata: ctx.payload.metadata,
+                // The public payload is ToolSource-only; operation references come from the Task owner.
                 source: ctx.payload.source,
                 agent: ctx.payload.agent,
               })

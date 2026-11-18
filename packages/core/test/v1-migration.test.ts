@@ -1,16 +1,18 @@
 import { describe, expect, test } from "bun:test"
 import { SqliteClient } from "@effect/sql-sqlite-bun"
-import { EffectDrizzleSqlite } from "@opencode/core/database/drizzle"
-import { Database } from "@opencode/core/database/database"
-import { DatabaseMigration } from "@opencode/core/database/migration"
-import { V1Migration } from "@opencode/core/database/v1-migration"
-import { SessionMessage } from "@opencode/core/session/message"
-import { SessionSchema } from "@opencode/core/session/schema"
-import { SessionTable } from "@opencode/core/session/sql"
-import { Project } from "@opencode/core/project"
-import { ProjectTable } from "@opencode/core/project/sql"
-import { AbsolutePath } from "@opencode/core/schema"
-import { Global } from "@opencode/util/global"
+import { EffectDrizzleSqlite } from "@aigcfroge/core/database/drizzle"
+import { Database } from "@aigcfroge/core/database/database"
+import { DatabaseMigration } from "@aigcfroge/core/database/migration"
+import { V1Migration } from "@aigcfroge/core/database/v1-migration"
+import { SessionMessage } from "@aigcfroge/core/session/message"
+import { SessionSchema } from "@aigcfroge/core/session/schema"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { PermissionTier } from "@aigcfroge/schema/permission-tier"
+import { SessionTable } from "@aigcfroge/core/session/sql"
+import { Project } from "@aigcfroge/core/project"
+import { ProjectTable } from "@aigcfroge/core/project/sql"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Global } from "@aigcfroge/util/global"
 import { Effect, Fiber, Layer, Logger, Schedule, Schema, Scope } from "effect"
 import { eq, sql } from "drizzle-orm"
 import type { SqlClient } from "effect/sql/SqlClient"
@@ -37,6 +39,7 @@ const session = (
   parent_id: null,
   fork_session_id: null,
   fork_boundary: null,
+  mode: ProductMode.Default,
   slug: "test",
   directory: "/tmp/test",
   path: null,
@@ -54,9 +57,15 @@ const session = (
   tokens_reasoning: 99,
   tokens_cache_read: 99,
   tokens_cache_write: 99,
+  unknown_price_attempts: null,
+  missing_usage_attempts: null,
   revert: null,
   permission: null,
+  permission_tier: PermissionTier.Default,
+  attended: null,
   agent: null,
+  controller: null,
+  executor_preference: null,
   model: null,
   time_created: 1,
   time_updated: 2,
@@ -928,7 +937,7 @@ describe("V1Migration database workflow", () => {
 
   test("imports previous V2 sessions and messages containing apostrophes", async () => {
     await using tmp = await tmpdir()
-    const filename = path.join(tmp.path, "opencode-next.db")
+    const filename = path.join(tmp.path, "aigcfroge-next.db")
     const sqlite = await import("bun:sqlite")
     const source = new sqlite.Database(filename)
     source.run(`
@@ -1046,7 +1055,7 @@ describe("V1Migration database workflow", () => {
 
   test("imports previous V2 databases missing newer nullable columns", async () => {
     await using tmp = await tmpdir()
-    const filename = path.join(tmp.path, "opencode-next.db")
+    const filename = path.join(tmp.path, "aigcfroge-next.db")
     const sqlite = await import("bun:sqlite")
     const source = new sqlite.Database(filename)
     source.run(`

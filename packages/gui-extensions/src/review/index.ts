@@ -23,6 +23,7 @@ export default Extension.define({
   // file extension's "Open in" button.
   uses: { tree: FileTree, openIn: OpenInApp },
   stores: {
+    display: Store.global(Schema.Struct({ visible: Schema.Boolean }), { visible: true }),
     diff: Store.global(
       DiffState,
       { diffStyle: "split" },

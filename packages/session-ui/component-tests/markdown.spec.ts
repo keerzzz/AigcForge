@@ -183,7 +183,7 @@ story("shows a stable GitHub mark without changing link text or other sites", as
     const { mountMarkdown } = await import(fixture)
     await mountMarkdown({
       text: [
-        "[#540](https://github.com/anomalyco/opencode/pull/540)",
+        "[#540](https://github.com/anomalyco/aigcfroge/pull/540)",
         "[GitHub](https://github.com)",
         "[other site](https://example.com/docs)",
         "[lookalike](https://github.com.evil.example/pull/540)",
@@ -195,7 +195,7 @@ story("shows a stable GitHub mark without changing link text or other sites", as
   const markdown = page.getByTestId("markdown-fixture").locator('[data-component="markdown"]')
   await expect(markdown).toHaveAttribute("data-markdown-ready", "")
   const github = markdown.getByRole("link", { name: "#540" })
-  await expect(github).toHaveAttribute("href", "https://github.com/anomalyco/opencode/pull/540")
+  await expect(github).toHaveAttribute("href", "https://github.com/anomalyco/aigcfroge/pull/540")
   await expect(github).toHaveText("#540")
   expect(await github.evaluate((link) => getComputedStyle(link, "::before").width)).toBe("14px")
   expect(await github.evaluate((link) => getComputedStyle(link, "::before").maskImage)).toContain("data:image/svg+xml")
@@ -230,7 +230,7 @@ story("keeps favicon space stable across loading and failure without fetching pr
         "[docs](https://developer.mozilla.org/docs)",
         "[missing](https://broken.example.org/docs)",
         "[private](http://localhost:8080/docs)",
-        "[GitHub](https://github.com/anomalyco/opencode)",
+        "[GitHub](https://github.com/anomalyco/aigcfroge)",
       ].join(" · "),
       cached: true,
     })
@@ -656,7 +656,7 @@ for (const streaming of [false, true]) {
       const requests: string[] = []
       await page.route("**/api/fs/read/**", async (route) => {
         expect(route.request().headers().authorization).toBe(
-          `Basic ${Buffer.from("opencode:fixture").toString("base64")}`,
+          `Basic ${Buffer.from("aigcfroge:fixture").toString("base64")}`,
         )
         requests.push(route.request().url())
         await route.fulfill({ contentType: "image/png", body: png })

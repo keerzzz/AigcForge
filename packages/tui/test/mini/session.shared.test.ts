@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test"
-import { OpenCode, type SessionMessageUser } from "@opencode/client/promise"
+import { AigcForge, type SessionMessageUser } from "@aigcfroge/client/promise"
 import {
   createSession,
   resolveCurrentSession,
@@ -29,6 +29,20 @@ function userMessage(id: string, text: string, input: Partial<SessionMessageUser
 }
 
 describe("run session shared", () => {
+  test("adopts the durable Group and keeps physical history variants separate", async () => {
+    const sdk = AigcForge.make({ baseUrl: "https://aigcfroge.test" })
+    const group = { type: "group" as const, groupID: "fallback" }
+    spyOn(sdk.message, "list").mockResolvedValue({ data: [userMessage("msg-group", "Hello")], cursor: {} })
+    spyOn(sdk.session, "get").mockResolvedValue({
+      id: "ses-group", projectID: "project", title: "Group", model: group, location: { directory: "/tmp" },
+      cost: 0, tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } }, time: { created: 1, updated: 1 },
+    })
+    const adopted = await resolveCurrentSession(sdk, "ses-group")
+    expect(adopted.model).toEqual(group)
+    expect(adopted.turns[0]).toMatchObject({ provider: undefined, model: undefined, variant: undefined })
+    expect(sessionVariant(adopted, group)).toBeUndefined()
+    expect(sessionHistory(adopted)).toEqual([{ text: "Hello", parts: [] }])
+  })
   test("builds user prompts from projected text and attachments", () => {
     const msgs: SessionMessages = [
       userMessage("msg-user-1", "look @scan @note.ts", {
@@ -200,7 +214,7 @@ describe("run session shared", () => {
   })
 
   test("restores current prompt history from stored text and file references", async () => {
-    const client = OpenCode.make({ baseUrl: "https://opencode.test" })
+    const client = AigcForge.make({ baseUrl: "https://aigcfroge.test" })
     spyOn(client.message, "list").mockImplementation(() =>
       Promise.resolve({
         data: [
@@ -239,8 +253,9 @@ describe("run session shared", () => {
 
     const controller = new AbortController()
     const out = await resolveCurrentSession(client, "ses_1", controller.signal)
+    const expectedModel = { providerID: "openai", modelID: "gpt-5", variant: "high" }
 
-    expect(out.model).toEqual({ providerID: "openai", modelID: "gpt-5" })
+    expect(out.model).toEqual(expectedModel)
     expect(out.variant).toBe("high")
     expect(out.turns[0]?.prompt).toEqual({
       text: "Review @note.ts",

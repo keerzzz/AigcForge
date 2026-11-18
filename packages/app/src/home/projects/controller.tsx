@@ -9,13 +9,13 @@ import { ServerConnection } from "@/runtime/server/registry"
 import { closeHomeProject, errorMessage, homeProjectDirectories } from "@/shell/layout/helpers"
 import { Persist, persisted } from "@/runtime/persistence/storage"
 import { showToast } from "@/shell/notifications/toast"
-import { useDialog } from "@opencode/ui/context/dialog"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { createResource } from "solid-js"
 import { Schema } from "effect"
 import { Persistence } from "@/runtime/persistence/schema"
 import type { HomeController } from "../model"
 import { useGlobal } from "@/runtime/server/runtime"
-import { SessionTransfer } from "@opencode/schema/session-transfer"
+import { SessionTransfer } from "@aigcfroge/schema/session-transfer"
 import { useRevealProject } from "./reveal"
 
 export const HomeServersSchema = Schema.Struct({
@@ -106,6 +106,7 @@ export function createHomeProjectsController(home: HomeController) {
         home.project.select(conn, directory)
       },
       add: home.project.add,
+      canCreateSession: () => home.mode.current() !== undefined,
       openNewSession: (conn: ServerConnection.Any, directory: string) => {
         if (authenticate(conn, (next) => home.project.openProjectNewSession(next, directory))) return
         home.project.openProjectNewSession(conn, directory)
@@ -184,7 +185,7 @@ export function createHomeProjectsController(home: HomeController) {
     },
     utility: {
       settings: openSettings,
-      help: () => platform.openExternal("https://opencode.ai/desktop-feedback"),
+      help: () => platform.openExternal("https://aigcfroge.ai/desktop-feedback"),
     },
   }
 }

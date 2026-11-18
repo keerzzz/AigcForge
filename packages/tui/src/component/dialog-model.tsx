@@ -1,16 +1,24 @@
 import { createMemo, createSignal } from "solid-js"
-import { useLocal } from "../context/local"
-import { DialogSelect } from "../ui/dialog-select"
+import { LocalModelProvider, useLocal } from "../context/local"
+import { DialogSelect, type DialogSelectOption } from "../ui/dialog-select"
 import { useDialog } from "../ui/dialog"
 import { DialogIntegration } from "./dialog-integration"
 import { DialogVariant } from "./dialog-variant"
-import * as fuzzysort from "fuzzysort"
+import fuzzysort from "fuzzysort"
 import { useConnected } from "./use-connected"
 import { useData } from "../context/data"
-import { modelPreferenceKey } from "../model-preference"
+import { isModelGroup, modelPreferenceKey, type ModelPreferenceModel } from "../model-preference"
 import { useLocation } from "../context/location"
 
-export function DialogModel(props: { providerID?: string }) {
+export function DialogModel(props: { providerID?: string; domain?: "session" | "executor" }) {
+  return (
+    <LocalModelProvider domain={props.domain ?? "session"}>
+      <DialogModelContent {...props} />
+    </LocalModelProvider>
+  )
+}
+
+function DialogModelContent(props: { providerID?: string; domain?: "session" | "executor" }) {
   const local = useLocal()
   const data = useData()
   const dialog = useDialog()
@@ -23,6 +31,7 @@ export function DialogModel(props: { providerID?: string }) {
     () => new Map((data.location.provider.list(location.ref) ?? []).map((item) => [item.id, item])),
   )
   const models = createMemo(() => data.location.model.list(location.ref) ?? [])
+  const groups = createMemo(() => data.location.model.group.definition.list(location.ref)?.effective ?? [])
 
   const showExtra = createMemo(() => connected() && !props.providerID)
 
@@ -34,7 +43,12 @@ export function DialogModel(props: { providerID?: string }) {
 
     function toOptions(items: typeof favorites, category: string) {
       if (!showSections) return []
-      return items.flatMap((item) => {
+      return items.flatMap<DialogSelectOption<ModelPreferenceModel>>((item) => {
+        if (isModelGroup(item)) {
+          const group = groups().find((group) => group.groupID === item.groupID && !group.unavailable && group.definition)
+          if (!group) return []
+          return [{ value: item, title: group.definition?.name ?? item.groupID, description: "Model group", category, onSelect: () => onSelect(item) }]
+        }
         const model = models().find((model) => model.providerID === item.providerID && model.id === item.modelID)
         if (!model) return []
         const provider = providers().get(model.providerID)
@@ -48,7 +62,7 @@ export function DialogModel(props: { providerID?: string }) {
             category,
             footer: free(model) ? "Free" : undefined,
             onSelect: () => {
-              onSelect(model.providerID, model.id)
+              onSelect({ providerID: model.providerID, modelID: model.id })
             },
           },
         ]
@@ -58,7 +72,7 @@ export function DialogModel(props: { providerID?: string }) {
     const favoriteOptions = toOptions(favorites, "Favorites")
     const recentOptions = toOptions(
       recents.filter(
-        (item) => !favorites.some((fav) => fav.providerID === item.providerID && fav.modelID === item.modelID),
+        (item) => !favorites.some((fav) => modelPreferenceKey(fav) === modelPreferenceKey(item)),
       ),
       "Recent",
     )
@@ -81,7 +95,7 @@ export function DialogModel(props: { providerID?: string }) {
             category: connected() ? (provider?.name ?? model.providerID) : undefined,
             footer: free(model) ? "Free" : undefined,
             onSelect() {
-              onSelect(model.providerID, model.id)
+              onSelect({ providerID: model.providerID, modelID: model.id })
             },
           }
         })
@@ -89,12 +103,12 @@ export function DialogModel(props: { providerID?: string }) {
           if (!showSections) return true
           if (
             favorites.some(
-              (item) => item.providerID === option.value.providerID && item.modelID === option.value.modelID,
+              (item) => modelPreferenceKey(item) === modelPreferenceKey(option.value),
             )
           )
             return false
           if (
-            recents.some((item) => item.providerID === option.value.providerID && item.modelID === option.value.modelID)
+            recents.some((item) => modelPreferenceKey(item) === modelPreferenceKey(option.value))
           )
             return false
           return true
@@ -102,37 +116,49 @@ export function DialogModel(props: { providerID?: string }) {
       connected(),
     )
 
+    const groupOptions = props.providerID ? [] : groups().flatMap((group) => {
+      if (group.unavailable || !group.definition) return []
+      const value: ModelPreferenceModel = { type: "group", groupID: group.groupID }
+      if (showSections && [...favorites, ...recents].some((item) => modelPreferenceKey(item) === modelPreferenceKey(value))) return []
+      return [{ value, title: group.definition.name, category: "Model groups", description: `${group.definition.members.length} members`, onSelect: () => onSelect(value) }]
+    })
+    const choices = [...modelOptions, ...groupOptions]
+
     if (needle) {
       return prioritizeFavorites(
         sortModelOptions(
-          fuzzysort.go(needle, modelOptions, { keys: ["title", "category"] }).map((item) => item.obj),
+          fuzzysort.go(needle, choices, { keys: ["title", "category"] }).map((item) => item.obj),
           false,
         ),
         favoritePriority,
       )
     }
 
-    return [...favoriteOptions, ...recentOptions, ...modelOptions]
+    return [...favoriteOptions, ...recentOptions, ...choices]
   })
 
   const provider = createMemo(() => (props.providerID ? providers().get(props.providerID) : undefined))
 
   const title = createMemo(() => {
     const value = provider()
-    if (!value) return "Select model"
+    if (!value) return props.domain === "executor" ? "Select executor model" : "Select model"
     return value.name
   })
 
-  function onSelect(providerID: string, modelID: string) {
-    local.model.set({ providerID, modelID }, { recent: true })
+  function onSelect(model: ModelPreferenceModel) {
+    local.model.set(model, { recent: true })
     const list = local.model.variant.list()
     const cur = local.model.variant.current()
-    if (cur && list.includes(cur)) {
+    if (props.domain !== "executor" && cur && list.includes(cur)) {
       dialog.clear()
       return
     }
     if (list.length > 0) {
-      dialog.replace(() => <DialogVariant />)
+      dialog.replace(() => (
+        <LocalModelProvider domain={props.domain ?? "session"}>
+          <DialogVariant />
+        </LocalModelProvider>
+      ))
       return
     }
     dialog.clear()
@@ -149,7 +175,9 @@ export function DialogModel(props: { providerID?: string }) {
           onTrigger() {
             dialog.replace(() => (
               <DialogIntegration
-                onConnected={(providerID) => dialog.replace(() => <DialogModel providerID={providerID} />)}
+                onConnected={(providerID) =>
+                  dialog.replace(() => <DialogModel providerID={providerID} domain={props.domain} />)
+                }
               />
             ))
           },
@@ -159,7 +187,7 @@ export function DialogModel(props: { providerID?: string }) {
           title: "Favorite",
           hidden: !connected(),
           onTrigger: (option) => {
-            local.model.toggleFavorite(option.value as { providerID: string; modelID: string })
+            local.model.toggleFavorite(option.value)
           },
         },
       ]}
@@ -173,7 +201,7 @@ export function DialogModel(props: { providerID?: string }) {
   )
 }
 
-export function prioritizeFavorites<T extends { value: { providerID: string; modelID: string } }>(
+export function prioritizeFavorites<T extends { value: ModelPreferenceModel }>(
   options: T[],
   favorites: Set<string>,
 ) {
@@ -186,15 +214,15 @@ export function sortModelOptions<
   T extends {
     providerID?: string
     providerName?: string
-    releaseDate: string | number
+    releaseDate?: string | number
     title: string
     footer?: string
   },
 >(options: T[], grouped = true) {
   return options.toSorted((a, b) => {
     const provider = grouped
-      ? Number(b.providerID === "opencode-go") - Number(a.providerID === "opencode-go") ||
-        Number(b.providerID === "opencode") - Number(a.providerID === "opencode")
+      ? Number(b.providerID === "aigcfroge-go") - Number(a.providerID === "aigcfroge-go") ||
+        Number(b.providerID === "aigcfroge") - Number(a.providerID === "aigcfroge")
       : 0
     if (provider !== 0) return provider
 
@@ -204,7 +232,7 @@ export function sortModelOptions<
     const free = Number(b.footer === "Free") - Number(a.footer === "Free")
     if (free !== 0) return free
 
-    const release = Number(b.releaseDate) - Number(a.releaseDate)
+    const release = Number(b.releaseDate ?? 0) - Number(a.releaseDate ?? 0)
     if (release !== 0) return release
 
     return a.title.localeCompare(b.title)

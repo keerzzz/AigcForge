@@ -82,7 +82,7 @@ export function useProviders(directory: Accessor<string | undefined>) {
         (v) => Array.from(v),
       )
     },
-    // Any stored or detected connection, or a provider with models beyond the keyless OpenCode catalog.
+    // Any stored or detected connection, or a provider with models beyond the keyless AigcForge catalog.
     // Undefined until both catalogs load, so callers never mistake loading for a first run.
     anyConnection: () => {
       if (!integrations.ready() || !ready()) return undefined
@@ -90,7 +90,7 @@ export function useProviders(directory: Accessor<string | undefined>) {
       if (integrations.list().some((integration) => integration.connections.length > 0)) return true
 
       return providers().connected.some(
-        (id) => id !== "opencode" && Object.keys(providers().all.get(id)?.models ?? {}).length > 0,
+        (id) => id !== "aigcfroge" && Object.keys(providers().all.get(id)?.models ?? {}).length > 0,
       )
     },
     paid: () => {
@@ -101,7 +101,7 @@ export function useProviders(directory: Accessor<string | undefined>) {
           providers().all,
           ([id]) =>
             connected.has(id) &&
-            (id !== "opencode" || Object.values(providers().all.get(id)?.models ?? {}).some((m) => m.cost?.input)),
+            (id !== "aigcfroge" || Object.values(providers().all.get(id)?.models ?? {}).some((m) => m.cost?.input)),
         ),
       ]
 

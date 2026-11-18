@@ -1,14 +1,18 @@
-import type { IntegrationOAuthMethodRegistration } from "@opencode/plugin/effect/integration"
-import { define } from "@opencode/plugin/effect/plugin"
-import type { SessionRequest } from "@opencode/plugin/effect/session"
-import { Deferred, Effect, Option, Schema, Semaphore, Stream } from "effect"
+import type { IntegrationOAuthMethodRegistration } from "@aigcfroge/plugin/effect/integration"
+import { define } from "@aigcfroge/plugin/effect/plugin"
+import type { SessionRequest } from "@aigcfroge/plugin/effect/session"
+import type { ModelSource } from "@aigcfroge/schema/model-source"
+import { DateTime, Deferred, Effect, Option, Schema, Semaphore, Stream } from "effect"
+import { HttpClient, HttpClientRequest } from "effect/http"
 import type { Server } from "node:http"
 import { App } from "../../app.js"
 import { Credential } from "../../credential.js"
 import { Bus } from "../../bus.js"
 import { Integration } from "../../integration.js"
+import { IntegrationConnection } from "../../integration/connection.js"
 import { OauthCallbackPage } from "../../oauth/page.js"
 import { Provider } from "../../provider.js"
+import { ProviderQuota } from "../../provider/quota.js"
 import { SessionAffinity } from "../../session/affinity.js"
 import type { PluginInternal } from "../internal.js"
 
@@ -20,6 +24,7 @@ const callbackBindAttempts = 10
 const callbackBindRetryDelay = 200
 const pollingSafetyMargin = 3000
 const codexBaseURL = "https://chatgpt.com/backend-api/codex"
+const quotaCacheTTL = 300_000
 const browserMethodID = Integration.MethodID.make("chatgpt-browser")
 const headlessMethodID = Integration.MethodID.make("chatgpt-headless")
 // ChatGPT accounts lost gpt-5.4 and gpt-5.4-mini in Codex on 2026-08-31 (replacements: gpt-5.6-terra, gpt-5.6-luna).
@@ -230,22 +235,40 @@ const headless = (app: App.Info) =>
   }) satisfies IntegrationOAuthMethodRegistration
 
 export const OpenAIPlugin = define({
-  id: "opencode.provider.openai",
+  id: "aigcfroge.provider.openai",
   effect: Effect.fn(function* (ctx) {
     const bus = yield* Bus.Service
+    const credentials = yield* Credential.Service
+    const integrations = yield* Integration.Service
+    const http = yield* HttpClient.HttpClient
     const loading = Semaphore.makeUnsafe(1)
-    let chatgpt: Credential.OAuth | undefined
+    const accounts = new Map<string, {
+      credential: Credential.OAuth
+      quota?: ModelSource.Quota
+      lastSuccess?: ModelSource.Quota
+      readAt?: number
+      quotaLoading: ReturnType<typeof Semaphore.makeUnsafe>
+    }>()
+    let active: IntegrationConnection.Info | undefined
+    const selected = (connection?: ModelSource.ConnectionRef) =>
+      accounts.get(IntegrationConnection.key(connection ?? active) ?? "")
 
     const load = Effect.fn("OpenAIPlugin.load")(function* () {
-      const connection = yield* ctx.integration.connection.active("openai")
-      const credential = connection
-        ? yield* ctx.integration.connection.resolve(connection).pipe(Effect.orElseSucceed(() => undefined))
-        : undefined
-      chatgpt =
-        credential?.type === "oauth" &&
-        (credential.methodID === browserMethodID || credential.methodID === headlessMethodID)
-          ? credential
-          : undefined
+      const connections = (yield* integrations.get(Integration.ID.make("openai")))?.connections ?? []
+      const next = (yield* credentials.list(Integration.ID.make("openai"))).flatMap((entry) => {
+        if (entry.value.type !== "oauth" ||
+          (entry.value.methodID !== browserMethodID && entry.value.methodID !== headlessMethodID)) return []
+        const key = IntegrationConnection.key({ type: "credential", id: entry.id })!
+        const previous = accounts.get(key)
+        if (previous?.credential.methodID === entry.value.methodID && previous.credential.metadata?.accountID === entry.value.metadata?.accountID) {
+          previous.credential = entry.value
+          return [[key, previous] as const]
+        }
+        return [[key, { credential: entry.value, quotaLoading: Semaphore.makeUnsafe(1) }] as const]
+      })
+      accounts.clear()
+      for (const [key, account] of next) accounts.set(key, account)
+      active = connections[0]
     })
 
     yield* ctx.integration.transform((editor) => {
@@ -256,6 +279,7 @@ export const OpenAIPlugin = define({
     yield* ctx.provider.transform((providers) => {
       const item = providers.get(Provider.ID.openai)
       if (!item) return
+      const chatgpt = selected(providers.connection(Integration.ID.make("openai")))?.credential
       const account = chatgpt?.metadata?.accountID
       providers.update(item.provider.id, (provider) => {
         provider.settings = Provider.mergeOverlay(provider.settings, {
@@ -264,18 +288,21 @@ export const OpenAIPlugin = define({
         })
         if (!chatgpt) return
         provider.headers = Provider.mergeHeaders(provider.headers, {
-          originator: "opencode",
+          originator: "aigcfroge",
           "x-codex-beta-features": "remote_compaction_v2",
           ...(typeof account === "string" ? { "chatgpt-account-id": account } : {}),
         })
       })
     })
     yield* ctx.model.transform((models) => {
+      const source = selected(models.connection(Integration.ID.make("openai")))
+      const chatgpt = source?.credential
       for (const model of models.list(Provider.ID.openai)) {
         // ChatGPT-plan tokens only authorize codex-eligible models, and the
         // subscription covers usage, so hide the rest and zero the cost.
         models.update(model.providerID, model.id, (draft) => {
           if (!chatgpt) return
+          if (source?.quota) draft.metadata = { ...draft.metadata, quota: { ...source.quota, windows: source.quota.windows.map((window) => ({ ...window, modelIDs: window.modelIDs && [...window.modelIDs] })) } }
           if (Schema.is(Schema.Struct({ mode: Schema.Literal("pro") }))(draft.body?.reasoning)) {
             draft.enabled = false
             return
@@ -297,17 +324,48 @@ export const OpenAIPlugin = define({
         })
       }
     })
+    yield* ctx.session.hook("model.quota", (evt) => Effect.gen(function* () {
+      const connection = evt.connection
+        ? yield* integrations.connection.get(Integration.ID.make("openai"), evt.connection)
+        : yield* integrations.connection.active(Integration.ID.make("openai"))
+      if (connection?.type !== "credential") return
+      const ref = { type: "credential" as const, id: connection.id }
+      const source = selected(ref)
+      if (!source) return
+      yield* source.quotaLoading.withPermit(Effect.gen(function* () {
+        const now = (yield* DateTime.nowAsDate).getTime()
+        if (source.quota && source.readAt !== undefined && now - source.readAt < quotaCacheTTL) {
+          evt.quota = source.quota
+          return
+        }
+        const credential = yield* ctx.integration.connection.resolve(connection).pipe(Effect.orElseSucceed(() => undefined))
+        const quota: ModelSource.Quota = credential?.type === "oauth" &&
+          (credential.methodID === browserMethodID || credential.methodID === headlessMethodID)
+          ? yield* fetchCodexQuota({
+              http, app: ctx.app, token: credential.access, connection: ref,
+              accountID: typeof credential.metadata?.accountID === "string" ? credential.metadata.accountID : undefined,
+            })
+          : { status: "error", source: "openai-codex", connection: ref, observedAt: now, freshUntil: now + quotaCacheTTL, reason: "authentication", windows: [] }
+        source.readAt = now
+        if (quota.status === "known") source.lastSuccess = quota
+        source.quota = quota.status !== "known" && source.lastSuccess
+          ? { ...source.lastSuccess, status: "unknown", reason: quota.reason }
+          : quota
+        evt.quota = source.quota
+        yield* ctx.model.reload()
+      }))
+    }), { providerID: Provider.ID.openai })
     yield* ctx.session.hook(
       "model.request",
       (evt) =>
         Effect.gen(function* () {
-          if (!chatgpt) return
+          if (!selected(evt.connection)) return
           if (evt.baseURL && URL.canParse(evt.baseURL) && new URL(evt.baseURL).origin === "https://api.openai.com")
             evt.baseURL = codexBaseURL
           const session = yield* ctx.session
             .get({ sessionID: evt.sessionID })
             .pipe(Effect.orElseSucceed(() => undefined))
-          evt.headers.originator = "opencode"
+          evt.headers.originator = "aigcfroge"
           // ChatGPT routes its prompt cache on this header, so children share the parent's.
           evt.headers["session-id"] = session ? SessionAffinity.get(session) : evt.sessionID
         }),
@@ -321,13 +379,48 @@ export const OpenAIPlugin = define({
     for (const name of ["context", "compaction"] as const)
       yield* ctx.session.hook(name, omitOutputLimit, { providerID: Provider.ID.openai })
     const refresh = () => loading.withPermit(load().pipe(Effect.andThen(ctx.provider.reload())))
-    yield* bus.subscribe(Credential.Event.Switched).pipe(
-      Stream.filter((event) => event.data.integrationID === Integration.ID.make("openai")),
+    yield* bus.subscribe([Credential.Event.Updated, Credential.Event.Switched]).pipe(
+      Stream.filter((event) => event.type === Credential.Event.Updated.type || event.data.integrationID === Integration.ID.make("openai")),
       Stream.runForEach(refresh),
       Effect.forkScoped({ startImmediately: true }),
     )
   }),
 } satisfies PluginInternal.InternalPlugin)
+
+export const fetchCodexQuota = Effect.fn("OpenAI.fetchCodexQuota")((input: {
+  http: HttpClient.HttpClient
+  app: App.Info
+  token: string
+  connection: ModelSource.ConnectionRef
+  accountID?: string
+}) => Effect.gen(function* () {
+  const response = yield* input.http.execute(HttpClientRequest.get("https://chatgpt.com/backend-api/wham/usage").pipe(
+    HttpClientRequest.bearerToken(input.token),
+    HttpClientRequest.setHeader("User-Agent", App.useragent(input.app)),
+    HttpClientRequest.setHeaders(typeof input.accountID === "string" ? { "ChatGPT-Account-Id": input.accountID } : {}),
+  ))
+  const body = response.status >= 200 && response.status < 300
+    ? yield* response.json.pipe(Effect.orElseSucceed(() => undefined))
+    : undefined
+  const observedAt = (yield* DateTime.nowAsDate).getTime()
+  if (body === undefined) return {
+    status: "error", source: "openai-codex", connection: input.connection, observedAt, freshUntil: observedAt + quotaCacheTTL,
+    reason: response.status === 401 || response.status === 403 ? "authentication" : response.status === 429 ? "rate-limit" : response.status >= 200 && response.status < 300 ? "invalid-output" : "transport",
+    windows: [],
+  } satisfies ModelSource.Quota
+  const parsed = ProviderQuota.chatgpt(body, observedAt)
+  return {
+    status: parsed.known ? "known" : "unknown", source: "openai-codex", connection: input.connection,
+    observedAt, freshUntil: observedAt + quotaCacheTTL,
+    reason: parsed.known ? undefined : "invalid-output",
+    plan: parsed.plan, freePlan: parsed.plan === undefined ? undefined : parsed.plan === "free", allowed: parsed.allowed,
+    credits: parsed.balance === undefined && parsed.unlimitedCredits === undefined ? undefined : { balance: parsed.balance, unlimited: parsed.unlimitedCredits },
+    windows: parsed.windows.map((window) => ({ ...window, scope: "account" as const })),
+  } satisfies ModelSource.Quota
+}).pipe(Effect.timeout("5 seconds"), Effect.catch(() => Effect.gen(function* () {
+  const observedAt = (yield* DateTime.nowAsDate).getTime()
+  return { status: "error", source: "openai-codex", connection: input.connection, observedAt, freshUntil: observedAt + quotaCacheTTL, reason: "transport", windows: [] } satisfies ModelSource.Quota
+}))))
 
 function headers(contentType: string, app: App.Info) {
   return { "Content-Type": contentType, "User-Agent": App.useragent(app) }
@@ -409,7 +502,7 @@ function authorizeURL(redirect: string, pkce: Pkce, state: string) {
     id_token_add_organizations: "true",
     codex_cli_simplified_flow: "true",
     state,
-    originator: "opencode",
+    originator: "aigcfroge",
   })}`
 }
 

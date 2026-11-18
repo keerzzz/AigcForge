@@ -1,4 +1,4 @@
-import type { HttpRecorder } from "@opencode/http-recorder"
+import type { HttpRecorder } from "@aigcfroge/http-recorder"
 import { Effect } from "effect"
 import { Media } from "../../src/index.js"
 
@@ -7,14 +7,14 @@ const fixture = (name: string) =>
     Effect.map((bytes) => Media.bytes(bytes, "audio/mpeg")),
   )
 
-/** "Hello from OpenCode." spoken by Deepgram Aura (`aura-2-thalia-en`, 32 kbps MP3). */
+/** "Hello from AigcForge." spoken by Deepgram Aura (`aura-2-thalia-en`, 32 kbps MP3). */
 export const audio = fixture("hello.mp3")
 
 /** "Did the release ship?" (`aura-2-thalia-en`), then "Yes, it shipped this morning." (`aura-2-orion-en`). */
 export const dialog = fixture("dialog.mp3")
 
-/** Providers disagree on "OpenCode" versus "Open Code" and on the final punctuation. */
-export const TRANSCRIPT = /^hello,? from open ?code[.!]?$/i
+/** Providers disagree on "AigcForge" versus "Open Code" and on the final punctuation. */
+export const TRANSCRIPT = /^hello,? from aigc ?forge[.!]?$/i
 
 /**
  * Request bodies are snapshotted as text, so the audio would be stored as mangled UTF-8. Replace it with a marker and

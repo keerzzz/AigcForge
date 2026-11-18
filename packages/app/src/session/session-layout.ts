@@ -1,15 +1,15 @@
-import { useParams } from "@solidjs/router"
 import { createMemo } from "solid-js"
 import { useLayout } from "@/shell/state/layout"
 import { SessionRouteKey, SessionStateKey } from "@/runtime/server/scope"
 import { useWorkspaceLocation } from "@/workspaces/location"
 import { useServerSDK } from "@/runtime/server/client"
-import { base64Encode } from "@opencode/util/encode"
+import { base64Encode } from "@aigcfroge/util/encode"
 import { ServerConnection } from "@/runtime/server/registry"
 import { findSessionTab, tabKey, useTabs } from "@/shell/tabs/tabs"
+import { useSessionParams } from "./content-context"
 
 export const useSessionKey = () => {
-  const params = useParams()
+  const params = useSessionParams()
   const sdk = useWorkspaceLocation()
   const serverSDK = useServerSDK()
   const scope = createMemo(() => serverSDK.scope)
@@ -50,7 +50,11 @@ export const useSessionLayout = () => {
     tabKey: createMemo(() => {
       const tab = currentTab()
 
-      return tab && tabKey(tab)
+      return tab
+        ? tabKey(tab)
+        : params.id
+          ? tabKey({ type: "session", server: ServerConnection.key(serverSDK.server), sessionId: params.id })
+          : undefined
     }),
     tabs: createMemo(() => layout.tabs(sessionKey)),
     view: createMemo(() => layout.view(sessionKey, regions)),

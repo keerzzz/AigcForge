@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
-import { ConfigModel } from "@opencode/schema/config/model"
-import { Model } from "@opencode/schema/model"
-import { Provider } from "@opencode/schema/provider"
+import { ConfigModel } from "@aigcfroge/schema/config/model"
+import { Model } from "@aigcfroge/core/model"
+import { Provider } from "@aigcfroge/schema/provider"
 import { Schema } from "effect"
 
 const decode = Schema.decodeUnknownSync(ConfigModel.Selection)
@@ -24,5 +24,12 @@ describe("ConfigModel.Selection", () => {
     expect(() => decode("gpt-5")).toThrow()
     expect(() => decode("openai/gpt-5#")).toThrow()
     expect(() => decode({ providerID: "openai", model: "gpt-5#high" })).toThrow()
+  })
+
+  test("retains logical groups through the shared config conversion and preserves physical group-prefixed providers", () => {
+    const group = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("fallback") })
+    expect(Model.fromConfig(decode("group:fallback"))).toEqual(group)
+    expect(Model.fromConfig(decode({ type: "group", groupID: "fallback" }))).toEqual(group)
+    expect(Model.fromConfig(decode("group:vendor/chat#high"))).toEqual(Model.Ref.parse("group:vendor/chat#high"))
   })
 })

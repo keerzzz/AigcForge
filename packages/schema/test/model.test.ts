@@ -2,6 +2,31 @@ import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
 import { Model } from "../src/model.js"
 import { Provider } from "../src/provider.js"
+import { ConfigModel } from "../src/config/model.js"
+
+describe("Model.Selection", () => {
+  test("preserves physical references and explicit logical group identity", () => {
+    const physical = Model.Selection.parse("openrouter/openai/gpt-5#high")
+    expect(physical).toEqual(Model.Ref.parse("openrouter/openai/gpt-5#high"))
+    expect(Model.Selection.isGroup(physical)).toBe(false)
+    const group = Model.Selection.parse("group:primary")
+    expect(Schema.encodeSync(Model.Selection)(group)).toEqual({ type: "group", groupID: "primary" })
+    expect(Model.Selection.isGroup(group)).toBe(true)
+    expect(() => Model.Selection.parse("group:")).toThrow()
+    expect(() => Schema.decodeUnknownSync(Model.Ref)(group)).toThrow()
+    expect(Model.Selection.parse("group:vendor/model#high")).toEqual(Model.Ref.parse("group:vendor/model#high"))
+    expect(() => Model.GroupID.make("vendor/model")).toThrow()
+  })
+
+  test("normalizes group and legacy config inputs at the original boundary", () => {
+    const decode = Schema.decodeUnknownSync(ConfigModel.Selection)
+    expect(Schema.encodeSync(ConfigModel.Selection)(decode("group:primary"))).toEqual({ type: "group", groupID: "primary" })
+    expect(Schema.encodeSync(ConfigModel.Selection)(decode({ type: "group", groupID: "primary" }))).toEqual({ type: "group", groupID: "primary" })
+    expect(Schema.encodeSync(ConfigModel.Selection)(decode("openai/gpt-5#high"))).toEqual({ providerID: "openai", model: "gpt-5", variant: "high" })
+    expect(Schema.encodeSync(ConfigModel.Selection)(decode("group:primary"))).toEqual({ type: "group", groupID: "primary" })
+    expect(() => decode("group:")).toThrow()
+  })
+})
 
 describe("Model.Ref", () => {
   test("parses model references with optional variants", () => {

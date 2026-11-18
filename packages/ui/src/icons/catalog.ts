@@ -2,6 +2,26 @@ import { additionalIcons, additionalIconViewBox } from "./icon/additional-icons"
 
 // Consumers center the SVG viewport, so each icon must center its artwork within its viewBox.
 const icons = {
+  "rail-chat": {
+    viewBox: "0 0 16 16",
+    body: `<g fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5H4A1.5 1.5 0 0 0 2.5 4v6A1.5 1.5 0 0 0 4 11.5h1.2v2.4l2.9-2.4H12A1.5 1.5 0 0 0 13.5 10V4A1.5 1.5 0 0 0 12 2.5Z"/><circle cx="5.2" cy="7" r="0.85" fill="currentColor" stroke="none"/><circle cx="8" cy="7" r="0.85" fill="currentColor" stroke="none"/><circle cx="10.8" cy="7" r="0.85" fill="currentColor" stroke="none"/></g>`,
+  },
+  "rail-coding": {
+    viewBox: "0 0 16 16",
+    body: `<g fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M5.33 4L1.33 8L5.33 12M10.67 4L14.67 8L10.67 12M9.33 2.67L6.67 13.33"/></g>`,
+  },
+  "rail-work": {
+    viewBox: "0 0 16 16",
+    body: `<g fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="4.67" height="4.67" rx="1.33"/><rect x="9.33" y="2" width="4.67" height="4.67" rx="1.33"/><rect x="2" y="9.33" width="4.67" height="4.67" rx="1.33"/><rect x="9.33" y="9.33" width="4.67" height="4.67" rx="1.33"/><path d="M10.67 11.67L11.67 12.67L13.33 11"/></g>`,
+  },
+  "rail-assistant": {
+    viewBox: "0 0 16 16",
+    body: `<g fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="5.9" y="0.1" width="1.1" height="2.2" rx="0.5" fill="currentColor" stroke="none"/><rect x="9" y="0.1" width="1.1" height="2.2" rx="0.5" fill="currentColor" stroke="none"/><rect x="4.5" y="1.6" width="7" height="6" rx="1.5"/><circle cx="8" cy="4.5" r="1.7"/><path d="M8 3.9V4.5H9"/><path d="M8 7.6V8.5"/><rect x="2" y="8.5" width="12" height="6" rx="1.5"/><path d="M4.5 10.6H8M4.5 12.4H6.8"/><path d="M10.6 8.5V11.1L12 10.3L13 11.1V8.5Z" fill="currentColor" stroke="none"/></g>`,
+  },
+  "rail-custom": {
+    viewBox: "0 0 16 16",
+    body: `<g fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M2.67 4H13.33M2.67 8H13.33M2.67 12H13.33"/><circle cx="5.33" cy="4" r="1.67" fill="currentColor"/><circle cx="10.67" cy="8" r="1.67" fill="currentColor"/><circle cx="6.67" cy="12" r="1.67" fill="currentColor"/></g>`,
+  },
   lock: {
     viewBox: "0 0 16 16",
     body: `<rect x="3.5" y="7" width="9" height="7" rx="1" stroke="currentColor"/><path d="M5 7V5a3 3 0 0 1 6 0v2M8 10v1" stroke="currentColor" stroke-linecap="round"/>`,
@@ -29,6 +49,10 @@ const icons = {
   folder: {
     viewBox: "0 0 16 16",
     body: `<path d="M1.33337 2V13.3333H14.6667V4H8.66671L6.66671 2H1.33337Z" stroke="currentColor" stroke-miterlimit="10" stroke-linecap="square"/>`,
+  },
+  "folder-open": {
+    viewBox: "0 0 16 16",
+    body: `<path d="M1.33337 13.3333V2H6.66671L8.66671 4H14.6667V6.66667M1.33337 13.3333L3.33337 6.66667H15.3334L13.3334 13.3333H1.33337Z" stroke="currentColor" stroke-linecap="square" stroke-linejoin="round"/>`,
   },
   branch: {
     viewBox: "0 0 16 16",
@@ -60,7 +84,7 @@ const icons = {
   },
   "sidebar-right": {
     viewBox: "0 0 20 20",
-    body: `<path d="M2.91536 2.91406H2.36536V2.36406H2.91536V2.91406ZM2.91536 17.0807V17.6307H2.36536V17.0807H2.91536ZM17.082 17.0807H17.632V17.6307H17.082V17.0807ZM17.082 2.91406V2.36406H17.632V2.91406H17.082ZM6.9987 2.91406H6.4487V2.36406H6.9987V2.91406ZM6.9987 17.0807V17.6307H6.4487V17.0807H6.9987ZM2.91536 2.91406H3.46536V17.0807H2.91536H2.36536V2.91406H2.91536ZM2.91536 17.0807V16.5307H17.082V17.0807V17.6307H2.91536V17.0807ZM17.082 17.0807H16.532V2.91406H17.082H17.632V17.0807H17.082ZM17.082 2.91406V3.46406H2.91536V2.91406V2.36406H17.082V2.91406ZM6.9987 2.91406H7.5487V17.0807H6.9987H6.4487V2.91406H6.9987ZM17.082 17.0807L17.082 17.6307L6.9987 17.6307V17.0807V16.5307L17.082 16.5307L17.082 17.0807ZM6.9987 2.91406V2.36406H17.082V2.91406V3.46406H6.9987V2.91406Z" fill="currentColor"/>`,
+    body: additionalIcons["layout-right"],
   },
   status: {
     viewBox: "0 0 20 20",

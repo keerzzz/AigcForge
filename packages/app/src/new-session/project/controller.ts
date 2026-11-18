@@ -44,6 +44,7 @@ export function createComposerProjectControls(props: { draftId: string; worktree
     tabs.updateDraft(props.draftId, {
       server: ServerConnection.key(connection),
       directory: worktree,
+      location: undefined,
       worktree: workspaceSelectionDestination(props.worktree(), location().directory),
       branch: undefined,
     })

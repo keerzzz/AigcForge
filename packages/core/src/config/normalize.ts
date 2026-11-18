@@ -1,23 +1,23 @@
 export * as ConfigNormalize from "./normalize.js"
 
 import { isDeepStrictEqual } from "node:util"
-import { isRecord } from "@opencode/ai/utils/record"
-import { Option, Schema } from "effect"
-import { Info } from "@opencode/schema/config"
-import { ConfigAgent } from "@opencode/schema/config/agent"
-import { ConfigCommand } from "@opencode/schema/config/command"
-import { ConfigCompaction } from "@opencode/schema/config/compaction"
-import { ConfigFormatter } from "@opencode/schema/config/formatter"
-import { ConfigLSP } from "@opencode/schema/config/lsp"
-import { ConfigMedia } from "@opencode/schema/config/media"
-import { ConfigModel } from "@opencode/schema/config/model"
-import { ConfigMCP } from "@opencode/schema/config/mcp"
-import { ConfigPlugin } from "@opencode/schema/config/plugin"
-import { ConfigPolicy } from "@opencode/schema/config/policy"
-import { ConfigProvider } from "@opencode/schema/config/provider"
-import { ConfigReference } from "@opencode/schema/config/reference"
-import { ConfigExperimental } from "@opencode/schema/config/experimental"
-import { Permission } from "@opencode/schema/permission"
+import { isRecord } from "@aigcfroge/ai/utils/record"
+import { Option, Schema, Struct } from "effect"
+import { Info } from "@aigcfroge/schema/config"
+import { ConfigAgent } from "@aigcfroge/schema/config/agent"
+import { ConfigCommand } from "@aigcfroge/schema/config/command"
+import { ConfigCompaction } from "@aigcfroge/schema/config/compaction"
+import { ConfigFormatter } from "@aigcfroge/schema/config/formatter"
+import { ConfigLSP } from "@aigcfroge/schema/config/lsp"
+import { ConfigMedia } from "@aigcfroge/schema/config/media"
+import { ConfigModel } from "@aigcfroge/schema/config/model"
+import { ConfigMCP } from "@aigcfroge/schema/config/mcp"
+import { ConfigPlugin } from "@aigcfroge/schema/config/plugin"
+import { ConfigPolicy } from "@aigcfroge/schema/config/policy"
+import { ConfigProvider } from "@aigcfroge/schema/config/provider"
+import { ConfigReference } from "@aigcfroge/schema/config/reference"
+import { ConfigExperimental } from "@aigcfroge/schema/config/experimental"
+import { Permission } from "@aigcfroge/schema/permission"
 import { ConfigAgentV1 } from "../v1/config/agent.js"
 import { ConfigCommandV1 } from "../v1/config/command.js"
 import { ConfigMCPV1 } from "../v1/config/mcp.js"
@@ -26,6 +26,7 @@ import { ConfigPluginV1 } from "../v1/config/plugin.js"
 import { ConfigProviderV1 } from "../v1/config/provider.js"
 import { ConfigMigrateV1 } from "../v1/config/migrate.js"
 import { PositiveInt } from "../schema.js"
+import { AgentProtocol } from "../agent/protocol.js"
 
 export interface Diagnostic {
   readonly kind: "conflict" | "invalid" | "unsupported"
@@ -130,10 +131,7 @@ export function normalize(input: unknown): Result {
     diagnostics,
   )
 
-  const legacyAgents = mapValues(
-    decodeMap(input.agent, ConfigAgentV1.Info, ["agent"], diagnostics, decodeValue),
-    (value) => canonical(ConfigAgent.Info, ConfigMigrateV1.migrateAgent(value)),
-  )
+  const legacyAgents = decodeMap(input.agent, ConfigAgentV1.Info, ["agent"], diagnostics, decodeLegacyAgent)
   const legacySmallModel = own(input, "small_model")
     ? decodeValue(Schema.String, input.small_model, ["small_model"], diagnostics)
     : undefined
@@ -149,11 +147,12 @@ export function normalize(input: unknown): Result {
       model: migratedSmallModel,
       ...legacyAgents.title,
     }
-  const modeAgents = mapValues(decodeMap(input.mode, ConfigAgentV1.Info, ["mode"], diagnostics, decodeValue), (value) =>
-    canonical(ConfigAgent.Info, ConfigMigrateV1.migrateAgent({ ...value, mode: "primary" })),
+  const modeAgents = mapValues(
+    decodeMap(input.mode, ConfigAgentV1.Info, ["mode"], diagnostics, decodeLegacyAgent),
+    (value) => ({ ...value, mode: "primary" as const }),
   )
   const migratedAgents = mergeMaps(legacyAgents, modeAgents, ["agents"], diagnostics)
-  const nativeAgents = decodeMap(input.agents, ConfigAgent.Info, ["agents"], diagnostics, decodeEncoded)
+  const nativeAgents = decodeMap(input.agents, ConfigAgent.Info, ["agents"], diagnostics, decodeNativeAgent)
   diagnoseAgentUnsupported(input.agent, ["agent"], diagnostics)
   diagnoseAgentUnsupported(input.mode, ["mode"], diagnostics)
   mergeMap(
@@ -200,22 +199,26 @@ export function normalize(input: unknown): Result {
   const model = own(input, "model")
     ? decodeValue(ConfigModel.Selection, input.model, ["model"], diagnostics)
     : undefined
-  if (model) encoded.model = { ...model, providerID: ConfigMigrateV1.providerID(model.providerID) }
+  if (model) encoded.model = "type" in model ? model : { ...model, providerID: ConfigMigrateV1.providerID(model.providerID) }
 
-  const nativeAtomic = {
-    $schema: Info.fields.$schema,
-    shell: Info.fields.shell,
-    default_agent: Info.fields.default_agent,
-    share: Info.fields.share,
-    enterprise: Info.fields.enterprise,
-    username: Info.fields.username,
-    snapshots: Info.fields.snapshots,
-    media: Info.fields.media,
-    tool_output: Info.fields.tool_output,
-    websearch: Info.fields.websearch,
-    worktree: Info.fields.worktree,
-    warming: Info.fields.warming,
-  }
+  const nativeAtomic = Struct.omit(Info.fields, [
+    "update",
+    "references",
+    "commands",
+    "agents",
+    "providers",
+    "permissions",
+    "plugins",
+    "skills",
+    "mcp",
+    "compaction",
+    "experimental",
+    "watcher",
+    "formatter",
+    "lsp",
+    "model",
+    "instructions",
+  ])
   Object.entries(nativeAtomic).forEach(([key, schema]) => {
     if (!own(input, key)) return
     const value = decodeEncoded(schema, input[key], [key], diagnostics)
@@ -227,6 +230,36 @@ export function normalize(input: unknown): Result {
   if (instructions.length || Array.isArray(input.instructions)) encoded.instructions = instructions
 
   return { type: "normalized", encoded, diagnostics }
+}
+
+function decodeLegacyAgent(
+  schema: typeof ConfigAgentV1.Info,
+  input: unknown,
+  path: string[],
+  diagnostics: Diagnostic[],
+) {
+  const normalized = isRecord(input) ? AgentProtocol.normalizeDefinition(input) : { definition: input, card: undefined }
+  const value = decodeValue(schema, normalized.definition, path, diagnostics)
+  if (value === undefined) return
+  return Schema.encodeSync(ConfigAgent.Info)(
+    Schema.decodeUnknownSync(ConfigAgent.Info)(
+      plain({
+        ...ConfigMigrateV1.migrateAgent(value),
+        ...(normalized.card === undefined ? {} : { card: normalized.card }),
+      }),
+    ),
+  )
+}
+
+function decodeNativeAgent(schema: typeof ConfigAgent.Info, input: unknown, path: string[], diagnostics: Diagnostic[]) {
+  if (!isRecord(input)) return decodeEncoded(schema, input, path, diagnostics)
+  const normalized = AgentProtocol.normalizeDefinition(input)
+  return decodeEncoded(
+    schema,
+    { ...normalized.definition, ...(normalized.card === undefined ? {} : { card: normalized.card }) },
+    path,
+    diagnostics,
+  )
 }
 
 function normalizeSkills(input: Record<string, unknown>, encoded: Record<string, unknown>, diagnostics: Diagnostic[]) {

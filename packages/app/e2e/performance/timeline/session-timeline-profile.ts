@@ -21,7 +21,7 @@ export async function startTimelineProfile(page: Page, options: { cpuThrottle: n
 
       if (directory) {
         await mkdir(directory, { recursive: true })
-        const file = path.join(directory, `${process.env.OPENCODE_PERFORMANCE_RUN_ID ?? "manual"}-timeline.cpuprofile`)
+        const file = path.join(directory, `${process.env.AIGCFROGE_PERFORMANCE_RUN_ID ?? "manual"}-timeline.cpuprofile`)
         await writeFile(file, JSON.stringify(result.profile))
         console.log("timeline cpu profile file", file)
       }

@@ -1,4 +1,4 @@
-import type { ModelInfo, SessionMessageAssistant, SessionMessageInfo } from "@opencode/client"
+import type { ModelInfo, SessionMessageAssistant, SessionMessageInfo } from "@aigcfroge/client"
 import { Locale } from "./locale"
 
 type SessionNode = {

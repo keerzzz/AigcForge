@@ -1,50 +1,49 @@
-import { HttpRecorder } from "@opencode/http-recorder"
-import { OpenAIChat } from "@opencode/ai/protocols/openai-chat"
-import { Auth, LLMClient, type LLMClientService, RequestExecutor } from "@opencode/ai/route"
-import { Model } from "@opencode/core/model"
-import { Database } from "@opencode/core/database/database"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { LayerNodePlatform } from "@opencode/core/effect/app-node-platform"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { Bus } from "@opencode/core/bus"
-import { EventTable } from "@opencode/core/event/sql"
-import { Permission } from "@opencode/core/permission"
-import { Agent } from "@opencode/core/agent"
-import { Config } from "@opencode/core/config"
-import { Project } from "@opencode/core/project"
-import { ProjectTable } from "@opencode/core/project/sql"
-import { AbsolutePath } from "@opencode/core/schema"
-import { Session } from "@opencode/core/session"
-import { Snapshot } from "@opencode/core/snapshot"
-import { SessionProjector } from "@opencode/core/session/projector"
-import { SessionExecution } from "@opencode/core/session/execution"
-import { SessionRunCoordinator } from "@opencode/core/session/run-coordinator"
-import { SessionRunner } from "@opencode/core/session/runner/index"
-import { SessionRunnerLLM } from "@opencode/core/session/runner/llm"
-import { SessionRunnerModel } from "@opencode/core/session/runner/model"
-import { Tool } from "@opencode/core/tool"
-import { SessionTable } from "@opencode/core/session/sql"
-import { SessionStore } from "@opencode/core/session/store"
-import { Location } from "@opencode/core/location"
-import { InstructionBuiltIns } from "@opencode/core/instructions/builtins"
-import { InstructionDiscovery } from "@opencode/core/instruction-discovery"
-import { Instructions } from "@opencode/core/instructions/index"
-import { SkillInstructions } from "@opencode/core/skill/instructions"
-import { ReferenceInstructions } from "@opencode/core/reference/instructions"
-import { McpInstructions } from "@opencode/core/mcp/instructions"
-import { PluginSupervisor } from "@opencode/core/plugin/supervisor"
-import { Plugin } from "@opencode/core/plugin"
-import { PluginHooks } from "@opencode/core/plugin/hooks"
-import { OptimizePlugin } from "@opencode/core/plugin/optimize"
-import { IdentityPlugin } from "@opencode/core/plugin/identity"
+import { HttpRecorder } from "@aigcfroge/http-recorder"
+import { OpenAIChat } from "@aigcfroge/ai/protocols/openai-chat"
+import { Auth, LLMClient, type LLMClientService, RequestExecutor } from "@aigcfroge/ai/route"
+import { Model } from "@aigcfroge/core/model"
+import { Database } from "@aigcfroge/core/database/database"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { LayerNodePlatform } from "@aigcfroge/core/effect/app-node-platform"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Bus } from "@aigcfroge/core/bus"
+import { EventTable } from "@aigcfroge/core/event/sql"
+import { Agent } from "@aigcfroge/core/agent"
+import { Config } from "@aigcfroge/core/config"
+import { Project } from "@aigcfroge/core/project"
+import { ProjectTable } from "@aigcfroge/core/project/sql"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Session } from "@aigcfroge/core/session"
+import { Snapshot } from "@aigcfroge/core/snapshot"
+import { SessionProjector } from "@aigcfroge/core/session/projector"
+import { SessionExecution } from "@aigcfroge/core/session/execution"
+import { SessionRunCoordinator } from "@aigcfroge/core/session/run-coordinator"
+import { SessionRunner } from "@aigcfroge/core/session/runner/index"
+import { SessionRunnerLLM } from "@aigcfroge/core/session/runner/llm"
+import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
+import { Tool } from "@aigcfroge/core/tool"
+import { SessionTable } from "@aigcfroge/core/session/sql"
+import { SessionStore } from "@aigcfroge/core/session/store"
+import { Location } from "@aigcfroge/core/location"
+import { InstructionBuiltIns } from "@aigcfroge/core/instructions/builtins"
+import { InstructionDiscovery } from "@aigcfroge/core/instruction-discovery"
+import { Instructions } from "@aigcfroge/core/instructions/index"
+import { SkillInstructions } from "@aigcfroge/core/skill/instructions"
+import { ReferenceInstructions } from "@aigcfroge/core/reference/instructions"
+import { McpInstructions } from "@aigcfroge/core/mcp/instructions"
+import { PluginSupervisor } from "@aigcfroge/core/plugin/supervisor"
+import { Plugin } from "@aigcfroge/core/plugin"
+import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
+import { OptimizePlugin } from "@aigcfroge/core/plugin/optimize"
+import { IdentityPlugin } from "@aigcfroge/core/plugin/identity"
 import { describe, expect } from "bun:test"
 import { eq } from "drizzle-orm"
 import { Effect, Layer } from "effect"
+import { FetchHttpClient } from "effect/http"
 import path from "node:path"
 import { testEffect } from "./lib/effect"
-import { LocationServiceMap } from "@opencode/core/location-service-map"
+import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
 import { promptLocationNode } from "./fixture/prompt-location"
-import { permissionLayer } from "./lib/permission"
 import { agentHost, modelHost, host, noProviders } from "./plugin/host"
 
 const cassetteName = "session-runner/openai-chat-streams-text"
@@ -56,7 +55,6 @@ if (process.env.RECORD === "true") {
 const cassette = HttpRecorder.layerFetch(cassetteName, { directory: cassetteDirectory })
 const executor = RequestExecutor.layer.pipe(Layer.provide(cassette))
 const client = LLMClient.layer.pipe(Layer.provide(executor))
-const permission = permissionLayer()
 const model = OpenAIChat.route
   .with({
     endpoint: { baseURL: "https://api.openai.com/v1" },
@@ -105,7 +103,6 @@ const runnerLayer = (llmClient: Layer.Layer<LLMClientService>) =>
     ReferenceInstructions.node.replace(referenceInstructions),
     McpInstructions.node.replace(mcpInstructions),
     Config.node.replace(config),
-    Permission.node.replace(permission),
     PluginSupervisor.node.replace(Layer.empty),
     Plugin.node.replace(Layer.mock(Plugin.Service, { awaitActivation: Effect.void })),
   ])
@@ -152,7 +149,6 @@ const testLayer = (llmClient: Layer.Layer<LLMClientService>) =>
       Bus.node.replace(Bus.configured({ persist: true })),
       LocationServiceMap.node.replace(promptLocationNode),
       LayerNodePlatform.llmClient.replace(llmClient),
-      Permission.node.replace(permission),
       Model.node.replace(promptModels),
       SessionRunnerModel.node.replace(models),
       InstructionBuiltIns.node.replace(systemContext),
@@ -168,6 +164,7 @@ const testLayer = (llmClient: Layer.Layer<LLMClientService>) =>
     ],
   )
 const it = testEffect(testLayer(client))
+const gateway = testEffect(testLayer(LLMClient.layer.pipe(Layer.provide(RequestExecutor.layer.pipe(Layer.provide(FetchHttpClient.layer))))))
 const sessionID = Session.ID.make("ses_runner_recorded")
 
 describe("SessionRunnerLLM recorded", () => {
@@ -178,6 +175,7 @@ describe("SessionRunnerLLM recorded", () => {
       const hooks = yield* PluginHooks.Service
       yield* agents.transform((editor) =>
         editor.update(Agent.ID.make("build"), (agent) => {
+          agent.originKind = "builtin"
           agent.mode = "primary"
           agent.permissions.push({ action: "execute", resource: "*", effect: "deny" })
         }),
@@ -232,7 +230,7 @@ describe("SessionRunnerLLM recorded", () => {
           .from(EventTable)
           .where(eq(EventTable.aggregate_id, sessionID))
           .orderBy(EventTable.seq)
-          .all()).map((event) => event.type),
+          .all()).map((event) => event.type).filter((type) => !type.startsWith("session.attempt.")),
       ).toEqual([
         "session.inbox.enqueued.1",
         "session.instructions.updated.2",
@@ -242,7 +240,57 @@ describe("SessionRunnerLLM recorded", () => {
         "session.text.ended.1",
         "session.step.streamed.1",
         "session.step.ended.1",
+        "session.step.completed.1",
       ])
     }),
   )
+
+  gateway.live("records Magpie early headers as gateway diagnostics and measures the physical stream", () => Effect.gen(function* () {
+    const requests: { path: string; session: string | null }[] = []
+    const running = yield* Effect.acquireRelease(Effect.sync(() => Bun.serve({ hostname: "127.0.0.1", port: 0, fetch(request) {
+      requests.push({ path: new URL(request.url).pathname, session: request.headers.get("x-magpie-session") })
+      const frames = [
+        { id: "chat_gateway", model: "upstream/final-candidate", choices: [{ delta: { role: "assistant", content: "O" }, finish_reason: null }] },
+        { id: "chat_gateway", choices: [{ delta: { content: "K" }, finish_reason: null }] },
+        { id: "chat_gateway", choices: [{ delta: {}, finish_reason: "stop" }] },
+        { id: "chat_gateway", choices: [], usage: { prompt_tokens: 3, completion_tokens: 2, total_tokens: 5 } },
+      ]
+      return new Response(frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("") + "data: [DONE]\n\n", {
+        headers: { "content-type": "text/event-stream", "x-magpie-provider": "reported-provider", "x-magpie-model": "early-candidate" },
+      })
+    } })), (server) => Effect.promise(() => server.stop(true)))
+    const hooks = yield* PluginHooks.Service
+    const agents = yield* Agent.Service
+    yield* agents.transform((editor) => editor.update(Agent.ID.make("build"), (agent) => {
+      agent.originKind = "builtin"
+      agent.mode = "primary"
+    }))
+    yield* hooks.register("session", "model.request", (event) => Effect.sync(() => { event.baseURL = `${running.url}v1` }))
+    const db = (yield* Database.Service).db
+    yield* db.insert(ProjectTable).values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] }).onConflictDoNothing().run().pipe(Effect.orDie)
+    yield* db.insert(SessionTable).values({ id: sessionID, project_id: Project.ID.global, slug: "gateway", directory: "/project", title: "Gateway fixture", version: "test" }).run().pipe(Effect.orDie)
+    const session = yield* Session.Service
+    yield* session.prompt({ sessionID, text: "Gateway fixture", resume: false })
+    yield* session.resume(sessionID)
+    const assistant = (yield* session.context(sessionID)).find((message) => message.type === "assistant")
+    if (assistant?.type !== "assistant") throw new Error("Expected the gateway assistant")
+    expect(assistant.content).toMatchObject([{ type: "text", text: "OK" }])
+    expect(assistant.attempts).toHaveLength(1)
+    const attempt = assistant.attempts?.[0]
+    if (!attempt?.terminal) throw new Error("Expected the physical attempt terminal")
+    expect(attempt.model).toMatchObject({ providerID: "openai", id: "gpt-4o-mini" })
+    expect(attempt.apiModelID).toBe("gpt-4o-mini")
+    expect(attempt.observations.flatMap((observation) => observation.gatewayReport ? [observation.gatewayReport] : [])).toEqual([
+      { source: "response-headers", provider: "reported-provider", model: "early-candidate" },
+    ])
+    const first = attempt.observations.filter((observation) => observation.firstTokenAt !== undefined)
+    expect(first).toHaveLength(1)
+    expect(first[0]?.firstTokenAt).toBeGreaterThanOrEqual(attempt.started)
+    expect(attempt.terminal.providerEndedAt).toBeGreaterThanOrEqual(first[0]?.firstTokenAt ?? 0)
+    expect(attempt.terminal.ended).toBeGreaterThanOrEqual(attempt.terminal.providerEndedAt ?? 0)
+    expect(attempt.terminal.usage).toMatchObject({ input: 3, output: 2 })
+    expect(attempt.quote.status).toBe("unknown")
+    expect(attempt.terminal.cost).toBeUndefined()
+    expect(requests).toEqual([{ path: "/v1/chat/completions", session: null }])
+  }))
 })

@@ -1,6 +1,6 @@
 import { createMemo, Show } from "solid-js"
-import { Card } from "@opencode/ui/card"
-import { Icon } from "@opencode/ui/icon"
+import { Card } from "@aigcfroge/ui/card"
+import { Icon } from "@aigcfroge/ui/icon"
 
 export function SessionErrorMessage(props: { message: string }) {
   const content = createMemo(() => {

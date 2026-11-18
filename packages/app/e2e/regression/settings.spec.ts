@@ -1,8 +1,29 @@
 import { expect, test, type Page } from "@playwright/test"
-import type { ConfigEntry, OpenCodeEvent, WorktreeDirectory } from "@opencode/client/promise"
-import { NO_PROVIDER, REMOTE_SERVER, SERVER, holdRoute, project, session } from "../utils/app"
-import { mockOpenCodeServer } from "../utils/mock-server"
+import type {
+  ConfigEntry,
+  AigcForgeEvent,
+  WorktreeDirectory,
+  ModelGroupRead,
+  ModelGroupDefinition,
+} from "@aigcfroge/client/promise"
+import type { ProviderDefinition } from "@aigcfroge/schema/provider-definition"
+import type { ProviderDiscovery } from "@aigcfroge/schema/provider-discovery"
+import { Schema } from "effect"
+import { ModelGroup } from "@aigcfroge/schema/model-group"
+import { ModelSource } from "@aigcfroge/schema/model-source"
+import { NO_PROVIDER, REMOTE_SERVER, SERVER, holdRoute, project, seed, session, sessionHref } from "../utils/app"
+import { mockAigcForgeServer } from "../utils/mock-server"
 import { mockRemoteServer, mockWorkspace, openSettings, type WorkspaceInput } from "../utils/workspace"
+
+function mutableGroupDefinition(value: typeof ModelGroup.Definition.Encoded): ModelGroupDefinition {
+  return {
+    ...value,
+    members: value.members.map((member) => ({
+      ...member,
+      connections: member.connections?.map((connection) => ({ ...connection })),
+    })),
+  }
+}
 
 const directory = "C:/Projects/settings-demo"
 
@@ -13,7 +34,7 @@ const sandboxes = Array.from({ length: 12 }, (_, index) => `${directory}/workspa
 const override =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Crect width='16' height='16' fill='red'/%3E%3C/svg%3E"
 
-const contributors = "https://api.github.com/repos/anomalyco/opencode/contributors?anon=1&per_page=1"
+const contributors = "https://api.github.com/repos/anomalyco/aigcfroge/contributors?anon=1&per_page=1"
 
 test.use({ serviceWorkers: "block" })
 
@@ -25,8 +46,8 @@ function open(page: Page, input: Partial<WorkspaceInput> = {}) {
     project: { icon: { color: "orange", override }, commands: { start: "echo setup" }, sandboxes },
     provider: NO_PROVIDER,
     configEntries: [
-      { type: "document", path: "/home/test/.config/opencode/opencode.jsonc", info: { shell: "/bin/zsh" } },
-      { type: "directory", path: "/home/test/.config/opencode" },
+      { type: "document", path: "/home/test/.config/aigcfroge/aigcfroge.jsonc", info: { shell: "/bin/zsh" } },
+      { type: "directory", path: "/home/test/.config/aigcfroge" },
     ],
     shells: [
       { path: "/bin/zsh", name: "zsh", acceptable: true },
@@ -53,6 +74,1279 @@ const patched = (page: Page) =>
   page.waitForRequest(
     (request) => request.method() === "PATCH" && new URL(request.url()).pathname === `/api/project/${projectID}`,
   )
+
+test("model groups preserve member order, variants, target conflicts and selection through reload", async ({
+  page,
+}) => {
+  const globalTarget = {
+    scope: "global" as const,
+    path: "/home/test/.config/aigcfroge/aigcfroge.jsonc",
+    digest: "global-0",
+    preferred: true,
+    writable: true,
+  }
+
+  const projectTarget = {
+    scope: "project" as const,
+    path: `${directory}/aigcfroge.jsonc`,
+    digest: "project-0",
+    preferred: false,
+    writable: true,
+  }
+
+  const connections = [
+    { type: "credential" as const, id: "account-active", label: "Primary account", method: "key" as const },
+    {
+      type: "credential" as const,
+      id: "account-backup",
+      label: "Backup account",
+      method: "oauth" as const,
+      status: { status: "needs_auth" as const, message: "Sign in to the backup account again." },
+    },
+    { type: "env" as const, name: "PROVIDER_TOKEN" },
+  ]
+
+  const activations: string[] = []
+  page.on("request", (request) => {
+    if (request.method() === "POST" && /^\/api\/credential\/[^/]+\/activate$/.test(new URL(request.url()).pathname))
+      activations.push(request.url())
+  })
+
+  type ModelGroupState = {
+    global?: ModelGroupDefinition
+    project?: ModelGroupDefinition
+    saves: Array<typeof ModelGroup.SaveInput.Type>
+    removes: Array<typeof ModelGroup.RemoveInput.Type>
+  }
+
+  const state: ModelGroupState = { saves: [], removes: [] }
+
+  const read = (): ModelGroupRead => {
+    const definitions = [
+      ...(state.global
+        ? [
+            {
+              groupID: "fast",
+              definition: state.global,
+              source: { scope: "global" as const, path: globalTarget.path },
+              target: globalTarget,
+              inherited: [],
+            },
+          ]
+        : []),
+      ...(state.project
+        ? [
+            {
+              groupID: "fast",
+              definition: state.project,
+              source: { scope: "project" as const, path: projectTarget.path },
+              target: projectTarget,
+              inherited: [{ scope: "global" as const, path: globalTarget.path }],
+            },
+          ]
+        : []),
+    ]
+
+    const current = definitions.at(-1)
+
+    return {
+      targets: [globalTarget, projectTarget],
+      definitions,
+      effective: current ? [{ groupID: current.groupID, definition: current.definition, source: current.source }] : [],
+    }
+  }
+
+  const { settings, push } = await open(page, {
+    sessions: [{ id: "ses_model_groups", title: "Model group selection", directory }],
+    provider: {
+      all: [
+        {
+          id: "provider",
+          name: "Provider",
+          integrationID: "shared-provider",
+          models: {
+            alpha: { id: "alpha", name: "Alpha", variants: { high: {} } },
+            beta: { id: "beta", name: "Beta" },
+          },
+        },
+      ],
+      connected: ["provider"],
+      default: { providerID: "provider", modelID: "alpha" },
+    },
+    integrations: [
+      { id: "shared-provider", name: "Shared provider", methods: [], connections },
+      {
+        id: "unrelated-provider",
+        name: "Unrelated provider",
+        methods: [],
+        connections: [{ type: "credential", id: "unrelated-account", label: "Unrelated account", method: "key" }],
+      },
+    ],
+    modelGroups: read,
+    onModelGroupSave: (input) => {
+      state.saves.push(input)
+
+      if (state.saves.length === 2) {
+        projectTarget.digest = "project-external"
+
+        return {
+          groupID: input.groupID,
+          definition: { status: "conflict", target: projectTarget, message: "The project definition changed." },
+        }
+      }
+
+      const target = input.target.scope === "project" ? projectTarget : globalTarget
+      const authored = Schema.decodeUnknownSync(ModelGroup.Definition)(input.patch.set)
+      const definition = mutableGroupDefinition(Schema.encodeSync(ModelGroup.Definition)(authored))
+
+      if (input.target.scope === "project") state.project = definition
+      else state.global = definition
+      target.digest = `${input.target.scope}-${state.saves.length}`
+
+      return { groupID: input.groupID, definition: { status: "saved", target }, readback: read() }
+    },
+    onModelGroupRemove: (input) => {
+      state.removes.push(input)
+      state.project = undefined
+      projectTarget.digest = "project-removed"
+
+      return {
+        groupID: input.groupID,
+        definition: { status: "saved", target: projectTarget },
+        inherited: [{ scope: "global", path: globalTarget.path }],
+        readback: read(),
+      }
+    },
+  })
+
+  await settings.getByRole("tab", { name: "Models", exact: true }).click()
+  const groups = settings.getByRole("region", { name: "Model groups", exact: true })
+  await groups.getByRole("button", { name: "Add model group", exact: true }).click()
+  const editor = page.getByRole("dialog", { name: "Add model group", exact: true })
+  await editor.getByLabel("Group ID", { exact: true }).fill("fast")
+  await editor.getByLabel("Name", { exact: true }).fill("Fast route")
+  await editor.getByRole("group", { name: "Add member", exact: true }).getByRole("button").click()
+  await page.getByRole("option", { name: "Alpha (Provider)", exact: true }).click()
+  await editor.getByRole("group", { name: "Add member", exact: true }).getByRole("button").click()
+  await page.getByRole("option", { name: "Beta (Provider)", exact: true }).click()
+  await editor.getByRole("button", { name: "Move Beta up", exact: true }).click()
+  await expect(editor.getByRole("listitem").nth(0)).toContainText("Beta")
+  await editor.getByRole("group", { name: "Variant for Alpha", exact: true }).getByRole("button").click()
+  await page.getByRole("option", { name: "high", exact: true }).click()
+  await editor.getByRole("group", { name: "Selection strategy", exact: true }).getByRole("button").click()
+  await page.getByRole("option", { name: "Weighted", exact: true }).click()
+  await editor.getByRole("group", { name: "Connection affinity", exact: true }).getByRole("button").click()
+  await page.getByRole("option", { name: "Current session", exact: true }).click()
+  await editor.getByLabel("Weight for Beta", { exact: true }).fill("1.25")
+  await editor.getByLabel("Weight for Alpha", { exact: true }).fill("2.5")
+  const alphaConnections = editor.getByRole("group", { name: "Connections for Alpha", exact: true })
+  await expect(
+    alphaConnections.getByRole("checkbox", { name: "Use current active connection", exact: true }),
+  ).toBeChecked()
+  await expect(
+    editor
+      .getByRole("group", { name: "Connections for Beta", exact: true })
+      .getByRole("checkbox", { name: "Use current active connection", exact: true }),
+  ).toBeChecked()
+  await alphaConnections.getByText("Use current active connection", { exact: true }).click()
+  await expect(
+    alphaConnections.getByRole("checkbox", { name: "Use current active connection", exact: true }),
+  ).not.toBeChecked()
+  await alphaConnections.getByText("Primary account", { exact: true }).click()
+  await expect(alphaConnections.getByRole("checkbox", { name: "Primary account", exact: true })).toBeChecked()
+  await alphaConnections.getByText("Backup account", { exact: true }).click()
+  await expect(alphaConnections.getByRole("checkbox", { name: "Backup account", exact: true })).toBeChecked()
+  await alphaConnections.getByText("PROVIDER_TOKEN", { exact: true }).click()
+  await expect(alphaConnections.getByRole("checkbox", { name: "PROVIDER_TOKEN", exact: true })).toBeChecked()
+  await expect(alphaConnections.getByText("Sign-in required", { exact: true })).toBeVisible()
+  await expect(alphaConnections.getByText("Sign in to the backup account again.", { exact: true })).toBeVisible()
+  await expect(alphaConnections.getByRole("checkbox", { name: "Unrelated account", exact: true })).toHaveCount(0)
+  await alphaConnections.getByLabel("Connection weight for Primary account in Alpha", { exact: true }).fill("2")
+  await alphaConnections.getByLabel("Connection weight for Backup account in Alpha", { exact: true }).fill("0.5")
+  await editor.getByRole("button", { name: "Save", exact: true }).click()
+  await expect(editor.getByRole("status")).toHaveText("Model group saved.")
+
+  const alphaMember = {
+    id: "alpha",
+    providerID: "provider",
+    variant: "high",
+    weight: 2.5,
+    connections: [
+      { ref: { type: "credential", id: "account-active" }, weight: 2 },
+      { ref: { type: "credential", id: "account-backup" }, weight: 0.5 },
+      { ref: { type: "env", name: "PROVIDER_TOKEN" } },
+    ],
+  }
+
+  expect(state.saves[0]).toMatchObject({
+    groupID: "fast",
+    expectedDigest: "global-0",
+    target: { scope: "global", path: globalTarget.path },
+  })
+  expect(state.saves[0].patch.set).toEqual({
+    name: "Fast route",
+    enabled: true,
+    members: [{ id: "beta", providerID: "provider", weight: 1.25 }, alphaMember],
+    strategy: "weight",
+    affinity: "session",
+  })
+  expect(activations).toEqual([])
+  await editor.locator("form").getByRole("button", { name: "Close", exact: true }).click()
+  connections.splice(1, 1)
+  await push([
+    { id: "evt_group_connection_removed", type: "credential.updated", created: 2, location: { directory }, data: {} },
+  ])
+  await groups.getByRole("button", { name: "Edit Fast route", exact: true }).click()
+  const override = page.getByRole("dialog", { name: "Edit Fast route", exact: true })
+  const overrideConnections = override.getByRole("group", { name: "Connections for Alpha", exact: true })
+  await expect(overrideConnections.getByRole("checkbox", { name: "account-backup", exact: true })).toBeChecked()
+  await expect(overrideConnections.getByText("Missing connection", { exact: true })).toBeVisible()
+  await expect(
+    overrideConnections.getByLabel("Connection weight for account-backup in Alpha", { exact: true }),
+  ).toHaveValue("0.5")
+  await expect(
+    override.getByRole("group", { name: "Selection strategy", exact: true }).getByRole("button"),
+  ).toContainText("Weighted")
+  await expect(
+    override.getByRole("group", { name: "Connection affinity", exact: true }).getByRole("button"),
+  ).toContainText("Current session")
+  await override.getByRole("group", { name: "Save to", exact: true }).getByRole("button").click()
+  await page.getByRole("option", { name: `Project configuration · ${projectTarget.path}`, exact: true }).click()
+  await expect(override.getByLabel("Weight for Alpha", { exact: true })).toHaveValue("2.5")
+  await override.getByRole("group", { name: "Selection strategy", exact: true }).getByRole("button").click()
+  await page.getByRole("option", { name: "Round robin", exact: true }).click()
+  await override.getByRole("group", { name: "Connection affinity", exact: true }).getByRole("button").click()
+  await page.getByRole("option", { name: "No affinity", exact: true }).click()
+  await override.getByLabel("Name", { exact: true }).fill("Project route")
+  await override.getByRole("button", { name: "Remove Beta", exact: true }).click()
+  await override.getByRole("button", { name: "Save", exact: true }).click()
+  await expect(override.getByRole("status")).toHaveText("The project definition changed.")
+  await expect(override.getByLabel("Name", { exact: true })).toHaveValue("Project route")
+  await expect(overrideConnections.getByRole("checkbox", { name: "account-backup", exact: true })).toBeChecked()
+  await override.getByRole("button", { name: "Refresh", exact: true }).click()
+  await expect(override.getByRole("button", { name: "Save", exact: true })).toBeEnabled()
+  await override.getByRole("button", { name: "Save", exact: true }).click()
+  await expect(override.getByRole("status")).toHaveText("Model group saved.")
+  expect(state.saves[2]).toMatchObject({
+    expectedDigest: "project-external",
+    target: { scope: "project", path: projectTarget.path },
+    patch: { set: { members: [alphaMember], strategy: "rotate", affinity: "off" } },
+  })
+  await override.locator("form").getByRole("button", { name: "Close", exact: true }).click()
+  await page.goto(sessionHref("ses_model_groups"))
+  const model = page.locator('[data-action="composer-model"]')
+  await expect(model).toBeEnabled()
+  await model.click()
+  await page.getByRole("menuitemradio", { name: "Project route", exact: true }).click()
+  await expect(model).toContainText("Group · Project route")
+  await page.reload()
+  await expect(model).toContainText("Group · Project route")
+  await page.goto("/settings")
+  await page.getByTestId("settings-screen").getByRole("tab", { name: "Models", exact: true }).click()
+  await page
+    .getByRole("region", { name: "Model groups", exact: true })
+    .getByRole("button", { name: "Edit Project route", exact: true })
+    .click()
+  const removal = page.getByRole("dialog", { name: "Edit Project route", exact: true })
+  const removalConnections = removal.getByRole("group", { name: "Connections for Alpha", exact: true })
+  await expect(
+    removal.getByRole("group", { name: "Selection strategy", exact: true }).getByRole("button"),
+  ).toContainText("Round robin")
+  await expect(
+    removal.getByRole("group", { name: "Connection affinity", exact: true }).getByRole("button"),
+  ).toContainText("No affinity")
+  await expect(removalConnections.getByRole("checkbox", { name: "account-backup", exact: true })).toBeChecked()
+  await removalConnections.getByText("Primary account", { exact: true }).click()
+  await expect(removalConnections.getByRole("checkbox", { name: "Primary account", exact: true })).not.toBeChecked()
+  await removalConnections.getByText("account-backup", { exact: true }).click()
+  await expect(removalConnections.getByRole("checkbox", { name: "account-backup", exact: true })).toHaveCount(0)
+  await removalConnections.getByText("PROVIDER_TOKEN", { exact: true }).click()
+  await expect(removalConnections.getByRole("checkbox", { name: "PROVIDER_TOKEN", exact: true })).not.toBeChecked()
+  await expect(
+    removalConnections.getByText("No connections selected. This member has no candidates.", { exact: true }),
+  ).toBeVisible()
+  await removal.getByRole("group", { name: "Selection strategy", exact: true }).getByRole("button").click()
+  await page.getByRole("option", { name: "In order", exact: true }).click()
+  await removal.getByRole("group", { name: "Connection affinity", exact: true }).getByRole("button").click()
+  await page.getByRole("option", { name: "Current turn", exact: true }).click()
+  await removal.getByRole("button", { name: "Save", exact: true }).click()
+  await expect(removal.getByRole("status")).toHaveText("Model group saved.")
+  expect(state.saves[3].patch.set?.members).toEqual([
+    { id: "alpha", providerID: "provider", variant: "high", weight: 2.5, connections: [] },
+  ])
+  await removal.locator("form").getByRole("button", { name: "Close", exact: true }).click()
+  await page
+    .getByRole("region", { name: "Model groups", exact: true })
+    .getByRole("button", { name: "Edit Project route", exact: true })
+    .click()
+  await expect(
+    removalConnections.getByRole("checkbox", { name: "Use current active connection", exact: true }),
+  ).not.toBeChecked()
+  await expect(
+    removalConnections.getByText("No connections selected. This member has no candidates.", { exact: true }),
+  ).toBeVisible()
+  await removalConnections.getByText("Use current active connection", { exact: true }).click()
+  await expect(
+    removalConnections.getByRole("checkbox", { name: "Use current active connection", exact: true }),
+  ).toBeChecked()
+  await removal.getByRole("button", { name: "Save", exact: true }).click()
+  await expect(removal.getByRole("status")).toHaveText("Model group saved.")
+  expect(state.saves[4].patch.set?.members).toEqual([
+    { id: "alpha", providerID: "provider", variant: "high", weight: 2.5 },
+  ])
+  await removal.getByRole("button", { name: "Remove definition", exact: true }).click()
+  await expect(removal.getByRole("status")).toHaveText("Model group definition removed.")
+  expect(state.removes).toHaveLength(1)
+  expect(state.removes[0]).toMatchObject({
+    groupID: "fast",
+    expectedDigest: "project-5",
+    target: { scope: "project", path: projectTarget.path },
+  })
+  await removal.locator("form").getByRole("button", { name: "Close", exact: true }).click()
+  await page.goto(sessionHref("ses_model_groups"))
+  await expect(model).toContainText("Group · Fast route")
+  expect(activations).toEqual([])
+})
+
+test("model groups and direct models keep distinct picker identities", async ({ page }) => {
+  await open(page, {
+    seed: {
+      storage: {
+        "aigcfroge.global.dat:model": {
+          user: [
+            { providerID: "group", modelID: "base", visibility: "show" },
+            { providerID: "group", modelID: '"route"', visibility: "show" },
+          ],
+          recent: [],
+          variant: {},
+        },
+      },
+    },
+    sessions: [
+      {
+        id: "ses_model_picker_identity",
+        title: "Model picker identity",
+        directory,
+        model: { id: "base", providerID: "group" },
+      },
+    ],
+    provider: {
+      all: [
+        {
+          id: "group",
+          name: "Group provider",
+          models: {
+            base: { id: "base", name: "Base model" },
+            '"route"': { id: '"route"', name: "Quoted model" },
+          },
+        },
+      ],
+      connected: ["group"],
+      default: { providerID: "group", modelID: "base" },
+    },
+    modelGroups: {
+      targets: [],
+      definitions: [],
+      effective: [
+        {
+          groupID: "route",
+          definition: {
+            name: "Quoted route",
+            enabled: true,
+            members: [{ id: '"route"', providerID: "group" }],
+            strategy: "order",
+            affinity: "off",
+          },
+        },
+      ],
+    },
+  })
+
+  await page.goto(sessionHref("ses_model_picker_identity"))
+  const model = page.locator('[data-action="composer-model"]')
+  await expect(model).toHaveText("Base model")
+  await model.click()
+  const menu = page.getByRole("menu")
+  const direct = menu.getByRole("menuitemradio", { name: "Quoted model", exact: true })
+  const group = menu.getByRole("menuitemradio", { name: "Quoted route", exact: true })
+  const search = menu.getByPlaceholder("Search models")
+  await expect(group).toBeVisible()
+  await direct.hover()
+  await expect(search).toBeFocused()
+  await search.press("Enter")
+  await expect(model).toHaveText("Quoted model")
+
+  await model.click()
+  await expect(direct).toHaveAttribute("aria-checked", "true")
+  await expect(group).toHaveAttribute("aria-checked", "false")
+  await group.click()
+  await expect(model).toHaveText("Group · Quoted route")
+  await model.click()
+  await expect(group).toHaveAttribute("aria-checked", "true")
+  await expect(direct).toHaveAttribute("aria-checked", "false")
+})
+
+test("model groups preserve dynamic strategies, connection facts and draft weights through refresh and reload", async ({
+  page,
+}) => {
+  const observedAt = Date.now()
+
+  const target = {
+    scope: "global" as const,
+    path: "/home/test/.config/aigcfroge/aigcfroge.jsonc",
+    digest: "dynamic-0",
+    preferred: true,
+    writable: true,
+  }
+
+  const metadata: Record<"alpha" | "beta" | "gamma" | "delta", Schema.Codec.Encoded<typeof ModelSource.Metadata>> = {
+    alpha: {
+      quote: {
+        status: "known",
+        source: "provider-price-sheet",
+        observedAt,
+        validFrom: observedAt - 60_000,
+        validUntil: observedAt + 3_600_000,
+        prices: [{ input: 2, output: 8, cache: { read: 0.5, write: 3 } }],
+      },
+      quota: {
+        status: "known",
+        source: "account-usage",
+        connection: { type: "credential", id: "account-active" },
+        observedAt,
+        freshUntil: observedAt + 3_600_000,
+        plan: "Plus",
+        allowed: true,
+        freeModel: false,
+        freePlan: false,
+        credits: { balance: 12.5, expiresAt: observedAt + 7_200_000 },
+        windows: [
+          {
+            id: "requests",
+            scope: "account",
+            unit: "requests",
+            usedRatio: 0.25,
+            remaining: 75,
+            total: 100,
+            resetAt: observedAt + 3_600_000,
+            spanMs: 3_600_000,
+          },
+          {
+            id: "model-tokens",
+            scope: "model",
+            modelIDs: ["alpha"],
+            unit: "model-tokens",
+            usedRatio: 0.5,
+            remaining: 500,
+            total: 1_000,
+            resetAt: observedAt + 7_200_000,
+            spanMs: 7_200_000,
+          },
+        ],
+      },
+    },
+    beta: { quote: { status: "unknown" } },
+    gamma: {
+      quote: {
+        status: "known",
+        source: "expired-price-sheet",
+        observedAt: observedAt - 120_000,
+        validUntil: observedAt - 60_000,
+        prices: [{ input: 4, output: 12, cache: { read: 1, write: 6 } }],
+      },
+      quota: {
+        status: "known",
+        source: "older-account-usage",
+        observedAt: observedAt - 120_000,
+        freshUntil: observedAt - 60_000,
+        windows: [{ id: "requests", scope: "account", unit: "requests", usedRatio: 0.8, remaining: 20, total: 100 }],
+      },
+    },
+    delta: {
+      quote: {
+        status: "free",
+        source: "explicit-free-price",
+        prices: [{ input: 0, output: 0, cache: { read: 0, write: 0 } }],
+      },
+      quota: {
+        status: "unsupported",
+        source: "chatgpt-shared-token",
+        connection: { type: "credential", id: "account-active" },
+        observedAt,
+        reason: "unsupported",
+        windows: [],
+      },
+    },
+  }
+
+  type DynamicModelGroupState = {
+    definition: ModelGroupDefinition
+    saves: Array<typeof ModelGroup.SaveInput.Type>
+  }
+
+  const state: DynamicModelGroupState = {
+    definition: {
+      name: "Dynamic route",
+      enabled: true,
+      strategy: "weight",
+      affinity: "session",
+      members: [
+        {
+          id: "alpha",
+          providerID: "provider",
+          variant: "high",
+          weight: 2.5,
+          connections: [
+            { ref: { type: "credential", id: "account-active" }, weight: 2 },
+            { ref: { type: "credential", id: "account-backup" }, weight: 0.5 },
+            { ref: { type: "env", name: "PROVIDER_TOKEN" } },
+          ],
+        },
+        { id: "beta", providerID: "provider", weight: 1.25 },
+        { id: "gamma", providerID: "provider" },
+        { id: "delta", providerID: "provider" },
+      ],
+    },
+    saves: [],
+  }
+
+  const members = structuredClone(state.definition.members)
+  const activations: string[] = []
+  page.on("request", (request) => {
+    if (request.method() === "POST" && /^\/api\/credential\/[^/]+\/activate$/.test(new URL(request.url()).pathname))
+      activations.push(request.url())
+  })
+
+  const read = (): ModelGroupRead => ({
+    targets: [target],
+    definitions: [
+      {
+        groupID: "dynamic",
+        definition: state.definition,
+        source: { scope: "global", path: target.path },
+        target,
+        inherited: [],
+      },
+    ],
+    effective: [{ groupID: "dynamic", definition: state.definition, source: { scope: "global", path: target.path } }],
+  })
+
+  const { settings, push } = await open(page, {
+    provider: () => ({
+      all: [
+        {
+          id: "provider",
+          name: "Provider",
+          integrationID: "shared-provider",
+          models: {
+            alpha: { id: "alpha", name: "Alpha", metadata: metadata.alpha, variants: { high: {} } },
+            beta: { id: "beta", name: "Beta", metadata: metadata.beta },
+            gamma: { id: "gamma", name: "Gamma", metadata: metadata.gamma },
+            delta: { id: "delta", name: "Delta", metadata: metadata.delta },
+          },
+        },
+      ],
+      connected: ["provider"],
+      default: { providerID: "provider", modelID: "alpha" },
+    }),
+    integrations: [
+      {
+        id: "shared-provider",
+        name: "Shared provider",
+        methods: [],
+        connections: [
+          { type: "credential", id: "account-active", label: "Primary account", method: "key" },
+          { type: "credential", id: "account-backup", label: "Backup account", method: "oauth" },
+          { type: "env", name: "PROVIDER_TOKEN" },
+        ],
+      },
+    ],
+    modelGroups: read,
+    onModelGroupSave: (input) => {
+      state.saves.push(input)
+      state.definition = mutableGroupDefinition(
+        Schema.encodeSync(ModelGroup.Definition)(Schema.decodeUnknownSync(ModelGroup.Definition)(input.patch.set)),
+      )
+      target.digest = `dynamic-${state.saves.length}`
+
+      return { groupID: input.groupID, definition: { status: "saved", target }, readback: read() }
+    },
+  })
+
+  await settings.getByRole("tab", { name: "Models", exact: true }).click()
+  await settings
+    .getByRole("region", { name: "Model groups", exact: true })
+    .getByRole("button", { name: "Edit Dynamic route", exact: true })
+    .click()
+  const editor = page.getByRole("dialog", { name: "Edit Dynamic route", exact: true })
+  const strategy = editor.getByRole("group", { name: "Selection strategy", exact: true }).getByRole("button")
+  await strategy.click()
+  await Promise.all(
+    [
+      "In order",
+      "Round robin",
+      "Weighted",
+      "Fastest",
+      "Lowest cost",
+      "Smart",
+      "Usage balance",
+      "Quota pace",
+      "Free",
+      "Expiring first",
+      "Drain quota",
+    ].map((name) => expect(page.getByRole("option", { name, exact: true })).toBeVisible()),
+  )
+  await page.getByRole("option", { name: "Lowest cost", exact: true }).click()
+  await expect(
+    editor.getByText("Requires known input, output and cache token prices within the quote's validity period.", {
+      exact: true,
+    }),
+  ).toBeVisible()
+  const alphaQuote = editor.getByLabel("Quote for Alpha", { exact: true })
+  await expect(alphaQuote.getByText("Price known", { exact: true })).toBeVisible()
+  await expect(alphaQuote.getByText("provider-price-sheet", { exact: true })).toBeVisible()
+  await expect(alphaQuote.getByText("Input: $2.00 / 1M tokens", { exact: true })).toBeVisible()
+  await expect(alphaQuote.getByText("Output: $8.00 / 1M tokens", { exact: true })).toBeVisible()
+  await expect(alphaQuote.getByText("Cache read: $0.50 / 1M tokens", { exact: true })).toBeVisible()
+  await expect(alphaQuote.getByText("Cache write: $3.00 / 1M tokens", { exact: true })).toBeVisible()
+  await expect(alphaQuote.getByText("Valid from", { exact: true })).toBeVisible()
+  await expect(alphaQuote.getByText("Valid until", { exact: true })).toBeVisible()
+  const betaQuote = editor.getByLabel("Quote for Beta", { exact: true })
+  await expect(betaQuote.getByText("Price unknown", { exact: true })).toBeVisible()
+  await expect(betaQuote.getByText("Free", { exact: true })).toHaveCount(0)
+  await expect(
+    editor.getByLabel("Quote for Gamma", { exact: true }).getByText("Quote expired", { exact: true }),
+  ).toBeVisible()
+  await expect(editor.getByLabel("Quote for Delta", { exact: true }).getByText("Free", { exact: true })).toBeVisible()
+  await strategy.click()
+  await page.getByRole("option", { name: "Fastest", exact: true }).click()
+  await expect(
+    editor.getByText("Requires recent time to first token and output token rate measurements for each connection.", {
+      exact: true,
+    }),
+  ).toBeVisible()
+  await strategy.click()
+  await page.getByRole("option", { name: "Free", exact: true }).click()
+  const primaryQuota = editor.getByLabel("Quota for Alpha · Primary account", { exact: true })
+  await expect(primaryQuota.getByText("Quota known", { exact: true })).toBeVisible()
+  await expect(primaryQuota.getByText("account-usage", { exact: true })).toBeVisible()
+  await expect(primaryQuota.getByText("requests · Account window · requests", { exact: true })).toBeVisible()
+  await expect(primaryQuota.getByText("model-tokens · Model window · model-tokens", { exact: true })).toBeVisible()
+  await expect(primaryQuota.getByText("Remaining: 75 requests", { exact: true })).toBeVisible()
+  await expect(primaryQuota.getByText("Remaining: 500 model-tokens", { exact: true })).toBeVisible()
+  await expect(primaryQuota.getByText("Used: 25%", { exact: true })).toBeVisible()
+  await expect(primaryQuota.getByText("Used: 50%", { exact: true })).toBeVisible()
+  await expect(primaryQuota.getByText("Window duration: 1 h", { exact: true })).toBeVisible()
+  await expect(primaryQuota.getByText("Window duration: 2 h", { exact: true })).toBeVisible()
+  await expect(primaryQuota.getByText("12.5", { exact: true })).toBeVisible()
+  const backupQuota = editor.getByLabel("Quota for Alpha · Backup account", { exact: true })
+  await expect(backupQuota.getByText("Quota unknown", { exact: true })).toBeVisible()
+  await expect(backupQuota.getByText("No quota observations for this connection.", { exact: true })).toBeVisible()
+  await expect(backupQuota.getByText("account-usage", { exact: true })).toHaveCount(0)
+  await expect(
+    editor.getByLabel("Quota for Alpha · PROVIDER_TOKEN", { exact: true }).getByText("Quota unknown", { exact: true }),
+  ).toBeVisible()
+  await expect(
+    editor
+      .getByLabel("Quota for Beta · Current active connection", { exact: true })
+      .getByText("Quota unknown", { exact: true }),
+  ).toBeVisible()
+  await expect(
+    editor
+      .getByLabel("Quota for Gamma · Current active connection", { exact: true })
+      .getByText("Quota data expired", { exact: true }),
+  ).toBeVisible()
+  await expect(
+    editor
+      .getByLabel("Quota for Delta · Current active connection", { exact: true })
+      .getByText("Quota lookup unsupported", { exact: true }),
+  ).toBeVisible()
+  await editor.getByRole("button", { name: "Save", exact: true }).click()
+  await expect(editor.getByRole("status")).toHaveText("Model group saved.")
+  expect(state.saves[0].patch.set).toEqual({
+    name: "Dynamic route",
+    enabled: true,
+    members,
+    strategy: "free",
+    affinity: "session",
+  })
+  await editor.locator("form").getByRole("button", { name: "Close", exact: true }).click()
+  await settings
+    .getByRole("region", { name: "Model groups", exact: true })
+    .getByRole("button", { name: "Edit Dynamic route", exact: true })
+    .click()
+  await expect(strategy).toContainText("Free")
+  await strategy.click()
+  await page.getByRole("option", { name: "Usage balance", exact: true }).click()
+  metadata.alpha = { ...metadata.alpha, quota: { ...metadata.alpha.quota!, freshUntil: observedAt - 1 } }
+  await push([
+    { id: "evt_dynamic_quota_expired", type: "model.updated", created: observedAt, location: { directory }, data: {} },
+  ])
+  await expect(primaryQuota.getByText("Quota data expired", { exact: true })).toBeVisible()
+  await expect(editor.getByLabel("Weight for Alpha", { exact: true })).toHaveValue("2.5")
+  await expect(editor.getByLabel("Weight for Beta", { exact: true })).toHaveValue("1.25")
+  await expect(editor.getByLabel("Connection weight for Primary account in Alpha", { exact: true })).toHaveValue("2")
+  await expect(editor.getByLabel("Connection weight for Backup account in Alpha", { exact: true })).toHaveValue("0.5")
+  await editor.getByRole("button", { name: "Refresh", exact: true }).click()
+  await expect(strategy).toContainText("Usage balance")
+  await strategy.click()
+  await page.getByRole("option", { name: "Expiring first", exact: true }).click()
+  await editor.getByRole("button", { name: "Save", exact: true }).click()
+  await expect(editor.getByRole("status")).toHaveText("Model group saved.")
+  expect(state.saves[1].patch.set).toEqual({
+    name: "Dynamic route",
+    enabled: true,
+    members,
+    strategy: "expiring",
+    affinity: "session",
+  })
+  await editor.locator("form").getByRole("button", { name: "Close", exact: true }).click()
+  await page.reload()
+  await page.getByTestId("settings-screen").getByRole("tab", { name: "Models", exact: true }).click()
+  await page
+    .getByRole("region", { name: "Model groups", exact: true })
+    .getByRole("button", { name: "Edit Dynamic route", exact: true })
+    .click()
+  await expect(strategy).toContainText("Expiring first")
+  await expect(primaryQuota.getByText("Quota data expired", { exact: true })).toBeVisible()
+  await expect(editor.getByRole("group", { name: "Variant for Alpha", exact: true }).getByRole("button")).toContainText(
+    "high",
+  )
+  await expect(
+    editor.getByRole("group", { name: "Connection affinity", exact: true }).getByRole("button"),
+  ).toContainText("Current session")
+  await expect(editor.getByLabel("Weight for Alpha", { exact: true })).toHaveValue("2.5")
+  expect(activations).toEqual([])
+})
+
+test("provider definitions discover and import models, resume saves, and preserve overrides and picker preferences", async ({
+  page,
+}, testInfo) => {
+  type DefinitionInfo = Schema.Codec.Encoded<typeof ProviderDefinition.Info>
+
+  type SaveInput = typeof ProviderDefinition.SaveInput.Type
+
+  type DiscoveryRead = Schema.Codec.Encoded<typeof ProviderDiscovery.Read>
+
+  type PreviewInput = typeof ProviderDiscovery.PreviewInput.Type
+
+  type RefreshInput = typeof ProviderDiscovery.RefreshInput.Type
+
+  type DefinitionState = {
+    info?: DefinitionInfo
+    saves: SaveInput[]
+    removed: boolean
+    previews: PreviewInput[]
+    refreshes: RefreshInput[]
+    discovery?: DiscoveryRead
+  }
+
+  const target = {
+    scope: "global" as const,
+    path: "/home/test/.config/aigcfroge/aigcfroge.jsonc",
+    digest: "initial",
+    preferred: true,
+    writable: true,
+  }
+
+  const state: DefinitionState = { saves: [], removed: false, previews: [], refreshes: [] }
+
+  const metadata: DiscoveryRead["candidates"][number]["metadata"] = {
+    name: "Listed Model B",
+    capabilities: { tools: false, input: ["text"], output: ["text"] },
+    limit: { context: 64_000, output: 4096 },
+    quote: { status: "unknown" },
+  }
+
+  const identity: NonNullable<DiscoveryRead["inventory"]>["identity"] = {
+    providerID: "custom-provider",
+    listURL: "https://api.example.com/v1/models",
+    protocol: "openai",
+    auth: "bearer",
+    configurationDigest: "listed-definition",
+  }
+
+  const listing: DiscoveryRead = {
+    status: {
+      providerID: "custom-provider",
+      identity,
+      phase: "ready",
+      cachePersisted: false,
+      generation: 1,
+      lastAttemptAt: 1_794_701_000_000,
+      lastSuccessAt: 1_794_701_000_000,
+    },
+    inventory: {
+      identity,
+      complete: true,
+      digest: "complete-list",
+      observedAt: 1_794_701_000_000,
+      models: [
+        { id: "model-b", metadata },
+        { id: "candidate-c", metadata: { name: "Candidate C", quote: { status: "unknown" } } },
+      ],
+    },
+    candidates: [
+      { id: "model-b", metadata, managedRefs: [], membership: "present" },
+      {
+        id: "candidate-c",
+        metadata: { name: "Candidate C", quote: { status: "unknown" } },
+        managedRefs: [],
+        membership: "present",
+      },
+    ],
+    managed: [],
+  }
+
+  const stale: DiscoveryRead = {
+    ...listing,
+    candidates: [{ id: "stale-model", metadata: { name: "Stale Model" }, managedRefs: [], membership: "present" }],
+  }
+
+  const changed = Promise.withResolvers<DiscoveryRead>()
+  const canceled = Promise.withResolvers<DiscoveryRead>()
+
+  const { settings } = await open(page, {
+    providerDefinitions: () => ({ targets: [target], definitions: state.info ? [state.info] : [] }),
+    provider: () =>
+      state.info?.definition.adoption?.phase === "ready" && !state.info.definition.disabled
+        ? {
+            all: [
+              {
+                id: "custom-provider",
+                name: "Custom Provider",
+                models: {
+                  "model-a": { id: "model-a", name: "Model A", release_date: "2020-01-01" },
+                  "model-b": {
+                    id: "model-b",
+                    name: state.info.definition.models?.["model-b"]?.name ?? "Listed Model B",
+                    api: { id: "model-b" },
+                    release_date: "2020-01-01",
+                    metadata: {
+                      ...metadata,
+                      name: state.info.definition.models?.["model-b"]?.name ?? "Listed Model B",
+                    },
+                    origins: {
+                      name: state.info.definition.models?.["model-b"]?.name
+                        ? "user"
+                        : state.discovery
+                          ? "live"
+                          : "seed",
+                      capabilities: {
+                        tools: state.discovery ? "live" : "seed",
+                        input: state.discovery ? "live" : "seed",
+                        output: state.discovery ? "live" : "seed",
+                      },
+                      limit: { context: state.discovery ? "live" : "seed", output: state.discovery ? "live" : "seed" },
+                      quote: "unknown",
+                    },
+                  },
+                },
+              },
+            ],
+            connected: ["custom-provider"],
+            default: { providerID: "custom-provider", modelID: "model-a" },
+          }
+        : NO_PROVIDER,
+    providerDiscovery: () =>
+      state.info?.definition.discovery?.enabled === false
+        ? { ...(state.discovery ?? listing), status: { ...(state.discovery ?? listing).status, phase: "disabled" } }
+        : (state.discovery ?? {
+            status: { providerID: "custom-provider", phase: "idle", cachePersisted: false, generation: 0 },
+            candidates: [],
+            managed: [],
+          }),
+    onProviderDiscoveryPreview: (input) => {
+      state.previews.push(input)
+
+      if (state.previews.length === 1) return changed.promise
+
+      if (state.previews.length === 2) return canceled.promise
+
+      if (state.previews.length === 3)
+        return {
+          ...listing,
+          status: { ...listing.status, phase: "partial", lastSuccessAt: undefined },
+          inventory: { ...listing.inventory!, complete: false, digest: "partial-list" },
+        }
+
+      return listing
+    },
+    onProviderDiscoveryRefresh: (input) => {
+      state.refreshes.push(input)
+      const failed = state.refreshes.length === 2
+      state.discovery = {
+        ...listing,
+        status: {
+          ...listing.status,
+          phase: failed ? "failed" : "ready",
+          cachePersisted: true,
+          error: failed ? { kind: "auth", message: "The directory rejected this credential" } : undefined,
+        },
+        candidates: listing.candidates.map((candidate) => ({
+          ...candidate,
+          managedRefs: candidate.id === "model-b" ? [{ providerID: "custom-provider", id: "model-b" }] : [],
+        })),
+        managed: [
+          {
+            ref: { providerID: "custom-provider", id: "model-b" },
+            modelID: "model-b",
+            metadata,
+            origins: {
+              name: "live",
+              capabilities: { tools: "live", input: "live", output: "live" },
+              limit: { context: "live", output: "live" },
+              quote: "unknown",
+            },
+            membership: "present",
+            seed: state.info?.definition.models?.["model-b"]?.seed,
+          },
+        ],
+      }
+
+      return state.discovery
+    },
+    onProviderDefinitionSave: (input) => {
+      state.saves.push(input)
+      const partial = state.saves.length === 1
+      const definition = { ...(state.info?.definition ?? input.patch.set ?? {}) }
+
+      if (state.saves.length === 3 && state.info)
+        return {
+          providerID: input.providerID,
+          submissionID: input.submissionID,
+          definition: { status: "conflict", target, message: "The configuration changed since it was read" },
+          credential: { status: "skipped" },
+          catalog: { status: "pending" },
+          info: state.info,
+          addedModelIDs: [],
+        }
+
+      if (input.patch.set?.name !== undefined) definition.name = input.patch.set.name
+
+      if (input.patch.set?.disabled !== undefined) definition.disabled = input.patch.set.disabled
+
+      if (input.patch.set?.discovery) definition.discovery = { ...definition.discovery, ...input.patch.set.discovery }
+
+      if (input.patch.set?.models) definition.models = { ...definition.models, ...input.patch.set.models }
+
+      if (partial && definition.models?.["model-b"]?.seed)
+        definition.models = {
+          ...definition.models,
+          "model-b": {
+            ...definition.models["model-b"],
+            seed: {
+              ...definition.models["model-b"].seed,
+              identity: {
+                ...definition.models["model-b"].seed.identity,
+                connection: { type: "credential", id: "credential-provider-test" },
+              },
+            },
+          },
+        }
+
+      if (input.patch.unset?.some((path) => path[0] === "models" && path[1] === "model-b" && path[2] === "name"))
+        definition.models = {
+          ...definition.models,
+          "model-b": { modelID: "model-b", seed: definition.models?.["model-b"]?.seed },
+        }
+
+      state.info = {
+        providerID: input.providerID,
+        source: { scope: "global", path: target.path },
+        target,
+        definition: {
+          ...definition,
+          adoption: {
+            phase: partial ? "applying" : "ready",
+            submissionID: input.submissionID,
+            targetDefinitionDigest: "submitted",
+            stage: partial ? "credential" : "complete",
+            credentialAction: input.credential.type,
+            credentialID: "credential-provider-test",
+            activate: true,
+            addedModelIDs: ["model-a", "model-b"],
+          },
+        },
+        redactedPaths: [],
+        inherited: [],
+        connections: partial
+          ? []
+          : [{ type: "credential", id: "credential-provider-test", label: "Saved account", method: "key" }],
+      }
+
+      return {
+        providerID: input.providerID,
+        submissionID: input.submissionID,
+        definition: { status: "saved" as const, target },
+        credential: {
+          status: partial ? ("pending" as const) : ("created" as const),
+          message: partial ? "Credential write failed" : undefined,
+        },
+        catalog: { status: partial ? ("pending" as const) : ("ready" as const) },
+        info: state.info,
+        addedModelIDs: ["model-a", "model-b"],
+      }
+    },
+    onProviderDefinitionRemove: (input) => {
+      state.removed = true
+      state.info = undefined
+
+      return { providerID: input.providerID, definition: { status: "saved", target }, inherited: [] }
+    },
+  })
+
+  await settings.getByRole("tab", { name: "Providers", exact: true }).click()
+  await settings.getByRole("button", { name: "Add provider", exact: true }).click()
+  const form = page.getByRole("dialog", { name: "Custom provider", exact: true })
+  await expect(form.getByRole("group", { name: "Save to", exact: true }).getByRole("button")).toBeEnabled()
+
+  await form.getByRole("textbox", { name: "Provider ID", exact: true }).fill("custom-provider")
+  await form.getByRole("textbox", { name: "Base URL", exact: true }).fill("https://api.example.com/v1")
+  const authentication = form.getByRole("group", { name: "Authentication", exact: true }).getByRole("button")
+  const account = form.getByRole("group", { name: "Choose an account", exact: true }).getByRole("button")
+  await authentication.click()
+  await page.getByRole("listbox").getByRole("option", { name: "Use an existing account", exact: true }).click()
+  await expect(authentication).toHaveText("Use an existing account")
+  await expect(account).toBeEnabled()
+  await form.getByRole("button", { name: "Fetch models", exact: true }).click()
+  await expect(form.getByText("Choose an existing account", { exact: true })).toBeVisible()
+  await authentication.click()
+  await page.getByRole("listbox").getByRole("option", { name: "Keep current authentication", exact: true }).click()
+  await expect(authentication).toHaveText("Keep current authentication")
+  await expect(account).toHaveCount(0)
+  await expect(form.getByText("Choose an existing account", { exact: true })).toHaveCount(0)
+  await authentication.click()
+  await page.getByRole("listbox").getByRole("option", { name: "Use an existing account", exact: true }).click()
+  await expect(authentication).toHaveText("Use an existing account")
+  await expect(account).toBeEnabled()
+  await authentication.click()
+  await page.getByRole("listbox").getByRole("option", { name: "Add an API key", exact: true }).click()
+  await expect(authentication).toHaveText("Add an API key")
+  await expect(account).toHaveCount(0)
+  await form.getByLabel("API key", { exact: true }).fill("test-only-key")
+  await form.getByRole("button", { name: "Fetch models", exact: true }).click()
+  await expect(form.getByRole("button", { name: "Cancel fetch", exact: true })).toBeVisible()
+  await expect.poll(() => state.previews.length).toBe(1)
+  expect(state.previews[0]?.credential).toEqual({ type: "key", key: "test-only-key" })
+  expect(state.previews[0]?.definition.type).toBe("new")
+  await form.getByRole("textbox", { name: "Base URL", exact: true }).fill("https://api.example.com/v2")
+  await expect(form.getByRole("button", { name: "Cancel fetch", exact: true })).toBeHidden()
+  changed.resolve(stale)
+  await form.getByRole("textbox", { name: "Base URL", exact: true }).fill("https://api.example.com/v1")
+  await form.getByRole("button", { name: "Fetch models", exact: true }).click()
+  await expect.poll(() => state.previews.length).toBe(2)
+  await form.getByRole("button", { name: "Cancel fetch", exact: true }).click()
+  canceled.resolve(stale)
+  await expect(form.getByText("Stale Model", { exact: true })).toBeHidden()
+  await form.getByRole("button", { name: "Fetch models", exact: true }).click()
+  await expect(form.getByText("The model list was not fetched completely", { exact: true })).toBeVisible()
+  await expect(form.getByText(/Showing the last successful model list from/)).toHaveCount(0)
+  await form.getByRole("searchbox", { name: "Search discovered models", exact: true }).fill("model-b")
+  const candidate = form.getByRole("checkbox", { name: /Listed Model B/ })
+  await candidate.focus()
+  await candidate.press("Space")
+  await expect(candidate).toBeChecked()
+  await expect(form.getByText("Listed Model B", { exact: true })).toBeInViewport({ ratio: 1 })
+  await form.getByRole("button", { name: "Add selected models", exact: true }).click()
+  await expect(form.getByRole("textbox", { name: "ID", exact: true }).first()).toHaveValue("model-b")
+  await expect(form.getByRole("textbox", { name: "Name", exact: true }).first()).toHaveValue("")
+  expect(state.saves).toHaveLength(0)
+  await form.getByRole("textbox", { name: "Name", exact: true }).first().fill("Draft override")
+  await form.getByText("Model overrides", { exact: true }).click()
+  await form.getByRole("textbox", { name: "Context window override", exact: true }).fill("12345")
+  await form.getByLabel("API key", { exact: true }).fill("fresh-draft-key")
+  await expect(form.getByRole("textbox", { name: "ID", exact: true }).first()).toHaveValue("model-b")
+  await expect(form.getByRole("textbox", { name: "Name", exact: true }).first()).toHaveValue("Draft override")
+  await expect(form.getByRole("textbox", { name: "Context window override", exact: true })).toHaveValue("12345")
+  await form.getByRole("textbox", { name: "Name", exact: true }).first().fill("")
+  await form.getByRole("textbox", { name: "Context window override", exact: true }).fill("")
+  await form.getByRole("button", { name: "Fetch models", exact: true }).click()
+  await expect(form.getByText("Model list ready", { exact: true })).toBeVisible()
+  expect(state.previews.at(-1)?.credential).toEqual({ type: "key", key: "fresh-draft-key" })
+  await candidate.focus()
+  await candidate.press("Space")
+  await form.getByRole("button", { name: "Add selected models", exact: true }).click()
+  await expect(form.getByRole("textbox", { name: "ID", exact: true })).toHaveCount(1)
+  await form.getByRole("textbox", { name: "Display name", exact: true }).fill("Custom Provider")
+  await form.getByRole("button", { name: "Add model", exact: true }).click()
+  await form.getByRole("textbox", { name: "ID", exact: true }).nth(1).fill("model-a")
+  await form.getByRole("textbox", { name: "Name", exact: true }).nth(1).fill("Model A")
+
+  await form.getByRole("button", { name: "Save", exact: true }).click()
+  await expect(form.getByText("Authentication: Pending", { exact: true })).toBeVisible()
+  await expect(form.getByText("Credential write failed", { exact: true })).toBeVisible()
+  await expect(form.getByRole("textbox", { name: "Provider ID", exact: true })).toBeDisabled()
+  await expect(authentication).toBeDisabled()
+  expect(state.saves).toHaveLength(1)
+  expect(state.saves[0]?.patch.set?.package).toBe("@aigcfroge/ai/providers/openai-compatible")
+  expect(state.saves[0]?.target).toEqual({ scope: "global", path: target.path })
+  expect(state.saves[0]?.patch.set?.models?.["model-b"]).toEqual({
+    modelID: "model-b",
+    seed: { identity, inventoryDigest: "complete-list", observedAt: listing.inventory!.observedAt, metadata },
+  })
+  expect(state.saves[0]?.patch.set?.models).not.toHaveProperty("candidate-c")
+  const submissionID = state.saves[0]?.submissionID
+  await form.getByRole("button", { name: "Done", exact: true }).click()
+  await settings.getByRole("button", { name: "Edit Custom Provider", exact: true }).click()
+  await expect(form.getByRole("textbox", { name: "Provider ID", exact: true })).toHaveValue("custom-provider")
+  await expect(form.getByRole("button", { name: "Continue save", exact: true })).toBeEnabled()
+  await form.getByLabel("API key", { exact: true }).fill("fresh-draft-key")
+  await form.getByRole("button", { name: "Continue save", exact: true }).click()
+  await expect(form).toBeHidden()
+  expect(state.saves).toHaveLength(2)
+  expect(state.saves[1]?.submissionID).toBe(submissionID)
+  expect(state.saves[1]?.patch).toEqual({})
+  const savedSeed = state.info?.definition.models?.["model-b"]?.seed
+  expect(savedSeed?.identity.connection).toEqual({ type: "credential", id: "credential-provider-test" })
+  await settings.getByRole("tab", { name: "Models", exact: true }).click()
+  const visibility = settings.getByRole("switch", { name: "Model A", exact: true })
+  await expect(visibility).toBeChecked()
+  await expect(settings.getByRole("switch", { name: "Listed Model B", exact: true })).toBeChecked()
+  await expect(settings.getByRole("switch", { name: "Candidate C", exact: true })).toHaveCount(0)
+
+  await visibility.focus()
+  await visibility.press("Space")
+  await expect(visibility).toBeChecked({ checked: false })
+  await settings.getByRole("tab", { name: "Providers", exact: true }).click()
+  await settings.getByRole("button", { name: "Edit Custom Provider", exact: true }).click()
+  await expect(form.getByRole("textbox", { name: "Display name", exact: true })).toHaveValue("Custom Provider")
+  await form.getByRole("textbox", { name: "Display name", exact: true }).fill("Edited Provider")
+  await form.getByRole("button", { name: "Save", exact: true }).click()
+  await expect(form.getByText("Configuration: Changed by another writer", { exact: true })).toBeVisible()
+  await expect(form.getByRole("button", { name: "Save", exact: true })).toBeEnabled()
+  await expect(form.getByRole("textbox", { name: "Display name", exact: true })).toHaveValue("Edited Provider")
+  await form.getByRole("button", { name: "Try again", exact: true }).click()
+  await expect(form.getByRole("button", { name: "Save", exact: true })).toBeEnabled()
+  await form.getByRole("button", { name: "Save", exact: true }).click()
+  await expect(form).toBeHidden()
+  await settings.getByRole("tab", { name: "Models", exact: true }).click()
+  await expect(visibility).toBeChecked({ checked: false })
+  await settings.getByText("Listed Model B", { exact: true }).first().hover()
+  const tooltip = page.getByRole("tooltip")
+  await expect(tooltip.getByText("Price unknown", { exact: true })).toBeVisible()
+  await expect(tooltip.getByText("Not supported", { exact: true })).toBeVisible()
+  await page.mouse.move(1, 1)
+  await settings.getByRole("tab", { name: "Providers", exact: true }).click()
+  await settings.getByRole("button", { name: "Model list", exact: true }).click()
+  const storedList = settings.getByRole("region", { name: "Model list", exact: true })
+  await storedList.getByRole("button", { name: "Refresh model list", exact: true }).click()
+  await expect(storedList.getByText("Model list ready", { exact: true })).toBeVisible()
+  await storedList.getByRole("button", { name: "Refresh model list", exact: true }).click()
+  await expect(storedList.getByText("The directory rejected this credential", { exact: true })).toBeVisible()
+  await expect(storedList.getByText(/Showing the last successful model list from/)).toBeVisible()
+  await expect(storedList.getByText("Listed Model B", { exact: true })).toBeVisible()
+  await expect(settings.getByText("custom-provider · " + target.path, { exact: true })).toBeInViewport({ ratio: 1 })
+  expect(state.refreshes).toHaveLength(2)
+  const autoSync = storedList.getByRole("switch", { name: "Automatic sync", exact: true })
+  await autoSync.focus()
+  await autoSync.press("Space")
+  await expect(autoSync).toBeChecked()
+  expect(state.saves.at(-1)?.patch.set).toEqual({ discovery: { autoSync: true } })
+  expect(state.saves.at(-1)?.credential).toEqual({ type: "keep" })
+  await autoSync.focus()
+  await autoSync.press("Space")
+  await expect(autoSync).toBeChecked({ checked: false })
+  const source = storedList.getByRole("switch", { name: "Model list source", exact: true })
+  await source.focus()
+  await source.press("Space")
+  await expect(source).toBeChecked({ checked: false })
+  await expect(storedList.getByText("Model list source is off", { exact: true })).toBeVisible()
+  await source.focus()
+  await source.press("Space")
+  await expect(source).toBeChecked()
+  await settings.getByRole("tab", { name: "Models", exact: true }).click()
+  await expect(visibility).toBeChecked({ checked: false })
+  await expect(settings.getByRole("switch", { name: "Listed Model B", exact: true })).toBeChecked()
+  await expect(settings.getByRole("switch", { name: "Candidate C", exact: true })).toHaveCount(0)
+  await settings.getByRole("button", { name: "Edit Listed Model B", exact: true }).click()
+  await form.getByRole("textbox", { name: "Name", exact: true }).first().fill("Personal Model B")
+  await form.getByRole("textbox", { name: "Context window override", exact: true }).fill("128000")
+  await authentication.click()
+  await page.getByRole("listbox").getByRole("option", { name: "Use an existing account", exact: true }).click()
+  await expect(authentication).toHaveText("Use an existing account")
+  await account.click()
+  await page.getByRole("listbox").getByRole("option", { name: "Saved account", exact: true }).click()
+  await expect(account).toHaveText("Saved account")
+  await authentication.click()
+  await page.getByRole("listbox").getByRole("option", { name: "Keep current authentication", exact: true }).click()
+  await expect(authentication).toHaveText("Keep current authentication")
+  await expect(account).toHaveCount(0)
+  await authentication.click()
+  await page.getByRole("listbox").getByRole("option", { name: "Use an existing account", exact: true }).click()
+  await expect(authentication).toHaveText("Use an existing account")
+  await expect(account).toHaveText("Saved account")
+  await authentication.click()
+  await page.getByRole("listbox").getByRole("option", { name: "Add an API key", exact: true }).click()
+  await expect(authentication).toHaveText("Add an API key")
+  await expect(account).toHaveCount(0)
+  await form.getByLabel("API key", { exact: true }).fill("discarded-switch-key")
+  await authentication.click()
+  await page.getByRole("listbox").getByRole("option", { name: "Use an existing account", exact: true }).click()
+  await expect(authentication).toHaveText("Use an existing account")
+  await expect(account).toHaveText("Saved account")
+  await expect(form.getByLabel("API key", { exact: true })).toHaveCount(0)
+  await form.getByRole("button", { name: "Fetch models", exact: true }).click()
+  await expect(form.getByText("Model list ready", { exact: true })).toBeVisible()
+  expect(state.previews.at(-1)?.credential).toEqual({
+    type: "connection",
+    connection: { type: "credential", id: "credential-provider-test" },
+  })
+  await authentication.click()
+  await page.getByRole("listbox").getByRole("option", { name: "Add an API key", exact: true }).click()
+  await expect(form.getByLabel("API key", { exact: true })).toHaveValue("")
+  await form.getByLabel("API key", { exact: true }).fill(" fresh-preview-key ")
+  await form.getByRole("button", { name: "Fetch models", exact: true }).click()
+  await expect(form.getByText("Model list ready", { exact: true })).toBeVisible()
+  expect(state.previews.at(-1)?.credential).toEqual({ type: "key", key: "fresh-preview-key" })
+  expect(state.previews.at(-1)?.definition).toMatchObject({
+    type: "stored",
+    target: { scope: "global", path: target.path },
+    expectedDigest: target.digest,
+  })
+  await form.getByRole("group", { name: "Authentication", exact: true }).getByRole("button").click()
+  await page.getByRole("listbox").getByRole("option", { name: "Keep current authentication", exact: true }).click()
+  await form.getByRole("button", { name: "Save", exact: true }).click()
+  await expect(form).toBeHidden()
+  await expect(settings.getByRole("button", { name: "Edit Personal Model B", exact: true })).toBeVisible()
+  await settings.getByRole("button", { name: "Edit Personal Model B", exact: true }).click()
+  await form.getByRole("button", { name: "Restore Auto", exact: true }).click()
+  await form.getByRole("button", { name: "Save", exact: true }).click()
+  await expect(form).toBeHidden()
+  expect(state.saves.at(-1)?.patch.unset).toContainEqual(["models", "model-b", "name"])
+  expect(state.saves.at(-1)?.patch.unset).toContainEqual(["models", "model-b", "limit", "context"])
+  expect(state.saves.at(-1)?.patch.set?.models?.["model-b"]?.seed).toEqual(savedSeed)
+  await expect(settings.getByRole("switch", { name: "Listed Model B", exact: true })).toBeChecked()
+  await expect(visibility).toBeChecked({ checked: false })
+  await settings.getByRole("tab", { name: "Providers", exact: true }).click()
+  await settings.getByRole("button", { name: "Disable execution", exact: true }).click()
+  await expect(settings.getByText("Execution disabled", { exact: true })).toBeVisible()
+  await settings.getByRole("button", { name: "Allow execution", exact: true }).click()
+  await expect(settings.getByText("Execution allowed", { exact: true })).toBeVisible()
+  await settings.getByRole("button", { name: "Delete this layer", exact: true }).click()
+  await expect(settings.getByText("Add a provider to save its connection and models.", { exact: true })).toBeVisible()
+  expect(state.removed).toBe(true)
+  await settings.getByRole("button", { name: "Add provider", exact: true }).click()
+  await expect(form.getByRole("textbox", { name: "Provider ID", exact: true })).toBeEditable()
+  await form.getByRole("button", { name: "List options", exact: true }).click()
+  await expect(form.getByRole("group", { name: "Model list protocol", exact: true }).getByRole("button")).toBeEnabled()
+  await page.screenshot({ path: testInfo.outputPath("provider-form-en.png") })
+  await form.getByRole("button", { name: "Done", exact: true }).click()
+  await seed(page, { locale: "zh" })
+  await page.setViewportSize({ width: 760, height: 900 })
+  await page.reload()
+  const localizedSettings = page.getByTestId("settings-screen")
+  await expect(localizedSettings.getByRole("heading", { name: "提供商", exact: true })).toBeVisible()
+  await localizedSettings.getByRole("button", { name: "添加提供商", exact: true }).click()
+  const localizedForm = page.getByRole("dialog", { name: "自定义提供商", exact: true })
+  await expect(localizedForm.getByRole("textbox", { name: "提供商 ID", exact: true })).toBeEditable()
+  await localizedForm.getByRole("button", { name: "列表选项", exact: true }).click()
+  await expect(
+    localizedForm.getByRole("group", { name: "模型列表协议", exact: true }).getByRole("button"),
+  ).toBeEnabled()
+  await expect(localizedForm.getByRole("textbox", { name: "自定义模型列表 URL（可选）", exact: true })).toBeEditable()
+  await page.screenshot({ path: testInfo.outputPath("provider-form-zh-narrow.png") })
+})
 
 test("settings has its own route and returns through app history", async ({ page }) => {
   const { settings } = await open(page)
@@ -135,7 +1429,7 @@ test("single-server settings expose scoped pages without a server picker", async
 })
 
 test("project list menus rename, close, edit, add, and stay inside the scrollport", async ({ page }) => {
-  const projects = ["rebase", "dinocms", "opencode", "Playground"].map((name, index) =>
+  const projects = ["rebase", "dinocms", "aigcfroge", "Playground"].map((name, index) =>
     project({ id: `project-${index}`, directory: `/projects/${name}`, name }),
   )
 
@@ -435,7 +1729,7 @@ test.describe("pages open before slow data", () => {
       await expect(settings.getByRole("link", { name: "935 others", exact: true })).toBeVisible()
       await expect(settings.getByRole("button", { name: "Back to app" })).toBeVisible()
 
-      const website = settings.getByRole("link", { name: "www.opencode.ai", exact: true })
+      const website = settings.getByRole("link", { name: "www.aigcfroge.ai", exact: true })
       await website.focus()
 
       const settled = fails
@@ -503,7 +1797,7 @@ test("worktrees follow inventory events, wait for session counts, and delete by 
   // SAFETY: a worktree.updated event carries only the project ID, which is all the app reads from it.
   await view.push([
     { id: "evt_settings_worktree_updated", created: Date.now(), type: "worktree.updated", data: { projectID } },
-  ] as OpenCodeEvent[])
+  ] as AigcForgeEvent[])
   expect((await listed).ok()).toBe(true)
   await expect(settings.getByText(discovered, { exact: true })).toBeVisible()
   expect((await read).ok()).toBe(true)
@@ -632,12 +1926,12 @@ test.describe("worktrees prefetch", () => {
 const lsp: ConfigEntry[] = [
   {
     type: "document",
-    path: "/config/opencode.json",
+    path: "/config/aigcfroge.json",
     info: { lsp: { typescript: { command: ["typescript-language-server", "--stdio"], extensions: [".ts", ".tsx"] } } },
   },
   {
     type: "document",
-    path: `${directory}/opencode.jsonc`,
+    path: `${directory}/aigcfroge.jsonc`,
     info: { lsp: { typescript: { disabled: true }, rust: { command: ["rust-analyzer"], extensions: [".rs"] } } },
   },
 ]
@@ -686,7 +1980,7 @@ for (const row of ["configured", "disabled", "failure"] as const) {
   })
 }
 
-// Zen and the Console account share the id `opencode`: the provider comes from models.dev, the
+// Zen and the Console account share the id `aigcfroge`: the provider comes from models.dev, the
 // integration carries the account sign-in.
 for (const row of [
   { name: "a fresh install offers the Console sign-in", paid: false, connections: [], console: true },
@@ -708,8 +2002,8 @@ for (const row of [
       provider: {
         all: [
           {
-            id: "opencode",
-            name: "OpenCode Zen",
+            id: "aigcfroge",
+            name: "AigcForge Zen",
             models: {
               "claude-sonnet-4-6": {
                 id: "claude-sonnet-4-6",
@@ -719,20 +2013,20 @@ for (const row of [
             },
           },
         ],
-        connected: ["opencode"],
+        connected: ["aigcfroge"],
         default: {},
       },
       integrations: [
         {
-          id: "opencode",
-          name: "OpenCode Console",
+          id: "aigcfroge",
+          name: "AigcForge Console",
           methods: [
-            { id: "device", type: "oauth", label: "OpenCode Console account" },
+            { id: "device", type: "oauth", label: "AigcForge Console account" },
             { type: "key", label: "API key (service account)" },
           ],
           connections: row.connections,
         },
-        { id: "opencode-go", name: "OpenCode Go", methods: [{ type: "key" }], connections: [] },
+        { id: "aigcfroge-go", name: "AigcForge Go", methods: [{ type: "key" }], connections: [] },
         { id: "anthropic", name: "Anthropic", methods: [{ type: "key" }], connections: [] },
       ],
     })
@@ -741,12 +2035,12 @@ for (const row of [
     await expect(settings.getByRole("heading", { name: "Popular providers" })).toBeVisible()
     const connected = settings.locator('[data-component="connected-providers-section"]')
 
-    if (row.paid) await expect(connected.getByText("OpenCode Zen", { exact: true })).toBeVisible()
+    if (row.paid) await expect(connected.getByText("AigcForge Zen", { exact: true })).toBeVisible()
 
     if (!row.paid) await expect(settings.getByText("No connected providers")).toBeVisible()
     // Anthropic only exists in the integration fixture, so its row proves the integration list has loaded.
     await expect(settings.getByText("Anthropic", { exact: true })).toBeVisible()
-    await expect(settings.getByText("OpenCode Console", { exact: true })).toHaveCount(row.console ? 1 : 0)
+    await expect(settings.getByText("AigcForge Console", { exact: true })).toHaveCount(row.console ? 1 : 0)
   })
 }
 
@@ -775,7 +2069,7 @@ test("the add server dialog keeps focus above fullscreen settings", async ({ pag
 test("the add server dialog pairs from a one-time link and explains a spent one", async ({ page }) => {
   const paired = "http://127.0.0.1:4098"
   await mockRemoteServer(page, { directory: "/remote/settings-demo" })
-  await mockOpenCodeServer(page, {
+  await mockAigcForgeServer(page, {
     server: paired,
     directory: "/remote/paired",
     project: project({ id: "proj_paired", directory: "/remote/paired" }),
@@ -805,7 +2099,7 @@ test("the add server dialog pairs from a one-time link and explains a spent one"
 
   const spent = await addServer()
   await expect(spent.getByRole("alert")).toHaveText(
-    "This pairing link expired or was already used. Run opencode pair to get a new one.",
+    "This pairing link expired or was already used. Run aigcfroge pair to get a new one.",
   )
 })
 
@@ -820,7 +2114,7 @@ test("a pairing code with several addresses keeps the first one that works with 
     [first, { code: "spent-by-the-other-address", token: "session-token" }],
     [second, { code: "one-time-code", token: "session-token" }],
   ] as const) {
-    await mockOpenCodeServer(page, {
+    await mockAigcForgeServer(page, {
       server,
       directory: "/remote/paired",
       project: project({ id: "proj_paired", directory: "/remote/paired" }),
@@ -846,20 +2140,16 @@ test("a pairing code with several addresses keeps the first one that works with 
   await expect(settings.getByText(second, { exact: true })).toHaveCount(0)
 })
 
-test("the tab layout preference switches to vertical tabs and survives reload", async ({ page }) => {
-  const { settings } = await open(page)
-  const layout = settings.locator('[data-action="settings-tab-layout"]')
-  await expect(layout).toContainText("Horizontal")
-  await layout.click()
-  await page.getByRole("option", { name: "Vertical" }).click()
-  await expect(layout).toContainText("Vertical")
-  await expect(page.locator('[data-slot="vertical-tabs-sidebar"]')).toBeVisible()
-  await expect(page.locator('[data-slot="titlebar-tabs"]')).toHaveCount(0)
+test("legacy vertical-tab settings keep one navigation and the existing Home layout", async ({ page }) => {
+  const { settings } = await open(page, { seed: { settings: { appearance: { tabLayout: "vertical" } } } })
 
+  await expect(settings.locator('[data-action="settings-tab-layout"]')).toHaveCount(0)
+  await expect(page.locator('[data-slot="vertical-tabs-sidebar"]')).toHaveCount(0)
+  await expect(page.locator('[data-slot="titlebar-v2"]')).toBeVisible()
   await page.reload()
-  await expect(layout).toContainText("Vertical")
-  await expect(page.locator('[data-slot="vertical-tabs-sidebar"]')).toBeVisible()
-  await expect(page.locator('[data-slot="titlebar-tabs"]')).toHaveCount(0)
+  await expect(settings).toBeVisible()
+  await expect(page.locator('[data-slot="vertical-tabs-sidebar"]')).toHaveCount(0)
+  await expect(page.locator('[data-slot="titlebar-v2"]')).toBeVisible()
 })
 
 for (const viewport of [
@@ -867,7 +2157,7 @@ for (const viewport of [
   { name: "mobile", width: 390, height: 844, bottom: true },
 ]) {
   test(`settings layout (${viewport.name}): every page scrolls inside its panel with room below`, async ({ page }) => {
-    await page.route("https://api.github.com/repos/anomalyco/opencode/contributors?*", (route) =>
+    await page.route("https://api.github.com/repos/anomalyco/aigcfroge/contributors?*", (route) =>
       route.fulfill({ json: [] }),
     )
     const { settings } = await open(page)

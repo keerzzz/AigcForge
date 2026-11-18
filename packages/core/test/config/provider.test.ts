@@ -1,19 +1,19 @@
 import { describe, expect } from "bun:test"
-import { Money } from "@opencode/schema/money"
-import { Document, Info, type Entry } from "@opencode/schema/config"
+import { Money } from "@aigcfroge/schema/money"
+import { Document, Info, type Entry } from "@aigcfroge/schema/config"
 import { Effect, Schema } from "effect"
-import { Config } from "@opencode/core/config"
-import { ConfigProviderPlugin } from "@opencode/core/config/plugin/provider"
-import { ConfigNormalize } from "@opencode/core/config/normalize"
-import { Integration } from "@opencode/core/integration"
-import { Model } from "@opencode/core/model"
-import { ModelResolver } from "@opencode/core/model-resolver"
-import { Plugin } from "@opencode/core/plugin"
-import { PluginHost } from "@opencode/core/plugin/host"
-import { AzurePlugin } from "@opencode/core/plugin/provider/azure"
-import { OpenAIPlugin } from "@opencode/core/plugin/provider/openai"
-import { XAIPlugin } from "@opencode/core/plugin/provider/xai"
-import { Provider } from "@opencode/core/provider"
+import { Config } from "@aigcfroge/core/config"
+import { ConfigProviderPlugin } from "@aigcfroge/core/config/plugin/provider"
+import { ConfigNormalize } from "@aigcfroge/core/config/normalize"
+import { Integration } from "@aigcfroge/core/integration"
+import { Model } from "@aigcfroge/core/model"
+import { ModelResolver } from "@aigcfroge/core/model-resolver"
+import { Plugin } from "@aigcfroge/core/plugin"
+import { PluginHost } from "@aigcfroge/core/plugin/host"
+import { AzurePlugin } from "@aigcfroge/core/plugin/provider/azure"
+import { OpenAIPlugin } from "@aigcfroge/core/plugin/provider/openai"
+import { XAIPlugin } from "@aigcfroge/core/plugin/provider/xai"
+import { Provider } from "@aigcfroge/core/provider"
 import { withEnv } from "../fixture/env"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "../plugin/fixture"
@@ -44,15 +44,15 @@ describe("ConfigProviderPlugin.Plugin", () => {
           info: decode({
             providers: {
               custom: {
-                package: "@opencode/ai/providers/openai/responses",
+                package: "@aigcfroge/ai/providers/openai/responses",
                 settings: { compaction: { type: "native" } },
                 models: {
                   native: {},
-                  local: { settings: { compaction: { type: "summary" } }, package: "@opencode/ai/providers/openai/chat" },
-                  unsupported: { package: "@opencode/ai/providers/openai/chat" },
+                  local: { settings: { compaction: { type: "summary" } }, package: "@aigcfroge/ai/providers/openai/chat" },
+                  unsupported: { package: "@aigcfroge/ai/providers/openai/chat" },
                 },
               },
-              default: { package: "@opencode/ai/providers/openai/chat", models: { chat: {} } },
+              default: { package: "@aigcfroge/ai/providers/openai/chat", models: { chat: {} } },
             },
           }),
         }),
@@ -85,7 +85,7 @@ describe("ConfigProviderPlugin.Plugin", () => {
           info: decode({
             providers: {
               custom: {
-                package: "@opencode/ai/providers/openai/responses",
+                package: "@aigcfroge/ai/providers/openai/responses",
                 settings: { transport: "http", timeout: 100, chunkTimeout: 200, shared: "provider" },
                 models: {
                   inherited: {
@@ -93,7 +93,7 @@ describe("ConfigProviderPlugin.Plugin", () => {
                   },
                 },
               },
-              default: { package: "@opencode/ai/providers/openai/responses", models: { untouched: {} } },
+              default: { package: "@aigcfroge/ai/providers/openai/responses", models: { untouched: {} } },
             },
           }),
         }),
@@ -107,10 +107,10 @@ describe("ConfigProviderPlugin.Plugin", () => {
   )
 
   for (const builtin of [
-    { id: "openai", model: "gpt-5.6-sol", package: "@opencode/ai/providers/openai/responses", plugin: OpenAIPlugin },
-    { id: "xai", model: "grok-4.6", package: "@opencode/ai/providers/xai", plugin: XAIPlugin },
-    { id: "azure", model: "gpt-5.6-sol", package: "@opencode/ai/providers/azure/responses", plugin: AzurePlugin },
-    { id: "custom-azure", model: "deployment", package: "@opencode/ai/providers/azure/responses", plugin: AzurePlugin },
+    { id: "openai", model: "gpt-5.6-sol", package: "@aigcfroge/ai/providers/openai/responses", plugin: OpenAIPlugin },
+    { id: "xai", model: "grok-4.6", package: "@aigcfroge/ai/providers/xai", plugin: XAIPlugin },
+    { id: "azure", model: "gpt-5.6-sol", package: "@aigcfroge/ai/providers/azure/responses", plugin: AzurePlugin },
+    { id: "custom-azure", model: "deployment", package: "@aigcfroge/ai/providers/azure/responses", plugin: AzurePlugin },
   ]) {
     it.live(`configured provider transport overrides ${builtin.id} defaults`, () =>
       Effect.gen(function* () {
@@ -507,7 +507,7 @@ describe("ConfigProviderPlugin.Plugin", () => {
       ])
 
       const model = required(yield* models.get(Provider.ID.make("custom"), Model.ID.make("claude")))
-      expect(model.package).toBe("@opencode/ai/providers/anthropic")
+      expect(model.package).toBe("@aigcfroge/ai/providers/anthropic")
       expect(model.variants.map((variant) => variant.id)).toEqual([
         Model.VariantID.make("low"),
         Model.VariantID.make("medium"),
@@ -521,16 +521,16 @@ describe("ConfigProviderPlugin.Plugin", () => {
   it.effect("keeps configured model variant bodies unchanged", () =>
     Effect.gen(function* () {
       const models = yield* Model.Service
-      const providerID = Provider.ID.opencode
+      const providerID = Provider.ID.aigcfroge
       const modelID = Model.ID.make("alpha-gpt-next")
       const entries = [
         new Document({
           type: "document",
           info: decode({
             providers: {
-              opencode: {
+              aigcfroge: {
                 package: "aisdk:@ai-sdk/openai",
-                settings: { baseURL: "https://opencode.test/v1" },
+                settings: { baseURL: "https://aigcfroge.test/v1" },
                 models: {
                   "alpha-gpt-next": {
                     variants: [
@@ -570,16 +570,16 @@ describe("ConfigProviderPlugin.Plugin", () => {
   it.effect("keeps layered model variant bodies unchanged", () =>
     Effect.gen(function* () {
       const models = yield* Model.Service
-      const providerID = Provider.ID.opencode
+      const providerID = Provider.ID.aigcfroge
       const modelID = Model.ID.make("alpha-gpt-next")
       const entries = [
         new Document({
           type: "document",
           info: decode({
             providers: {
-              opencode: {
+              aigcfroge: {
                 package: "aisdk:@ai-sdk/openai",
-                settings: { baseURL: "https://opencode.test/v1" },
+                settings: { baseURL: "https://aigcfroge.test/v1" },
               },
             },
           }),
@@ -588,7 +588,7 @@ describe("ConfigProviderPlugin.Plugin", () => {
           type: "document",
           info: decode({
             providers: {
-              opencode: {
+              aigcfroge: {
                 models: {
                   "alpha-gpt-next": {
                     variants: [{ id: "high", body: { reasoningEffort: "high" } }],

@@ -3,14 +3,16 @@
 // Variants are provider-specific reasoning effort levels (e.g., "high", "max").
 // Resolution priority: CLI --variant flag > valid session history > saved preference.
 //
-// The saved variant persists across sessions in ~/.local/state/opencode/model.json
+// The saved variant persists across sessions in ~/.local/state/aigcfroge/model.json
 // so your last-used variant sticks. Cycling (ctrl+t) updates both the active
 // variant and the persisted file.
 import { createSession, sessionVariant, type RunSession, type SessionMessages } from "./session.shared"
 import type { RunInput, RunProvider } from "./types"
-import { cycleModelVariant, normalizeModelVariant } from "../model-preference"
+import { cycleModelVariant, isModelGroup, normalizeModelVariant } from "../model-preference"
+import type { ModelGroupCurrent } from "@aigcfroge/client/promise"
 
-export function modelInfo(providers: RunProvider[] | undefined, model: NonNullable<RunInput["model"]>) {
+export function modelInfo(providers: RunProvider[] | undefined, model: NonNullable<RunInput["model"]>, groups?: readonly ModelGroupCurrent[]) {
+  if (isModelGroup(model)) return { provider: "Model group", model: groups?.find((group) => group.groupID === model.groupID)?.definition?.name ?? `group:${model.groupID}` }
   const provider = providers?.find((item) => item.id === model.providerID)
   return {
     provider: provider?.name ?? model.providerID,
@@ -22,9 +24,10 @@ export function formatModelLabel(
   model: NonNullable<RunInput["model"]>,
   variant: string | undefined,
   providers?: RunProvider[],
+  groups?: readonly ModelGroupCurrent[],
 ): string {
-  const names = modelInfo(providers, model)
-  const label = variant ? ` · ${variant}` : ""
+  const names = modelInfo(providers, model, groups)
+  const label = variant && !isModelGroup(model) ? ` · ${variant}` : ""
   return `${names.model} · ${names.provider}${label}`
 }
 

@@ -1,10 +1,12 @@
 import { Show, createMemo, type ComponentProps, type JSX } from "solid-js"
-import { ProgressCircle } from "@opencode/ui/progress-circle"
-import { IconButton } from "@opencode/ui/icon-button"
-import { Tooltip } from "@opencode/ui/tooltip"
-import { useI18n } from "@opencode/ui/context/i18n"
+import { ProgressCircle } from "@aigcfroge/ui/progress-circle"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { useI18n } from "@aigcfroge/ui/context/i18n"
 import { useExtension, type MountedSession } from "../sdk"
 import { catalogModel, syncCatalog } from "./catalog"
+import { sessionContextUsage } from "./usage"
+import { createSessionContextFormatter } from "./format"
 
 function ContextTooltipRow(props: { name: JSX.Element; value: JSX.Element }) {
   return (
@@ -44,23 +46,20 @@ export function SessionContextUsage(props: {
   )
 
   const context = createMemo(() => {
-    const message = messages().findLast((item) => item.type === "assistant" && !!item.tokens)
+    const current = sessionContextUsage(messages())
 
-    if (message?.type !== "assistant" || !message.tokens) return
-    const model = catalogModel(props.session, message.model)?.model
-
-    const total =
-      message.tokens.input +
-      message.tokens.output +
-      message.tokens.reasoning +
-      message.tokens.cache.read +
-      message.tokens.cache.write
+    if (!current) return
+    const model = catalogModel(props.session, current.model)?.model
 
     return {
-      total,
-      usage: model?.limit.context ? Math.round((total / model.limit.context) * 100) : null,
+      total: current.total,
+      usage: current.total !== undefined && model?.limit.context
+        ? Math.round((current.total / model.limit.context) * 100)
+        : null,
     }
   })
+
+  const formatter = createMemo(() => createSessionContextFormatter(i18n.locale()))
 
   const cost = createMemo(() => {
     return usd().format(info()?.cost ?? 0)
@@ -96,8 +95,8 @@ export function SessionContextUsage(props: {
   const tooltipValue = () => (
     <div class="flex w-[120px] flex-col gap-2">
       <ContextTooltipRow name={ctx.t("usage.cost")} value={cost()} />
-      <ContextTooltipRow name={ctx.t("usage.usage")} value={`${context()?.usage ?? 0}%`} />
-      <ContextTooltipRow name={ctx.t("usage.tokens")} value={context()?.total.toLocaleString(i18n.locale()) ?? "0"} />
+      <ContextTooltipRow name={ctx.t("usage.usage")} value={formatter().percent(context()?.usage)} />
+      <ContextTooltipRow name={ctx.t("usage.tokens")} value={formatter().number(context()?.total)} />
     </div>
   )
 

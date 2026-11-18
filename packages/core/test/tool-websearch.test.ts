@@ -1,18 +1,18 @@
 import { describe, expect } from "bun:test"
 import { Context, Effect, Layer } from "effect"
 import type { HttpClientError } from "effect/http"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { Permission } from "@opencode/core/permission"
-import { KV } from "@opencode/core/kv"
-import { Form } from "@opencode/core/form"
-import { WebSearch } from "@opencode/core/websearch"
-import { Session } from "@opencode/core/session"
-import { toSessionError } from "@opencode/core/session/to-session-error"
-import { Tool } from "@opencode/core/tool"
-import { WebSearchTool } from "@opencode/core/tool/plugin/websearch"
-import { makeLocationNode } from "@opencode/util/effect/app-node"
-import { Image } from "@opencode/core/image"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Permission } from "@aigcfroge/core/permission"
+import { KV } from "@aigcfroge/core/kv"
+import { Form } from "@aigcfroge/core/form"
+import { WebSearch } from "@aigcfroge/core/websearch"
+import { Session } from "@aigcfroge/core/session"
+import { toSessionError } from "@aigcfroge/core/session/to-session-error"
+import { Tool } from "@aigcfroge/core/tool"
+import { WebSearchTool } from "@aigcfroge/core/tool/plugin/websearch"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { Image } from "@aigcfroge/core/image"
 import { testEffect } from "./lib/effect"
 import { imagePassthrough } from "./lib/image"
 import { permissionLayer } from "./lib/permission"
@@ -227,7 +227,7 @@ describe("WebSearchTool registration", () => {
           fields: [
             {
               key: "choice",
-              description: "Allow OpenCode to search the web for up-to-date information?",
+              description: "Allow AigcForge to search the web for up-to-date information?",
               type: "string",
               required: true,
               custom: false,

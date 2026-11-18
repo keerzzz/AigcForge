@@ -1,5 +1,6 @@
 import { NodeFileSystem, NodeHttpServer } from "@effect/platform-node"
-import { ServerProcess } from "@opencode/server/process"
+import { ServerProcess } from "@aigcfroge/server/process"
+import { AigcForge } from "@aigcfroge/client/promise"
 import { afterAll, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 import { HttpServer, HttpServerError, HttpServerRequest, HttpServerResponse } from "effect/http"
@@ -10,13 +11,15 @@ import path from "node:path"
 import { brotliCompressSync } from "node:zlib"
 import { WebUi } from "../src/services/web-ui"
 import { it } from "../../core/test/lib/effect"
+import { initRepo } from "../../core/test/fixture/git"
 
-const root = await mkdtemp(path.join(tmpdir(), "opencode-web-ui-"))
+const root = await mkdtemp(path.join(tmpdir(), "aigcfroge-web-ui-"))
 afterAll(() => rm(root, { recursive: true, force: true }))
 
 describe("web UI", () => {
   it.live("serves the web shell and assets before server authentication", () =>
     Effect.gen(function* () {
+      yield* Effect.promise(() => initRepo(root))
       const transform = yield* WebUi.handler({
         assets: {
           "index.html": "<html><body>connect</body></html>",
@@ -28,7 +31,15 @@ describe("web UI", () => {
         },
       })
       const server = yield* ServerProcess.start<never, never>(
-        { hostname: "127.0.0.1", port: 0, password: "secret", database: { path: ":memory:" } },
+        {
+          hostname: "127.0.0.1",
+          port: 0,
+          password: "secret",
+          database: { path: ":memory:" },
+          config: { directory: path.join(root, "config"), project: false, content: "{}" },
+          models: { fetch: false },
+          fs: { filewatcher: false },
+        },
         undefined,
         transform,
       )
@@ -64,16 +75,84 @@ describe("web UI", () => {
           yield* Effect.promise(() => response.arrayBuffer())
         }),
       )
+      yield* Effect.forEach(["GET", "POST"], (method) =>
+        Effect.gen(function* () {
+          const response = yield* Effect.promise(() =>
+            fetch(new URL("/api/session/missing/consultation", origin), { method }),
+          )
+          expect(response.status).toBe(401)
+          expect(response.headers.get("www-authenticate")).toBe('Basic realm="Secure Area"')
+          yield* Effect.promise(() => response.arrayBuffer())
+        }),
+      )
+      yield* Effect.forEach(["skill", "command", "prompt", "agent", "mcp", "plugin", "workflow"], (family) =>
+        Effect.gen(function* () {
+          yield* Effect.forEach(
+            [
+              { pathname: `/${family}-asset`, method: "GET" },
+              { pathname: `/${family}-asset/content`, method: "GET" },
+              { pathname: `/session/missing/${family}-asset/apply`, method: "POST" },
+            ],
+            (request) =>
+              Effect.gen(function* () {
+                const response = yield* Effect.promise(() =>
+                  fetch(new URL(request.pathname, origin), { method: request.method }),
+                )
+                expect(response.status).toBe(401)
+                expect(response.headers.get("content-type")).toContain("application/json")
+                yield* Effect.promise(() => response.arrayBuffer())
+              }),
+          )
+        }),
+      )
       const response = yield* Effect.promise(() =>
-        fetch(new URL("/api/info", origin), { headers: { authorization: `Basic ${btoa("opencode:secret")}` } }),
+        fetch(new URL("/api/info", origin), { headers: { authorization: `Basic ${btoa("aigcfroge:secret")}` } }),
       )
       expect(response.status).toBe(200)
       expect(yield* Effect.promise(() => response.json())).toHaveProperty("pid")
 
+      const client = AigcForge.make({
+        baseUrl: origin,
+        headers: { authorization: `Basic ${btoa("aigcfroge:secret")}` },
+      })
+      const session = yield* Effect.promise(() =>
+        client.session.create({ location: { directory: root }, mode: "chat" }),
+      )
+      const candidate = {
+        name: "desktop-route-check",
+        description: "Check the managed server asset route.",
+        template: "Keep {{LITERAL}} unchanged.",
+        relativePath: "desktop-route-check.md",
+      }
+      const inspection = yield* Effect.promise(() =>
+        client["prompt-asset"].inspect({ sessionID: session.id, directory: root, scope: "project", candidate }),
+      )
+      expect(inspection).toMatchObject({ exists: false, target: { scope: "project" } })
+      const saved = yield* Effect.promise(() =>
+        client["prompt-asset"].apply({
+          sessionID: session.id,
+          directory: root,
+          candidate,
+          overwrite: false,
+          target: inspection.target,
+        }),
+      )
+      const content = yield* Effect.promise(() =>
+        client["prompt-asset"].content({ directory: root, scope: "project", path: saved.relativePath }),
+      )
+      expect(content).toMatchObject({
+        template: candidate.template,
+        revision: saved.revision,
+        target: inspection.target,
+      })
+      expect(
+        yield* Effect.promise(() => Bun.file(path.join(root, ".aigcfroge/prompts", candidate.relativePath)).exists()),
+      ).toBe(true)
+
       const pairing = yield* Effect.promise(() =>
         fetch(new URL("/api/pair", origin), {
           method: "POST",
-          headers: { authorization: `Basic ${btoa("opencode:secret")}` },
+          headers: { authorization: `Basic ${btoa("aigcfroge:secret")}` },
         }).then((response) => response.json() as Promise<{ code: string }>),
       )
       const redirect = yield* Effect.promise(() =>
@@ -162,7 +241,7 @@ describe("web UI", () => {
                     version: "test",
                     pid: 1,
                     urls: [origin],
-                    paths: { tmp: "/tmp/opencode" },
+                    paths: { tmp: "/tmp/aigcfroge" },
                   })
                 return yield* Effect.fail(
                   new HttpServerError.HttpServerError({
@@ -179,7 +258,7 @@ describe("web UI", () => {
             version: "test",
             pid: 1,
             urls: [origin],
-            paths: { tmp: "/tmp/opencode" },
+            paths: { tmp: "/tmp/aigcfroge" },
           })
 
           const missing = yield* Effect.promise(() => fetch(`${origin}/api/missing`))

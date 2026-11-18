@@ -45,7 +45,7 @@ function providerIconsPlugin() {
 }
 
 async function fetchProviderIcons() {
-  const url = process.env.OPENCODE_MODELS_URL || "https://models.opencode.ai"
+  const url = process.env.AIGCFROGE_MODELS_URL || "https://models.aigcfroge.ai"
 
   const providers = await fetch(`${url}/api.json`)
     .then((res) => res.json())

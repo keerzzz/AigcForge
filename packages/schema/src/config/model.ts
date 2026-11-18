@@ -16,11 +16,15 @@ const Explicit = Schema.Struct({
 })
 
 const Short = Schema.String.check(Schema.isPattern(/^[^/#]+\/[^#]+(?:#[^#]+)?$/u))
+const GroupShort = Schema.String.check(Schema.isPattern(/^group:[^/#]+$/u))
+// Config normalization returns records for both shorthand forms.
+const Group = Schema.Struct(Model.GroupRef.fields)
+const Normalized = Schema.Union([Explicit, Group])
 
-export interface Selection extends Schema.Schema.Type<typeof Explicit> {}
-export const Selection = Schema.Union([Short, Explicit])
+export type Selection = Schema.Schema.Type<typeof Normalized>
+export const Selection = Schema.Union([GroupShort, Short, Explicit, Group])
   .pipe(
-    Schema.decodeTo(Explicit, {
+    Schema.decodeTo(Normalized, {
       decode: SchemaGetter.transform((input) => (typeof input === "string" ? parse(input) : input)),
       encode: SchemaGetter.passthrough({ strict: false }),
     }),
@@ -28,7 +32,8 @@ export const Selection = Schema.Union([Short, Explicit])
   .annotate({ identifier: "Config.ModelSelection" })
 
 function parse(input: string): Selection {
-  const ref = Model.Ref.parse(input)
+  const ref = Model.Selection.parse(input)
+  if (Model.Selection.isGroup(ref)) return ref
   return {
     providerID: ref.providerID,
     model: ref.id,

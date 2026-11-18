@@ -1,7 +1,7 @@
-import { Worktree } from "@opencode/schema/worktree"
+import { Worktree } from "@aigcfroge/schema/worktree"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/http-api"
-import { Project } from "@opencode/schema/project"
+import { Project } from "@aigcfroge/schema/project"
 import { ProjectNotFoundError } from "../errors.js"
 
 const root = "/api/worktree"

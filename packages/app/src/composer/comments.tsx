@@ -1,8 +1,8 @@
 import { batch, createMemo, createRoot, onCleanup } from "solid-js"
 import { createStore, reconcile, type SetStoreFunction, type Store } from "solid-js/store"
-import { createSimpleContext } from "@opencode/ui/context"
-import { useParams } from "@solidjs/router"
-import { base64Encode } from "@opencode/util/encode"
+import { createSimpleContext } from "@aigcfroge/ui/context"
+import { useSessionParams } from "@/session/content-context"
+import { base64Encode } from "@aigcfroge/util/encode"
 import { Persist, persisted } from "@/runtime/persistence/storage"
 import { useServerSDK } from "@/runtime/server/client"
 import type { ServerScope } from "@/runtime/server/scope"
@@ -80,9 +80,12 @@ function group(comments: LineComment[]) {
 }
 
 function createCommentSessionState(store: Store<CommentStore>, setStore: SetStoreFunction<CommentStore>) {
-  const [state, setState] = createStore({
-    focus: null as CommentFocus | null,
-    active: null as CommentFocus | null,
+  const [state, setState] = createStore<{
+    focus: CommentFocus | null
+    active: CommentFocus | null
+  }>({
+    focus: null,
+    active: null,
   })
 
   // Reuse the previous array when contents are unchanged so consumers keep a stable
@@ -212,7 +215,7 @@ export const { use: useComments, provider: CommentsProvider } = createSimpleCont
   name: "Comments",
   gate: false,
   init: () => {
-    const params = useParams()
+    const params = useSessionParams()
     const sdk = useWorkspaceLocation()
     const serverSDK = useServerSDK()
 

@@ -14,12 +14,12 @@ import { createStore } from "solid-js/store"
 import { Schema } from "effect"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { createMediaQuery } from "@solid-primitives/media"
-import { ResizeHandle } from "@opencode/ui/resize-handle"
+import { ResizeHandle } from "@aigcfroge/ui/resize-handle"
 import {
   SESSION_REVIEW_V2_SIDEBAR_WIDTH_DEFAULT,
   SESSION_REVIEW_V2_SIDEBAR_WIDTH_MAX,
   SESSION_REVIEW_V2_SIDEBAR_WIDTH_MIN,
-} from "@opencode/session-ui/v2/session-review-v2"
+} from "@aigcfroge/session-ui/v2/session-review-v2"
 import {
   Panel,
   PanelContext,
@@ -28,7 +28,7 @@ import {
   type PanelTab,
   type MountedSession,
   type SessionScreen,
-} from "@opencode/gui-extensions/sdk"
+} from "@aigcfroge/gui-extensions/sdk"
 import { same } from "@/runtime/persistence/equality"
 import { Persist, persisted } from "@/runtime/persistence/storage"
 import { Persistence } from "@/runtime/persistence/schema"
@@ -217,18 +217,20 @@ export function createRegion(input: {
   // Hidden tabs keep their place in the strip for selection, focus, and close, but draw no trigger.
   const drawn = createMemo(() => strip().filter((entry) => !entry.tab.hidden))
 
+  const selected = createMemo(() => {
+    const key = active()
+
+    return key ? byKey().get(key) : undefined
+  })
+
   return {
     entries,
     /** Drawn strip order by key. Renders iterate keys so a provider's fresh tab objects never remount a trigger. */
     keys: createMemo(() => drawn().map((entry) => entry.key), [], { equals: same }),
     entry: (key: string) => byKey().get(key),
     active,
-    selected: createMemo(() => {
-      const key = active()
-
-      return key ? byKey().get(key) : undefined
-    }),
-    wide: createMemo(() => providers().some((item) => item.value.wide)),
+    selected,
+    wide: createMemo(() => selected()?.provider.wide ?? false),
     /** An extension's tab ids in the stored strip. */
     openFor: (extension: string) =>
       stored().flatMap((key) => (key.startsWith(`${extension}:`) ? [key.slice(extension.length + 1)] : [])),
@@ -550,6 +552,10 @@ export function MobilePanel(props: {
   visible: boolean
   open: Accessor<readonly string[]>
 }): JSX.Element {
+  const owner = createMemo(() => ({ extension: props.entry.extension, id: props.entry.provider.id }), undefined, {
+    equals: (previous, next) => previous?.extension === next.extension && previous?.id === next.id,
+  })
+
   return (
     <PanelContext.Provider
       value={{
@@ -562,17 +568,21 @@ export function MobilePanel(props: {
         open: props.open,
       }}
     >
-      <Contribution extension={props.entry.extension}>
-        {() =>
-          props.entry.provider.render(
-            panelInput(() => props.view, props.screen, {
-              get tab() {
-                return props.entry.tab
-              },
-            }),
-          )
-        }
-      </Contribution>
+      <Show when={owner()} keyed>
+        {(owner) => (
+          <Contribution extension={owner.extension}>
+            {() =>
+              props.entry.provider.render(
+                panelInput(() => props.view, props.screen, {
+                  get tab() {
+                    return props.entry.tab
+                  },
+                }),
+              )
+            }
+          </Contribution>
+        )}
+      </Show>
     </PanelContext.Provider>
   )
 }

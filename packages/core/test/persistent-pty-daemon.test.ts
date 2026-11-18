@@ -154,12 +154,12 @@ it.live("rejects incompatible daemons without replacing or killing them", () =>
         JSON.stringify({ instance_id: "old", pid: existing.pid, protocol: 6, socket: "/unused", token: "old" }),
       ),
     )
-    const daemon = yield* makeDaemonTransport(root, "daemon", () => Promise.resolve("/missing/opencode-pty"))
+    const daemon = yield* makeDaemonTransport(root, "daemon", () => Promise.resolve("/missing/aigcfroge-pty"))
 
     const optional = yield* Effect.flip(daemon.requestIfRunning({ op: "list" }))
     expect(optional).toMatchObject({
       kind: "protocol",
-      message: "opencode-pty protocol mismatch: daemon=6, client=7",
+      message: "aigcfroge-pty protocol mismatch: daemon=6, client=7",
       pid: existing.pid,
     })
 
@@ -251,7 +251,7 @@ function temporaryRuntime() {
 
 function temporaryDirectory() {
   return Effect.acquireRelease(
-    Effect.promise(() => mkdtemp(path.join(os.tmpdir(), "opencode-pty-test-"))),
+    Effect.promise(() => mkdtemp(path.join(os.tmpdir(), "aigcfroge-pty-test-"))),
     (directory) => Effect.promise(() => rm(directory, { recursive: true, force: true })),
   )
 }

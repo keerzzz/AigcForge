@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/solid */
 import { describe, expect, test } from "bun:test"
-import type { OpenCodeClient, OpenCodeEvent } from "@opencode/client"
+import type { AigcForgeClient, AigcForgeEvent } from "@aigcfroge/client"
 import { testRender } from "@opentui/solid"
 import { onMount } from "solid-js"
 import { ClientProvider, useClient } from "../../../src/context/client"
@@ -17,14 +17,14 @@ async function wait(fn: () => boolean, timeout = 2000) {
   }
 }
 
-function event(payload: OpenCodeEvent, input: { directory: string }): OpenCodeEvent {
+function event(payload: AigcForgeEvent, input: { directory: string }): AigcForgeEvent {
   return {
     ...payload,
     location: { directory: input.directory },
   }
 }
 
-function vcs(branch: string): OpenCodeEvent {
+function vcs(branch: string): AigcForgeEvent {
   return {
     id: `evt_vcs_${branch}`,
     created: 0,
@@ -35,7 +35,7 @@ function vcs(branch: string): OpenCodeEvent {
   }
 }
 
-function update(version: string): OpenCodeEvent {
+function update(version: string): AigcForgeEvent {
   return {
     id: `evt_update_${version}`,
     created: 0,
@@ -46,10 +46,10 @@ function update(version: string): OpenCodeEvent {
   }
 }
 
-async function mount(reconnect?: (signal: AbortSignal) => Promise<{ api: OpenCodeClient }>, log?: LogSink) {
+async function mount(reconnect?: (signal: AbortSignal) => Promise<{ api: AigcForgeClient }>, log?: LogSink) {
   const events = createEventStream()
   const calls = createFetch(undefined, events)
-  const seen: OpenCodeEvent[] = []
+  const seen: AigcForgeEvent[] = []
   const directories: Array<string | undefined> = []
   let client!: ReturnType<typeof useClient>
   let done!: () => void
@@ -78,7 +78,7 @@ async function mount(reconnect?: (signal: AbortSignal) => Promise<{ api: OpenCod
 }
 
 function Probe(props: {
-  seen: OpenCodeEvent[]
+  seen: AigcForgeEvent[]
   directories: Array<string | undefined>
   onReady: (ctx: { client: ReturnType<typeof useClient> }) => void
 }) {

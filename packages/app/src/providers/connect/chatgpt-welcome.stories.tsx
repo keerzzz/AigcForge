@@ -1,5 +1,5 @@
-import { Button } from "@opencode/ui/button"
-import { useDialog } from "@opencode/ui/context/dialog"
+import { Button } from "@aigcfroge/ui/button"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { onMount } from "solid-js"
 import { DialogChatGPTPlanWelcome } from "./chatgpt-welcome"
 

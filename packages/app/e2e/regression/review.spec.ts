@@ -1,12 +1,134 @@
-import type { OpenCodeEvent, SessionMessageInfo } from "@opencode/client/promise"
+import type { AigcForgeEvent, SessionMessageInfo } from "@aigcfroge/client/promise"
 import { expect, test, type Locator, type Page } from "@playwright/test"
-import { base64Encode } from "@opencode/util/encode"
+import { base64Encode } from "@aigcfroge/util/encode"
 import { SERVER, holdRoute, project, provider, session, workspaceKey } from "../utils/app"
-import { mockOpenCodeServer } from "../utils/mock-server"
+import { mockAigcForgeServer } from "../utils/mock-server"
 import { fileDiff, fileNode, openSession } from "../utils/workspace"
 import { expectSessionTitle } from "../utils/waits"
+import { openSidePanel } from "../utils/side-panel"
+import { ConflictError, FileNotFoundError } from "@aigcfroge/protocol/errors"
+import { Schema } from "effect"
 
 test.use({ viewport: { width: 1440, height: 900 } })
+
+test("MC09 Work artifact preserves write ACK, reads the real file, opens its viewer, and rebuilds after deletion", async ({
+  page,
+}, testInfo) => {
+  const content = "# Owner document\n\nActual candidate body 中文.\n"
+  // SAFETY: The file begins absent; the fixture only writes UTF-8 content into this slot.
+  const state = { content: undefined as string | undefined, unreadable: false, writes: 0 }
+  const writeStarted = Promise.withResolvers<void>()
+  const writeReleased = Promise.withResolvers<void>()
+  await openSession(page, {
+    name: "Work Artifact Consumer",
+    sessions: [
+      {
+        id: "ses_work_artifact",
+        title: "Work Artifact Consumer",
+        mode: "work",
+        workContract: {
+          source: "ad-hoc",
+          contractVersion: 1,
+          output: {
+            outputType: "markdown",
+            artifact: { title: "Owner document", filename: "brief.md", relativeDir: "reports" },
+          },
+        },
+      },
+    ],
+    pageMessages: () => ({
+      items: [
+        { id: "msg_work_prompt", type: "user", text: "Prepare the document", time: { created: 1 } },
+        {
+          id: "msg_work_document",
+          type: "assistant",
+          agent: "meta",
+          model: { providerID: "fixture", id: "fixture" },
+          time: { created: 2, completed: 3 },
+          content: [{ id: "part_work_document", type: "text", text: content, time: { created: 2, completed: 3 } }],
+        },
+      ],
+    }),
+    fileContent: () => state.content,
+    fileReadAnswer: (path) =>
+      state.unreadable
+        ? { status: 503, body: { message: "File read temporarily unavailable" } }
+        : state.content === undefined
+          ? {
+              status: 404,
+              body: Schema.encodeSync(FileNotFoundError)(new FileNotFoundError({ path, message: "File is missing" })),
+            }
+          : undefined,
+    async onArtifactApply(input) {
+      if (!input.overwrite && state.content !== undefined)
+        return new ConflictError({ resource: input.relativePath, message: "File exists" })
+      state.content = input.content
+      state.writes++
+      state.unreadable = state.writes === 1
+
+      if (state.writes === 1) {
+        writeStarted.resolve()
+        await writeReleased.promise
+      }
+
+      return {
+        id: `art_write_${state.writes}`,
+        sessionID: input.sessionID,
+        title: input.title,
+        relativePath: input.relativePath,
+        kind: "document",
+        mediaType: "text/markdown",
+        status: "available",
+        createdAt: 1,
+        updatedAt: state.writes,
+      }
+    },
+  })
+  await openSidePanel(page, "Artifacts")
+  const artifact = page.getByRole("region", { name: "Work artifact", exact: true })
+  await expect(artifact.getByRole("textbox", { name: "Relative file path", exact: true })).toHaveValue(
+    "reports/brief.md",
+  )
+
+  try {
+    await artifact.getByRole("button", { name: "Apply", exact: true }).click()
+    await writeStarted.promise
+    const artifactTab = page.locator("#review-panel").getByRole("tab", { name: "Artifacts", exact: true })
+    await artifactTab.locator("..").getByRole("button", { name: "Close tab", exact: true }).click()
+    await expect(artifactTab).toHaveCount(0)
+    await openSidePanel(page, "Artifacts")
+    await expect(artifact.getByRole("button", { name: "Apply", exact: true })).toBeDisabled()
+    expect(state.writes).toBe(1)
+  } finally {
+    writeReleased.resolve()
+  }
+
+  await expect(artifact.getByRole("status")).toHaveText("File written. Could not verify its content; check again.")
+  await expect(artifact.getByRole("button", { name: "Apply", exact: true })).toBeDisabled()
+  expect(state.writes).toBe(1)
+  state.unreadable = false
+  await artifact.getByRole("button", { name: "Check file", exact: true }).click()
+  await expect(artifact.getByRole("status")).toHaveText("Applied. The file matches this candidate.")
+  await artifact.getByRole("button", { name: "Open file", exact: true }).click()
+  await expect(page.locator("#review-panel").getByRole("tab", { name: "brief.md", exact: true })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  )
+  await page.screenshot({ path: testInfo.outputPath("artifact-viewer.png") })
+  state.content = undefined
+  await openSidePanel(page, "Artifacts")
+  await artifact.getByRole("button", { name: "Check file", exact: true }).click()
+  await expect(artifact.getByRole("status")).toHaveText("The written file is missing. Check the path.")
+  await expect(artifact.getByRole("button", { name: "Apply", exact: true })).toBeEnabled()
+  await artifact.getByRole("button", { name: "Apply", exact: true }).click()
+  await expect(artifact.getByRole("status")).toHaveText("Applied. The file matches this candidate.")
+  expect(state.writes).toBe(2)
+  expect(state.content).toBe(content)
+  await page.reload()
+  await openSidePanel(page, "Artifacts")
+  await expect(artifact.getByRole("status")).toHaveText("Applied. The file matches this candidate.")
+  expect(state.writes).toBe(2)
+})
 
 for (const view of ["desktop", "mobile"] as const) {
   test(`offers Git initialization for a project without VCS (${view})`, async ({ page }) => {
@@ -86,7 +208,9 @@ test("Git initialization belongs to its session and refreshes after a session sw
   await expect(pending).toHaveCount(0)
 })
 
-test("a rejected Git init releases its session's button without showing an error in another session", async ({ page }) => {
+test("a rejected Git init releases its session's button without showing an error in another session", async ({
+  page,
+}) => {
   await openSession(page, {
     name: "ReviewInitFailure",
     project: { vcs: undefined },
@@ -114,7 +238,7 @@ test("a rejected Git init releases its session's button without showing an error
 
 test("open file tab browses, searches, and tracks missing files", async ({ page }) => {
   const searches: { query: string; dirs?: string; limit?: number }[] = []
-  const directory = "C:/OpenCode/ReviewOpenFile"
+  const directory = "C:/AigcForge/ReviewOpenFile"
   const files = Array.from({ length: 80 }, (_, index) => `file-${String(index).padStart(2, "0")}.ts`)
 
   const workspace = await openSession(page, {
@@ -136,7 +260,7 @@ test("open file tab browses, searches, and tracks missing files", async ({ page 
     },
     seed: {
       panes: { ses_reviewopenfile: { review: true } },
-      storage: { "opencode.global.dat:review-panel-v2": { sidebarOpened: false } },
+      storage: { "aigcfroge.global.dat:review-panel-v2": { sidebarOpened: false } },
     },
   })
 
@@ -144,11 +268,10 @@ test("open file tab browses, searches, and tracks missing files", async ({ page 
   const sidebar = panel.locator('[data-slot="session-review-v2-sidebar"]')
   const sidebarToggle = panel.getByRole("button", { name: "Toggle file tree" })
   const contextButton = page.getByRole("button", { name: "View context usage" })
-  const openFile = panel.getByRole("button", { name: "Open file" })
   const tab = (name: string) => panel.getByRole("tab", { name, exact: true })
   await contextButton.click()
   await expect(tab("Context")).toHaveAttribute("aria-selected", "true")
-  await openFile.click()
+  await openSidePanel(page, "Open file")
   await expect(tab("Open file")).toHaveAttribute("aria-selected", "true")
   await expect(sidebarToggle).toBeDisabled()
   await expect(sidebar).toBeVisible()
@@ -156,11 +279,22 @@ test("open file tab browses, searches, and tracks missing files", async ({ page 
   await expect(tab("Context")).toHaveAttribute("aria-selected", "true")
   await expect(tab("Open file")).toHaveAttribute("aria-selected", "false")
   await expect(sidebar).toBeHidden()
-  await openFile.click()
+  await openSidePanel(page, "Open file")
   const filter = panel.getByRole("combobox", { name: "Filter files" })
-  await expect(filter).toBeFocused()
+  await expect(filter).toBeEditable()
   await expect(tab("Open file")).toHaveAttribute("aria-selected", "true")
   await expect(panel.getByText("ReviewOpenFile", { exact: true })).toBeVisible()
+  await expect(panel.getByRole("switch", { name: "Preview files", exact: true })).toHaveCount(0)
+  await page.locator('[data-component="composer-editor"]').click()
+  await page.keyboard.press("Control+,")
+  const preferences = page.getByTestId("settings-screen")
+  const preview = preferences.getByRole("switch", { name: "Use temporary file tabs", exact: true })
+
+  await expect(preview).not.toBeChecked()
+  await preview.press("Space")
+  await expect(preview).toBeChecked()
+  await page.locator("[data-titlebar-tab-slot]", { hasText: "ReviewOpenFile" }).click()
+  await expectSessionTitle(page, "ReviewOpenFile")
 
   await panel.getByRole("button", { name: "README.md" }).click()
   await expect(tab("README.md")).toHaveAttribute("aria-selected", "true")
@@ -190,8 +324,8 @@ test("open file tab browses, searches, and tracks missing files", async ({ page 
   await expect(tab("README.md")).toHaveAttribute("aria-selected", "true")
   await expect(panel.getByText("contents:README.md", { exact: true })).toBeVisible()
 
-  await openFile.click()
-  await expect(tab("README.md")).toHaveCount(0)
+  await openSidePanel(page, "Open file")
+  await expect(tab("README.md")).toHaveCount(1)
   await expect(sidebar).toBeVisible()
   await filter.fill("nested")
   const result = panel.getByRole("option", { name: /nested\.ts/ })
@@ -203,7 +337,7 @@ test("open file tab browses, searches, and tracks missing files", async ({ page 
   await expect(panel.getByText("contents:src/nested.ts", { exact: true })).toBeVisible()
   expect(searches).toContainEqual({ query: "nested", dirs: "file", limit: 200 })
 
-  await openFile.click()
+  await openSidePanel(page, "Open file")
   await expect(tab("nested.ts")).toHaveCount(1)
   await expect(tab("Open file")).toHaveAttribute("aria-selected", "true")
   await expect(sidebarToggle).toBeDisabled()
@@ -212,6 +346,7 @@ test("open file tab browses, searches, and tracks missing files", async ({ page 
   await tab("Open file").click()
   await page.keyboard.press("Control+w")
   await expect(tab("Open file")).toHaveCount(0)
+  await tab("nested.ts").click()
   await expect(tab("nested.ts")).toHaveAttribute("aria-selected", "true")
 
   // The file browser beside file tabs keeps its DOM and scroll position across preview and pinned tab switches.
@@ -261,7 +396,7 @@ for (const listed of [false, true]) {
   test(`the open file heading names a subfolder session ${listed ? "after its sidebar project" : "after its folder"}`, async ({
     page,
   }) => {
-    const root = "C:/OpenCode/BrowserRepo"
+    const root = "C:/AigcForge/BrowserRepo"
     const directory = `${root}/packages/app`
     await openSession(page, {
       name: "BrowserRepo",
@@ -282,7 +417,7 @@ for (const listed of [false, true]) {
       },
     })
     const panel = page.locator("#review-panel")
-    await panel.getByRole("button", { name: "Open file" }).click()
+    await openSidePanel(page, "Open file")
     await expect(panel.getByRole("button", { name: "README.md" })).toBeVisible()
     await expect(panel.locator('[data-slot="session-review-v2-sidebar-title"]')).toHaveText(
       listed ? "Custom app" : "app",
@@ -296,9 +431,9 @@ test("context closes the side region only when its button opened it", async ({ p
     name: "ReviewContextOpener",
     seed: {
       storage: {
-        "opencode.global.dat:layout": {
+        "aigcfroge.global.dat:layout": {
           sessionTabs: {
-            [`local\u0000${base64Encode("C:/OpenCode/ReviewContextOpener")}/ses_reviewcontextopener`]: {
+            [`local\u0000${base64Encode("C:/AigcForge/ReviewContextOpener")}/ses_reviewcontextopener`]: {
               all: ["btw"],
               active: "btw",
             },
@@ -334,7 +469,7 @@ test("context closes the side region only when its button opened it", async ({ p
 })
 
 test("file tree expands Windows paths and scrolls long names in both directions", async ({ page }) => {
-  const directory = "C:/OpenCode/OpenFileExpand"
+  const directory = "C:/AigcForge/OpenFileExpand"
   const longFilename = "a-very-long-file-name-that-must-overflow-the-file-sidebar-instead-of-being-truncated.ts"
   const longPath = `frontend/${longFilename}`
   await openSession(page, {
@@ -367,12 +502,12 @@ test("file tree expands Windows paths and scrolls long names in both directions"
     fileContent: (path) => ({ type: "text", content: `contents:${path}` }),
     seed: {
       panes: { ses_openfileexpand: { review: true } },
-      storage: { "opencode.global.dat:review-panel-v2": { sidebarOpened: true } },
+      storage: { "aigcfroge.global.dat:review-panel-v2": { sidebarOpened: true } },
     },
   })
 
   const panel = page.locator("#review-panel")
-  await panel.getByRole("button", { name: "Open file" }).click()
+  await openSidePanel(page, "Open file")
   await expect(panel.getByRole("tab", { name: "Open file" })).toHaveAttribute("aria-selected", "true")
   const sidebar = panel.locator('[data-component="session-review-v2-sidebar-root"]')
   const frontend = panel.locator('[data-slot="file-tree-v2-row"][data-path="frontend"]')
@@ -384,16 +519,27 @@ test("file tree expands Windows paths and scrolls long names in both directions"
   const viewport = sidebar.locator('[data-slot="session-review-v2-sidebar-tree"] .scroll-view__viewport')
   const longRow = panel.getByRole("button", { name: longFilename })
   const status = longRow.locator('[data-slot="file-tree-v2-change"]')
+  const thumb = sidebar.locator('.scroll-view__thumb[data-orientation="horizontal"]')
   await expect(longRow).toBeVisible()
   await expect.poll(() => viewport.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeGreaterThan(0)
   await expect(longRow.locator('[data-slot="file-tree-v2-label"]')).toHaveCSS("text-overflow", "clip")
   await expect(status).toHaveText("A")
   await expect.poll(() => statusInset(status, "right")).toBeLessThanOrEqual(24)
+  const editor = page.locator('[data-component="composer-editor"]')
+  await editor.focus()
+  await editor.hover()
+  await expect(thumb).toHaveCSS("opacity", "0")
+  await viewport.focus()
+  await expect(viewport).toBeFocused()
+  await expect(thumb).toHaveCSS("opacity", "0")
+  await editor.focus()
+  await expect(thumb).toHaveCSS("opacity", "0")
   await viewport.hover()
+  await expect(thumb).toHaveCSS("opacity", "0")
   await page.mouse.wheel(1_000, 0)
+  await expect(thumb).toHaveCSS("opacity", "1")
   await expect.poll(() => viewport.evaluate((element) => element.scrollLeft)).toBeGreaterThan(0)
   await expect.poll(() => statusInset(status, "right")).toBeLessThanOrEqual(24)
-  const thumb = sidebar.locator('.scroll-view__thumb[data-orientation="horizontal"]')
   const scrolled = await viewport.evaluate((element) => element.scrollLeft)
   await dragThumb(page, thumb, -40)
   await expect.poll(() => viewport.evaluate((element) => element.scrollLeft)).toBeLessThan(scrolled)
@@ -423,7 +569,7 @@ test("file tree expands Windows paths and scrolls long names in both directions"
 })
 
 test("a restored file tab keeps the file tree on Files Changed", async ({ page }) => {
-  const directory = "C:/OpenCode/TreeRestore"
+  const directory = "C:/AigcForge/TreeRestore"
   await openSession(page, {
     name: "TreeRestore",
     vcsDiff: [fileDiff("src/changed.ts")],
@@ -432,7 +578,7 @@ test("a restored file tab keeps the file tree on Files Changed", async ({ page }
     seed: {
       panes: { ses_treerestore: { review: true } },
       settings: { general: { showFileTree: true } },
-      storage: { "opencode.global.dat:layout": { fileTree: { opened: true, width: 240, tab: "changes" } } },
+      storage: { "aigcfroge.global.dat:layout": { fileTree: { opened: true, width: 240, tab: "changes" } } },
     },
   })
   const panel = page.locator("#review-panel")
@@ -466,7 +612,7 @@ test("rereads a file each time an artifact link opens it", async ({ page }) => {
       id: "msg_reply",
       type: "assistant",
       agent: "build",
-      model: { id: "test", providerID: "opencode" },
+      model: { id: "test", providerID: "aigcfroge" },
       content: [{ type: "text", text: "Updated [shopping.txt](shopping.txt)." }],
       time: { created: 2, completed: 3 },
     },
@@ -500,7 +646,7 @@ type ImageProbe = { problems: string[]; frames: number; running: boolean }
 
 test("image files keep the review panel painted while loading", async ({ page }) => {
   await page.setViewportSize({ width: 960, height: 900 })
-  const directory = "C:/OpenCode/ReviewImage"
+  const directory = "C:/AigcForge/ReviewImage"
   const image = "assets/preview.png"
   const read = Promise.withResolvers<void>()
   const release = Promise.withResolvers<void>()
@@ -588,7 +734,7 @@ test("restores review state and the side-panel tab per session", async ({ page }
     { id: "ses_review_state_c", title: "Gamma review state" },
   ]
 
-  const directory = "C:/OpenCode/ReviewState"
+  const directory = "C:/AigcForge/ReviewState"
   await openSession(page, {
     name: "ReviewState",
     sessions,
@@ -619,7 +765,7 @@ test("restores review state and the side-panel tab per session", async ({ page }
   await toggle.click()
   await page.getByRole("button", { name: "gamma.ts" }).click()
   await selectedFile("gamma.ts")
-  await panel.getByRole("button", { name: "Open file" }).click()
+  await openSidePanel(page, "Open file")
   await panel.getByRole("button", { name: "README.md" }).click()
   await selectedTab("README.md")
 
@@ -635,7 +781,7 @@ test("restores review state and the side-panel tab per session", async ({ page }
 
   await switchSession("Gamma review state")
   await toggle.click()
-  await panel.getByRole("button", { name: "Open file" }).click()
+  await openSidePanel(page, "Open file")
   await selectedTab("Open file")
 
   await switchSession("Alpha review state")
@@ -666,7 +812,7 @@ test("restores review state and the side-panel tab per session", async ({ page }
   await selectedTab("README.md")
   await page.keyboard.press("Control+w")
   await expect(panel.getByRole("tab", { name: "README.md", exact: true })).toHaveCount(0)
-  await expect(review).toHaveAttribute("aria-selected", "true")
+  await selectedTab("Open file")
 })
 
 test("shows and restores last turn changes from the session diff", async ({ page }) => {
@@ -693,7 +839,7 @@ test("shows and restores last turn changes from the session diff", async ({ page
 })
 
 test("keeps the review state a session stored before extensions", async ({ page }) => {
-  const directory = "C:/OpenCode/ReviewLegacy"
+  const directory = "C:/AigcForge/ReviewLegacy"
   await openSession(page, {
     name: "ReviewLegacy",
     vcs: { current: "feature", default: "dev" },
@@ -701,7 +847,7 @@ test("keeps the review state a session stored before extensions", async ({ page 
       mode === "branch" ? [fileDiff("alpha.ts"), fileDiff("beta.ts")] : [fileDiff("alpha.ts"), fileDiff("gamma.ts")],
     seed: {
       storage: {
-        "opencode.global.dat:layout": {
+        "aigcfroge.global.dat:layout": {
           sessionView: {
             [`local\u0000${base64Encode(directory)}/ses_reviewlegacy`]: {
               scroll: {},
@@ -742,10 +888,10 @@ test("keeps the review state a session stored before extensions", async ({ page 
 })
 
 test("desktop review waits for the session's stored mode before it loads changes", async ({ page }) => {
-  const directory = "C:/OpenCode/ReviewDesktop"
+  const directory = "C:/AigcForge/ReviewDesktop"
   const id = "ses_review_desktop"
   const title = "Desktop review"
-  await mockOpenCodeServer(page, {
+  await mockAigcForgeServer(page, {
     directory,
     project: project({ id: "proj_review_desktop", directory }),
     provider: provider(),
@@ -833,6 +979,56 @@ test("a chosen mode the session stops offering shows as Git, and comes back when
   await expect(file).toHaveText("beta.ts")
 })
 
+test("review keeps its changed-file tree and filter usable while Files are hidden", async ({ page }, testInfo) => {
+  const title = "Review without Files"
+  const directory = "C:/AigcForge/ReviewWithoutFiles"
+  await openSession(page, {
+    name: title,
+    directory,
+    vcsDiff: [fileDiff("alpha.ts"), fileDiff("beta.ts")],
+    fileList: () => [fileNode(directory, "alpha.ts"), fileNode(directory, "beta.ts")],
+    fileContent: (path) => `contents:${path}`,
+  })
+  await page.getByRole("button", { name: "Toggle review", exact: true }).click()
+  const panel = page.locator("#review-panel")
+  const sidebar = panel.locator('[data-slot="session-review-v2-sidebar"]')
+  const selected = panel.locator('[data-slot="session-review-v2-file-name"]')
+  await expect(sidebar.getByRole("button", { name: "alpha.ts", exact: true })).toBeVisible()
+  await expect(sidebar.getByRole("button", { name: "beta.ts", exact: true })).toBeVisible()
+
+  await page.locator('[data-component="composer-editor"]').click()
+  await page.keyboard.press("Control+,")
+  const settings = page.getByTestId("settings-screen")
+  const files = settings.getByRole("switch", { name: "Show Files", exact: true })
+  await expect(files).toBeChecked()
+  await expect(settings.getByRole("switch", { name: "Show Review", exact: true })).toBeChecked()
+  await files.press("Space")
+  await expect(files).not.toBeChecked()
+  await page.locator("[data-titlebar-tab-slot]", { hasText: title }).click()
+  await expectSessionTitle(page, title)
+
+  await expect(page.locator("#session-side-panel-review-tab")).toHaveAttribute("aria-selected", "true")
+  await expect(sidebar.getByRole("button", { name: "alpha.ts", exact: true })).toBeVisible()
+  await sidebar.getByRole("button", { name: "beta.ts", exact: true }).click()
+  await expect(selected).toHaveText("beta.ts")
+  await page.screenshot({ path: testInfo.outputPath("review-tree-files-hidden.png") })
+
+  const filter = sidebar.getByLabel("Filter files", { exact: true })
+  await filter.fill("alpha")
+  await expect(sidebar.getByRole("button", { name: "beta.ts", exact: true })).toHaveCount(0)
+  await sidebar.getByRole("button", { name: "alpha.ts", exact: true }).click()
+  await expect(selected).toHaveText("alpha.ts")
+  await page.screenshot({ path: testInfo.outputPath("review-filter-files-hidden.png") })
+  await filter.fill("")
+  await sidebar.getByRole("button", { name: "beta.ts", exact: true }).click()
+  await expect(selected).toHaveText("beta.ts")
+  await page.reload()
+  await expectSessionTitle(page, title)
+  await expect(sidebar.getByRole("button", { name: "alpha.ts", exact: true })).toBeVisible()
+  await expect(sidebar.getByRole("button", { name: "beta.ts", exact: true })).toBeVisible()
+  await expect(selected).toHaveText("beta.ts")
+})
+
 test("names a single change source and keeps the review header rows at 48px", async ({ page }) => {
   // Turn changes are offered only for Git, so another VCS offers one source.
   await openSession(page, { name: "ReviewHeader", project: { vcs: "hg" }, vcsDiff: [fileDiff("src/alpha.ts")] })
@@ -893,7 +1089,7 @@ for (const direction of ["ltr", "rtl"] as const) {
 
     for (const control of [
       panel.locator('[data-slot="session-side-panel-actions"]'),
-      panel.getByRole("button", { name: "Open file", exact: true }),
+      panel.getByRole("button", { name: "Add tab", exact: true }),
     ]) {
       await expect
         .poll(async () => {
@@ -955,7 +1151,7 @@ async function statusInset(status: Locator, side: "left" | "right") {
   }, side)
 }
 
-function filesystemEvent(directory: string, file: string, event: "add" | "change" | "unlink"): OpenCodeEvent {
+function filesystemEvent(directory: string, file: string, event: "add" | "change" | "unlink"): AigcForgeEvent {
   return {
     id: `evt_${file}_${event}`,
     created: 1,

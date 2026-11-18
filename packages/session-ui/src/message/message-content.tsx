@@ -1,23 +1,25 @@
 import { createEffect, createMemo, createSignal, For, onCleanup, Show, type ComponentProps, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useData } from "../context"
-import { useDialog } from "@opencode/ui/context/dialog"
-import { useI18n } from "@opencode/ui/context/i18n"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { useI18n } from "@aigcfroge/ui/context/i18n"
 import { Markdown } from "../components/markdown"
-import { ImagePreview } from "@opencode/ui/image-preview"
-import { getFilename } from "@opencode/util/path"
+import { ImagePreview } from "@aigcfroge/ui/image-preview"
+import { getFilename } from "@aigcfroge/util/path"
 import { AttachmentCard } from "./attachment-card"
 import { CommentCard } from "./comment-card"
+import { AssistantAttemptsPopover } from "./attempt-details"
 import { TimelineSeparator } from "../components/timeline-separator"
-import { Tooltip } from "@opencode/ui/tooltip"
-import { IconButton } from "@opencode/ui/icon-button"
-import { Icon } from "@opencode/ui/icon"
-import { Button } from "@opencode/ui/button"
-import { TextReveal } from "@opencode/ui/text-reveal"
-import { TextShimmer } from "@opencode/ui/text-shimmer"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { Icon } from "@aigcfroge/ui/icon"
+import { SessionProgressIndicatorV2 } from "../v2/components/session-progress-indicator-v2"
+import { Button } from "@aigcfroge/ui/button"
+import { TextReveal } from "@aigcfroge/ui/text-reveal"
+import { TextShimmer } from "@aigcfroge/ui/text-shimmer"
 import { BasicTool } from "../components/basic-tool"
 import { reasoningHeading } from "../timeline/projection"
-import { Card } from "@opencode/ui/card"
+import { Card } from "@aigcfroge/ui/card"
 import type {
   PromptAgentAttachment,
   PromptFileAttachment,
@@ -25,8 +27,16 @@ import type {
   SessionMessageAssistantReasoning,
   SessionMessageCompaction,
   SessionMessageUser,
-} from "@opencode/client/promise"
-import type { SessionUserActions, SessionUserAttachmentReference, SessionUserComment } from "../actions"
+  ModelSelection,
+} from "@aigcfroge/client/promise"
+import type { SessionReference } from "@aigcfroge/schema/session-reference"
+import type {
+  SessionResponseActionInput,
+  SessionResponseActions,
+  SessionUserActions,
+  SessionUserAttachmentReference,
+  SessionUserComment,
+} from "../actions"
 import { attached, typeLabel } from "../components/message-file"
 
 export async function writeClipboard(text: string): Promise<boolean> {
@@ -60,8 +70,18 @@ export async function writeClipboard(text: string): Promise<boolean> {
 function modelLabel(
   data: ReturnType<typeof useData>,
   i18n: ReturnType<typeof useI18n>,
-  model: SessionMessageAssistant["model"],
+  model: ModelSelection,
 ) {
+  if ("type" in model) {
+    const group = data.store.modelGroups?.find((group) => group.groupID === model.groupID)
+    const unavailable = group ? group.unavailable : data.store.modelGroups ? "missing" : undefined
+    const name = group?.definition?.name || model.groupID
+
+    return unavailable ? i18n.t("ui.message.modelGroupUnavailable", {
+      name, reason: i18n.t(`ui.modelAttempts.group.${unavailable}`),
+    }) : i18n.t("ui.message.modelGroup", { name })
+  }
+
   const name = data.store.provider?.all?.get(model.providerID)?.models?.[model.id]?.name ?? model.id
 
   if (!model.variant || model.variant === "default") return name
@@ -250,10 +270,11 @@ export function CurrentUserMessageDisplay(props: {
   message: SessionMessageUser
   text: string
   agent: string
-  model: SessionMessageAssistant["model"]
+  model: ModelSelection
   actions?: SessionUserActions
   comments?: SessionUserComment[]
   references?: SessionUserAttachmentReference[]
+  sessionReferences?: SessionReference.MentionEncoded[]
 }) {
   const data = useData()
   const dialog = useDialog()
@@ -273,7 +294,11 @@ export function CurrentUserMessageDisplay(props: {
   const metaHead = createMemo(() => {
     const agent = props.agent
 
-    return [waiting() ? i18n.t("ui.message.pending") : "", agent ? agent[0]?.toUpperCase() + agent.slice(1) : "", model()]
+    return [
+      waiting() ? i18n.t("ui.message.pending") : "",
+      agent ? agent[0]?.toUpperCase() + agent.slice(1) : "",
+      model(),
+    ]
       .filter(Boolean)
       .join("\u00A0\u00B7\u00A0")
   })
@@ -368,7 +393,7 @@ export function CurrentUserMessageDisplay(props: {
       >
         <div data-slot="user-message-body">
           <div data-slot="user-message-text" dir="auto" data-comments={comments().length > 0 ? "true" : undefined}>
-            <CurrentHighlightedText text={props.text} files={inlineFiles()} agents={agents()} />
+            <CurrentHighlightedText text={props.text} files={inlineFiles()} agents={agents()} sessions={props.sessionReferences ?? []} />
             <Show when={comments().length > 0}>
               <UserMessageComments comments={comments()} bounded />
             </Show>
@@ -453,7 +478,11 @@ function CurrentHighlightedText(props: {
   text: string
   files: PromptFileAttachment[]
   agents: PromptAgentAttachment[]
+  sessions: SessionReference.MentionEncoded[]
 }) {
+  const data = useData()
+  const i18n = useI18n()
+
   const segments = createMemo(() => {
     const references = [
       ...props.files.flatMap((file) =>
@@ -462,6 +491,7 @@ function CurrentHighlightedText(props: {
       ...props.agents.flatMap((agent) =>
         agent.mention ? [{ start: agent.mention.start, end: agent.mention.end, type: "agent" as const }] : [],
       ),
+      ...props.sessions.map((mention) => ({ start: mention.start, end: mention.end, type: "session" as const, reference: mention.reference })),
     ].sort((a, b) => a.start - b.start)
 
     const result: HighlightSegment[] = []
@@ -470,7 +500,7 @@ function CurrentHighlightedText(props: {
       if (reference.start < last) return
 
       if (reference.start > last) result.push({ text: props.text.slice(last, reference.start) })
-      result.push({ text: props.text.slice(reference.start, reference.end), type: reference.type })
+      result.push({ text: props.text.slice(reference.start, reference.end), type: reference.type, reference: reference.type === "session" ? reference.reference : undefined })
       last = reference.end
     })
 
@@ -482,18 +512,30 @@ function CurrentHighlightedText(props: {
   return (
     <For each={segments()}>
       {(segment) => (
-        <span data-highlight={segment.type}>
-          <Show when={segment.type && segment.text.startsWith("@")} fallback={segment.text}>
-            <span data-slot="user-message-mention-prefix">@</span>
-            {segment.text.slice(1)}
-          </Show>
-        </span>
+        <Show when={segment.reference} fallback={<span data-highlight={segment.type}>
+          <Show when={segment.type && segment.text.startsWith("@")} fallback={segment.text}><span data-slot="user-message-mention-prefix">@</span>{segment.text.slice(1)}</Show>
+        </span>}>
+          {(reference) => {
+            const state = () => data.sessionReferenceState?.(reference())
+            const title = () => state()?.title ?? reference().title
+            const status = () => state()?.status ?? "unknown"
+
+            return <Tooltip value={i18n.t(`ui.message.sessionReference.${status()}`, { title: title(), server: reference().serverID })}>
+              <button data-slot="user-message-session-reference" data-highlight="session" type="button"
+                aria-label={i18n.t("ui.message.sessionReference.label", { title: title(), server: reference().serverID })}
+                disabled={!data.openSessionReference || status() === "missing" || status() === "disconnected"}
+                onClick={() => data.openSessionReference?.(reference())}>
+                <span data-slot="user-message-mention-prefix">@</span><span>{title()}</span>
+              </button>
+            </Tooltip>
+          }}
+        </Show>
       )}
     </For>
   )
 }
 
-type HighlightSegment = { text: string; type?: "file" | "agent" }
+type HighlightSegment = { text: string; type?: "file" | "agent" | "session"; reference?: SessionReference.RefEncoded }
 
 /** A compaction the server admitted but has not started, drawn as the divider a started one opens with. */
 export function SessionCompactionQueued() {
@@ -604,6 +646,9 @@ export function AssistantTextContent(props: {
   text: string
   message: SessionMessageAssistant
   showCopy: boolean
+  response?: SessionResponseActionInput
+  responseActions?: SessionResponseActions
+  attempts?: readonly SessionMessageAssistant[]
   turnDurationMs?: number | null
 }) {
   const data = useData()
@@ -677,6 +722,8 @@ export function AssistantTextContent(props: {
               onClick={copy}
               aria-label={copied() ? i18n.t("ui.message.copied") : i18n.t("ui.message.copyResponse")}
             />
+            {props.response && props.responseActions?.(props.response)}
+            <AssistantAttemptsPopover messages={props.attempts ?? [props.message]} />
             <Show when={meta()}>
               <span data-slot="text-part-meta" class="text-12-regular text-text-weak cursor-default">
                 {meta()}
@@ -721,7 +768,7 @@ export function AssistantReasoningContent(props: {
   return (
     <div data-component="reasoning-part" data-timeline-part-id={props.id}>
       <BasicTool
-        icon="mcp"
+        icon="brain"
         status={props.streaming ? "running" : "completed"}
         compact
         hasContent
@@ -736,6 +783,11 @@ export function AssistantReasoningContent(props: {
         trigger={
           <div data-slot="basic-tool-tool-info-structured">
             <div data-slot="basic-tool-tool-info-main">
+              <span data-slot="tool-summary-icon" data-working={props.streaming ? "" : undefined} aria-hidden="true">
+                <Show when={props.streaming} fallback={<Icon name="brain" size="small" />}>
+                  <SessionProgressIndicatorV2 />
+                </Show>
+              </span>
               <span data-slot="basic-tool-tool-title">
                 <TextShimmer
                   text={i18n.t(props.streaming ? "ui.sessionTurn.status.thinking" : "ui.message.thought")}

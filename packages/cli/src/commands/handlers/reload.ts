@@ -1,7 +1,7 @@
 import { EOL } from "node:os"
 import { Effect, Option } from "effect"
-import { OpenCode } from "@opencode/client"
-import { Service } from "@opencode/client/effect/service"
+import { AigcForge } from "@aigcfroge/client"
+import { Service } from "@aigcfroge/client/effect/service"
 import { Commands } from "../commands"
 import { Runtime } from "../../framework/runtime"
 import { ServerConnection } from "../../services/server-connection"
@@ -13,7 +13,7 @@ export default Runtime.handler(
       server: Option.getOrUndefined(input.server),
       standalone: input.standalone,
     })
-    const client = OpenCode.make({ baseUrl: server.endpoint.url, headers: Service.headers(server.endpoint) })
+    const client = AigcForge.make({ baseUrl: server.endpoint.url, headers: Service.headers(server.endpoint) })
     yield* Effect.tryPromise({
       try: (signal) => client.location.reload({ signal }),
       catch: (cause) => cause,

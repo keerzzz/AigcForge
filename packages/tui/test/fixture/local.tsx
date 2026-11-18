@@ -1,5 +1,5 @@
 import { testRender } from "@opentui/solid"
-import type { AgentInfo, ModelInfo, SessionInfo } from "@opencode/client"
+import type { AgentInfo, ModelInfo, SessionInfo, ModelGroupRead } from "@aigcfroge/client"
 import path from "node:path"
 import { ConfigProvider } from "../../src/config"
 import { ArgsProvider, type Args } from "../../src/context/args"
@@ -22,6 +22,7 @@ import { createTuiResolvedConfig } from "./tui-runtime"
 export async function renderLocal(
   input: {
     models?: ModelInfo[]
+    groups?: ModelGroupRead
     agents?: AgentInfo[]
     sessions?: SessionInfo[]
     preferences?: Partial<ModelPreference>
@@ -38,6 +39,7 @@ export async function renderLocal(
     const location = { directory: url.searchParams.get("location[directory]") ?? directory }
     if (url.pathname === "/api/agent") return json({ location, data: input.agents ?? [agent("build")] })
     if (url.pathname === "/api/model") return json({ location, data: input.models ?? [model("first")] })
+    if (url.pathname === "/api/model/group") return json({ location, data: input.groups ?? { targets: [], definitions: [], effective: [] } })
     const session = input.sessions?.find((session) => url.pathname === `/api/session/${session.id}`)
     if (session) return json({ data: session })
   }, events)
@@ -138,6 +140,7 @@ export function agent(id: string, selected?: AgentInfo["model"]): AgentInfo {
     mode: "primary",
     hidden: false,
     permissions: [],
+    handoffs: [],
     request: { settings: {}, headers: {}, body: {} },
   }
 }

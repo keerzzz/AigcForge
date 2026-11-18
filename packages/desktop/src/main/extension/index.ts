@@ -30,7 +30,7 @@ export interface Interface {
   readonly configure: (window: number, servers: readonly ExtensionEndpoint[]) => void
 }
 
-export class Service extends Context.Service<Service, Interface>()("opencode/desktop/Extensions") {}
+export class Service extends Context.Service<Service, Interface>()("aigcfroge/desktop/Extensions") {}
 
 export const layer = Layer.effect(
   Service,

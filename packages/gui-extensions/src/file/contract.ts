@@ -1,5 +1,5 @@
 import type { Component, JSX } from "solid-js"
-import type { ArtifactKind } from "@opencode/util/artifact"
+import type { ArtifactKind } from "@aigcfroge/util/artifact"
 import type { ChangeKind } from "../review/contract"
 import { Contract, Registry, type MountedSession, type SessionScreen } from "../sdk"
 
@@ -40,9 +40,9 @@ export interface OpenInAppProps {
   readonly session: MountedSession
 }
 
-/** The desktop "Open in" button, for a panel header that shows it in place of the tab strip's. */
+/** The desktop "Open in" button for file and review panel toolbars. */
 export interface OpenInApp {
-  /** Renders nothing on the web or for a remote server. While it is mounted, the tab strip leaves out its own. */
+  /** Opens the workspace directory. Renders nothing on the web or for a remote server. */
   Button(props: OpenInAppProps): JSX.Element
 }
 

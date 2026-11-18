@@ -236,7 +236,7 @@ export function commandFailureDetail(code: number | null, output: { stdout: stri
   // The CLI may report failures on stdout. Never include its private bootstrap
   // response in diagnostic text, even if shutdown fails after printing it.
   const stdout = output.stdout
-    .replace(/OPENCODE_SSH_REGISTRATION_BEGIN[\s\S]*?(?:OPENCODE_SSH_REGISTRATION_END|$)/g, "")
+    .replace(/AIGCFROGE_SSH_REGISTRATION_BEGIN[\s\S]*?(?:AIGCFROGE_SSH_REGISTRATION_END|$)/g, "")
     .trim()
 
   return [output.stderr.trim(), stdout].filter(Boolean).join("\n") || JSON.stringify({ exitCode: code })

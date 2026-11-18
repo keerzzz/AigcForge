@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 import { createData, type CreateDataInput } from "../src/solid"
-import { OpenCode, type OpenCodeEvent, type SessionInboxCompaction, type SessionInboxInfo } from "../src/promise"
+import { AigcForge, type AigcForgeEvent, type SessionInboxCompaction, type SessionInboxInfo } from "../src/promise"
 
 test("admits compaction before model setup and serializes the following prompt", async () => {
   using fixture = setup()
@@ -361,8 +361,8 @@ function setup(override?: (request: Request) => Promise<Response | undefined>) {
   const proposals: string[] = []
   const pending: SessionInboxInfo[] = []
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
-  const api = OpenCode.make({
-    baseUrl: "http://opencode.local",
+  const api = AigcForge.make({
+    baseUrl: "http://aigcfroge.local",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
       const overridden = await override?.(request)
@@ -402,7 +402,7 @@ function setup(override?: (request: Request) => Promise<Response | undefined>) {
     }),
     dispose,
   }))
-  const emit = (details: OpenCodeEvent) => listeners.forEach((listener) => listener({ name: details.type, details }))
+  const emit = (details: AigcForgeEvent) => listeners.forEach((listener) => listener({ name: details.type, details }))
   return {
     data: root.data,
     api,

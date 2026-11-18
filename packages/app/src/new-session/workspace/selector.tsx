@@ -1,10 +1,12 @@
-import { createMemo, createSignal, For, Show } from "solid-js"
+import { createMemo, createSignal, For, Show, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
-import { Menu } from "@opencode/ui/menu"
-import { Tooltip } from "@opencode/ui/tooltip"
-import { Icon } from "@opencode/ui/icon"
-import { getFilename, sameDirectory } from "@opencode/util/path"
+import { Menu } from "@aigcfroge/ui/menu"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { Icon } from "@aigcfroge/ui/icon"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { TextInput } from "@aigcfroge/ui/text-input"
+import { getFilename, sameDirectory } from "@aigcfroge/util/path"
 import { useLanguage } from "@/runtime/i18n/language"
 
 export function PromptWorkspaceSelector(props: {
@@ -224,14 +226,14 @@ export function PromptWorkspaceSelector(props: {
                       <Show when={props.workspaces.length >= 10}>
                         <div class="flex h-7 items-center gap-2 rounded-sm ps-3 pe-2 text-v2-icon-icon-muted">
                           <Icon name="magnifying-glass" size="small" class="shrink-0" />
-                          <input
+                          <TextInput
                             ref={(element) => {
                               searchInput = element
                             }}
                             value={search.workspaces}
                             placeholder={language.t("session.new.workspace.search.placeholder")}
                             aria-label={language.t("session.new.workspace.search.placeholder")}
-                            class="h-7 min-w-0 flex-1 border-0 bg-transparent text-[13px] font-[440] leading-5 tracking-[-0.04px] text-v2-text-text-base outline-none placeholder:text-v2-text-text-faint"
+                            class="min-w-0 !w-auto !flex-1"
                             onInput={(event) => setSearch("workspaces", event.currentTarget.value)}
                             onKeyDown={(event) => {
                               if (
@@ -329,14 +331,14 @@ export function PromptWorkspaceSelector(props: {
               >
                 <div class="flex h-7 shrink-0 items-center gap-2 rounded-sm pl-3 pr-1 text-v2-icon-icon-muted">
                   <Icon name="magnifying-glass" size="small" class="shrink-0" />
-                  <input
+                  <TextInput
                     ref={(element) => {
                       branchSearchInput = element
                     }}
                     value={search.branches}
                     placeholder={language.t("session.new.workspace.branch.search.placeholder")}
                     aria-label={language.t("session.new.workspace.branch.search.placeholder")}
-                    class="h-7 min-w-0 flex-1 border-0 bg-transparent text-[13px] font-[440] leading-5 tracking-[-0.04px] text-v2-text-text-base outline-none placeholder:text-v2-text-text-faint"
+                    class="min-w-0 !w-auto !flex-1"
                     onInput={(event) => {
                       setSearch("branches", event.currentTarget.value)
                       props.onSearch(event.currentTarget.value)
@@ -353,18 +355,21 @@ export function PromptWorkspaceSelector(props: {
                     }}
                   />
                   <Show when={search.branches.trim()}>
-                    <button
+                    <IconButton
+                      variant="ghost-muted"
+                      size="small"
                       type="button"
-                      class="flex size-5 items-center justify-center rounded-sm bg-transparent text-v2-icon-icon-faint transition-colors hover:text-v2-icon-icon-base focus-visible:text-v2-icon-icon-base active:text-v2-icon-icon-base"
-                      onPointerDown={(event) => event.preventDefault()}
+                      class="shrink-0"
+                      onPointerDown={(event: Parameters<JSX.EventHandler<HTMLButtonElement, PointerEvent>>[0]) =>
+                        event.preventDefault()
+                      }
                       onClick={() => {
                         setSearch("branches", "")
                         props.onSearch("")
                       }}
                       aria-label={language.t("common.clear")}
-                    >
-                      <Icon name="circle-xmark" />
-                    </button>
+                      icon={<Icon name="circle-xmark" />}
+                    />
                   </Show>
                 </div>
                 <div class="max-h-[224px] overflow-y-auto">

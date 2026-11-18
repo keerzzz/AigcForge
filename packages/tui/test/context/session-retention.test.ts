@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
-import type { OpenCodeEvent } from "@opencode/client"
-import { createData } from "@opencode/client/solid"
+import type { AigcForgeEvent } from "@aigcfroge/client"
+import { createData } from "@aigcfroge/client/solid"
 import { createGlobalEmitter } from "@solid-primitives/event-bus"
 import { createRoot, createSignal } from "solid-js"
 import { createSessionRetention } from "../../src/context/session-retention"
@@ -9,7 +9,7 @@ import { createApi, createFetch, directory, json } from "../fixture/tui-client"
 function setup(options: { keep?: string[]; current?: string; limit?: number } = {}) {
   return createRoot((dispose) => {
     const events = createGlobalEmitter<{
-      [Type in OpenCodeEvent["type"]]: Extract<OpenCodeEvent, { type: Type }>
+      [Type in AigcForgeEvent["type"]]: Extract<AigcForgeEvent, { type: Type }>
     }>()
     const api = createApi(
       createFetch((url) => {

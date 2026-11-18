@@ -1,12 +1,12 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@opencode/cli",
+  "name": "@aigcfroge/cli",
   "version": "2.0.26",
   "type": "module",
   "license": "MIT",
   "bin": {
-    "opencode": "./bin/opencode.cjs",
-    "opencode2": "./bin/opencode2.cjs"
+    "aigcfroge": "./bin/aigcfroge.cjs",
+    "aigcfroge2": "./bin/aigcfroge2.cjs"
   },
   "files": [
     "bin"
@@ -28,13 +28,13 @@
     "@clack/core": "1.0.0-alpha.1",
     "@clack/prompts": "1.0.0-alpha.1",
     "@effect/platform-node": "catalog:",
-    "@opencode/client": "workspace:*",
-    "@opencode/plugin": "workspace:*",
+    "@aigcfroge/client": "workspace:*",
+    "@aigcfroge/plugin": "workspace:*",
     "@opencode-ai/pty": "0.2.0",
-    "@opencode/schema": "workspace:*",
-    "@opencode/server": "workspace:*",
-    "@opencode/tui": "workspace:*",
-    "@opencode/util": "workspace:*",
+    "@aigcfroge/schema": "workspace:*",
+    "@aigcfroge/server": "workspace:*",
+    "@aigcfroge/tui": "workspace:*",
+    "@aigcfroge/util": "workspace:*",
     "@opentui/core": "catalog:",
     "@opentui/solid": "catalog:",
     "@opentunnel/client": "0.4.0",
@@ -53,8 +53,8 @@
     "ws": "8.21.0"
   },
   "devDependencies": {
-    "@opencode/script": "workspace:*",
-    "@opencode/protocol": "workspace:*",
+    "@aigcfroge/script": "workspace:*",
+    "@aigcfroge/protocol": "workspace:*",
     "@tsconfig/bun": "catalog:",
     "@types/bun": "catalog:",
     "@typescript/native-preview": "catalog:",

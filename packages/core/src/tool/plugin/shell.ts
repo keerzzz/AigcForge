@@ -1,10 +1,11 @@
 export * as ShellTool from "./shell.js"
 
-import { ToolFailure } from "@opencode/ai"
-import type { Context } from "@opencode/plugin/effect/plugin"
-import type { SessionHooks } from "@opencode/plugin/effect/session"
-import type { ShellCreateBefore } from "@opencode/plugin/effect/shell"
-import type { Tool } from "@opencode/schema/tool"
+import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@aigcfroge/plugin/effect/plugin"
+import type { SessionHooks } from "@aigcfroge/plugin/effect/session"
+import type { ShellCreateBefore } from "@aigcfroge/plugin/effect/shell"
+import type { Tool } from "@aigcfroge/schema/tool"
+import { CommandResult } from "@aigcfroge/schema/shell"
 import { Deferred, Effect, Schema, Scope } from "effect"
 import { Config } from "../../config.js"
 import { Environment } from "../../environment/index.js"
@@ -66,6 +67,7 @@ const StructuredOutput = Schema.Struct({
   shellID: Schema.optionalKey(Schema.String),
   truncated: Schema.Boolean,
   timeout: Schema.optionalKey(Schema.Boolean),
+  commandResult: Schema.optionalKey(CommandResult),
 })
 
 const Output = Schema.Struct({
@@ -101,7 +103,7 @@ const backgroundResult = (shellID: string, file: string) => ({
 })
 
 export const Plugin = {
-  id: "opencode.tool.shell",
+  id: "aigcfroge.tool.shell",
   effect: Effect.fn("ShellTool.Plugin")(function* (ctx: Context) {
     const sessions = yield* Session.Service
     const jobs = yield* Job.Service
@@ -211,9 +213,9 @@ export const Plugin = {
                 (invocation) =>
                   Effect.gen(function* () {
                     invocation.env.AGENT = "1"
-                    invocation.env.OPENCODE = "1"
-                    invocation.env.AI_AGENT ||= "opencode"
-                    invocation.env.OPENCODE_SESSION_ID = context.sessionID
+                    invocation.env.AIGCFROGE = "1"
+                    invocation.env.AI_AGENT ||= "aigcfroge"
+                    invocation.env.AIGCFROGE_SESSION_ID = context.sessionID
                     finalTimeout = yield* prepare(invocation, context)
                   }),
               )

@@ -1,7 +1,7 @@
-import type { OpenCodeEvent } from "@opencode/client/promise"
-import { createClientConnection, createPtyClient, type ClientConnectionStatus } from "@opencode/client/solid"
+import type { AigcForgeEvent } from "@aigcfroge/client/promise"
+import { createClientConnection, createPtyClient, type ClientConnectionStatus } from "@aigcfroge/client/solid"
 import { createGlobalEmitter } from "@solid-primitives/event-bus"
-import { type Accessor, createEffect, on, onCleanup } from "solid-js"
+import { type Accessor, batch, createEffect, createSignal, on, onCleanup } from "solid-js"
 import { createApiForServer, type ServerApi } from "@/runtime/server/api"
 import { usePlatform } from "@/runtime/platform/platform"
 import { ServerConnection } from "./registry"
@@ -10,21 +10,21 @@ import { createRequestQueue } from "@/runtime/server/request-queue"
 import { ServerScope } from "@/runtime/server/scope"
 import { useServer } from "./current"
 
-type OpenCodeEventMap = { [Type in OpenCodeEvent["type"]]: Extract<OpenCodeEvent, { type: Type }> }
+type AigcForgeEventMap = { [Type in AigcForgeEvent["type"]]: Extract<AigcForgeEvent, { type: Type }> }
 
-export type OpenCodeEventStream = {
-  on<Type extends OpenCodeEvent["type"]>(type: Type, handler: (event: OpenCodeEventMap[Type]) => void): VoidFunction
-  listen(handler: (event: OpenCodeEvent) => void): VoidFunction
+export type AigcForgeEventStream = {
+  on<Type extends AigcForgeEvent["type"]>(type: Type, handler: (event: AigcForgeEventMap[Type]) => void): VoidFunction
+  listen(handler: (event: AigcForgeEvent) => void): VoidFunction
 }
 
-type OpenCodeEventSource = OpenCodeEventStream & {
-  location(directory: string): OpenCodeEventStream
+type AigcForgeEventSource = AigcForgeEventStream & {
+  location(directory: string): AigcForgeEventStream
 }
 
-export function createOpenCodeEventSource() {
-  const emitter = createGlobalEmitter<OpenCodeEventMap>()
+export function createAigcForgeEventSource() {
+  const emitter = createGlobalEmitter<AigcForgeEventMap>()
 
-  function stream(directory?: string): OpenCodeEventStream {
+  function stream(directory?: string): AigcForgeEventStream {
     return {
       on(type, handler) {
         return emitter.on(type, (event) => {
@@ -41,7 +41,7 @@ export function createOpenCodeEventSource() {
     }
   }
 
-  const event: OpenCodeEventSource = {
+  const event: AigcForgeEventSource = {
     ...stream(),
     location: (directory) => stream(directory),
   }
@@ -50,7 +50,7 @@ export function createOpenCodeEventSource() {
 
   return {
     event,
-    publish(event: OpenCodeEvent) {
+    publish(event: AigcForgeEvent) {
       emitter.emit(event.type, event)
     },
   }
@@ -69,28 +69,25 @@ type ServerSDKBase = {
     attempt: Accessor<number>
     error: Accessor<string | undefined>
   }
-  event: OpenCodeEventSource
+  event: AigcForgeEventSource
 }
 
 function createServerSdkContextBase(server: ServerConnection.Any, scope: ServerScope): ServerSDKBase {
   const platform = usePlatform()
   const transport = createServerTransport({ http: server.http, fetch: platform.fetch })
 
-  if (server.type === "extension") {
-    createEffect(
-      on(
-        () => `${server.http.url}\0${server.http.password ?? ""}`,
-        () => transport.update(server.http),
-        { defer: true },
-      ),
-    )
-  }
-
-  const events = createOpenCodeEventSource()
+  const events = createAigcForgeEventSource()
   const reconnect = server.type === "extension" || server.type === "sidecar" ? server.reconnect : undefined
 
   const connection = createClientConnection(transport.api, {
-    reconnect: reconnect ? async (signal) => transport.update(await reconnect(signal)) : undefined,
+    reconnect: reconnect
+      ? async (signal) => {
+          const http = await reconnect(signal)
+          signal.throwIfAborted()
+
+          return transport.update(http)
+        }
+      : undefined,
     flushInterval: 16,
     pageLifecycle: true,
     onEvent(event) {
@@ -103,6 +100,16 @@ function createServerSdkContextBase(server: ServerConnection.Any, scope: ServerS
       },
     },
   })
+
+  if (server.type === "extension") {
+    createEffect(
+      on(
+        () => `${server.http.url}\0${server.http.password ?? ""}`,
+        () => batch(() => connection.internal.replaceApi(transport.update(server.http))),
+        { defer: true },
+      ),
+    )
+  }
 
   return {
     server,
@@ -121,12 +128,11 @@ function createServerSdkContextBase(server: ServerConnection.Any, scope: ServerS
   }
 }
 
-export function createServerTransport(input: { http: ServerConnection.HttpBase; fetch?: typeof globalThis.fetch }): {
+type ServerTransport = Readonly<Pick<ServerSDKBase, "url" | "api" | "pty">> & {
   update(http: ServerConnection.HttpBase): ServerApi
-  readonly url: string
-  readonly api: ServerApi
-  readonly pty: ReturnType<typeof createPtyClient>
-} {
+}
+
+export function createServerTransport(input: { http: ServerConnection.HttpBase; fetch?: Parameters<typeof createRequestQueue>[0]["fetch"] }): ServerTransport {
   const queue = createRequestQueue({ fetch: input.fetch ?? globalThis.fetch })
 
   const build = (http: ServerConnection.HttpBase) => {
@@ -135,22 +141,24 @@ export function createServerTransport(input: { http: ServerConnection.HttpBase; 
     return { http, api, pty: createPtyClient(api, { url: http.url }) }
   }
 
-  const state = { current: build(input.http) }
+  // Opaque clients keep their raw identity while their replacement remains observable.
+  const [current, setCurrent] = createSignal(build(input.http))
 
   return {
     update(http: ServerConnection.HttpBase) {
-      state.current = build(http)
+      const next = build(http)
+      setCurrent(next)
 
-      return state.current.api
+      return next.api
     },
     get url() {
-      return state.current.http.url
+      return current().http.url
     },
     get api() {
-      return state.current.api
+      return current().api
     },
     get pty() {
-      return state.current.pty
+      return current().pty
     },
   }
 }
@@ -175,7 +183,7 @@ export const useServerSDK = () => {
 
 export type LocationContext = {
   directory: string
-  event: OpenCodeEventStream
+  event: AigcForgeEventStream
 }
 
 function createDirSdkContext(directory: string, serverSDK: ServerSDKBase): LocationContext {

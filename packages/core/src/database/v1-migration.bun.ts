@@ -3,17 +3,17 @@ export * as V1Migration from "./v1-migration.js"
 import { Cause, Effect, Layer, Option, Schema, Semaphore } from "effect"
 import { Database } from "./database.js"
 import { SessionMessageTable, SessionTable } from "../session/sql.js"
-import { SessionV1 } from "@opencode/schema/session-v1"
+import { SessionV1 } from "@aigcfroge/schema/session-v1"
 import { SessionMessage } from "../session/message.js"
 import { SessionSchema } from "../session/schema.js"
 import { KVTable } from "../kv/sql.js"
 import { EventSequenceTable } from "../event/sql.js"
 import { eq, sql } from "drizzle-orm"
-import { Global } from "@opencode/util/global"
+import { Global } from "@aigcfroge/util/global"
 import { existsSync } from "node:fs"
 import path from "node:path"
 import type { Database as SQLiteDatabase } from "bun:sqlite"
-import { Project } from "@opencode/schema/project"
+import { Project } from "@aigcfroge/schema/project"
 
 export type SourceMessage = {
   readonly id: string
@@ -539,6 +539,8 @@ export function run(options: Options = {}): Effect.Effect<RunResult, never, Data
       const state = yield* readState(db)
       if (state?.phase === "completed") return { status: "completed" as const }
       if (!(yield* hasLegacySessions(db))) return { status: "completed" as const }
+      if (yield* db.get(sql`SELECT 1 FROM event WHERE type GLOB 'session.next.*' LIMIT 1`))
+        return yield* Effect.die(new Error("Legacy event-sourced sessions require legacy-main recovery before V1 import"))
       const now = Date.now()
       yield* db.run(sql`
           INSERT OR IGNORE INTO project (id, worktree, time_created, time_updated, time_active, sandboxes)
@@ -701,8 +703,8 @@ export function run(options: Options = {}): Effect.Effect<RunResult, never, Data
 
 function nextPath(options: Options, data: string) {
   if (options.nextDatabasePath) return options.nextDatabasePath
-  if (process.env.OPENCODE_DB === ":memory:") return undefined
-  return path.join(data, "opencode-next.db")
+  if (process.env.AIGCFROGE_DB === ":memory:") return undefined
+  return path.join(data, "aigcfroge-next.db")
 }
 
 function openNextDatabase(sourcePath: string) {
@@ -736,7 +738,7 @@ function importNextDatabase(
     Effect.gen(function* () {
       const source = yield* openNextDatabase(sourcePath)
       if (!isNextDatabase(source)) {
-        yield* Effect.logWarning("Skipped incompatible opencode-next.db", { path: sourcePath })
+        yield* Effect.logWarning("Skipped incompatible aigcfroge-next.db", { path: sourcePath })
         return
       }
       source.run("BEGIN")
@@ -857,7 +859,7 @@ function selectNextRows<A>(source: SQLiteDatabase, table: "project" | "session",
     .filter(([column, strategy]) => strategy === "required" && !columns.has(column))
     .map(([column]) => column)
   if (missing.length)
-    throw new Error(`Incompatible opencode-next.db: ${table} is missing required columns: ${missing.join(", ")}`)
+    throw new Error(`Incompatible aigcfroge-next.db: ${table} is missing required columns: ${missing.join(", ")}`)
   const projection = Object.entries(definition).map(([column, strategy]) => {
     if (columns.has(column)) return `"${column}"`
     if (

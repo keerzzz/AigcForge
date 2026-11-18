@@ -8,9 +8,9 @@ import { mockWorkspace } from "../utils/workspace"
 // The web app's version, which What's New compares with the version last seen.
 const current = pkg.version
 
-const SEEN = "opencode.global.dat:extension.updater.seen"
+const SEEN = "aigcfroge.global.dat:extension.updater.seen"
 
-const RELEASE_NOTES = "opencode.global.dat:extension.updater.releaseNotes"
+const RELEASE_NOTES = "aigcfroge.global.dat:extension.updater.releaseNotes"
 
 const cors = { "access-control-allow-origin": "*" }
 
@@ -156,7 +156,7 @@ test("a failed changelog request leaves What's New for the next start", async ({
   const failed = Promise.withResolvers<void>()
   const requests: string[] = []
 
-  await page.route("https://opencode.ai/changelog.json", async (route) => {
+  await page.route("https://aigcfroge.ai/changelog.json", async (route) => {
     requests.push(route.request().url())
 
     if (requests.length > 1) return route.fulfill({ headers: cors, json: changelog })
@@ -205,7 +205,7 @@ for (const row of [
 async function serveChangelog(page: Page, body: typeof changelog | typeof cliOnly = changelog, held?: Promise<void>) {
   const requests: string[] = []
 
-  await page.route("https://opencode.ai/changelog.json", async (route) => {
+  await page.route("https://aigcfroge.ai/changelog.json", async (route) => {
     requests.push(route.request().url())
     await held
 

@@ -1,16 +1,16 @@
 import { describe, expect } from "bun:test"
 import { and, eq } from "drizzle-orm"
 import { Cause, Context, DateTime, Deferred, Effect, Exit, Fiber, Layer, Scope } from "effect"
-import { Agent } from "@opencode/schema/agent"
-import { Event } from "@opencode/schema/event"
-import { Model } from "@opencode/schema/model"
-import { Money } from "@opencode/schema/money"
-import { Project } from "@opencode/schema/project"
-import { Provider } from "@opencode/schema/provider"
-import { ID, Info, Output } from "@opencode/schema/shell"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { FSUtil } from "@opencode/util/fs-util"
-import { Global } from "@opencode/util/global"
+import { Agent } from "@aigcfroge/schema/agent"
+import { Event } from "@aigcfroge/schema/event"
+import { Model } from "@aigcfroge/schema/model"
+import { Money } from "@aigcfroge/schema/money"
+import { Project } from "@aigcfroge/schema/project"
+import { Provider } from "@aigcfroge/schema/provider"
+import { ID, Info, Output } from "@aigcfroge/schema/shell"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { FSUtil } from "@aigcfroge/util/fs-util"
+import { Global } from "@aigcfroge/util/global"
 import { Bus } from "../src/bus.js"
 import { Database } from "../src/database/database.js"
 import { EventTable } from "../src/event/sql.js"
@@ -34,6 +34,7 @@ import { SessionSchema } from "../src/session/schema.js"
 import { Session } from "../src/session/session.js"
 import { SessionTable } from "../src/session/sql.js"
 import { SessionStore } from "../src/session/store.js"
+import { SessionComposition } from "../src/session/composition.js"
 import { Shell } from "../src/shell.js"
 import { Skill } from "../src/skill.js"
 import { Snapshot } from "../src/snapshot.js"
@@ -48,6 +49,7 @@ const it = testEffect(
       Bus.node,
       SessionProjector.node,
       SessionStore.node,
+      SessionComposition.node,
       SessionInbox.node,
       FSUtil.node,
     ]),
@@ -154,6 +156,7 @@ const setup = Effect.fnUntraced(function* (options?: {
       | Database.Service
       | FSUtil.Service
       | SessionStore.Service
+      | SessionComposition.Service
       | Instance.Service
       | SessionExecution.Service
       | SessionInbox.Service
@@ -752,7 +755,7 @@ describe("SessionPrompt preparation", () => {
       }
       const items = yield* Effect.forEach([0, 1], () => SessionPrompt.prepare(request)).pipe(
         Effect.provideService(Instance.Service, fixture.instances),
-        Effect.satisfiesServicesType<FSUtil.Service>(),
+        Effect.satisfiesServicesType<FSUtil.Service | SessionComposition.Service>(),
       )
 
       expect(items[0]).toEqual(items[1])

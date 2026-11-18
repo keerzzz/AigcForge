@@ -73,11 +73,23 @@ export const clear = Effect.fn("SessionRevert.clear")(function* (session: Sessio
   }).pipe(instances.provide(session))
 })
 
-export const commit = Effect.fn("SessionRevert.commit")(function* (bus: Bus.Interface, session: SessionSchema.Info) {
+export const commit = Effect.fn("SessionRevert.commit")(function* (
+  bus: Bus.Interface,
+  session: SessionSchema.Info,
+  db: Database.Interface["db"],
+) {
   if (!session.revert) return
+  const boundary = yield* db
+    .select({ seq: SessionMessageTable.seq })
+    .from(SessionMessageTable)
+    .where(and(eq(SessionMessageTable.session_id, session.id), eq(SessionMessageTable.id, session.revert.messageID)))
+    .get()
+    .pipe(Effect.orDie)
+  if (!boundary) return yield* Effect.die(new Error(`Revert boundary message not found: ${session.revert.messageID}`))
   yield* bus.publish(SessionEvent.RevertEvent.Committed, {
     sessionID: session.id,
     to: session.revert.messageID,
+    boundarySeq: boundary.seq,
   })
 })
 

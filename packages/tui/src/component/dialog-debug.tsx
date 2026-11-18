@@ -9,6 +9,7 @@ import { useClipboard } from "../context/clipboard"
 import { useToast } from "../ui/toast"
 import { describeOS, describeTerminal } from "../util/system"
 import { useTuiApp } from "../context/runtime"
+import { modelPreferenceKey } from "../model-preference"
 
 export function DialogDebug() {
   const theme = useTheme()
@@ -30,7 +31,7 @@ export function DialogDebug() {
       { label: "OS", value: describeOS() },
       { label: "Terminal", value: describeTerminal() },
       { label: "Session ID", value: route.data.type === "session" ? route.data.sessionID : "n/a" },
-      { label: "Model", value: model ? `${model.providerID}/${model.modelID}` : "n/a" },
+      { label: "Model", value: model ? modelPreferenceKey(model) : "n/a" },
     ]
   })
 

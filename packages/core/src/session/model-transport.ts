@@ -9,14 +9,15 @@ import {
   type WebSocketChannelExecutor,
   type WebSocketConnection,
   type WebSocketConnector,
-} from "@opencode/ai/route"
-import { AIError, AIErrorReason, TransportError, type TransportOperation } from "@opencode/ai"
-import { Hash } from "@opencode/util/hash"
+} from "@aigcfroge/ai/route"
+import { AIError, AIErrorReason, TransportError, type TransportOperation } from "@aigcfroge/ai"
+import { Hash } from "@aigcfroge/util/hash"
 import { Cause, Clock, Context, Duration, Effect, Fiber, Layer, Metric, Queue, Scope, Semaphore, Stream } from "effect"
 import { Headers } from "effect/http"
 import { Socket } from "effect/socket"
-import { makeGlobalNode } from "@opencode/util/effect/app-node"
+import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
 import { SessionSchema } from "./schema.js"
+import type { SessionProviderContext } from "./provider-context.js"
 import { webSocketConstructor } from "../effect/app-node-platform.js"
 
 const ROTATE_AFTER_MS = 55 * 60 * 1000
@@ -25,7 +26,7 @@ const CONNECT_TIMEOUT = "15 seconds"
 const IDLE_TIMEOUT = "30 minutes"
 /** Consecutive exchanges lost to the socket before the Session stays on HTTP. */
 const MAX_STREAM_FAILURES = 5
-const events = Metric.counter("opencode_session_websocket_events_total", {
+const events = Metric.counter("aigcfroge_session_websocket_events_total", {
   description: "Session WebSocket lifecycle events",
   incremental: true,
 })
@@ -64,11 +65,14 @@ export interface Handshake {
 
 /**
  * Per-exchange taps. `handshake` runs before the connection is selected; `send` sees each outbound
- * frame after the driver builds it; `receive` sees each inbound frame before the driver observes it.
+ * frame after the driver builds it; `sent` follows a successful send; `receive` sees each inbound
+ * frame before the driver observes it.
  */
 export interface Interceptor {
+  readonly provenance?: (sentURL: string) => SessionProviderContext.Provenance | undefined
   readonly handshake?: (connect: Handshake) => Effect.Effect<Handshake>
   readonly send?: (frame: string) => Effect.Effect<string>
+  readonly sent?: (url: string) => Effect.Effect<void>
   readonly receive?: (frame: string) => Effect.Effect<string>
 }
 
@@ -82,7 +86,7 @@ export interface Interface {
   readonly closeAll: Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/SessionModelTransport") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionModelTransport") {}
 
 const transportError = (
   message: string,
@@ -113,8 +117,11 @@ const annotate = (
   })
 }
 
-const affinity = (exchange: WebSocketChannelExchange) =>
-  `${exchange.connect.url}:${Hash.sha256(JSON.stringify(Object.entries(exchange.connect.headers).sort(([a], [b]) => a.localeCompare(b))))}`
+const affinity = (exchange: WebSocketChannelExchange, provenance?: SessionProviderContext.Provenance) =>
+  `${exchange.connect.url}:${Hash.sha256(JSON.stringify([
+    Object.entries(exchange.connect.headers).sort(([a], [b]) => a.localeCompare(b)),
+    provenance?.connection, provenance?.deployment,
+  ]))}`
 
 const observationFrame = (observation: ChannelObservation) => {
   if (observation.type === "frame" || observation.type === "completed" || observation.type === "incomplete")
@@ -312,7 +319,7 @@ export const makeLayer = (connector: WebSocketConnector) =>
         const exchange: WebSocketChannelExchange = selected
           ? { ...input, connect: { ...input.connect, url: selected.url, headers: Headers.fromInput(selected.headers) } }
           : input
-        const key = affinity(exchange)
+        const key = affinity(exchange, interceptor?.provenance?.(exchange.connect.url))
         const now = yield* Clock.currentTimeMillis
         const current = owner.channel
         const rotateAfterMs = exchange.connect.rotateAfterMs ?? ROTATE_AFTER_MS
@@ -410,6 +417,8 @@ export const makeLayer = (connector: WebSocketConnector) =>
           return yield* annotate(failure, { phase: "send", delivery: "ambiguous" })
         }
         yield* metric("send")
+        if (interceptor?.sent)
+          yield* interceptor.sent(exchange.connect.url).pipe(Effect.onInterrupt(() => closeChannel(owner, channel)))
 
         let terminal: ChannelObservation | undefined
         const token = {}

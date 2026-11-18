@@ -5,7 +5,7 @@ import { CliRenderEvents, TextAttributes } from "@opentui/core"
 import path from "path"
 import { testRender } from "@opentui/solid"
 import { createSignal, onMount } from "solid-js"
-import type { SessionInfo } from "@opencode/client"
+import type { SessionInfo } from "@aigcfroge/client"
 import { DialogOpen, DialogOpenKey } from "../../../src/component/dialog-open"
 import { ConfigProvider } from "../../../src/config"
 import { ClientProvider } from "../../../src/context/client"
@@ -26,7 +26,7 @@ import { tmpdir } from "../../fixture/fixture"
 import { createTuiResolvedConfig } from "../../fixture/tui-runtime"
 
 test("selecting an unhydrated session preserves its location", async () => {
-  const remote = { directory: "/tmp/opencode/remote", workspaceID: "ws_remote" }
+  const remote = { directory: "/tmp/aigcfroge/remote", workspaceID: "ws_remote" }
   const fixture = await renderOpen((url) => {
     if (url.pathname !== "/api/session") return undefined
     return json({
@@ -61,7 +61,7 @@ test("selecting an unhydrated session preserves its location", async () => {
 
 test("finds and opens an exact session ID outside the recent list", async () => {
   const sessionID = "ses_04a7a3d82ffeIphUJgd3SnEqiv"
-  const remote = { directory: "/tmp/opencode/archive", workspaceID: "ws_archive" }
+  const remote = { directory: "/tmp/aigcfroge/archive", workspaceID: "ws_archive" }
   const fixture = await renderOpen((url) => {
     if (url.pathname === "/api/session") return json({ data: [], cursor: {} })
     if (url.pathname !== `/api/session/${sessionID}`) return undefined
@@ -94,7 +94,7 @@ test("finds and opens an exact session ID outside the recent list", async () => 
 })
 
 test("shows the current project and opens its root", async () => {
-  const root = "/tmp/opencode/project"
+  const root = "/tmp/aigcfroge/project"
   const subfolder = `${root}/packages/tui`
   const fixture = await renderOpen(
     (url) => {
@@ -103,7 +103,7 @@ test("shows the current project and opens its root", async () => {
           {
             id: "proj_current",
             canonical: root,
-            name: "OpenCode",
+            name: "AigcForge",
             time: { created: 1, updated: 2 },
             sandboxes: [],
           },
@@ -122,7 +122,7 @@ test("shows the current project and opens its root", async () => {
   )
 
   try {
-    const frame = await fixture.app.waitForFrame((value) => value.includes("OpenCode") && value.includes("●"))
+    const frame = await fixture.app.waitForFrame((value) => value.includes("AigcForge") && value.includes("●"))
     expect(frame).toContain(root)
 
     fixture.app.mockInput.pressEnter()
@@ -141,10 +141,10 @@ test("shows only canonical projects while retaining sessions from other director
       return json([
         {
           id: "proj_current",
-          canonical: "/tmp/opencode/project",
-          name: "OpenCode",
+          canonical: "/tmp/aigcfroge/project",
+          name: "AigcForge",
           time: { created: 1, updated: 2 },
-          sandboxes: ["/tmp/opencode/feature-branch"],
+          sandboxes: ["/tmp/aigcfroge/feature-branch"],
         },
         {
           id: "global",
@@ -172,7 +172,7 @@ test("shows only canonical projects while retaining sessions from other director
           tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
           time: { created: 1, updated: 2 },
           title: "Worktree session",
-          location: { directory: "/tmp/opencode/feature-branch" },
+          location: { directory: "/tmp/aigcfroge/feature-branch" },
         },
       ],
       cursor: {},
@@ -184,9 +184,9 @@ test("shows only canonical projects while retaining sessions from other director
       (value) => value.includes("Standalone session") && value.includes("feature-branch") && value.includes("Projects"),
     )
     expect(frame).toContain("standalone-notes")
-    expect(frame).toContain("OpenCode · feature-branch")
-    expect(frame).toContain("/tmp/opencode/project")
-    expect(frame).not.toContain("/tmp/opencode/feature-branch")
+    expect(frame).toContain("AigcForge · feature-branch")
+    expect(frame).toContain("/tmp/aigcfroge/project")
+    expect(frame).not.toContain("/tmp/aigcfroge/feature-branch")
     expect(frame).not.toContain("/tmp/standalone-notes")
 
     await fixture.app.mockInput.typeText("standalone-notes")
@@ -205,8 +205,8 @@ test("keeps nested Git session directories out of projects and in their session 
       return json([
         {
           id: "proj_current",
-          canonical: "/tmp/opencode/project",
-          name: "OpenCode",
+          canonical: "/tmp/aigcfroge/project",
+          name: "AigcForge",
           vcs: "git",
           time: { created: 1, updated: 2 },
           sandboxes: [],
@@ -222,7 +222,7 @@ test("keeps nested Git session directories out of projects and in their session 
           tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
           time: { created: 1, updated: 2 },
           title: "Improve dashboard",
-          location: { directory: "/tmp/opencode/project/packages/dashboard" },
+          location: { directory: "/tmp/aigcfroge/project/packages/dashboard" },
         },
       ],
       cursor: {},
@@ -233,19 +233,19 @@ test("keeps nested Git session directories out of projects and in their session 
     const frame = await fixture.app.waitForFrame(
       (value) => value.includes("Improve dashboard") && value.includes("Projects"),
     )
-    expect(frame).toContain("OpenCode · dashboard")
+    expect(frame).toContain("AigcForge · dashboard")
     expect(frame).not.toContain("browse directories")
-    expect(frame).toContain("/tmp/opencode/project")
-    expect(frame).not.toContain("/tmp/opencode/project/packages/dashboard")
+    expect(frame).toContain("/tmp/aigcfroge/project")
+    expect(frame).not.toContain("/tmp/aigcfroge/project/packages/dashboard")
   } finally {
     await fixture.dispose()
   }
 })
 
 test("loads Git worktrees only when drilling into the canonical project", async () => {
-  const root = path.resolve("/tmp/opencode/project")
-  const current = path.resolve("/tmp/opencode/current-branch")
-  const other = path.resolve("/tmp/opencode/other-branch")
+  const root = path.resolve("/tmp/aigcfroge/project")
+  const current = path.resolve("/tmp/aigcfroge/current-branch")
+  const other = path.resolve("/tmp/aigcfroge/other-branch")
   let requests = 0
   const fixture = await renderOpen(
     (url) => {
@@ -254,7 +254,7 @@ test("loads Git worktrees only when drilling into the canonical project", async 
           {
             id: "proj_git",
             canonical: root,
-            name: "OpenCode",
+            name: "AigcForge",
             vcs: "git",
             time: { created: 1, updated: 2 },
             sandboxes: [current],
@@ -279,7 +279,7 @@ test("loads Git worktrees only when drilling into the canonical project", async 
 
   try {
     const projects = await fixture.app.waitForFrame(
-      (frame) => frame.includes("OpenCode") && frame.includes(root) && frame.includes("→"),
+      (frame) => frame.includes("AigcForge") && frame.includes(root) && frame.includes("→"),
     )
     expect(projects).not.toContain("Browse directories")
     expect(projects).not.toContain(current)
@@ -292,7 +292,7 @@ test("loads Git worktrees only when drilling into the canonical project", async 
     expect(requests).toBe(1)
     expect(worktrees).toContain("Worktrees")
     expect(worktrees).toContain("●")
-    expect(worktrees.indexOf("OpenCode")).toBeLessThan(worktrees.indexOf("current-branch"))
+    expect(worktrees.indexOf("AigcForge")).toBeLessThan(worktrees.indexOf("current-branch"))
     expect(worktrees.indexOf("current-branch")).toBeLessThan(worktrees.indexOf("other-branch"))
 
     await fixture.app.mockInput.typeText("other-branch")
@@ -358,7 +358,7 @@ test("does not show the previous project's worktrees while loading another proje
       return json(
         ["Alpha", "Beta"].map((name) => ({
           id: `proj_${name}`,
-          canonical: `/tmp/opencode/${name}`,
+          canonical: `/tmp/aigcfroge/${name}`,
           name,
           vcs: "git",
           sandboxes: [],
@@ -367,7 +367,7 @@ test("does not show the previous project's worktrees while loading another proje
       )
     if (url.pathname !== "/api/worktree") return undefined
     if (url.searchParams.get("projectID") === "proj_Alpha")
-      return json([{ directory: "/tmp/opencode/alpha-checkout", strategy: "git" }])
+      return json([{ directory: "/tmp/aigcfroge/alpha-checkout", strategy: "git" }])
     return pending.promise.then((response) => response.clone())
   })
   try {
@@ -383,13 +383,13 @@ test("does not show the previous project's worktrees while loading another proje
       (frame) => frame.includes("Beta / Worktrees") && frame.includes("Loading worktrees"),
     )
     expect(loading).not.toContain("alpha-checkout")
-    pending.resolve(json([{ directory: "/tmp/opencode/beta-checkout", strategy: "git" }]))
+    pending.resolve(json([{ directory: "/tmp/aigcfroge/beta-checkout", strategy: "git" }]))
     const loaded = await fixture.app.waitForFrame((frame) => frame.includes("beta-checkout"))
     expect(loaded).not.toContain("alpha-checkout")
     fixture.app.mockInput.pressArrow("down")
     fixture.app.mockInput.pressEnter()
     await fixture.app.waitFor(() => fixture.route.data.type === "home")
-    expect(fixture.location.ref?.directory).toBe("/tmp/opencode/beta-checkout")
+    expect(fixture.location.ref?.directory).toBe("/tmp/aigcfroge/beta-checkout")
   } finally {
     pending.resolve(json([]))
     await fixture.dispose()
@@ -398,8 +398,8 @@ test("does not show the previous project's worktrees while loading another proje
 
 test.each(["", "search-ui"])("creates a worktree named '%s' by project and opens its local directory", async (name) => {
   const projectID = "proj_git_create"
-  const root = path.resolve("/tmp/opencode/project")
-  const created = path.resolve("/tmp/opencode/created-branch")
+  const root = path.resolve("/tmp/aigcfroge/project")
+  const created = path.resolve("/tmp/aigcfroge/created-branch")
   let payload: unknown
   const fixture = await renderOpen(
     async (url, request) => {
@@ -408,7 +408,7 @@ test.each(["", "search-ui"])("creates a worktree named '%s' by project and opens
           {
             id: projectID,
             canonical: root,
-            name: "OpenCode",
+            name: "AigcForge",
             vcs: "git",
             time: { created: 1, updated: 2 },
             sandboxes: [],
@@ -433,7 +433,7 @@ test.each(["", "search-ui"])("creates a worktree named '%s' by project and opens
   )
 
   try {
-    await fixture.app.waitForFrame((frame) => frame.includes("OpenCode") && frame.includes("→"))
+    await fixture.app.waitForFrame((frame) => frame.includes("AigcForge") && frame.includes("→"))
     fixture.app.mockInput.pressArrow("right")
     const worktrees = await fixture.app.waitForFrame((frame) => frame.includes("ctrl+n"))
     expect(worktrees).not.toContain("Actions")
@@ -482,14 +482,14 @@ test("shows projects while sessions refresh and preserves the selected project",
       return json([
         {
           id: "proj_first",
-          canonical: "/tmp/opencode/first",
+          canonical: "/tmp/aigcfroge/first",
           name: "First project",
           time: { created: 1, updated: 2 },
           sandboxes: [],
         },
         {
           id: "proj_second",
-          canonical: "/tmp/opencode/second",
+          canonical: "/tmp/aigcfroge/second",
           name: "Second project",
           time: { created: 1, updated: 1 },
           sandboxes: [],
@@ -513,7 +513,7 @@ test("shows projects while sessions refresh and preserves the selected project",
             tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
             time: { created: 2, updated: 3 },
             title: "Recent session",
-            location: { directory: "/tmp/opencode/first" },
+            location: { directory: "/tmp/aigcfroge/first" },
           },
         ],
         cursor: {},
@@ -523,7 +523,7 @@ test("shows projects while sessions refresh and preserves the selected project",
     fixture.app.mockInput.pressEnter()
     await fixture.app.waitFor(() => fixture.route.data.type === "home")
 
-    expect(fixture.route.data).toEqual({ type: "home", location: { directory: "/tmp/opencode/second" } })
+    expect(fixture.route.data).toEqual({ type: "home", location: { directory: "/tmp/aigcfroge/second" } })
   } finally {
     await fixture.dispose()
   }
@@ -537,14 +537,14 @@ test.each([false, true])("keeps a filtered selection visible after refresh with 
       return json([
         {
           id: "proj_first",
-          canonical: "/tmp/opencode/first",
+          canonical: "/tmp/aigcfroge/first",
           name: "First shared project",
           time: { created: 1, updated: 2 },
           sandboxes: [],
         },
         {
           id: "proj_second",
-          canonical: "/tmp/opencode/second",
+          canonical: "/tmp/aigcfroge/second",
           name: "Second shared project",
           time: { created: 1, updated: 1 },
           sandboxes: [],
@@ -595,7 +595,7 @@ test.each([false, true])("keeps a filtered selection visible after refresh with 
     await fixture.app.waitFor(() => fixture.route.data.type === "home")
     expect(fixture.route.data).toEqual({
       type: "home",
-      location: { directory: `/tmp/opencode/${reset ? "first" : "second"}` },
+      location: { directory: `/tmp/aigcfroge/${reset ? "first" : "second"}` },
     })
   } finally {
     sessions.resolve(json({ data: [], cursor: {} }))
@@ -775,7 +775,7 @@ test("option arrows jump between sections", async () => {
             tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
             time: { created: 1, updated: 2 },
             title: "Recent session",
-            location: { directory: "/tmp/opencode/recent" },
+            location: { directory: "/tmp/aigcfroge/recent" },
           },
         ],
         cursor: {},
@@ -784,7 +784,7 @@ test("option arrows jump between sections", async () => {
       return json([
         {
           id: "proj_recent",
-          canonical: "/tmp/opencode/recent",
+          canonical: "/tmp/aigcfroge/recent",
           name: "Recent project",
           time: { created: 1, updated: 2 },
           sandboxes: [],
@@ -799,7 +799,7 @@ test("option arrows jump between sections", async () => {
     next.app.mockInput.pressArrow("down", { meta: true })
     next.app.mockInput.pressEnter()
     await next.app.waitFor(() => next.route.data.type === "home")
-    expect(next.route.data).toEqual({ type: "home", location: { directory: "/tmp/opencode/recent" } })
+    expect(next.route.data).toEqual({ type: "home", location: { directory: "/tmp/aigcfroge/recent" } })
   } finally {
     await next.dispose()
   }
@@ -810,7 +810,7 @@ test("option arrows jump between sections", async () => {
     previous.app.mockInput.pressArrow("up", { meta: true })
     previous.app.mockInput.pressEnter()
     await previous.app.waitFor(() => previous.route.data.type === "home")
-    expect(previous.route.data).toEqual({ type: "home", location: { directory: "/tmp/opencode/recent" } })
+    expect(previous.route.data).toEqual({ type: "home", location: { directory: "/tmp/aigcfroge/recent" } })
   } finally {
     await previous.dispose()
   }
@@ -829,9 +829,9 @@ test("option arrows stay in the only visible section", async () => {
         sandboxes: [],
       },
       {
-        id: "proj_opencode",
-        canonical: "/tmp/opencode",
-        name: "OpenCode",
+        id: "proj_aigcfroge",
+        canonical: "/tmp/aigcfroge",
+        name: "AigcForge",
         time: { created: 1, updated: 1 },
         sandboxes: [],
       },
@@ -839,9 +839,9 @@ test("option arrows stay in the only visible section", async () => {
   })
 
   try {
-    await fixture.app.waitForFrame((frame) => frame.includes("Effect") && frame.includes("OpenCode"))
+    await fixture.app.waitForFrame((frame) => frame.includes("Effect") && frame.includes("AigcForge"))
     await fixture.app.mockInput.typeText("Effect")
-    await fixture.app.waitForFrame((frame) => frame.includes("Effect") && !frame.includes("OpenCode"))
+    await fixture.app.waitForFrame((frame) => frame.includes("Effect") && !frame.includes("AigcForge"))
     fixture.app.mockInput.pressArrow("down", { meta: true })
     fixture.app.mockInput.pressEnter()
     await fixture.app.waitFor(() => fixture.route.data.type === "home")
@@ -852,7 +852,7 @@ test("option arrows stay in the only visible section", async () => {
 })
 
 test("surfaces sessions awaiting permissions or questions at the top with attention icons", async () => {
-  const remote = { directory: "/tmp/opencode/remote" }
+  const remote = { directory: "/tmp/aigcfroge/remote" }
   const fixture = await renderOpen((url) => {
     if (url.pathname === "/api/session/active") {
       return json({

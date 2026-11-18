@@ -14,6 +14,8 @@ export default Extension.define({
   // Without review the tree lists only the workspace files; without the browser, HTML opens as a file tab.
   uses: { changes: Changes, browser: Browser },
   stores: {
+    display: Store.global(Schema.Struct({ visible: Schema.Boolean }), { visible: true }),
+    preview: Store.global(Schema.Struct({ enabled: Schema.Boolean }), { enabled: false }),
     tree: Store.global(
       TreeState,
       { tab: "changes" },

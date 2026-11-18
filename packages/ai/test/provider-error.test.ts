@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { isContextOverflow } from "../src/index.js"
-import { classifyProviderFailure, providerErrorMessage } from "../src/provider-error.js"
+import { classifyProviderFailure, isRetryable, providerErrorMessage } from "../src/provider-error.js"
+import { AIError } from "../src/schema/errors.js"
 
 describe("provider error classification", () => {
   test("classifies provider token limit messages as context overflow", () => {
@@ -203,7 +204,7 @@ describe("provider error classification", () => {
     ).toBe("ContentPolicy")
   })
 
-  test("recovers policy codes that OpenCode Zen preserves only in its message label", () => {
+  test("recovers policy codes that AigcForge Zen preserves only in its message label", () => {
     // Zen drops upstream codes outside its allow-list and replaces the type, but
     // `Protocol.errorMessage` keeps the original code as a `[code]` prefix.
     const zen = {
@@ -262,7 +263,7 @@ describe("provider error classification", () => {
     expect(classifyProviderFailure({ message: "Payment Required", status: 402 })._tag).toBe("QuotaExceeded")
   })
 
-  test("classifies OpenCode Zen account limits as quota rather than throttling", () => {
+  test("classifies AigcForge Zen account limits as quota rather than throttling", () => {
     const typed = (type: string, message: string) => ({ type: "error", error: { type, message } })
     const substituted = (message: string) => ({
       error: { type: "server_error", message: `Upstream request failed: ${message}` },
@@ -533,14 +534,26 @@ describe("provider error rawBody classification", () => {
       classifyProviderFailure({
         message: "Unknown Model, please check the model code.",
         rawBody: '{"type":"response.failed","response":{"error":{"code":"model_not_found"}}}',
-      })._tag,
-    ).toBe("InvalidRequest")
+      }),
+    ).toMatchObject({ _tag: "InvalidRequest", classification: "model-not-found" })
     expect(
       classifyProviderFailure({
         message: "Your GLM Coding Plan package has expired and is temporarily unavailable.",
         rawBody: '{"type":"response.failed","response":{"error":{"code":"permission_denied"}}}',
       })._tag,
     ).toBe("Authentication")
+  })
+
+  test("preserves explicit model-not-found evidence without deriving it from generic 404 responses", () => {
+    const rawBody = '{"error":{"code":"model_not_found","message":"Request failed"}}'
+    const http = { url: "https://fixture.invalid/v1/messages", status: 404, headers: { "x-request-id": "one" } }
+    const reason = classifyProviderFailure({ message: "Request failed", status: 404, rawBody, http })
+    expect(reason).toMatchObject({ _tag: "InvalidRequest", classification: "model-not-found", body: rawBody, http })
+    expect(isRetryable(new AIError({ reason }))).toBe(false)
+    const generic = classifyProviderFailure({ message: "Unknown Model", status: 404 })
+    expect(generic).toMatchObject({ _tag: "InvalidRequest" })
+    expect(generic).not.toHaveProperty("classification")
+    expect(classifyProviderFailure({ message: "Request failed", status: 500, rawBody })).toMatchObject({ _tag: "ProviderInternal" })
   })
 })
 

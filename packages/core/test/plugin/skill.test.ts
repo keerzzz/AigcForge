@@ -1,10 +1,10 @@
 import { describe, expect } from "bun:test"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { Config } from "@opencode/core/config"
-import { Document, Info } from "@opencode/schema/config"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { Config } from "@aigcfroge/core/config"
+import { Document, Info } from "@aigcfroge/schema/config"
 import { Effect, Layer, Stream } from "effect"
-import { SkillPlugin } from "@opencode/core/plugin/skill"
-import { Skill } from "@opencode/core/skill"
+import { SkillPlugin } from "@aigcfroge/core/plugin/skill"
+import { Skill } from "@aigcfroge/core/skill"
 import { testEffect } from "../lib/effect"
 import { host } from "./host"
 
@@ -37,19 +37,19 @@ describe("SkillPlugin.Plugin", () => {
 
       expect(skills).toContainEqual(
         expect.objectContaining({
-          id: "opencode",
-          name: "OpenCode",
-          description: expect.stringContaining("any question about OpenCode itself"),
+          id: "aigcfroge",
+          name: "AigcForge",
+          description: expect.stringContaining("any question about AigcForge itself"),
         }),
       )
       expect(skills).toContainEqual(
         expect.objectContaining({
           id: "report",
           name: "Report",
-          description: expect.stringContaining("opencode issue"),
+          description: expect.stringContaining("aigcfroge issue"),
         }),
       )
-      expect(report?.content).toContain("- opencode version: 1.2.3")
+      expect(report?.content).toContain("- aigcfroge version: 1.2.3")
       expect(report?.content).toContain("- install/channel: beta")
     }),
   )

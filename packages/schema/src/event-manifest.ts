@@ -1,6 +1,8 @@
 export * as EventManifest from "./event-manifest.js"
 
 import { Schema } from "effect"
+import { SessionGoal } from "./session-goal.js"
+import { Schedule } from "./schedule.js"
 import { Agent } from "./agent.js"
 import { Command } from "./command.js"
 import { Config } from "./config.js"
@@ -23,6 +25,7 @@ import { PersistentPty } from "./persistent-pty.js"
 import { Plugin } from "./plugin.js"
 import { Project } from "./project.js"
 import { Provider } from "./provider.js"
+import { ProviderDiscovery } from "./provider-discovery.js"
 import { Worktree } from "./worktree.js"
 import { Pty } from "./pty.js"
 import { Reference } from "./reference.js"
@@ -32,10 +35,13 @@ import { Skill } from "./skill.js"
 import { SessionCompactionEvent } from "./session-compaction-event.js"
 import { SessionEvent } from "./session-event.js"
 import { SessionStatusEvent } from "./session-status-event.js"
+import { SessionTaskEvent } from "./session-task-event.js"
 import { TuiEvent } from "./tui-event.js"
 import { VcsEvent } from "./vcs-event.js"
 import { WorkspaceEvent } from "./workspace-event.js"
 import { WorktreeEvent } from "./worktree-event.js"
+import { WorkflowEvent } from "./workflow-event.js"
+import { DelegationEvent } from "./delegation-event.js"
 import { WebSearch } from "./websearch.js"
 
 const coreDefinitions = Event.inventory(...SessionEvent.Definitions)
@@ -46,12 +52,15 @@ const foundationDefinitions = Event.inventory(
   ...Credential.Event.Definitions,
   ...Integration.Event.Definitions,
   ...Provider.Event.Definitions,
+  ...ProviderDiscovery.Event.Definitions,
   ...Model.Event.Definitions,
   ...Agent.Event.Definitions,
   ...coreDefinitions,
 )
 
 const featureDefinitions = Event.inventory(
+  ...SessionGoal.Events.Definitions,
+  ...Schedule.Definitions,
   ...FileSystem.Event.Definitions,
   ...Reference.Event.Definitions,
   ...Permission.Event.Definitions,
@@ -65,6 +74,9 @@ const featureDefinitions = Event.inventory(
   ...PersistentPty.Event.Definitions,
   ...Shell.Event.Definitions,
   ...Form.Event.Definitions,
+  ...WorkflowEvent.Definitions,
+  ...DelegationEvent.Definitions,
+  ...SessionTaskEvent.Definitions,
   ...WebSearch.Event.Definitions,
 )
 

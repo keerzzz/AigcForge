@@ -1,9 +1,10 @@
-import type { SessionInfo } from "@opencode/client/promise"
-import { useDialog } from "@opencode/ui/context/dialog"
-import { Button } from "@opencode/ui/button"
-import { DialogFooter, DialogHeader, DialogTitleGroup, Dialog } from "@opencode/ui/dialog"
+import type { SessionInfo } from "@aigcfroge/client/promise"
+import type { ProductMode } from "@aigcfroge/schema/product-mode"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { Button } from "@aigcfroge/ui/button"
+import { DialogFooter, DialogHeader, DialogTitleGroup, Dialog } from "@aigcfroge/ui/dialog"
 import { skipToken, useQuery, useQueryClient } from "@tanstack/solid-query"
-import { type Accessor, createEffect, createMemo, type JSX, startTransition, untrack } from "solid-js"
+import { type Accessor, createEffect, createMemo, type JSX, Show, startTransition, untrack } from "solid-js"
 import { notifySessionTabsRemoved } from "@/shell/titlebar/session-events"
 import { useCommand } from "@/shell/commands/command"
 import {
@@ -15,6 +16,8 @@ import {
 import type { LocalProject } from "@/shell/state/layout"
 import { useLanguage } from "@/runtime/i18n/language"
 import { ServerConnection } from "@/runtime/server/registry"
+import type { ServerApi } from "@/runtime/server/api"
+import type { ServerCtx } from "@/runtime/server/runtime"
 import { sessionHasOpenTab, useTabs } from "@/shell/tabs/tabs"
 import { errorMessage } from "@/shell/layout/helpers"
 import { useSessionTabAvatarState } from "@/shell/layout/project-avatar-state"
@@ -41,7 +44,17 @@ export type HomeSessionGroup = {
 
 export type OpenSessionOptions = { background?: boolean }
 
-export function createHomeSessionsController(home: HomeController) {
+type HomeSearchScope = {
+  ctx: ServerCtx | undefined
+  api: ServerApi | undefined
+  store: ServerCtx["data"]["session"] | undefined
+  project: string | undefined
+  directory: string | undefined
+  directories: string | undefined
+  mode: ProductMode.ID | undefined
+}
+
+export function createHomeSessionsController(home: HomeController, surface: "home" | "sidebar" = "home") {
   const tabs = useTabs()
   const command = useCommand()
   const dialog = useDialog()
@@ -58,15 +71,96 @@ export function createHomeSessionsController(home: HomeController) {
     return project ? directories(project) : [selected]
   })
 
+  const searchScope = (): HomeSearchScope => {
+    const ctx = home.server.focusedContext()
+    const selected = projectDirectories()
+    // The API getter can replace its client without replacing the SDK object.
+    // Observe real reconnect signals; every ownership check still reads the getter.
+    ctx?.sdk.connection.status()
+    ctx?.sdk.connection.attempt()
+
+    return {
+      ctx,
+      api: ctx?.sdk.api,
+      store: ctx?.data.session,
+      project: home.project.selected()?.id,
+      directory: home.selection.value().directory,
+      directories: selected ? [...new Set(selected.map(pathKey))].toSorted().join("\0") : undefined,
+      mode: home.mode.current(),
+    }
+  }
+
+  const matchesSearchScope = (scope: ReturnType<typeof searchScope> | undefined) => {
+    if (!scope) return false
+    const current = searchScope()
+
+    return (
+      scope.ctx === current.ctx &&
+      scope.api === current.api &&
+      scope.store === current.store &&
+      scope.project === current.project &&
+      scope.directory === current.directory &&
+      scope.directories === current.directories &&
+      scope.mode === current.mode
+    )
+  }
+
   const sessionLoad = useQuery(() => {
     const ctx = home.server.focusedContext()
     const conn = home.server.focused()
+    const mode = home.mode.current()
 
     return {
-      queryKey: ["home-sessions", conn] as const,
-      enabled: !!ctx && ctx.sdk.connection.status() === "connected",
+      queryKey: ["home-sessions", conn, mode, surface] as const,
+      enabled: !!ctx && ctx.sdk.connection.status() === "connected" && (surface === "home" || mode !== undefined),
       queryFn: ctx
-        ? ({ signal }) => loadHomeSessionIndex((input, options) => ctx.sdk.api.session.list(input, options), signal)
+        ? ({ signal }) =>
+            loadHomeSessionIndex(
+              (input, options) => ctx.sdk.api.session.list(input, options),
+              signal,
+              mode,
+              surface === "sidebar" ? "message" : "updated",
+              surface === "sidebar"
+                ? async (sessions, signal) => {
+                    // Older local servers omit the activity projection. Read one row per message type
+                    // through their existing API; current servers return the projection with the list.
+                    const resolved: SessionInfo[] = []
+                    const pending = sessions.values()
+
+                    await Promise.all(
+                      Array.from({ length: Math.min(8, sessions.length) }, async () => {
+                        for (const session of pending) {
+                          if (session.time.message !== undefined) {
+                            resolved.push(session)
+                            continue
+                          }
+
+                          const latest = await Promise.all(
+                            (["user", "assistant"] as const).map((type) =>
+                              ctx.sdk.api.message.list(
+                                { sessionID: session.id, limit: 1, order: "desc", type },
+                                { signal },
+                              ),
+                            ),
+                          )
+
+                          const messages = latest.flatMap((response) => response.data.map((item) => item.time.created))
+
+                          resolved.push({
+                            ...session,
+                            time: {
+                              ...session.time,
+                              message: messages.length ? Math.max(...messages) : session.time.created,
+                            },
+                          })
+                        }
+                      }),
+                    )
+
+                    return resolved
+                  }
+                : undefined,
+            )
         : skipToken,
       retry: false,
       staleTime: 30_000,
@@ -82,23 +176,52 @@ export function createHomeSessionsController(home: HomeController) {
 
     if (!ctx || !conn) return []
 
+    const projected = new Map((sessionLoad.data?.() ?? []).map((session) => [session.id, session.time.message]))
+
     return retainHomeSessions(
       ctx.data.session.apply(
-        mergeHomeSessionIndex(sessionLoad.isPending ? [] : (sessionLoad.data?.() ?? []), ctx.data.session.list()),
+        mergeHomeSessionIndex(
+          sessionLoad.isPending ? [] : (sessionLoad.data?.() ?? []),
+          ctx.data.session.list(),
+          home.mode.current(),
+        ).map((session) => {
+          if (surface !== "sidebar") return session
+          const message = projected.get(session.id)
+
+          return {
+            ...session,
+            time: {
+              ...session.time,
+              message:
+                session.time.message === undefined && message === undefined
+                  ? session.time.created
+                  : Math.max(session.time.message ?? 0, message ?? 0),
+            },
+          }
+        }),
       ),
       HOME_SESSION_LIMIT,
       Date.now(),
+      surface === "sidebar" ? "message" : "updated",
     )
   })
 
-  const allRecords = createMemo(() =>
-    buildHomeSessionRecords({
+  const allRecords = createMemo(() => {
+    const records = buildHomeSessionRecords({
       sessions: indexedSessions,
-      projectDirectories,
+      projectDirectories: surface === "home" ? projectDirectories : () => undefined,
       projects: home.project.list,
       resolveProject: (session) => home.server.focusedContext()?.projects.forSession(session),
-    }),
-  )
+      order: surface === "sidebar" ? "message" : "updated",
+    })
+
+    if (surface === "home") return records
+    const project = home.project.selected()
+
+    if (!project) return []
+
+    return records.filter((record) => pathKey(record.project.worktree) === pathKey(project.worktree))
+  })
 
   const records = createMemo(() => allRecords().slice(0, HOME_SESSION_LIMIT))
   const groups = createMemo(() => groupSessions(records(), language))
@@ -130,6 +253,7 @@ export function createHomeSessionsController(home: HomeController) {
   }
 
   createEffect(() => {
+    if (surface !== "home") return
     const ctx = home.server.focusedContext()
     const conn = home.server.focused()
 
@@ -145,39 +269,48 @@ export function createHomeSessionsController(home: HomeController) {
       })
   })
 
-  command.register("home.palette", () => [
-    {
-      id: "command.palette",
-      title: language.t("command.palette"),
-      hidden: true,
-      onSelect: async () => {
-        const conn = home.server.focused()
+  if (surface === "home")
+    command.register("home.palette", () => [
+      {
+        id: "command.palette",
+        title: language.t("command.palette"),
+        hidden: true,
+        onSelect: async () => {
+          const conn = home.server.focused()
 
-        if (!conn) return
-        const ctx = home.server.focusedContext()
+          if (!conn) return
+          const ctx = home.server.focusedContext()
 
-        if (!ctx) return
-        const { HomeCommandPalette } = await import("./command-palette")
-        void dialog.show(() => (
-          <HomeCommandPalette
-            server={conn}
-            onSelectSession={(entry) => {
-              if (!entry.sessionID || !entry.directory || !entry.server) return
-              const sessionID = entry.sessionID
-              const server = entry.server
-              const directory = entry.project?.worktree ?? entry.directory
-              ctx.projects.open(directory)
-              ctx.projects.touch(directory)
-              void startTransition(() => {
-                const tab = tabs.addSessionTab({ server, sessionId: sessionID })
-                tabs.select(tab)
-              })
-            }}
-          />
-        ))
+          if (!ctx) return
+          const { HomeCommandPalette } = await import("./command-palette")
+          void dialog.show(() => (
+            <Show<ProductMode.ID | "all", (mode: ProductMode.ID | "all") => JSX.Element>
+              when={home.mode.current() ?? "all"}
+              keyed
+            >
+              {(mode) => (
+                <HomeCommandPalette
+                  mode={mode === "all" ? undefined : mode}
+                  server={conn}
+                  onSelectSession={(entry) => {
+                    if (!entry.sessionID || !entry.directory || !entry.server) return
+                    const sessionID = entry.sessionID
+                    const server = entry.server
+                    const directory = entry.project?.worktree ?? entry.directory
+                    ctx.projects.open(directory)
+                    ctx.projects.touch(directory)
+                    void startTransition(() => {
+                      const tab = tabs.addSessionTab({ server, sessionId: sessionID })
+                      tabs.select(tab)
+                    })
+                  }}
+                />
+              )}
+            </Show>
+          ))
+        },
       },
-    },
-  ])
+    ])
 
   const rename = async (server: ServerConnection.Key, session: SessionInfo, title: string) => {
     const conn = home.server.list().find((item) => ServerConnection.key(item) === server)
@@ -196,7 +329,7 @@ export function createHomeSessionsController(home: HomeController) {
         // record so date grouping and ordering do not go stale.
         ctx.data.session.invalidate(session.id)
         void ctx.data.session.sync(session.id).catch(() => {})
-        queryClient.setQueryData<SessionInfo[]>(["home-sessions", conn], (current) =>
+        queryClient.setQueriesData<SessionInfo[]>({ queryKey: ["home-sessions", conn], exact: false }, (current) =>
           current?.map((item) => (item.id === session.id ? { ...item, title: next } : item)),
         )
 
@@ -265,7 +398,7 @@ export function createHomeSessionsController(home: HomeController) {
         return false
       })
       .finally(() => {
-        void queryClient.invalidateQueries({ queryKey: ["home-sessions", conn], exact: true })
+        void queryClient.invalidateQueries({ queryKey: ["home-sessions", conn], exact: false })
       })
   }
 
@@ -298,13 +431,17 @@ export function createHomeSessionsController(home: HomeController) {
   }
 
   return {
+    scope: { current: searchScope, matches: matchesSearchScope },
+    mode: home.mode,
     copy: {
       language,
     },
     data: {
       records,
       groups,
-      loading: () => sessionLoad.isPending,
+      loading: () => (surface === "sidebar" && home.mode.current() === undefined) || sessionLoad.isPending,
+      error: () =>
+        sessionLoad.isError ? errorMessage(sessionLoad.error, language.t("common.requestFailed")) : undefined,
       searchRecords: allRecords,
     },
     platform: {
@@ -317,31 +454,35 @@ export function createHomeSessionsController(home: HomeController) {
     session: {
       showProjectName: () => !home.project.selected(),
       server: () => home.selection.value().server,
-      canCreate: () => !!home.project.newSession(),
-      lookup: async (sessionID: string) => {
-        const ctx = home.server.focusedContext()
+      canCreate: () => home.mode.current() !== undefined && !!home.project.newSession(),
+      lookup: async (sessionID: string, scope = searchScope()) => {
+        if (!scope.ctx || !scope.api) return
+        const result = await scope.api.session.get({ sessionID })
 
-        if (!ctx) return
-        const result = await ctx.sdk.api.session.get({ sessionID })
-
-        if (result.time.archived) return
+        if (!matchesSearchScope(scope) || result.time.archived) return
 
         return buildHomeSessionRecords({
           sessions: () => [result],
           projectDirectories,
           projects: home.project.list,
-          resolveProject: ctx.projects.forSession,
+          resolveProject: scope.ctx.projects.forSession,
         })[0]
       },
       create: home.project.openNewSession,
-      open: (session: SessionInfo, options?: OpenSessionOptions) => {
-        const project = homeProjectForSession(session, home.project.list())
+      open: (session: SessionInfo, options?: OpenSessionOptions, scope = searchScope()) => {
+        if (!matchesSearchScope(scope)) return
+
+        const project =
+          surface === "sidebar"
+            ? scope.ctx?.projects.forSession(session)
+            : homeProjectForSession(session, home.project.list())
+
         const conn = home.server.focused()
 
         if (!conn) return
         const connKey = ServerConnection.key(conn)
         const directory = project?.worktree ?? session.location.directory
-        const ctx = home.server.focusedContext()
+        const ctx = scope.ctx
 
         if (!ctx) return
 
@@ -349,6 +490,7 @@ export function createHomeSessionsController(home: HomeController) {
         // Commit cache/project changes with navigation instead of rebuilding
         // the outgoing Home list before leaving it.
         void startTransition(() => {
+          if (!matchesSearchScope(scope)) return
           const tab = tabs.addSessionTab({ server: connKey, sessionId: session.id })
 
           if (!options?.background) tabs.select(tab)
@@ -408,7 +550,10 @@ function groupSessions(records: HomeSessionRecord[], language: ReturnType<typeof
   const now = new Date()
   const today = localDay(now)
   const yesterday = localDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1))
-  const day = (record: HomeSessionRecord) => localDay(new Date(record.session.time.updated ?? record.session.time.created))
+
+  const day = (record: HomeSessionRecord) =>
+    localDay(new Date(record.session.time.updated ?? record.session.time.created))
+
   const todaySessions = records.filter((record) => day(record) === today)
   const yesterdaySessions = records.filter((record) => day(record) === yesterday)
   const olderSessions = records.filter((record) => day(record) !== today && day(record) !== yesterday)

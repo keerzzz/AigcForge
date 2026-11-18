@@ -1,7 +1,7 @@
 import { EOL } from "os"
 import { Effect, Option, Schedule } from "effect"
-import { Service } from "@opencode/client/effect/service"
-import { OpenCode } from "@opencode/client/promise"
+import { Service } from "@aigcfroge/client/effect/service"
+import { AigcForge } from "@aigcfroge/client/promise"
 import { renderUnicodeCompact } from "uqr"
 import { Commands } from "../commands"
 import { Runtime } from "../../framework/runtime"
@@ -14,14 +14,14 @@ export default Runtime.handler(
     const config = yield* ServiceConfig.read()
     if (config.disabled === true)
       return yield* Effect.fail(
-        new Error("Pairing requires the background service; run `opencode service unset disabled` first"),
+        new Error("Pairing requires the background service; run `aigcfroge service unset disabled` first"),
       )
     if (input.remote && Option.isSome(input.url))
       return yield* Effect.fail(new Error("--remote cannot be combined with --url"))
     // Changing the setting restarts the service, and the ensure below starts it again with the tunnel.
     if (input.remote && config.remote === undefined) yield* ServiceConfig.set("remote", "true")
     const endpoint = yield* Service.ensure(yield* ServiceConfig.options())
-    const client = OpenCode.make({ baseUrl: endpoint.url, headers: Service.headers(endpoint) })
+    const client = AigcForge.make({ baseUrl: endpoint.url, headers: Service.headers(endpoint) })
     const urls = yield* pairingURLs(client, input)
     const pairing = yield* Effect.tryPromise(() => client.server.pair())
     const links = urls.map((url) => new URL(`/auth/connect/${pairing.code}`, url).href)
@@ -58,7 +58,7 @@ export default Runtime.handler(
         `  ssh -L ${url.port}:${url.hostname}:${url.port} <host>`,
         `  If port ${url.port} is busy locally, forward another port and use it in the link.`,
         "",
-        "  To connect from other devices, run `opencode service set hostname 0.0.0.0`.",
+        "  To connect from other devices, run `aigcfroge service set hostname 0.0.0.0`.",
         "",
       ].join(EOL) + EOL,
     )
@@ -66,7 +66,7 @@ export default Runtime.handler(
 )
 
 const pairingURLs = Effect.fnUntraced(function* (
-  client: ReturnType<typeof OpenCode.make>,
+  client: ReturnType<typeof AigcForge.make>,
   input: Runtime.Input<typeof Commands.commands.pair>,
 ) {
   if (input.remote) return [yield* remoteURL(client)]
@@ -75,7 +75,7 @@ const pairingURLs = Effect.fnUntraced(function* (
 })
 
 // The service attaches the tunnel in the background, so wait for its URL to appear in server info.
-const remoteURL = Effect.fnUntraced(function* (client: ReturnType<typeof OpenCode.make>) {
+const remoteURL = Effect.fnUntraced(function* (client: ReturnType<typeof AigcForge.make>) {
   const tunnelURL = Effect.gen(function* () {
     const route = (yield* ServiceConfig.read()).remote?.route
     const hostname = route === undefined ? undefined : yield* RemoteTunnel.hostname(route)
@@ -89,7 +89,7 @@ const remoteURL = Effect.fnUntraced(function* (client: ReturnType<typeof OpenCod
     Effect.timeoutOrElse({
       duration: "3 minutes",
       orElse: () =>
-        Effect.fail(new Error("Timed out waiting for the remote tunnel; run `opencode pair --remote` again to retry")),
+        Effect.fail(new Error("Timed out waiting for the remote tunnel; run `aigcfroge pair --remote` again to retry")),
     }),
   )
 })

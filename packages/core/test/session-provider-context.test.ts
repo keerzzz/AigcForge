@@ -1,30 +1,34 @@
 import { expect, test } from "bun:test"
-import { CompactionPart, LanguageModel, Message, ToolCallPart, Media } from "@opencode/ai"
-import { OpenAIResponses } from "@opencode/ai/protocols"
-import { Bus } from "@opencode/core/bus"
-import { Database } from "@opencode/core/database/database"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { EventTable } from "@opencode/core/event/sql"
-import { Instructions } from "@opencode/core/instructions/index"
-import { Project } from "@opencode/core/project"
-import { ProjectTable } from "@opencode/core/project/sql"
-import { AbsolutePath } from "@opencode/core/schema"
-import { SessionEvent } from "@opencode/core/session/event"
-import { SessionHistory } from "@opencode/core/session/history"
-import { SessionInbox } from "@opencode/core/session/inbox"
-import { InstructionState } from "@opencode/core/session/instruction-state"
-import { SessionMessage } from "@opencode/core/session/message"
-import { SessionProjector } from "@opencode/core/session/projector"
-import { SessionProviderContext } from "@opencode/core/session/provider-context"
-import { SessionRunnerModel } from "@opencode/core/session/runner/model"
-import { toLLMMessages } from "@opencode/core/session/runner/to-llm-message"
-import { SessionSchema } from "@opencode/core/session/schema"
-import { InstructionStateTable, SessionTable } from "@opencode/core/session/sql"
-import { SessionStore } from "@opencode/core/session/store"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { Model } from "@opencode/schema/model"
+import { CompactionPart, LanguageModel, Message, ToolCallPart, Media } from "@aigcfroge/ai"
+import { OpenAIResponses } from "@aigcfroge/ai/protocols"
+import { Bus } from "@aigcfroge/core/bus"
+import { Database } from "@aigcfroge/core/database/database"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { EventTable } from "@aigcfroge/core/event/sql"
+import { Instructions } from "@aigcfroge/core/instructions/index"
+import { Project } from "@aigcfroge/core/project"
+import { ProjectTable } from "@aigcfroge/core/project/sql"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { SessionConsultationReference } from "@aigcfroge/core/session/consultation-reference"
+import { SessionEvent } from "@aigcfroge/core/session/event"
+import { SessionHistory } from "@aigcfroge/core/session/history"
+import { SessionInbox } from "@aigcfroge/core/session/inbox"
+import { InstructionState } from "@aigcfroge/core/session/instruction-state"
+import { SessionMessage } from "@aigcfroge/core/session/message"
+import { SessionProjector } from "@aigcfroge/core/session/projector"
+import { SessionPrompt } from "@aigcfroge/core/session/prompt"
+import { SessionProviderContext } from "@aigcfroge/core/session/provider-context"
+import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
+import { toLLMMessages } from "@aigcfroge/core/session/runner/to-llm-message"
+import { SessionSchema } from "@aigcfroge/core/session/schema"
+import { InstructionStateTable, SessionMessageTable, SessionTable } from "@aigcfroge/core/session/sql"
+import { SessionStore } from "@aigcfroge/core/session/store"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Model } from "@aigcfroge/schema/model"
+import { Base64, FileAttachment } from "@aigcfroge/schema/prompt"
 import { asc, eq } from "drizzle-orm"
 import { Effect, Schema } from "effect"
+import { createHash } from "node:crypto"
 import { testEffect } from "./lib/effect"
 import legacyMedia from "./fixture/provider-context/2.0.14-media.json"
 
@@ -150,7 +154,7 @@ it.effect("loads and replays a persisted pre-2.0.15 media checkpoint", () =>
     yield* s.compact(legacyContext)
     yield* s.prompt("continue")
     const history = yield* SessionHistory.load(s.db, sessionID, target)
-    expect(toLLMMessages(history, model.ref).slice(0, 2)).toEqual([...SessionProviderContext.decode(legacyContext)])
+    expect(toLLMMessages(history, model.ref, model.model.provider, target).slice(0, 2)).toEqual([...SessionProviderContext.decode(legacyContext)])
     expect(history.some(SessionProviderContext.isCheckpoint)).toBe(true)
     const local = yield* SessionHistory.load(s.db, sessionID, "local")
     expect(local.some(SessionProviderContext.isCheckpoint)).toBe(false)
@@ -234,6 +238,53 @@ test("compatibility uses the actual deployment and endpoint rather than a catalo
   expect(SessionProviderContext.compatible(providerContext.provenance, undefined)).toBe(false)
 })
 
+test("P4 matches configured and observed URL construction, including query and WebSocket transport, and rejects missing deployment proof", () => {
+  const selected = {
+    ...model, connection: { type: "env" as const, name: "ACCOUNT_A" },
+    model: LanguageModel.update(model.model, { route: model.model.route.with({ endpoint: {
+      baseURL: "https://deployment.invalid/v1/", path: "/responses", query: { z: "last", a: "first" },
+    } }) }),
+  }
+  const prepared = SessionProviderContext.provenance(selected)
+  if (!prepared) throw new Error("The deployment fixture requires a concrete URL")
+  const observed = SessionProviderContext.provenance(selected, "https://deployment.invalid/v1/responses?a=first&z=last")
+  expect(SessionProviderContext.compatible(prepared, observed)).toBe(true)
+  expect(SessionProviderContext.compatible(prepared, SessionProviderContext.provenance(selected, "wss://deployment.invalid/v1/responses?z=last&a=first"))).toBe(true)
+  expect(SessionProviderContext.compatible(prepared, SessionProviderContext.provenance({ ...selected, connection: { type: "env", name: "ACCOUNT_B" } }))).toBe(false)
+  expect(SessionProviderContext.compatible({ ...prepared, deployment: undefined }, prepared)).toBe(false)
+  const anonymous = SessionProviderContext.provenance({ ...selected, connection: undefined })
+  expect(anonymous?.deployment).toBeDefined()
+  expect(anonymous && SessionProviderContext.compatible(anonymous, SessionProviderContext.provenance({ ...selected, connection: undefined }))).toBe(true)
+  expect(SessionProviderContext.compatible(prepared, SessionProviderContext.provenance(selected, "https://other-deployment.invalid/v1/responses?a=first&z=last"))).toBe(false)
+})
+
+it.effect("P4 expands original readable history when a native checkpoint's connection or deployment proof is incompatible", () => Effect.gen(function* () {
+  const s = yield* setup
+  yield* s.prepare
+  yield* s.prompt("Original readable request")
+  const proof = SessionProviderContext.provenance({ ...model, connection: { type: "env", name: "ACCOUNT_A" } })
+  if (!proof) return yield* Effect.die(new Error("The native fixture requires a proven endpoint"))
+  yield* s.bus.publish(SessionEvent.Compaction.Started, { sessionID, reason: "manual", recent: "" })
+  yield* s.compact(SessionProviderContext.encode(proof, replacement))
+  yield* s.prompt("Continue visibly")
+  expect((yield* s.load(proof)).entries.some((entry) => SessionProviderContext.isCheckpoint(entry.message))).toBe(true)
+  for (const boundary of [
+    { ...proof, connection: { type: "env" as const, name: "ACCOUNT_B" } },
+    { ...proof, deployment: undefined },
+  ]) {
+    const expanded = yield* s.load(boundary)
+    expect(expanded.entries.map((entry) => entry.message.type)).toEqual(["user", "user"])
+    expect(toLLMMessages(expanded.entries.map((entry) => entry.message), model.ref, model.model.provider, boundary).map((message) => message.content))
+      .toEqual([[Message.text("Original readable request")], [Message.text("Continue visibly")]])
+  }
+  const historical = { ...proof, deployment: undefined }
+  yield* s.bus.publish(SessionEvent.Compaction.Started, { sessionID, reason: "manual", recent: "" })
+  yield* s.compact(SessionProviderContext.encode(historical, replacement))
+  const preserved = yield* s.load("latest")
+  expect(preserved.entries.some((entry) => SessionProviderContext.isCheckpoint(entry.message))).toBe(true)
+  expect((yield* s.load(proof)).entries[0]?.message).toMatchObject({ type: "compaction", providerContext: { provenance: proof } })
+}))
+
 it.effect(
   "advances the native instruction epoch and omits superseded chronological updates after durable replay and provider switches",
   () =>
@@ -263,6 +314,8 @@ it.effect(
           toLLMMessages(
             native.entries.map((entry) => entry.message),
             model.ref,
+            model.model.provider,
+            target,
           ),
         ).toEqual([
           ...replacement,
@@ -346,6 +399,8 @@ it.effect("falls back to an earlier compatible native or local checkpoint", () =
       toLLMMessages(
         native.entries.map((entry) => entry.message),
         model.ref,
+        model.model.provider,
+        target,
       ).filter((message) => message.role === "system"),
     ).toEqual([Message.system("post-epoch update")])
     const local = yield* s.load("local")
@@ -364,5 +419,353 @@ it.effect("rejects malformed persisted native windows instead of silently droppi
     })
     const store = yield* SessionStore.Service
     expect(yield* store.context(sessionID).pipe(Effect.flip)).toMatchObject({ _tag: "Session.MessageDecodeError" })
+  }),
+)
+
+it.effect("SC04 freezes before and through windows without admitting later compactions or source mutations", () =>
+  Effect.gen(function* () {
+    const s = yield* setup
+    const first = yield* s.prompt("original text before compaction")
+    const local = yield* s.compact()
+    const native = yield* s.compact(providerContext)
+    const selected = yield* s.prompt("selected consultation boundary")
+    yield* s.compact()
+    yield* s.prompt("future text outside the consultation")
+    const localID = SessionMessage.ID.fromEvent(local.id)
+    const nativeID = SessionMessage.ID.fromEvent(native.id)
+    const original = yield* SessionConsultationReference.freeze(s.db, {
+      sourceSessionID: sessionID,
+      boundary: { type: "before", messageID: localID },
+    })
+    expect(original.sourceMessageIDs).toEqual([first])
+    expect(Buffer.from(original.file.data, "base64").toString("utf8")).toContain("original text before compaction")
+    const before = yield* SessionConsultationReference.freeze(s.db, {
+      sourceSessionID: sessionID,
+      boundary: { type: "before", messageID: selected },
+    })
+    expect(before.sourceMessageIDs).toEqual([localID, nativeID])
+    const reference = yield* SessionConsultationReference.freeze(s.db, {
+      sourceSessionID: sessionID,
+      boundary: { type: "through", messageID: selected },
+    })
+    const bytes = Buffer.from(reference.file.data, "base64")
+    const text = bytes.toString("utf8")
+    expect(reference.sourceMessageIDs).toEqual([localID, nativeID, selected])
+    expect(reference.file).toMatchObject({ mime: "text/plain", source: { type: "inline" } })
+    expect(reference.digest).toBe(createHash("sha256").update(bytes).digest("hex"))
+    expect(reference.omissions).toContainEqual({
+      messageID: nativeID,
+      type: "native-checkpoint",
+      reason: "provider-bound-context",
+    })
+    expect(text).toContain("local summary")
+    expect(text).toContain("selected consultation boundary")
+    expect(text).not.toContain("opaque-checkpoint")
+    expect(text).not.toContain("future text outside the consultation")
+    yield* s.db
+      .update(SessionMessageTable)
+      .set({ data: { text: "source text changed after freezing", time: { created: 0 } } })
+      .where(eq(SessionMessageTable.id, selected))
+      .run()
+    const changed = yield* SessionConsultationReference.freeze(s.db, {
+      sourceSessionID: sessionID,
+      boundary: reference.boundary,
+    })
+    expect(changed.digest).not.toBe(reference.digest)
+    expect(Buffer.from(changed.file.data, "base64").toString("utf8")).toContain("source text changed after freezing")
+    yield* s.db.delete(SessionTable).where(eq(SessionTable.id, sessionID)).run()
+    expect(Buffer.from(reference.file.data, "base64")).toEqual(bytes)
+    expect(reference.digest).toBe(createHash("sha256").update(bytes).digest("hex"))
+    expect(
+      yield* SessionConsultationReference.freeze(s.db, {
+        sourceSessionID: sessionID,
+        boundary: reference.boundary,
+      }).pipe(Effect.flip),
+    ).toMatchObject({ _tag: "Session.NotFoundError" })
+  }),
+)
+
+it.effect(
+  "SC04 materializes source text and tool results while recording actual binary, native and partial omissions",
+  () =>
+    Effect.gen(function* () {
+      const s = yield* setup
+      yield* s.prepare
+      const user = SessionMessage.ID.create()
+      const inbox = yield* SessionInbox.Service
+      yield* inbox.admit({
+        id: user,
+        sessionID,
+        item: {
+          type: "user",
+          payload: {
+            text: "source user body",
+            files: [
+              FileAttachment.create({
+                data: Base64.make(Buffer.from("保存的附件正文").toString("base64")),
+                mime: "text/plain",
+                name: "frozen.txt",
+                source: { type: "uri", uri: "file:///project/frozen.txt" },
+              }),
+              FileAttachment.create({
+                data: Base64.make("AQID"),
+                mime: "image/png",
+                name: "binary.png",
+                source: { type: "inline" },
+              }),
+              FileAttachment.create({
+                data: Base64.make("/w=="),
+                mime: "text/plain",
+                name: "invalid.txt",
+                source: { type: "inline" },
+              }),
+            ],
+          },
+          delivery: "steer",
+        },
+      })
+      yield* s.bus.publish(SessionEvent.InboxDelivered, { sessionID, inboxID: user })
+      s.state.value = "source system instructions must stay source-owned"
+      yield* s.prepare
+      const shell = SessionMessage.ID.create()
+      yield* s.db
+        .insert(SessionMessageTable)
+        .values({
+          id: shell,
+          session_id: sessionID,
+          type: "shell",
+          seq: 5_000,
+          data: {
+            shellID: "sh_reference",
+            command: "printf saved",
+            status: "exited",
+            exit: 0,
+            output: { output: "saved shell", cursor: 11, size: 20, truncated: true },
+            time: { created: 0, completed: 1 },
+          },
+        })
+        .run()
+      const assistant = SessionMessage.ID.create()
+      yield* s.db
+        .insert(SessionMessageTable)
+        .values({
+          id: assistant,
+          session_id: sessionID,
+          type: "assistant",
+          seq: 10_000,
+          data: {
+            agent: "source-agent",
+            model: model.ref,
+            time: { created: 0, completed: 1 },
+            providerState: { opaque: "hidden-assistant-state" },
+            content: [
+              { type: "text", text: "source assistant body", state: { opaque: "hidden-text-state" } },
+              { type: "reasoning", text: "readable source reasoning" },
+              {
+                type: "tool",
+                id: "read_source",
+                name: "read",
+                time: { created: 0, completed: 1 },
+                providerState: { opaque: "hidden-tool-state" },
+                state: {
+                  status: "completed",
+                  input: { path: "/project/tool.txt" },
+                  content: [
+                    { type: "text", text: "durable tool result" },
+                    {
+                      type: "file",
+                      uri: `data:text/plain;base64,${Buffer.from("inline tool file body").toString("base64")}`,
+                      mime: "text/plain",
+                      name: "inline-tool.txt",
+                    },
+                    {
+                      type: "file",
+                      uri: "file:///project/not-materialized.txt",
+                      mime: "text/plain",
+                      name: "not-materialized.txt",
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        })
+        .run()
+      const reference = yield* SessionConsultationReference.freeze(s.db, {
+        sourceSessionID: sessionID,
+        boundary: { type: "through", messageID: assistant },
+      })
+      const text = Buffer.from(reference.file.data, "base64").toString("utf8")
+      expect(text).toContain("source user body")
+      expect(text).toContain("保存的附件正文")
+      expect(text).toContain("file:///project/frozen.txt")
+      expect(text).toContain("binary.png")
+      expect(text).toContain("source assistant body")
+      expect(text).toContain("readable source reasoning")
+      expect(text).toContain('Input: {"path":"/project/tool.txt"}')
+      expect(text).toContain("durable tool result")
+      expect(text).toContain("inline tool file body")
+      expect(text).toContain("file:///project/not-materialized.txt")
+      expect(text).toContain("saved shell")
+      expect(text).not.toContain("source system instructions must stay source-owned")
+      expect(text).not.toContain("hidden-assistant-state")
+      expect(text).not.toContain("hidden-text-state")
+      expect(text).not.toContain("hidden-tool-state")
+      expect(reference.omissions).toContainEqual({ messageID: user, type: "attachment", reason: "binary-content" })
+      expect(reference.omissions).toContainEqual({
+        messageID: user,
+        type: "attachment",
+        reason: "invalid-text-content",
+      })
+      expect(reference.omissions).toContainEqual({
+        messageID: assistant,
+        type: "attachment",
+        reason: "unmaterialized-uri",
+      })
+      expect(reference.omissions).toContainEqual({
+        messageID: assistant,
+        type: "provider-state",
+        reason: "provider-bound-payload",
+      })
+      expect(reference.omissions).toContainEqual({ messageID: shell, type: "shell-output", reason: "partial-output" })
+      expect(
+        reference.omissions.some((omission) => omission.type === "system" && omission.reason === "source-instructions"),
+      ).toBe(true)
+    }),
+)
+
+it.effect("SC04 validates source and boundary ownership and only accepts the completed selected prefix", () =>
+  Effect.gen(function* () {
+    const s = yield* setup
+    const user = yield* s.prompt("complete promoted User")
+    expect(
+      yield* SessionConsultationReference.freeze(s.db, {
+        sourceSessionID: SessionSchema.ID.make("ses_missing_source"),
+        boundary: { type: "through", messageID: user },
+      }).pipe(Effect.flip),
+    ).toMatchObject({ _tag: "Session.NotFoundError" })
+    expect(
+      yield* SessionConsultationReference.freeze(s.db, {
+        sourceSessionID: sessionID,
+        boundary: { type: "through", messageID: SessionMessage.ID.make("msg_missing_boundary") },
+      }).pipe(Effect.flip),
+    ).toMatchObject({ _tag: "Session.MessageNotFoundError" })
+    const other = SessionSchema.ID.make("ses_other_consultation_source")
+    yield* s.bus.publish(SessionEvent.Created, {
+      sessionID: other,
+      projectID: Project.ID.global,
+      location: { directory: AbsolutePath.make("/project") },
+      slug: "other-consultation-source",
+      version: "test",
+    })
+    const foreign = SessionMessage.ID.create()
+    const inbox = yield* SessionInbox.Service
+    yield* inbox.admit({
+      id: foreign,
+      sessionID: other,
+      item: { type: "user", payload: { text: "foreign boundary" }, delivery: "steer" },
+    })
+    yield* s.bus.publish(SessionEvent.InboxDelivered, { sessionID: other, inboxID: foreign })
+    expect(
+      yield* SessionConsultationReference.freeze(s.db, {
+        sourceSessionID: sessionID,
+        boundary: { type: "through", messageID: foreign },
+      }).pipe(Effect.flip),
+    ).toMatchObject({ _tag: "Session.InvalidConsultationError", field: "boundary" })
+    const assistant = SessionMessage.ID.create()
+    yield* s.db
+      .insert(SessionMessageTable)
+      .values({
+        id: assistant,
+        session_id: sessionID,
+        type: "assistant",
+        seq: 10_000,
+        data: {
+          agent: "source-agent",
+          model: model.ref,
+          content: [{ type: "text", text: "running response" }],
+          time: { created: 0 },
+        },
+      })
+      .run()
+    const before = yield* SessionConsultationReference.freeze(s.db, {
+      sourceSessionID: sessionID,
+      boundary: { type: "before", messageID: assistant },
+    })
+    expect(before.sourceMessageIDs).toEqual([user])
+    expect(
+      yield* SessionConsultationReference.freeze(s.db, {
+        sourceSessionID: sessionID,
+        boundary: { type: "through", messageID: assistant },
+      }).pipe(Effect.flip),
+    ).toMatchObject({ _tag: "Session.InvalidConsultationError", field: "boundary" })
+    yield* s.db
+      .update(SessionMessageTable)
+      .set({
+        data: {
+          agent: "source-agent",
+          model: model.ref,
+          content: [
+            {
+              type: "tool",
+              id: "running_tool",
+              name: "read",
+              time: { created: 0 },
+              state: { status: "running", input: {}, metadata: {} },
+            },
+          ],
+          time: { created: 0, completed: 1 },
+        },
+      })
+      .where(eq(SessionMessageTable.id, assistant))
+      .run()
+    expect(
+      yield* SessionConsultationReference.freeze(s.db, {
+        sourceSessionID: sessionID,
+        boundary: { type: "through", messageID: assistant },
+      }).pipe(Effect.flip),
+    ).toMatchObject({ _tag: "Session.InvalidConsultationError", field: "boundary" })
+    yield* s.db
+      .update(SessionMessageTable)
+      .set({
+        data: {
+          agent: "source-agent",
+          model: model.ref,
+          content: [{ type: "text", text: "completed response" }],
+          time: { created: 0, completed: 1 },
+        },
+      })
+      .where(eq(SessionMessageTable.id, assistant))
+      .run()
+    const compaction = SessionMessage.ID.create()
+    yield* s.db
+      .insert(SessionMessageTable)
+      .values({
+        id: compaction,
+        session_id: sessionID,
+        type: "compaction",
+        seq: 20_000,
+        data: { status: "running", reason: "manual", summary: "", recent: "", time: { created: 0 } },
+      })
+      .run()
+    expect(
+      yield* SessionConsultationReference.freeze(s.db, {
+        sourceSessionID: sessionID,
+        boundary: { type: "through", messageID: compaction },
+      }).pipe(Effect.flip),
+    ).toMatchObject({ _tag: "Session.InvalidConsultationError", field: "boundary" })
+  }),
+)
+
+it.effect("SC04 rejects references by actual UTF-8 bytes at the existing attachment limit", () =>
+  Effect.gen(function* () {
+    const s = yield* setup
+    const boundary = yield* s.prompt("界".repeat(Math.floor(SessionPrompt.MAX_ATTACHMENT_BYTES / 3) + 1))
+    const error = yield* SessionConsultationReference.freeze(s.db, {
+      sourceSessionID: sessionID,
+      boundary: { type: "through", messageID: boundary },
+    }).pipe(Effect.flip)
+    expect(error).toMatchObject({ _tag: "Session.InvalidConsultationError", field: "reference" })
+    expect(error.message).toContain(`${SessionPrompt.MAX_ATTACHMENT_BYTES} byte attachment limit`)
   }),
 )

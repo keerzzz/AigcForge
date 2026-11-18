@@ -1,5 +1,5 @@
 import { Effect, Semaphore, Stream } from "effect"
-import { define } from "@opencode/plugin/effect/plugin"
+import { define } from "@aigcfroge/plugin/effect/plugin"
 import { Bus } from "../../bus.js"
 import { IntegrationConnection } from "../../integration/connection.js"
 import { Credential } from "../../credential.js"
@@ -11,7 +11,7 @@ import type { PluginInternal } from "../internal.js"
 const providerID = Provider.ID.make("modal")
 
 export const ModalPlugin = define({
-  id: "opencode.provider.modal",
+  id: "aigcfroge.provider.modal",
   effect: Effect.fn(function* (ctx) {
     const providers = yield* Provider.Service
     const bus = yield* Bus.Service

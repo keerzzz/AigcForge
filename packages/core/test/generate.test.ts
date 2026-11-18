@@ -1,15 +1,16 @@
 import { expect } from "bun:test"
-import { LanguageModel, LLMClient } from "@opencode/ai"
-import { RequestExecutor } from "@opencode/ai/route"
-import { OpenAIChat } from "@opencode/ai/protocols"
-import { TestLLM } from "@opencode/ai/testing"
-import { AISDK } from "@opencode/core/aisdk"
-import { Generate } from "@opencode/core/generate"
-import { Integration } from "@opencode/core/integration"
-import { ModelResolver } from "@opencode/core/model-resolver"
-import { ID, Info, Model, Ref } from "@opencode/core/model"
-import { Provider } from "@opencode/core/provider"
-import { Npm } from "@opencode/util/npm"
+import { LanguageModel, LLMClient } from "@aigcfroge/ai"
+import { RequestExecutor } from "@aigcfroge/ai/route"
+import { OpenAIChat } from "@aigcfroge/ai/protocols"
+import { TestLLM } from "@aigcfroge/ai/testing"
+import { AISDK } from "@aigcfroge/core/aisdk"
+import { Generate } from "@aigcfroge/core/generate"
+import { Integration } from "@aigcfroge/core/integration"
+import { ModelResolver } from "@aigcfroge/core/model-resolver"
+import { ID, Info, Model, Ref } from "@aigcfroge/core/model"
+import { ModelGroup } from "@aigcfroge/core/model-group"
+import { Provider } from "@aigcfroge/core/provider"
+import { Npm } from "@aigcfroge/util/npm"
 import { Effect, Layer } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 import { testEffect } from "./lib/effect"
@@ -30,6 +31,7 @@ const integrations = Layer.mock(Integration.Service, {
   revision: () => 0,
   connection: {
     active: () => Effect.undefined,
+    get: () => Effect.die("unused"),
     resolve: () => Effect.die("unused"),
     key: () => Effect.die("unused"),
     external: () => Effect.die("unused"),
@@ -67,6 +69,18 @@ const resolver = ModelResolver.layer.pipe(Layer.provide(Layer.mergeAll(providers
 const it = testEffect(Generate.layer.pipe(Layer.provide(Layer.merge(resolver, client))))
 const resolverIt = testEffect(resolver)
 
+const unavailableGroup = ModelResolver.layer.pipe(Layer.provide(Layer.mergeAll(
+  providers, integrations, npm, aisdk,
+  Layer.mock(Model.Service, { default: () => new ModelGroup.UnavailableError({ groupID: Model.GroupID.make("default-group"), reason: "no-candidates" }) }),
+)))
+testEffect(Generate.layer.pipe(Layer.provideMerge(client), Layer.provide(unavailableGroup))).effect("reports an unavailable Group default without issuing an auxiliary completion", () => Effect.gen(function* () {
+  const generate = yield* Generate.Service
+  const error = yield* generate.text({ prompt: "Generate a short summary" }).pipe(Effect.flip)
+  expect(error).toBeInstanceOf(Generate.UnavailableError)
+  expect(error.message).toContain('Model group "default-group" is unavailable: no-candidates')
+  expect(yield* TestLLM.Test.use((llm) => llm.requests())).toEqual([])
+}))
+
 it.effect("loads dynamic AI SDK models", () =>
   Effect.gen(function* () {
     const generate = yield* Generate.Service
@@ -89,7 +103,14 @@ resolverIt.effect("resolves dynamic models with their catalog metadata", () =>
       ref: Ref.make({ providerID: selected.providerID, id: selected.id }),
       capabilities: selected.capabilities,
       cost: selected.cost,
+      quote: { status: "unknown" },
+      quoteOrigin: undefined,
+      quota: undefined,
+      connection: undefined,
       limit: selected.limit,
+      compaction: undefined,
+      transport: undefined,
+      chunkTimeout: undefined,
     })
   }),
 )
@@ -101,7 +122,7 @@ testEffect(Layer.empty).effect("attributes each stateless completion without cre
       HttpClient.HttpClient,
       HttpClient.make((request) =>
         Effect.sync(() => {
-          const session = request.headers["x-opencode-session"]
+          const session = request.headers["x-aigcfroge-session"]
           if (!session)
             return HttpClientResponse.fromWeb(
               request,

@@ -1,37 +1,38 @@
-import { Money } from "@opencode/schema/money"
-import { Agent } from "@opencode/schema/agent"
-import { Session } from "@opencode/core/session"
-import { OpenAIResponses } from "@opencode/ai/protocols/openai-responses"
-import { AIError, HttpContext, LLM, Message, RateLimitError } from "@opencode/ai"
-import { classifyProviderFailure } from "@opencode/ai/provider-error"
-import { compileRequest } from "@opencode/ai/route/client"
+import { Money } from "@aigcfroge/schema/money"
+import { Agent } from "@aigcfroge/schema/agent"
+import { Session } from "@aigcfroge/core/session"
+import { OpenAIResponses } from "@aigcfroge/ai/protocols/openai-responses"
+import { AIError, HttpContext, LLM, Message, RateLimitError } from "@aigcfroge/ai"
+import { classifyProviderFailure } from "@aigcfroge/ai/provider-error"
+import { compileRequest } from "@aigcfroge/ai/route/client"
 import { describe, expect } from "bun:test"
 // import { DateTime, Deferred, Effect, Schedule } from "effect"
 import { DateTime, Effect, Schedule } from "effect"
-import { HttpClient, HttpClientResponse } from "effect/http"
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
+import { TestClock } from "effect/testing"
 import { exportJWK, generateKeyPair, SignJWT } from "jose"
-import { App } from "@opencode/core/app"
-import { Credential } from "@opencode/core/credential"
-import { Integration } from "@opencode/core/integration"
-import { KV } from "@opencode/core/kv"
-import { Location } from "@opencode/core/location"
-import { Model } from "@opencode/core/model"
-import { ModelResolver } from "@opencode/core/model-resolver"
-import { Plugin } from "@opencode/core/plugin"
-import { PluginHost } from "@opencode/core/plugin/host"
-import { PluginHooks } from "@opencode/core/plugin/hooks"
-import { GithubCopilotPlugin } from "@opencode/core/plugin/provider/github-copilot"
-import { ChatGPTPlugin, fetchModels, verifyIDToken } from "@opencode/core/plugin/provider/chatgpt"
-import { OpenAIPlugin } from "@opencode/core/plugin/provider/openai"
-import { Project } from "@opencode/core/project"
-import { Provider } from "@opencode/core/provider"
-import { AbsolutePath } from "@opencode/core/schema"
-import { SessionModelRequest } from "@opencode/core/session/model-request"
-import { SessionModelTransport } from "@opencode/core/session/model-transport"
-import { SessionRunnerModel } from "@opencode/core/session/runner/model"
-import { SessionRunnerRetry } from "@opencode/core/session/runner/retry"
-import { toSessionError } from "@opencode/core/session/to-session-error"
-import { testEffect } from "../lib/effect"
+import { App } from "@aigcfroge/core/app"
+import { Credential } from "@aigcfroge/core/credential"
+import { Integration } from "@aigcfroge/core/integration"
+import { KV } from "@aigcfroge/core/kv"
+import { Location } from "@aigcfroge/core/location"
+import { Model } from "@aigcfroge/core/model"
+import { ModelResolver } from "@aigcfroge/core/model-resolver"
+import { Plugin } from "@aigcfroge/core/plugin"
+import { PluginHost } from "@aigcfroge/core/plugin/host"
+import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
+import { GithubCopilotPlugin } from "@aigcfroge/core/plugin/provider/github-copilot"
+import { ChatGPTPlugin, fetchModels, verifyIDToken } from "@aigcfroge/core/plugin/provider/chatgpt"
+import { OpenAIPlugin } from "@aigcfroge/core/plugin/provider/openai"
+import { Project } from "@aigcfroge/core/project"
+import { Provider } from "@aigcfroge/core/provider"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { SessionModelRequest } from "@aigcfroge/core/session/model-request"
+import { SessionModelTransport } from "@aigcfroge/core/session/model-transport"
+import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
+import { SessionRunnerRetry } from "@aigcfroge/core/session/runner/retry"
+import { toSessionError } from "@aigcfroge/core/session/to-session-error"
+import { pollWithTimeout, testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
 const it = testEffect(PluginTestLayer)
@@ -46,10 +47,11 @@ const addPlugin = Effect.fn(function* (http = unavailableModels) {
   yield* ChatGPTPlugin.effect(host).pipe(Effect.provideService(HttpClient.HttpClient, http))
 })
 
-const addLegacyPlugin = Effect.fn(function* () {
+const addLegacyPlugin = Effect.fn(function* (http?: HttpClient.HttpClient) {
   const plugin = yield* Plugin.Service
   const host = yield* PluginHost.make(plugin, OpenAIPlugin.id)
-  yield* OpenAIPlugin.effect(host)
+  const effect = OpenAIPlugin.effect(host)
+  yield* (http ? effect.pipe(Effect.provideService(HttpClient.HttpClient, http)) : effect)
 })
 
 const addGithubCopilotPlugin = Effect.fn(function* () {
@@ -257,7 +259,11 @@ describe("ChatGPTPlugin", () => {
       yield* addPlugin()
       yield* addLegacyPlugin()
       const integrations = yield* Integration.Service
-      expect((yield* integrations.get(Integration.ID.make("openai")))?.methods.map((method) => method.type === "oauth" && method.id)).toEqual([
+      expect(
+        (yield* integrations.get(Integration.ID.make("openai")))?.methods.map(
+          (method) => method.type === "oauth" && method.id,
+        ),
+      ).toEqual([
         Integration.MethodID.make("chatgpt-token-sharing"),
         Integration.MethodID.make("chatgpt-browser"),
         Integration.MethodID.make("chatgpt-headless"),
@@ -310,7 +316,7 @@ describe("ChatGPTPlugin", () => {
         }
         expect(input.error.response?.body).toBe(body)
         expect(input.retry).toBe(true)
-        expect(yield* decide(input)).toEqual({ retry: false })
+        expect(yield* decide(input)).toEqual({ retry: false, reason: "declined" })
 
         const other = new AIError({ reason: new RateLimitError({ message: "Rate limit exceeded", body: "{}" }) })
         expect(yield* decide({ ...input, cause: other, error: toSessionError(other) })).toMatchObject({ retry: true })
@@ -400,7 +406,7 @@ describe("ChatGPTPlugin", () => {
       expect(`${url.origin}${url.pathname}`).toBe("https://auth.openai.com/api/accounts/authorize")
       expect(Object.fromEntries(url.searchParams)).toMatchObject({
         client_id: "dynamic_agent_client",
-        agent_name_hint: "OpenCode",
+        agent_name_hint: "AigcForge",
         response_type: "code",
         scope: "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct",
         resource: "https://api.openai.com/v1",
@@ -554,7 +560,7 @@ describe("ChatGPTPlugin", () => {
   //     const kv = yield* KV.Service
   //     yield* catalog.transform((editor) => {
   //       editor.update(Provider.ID.openai, (provider) => {
-  //         provider.package = "@opencode/ai/providers/openai"
+  //         provider.package = "@aigcfroge/ai/providers/openai"
   //       })
   //       editor.models.update(Provider.ID.openai, Model.ID.make("gpt-5.6-sol"), (model) => {
   //         model.limit = { context: 1_050_000, input: 922_000, output: 128_000 }
@@ -616,7 +622,7 @@ describe("ChatGPTPlugin", () => {
   //     expect(sol.settings?.compaction).toEqual({ type: "summary" })
   //     const future = required(available.find((model) => model.id === "gpt-6-future"))
   //     expect(future.name).toBe("GPT-6-Future")
-  //     expect(future.package).toBe("@opencode/ai/providers/openai")
+  //     expect(future.package).toBe("@aigcfroge/ai/providers/openai")
   //     expect(future.limit).toEqual({ context: 272_000, output: 32_000 })
   //   }),
   // )
@@ -629,7 +635,7 @@ describe("ChatGPTPlugin", () => {
   //     const kv = yield* KV.Service
   //     yield* catalog.transform((editor) => {
   //       editor.update(Provider.ID.openai, (provider) => {
-  //         provider.package = "@opencode/ai/providers/openai"
+  //         provider.package = "@aigcfroge/ai/providers/openai"
   //       })
   //       for (const id of ["gpt-5.5", "gpt-6-astra", "gpt-6-sol"])
   //         editor.models.update(Provider.ID.openai, Model.ID.make(id), () => {})
@@ -697,7 +703,7 @@ describe("ChatGPTPlugin", () => {
       const credentials = yield* Credential.Service
       yield* catalog.transform((catalog) => {
         catalog.update(Provider.ID.openai, (draft) => {
-          draft.package = "@opencode/ai/providers/openai"
+          draft.package = "@aigcfroge/ai/providers/openai"
           draft.settings = { transport: "websocket" }
         })
         catalog.models.update(Provider.ID.openai, Model.ID.make("gpt-5.5"), (model) => {
@@ -767,7 +773,7 @@ describe("ChatGPTPlugin", () => {
       const direct = yield* request(Provider.ID.openai, "https://api.openai.com/v1")
 
       const provider = required(yield* catalog.get(Provider.ID.openai))
-      expect(provider.package).toBe("@opencode/ai/providers/openai")
+      expect(provider.package).toBe("@aigcfroge/ai/providers/openai")
       expect(provider.settings?.transport).toBe("http")
       expect(provider.settings?.baseURL).toBe("https://api.openai.com/v1")
       expect(provider.headers).not.toHaveProperty("x-openai-chatpass-test")
@@ -788,7 +794,7 @@ describe("ChatGPTPlugin", () => {
         "x-client-request-id": child.id,
       })
       const eligible = required(yield* models.get(Provider.ID.openai, Model.ID.make("gpt-5.5")))
-      expect(eligible.package).toBe("@opencode/ai/providers/openai")
+      expect(eligible.package).toBe("@aigcfroge/ai/providers/openai")
       expect(eligible.headers).not.toHaveProperty("x-openai-chatpass-test")
       expect(eligible.cost).toEqual([])
       expect(eligible.limit).toEqual({ context: 1_050_000, input: 922_000, output: 128_000 })
@@ -809,7 +815,12 @@ describe("ChatGPTPlugin", () => {
         "gpt-4.99",
       ])
         expect(yield* models.get(Provider.ID.openai, Model.ID.make(id))).toBeUndefined()
-      expect((yield* models.available()).filter((model) => model.providerID === Provider.ID.openai).map((model) => model.id).sort()).toEqual(
+      expect(
+        (yield* models.available())
+          .filter((model) => model.providerID === Provider.ID.openai)
+          .map((model) => model.id)
+          .sort(),
+      ).toEqual(
         [
           "gpt-5.5",
           "gpt-5.5-fast",
@@ -839,7 +850,7 @@ describe("ChatGPTPlugin", () => {
       const credentials = yield* Credential.Service
       yield* catalog.transform((catalog) => {
         catalog.update(Provider.ID.openai, (draft) => {
-          draft.package = "@opencode/ai/providers/openai"
+          draft.package = "@aigcfroge/ai/providers/openai"
         })
         catalog.models.update(Provider.ID.openai, Model.ID.make("gpt-5.5"), (model) => {
           model.limit = { context: 1_050_000, input: 922_000, output: 128_000 }
@@ -857,7 +868,7 @@ describe("ChatGPTPlugin", () => {
 
       const provider = required(yield* catalog.get(Provider.ID.openai))
       const model = required(yield* models.get(Provider.ID.openai, Model.ID.make("gpt-5.5")))
-      expect(model.package).toBe("@opencode/ai/providers/openai")
+      expect(model.package).toBe("@aigcfroge/ai/providers/openai")
       expect(model.enabled).toBe(true)
       expect(model.limit).toEqual({ context: 1_050_000, input: 922_000, output: 128_000 })
       expect(provider.settings?.transport).toBe("websocket")
@@ -877,7 +888,7 @@ describe("ChatGPTPlugin", () => {
       const kv = yield* KV.Service
       yield* catalog.transform((editor) => {
         editor.update(Provider.ID.openai, (provider) => {
-          provider.package = "@opencode/ai/providers/openai"
+          provider.package = "@aigcfroge/ai/providers/openai"
         })
         editor.models.update(Provider.ID.openai, Model.ID.make("gpt-5.5"), () => {})
       })
@@ -940,6 +951,179 @@ describe("ChatGPTPlugin", () => {
     }),
   )
 
+  it.live("resolves an inactive token-sharing account through its own builtin catalog and route without switching Codex", () =>
+    Effect.gen(function* () {
+      const catalog = yield* Provider.Service
+      const models = yield* Model.Service
+      const credentials = yield* Credential.Service
+      const integrations = yield* Integration.Service
+      const hooks = yield* PluginHooks.Service
+      const resolver = yield* ModelResolver.Service
+      const legacyID = Model.ID.make("codex-picker")
+      const sharingID = Model.ID.make("sharing-picker")
+      yield* catalog.transform((editor) => {
+        editor.update(Provider.ID.openai, (provider) => { provider.package = "@aigcfroge/ai/providers/openai" })
+        editor.models.update(Provider.ID.openai, legacyID, (model) => { model.modelID = Model.ID.make("gpt-5.5") })
+        editor.models.update(Provider.ID.openai, sharingID, (model) => { model.modelID = Model.ID.make("gpt-6.1-sol") })
+      })
+      const codex = yield* credentials.create({
+        integrationID: Integration.ID.make("openai"),
+        value: Credential.OAuth.make({
+          type: "oauth", methodID: Integration.MethodID.make("chatgpt-browser"),
+          access: "codex-account-a", refresh: "codex-refresh-a", expires: Date.now() + 3_600_000,
+          metadata: { accountID: "account-a" },
+        }),
+      })
+      const sharing = yield* credentials.create({
+        integrationID: Integration.ID.make("openai"), activate: false,
+        value: Credential.OAuth.make({
+          type: "oauth", methodID: Integration.MethodID.make("chatgpt-token-sharing"),
+          access: "sharing-account-b", refresh: "sharing-refresh-b", expires: Date.now() + 3_600_000,
+          metadata: { clientID: "client-b", scopes: ["chatgpt.tokens.use.direct"] },
+        }),
+      })
+      const connectionA = { type: "credential" as const, id: codex.id }
+      const connectionB = { type: "credential" as const, id: sharing.id }
+      const directoryRequests: Array<{ url: string; authorization?: string }> = []
+      const http = HttpClient.make((request) => Effect.sync(() => {
+        directoryRequests.push({ url: request.url, authorization: request.headers.authorization })
+        return HttpClientResponse.fromWeb(request, Response.json({ models: [{
+          slug: "gpt-6.1-sol", display_name: "Account B Sol", visibility: "list", supported_in_api: true,
+          context_window: 31_000, input_modalities: ["text"], supported_reasoning_levels: [{ effort: "low" }],
+        }] }))
+      }))
+      yield* addLegacyPlugin()
+      yield* addPlugin(http)
+      const modelB = yield* pollWithTimeout(
+        models.get(Provider.ID.openai, sharingID, connectionB).pipe(Effect.map((model) => model?.limit.context === 31_000 ? model : undefined)),
+        "Inactive token-sharing account did not publish its own model directory",
+      )
+      const modelA = required(yield* models.get(Provider.ID.openai, legacyID, connectionA))
+      expect(yield* integrations.connection.active(Integration.ID.make("openai"))).toMatchObject(connectionA)
+      expect(directoryRequests).toEqual([{ url: "https://api.openai.com/v1/models", authorization: "Bearer sharing-account-b" }])
+      expect(yield* models.get(Provider.ID.openai, legacyID, connectionB)).toBeUndefined()
+      expect(String(modelB.modelID)).toBe("gpt-6.1-sol")
+      expect(modelB.capabilities.input).toEqual(["text"])
+      expect(modelA.limit.context).toBe(400_000)
+      const sourceB = (yield* catalog.snapshot({ providerID: Provider.ID.openai, connection: connectionB })).available.find((source) => source.provider.id === Provider.ID.openai)
+      expect(sourceB?.sourceConnection).toMatchObject(connectionB)
+      yield* models.transform((editor) => { editor.update(Provider.ID.openai, sharingID, (model) => { model.name = "Curated account B" }) })
+      const resolvedA = yield* resolver.resolveModel(modelA, undefined, connectionA)
+      const resolvedB = yield* resolver.resolveModel(modelB, undefined, connectionB)
+      expect(resolvedA.model.route.endpoint.baseURL).toBe("https://chatgpt.com/backend-api/codex")
+      expect(resolvedB.model.route.endpoint.baseURL).toBe("https://api.openai.com/v1")
+      expect(resolvedB.ref).toMatchObject({ id: sharingID, providerID: Provider.ID.openai })
+      expect(resolvedB.connection).toEqual(connectionB)
+      expect(required(yield* models.get(Provider.ID.openai, sharingID, connectionB)).name).toBe("Curated account B")
+      for (const [resolved, token, apiID] of [[resolvedA, "codex-account-a", "gpt-5.5"], [resolvedB, "sharing-account-b", "gpt-6.1-sol"]] as const) {
+        const request = LLM.request({ model: resolved.model, messages: [Message.user("fixture")] })
+        const compiled = yield* compileRequest(request)
+        expect(compiled.body).toMatchObject({ model: apiID })
+        const url = String(resolved.model.route.endpoint.baseURL)
+        expect((yield* resolved.model.route.auth.apply({ request, method: "POST", url, body: JSON.stringify(compiled.body), headers: HttpClientRequest.post(url).headers })).authorization).toBe(`Bearer ${token}`)
+      }
+      const requestA = yield* hooks.trigger("session", "model.request", {
+        sessionID: Session.ID.make("ses_builtin_a"), agent: Agent.ID.make("build"), kind: "primary",
+        model: resolvedA.ref, connection: connectionA, baseURL: "https://api.openai.com/v1", headers: {},
+      })
+      const requestB = yield* hooks.trigger("session", "model.request", {
+        sessionID: Session.ID.make("ses_builtin_b"), agent: Agent.ID.make("build"), kind: "primary",
+        model: resolvedB.ref, connection: connectionB, baseURL: "https://api.openai.com/v1", headers: {},
+      })
+      expect(requestA.baseURL).toBe("https://chatgpt.com/backend-api/codex")
+      expect(requestA.headers.originator).toBe("aigcfroge")
+      expect(requestB.baseURL).toBe("https://api.openai.com/v1")
+      expect(requestB.headers).toEqual({ "session-id": "ses_builtin_b", "thread-id": "ses_builtin_b", "x-client-request-id": "ses_builtin_b" })
+      expect(yield* integrations.connection.active(Integration.ID.make("openai"))).toMatchObject(connectionA)
+    }).pipe(Effect.provide(ModelResolver.layer)),
+  )
+
+  it.effect("reads Codex quota only on demand for its connection and keeps expired successful facts after a failed refresh", () =>
+    Effect.gen(function* () {
+      const providers = yield* Provider.Service
+      const models = yield* Model.Service
+      const credentials = yield* Credential.Service
+      const integrations = yield* Integration.Service
+      const hooks = yield* PluginHooks.Service
+      const id = Model.ID.make("gpt-5.5")
+      yield* providers.transform((editor) => {
+        editor.update(Provider.ID.openai, (provider) => { provider.package = "@aigcfroge/ai/providers/openai" })
+        editor.models.update(Provider.ID.openai, id, () => {})
+      })
+      const accountA = yield* credentials.create({
+        integrationID: Integration.ID.make("openai"),
+        value: Credential.OAuth.make({ type: "oauth", methodID: Integration.MethodID.make("chatgpt-browser"), access: "codex-a", refresh: "refresh-a", expires: Date.now() + 3_600_000, metadata: { accountID: "account-a" } }),
+      })
+      const accountB = yield* credentials.create({
+        integrationID: Integration.ID.make("openai"), activate: false,
+        value: Credential.OAuth.make({ type: "oauth", methodID: Integration.MethodID.make("chatgpt-browser"), access: "codex-b", refresh: "refresh-b", expires: Date.now() + 3_600_000, metadata: { accountID: "account-b" } }),
+      })
+      const connectionA = { type: "credential" as const, id: accountA.id }
+      const connectionB = { type: "credential" as const, id: accountB.id }
+      const reads: Array<{ url: string; authorization?: string; account?: string }> = []
+      let status = 200
+      const http = HttpClient.make((request) => Effect.sync(() => {
+        reads.push({ url: request.url, authorization: request.headers.authorization, account: request.headers["chatgpt-account-id"] })
+        return HttpClientResponse.fromWeb(request, Response.json({
+          plan_type: "free", rate_limit: { allowed: true, primary_window: { used_percent: 25, limit_window_seconds: 18_000, reset_after_seconds: 600 } },
+          credits: { balance: "3.5", unlimited: false },
+        }, { status }))
+      }))
+      yield* addLegacyPlugin(http)
+      yield* models.available({ providerID: Provider.ID.openai, connection: connectionB })
+      yield* hooks.trigger("session", "model.request", {
+        sessionID: Session.ID.make("ses_quota"), agent: Agent.ID.make("build"), kind: "primary",
+        model: Model.Ref.make({ providerID: Provider.ID.openai, id }), connection: connectionB, headers: {},
+      })
+      expect(reads).toEqual([])
+      const input = { sessionID: Session.ID.make("ses_quota"), model: Model.Ref.make({ providerID: Provider.ID.openai, id }), connection: connectionB }
+      const observed = yield* Effect.all([hooks.trigger("session", "model.quota", input), hooks.trigger("session", "model.quota", { ...input })], { concurrency: "unbounded" })
+      expect(reads).toEqual([{ url: "https://chatgpt.com/backend-api/wham/usage", authorization: "Bearer codex-b", account: "account-b" }])
+      expect(observed[0].quota).toMatchObject({ status: "known", source: "openai-codex", connection: connectionB, observedAt: 0, freshUntil: 300_000, plan: "free", freePlan: true, allowed: true, credits: { balance: 3.5, unlimited: false } })
+      expect(observed[1].quota).toEqual(observed[0].quota)
+      expect(observed[0].quota?.windows).toEqual([{ id: "primary", unit: "chatgpt-share", usedRatio: 0.25, resetAt: 600_000, spanMs: 18_000_000, scope: "account" }])
+      expect(required(yield* models.get(Provider.ID.openai, id, connectionB)).metadata?.quota).toEqual(observed[0].quota)
+      expect(required(yield* models.get(Provider.ID.openai, id, connectionA)).metadata?.quota).toBeUndefined()
+      yield* TestClock.adjust(300_001)
+      status = 503
+      const stale = yield* hooks.trigger("session", "model.quota", { ...input })
+      expect(reads).toHaveLength(2)
+      expect(stale.quota).toMatchObject({ status: "unknown", connection: connectionB, observedAt: 0, freshUntil: 300_000, reason: "transport", windows: [{ usedRatio: 0.25 }] })
+      expect(required(yield* models.get(Provider.ID.openai, id, connectionB)).metadata?.quota).toEqual(stale.quota)
+      expect((yield* hooks.trigger("session", "model.quota", { ...input })).quota).toEqual(stale.quota)
+      expect(reads).toHaveLength(2)
+      expect(yield* integrations.connection.active(Integration.ID.make("openai"))).toMatchObject(connectionA)
+    }),
+  )
+
+  it.effect("keeps token-sharing quota unsupported without issuing a usage request", () =>
+    Effect.gen(function* () {
+      const providers = yield* Provider.Service
+      const models = yield* Model.Service
+      const credentials = yield* Credential.Service
+      const hooks = yield* PluginHooks.Service
+      const id = Model.ID.make("gpt-5.5")
+      yield* providers.transform((editor) => {
+        editor.update(Provider.ID.openai, (provider) => { provider.package = "@aigcfroge/ai/providers/openai" })
+        editor.models.update(Provider.ID.openai, id, () => {})
+      })
+      const entry = yield* credentials.create({
+        integrationID: Integration.ID.make("openai"),
+        value: Credential.OAuth.make({ type: "oauth", methodID: Integration.MethodID.make("chatgpt-token-sharing"), access: "sharing-token", refresh: "sharing-refresh", expires: Date.now() + 3_600_000, metadata: { clientID: "sharing-client", scopes: ["chatgpt.tokens.use.direct"] } }),
+      })
+      const connection = { type: "credential" as const, id: entry.id }
+      const reads: string[] = []
+      yield* addPlugin(HttpClient.make((request) => Effect.sync(() => {
+        reads.push(request.url)
+        return HttpClientResponse.fromWeb(request, Response.json({}, { status: 503 }))
+      })))
+      const observed = yield* hooks.trigger("session", "model.quota", { sessionID: Session.ID.make("ses_sharing_quota"), model: Model.Ref.make({ providerID: Provider.ID.openai, id }), connection })
+      expect(observed.quota).toEqual({ status: "unsupported", source: "chatgpt-token-sharing", connection, reason: "unsupported", windows: [] })
+      expect(required(yield* models.get(Provider.ID.openai, id, connection)).metadata?.quota).toEqual(observed.quota)
+      expect(reads.filter((url) => !url.endsWith("/models"))).toEqual([])
+    }),
+  )
+
   it.effect("omits the default output limit from OpenAI steps and compaction", () =>
     Effect.gen(function* () {
       yield* addPlugin()
@@ -979,7 +1163,7 @@ describe("ChatGPTPlugin", () => {
         // const kv = yield* KV.Service
         yield* catalog.transform((editor) => {
           editor.update(providerID, (provider) => {
-            provider.package = "@opencode/ai/providers/openai/responses"
+            provider.package = "@aigcfroge/ai/providers/openai/responses"
           })
           for (const id of [baseID, modelID, variantID])
             editor.models.update(providerID, id, (model) => {
@@ -1064,7 +1248,7 @@ describe("ChatGPTPlugin", () => {
         const modelID = Model.ID.make("gpt-6.1-sol")
         yield* catalog.transform((editor) => {
           editor.update(Provider.ID.openai, (provider) => {
-            provider.package = "@opencode/ai/providers/openai"
+            provider.package = "@aigcfroge/ai/providers/openai"
           })
           editor.models.update(Provider.ID.openai, modelID, (model) => {
             model.variants = ["high", "max"].map((effort) => ({
@@ -1175,7 +1359,7 @@ describe("ChatGPTPlugin", () => {
             }),
             agent: agentID,
             model,
-            tools: { definitions: [], execute: () => Effect.die("unused tool execution") },
+            tools: { definitions: [], catalog: [], execute: () => Effect.die("unused tool execution") },
             system: [],
             messages: [],
             webSocket: "session",

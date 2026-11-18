@@ -10,7 +10,7 @@ export interface ScrollViewProps extends ComponentProps<"div"> {
   viewportRef?: (el: HTMLDivElement) => void
   orientation?: "vertical" | "horizontal" | "both"
   /**
-   * `hover`: show while hovered or scrolling. `scroll`: show only while scrolling.
+   * `hover`: show while hovered, focused, or scrolling. `scroll`: show only while scrolling.
    *
    * In most cases, scrolling a container = hovering over it, so this change has no effect.
    * This is a special case to account for the home page scroll, where scrolling a container != hovering over it
@@ -170,6 +170,8 @@ export function ScrollView(props: ScrollViewProps) {
 
   const [state, setState] = createStore({
     isHovered: false,
+    isFocused: false,
+    // SAFETY: undefined is the initial local drag state; handlers assign only the declared axes or undefined.
     dragging: undefined as "vertical" | "horizontal" | undefined,
     isScrolling: false,
     verticalThumbSize: 0,
@@ -200,7 +202,7 @@ export function ScrollView(props: ScrollViewProps) {
 
     if (isScrolling()) return true
 
-    return local.thumbVisibility === "hover" && isHovered()
+    return local.thumbVisibility === "hover" && (isHovered() || state.isFocused)
   }
 
   onCleanup(() => {
@@ -258,11 +260,27 @@ export function ScrollView(props: ScrollViewProps) {
       local.viewportRef(viewportRef)
     }
 
+    const focus = () => setState("isFocused", true)
+
+    const blur = (event: FocusEvent) => {
+      if (event.relatedTarget instanceof Node && rootRef.contains(event.relatedTarget)) return
+
+      setState("isFocused", false)
+    }
+
+    rootRef.addEventListener("focusin", focus)
+    rootRef.addEventListener("focusout", blur)
+    setState("isFocused", rootRef.matches(":focus-within"))
+    onCleanup(() => {
+      rootRef.removeEventListener("focusin", focus)
+      rootRef.removeEventListener("focusout", blur)
+    })
+
     // The observer reports every target once when it starts observing (including a thumb mount that
     // appears later), after layout. Measuring here as well would force a synchronous layout per
     // ScrollView while the page is still rendering.
     createResizeObserver(
-      () => [viewportRef, viewportRef.firstElementChild, thumbMount()].filter(Boolean) as HTMLElement[],
+      () => [viewportRef, viewportRef.firstElementChild, thumbMount()].filter((element) => element != null),
       updateThumb,
     )
   })
@@ -482,29 +500,32 @@ export function ScrollView(props: ScrollViewProps) {
           updateThumb()
           markScrolling()
 
-          if (typeof events.onScroll === "function") events.onScroll(e as any)
+          // oxlint-disable-next-line anti-slop/no-runtime-typeof -- SAFETY: Solid's declared EventHandlerUnion is a callback or a bound tuple at this native callback boundary.
+          if (typeof events.onScroll === "function") events.onScroll(e)
         }}
         onWheel={(e) => {
           markScrolling()
           const handler = events.onWheel
 
-          if (typeof handler === "function") handler(e as any)
+          // oxlint-disable-next-line anti-slop/no-runtime-typeof -- SAFETY: Solid's declared EventHandlerUnion is a callback or a bound tuple at this native callback boundary.
+          if (typeof handler === "function") handler(e)
 
-          if (Array.isArray(handler)) handler[0](handler[1], e as any)
+          if (Array.isArray(handler)) handler[0](handler[1], e)
         }}
-        onTouchStart={events.onTouchStart as any}
-        onTouchMove={events.onTouchMove as any}
-        onTouchEnd={events.onTouchEnd as any}
-        onTouchCancel={events.onTouchCancel as any}
-        onPointerDown={events.onPointerDown as any}
-        onClick={events.onClick as any}
+        onTouchStart={events.onTouchStart}
+        onTouchMove={events.onTouchMove}
+        onTouchEnd={events.onTouchEnd}
+        onTouchCancel={events.onTouchCancel}
+        onPointerDown={events.onPointerDown}
+        onClick={events.onClick}
         tabIndex={0}
         role="region"
         aria-label={i18n.t("ui.scrollView.ariaLabel")}
         onKeyDown={(e) => {
           onKeyDown(e)
 
-          if (typeof events.onKeyDown === "function") events.onKeyDown(e as any)
+          // oxlint-disable-next-line anti-slop/no-runtime-typeof -- SAFETY: Solid's declared EventHandlerUnion is a callback or a bound tuple at this native callback boundary.
+          if (typeof events.onKeyDown === "function") events.onKeyDown(e)
         }}
       >
         {local.children}

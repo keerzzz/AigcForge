@@ -1,11 +1,11 @@
 import { APICallError } from "@ai-sdk/provider"
 import type { LanguageModelV3, LanguageModelV3StreamPart } from "@ai-sdk/provider"
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible"
-import { AISDK } from "@opencode/core/aisdk"
-import { SessionRunnerRetry } from "@opencode/core/session/runner/retry"
-import { toSessionError } from "@opencode/core/session/to-session-error"
-import { Model } from "@opencode/core/model"
-import { Provider } from "@opencode/core/provider"
+import { AISDK } from "@aigcfroge/core/aisdk"
+import { SessionRunnerRetry } from "@aigcfroge/core/session/runner/retry"
+import { toSessionError } from "@aigcfroge/core/session/to-session-error"
+import { Model } from "@aigcfroge/core/model"
+import { Provider } from "@aigcfroge/core/provider"
 import {
   Media,
   LLM,
@@ -20,11 +20,11 @@ import {
   TransportError,
   UnknownProviderError,
   isContextOverflowFailure,
-} from "@opencode/ai"
-import { LLMClient, RequestExecutor } from "@opencode/ai/route"
-import { compileRequest } from "@opencode/ai/route/client"
+} from "@aigcfroge/ai"
+import { LLMClient, RequestExecutor } from "@aigcfroge/ai/route"
+import { compileRequest } from "@aigcfroge/ai/route/client"
 import { expect } from "bun:test"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Schema } from "effect"
 import { HttpClientRequest, HttpClientResponse } from "effect/http"
 import { testEffect } from "./lib/effect"
 
@@ -561,11 +561,19 @@ it.effect("normalizes file data across AI SDK prompt parts", () =>
           Message.user([
             { type: "media", media: Media.bytes(bytes, "image/png"), filename: "bytes.png" },
             { type: "media", media: Media.base64("AAAA", "image/png"), filename: "base64.png" },
-            { type: "media", media: Media.fromDataUrl("data:image/png;charset=utf-8;base64,AQID"), filename: "inline.png" },
+            {
+              type: "media",
+              media: Media.fromDataUrl("data:image/png;charset=utf-8;base64,AQID"),
+              filename: "inline.png",
+            },
             { type: "media", media: Media.url("https://example.com/image.png", { mediaType: "image/png" }) },
             { type: "media", media: Media.base64("s3://bucket/image.png", "image/png") },
           ]),
-          Message.assistant({ type: "media", media: Media.url("http://example.com/document.pdf", { mediaType: "application/pdf" }), filename: "document.pdf" }),
+          Message.assistant({
+            type: "media",
+            media: Media.url("http://example.com/document.pdf", { mediaType: "application/pdf" }),
+            filename: "document.pdf",
+          }),
           Message.tool({
             id: "call_1",
             name: "screenshot",
@@ -694,7 +702,9 @@ const chatChunk = (text: string) =>
     choices: [{ index: 0, delta: { content: text }, finish_reason: "stop" }],
   })}\n\ndata: [DONE]\n\n`
 
-const compatibleModel = Effect.fn(function* (customFetch: typeof fetch) {
+const decodeBody = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown)))
+
+const compatibleModel = Effect.fn(function* (customFetch: typeof fetch, body?: Model.RuntimeInfo["body"]) {
   const aisdk = yield* AISDK.Service
   yield* aisdk.hook.sdk((event) => {
     event.sdk = createOpenAICompatible({
@@ -703,9 +713,10 @@ const compatibleModel = Effect.fn(function* (customFetch: typeof fetch) {
       baseURL: String(event.options.baseURL),
     })
   })
-  return yield* aisdk.model(
-    model("@ai-sdk/openai-compatible", { apiKey: "test", baseURL: "https://example.test/v1", fetch: customFetch }),
-  )
+  return yield* aisdk.model({
+    ...model("@ai-sdk/openai-compatible", { apiKey: "test", baseURL: "https://example.test/v1", fetch: customFetch }),
+    body,
+  })
 })
 
 it.effect("routes AI SDK requests and responses through HTTP hook middleware", () =>
@@ -725,36 +736,75 @@ it.effect("routes AI SDK requests and responses through HTTP hook middleware", (
       ),
     )
     const seen: string[] = []
-    const response = yield* LLMClient.generate(LLM.request({ model: resolved, prompt: "Hello" }), {
-      http: (request, handler) =>
-        Effect.gen(function* () {
-          // Read the body twice the way session hooks do, to prove it is not a single-use stream.
-          const first = yield* HttpClientRequest.toWeb(request)
-          const second = yield* HttpClientRequest.toWeb(request)
-          seen.push(`${request.method} ${request.url}`)
-          seen.push(yield* Effect.promise(() => first.text()))
-          seen.push(yield* Effect.promise(() => second.text()))
-          const upstream = yield* handler(HttpClientRequest.setHeader(request, "x-hook", "applied"))
-          seen.push(`status ${upstream.status}`)
-          return HttpClientResponse.fromWeb(
-            upstream.request,
-            new Response(chatChunk("rewritten"), { headers: { "content-type": "text/event-stream" } }),
-          )
-        }),
-    }).pipe(Effect.provide(client))
+    const response = yield* LLMClient.generate(
+      LLM.request({
+        model: resolved,
+        prompt: "Hello",
+        http: { body: { native: { source: "request" }, temperature: 0.75 } },
+      }),
+      {
+        http: (request, handler) =>
+          Effect.gen(function* () {
+            // Read the body twice the way session hooks do, to prove it is not a single-use stream.
+            const first = yield* HttpClientRequest.toWeb(request)
+            const second = yield* HttpClientRequest.toWeb(request)
+            seen.push(`${request.method} ${request.url}`)
+            seen.push(yield* Effect.promise(() => first.text()))
+            seen.push(yield* Effect.promise(() => second.text()))
+            const upstream = yield* handler(HttpClientRequest.setHeader(request, "x-hook", "applied"))
+            seen.push(`status ${upstream.status}`)
+            return HttpClientResponse.fromWeb(
+              upstream.request,
+              new Response(chatChunk("rewritten"), { headers: { "content-type": "text/event-stream" } }),
+            )
+          }),
+      },
+    ).pipe(Effect.provide(client))
 
     expect(sent).toHaveLength(1)
     expect(sent[0]?.url).toBe("https://example.test/v1/chat/completions")
     expect(sent[0]?.headers.get("x-hook")).toBe("applied")
     expect(sent[0]?.headers.get("authorization")).toBe("Bearer test")
-    expect(JSON.parse(sent[0]?.body ?? "")).toMatchObject({ model: "api-model" })
-    expect(seen).toEqual([
-      "POST https://example.test/v1/chat/completions",
-      sent[0]?.body,
-      sent[0]?.body,
-      "status 200",
-    ])
+    expect(JSON.parse(sent[0]?.body ?? "")).toMatchObject({
+      model: "api-model",
+      native: { source: "request" },
+      temperature: 0.75,
+    })
+    expect(seen).toEqual(["POST https://example.test/v1/chat/completions", sent[0]?.body, sent[0]?.body, "status 200"])
     expect(response.events.filter(LLMEvent.is.textDelta).map((event) => event.text)).toEqual(["rewritten"])
+  }),
+)
+
+it.effect("lets HTTP middleware rewrite the body after the request overlay", () =>
+  Effect.gen(function* () {
+    const bodies: Record<string, unknown>[] = []
+    const resolved = yield* compatibleModel(
+      Object.assign(
+        async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+          bodies.push(decodeBody(await new Request(String(input), init).text()))
+          return new Response(chatChunk("upstream"), { headers: { "content-type": "text/event-stream" } })
+        },
+        { preconnect: fetch.preconnect },
+      ),
+    )
+    yield* LLMClient.generate(
+      LLM.request({
+        model: resolved,
+        prompt: "Hello",
+        http: { body: { native: { source: "request" } } },
+      }),
+      {
+        http: (request, handler) =>
+          Effect.gen(function* () {
+            const web = yield* HttpClientRequest.toWeb(request)
+            expect(decodeBody(yield* Effect.promise(() => web.text()))).toMatchObject({ native: { source: "request" } })
+            return yield* handler(
+              HttpClientRequest.bodyText(request, '{"native":{"source":"hook"}}', "application/json"),
+            )
+          }),
+      },
+    ).pipe(Effect.provide(client))
+    expect(bodies).toEqual([{ native: { source: "hook" } }])
   }),
 )
 
@@ -776,6 +826,119 @@ it.effect("sends AI SDK requests directly when no HTTP hook middleware is attach
     expect(bodies).toHaveLength(1)
     expect(typeof bodies[0]).toBe("string")
     expect(response.events.filter(LLMEvent.is.textDelta).map((event) => event.text)).toEqual(["upstream"])
+  }),
+)
+
+it.effect("isolates concurrent request bodies on one cached AI SDK language model", () =>
+  Effect.gen(function* () {
+    const received = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    yield* Effect.addFinalizer(() => Effect.sync(() => release.resolve()))
+    const bodies: Record<string, unknown>[] = []
+    const base = {
+      temperature: 0.1,
+      native: { retained: true, selected: "model" },
+      values: ["model"],
+      nullable: { selected: "model" },
+    }
+    const customFetch = Object.assign(
+      async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        bodies.push(decodeBody(await new Request(String(input), init).text()))
+        if (bodies.length === 2) received.resolve()
+        await release.promise
+        return new Response(chatChunk("upstream"), { headers: { "content-type": "text/event-stream" } })
+      },
+      { preconnect: fetch.preconnect },
+    )
+    const resolved = yield* compatibleModel(customFetch, base)
+    const aisdk = yield* AISDK.Service
+    const input = {
+      ...model("@ai-sdk/openai-compatible", { apiKey: "test", baseURL: "https://example.test/v1", fetch: customFetch }),
+      body: base,
+    }
+    expect(yield* aisdk.language(input)).toBe(yield* aisdk.language(input))
+    const overlays = [
+      { temperature: 0.2, native: { selected: "first" }, values: ["first"], nullable: null, firstOnly: true },
+      { temperature: 0.3, native: { selected: "second" }, values: ["second"] },
+    ]
+    yield* Effect.all(
+      [
+        Effect.forEach(
+          overlays,
+          (body) => LLMClient.generate(LLM.request({ model: resolved, prompt: "Hello", http: { body } })),
+          {
+            concurrency: "unbounded",
+            discard: true,
+          },
+        ),
+        Effect.promise(() => received.promise).pipe(Effect.andThen(Effect.sync(() => release.resolve()))),
+      ],
+      { concurrency: "unbounded" },
+    ).pipe(Effect.provide(client))
+    yield* LLMClient.generate(LLM.request({ model: resolved, prompt: "Hello" })).pipe(Effect.provide(client))
+
+    expect(bodies).toHaveLength(3)
+    expect(bodies.find((body) => body.temperature === 0.2)).toMatchObject({
+      temperature: 0.2,
+      native: { retained: true, selected: "first" },
+      values: ["first"],
+      nullable: null,
+      firstOnly: true,
+    })
+    expect(bodies.find((body) => body.temperature === 0.3)).toMatchObject({
+      temperature: 0.3,
+      native: { retained: true, selected: "second" },
+      values: ["second"],
+      nullable: { selected: "model" },
+    })
+    expect(bodies.find((body) => body.temperature === 0.3)).not.toHaveProperty("firstOnly")
+    expect(bodies[2]).toMatchObject(base)
+    expect(bodies[2]).not.toHaveProperty("firstOnly")
+    expect(base).toEqual({
+      temperature: 0.1,
+      native: { retained: true, selected: "model" },
+      values: ["model"],
+      nullable: { selected: "model" },
+    })
+  }),
+)
+
+it.effect("does not restore projected pro reasoning to the raw AI SDK request body", () =>
+  Effect.gen(function* () {
+    const aisdk = yield* AISDK.Service
+    const bodies: Record<string, unknown>[] = []
+    yield* aisdk.hook.sdk((event) => {
+      event.sdk = createOpenAICompatible({
+        ...event.options,
+        name: String(event.options.name),
+        baseURL: String(event.options.baseURL),
+      })
+    })
+    const resolved = yield* aisdk.model({
+      ...model("@ai-sdk/openai", {
+        apiKey: "test",
+        baseURL: "https://example.test/v1",
+        fetch: Object.assign(
+          async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+            bodies.push(decodeBody(await new Request(String(input), init).text()))
+            return new Response(chatChunk("upstream"), { headers: { "content-type": "text/event-stream" } })
+          },
+          { preconnect: fetch.preconnect },
+        ),
+      }),
+      body: { reasoning: { mode: "pro" }, native: { retained: true } },
+    })
+    yield* LLMClient.generate(
+      LLM.request({
+        model: resolved,
+        prompt: "Hello",
+        http: { body: { native: { selected: "request" } } },
+      }),
+    ).pipe(Effect.provide(client))
+
+    expect(bodies).toHaveLength(1)
+    expect(bodies[0]).toMatchObject({ native: { retained: true, selected: "request" } })
+    expect(bodies[0]).not.toHaveProperty("reasoning")
   }),
 )
 

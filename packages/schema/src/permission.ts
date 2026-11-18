@@ -5,6 +5,7 @@ import { optional } from "./schema.js"
 import { ephemeral, inventory } from "./event.js"
 import { ascending } from "./identifier.js"
 import { SessionID } from "./session-id.js"
+import { OperationID } from "./session-task-operation-id.js"
 import { statics } from "./schema.js"
 
 export const ID = Schema.String.check(Schema.isStartingWith("per")).pipe(
@@ -14,13 +15,20 @@ export const ID = Schema.String.check(Schema.isStartingWith("per")).pipe(
 )
 export type ID = typeof ID.Type
 
-export const Source = Schema.Union([
-  Schema.Struct({
-    type: Schema.Literal("tool"),
-    messageID: Schema.String,
-    id: Schema.String,
-  }),
-]).annotate({ identifier: "Permission.Source" })
+export const ToolSource = Schema.Struct({
+  type: Schema.Literal("tool"),
+  messageID: Schema.String,
+  id: Schema.String,
+}).annotate({ identifier: "Permission.ToolSource" })
+export interface ToolSource extends Schema.Schema.Type<typeof ToolSource> {}
+
+export class OperationSource extends Schema.Class<OperationSource>("Permission.OperationSource")({
+  type: Schema.Literal("operation"),
+  sessionID: SessionID,
+  operationID: OperationID,
+}) {}
+
+export const Source = Schema.Union([ToolSource, OperationSource]).annotate({ identifier: "Permission.Source" })
 export type Source = typeof Source.Type
 
 const RequestFields = {

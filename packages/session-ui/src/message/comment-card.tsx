@@ -1,8 +1,8 @@
 import { createSignal, onCleanup, onMount, Show } from "solid-js"
-import { FileIcon } from "@opencode/ui/file-icon"
-import { Icon } from "@opencode/ui/icon"
-import { getFilenameTruncated } from "@opencode/util/path"
-import { Tooltip } from "@opencode/ui/tooltip"
+import { FileIcon } from "@aigcfroge/ui/file-icon"
+import { Icon } from "@aigcfroge/ui/icon"
+import { getFilenameTruncated } from "@aigcfroge/util/path"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
 import { AttachmentCard } from "./attachment-card"
 
 /** What a comment is about: lines of a file, or a labelled subject such as an element picked in a page. */

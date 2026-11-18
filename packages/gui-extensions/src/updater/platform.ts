@@ -8,11 +8,11 @@ const updateClient = pkg.autoUpdater
 
 const restartTimeout = 10_000
 
-const stableArtifact = "https://opencode.ai/update/api/latest/desktop/opencode"
+const stableArtifact = "https://aigcfroge.ai/update/api/latest/desktop/aigcfroge"
 
 export const make = Effect.fn("Updater.platform")(function* (channel: string) {
   const external = requiresStableMacInstaller(process.platform, channel)
-  const userAgent = `opencode/${channel === "prod" ? "latest" : channel}/${app.getVersion()}/desktop`
+  const userAgent = `aigcfroge/${channel === "prod" ? "latest" : channel}/${app.getVersion()}/desktop`
   const runFork = Effect.runForkWith(yield* Effect.context())
   updateClient.logger = {
     info: (...args) => runFork(Effect.logInfo(...args)),
@@ -39,10 +39,10 @@ export const make = Effect.fn("Updater.platform")(function* (channel: string) {
         if (external) {
           const response = await fetch(stableArtifact, { headers: { "User-Agent": userAgent } })
 
-          if (!response.ok) throw new Error(`Stable OpenCode update check failed: ${response.status}`)
+          if (!response.ok) throw new Error(`Stable AigcForge update check failed: ${response.status}`)
           const download = stableMacDownload(await response.json(), process.arch)
 
-          if (!download) throw new Error("Stable OpenCode download is unavailable")
+          if (!download) throw new Error("Stable AigcForge download is unavailable")
 
           return { mode: "external", ...download } as const
         }

@@ -1,7 +1,7 @@
-import { getFilename } from "@opencode/util/path"
+import { getFilename } from "@aigcfroge/util/path"
 import type { Project } from "@/runtime/server/types"
-import type { SessionInfo } from "@opencode/client/promise"
-import { useDialog } from "@opencode/ui/context/dialog"
+import type { SessionInfo } from "@aigcfroge/client/promise"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { createMemo, onCleanup } from "solid-js"
 import { commandPaletteOptions, useCommand, type CommandOption } from "@/shell/commands/command"
 import { useFile } from "@/workspaces/files/model"
@@ -11,7 +11,7 @@ import type { LocalProject } from "@/shell/state/layout"
 import { ServerConnection } from "@/runtime/server/registry"
 import { useServerSDK } from "@/runtime/server/client"
 import { useTabs } from "@/shell/tabs/tabs"
-import { displayName } from "@opencode/ui/project-avatar"
+import { displayName } from "@aigcfroge/ui/project-avatar"
 import { resolveProjectForSession } from "@/shell/layout/helpers"
 import { useExtensionHost } from "@/runtime/extension/host"
 import { useExtensionAttachment } from "@/runtime/extension/host-apis"
@@ -231,6 +231,7 @@ export function createServerSessionEntries(props: {
   stored: () => Project[]
   load: (search: string, signal: AbortSignal) => Promise<{ data: SessionInfo[] }>
   get: (sessionID: string, signal: AbortSignal) => Promise<SessionInfo>
+  accept?: (session: SessionInfo) => boolean
   untitled: () => string
   category: () => string
   recentCategory: () => string
@@ -278,7 +279,7 @@ export function createServerSessionEntries(props: {
     ]).then(([listed, exact]) =>
       [...new Map([...exact, ...listed].map((session) => [session.id, session] as const)).values()].flatMap(
         (session) => {
-          if (session.time.archived) return []
+          if (session.time.archived || props.accept?.(session) === false) return []
 
           const project = resolveProjectForSession(session, opened, stored)
 

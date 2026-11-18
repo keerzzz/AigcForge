@@ -22,7 +22,7 @@ ts-dist
 /result
 refs
 Session.vim
-/opencode.json
+/aigcfroge.json
 a.out
 target
 .scripts
@@ -30,10 +30,12 @@ target
 .direnv/
 
 # Local dev files
-opencode-dev
+aigcfroge-dev
 UPCOMING_CHANGELOG.md
 RELEASE_REVIEW.md
 logs/
 *.bun-build
 tsconfig.tsbuildinfo
 /artifacts/
+
+/.aigcfroge/

@@ -1,20 +1,23 @@
 import { createMemo, on, onCleanup, For, Show } from "solid-js"
+import { createStore } from "solid-js/store"
 import type { JSX } from "solid-js"
-import { checksum } from "@opencode/util/encode"
-import { Icon } from "@opencode/ui/icon"
-import { Button } from "@opencode/ui/button"
-import { Accordion } from "@opencode/ui/accordion"
-import { StickyAccordionHeader } from "@opencode/ui/sticky-accordion-header"
-import { ScrollView } from "@opencode/ui/scroll-view"
-import { showToast } from "@opencode/ui/toast"
-import { useI18n } from "@opencode/ui/context/i18n"
-import { File } from "@opencode/session-ui/file"
-import { Markdown } from "@opencode/session-ui/markdown"
-import type { SessionMessageInfo } from "@opencode/client/promise"
-import { createKeyed, useExtension, type MountedSession } from "../sdk"
+import { checksum } from "@aigcfroge/util/encode"
+import { Icon } from "@aigcfroge/ui/icon"
+import { Button } from "@aigcfroge/ui/button"
+import { Collapsible } from "@aigcfroge/ui/collapsible"
+import { Accordion } from "@aigcfroge/ui/accordion"
+import { StickyAccordionHeader } from "@aigcfroge/ui/sticky-accordion-header"
+import { ScrollView } from "@aigcfroge/ui/scroll-view"
+import { showToast } from "@aigcfroge/ui/toast"
+import { useI18n } from "@aigcfroge/ui/context/i18n"
+import { File } from "@aigcfroge/session-ui/file"
+import { Markdown } from "@aigcfroge/session-ui/markdown"
+import type { SessionMessageInfo } from "@aigcfroge/client/promise"
+import { createKeyed, useExtension, usePanel, type MountedSession } from "../sdk"
 import { catalogModel, syncCatalog } from "./catalog"
 import { fetchSessionExport, sessionExportFilename } from "./export"
 import { createSessionContextFormatter } from "./format"
+import { sessionContextUsage } from "./usage"
 
 function Stat(props: { label: string; value: JSX.Element }) {
   return (
@@ -84,6 +87,109 @@ export default function SessionContextTab(props: { session: MountedSession }) {
   const system = ctx.system
   const i18n = useI18n()
   const data = () => props.session.server.data
+  const panel = usePanel()
+
+  const [metrics, setMetrics] = createStore<{
+    owner: symbol | undefined
+    read: symbol | undefined
+    error: string
+    loading: boolean
+    step: SessionMessageInfo | undefined
+    stepOwner: symbol | undefined
+    stepRead: symbol | undefined
+    stepError: { owner: symbol | undefined; message: string }
+  }>({
+    owner: undefined,
+    read: undefined,
+    error: "",
+    loading: false,
+    step: undefined,
+    stepOwner: undefined,
+    stepRead: undefined,
+    stepError: { owner: undefined, message: "" },
+  })
+
+  const metricOwner = createMemo(
+    () =>
+      panel.visible() && props.session.server.connected && props.session.id
+        ? {
+            key: Symbol(),
+            client: props.session.server.client,
+            data: data(),
+            id: props.session.id,
+            directory: props.session.directory,
+          }
+        : undefined,
+    undefined,
+    {
+      equals: (a, b) =>
+        a?.id === b?.id && a?.client === b?.client && a?.data === b?.data && a?.directory === b?.directory,
+    },
+  )
+
+  const cache = () => (props.session.id ? data().session.cache.get(props.session.id) : undefined)
+  const meta = () => (props.session.id ? data().session.meta.get(props.session.id) : undefined)
+
+  const current = (owner: NonNullable<ReturnType<typeof metricOwner>>) =>
+    !ctx.signal.aborted &&
+    metricOwner() === owner &&
+    panel.visible() &&
+    props.session.server.connected &&
+    props.session.server.client === owner.client &&
+    data() === owner.data &&
+    props.session.id === owner.id &&
+    props.session.directory === owner.directory
+
+  const readMetrics = async () => {
+    const owner = metricOwner()
+
+    if (!owner) return
+    const read = Symbol()
+    setMetrics({ owner: owner.key, read, loading: true, error: "" })
+
+    try {
+      owner.data.session.cache.invalidate(owner.id)
+      owner.data.session.meta.invalidate(owner.id)
+      await Promise.all([owner.data.session.cache.sync(owner.id), owner.data.session.meta.sync(owner.id)])
+
+      if (current(owner) && metrics.read === read) setMetrics("error", "")
+    } catch (error) {
+      if (current(owner) && metrics.read === read)
+        setMetrics("error", error instanceof Error ? error.message : ctx.t("recorded.readFailed"))
+    } finally {
+      if (current(owner) && metrics.read === read) setMetrics("loading", false)
+    }
+  }
+
+  // Fetch only while the Context panel is visible, and revalidate on a recorded completion.
+  createKeyed(metricOwner, (owner) => {
+    if (!owner) return
+    void readMetrics()
+    onCleanup(
+      owner.data.on("session.step.ended", (event) => {
+        if (event.data.sessionID === owner.id) void readMetrics()
+      }),
+    )
+  })
+
+  const openStep = async (messageID: string) => {
+    const owner = metricOwner()
+
+    if (!owner) return
+    const read = Symbol()
+    setMetrics({ stepRead: read, stepError: { owner: owner.key, message: "" } })
+
+    try {
+      const message = await owner.client.session.message.get({ sessionID: owner.id, messageID })
+
+      if (current(owner) && metrics.stepRead === read)
+        setMetrics({ step: message, stepOwner: owner.key, stepError: { owner: owner.key, message: "" } })
+    } catch (error) {
+      if (current(owner) && metrics.stepRead === read)
+        setMetrics("stepError", "message", error instanceof Error ? error.message : ctx.t("recorded.readFailed"))
+    }
+  }
+
   syncCatalog(() => props.session)
 
   const info = createMemo(() => (props.session.id ? data().session.get(props.session.id) : undefined))
@@ -109,27 +215,23 @@ export default function SessionContextTab(props: { session: MountedSession }) {
   )
 
   const context = createMemo(() => {
-    const message = messages().findLast((item) => item.type === "assistant" && !!item.tokens)
+    const current = sessionContextUsage(messages())
 
-    if (message?.type !== "assistant" || !message.tokens) return
-    const entry = catalogModel(props.session, message.model)
-
-    const total =
-      message.tokens.input +
-      message.tokens.output +
-      message.tokens.reasoning +
-      message.tokens.cache.read +
-      message.tokens.cache.write
+    if (!current) return
+    const entry = catalogModel(props.session, current.model)
 
     return {
-      message,
-      tokens: message.tokens,
-      providerLabel: entry?.provider.name ?? message.model.providerID,
-      modelLabel: entry?.model?.name ?? message.model.id,
+      message: current.message,
+      tokens: current.tokens,
+      providerLabel: entry?.provider.name ?? current.model.providerID,
+      modelLabel: entry?.model?.name ?? current.model.id,
       limit: entry?.model?.limit.context,
-      input: message.tokens.input,
-      total,
-      usage: entry?.model?.limit.context ? Math.round((total / entry.model.limit.context) * 100) : null,
+      input: current.tokens?.input,
+      total: current.total,
+      usage:
+        current.total !== undefined && entry?.model?.limit.context
+          ? Math.round((current.total / entry.model.limit.context) * 100)
+          : null,
     }
   })
 
@@ -187,12 +289,12 @@ export default function SessionContextTab(props: { session: MountedSession }) {
     { label: "stats.totalTokens", value: () => formatter().number(context()?.total) },
     { label: "stats.usage", value: () => formatter().percent(context()?.usage) },
     { label: "stats.inputTokens", value: () => formatter().number(context()?.input) },
-    { label: "stats.outputTokens", value: () => formatter().number(context()?.tokens.output) },
-    { label: "stats.reasoningTokens", value: () => formatter().number(context()?.tokens.reasoning) },
+    { label: "stats.outputTokens", value: () => formatter().number(context()?.tokens?.output) },
+    { label: "stats.reasoningTokens", value: () => formatter().number(context()?.tokens?.reasoning) },
     {
       label: "stats.cacheTokens",
       value: () =>
-        `${formatter().number(context()?.tokens.cache.read)} / ${formatter().number(context()?.tokens.cache.write)}`,
+        `${formatter().number(context()?.tokens?.cache.read)} / ${formatter().number(context()?.tokens?.cache.write)}`,
     },
     { label: "stats.userMessages", value: () => counts().user.toLocaleString(i18n.locale()) },
     { label: "stats.assistantMessages", value: () => counts().assistant.toLocaleString(i18n.locale()) },
@@ -293,6 +395,124 @@ export default function SessionContextTab(props: { session: MountedSession }) {
         <div class="grid grid-cols-1 @[32rem]:grid-cols-2 gap-4">
           <For each={stats}>{(stat) => <Stat label={ctx.t(stat.label)} value={stat.value()} />}</For>
         </div>
+        <section aria-label={ctx.t("recorded.title")} class="min-w-0">
+          <Collapsible variant="ghost">
+            <Collapsible.Trigger type="button">
+              <Collapsible.Arrow />
+              {ctx.t("recorded.title")}
+            </Collapsible.Trigger>
+            <Collapsible.Content>
+              <div class="flex min-w-0 flex-col gap-3 pt-2">
+                <div class="flex items-center justify-end gap-2">
+                  <Button
+                    size="small"
+                    variant="ghost"
+                    disabled={!metricOwner() || (metrics.owner === metricOwner()?.key && metrics.loading)}
+                    onClick={() => void readMetrics()}
+                  >
+                    {ctx.t("recorded.refresh")}
+                  </Button>
+                </div>
+                <p class="text-12-regular text-text-weak">{ctx.t("recorded.scope")}</p>
+                <Show when={metrics.owner === metricOwner()?.key ? metrics.error : undefined}>
+                  {(error) => <p role="alert">{error()}</p>}
+                </Show>
+                <Show when={metrics.stepError.owner === metricOwner()?.key ? metrics.stepError.message : undefined}>
+                  {(error) => <p role="alert">{error()}</p>}
+                </Show>
+                <Show when={cache()}>
+                  {(usage) => (
+                    <>
+                      <div class="grid grid-cols-1 @[32rem]:grid-cols-2 gap-4">
+                        <Stat
+                          label={ctx.t("recorded.confidence")}
+                          value={ctx.t(`recorded.confidence.${usage().confidence}`)}
+                        />
+                        <Stat
+                          label={ctx.t("recorded.hitRate")}
+                          value={
+                            usage().perStep.length
+                              ? formatter().percent(usage().sessionHitRate)
+                              : ctx.t("recorded.unknown")
+                          }
+                        />
+                        <Stat
+                          label={ctx.t("recorded.cacheTokens")}
+                          value={
+                            usage().perStep.length
+                              ? `${formatter().number(usage().sessionCacheRead)} / ${formatter().number(usage().sessionCacheWrite)}`
+                              : ctx.t("recorded.unknown")
+                          }
+                        />
+                        <Stat
+                          label={ctx.t("recorded.inputTokens")}
+                          value={
+                            usage().perStep.length
+                              ? formatter().number(usage().sessionTotalInput)
+                              : ctx.t("recorded.unknown")
+                          }
+                        />
+                      </div>
+                      <For each={usage().perStep}>
+                        {(step) => {
+                          const message = () =>
+                            messages().find((message) => message.id === step.assistantMessageID) ??
+                            (metrics.stepOwner === metricOwner()?.key && metrics.step?.id === step.assistantMessageID
+                              ? metrics.step
+                              : undefined)
+
+                          const elapsed = () => {
+                            const value = message()
+
+                            return value?.type === "assistant" && value.time.completed !== undefined
+                              ? `${formatter().number((value.time.completed - value.time.created) / 1000)} s`
+                              : ctx.t("recorded.unknown")
+                          }
+
+                          return (
+                            <div class="flex flex-wrap items-center gap-2 text-12-regular">
+                              <Button
+                                size="small"
+                                variant="ghost"
+                                onClick={() => void openStep(step.assistantMessageID)}
+                              >
+                                {ctx.t("recorded.openStep")}: {step.assistantMessageID}
+                              </Button>
+                              <span>{formatter().percent(step.hitRate)}</span>
+                              <span>
+                                {ctx.t("recorded.elapsed")}: {elapsed()}
+                              </span>
+                            </div>
+                          )
+                        }}
+                      </For>
+                    </>
+                  )}
+                </Show>
+                <Show when={meta()?.stats}>
+                  {(stats) => (
+                    <div class="grid grid-cols-1 @[32rem]:grid-cols-2 gap-4">
+                      <Stat
+                        label={ctx.t("recorded.metaTokens")}
+                        value={
+                          stats().totalTokens === undefined
+                            ? ctx.t("recorded.unknown")
+                            : formatter().number(stats().totalTokens)
+                        }
+                      />
+                      <Stat label={ctx.t("recorded.knownTokens")} value={formatter().number(stats().recordedTokens)} />
+                      <Stat label={ctx.t("recorded.unknownSessions")} value={stats().unknownTokenSessionCount} />
+                      <Stat label={ctx.t("recorded.attempts")} value={ctx.t("recorded.unknown")} />
+                    </div>
+                  )}
+                </Show>
+                <Show when={metrics.stepOwner === metricOwner()?.key ? metrics.step : undefined}>
+                  {(message) => <RawMessageContent message={message()} onRendered={restoreScroll} />}
+                </Show>
+              </div>
+            </Collapsible.Content>
+          </Collapsible>
+        </section>
 
         <Show when={systemPrompt()}>
           {(prompt) => (
@@ -305,25 +525,32 @@ export default function SessionContextTab(props: { session: MountedSession }) {
           )}
         </Show>
 
-        <div class="flex flex-col gap-2">
-          <div class="flex items-center justify-between">
-            <div class="text-12-regular text-text-weak">{ctx.t("rawMessages.title")}</div>
-            <Button
-              size="small"
-              variant="ghost"
-              class="gap-1.5 px-2 text-text-weak hover:text-text-base"
-              onClick={exportSession}
-            >
-              <Icon name="download" size="small" />
-              <span>{ctx.t("export.session")}</span>
-            </Button>
-          </div>
-          <Accordion multiple>
-            <For each={messages()}>
-              {(message) => <RawMessage message={message} onRendered={restoreScroll} time={formatter().time} />}
-            </For>
-          </Accordion>
-        </div>
+        <section aria-label={ctx.t("rawMessages.title")} class="min-w-0">
+          <Collapsible variant="ghost" class="gap-2">
+            <div class="flex items-center justify-between">
+              <Collapsible.Trigger type="button">
+                <Collapsible.Arrow />
+                {ctx.t("rawMessages.title")}
+              </Collapsible.Trigger>
+              <Button
+                size="small"
+                variant="ghost"
+                class="shrink-0 whitespace-nowrap gap-1.5 px-2 text-text-weak hover:text-text-base"
+                onClick={exportSession}
+              >
+                <Icon name="download" size="small" />
+                <span>{ctx.t("export.session")}</span>
+              </Button>
+            </div>
+            <Collapsible.Content>
+              <Accordion multiple>
+                <For each={messages()}>
+                  {(message) => <RawMessage message={message} onRendered={restoreScroll} time={formatter().time} />}
+                </For>
+              </Accordion>
+            </Collapsible.Content>
+          </Collapsible>
+        </section>
       </div>
     </ScrollView>
   )

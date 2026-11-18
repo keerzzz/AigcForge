@@ -23,9 +23,24 @@ for (const entry of ["home", "session"] as const) {
     await expect(page.locator(trigger)).toBeVisible()
     await expect(page.locator('[data-component="new-session"]')).toHaveCount(0)
     const writes: string[] = []
+    const inventoryRefreshes: string[] = []
     page.on("request", (request) => {
-      if (new URL(request.url()).pathname.startsWith("/api/") && !["GET", "HEAD", "OPTIONS"].includes(request.method()))
-        writes.push(request.method())
+      const path = new URL(request.url()).pathname
+
+      if (!path.startsWith("/api/") || ["GET", "HEAD", "OPTIONS"].includes(request.method())) return
+
+      // Project/Location demand refreshes the existing inventory before any submission.
+      if (
+        request.method() === "POST" &&
+        path === "/api/worktree/refresh" &&
+        request.postData() === JSON.stringify({ projectID: fixture.project.id })
+      ) {
+        inventoryRefreshes.push(`${request.method()} ${path}`)
+
+        return
+      }
+
+      writes.push(`${request.method()} ${path}`)
     })
     await benchmarkDiagnostics(page).startTrace()
 
@@ -35,7 +50,10 @@ for (const entry of ["home", "session"] as const) {
         editor: {
           selector: '[data-component="new-session"] [data-component="composer-editor"][contenteditable="true"]:focus',
         },
-        model: { selector: '[data-component="new-session"] [data-action="composer-model"]', text: "Claude Opus 4.6" },
+        model: {
+          selector: '[data-component="new-session"] [data-action="composer-model"] .truncate',
+          text: "Claude Opus 4.6",
+        },
         project: { selector: '[data-component="new-session"] [data-action="prompt-project"]' },
         tab: { selector: '[data-titlebar-tab-link][href^="/new-session?draftId="]' },
       },
@@ -54,7 +72,7 @@ for (const entry of ["home", "session"] as const) {
         stableObservedMs: result.summary.all.stableObservedMs,
         ...result,
       },
-      { entry, data: "fixture", inputEvent: "mousedown" },
+      { entry, data: "fixture", inputEvent: "mousedown", inventoryRefreshes },
     )
   })
 }

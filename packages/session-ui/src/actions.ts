@@ -1,4 +1,19 @@
-import type { PromptFileAttachment } from "@opencode/client/promise"
+import type { PromptFileAttachment, SessionForkBoundary } from "@aigcfroge/client/promise"
+import type { JSX } from "solid-js"
+
+/** Cached facts for actions on one ordinary answer text block. */
+export type SessionResponseActionInput = {
+  readonly userMessageID: string
+  readonly assistantMessageID: string
+  readonly contentID: string
+  readonly text: string
+  readonly completed: boolean
+  readonly latest: boolean
+  /** The settled end of the whole answer group, including later tools and assistants. */
+  readonly boundary: SessionForkBoundary | undefined
+}
+
+export type SessionResponseActions = (input: SessionResponseActionInput) => JSX.Element
 
 export type SessionUserComment =
   | {

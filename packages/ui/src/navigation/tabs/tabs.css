@@ -585,6 +585,17 @@
   background-color: var(--v2-background-bg-base);
 }
 
+:root body #review-panel [data-component="tabs"] .session-review-v2-tab-strip {
+  display: flex;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+:root body #review-panel [data-component="tabs"] .session-review-v2-tab-scroll {
+  flex-shrink: 0;
+}
+
 :root body #review-panel [data-component="tabs"] .session-review-v2-tabs-bar [data-slot="tabs-list"],
 :root
   body
@@ -606,13 +617,7 @@
   padding-inline-end: 12px;
 }
 
-:root
-  body
-  #review-panel
-  [data-component="tabs"]
-  .session-review-v2-tabs-bar
-  [data-slot="tabs-list"]
-  > .sticky {
+:root body #review-panel [data-component="tabs"] .session-review-v2-tabs-bar [data-slot="tabs-list"] > .sticky {
   left: auto;
   right: auto;
   inset-inline-end: 0;

@@ -1,4 +1,8 @@
-import type { SessionInboxEnqueued, SessionMessageAssistant, SessionMessageInfo } from "@opencode/client"
+import type { SessionInboxEnqueued, SessionMessageAssistant, SessionMessageInfo } from "@aigcfroge/client"
+import { SessionCommunication } from "@aigcfroge/schema/session-communication"
+import { SessionGoal } from "@aigcfroge/schema/session-goal"
+import { SessionTask } from "@aigcfroge/schema/session-task"
+import { Option, Schema } from "effect"
 import { createEffect, on, onCleanup, type Accessor } from "solid-js"
 import { createStore, produce, reconcile } from "solid-js/store"
 import { useConfig } from "../../config"
@@ -23,6 +27,16 @@ import {
 } from "./grouping/session"
 import { groupID } from "./anchors"
 export type { CacheUsage, PartRef, SessionRow } from "./grouping/session"
+
+const CoordinationNotice = Schema.Union([
+  Schema.Struct({ communication: Schema.Struct({ id: SessionCommunication.ID }) }),
+  Schema.Struct({ coordination: SessionTask.TaskCoordination }),
+  Schema.Struct({ goalRound: SessionGoal.RoundRef }),
+])
+
+function visibleSynthetic(input: { description?: string; metadata?: Record<string, unknown> }) {
+  return Boolean(input.description?.trim()) || Option.isSome(Schema.decodeUnknownOption(CoordinationNotice)(input.metadata))
+}
 
 /**
  * A page boundary can cut a group in half, which would show a partial summary and
@@ -254,7 +268,7 @@ export function createSessionRows(sessionID: Accessor<string>, onSynced?: (sessi
     if (
       event.data.sessionID === sessionID() &&
       (event.data.item.type === "user" ||
-        (event.data.item.type === "synthetic" && event.data.item.payload.description?.trim()))
+        (event.data.item.type === "synthetic" && visibleSynthetic(event.data.item.payload)))
     )
       appendMessage(event.data.inboxID)
   }
@@ -265,7 +279,7 @@ export function createSessionRows(sessionID: Accessor<string>, onSynced?: (sessi
     }),
     data.on("session.instructions.updated", message),
     data.on("session.synthetic", (event) => {
-      if (event.data.sessionID === sessionID() && event.data.description?.trim())
+      if (event.data.sessionID === sessionID() && visibleSynthetic(event.data))
         appendMessage(event.id.replace(/^evt_/, "msg_"))
     }),
     data.on("session.shell.started", message),
@@ -380,7 +394,7 @@ export function reduceSessionRows(
         flushTurn(rows)
         return rows
       }
-      if (message.type === "synthetic" && !message.description?.trim()) return rows
+      if (message.type === "synthetic" && !visibleSynthetic(message)) return rows
       if (message.type === "compaction" && message.status === "completed" && usage) usage.previousTurnCache = undefined
       rows.push({
         entry: { type: "message", messageID: message.id },

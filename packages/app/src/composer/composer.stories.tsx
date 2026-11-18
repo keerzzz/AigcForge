@@ -1,7 +1,7 @@
 import { Show, createMemo, onMount, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 import type { ModelSelection } from "@/providers/models/selection"
-import { STORY_MODEL, emptySessionDocument, pendingAndQueuedDocument } from "@opencode/session-ui/storybook"
+import { STORY_MODEL, emptySessionDocument, pendingAndQueuedDocument } from "@aigcfroge/session-ui/storybook"
 import { Composer } from "./composer"
 import type { ComposerModel } from "./model"
 import { createComposerEditor } from "./editor/interaction"
@@ -9,7 +9,7 @@ import type { ComposerPersistedState, ComposerSuggestion } from "./types"
 import { buildPromptRequest } from "./request"
 import { promptLength } from "./prompt-parts"
 import { SessionPreview } from "@/session/story-model"
-import { Skill } from "@opencode/schema/skill"
+import { Skill } from "@aigcfroge/schema/skill"
 import { resolveSessionComposerSelection } from "@/session/composer/selection"
 
 const selectedModel = {
@@ -80,6 +80,8 @@ function ComposerStory(props: {
   const modelSelection = {
     ready: Object.assign(() => true, { promise: undefined }),
     current: () => modelOption(),
+    key: () => ({ providerID: modelOption().provider.id, modelID: modelOption().id }),
+    groups: () => [],
     recent: () => [modelOption()],
     list: () => [modelOption()],
     cycle() {},
@@ -241,7 +243,7 @@ const text = (content: string): ComposerPersistedState["prompt"] => [
 ]
 
 export default {
-  title: "OpenCode/Composer/Flow",
+  title: "AigcForge/Composer/Flow",
   component: Composer,
   parameters: { layout: "centered" },
 }
@@ -570,7 +572,9 @@ function SelectionPrecedenceDemo() {
           <strong class="text-text-strong">openai/gpt-5</strong>
           <span class="text-text-weak">Resolved selection</span>
           <strong class="text-text-strong">
-            {selection().model ? `${selection().model?.providerID}/${selection().model?.modelID}` : "Unavailable"}
+            {(() => { const model = selection().model;
+
+ return model ? "type" in model ? `group:${model.groupID}` : `${model.providerID}/${model.modelID}` : "Unavailable" })()}
           </strong>
         </div>
         <button

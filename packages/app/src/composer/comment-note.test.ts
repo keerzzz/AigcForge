@@ -15,6 +15,41 @@ const durable = {
 const note = { ...durable, live: { subject: 'the "button#save" element (browser ref @e42)' } }
 
 describe("extension notes", () => {
+  test("presentation preserves exact server identity and skips malformed Session reference offsets", () => {
+    const first = {
+      reference: { serverID: "server-one", sessionID: "ses_same", title: "Saved title", scope: { kind: "identity" as const } },
+      start: 4,
+      end: 9,
+      content: "@same",
+    }
+
+    const second = {
+      reference: { serverID: "server-two", sessionID: "ses_same", title: "Saved title", scope: { kind: "through" as const, messageID: "msg_boundary" } },
+      start: 18,
+      end: 23,
+      content: "@same",
+    }
+
+    const presentation = readPromptPresentation({
+      displayText: "Ask @same on one; @same on two.",
+      comments: [{ path: "src/app.ts", comment: "Keep" }],
+      sessionReferences: [
+        first,
+        second,
+        { ...first, start: -1 },
+        { ...first, start: 4.5 },
+        { ...first, end: 200 },
+        { ...first, start: 0 },
+        { ...first, content: "different" },
+        { ...first, reference: { ...first.reference, serverID: "" } },
+      ],
+    })
+
+    expect(presentation?.sessionReferences).toEqual([first, second])
+    expect(presentation?.comments).toEqual([{ path: "src/app.ts", comment: "Keep" }])
+    expect(presentation?.displayText).toBe("Ask @same on one; @same on two.")
+  })
+
   test("read from message metadata beside file comments and skip malformed entries", () => {
     // Metadata a build before extension notes sent for a browser element comment.
     const browser = {

@@ -1,9 +1,11 @@
-import { Extension } from "../sdk"
+import { Schema } from "effect"
+import { Extension, Store } from "../sdk"
 import en from "./i18n/en"
 
 export default Extension.define({
   id: "context",
   legacy: ["usage"],
+  stores: { display: Store.global(Schema.Struct({ visible: Schema.Boolean }), { visible: true }) },
   i18n: {
     en,
     am: () => import("./i18n/am"),

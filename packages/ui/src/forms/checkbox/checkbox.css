@@ -1,4 +1,5 @@
 [data-component="checkbox"] {
+  position: relative;
   display: flex;
   align-items: var(--checkbox-align, center);
   gap: 12px;

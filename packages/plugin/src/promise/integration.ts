@@ -1,8 +1,8 @@
-import type { ConnectionInfo } from "@opencode/client"
-import type { IntegrationApi } from "@opencode/client/promise/api"
-import { Connection } from "@opencode/schema/connection"
-import { Credential } from "@opencode/schema/credential"
-import { Form } from "@opencode/schema/form"
+import type { ConnectionInfo } from "@aigcfroge/client"
+import type { IntegrationApi } from "@aigcfroge/client/promise/api"
+import { Connection } from "@aigcfroge/schema/connection"
+import { Credential } from "@aigcfroge/schema/credential"
+import { Form } from "@aigcfroge/schema/form"
 import type { Transform } from "./registration.js"
 
 type IntegrationRef = { id: string; name: string }

@@ -1,5 +1,5 @@
-import { Tabs } from "@opencode/ui/tabs"
-import { useDialog } from "@opencode/ui/context/dialog"
+import { Tabs } from "@aigcfroge/ui/tabs"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
 import {
   createEffect,
   createMemo,

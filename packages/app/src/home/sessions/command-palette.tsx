@@ -1,9 +1,11 @@
-import { useDialog } from "@opencode/ui/context/dialog"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { createMemo, onCleanup } from "solid-js"
 import { commandPaletteOptions, useCommand } from "@/shell/commands/command"
 import { useGlobal } from "@/runtime/server/runtime"
 import { useLanguage } from "@/runtime/i18n/language"
 import { ServerConnection } from "@/runtime/server/registry"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { matchesHomeSessionMode } from "./index"
 import {
   createCommandPaletteCommandEntry,
   createServerSessionEntries,
@@ -14,6 +16,7 @@ import { CommandPaletteView, matchesCommandPaletteEntry } from "@/shell/commands
 
 export function HomeCommandPalette(props: {
   server: ServerConnection.Any
+  mode?: ProductMode.ID
   onSelectSession: (entry: CommandPaletteEntry) => void
 }) {
   const command = useCommand()
@@ -33,7 +36,9 @@ export function HomeCommandPalette(props: {
     server: ServerConnection.key(props.server),
     opened: server.projects.list,
     stored: () => server.sync.data.project,
-    load: (search, signal) => server.sdk.api.session.list({ parentID: null, search, limit: 50 }, { signal }),
+    load: (search, signal) =>
+      server.sdk.api.session.list({ parentID: null, search, limit: 50, mode: props.mode }, { signal }),
+    accept: (session) => matchesHomeSessionMode(session, props.mode),
     get: (sessionID, signal) => server.sdk.api.session.get({ sessionID }, { signal }),
     untitled: () => language.t("command.session.new"),
     category: () => language.t("command.category.session"),

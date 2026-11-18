@@ -1,12 +1,12 @@
-import { Icon } from "@opencode/ui/icon"
+import { Icon } from "@aigcfroge/ui/icon"
 import {
   displayName,
   getProjectAvatarVariant,
   ProjectAvatar,
   PROJECT_AVATAR_VARIANTS,
-} from "@opencode/ui/project-avatar"
-import { Textarea } from "@opencode/ui/textarea"
-import { TextInput } from "@opencode/ui/text-input"
+} from "@aigcfroge/ui/project-avatar"
+import { Textarea } from "@aigcfroge/ui/textarea"
+import { TextInput } from "@aigcfroge/ui/text-input"
 import { For, Show, type Component } from "solid-js"
 import { useLanguage } from "@/runtime/i18n/language"
 import type { LocalProject } from "@/shell/state/layout"

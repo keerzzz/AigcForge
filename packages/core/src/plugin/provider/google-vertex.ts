@@ -1,8 +1,8 @@
 import { Effect, Option, Schema, Stream } from "effect"
 import path from "node:path"
-import { define } from "@opencode/plugin/effect/plugin"
-import { FSUtil } from "@opencode/util/fs-util"
-import { Global } from "@opencode/util/global"
+import { define } from "@aigcfroge/plugin/effect/plugin"
+import { FSUtil } from "@aigcfroge/util/fs-util"
+import { Global } from "@aigcfroge/util/global"
 import { Bus } from "../../bus.js"
 import { Credential } from "../../credential.js"
 import { Provider } from "../../provider.js"
@@ -50,7 +50,7 @@ function replaceVertexVars(value: string, project: string | undefined, location:
 }
 
 export const GoogleVertexPlugin = define({
-  id: "opencode.provider.google.vertex",
+  id: "aigcfroge.provider.google.vertex",
   effect: Effect.fn(function* (ctx) {
     const fs = yield* FSUtil.Service
     const credentials = yield* Credential.Service
@@ -163,10 +163,10 @@ export const GoogleVertexPlugin = define({
     yield* ctx.provider.transform((evt) => {
       for (const item of evt.list()) {
         if (
-          !item.provider.package.startsWith("@opencode/ai/providers/google-vertex") &&
+          !item.provider.package.startsWith("@aigcfroge/ai/providers/google-vertex") &&
           !(
             item.provider.id === Provider.ID.googleVertex &&
-            item.provider.package === "@opencode/ai/providers/openai-compatible"
+            item.provider.package === "@aigcfroge/ai/providers/openai-compatible"
           )
         )
           continue
@@ -191,10 +191,10 @@ export const GoogleVertexPlugin = define({
     yield* ctx.model.transform((models) => {
       for (const item of models.provider.list()) {
         if (
-          !item.provider.package.startsWith("@opencode/ai/providers/google-vertex") &&
+          !item.provider.package.startsWith("@aigcfroge/ai/providers/google-vertex") &&
           !(
             item.provider.id === Provider.ID.googleVertex &&
-            item.provider.package === "@opencode/ai/providers/openai-compatible"
+            item.provider.package === "@aigcfroge/ai/providers/openai-compatible"
           )
         )
           continue

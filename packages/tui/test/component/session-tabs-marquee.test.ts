@@ -2,6 +2,8 @@ import { afterEach, describe, expect, jest, test } from "bun:test"
 import { createRoot } from "solid-js"
 import { createMarquee, createTabMarquee } from "../../src/component/session-tabs"
 
+const title = "longname"
+
 afterEach(() => jest.useRealTimers())
 
 describe("session tab marquee", () => {
@@ -9,7 +11,7 @@ describe("session tab marquee", () => {
     jest.useFakeTimers()
     const scope = createRoot((dispose) => ({ marquee: createMarquee(() => false), dispose }))
 
-    scope.marquee.enter("first", "opencode", 6)
+    scope.marquee.enter("first", title, 6)
     expect(scope.marquee.active()).toBe("first")
     expect(scope.marquee.offset()).toBe(0)
 
@@ -27,7 +29,7 @@ describe("session tab marquee", () => {
     jest.useFakeTimers()
     const scope = createRoot((dispose) => ({ marquee: createMarquee(() => false), dispose }))
 
-    scope.marquee.enter("first", "opencode", 6)
+    scope.marquee.enter("first", title, 6)
     jest.advanceTimersByTime(1_400)
 
     expect(scope.marquee.active()).toBe("first")
@@ -40,7 +42,7 @@ describe("session tab marquee", () => {
     jest.useFakeTimers()
     const scope = createRoot((dispose) => ({ marquee: createMarquee(() => false), dispose }))
 
-    scope.marquee.enter("first", "opencode", 6)
+    scope.marquee.enter("first", title, 6)
     jest.advanceTimersByTime(700)
     scope.marquee.leave("first")
 
@@ -54,7 +56,7 @@ describe("session tab marquee", () => {
     jest.useFakeTimers()
     const scope = createRoot((dispose) => ({ marquee: createTabMarquee(() => false), dispose }))
 
-    scope.marquee.enter("first", "opencode", 6)
+    scope.marquee.enter("first", title, 6)
     jest.advanceTimersByTime(700)
     scope.marquee.leaveHovered()
     jest.advanceTimersByTime(0)

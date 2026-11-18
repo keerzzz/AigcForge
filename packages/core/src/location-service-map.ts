@@ -1,7 +1,7 @@
 import { Context, Effect, Exit, Layer, LayerMap, RcMap } from "effect"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { Node } from "@opencode/util/effect/app-node"
-import { AbsolutePath } from "@opencode/schema/schema"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Node } from "@aigcfroge/util/effect/app-node"
+import { AbsolutePath } from "@aigcfroge/schema/schema"
 import path from "path"
 import { Location } from "./location.js"
 import type { Instance } from "./instance.js"
@@ -9,7 +9,7 @@ import type { Instance } from "./instance.js"
 export class Service extends Context.Service<
   Service,
   LayerMap.LayerMap<Location.Ref, Instance.Services, Instance.Error>
->()("@opencode/example/LocationServiceMap") {
+>()("@aigcfroge/example/LocationServiceMap") {
   static get(ref: Location.Ref) {
     return Layer.unwrap(Effect.map(Service, (locations) => locations.get(ref)))
   }

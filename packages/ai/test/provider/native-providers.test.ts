@@ -206,13 +206,13 @@ describe("native OpenAI-compatible providers", () => {
       const selected = native.model("provider-model", {
         apiKey: "fixture",
         baseURL: "https://gateway.example/v1",
-        headers: { "x-application": "opencode" },
+        headers: { "x-application": "aigcfroge" },
         body: { service_tier: "priority" },
         reasoningEffort: "high",
       })
 
       expect(selected.route.endpoint.baseURL).toBe("https://gateway.example/v1")
-      expect(selected.route.defaults.headers).toEqual({ "x-application": "opencode" })
+      expect(selected.route.defaults.headers).toEqual({ "x-application": "aigcfroge" })
       expect(selected.route.defaults.http?.body).toEqual({ service_tier: "priority" })
       expect(selected.route.defaults.providerOptions).toEqual({ reasoningEffort: "high" })
     }

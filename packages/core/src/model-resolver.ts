@@ -1,16 +1,18 @@
 export * as ModelResolver from "./model-resolver.js"
 
-import { makeLocationNode } from "@opencode/util/effect/app-node"
-import { HttpOptions, LanguageModel, mergeHttpOptions, ProviderConfigurationError } from "@opencode/ai"
-import { Auth } from "@opencode/ai/route"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { HttpOptions, LanguageModel, mergeHttpOptions, ProviderConfigurationError } from "@aigcfroge/ai"
+import { Auth } from "@aigcfroge/ai/route"
 import { Context, Effect, Layer, Schema, Struct } from "effect"
 import { AISDK } from "./aisdk.js"
 import { Credential } from "./credential.js"
 import { Integration } from "./integration.js"
 import { Capabilities, ID, Info, Model, Ref, VariantID } from "./model.js"
 import type { RuntimeInfo } from "./model.js"
-import { Npm } from "@opencode/util/npm"
+import { Npm } from "@aigcfroge/util/npm"
 import { Provider } from "./provider.js"
+import { ModelSource } from "@aigcfroge/schema/model-source"
+import type { ModelGroup } from "./model-group.js"
 
 export class VariantUnavailableError extends Schema.TaggedError<VariantUnavailableError>()(
   "SessionRunnerModel.VariantUnavailableError",
@@ -106,6 +108,7 @@ export type Error =
   | UnresolvedProviderVariablesError
   | UnsupportedCompactionError
   | Integration.AuthorizationError
+  | ModelGroup.UnavailableError
 
 export interface Resolved {
   /** Route-level model for provider requests; its id is the provider API model id, which may differ from the catalog id. */
@@ -116,6 +119,10 @@ export interface Resolved {
   readonly capabilities: Capabilities
   /** Catalog pricing in dollars per million tokens. */
   readonly cost: Info["cost"]
+  readonly quote?: ModelSource.Quote
+  readonly quoteOrigin?: ModelSource.Origin
+  readonly quota?: ModelSource.Quota
+  readonly connection?: ModelSource.ConnectionRef
   /** Catalog token limits used by Core for context management. */
   readonly limit: Info["limit"]
   /** Model policy overrides the provider policy; omitted means summary compaction. */
@@ -127,11 +134,11 @@ export interface Resolved {
 }
 
 export interface Interface {
-  readonly resolve: (requested?: Ref) => Effect.Effect<Resolved | undefined, Error>
-  readonly resolveModel: (model: Info, variant?: VariantID) => Effect.Effect<Resolved, Error>
+  readonly resolve: (requested?: Ref, connection?: ModelSource.ConnectionRef) => Effect.Effect<Resolved | undefined, Error>
+  readonly resolveModel: (model: Info, variant?: VariantID, connection?: ModelSource.ConnectionRef) => Effect.Effect<Resolved, Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/ModelResolver") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/ModelResolver") {}
 
 // Variant resolution adds request-local overlays without changing the committed model snapshot.
 export const withVariant = (
@@ -307,7 +314,7 @@ const nativeCredentialSettings = (model: RuntimeInfo, specifier: string, credent
   if (credential.type === "key") return { apiKey: credential.key }
   if (credential.type === "oauth") return tokenSettings(specifier, credential.access)
   // The saved profile reaches the package through metadata; SigV4 keeps an ambient bearer token from taking over.
-  if (specifier.startsWith("@opencode/ai/providers/amazon-bedrock")) return { auth: "sigv4" }
+  if (specifier.startsWith("@aigcfroge/ai/providers/amazon-bedrock")) return { auth: "sigv4" }
   // The Azure plugin's request hooks replace this with an Entra ID token from the Azure CLI; it only gets the
   // request past the package's own credential check.
   if (model.providerID === Provider.ID.azure) return tokenSettings(specifier, "azure-cli")
@@ -315,11 +322,11 @@ const nativeCredentialSettings = (model: RuntimeInfo, specifier: string, credent
 }
 
 const tokenSettings = (specifier: string, token: string) => {
-  if (specifier === "@opencode/ai/providers/anthropic" || specifier === "@opencode/ai/providers/anthropic-compatible")
+  if (specifier === "@aigcfroge/ai/providers/anthropic" || specifier === "@aigcfroge/ai/providers/anthropic-compatible")
     return { authToken: token }
   if (
-    specifier === "@opencode/ai/providers/google-vertex" ||
-    specifier.startsWith("@opencode/ai/providers/google-vertex/")
+    specifier === "@aigcfroge/ai/providers/google-vertex" ||
+    specifier.startsWith("@aigcfroge/ai/providers/google-vertex/")
   )
     return { accessToken: token }
   return { apiKey: token }
@@ -368,12 +375,30 @@ export const layer = Layer.effect(
     const integrations = yield* Integration.Service
     const npm = yield* Npm.Service
     const aisdk = yield* AISDK.Service
-    const load = Effect.fn("ModelResolver.resolveModel")(function* (selected: Info, variant?: VariantID) {
-      const provider = yield* providers.get(selected.providerID)
-      const connection = yield* integrations.connection.active(
-        provider?.integrationID ?? Integration.ID.make(selected.providerID),
-      )
+    const load = Effect.fn("ModelResolver.load")(function* (selected: Info, variant?: VariantID, requested?: ModelSource.ConnectionRef) {
+      const provider = yield* providers.get(selected.providerID, requested)
+      const integrationID = provider?.integrationID ?? Integration.ID.make(selected.providerID)
+      const connection = requested
+        ? yield* integrations.connection.get(integrationID, requested)
+        : yield* integrations.connection.active(integrationID)
+      if (requested && (!connection || connection.status?.status === "needs_auth"))
+        return yield* new ModelConfigurationError({
+          providerID: selected.providerID,
+          modelID: selected.id,
+          package: selected.package ?? provider?.package ?? "unknown",
+          detail: "The selected connection is unavailable for this integration",
+        })
       const credential = connection ? yield* integrations.connection.resolve(connection) : undefined
+      if (requested && !credential)
+        return yield* new ModelConfigurationError({
+          providerID: selected.providerID,
+          modelID: selected.id,
+          package: selected.package ?? provider?.package ?? "unknown",
+          detail: "The selected connection no longer has a credential",
+        })
+      const connectionRef: ModelSource.ConnectionRef | undefined = connection?.type === "credential"
+        ? { type: "credential", id: connection.id }
+        : connection?.type === "env" ? { type: "env", name: connection.name } : undefined
       const selectedVariant = yield* withVariant(selected, variant)
       const runtimeInfo: RuntimeInfo = {
         ...selectedVariant,
@@ -399,6 +424,10 @@ export const layer = Layer.effect(
         }),
         capabilities: selected.capabilities,
         cost: selected.cost,
+        quote: selected.metadata?.quote ?? { status: "unknown" },
+        quoteOrigin: selected.origins?.quote,
+        quota: selected.metadata?.quota,
+        connection: connectionRef,
         limit: selected.limit,
         compaction: runtimeInfo.settings?.compaction,
         transport: provider?.settings?.transport,
@@ -406,9 +435,9 @@ export const layer = Layer.effect(
       }
     })
     return Service.of({
-      resolve: Effect.fn("ModelResolver.resolve")(function* (requested) {
+      resolve: Effect.fn("ModelResolver.resolve")(function* (requested, connection) {
         const selected = requested
-          ? yield* models.get(requested.providerID, requested.id)
+          ? yield* models.get(requested.providerID, requested.id, connection)
           : yield* models
               .default()
               .pipe(
@@ -420,10 +449,22 @@ export const layer = Layer.effect(
                       ),
                 ),
               )
-        if (!selected) return undefined
-        return yield* load(selected, requested?.variant)
+        if (!selected || (connection && !selected.enabled)) return undefined
+        const current = !requested && connection ? yield* models.get(selected.providerID, selected.id, connection) : selected
+        if (!current || (connection && !current.enabled)) return undefined
+        return yield* load(current, requested?.variant, connection)
       }),
-      resolveModel: load,
+      resolveModel: Effect.fn("ModelResolver.resolveModel")(function* (selected, variant, connection) {
+        const current = connection ? yield* models.get(selected.providerID, selected.id, connection) : selected
+        if (!current || (connection && !current.enabled))
+          return yield* new ModelConfigurationError({
+            providerID: selected.providerID,
+            modelID: selected.id,
+            package: selected.package ?? "unknown",
+            detail: "The selected model is unavailable for this connection",
+          })
+        return yield* load(current, variant, connection)
+      }),
     })
   }),
 )
@@ -449,28 +490,28 @@ function usesAPIKeyAuth(packageName: string | undefined) {
     name === "@ai-sdk/xai" ||
     name === "@openrouter/ai-sdk-provider" ||
     name === "@ai-sdk/azure" ||
-    name === "@opencode/ai/providers/openai" ||
-    name?.startsWith("@opencode/ai/providers/openai/") === true ||
-    name === "@opencode/ai/providers/anthropic" ||
-    name === "@opencode/ai/providers/anthropic-compatible" ||
-    name === "@opencode/ai/providers/baseten" ||
-    name === "@opencode/ai/providers/cerebras" ||
-    name === "@opencode/ai/providers/cloudflare-ai-gateway" ||
-    name === "@opencode/ai/providers/cloudflare-workers-ai" ||
-    name === "@opencode/ai/providers/deepinfra" ||
-    name === "@opencode/ai/providers/deepseek" ||
-    name === "@opencode/ai/providers/fireworks" ||
-    name === "@opencode/ai/providers/openai-compatible" ||
-    name === "@opencode/ai/providers/google" ||
-    name === "@opencode/ai/providers/google/interactions" ||
-    name === "@opencode/ai/providers/groq" ||
-    name === "@opencode/ai/providers/mistral" ||
-    name === "@opencode/ai/providers/togetherai" ||
-    name === "@opencode/ai/providers/vercel-ai-gateway" ||
-    name === "@opencode/ai/providers/xai" ||
-    name === "@opencode/ai/providers/openrouter" ||
-    name === "@opencode/ai/providers/azure" ||
-    name?.startsWith("@opencode/ai/providers/azure/") === true
+    name === "@aigcfroge/ai/providers/openai" ||
+    name?.startsWith("@aigcfroge/ai/providers/openai/") === true ||
+    name === "@aigcfroge/ai/providers/anthropic" ||
+    name === "@aigcfroge/ai/providers/anthropic-compatible" ||
+    name === "@aigcfroge/ai/providers/baseten" ||
+    name === "@aigcfroge/ai/providers/cerebras" ||
+    name === "@aigcfroge/ai/providers/cloudflare-ai-gateway" ||
+    name === "@aigcfroge/ai/providers/cloudflare-workers-ai" ||
+    name === "@aigcfroge/ai/providers/deepinfra" ||
+    name === "@aigcfroge/ai/providers/deepseek" ||
+    name === "@aigcfroge/ai/providers/fireworks" ||
+    name === "@aigcfroge/ai/providers/openai-compatible" ||
+    name === "@aigcfroge/ai/providers/google" ||
+    name === "@aigcfroge/ai/providers/google/interactions" ||
+    name === "@aigcfroge/ai/providers/groq" ||
+    name === "@aigcfroge/ai/providers/mistral" ||
+    name === "@aigcfroge/ai/providers/togetherai" ||
+    name === "@aigcfroge/ai/providers/vercel-ai-gateway" ||
+    name === "@aigcfroge/ai/providers/xai" ||
+    name === "@aigcfroge/ai/providers/openrouter" ||
+    name === "@aigcfroge/ai/providers/azure" ||
+    name?.startsWith("@aigcfroge/ai/providers/azure/") === true
   )
 }
 

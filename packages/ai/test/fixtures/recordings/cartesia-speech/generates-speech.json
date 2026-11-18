@@ -19,7 +19,7 @@
           "cartesia-version": "2026-08-14",
           "content-type": "application/json"
         },
-        "body": "{\"model_id\":\"sonic-3\",\"transcript\":\"Hello from OpenCode.\",\"voice\":\"f786b574-daa5-4673-aa0c-cbe3e8534c02\",\"output_format\":{\"container\":\"mp3\",\"sample_rate\":44100,\"bit_rate\":128000}}"
+        "body": "{\"model_id\":\"sonic-3\",\"transcript\":\"Hello from AigcForge.\",\"voice\":\"f786b574-daa5-4673-aa0c-cbe3e8534c02\",\"output_format\":{\"container\":\"mp3\",\"sample_rate\":44100,\"bit_rate\":128000}}"
       },
       "response": {
         "status": 200,

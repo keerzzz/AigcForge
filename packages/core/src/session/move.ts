@@ -1,9 +1,9 @@
 export * as SessionMove from "./move.js"
 
-import type { Session } from "@opencode/schema/session"
-import { makeGlobalNode } from "@opencode/util/effect/app-node"
-import { FSUtil } from "@opencode/util/fs-util"
-import { Global } from "@opencode/util/global"
+import type { Session } from "@aigcfroge/schema/session"
+import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { FSUtil } from "@aigcfroge/util/fs-util"
+import { Global } from "@aigcfroge/util/global"
 import { Cause, Context, Effect, Layer, Schema } from "effect"
 import path from "path"
 import { Bus } from "../bus.js"
@@ -11,6 +11,7 @@ import { Database } from "../database/database.js"
 import { Instance } from "../instance/service.js"
 import { Location } from "../location.js"
 import { LocationServiceMap } from "../location-service-map.js"
+import { ProductModePolicy } from "../product-mode-policy.js"
 import { Project } from "../project.js"
 import { AbsolutePath, RelativePath } from "../schema.js"
 import { NotFoundError } from "./error.js"
@@ -45,11 +46,15 @@ export interface Interface {
     delivery?: SessionInbox.Delivery
   }) => Effect.Effect<
     void,
-    NotFoundError | DestinationNotFoundError | DestinationNotDirectoryError | DestinationUnavailableError
+    | NotFoundError
+    | DestinationNotFoundError
+    | DestinationNotDirectoryError
+    | DestinationUnavailableError
+    | ProductModePolicy.UnsupportedProductModeError
   >
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/SessionMove") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionMove") {}
 
 const layer = Layer.effect(
   Service,
@@ -118,6 +123,7 @@ const layer = Layer.effect(
     return Service.of({
       move: Effect.fn("SessionMove.move")(function* (input) {
         const session = yield* get(input.sessionID)
+        yield* ProductModePolicy.assertRuntimeSupported(session.mode)
         const destination = yield* resolveDestination(session, input)
         // Probe outside the inbox lock so cancellation remains available during initialization.
         const unavailable = yield* sourceUnavailable(session)
@@ -130,6 +136,7 @@ const layer = Layer.effect(
           input.sessionID,
           Effect.gen(function* () {
             const latest = yield* get(input.sessionID)
+            yield* ProductModePolicy.assertRuntimeSupported(latest.mode)
             // Only recover the placement we probed; active runners retain their step-boundary handoff.
             if (
               unavailable &&

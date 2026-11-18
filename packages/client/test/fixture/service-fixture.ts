@@ -4,7 +4,7 @@ import { join } from "node:path"
 import { waitForExit } from "./service-timing"
 
 export async function serviceFixture() {
-  const directory = await mkdtemp(join(tmpdir(), "opencode-client-service-"))
+  const directory = await mkdtemp(join(tmpdir(), "aigcfroge-client-service-"))
   const registration = join(directory, "service.json")
   const processes: Bun.Subprocess[] = []
   const pids = new Set<number>()

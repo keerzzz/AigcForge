@@ -1,9 +1,9 @@
 import { createStore } from "solid-js/store"
-import { createMemo, For, Match, Show, Switch } from "solid-js"
+import { createEffect, createMemo, For, Match, Show, Switch } from "solid-js"
 import { Portal, useRenderer, useTerminalDimensions, type JSX } from "@opentui/solid"
 import type { TextareaRenderable } from "@opentui/core"
 import { useTheme, useThemes } from "../../context/theme"
-import type { PermissionReply, PermissionRequest } from "@opencode/client"
+import type { PermissionReply, PermissionRequest } from "@aigcfroge/client"
 import { SplitBorder } from "../../ui/border"
 import { useData } from "../../context/data"
 import { filetype } from "../../util/filetype"
@@ -119,9 +119,20 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
   const pathFormatter = usePathFormatter()
   const session = createMemo(() => data.session.get(props.request.sessionID))
 
+  const operation = createMemo(() => {
+    const ref = props.request.source
+    if (ref?.type !== "operation") return
+    return data.session.task.operation.get(ref.sessionID, ref.operationID)
+  })
+  createEffect(() => {
+    const ref = props.request.source
+    if (ref?.type !== "operation" || operation()) return
+    void data.session.task.operation.readback(ref.sessionID, ref.operationID).catch(toast.error)
+  })
   const source = createMemo(() => {
     const tool = props.request.source
-    if (!tool) return { input: undefined, metadata: undefined }
+    if (tool?.type === "operation") return { input: operation()?.request, metadata: undefined }
+    if (tool?.type !== "tool") return { input: undefined, metadata: undefined }
     const message = data.session.message.get(props.request.sessionID, tool.messageID)
     if (message?.type !== "assistant") return { input: undefined, metadata: undefined }
     const part = message.content.find((part) => part.type === "tool" && part.id === tool.id)
@@ -155,31 +166,56 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
       </Match>
       <Match when={store.stage === "permission"}>
         {(() => {
-          const current = permissionPresentation(
-            {
-              action: props.request.action,
-              resources: props.request.resources,
-              metadata: props.request.metadata,
-              input: source().input,
-              toolMetadata: source().metadata,
-            },
-            pathFormatter.format,
-          )
+          const current = createMemo(() => {
+            const display = permissionPresentation(
+              {
+                action: props.request.action,
+                resources: props.request.resources,
+                metadata: props.request.metadata,
+                input: source().input,
+                toolMetadata: source().metadata,
+              },
+              pathFormatter.format,
+            )
+            const ref = props.request.source
+            if (ref?.type !== "operation") return display
+            const value = operation()
+            const origin = value?.source
+            return {
+              ...display,
+              icon: "↗",
+              title: "Delegate task",
+              lines: [
+                `Operation: ${ref.operationID}`,
+                `Source Session: ${ref.sessionID}`,
+                ...(origin?.type === "goal_round" ? [`Goal: ${origin.goalID} · revision ${origin.revision} · round ${origin.roundID}`] : []),
+                ...(origin?.type === "schedule_occurrence" ? [`Schedule: ${origin.scheduleID} · occurrence ${origin.occurrenceID}`] : []),
+                ...(origin?.type === "user_coordination" ? ["Requested by user"] : []),
+                ...(value ? [
+                  value.request.target.type === "new_root"
+                    ? `Target: new ${value.request.target.mode} Session`
+                    : `Target Session: ${value.request.target.sessionID}`,
+                  ...(value.request.description ? [value.request.description] : []),
+                  value.request.prompt,
+                ] : ["Loading operation…"]),
+              ],
+            }
+          })
           const presentationBody = () =>
             props.request.action === "edit" ? (
-              <EditBody file={current.file} diff={current.diff} patch={current.patch} />
+              <EditBody file={current().file} diff={current().diff} patch={current().patch} />
             ) : props.request.action === "external_directory" ? (
-              <Show when={current.lines.length > 0}>
+              <Show when={current().lines.length > 0}>
                 <box paddingLeft={1} gap={1}>
                   <text fg={theme.text.muted}>Patterns</text>
                   <box>
-                    <For each={current.lines}>{(line) => <text fg={theme.text.base}>{line}</text>}</For>
+                    <For each={current().lines}>{(line) => <text fg={theme.text.base}>{line}</text>}</For>
                   </box>
                 </box>
               </Show>
             ) : (
               <box paddingLeft={1}>
-                <For each={current.lines}>
+                <For each={current().lines}>
                   {(line) => (
                     <text
                       fg={
@@ -203,12 +239,12 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
                 <text fg={theme.text.feedback.warning.base}>{"△"}</text>
                 <text fg={theme.text.base}>Permission required</text>
               </box>
-              <Show when={props.request.action !== "shell" && current.title}>
+              <Show when={props.request.action !== "shell" && current().title}>
                 <box flexDirection="row" gap={1} paddingLeft={2} flexShrink={0}>
                   <text fg={theme.text.muted} flexShrink={0}>
-                    {current.icon}
+                    {current().icon}
                   </text>
-                  <text fg={theme.text.base}>{current.title}</text>
+                  <text fg={theme.text.base}>{current().title}</text>
                 </box>
               </Show>
             </box>
@@ -217,7 +253,7 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
           const body = (
             <SessionQuestion
               title="Permission required"
-              semanticLabel={permissionSemanticLabel(props.request.action, current.title)}
+              semanticLabel={permissionSemanticLabel(props.request.action, current().title)}
               instance={props.request.id}
               header={header()}
               body={(option) => (
@@ -325,7 +361,7 @@ function RejectPrompt(props: {
           <text fg={theme.text.base}>Reject permission</text>
         </box>
         <box paddingLeft={1}>
-          <text fg={theme.text.muted}>Tell OpenCode what to do differently</text>
+          <text fg={theme.text.muted}>Tell AigcForge what to do differently</text>
         </box>
       </box>
       <box

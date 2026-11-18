@@ -1,17 +1,17 @@
-import type { SessionMessageAssistant, SessionMessageAssistantTool } from "@opencode/client/promise"
-import { Option, Schema } from "effect"
+import type { JsonValue, SessionMessageAssistant, SessionMessageAssistantTool } from "@aigcfroge/client/promise"
+import { Option, Predicate, Schema } from "effect"
 
-const decodeInput = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown)))
+const decodeInput = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Record(Schema.String, Schema.MutableJson)))
 
 const empty = {}
 
-export function currentToolInput(tool: SessionMessageAssistantTool): Record<string, unknown> {
+export function currentToolInput(tool: SessionMessageAssistantTool): Extract<SessionMessageAssistantTool["state"], { status: "running" }>["input"] {
   if (tool.state.status !== "streaming") return tool.state.input
 
   return Option.getOrElse(decodeInput(tool.state.input), () => empty)
 }
 
-export function currentToolMetadata(tool: SessionMessageAssistantTool): Record<string, unknown> {
+export function currentToolMetadata(tool: SessionMessageAssistantTool): Extract<SessionMessageAssistantTool["state"], { status: "running" }>["metadata"] {
   if (!("metadata" in tool.state)) return empty
 
   return tool.state.metadata ?? empty
@@ -21,7 +21,7 @@ export function currentToolOutput(tool: SessionMessageAssistantTool) {
   if (tool.state.status === "running") {
     const output = tool.state.metadata.output
 
-    return typeof output === "string" ? output : undefined
+    return Predicate.isString(output) ? output : undefined
   }
 
   if (!("content" in tool.state) || !tool.state.content) return undefined
@@ -44,12 +44,12 @@ export function currentToolFailed(tool: SessionMessageAssistantTool) {
   )
 }
 
-export function shellResultFailed(metadata: Record<string, unknown>) {
+export function shellResultFailed(metadata: Record<string, JsonValue>) {
   // Shell completion reports the process outcome in metadata, not the tool status.
-  return metadata.timeout === true || (typeof metadata.exit === "number" && metadata.exit !== 0)
+  return metadata.timeout === true || (Predicate.isNumber(metadata.exit) && metadata.exit !== 0)
 }
 
-export function executeToolFailed(metadata: Record<string, unknown>) {
+export function executeToolFailed(metadata: Record<string, JsonValue>) {
   // Code Mode can report failed nested calls in a completed tool result.
   const calls = metadata.toolCalls
 
@@ -58,11 +58,7 @@ export function executeToolFailed(metadata: Record<string, unknown>) {
     (Array.isArray(calls) &&
       calls.some(
         (call) =>
-          call !== null &&
-          typeof call === "object" &&
-          !Array.isArray(call) &&
-          "status" in call &&
-          call.status === "error",
+          Predicate.isObject(call) && "status" in call && call.status === "error",
       ))
   )
 }
@@ -71,11 +67,11 @@ export function currentToolHasLoadedFiles(tool: SessionMessageAssistantTool) {
   if (tool.name !== "read" || tool.state.status !== "completed") return false
   const loaded = tool.state.metadata?.loaded
 
-  return Array.isArray(loaded) && loaded.some((path) => typeof path === "string")
+  return Array.isArray(loaded) && loaded.some((path) => Predicate.isString(path))
 }
 
-export function readImagePath(input: Record<string, unknown>) {
-  if (typeof input.path !== "string" || !/\.(png|jpe?g|gif|webp|svg|avif|bmp|ico)$/i.test(input.path)) return
+export function readImagePath(input: Record<string, JsonValue>) {
+  if (!Predicate.isString(input.path) || !/\.(png|jpe?g|gif|webp|svg|avif|bmp|ico)$/i.test(input.path)) return
 
   return input.path.replaceAll("\\", "/")
 }
@@ -111,5 +107,5 @@ export function currentContentDefaultOpen(
 
   if (!Array.isArray(files) || files.length === 0) return true
 
-  return !files.every((file) => !!file && typeof file === "object" && "status" in file && file.status === "deleted")
+  return !files.every((file) => Predicate.isObject(file) && "status" in file && file.status === "deleted")
 }

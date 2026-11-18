@@ -13,6 +13,7 @@ export default Extension.define({
   id: "browser",
   provides: { browser: Browser, pane: Pane },
   stores: {
+    display: Store.global(Schema.Struct({ visible: Schema.Boolean }), { visible: true }),
     // The end of the last block of element refs main reserved, so refs stay unique across reloads.
     refs: Store.main(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)), 0),
     // Pages the browser showed, for the new tab page and the address field's suggestions. One list for every

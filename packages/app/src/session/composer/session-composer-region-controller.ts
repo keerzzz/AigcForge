@@ -1,8 +1,12 @@
 import type { Accessor } from "solid-js"
 import type { SessionRequestModel } from "../requests/model"
+import type { CommandOption } from "@/shell/commands/command"
 
 export function createSessionComposerRegionController(input: {
   state: SessionRequestModel
+  readonly?: Accessor<boolean>
+  acceptsDrop?: (event: DragEvent) => boolean
+  commands?: Accessor<CommandOption[]>
   parentID: Accessor<string | undefined>
   centered: Accessor<boolean>
   onResponseSubmit: () => void
@@ -12,6 +16,7 @@ export function createSessionComposerRegionController(input: {
 }) {
   return {
     state: input.state,
+    readonly: input.readonly,
     centered: input.centered,
     onResponseSubmit: input.onResponseSubmit,
     openParent: input.openParent,
@@ -19,7 +24,7 @@ export function createSessionComposerRegionController(input: {
     setDockRef: input.setDockRef,
     parentID: input.parentID,
     child: () => !!input.parentID(),
-    showComposer: () => !input.state.blocked() || !!input.parentID(),
+    showComposer: () => !input.state.blocked() || !!input.parentID() || !!input.readonly?.(),
   }
 }
 

@@ -1,4 +1,10 @@
 export default {
+  "settings.preview.title": "Use temporary file tabs",
+  "settings.preview.description": "Single clicks reuse a temporary tab; double clicks keep the file open.",
+  "preview.files": "Preview files",
+  "settings.display.hidden": "Files are hidden",
+  "settings.display.restore": "Open settings",
+  "settings.display.title": "Show Files",
   "tree.all": "All files",
   "tree.empty": "No files",
   "tree.changes.one": "Files Changed {{count}}",

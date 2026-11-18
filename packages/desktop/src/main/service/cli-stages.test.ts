@@ -14,23 +14,23 @@ describe("cleanStages", () => {
     { name: "prerelease", staged: ["2.0.20", "2.1.0-beta.1", "local"], current: "2.1.0-beta.1" },
     { name: "only current", staged: ["2.0.20"], current: "2.0.20" },
   ])("keeps only the current staged CLI after $name", async (input) => {
-    const root = mkdtempSync(path.join(tmpdir(), "opencode-cli-stages-"))
+    const root = mkdtempSync(path.join(tmpdir(), "aigcfroge-cli-stages-"))
 
     try {
       input.staged.forEach((version) => {
         mkdirSync(path.join(root, version))
-        writeFileSync(path.join(root, version, "opencode-cli"), version)
+        writeFileSync(path.join(root, version, "aigcfroge-cli"), version)
       })
       writeFileSync(path.join(root, "unrelated"), "")
 
       await Effect.runPromise(
-        cleanStages(path.join(root, input.current, "opencode-cli")).pipe(
+        cleanStages(path.join(root, input.current, "aigcfroge-cli")).pipe(
           Effect.provide(Layer.mergeAll(NodeFileSystem.layer, NodePath.layer)),
         ),
       )
 
       expect(readdirSync(root).sort()).toEqual([input.current, "unrelated"])
-      expect(readdirSync(path.join(root, input.current))).toEqual(["opencode-cli"])
+      expect(readdirSync(path.join(root, input.current))).toEqual(["aigcfroge-cli"])
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

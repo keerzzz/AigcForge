@@ -1,17 +1,18 @@
 export * as SessionTitle from "./title.js"
 
 import { isDeepStrictEqual } from "node:util"
-import { LLMClient, LLMEvent, Message, SystemPart } from "@opencode/ai"
-import type { Agent } from "@opencode/schema/agent"
+import { LLMClient, LLMEvent, Message, SystemPart } from "@aigcfroge/ai"
+import type { Agent } from "@aigcfroge/schema/agent"
 import { Context, DateTime, Effect, Layer, Stream } from "effect"
 import { Database } from "../database/database.js"
 import { Bus } from "../bus.js"
-import { makeLocationNode } from "@opencode/util/effect/app-node"
-import { isExactRootFallback } from "@opencode/util/session-title-fallback"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { isExactRootFallback } from "@aigcfroge/util/session-title-fallback"
 import { llmClient } from "../effect/app-node-platform.js"
 import { SessionContext } from "./context.js"
 import { SessionEvent } from "./event.js"
 import { SessionHistory } from "./history.js"
+import { SessionGoal } from "./goal.js"
 import type { SessionRunnerModel } from "./runner/model.js"
 import { SessionSchema } from "./schema.js"
 import { SessionUsage } from "./usage.js"
@@ -27,7 +28,7 @@ export interface Interface {
   readonly generate: (sessionID: SessionSchema.ID) => Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/SessionTitle") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionTitle") {}
 
 const truncate = (value: string) => (value.length <= MAX_LENGTH ? value : `${value.slice(0, MAX_LENGTH - 3)}...`)
 export const isUntitled = (session: SessionSchema.Info) =>
@@ -44,6 +45,7 @@ export const layer = Layer.effect(
     const context = yield* SessionContext.Service
     const store = yield* SessionStore.Service
     const db = (yield* Database.Service).db
+    const goals = yield* SessionGoal.Service
 
     const attempt = Effect.fn("SessionTitle.attempt")(function* (input: {
       readonly session: SessionSchema.Info
@@ -66,11 +68,14 @@ export const layer = Layer.effect(
       const prepared = yield* context.request.title({
         session: input.session,
         agent: input.agent.id,
+        request: input.agent.request,
         model: input.model,
         system: input.agent.system ? [SystemPart.make(input.agent.system)] : [],
         messages: [Message.user(input.text)],
       })
       if (prepared.event.result !== undefined) return prepared.event.result
+      const goalAttempts = yield* goals.beforeAttempt({ sessionID: input.session.id, kind: "auxiliary" }).pipe(Effect.orDie)
+      let goalUsage: SessionUsage.Recorded | undefined
       yield* llm.stream(prepared.request, prepared.options).pipe(
         Stream.runForEach((event) => {
           if (LLMEvent.is.providerError(event)) failed = true
@@ -78,6 +83,7 @@ export const layer = Layer.effect(
           if (LLMEvent.is.stepFinish(event)) {
             const step = SessionUsage.record(event.usage, input.model.cost)
             usage = usage ? SessionUsage.add(usage, step) : step
+            if (event.usage !== undefined) goalUsage = goalUsage ? SessionUsage.add(goalUsage, step) : step
           }
           return Effect.void
         }),
@@ -87,6 +93,7 @@ export const layer = Layer.effect(
           }),
         ),
         Effect.onInterrupt(() => recordUsage.pipe(Effect.asVoid)),
+        Effect.ensuring(Effect.suspend(() => goals.settleAttempt({ refs: goalAttempts, usage: goalUsage?.tokens }).pipe(Effect.orDie))),
       )
       yield* recordUsage
       if (failed) return
@@ -153,5 +160,5 @@ export const layer = Layer.effect(
 export const node = makeLocationNode({
   service: Service,
   layer,
-  deps: [Bus.node, llmClient, SessionContext.node, SessionStore.node, Database.node],
+  deps: [Bus.node, llmClient, SessionContext.node, SessionStore.node, Database.node, SessionGoal.node],
 })

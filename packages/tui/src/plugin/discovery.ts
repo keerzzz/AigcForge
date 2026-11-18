@@ -1,13 +1,13 @@
 import { readdir, stat } from "node:fs/promises"
 import path from "node:path"
-import { localSource } from "@opencode/plugin/source"
+import { localSource } from "@aigcfroge/plugin/source"
 import { isMissingPath, localProjectDirectory, projectConfigDirectories } from "../util/config-directories"
 
 export { localSource }
 
 export async function localPluginDirectories(cwd: string, configDirectory: string) {
   const projectDirectory = await localProjectDirectory(cwd)
-  const projectConfig = path.join(projectDirectory, ".opencode")
+  const projectConfig = path.join(projectDirectory, ".aigcfroge")
   const directories = [configDirectory, ...projectConfigDirectories(projectDirectory, cwd)]
   const exists = await Promise.all(
     directories.map(async (directory) => {

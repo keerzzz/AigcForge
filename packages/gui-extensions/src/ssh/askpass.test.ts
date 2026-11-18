@@ -13,12 +13,12 @@ const request = Effect.fn("test.askpass.request")(function* (
   text: string,
   confirm = false,
 ) {
-  const socket = yield* NodeSocket.makeNet({ host: "127.0.0.1", port: Number(env.OPENCODE_SSH_ASKPASS_PORT) })
+  const socket = yield* NodeSocket.makeNet({ host: "127.0.0.1", port: Number(env.AIGCFROGE_SSH_ASKPASS_PORT) })
   const writer = yield* socket.writer
   const result = { text: "" }
   yield* Effect.gen(function* () {
     const pull = yield* Socket.readerString(socket)
-    yield* writer.write(JSON.stringify({ token: env.OPENCODE_SSH_ASKPASS_TOKEN, text, confirm }) + "\n")
+    yield* writer.write(JSON.stringify({ token: env.AIGCFROGE_SSH_ASKPASS_TOKEN, text, confirm }) + "\n")
 
     while (true) result.text += (yield* pull).join("")
   }).pipe(Effect.ignore)
@@ -63,7 +63,7 @@ it.live(
       clear: () => Effect.void,
     }).pipe(Scope.provide(scope))
 
-    expect(yield* request({ ...bridge.env, OPENCODE_SSH_ASKPASS_TOKEN: "incorrect" }, "Password:")).toBe("")
+    expect(yield* request({ ...bridge.env, AIGCFROGE_SSH_ASKPASS_TOKEN: "incorrect" }, "Password:")).toBe("")
     const reply = yield* request(bridge.env, "Trust fingerprint?", true).pipe(Effect.forkScoped)
     yield* Deferred.await(prompted)
     yield* Scope.close(scope, Exit.void)
@@ -105,7 +105,7 @@ it.live(
     })
 
     const payload = Buffer.from(
-      JSON.stringify({ token: bridge.env.OPENCODE_SSH_ASKPASS_TOKEN, text: "Passwort für host:", confirm: false }) +
+      JSON.stringify({ token: bridge.env.AIGCFROGE_SSH_ASKPASS_TOKEN, text: "Passwort für host:", confirm: false }) +
         "\n",
     )
 
@@ -114,7 +114,7 @@ it.live(
 
     const client = yield* Effect.acquireRelease(
       Effect.callback<net.Socket>((resume) => {
-        const socket = net.createConnection(Number(bridge.env.OPENCODE_SSH_ASKPASS_PORT), "127.0.0.1", () =>
+        const socket = net.createConnection(Number(bridge.env.AIGCFROGE_SSH_ASKPASS_PORT), "127.0.0.1", () =>
           resume(Effect.succeed(socket)),
         )
       }),

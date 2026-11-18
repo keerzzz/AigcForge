@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
-import type { SessionMessageAssistant, SessionMessageInfo, ShellInfo } from "@opencode/client/promise"
-import { timelinePresets } from "@opencode/session-ui/timeline/detail"
+import type { SessionMessageAssistant, SessionMessageInfo, ShellInfo } from "@aigcfroge/client/promise"
+import { timelinePresets } from "@aigcfroge/session-ui/timeline/detail"
 import { createTwoFilesPatch } from "diff"
 import {
   assistantID,
@@ -205,7 +205,7 @@ test.describe("static projection", () => {
       toolPart("prt_skill_second", "skill", "completed", { id: "effect" }),
       toolPart("prt_skill_third", "skill", "completed", { id: "ui-pr-screenshots" }),
       toolPart("prt_skill_break", "read", "completed", { path: "src/a.ts" }),
-      toolPart("prt_skill_last", "skill", "completed", { id: "opencode" }),
+      toolPart("prt_skill_last", "skill", "completed", { id: "aigcfroge" }),
     ]
 
     await setupTimeline(page, {
@@ -218,7 +218,7 @@ test.describe("static projection", () => {
     const loaded = group.locator('[data-component="tool-loaded-item"]')
     await expect(loaded).toHaveCount(2)
     await expect(loaded.nth(0)).toHaveAttribute("aria-label", "Loaded ocpr, effect, ui-pr-screenshots skills")
-    await expect(loaded.nth(1)).toHaveAttribute("aria-label", "Loaded opencode skill")
+    await expect(loaded.nth(1)).toHaveAttribute("aria-label", "Loaded aigcfroge skill")
   })
 
   test("leaves tools expanded by settings outside the collapsed stack", async ({ page }) => {
@@ -679,7 +679,9 @@ test.describe("Working", () => {
     await expect(working).toBeVisible()
 
     await timeline.send(partUpdated(toolPart("prt_read_four", "read", "running", { path: "src/four.ts" })))
-    await expect(group.locator('[data-slot="basic-tool-tool-subtitle"]')).toHaveText("one.ts, two.ts, three.ts, four.ts")
+    await expect(group.locator('[data-slot="basic-tool-tool-subtitle"]')).toHaveText(
+      "one.ts, two.ts, three.ts, four.ts",
+    )
     await expect(working).toBeVisible()
 
     await timeline.send(partUpdated(toolPart("prt_read_four", "read", "completed", { path: "src/four.ts" })))
@@ -1359,7 +1361,9 @@ test.describe("background shortcut", () => {
 
     expect(breadcrumbOrder).toEqual(["session-title-parent", "session-title-child"])
     await expect(header.locator('[data-slot="session-title-separator"]')).toHaveCount(1)
-    await expect(header.getByRole("heading").getByRole("button", { name: "Draft TUI proposal +2 running" })).toBeEnabled()
+    await expect(
+      header.getByRole("heading").getByRole("button", { name: "Draft TUI proposal +2 running" }),
+    ).toBeEnabled()
 
     await trigger.click()
     await expect(list.getByRole("menuitem")).toHaveText([
@@ -1814,7 +1818,9 @@ function pauseExitAnimations(locator: Locator) {
   return locator.evaluateHandle((element) => {
     const animations: Animation[] = []
 
-    const pause = (event: AnimationEvent) => {
+    const pause = (event: Event) => {
+      if (!(event instanceof AnimationEvent)) return
+
       if (event.target !== element || event.animationName !== "exit") return
 
       animations.push(...element.getAnimations())

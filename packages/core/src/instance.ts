@@ -1,12 +1,29 @@
 import { Context, Effect, Layer } from "effect"
 import { Agent } from "./agent.js"
+import { AgentAsset } from "./agent-asset.js"
+import { AgentAssetService } from "./agent-asset-service.js"
+import { MCPAsset } from "./mcp-asset.js"
+import { MCPAssetService } from "./mcp-asset-service.js"
+import { PluginAsset } from "./plugin-asset.js"
+import { PluginAssetService } from "./plugin-asset-service.js"
+import { WorkflowAsset } from "./workflow-asset.js"
+import { WorkflowAssetService } from "./workflow-asset-service.js"
 import { AISDK } from "./aisdk.js"
 import { Model } from "./model.js"
+import { ModelGroup } from "./model-group.js"
 import { Provider } from "./provider.js"
+import { ProviderDiscovery } from "./provider/discovery.js"
 import { Command } from "./command.js"
+import { CommandAsset } from "./command-asset.js"
+import { CommandAssetService } from "./command-asset-service.js"
+import { PromptAsset } from "./prompt-asset.js"
+import { PromptAssetService } from "./prompt-asset-service.js"
 import { Config } from "./config.js"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { Node } from "@opencode/util/effect/app-node"
+import { CompositionResolver } from "./composition-resolver.js"
+import { CustomProfile } from "./custom-profile.js"
+import { CustomProfileService } from "./custom-profile-service.js"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Node } from "@aigcfroge/util/effect/app-node"
 import { FileMutation } from "./file-mutation.js"
 import { Environment } from "./environment/index.js"
 import { Formatter } from "./formatter.js"
@@ -23,6 +40,9 @@ import { FileAccess } from "./file-access.js"
 import { ModelResolver } from "./model-resolver.js"
 import { Mcp } from "./mcp/index.js"
 import { Permission } from "./permission.js"
+import { SessionPermissionOverride } from "./permission/session-override.js"
+import { ScopedGrantStore } from "./grant/store.js"
+import { PathIdentity } from "./path-identity.js"
 import { Plugin } from "./plugin.js"
 import { PluginHooks } from "./plugin/hooks.js"
 import { InstancePlugins } from "./plugin/instance.js"
@@ -40,13 +60,19 @@ import { SessionRunnerModel } from "./session/runner/model.js"
 import { SessionCompaction } from "./session/compaction.js"
 import { SessionTitle } from "./session/title.js"
 import { SessionContext } from "./session/context.js"
+import { SessionIdentityProjection } from "./session/session-identity.js"
+import { WorkArtifact } from "./session/artifact.js"
 import { Skill } from "./skill.js"
+import { SkillAsset } from "./skill-asset.js"
+import { SkillAssetService } from "./skill-asset-service.js"
 import { SkillInstructions } from "./skill/instructions.js"
 import { Snapshot } from "./snapshot.js"
 import { InstructionDiscovery } from "./instruction-discovery.js"
 import { InstructionBuiltIns } from "./instructions/builtins.js"
 import { InstructionEntry } from "./session/instruction-entry.js"
 import { SessionInstructions } from "./session/instructions.js"
+import { McpConnection } from "./mcp/connection.js"
+import { McpCredentialBindingStore } from "./mcp/binding/store.js"
 import { McpTool } from "./tool/mcp.js"
 import { ReadToolFileSystem } from "./tool/read-filesystem.js"
 import { Tool } from "./tool.js"
@@ -61,14 +87,31 @@ const nodes = [
   LocationLifecycle.node,
   Environment.node,
   Config.node,
+  CompositionResolver.node,
+  CustomProfile.node,
+  CustomProfileService.node,
   Agent.node,
+  AgentAsset.node,
+  AgentAssetService.node,
+  MCPAsset.node,
+  MCPAssetService.node,
+  PluginAsset.node,
+  PluginAssetService.node,
+  WorkflowAsset.node,
+  WorkflowAssetService.node,
   Command.node,
+  CommandAsset.node,
+  CommandAssetService.node,
+  PromptAsset.node,
+  PromptAssetService.node,
   Reference.node,
   Rpc.node,
   WebSearch.node,
   Integration.node,
   Provider.node,
   Model.node,
+  ModelGroup.node,
+  ProviderDiscovery.node,
   ModelResolver.node,
   AISDK.node,
   Plugin.node,
@@ -82,13 +125,19 @@ const nodes = [
   Pty.node,
   Shell.node,
   Skill.node,
+  SkillAsset.node,
+  SkillAssetService.node,
   InstructionBuiltIns.node,
   InstructionDiscovery.node,
   FileAccess.node,
   FileMutation.node,
+  WorkArtifact.node,
   Formatter.node,
   Mcp.node,
   Permission.node,
+  SessionPermissionOverride.node,
+  ScopedGrantStore.node,
+  PathIdentity.node,
   Tool.node,
   ToolOutput.node,
   Image.node,
@@ -99,11 +148,14 @@ const nodes = [
   Generate.node,
   ReadToolFileSystem.node,
   McpTool.node,
+  McpCredentialBindingStore.node,
+  McpConnection.node,
   SessionInstructions.node,
   SessionRunnerModel.node,
   SessionCompaction.node,
   SessionTitle.node,
   SessionContext.node,
+  SessionIdentityProjection.node,
   Snapshot.node,
   SessionRunnerLLM.node,
   Vcs.node,

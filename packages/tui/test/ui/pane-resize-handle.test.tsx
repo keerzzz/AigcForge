@@ -47,7 +47,7 @@ for (const mode of ["dark", "light"] as const) {
     const app = await testRender(
       () => (
         <TestTuiContexts>
-          <ConfigProvider config={createTuiResolvedConfig({ theme: { name: "opencode", mode } })}>
+          <ConfigProvider config={createTuiResolvedConfig({ theme: { name: "aigcfroge", mode } })}>
             <ThemeProvider mode={mode} source={emptyThemeSource}>
               <Pane />
             </ThemeProvider>

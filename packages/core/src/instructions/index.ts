@@ -1,7 +1,7 @@
 export * as Instructions from "./index.js"
 
 import { createHash } from "crypto"
-import { Instruction } from "@opencode/schema/instruction"
+import { Instruction } from "@aigcfroge/schema/instruction"
 import { Data, Effect, Option, Schema } from "effect"
 
 export const Key = Instruction.Key
@@ -45,9 +45,9 @@ export declare namespace Source {
     readonly codec: Schema.Codec<A, Schema.Json>
     readonly read: Effect.Effect<A | Unavailable | Removed>
     readonly render: {
-      readonly initial: (current: A) => string
-      readonly changed: (previous: A, current: A) => string
-      readonly removed?: (previous: A) => string
+      readonly initial: (current: A) => string | undefined
+      readonly changed: (previous: A, current: A) => string | undefined
+      readonly removed?: (previous: A) => string | undefined
     }
   }
 }
@@ -88,7 +88,10 @@ export const empty: List = []
 export function make<A>(source: Source.Definition<A>): List {
   const decode = Schema.decodeUnknownOption(source.codec)
   const encode = Schema.encodeSync(source.codec)
-  const initial = (value: A) => requireText(source.key, "initial", source.render.initial(value))
+  const initial = (value: A) => {
+    const text = source.render.initial(value)
+    return text === undefined ? undefined : requireText(source.key, "initial", text)
+  }
   const decodeValue = (value: Schema.Json) => Option.getOrUndefined(decode(value))
   return [
     {
@@ -109,13 +112,14 @@ export function make<A>(source: Source.Definition<A>): List {
         const after = decodeValue(current)
         if (after === undefined) return undefined
         if (before === undefined) return initial(after)
-        return requireText(source.key, "changed", source.render.changed(before, after))
+        const text = source.render.changed(before, after)
+        return text === undefined ? undefined : requireText(source.key, "changed", text)
       },
       removed: (previous) => {
         const decoded = decodeValue(previous)
-        return decoded === undefined || source.render.removed === undefined
-          ? undefined
-          : requireText(source.key, "removed", source.render.removed(decoded))
+        if (decoded === undefined || source.render.removed === undefined) return undefined
+        const text = source.render.removed(decoded)
+        return text === undefined ? undefined : requireText(source.key, "removed", text)
       },
     },
   ]

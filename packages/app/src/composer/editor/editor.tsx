@@ -9,30 +9,31 @@ import {
   Show,
   Suspense,
   lazy,
+  untrack,
   type JSX,
 } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 import { createMediaQuery } from "@solid-primitives/media"
-import { FileIcon } from "@opencode/ui/file-icon"
-import { Icon } from "@opencode/ui/icon"
-import { IconButton } from "@opencode/ui/icon-button"
+import { FileIcon } from "@aigcfroge/ui/file-icon"
+import { Icon } from "@aigcfroge/ui/icon"
+import { IconButton } from "@aigcfroge/ui/icon-button"
 import { createAnimatedPresence } from "@/runtime/animated-presence"
 import { resolveBlobUrl } from "@/runtime/persistence/drafts"
 import { ProviderModelIcon } from "@/providers/models/provider-group"
-import { useI18n } from "@opencode/ui/context/i18n"
-import { Button } from "@opencode/ui/button"
-import { Keybind } from "@opencode/ui/keybind"
-import { Menu } from "@opencode/ui/menu"
-import { Tooltip } from "@opencode/ui/tooltip"
-import { ScrollView } from "@opencode/ui/scroll-view"
-import { AttachmentCard } from "@opencode/session-ui/attachment-card"
-import { ProgressCircle } from "@opencode/ui/progress-circle"
+import { useI18n } from "@aigcfroge/ui/context/i18n"
+import { Button } from "@aigcfroge/ui/button"
+import { Keybind } from "@aigcfroge/ui/keybind"
+import { Menu } from "@aigcfroge/ui/menu"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { ScrollView } from "@aigcfroge/ui/scroll-view"
+import { AttachmentCard } from "@aigcfroge/session-ui/attachment-card"
+import { ProgressCircle } from "@aigcfroge/ui/progress-circle"
 import type { Upload } from "../attachments/uploads"
-import { CommentCard } from "@opencode/session-ui/comment-card"
-import { typeLabel } from "@opencode/session-ui/message-file"
-import { getFilename } from "@opencode/util/path"
-import { Skill } from "@opencode/schema/skill"
+import { CommentCard } from "@aigcfroge/session-ui/comment-card"
+import { typeLabel } from "@aigcfroge/session-ui/message-file"
+import { getFilename } from "@aigcfroge/util/path"
+import { Skill } from "@aigcfroge/schema/skill"
 import type {
   ComposerAgentPart,
   ComposerAttachment,
@@ -41,10 +42,12 @@ import type {
   ComposerOption,
   ComposerPrompt,
   ComposerSkillPart,
+  ComposerSessionPart,
   ComposerSuggestion,
 } from "../types"
 import type { ComposerEditorModel, ComposerSelectControl } from "./interaction"
-import { isAttachment } from "../prompt-parts"
+import { getCursorPosition, setCursorPosition } from "./dom"
+import { clonePrompt, isAttachment } from "../prompt-parts"
 import "../attachments/attachments.css"
 import "./editor.css"
 
@@ -83,6 +86,7 @@ export type ComposerEditorProps = {
   borderUnderlay?: boolean
   class?: string
   modelControl?: JSX.Element
+  tools?: JSX.Element
   modelControlsVisible?: boolean
   attachKeybind?: string[]
   attachShortcut?: string
@@ -117,6 +121,7 @@ export function ComposerEditor(props: ComposerEditorProps) {
     onCleanup(() => observer.disconnect())
   })
   let localInput = false
+  let restoreCursorOnFocus = false
 
   const updateCursor = () => {
     if (!editor || !window.getSelection()?.isCollapsed) return
@@ -132,9 +137,11 @@ export function ComposerEditor(props: ComposerEditorProps) {
   }))
 
   createEffect(() => {
-    const parts = props.controller.parts()
+    // Hydration reconciles parts in place; track their fields before the untracked DOM render.
+    const parts = clonePrompt(props.controller.parts())
+    const boundary = editor
 
-    if (!editor) return
+    if (!boundary) return
 
     if (localInput) {
       localInput = false
@@ -142,7 +149,31 @@ export function ComposerEditor(props: ComposerEditorProps) {
       return
     }
 
-    renderComposerEditor(editor, parts)
+    // Replacing an inactive editor's nodes invalidates its DOM selection.
+    restoreCursorOnFocus = document.activeElement !== boundary
+    // Moving the cursor alone must not rebuild the editable DOM.
+    untrack(() => renderComposerEditor(
+      boundary,
+      parts,
+      props.controller.cursor(),
+      props.controller.referenceLabel,
+      props.controller.openReference,
+      (status) => i18n.t(`ui.promptInput.sessionReference.${status}`),
+    ))
+  })
+
+  createEffect(() => {
+    props.controller.parts()
+
+    if (!editor) return
+    // Title and connection changes update the existing chip even when local typing skips a full render.
+    editor.querySelectorAll<HTMLElement>('[data-mention="session"]').forEach((mention) => {
+      const part = mentionParts.get(mention)
+
+      if (part?.type !== "session") return
+      updateSessionReferenceLabel(mention, part, props.controller.referenceLabel,
+        (status) => i18n.t(`ui.promptInput.sessionReference.${status}`))
+    })
   })
 
   // Kept out of JSX: an inline ternary prop compiles to a memo created on every read, and the popover reads
@@ -292,7 +323,14 @@ export function ComposerEditor(props: ComposerEditorProps) {
                 if (caret.top < bounds.top + 8) viewport.scrollTop += caret.top - bounds.top - 8
               })
             }}
-            onFocus={() => props.controller.dispatch({ type: "focus.editor" })}
+            onFocus={(event) => {
+              if (restoreCursorOnFocus) {
+                restoreCursorOnFocus = false
+                setCursorPosition(event.currentTarget, props.controller.cursor())
+              }
+
+              props.controller.dispatch({ type: "focus.editor" })
+            }}
           />
           <Show when={!props.controller.value()}>
             <div
@@ -368,6 +406,7 @@ export function ComposerEditor(props: ComposerEditorProps) {
                   )}
                 </Show>
               </Show>
+              {props.tools}
             </div>
           </div>
           <div data-slot="composer-actions" class="flex shrink-0 items-center">
@@ -413,7 +452,28 @@ export function ComposerEditor(props: ComposerEditorProps) {
 
 const mentionParts = new WeakMap<HTMLElement, Exclude<ComposerPrompt[number], ComposerAttachment | { type: "text" }>>()
 
-function renderComposerEditor(editor: HTMLDivElement, prompt: ComposerPrompt) {
+function updateSessionReferenceLabel(
+  mention: HTMLElement,
+  part: ComposerSessionPart,
+  label: ComposerEditorModel["referenceLabel"],
+  statusLabel: (status: "ready" | "missing" | "offline") => string,
+) {
+  const current = label?.(part.reference)
+  const title = current?.title ?? part.reference.title ?? part.content
+
+  if (mention.textContent !== title) mention.textContent = title
+  mention.dataset.referenceStatus = current?.status ?? "ready"
+  mention.title = `${part.reference.sessionID} · ${part.reference.serverID} · ${statusLabel(current?.status ?? "ready")}`
+}
+
+function renderComposerEditor(
+  editor: HTMLDivElement,
+  prompt: ComposerPrompt,
+  cursor: number,
+  label: ComposerEditorModel["referenceLabel"],
+  open: ComposerEditorModel["openReference"],
+  statusLabel: (status: "ready" | "missing" | "offline") => string,
+) {
   const active = document.activeElement === editor
   editor.replaceChildren(
     ...prompt.flatMap<Node>((part) => {
@@ -444,17 +504,28 @@ function renderComposerEditor(editor: HTMLDivElement, prompt: ComposerPrompt) {
         if (part.filename) mention.dataset.filename = part.filename
       }
 
+      if (part.type === "session") {
+        updateSessionReferenceLabel(mention, part, label, statusLabel)
+        mention.dataset.content = part.content
+        mention.className = "composer-session-reference"
+        mention.role = "link"
+        mention.tabIndex = 0
+        mention.addEventListener("click", () => open?.(part.reference))
+        mention.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter" && event.key !== " ") return
+
+          event.preventDefault()
+          event.stopPropagation()
+          open?.(part.reference)
+        })
+      }
+
       return [mention]
     }),
   )
 
   if (!active) return
-  const selection = window.getSelection()
-  const range = document.createRange()
-  range.selectNodeContents(editor)
-  range.collapse(false)
-  selection?.removeAllRanges()
-  selection?.addRange(range)
+  setCursorPosition(editor, cursor)
 }
 
 function parseComposerEditor(editor: HTMLDivElement) {
@@ -471,8 +542,18 @@ function parseComposerEditor(editor: HTMLDivElement) {
 
   const mention = (element: HTMLElement) => {
     flush()
-    const content = element.textContent ?? ""
+    const content = element.dataset.content ?? element.textContent ?? ""
     const original = mentionParts.get(element)
+
+    if (element.dataset.mention === "session") {
+      if (original?.type === "session") parts.push({ ...original, content, start: position, end: position + content.length } satisfies ComposerSessionPart)
+
+      if (original?.type !== "session") buffer += content
+
+      position += original?.type === "session" ? content.length : 0
+
+      return
+    }
 
     if (element.dataset.mention === "agent") {
       const agent: ComposerAgentPart = {
@@ -566,14 +647,7 @@ function parseComposerEditor(editor: HTMLDivElement) {
 }
 
 function composerCursor(editor: HTMLDivElement) {
-  const selection = window.getSelection()
-
-  if (!selection?.rangeCount || !editor.contains(selection.anchorNode)) return editor.textContent?.length ?? 0
-  const range = selection.getRangeAt(0).cloneRange()
-  range.selectNodeContents(editor)
-  range.setEnd(selection.anchorNode!, selection.anchorOffset)
-
-  return range.toString().length
+  return getCursorPosition(editor)
 }
 
 export function ComposerAttachments(props: {
@@ -1166,6 +1240,8 @@ export function ComposerEditorSubmitButton(props: {
 
 function ComposerSuggestionIcon(props: { item: ComposerSuggestion }) {
   if (props.item.kind === "agent") return <Icon name="brain" size="small" class="shrink-0 text-icon-info-active" />
+
+  if (props.item.kind === "session") return <Icon name="chat" size="small" class="shrink-0" />
 
   if (props.item.kind === "skill") return <Icon name="post-skill" size="small" class="shrink-0" />
 

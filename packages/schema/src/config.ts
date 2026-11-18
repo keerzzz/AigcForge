@@ -1,10 +1,12 @@
 export * as Config from "./config.js"
 
 import { Schema } from "effect"
+import { ConfigMeta } from "./config/meta.js"
 import { ephemeral, inventory } from "./event.js"
 import { Permission } from "./permission.js"
 import { AbsolutePath, optional } from "./schema.js"
 import { ConfigAgent } from "./config/agent.js"
+import { ConfigCliAgent } from "./config/cli-agent.js"
 import { ConfigMedia } from "./config/media.js"
 import { ConfigCompaction } from "./config/compaction.js"
 import { ConfigCommand } from "./config/command.js"
@@ -13,6 +15,8 @@ import { ConfigFormatter } from "./config/formatter.js"
 import { ConfigLSP } from "./config/lsp.js"
 import { ConfigMCP } from "./config/mcp.js"
 import { ConfigModel } from "./config/model.js"
+import { ModelGroup } from "./model-group.js"
+import { Model } from "./model.js"
 import { ConfigPlugin } from "./config/plugin.js"
 import { ConfigProvider } from "./config/provider.js"
 import { ConfigReference } from "./config/reference.js"
@@ -31,6 +35,9 @@ export class Info extends Schema.Class<Info>("Config.Info")({
   }),
   model: ConfigModel.Selection.pipe(optional).annotate({
     description: "Default model to use when no session or agent model is selected",
+  }),
+  modelGroups: Schema.Record(Model.GroupID, ModelGroup.Definition).pipe(optional).annotate({
+    description: "Named logical model selections with ordered physical members",
   }),
   default_agent: Schema.String.pipe(optional).annotate({
     description: "Default primary agent to use when no session agent is selected",
@@ -56,6 +63,13 @@ export class Info extends Schema.Class<Info>("Config.Info")({
   }),
   agents: Schema.Record(Schema.String, ConfigAgent.Info).pipe(optional).annotate({
     description: "Named built-in agent overrides and custom agent definitions",
+  }),
+  cli_agents: Schema.Record(Schema.String, ConfigCliAgent.Info).pipe(optional).annotate({
+    description: "Named external CLI agent definitions that delegate to installed CLI tools",
+  }),
+  subagent_attended_default: Schema.Boolean.pipe(optional).annotate({
+    description:
+      "Default attended mode for subagent task delegation. true=user responds to permission prompts, false=asks auto-denied.",
   }),
   snapshots: Schema.Boolean.pipe(optional).annotate({
     description: "Enable snapshots used for undo and revert behavior",
@@ -107,6 +121,9 @@ export class Info extends Schema.Class<Info>("Config.Info")({
   }),
   providers: Schema.Record(Schema.String, ConfigProvider.Info).pipe(optional),
   experimental: ConfigExperimental.Info.pipe(optional),
+  meta: Schema.optional(ConfigMeta.Info).annotate({
+    description: "Fork-retained config namespace (memory/doom-loop/correction-store/verifier/reverse-refs).",
+  }),
 }) {}
 
 export const Patch = Schema.Struct({

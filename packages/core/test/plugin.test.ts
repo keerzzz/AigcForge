@@ -1,21 +1,91 @@
 import { expect } from "bun:test"
 import path from "path"
-import { Clock, Deferred, Effect } from "effect"
+import { Clock, Deferred, Effect, Schema } from "effect"
 import { TestClock } from "effect/testing"
-import { Command } from "@opencode/core/command"
-import { Bus } from "@opencode/core/bus"
-import { Credential } from "@opencode/core/credential"
-import { Integration } from "@opencode/core/integration"
-import { Plugin } from "@opencode/core/plugin"
-import { PluginModule } from "@opencode/core/plugin/module"
-import { Session } from "@opencode/core/session"
-import { SessionSchema } from "@opencode/core/session/schema"
-import { Watcher } from "@opencode/core/filesystem/watcher"
-import { fromPromise } from "@opencode/plugin/promise/adapter"
-import { testEffect } from "./lib/effect"
+import { Command } from "@aigcfroge/core/command"
+import { Bus } from "@aigcfroge/core/bus"
+import { Credential } from "@aigcfroge/core/credential"
+import { Config } from "@aigcfroge/core/config"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { Integration } from "@aigcfroge/core/integration"
+import { Mcp } from "@aigcfroge/core/mcp/index"
+import { Global } from "@aigcfroge/util/global"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Plugin } from "@aigcfroge/core/plugin"
+import { PluginModule } from "@aigcfroge/core/plugin/module"
+import { PluginInternal } from "@aigcfroge/core/plugin/internal"
+import { AssetPublication } from "@aigcfroge/core/asset-publication"
+import { Database } from "@aigcfroge/core/database/database"
+import { Location } from "@aigcfroge/core/location"
+import { Project } from "@aigcfroge/core/project"
+import { ProjectTable } from "@aigcfroge/core/project/sql"
+import { SessionTable } from "@aigcfroge/core/session/sql"
+import { Tool } from "@aigcfroge/core/tool"
+import { Session } from "@aigcfroge/core/session"
+import { SessionSchema } from "@aigcfroge/core/session/schema"
+import { ModelGroup } from "@aigcfroge/schema/model-group"
+import { Watcher } from "@aigcfroge/core/filesystem/watcher"
+import { fromPromise } from "@aigcfroge/plugin/promise/adapter"
+import { AigcForgeEvent } from "../../protocol/src/groups/event"
+import { awaitWithTimeout, pollWithTimeout, testEffect } from "./lib/effect"
 import { PluginTestLayer } from "./plugin/fixture"
+import { executeTool, toolIdentity } from "./lib/tool"
+import { tempGlobalLayer } from "./fixture/global"
+import { tempLocationLayer } from "./fixture/location"
+import { emptyMcpLayer } from "./fixture/mcp"
+import { offlineModels } from "./fixture/models"
 
 const it = testEffect(PluginTestLayer)
+const capturedPluginTest = testEffect(
+  AppNodeBuilder.build(LayerNode.group([Plugin.node, PluginInternal.requirements, Database.node]), [
+    offlineModels,
+    Location.node.replace(tempLocationLayer),
+    Global.node.replace(tempGlobalLayer),
+    Config.node.replace(Config.testLayer()),
+    Mcp.node.replace(emptyMcpLayer),
+  ]),
+)
+
+capturedPluginTest.live("retains asset source services through the real internal plugin capture", () =>
+  Effect.gen(function* () {
+    const plugins = yield* Plugin.Service
+    const tools = yield* Tool.Service
+    const db = (yield* Database.Service).db
+    const location = yield* Location.Service
+    const sessionID = SessionSchema.ID.create()
+    const internal = yield* PluginInternal.list()
+    const plugin = internal.pre.find((plugin) => plugin.id === "aigcfroge.tool.list_assets")
+    if (!plugin) return yield* Effect.die("Missing internal list_assets plugin")
+    yield* plugins.activate([{ ...plugin, revision: "capture-test" }])
+    yield* db
+      .insert(ProjectTable)
+      .values({ id: Project.ID.global, worktree: location.directory, sandboxes: [] })
+      .onConflictDoNothing()
+      .run()
+    yield* db
+      .insert(SessionTable)
+      .values({
+        id: sessionID,
+        project_id: Project.ID.global,
+        directory: location.directory,
+        slug: sessionID,
+        title: "Internal asset publication",
+        version: "test",
+        mode: "work",
+        agent: toolIdentity.agent,
+      })
+      .run()
+    const result = yield* executeTool(tools, {
+      sessionID,
+      ...toolIdentity,
+      call: { type: "tool-call", id: "captured-list-assets", name: "list_assets", input: {} },
+    })
+    expect(result).toMatchObject({ status: "completed" })
+    const publication = Schema.decodeUnknownSync(AssetPublication.Json)(result.metadata?.publication)
+    expect(publication.runtime.sourceLocation.directory).toBe(location.directory)
+    expect(publication.definitions).toHaveLength(13)
+  }),
+)
 
 for (const scenario of [
   {
@@ -447,6 +517,147 @@ it.live("retains Promise plugin groups for later registrations and ignores a dis
     expect(yield* commands.get("late")).toBeUndefined()
     yield* Effect.promise(register)
     expect(yield* commands.get("late")).toBeUndefined()
+  }),
+)
+
+capturedPluginTest.live("reads canonical model groups through the Promise plugin API", () =>
+  Effect.gen(function* () {
+    const plugins = yield* Plugin.Service
+    const read = yield* Deferred.make<typeof ModelGroup.Read.Encoded>()
+    const definition = fromPromise({
+      id: "promise-model-group",
+      async setup(ctx) {
+        const response = await ctx.model.group.definition.get({ groupID: "fixture-missing-group" })
+        const payload = {
+          groupID: "fixture-missing-group", target: { scope: "global" as const, path: "/fixture/aigcfroge.jsonc" }, expectedDigest: null,
+        }
+        await expect(ctx.model.group.definition.save({ payload: { ...payload, patch: { set: { members: [] } } } })).rejects.toThrow("Authored model group configuration is unavailable")
+        await expect(ctx.model.group.definition.remove({ payload })).rejects.toThrow("Authored model group configuration is unavailable")
+        Effect.runSync(Deferred.succeed(read, response.data))
+      },
+    })
+    yield* plugins.activate([{ ...definition, revision: "1" }])
+    yield* plugins.awaitActivation
+    const result = Schema.decodeUnknownSync(ModelGroup.Read)(yield* awaitWithTimeout(
+      Deferred.await(read), "The original Promise plugin API did not return its group read",
+    ))
+    expect(result.effective).toMatchObject([{ groupID: "fixture-missing-group", unavailable: "missing" }])
+    expect((yield* plugins.list())[0]?.state.status).toBe("active")
+  }),
+)
+
+it.live("encodes Promise plugin events and closes independent subscriptions", () =>
+  Effect.gen(function* () {
+    const plugins = yield* Plugin.Service
+    const bus = yield* Bus.Service
+    const controller = new AbortController()
+    const nextEvent = async (iterator: AsyncIterator<unknown>, matches: (value: unknown) => boolean) => {
+      // Plugin activation and readiness probes can leave unrelated events buffered.
+      while (true) {
+        const result = await iterator.next()
+        if (result.done || matches(result.value)) return result
+      }
+    }
+    const isReady = (value: unknown) =>
+      Schema.is(Schema.toEncoded(Credential.Event.Updated))(value) && value.metadata?.probe === "ready"
+    const isSwitched = Schema.is(Schema.toEncoded(Credential.Event.Switched))
+    const handles = Promise.withResolvers<{
+      canonical: AsyncIterator<unknown>
+      raw: AsyncIterator<unknown>
+      ready: Promise<IteratorResult<unknown>[]>
+    }>()
+    yield* plugins.activate([
+      {
+        ...fromPromise({
+          id: "promise-events",
+          setup(ctx) {
+            const canonical = ctx.event.subscribe()[Symbol.asyncIterator]()
+            const raw = ctx.event.subscribe.raw({ signal: controller.signal })[Symbol.asyncIterator]()
+            handles.resolve({
+              canonical,
+              raw,
+              ready: Promise.all([nextEvent(canonical, isReady), nextEvent(raw, isReady)]),
+            })
+          },
+        }),
+        revision: "1",
+      },
+    ])
+    yield* plugins.awaitActivation
+    expect((yield* plugins.list()).find((plugin) => plugin.id === "promise-events")?.state).toEqual({
+      status: "active",
+    })
+    const subscriptions = yield* awaitWithTimeout(
+      Effect.promise(() => handles.promise),
+      "Plugin setup did not return subscriptions",
+    )
+    const ready = yield* Deferred.make<IteratorResult<unknown>[]>()
+    yield* Effect.promise(() => subscriptions.ready).pipe(
+      Effect.andThen((result) => Deferred.succeed(ready, result)),
+      Effect.forkIn(yield* Effect.scope),
+    )
+    yield* pollWithTimeout(
+      bus.publish(Credential.Event.Updated, {}, { metadata: { probe: "ready" } }).pipe(
+        Effect.andThen(() => Deferred.isDone(ready)),
+        Effect.map((done) => (done ? true : undefined)),
+      ),
+      "Promise event subscriptions did not become ready",
+    )
+    expect(yield* Deferred.await(ready)).toEqual([
+      { done: false, value: expect.objectContaining({ type: "credential.updated", metadata: { probe: "ready" } }) },
+      { done: false, value: expect.objectContaining({ type: "credential.updated", metadata: { probe: "ready" } }) },
+    ])
+    const first = Promise.all([
+      nextEvent(subscriptions.canonical, isSwitched),
+      nextEvent(subscriptions.raw, isSwitched),
+    ])
+    const payload = { integrationID: Integration.ID.make("raw-fixture"), credentialID: null, extra: "host-only" }
+    const event = yield* bus.publish(Credential.Event.Switched, payload)
+    expect(event.data).toHaveProperty("extra", "host-only")
+    const encoded = yield* Schema.encodeUnknownEffect(AigcForgeEvent)(event)
+    expect(encoded).toHaveProperty("data", { integrationID: payload.integrationID, credentialID: null })
+    const received = yield* awaitWithTimeout(
+      Effect.promise(() => first),
+      "Promise event payloads were not delivered",
+    )
+    expect(received).toEqual([
+      { done: false, value: encoded },
+      { done: false, value: encoded },
+    ])
+    expect(Schema.is(Schema.toEncoded(AigcForgeEvent))(received[1]?.value)).toBe(true)
+
+    const aborted = nextEvent(subscriptions.raw, isSwitched)
+    controller.abort()
+    expect(
+      (yield* awaitWithTimeout(
+        Effect.promise(() => aborted),
+        "Raw subscription did not close after abort",
+      )).done,
+    ).toBe(true)
+    const remaining = nextEvent(subscriptions.canonical, isSwitched)
+    const continued = yield* bus.publish(Credential.Event.Switched, {
+      integrationID: payload.integrationID,
+      credentialID: null,
+    })
+    expect(
+      yield* awaitWithTimeout(
+        Effect.promise(() => remaining),
+        "Canonical subscription stopped after raw abort",
+      ),
+    ).toEqual({
+      done: false,
+      value: yield* Schema.encodeUnknownEffect(AigcForgeEvent)(continued),
+    })
+
+    const pending = nextEvent(subscriptions.canonical, isSwitched)
+    yield* plugins.activate([])
+    yield* plugins.awaitActivation
+    expect(
+      (yield* awaitWithTimeout(
+        Effect.promise(() => pending),
+        "Plugin unload did not close its subscription",
+      )).done,
+    ).toBe(true)
   }),
 )
 

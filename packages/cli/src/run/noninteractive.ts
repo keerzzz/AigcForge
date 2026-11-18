@@ -2,21 +2,19 @@ import type {
   EventSubscribeOutput,
   JsonValue,
   LocationRef,
-  OpenCodeClient,
+  AigcForgeClient,
   SessionMessageAssistantTool,
   SessionMessageInfo,
   ToolContent,
-} from "@opencode/client/promise"
-import { SessionMessage } from "@opencode/schema/session-message"
+  SessionInfo,
+} from "@aigcfroge/client/promise"
+import { SessionMessage } from "@aigcfroge/schema/session-message"
 import { EOL } from "node:os"
 import { readFile } from "node:fs/promises"
-import { nonEmptyToolContent, toolOutputText, type MiniToolPart } from "@opencode/tui/mini/tool"
+import { nonEmptyToolContent, toolOutputText, type MiniToolPart } from "@aigcfroge/tui/mini/tool"
 import { UI } from "./ui"
+import { isModelGroup, toModelSelection, type ModelPreferenceModel } from "@aigcfroge/tui/model-preference"
 
-type Model = {
-  providerID: string
-  modelID: string
-}
 
 type File = {
   url: string
@@ -25,13 +23,14 @@ type File = {
 }
 
 type Input = {
-  client: OpenCodeClient
+  client: AigcForgeClient
   sessionID: string
   location: LocationRef
   message: string
   files: File[]
   agent?: string
-  model?: Model
+  selection?: Pick<SessionInfo, "controller" | "model" | "executorPreference">
+  model?: ModelPreferenceModel
   variant?: string
   thinking: boolean
   format: "default" | "json"
@@ -687,23 +686,31 @@ export async function runNonInteractivePrompt(input: Input) {
 
   let completed: Promise<void> | undefined
   try {
-    if (input.agent) {
+    if (input.agent && !input.selection?.controller) {
       await input.client.session.switchAgent({ sessionID: input.sessionID, agent: input.agent })
     }
-    const selected = input.model
-      ? { providerID: input.model.providerID, id: input.model.modelID, variant: input.variant }
-      : input.variant
-        ? await input.client.session
-            .get({ sessionID: input.sessionID })
-            .then((result) => result.model)
-            .then(async (model) => {
-              if (model) return { ...model, variant: input.variant }
-              const result = await input.client.model.default()
-              const fallback = result.data
-              return fallback ? { providerID: fallback.providerID, id: fallback.id, variant: input.variant } : undefined
-            })
-        : undefined
+    const selected = input.selection?.controller
+      ? input.selection.model
+      : input.model
+        ? toModelSelection(input.model, input.variant)
+        : input.variant
+          ? await input.client.session
+              .get({ sessionID: input.sessionID })
+              .then((result) => result.model)
+              .then(async (model) => {
+                if (model) return isModelGroup(model) ? model : { ...model, variant: input.variant }
+                const result = await input.client.model.group.definition.get({ location: input.location })
+                const fallback = result.data.defaultSelection
+                return fallback
+                  ? isModelGroup(fallback)
+                    ? fallback
+                    : { providerID: fallback.providerID, id: fallback.id, variant: input.variant }
+                  : undefined
+              })
+          : undefined
     if (input.variant && !selected) throw new Error("Cannot select a variant before selecting a model")
+    if (input.variant && selected && isModelGroup(selected))
+      throw new Error("Model groups use each member's configured variant")
     if (selected) {
       await input.client.session.switchModel({ sessionID: input.sessionID, model: selected })
     }
@@ -797,7 +804,7 @@ function formRequestOptions(location: LocationRef | undefined): [] | [{ headers:
   return [
     {
       headers: {
-        "x-opencode-directory": encodeURIComponent(location.directory),
+        "x-aigcfroge-directory": encodeURIComponent(location.directory),
       },
     },
   ]

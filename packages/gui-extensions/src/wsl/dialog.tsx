@@ -1,13 +1,13 @@
-import { useDialog } from "@opencode/ui/context/dialog"
-import { Button } from "@opencode/ui/button"
-import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from "@opencode/ui/dialog"
-import { Divider } from "@opencode/ui/divider"
-import { Loader } from "@opencode/ui/loader"
-import { RadioGroup, RadioItem } from "@opencode/ui/radio"
-import { TextInput } from "@opencode/ui/text-input"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { Button } from "@aigcfroge/ui/button"
+import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from "@aigcfroge/ui/dialog"
+import { Divider } from "@aigcfroge/ui/divider"
+import { Loader } from "@aigcfroge/ui/loader"
+import { RadioGroup, RadioItem } from "@aigcfroge/ui/radio"
+import { TextInput } from "@aigcfroge/ui/text-input"
 import { createMemo, For, Show } from "solid-js"
 import { createStore } from "solid-js/store"
-import { showToast } from "@opencode/ui/toast"
+import { showToast } from "@aigcfroge/ui/toast"
 import { useExtension, type Context, type IpcClient } from "../sdk"
 import type { Wsl, WslServersState } from "./contract"
 import { useWslAddServerProbes } from "./probes"
@@ -357,8 +357,8 @@ function useWslAddServerController(props: DialogWslServerProps) {
 
     if (!distro || !action) return
 
-    if (action === "install-opencode") {
-      await run(() => api().installOpencode({ name: distro }))
+    if (action === "install-aigcfroge") {
+      await run(() => api().installAigcfroge({ name: distro }))
 
       return
     }
@@ -483,7 +483,7 @@ function unavailable(error: string): WslServersState {
     installed: [],
     online: [],
     distroProbes: {},
-    opencodeChecks: {},
+    aigcfrogeChecks: {},
     pendingRestart: false,
     servers: [],
     job: null,

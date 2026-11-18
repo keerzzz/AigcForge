@@ -1,11 +1,43 @@
 import { describe, expect, test } from "bun:test"
 import { Predicate } from "effect"
-import type { SessionMessageAssistant, SessionMessageAssistantTool, SessionMessageInfo } from "@opencode/client/promise"
+import type { SessionMessageAssistant, SessionMessageAssistantTool, SessionMessageInfo } from "@aigcfroge/client/promise"
 import { storyDocument, storyTool } from "../storybook/current-session-scenarios"
 import { timelinePresets } from "./detail"
 import { createTimelineProjection, Timeline, TimelineRow } from "./projection"
 
 describe("current session timeline rows", () => {
+  test("keeps typed coordination notices without a user message or description", () => {
+    const messages: SessionMessageInfo[] = [
+      { id: "msg_task", type: "synthetic", text: "Task input", time: { created: 1 }, metadata: {
+        coordination: { kind: "task", operationRef: { sourceSessionID: "ses_source", operationID: "top_result" },
+          actorSessionID: "ses_source", actorAgent: "meta", targetSessionID: "ses_target" },
+      } },
+      { id: "msg_communication", type: "synthetic", text: "Full reply", time: { created: 2 }, metadata: { communication: { id: "com_reply" } } },
+      { id: "msg_share", type: "synthetic", text: "Saved Task result", time: { created: 3 }, metadata: {
+        source: "share", sourceSessionID: "ses_source", scope: "result",
+      } },
+    ]
+
+    expect(Timeline.constructSessionMessageRows(messages, true, { type: "idle" }).rows.map(TimelineRow.key))
+      .toEqual(["notice:msg_task", "notice:msg_communication", "notice:msg_share"])
+    timelinePresets.forEach((preset) => {
+      expect(createTimelineProjection({
+        sessionMessages: messages,
+        status: { type: "idle" },
+        reasoningMode: "compact",
+        timelineDetail: preset.value,
+      }).rows.map(TimelineRow.key)).toEqual([
+        "notice:msg_task",
+        "notice:msg_communication",
+        ...{
+          separate: ["notice:msg_share"],
+          grouped: ["assistant-part:context:message:msg_share"],
+          hidden: [],
+        }[preset.value.notices.placement],
+      ])
+    })
+  })
+
   test("derives turns and tagged rows from chronological current messages", () => {
     const source = [
       { id: "msg_1", type: "user", text: "first", time: { created: 1 } },
@@ -1312,7 +1344,7 @@ describe("current session timeline rows", () => {
         id: "msg_idle",
         type: "idle",
         outcome: "failed",
-        error: { type: "provider.no-route", message: "Model unavailable: opencode/gpt-5.2" },
+        error: { type: "provider.no-route", message: "Model unavailable: aigcfroge/gpt-5.2" },
         time: { created: 2 },
       },
       {
@@ -1326,7 +1358,7 @@ describe("current session timeline rows", () => {
     const preStepRows = Timeline.constructSessionMessageRows(preStep, true, { type: "idle" }).rows
     expect(preStepRows.map((row) => row._tag)).toEqual(["UserMessage", "Error", "Notice"])
     expect(preStepRows[1]).toEqual(
-      new TimelineRow.Error({ userMessageID: "msg_user", text: "Model unavailable: opencode/gpt-5.2" }),
+      new TimelineRow.Error({ userMessageID: "msg_user", messageID: "msg_idle", text: "Model unavailable: aigcfroge/gpt-5.2" }),
     )
 
     const betweenSteps = [
@@ -1349,9 +1381,11 @@ describe("current session timeline rows", () => {
       },
     ] satisfies SessionMessageInfo[]
 
-    expect(
-      Timeline.constructSessionMessageRows(betweenSteps, true, { type: "idle" }).rows.map((row) => row._tag),
-    ).toEqual(["UserMessage", "AssistantPart", "Error"])
+    const betweenStepRows = Timeline.constructSessionMessageRows(betweenSteps, true, { type: "idle" }).rows
+    expect(betweenStepRows.map((row) => row._tag)).toEqual(["UserMessage", "AssistantPart", "Error"])
+    expect(betweenStepRows.at(-1)).toEqual(
+      new TimelineRow.Error({ userMessageID: "msg_user", messageID: "msg_idle", text: "Failed to execute statement" }),
+    )
 
     const duplicate = [
       { id: "msg_user", type: "user", text: "prompt", time: { created: 1 } },
@@ -1376,6 +1410,16 @@ describe("current session timeline rows", () => {
 
     expect(Timeline.constructSessionMessageRows(duplicate, true, { type: "idle" }).rows.map((row) => row._tag)).toEqual(
       ["UserMessage", "Error"],
+    )
+
+    const distinct = duplicate.map((message) => message.type === "idle"
+      ? { ...message, error: { type: "provider.error", message: "Idle failure recorded" } }
+      : message)
+
+    const distinctRows = Timeline.constructSessionMessageRows(distinct, true, { type: "idle" }).rows
+    expect(distinctRows.map((row) => row._tag)).toEqual(["UserMessage", "Error"])
+    expect(distinctRows.at(-1)).toEqual(
+      new TimelineRow.Error({ userMessageID: "msg_user", messageID: "msg_idle", text: "Idle failure recorded" }),
     )
 
     const exhausted = [
@@ -1404,6 +1448,7 @@ describe("current session timeline rows", () => {
     expect(Timeline.constructSessionMessageRows(exhausted, true, { type: "idle" }).rows.at(-1)).toEqual(
       new TimelineRow.Error({
         userMessageID: "msg_user",
+        messageID: "msg_idle",
         text: "Execution was interrupted repeatedly and will not be resumed automatically.",
       }),
     )

@@ -9,31 +9,28 @@ export function DialogVariant() {
 
   const options = createMemo(() => [
     {
-      value: "default",
+      value: undefined,
       title: "Default",
       onSelect: () => {
         dialog.clear()
         local.model.variant.set(undefined)
       },
     },
-    ...local.model.variant
-      .list()
-      .filter((variant) => variant !== "default")
-      .map((variant) => ({
-        value: variant,
-        title: variant,
-        onSelect: () => {
-          dialog.clear()
-          local.model.variant.set(variant)
-        },
-      })),
+    ...local.model.variant.list().map((variant) => ({
+      value: variant,
+      title: variant,
+      onSelect: () => {
+        dialog.clear()
+        local.model.variant.set(variant)
+      },
+    })),
   ])
 
   return (
-    <DialogSelect<string>
+    <DialogSelect<string | undefined>
       options={options()}
       title={"Select variant"}
-      current={local.model.variant.current() ?? "default"}
+      current={local.model.variant.current()}
       flat={true}
     />
   )

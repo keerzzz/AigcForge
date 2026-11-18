@@ -16,7 +16,7 @@ import {
   type CliRenderer,
   type ScrollbackWriter,
 } from "@opentui/core"
-import { isFallbackTitle } from "@opencode/util/session-title-fallback"
+import { isFallbackTitle } from "@aigcfroge/util/session-title-fallback"
 import { monoSnapshot } from "./mono"
 import { entrySplash, exitSplash } from "./splash"
 import { resolveRunTheme } from "./theme"
@@ -27,6 +27,7 @@ import type {
   MiniSettingChange,
   MiniSettings,
   MiniHost,
+  MiniModelDomain,
   PermissionReply,
   QueuedPromptAction,
   RunAgent,
@@ -72,9 +73,15 @@ export type LifecycleInput = {
   onFormReply: (input: FormReply) => void | Promise<void>
   onFormCancel: (input: FormCancel) => void | Promise<void>
   onCycleVariant?: () => CycleResult | void
-  onAgentSelect?: (agent: string) => void
-  onModelSelect?: (model: NonNullable<RunInput["model"]>) => CycleResult | void | Promise<CycleResult | void>
-  onVariantSelect?: (variant: string | undefined) => CycleResult | void | Promise<CycleResult | void>
+  onAgentSelect?: (agent: string, domain?: MiniModelDomain) => void
+  onModelSelect?: (
+    model: NonNullable<RunInput["model"]>,
+    domain?: MiniModelDomain,
+  ) => CycleResult | void | Promise<CycleResult | void>
+  onVariantSelect?: (
+    variant: string | undefined,
+    domain?: MiniModelDomain,
+  ) => CycleResult | void | Promise<CycleResult | void>
   onInterrupt?: () => void
   onBackground?: () => void
   onQueuedPromptAction?: (action: QueuedPromptAction, inboxID: string) => Promise<void>
@@ -174,7 +181,7 @@ export async function createRuntimeLifecycle(input: LifecycleInput): Promise<Lif
   if (mono) renderer.on(CliRenderEvents.EXTERNAL_OUTPUT, monoSnapshot)
   const setTitle = (title?: string) => {
     if (input.host.platform !== "linux") return
-    if (!title || isFallbackTitle(title)) return renderer.setTerminalTitle("OpenCode")
+    if (!title || isFallbackTitle(title)) return renderer.setTerminalTitle("AigcForge")
     renderer.setTerminalTitle(`OC | ${title.length > 40 ? title.slice(0, 37) + "…" : title}`)
   }
   setTitle(input.sessionTitle)

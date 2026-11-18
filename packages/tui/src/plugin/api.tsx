@@ -1,4 +1,4 @@
-import { PluginContextProvider } from "@opencode/plugin/tui"
+import { PluginContextProvider } from "@aigcfroge/plugin/tui"
 import { createRoot, createUniqueId, getOwner, onCleanup, runWithOwner, untrack, type JSX } from "solid-js"
 import type {
   Context,
@@ -9,7 +9,7 @@ import type {
   SlotMap,
   SlotPath,
   Toast,
-} from "@opencode/plugin/tui/context"
+} from "@aigcfroge/plugin/tui/context"
 import type { Placement, PlacementKind } from "./structure"
 import { infoStringToFiletype, type MarkdownCodeBlockRenderer } from "@opentui/core"
 import { useRenderer } from "@opentui/solid"
@@ -32,6 +32,7 @@ import { useSessionTabs } from "../context/session-tabs"
 import { useOptionalPanel } from "../context/panel"
 import { useLocal } from "../context/local"
 import { abbreviateHome } from "../util/path-format"
+import { isModelGroup } from "../model-preference"
 
 export type Dispose = () => Promise<void>
 
@@ -282,13 +283,14 @@ export function createPluginContext(input: {
       model: {
         current() {
           const selection = host.local.model.selection()
-          if (!selection) return
+          if (!selection || isModelGroup(selection)) return
           return { providerID: selection.providerID, modelID: selection.modelID, variant: selection.variant }
         },
         variant: {
           list: () => host.local.model.variant.list(),
           set(variant) {
-            if (!host.local.model.selection()) return false
+            const selection = host.local.model.selection()
+            if (!selection || isModelGroup(selection)) return false
             if (variant !== undefined && !host.local.model.variant.list().includes(variant)) return false
             host.local.model.variant.set(variant)
             return true

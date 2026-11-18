@@ -3,12 +3,24 @@ import type {
   SessionMessageInfo,
   SessionMessageUser,
   SessionStatus,
-} from "@opencode/client/promise"
-import { useI18n } from "@opencode/ui/context/i18n"
+} from "@aigcfroge/client/promise"
+import { SessionTask } from "@aigcfroge/schema/session-task"
+import { SessionID } from "@aigcfroge/schema/session-id"
+import { SessionCommunication } from "@aigcfroge/schema/session-communication"
+import type { SessionReference } from "@aigcfroge/schema/session-reference"
+import { Button } from "@aigcfroge/ui/button"
+import { Collapsible } from "@aigcfroge/ui/collapsible"
+import { useI18n } from "@aigcfroge/ui/context/i18n"
 import { Option, Predicate, Schema } from "effect"
 import { For, Show, createMemo, type Accessor, type JSX } from "solid-js"
 import { Dynamic } from "solid-js/web"
-import type { SessionUserActions, SessionUserAttachmentReference, SessionUserComment } from "../actions"
+import type {
+  SessionResponseActionInput,
+  SessionResponseActions,
+  SessionUserActions,
+  SessionUserAttachmentReference,
+  SessionUserComment,
+} from "../actions"
 import { useData } from "../context"
 import { TimelineSeparator } from "../components/timeline-separator"
 import {
@@ -28,6 +40,7 @@ import {
 import type { ContextGroupPart } from "../tools/tool-renderer"
 import { SessionRetry } from "../components/session-retry"
 import { SessionError } from "../components/session-error"
+import { AssistantAttemptsPopover } from "../message/attempt-details"
 import { timelineCategory, type TimelineDetail } from "./detail"
 import { currentToolFailed } from "../message/current-tool-state"
 import {
@@ -43,6 +56,18 @@ const emptyAssistantMessages: SessionMessageAssistant[] = []
 
 const decodeMetadataFile = Schema.decodeUnknownOption(Schema.Struct({ file: Schema.String }))
 
+const decodeTaskCoordination = Schema.decodeUnknownOption(Schema.toEncoded(SessionTask.TaskCoordination))
+
+const decodeCommunicationMetadata = Schema.decodeUnknownOption(Schema.Struct({
+  communication: Schema.Struct({ id: SessionCommunication.ID }),
+}))
+
+const decodeSharedSource = Schema.decodeUnknownOption(Schema.Struct({
+  source: Schema.Literal("share"), sourceSessionID: SessionID,
+  actorSessionID: Schema.optional(SessionID), contentSourceSessionID: Schema.optional(SessionID),
+  scope: Schema.Literals(["text", "reference", "output", "full", "result"]),
+}))
+
 type Projection = ReturnType<typeof createReactiveTimelineProjection>
 
 type FramedTimelineRow = Exclude<TimelineRow.TimelineRow, TimelineRow.TurnGap>
@@ -51,6 +76,7 @@ export type SessionUserPresentation = {
   displayText?: string
   comments?: SessionUserComment[]
   references?: SessionUserAttachmentReference[]
+  sessionReferences?: SessionReference.MentionEncoded[]
 }
 
 export function createSessionTimelineRowRenderer(input: {
@@ -59,6 +85,7 @@ export function createSessionTimelineRowRenderer(input: {
   projection: Projection
   presentation: (message: SessionMessageUser) => SessionUserPresentation | undefined
   actions?: SessionUserActions
+  responseActions?: SessionResponseActions
   reasoningMode: Accessor<ReasoningMode>
   shellToolDefaultOpen: Accessor<boolean>
   editToolDefaultOpen: Accessor<boolean>
@@ -351,6 +378,32 @@ export function createSessionTimelineRowRenderer(input: {
 
     const disclosureKey = () => (content()?.type === "reasoning" ? ref()!.partID : row().group.key)
 
+    const response: SessionResponseActionInput = {
+      get userMessageID() {
+        return row().userMessageID
+      },
+      get assistantMessageID() {
+        return message()!.id
+      },
+      get contentID() {
+        return ref()!.partID
+      },
+      get text() {
+        const item = content()
+
+        return item?.type === "text" ? item.text : ""
+      },
+      get completed() {
+        return input.projection.responseByParent().get(row().userMessageID)?.completed ?? false
+      },
+      get latest() {
+        return input.projection.responseByParent().get(row().userMessageID)?.latest ?? false
+      },
+      get boundary() {
+        return input.projection.responseByParent().get(row().userMessageID)?.boundary
+      },
+    }
+
     return (
       <Show when={message()}>
         {(message) => (
@@ -361,6 +414,13 @@ export function createSessionTimelineRowRenderer(input: {
                 content={content()}
                 contentID={ref()!.partID}
                 showAssistantCopyPartID={copyContentID(row().userMessageID)}
+                response={response}
+                attempts={input.projection.assistantMessagesByParent().get(row().userMessageID)}
+                responseActions={
+                  input.projection.messageByID().get(row().userMessageID)?.type === "user"
+                    ? input.responseActions
+                    : undefined
+                }
                 turnDurationMs={duration(row().userMessageID)}
                 defaultOpen={defaultOpen()}
                 toolOpen={input.disclosure.value(disclosureKey()) ?? defaultOpen()}
@@ -510,19 +570,81 @@ export function createSessionTimelineRowRenderer(input: {
       const value = message()
 
       if (value?.type !== "model-switched") return undefined
-      const match = data.store.provider?.all?.get(value.model.providerID)
+      const selection = value.model
+
+      if ("type" in selection) {
+        const group = data.store.modelGroups?.find((group) => group.groupID === selection.groupID)
+        const unavailable = group ? group.unavailable : data.store.modelGroups ? "missing" : undefined
+        const name = group?.definition?.name || selection.groupID
+
+        return { providerID: undefined, variant: undefined, label: i18n.t("ui.sessionTimeline.notice.modelSwitched", {
+          model: unavailable ? i18n.t("ui.message.modelGroupUnavailable", {
+            name, reason: i18n.t(`ui.modelAttempts.group.${unavailable}`),
+          }) : i18n.t("ui.message.modelGroup", { name }),
+        }) }
+      }
+
+      const match = data.store.provider?.all?.get(selection.providerID)
 
       return {
-        providerID: value.model.providerID,
-        variant: value.model.variant,
+        providerID: selection.providerID,
+        variant: selection.variant,
         label: i18n.t("ui.sessionTimeline.notice.modelSwitched", {
-          model: match?.models?.[value.model.id]?.name ?? value.model.id,
+          model: match?.models?.[selection.id]?.name ?? selection.id,
         }),
       }
     })
 
+    const coordination = createMemo(() => {
+      const value = message()
+
+      return value?.type === "synthetic" ? Option.getOrUndefined(decodeTaskCoordination(value.metadata?.coordination)) : undefined
+    })
+
+    const communicationID = createMemo(() => {
+      const value = message()
+
+      return value?.type === "synthetic" ? Option.getOrUndefined(decodeCommunicationMetadata(value.metadata))?.communication.id : undefined
+    })
+
+    const communication = createMemo(() => {
+      const id = communicationID()
+
+      return id ? data.communication?.({ sessionID: input.sessionID(), communicationID: id }) : undefined
+    })
+
+    const shared = createMemo(() => {
+      const record = communication()
+
+      if (record) return {
+        actorSessionID: record.actor.sessionID,
+        sourceSessionID: record.contentSource.sessionID,
+        targetSessionID: record.targetSessionID,
+        scope: record.contentSource.scope,
+      }
+      const value = message()
+      const source = value?.type === "synthetic" ? Option.getOrUndefined(decodeSharedSource(value.metadata)) : undefined
+
+      return source ? {
+        actorSessionID: source.actorSessionID,
+        sourceSessionID: source.contentSourceSessionID ?? source.sourceSessionID,
+        targetSessionID: input.sessionID(),
+        scope: source.scope,
+      } : undefined
+    })
+
+    const text = createMemo(() => {
+      const value = message()
+
+      return value?.type === "synthetic" ? value.text : undefined
+    })
+
+    const sessionTitle = (sessionID: string) => data.store.session.find((session) => session.id === sessionID)?.title ?? sessionID
+
     const content = createMemo(() => {
       const value = message()
+
+      if (coordination() || shared() || communicationID()) return
 
       return value ? notice(value) : undefined
     })
@@ -568,6 +690,51 @@ export function createSessionTimelineRowRenderer(input: {
 
     return (
       <>
+        <Show when={coordination()}>
+          {(task) => <div data-slot="session-timeline-coordination" class={`w-full min-w-0 py-2 ${inset()}`}>
+            <div data-slot="coordination-heading"><span>{i18n.t("ui.sessionTimeline.coordination.task")}</span>
+              <Show when={data.openTask}><Button type="button" size="small" variant="ghost" onClick={() => data.openTask?.(task().operationRef)}>{i18n.t("ui.sessionTimeline.coordination.details")}</Button></Show>
+            </div>
+            <div data-slot="coordination-route"><span>{i18n.t("ui.sessionTimeline.coordination.actor", { agent: task().actorAgent })}</span>
+              <Button type="button" size="small" variant="ghost" disabled={!data.navigateToSession} onClick={() => data.navigateToSession?.(task().actorSessionID)}>{sessionTitle(task().actorSessionID)}</Button>
+              <span>{i18n.t("ui.sessionTimeline.coordination.target")}</span>
+              <Button type="button" size="small" variant="ghost" disabled={!data.navigateToSession} onClick={() => data.navigateToSession?.(task().targetSessionID)}>{sessionTitle(task().targetSessionID)}</Button>
+            </div>
+            <Collapsible variant="ghost">
+              <Collapsible.Trigger type="button">
+                <Collapsible.Arrow />
+                {i18n.t("ui.sessionTimeline.coordination.input")}
+              </Collapsible.Trigger>
+              <Collapsible.Content><pre>{text()}</pre></Collapsible.Content>
+            </Collapsible>
+          </div>}
+        </Show>
+        <Show when={shared() || communicationID()}>
+          <div data-slot="session-timeline-coordination" class={`w-full min-w-0 py-2 ${inset()}`}>
+            <div data-slot="coordination-heading">
+              <span>{i18n.t(communication()?.actor.type === "system" ? "ui.sessionTimeline.coordination.systemDelivery" : communicationID() ? "ui.sessionTimeline.coordination.communication" : "ui.sessionTimeline.coordination.shared")}</span>
+              <Show when={communicationID()}>{(id) => <>
+                <code>{id()}</code>
+                <Show when={data.openCommunication}><Button type="button" size="small" variant="ghost" onClick={() => data.openCommunication?.({ sessionID: input.sessionID(), communicationID: id() })}>{i18n.t("ui.sessionTimeline.coordination.communicationDetails")}</Button></Show>
+              </>}</Show>
+            </div>
+            <Show when={shared()}>{(source) => <div data-slot="coordination-route">
+              <Show when={source().actorSessionID}>{(id) => <><span>{i18n.t("ui.sessionTimeline.coordination.sharedBy")}</span><Button type="button" size="small" variant="ghost" disabled={!data.navigateToSession} onClick={() => data.navigateToSession?.(id())}>{sessionTitle(id())}</Button></>}</Show>
+              <span>{i18n.t("ui.sessionTimeline.coordination.contentSource")}</span><Button type="button" size="small" variant="ghost" disabled={!data.navigateToSession} onClick={() => data.navigateToSession?.(source().sourceSessionID)}>{sessionTitle(source().sourceSessionID)}</Button>
+              <span>{i18n.t("ui.sessionTimeline.coordination.target")}</span><Button type="button" size="small" variant="ghost" disabled={!data.navigateToSession} onClick={() => data.navigateToSession?.(source().targetSessionID)}>{sessionTitle(source().targetSessionID)}</Button>
+              <span>{i18n.t(`ui.sessionTimeline.coordination.scope.${source().scope}`)}</span>
+              <Show when={communication()}>{(record) => <span>{i18n.t(`ui.sessionTimeline.coordination.state.${record().state}`)}</span>}</Show>
+            </div>}</Show>
+            <Show when={communication()?.replyTo}>{(id) => <div data-slot="coordination-route"><span>{i18n.t("ui.sessionTimeline.coordination.replyTo")}</span><Button type="button" size="small" variant="ghost" disabled={!data.openCommunication} onClick={() => data.openCommunication?.({ sessionID: input.sessionID(), communicationID: id() })}><code>{id()}</code></Button></div>}</Show>
+            <Collapsible variant="ghost">
+              <Collapsible.Trigger type="button">
+                <Collapsible.Arrow />
+                {i18n.t("ui.sessionTimeline.coordination.content")}
+              </Collapsible.Trigger>
+              <Collapsible.Content><pre>{communication()?.text ?? text()}</pre></Collapsible.Content>
+            </Collapsible>
+          </div>
+        </Show>
         <Show when={compaction()}>
           {(message) => (
             <div data-slot="session-turn-message-container" class={`w-full ${inset()}`}>
@@ -733,6 +900,7 @@ export function createSessionTimelineRowRenderer(input: {
                       displayText={presentation()?.displayText}
                       comments={presentation()?.comments}
                       references={presentation()?.references}
+                      sessionReferences={presentation()?.sessionReferences}
                       historicalAgent={context()?.agent ?? ""}
                       historicalModel={context()?.model ?? { id: "", providerID: "" }}
                       actions={input.actions}
@@ -899,9 +1067,9 @@ export function createSessionTimelineRowRenderer(input: {
       }
 
       const status = createMemo(() => {
-        const retry = (
-          input.projection.assistantMessagesByParent().get(current().userMessageID) ?? emptyAssistantMessages
-        ).at(-1)?.retry
+        const source = current().messageID
+        const message = source ? input.projection.messageByID().get(source) : undefined
+        const retry = message?.type === "assistant" ? message.retry : undefined
 
         if (!retry) return input.status()
 
@@ -912,6 +1080,7 @@ export function createSessionTimelineRowRenderer(input: {
         <Frame row={current()}>
           <div data-slot="session-turn-message-container" class={`w-full ${padding()}`}>
             <SessionRetry status={status()} show={input.projection.activeMessageID() === current().userMessageID} />
+            <Attempts userMessageID={current().userMessageID} />
           </div>
         </Frame>
       )
@@ -929,9 +1098,14 @@ export function createSessionTimelineRowRenderer(input: {
       <Frame row={current()}>
         <div data-slot="session-turn-message-container" class={`w-full ${padding()}`}>
           <SessionError message={current().text} />
+          <Attempts userMessageID={current().userMessageID} />
         </div>
       </Frame>
     )
+  }
+
+  function Attempts(props: { userMessageID: string }) {
+    return <AssistantAttemptsPopover messages={input.projection.assistantMessagesByParent().get(props.userMessageID) ?? []} />
   }
 
   function Row(props: { row: Accessor<TimelineRow.TimelineRow>; onSizeChange?: () => void }) {

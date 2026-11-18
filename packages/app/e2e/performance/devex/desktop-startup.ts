@@ -1,4 +1,4 @@
-import { Service } from "@opencode/client/service"
+import { Service } from "@aigcfroge/client/service"
 import { chromium, expect, type Browser, type Page, type TestInfo } from "@playwright/test"
 import { Schema } from "effect"
 import { spawn, spawnSync, type ChildProcess } from "node:child_process"
@@ -110,7 +110,7 @@ export async function desktopBenchmarkContext(runs: number) {
     electronViteVersionRange: pkg.devDependencies["electron-vite"],
     gitCommit: revision.stdout.toString().trim(),
     gitDirty: status.stdout.length > 0,
-    trace: Boolean(process.env.OPENCODE_PERFORMANCE_TRACE_DIR),
+    trace: Boolean(process.env.AIGCFROGE_PERFORMANCE_TRACE_DIR),
   }
 }
 
@@ -156,7 +156,7 @@ async function createColdProfile() {
       rm(join(repository, path), { recursive: true, force: true }),
     ),
   )
-  const root = await mkdtemp(join(tmpdir(), "opencode-desktop-startup-"))
+  const root = await mkdtemp(join(tmpdir(), "aigcfroge-desktop-startup-"))
 
   return initializeColdProfile(root).catch(async (error) => {
     await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
@@ -171,10 +171,10 @@ async function initializeColdProfile(root: string) {
     ),
   )
   await Promise.all([
-    writeFile(join(root, "desktop", "opencode.settings"), JSON.stringify({ firstLaunchOnboardingComplete: true })),
-    writeFile(join(root, "desktop", "opencode.global.dat"), JSON.stringify({ language: '{"locale":"en"}' })),
+    writeFile(join(root, "desktop", "aigcfroge.settings"), JSON.stringify({ firstLaunchOnboardingComplete: true })),
+    writeFile(join(root, "desktop", "aigcfroge.global.dat"), JSON.stringify({ language: '{"locale":"en"}' })),
   ])
-  const registration = join(root, "desktop", "opencode", "service-local.json")
+  const registration = join(root, "desktop", "aigcfroge", "service-local.json")
   await Service.stop({ file: registration })
 
   return { root, registration }
@@ -188,13 +188,13 @@ function startDesktop(profile: Awaited<ReturnType<typeof createColdProfile>>) {
     detached: process.platform !== "win32",
     env: {
       ...process.env,
-      OPENCODE_CONFIG_DIR: join(profile.root, "config"),
-      OPENCODE_DB: join(profile.root, "data", "opencode.db"),
-      OPENCODE_TEST_HOME: join(profile.root, "home"),
-      OPENCODE_TEST_ONBOARDING: "0",
-      OPENCODE_DESKTOP_TEST_ROOT: profile.root,
-      OPENCODE_DESKTOP_REMOTE_DEBUGGING_PORT: "0",
-      OPENCODE_DESKTOP_DISABLE_PROTOCOL_REGISTRATION: "1",
+      AIGCFROGE_CONFIG_DIR: join(profile.root, "config"),
+      AIGCFROGE_DB: join(profile.root, "data", "aigcfroge.db"),
+      AIGCFROGE_TEST_HOME: join(profile.root, "home"),
+      AIGCFROGE_TEST_ONBOARDING: "0",
+      AIGCFROGE_DESKTOP_TEST_ROOT: profile.root,
+      AIGCFROGE_DESKTOP_REMOTE_DEBUGGING_PORT: "0",
+      AIGCFROGE_DESKTOP_DISABLE_PROTOCOL_REGISTRATION: "1",
       // The test root also redirects XDG_CACHE_HOME, which would move Bun's transpiler cache and make
       // every sample transpile the source CLI from scratch. A dev start reuses the developer's cache.
       BUN_RUNTIME_TRANSPILER_CACHE_PATH: process.env.BUN_RUNTIME_TRANSPILER_CACHE_PATH ?? bunTranspilerCache(),
@@ -332,8 +332,8 @@ async function waitForHome(page: Page, mark: (name: Milestone) => void) {
 }
 
 type ThemeWindow = Window & {
-  __OPENCODE_THEME_STATES__?: string[]
-  __OPENCODE_THEME_OBSERVER__?: MutationObserver
+  __AIGCFROGE_THEME_STATES__?: string[]
+  __AIGCFROGE_THEME_OBSERVER__?: MutationObserver
 }
 
 async function startThemeObservation(page: Page) {
@@ -345,9 +345,9 @@ async function requireStableTheme(page: Page) {
   const states = await page.evaluate(() => {
     // SAFETY: only `installThemeObservation` writes these optional globals, in the declared shapes.
     const target = window as ThemeWindow
-    target.__OPENCODE_THEME_OBSERVER__?.disconnect()
+    target.__AIGCFROGE_THEME_OBSERVER__?.disconnect()
 
-    return target.__OPENCODE_THEME_STATES__ ?? []
+    return target.__AIGCFROGE_THEME_STATES__ ?? []
   })
 
   if (states.length !== 1) throw new Error(`Desktop theme changed during startup: ${states.join(" -> ")}`)
@@ -370,15 +370,15 @@ function installThemeObservation() {
     }
 
     const initial = state()
-    target.__OPENCODE_THEME_STATES__ = initial ? [initial] : []
-    target.__OPENCODE_THEME_OBSERVER__ = new MutationObserver(() => {
+    target.__AIGCFROGE_THEME_STATES__ = initial ? [initial] : []
+    target.__AIGCFROGE_THEME_OBSERVER__ = new MutationObserver(() => {
       const next = state()
 
       if (!next) return
 
-      if (target.__OPENCODE_THEME_STATES__?.at(-1) !== next) target.__OPENCODE_THEME_STATES__?.push(next)
+      if (target.__AIGCFROGE_THEME_STATES__?.at(-1) !== next) target.__AIGCFROGE_THEME_STATES__?.push(next)
     })
-    target.__OPENCODE_THEME_OBSERVER__.observe(root, {
+    target.__AIGCFROGE_THEME_OBSERVER__.observe(root, {
       attributes: true,
       attributeFilter: ["data-theme", "data-color-scheme"],
     })
@@ -393,7 +393,7 @@ function installThemeObservation() {
     documentObserver.disconnect()
   })
 
-  target.__OPENCODE_THEME_OBSERVER__ = documentObserver
+  target.__AIGCFROGE_THEME_OBSERVER__ = documentObserver
   documentObserver.observe(document, { childList: true })
 }
 

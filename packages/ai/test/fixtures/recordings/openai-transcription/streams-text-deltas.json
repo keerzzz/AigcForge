@@ -25,7 +25,7 @@
         "headers": {
           "content-type": "text/event-stream; charset=utf-8"
         },
-        "body": "data: {\"type\":\"transcript.text.delta\",\"delta\":\"Hello\"}\r\n\r\ndata: {\"type\":\"transcript.text.delta\",\"delta\":\" from\"}\r\n\r\ndata: {\"type\":\"transcript.text.delta\",\"delta\":\" Open\"}\r\n\r\ndata: {\"type\":\"transcript.text.delta\",\"delta\":\"Code\"}\r\n\r\ndata: {\"type\":\"transcript.text.delta\",\"delta\":\".\"}\r\n\r\ndata: {\"type\":\"transcript.text.done\",\"text\":\"Hello from OpenCode.\",\"usage\":{\"type\":\"tokens\",\"total_tokens\":22,\"input_tokens\":15,\"input_token_details\":{\"text_tokens\":0,\"audio_tokens\":15},\"output_tokens\":7}}\r\n\r\ndata: [DONE]\r\n\r\n"
+        "body": "data: {\"type\":\"transcript.text.delta\",\"delta\":\"Hello\"}\n\r\ndata: {\"type\":\"transcript.text.delta\",\"delta\":\" from\"}\n\r\ndata: {\"type\":\"transcript.text.delta\",\"delta\":\" AigcF\"}\n\r\ndata: {\"type\":\"transcript.text.delta\",\"delta\":\"orge.\"}\n\r\ndata: {\"type\":\"transcript.text.delta\",\"delta\":\"\"}\n\r\ndata: {\"type\":\"transcript.text.done\",\"text\":\"Hello from AigcForge.\",\"usage\":{\"type\":\"tokens\",\"total_tokens\":22,\"input_tokens\":15,\"input_token_details\":{\"text_tokens\":0,\"audio_tokens\":15},\"output_tokens\":7}}\r\n\r\ndata: [DONE]\r\n\r\n"
       }
     }
   ]

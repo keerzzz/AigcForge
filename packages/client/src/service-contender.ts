@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process"
+import { closeSync, openSync, readFileSync, readdirSync } from "node:fs"
 import type { EnsureTiming } from "./service-timing.js"
 
 export type ServiceContender = {
@@ -16,12 +17,23 @@ export function spawnServiceContender(
   args: ReadonlyArray<string>,
   env?: Readonly<Record<string, string | undefined>>,
 ): ServiceContender {
-  const child = spawn(command, args, {
-    detached: true,
-    windowsHide: true,
-    stdio: ["ignore", "ignore", "pipe"],
-    env: { ...process.env, ...env },
-  })
+  const sink = openSync(process.platform === "win32" ? "NUL" : "/dev/null", "r+")
+  const child = (() => {
+    try {
+      return spawn(command, args, {
+        detached: true,
+        windowsHide: true,
+        // Electron leaves debugger pipes and sockets inheritable. UV_IGNORE does not close them.
+        // Fill the whole range because Bun's sparse stdio mapping rejects descriptor gaps.
+        stdio: Array.from({ length: inheritedDescriptorLimit() + 1 }, (_, fd) =>
+          fd === 2 ? "pipe" : fd < 2 ? "ignore" : sink,
+        ),
+        env: { ...process.env, ...env },
+      })
+    } finally {
+      closeSync(sink)
+    }
+  })()
   let error: Error | undefined
   let closed = false
   let stderr = Buffer.alloc(0)
@@ -52,6 +64,24 @@ export function spawnServiceContender(
       stderr = Buffer.alloc(0)
     },
   }
+}
+
+function inheritedDescriptorLimit() {
+  if (process.platform !== "linux") return 4
+  return readdirSync("/proc/self/fdinfo").reduce((maximum, name) => {
+    const fd = Number(name)
+    if (!Number.isInteger(fd) || fd <= maximum) return maximum
+    try {
+      const flags = readFileSync(`/proc/self/fdinfo/${fd}`, "utf8").match(/^flags:\s+([0-7]+)$/m)?.[1]
+      if (flags === undefined) throw new Error("Cannot inspect inherited service descriptor")
+      // Linux fdinfo includes O_CLOEXEC (02000000) for descriptors closed by exec.
+      return (Number.parseInt(flags, 8) & 0o2000000) === 0 ? fd : maximum
+    } catch (error) {
+      // The directory snapshot can include a descriptor closed before its metadata is read.
+      if (error instanceof Error && "code" in error && error.code === "ENOENT") return maximum
+      throw error
+    }
+  }, 4)
 }
 
 /**

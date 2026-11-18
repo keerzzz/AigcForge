@@ -28,6 +28,8 @@ import type {
   RunProvider,
 } from "./types"
 import { matchMiniVerbosity, verbosityChange, verbosityLabel } from "./verbosity"
+import { modelPreferenceKey, type ModelPreferenceModel } from "../model-preference"
+import type { ModelGroupCurrent } from "@aigcfroge/client/promise"
 
 type PanelEntry = RunFooterMenuItem & {
   category: string
@@ -49,8 +51,8 @@ type CommandEntry =
   | (PanelEntry & { action: "exit" })
 
 type ModelEntry = PanelEntry & {
-  providerID: string
-  modelID: string
+  value: ModelPreferenceModel
+  providerID?: string
   providerName: string
   current: boolean
 }
@@ -1110,29 +1112,31 @@ export function RunVariantSelectBody(props: {
 export function RunModelSelectBody(props: {
   theme: Accessor<RunFooterTheme>
   providers: Accessor<RunProvider[] | undefined>
+  groups?: Accessor<ModelGroupCurrent[]>
   current: Accessor<RunInput["model"]>
   onClose: () => void
   onSelect: (model: NonNullable<RunInput["model"]>) => void
   mono?: boolean
 }) {
-  const entries = createMemo<ModelEntry[]>(() =>
-    (props.providers() ?? [])
+  const entries = createMemo<ModelEntry[]>(() => {
+    const physical = (props.providers() ?? [])
       .flatMap((provider) =>
         Object.entries(provider.models)
           .filter(([, model]) => model.status !== "deprecated")
           .map(([modelID, model]) => {
             const title = model.name ?? modelID
-            const current = props.current()?.providerID === provider.id && props.current()?.modelID === modelID
+            const selected = props.current()
+            const current = selected !== undefined && modelPreferenceKey(selected) === `${provider.id}/${modelID}`
             const footer = current
               ? "current"
-              : model.cost?.input === 0 && provider.id === "opencode"
+              : model.cost?.input === 0 && provider.id === "aigcfroge"
                 ? "Free"
                 : title !== modelID
                   ? modelID
                   : undefined
             return {
               providerID: provider.id,
-              modelID,
+              value: { providerID: provider.id, modelID },
               providerName: provider.name,
               category: provider.name,
               display: title,
@@ -1144,7 +1148,7 @@ export function RunModelSelectBody(props: {
           }),
       )
       .sort((a, b) => {
-        const provider = Number(a.providerID !== "opencode") - Number(b.providerID !== "opencode")
+        const provider = Number(a.providerID !== "aigcfroge") - Number(b.providerID !== "aigcfroge")
         if (provider !== 0) {
           return provider
         }
@@ -1155,13 +1159,23 @@ export function RunModelSelectBody(props: {
         }
 
         return a.display.localeCompare(b.display)
-      }),
-  )
+      })
+    const groups = (props.groups?.() ?? []).flatMap((group): ModelEntry[] => {
+      if (group.unavailable || !group.definition) return []
+      const value: ModelPreferenceModel = { type: "group", groupID: group.groupID }
+      const selected = props.current()
+      const current = selected !== undefined && modelPreferenceKey(selected) === modelPreferenceKey(value)
+      return [{ value, providerName: "Model groups", category: "Model groups", display: group.definition.name,
+        footer: current ? "current" : `${group.definition.members.length} members`,
+        footerTone: current ? "selection" : undefined, keywords: `${group.groupID} ${group.definition.name}`, current }]
+    })
+    return [...physical, ...groups]
+  })
   const controller = createSearchablePanelController({
     entries,
     limit: PANEL_LIST_ROWS,
     onClose: props.onClose,
-    onSelect: (item) => props.onSelect({ providerID: item.providerID, modelID: item.modelID }),
+    onSelect: (item) => props.onSelect(item.value),
     isCurrent: (item) => item.current,
   })
 

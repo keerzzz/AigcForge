@@ -60,6 +60,13 @@ export default defineMain({
           { find: "@", replacement: app },
         ],
       },
+      // Browser-side test imports are outside Storybook's story index.
+      optimizeDeps: {
+        entries: [
+          path.resolve(here, "../../app/component-tests/extension-host.fixture.tsx"),
+          path.join(extensions, "renderer.ts"),
+        ],
+      },
       worker: {
         format: "es",
       },
@@ -68,10 +75,6 @@ export default defineMain({
           allow: [searchForWorkspaceRoot(process.cwd()), ui, sessionUi, app, extensions, mocks],
         },
       },
-    })
-    merged.plugins = merged.plugins?.flat(8).filter((plugin) => {
-      if (!plugin || typeof plugin !== "object" || !("name" in plugin)) return true
-      return plugin.name !== "storybook:optimize-deps-plugin"
     })
     return merged
   },

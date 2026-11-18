@@ -1,7 +1,7 @@
-import { OpenCode, type MigrationV1StatusOutput } from "@opencode/client/promise"
-import { useLanguage } from "@opencode/app/desktop"
-import { Loader } from "@opencode/ui/loader"
-import { showToast, toaster, Toast } from "@opencode/ui/toast"
+import { AigcForge, type MigrationV1StatusOutput } from "@aigcfroge/client/promise"
+import { useLanguage } from "@aigcfroge/app/desktop"
+import { Loader } from "@aigcfroge/ui/loader"
+import { showToast, toaster, Toast } from "@aigcfroge/ui/toast"
 import { createRoot, createSignal, onCleanup, onMount } from "solid-js"
 import type { ServerReadyData } from "../shared/ipc-contract"
 
@@ -83,7 +83,7 @@ export function MigrationStatus(props: { server: ServerReadyData }) {
     if (abort.signal.aborted) return
 
     // The main process credentials sidecar requests; see `wireRendererHeaders`.
-    const client = OpenCode.make({ baseUrl: props.server.url })
+    const client = AigcForge.make({ baseUrl: props.server.url })
 
     void (async () => {
       while (true) {

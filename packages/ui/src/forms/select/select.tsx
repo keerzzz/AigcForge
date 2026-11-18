@@ -75,6 +75,16 @@ export type SelectProps<T> = Omit<
   contentClass?: string
 }
 
+type SelectHighlightState = {
+  key?: string
+  cleanup?: void | (() => void)
+}
+
+type SelectOption<T> = {
+  key: string
+  value: T
+}
+
 export function Select<T>(props: SelectProps<T>) {
   const [local, others] = splitProps(props, [
     "class",
@@ -100,9 +110,10 @@ export function Select<T>(props: SelectProps<T>) {
     "flip",
     "slide",
     "fitViewport",
+    "optionDisabled",
   ])
 
-  const state: { key?: string; cleanup?: void | (() => void) } = {}
+  const state: SelectHighlightState = {}
 
   const stop = () => {
     state.cleanup?.()
@@ -110,7 +121,9 @@ export function Select<T>(props: SelectProps<T>) {
     state.key = undefined
   }
 
-  const keyFor = (item: T) => (local.value ? local.value(item) : String(item as string))
+  const keyFor = (item: T) => (local.value ? local.value(item) : String(item))
+  // Kobalte interpolates keys into CSS selectors and skips optionValue for primitive options.
+  const optionFor = (value: T) => ({ key: encodeURIComponent(JSON.stringify(keyFor(value))), value })
 
   const move = (item: T | undefined) => {
     if (!local.onHighlight) return
@@ -131,10 +144,24 @@ export function Select<T>(props: SelectProps<T>) {
 
   onCleanup(stop)
 
-  const grouped = createMemo(() => groupOptions(local.options, local.groupBy))
+  const current = createMemo(() => {
+    const value = local.current
+
+    if (value === undefined) return undefined
+
+    if (value === null) return null
+
+    return optionFor(value)
+  })
+
+  const grouped = createMemo(() => {
+    const groupBy = local.groupBy
+
+    return groupOptions(local.options.map(optionFor), groupBy ? (option) => groupBy(option.value) : undefined)
+  })
 
   return (
-    <Root<T, { category: string; options: T[] }>
+    <Root<SelectOption<T>, { category: string; options: SelectOption<T>[] }>
       {...others}
       multiple={false}
       allowDuplicateSelectionEvents={false}
@@ -146,10 +173,20 @@ export function Select<T>(props: SelectProps<T>) {
       flip={local.flip ?? true}
       slide={local.slide ?? true}
       fitViewport={local.fitViewport ?? false}
-      value={local.current}
+      value={current()}
       options={grouped()}
-      optionValue={(x) => (local.value ? local.value(x) : String(x as string))}
-      optionTextValue={(x) => (local.label ? local.label(x) : String(x as string))}
+      optionValue="key"
+      optionTextValue={(option) => (local.label ? local.label(option.value) : String(option.value))}
+      optionDisabled={(option) => {
+        const disabled = local.optionDisabled
+
+        if (disabled === undefined || option.value == null) return false
+        // SAFETY: The nullish guard preserves Kobalte's getDisabled boundary before using its non-null option contract.
+        const value = option.value as Exclude<T, null>
+
+        // oxlint-disable-next-line anti-slop/no-runtime-typeof -- SAFETY: Kobalte's optionDisabled API accepts a property key or callback; dispatch this declared union without changing its behavior.
+        return typeof disabled === "function" ? disabled(value) : Boolean(value[disabled])
+      }}
       optionGroupChildren="options"
       placeholder={local.placeholder}
       sectionComponent={(sectionProps) => (
@@ -163,16 +200,16 @@ export function Select<T>(props: SelectProps<T>) {
         <Item
           {...itemProps}
           data-component="menu-v2-item"
-          onPointerEnter={() => move(itemProps.item.rawValue)}
-          onPointerMove={() => move(itemProps.item.rawValue)}
-          onFocus={() => move(itemProps.item.rawValue)}
+          onPointerEnter={() => move(itemProps.item.rawValue.value)}
+          onPointerMove={() => move(itemProps.item.rawValue.value)}
+          onFocus={() => move(itemProps.item.rawValue.value)}
         >
           <ItemLabel data-slot="menu-v2-item-content" as="span">
             {local.children
-              ? local.children(itemProps.item.rawValue)
+              ? local.children(itemProps.item.rawValue.value)
               : local.label
-                ? local.label(itemProps.item.rawValue)
-                : String(itemProps.item.rawValue as string)}
+                ? local.label(itemProps.item.rawValue.value)
+                : String(itemProps.item.rawValue.value)}
           </ItemLabel>
           <ItemIndicator data-slot="menu-v2-item-indicator" forceMount>
             <CheckSmall />
@@ -180,8 +217,7 @@ export function Select<T>(props: SelectProps<T>) {
         </Item>
       )}
       onChange={(next) => {
-        const v = next == null ? null : Array.isArray(next) ? ((next[0] as T) ?? null) : (next as T)
-        local.onSelect?.(v)
+        local.onSelect?.(next === null ? null : next.value)
         stop()
       }}
       onOpenChange={(open) => {
@@ -206,13 +242,13 @@ export function Select<T>(props: SelectProps<T>) {
         }}
       >
         <div data-slot="select-v2-value">
-          <Value<T> data-slot="select-v2-value-text" class={local.valueClass}>
+          <Value<SelectOption<T>> data-slot="select-v2-value-text" class={local.valueClass}>
             {(st) => {
-              const selected = st.selectedOption()
+              const selected = st.selectedOption()?.value
 
               if (local.label && selected != null) return local.label(selected)
 
-              return selected != null ? (selected as string) : ""
+              return selected != null ? String(selected) : ""
             }}
           </Value>
         </div>
@@ -221,7 +257,13 @@ export function Select<T>(props: SelectProps<T>) {
         </span>
       </Trigger>
       <Portal>
-        <Content class={local.contentClass} data-component="menu-v2-content" data-slot="select-v2-content">
+        {/* Kobalte's dialog observer keeps top-layer portals accessible. */}
+        <Content
+          class={local.contentClass}
+          data-component="menu-v2-content"
+          data-slot="select-v2-content"
+          data-kb-top-layer=""
+        >
           <Listbox data-slot="select-v2-listbox" />
         </Content>
       </Portal>

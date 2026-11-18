@@ -1,13 +1,13 @@
-import { Button } from "@opencode/ui/button"
-import { Badge } from "@opencode/ui/badge"
-import { useDialog } from "@opencode/ui/context/dialog"
-import { Icon } from "@opencode/ui/icon"
-import { List } from "@opencode/ui/list"
-import { RadioGroup, RadioItem } from "@opencode/ui/radio"
-import { Spinner } from "@opencode/ui/spinner"
-import { TextField } from "@opencode/ui/text-field"
-import { DialogBody, DialogHeader, DialogTitle, Dialog } from "@opencode/ui/dialog"
-import { TextInput } from "@opencode/ui/text-input"
+import { Button } from "@aigcfroge/ui/button"
+import { Badge } from "@aigcfroge/ui/badge"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { Icon } from "@aigcfroge/ui/icon"
+import { List } from "@aigcfroge/ui/list"
+import { RadioGroup, RadioItem } from "@aigcfroge/ui/radio"
+import { Spinner } from "@aigcfroge/ui/spinner"
+import { TextField } from "@aigcfroge/ui/text-field"
+import { DialogBody, DialogHeader, DialogTitle, Dialog } from "@aigcfroge/ui/dialog"
+import { TextInput } from "@aigcfroge/ui/text-input"
 import { showToast } from "@/shell/notifications/toast"
 import {
   type Component,
@@ -119,7 +119,12 @@ export const DialogConnectProvider: Component<{
     return (
       <Switch>
         <Match when={controller.selected() === CUSTOM_ID}>
-          <CustomProviderForm autofocus={false} />
+          <CustomProviderForm
+            autofocus={false}
+            directory={props.directory}
+            defaultLocation={props.defaultLocation}
+            onSaved={props.onConnected}
+          />
         </Match>
         <Match
           keyed
@@ -229,11 +234,11 @@ function ProviderPicker(props: { directory?: string; onSelect: (provider: string
     filter: "",
   })
 
-  const featured = ["opencode-go", "opencode", "anthropic", "openai", "google", "openrouter", "vercel"]
+  const featured = ["aigcfroge-go", "aigcfroge", "anthropic", "openai", "google", "openrouter", "vercel"]
   const custom = () => ({ id: CUSTOM_ID, name: language.t("dialog.provider.custom.label") })
 
   // Only a stored credential hides a provider: environment and config connections can still be
-  // replaced by a sign-in. OpenCode Zen stays until a Console account (not a key) is connected.
+  // replaced by a sign-in. AigcForge Zen stays until a Console account (not a key) is connected.
   const consoleAccount = createMemo(() =>
     integrations
       .list()
@@ -359,9 +364,9 @@ function ProviderPicker(props: { directory?: string; onSelect: (provider: string
                         <Show when={CONSOLE_PROVIDERS.has(provider.id)}>
                           <span class="min-w-0 truncate font-[440] text-v2-text-text-muted">
                             {language.t(
-                              provider.id === "opencode"
-                                ? "dialog.provider.opencode.tagline"
-                                : "dialog.provider.opencodeGo.tagline",
+                              provider.id === "aigcfroge"
+                                ? "dialog.provider.aigcfroge.tagline"
+                                : "dialog.provider.aigcfrogeGo.tagline",
                             )}
                           </span>
                           <span class="flex h-4 shrink-0 items-center rounded-xs border-[0.5px] border-v2-border-border-base bg-v2-background-bg-layer-03 px-1 text-[11px] font-[530] leading-none tracking-[0.05px] text-v2-text-text-muted">
@@ -450,7 +455,7 @@ function ProviderConnection(props: {
 
   const controller = createProviderConnectionController({
     provider: () => integrationID,
-    // A Go service-account key still belongs to the `opencode-go` integration (zen/go/v1),
+    // A Go service-account key still belongs to the `aigcfroge-go` integration (zen/go/v1),
     // exactly as before; only the sign-in is shared with the Console.
     keyProvider: () => props.provider,
     directory,
@@ -544,7 +549,7 @@ function ProviderConnection(props: {
     if (controller.currentMethod()?.type === "key") return active()
 
     const loaded = () =>
-      managedProviders() !== undefined || connectionProviders().some((provider) => provider.id !== "opencode")
+      managedProviders() !== undefined || connectionProviders().some((provider) => provider.id !== "aigcfroge")
 
     const deadline = Date.now() + 10_000
 
@@ -1009,7 +1014,7 @@ function ProviderConnection(props: {
           <div>
             {language.t("provider.connect.console.apiKey.description")}{" "}
             <ExternalLink
-              href="https://opencode.ai/console"
+              href="https://aigcfroge.ai/console"
               class="text-v2-text-text-base focus-visible:rounded-xs focus-visible:outline-2 focus-visible:outline-v2-border-border-focus"
             >
               {language.t("provider.connect.console.apiKey.link")}
@@ -1175,7 +1180,7 @@ function ProviderConnection(props: {
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <Show when={!state.catalogPending}>
-            <Button onClick={() => platform.openExternal("https://opencode.ai/console")}>
+            <Button onClick={() => platform.openExternal("https://aigcfroge.ai/console")}>
               {language.t("provider.connect.console.openAgain")}
             </Button>
           </Show>

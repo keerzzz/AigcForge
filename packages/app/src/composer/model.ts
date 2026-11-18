@@ -1,14 +1,14 @@
-import { ImagePreview } from "@opencode/ui/image-preview"
-import { useDialog } from "@opencode/ui/context/dialog"
-import type { ReferenceInfo } from "@opencode/client/promise"
-import type { Links, MountedSession } from "@opencode/gui-extensions/sdk"
-import { createComponent, createEffect, createMemo, on } from "solid-js"
+import { ImagePreview } from "@aigcfroge/ui/image-preview"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import type { ReferenceInfo } from "@aigcfroge/client/promise"
+import type { Links, MountedSession } from "@aigcfroge/gui-extensions/sdk"
+import { createComponent, createEffect, createMemo, on, onCleanup } from "solid-js"
 import { Predicate } from "effect"
 import type { ComposerSuggestion } from "./types"
 import { createComposerEditor, createComposerEditorState, type ComposerEditorModel } from "./editor/interaction"
 import { selectionFromLines, type SelectedLineRange, useFile } from "@/workspaces/files/model"
 import { useComments } from "@/composer/comments"
-import { useCommand } from "@/shell/commands/command"
+import { useCommand, type CommandOption } from "@/shell/commands/command"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useExtensionHost } from "@/runtime/extension/host"
 import { useExtensionAttachment } from "@/runtime/extension/host-apis"
@@ -18,17 +18,23 @@ import { resolveBlobUrl } from "@/runtime/persistence/drafts"
 import { useData, useServer } from "@/runtime/server/current"
 import { showToast } from "@/shell/notifications/toast"
 import { formatServerError } from "@/runtime/server/errors"
-import { Skill } from "@opencode/schema/skill"
+import { Skill } from "@aigcfroge/schema/skill"
+import { useGlobal } from "@/runtime/server/runtime"
+import { useTabs } from "@/shell/tabs/tabs"
+import { ServerConnection } from "@/runtime/server/registry"
+import { parseSessionReferences } from "./session-reference"
 import type { ComposerAdapter, ComposerControls, ComposerQueue } from "./adapter"
 import { isAttachment } from "./prompt-parts"
 import type { PromptHistoryComment } from "./history/entry"
 import { createComposerHistory } from "./history/store"
-import { createComposerSubmit } from "./submit"
+import { createComposerSubmit, SelectionReadbackError } from "./submit"
 import { useAttachmentDestination } from "./attachments/destination"
 import { parseClientSlashCommand } from "./client-slash-command"
+import { useSessionContent } from "@/session/content-context"
 
 export type ComposerModel = ComposerEditorModel & {
   readonly model: ComposerControls["model"]
+  readonly executor?: ComposerControls["executor"]
 }
 
 const sendFailedTitle = {
@@ -37,10 +43,15 @@ const sendFailedTitle = {
   prompt: "prompt.toast.promptSendFailed.title",
 } as const
 
-export function createComposerModel(adapter: ComposerAdapter, options?: { queue?: ComposerQueue }): ComposerModel {
+export function createComposerModel(
+  adapter: ComposerAdapter,
+  options?: { queue?: ComposerQueue; acceptsDrop?: (event: DragEvent) => boolean; commands?: () => CommandOption[] },
+): ComposerModel {
   const sdk = useWorkspaceLocation()
   const data = useData()
   const server = useServer()
+  const global = useGlobal()
+  const content = useSessionContent()
 
   const available = () =>
     server.conn.type !== "extension" || !server.conn.managed || server.ctx.sdk.connection.status() === "connected"
@@ -48,6 +59,7 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
   const files = useFile()
   const links = useExtensionHost().links
   const extensions = useExtensionAttachment()
+  const tabs = useTabs()
   const comments = useComments()
   const dialog = useDialog()
   const command = useCommand()
@@ -55,6 +67,33 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
   const platform = usePlatform()
   const prompt = adapter.state
   let editor: HTMLDivElement | undefined
+  let live = true
+  onCleanup(() => {
+    live = false
+  })
+
+  const referenceServers = () => global.servers.list().flatMap((connection) => {
+    const id = ServerConnection.key(connection)
+    const current = global.serverCtx(id)
+
+    return current ? [{ id, data: current.data }] : []
+  })
+
+  const sessionReferences = createMemo<ComposerSuggestion[]>(() => referenceServers().flatMap((server) =>
+    server.data.session.list().map((session) => ({
+      id: `session:${server.id}:${session.id}`,
+      kind: "session" as const,
+      label: `@${session.title ?? session.id} ${session.id}`,
+      description: server.id,
+      mention: {
+        type: "session" as const,
+        reference: { serverID: server.id, sessionID: session.id, title: session.title ?? session.id, scope: { kind: "identity" as const } },
+        content: `@${session.title || session.id}`,
+        start: 0,
+        end: 0,
+      },
+    })),
+  ))
 
   const interaction = createComposerEditorState(prompt.mode.current())
   createEffect(
@@ -71,6 +110,7 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
   const history = createComposerHistory()
 
   const recent = createMemo(() => {
+    if (content) return []
     const all = extensions.files.opened()
     const active = extensions.files.active()
 
@@ -188,6 +228,7 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
   const skills = createMemo(() => data.location.skill.list({ directory: sdk().directory }) ?? [])
 
   const context = createMemo<ComposerSuggestion[]>(() => [
+    ...sessionReferences(),
     ...references(),
     ...skills().map((skill) => ({
       id: `skill:${skill.id}`,
@@ -230,7 +271,7 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
       description: item.description,
       type: "custom" as const,
     })),
-    ...command.options
+    ...(options?.commands?.() ?? command.options)
       .filter((item) => !item.disabled && !item.id.startsWith("suggested.") && item.slash)
       .map((item) => ({
         id: item.id,
@@ -254,7 +295,7 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
     })),
   ])
 
-  const variants = createMemo(() => ["default", ...adapter.controls().model.selection.variant.list()])
+  const variants = createMemo(() => [undefined, ...adapter.controls().model.selection.variant.list()])
 
   const submission = createComposerSubmit({
     adapter,
@@ -285,9 +326,11 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
         showToast({
           title: language.t(sendFailedTitle[kind]),
           description:
-            kind === "command"
-              ? formatServerError(error, language.t, language.t("common.requestFailed"))
-              : composerErrorMessage(language, error),
+            error instanceof SelectionReadbackError
+              ? language.t("prompt.toast.selectionUnconfirmed.description")
+              : kind === "command"
+                ? formatServerError(error, language.t, language.t("common.requestFailed"))
+                : composerErrorMessage(language, error),
         }),
     },
     comments: {
@@ -300,11 +343,86 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
 
       if (!selected) return
 
-      return () => command.trigger(selected.id, "slash", selected.input)
+      return () =>
+        options?.commands
+          ? options
+              .commands()
+              .find((item) => item.id === selected.id)
+              ?.onSelect?.("slash", selected.input)
+          : command.trigger(selected.id, "slash", selected.input)
     },
   })
 
   const controller = createComposerEditor({
+    referenceLabel(reference) {
+      const connection = global.servers.list().find((connection) => ServerConnection.key(connection) === reference.serverID)
+      const current = connection ? global.serverCtx(ServerConnection.key(connection)) : undefined
+      const session = current?.data.session.get(reference.sessionID)
+      const title = session?.title || reference.title || reference.sessionID
+
+      if (current?.data.session.deleted(reference.sessionID)) return { title, status: "missing" }
+
+      if (!current || current.sdk.connection.status() !== "connected") return { title, status: "offline" }
+
+      if (session) return { title, status: "ready" }
+
+      return { title, status: "missing" }
+    },
+    openReference(reference) {
+      const source = extensions.current()
+
+      if (!source) {
+        const connection = global.servers.list().find((connection) => ServerConnection.key(connection) === reference.serverID)
+        const current = connection ? global.serverCtx(ServerConnection.key(connection)) : undefined
+
+        if (!connection || !current || !current.data.session.get(reference.sessionID)) {
+          showToast({ variant: "error", title: language.t("session.reference.unavailable") })
+
+          return
+        }
+
+        tabs.select(tabs.addSessionTab({ server: ServerConnection.key(connection), sessionId: reference.sessionID }))
+
+        return
+      }
+
+      const opened = links.open({ href: "", session: source, reference, background: true })
+
+      if (!opened) showToast({ variant: "error", title: language.t("session.reference.unavailable") })
+    },
+    async resolveReferences(text, signal) {
+      const matches = parseSessionReferences(text)
+      const sourceKey = JSON.stringify([server.key, sdk().directory, adapter.kind === "active-session" ? adapter.session().id : "draft"])
+      const initial = adapter.state.current()
+      const current = () => live && !signal.aborted && JSON.stringify([server.key, sdk().directory, adapter.kind === "active-session" ? adapter.session().id : "draft"]) === sourceKey && adapter.state.current() === initial
+
+      const references = await Promise.all(matches.map(async (match) => {
+        const known = referenceServers().filter((server) => server.data.session.get(match.sessionID))
+        const id = match.serverID ?? (known.length === 1 ? known[0]?.id : known.length > 1 ? undefined : server.key)
+        const connection = global.servers.list().find((connection) => ServerConnection.key(connection) === id)
+        const owner = connection ? global.serverCtx(ServerConnection.key(connection)) : undefined
+
+        if (!id || !owner) return undefined
+
+        const client = owner.sdk.api
+        const attempt = owner.sdk.connection.attempt()
+        const session = owner.data.session.get(match.sessionID) ?? await owner.data.session.readback(match.sessionID).then(() => owner.data.session.get(match.sessionID), () => undefined)
+
+        if (!current() || !session || owner.sdk.api !== client || owner.sdk.connection.attempt() !== attempt) return undefined
+
+        return {
+          start: match.start,
+          end: match.end,
+          content: match.content,
+          type: "session" as const,
+          reference: { serverID: id, sessionID: session.id, title: session.title ?? session.id, scope: { kind: "identity" as const } },
+        }
+      }))
+
+      if (!current()) return undefined
+
+      return references.filter((reference) => reference !== undefined)
+    },
     store: prompt.store,
     state: interaction,
     history: {
@@ -361,9 +479,16 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
 
       if (selected.arguments) return
 
-      return () => command.trigger(selected.id, "slash")
+      return () =>
+        options?.commands
+          ? options
+              .commands()
+              .find((item) => item.id === selected.id)
+              ?.onSelect?.("slash")
+          : command.trigger(selected.id, "slash")
     },
     attachments: {
+      acceptsDrop: options?.acceptsDrop,
       picker: platform.openAttachmentPickerDialog,
       directory: () => sdk().directory,
       destination: useAttachmentDestination(adapter.controls),
@@ -401,9 +526,16 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
           : undefined
       },
       variant: {
-        options: () => variants().map((value) => ({ id: value, label: value })),
-        current: () => adapter.controls().model.selection.variant.current() ?? "default",
-        onSelect: (value) => adapter.controls().model.selection.variant.set(value === "default" ? undefined : value),
+        options: () =>
+          variants().map((value) => ({
+            id: JSON.stringify(value ?? null),
+            label: value ?? language.t("common.default"),
+          })),
+        current: () => JSON.stringify(adapter.controls().model.selection.variant.current() ?? null),
+        onSelect: (value) =>
+          adapter
+            .controls()
+            .model.selection.variant.set(variants().find((item) => JSON.stringify(item ?? null) === value)),
         keybind: () => command.keybindParts("model.variant.cycle"),
       },
       submit: {
@@ -434,34 +566,36 @@ export function createComposerModel(adapter: ComposerAdapter, options?: { queue?
   })
 
   Object.defineProperty(controller, "model", { get: () => adapter.controls().model })
+  Object.defineProperty(controller, "executor", { get: () => adapter.controls().executor })
 
-  command.register("composer-editor", () => [
-    {
-      id: "file.attach",
-      title: language.t("prompt.action.attachFile"),
-      category: language.t("command.category.file"),
-      keybind: "mod+u",
-      editable: true,
-      disabled: controller.state.mode !== "normal",
-      onSelect: () => controller.attach(),
-    },
-    {
-      id: "prompt.mode.shell",
-      title: language.t("command.prompt.mode.shell"),
-      category: language.t("command.category.session"),
-      keybind: "mod+shift+x",
-      disabled: controller.state.mode === "shell",
-      onSelect: () => void controller.dispatch({ type: "mode.shell" }),
-    },
-    {
-      id: "prompt.mode.normal",
-      title: language.t("command.prompt.mode.normal"),
-      category: language.t("command.category.session"),
-      keybind: "mod+shift+e",
-      disabled: controller.state.mode === "normal",
-      onSelect: () => void controller.dispatch({ type: "mode.normal" }),
-    },
-  ])
+  if (!content)
+    command.register("composer-editor", () => [
+      {
+        id: "file.attach",
+        title: language.t("prompt.action.attachFile"),
+        category: language.t("command.category.file"),
+        keybind: "mod+u",
+        editable: true,
+        disabled: controller.state.mode !== "normal",
+        onSelect: () => controller.attach(),
+      },
+      {
+        id: "prompt.mode.shell",
+        title: language.t("command.prompt.mode.shell"),
+        category: language.t("command.category.session"),
+        keybind: "mod+shift+x",
+        disabled: controller.state.mode === "shell",
+        onSelect: () => void controller.dispatch({ type: "mode.shell" }),
+      },
+      {
+        id: "prompt.mode.normal",
+        title: language.t("command.prompt.mode.normal"),
+        category: language.t("command.category.session"),
+        keybind: "mod+shift+e",
+        disabled: controller.state.mode === "normal",
+        onSelect: () => void controller.dispatch({ type: "mode.normal" }),
+      },
+    ])
 
   // SAFETY: the `model` getter defined on the controller above completes `ComposerModel`.
   return controller as ComposerModel

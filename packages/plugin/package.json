@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@opencode/plugin",
+  "name": "@aigcfroge/plugin",
   "version": "2.0.26",
   "type": "module",
   "license": "MIT",
@@ -29,21 +29,21 @@
   ],
   "dependencies": {
     "@ai-sdk/provider": "3.0.8",
-    "@opencode/ai": "workspace:*",
-    "@opencode/client": "workspace:*",
-    "@opencode/protocol": "workspace:*",
-    "@opencode/schema": "workspace:*",
-    "@opencode/util": "workspace:*",
+    "@aigcfroge/ai": "workspace:*",
+    "@aigcfroge/client": "workspace:*",
+    "@aigcfroge/protocol": "workspace:*",
+    "@aigcfroge/schema": "workspace:*",
+    "@aigcfroge/util": "workspace:*",
     "effect": "catalog:"
   },
   "peerDependencies": {
-    "@opencode/theme": "workspace:*",
+    "@aigcfroge/theme": "workspace:*",
     "@opentui/core": ">=0.5.17",
     "@opentui/solid": ">=0.5.17",
     "solid-js": ">=1.9.0"
   },
   "peerDependenciesMeta": {
-    "@opencode/theme": {
+    "@aigcfroge/theme": {
       "optional": true
     },
     "@opentui/core": {
@@ -57,7 +57,7 @@
     }
   },
   "devDependencies": {
-    "@opencode/theme": "workspace:*",
+    "@aigcfroge/theme": "workspace:*",
     "@opentui/core": "catalog:",
     "@opentui/solid": "catalog:",
     "@tsconfig/bun": "catalog:",

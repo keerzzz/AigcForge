@@ -38,7 +38,7 @@ const officeEmitted = /^(?:docx_\w+_bg|ooxml_opc_bg|pptx_wasm_bg|xlsx_wasm_bg|re
 
 /** @type {import("vite").Plugin} */
 const dropUnloadedOfficeFiles = {
-  name: "opencode-desktop:drop-unloaded-office-files",
+  name: "aigcfroge-desktop:drop-unloaded-office-files",
   apply: "build",
   generateBundle: {
     order: "post",
@@ -60,7 +60,7 @@ const dropUnloadedOfficeFiles = {
 
 /** @type {import("rolldown").Plugin} */
 const bundleNestedWorkerDeps = {
-  name: "opencode-desktop:bundle-nested-worker-deps",
+  name: "aigcfroge-desktop:bundle-nested-worker-deps",
   resolveId(id, importer) {
     if (!importer || !workerDeps.includes(id) || !importer.includes("node_modules")) return
 
@@ -73,11 +73,11 @@ const bundleNestedWorkerDeps = {
 }
 
 export const channel = (() => {
-  const raw = process.env.OPENCODE_CHANNEL
+  const raw = process.env.AIGCFROGE_CHANNEL
 
   if (raw === "local" || raw === "dev" || raw === "beta" || raw === "prod") return raw
 
-  if (process.env.OPENCODE_CHANNEL === "latest") return "prod"
+  if (process.env.AIGCFROGE_CHANNEL === "latest") return "prod"
 
   return "dev"
 })()
@@ -87,7 +87,7 @@ export const channel = (() => {
  */
 export default [
   {
-    name: "opencode-desktop:config",
+    name: "aigcfroge-desktop:config",
     config() {
       return {
         resolve: {
@@ -100,14 +100,14 @@ export default [
           },
         },
         define: {
-          "import.meta.env.VITE_OPENCODE_CHANNEL": JSON.stringify(channel),
+          "import.meta.env.VITE_AIGCFROGE_CHANNEL": JSON.stringify(channel),
         },
         worker: {
           format: "es",
         },
         optimizeDeps: {
           exclude: [...workerDeps, ...officeDeps],
-          include: ["@opencode/session-ui > mermaid", "@opencode/session-ui > mermaid > katex"],
+          include: ["@aigcfroge/session-ui > mermaid", "@aigcfroge/session-ui > mermaid > katex"],
           rolldownOptions: { plugins: [bundleNestedWorkerDeps] },
         },
       }
@@ -115,7 +115,7 @@ export default [
   },
   dropUnloadedOfficeFiles,
   {
-    name: "opencode-desktop:theme-preload",
+    name: "aigcfroge-desktop:theme-preload",
     transformIndexHtml: {
       order: "pre",
       handler: inlineThemePreload,

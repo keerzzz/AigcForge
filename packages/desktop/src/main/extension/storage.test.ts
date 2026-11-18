@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
-import type { MainStoreFrom } from "@opencode/gui-extensions/sdk/main"
+import type { MainStoreFrom } from "@aigcfroge/gui-extensions/sdk/main"
 import { Schema } from "effect"
 import { openDatabase, type Database } from "../storage/database"
 import { createStateStore, type StateStore } from "../storage/state"
@@ -17,7 +17,7 @@ afterEach(() =>
 )
 
 const directory = async () => {
-  const root = await mkdtemp(path.join(tmpdir(), "opencode-extension-storage-"))
+  const root = await mkdtemp(path.join(tmpdir(), "aigcfroge-extension-storage-"))
   roots.push(root)
 
   return root
@@ -27,7 +27,7 @@ const directory = async () => {
 const settingsIn = (root: string): SettingsFiles => {
   const files = new Map<string, SettingsStore>()
 
-  return (file = "opencode.settings") => {
+  return (file = "aigcfroge.settings") => {
     const existing = files.get(file)
 
     if (existing) return existing
@@ -156,47 +156,47 @@ describe("main extension storage", () => {
     {
       name: "a key of the app's settings file",
       from: { settings: "ssh.servers" },
-      seed: { settings: [{ file: "opencode.settings", key: "ssh.servers", value: [{ id: "a", kept: 1 }] }] },
+      seed: { settings: [{ file: "aigcfroge.settings", key: "ssh.servers", value: [{ id: "a", kept: 1 }] }] },
       id: "a",
       row: '[{"id":"a","kept":1}]',
     },
     {
       name: "a key of another settings file",
-      from: { settings: "ready", file: "opencode.updater" },
-      seed: { settings: [{ file: "opencode.updater", key: "ready", value: [{ id: "u" }] }] },
+      from: { settings: "ready", file: "aigcfroge.updater" },
+      seed: { settings: [{ file: "aigcfroge.updater", key: "ready", value: [{ id: "u" }] }] },
       id: "u",
       row: '[{"id":"u"}]',
     },
     {
       name: "a key of another state namespace",
-      from: { state: ["opencode.settings", "keepScreenActive"] },
+      from: { state: ["aigcfroge.settings", "keepScreenActive"] },
       seed: { state: '[{"id":"s"}]' },
       id: "s",
       row: '[{"id":"s"}]',
     },
     {
       name: "the newest home of a list that holds a value",
-      from: [{ state: ["opencode.settings", "keepScreenActive"] }, { settings: "ssh.servers" }],
-      seed: { settings: [{ file: "opencode.settings", key: "ssh.servers", value: [{ id: "older" }] }] },
+      from: [{ state: ["aigcfroge.settings", "keepScreenActive"] }, { settings: "ssh.servers" }],
+      seed: { settings: [{ file: "aigcfroge.settings", key: "ssh.servers", value: [{ id: "older" }] }] },
       id: "older",
       row: '[{"id":"older"}]',
     },
     {
       name: "the next home of a list when the first holds a value the schema rejects",
-      from: [{ state: ["opencode.settings", "keepScreenActive"] }, { settings: "ssh.servers" }],
+      from: [{ state: ["aigcfroge.settings", "keepScreenActive"] }, { settings: "ssh.servers" }],
       seed: {
         state: '"off"',
-        settings: [{ file: "opencode.settings", key: "ssh.servers", value: [{ id: "older" }] }],
+        settings: [{ file: "aigcfroge.settings", key: "ssh.servers", value: [{ id: "older" }] }],
       },
       id: "older",
       row: '[{"id":"older"}]',
     },
     {
       name: "the first home of a list when several hold a value",
-      from: [{ state: ["opencode.settings", "keepScreenActive"] }, { settings: "ssh.servers" }],
+      from: [{ state: ["aigcfroge.settings", "keepScreenActive"] }, { settings: "ssh.servers" }],
       seed: {
         state: '[{"id":"newer"}]',
-        settings: [{ file: "opencode.settings", key: "ssh.servers", value: [{ id: "older" }] }],
+        settings: [{ file: "aigcfroge.settings", key: "ssh.servers", value: [{ id: "older" }] }],
       },
       id: "newer",
       row: '[{"id":"newer"}]',
@@ -209,7 +209,7 @@ describe("main extension storage", () => {
 
     input.seed.settings?.forEach((item) => settings(item.file).set(item.key, item.value))
 
-    if (input.seed.state) state.set("opencode.settings", "keepScreenActive", input.seed.state)
+    if (input.seed.state) state.set("aigcfroge.settings", "keepScreenActive", input.seed.state)
 
     const storage = createStorage(state, settings, "example")
     const schema = Schema.Array(Schema.Struct({ id: Schema.String }))
@@ -226,8 +226,8 @@ describe("main extension storage", () => {
 /** Every older home the table seeds that still holds a value. */
 function homes(state: StateStore, settings: SettingsFiles) {
   return [
-    state.get("opencode.settings", "keepScreenActive"),
+    state.get("aigcfroge.settings", "keepScreenActive"),
     settings().get("ssh.servers"),
-    settings("opencode.updater").get("ready"),
+    settings("aigcfroge.updater").get("ready"),
   ].filter((value) => value !== null && value !== undefined)
 }

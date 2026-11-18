@@ -1,10 +1,10 @@
-# Media generation in `@opencode/ai` — public API direction
+# Media generation in `@aigcfroge/ai` — public API direction
 
 Status: phases 1–4 implemented (through Image queued routes and partial images); phase 5 proposal.
 
 ## Goal
 
-`@opencode/ai` becomes the one package you reach for to generate anything: text, images, video, speech, transcripts, and later music and realtime. The LLM surface already exists and is shaped by three constraints: Effect-first, used by OpenCode Core, usable externally. Media has a different priority order: **external DX first**, Effect and Promise as peers, Core as one consumer among many.
+`@aigcfroge/ai` becomes the one package you reach for to generate anything: text, images, video, speech, transcripts, and later music and realtime. The LLM surface already exists and is shaped by three constraints: Effect-first, used by AigcForge Core, usable externally. Media has a different priority order: **external DX first**, Effect and Promise as peers, Core as one consumer among many.
 
 The design below is derived from a survey of the raw provider APIs (OpenAI, Gemini/Veo/Imagen, xAI, Stability, BFL, fal, Replicate, Runway, Luma, Kling, MiniMax, ElevenLabs, Deepgram, Cartesia, AssemblyAI, Lyria) and of existing multi-provider SDKs.
 
@@ -43,7 +43,7 @@ The design below is derived from a survey of the raw provider APIs (OpenAI, Gemi
 A model value is built as `OpenAI.configure({ apiKey }).responses("gpt-5")` or `.image("gpt-image-2")`: `configure` fixes credentials, endpoint, and defaults; the selector fixes which of the provider's APIs to hit and binds the typed `providerOptions` generic. Media follows the same shape with one selector per modality — `.image(id)`, `.video(id)`, `.speech(id)`, `.transcription(id)` on the facades that offer each — mirroring `openai.responses(id)`. `Image.request` accepts `ImageModel` only, exactly as `LLM.request` accepts `LanguageModel`.
 
 ```ts
-import { OpenAI, Google } from "@opencode/ai/providers"
+import { OpenAI, Google } from "@aigcfroge/ai/providers"
 
 const openai = OpenAI.configure({ apiKey })      // OpenAI(...) alone uses env auth (OPENAI_API_KEY)
 
@@ -54,14 +54,14 @@ Speech.request({ model: openai.speech("gpt-4o-mini-tts"), text })
 Transcription.request({ model: openai.transcription("gpt-4o-transcribe"), audio })
 ```
 
-The request namespace and the selector share one word (`Image.request` + `.image(...)`). That redundancy is accepted: a callable facade returning a lazily resolved ref would be a second way to construct the same model, and the type machinery to infer `providerOptions` through it is not worth one word. Where a provider has two routes for one modality, the selectors stay explicit (`openai.chat`, `stability.image` inline vs `stability.upscale()` queued), and one default per modality per provider is part of the facade definition (OpenAI image → Images API, Google image → Gemini-native; Imagen is shut down, so there is no `google.imagen`). The facade selector (`openai.image(id)`) is the public path for media models. Modality-specific package entrypoints (`model(modelID, settings)` beside today's LLM paths such as `@opencode/ai/providers/openai/responses`) are deferred until Core has a modality-aware model resolver; Core's resolver accepts only `LanguageModel` today.
+The request namespace and the selector share one word (`Image.request` + `.image(...)`). That redundancy is accepted: a callable facade returning a lazily resolved ref would be a second way to construct the same model, and the type machinery to infer `providerOptions` through it is not worth one word. Where a provider has two routes for one modality, the selectors stay explicit (`openai.chat`, `stability.image` inline vs `stability.upscale()` queued), and one default per modality per provider is part of the facade definition (OpenAI image → Images API, Google image → Gemini-native; Imagen is shut down, so there is no `google.imagen`). The facade selector (`openai.image(id)`) is the public path for media models. Modality-specific package entrypoints (`model(modelID, settings)` beside today's LLM paths such as `@aigcfroge/ai/providers/openai/responses`) are deferred until Core has a modality-aware model resolver; Core's resolver accepts only `LanguageModel` today.
 
 ### `Media` — the asset type
 
 Replaces `MediaPart.data: string | Uint8Array`, `ImageInput`, `GeneratedImage`, and aligns `Tool.FileContent`.
 
 ```ts
-import { Media } from "@opencode/ai"
+import { Media } from "@aigcfroge/ai"
 
 Media.Source =
   | { type: "bytes";  data: Uint8Array; mediaType: string }
@@ -105,8 +105,8 @@ Raw-PCM outputs (Gemini TTS, Cartesia raw, Deepgram WS) carry `info.encoding/sam
 Each namespace mirrors `LLM` exactly.
 
 ```ts
-import { Image, Video, Speech, Transcription } from "@opencode/ai"
-import { OpenAI, Google, ElevenLabs, Fal } from "@opencode/ai/providers"
+import { Image, Video, Speech, Transcription } from "@aigcfroge/ai"
+import { OpenAI, Google, ElevenLabs, Fal } from "@aigcfroge/ai/providers"
 ```
 
 #### Image
@@ -205,7 +205,7 @@ Shipped in phase 3 (`src/speech.ts`, `src/speech-client.ts`, protocols `openai-s
 ```ts
 const request = Speech.request({
   model: elevenlabs.speech("eleven_flash_v2_5"),
-  text: "Hello from OpenCode.",
+  text: "Hello from AigcForge.",
   voice: "JBFqnCBsd6RMkjVDRZzb",                  // provider-native identifier, or { id }
   format: "mp3",                                   // mp3 | wav | pcm | opus | aac | flac | (string & {})
   speed: 1.0,
@@ -384,12 +384,12 @@ Usage =
 
 Header-only usage (ElevenLabs `character-cost`, Deepgram `dg-char-count`) is lifted into `usage` by the route.
 
-### Promise API — `@opencode/ai/promise`
+### Promise API — `@aigcfroge/ai/promise`
 
 Mirrors the `packages/plugin/src/effect` and `packages/plugin/src/promise` split that already exists in this repo. One mechanism for LLM and media.
 
 ```ts
-import { AI } from "@opencode/ai/promise"
+import { AI } from "@aigcfroge/ai/promise"
 
 const ai = AI.make()                                // ManagedRuntime over RequestExecutor.fetchLayer + all clients
 // AI.make({ layer }) to inject a custom executor / recorder / middleware
@@ -435,7 +435,7 @@ implemented):
 | `Runway` | | | ✓ | | | |
 | `Luma`, `Kling`, `MiniMax` | | *deferred* | *deferred* | | | |
 
-New facades follow the existing one-file-per-provider rule. The facade selector is the public path for media models; modality-specific package entrypoints (for example `@opencode/ai/providers/openai/images`) are deferred until Core has a modality-aware model resolver.
+New facades follow the existing one-file-per-provider rule. The facade selector is the public path for media models; modality-specific package entrypoints (for example `@aigcfroge/ai/providers/openai/images`) are deferred until Core has a modality-aware model resolver.
 
 `ImageModel<Options>` gives typed `providerOptions` per model; `VideoModel`, `SpeechModel`, and `TranscriptionModel` follow the same generic. As with `LanguageModel`, the route type does not carry `Options`, so `ImageModel<OpenAIImageOptions>` is an `ImageModel` and client methods take plain `ImageRequestFor`. They share an internal `MediaModel` base class (ids, route, `http` overlays) that is not part of the public exports; `Generation` and the promise client work with the concrete modality models.
 
@@ -465,7 +465,7 @@ All settled:
 3. **No hidden `n` fan-out.** `n` lowers natively; routes that cannot do `n > 1` fail typed. Callers use `Effect.all` / `Promise.all` explicitly.
 4. **Errors over warnings** for unsupported common fields; `notices` for provider-side partial results only.
 5. **`Media.Asset` is a class** (lazy bytes, cached) with `Media.Source` as the serializable Schema for wire/persistence. `Asset.from(source)` / `asset.source` round-trip losslessly. Same pattern as `LanguageModel` today.
-6. **Promise entrypoint**: `@opencode/ai/promise` exporting `AI.make(options?: { layer? })` plus a module-level default `ai` for scripts, covering LLM too.
+6. **Promise entrypoint**: `@aigcfroge/ai/promise` exporting `AI.make(options?: { layer? })` plus a module-level default `ai` for scripts, covering LLM too.
 7. **Modality set for v1**: `Image`, `Video`, `Speech`, `Transcription`. `Music`/`SoundEffect` and `session` (bidirectional WS, realtime) are designed-for but deferred.
 8. **Sora is skipped** (API shuts down 2026-09-24). Video launches with Veo, xAI, fal, Runway.
 
@@ -475,7 +475,7 @@ Foundation + Image ship together as the reference implementation, serially. Vide
 
 ## Phasing
 
-1. **Foundation** — per-modality selectors, `Media`, `Generation`, `Poll`, `Usage` union, `MediaProtocol` kinds, `@opencode/ai/promise` with `llm` + `image`. Port the five existing image protocols onto it. Unify `MediaPart` and add the `media` LLM event (fixes Gemini image output being dropped).
+1. **Foundation** — per-modality selectors, `Media`, `Generation`, `Poll`, `Usage` union, `MediaProtocol` kinds, `@aigcfroge/ai/promise` with `llm` + `image`. Port the five existing image protocols onto it. Unify `MediaPart` and add the `media` LLM event (fixes Gemini image output being dropped).
 2. **Video** — ✅ Veo, xAI, fal, Runway shipped (`MediaProtocol.queued`, `Video.start/generate/resume/stream`, promise `ai.video`). Deferred: `Video.complete` (webhooks), Luma, Kling, MiniMax, Replicate.
 3. **Speech + Transcription** — ✅ Speech: OpenAI, Gemini TTS, ElevenLabs, Cartesia, Deepgram shipped (`MediaProtocol.stream`, `Speech.generate/stream`, promise `ai.speech`). ✅ Transcription: OpenAI, Gemini, Deepgram, ElevenLabs Scribe, AssemblyAI shipped across all three route kinds (`Transcription.generate/stream/start/resume`, promise `ai.transcription`). Deferred: `Speech.session` and `Transcription.session` (WebSocket streaming).
 4. **Image queued routes and partials** — ✅ BFL, fal, Replicate, and Stability creative upscale queued; Stability generate inline; OpenAI `partial_images` streaming (`image-partial` restored). Imagen dropped: shut down on the Gemini API and discontinued on Vertex (2026-06-30). Deferred: Stability's synchronous edit and fast/conservative upscale endpoints.

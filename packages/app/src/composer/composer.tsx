@@ -1,11 +1,11 @@
-import { Show, createMemo } from "solid-js"
+import { Show, createMemo, type JSX } from "solid-js"
 import { createMediaQuery } from "@solid-primitives/media"
-import { Button } from "@opencode/ui/button"
-import { useDialog } from "@opencode/ui/context/dialog"
-import { Icon } from "@opencode/ui/icon"
-import { Keybind } from "@opencode/ui/keybind"
+import { Button } from "@aigcfroge/ui/button"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { Icon } from "@aigcfroge/ui/icon"
+import { Keybind } from "@aigcfroge/ui/keybind"
 import { ProviderModelIcon } from "@/providers/models/provider-group"
-import { Tooltip } from "@opencode/ui/tooltip"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
 import { ComposerEditor } from "./editor/editor"
 import { ModelSelectorPopover } from "@/providers/models/select-dialog"
 import { DialogSelectModelUnpaid } from "@/providers/models/unpaid"
@@ -19,10 +19,12 @@ export function Composer(props: {
   borderUnderlay?: boolean
   readOnly?: boolean
   suggestionBoundary?: () => HTMLElement | undefined
+  tools?: JSX.Element
 }) {
   const dialog = useDialog()
   const command = useCommand()
   const language = useLanguage()
+  const selectedModel = () => props.model.model.selection.identity?.() ?? props.model.model.selection.current()
 
   return (
     <div class="flex flex-col gap-3">
@@ -37,6 +39,7 @@ export function Composer(props: {
         alternateKeybind={[formatKeybind("mod", language.t), "↵"]}
         exitShellKeybind={[formatKeybind("esc", language.t)]}
         suggestionBoundary={props.suggestionBoundary}
+        tools={props.tools}
         modelControl={
           <ComposerModelControl
             loading={props.model.model.loading}
@@ -44,8 +47,14 @@ export function Composer(props: {
             title={language.t("command.model.choose")}
             keybind={command.keybindParts("model.choose")}
             model={props.model.model.selection}
-            provider={props.model.model.selection.current()?.provider}
-            modelName={props.model.model.selection.current()?.name ?? language.t("dialog.model.select.title")}
+            provider={(() => { const selected = selectedModel();
+
+ return selected && "provider" in selected ? selected.provider : undefined })()}
+            modelName={(() => { const selected = selectedModel();
+
+ return selected && "type" in selected
+              ? language.t("model.group.selection", { name: selected.name }) : selected?.name ?? language.t("dialog.model.select.title") })()}
+            unavailable={props.model.model.selection.identity?.()?.unavailable}
             onClose={props.model.restoreFocus}
             onUnpaidClick={() => dialog.show(() => <DialogSelectModelUnpaid model={props.model.model.selection} />)}
           />
@@ -63,9 +72,11 @@ function ComposerModelControl(props: {
   model: ComposerModel["model"]["selection"]
   provider?: { id: string; canonical?: string; name: string }
   modelName: string
+  unavailable?: string
   onClose: () => void
   onUnpaidClick: () => void
 }) {
+  const language = useLanguage()
   const shouldAnimate = createMemo<boolean>((previous) => previous ?? props.loading)
   const mobile = createMediaQuery("(max-width: 767px)")
 
@@ -80,6 +91,9 @@ function ComposerModelControl(props: {
         )}
       </Show>
       <span class="truncate leading-4">{props.modelName}</span>
+      <Show when={props.unavailable}>
+        <span class="shrink-0 text-text-weak">{language.t("model.selection.unavailable.label")}</span>
+      </Show>
       <span class="-ml-0.5 -mr-1 flex shrink-0">
         <Icon name="chevron-down" />
       </span>
@@ -95,12 +109,13 @@ function ComposerModelControl(props: {
         value={
           <>
             {props.title}
+            <Show when={props.unavailable}><span>{props.unavailable}</span></Show>
             <Keybind keys={props.keybind} variant="neutral" />
           </>
         }
       >
         <Show
-          when={props.paid || mobile()}
+          when={props.paid || mobile() || props.model.groups().length > 0}
           fallback={
             <Button
               data-action="composer-model"

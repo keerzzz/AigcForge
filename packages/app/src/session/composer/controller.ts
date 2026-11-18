@@ -42,8 +42,13 @@ export function createSessionComposerController(input: {
     },
   })
 
-  const composer = createComposerModel(adapter, { queue })
-  const editable = createMemo(() => region.showComposer() && !region.child())
+  const composer = createComposerModel(adapter, {
+    queue,
+    acceptsDrop: input.dock.acceptsDrop,
+    commands: input.dock.commands,
+  })
+
+  const editable = createMemo(() => region.showComposer() && !region.child() && !region.readonly?.())
   // Requests hide the view without disposing its draft or queue edit.
   createEffect(on(editable, () => composer.onDragLeave()))
 

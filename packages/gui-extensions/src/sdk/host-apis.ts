@@ -1,5 +1,5 @@
-import type { Data } from "@opencode/client/solid"
-import type { LocationRef, OpenCodeClient, ProjectListOutput, WorktreeDirectory } from "@opencode/client/promise"
+import type { Data } from "@aigcfroge/client/solid"
+import type { LocationRef, AigcForgeClient, ProjectListOutput, WorktreeDirectory } from "@aigcfroge/client/promise"
 import type { Schema } from "effect"
 import type { JSX } from "solid-js"
 import type { Store } from "solid-js/store"
@@ -20,7 +20,7 @@ export interface ServerRef {
   /** The HTTP basic password the user configured; undefined when there is none. */
   readonly password?: string
   /** The server's API client. */
-  readonly client: OpenCodeClient
+  readonly client: AigcForgeClient
   /** The server's synced data (sessions, projects, …). Reactive. */
   readonly data: Data
   /** The built-in local server or a loopback http server. */
@@ -31,6 +31,8 @@ export interface ServerRef {
   readonly compatible: boolean
   /** The event connection to this server is up. */
   readonly connected: boolean
+  /** The live connection attempt, used to ignore replies from an earlier connection. Reuses the server's counter. */
+  readonly attempt: number
 }
 
 /** A session owned by an open shell tab, mounted or not. */
@@ -50,6 +52,66 @@ export interface SessionRef {
    * server re-authenticates. Layout reads return nothing meanwhile; layout writes wait for it.
    */
   readonly location: LocationRef | undefined
+}
+
+/** An existing content target, independent of shell membership. */
+export interface SessionTargetRef {
+  /** `${server id}\n${session id}`: unique across servers. */
+  readonly key: string
+  /** The session's id on its server. */
+  readonly id: string
+  /** The registered live server ref supplied to `Sessions.target`. */
+  readonly server: ServerRef
+  /** The target's saved Location; undefined until its metadata is available. */
+  readonly location: LocationRef | undefined
+}
+
+/**
+ * A saved Task or its retained operation on a live server. The source Session owns the record; the operation's
+ * worker Session is read from that record. Supply a Task id for an ordinary Task, or an operation id while a
+ * reservation has not yet attached a Task. This reference never creates or executes work.
+ *
+ * @example
+ * ```ts
+ * ctx.sessions.openTask({ source, target: { server: source.server, sourceSessionID: source.id, taskID } })
+ * ```
+ */
+export type TaskTargetRef = {
+  /** The registered live server that owns the source Task or operation. */
+  readonly server: ServerRef
+  /** The exact source Session id on that server, independent of the current main route. */
+  readonly sourceSessionID: string
+} & (
+  | {
+      /** An existing Task on the source Session. */
+      readonly taskID: string
+      /** An optional retained operation to select within that Task's history. */
+      readonly operationID?: string
+    }
+  | {
+      /** A reservation can precede its Task binding; omit the Task id until that binding exists. */
+      readonly taskID?: undefined
+      /** The retained operation to inspect before or after it acquires a Task. */
+      readonly operationID: string
+    }
+)
+
+/**
+ * An exact retained communication viewed by one of its participating Sessions on a live server.
+ * The sender, receiver and reply relationship come from the saved record.
+ *
+ * @example
+ * ```ts
+ * ctx.sessions.openCommunication({ source, target: { server: source.server, sessionID: source.id, communicationID } })
+ * ```
+ */
+export type CommunicationTargetRef = {
+  /** The registered live server that owns the retained communication. */
+  readonly server: ServerRef
+  /** The participating Session whose saved communications are displayed. */
+  readonly sessionID: string
+  /** The exact retained communication id; never inferred from the latest message. */
+  readonly communicationID: string
 }
 
 /** A project as the sidebar lists it, with the worktrees found on disk and the user's local name and icon. */
@@ -492,6 +554,15 @@ export interface ComposerNote {
 /** The session screen's composer: the parts attached to the routed session's next prompt. */
 export interface Composer {
   /**
+   * Inserts plain text at the saved cursor, or appends when no cursor is saved. Existing mentions and attachments
+   * remain intact. This edits the routed session's draft without submitting it.
+   *
+   * @param content - The literal text to insert; no template expansion or markup parsing is performed.
+   * @example
+   * ctx.screen.current()?.composer.addText("Review the change.")
+   */
+  addText(content: string): void
+  /**
    * Attaches a file or a note to the next prompt.
    *
    * @param part - The part to attach.
@@ -613,6 +684,136 @@ export interface Sessions {
    * Reactive.
    */
   current(): MountedSession | undefined
+  /**
+   * Acquires a reference to an existing target. Does not mount content, open a shell tab, or execute a session.
+   *
+   * @param input - The registered live server ref and its existing session id.
+   */
+  target(input: {
+    /** A live ref from `Servers.get`, `SessionRef.server`, or `MountedSession.server`. */
+    readonly server: ServerRef
+    /** The existing session id on that server. */
+    readonly sessionID: string
+  }): SessionTargetRef
+  /**
+   * Opens an editable Chat draft on the source's server at the captured Location, using the original draft owner.
+   * Does not create a Session, send a prompt, or save an asset. The user may edit the text and choose a new
+   * project or workspace before sending. Rejects if the app interface is not mounted or the server is unavailable.
+   *
+   * @param input - The exact source, its captured saved Location, and the initial draft text.
+   * @example
+   * ```ts
+   * const source = input.session
+   * const location = source.location
+   * if (location) await ctx.sessions.draft({ source, location: { ...location }, text: input.text })
+   * ```
+   */
+  draft(input: {
+    /** The actual source target on a registered live server; no shell tab is required. */
+    readonly source: SessionTargetRef
+    /** The source's saved Location, copied before asynchronous work. Later source moves do not retarget the draft. */
+    readonly location: LocationRef
+    /** Initial editable text, captured before asynchronous work. The draft retains it until the user edits or sends it. */
+    readonly text: string
+  }): Promise<void>
+  /**
+   * Inserts literal text into an existing target's saved Composer draft at its saved cursor, or appends when
+   * no cursor is saved. Existing mentions and attachments remain intact. Captures the target's server, Session,
+   * Location and text before loading storage; later route changes do not redirect the write. Does not submit.
+   * Rejects while the app interface is unavailable, the target's server is unregistered, or its Location is unknown.
+   *
+   * @param input - The exact target and the text to insert into its original draft owner.
+   * @example
+   * ```ts
+   * await ctx.sessions.insertText({ target: input.source, text: input.text })
+   * ```
+   */
+  insertText(input: {
+    /** The existing target on a registered server; a Shell tab or current main route is not required. */
+    readonly target: SessionTargetRef
+    /** Plain text, copied before asynchronous work; inserted without template expansion. */
+    readonly text: string
+  }): Promise<void>
+  /**
+   * Renders the host's existing conversation implementation for a target in a source-owned panel.
+   * Target messages, requests, drafts, models and attachments use the target's server and saved Location.
+   * The content retains draft memory until its last view releases it. Readonly views render no response form;
+   * the current main target takes request priority, then a selected visible interactive panel.
+   * `Sessions.current()` and `Screen.current()` continue to describe the main route.
+   *
+   * @param input - The real source and screen, target, visibility, and permitted interaction.
+   */
+  content(input: {
+    /** The real mounted source whose panel owns layout and the target binding. Read this reactively. */
+    readonly source: MountedSession
+    /** The source's real screen. */
+    readonly screen: SessionScreen
+    /** The reference returned by `Sessions.target`. */
+    readonly target: SessionTargetRef
+    /** Whether this panel is selected and visible. Hidden content does not respond or autofocus. */
+    readonly active: boolean
+    /** Interactive roots use the original composer; readonly views show content and owner navigation. */
+    readonly interaction: "interactive" | "readonly"
+    /**
+     * Opens a session mentioned by a card in this target's content, on the target's server. Omit to use main-session
+     * navigation. Owner navigation and explicit `Sessions.open` keep opening the main session.
+     *
+     * @param sessionID - The existing target on this content's server.
+     */
+    readonly onNavigateToSession?: (sessionID: string) => void
+  }): JSX.Element
+  /**
+   * Opens an existing target as the main session. Related children remember the source's parent route;
+   * independent roots use their own shell tab. Defaults to the source's server.
+   * Waits for the app interface during setup. Navigation does not create or execute a session.
+   *
+   * @param input - The explicit source, target, and optional timeline item to reveal.
+   */
+  open(input: {
+    /** The real source session whose shell tab remembers related navigation. */
+    readonly source: SessionRef
+    /** A registered live target server. Omit for the source's server. */
+    readonly server?: ServerRef
+    /** The existing target session's id on the selected server. */
+    readonly sessionID: string
+    /** A tool call or shell id to scroll to and expand. Omit to use the target's normal scroll restoration. */
+    readonly reveal?: string
+  }): void
+  /**
+   * Routes a saved Task reference to an extension's existing detail panel in the source workspace.
+   * Returns false while no registered handler can display it. It does not navigate the main Session,
+   * create a Task, or send an input.
+   *
+   * @param input - The real source whose workspace owns layout, and the exact saved Task reference.
+   * @example
+   * ```ts
+   * const source = ctx.sessions.current()
+   * if (source) ctx.sessions.openTask({ source, target: { server: source.server, sourceSessionID: source.id, taskID } })
+   * ```
+   */
+  openTask(input: {
+    /** The mounted source whose panel owns this navigation. */
+    readonly source: MountedSession
+    /** The exact Task or operation to display; its server and Session need not match the source. */
+    readonly target: TaskTargetRef
+  }): boolean
+  /**
+   * Opens an exact retained communication in an extension's existing detail panel in the source workspace.
+   * Returns false when no registered handler can display it. Reads and replies use the target's server and
+   * participating Session; opening the panel sends no input.
+   *
+   * @param input - The real source whose workspace owns layout and the retained communication to inspect.
+   * @example
+   * ```ts
+   * ctx.sessions.openCommunication({ source, target: { server: source.server, sessionID: source.id, communicationID } })
+   * ```
+   */
+  openCommunication(input: {
+    /** The mounted source whose workspace owns the detail panel. */
+    readonly source: MountedSession
+    /** The retained communication and participating Session on its registered server. */
+    readonly target: CommunicationTargetRef
+  }): boolean
 }
 
 /**
@@ -631,8 +832,9 @@ export interface OpenOptions {
    * - `open`: select it, reusing the preview slot.
    * - `preview`: select it as the new preview tab.
    * - `append`: add it at the end without selecting it, changing neither the region nor the preview tab.
-   * - `select`: add it at the end and select it, keeping the preview tab. Like `background`, it keeps the
-   *   narrow-screen view and the dock, and opens the side region.
+   * - `select`: add it at the end and select it, keeping ordinary preview tabs. When a transient launcher is
+   *   selected, a non-transient target replaces that launcher. Like `background`, it keeps the narrow-screen view
+   *   and the dock, and opens the side region.
    */
   readonly tab?: "open" | "preview" | "append" | "select"
   /**

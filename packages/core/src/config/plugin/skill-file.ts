@@ -36,24 +36,27 @@ const booleanValue = (value: unknown) => {
   return undefined
 }
 
+export const id = (directory: string, filepath: string) =>
+  Skill.ID.make(
+    path.dirname(filepath) === directory && path.basename(filepath) !== "SKILL.md"
+      ? path.basename(filepath, ".md")
+      : path.basename(path.dirname(filepath)),
+  )
+
 export function parse(directory: string, filepath: string, content: string): ParseResult {
   const markdown = ConfigMarkdown.parseOption(content)
   if (!markdown) return { _tag: "Skipped", reason: "markdown" }
   const decoded = decodeFrontmatter(markdown.data)
   if (Result.isFailure(decoded)) return { _tag: "Skipped", reason: "frontmatter", issue: decoded.failure }
   const frontmatter = decoded.success
-  const id =
-    path.dirname(filepath) === directory && path.basename(filepath) !== "SKILL.md"
-      ? path.basename(filepath, ".md")
-      : path.basename(path.dirname(filepath))
-  const opencodeAutoinvoke = metadataBoolean(frontmatter.metadata, "opencode/autoinvoke")
+  const aigcfrogeAutoinvoke = metadataBoolean(frontmatter.metadata, "aigcfroge/autoinvoke")
   const disableModelInvocation = booleanValue(frontmatter["disable-model-invocation"])
-  const autoinvoke = opencodeAutoinvoke ?? (disableModelInvocation ? false : undefined)
+  const autoinvoke = aigcfrogeAutoinvoke ?? (disableModelInvocation ? false : undefined)
   return {
     _tag: "Parsed",
     skill: {
-      id: Skill.ID.make(id),
-      name: Skill.Name.make(frontmatter.name ?? id),
+      id: id(directory, filepath),
+      name: Skill.Name.make(frontmatter.name ?? id(directory, filepath)),
       ...(frontmatter.description === undefined ? {} : { description: frontmatter.description }),
       ...(autoinvoke === undefined ? {} : { autoinvoke }),
       path: AbsolutePath.make(filepath),

@@ -14,7 +14,7 @@ import { SessionTimeline } from "./session-timeline"
 import { ToolDisplay } from "../tools/tool-renderer"
 
 export default {
-  title: "OpenCode/Work/File changes",
+  title: "AigcForge/Work/File changes",
   id: "current-session-file-changes",
   component: SessionTimeline,
   parameters: {
@@ -256,7 +256,7 @@ export const AppendingToolCalls = {
 export const ChangingFiles = {
   args: { scenario: "streaming" },
   argTypes: { scenario: { control: "select", options: Object.keys(fileScenarios) } },
-  render: (args: { scenario: string }) => fileScenarios[args.scenario as keyof typeof fileScenarios].render(),
+  render: (args: { scenario: keyof typeof fileScenarios }) => fileScenarios[args.scenario].render(),
 }
 
 export const CreatedANewFile = {
@@ -272,14 +272,15 @@ export const CreatedANewFile = {
 }
 
 export const FileToolFallbacks = {
-  args: { tool: "edit", empty: false, forceOpen: false, controlled: true },
+  args: { tool: "edit", empty: false, forceOpen: false, controlled: true, malformedDiagnostic: false },
   argTypes: {
     tool: { control: "select", options: ["edit", "write"] },
     empty: { control: "boolean" },
     forceOpen: { control: "boolean" },
     controlled: { control: "boolean" },
+    malformedDiagnostic: { control: "boolean" },
   },
-  render: (args: { tool: string; empty: boolean; forceOpen: boolean; controlled: boolean }) => {
+  render: (args: { tool: string; empty: boolean; forceOpen: boolean; controlled: boolean; malformedDiagnostic: boolean }) => {
     const [state, setState] = createStore({ completed: false, open: false })
 
     return (
@@ -303,6 +304,9 @@ export const FileToolFallbacks = {
                 ? {
                     "src/example.ts": [
                       { severity: 1, message: "Example diagnostic", range: { start: { line: 0, character: 0 } } },
+                      ...(args.malformedDiagnostic
+                        ? [{ severity: 1, message: "Incomplete diagnostic", range: { start: {} } }]
+                        : []),
                     ],
                   }
                 : {},

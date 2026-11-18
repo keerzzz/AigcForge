@@ -1,7 +1,17 @@
-import type { SessionMessageAssistant, SessionMessageInfo } from "@opencode/client/promise"
-import { createMemo } from "solid-js"
+import type {
+  SessionCommunicationMessage,
+  SessionMessageAssistant,
+  SessionMessageAssistantReasoning,
+  SessionMessageAssistantTool,
+  SessionMessageInfo,
+} from "@aigcfroge/client/promise"
+import type { SessionReference } from "@aigcfroge/schema/session-reference"
+import { Button } from "@aigcfroge/ui/button"
+import { Show, createMemo, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
+import type { SessionResponseActionInput } from "../actions"
 import type { SessionDocument } from "../document"
+import { DataProvider } from "../context/data"
 import { SessionTimeline } from "./session-timeline"
 import type { ReasoningMode } from "./projection"
 import { CurrentSessionProviders, CurrentSessionTimelineStory } from "../storybook/current-session-story"
@@ -25,7 +35,7 @@ import {
 } from "../storybook/current-session-fixtures"
 
 export default {
-  title: "OpenCode/Conversation/Message states",
+  title: "AigcForge/Conversation/Message states",
   id: "current-session-timeline-rows",
   component: SessionTimeline,
   parameters: {
@@ -54,7 +64,140 @@ export const StreamingReasoningAndText = {
   ),
 }
 
+function ResponseActionsStory() {
+  const [assistant, setAssistant] = createStore<SessionMessageAssistant>({
+    id: "msg_response_actions_assistant",
+    type: "assistant",
+    agent: "build",
+    model: STORY_MODEL,
+    needsContinuation: false,
+    time: { created: STORY_TIME + 100, completed: STORY_TIME + 2000 },
+    tokens: { input: 1, output: 1, reasoning: 0, cache: { read: 0, write: 0 } },
+    content: [
+      {
+        type: "reasoning",
+        text: "## Response inspection\n\nKeep the completed response controls available.",
+        time: { created: STORY_TIME + 100, completed: STORY_TIME + 1100 },
+      },
+      { type: "text", text: "The response stays stable." },
+      {
+        id: "tool_response_actions_shell",
+        type: "tool",
+        name: "shell",
+        state: {
+          status: "completed",
+          input: { command: "printf response" },
+          content: [{ type: "text", text: "Tool result has no response actions." }],
+          metadata: { exit: 0 },
+        },
+        time: { created: STORY_TIME + 1200, ran: STORY_TIME + 1300, completed: STORY_TIME + 1900 },
+      },
+    ],
+  })
+
+  const [state, setState] = createStore({ streaming: false, mounts: 0, selection: "No response selected" })
+
+  const document = createMemo(() => {
+    return {
+      sessionID: CURRENT_SESSION_ID,
+      status: { type: state.streaming ? "busy" : "idle" },
+      diffs: [],
+      messages: [
+        {
+          id: "msg_response_actions_user",
+          type: "user",
+          text: "Keep response actions stable.",
+          time: { created: STORY_TIME },
+        },
+        assistant,
+      ],
+    } satisfies SessionDocument
+  })
+
+  function ResponseActions(props: { input: SessionResponseActionInput }) {
+    onMount(() => setState("mounts", (value) => value + 1))
+
+    return (
+      <Show when={props.input.completed ? props.input.boundary : undefined}>
+        {(boundary) => (
+          <button
+            type="button"
+            onClick={() =>
+              setState(
+                "selection",
+                [
+                  props.input.userMessageID,
+                  props.input.assistantMessageID,
+                  props.input.contentID,
+                  `${boundary().type}:${boundary().messageID}`,
+                  props.input.text,
+                ].join(" | "),
+              )
+            }
+          >
+            Fork response
+          </button>
+        )}
+      </Show>
+    )
+  }
+
+  return (
+    <section class="mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6">
+      <div class="flex gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            setAssistant("content", 1, (content) =>
+              content.type === "text" ? { ...content, text: `${content.text} Next token.` } : content,
+            )
+            setAssistant("tokens", "output", (value) => (value ?? 0) + 1)
+          }}
+        >
+          Append response token
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setAssistant("time", "completed", undefined)
+            setAssistant("needsContinuation", true)
+            setState("streaming", true)
+          }}
+        >
+          Start response
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setAssistant("time", "completed", STORY_TIME + 3000)
+            setAssistant("needsContinuation", false)
+            setState("streaming", false)
+          }}
+        >
+          Complete response
+        </button>
+      </div>
+      <output aria-label="Response action mounts">{state.mounts}</output>
+      <output aria-label="Response action selection">{state.selection}</output>
+      <div role="region" aria-label="Response action timeline">
+        <CurrentSessionProviders document={document()}>
+          <SessionTimeline
+            document={document()}
+            responseActions={(input) => <ResponseActions input={input} />}
+            reasoningMode="full"
+            shellToolDefaultOpen
+          />
+        </CurrentSessionProviders>
+      </div>
+    </section>
+  )
+}
+
 function AgentReasoningStory(props: { mode: ReasoningMode; reasoning: string; tool: boolean; text: string }) {
+  const reasoningTime: NonNullable<SessionMessageAssistantReasoning["time"]> = { created: STORY_TIME + 100 }
+
+  if (props.tool || props.text) reasoningTime.completed = STORY_TIME + 7100
+
   const content = [
     ...(props.reasoning === "none"
       ? []
@@ -65,7 +208,7 @@ function AgentReasoningStory(props: { mode: ReasoningMode; reasoning: string; to
               props.reasoning === "blank"
                 ? "   "
                 : "## Inspecting stability\n\nI will inspect the timeline before changing its state.",
-            time: { created: STORY_TIME + 100, ...(props.tool || props.text ? { completed: STORY_TIME + 7100 } : {}) },
+            time: reasoningTime,
           },
         ]),
     ...(props.tool
@@ -122,6 +265,13 @@ function HiddenReasoningStory() {
   const document = createMemo(() => {
     const finished = state.phase === "idle"
     const running = state.phase === "running"
+    const toolTime: SessionMessageAssistantTool["time"] = { created: STORY_TIME + 200, ran: STORY_TIME + 250 }
+    const messageTime: SessionMessageAssistant["time"] = { created: STORY_TIME }
+
+    if (finished) {
+      toolTime.completed = STORY_TIME + 300
+      messageTime.completed = STORY_TIME + 400
+    }
 
     return {
       sessionID: CURRENT_SESSION_ID,
@@ -148,16 +298,12 @@ function HiddenReasoningStory() {
                           metadata: {},
                         }
                       : { status: "running" as const, input: { command: "printf done" }, metadata: {} },
-                    time: {
-                      created: STORY_TIME + 200,
-                      ran: STORY_TIME + 250,
-                      ...(finished ? { completed: STORY_TIME + 300 } : {}),
-                    },
+                    time: toolTime,
                   },
                 ]
               : []),
           ],
-          time: { created: STORY_TIME, ...(finished ? { completed: STORY_TIME + 400 } : {}) },
+          time: messageTime,
         },
       ],
       status: { type: finished ? "idle" : "busy" },
@@ -191,28 +337,27 @@ function RetryAndRecoverStory() {
     const retry = state.phase === "retry"
     const finished = state.phase === "idle"
 
+    const message: SessionMessageAssistant = {
+      id: "msg_retry_recovery_lifecycle",
+      type: "assistant",
+      agent: "build",
+      model: STORY_MODEL,
+      content: finished ? [{ type: "text", text: "Recovered response" }] : [],
+      time: { created: STORY_TIME },
+    }
+
+    if (retry)
+      message.retry = {
+        attempt: 2,
+        at: 1_900_000_000_000,
+        error: { type: "ProviderRateLimitError", message: "Rate limit reached. Retrying with backoff." },
+      }
+
+    if (finished) message.time.completed = STORY_TIME + 300
+
     return {
       sessionID: CURRENT_SESSION_ID,
-      messages: [
-        ...thinkingDocument.messages,
-        {
-          id: "msg_retry_recovery_lifecycle",
-          type: "assistant",
-          agent: "build",
-          model: STORY_MODEL,
-          content: finished ? [{ type: "text" as const, text: "Recovered response" }] : [],
-          ...(retry
-            ? {
-                retry: {
-                  attempt: 2,
-                  at: 1_900_000_000_000,
-                  error: { type: "ProviderRateLimitError", message: "Rate limit reached. Retrying with backoff." },
-                },
-              }
-            : {}),
-          time: { created: STORY_TIME, ...(finished ? { completed: STORY_TIME + 300 } : {}) },
-        },
-      ],
+      messages: [...thinkingDocument.messages, message],
       status: { type: finished ? "idle" : "busy" },
       diffs: [],
     } satisfies SessionDocument
@@ -478,7 +623,7 @@ const MovedLocation = {
           {
             id: "msg_story_location",
             type: "location-switched",
-            location: { directory: `/Users/usrnk1/Developer/opencode/${"nested-directory/".repeat(24)}session` },
+            location: { directory: `/Users/usrnk1/Developer/aigcfroge/${"nested-directory/".repeat(24)}session` },
             time: { created: 1_735_689_633_000 },
           },
         ],
@@ -591,6 +736,8 @@ const RichUserAttachments = {
 }
 
 const conversationScenarios = {
+  coordination: { render: () => <CoordinationStory /> },
+  responses: { render: () => <ResponseActionsStory /> },
   reasoning: AgentReasoning,
   hidden: WorkingWithoutReasoningDetails,
   retry: RetryAndRecover,
@@ -602,6 +749,80 @@ const conversationScenarios = {
   attachments: RichUserAttachments,
 }
 
+function CoordinationStory() {
+  const [state, setState] = createStore<{
+    task: string
+    communication: string
+    communicationsLoaded: boolean
+    reference: string
+    navigation: string
+    remote: "available" | "missing" | "disconnected"
+  }>({ task: "None", communication: "None", communicationsLoaded: false, reference: "None", navigation: "None", remote: "available" })
+
+  const communications: SessionCommunicationMessage[] = [
+    {
+      id: "com_mp03_public_notice", actor: { type: "user", sessionID: "ses_mp03_notice_actor" },
+      contentSource: { sessionID: "ses_mp03_content_source", scope: "output" }, targetSessionID: "ses_mp03_notice_target",
+      body: { sessionID: "ses_mp03_notice_target", inputID: "msg_mp03_public_notice", digest: "a".repeat(64) },
+      requestDigest: "b".repeat(64), delivery: "queue", trigger: false, createdAt: STORY_TIME + 2,
+      text: "Complete retained communication\nThe second line stays intact.", state: "visible",
+    },
+    {
+      id: "com_mp03_result_notice", actor: { type: "system", sessionID: "ses_mp03_notice_target",
+        origin: { type: "task_operation", operation: { sourceSessionID: "ses_mp03_notice_actor", operationID: "top_mp03_notice" } } },
+      contentSource: { sessionID: "ses_mp03_content_source", scope: "result" }, targetSessionID: "ses_mp03_notice_actor",
+      body: { sessionID: "ses_mp03_notice_actor", inputID: "msg_mp03_result_notice", digest: "c".repeat(64) },
+      requestDigest: "d".repeat(64), delivery: "steer", trigger: false, createdAt: STORY_TIME + 3,
+      text: "Complete short-metadata result\nThe saved target stays exact.", state: "visible",
+    },
+  ]
+
+  const text = "Use @build with @src/a.ts and @saved from A plus @saved from B."
+
+  const references: SessionReference.MentionEncoded[] = [
+    { reference: { serverID: "server-a", sessionID: "ses_same", title: "Saved title", scope: { kind: "identity" } }, start: text.indexOf("@saved"), end: text.indexOf("@saved") + 6, content: "@saved" },
+    { reference: { serverID: "server-b", sessionID: "ses_same", title: "Saved title", scope: { kind: "through", messageID: "msg_saved_boundary" } }, start: text.lastIndexOf("@saved"), end: text.lastIndexOf("@saved") + 6, content: "@saved" },
+  ]
+
+  const document: SessionDocument = {
+    ...thinkingDocument,
+    sessionID: "ses_mp03_notice_target",
+    status: { type: "idle" },
+    messages: [
+      { id: "msg_mp03_task_notice", type: "synthetic", text: "Task coordination: Inspect the saved result", time: { created: STORY_TIME }, metadata: { coordination: { kind: "task", operationRef: { sourceSessionID: "ses_mp03_notice_actor", operationID: "top_mp03_notice" }, actorSessionID: "ses_mp03_notice_actor", actorAgent: "meta", targetSessionID: "ses_mp03_notice_target" } } },
+      { id: "msg_mp03_share_notice", type: "synthetic", text: "Complete saved result body", time: { created: STORY_TIME + 1 }, metadata: { source: "share", sourceSessionID: "ses_mp03_content_source", actorSessionID: "ses_mp03_notice_actor", contentSourceSessionID: "ses_mp03_content_source", scope: "result" } },
+      { id: "msg_mp03_public_notice", type: "synthetic", text: "Public communication carrier", time: { created: STORY_TIME + 2 }, metadata: { source: "share", communication: { id: "com_mp03_public_notice" } } },
+      { id: "msg_mp03_result_notice", type: "synthetic", text: "Actor result carrier", time: { created: STORY_TIME + 3 }, metadata: { communication: { id: "com_mp03_result_notice" } } },
+      { id: "msg_mp03_references", type: "user", text, time: { created: STORY_TIME + 4 }, agents: [{ name: "build", mention: { text: "@build", start: 4, end: 10 } }], files: [{ name: "a.ts", mime: "text/plain", data: "", source: { type: "uri", uri: "src/a.ts" }, mention: { text: "@src/a.ts", start: 16, end: 25 } }] },
+    ],
+  }
+
+  return (
+    <CurrentSessionProviders document={document}>
+      <DataProvider directory="C:/workspaces/aigcfroge" sessionID={document.sessionID}
+        data={{ session: [
+          { id: "ses_mp03_notice_actor", title: "Actual actor", time: { created: STORY_TIME, updated: STORY_TIME } },
+          { id: "ses_mp03_notice_target", title: "Notice target", time: { created: STORY_TIME, updated: STORY_TIME } },
+          { id: "ses_mp03_content_source", title: "Saved content source", time: { created: STORY_TIME, updated: STORY_TIME } },
+        ], session_status: {}, session_diff: {} }}
+        onOpenTask={(reference) => setState("task", JSON.stringify(reference))}
+        onCommunication={(reference) => state.communicationsLoaded && reference.sessionID === document.sessionID
+          ? communications.find((record) => record.id === reference.communicationID) : undefined}
+        onOpenCommunication={(reference) => setState("communication", JSON.stringify(reference))}
+        onNavigateToSession={(sessionID) => setState("navigation", sessionID)}
+        onOpenSessionReference={(reference) => setState("reference", JSON.stringify(reference))}
+        onSessionReferenceState={(reference) => ({ title: reference.serverID === "server-a" ? "Newest title A" : "Newest title B", status: reference.serverID === "server-b" ? state.remote : "available" })}
+      >
+        <section class="mx-auto flex w-full max-w-3xl flex-col gap-4 p-6">
+          <div class="flex flex-wrap gap-2"><Button size="small" onClick={() => setState("remote", "missing")}>Mark remote reference deleted</Button><Button size="small" onClick={() => setState("remote", "disconnected")}>Disconnect remote reference</Button><Button size="small" onClick={() => setState("communicationsLoaded", true)}>Load retained communications</Button></div>
+          <SessionTimeline document={document} presentation={{ msg_mp03_references: { displayText: text, sessionReferences: references } }} />
+          <output aria-label="Opened Task operation">{state.task}</output><output aria-label="Opened communication">{state.communication}</output><output aria-label="Opened Session reference">{state.reference}</output><output aria-label="Opened Session">{state.navigation}</output>
+        </section>
+      </DataProvider>
+    </CurrentSessionProviders>
+  )
+}
+
 export const Conversation = {
   args: { scenario: "notices", mode: "compact", reasoning: "heading", tool: false, text: "" },
   argTypes: {
@@ -609,10 +830,16 @@ export const Conversation = {
     reasoning: { control: "select", options: ["none", "blank", "heading"] },
     mode: { control: "select", options: ["hidden", "compact", "full"] },
   },
-  render: (args: { scenario: string; mode: ReasoningMode; reasoning: string; tool: boolean; text: string }) => {
+  render: (args: {
+    scenario: keyof typeof conversationScenarios
+    mode: ReasoningMode
+    reasoning: string
+    tool: boolean
+    text: string
+  }) => {
     if (args.scenario === "reasoning") return <AgentReasoningStory {...args} />
 
-    return conversationScenarios[args.scenario as Exclude<keyof typeof conversationScenarios, "reasoning">].render()
+    return conversationScenarios[args.scenario].render()
   },
 }
 

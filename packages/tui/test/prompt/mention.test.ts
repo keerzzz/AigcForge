@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import type { PromptInput } from "@opencode/schema"
+import type { PromptInput } from "@aigcfroge/schema"
 import {
   expandPromptInputPastedText,
   realignPromptInputMentions,

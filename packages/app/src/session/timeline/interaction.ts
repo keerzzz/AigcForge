@@ -1,4 +1,4 @@
-import type { SessionMessageUser } from "@opencode/client/promise"
+import type { SessionMessageUser } from "@aigcfroge/client/promise"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 import { useLocation } from "@solidjs/router"
 import { createEffect, on, onCleanup } from "solid-js"
@@ -7,9 +7,11 @@ import { useLayout } from "@/shell/state/layout"
 import type { SessionModel } from "../model"
 import { useSessionHashScroll } from "../use-session-hash-scroll"
 import { createTimelineModel } from "./model"
+import { useSessionContent } from "../content-context"
 
 export function createSessionTimelineInteraction(session: SessionModel) {
   const layout = useLayout()
+  const content = useSessionContent()
   const location = useLocation<{ reveal?: string }>()
   const timeline = createTimelineModel({ session })
 
@@ -289,7 +291,15 @@ export function createSessionTimelineInteraction(session: SessionModel) {
     on(
       () => session.identity.params.id,
       (id, previous) => {
-        if (!id || !previous || id === previous || state.messageID || state.pendingMessage || location.hash) return
+        if (
+          !id ||
+          !previous ||
+          id === previous ||
+          state.messageID ||
+          state.pendingMessage ||
+          (!content && location.hash)
+        )
+          return
         pin()
         scrollToEnd()
       },
@@ -391,7 +401,7 @@ export function createSessionTimelineInteraction(session: SessionModel) {
       },
       // The tool call the route opened the session on, revealed once per history entry.
       reveal: {
-        target: () => (revealed === location.key ? undefined : location.state?.reveal),
+        target: () => (content || revealed === location.key ? undefined : location.state?.reveal),
         done: () => {
           revealed = location.key
         },

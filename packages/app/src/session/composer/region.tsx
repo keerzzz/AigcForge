@@ -1,10 +1,10 @@
-import type { SessionUserActions } from "@opencode/session-ui/message"
-import { getFilename, sameDirectory } from "@opencode/util/path"
-import { useDialog } from "@opencode/ui/context/dialog"
-import { isScrollKeyTarget, scrollKey, scrollKeyOwner } from "@opencode/ui/scroll-view"
+import type { SessionUserActions } from "@aigcfroge/session-ui/message"
+import { getFilename, sameDirectory } from "@aigcfroge/util/path"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { isScrollKeyTarget, scrollKey, scrollKeyOwner } from "@aigcfroge/ui/scroll-view"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { useNavigate } from "@solidjs/router"
-import { createEffect, createMemo, on, onMount, Show, type Accessor } from "solid-js"
+import { createEffect, createMemo, on, onMount, Show, type Accessor, type JSX } from "solid-js"
 import { Composer } from "@/composer/composer"
 import { useComposerState } from "@/composer/persistence"
 import { createComposerControls } from "@/composer/selection"
@@ -29,17 +29,21 @@ import { createSessionRevert } from "../revert"
 import { SessionComposerRegion } from "./session-composer-region"
 import { createSessionComposerController, type SessionComposerController } from "./controller"
 import { SessionQueuePanel } from "./queue-panel"
+import { SessionTodoDock } from "./session-todo-dock"
+import { SessionGoalDock } from "./session-goal-dock"
 import { resolveSessionComposerSelection } from "./selection"
 import { createSessionRequestModel } from "../requests/model"
 import type { Region } from "@/runtime/extension/panels"
 import { SessionLocationMissing } from "./location-missing"
+import { useSessionContent } from "../content-context"
 
 export function createActiveSessionRegion(input: {
   session: SessionModel
-  screen: SessionScreenLayout
+  screen: Pick<SessionScreenLayout, "centered">
   timeline: SessionTimelineInteraction
-  region: Region
+  region?: Region
   visible: Accessor<boolean>
+  boundary: Accessor<HTMLElement | undefined>
 }) {
   const command = useCommand()
   const data = useData()
@@ -51,6 +55,7 @@ export function createActiveSessionRegion(input: {
   const navigate = useNavigate()
   const platform = usePlatform()
   const prompt = useComposerState()
+  const content = useSessionContent()
   const state = createSessionRequestModel()
   const controls = createComposerControls()
   let promptRef: HTMLDivElement | undefined
@@ -108,13 +113,16 @@ export function createActiveSessionRegion(input: {
   }
 
   const focus = () => {
-    if (!input.session.data.isChild()) promptRef?.focus()
+    if (!input.session.data.isChild() && content?.interaction !== "readonly" && input.visible()) promptRef?.focus()
   }
 
   const openParent = () => {
     const id = input.session.data.parentID()
 
-    if (id) navigate(sessionHref(requireServerKey(input.session.identity.params.serverKey), id))
+    if (!id) return
+
+    if (content) return content.openSession(id)
+    navigate(sessionHref(requireServerKey(input.session.identity.params.serverKey), id))
   }
 
   const editable = (target: EventTarget | null | undefined) => {
@@ -134,7 +142,10 @@ export function createActiveSessionRegion(input: {
   }
 
   const handleKeyDown = (event: KeyboardEvent) => {
+    if (!input.visible()) return
+
     if (event.defaultPrevented) return
+
     const path = event.composedPath()
     const target = path.find((item): item is HTMLElement => item instanceof HTMLElement)
     const active = activeElement()
@@ -181,7 +192,7 @@ export function createActiveSessionRegion(input: {
     setCursorPosition(promptRef, prompt.cursor() ?? promptLength(prompt.current()))
   }
 
-  onMount(() => makeEventListener(document, "keydown", handleKeyDown))
+  if (!content) onMount(() => makeEventListener(document, "keydown", handleKeyDown))
 
   const revert = createSessionRevert({
     session: input.session,
@@ -208,35 +219,56 @@ export function createActiveSessionRegion(input: {
       server.api.session.inbox.cancel({ sessionID, inboxID: messageID }).then(() => undefined, notifyFailed),
   }
 
-  useComposerCommands()
-  useSessionCommands({
-    session: input.session,
-    region: input.region,
-    background: {
-      blocking: () => state.background.blocking().length > 0,
-      move: state.background.move,
-    },
-    navigateMessageByOffset: input.timeline.actions.navigateMessage,
-    revert,
-    focusInput: focus,
-    model: () => {
-      const selection = controls().model.selection
-      const model = selection.current()
+  const composerCommands = useComposerCommands({ register: !content, editor: () => promptRef })
 
-      return model ? { id: model.id, providerID: model.provider.id, variant: selection.variant.current() } : undefined
-    },
-  })
-  command.register("session-palette", () => [
+  const sessionCommands = useSessionCommands(
     {
-      id: "command.palette",
-      title: language.t("command.palette"),
-      hidden: true,
-      onSelect: () => command.trigger("file.open", "palette"),
+      session: input.session,
+      region: input.region,
+      background: {
+        blocking: () => state.background.blocking().length > 0,
+        move: state.background.move,
+      },
+      navigateMessageByOffset: input.timeline.actions.navigateMessage,
+      revert,
+      focusInput: focus,
+      model: () => {
+        const selection = controls().model.selection
+        const model = selection.current()
+
+        return model ? { id: model.id, providerID: model.provider.id, variant: selection.variant.current() } : undefined
+      },
     },
-  ])
+    { register: !content },
+  )
+
+  if (!content && input.region) {
+    command.register("session-palette", () => [
+      {
+        id: "command.palette",
+        title: language.t("command.palette"),
+        hidden: true,
+        onSelect: () => command.trigger("file.open", "palette"),
+      },
+    ])
+  }
 
   const dock = {
     state,
+    commands: content ? () => [...composerCommands(), ...sessionCommands()] : undefined,
+    readonly: () => content?.interaction === "readonly",
+    acceptsDrop: (event: DragEvent) => {
+      if (!input.visible() || input.session.data.isChild() || content?.interaction === "readonly" || state.blocked())
+        return false
+      const target = event.target instanceof Element ? event.target : undefined
+      // A content panel includes its heading. Other panels keep the main composer's existing drop behavior.
+
+      const boundary =
+        target?.closest('[role="tabpanel"]')?.querySelector("[data-session-content]") ??
+        target?.closest("[data-session-content]")
+
+      return boundary ? boundary === input.boundary() : !content
+    },
     parentID: input.session.data.parentID,
     centered: input.screen.centered,
     onResponseSubmit: input.timeline.actions.resume,
@@ -248,27 +280,27 @@ export function createActiveSessionRegion(input: {
   }
 
   const active = createMemo(
-    on(
-      () => (input.visible() ? input.session.identity.sessionID() : undefined),
-      (sessionID) => (sessionID ? createSessionComposerController({ sessionID, controls, dock }) : undefined),
+    on(input.session.identity.sessionID, (sessionID) =>
+      sessionID ? createSessionComposerController({ sessionID, controls, dock }) : undefined,
     ),
   )
 
   return {
     active,
+    commands: sessionCommands,
     drop: {
-      active: () => active()?.drop.active() ?? false,
+      active: () => input.visible() && (active()?.drop.active() ?? false),
       input: () => active()?.drop.input(),
     },
     actions: {
       timeline: {
         get revert() {
-          if (input.session.data.isChild()) return
+          if (input.session.data.isChild() || content?.interaction === "readonly") return
 
           return revertMessage
         },
         get pending() {
-          if (input.session.data.isChild()) return
+          if (input.session.data.isChild() || content?.interaction === "readonly") return
 
           return pendingSteer
         },
@@ -285,6 +317,9 @@ export function ActiveSessionComposerRegion(props: {
   session: SessionModel
   model: SessionComposerController
   suggestionBoundary: () => HTMLElement | undefined
+  onOpenTaskSource?: Parameters<typeof SessionTodoDock>[0]["onOpenSource"]
+  onOpenTask?: (taskID: string) => void
+  tools?: JSX.Element
 }) {
   const location = useWorkspaceLocation()
 
@@ -301,6 +336,27 @@ export function ActiveSessionComposerRegion(props: {
   return (
     <SessionComposerRegion
       controller={props.model.region}
+      tasks={
+        <Show when={props.session.identity.sessionID()} keyed>
+          {(sessionID) => (
+            <SessionTodoDock
+              sessionID={sessionID}
+              onOpenSource={props.onOpenTaskSource}
+              onOpenTask={props.onOpenTask}
+            />
+          )}
+        </Show>
+      }
+      goal={
+        <Show when={props.session.identity.sessionID()} keyed>
+          {(sessionID) => (
+            <SessionGoalDock
+              sessionID={sessionID}
+              readonly={props.model.region.child() || props.model.region.readonly?.()}
+            />
+          )}
+        </Show>
+      }
       composer={
         <Show
           when={missing()}
@@ -314,6 +370,7 @@ export function ActiveSessionComposerRegion(props: {
                   borderUnderlay
                   readOnly={props.model.queue.undoing()}
                   suggestionBoundary={props.suggestionBoundary}
+                  tools={props.tools}
                 />
               </div>
             </div>

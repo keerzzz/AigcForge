@@ -3,7 +3,7 @@ import os from "node:os"
 import path from "node:path"
 
 export async function tmpdir() {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "opencode-cli-test-"))
+  const directory = await mkdtemp(path.join(os.tmpdir(), "aigcfroge-cli-test-"))
   return {
     path: directory,
     async [Symbol.asyncDispose]() {

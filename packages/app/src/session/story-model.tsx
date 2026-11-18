@@ -7,14 +7,14 @@ import {
   type SessionComposerRegionViewController,
 } from "@/session/composer/session-composer-region"
 import { SessionPanelFrame, SessionRouteFrame } from "@/session/session-frame"
-import type { FormInfo, PermissionRequest, SessionStatus } from "@opencode/client/promise"
-import type { SessionDocument } from "@opencode/session-ui/document"
-import { CurrentSessionProviders, STORY_MODEL } from "@opencode/session-ui/storybook"
-import { SessionTimeline } from "@opencode/session-ui/timeline"
+import type { FormInfo, PermissionRequest, SessionStatus } from "@aigcfroge/client/promise"
+import type { SessionDocument } from "@aigcfroge/session-ui/document"
+import { CurrentSessionProviders, STORY_MODEL } from "@aigcfroge/session-ui/storybook"
+import { SessionTimeline } from "@aigcfroge/session-ui/timeline"
 import { createComposerEditor } from "@/composer/editor/interaction"
 import type { ComposerPersistedState } from "@/composer/types"
-import { Button } from "@opencode/ui/button"
-import { Icon } from "@opencode/ui/icon"
+import { Button } from "@aigcfroge/ui/button"
+import { Icon } from "@aigcfroge/ui/icon"
 import { QueryClient, QueryClientProvider } from "@tanstack/solid-query"
 import { Show } from "solid-js"
 import { createStore } from "solid-js/store"
@@ -59,6 +59,8 @@ const storyComposerModel = {
 const modelSelection = {
   ready: modelReady,
   current: () => storyComposerModel,
+  key: () => ({ providerID: storyComposerModel.provider.id, modelID: storyComposerModel.id }),
+  groups: () => [],
   recent: () => [storyComposerModel],
   list: () => [storyComposerModel],
   cycle() {},
@@ -348,6 +350,11 @@ function SessionSurfaceHeader(props: {
       <div class="flex shrink-0 items-center gap-2">
         <SessionHeaderActions
           state={{
+            projectLabel: language.t("home.projects"),
+            projectKeybind: [],
+            projectVisible: false,
+            projectOpened: false,
+            onProjectToggle: () => {},
             reviewLabel: language.t("command.review.toggle"),
             reviewKeybind: [],
             reviewVisible: props.reviewVisible,

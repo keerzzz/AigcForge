@@ -1,12 +1,12 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@opencode/schema",
+  "name": "@aigcfroge/schema",
   "version": "2.0.26",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/anomalyco/opencode.git",
+    "url": "git+https://github.com/anomalyco/aigcfroge.git",
     "directory": "packages/schema"
   },
   "publishConfig": {
@@ -21,6 +21,7 @@
   },
   "scripts": {
     "build": "bun run script/build.ts",
+    "test": "bun test",
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {

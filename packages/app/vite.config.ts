@@ -35,7 +35,7 @@ export default defineConfig({
     port: 3000,
   },
   build: {
-    ...(process.env.VITE_OPENCODE_TEST_FIXTURES === "1"
+    ...(process.env.VITE_AIGCFROGE_TEST_FIXTURES === "1"
       ? {
           rolldownOptions: {
             input: [

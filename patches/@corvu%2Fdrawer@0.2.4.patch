@@ -1,0 +1,58 @@
+diff --git a/dist/index.js b/dist/index.js
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -477,6 +477,7 @@
+       if (_open) {
+         setTransitionAwareOpen(true);
+         afterPaint(() => {
++          if (!open()) return;
+           batch(() => {
+             setTransitionState("opening");
+             setActiveSnapPoint(localProps.defaultSnapPoint);
+@@ -492,8 +493,15 @@
+           setActiveSnapPoint(0);
+         });
+         afterPaint(() => {
++          if (open()) return;
+           const transitionDuration = parseFloat(drawerStyles().transitionDuration);
+-          if (transitionDuration === 0) {
++          // Closing before the opening paint may produce no transform transitionend.
++          const transitioning = dialogContext()?.contentRef()?.getAnimations().some(
++            (animation) => animation instanceof CSSTransition &&
++              animation.transitionProperty === "transform" &&
++              (animation.playState === "running" || animation.pending)
++          );
++          if (transitionDuration === 0 || !transitioning) {
+             closeDrawer();
+           }
+         });
+diff --git a/dist/index.jsx b/dist/index.jsx
+--- a/dist/index.jsx
++++ b/dist/index.jsx
+@@ -567,6 +567,7 @@
+       if (_open) {
+         setTransitionAwareOpen(true);
+         afterPaint(() => {
++          if (!open()) return;
+           batch2(() => {
+             setTransitionState("opening");
+             setActiveSnapPoint(localProps.defaultSnapPoint);
+@@ -584,10 +585,15 @@
+           setActiveSnapPoint(0);
+         });
+         afterPaint(() => {
+-          const transitionDuration = parseFloat(
+-            drawerStyles().transitionDuration
++          if (open()) return;
++          const transitionDuration = parseFloat(drawerStyles().transitionDuration);
++          // Closing before the opening paint may produce no transform transitionend.
++          const transitioning = dialogContext()?.contentRef()?.getAnimations().some(
++            (animation) => animation instanceof CSSTransition &&
++              animation.transitionProperty === "transform" &&
++              (animation.playState === "running" || animation.pending)
+           );
+-          if (transitionDuration === 0) {
++          if (transitionDuration === 0 || !transitioning) {
+             closeDrawer();
+           }
+         });

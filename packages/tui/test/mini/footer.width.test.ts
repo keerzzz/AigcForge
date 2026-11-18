@@ -8,7 +8,7 @@ const screenshot = {
   agent: "Build",
   context: { compact: "1% ctx", full: "14.1K (1%)" },
   cost: "$0.04",
-  provider: "Anomaly / OpenCode",
+  provider: "Anomaly / AigcForge",
   menu: { key: "ctrl+p", label: "menu" },
 } satisfies Omit<Parameters<typeof footerStatuslinePolicy>[0], "width">
 
@@ -80,7 +80,7 @@ describe("run footer width", () => {
     ])
     const full = footerStatuslinePolicy({ ...screenshot, width: 112 })
     expect(full.text).toBe(
-      "Build \u00b7 GPT-5.6 Sol (50% Off) [max] \u00b7 14.1K (1%) \u00b7 Anomaly / OpenCode \u00b7 $0.04 \u00b7 ctrl+p menu",
+      "Build \u00b7 GPT-5.6 Sol (50% Off) [max] \u00b7 14.1K (1%) \u00b7 Anomaly / AigcForge \u00b7 $0.04 \u00b7 ctrl+p menu",
     )
   })
 

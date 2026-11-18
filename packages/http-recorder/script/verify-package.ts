@@ -24,7 +24,7 @@ export const verifyPackage = async (archive: string) => {
     )
     await writeFile(
       path.join(directory, "consumer.ts"),
-      `import { HttpRecorder } from "@opencode/http-recorder"
+      `import { HttpRecorder } from "@aigcfroge/http-recorder"
 import { NodeSocket } from "@effect/platform-node"
 import { Layer } from "effect"
 import { HttpClient } from "effect/http"
@@ -48,9 +48,9 @@ HttpRecorder.layerSocket("consumer/socket", { match: () => true })
     )
     await writeFile(
       path.join(directory, "exports.mjs"),
-      `import { HttpRecorder } from "@opencode/http-recorder"
+      `import { HttpRecorder } from "@aigcfroge/http-recorder"
 
-const root = Object.keys(await import("@opencode/http-recorder")).sort()
+const root = Object.keys(await import("@aigcfroge/http-recorder")).sort()
 if (JSON.stringify(root) !== JSON.stringify(["HttpRecorder"])) {
   throw new Error(\`Unexpected root exports: \${root}\`)
 }
@@ -63,7 +63,7 @@ if (JSON.stringify(namespace) !== JSON.stringify(["hasCassetteSync", "layer", "l
     )
     await writeFile(
       path.join(directory, "deep-import.mjs"),
-      `import "@opencode/http-recorder/internal"
+      `import "@aigcfroge/http-recorder/internal"
 `,
     )
     await writeFile(

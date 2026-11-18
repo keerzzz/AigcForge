@@ -1,19 +1,478 @@
 import { expect, test } from "bun:test"
-import { Context, DateTime, Effect, Stream } from "effect"
+import { CommandAsset } from "@aigcfroge/schema/command-asset"
+import { PromptAsset } from "@aigcfroge/schema/prompt-asset"
+import { Context, DateTime, Effect, Layer, Schema, Stream } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
+import { testEffect } from "../../core/test/lib/effect"
 import {
   AbsolutePath,
   Agent,
+  AssetPlacement,
   Event,
   Location,
   Model,
-  OpenCode,
+  AigcForge,
   Prompt,
   Session,
   SessionMessage,
+  SkillAsset,
 } from "../src/effect/index"
 
 const synced = { type: "log.synced" as const, aggregateID: "ses_test", seq: Event.Seq.make(1) }
+const commandTests = testEffect(Layer.empty)
+const promptTests = testEffect(Layer.empty)
+
+commandTests.effect("Command asset methods decode canonical selected owners and preserve Session routing", () =>
+  Effect.gen(function* () {
+    const requests: Array<{ method: string; url: string; query: Record<string, string>; body?: unknown }> = []
+    const route = { directory: "/repo/packages/app", workspace: "wrk_command" }
+    const target = AssetPlacement.Target.make({
+      scope: "project",
+      root: AbsolutePath.make("/repo/.aigcfroge/commands"),
+    })
+    const candidate = CommandAsset.Candidate.make({
+      name: "review-command",
+      description: "Review the selected owner.",
+      invocation: "/review-command",
+      args: "",
+      source: "Review $ARGUMENTS.\r\nKeep this exact source.\r\n",
+      relativePath: "review-command.md",
+    })
+    const summary = {
+      kind: "command",
+      name: candidate.name,
+      description: candidate.description,
+      relativePath: candidate.relativePath,
+      revision: "b".repeat(64),
+    }
+    const info = { ...summary, ...candidate, target }
+    const inspection = {
+      relativePath: candidate.relativePath,
+      exists: true,
+      revision: summary.revision,
+      nameConflict: false,
+      pathConflict: false,
+      target,
+    }
+    const responses = [
+      Response.json(inspection),
+      Response.json({ assets: [summary], invalid: [], target }),
+      Response.json(info),
+      Response.json(info),
+      new Response(null, { status: 200 }),
+    ]
+    const httpClient = HttpClient.make((request) => {
+      requests.push({
+        method: request.method,
+        url: request.url,
+        query: Object.fromEntries(request.urlParams.params),
+        body:
+          request.body._tag === "Uint8Array"
+            ? Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(new TextDecoder().decode(request.body.body))
+            : undefined,
+      })
+      const response = responses.shift()
+      if (!response) return Effect.die(new Error("Unexpected Command asset request"))
+      return Effect.succeed(HttpClientResponse.fromWeb(request, response))
+    })
+    const result = yield* Effect.gen(function* () {
+      const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
+      const inspected = yield* client["command-asset"].inspect({
+        ...route,
+        sessionID: Session.ID.make("ses_command"),
+        candidate,
+        scope: target.scope,
+      })
+      const listed = yield* client["command-asset"].list({ ...route, scope: target.scope, search: "REVIEW" })
+      const content = yield* client["command-asset"].content({
+        ...route,
+        scope: target.scope,
+        path: candidate.relativePath,
+      })
+      const applied = yield* client["command-asset"].apply({
+        ...route,
+        sessionID: Session.ID.make("ses_command"),
+        candidate,
+        target: inspected.target,
+        baseRevision: inspected.revision ?? undefined,
+        overwrite: true,
+      })
+      const deleted = yield* client["command-asset"].delete({
+        ...route,
+        sessionID: Session.ID.make("ses_command"),
+        relativePath: candidate.relativePath,
+        target,
+        baseRevision: summary.revision,
+      })
+      return { inspected, listed, content, applied, deleted }
+    }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient))
+
+    expect(result.inspected).toBeInstanceOf(CommandAsset.Inspection)
+    expect(result.inspected.target).toBeInstanceOf(AssetPlacement.Target)
+    expect(result.inspected).toEqual(inspection)
+    expect(result.listed.target).toBeInstanceOf(AssetPlacement.Target)
+    expect(result.listed.assets).toEqual([summary])
+    expect(result.content).toBeInstanceOf(CommandAsset.Info)
+    expect(result.content.target).toBeInstanceOf(AssetPlacement.Target)
+    expect(result.content).toEqual(info)
+    expect(result.applied).toBeInstanceOf(CommandAsset.Info)
+    expect(result.applied).toEqual(result.content)
+    expect(result.deleted).toBeUndefined()
+    expect(responses).toHaveLength(0)
+    expect(requests).toEqual([
+      {
+        method: "POST",
+        url: "http://localhost:3000/session/ses_command/command-asset/inspect",
+        query: route,
+        body: { candidate, scope: target.scope },
+      },
+      {
+        method: "GET",
+        url: "http://localhost:3000/command-asset",
+        query: { ...route, scope: target.scope, search: "REVIEW" },
+        body: undefined,
+      },
+      {
+        method: "GET",
+        url: "http://localhost:3000/command-asset/content",
+        query: { ...route, scope: target.scope, path: candidate.relativePath },
+        body: undefined,
+      },
+      {
+        method: "POST",
+        url: "http://localhost:3000/session/ses_command/command-asset/apply",
+        query: route,
+        body: { candidate, target, baseRevision: summary.revision, overwrite: true },
+      },
+      {
+        method: "POST",
+        url: "http://localhost:3000/session/ses_command/command-asset/delete",
+        query: route,
+        body: { relativePath: candidate.relativePath, target, baseRevision: summary.revision },
+      },
+    ])
+  }),
+)
+
+commandTests.effect("Command asset legacy Effect calls preserve omitted targets, revisions and args", () =>
+  Effect.gen(function* () {
+    const requests: Array<{ method: string; url: string; query: Record<string, string>; body?: unknown }> = []
+    const route = { directory: "/repo/packages/app", workspace: "wrk_command" }
+    const candidate = CommandAsset.Candidate.make({
+      name: "review-command",
+      description: "Review the original Location.",
+      invocation: "/review-command",
+      source: "Review $ARGUMENTS.\n",
+      relativePath: "review-command.md",
+    })
+    const summary = {
+      kind: "command",
+      name: candidate.name,
+      description: candidate.description,
+      relativePath: candidate.relativePath,
+      revision: "b".repeat(64),
+    }
+    const info = { ...summary, ...candidate }
+    const responses = [
+      Response.json({ assets: [summary], invalid: [] }),
+      Response.json(info),
+      Response.json(info),
+      new Response(null, { status: 200 }),
+    ]
+    const httpClient = HttpClient.make((request) => {
+      requests.push({
+        method: request.method,
+        url: request.url,
+        query: Object.fromEntries(request.urlParams.params),
+        body:
+          request.body._tag === "Uint8Array"
+            ? Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(new TextDecoder().decode(request.body.body))
+            : undefined,
+      })
+      const response = responses.shift()
+      if (!response) return Effect.die(new Error("Unexpected legacy Command asset request"))
+      return Effect.succeed(HttpClientResponse.fromWeb(request, response))
+    })
+    const result = yield* Effect.gen(function* () {
+      const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
+      const listed = yield* client["command-asset"].list(route)
+      const content = yield* client["command-asset"].content({ ...route, path: candidate.relativePath })
+      const applied = yield* client["command-asset"].apply({
+        ...route,
+        sessionID: Session.ID.make("ses_command"),
+        candidate,
+        overwrite: false,
+        target: undefined,
+        baseRevision: undefined,
+      })
+      const deleted = yield* client["command-asset"].delete({
+        ...route,
+        sessionID: Session.ID.make("ses_command"),
+        relativePath: candidate.relativePath,
+        target: undefined,
+        baseRevision: undefined,
+      })
+      return { listed, content, applied, deleted }
+    }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient))
+
+    expect(result.listed).toEqual({ assets: [summary], invalid: [] })
+    expect(result.listed).not.toHaveProperty("target")
+    expect(result.content).toBeInstanceOf(CommandAsset.Info)
+    expect(result.content).toEqual(info)
+    expect(result.content).not.toHaveProperty("target")
+    expect(result.applied).toBeInstanceOf(CommandAsset.Info)
+    expect(result.applied).toEqual(info)
+    expect(result.applied).not.toHaveProperty("target")
+    expect(result.applied).not.toHaveProperty("args")
+    expect(result.deleted).toBeUndefined()
+    expect(responses).toHaveLength(0)
+    expect(requests).toEqual([
+      { method: "GET", url: "http://localhost:3000/command-asset", query: route, body: undefined },
+      {
+        method: "GET",
+        url: "http://localhost:3000/command-asset/content",
+        query: { ...route, path: candidate.relativePath },
+        body: undefined,
+      },
+      {
+        method: "POST",
+        url: "http://localhost:3000/session/ses_command/command-asset/apply",
+        query: route,
+        body: { candidate, overwrite: false },
+      },
+      {
+        method: "POST",
+        url: "http://localhost:3000/session/ses_command/command-asset/delete",
+        query: route,
+        body: { relativePath: candidate.relativePath },
+      },
+    ])
+  }),
+)
+
+promptTests.effect("Prompt asset methods decode canonical selected owners and preserve Session routing", () =>
+  Effect.gen(function* () {
+    const requests: Array<{ method: string; url: string; query: Record<string, string>; body?: unknown }> = []
+    const route = { directory: "/repo/packages/app", workspace: "wrk_prompt" }
+    const target = AssetPlacement.Target.make({
+      scope: "project",
+      root: AbsolutePath.make("/repo/.aigcfroge/prompts"),
+    })
+    const candidate = PromptAsset.Candidate.make({
+      name: "review-prompt",
+      description: "Review the selected owner.",
+      template: "\uFEFF \tReview {{CODE}}, $ARGUMENTS, $HOME and 中文.\r\n\r\nKeep trailing space. \t\r\n",
+      relativePath: "review-prompt.md",
+    })
+    const summary = {
+      kind: "prompt",
+      name: candidate.name,
+      description: candidate.description,
+      relativePath: candidate.relativePath,
+      revision: "b".repeat(64),
+    }
+    const info = { ...summary, ...candidate, target }
+    const inspection = {
+      relativePath: candidate.relativePath,
+      exists: true,
+      revision: summary.revision,
+      nameConflict: false,
+      pathConflict: false,
+      target,
+    }
+    const responses = [
+      Response.json(inspection),
+      Response.json({ assets: [summary], invalid: [], target }),
+      Response.json(info),
+      Response.json(info),
+      new Response(null, { status: 200 }),
+    ]
+    const httpClient = HttpClient.make((request) => {
+      requests.push({
+        method: request.method,
+        url: request.url,
+        query: Object.fromEntries(request.urlParams.params),
+        body:
+          request.body._tag === "Uint8Array"
+            ? Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(new TextDecoder().decode(request.body.body))
+            : undefined,
+      })
+      const response = responses.shift()
+      if (!response) return Effect.die(new Error("Unexpected Prompt asset request"))
+      return Effect.succeed(HttpClientResponse.fromWeb(request, response))
+    })
+    const result = yield* Effect.gen(function* () {
+      const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
+      const inspected = yield* client["prompt-asset"].inspect({
+        ...route,
+        sessionID: Session.ID.make("ses_prompt"),
+        candidate,
+        scope: target.scope,
+      })
+      const listed = yield* client["prompt-asset"].list({ ...route, scope: target.scope, search: "REVIEW" })
+      const content = yield* client["prompt-asset"].content({
+        ...route,
+        scope: target.scope,
+        path: candidate.relativePath,
+      })
+      const applied = yield* client["prompt-asset"].apply({
+        ...route,
+        sessionID: Session.ID.make("ses_prompt"),
+        candidate,
+        target: inspected.target,
+        baseRevision: inspected.revision ?? undefined,
+        overwrite: true,
+      })
+      const deleted = yield* client["prompt-asset"].delete({
+        ...route,
+        sessionID: Session.ID.make("ses_prompt"),
+        relativePath: candidate.relativePath,
+        target,
+        baseRevision: summary.revision,
+      })
+      return { inspected, listed, content, applied, deleted }
+    }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient))
+
+    expect(result.inspected).toBeInstanceOf(PromptAsset.Inspection)
+    expect(result.inspected.target).toBeInstanceOf(AssetPlacement.Target)
+    expect(result.inspected).toEqual(inspection)
+    expect(result.listed.target).toBeInstanceOf(AssetPlacement.Target)
+    expect(result.listed.assets).toEqual([summary])
+    expect(result.content).toBeInstanceOf(PromptAsset.Info)
+    expect(result.content.target).toBeInstanceOf(AssetPlacement.Target)
+    expect(result.content).toEqual(info)
+    expect(result.applied).toBeInstanceOf(PromptAsset.Info)
+    expect(result.applied).toEqual(result.content)
+    expect(result.deleted).toBeUndefined()
+    expect(responses).toHaveLength(0)
+    expect(requests).toEqual([
+      {
+        method: "POST",
+        url: "http://localhost:3000/session/ses_prompt/prompt-asset/inspect",
+        query: route,
+        body: { candidate, scope: target.scope },
+      },
+      {
+        method: "GET",
+        url: "http://localhost:3000/prompt-asset",
+        query: { ...route, scope: target.scope, search: "REVIEW" },
+        body: undefined,
+      },
+      {
+        method: "GET",
+        url: "http://localhost:3000/prompt-asset/content",
+        query: { ...route, scope: target.scope, path: candidate.relativePath },
+        body: undefined,
+      },
+      {
+        method: "POST",
+        url: "http://localhost:3000/session/ses_prompt/prompt-asset/apply",
+        query: route,
+        body: { candidate, target, baseRevision: summary.revision, overwrite: true },
+      },
+      {
+        method: "POST",
+        url: "http://localhost:3000/session/ses_prompt/prompt-asset/delete",
+        query: route,
+        body: { relativePath: candidate.relativePath, target, baseRevision: summary.revision },
+      },
+    ])
+  }),
+)
+
+promptTests.effect("Prompt asset legacy Effect calls preserve omitted targets and legacy null revisions", () =>
+  Effect.gen(function* () {
+    const requests: Array<{ method: string; url: string; query: Record<string, string>; body?: unknown }> = []
+    const route = { directory: "/repo/packages/app", workspace: "wrk_prompt" }
+    const candidate = PromptAsset.Candidate.make({
+      name: "review-prompt",
+      description: "Review the original Location.",
+      template: "\uFEFF \tReview {{CODE}}, $ARGUMENTS, $HOME and 中文.\r\n\r\nKeep trailing space. \t\r\n",
+      relativePath: "review-prompt.md",
+    })
+    const summary = {
+      kind: "prompt",
+      name: candidate.name,
+      description: candidate.description,
+      relativePath: candidate.relativePath,
+      revision: "b".repeat(64),
+    }
+    const info = { ...summary, ...candidate }
+    const responses = [
+      Response.json({ assets: [summary], invalid: [] }),
+      Response.json(info),
+      Response.json(info),
+      new Response(null, { status: 200 }),
+    ]
+    const httpClient = HttpClient.make((request) => {
+      requests.push({
+        method: request.method,
+        url: request.url,
+        query: Object.fromEntries(request.urlParams.params),
+        body:
+          request.body._tag === "Uint8Array"
+            ? Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(new TextDecoder().decode(request.body.body))
+            : undefined,
+      })
+      const response = responses.shift()
+      if (!response) return Effect.die(new Error("Unexpected legacy Prompt asset request"))
+      return Effect.succeed(HttpClientResponse.fromWeb(request, response))
+    })
+    const result = yield* Effect.gen(function* () {
+      const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
+      const listed = yield* client["prompt-asset"].list(route)
+      const content = yield* client["prompt-asset"].content({ ...route, path: candidate.relativePath })
+      const applied = yield* client["prompt-asset"].apply({
+        ...route,
+        sessionID: Session.ID.make("ses_prompt"),
+        candidate,
+        overwrite: false,
+        target: undefined,
+        baseRevision: undefined,
+      })
+      const deleted = yield* client["prompt-asset"].delete({
+        ...route,
+        sessionID: Session.ID.make("ses_prompt"),
+        relativePath: candidate.relativePath,
+        target: undefined,
+        baseRevision: undefined,
+      })
+      return { listed, content, applied, deleted }
+    }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient))
+
+    expect(result.listed).toEqual({ assets: [summary], invalid: [] })
+    expect(result.listed).not.toHaveProperty("target")
+    expect(result.content).toBeInstanceOf(PromptAsset.Info)
+    expect(result.content).toEqual(info)
+    expect(result.content).not.toHaveProperty("target")
+    expect(result.applied).toBeInstanceOf(PromptAsset.Info)
+    expect(result.applied).toEqual(info)
+    expect(result.applied).not.toHaveProperty("target")
+    expect(result.deleted).toBeUndefined()
+    expect(responses).toHaveLength(0)
+    expect(requests).toEqual([
+      { method: "GET", url: "http://localhost:3000/prompt-asset", query: route, body: undefined },
+      {
+        method: "GET",
+        url: "http://localhost:3000/prompt-asset/content",
+        query: { ...route, path: candidate.relativePath },
+        body: undefined,
+      },
+      {
+        method: "POST",
+        url: "http://localhost:3000/session/ses_prompt/prompt-asset/apply",
+        query: route,
+        body: { candidate, baseRevision: null, overwrite: false },
+      },
+      {
+        method: "POST",
+        url: "http://localhost:3000/session/ses_prompt/prompt-asset/delete",
+        query: route,
+        body: { relativePath: candidate.relativePath, baseRevision: null },
+      },
+    ])
+  }),
+)
 
 test("server.info decodes the readiness response", async () => {
   const httpClient = HttpClient.make((request) =>
@@ -24,13 +483,13 @@ test("server.info decodes the readiness response", async () => {
           version: "current",
           pid: 123,
           urls: ["http://localhost:3000"],
-          paths: { tmp: "/tmp/opencode" },
+          paths: { tmp: "/tmp/aigcfroge" },
         }),
       ),
     ),
   )
   const result = await Effect.gen(function* () {
-    const client = yield* OpenCode.make({ baseUrl: "http://localhost:3000" })
+    const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
     return yield* client.server.info()
   }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient), Effect.runPromise)
 
@@ -38,7 +497,7 @@ test("server.info decodes the readiness response", async () => {
     version: "current",
     pid: 123,
     urls: ["http://localhost:3000"],
-    paths: { tmp: "/tmp/opencode" },
+    paths: { tmp: "/tmp/aigcfroge" },
   })
 })
 
@@ -54,7 +513,7 @@ test("vcs.base decodes nullable review-base metadata", async () => {
       Effect.succeed(HttpClientResponse.fromWeb(request, Response.json({ location, data }))),
     )
     const result = await Effect.gen(function* () {
-      const client = yield* OpenCode.make({ baseUrl: "http://localhost:3000" })
+      const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
       return yield* client.vcs.base({ location: { directory: AbsolutePath.make("/repo") } })
     }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient), Effect.runPromise)
     expect(result.data).toEqual(data)
@@ -67,7 +526,7 @@ test("session.get returns the decoded Effect projection", async () => {
     Effect.succeed(HttpClientResponse.fromWeb(request, Response.json(session))),
   )
   const result = await Effect.gen(function* () {
-    const client = yield* OpenCode.make({ baseUrl: "http://localhost:3000" })
+    const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
     return yield* client.session.get({ sessionID: Session.ID.make("ses_test") })
   }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient), Effect.runPromise)
 
@@ -91,7 +550,7 @@ test("session instructions methods use the public HTTP contract", async () => {
     )
   })
   const result = await Effect.gen(function* () {
-    const client = yield* OpenCode.make({ baseUrl: "http://localhost:3000" })
+    const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
     const listed = yield* client.session.instructions.entry.list({ sessionID: Session.ID.make("ses_test") })
     yield* client.session.instructions.entry.put({
       sessionID: Session.ID.make("ses_test"),
@@ -125,6 +584,145 @@ test("session instructions methods use the public HTTP contract", async () => {
   ])
 })
 
+test("Skill asset methods decode selected targets and keep placement outside Session routing", async () => {
+  const requests: Array<{ method: string; url: string; query: Record<string, string>; body?: unknown }> = []
+  const route = { directory: "/repo/packages/app", workspace: "wrk_test" }
+  const target = AssetPlacement.Target.make({
+    scope: "project",
+    root: AbsolutePath.make("/repo/.aigcfroge/skills"),
+  })
+  const candidate = SkillAsset.Candidate.make({
+    name: "review",
+    description: "Review current changes.",
+    slash: false,
+    content: "Read the diff.\n\nPreserve the reviewed body.",
+    triggers: [],
+    tags: [],
+    relativePath: "review.md",
+  })
+  const summary = {
+    kind: "skill",
+    name: candidate.name,
+    description: candidate.description,
+    relativePath: candidate.relativePath,
+    revision: "a".repeat(64),
+  }
+  const info = { ...summary, ...candidate }
+  const inspection = {
+    relativePath: candidate.relativePath,
+    exists: true,
+    revision: summary.revision,
+    nameConflict: false,
+    pathConflict: false,
+    target,
+  }
+  const responses = [
+    Response.json(inspection),
+    Response.json({ assets: [summary], invalid: [], target }),
+    Response.json({ ...info, target }),
+    Response.json({ ...info, target }),
+    Response.json({ assets: [summary], invalid: [] }),
+    Response.json(info),
+  ]
+  const httpClient = HttpClient.make((request) => {
+    requests.push({
+      method: request.method,
+      url: request.url,
+      query: Object.fromEntries(request.urlParams.params),
+      body:
+        request.body._tag === "Uint8Array"
+          ? Schema.decodeUnknownSync(Schema.UnknownFromJsonString)(new TextDecoder().decode(request.body.body))
+          : undefined,
+    })
+    const response = responses.shift()
+    if (!response) return Effect.die(new Error("Unexpected Skill asset request"))
+    return Effect.succeed(HttpClientResponse.fromWeb(request, response))
+  })
+  const result = await Effect.gen(function* () {
+    const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
+    const inspected = yield* client["skill-asset"].inspect({
+      ...route,
+      sessionID: Session.ID.make("ses_test"),
+      candidate,
+      scope: target.scope,
+    })
+    const listed = yield* client["skill-asset"].list({ ...route, scope: target.scope })
+    const content = yield* client["skill-asset"].content({
+      ...route,
+      scope: target.scope,
+      path: candidate.relativePath,
+    })
+    const applied = yield* client["skill-asset"].apply({
+      ...route,
+      sessionID: Session.ID.make("ses_test"),
+      candidate,
+      baseRevision: inspected.revision ?? undefined,
+      overwrite: true,
+      target: inspected.target,
+    })
+    const legacyList = yield* client["skill-asset"].list(route)
+    const legacyApplied = yield* client["skill-asset"].apply({
+      ...route,
+      sessionID: Session.ID.make("ses_test"),
+      candidate,
+      overwrite: false,
+    })
+    return { inspected, listed, content, applied, legacyList, legacyApplied }
+  }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient), Effect.runPromise)
+
+  expect(result.inspected).toBeInstanceOf(SkillAsset.Inspection)
+  expect(result.inspected.target).toBeInstanceOf(AssetPlacement.Target)
+  expect(result.inspected).toEqual(inspection)
+  expect(result.listed.target).toBeInstanceOf(AssetPlacement.Target)
+  expect(result.listed.assets).toEqual([summary])
+  expect(result.content).toBeInstanceOf(SkillAsset.Info)
+  expect(result.content.target).toBeInstanceOf(AssetPlacement.Target)
+  expect(result.content).toEqual({ ...info, target })
+  expect(result.applied).toEqual(result.content)
+  expect(result.legacyList).not.toHaveProperty("target")
+  expect(result.legacyApplied).toBeInstanceOf(SkillAsset.Info)
+  expect(result.legacyApplied).toEqual(info)
+  expect(result.legacyApplied).not.toHaveProperty("target")
+  expect(requests).toEqual([
+    {
+      method: "POST",
+      url: "http://localhost:3000/session/ses_test/skill-asset/inspect",
+      query: route,
+      body: { candidate, scope: target.scope },
+    },
+    {
+      method: "GET",
+      url: "http://localhost:3000/skill-asset",
+      query: { ...route, scope: target.scope },
+      body: undefined,
+    },
+    {
+      method: "GET",
+      url: "http://localhost:3000/skill-asset/content",
+      query: { ...route, scope: target.scope, path: candidate.relativePath },
+      body: undefined,
+    },
+    {
+      method: "POST",
+      url: "http://localhost:3000/session/ses_test/skill-asset/apply",
+      query: route,
+      body: { candidate, baseRevision: summary.revision, overwrite: true, target },
+    },
+    {
+      method: "GET",
+      url: "http://localhost:3000/skill-asset",
+      query: route,
+      body: undefined,
+    },
+    {
+      method: "POST",
+      url: "http://localhost:3000/session/ses_test/skill-asset/apply",
+      query: route,
+      body: { candidate, baseRevision: null, overwrite: false },
+    },
+  ])
+})
+
 test("event.subscribe exposes and decodes the native Effect event stream", async () => {
   const httpClient = HttpClient.make((request) =>
     Effect.succeed(
@@ -139,7 +737,7 @@ test("event.subscribe exposes and decodes the native Effect event stream", async
     ),
   )
   const events = await Effect.gen(function* () {
-    const client = yield* OpenCode.make({ baseUrl: "http://localhost:3000" })
+    const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
     return yield* client.event.subscribe().pipe(Stream.runCollect)
   }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient), Effect.runPromise)
 
@@ -164,7 +762,7 @@ test("shared event source runs with the Effect context captured by make", async 
     }),
   )
   const client = await Effect.runPromise(
-    OpenCode.make({ baseUrl: "http://localhost:3000" }).pipe(
+    AigcForge.make({ baseUrl: "http://localhost:3000" }).pipe(
       Effect.provideService(HttpClient.HttpClient, httpClient),
       Effect.provideService(Token, "captured"),
     ),
@@ -184,7 +782,7 @@ test("event.subscribe terminates on Effect protocol decode failures", async () =
     ),
   )
   const error = await Effect.gen(function* () {
-    const client = yield* OpenCode.make({ baseUrl: "http://localhost:3000" })
+    const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
     return yield* client.event.subscribe().pipe(Stream.runCollect, Effect.flip)
   }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient), Effect.runPromise)
 
@@ -243,13 +841,13 @@ test("session methods retain decoded Effect inputs and outputs", async () => {
     )
   })
   const result = await Effect.gen(function* () {
-    const client = yield* OpenCode.make({ baseUrl: "http://localhost:3000" })
+    const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
     const page = yield* client.session.list({ limit: 10 })
     const active = yield* client.session.active()
     const created = yield* client.session.create({
       location: Location.Ref.make({ directory: AbsolutePath.make("/tmp/project") }),
     })
-    yield* client.session.view({ sessionID: Session.ID.make("ses_test"), idle: session.data.time.idle })
+    yield* client.session.view({ sessionID: Session.ID.make("ses_test"), idle: DateTime.makeUnsafe(1_717_171_717_002) })
     yield* client.session.switchAgent({ sessionID: Session.ID.make("ses_test"), agent: Agent.ID.make("build") })
     yield* client.session.switchModel({
       sessionID: Session.ID.make("ses_test"),
@@ -310,7 +908,7 @@ test("session.log retains the typed SessionNotFoundError", async () => {
     ),
   )
   const error = await Effect.gen(function* () {
-    const client = yield* OpenCode.make({ baseUrl: "http://localhost:3000" })
+    const client = yield* AigcForge.make({ baseUrl: "http://localhost:3000" })
     return yield* client.session.log({ sessionID: Session.ID.make("ses_missing") }).pipe(Stream.runCollect, Effect.flip)
   }).pipe(Effect.provideService(HttpClient.HttpClient, httpClient), Effect.runPromise)
 

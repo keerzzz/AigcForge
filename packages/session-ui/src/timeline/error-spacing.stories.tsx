@@ -5,7 +5,7 @@ import { timelinePresets } from "./detail"
 import { SessionTimeline } from "./session-timeline"
 
 export default {
-  title: "OpenCode/Conversation/Error spacing",
+  title: "AigcForge/Conversation/Error spacing",
   id: "current-session-error-spacing",
   component: SessionTimeline,
   parameters: { layout: "fullscreen" },
@@ -35,14 +35,14 @@ const document = {
           name: "shell",
           state: {
             status: "completed",
-            input: { command: "cd ~/Documents/Local/opencode && ls packages/tui" },
+            input: { command: "cd ~/Documents/Local/aigcfroge && ls packages/tui" },
             content: [{ type: "text", text: "AGENTS.md\nbunfig.toml\nnode_modules\npackage.json\nsrc" }],
             metadata: {},
           },
           time: { created: STORY_TIME + 100, ran: STORY_TIME + 150, completed: STORY_TIME + 300 },
         },
       ],
-      error: { type: "ProviderError", message: "getaddrinfo ENOTFOUND opencode.ai" },
+      error: { type: "ProviderError", message: "getaddrinfo ENOTFOUND aigcfroge.ai" },
       time: { created: STORY_TIME + 50, completed: STORY_TIME + 400 },
     },
     {

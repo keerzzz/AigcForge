@@ -23,6 +23,11 @@
   --home-row-opacity: 60%;
 }
 
+[data-home-row="docked"] {
+  --home-row-background: transparent;
+  background: transparent;
+}
+
 /* Keep the background outside the button's disabled-content opacity. */
 [data-home-row] > button {
   background: transparent;

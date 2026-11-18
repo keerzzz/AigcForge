@@ -1,14 +1,14 @@
-import { base64Encode } from "@opencode/util/encode"
+import { base64Encode } from "@aigcfroge/util/encode"
 import { expect, test } from "@playwright/test"
 import { NO_PROVIDER, REMOTE_SERVER, SERVER, project, provider, session } from "../utils/app"
-import { mockOpenCodeServer, mockServers } from "../utils/mock-server"
+import { mockAigcForgeServer, mockServers } from "../utils/mock-server"
 import { expectSessionTitle } from "../utils/waits"
 
 test.use({ viewport: { width: 1280, height: 900 } })
 
 for (const mode of ["failed", "stopped", "ready"] as const) {
   test(`manages a ${mode} configured WSL server from nested settings`, async ({ page }) => {
-    await mockOpenCodeServer(page, {
+    await mockAigcForgeServer(page, {
       directory: "/repo",
       project: project({ id: "proj_wsl_settings", directory: "/repo", name: "WSL project" }),
       provider: NO_PROVIDER,
@@ -32,9 +32,9 @@ for (const mode of ["failed", "stopped", "ready"] as const) {
     }
 
     await expect(settings.getByRole("tab", { name: "Projects", exact: true })).toBeEnabled()
-    await connection.getByRole("button", { name: "Update OpenCode", exact: true }).click()
+    await connection.getByRole("button", { name: "Update AigcForge", exact: true }).click()
     await expect(page.getByLabel("WSL actions")).toContainText("update:Ubuntu")
-    await expect(connection.getByRole("button", { name: "Update OpenCode", exact: true })).toHaveCount(0)
+    await expect(connection.getByRole("button", { name: "Update AigcForge", exact: true })).toHaveCount(0)
 
     await connection.getByRole("button", { name: "More options", exact: true }).click()
     await page.getByRole("menuitem", { name: "Remove", exact: true }).click()
@@ -45,7 +45,7 @@ for (const mode of ["failed", "stopped", "ready"] as const) {
 }
 
 test("adding a WSL server while the WSL extension is down shows that WSL is unavailable", async ({ page }) => {
-  await mockOpenCodeServer(page, {
+  await mockAigcForgeServer(page, {
     directory: "/repo",
     project: project({ id: "proj_wsl_unavailable", directory: "/repo", name: "WSL project" }),
     provider: NO_PROVIDER,
@@ -61,12 +61,12 @@ test("adding a WSL server while the WSL extension is down shows that WSL is unav
   await page.getByRole("menuitem", { name: "Add WSL server", exact: true }).click()
   const dialog = page.getByRole("dialog")
   await expect(dialog.getByRole("heading", { name: "WSL unavailable", exact: true })).toBeVisible()
-  await expect(dialog.getByText("OpenCode could not verify WSL on this machine.", { exact: true })).toBeVisible()
+  await expect(dialog.getByText("AigcForge could not verify WSL on this machine.", { exact: true })).toBeVisible()
   await expect(dialog.getByText("WSL is unavailable", { exact: true })).toBeVisible()
 })
 
 test("adding an SSH server while the SSH extension is down fails instead of connecting forever", async ({ page }) => {
-  await mockOpenCodeServer(page, {
+  await mockAigcForgeServer(page, {
     directory: "/repo",
     project: project({ id: "proj_ssh_unavailable", directory: "/repo", name: "SSH project" }),
     provider: NO_PROVIDER,
@@ -118,8 +118,8 @@ test("an open session's terminal follows its WSL server to the endpoint it resta
   const settings = page.getByTestId("settings-screen")
   await settings.getByRole("tab", { name: "Ubuntu", exact: true }).click()
   const connection = settings.locator('[data-component="settings-server-connection"]')
-  await connection.getByRole("button", { name: "Update OpenCode", exact: true }).click()
-  await expect(connection.getByRole("button", { name: "Update OpenCode", exact: true })).toHaveCount(0)
+  await connection.getByRole("button", { name: "Update AigcForge", exact: true }).click()
+  await expect(connection.getByRole("button", { name: "Update AigcForge", exact: true })).toHaveCount(0)
   await settings.getByRole("button", { name: "Back to settings" }).click()
   await settings.getByRole("button", { name: "Back to app" }).click()
   await expectSessionTitle(page, wsl.title)
@@ -236,7 +236,7 @@ test("an open session moves to the controller a new SSH sign-in creates", async 
     id: "ses_ssh",
     directory,
     title: "SSH session",
-    model: { id: model.id, providerID: "opencode" },
+    model: { id: model.id, providerID: "aigcfroge" },
   })
 
   const remote = { password: "ssh-1" }

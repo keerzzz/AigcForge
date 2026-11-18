@@ -14,10 +14,10 @@ import { useLanguage } from "@/runtime/i18n/language"
 import { useCommand } from "@/shell/commands/command"
 import { useTabs } from "@/shell/tabs/tabs"
 import { createTabComposerState } from "@/composer/persistence"
-import { base64Encode } from "@opencode/util/encode"
+import { base64Encode } from "@aigcfroge/util/encode"
 import { showToast } from "@/shell/notifications/toast"
 import { adjacentTabKey, mergeVisibleTabOrder } from "./tab-order"
-import type { SessionInfo } from "@opencode/client/promise"
+import type { SessionInfo } from "@aigcfroge/client/promise"
 
 function SessionTabSlot(props: {
   tab: SessionTab

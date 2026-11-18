@@ -3,10 +3,10 @@ export * as Model from "./model.js"
 import { Schema } from "effect"
 import { optional, statics } from "./schema.js"
 import { Provider } from "./provider.js"
-import { Money } from "./money.js"
+import { ModelSource, Family, Compatibility, Capabilities, Cost } from "./model-source.js"
 import { ephemeral, inventory } from "./event.js"
 
-export const ID = Schema.String.pipe(Schema.brand("Model.ID"))
+export const ID = Schema.String.pipe(Schema.brand("Model.ID"), Schema.annotate({ identifier: "Model.ID" }))
 export type ID = typeof ID.Type
 
 const Updated = ephemeral({ type: "model.updated", schema: {} })
@@ -42,25 +42,38 @@ export const Ref = Schema.Struct({
   )
 export interface Ref extends Schema.Schema.Type<typeof Ref> {}
 
-export const Family = Schema.String.pipe(Schema.brand("Model.Family"))
-export type Family = typeof Family.Type
+// Group shorthand has no physical reference separators; display names remain free text.
+export const GroupID = Schema.NonEmptyString.check(Schema.isPattern(/^[^/#]+$/u)).pipe(
+  Schema.brand("Model.GroupID"),
+  Schema.annotate({ identifier: "Model.GroupID" }),
+)
+export type GroupID = typeof GroupID.Type
 
-export type ReasoningField = "reasoning" | "reasoning_content" | "reasoning_text" | (string & {})
-export const ReasoningField: Schema.Codec<ReasoningField> = Schema.Union([
-  Schema.Literals(["reasoning", "reasoning_content", "reasoning_text"]),
-  Schema.String,
-]).annotate({ identifier: "Model.ReasoningField" })
+export class GroupRef extends Schema.Class<GroupRef>("Model.GroupRef")({
+  type: Schema.Literal("group"),
+  groupID: GroupID,
+}) {}
 
-export const MaxTokensField = Schema.Literals(["max_completion_tokens", "max_tokens"]).annotate({
-  identifier: "Model.MaxTokensField",
-})
-export type MaxTokensField = typeof MaxTokensField.Type
+export const Selection = Schema.Union([Ref, GroupRef])
+  .annotate({ identifier: "Model.Selection" })
+  .pipe(
+    statics(() => ({
+      parse: (input: string): Selection =>
+        input.startsWith("group:") && !input.includes("/")
+          ? new GroupRef({ type: "group", groupID: GroupID.make(input.slice(6)) })
+          : Ref.parse(input),
+      isGroup: (input: Selection): input is GroupRef => "type" in input && input.type === "group",
+    })),
+  )
+export type Selection = Ref | GroupRef
+
+export { Family, ReasoningField, MaxTokensField, Compatibility, Capabilities, Cost } from "./model-source.js"
 
 export const Settings = Schema.StructWithRest(
   Schema.Struct({
     compaction: Provider.Compaction.pipe(optional),
   }),
-  // Provider packages may define arbitrary model-level options beyond OpenCode's shared compaction policy.
+  // Provider packages may define arbitrary model-level options beyond AigcForge's shared compaction policy.
   [Schema.Record(Schema.String, Schema.Any)],
 ).annotate({ identifier: "Model.Settings" })
 export type Settings = typeof Settings.Type
@@ -70,48 +83,6 @@ export const Overlays = {
   headers: Schema.Record(Schema.String, Schema.String).pipe(optional),
   body: Schema.Record(Schema.String, Schema.Any).pipe(optional),
 }
-
-export interface Compatibility extends Schema.Schema.Type<typeof Compatibility> {}
-export const Compatibility = Schema.Struct({
-  reasoningField: ReasoningField.pipe(optional),
-  /** Require every assistant message to include its reasoning field, even when empty. */
-  requireReasoning: Schema.Boolean.pipe(optional),
-  maxTokensField: MaxTokensField.pipe(optional),
-  requireFinishReason: Schema.Boolean.pipe(optional),
-  requireAssistantAfterTool: Schema.Boolean.pipe(optional),
-  supportsPromptCacheKey: Schema.Boolean.pipe(optional),
-  /** Supports Anthropic's thinking-prefix mismatch controls. Overrides model-ID detection. */
-  supportsThinkingBlockBinding: Schema.Boolean.pipe(optional),
-  /** Supports per-message effort updates. Overrides model-ID detection. */
-  supportsEffortUpdates: Schema.Boolean.pipe(optional),
-}).annotate({ identifier: "Model.Compatibility" })
-
-export interface Capabilities extends Schema.Schema.Type<typeof Capabilities> {}
-export const Capabilities = Schema.Struct({
-  tools: Schema.Boolean,
-  input: Schema.Array(Schema.String),
-  output: Schema.Array(Schema.String),
-})
-  .annotate({ identifier: "Model.Capabilities" })
-  .pipe(
-    statics(() => ({
-      default: () => ({ tools: true, input: ["text", "image"], output: ["text"] }) satisfies Capabilities,
-    })),
-  )
-
-export interface Cost extends Schema.Schema.Type<typeof Cost> {}
-export const Cost = Schema.Struct({
-  tier: Schema.Struct({
-    type: Schema.tag("context"),
-    size: Schema.Int,
-  }).pipe(optional),
-  input: Money.USDPerMillionTokens,
-  output: Money.USDPerMillionTokens,
-  cache: Schema.Struct({
-    read: Money.USDPerMillionTokens,
-    write: Money.USDPerMillionTokens,
-  }),
-}).annotate({ identifier: "Model.Cost" })
 
 export interface Variant extends Schema.Schema.Type<typeof Variant> {}
 export const Variant = Schema.Struct({
@@ -128,6 +99,8 @@ export const Info = Schema.Struct({
   family: Family.pipe(optional),
   name: Schema.String,
   compatibility: Compatibility.pipe(optional),
+  metadata: ModelSource.Metadata.pipe(optional),
+  origins: ModelSource.Origins.pipe(optional),
   package: Provider.Package.pipe(optional),
   ...Overlays,
   capabilities: Capabilities,

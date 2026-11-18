@@ -24,7 +24,7 @@ import { TestTuiContexts } from "../../fixture/tui-environment"
 import { createTuiResolvedConfig } from "../../fixture/tui-runtime"
 
 test("scopes sessions to the active session location", async () => {
-  const active = "/tmp/opencode/project-b"
+  const active = "/tmp/aigcfroge/project-b"
   const events = createEventStream()
   const requestedProjects: string[] = []
   const calls = createFetch((url) => {

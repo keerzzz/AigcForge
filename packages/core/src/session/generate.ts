@@ -1,7 +1,7 @@
 export * as SessionGenerate from "./generate.js"
 
 import type { FileSystem } from "../filesystem.js"
-import { LLMClient, Message, type AIError } from "@opencode/ai"
+import { LLMClient, Message, type AIError } from "@aigcfroge/ai"
 import { Effect } from "effect"
 import { Database } from "../database/database.js"
 import { Instance } from "../instance/service.js"
@@ -17,6 +17,7 @@ import type { SessionSchema } from "./schema.js"
 
 export type Error =
   | AgentNotFoundError
+  | SessionContext.Error
   | Instructions.InitializationBlocked
   | SessionRunnerModel.Error
   | AIError
@@ -52,6 +53,7 @@ export const generate = Effect.fn("SessionGenerate.generate")(function* (input: 
     const prepared = yield* context.request.generate({
       session: selection.session,
       agent: selection.agent.id,
+      request: selection.agent.info.request,
       model,
       tools: selection.tools,
       system: transcript.system,

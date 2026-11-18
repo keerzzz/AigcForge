@@ -59,11 +59,13 @@ export namespace TimelineRow {
 
   export class Error extends Data.TaggedClass("Error")<{
     userMessageID: string
+    messageID?: string
     text: string
   }> {}
 
   export class Retry extends Data.TaggedClass("Retry")<{
     userMessageID: string
+    messageID?: string
   }> {}
 
   /** A compaction the server has admitted but not started. */
@@ -118,7 +120,7 @@ export type TimelineRowMap = {
     spacing?: "tool" | "content"
   }
   Thinking: { userMessageID: string; ref: PartRef }
-  Retry: { userMessageID: string }
-  Error: { userMessageID: string; text: string }
+  Retry: { userMessageID: string; messageID?: string }
+  Error: { userMessageID: string; messageID?: string; text: string }
   CompactionQueued: { userMessageID: string; inboxID: string }
 }

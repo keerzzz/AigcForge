@@ -15,6 +15,11 @@ for (const mode of ["hidden", "compact", "full"] as const) {
       await expect(timeline.locator('[data-timeline-row="Thinking"]')).toHaveCount(active ? 1 : 0)
       await expect(part).toHaveCount(active ? 1 : 0)
 
+      if (active)
+        await expect(
+          part.locator('[data-slot="tool-summary-icon"] [data-component="session-progress-indicator-v2"]'),
+        ).toHaveCount(1)
+
       if (!active || reasoning !== "heading") {
         await expect(timeline.getByText("Inspecting stability", { exact: true })).toHaveCount(0)
 
@@ -64,6 +69,11 @@ for (const mode of ["hidden", "compact", "full"] as const) {
           "aria-label",
           "Used 1 Skill",
         )
+        await expect(
+          group.locator(
+            '[data-component="context-tool-group-trigger"] [data-component="session-progress-indicator-v2"]',
+          ),
+        ).toHaveCount(1)
         await expect(timeline.getByText("Inspecting stability", { exact: true })).toBeHidden()
         await trigger.click()
         await expect(trigger).toHaveAttribute("aria-expanded", "true")
@@ -86,6 +96,13 @@ for (const mode of ["hidden", "compact", "full"] as const) {
       await expect(thought).toHaveAttribute("aria-expanded", String(mode === "full"))
       await expect(thought).not.toContainText("Inspecting stability")
       await expect(part.locator('[data-component="text-shimmer"]')).toHaveAttribute("data-active", "false")
+      await expect(
+        part.locator('[data-slot="tool-summary-icon"] [data-component="session-progress-indicator-v2"]'),
+      ).toHaveCount(0)
+      await expect(part.locator('[data-slot="tool-summary-icon"] [data-slot="icon-svg"] use')).toHaveAttribute(
+        "href",
+        "#aigcfroge-v2-icon-brain",
+      )
 
       if (mode === "compact") await thought.click()
       await expect(

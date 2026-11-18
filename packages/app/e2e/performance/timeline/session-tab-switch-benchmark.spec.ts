@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test"
-import { mockOpenCodeServer } from "../../utils/mock-server"
+import { mockAigcForgeServer } from "../../utils/mock-server"
 import { expectSessionTitle } from "../../utils/waits"
 import { benchmark, benchmarkDiagnostics, expect } from "../benchmark"
 import { fixture, installStressSessionTabs, installTimelineSettings } from "../../utils/session-fixture"
@@ -58,7 +58,7 @@ scenarios.forEach((scenario) => {
         ...result,
         messageRequestsDuringSwitch: requests.length - requestsBefore,
         rendererMemory:
-          process.env.OPENCODE_PERFORMANCE_MEMORY === "1" ? await retainedRendererMemory(page) : undefined,
+          process.env.AIGCFROGE_PERFORMANCE_MEMORY === "1" ? await retainedRendererMemory(page) : undefined,
       },
       {
         ...scenario,
@@ -68,7 +68,7 @@ scenarios.forEach((scenario) => {
         serviceWorkers: "blocked",
         reviewFiles: scenario.review === "closed" ? 0 : reviewDiffs.length,
         data: scenario.cache === "cold" ? "on-demand" : "cached",
-        transport: process.env.OPENCODE_PERFORMANCE_HTTP_FIXTURE === "1" ? "http" : "playwright-route",
+        transport: process.env.AIGCFROGE_PERFORMANCE_HTTP_FIXTURE === "1" ? "http" : "playwright-route",
         inputEvent: "mousedown",
         requireReadyAnswer: true,
       },
@@ -90,8 +90,8 @@ async function prepareSessionTabs(page: Page) {
     if (match) requests.push(decodeURIComponent(match[1]))
   })
 
-  if (process.env.OPENCODE_PERFORMANCE_HTTP_FIXTURE !== "1")
-    await mockOpenCodeServer(page, {
+  if (process.env.AIGCFROGE_PERFORMANCE_HTTP_FIXTURE !== "1")
+    await mockAigcForgeServer(page, {
       sessions: fixture.sessions,
       provider: fixture.provider,
       directory: fixture.directory,

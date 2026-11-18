@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { Script } from "@opencode/script"
+import { Script } from "@aigcfroge/script"
 import { $ } from "bun"
 import { fileURLToPath } from "url"
 
@@ -28,7 +28,7 @@ async function prepareReleaseFiles() {
 }
 
 async function writeChangelog() {
-  const notes = process.env["OPENCODE_RELEASE_NOTES"]?.trim()
+  const notes = process.env["AIGCFROGE_RELEASE_NOTES"]?.trim()
   if (!notes) return
   const file = Bun.file("CHANGELOG.md")
   const text = await file.text()

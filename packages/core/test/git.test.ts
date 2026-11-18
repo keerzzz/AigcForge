@@ -3,10 +3,10 @@ import { $ } from "bun"
 import fs from "fs/promises"
 import path from "path"
 import { Effect, Exit } from "effect"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { Git } from "@opencode/core/git"
-import { AbsolutePath, RelativePath } from "@opencode/core/schema"
-import { VcsPatch } from "@opencode/core/vcs/patch"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Git } from "@aigcfroge/core/git"
+import { AbsolutePath, RelativePath } from "@aigcfroge/core/schema"
+import { VcsPatch } from "@aigcfroge/core/vcs/patch"
 import { branch, commit, initRepo, read, withRemote } from "./fixture/git"
 import { tmpdir } from "./fixture/tmpdir"
 import { testEffect } from "./lib/effect"
@@ -314,11 +314,11 @@ describe("Git trees", () => {
         yield* Effect.promise(() => $`git --git-dir ${storage} config --local --includes core.autocrlf`.text()),
       ).toBe("false\n")
       expect(
-        (yield* Effect.promise(() => fs.readFile(path.join(storage, "config"), "utf8"))).match(/opencode\.gitconfig/g),
+        (yield* Effect.promise(() => fs.readFile(path.join(storage, "config"), "utf8"))).match(/aigcfroge\.gitconfig/g),
       ).toHaveLength(1)
       expect(
         yield* Effect.promise(() => $`git --git-dir ${storage} config --local --get-all include.path`.text()),
-      ).toBe("opencode.gitconfig\nfirst.gitconfig\nsecond.gitconfig\n")
+      ).toBe("aigcfroge.gitconfig\nfirst.gitconfig\nsecond.gitconfig\n")
       yield* git.index.refresh({ repository, scope: RelativePath.make("scope") })
       const before = yield* git.tree.write(repository)
 
@@ -506,8 +506,8 @@ describe("Git capture recovery", () => {
     Effect.gen(function* () {
       const { repository, capture } = yield* setup
       const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000
-      const live = path.join(repository.gitDirectory, `index.opencode-${Date.now()}-1-live`)
-      const abandoned = path.join(repository.gitDirectory, `index.opencode-${twoHoursAgo}-1-abandoned`)
+      const live = path.join(repository.gitDirectory, `index.aigcfroge-${Date.now()}-1-live`)
+      const abandoned = path.join(repository.gitDirectory, `index.aigcfroge-${twoHoursAgo}-1-abandoned`)
       yield* Effect.promise(async () => {
         await Bun.write(live, "")
         await Bun.write(abandoned, "")

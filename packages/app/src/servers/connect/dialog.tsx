@@ -1,9 +1,9 @@
-import { Button } from "@opencode/ui/button"
-import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from "@opencode/ui/dialog"
-import { Divider } from "@opencode/ui/divider"
-import { Icon } from "@opencode/ui/icon"
-import { TextInput } from "@opencode/ui/text-input"
-import { useDialog } from "@opencode/ui/context/dialog"
+import { Button } from "@aigcfroge/ui/button"
+import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from "@aigcfroge/ui/dialog"
+import { Divider } from "@aigcfroge/ui/divider"
+import { Icon } from "@aigcfroge/ui/icon"
+import { TextInput } from "@aigcfroge/ui/text-input"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { useMutation } from "@tanstack/solid-query"
 import {
   type Component,
@@ -320,7 +320,7 @@ function createFormController(options: { onSelect?: (server: ServerConnection.Ht
     })
 
   // A pairing token works on every address of its server. Signing in again to the edited server keeps its address
-  // (e.g. localhost) even when the link names another one (e.g. 127.0.0.1 from opencode pair).
+  // (e.g. localhost) even when the link names another one (e.g. 127.0.0.1 from aigcfroge pair).
   const paired = async (pairing: Pairing) => {
     const original = store.mode === "edit" ? editing() : undefined
 

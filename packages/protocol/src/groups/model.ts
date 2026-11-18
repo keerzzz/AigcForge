@@ -1,11 +1,37 @@
-import { Model } from "@opencode/schema/model"
-import { Location } from "@opencode/schema/location"
+import { Model } from "@aigcfroge/schema/model"
+// The existing protocol group export already owns the name ModelGroup.
+import { ModelGroup as ModelGroupSchema } from "@aigcfroge/schema/model-group"
+import { Location } from "@aigcfroge/schema/location"
+import { optional } from "@aigcfroge/schema/schema"
 import { Schema } from "effect"
-import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
-import { ServiceUnavailableError } from "../errors.js"
+import { HttpApi, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
+import { InvalidRequestError, ServiceUnavailableError } from "../errors.js"
 import { LocationQuery, locationQueryOpenApi } from "./location.js"
 
 export const ModelGroup = HttpApiGroup.make("server.model")
+  .add(
+    HttpApiEndpoint.get("model.group.definition.get", "/api/model/group", {
+      query: LocationQuery.mapFields((fields) => ({ ...fields, groupID: Model.GroupID.pipe(optional) })),
+      success: Location.response(ModelGroupSchema.Read),
+      error: ServiceUnavailableError,
+    }).annotateMerge(locationQueryOpenApi),
+  )
+  .add(
+    HttpApiEndpoint.post("model.group.definition.save", "/api/model/group", {
+      query: LocationQuery,
+      payload: ModelGroupSchema.SaveInput,
+      success: Location.response(ModelGroupSchema.SaveResult),
+      error: [InvalidRequestError, ServiceUnavailableError],
+    }).annotate(HttpApi.PayloadParseOptions, { onExcessProperty: "error", errors: "all" }).annotateMerge(locationQueryOpenApi),
+  )
+  .add(
+    HttpApiEndpoint.delete("model.group.definition.remove", "/api/model/group", {
+      query: LocationQuery,
+      payload: ModelGroupSchema.RemoveInput,
+      success: Location.response(ModelGroupSchema.RemoveResult),
+      error: [InvalidRequestError, ServiceUnavailableError],
+    }).annotate(HttpApi.PayloadParseOptions, { onExcessProperty: "error", errors: "all" }).annotateMerge(locationQueryOpenApi),
+  )
   .add(
     HttpApiEndpoint.get("model.list", "/api/model", {
       query: LocationQuery,

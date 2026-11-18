@@ -1,9 +1,9 @@
 import { lazy, Show, Suspense } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useMutation } from "@tanstack/solid-query"
-import { Button } from "@opencode/ui/button"
-import { TextInput } from "@opencode/ui/text-input"
-import { Wordmark } from "@opencode/ui/wordmark"
+import { Button } from "@aigcfroge/ui/button"
+import { TextInput } from "@aigcfroge/ui/text-input"
+import { Wordmark } from "@aigcfroge/ui/wordmark"
 import { useLanguage } from "@/runtime/i18n/language"
 import { usePlatform } from "@/runtime/platform/platform"
 import { useCheckServerHealth } from "@/runtime/server/health"
@@ -42,7 +42,7 @@ export function ConnectServerScreen(props: { url?: string } = {}) {
   })
 
   // A pairing token works on every address of its server. Signing in again to the server that signed out keeps its
-  // address (e.g. localhost) even when the link names another one (e.g. 127.0.0.1 from opencode pair).
+  // address (e.g. localhost) even when the link names another one (e.g. 127.0.0.1 from aigcfroge pair).
   const target = async (pairing: Pairing) => {
     if (!props.url || props.url === pairing.url) return pairing
     const http = { url: props.url, password: pairing.password }
@@ -114,7 +114,7 @@ export function ConnectServerScreen(props: { url?: string } = {}) {
   return (
     <main data-component="connect-server" aria-labelledby="server-connect-title">
       <div class="server-connect-content">
-        <div class="server-connect-brand" role="img" aria-label="OpenCode">
+        <div class="server-connect-brand" role="img" aria-label="AigcForge">
           <Wordmark />
         </div>
         <header>
@@ -246,7 +246,7 @@ export function ConnectServerScreen(props: { url?: string } = {}) {
           <Show when={state.method === "link"}>
             <footer>
               <p>{language.t("server.connect.pair.link")}</p>
-              <code dir="ltr">opencode pair</code>
+              <code dir="ltr">aigcfroge pair</code>
             </footer>
           </Show>
         </Show>

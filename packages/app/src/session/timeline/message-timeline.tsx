@@ -2,29 +2,36 @@ import { createEffect, createMemo, createSignal, on, onCleanup, Show, type Acces
 import { createStore } from "solid-js/store"
 import { Predicate } from "effect"
 import { createAnimatedPresence } from "@/runtime/animated-presence"
-import type { SessionUserActions } from "@opencode/session-ui/actions"
-import { Button } from "@opencode/ui/button"
-import { Icon } from "@opencode/ui/icon"
-import { IconButton } from "@opencode/ui/icon-button"
-import { InlineInput } from "@opencode/ui/inline-input"
-import { Keybind } from "@opencode/ui/keybind"
-import { Menu } from "@opencode/ui/menu"
-import { TextShimmer } from "@opencode/ui/text-shimmer"
-import type { BackgroundTask, MountedSession, SessionScreen } from "@opencode/gui-extensions/sdk"
+import type { SessionUserActions } from "@aigcfroge/session-ui/actions"
+import { Button } from "@aigcfroge/ui/button"
+import { Icon } from "@aigcfroge/ui/icon"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { InlineInput } from "@aigcfroge/ui/inline-input"
+import { Keybind } from "@aigcfroge/ui/keybind"
+import { Menu } from "@aigcfroge/ui/menu"
+import { TextShimmer } from "@aigcfroge/ui/text-shimmer"
+import type {
+  BackgroundTask,
+  MountedSession,
+  SessionScreen,
+  SessionTargetRef,
+  SlotMap,
+} from "@aigcfroge/gui-extensions/sdk"
 import { ExtensionSlot } from "@/runtime/extension/render"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useServer } from "@/runtime/server/current"
 import { useWorkspaceLocation } from "@/workspaces/location"
-import { Timeline } from "@opencode/session-ui/timeline/projection"
-import { createSessionTimelineRowRenderer } from "@opencode/session-ui/timeline/row"
-import { getReadyMarkdown, preloadMarkdown } from "@opencode/session-ui/markdown-cache"
+import { Timeline } from "@aigcfroge/session-ui/timeline/projection"
+import { createSessionTimelineRowRenderer } from "@aigcfroge/session-ui/timeline/row"
+import { getReadyMarkdown, preloadMarkdown } from "@aigcfroge/session-ui/markdown-cache"
 import { createTimelineController, type TimelineController, type TimelineSessionSource } from "./controller"
 import { createTimelineVirtualizer } from "./virtualizer"
-import { containsDirectory } from "@opencode/util/path"
+import { containsDirectory } from "@aigcfroge/util/path"
 import { isWorkspaceDirectory } from "@/workspaces/paths"
 import { parseCommentNote, readPromptPresentation } from "@/composer/comment-note"
-import { useCommand } from "@/shell/commands/command"
+import { useCommand, type CommandOption } from "@/shell/commands/command"
 import { SessionAncestorTrail, SessionProjectMenu, SessionTitleHeader } from "../session-identity-header"
+import { SessionCompositionSummary } from "../composition-summary"
 import { SessionHeaderSpacer } from "@/session/header/session-header"
 import { SessionRunningMenu } from "@/session/header/session-running-menu"
 
@@ -67,8 +74,11 @@ type MessageTimelineProps = {
   hideHeader?: boolean
   active?: boolean
   session: TimelineSessionSource
-  view: MountedSession
-  screen: SessionScreen
+  view?: MountedSession
+  source?: MountedSession
+  target?: SessionTargetRef
+  screen?: SessionScreen
+  commands: Accessor<CommandOption[]>
   background: SessionBackground
   actions?: SessionUserActions
   scroll: { overflow: boolean; jump: boolean }
@@ -123,6 +133,7 @@ function MessageTimelineView(
   },
 ) {
   const language = useLanguage()
+  const command = useCommand()
   const server = useServer()
   const data = server.ctx.data
   const sdk = useWorkspaceLocation()
@@ -132,6 +143,7 @@ function MessageTimelineView(
   const parentID = props.data.parentID
   const parentTitle = props.data.parentTitle
   const childTitle = props.data.childTitle
+  const menuCommand = (id: string) => props.commands().find((item) => item.id === id)
   const projection = props.data.projection
   const sessionDirectory = createMemo(() => props.session.data.info()?.location.directory ?? sdk().directory)
 
@@ -297,9 +309,54 @@ function MessageTimelineView(
         displayText: value?.displayText,
         comments: value?.comments ?? (parsed ? [parsed] : []),
         references: value?.attachments,
+        sessionReferences: value?.sessionReferences,
       }
     },
     actions: props.actions,
+    responseActions: (facts) => {
+      const input: SlotMap["session.response.actions"] = {
+        get screen() {
+          return props.screen!
+        },
+        get source() {
+          return props.source!
+        },
+        get session() {
+          return props.target!
+        },
+        get active() {
+          return props.active !== false
+        },
+        get userMessageID() {
+          return facts.userMessageID
+        },
+        get assistantMessageID() {
+          return facts.assistantMessageID
+        },
+        get contentID() {
+          return facts.contentID
+        },
+        get text() {
+          return facts.text
+        },
+        get completed() {
+          return facts.completed
+        },
+        get latest() {
+          return facts.latest
+        },
+        get boundary() {
+          // SAFETY: the Client projection and Slot share the SessionFork schema; wire IDs erase only its brands.
+          return facts.boundary as SlotMap["session.response.actions"]["boundary"]
+        },
+      }
+
+      return (
+        <Show when={props.screen && props.source && props.target}>
+          <ExtensionSlot at="session.response.actions" input={input} />
+        </Show>
+      )
+    },
     reasoningMode: props.data.reasoningMode,
     shellToolDefaultOpen: props.data.shellToolPartsExpanded,
     editToolDefaultOpen: props.data.editToolPartsExpanded,
@@ -556,7 +613,38 @@ function MessageTimelineView(
                               >
                                 {language.t("common.rename")}
                               </Menu.Item>
-                              <Menu.Item onSelect={() => void props.action.export(id)}>
+                              <Menu.Item
+                                aria-label={language.t("command.session.fork")}
+                                shortcut={command.keybind("session.fork")}
+                                disabled={menuCommand("session.fork")?.disabled ?? true}
+                                onSelect={() => {
+                                  const option = menuCommand("session.fork")
+
+                                  if (!option || option.disabled) return
+                                  void option.onSelect?.()
+                                }}
+                              >
+                                {language.t("command.session.fork")}
+                              </Menu.Item>
+                              <Menu.Separator />
+                              <Menu.Item
+                                aria-label={language.t("command.session.copyID")}
+                                shortcut={command.keybind("session.copyID")}
+                                disabled={menuCommand("session.copyID")?.disabled ?? true}
+                                onSelect={() => {
+                                  const option = menuCommand("session.copyID")
+
+                                  if (!option || option.disabled) return
+                                  void option.onSelect?.()
+                                }}
+                              >
+                                {language.t("command.session.copyID")}
+                              </Menu.Item>
+                              <Menu.Item
+                                aria-label={language.t("common.export") + "…"}
+                                shortcut={command.keybind("session.export")}
+                                onSelect={() => void props.action.export(id)}
+                              >
                                 {language.t("common.export")}…
                               </Menu.Item>
                             </Show>
@@ -578,25 +666,32 @@ function MessageTimelineView(
                 {(_id) => (
                   <div class="shrink-0 flex items-center gap-2">
                     {props.search}
-                    <ExtensionSlot
-                      at="session.header"
-                      input={{
-                        get session() {
-                          return props.view
-                        },
-                        get screen() {
-                          return props.screen
-                        },
-                        get active() {
-                          return props.active !== false
-                        },
-                      }}
-                    />
+                    <Show when={props.view && props.screen ? { view: props.view, screen: props.screen } : undefined}>
+                      {(mounted) => (
+                        <ExtensionSlot
+                          at="session.header"
+                          input={{
+                            get session() {
+                              return mounted().view
+                            },
+                            get screen() {
+                              return mounted().screen
+                            },
+                            get active() {
+                              return props.active !== false
+                            },
+                          }}
+                        />
+                      )}
+                    </Show>
                     <SessionHeaderSpacer visible={props.reserveReviewToggle} />
                   </div>
                 )}
               </Show>
             </div>
+            <Show when={props.session.data.info()?.mode === "custom" ? props.session.data.info() : undefined}>
+              {(session) => <SessionCompositionSummary session={session()} />}
+            </Show>
           </SessionTitleHeader>
         </Show>
       }

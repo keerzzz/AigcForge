@@ -29,7 +29,7 @@ export default Extension.define({
     // The update main staged for the next start; stored before in the updater's settings file.
     ready: Store.main(Schema.NullOr(Schema.Struct({ version: Schema.String })), null, {
       settings: "ready",
-      file: "opencode.updater",
+      file: "aigcfroge.updater",
     }),
   },
   i18n: {

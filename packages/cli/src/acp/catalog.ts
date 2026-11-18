@@ -1,8 +1,10 @@
-import type { OpenCodeClient, OpenCodeEvent } from "@opencode/client/effect"
-import type { Agent } from "@opencode/schema/agent"
-import type { Command } from "@opencode/schema/command"
-import type { Model } from "@opencode/schema/model"
-import { FSUtil } from "@opencode/util/fs-util"
+import type { AigcForgeClient, AigcForgeEvent } from "@aigcfroge/client/effect"
+import type { Agent } from "@aigcfroge/schema/agent"
+import type { Command } from "@aigcfroge/schema/command"
+import { Model } from "@aigcfroge/schema/model"
+import type { ModelGroup } from "@aigcfroge/schema/model-group"
+import type { ProductMode } from "@aigcfroge/schema/product-mode"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { Cause, Deferred, Effect, Exit, Schedule, Semaphore, Stream, SubscriptionRef } from "effect"
 import { ACPError } from "./error"
 
@@ -12,13 +14,16 @@ export const builtinCommands = new Map([
 
 export type Catalog = {
   readonly models: ReadonlyArray<Model.Info>
-  readonly defaultModel: Model.Ref
-  readonly modes: ReadonlyArray<{ id: Agent.ID; name: string; description?: string }>
+  readonly defaultModel: Model.Selection
+  readonly groups?: ReadonlyArray<ModelGroup.Current>
+  readonly modes: ReadonlyArray<{ id: Agent.ID; name: string; description?: string; ordinaryModes?: ReadonlyArray<ProductMode.ID> }>
   readonly defaultModeID: Agent.ID
+  readonly executors?: ReadonlyArray<{ id: Agent.ID; name: string; description?: string; model?: Model.Selection; ordinaryModes?: ReadonlyArray<ProductMode.ID> }>
   readonly commands: ReadonlyArray<Command.Info>
 }
 
-export function findModel(models: ReadonlyArray<Model.Info>, ref: Model.Ref) {
+export function findModel(models: ReadonlyArray<Model.Info>, ref: Model.Selection) {
+  if (Model.Selection.isGroup(ref)) return
   return models.find((model) => model.providerID === ref.providerID && model.id === ref.id)
 }
 
@@ -36,9 +41,9 @@ type Entry = {
   loadedGeneration: number
 }
 
-const reloadOn = new Set<OpenCodeEvent["type"]>(["model.updated", "agent.updated", "command.updated"])
+const reloadOn = new Set<AigcForgeEvent["type"]>(["model.updated", "agent.updated", "command.updated"])
 
-export const make = Effect.fnUntraced(function* (client: OpenCodeClient) {
+export const make = Effect.fnUntraced(function* (client: AigcForgeClient) {
   const scope = yield* Effect.scope
   const entries = new Map<string, Deferred.Deferred<Entry, ACPError.CatalogError>>()
   const connected = yield* Deferred.make<void>()
@@ -127,7 +132,7 @@ export const make = Effect.fnUntraced(function* (client: OpenCodeClient) {
 const poll = Schedule.spaced("25 millis").pipe(Schedule.upTo({ duration: "5 seconds" }))
 
 // A cold Location lists no plugins until activation finishes, and providers may still discover models after that.
-const load = Effect.fn("cli.acp.catalog.load")(function* (client: OpenCodeClient, cwd: string) {
+const load = Effect.fn("cli.acp.catalog.load")(function* (client: AigcForgeClient, cwd: string) {
   yield* client.plugin
     .list({ location: { directory: cwd } })
     .pipe(Effect.repeat({ until: (plugins) => plugins.data.length > 0, schedule: poll }), Effect.ignore)
@@ -136,21 +141,26 @@ const load = Effect.fn("cli.acp.catalog.load")(function* (client: OpenCodeClient
   )
 })
 
-const read = Effect.fnUntraced(function* (client: OpenCodeClient, cwd: string) {
+const read = Effect.fnUntraced(function* (client: AigcForgeClient, cwd: string) {
   const location = { directory: cwd }
   const [modelResult, defaultResult, agentResult, commandResult] = yield* Effect.all(
     [
       client.model.list({ location }),
-      client.model.default({ location }),
+      client.model.group.definition.get({ location }),
       client.agent.list({ location }),
       client.command.list({ location }),
     ],
     { concurrency: "unbounded" },
   ).pipe(Effect.mapError((cause) => new ACPError.CatalogLoadError({ cause })))
   const models = modelResult.data.filter((model) => model.enabled)
-  const preferred = defaultResult.data
+  const preferred = defaultResult.data.defaultSelection
   // The parallel default read can name a model missing from this list.
-  const defaultModel = preferred ? findModel(models, preferred) : models[0]
+  const physical = preferred && !Model.Selection.isGroup(preferred) ? findModel(models, preferred) : models[0]
+  const defaultModel = preferred && (Model.Selection.isGroup(preferred) || physical) ? preferred : physical && Model.Ref.make({
+    providerID: physical.providerID,
+    id: physical.id,
+    variant: physical.variants.find((variant) => variant.id === "default")?.id,
+  })
   if (!defaultModel) return yield* new ACPError.CatalogNotReadyError({ reason: "models" })
   const agents = agentResult.data.filter((agent) => agent.mode !== "subagent" && !agent.hidden)
   // Core lists its resolved default agent first, the same one a new session runs.
@@ -158,13 +168,13 @@ const read = Effect.fnUntraced(function* (client: OpenCodeClient, cwd: string) {
   if (!defaultAgent) return yield* new ACPError.CatalogNotReadyError({ reason: "agents" })
   return {
     models,
-    defaultModel: {
-      providerID: defaultModel.providerID,
-      id: defaultModel.id,
-      variant: defaultModel.variants.find((variant) => variant.id === "default")?.id,
-    },
-    modes: agents.map((agent) => ({ id: agent.id, name: agent.name, description: agent.description })),
+    defaultModel,
+    groups: defaultResult.data.effective,
+    modes: agents.map((agent) => ({ id: agent.id, name: agent.name, description: agent.description, ordinaryModes: agent.ordinaryModes })),
     defaultModeID: defaultAgent.id,
+    executors: agentResult.data
+      .filter((agent) => agent.id !== "meta" && agent.mode !== "primary" && !agent.hidden)
+      .map((agent) => ({ id: agent.id, name: agent.name, description: agent.description, model: agent.model, ordinaryModes: agent.ordinaryModes })),
     commands: commandResult.data.filter((command) => !builtinCommands.has(command.name)),
   } satisfies Catalog
 })

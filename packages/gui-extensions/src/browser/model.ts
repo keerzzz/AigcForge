@@ -1,7 +1,7 @@
 import { batch, createRoot, createSignal, getOwner, onCleanup } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
 import { makeEventListener } from "@solid-primitives/event-listener"
-import type { Browser } from "@opencode/plugin-browser/rpc"
+import type { Browser } from "@aigcfroge/plugin-browser/rpc"
 import { createKeyed, type SessionRef, type SetupContext } from "../sdk"
 import { readHref } from "./comment"
 import {
@@ -187,6 +187,8 @@ export function createModel(ctx: SetupContext<typeof definition>) {
         // Focus requests write to the owning session's panel even while another shell tab is routed,
         // so the side panel and browser tab are already selected when the user returns to it.
         focus: (tabID) => {
+          if (!ctx.stores.display.value.visible) return
+
           if (!ref.location) {
             entry.held.focus = tabID
 
@@ -284,7 +286,7 @@ export function createModel(ctx: SetupContext<typeof definition>) {
             entry.held = {}
             held.mirror?.()
 
-            if (held.focus) layout.open(key(held.focus), ref, { tab: "select" })
+            if (held.focus && ctx.stores.display.value.visible) layout.open(key(held.focus), ref, { tab: "select" })
           }),
       )
 

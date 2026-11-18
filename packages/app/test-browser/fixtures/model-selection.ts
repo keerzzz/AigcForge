@@ -33,6 +33,16 @@ type Event = { data: { sessionID: string } }
 
 type ConfigModel = string | { providerID: string; model: string; variant?: string }
 
+type FixtureRoute = { id: string | undefined }
+
+type FixtureSessions = Record<string, Commit | undefined>
+
+type FixturePreferences = {
+  user: Array<ModelKey & { visibility: "show" | "hide" }>
+  recent: ModelKey[]
+  variant: Record<string, string>
+}
+
 const key = (modelID: string): ModelKey => ({ providerID: "provider", modelID })
 
 const durable = (modelID: string, variant?: string, agent = "build"): Commit => ({
@@ -82,6 +92,8 @@ const { LocalProvider, useLocal } = await import("@/providers/models/selection")
 
 const { ModelsProvider } = await import("@/providers/models/models")
 
+const { LanguageProvider } = await import("@/runtime/i18n/language")
+
 const { Persist } = await import("@/runtime/persistence/storage")
 
 const { createMemoryComposerState } = await import("@/composer/state")
@@ -99,15 +111,17 @@ afterEach(() =>
 
 function fixture(input: { session?: Commit; agents?: Agent[]; config?: ConfigModel; preferred?: string } = {}) {
   const directory = `/selection-test/${crypto.randomUUID()}`
+  const route: FixtureRoute = { id: "ses_a" }
+  const [sessions] = createStore<FixtureSessions>({ ses_a: input.session })
 
   const [state, set] = createStore({
     visible: true,
     configLoaded: true,
     connection: "connected",
-    route: { id: "ses_a" as string | undefined },
+    route,
     agents: input.agents ?? [agent("build"), agent("plan")],
-    config: input.config as ConfigModel | undefined,
-    sessions: { ses_a: input.session } as Record<string, Commit | undefined>,
+    config: input.config,
+    sessions,
     providers: [{ id: "provider", name: "Provider", package: "@ai-sdk/test", activation: "enabled" }],
     models: ["a", "b", "c"].map((id) => ({
       id,
@@ -126,10 +140,10 @@ function fixture(input: { session?: Commit; agents?: Agent[]; config?: ConfigMod
     })),
   })
 
-  const [preferences, setPreferences] = createStore({
-    user: [] as Array<ModelKey & { visibility: "show" | "hide" }>,
-    recent: [] as ModelKey[],
-    variant: (input.preferred ? { "provider/a": input.preferred } : {}) as Record<string, string>,
+  const [preferences, setPreferences] = createStore<FixturePreferences>({
+    user: [],
+    recent: [],
+    variant: input.preferred ? { "provider/a": input.preferred } : {},
   })
 
   const events = new Map<string, Set<(event: Event) => void>>()
@@ -153,7 +167,7 @@ function fixture(input: { session?: Commit; agents?: Agent[]; config?: ConfigMod
           },
         },
         provider: { list: () => state.providers },
-        model: { list: () => state.models },
+        model: { list: () => state.models, group: { definition: { list: () => ({ targets: [], definitions: [], effective: [] }), sync: async () => {} } } },
         integration: { list: () => [] },
       },
     },
@@ -180,16 +194,21 @@ function fixture(input: { session?: Commit; agents?: Agent[]; config?: ConfigMod
       let composer: ReturnType<typeof createComposerModelSelection> | undefined
 
       const dispose = createRoot((dispose) => {
-        createComponent(ModelsProvider, {
-          directory,
+        createComponent(LanguageProvider, {
+          locale: "en",
           get children() {
-            return createComponent(LocalProvider, {
+            return createComponent(ModelsProvider, {
+              directory,
               get children() {
-                local = useLocal()
+                return createComponent(LocalProvider, {
+                  get children() {
+                    local = useLocal()
 
-                if (draft) composer = createComposerModelSelection({ agent: local.agent.current })
+                    if (draft) composer = createComposerModelSelection({ draftID: "draft_a" })
 
-                return null
+                    return null
+                  },
+                })
               },
             })
           },
@@ -218,11 +237,11 @@ function selection(local: ReturnType<typeof useLocal>) {
   }
 }
 
-test("restores durable agents even when the agent selector is hidden", () => {
+test("keeps the ordinary Agent selector visible and restores its durable selection", () => {
   const f = fixture({ session: durable("b", "high", "plan") })
   f.set("visible", false)
   const { local } = f.mount()
-  expect(local.agent.visible()).toBe(false)
+  expect(local.agent.visible()).toBe(true)
   expect(selection(local)).toEqual({ agent: "plan", model: "b", variant: "high" })
 })
 
@@ -240,6 +259,48 @@ test("waits for initial configuration and reloads it after reconnecting", () => 
   expect(local.model.current()?.id).toBe("b")
 })
 
+test.each(["build", "meta"])("preserves %s model identity and label after its catalog becomes unavailable", (mode) => {
+  const f = fixture({
+    session: durable("a", undefined, mode),
+    agents: [agent("meta", key("a")), { ...agent("build"), mode: "all" }, { ...agent("plan"), mode: "all" }],
+  })
+
+  const { local } = f.mount()
+  const model = mode === "meta" ? local.executor.model : local.model
+
+  model.set(key("b"))
+  expect(model.current()?.id).toBe("b")
+  f.set("models", (models) => models.filter((model) => model.id !== "b"))
+
+  expect(model.current()).toBeUndefined()
+  expect(model.identity()).toMatchObject({
+    id: "b", name: "Model b", provider: { id: "provider", name: "Provider" },
+    unavailable: "This model is unavailable. Its saved selection is preserved.",
+  })
+
+  if (mode === "meta") {
+    local.executor.set({ agent: "plan" })
+    local.executor.set({ agent: "build" })
+  }
+
+  if (mode === "build") {
+    local.agent.set("plan")
+    local.agent.set("build")
+  }
+
+  expect(model.current()).toBeUndefined()
+  expect(model.identity()).toMatchObject({ id: "b", name: "Model b", provider: { id: "provider", name: "Provider" } })
+})
+
+test("keeps a durable unavailable model ID instead of the default model", () => {
+  const f = fixture({ session: durable("missing", "high") })
+  const { local } = f.mount()
+
+  expect(local.model.current()).toBeUndefined()
+  expect(local.model.identity()).toMatchObject({ id: "missing" })
+  expect(local.model.variant.current()).toBe("high")
+})
+
 test("new-session promotion does not mask a command's durable overrides", () => {
   const f = fixture({ session: durable("a", "low") })
   const { local } = f.mount()
@@ -248,27 +309,68 @@ test("new-session promotion does not mask a command's durable overrides", () => 
   expect(selection(local)).toEqual({ agent: "plan", model: "b", variant: "high" })
 })
 
-test("new-session drafts remember each agent's model and hand off inactive choices", () => {
-  const f = fixture({ agents: [agent("build", key("a")), agent("plan", key("b"))] })
-  f.set("route", "id", undefined)
-  const { local, composer } = f.mount(true)
+test("new-session drafts keep the Meta independent and hand off inactive executor choices", () => {
+  const f = fixture({
+    agents: [
+      agent("meta", key("a")),
+      { ...agent("build", key("a")), mode: "all" },
+      { ...agent("explore", key("b")), mode: "subagent" },
+    ],
+  })
 
-  if (!composer) throw new Error("missing draft composer")
-  composer.set(key("c"))
-  composer.variant.set("high")
-  local.agent.set("plan")
-  expect(composer.current()?.id).toBe("b")
-  expect(composer.variant.current()).toBeUndefined()
-  local.agent.set("build")
-  expect(composer.current()?.id).toBe("c")
-  expect(composer.variant.current()).toBe("high")
-  local.agent.set("plan")
-  const choices = composer.remembered()
-  f.set("sessions", "ses_a", durable("b", undefined, "plan"))
-  local.session.promote(f.directory, "ses_a", { agent: "plan", model: key("b"), choices })
+  f.set("route", "id", undefined)
+  const { local } = f.mount()
+  local.session.bindDraft("draft_a")
+  local.model.set(key("c"))
+  local.model.variant.set("high")
+  local.executor.model.set(key("a"))
+  local.executor.model.variant.set("low")
+  local.executor.set({ agent: "explore" })
+  local.executor.model.set(key("b"))
+  local.executor.model.variant.set("high")
+  expect(selection(local)).toEqual({ agent: "meta", model: "c", variant: "high" })
+  expect(local.executor.preference()).toEqual({
+    agent: "explore",
+    model: { providerID: "provider", id: "b", variant: "high" },
+  })
+
+  local.executor.set({ agent: "build" })
+  expect(selection(local)).toEqual({ agent: "meta", model: "c", variant: "high" })
+  expect(local.executor.preference()).toEqual({
+    agent: "build",
+    model: { providerID: "provider", id: "a", variant: "low" },
+  })
+  local.executor.set({ agent: "explore" })
+  expect(selection(local)).toEqual({ agent: "meta", model: "c", variant: "high" })
+  expect(local.executor.preference()).toEqual({
+    agent: "explore",
+    model: { providerID: "provider", id: "b", variant: "high" },
+  })
+
+  const executorPreference = local.executor.preference()
+  const choices = local.session.choices()
+  f.set(
+    "sessions",
+    "ses_a",
+    Object.assign(durable("c", "high", "meta"), {
+      controller: { kind: "root", rootSessionID: "ses_a", metaAgentID: "meta_a" },
+      executorPreference,
+    }),
+  )
+  local.session.promote(f.directory, "ses_a", {
+    agent: "meta",
+    model: key("c"),
+    variant: "high",
+    executorPreference,
+    choices,
+  })
   f.set("route", "id", "ses_a")
-  local.agent.set("build")
-  expect(local.model.current()?.id).toBe("c")
+  local.executor.set({ agent: "build" })
+  expect(selection(local)).toEqual({ agent: "meta", model: "c", variant: "high" })
+  expect(local.executor.preference()).toEqual({
+    agent: "build",
+    model: { providerID: "provider", id: "a", variant: "low" },
+  })
 })
 
 test("session model picks snapshot the variant rather than following another session's preferences", () => {
@@ -350,9 +452,8 @@ test("uses historical message selection only when durable and local selection ar
   expect(selection(local)).toEqual({ agent: "plan", model: "b", variant: "high" })
 })
 
-test("invalid durable models fall through agent, global, recent, and connected defaults", () => {
+test("only an implicit model selection falls through agent, global, recent, and connected defaults", () => {
   const f = fixture({
-    session: durable("removed", "high"),
     agents: [agent("build", key("b"), "low")],
     config: "provider/c",
   })

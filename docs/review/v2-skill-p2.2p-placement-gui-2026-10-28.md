@@ -1,0 +1,68 @@
+# P2.2P Skill Project/global GUI 限定检查点 — 2026-10-28
+
+本片将已交付的 Skill selected-owner 后端接到真实提案与 GUI：新提案默认 Project，用户可显式选择 global；每次确认前重新检查服务端目标根和事实，保存与 CAS 使用本次确认目标。Project 按当前 worktree/clone 独立。普通 App 构建下已有 Chat 的真实 GUI→TCP→文件/SQLite→原生发现→同 Session 正文消费已验证。新建 Session 的 Mode UI 不在本片证据范围。
+
+基线 `aad89b310bbda4d58a17bb8454292951654fe799`，固定上游 `4617210822bdbb31e5749751afbfb4584ccedac8`，实施分支 `v2-dev`。源码范围为 [files.json](evidence/v2-skill-placement-gui-2026-10-28/files.json) 的 11 文件；限定本地提交，不 push、merge 或部署。采用协议路由、enterprise-code-standard、reuse-first-refactor、Effect 规约，复用现有 Skill owner、Inspection、Client、createLatest、面板和测试 fixture。
+
+## 行为与决定函数
+
+- `packages/core/src/tool/propose-skill-asset.ts:53–70` 复用既有规范短路径和 `SkillAsset.Inspection`，只读 inspect Project，输出 target；持久 metadata 用 Schema 编码嵌套 Target。无提案落盘或旧资产迁移。`packages/core/src/tool/runtime.ts:55` 只编码 output、metadata 原样传递，因此浅拷贝 class 不能保证 JSON 持久化。
+- `packages/gui-extensions/src/skill-proposals/proposal.ts:155` 区分历史无自有 target 与自有畸形 target；`:318` 是未知 inspect 回包边界；`:553` 的 `sameTarget` 同时比较 scope/root，服务端对应规则在 `packages/core/src/asset-placement.ts:72`。本次 selected 的 content/catalog/apply 都须与当前确认身份一致；旧无 target 仍保留 Location 含义。
+- `packages/gui-extensions/src/skill-proposals/panel.tsx:137` 的 SkillTargetReview 用 Symbol 请求代次配合 createLatest 和 keyed 子树。初始、切目标、Recheck 都撤销确认；每次 Review 再 inspect，取消后不能重用旧检查。nameConflict 禁止保存；400 target mismatch 只重检；409 回读同 scope 的当前 catalog/content，再明确确认覆盖。原 Session directory/workspace 路由保持。
+- `packages/gui-extensions/src/skill-proposals/proposal.ts:559` 的 native 以已验证 target.root 加短路径，并比较实际 native 内容；旧无 target 才使用 Location fallback。其余六族不获得 Skill target 必填项，原七族侧栏回归通过。
+- 原生同 ID 赢家由 `packages/core/src/config/plugin/skill.ts:149` 的 refresh 决定，`:155` 的 Map.set 取 sources 顺序最后值；sources 在 `:79–104` 按目录顺序展开，`packages/core/src/config.ts:230–237` 将 globalSupplementary 放在 projectSupplementary 前。因而本轮 Project 遮蔽 global；删除 Project 后露出 global。ID 来源由 `packages/core/src/config/plugin/skill-file.ts:39` 决定，不以显示名称或 GUI target 比较去重。
+- 没有修改 Config、Watcher 或通用 Session runner 的生产实现。后端 keeper 仅通过真实 Watcher 的 subscribe/onReady 边界观察就绪、代次、事件和释放，无 skills 路径注入、手动 reload/emit、探针写或固定 sleep。沿用真实 Environment files/stat 读取缺根状态。
+
+## 已执行验证
+
+root 使用隔离仓和绝对路径 script/bun 1.4.2 执行。测试 cwd 均为对应包；类型使用包脚本及 GOMAXPROCS=2、GOMEMLIMIT=3GiB。每轮原始命令、日志 SHA、源码快照 SHA 与相对最终版本的差异见 [validation-manifest](evidence/v2-skill-placement-gui-2026-10-28/validation-manifest.json)。下表不累加重复轮次。
+
+| 记录 | exit | 原始 tally（机械提取） | 与最终源码的差异 |
+| --- | --- | --- | --- |
+| `server-full` | 0 | 173 pass; 1 skip; 0 fail; 8045 expect() calls; Ran 174 tests across 44 files. [75.56s] | `packages/gui-extensions/src/skill-proposals/proposal.ts`, `packages/gui-extensions/src/skill-proposals/proposal.test.ts`, `packages/gui-extensions/src/skill-proposals/panel.tsx`, `packages/app/e2e/utils/skill-asset.ts`, `packages/app/e2e/regression/side-panels.spec.ts` |
+| `core-regression` | 0 | 55 pass; 0 fail; 305 expect() calls; Ran 55 tests across 5 files. [3.88s] | `packages/gui-extensions/src/skill-proposals/proposal.ts`, `packages/gui-extensions/src/skill-proposals/proposal.test.ts`, `packages/gui-extensions/src/skill-proposals/panel.tsx`, `packages/app/e2e/utils/skill-asset.ts`, `packages/app/e2e/regression/side-panels.spec.ts` |
+| `gui-full` | 0 | 308 pass; 1 skip; 0 fail; 1155 expect() calls; Ran 309 tests across 33 files. [1280.00ms] | 无 |
+| `app-tests` | 0 | 742 pass; 0 fail; 2232 expect() calls; Ran 742 tests across 107 files. [2.81s]; 168 pass; 0 fail; 1778 expect() calls; Ran 168 tests across 38 files. [4.51s] | 无 |
+| `side-panels` | 0 | 42 passed (2.0m) | 无 |
+| `host-graph` | 0 | 25 passed (1.0m) | 无 |
+| `real-chain-variant` | 0 | 1 pass; 0 fail; 203 expect() calls | 无 |
+| `real-chain-dark` | 0 | 1 pass; 0 fail; 203 expect() calls | 无 |
+| `entry-baseline` | 0 | 15 passed (1.5m) | `packages/core/src/tool/propose-skill-asset.ts`, `packages/server/test/skill-asset.test.ts`, `packages/server/test/fixture/asset-http.ts`, `packages/gui-extensions/src/skill-proposals/proposal.ts`, `packages/gui-extensions/src/skill-proposals/proposal.test.ts`, `packages/gui-extensions/src/skill-proposals/panel.tsx`, `packages/gui-extensions/src/skill-proposals/i18n/en.ts`, `packages/gui-extensions/src/skill-proposals/panel.css`, `packages/app/e2e/utils/skill-asset.ts`, `packages/app/e2e/regression/side-panels.spec.ts`, `packages/app/e2e/utils/mock-server.ts` |
+| `entry-after` | 0 | 15 passed (54.0s) | 无 |
+
+Server/Core 轮后的差异仅在列出的 GUI/App 文件，后端生产及 keeper 字节未改变。GUI/App/42侧栏/25host-graph及最终包类型与最终11文件字节一致。Server 保留 1 skip 和 MaxListeners 警告，GUI 保留 1 个 WSL skip；没有描述为全部运行或无警告。Core 整包、全仓 typecheck、packaged Desktop 和外部 provider 未运行。
+
+Core、Server、GUI、App 与 App E2E 类型最终均 exit 0。最终增量 lint 的7个 GUI/App文件为0问题，scoped oxlint的10文件为0警告/0错误，10文件AST、11文件Prettier与精确diff检查均 exit 0。GUI SDK文档检查为155 declarations、645 members、191 parameters、15 guide blocks、0问题。当前没有公共Protocol/Schema/SDK改动，未声称新一轮生成验收。
+
+早期 `gui-types` 与 `parser-green` 尾部曾重叠6.905332秒，已记录 [runner-deviation](evidence/v2-skill-placement-gui-2026-10-28/runner-deviation.json)，该旧类型轮不用作最终验收。后续最终检查均串行。
+
+## 真实 GUI/TCP 与视觉边界
+
+普通 `app-plain-build` exit0，3,156文件由 [production-artifact-hashes](evidence/v2-skill-placement-gui-2026-10-28/production-artifact-hashes.json) 固定。light与dark两轮均为1pass/0fail/203expects，各4次primary、0次title；两轮重复数不相加。dark运行固定596源码和3,156产物，前后不变，browser errors和外部browser requests为空。
+
+两轮使用真实Git项目的两个子Location，Project skills已存在、global skills初始缺失。先等待两消费者原生订阅onReady，再通过GUI保存Project并从原Session composer选择实际native Skill消费；760×900窄屏经More菜单、Global按钮focus+Enter，再次inspect并显式确认保存。Global保存后仍由Project提供当前正文，UI准确显示“saved but not visible”。
+
+为让fallback正文可区分，harness另行记账两次真实TCP写操作：Global CAS replace和Project CAS delete。两Location观察原生事件后，同一GUI Session再从composer消费Global正文。它们是测试准备，不表示GUI编辑/删除已交付。live browser/TCP/Location scopes关闭后，在同进程创建不同Database handle及LocationServiceMap读回Session、metadata、native和正文；live/cold两轮订阅均释放且provider请求不增加。这不是进程崩溃恢复或磁盘冷启动。
+
+root已检查light/dark窄屏Global确认、遮蔽提示和消费截图，目标根、正文及按钮可见。仅证明此路径的Enter激活与视觉状态，不推广为完整Tab顺序、屏幕阅读器、全部主题/宽度或WCAG对比度验收。精选证据见 [real-chain/runs.json](evidence/v2-skill-placement-gui-2026-10-28/real-chain/runs.json)，原trace ZIP与SQLite仍留各独立/tmp运行目录。
+
+## 失败、根因与修复
+
+- 旧parser加新keeper得到87pass/44fail；最终GUI全测通过。中间两个test.each raw空数组被Bun按零参数done样式处理造成timeout，改为命名对象row，断言不减少。
+- Server初始红轮混有缺target和测试读取私有FSUtil的Layer失败。后者改用Environment公开files接口后，旧proposer留下4个缺target失败。新proposer最初浅拷贝Output，嵌套Target仍为class，持久Tool.Success的JSON metadata拒绝并导致tool仍running；在proposer边界用Schema.encodeEffect完整编码解决。后续唯一期望差异是公用tool-output.ts:75–76加的truncated:false，补齐精确期望。
+- 新UI keeper对旧面板缺Project按钮呈红。集成首轮16pass/1fail，定位到隔离基线mock-server的decodeSession/currentSession丢失workspaceID；仅补两个字段透传后，完整42例通过。原主仓该文件的更广WIP保持不变。
+- GUI最终类型一轮检出readonly target赋值；placement容器改为Types.Mutable，后续GUI类型、全测、App和侧栏均通过。
+- 首个普通真实链0pass/1fail/22expects停在Mode控件。控件属于未提交WIP且不在基线，实际页面已可编辑，不是等待时序。改为上一Workflow所用的真实Session服务准备已有Chat，再走GUI提示；Mode创建UI未验收。
+- 第二个真实链0pass/1fail/17expects停在模型精确等式；`packages/core/src/session/info.ts:34` 的fromRow补默认variant。测试期望补齐default后light/dark均通过，生产代码未改。
+
+全部失败日志保留，不用绿色汇总覆盖；dev GUI轮的字体allow-list警告不作视觉验收，最终依据普通构建。
+
+## 性能、WIP 与剩余范围
+
+[performance-pairs.json](evidence/v2-skill-placement-gui-2026-10-28/performance-pairs.json) 从两个日志各15条BENCHMARK机械解析，按场景和repeatEachIndex配对；配置同为production fixture、1 worker、0 retry、每路5次。stableObservedMs中位数为cold 2086.1→632.5ms、Home 451.9→365.7ms、Session 294.9→141.6ms。它们是顺序两批、非随机交错，仅描述本机样本，不证明因果优化或无回归。前后fixture产物均3,177；基线fixture哈希是运行后、下一fixture构建前延后捕获，其限制单列，不能与普通3,156产物混同。
+
+原64tracked WIP由独立哈希固定。唯一源码交集mock-server保持主工作文件原字节，提交取隔离仓两字段候选；账本提交用HEAD加本片appendix，工作文件保留原WIP前缀。最终限定文件、blob及提交后保留校验由本地提交记录机械产生；不整仓add，不reset/clean/stash或切分支。
+
+未交付范围在唯一[技术债账本](../technical-debt.md)追加owner和解除条件：当前Location/workspace与controller代次变化、disconnect/pending、late native refresh及完整异步交错；Mode creation UI、真实冷恢复、外部provider/Desktop/跨平台、性能归因；其余六族placement/运行消费、编辑/导入/引用删除、Workflow/Composition用户链。当前A→B→A keeper中旧A在最新确认取消后释放，不称穷尽所有交错。选择局部Skill纵链，保留既有族别分派维护债，不建立统一资产框架。
+
+独立复审最终结论见 [independent-review](evidence/v2-skill-placement-gui-2026-10-28/independent-review.md)。下一片按 [Command预检](evidence/v2-skill-placement-gui-2026-10-28/next-slice-preflight.md)继续；已裁决目标范围不重复提问。

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
 import { Persistence } from "@/runtime/persistence/schema"
-import { SessionMessage } from "@opencode/schema/session-message"
+import { SessionMessage } from "@aigcfroge/schema/session-message"
 import {
   CommentStore,
   ComposerStore,
@@ -29,6 +29,27 @@ const decode = Schema.decodeUnknownSync(
 )
 
 describe("composer persistence schemas", () => {
+  test("round-trips mixed Session references with their saved server identity", () => {
+    const value = decode({ prompt: [
+      { type: "text", content: "Ask ", start: 0, end: 4 },
+      { type: "session", content: "ses_ref", start: 4, end: 11,
+        reference: { serverID: "http://127.0.0.1:4096", sessionID: "ses_ref", title: "Original target", scope: { kind: "identity" } } },
+      { type: "text", content: " now", start: 11, end: 15 },
+    ], context: { items: [] } })
+
+    expect(value.prompt).toHaveLength(3)
+    expect(value.prompt[1]).toMatchObject({
+      type: "session",
+      reference: {
+        serverID: "http://127.0.0.1:4096",
+        sessionID: "ses_ref",
+        title: "Original target",
+        scope: { kind: "identity" },
+      },
+    })
+    expect(decode(Schema.encodeSync(ComposerStore)(value))).toEqual(value)
+  })
+
   test("defaults missing or invalid fields independently and normalizes the cursor", () => {
     expect(decode({})).toEqual({ prompt: DEFAULT_PROMPT, context: { items: [] } })
     const selection = { startLine: 1, startChar: 0, endLine: 2, endChar: 3 }
@@ -152,7 +173,7 @@ describe("composer persistence schemas", () => {
       end: 29,
       filename: "app.ts",
     })
-    expect(value.model?.variant).toBeNull()
+    expect(value.model).toMatchObject({ variant: null })
     expect(value.retry).toEqual({
       id: SessionMessage.ID.make("msg_retry"),
       agent: "build",

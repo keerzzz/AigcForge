@@ -1,5 +1,5 @@
 import { test, type TestOptions } from "bun:test"
-import { Cause, Effect, Exit, Layer, type Scope } from "effect"
+import { Cause, Duration, Effect, Exit, Layer, type Scope } from "effect"
 import { TestClock, TestConsole } from "effect/testing"
 import { FetchHttpClient } from "effect/http"
 
@@ -78,3 +78,28 @@ export const it = make(testEnv, liveEnv)
 
 export const testEffect = <R, E>(layer: Layer.Layer<R, E>) =>
   make(Layer.provideMerge(layer, testEnv), Layer.provideMerge(layer, liveEnv))
+
+export const pollWithTimeout = <A, E, R>(
+  self: Effect.Effect<A | undefined, E, R>,
+  message: string,
+  duration: Duration.Input = "5 seconds",
+) =>
+  Effect.gen(function* () {
+    while (true) {
+      const result = yield* self
+      if (result !== undefined) return result
+      yield* Effect.sleep("20 millis")
+    }
+  }).pipe(Effect.timeoutOrElse({ duration, orElse: () => Effect.fail(new Error(message)) }))
+
+export const awaitWithTimeout = <A, E, R>(
+  self: Effect.Effect<A, E, R>,
+  message: string,
+  duration: Duration.Input = "2 seconds",
+) =>
+  self.pipe(
+    Effect.timeoutOrElse({
+      duration,
+      orElse: () => Effect.fail(new Error(message)),
+    }),
+  )

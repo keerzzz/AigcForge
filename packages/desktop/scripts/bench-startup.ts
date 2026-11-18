@@ -5,8 +5,8 @@
 //                            [--fresh] [--offline] [--seed <userData dir>] [--profile-main] [--profile-renderer]
 //                            [--trace] [--out <dir>] [--home <dir>] [--window-at x,y]
 //
-// The app runs in an isolated home directory (its own %APPDATA%, XDG dirs, OpenCode DB, config and
-// service registration) with the developer's OPENCODE_* / OTEL_* environment stripped, so it never
+// The app runs in an isolated home directory (its own %APPDATA%, XDG dirs, AigcForge DB, config and
+// service registration) with the developer's AIGCFROGE_* / OTEL_* environment stripped, so it never
 // attaches to, restarts or reads the developer's live service or state and does not inherit their
 // telemetry configuration. `warm` starts one service from the bundled CLI before the runs and lets
 // every launch reuse it; `cold` stops it before each run so the desktop has to spawn it. `--fresh`
@@ -77,7 +77,7 @@ const settleMs = Number(args.values["settle-ms"])
 
 const outDir = resolve(args.values.out ?? join(packageDir, "dist", "bench-startup"))
 
-const home = resolve(args.values.home ?? join(tmpdir(), "opencode-bench-startup"))
+const home = resolve(args.values.home ?? join(tmpdir(), "aigcfroge-bench-startup"))
 
 for (const build of builds) {
   if (!existsSync(build.exe))
@@ -101,19 +101,19 @@ const paths = {
   appData: join(home, "AppData", "Roaming"),
   localAppData: join(home, "AppData", "Local"),
   temp: join(home, "AppData", "Local", "Temp"),
-  db: join(home, ".local", "share", "opencode", "opencode.db"),
-  config: join(home, ".config", "opencode"),
-  registration: join(home, ".local", "state", "opencode", "service.json"),
+  db: join(home, ".local", "share", "aigcfroge", "aigcfroge.db"),
+  config: join(home, ".config", "aigcfroge"),
+  registration: join(home, ".local", "state", "aigcfroge", "service.json"),
   logs: join(userData, "logs"),
 }
 
 prepareHome()
 
 // The desktop deletes XDG_STATE_HOME on Windows, so isolation goes through the home directory.
-// OPENCODE_* and OTEL_* from the developer's shell would otherwise leak into the measured app and
+// AIGCFROGE_* and OTEL_* from the developer's shell would otherwise leak into the measured app and
 // its service (an OTLP endpoint alone adds a network round trip to every CLI exit).
 const env = {
-  ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(OPENCODE_|OTEL_|SENTRY_)/.test(key))),
+  ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(AIGCFROGE_|OTEL_|SENTRY_)/.test(key))),
   USERPROFILE: home,
   HOME: home,
   APPDATA: paths.appData,
@@ -123,10 +123,10 @@ const env = {
   XDG_DATA_HOME: join(home, ".local", "share"),
   XDG_CONFIG_HOME: join(home, ".config"),
   XDG_CACHE_HOME: join(home, ".cache"),
-  OPENCODE_DB: paths.db,
-  OPENCODE_CONFIG_DIR: paths.config,
+  AIGCFROGE_DB: paths.db,
+  AIGCFROGE_CONFIG_DIR: paths.config,
   // Beta and prod builds check for updates on start; a closed proxy port fails that fast and offline.
-  ...(args.values.offline || appId !== "ai.opencode.desktop.dev" ? { HTTPS_PROXY: "http://127.0.0.1:9" } : {}),
+  ...(args.values.offline || appId !== "ai.aigcfroge.desktop.dev" ? { HTTPS_PROXY: "http://127.0.0.1:9" } : {}),
 }
 
 const cdpPort = await freePort()
@@ -563,20 +563,20 @@ async function mainBootTiming() {
 function defaultExe() {
   const unpacked = join(packageDir, "dist", process.platform === "win32" ? "win-unpacked" : process.platform === "darwin" ? "mac" : "linux-unpacked")
 
-  if (!existsSync(unpacked)) return join(unpacked, "OpenCode Dev.exe")
+  if (!existsSync(unpacked)) return join(unpacked, "AigcForge Dev.exe")
   const candidate = readdirSync(unpacked).find((f) => (process.platform === "win32" ? f.endsWith(".exe") : f.endsWith(".app") || !f.includes(".")))
 
-  return join(unpacked, candidate ?? "OpenCode Dev.exe")
+  return join(unpacked, candidate ?? "AigcForge Dev.exe")
 }
 
 function appIdFor(executable: string) {
   const name = basename(executable, ".exe")
 
-  if (/beta/i.test(name)) return "ai.opencode.desktop.beta"
+  if (/beta/i.test(name)) return "ai.aigcfroge.desktop.beta"
 
-  if (/dev/i.test(name)) return "ai.opencode.desktop.dev"
+  if (/dev/i.test(name)) return "ai.aigcfroge.desktop.dev"
 
-  return "ai.opencode.desktop"
+  return "ai.aigcfroge.desktop"
 }
 
 function prepareHome() {
@@ -586,7 +586,7 @@ function prepareHome() {
     // Seed only the app's own state (tabs, drafts, settings, window placement); Chromium profile
     // data, caches, logs and the staged CLI are recreated by the app.
     const seed = resolve(args.values.seed)
-    const keep = /^(drafts\.sqlite(-wal|-shm)?|opencode\.[a-z]+|\.?window-state.*\.json|opencode)$/
+    const keep = /^(drafts\.sqlite(-wal|-shm)?|aigcfroge\.[a-z]+|\.?window-state.*\.json|aigcfroge)$/
     cpSync(seed, userData, {
       recursive: true,
       filter: (source) => source === seed || keep.test(relative(seed, source).split(/[\\/]/)[0] ?? ""),
@@ -883,7 +883,7 @@ function summarize(list: Sample[]) {
 function bundledCli(exe: string) {
   const resources = process.platform === "darwin" ? join(dirname(exe), "..", "Resources") : join(dirname(exe), "resources")
 
-  return join(resources, process.platform === "win32" ? "opencode-cli.exe" : "opencode-cli")
+  return join(resources, process.platform === "win32" ? "aigcfroge-cli.exe" : "aigcfroge-cli")
 }
 
 async function warmService() {
@@ -891,7 +891,7 @@ async function warmService() {
   const clis = builds.map((build) => bundledCli(build.exe))
 
   const identity = (cli: string) => {
-    const version = join(dirname(cli), "opencode-cli.version")
+    const version = join(dirname(cli), "aigcfroge-cli.version")
 
     return existsSync(version) ? readFileSync(version, "utf8").trim() : String(statSync(cli).size)
   }

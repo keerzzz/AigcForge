@@ -1,5 +1,5 @@
-import { Credential } from "@opencode/core/credential"
-import { ConflictError } from "@opencode/protocol/errors"
+import { Credential } from "@aigcfroge/core/credential"
+import { ConflictError } from "@aigcfroge/protocol/errors"
 import { Effect } from "effect"
 import { HttpApiBuilder, HttpApiSchema } from "effect/http-api"
 import { Api } from "../api"

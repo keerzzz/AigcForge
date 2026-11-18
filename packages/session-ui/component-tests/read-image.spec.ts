@@ -19,7 +19,7 @@ for (const grouped of [true, false]) {
       const requests: string[] = []
       await page.route("**/api/fs/read/**", async (route) => {
         expect(route.request().headers().authorization).toBe(
-          `Basic ${Buffer.from("opencode:fixture").toString("base64")}`,
+          `Basic ${Buffer.from("aigcfroge:fixture").toString("base64")}`,
         )
         requests.push(route.request().url())
         await route.fulfill({ contentType: "image/png", body: png })

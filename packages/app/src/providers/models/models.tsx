@@ -1,10 +1,12 @@
 import { type Accessor, createMemo } from "solid-js"
+import { Predicate } from "effect"
 import { filter, firstBy, flat, groupBy, mapValues, pipe, uniqueBy, values } from "remeda"
-import { createSimpleContext } from "@opencode/ui/context"
+import { createSimpleContext } from "@aigcfroge/ui/context"
 import { useProviders } from "@/providers/catalog/providers"
 import { useGlobal } from "@/runtime/server/runtime"
+import { isGroup, ModelKey, selectionKey } from "./key"
 
-export type ModelKey = { providerID: string; modelID: string }
+export type { ModelKey } from "./key"
 
 type Visibility = "show" | "hide"
 
@@ -14,7 +16,7 @@ const RECENT_LIMIT = 5
 const sixMonths = 6 * 30.436875 * 24 * 60 * 60 * 1000
 
 function modelKey(model: ModelKey) {
-  return `${model.providerID}:${model.modelID}`
+  return selectionKey(model)
 }
 
 const createModelsController = (directory: Accessor<string | undefined>) => {
@@ -74,7 +76,7 @@ const createModelsController = (directory: Accessor<string | undefined>) => {
   const visibility = createMemo(() => {
     const map = new Map<string, Visibility>()
 
-    for (const item of store.user) map.set(`${item.providerID}:${item.modelID}`, item.visibility)
+    for (const item of store.user) map.set(modelKey(item), item.visibility)
 
     return map
   })
@@ -87,9 +89,10 @@ const createModelsController = (directory: Accessor<string | undefined>) => {
     })),
   )
 
-  const find = (key: ModelKey) => list().find((m) => m.id === key.modelID && m.provider.id === key.providerID)
+  const find = (key: ModelKey) => isGroup(key) ? undefined : list().find((m) => m.id === key.modelID && m.provider.id === key.providerID)
 
   function update(model: ModelKey, state: Visibility) {
+    if (isGroup(model)) return
     const index = store.user.findIndex((x) => x.modelID === model.modelID && x.providerID === model.providerID)
 
     if (index >= 0) {
@@ -102,6 +105,7 @@ const createModelsController = (directory: Accessor<string | undefined>) => {
   }
 
   const visible = (model: ModelKey) => {
+    if (isGroup(model)) return true
     const key = modelKey(model)
     const state = visibility().get(key)
 
@@ -120,16 +124,17 @@ const createModelsController = (directory: Accessor<string | undefined>) => {
   }
 
   const push = (model: ModelKey) => {
-    const uniq = uniqueBy([model, ...store.recent], (x) => `${x.providerID}:${x.modelID}`)
+    const uniq = uniqueBy([model, ...store.recent], modelKey)
 
     if (uniq.length > RECENT_LIMIT) uniq.pop()
     setStore("recent", uniq)
   }
 
-  const variantKey = (model: ModelKey) => `${model.providerID}/${model.modelID}`
-  const getVariant = (model: ModelKey) => store.variant?.[variantKey(model)]
+  const variantKey = (model: Exclude<ModelKey, { type: "group" }>) => `${model.providerID}/${model.modelID}`
+  const getVariant = (model: ModelKey) => isGroup(model) ? undefined : store.variant?.[variantKey(model)]
 
   const setVariant = (model: ModelKey, value: string | undefined) => {
+    if (isGroup(model)) return
     const key = variantKey(model)
 
     if (!store.variant) {
@@ -162,6 +167,6 @@ export const { use: useModels, provider: ModelsProvider } = createSimpleContext(
   name: "Models",
   gate: false,
   init: (props: { directory?: string | Accessor<string | undefined> } = {}) => {
-    return createModelsController(() => (typeof props.directory === "function" ? props.directory() : props.directory))
+    return createModelsController(() => (Predicate.isFunction(props.directory) ? props.directory() : props.directory))
   },
 })

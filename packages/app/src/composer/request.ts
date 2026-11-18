@@ -1,4 +1,5 @@
-import { encodeFilePath, getFilename } from "@opencode/util/path"
+import { encodeFilePath, getFilename } from "@aigcfroge/util/path"
+import type { SessionReference } from "@aigcfroge/schema/session-reference"
 import type { FileSelection } from "@/workspaces/files/model"
 import type {
   AgentPart,
@@ -34,6 +35,7 @@ type PromptRequest = {
   skills: { id: string; name: string; mention?: { start: number; end: number; text: string } }[]
   comments: PromptComment[]
   attachments: PromptAttachmentReference[]
+  sessionReferences: SessionReference.MentionEncoded[]
 }
 
 type BuildPromptRequestInput = {
@@ -96,6 +98,10 @@ export function noteComment(item: NoteContextItem, comment: string) {
 }
 
 export function buildPromptRequest(input: BuildPromptRequestInput): PromptRequest {
+  const sessionReferences = input.prompt.flatMap((part) =>
+    part.type === "session" ? [{ reference: part.reference, start: part.start, end: part.end, content: part.content }] : [],
+  )
+
   const skills = input.prompt.filter(isSkillAttachment).map((attachment) => ({
     id: attachment.id,
     name: attachment.name,
@@ -179,6 +185,9 @@ export function buildPromptRequest(input: BuildPromptRequestInput): PromptReques
     text: [
       ...(input.text.trim() ? [input.text] : []),
       ...attachments.map(formatAttachmentReference),
+      ...sessionReferences.map(({ reference }) =>
+        `Referenced Session: ${reference.title} (server ${reference.serverID}, Session ${reference.sessionID}, scope ${reference.scope.kind}${reference.scope.kind === "identity" ? "" : ` ${reference.scope.messageID}`})`,
+      ),
       ...comments.map((comment) => (comment.type === "note" ? formatNoteComment(comment) : formatCommentNote(comment))),
     ].join("\n"),
     displayText: input.text,
@@ -187,5 +196,6 @@ export function buildPromptRequest(input: BuildPromptRequestInput): PromptReques
     skills,
     comments,
     attachments,
+    sessionReferences,
   }
 }

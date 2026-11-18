@@ -1,9 +1,9 @@
-import type { SessionInfo } from "@opencode/client/promise"
+import type { SessionInfo } from "@aigcfroge/client/promise"
 import type { LocalProject } from "@/shell/state/layout"
-import { displayName } from "@opencode/ui/project-avatar"
+import { displayName } from "@aigcfroge/ui/project-avatar"
 import { compareSessionTime } from "@/shell/layout/helpers"
 import { pathKey } from "@/workspaces/path-key"
-import { getFilename } from "@opencode/util/path"
+import { getFilename } from "@aigcfroge/util/path"
 
 export type HomeSessionRecord = {
   session: SessionInfo
@@ -20,6 +20,7 @@ export function buildHomeSessionRecords(input: {
   projectDirectories: () => string[] | undefined
   projects: () => LocalProject[]
   resolveProject?: (session: SessionInfo) => LocalProject | undefined
+  order?: "updated" | "message"
 }) {
   const selected = input.projectDirectories()
   const directories = selected ? new Set(selected.map(pathKey)) : undefined
@@ -29,7 +30,7 @@ export function buildHomeSessionRecords(input: {
     : input.sessions()
 
   return [...new Map(sessions.map((session) => [session.id, session] as const)).values()]
-    .sort(compareSessionTime)
+    .sort(input.order === "message" ? compareSessionMessageTime : compareSessionTime)
     .map((session) => {
       const project = input.resolveProject?.(session) ??
         homeProjectForSession(session, input.projects()) ?? {
@@ -40,6 +41,14 @@ export function buildHomeSessionRecords(input: {
 
       return { session, project, projectName: displayName(project) }
     })
+}
+
+export function compareSessionMessageTime(a: SessionInfo, b: SessionInfo) {
+  const latest = (b.time.message ?? b.time.created) - (a.time.message ?? a.time.created)
+
+  if (latest !== 0) return latest
+
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
 }
 
 // Worktree inventories load on demand, so a worktree session may not match any directory yet;

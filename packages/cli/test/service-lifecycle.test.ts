@@ -1,11 +1,11 @@
 import { NodeFileSystem } from "@effect/platform-node"
-import { Service } from "@opencode/client/effect/service"
+import { Service } from "@aigcfroge/client/effect/service"
 import { expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 import fs from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import { OPENCODE_VERSION } from "../src/version"
+import { AIGCFROGE_VERSION } from "../src/version"
 import { isolatedEnv } from "./fixture/environment"
 
 // Real `serve --service` processes driven by the real CLI commands and client. Only behavior that
@@ -24,7 +24,7 @@ serviceTest(
     await Promise.all([
       cli(home, "service", "start"),
       cli(home, "service", "start"),
-      ...Array.from({ length: 3 }, () => ensure(home, OPENCODE_VERSION)),
+      ...Array.from({ length: 3 }, () => ensure(home, AIGCFROGE_VERSION)),
     ])
 
     await settled(home)
@@ -61,7 +61,7 @@ serviceTest(
   async () => {
     await using home = await serviceHome()
     const old = Bun.spawn(
-      [process.execPath, "--define", 'OPENCODE_VERSION:"2.0.0-old"', home.entry, "serve", "--service"],
+      [process.execPath, "--define", 'AIGCFROGE_VERSION:"2.0.0-old"', home.entry, "serve", "--service"],
       { env: home.env, stdout: "ignore", stderr: "ignore" },
     )
     const before = await settled(home, "2.0.0-old")
@@ -69,7 +69,7 @@ serviceTest(
     await Promise.all([ensure(home), cli(home, "service", "start")])
     expect((await settled(home, "2.0.0-old")).pid).toBe(before.pid)
 
-    await Promise.all([ensure(home, OPENCODE_VERSION), ensure(home), cli(home, "service", "start")])
+    await Promise.all([ensure(home, AIGCFROGE_VERSION), ensure(home), cli(home, "service", "start")])
 
     const after = await settled(home)
     expect(after.pid).not.toBe(before.pid)
@@ -98,7 +98,7 @@ serviceTest(
     await expect(ensure(home)).rejects.toThrow("incompatible health protocol")
     expect(old.exitCode).toBe(null)
 
-    await ensure(home, OPENCODE_VERSION)
+    await ensure(home, AIGCFROGE_VERSION)
     await old.exited
     await settled(home)
     await stopped(home)
@@ -117,7 +117,7 @@ serviceTest(
       (error: Error) => error.message,
     )
     expect(conflict).toContain(`Managed service port ${home.port} on 127.0.0.1 is already in use by another process`)
-    expect(conflict).toContain("opencode service set port <port>")
+    expect(conflict).toContain("aigcfroge service set port <port>")
     expect(await servers(home)).toEqual([])
     expect(await Bun.file(home.registration).exists()).toBe(false)
 
@@ -173,21 +173,21 @@ type Snapshot = Awaited<ReturnType<typeof snapshot>>
 
 async function serviceHome(options: { readonly failBoot?: boolean } = {}) {
   // Bun resolves symlinks in the entry path, so process command lines carry the real directory.
-  const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "opencode-service-lifecycle-")))
+  const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-service-lifecycle-")))
   const port = await availablePort()
   await fs.mkdir(path.join(root, "config"), { recursive: true })
   await fs.writeFile(path.join(root, "config", "service-local.json"), JSON.stringify({ port }))
   // A directory where the database file belongs makes boot fail after the server registers.
   if (options.failBoot) await fs.mkdir(path.join(root, "database"))
   // Servers spawned through this home's entry carry its path, so `servers()` sees only this home.
-  const homeEntry = path.join(root, "opencode.ts")
+  const homeEntry = path.join(root, "aigcfroge.ts")
   await fs.writeFile(homeEntry, `import ${JSON.stringify(entry)}\n`)
-  const overrides = options.failBoot ? { OPENCODE_DB: path.join(root, "database") } : {}
+  const overrides = options.failBoot ? { AIGCFROGE_DB: path.join(root, "database") } : {}
   const home = {
     root,
     port,
     entry: homeEntry,
-    registration: path.join(root, "state", "opencode", "service-local.json"),
+    registration: path.join(root, "state", "aigcfroge", "service-local.json"),
     env: Object.fromEntries(
       Object.entries(isolatedEnv(root, overrides)).filter((entry): entry is [string, string] => entry[1] !== undefined),
     ),
@@ -209,7 +209,7 @@ async function cli(home: Home, ...args: string[]) {
     new Response(child.stdout).text(),
     new Response(child.stderr).text(),
   ])
-  if (code !== 0) throw new Error(`opencode ${args.join(" ")} exited ${code}: ${stderr.trim()}`)
+  if (code !== 0) throw new Error(`aigcfroge ${args.join(" ")} exited ${code}: ${stderr.trim()}`)
   return stdout.trim()
 }
 
@@ -225,7 +225,7 @@ function ensure(home: Home, version?: string) {
 }
 
 /** One live server, registered and ready with the expected version on the configured port. */
-async function settled(home: Home, version = OPENCODE_VERSION) {
+async function settled(home: Home, version = AIGCFROGE_VERSION) {
   const state = await observe(home, (state) => isSettled(home, state, version))
   if (state.info === undefined) throw new Error("Settled service has no registration")
   return state.info
@@ -236,7 +236,7 @@ async function steady(home: Home) {
   const info = await settled(home)
   await Bun.sleep(5_500)
   const state = await snapshot(home)
-  expect({ settled: isSettled(home, state, OPENCODE_VERSION), id: state.info?.id }).toEqual({
+  expect({ settled: isSettled(home, state, AIGCFROGE_VERSION), id: state.info?.id }).toEqual({
     settled: true,
     id: info.id,
   })
@@ -299,7 +299,7 @@ async function snapshot(home: Home) {
             auth:
               info.password === undefined
                 ? undefined
-                : { type: "basic", username: "opencode", password: info.password },
+                : { type: "basic", username: "aigcfroge", password: info.password },
           }),
           signal: AbortSignal.timeout(1_000),
         })

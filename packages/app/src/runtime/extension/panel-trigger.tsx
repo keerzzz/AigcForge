@@ -1,12 +1,13 @@
 import { createMemo, Match, Show, Switch, untrack } from "solid-js"
 import type { JSX } from "solid-js"
 import { useSortable } from "@dnd-kit/solid/sortable"
-import { Icon } from "@opencode/ui/icon"
-import { IconButton } from "@opencode/ui/icon-button"
-import { Keybind } from "@opencode/ui/keybind"
-import { Tooltip } from "@opencode/ui/tooltip"
-import { Tabs } from "@opencode/ui/tabs"
-import type { MountedSession, PanelTab } from "@opencode/gui-extensions/sdk"
+import { Icon } from "@aigcfroge/ui/icon"
+import type { IconName } from "@aigcfroge/ui/icons/catalog"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { Keybind } from "@aigcfroge/ui/keybind"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { Tabs } from "@aigcfroge/ui/tabs"
+import type { MountedSession, PanelTab } from "@aigcfroge/gui-extensions/sdk"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useCommand } from "@/shell/commands/command"
 import { Contribution } from "./render"
@@ -16,6 +17,7 @@ export function PanelTrigger(props: {
   value: string
   extension: string
   tab: PanelTab
+  icon?: IconName
   session: MountedSession
   index: number
   active: boolean
@@ -51,7 +53,13 @@ export function PanelTrigger(props: {
     return <Contribution extension={props.extension}>{() => untrack(() => render(state))}</Contribution>
   })
 
-  const content = () => rendered() ?? props.tab.title
+  const content = () =>
+    rendered() ?? (
+      <span class="flex min-w-0 items-center gap-1.5">
+        <Show when={props.icon}>{(icon) => <Icon name={icon()} size="small" class="shrink-0" />}</Show>
+        <span class="min-w-0 truncate">{props.tab.title}</span>
+      </span>
+    )
 
   const tooltip = (button: JSX.Element) => (
     <Tooltip
@@ -164,8 +172,8 @@ function SortableTrigger(props: {
   })
 
   return (
-    <div ref={sortable.ref} class="h-full flex items-center">
-      <div class="relative">
+    <div ref={sortable.ref} class="h-full min-w-32 max-w-full flex-[0_1_auto] flex items-center">
+      <div class="relative min-w-0 w-full">
         <Tabs.Trigger
           value={props.value}
           id={props.tab.dom?.tab}

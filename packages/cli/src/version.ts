@@ -1,10 +1,10 @@
-declare const OPENCODE_VERSION: string
-declare const OPENCODE_CHANNEL: string
-declare const OPENCODE_ARTIFACT: string
+declare const AIGCFROGE_VERSION: string
+declare const AIGCFROGE_CHANNEL: string
+declare const AIGCFROGE_ARTIFACT: string
 
-const version = typeof OPENCODE_VERSION === "string" ? OPENCODE_VERSION : "local"
-const channel = typeof OPENCODE_CHANNEL === "string" ? OPENCODE_CHANNEL : "local"
-const artifact = typeof OPENCODE_ARTIFACT === "string" ? OPENCODE_ARTIFACT : "cli"
+const version = typeof AIGCFROGE_VERSION === "string" ? AIGCFROGE_VERSION : "local"
+const channel = typeof AIGCFROGE_CHANNEL === "string" ? AIGCFROGE_CHANNEL : "local"
+const artifact = typeof AIGCFROGE_ARTIFACT === "string" ? AIGCFROGE_ARTIFACT : "cli"
 
-export { version as OPENCODE_VERSION, channel as OPENCODE_CHANNEL, artifact as OPENCODE_ARTIFACT }
-export const OPENCODE_LOCAL = channel === "local"
+export { version as AIGCFROGE_VERSION, channel as AIGCFROGE_CHANNEL, artifact as AIGCFROGE_ARTIFACT }
+export const AIGCFROGE_LOCAL = channel === "local"

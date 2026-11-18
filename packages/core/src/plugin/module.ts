@@ -1,9 +1,9 @@
 export * as PluginModule from "./module.js"
 
-import type { Plugin } from "@opencode/plugin/effect/plugin"
-import { Host } from "@opencode/plugin/host"
-import { createPluginSources } from "@opencode/plugin/source"
-import { Npm } from "@opencode/util/npm"
+import type { Plugin } from "@aigcfroge/plugin/effect/plugin"
+import { Host } from "@aigcfroge/plugin/host"
+import { createPluginSources } from "@aigcfroge/plugin/source"
+import { Npm } from "@aigcfroge/util/npm"
 import { Deferred, Effect, FiberSet, PubSub, Schema, Stream } from "effect"
 import path from "path"
 import { stat } from "node:fs/promises"
@@ -11,6 +11,8 @@ import { fileURLToPath, pathToFileURL } from "url"
 import type { ConfigPluginSource } from "../config/plugin/source.js"
 import type { Generation } from "../plugin.js"
 import { PluginPromise } from "./promise.js"
+import { Producer } from "./service.js"
+import { CompositionDigest } from "../composition/digest.js"
 import { Config } from "../config.js"
 import { ManagedPolicy } from "../managed-policy.js"
 import { Watcher } from "../filesystem/watcher.js"
@@ -117,11 +119,10 @@ const load = Effect.fn("PluginModule.load")(function* (
   if (!local && options?.install === false && !entrypoint) return { pending: true as const }
   if (!entrypoint) return yield* new LoadError({ message: `Plugin entrypoint not found: ${operation.target}` })
   yield* Effect.log({ msg: "loading plugin", id: operation.target, entrypoint })
-  const loaded = yield* Effect.promise(() =>
-    local
-      ? sources.read(entrypoint)
-      : Host.load(entrypoint).then((module) => ({ module, version: installed?.revision })),
-  )
+  const loaded = yield* Effect.promise(async () => {
+    if (local) return await sources.read(entrypoint)
+    return { module: await Host.load(entrypoint), version: installed?.revision, sourceDigest: undefined }
+  })
   const value = (yield* Schema.decodeUnknownEffect(Module)(loaded.module).pipe(
     Effect.mapError(
       (cause) =>
@@ -139,6 +140,14 @@ const load = Effect.fn("PluginModule.load")(function* (
       ...(entrypoints.rpc ? { rpc: true as const } : {}),
     },
     revision: JSON.stringify([operation, loaded.version]),
+    ...(loaded.sourceDigest === undefined
+      ? {}
+      : {
+          producer: new Producer({
+            id: plugin.id,
+            revision: CompositionDigest.computeDigest({ source: loaded.sourceDigest, options: operation.options }),
+          }),
+        }),
     source: path.isAbsolute(operation.target)
       ? { type: "local" as const, path: fileURLToPath(entrypoint) }
       : {

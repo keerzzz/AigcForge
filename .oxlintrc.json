@@ -95,7 +95,7 @@
             ],
             "patterns": [
               {
-                "regex": "^@opencode/(app|desktop)(/|$)",
+                "regex": "^@aigcfroge/(app|desktop)(/|$)",
                 "message": "GUI extensions never import the app or desktop packages. Use the SDK."
               },
               {
@@ -123,7 +123,7 @@
           {
             "patterns": [
               {
-                "regex": "^@opencode/(app|desktop)(/|$)",
+                "regex": "^@aigcfroge/(app|desktop)(/|$)",
                 "message": "GUI extensions never import the app or desktop packages. Use the SDK."
               },
               {
@@ -145,6 +145,7 @@
     }
   ],
   "ignorePatterns": [
+    "docs/review/evidence/**",
     "**/node_modules",
     "**/dist",
     "**/.build",
@@ -158,7 +159,7 @@
     ".continue/**",
     ".cursor/**",
     ".gemini/**",
-    ".opencode/**",
+    ".aigcfroge/**",
     ".pi/**",
     ".roo/**",
     ".windsurf/**",

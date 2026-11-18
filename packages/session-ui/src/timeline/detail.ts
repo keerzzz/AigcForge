@@ -1,5 +1,15 @@
-import type { SessionMessageAssistant, SessionMessageInfo } from "@opencode/client/promise"
+import type { SessionMessageAssistant, SessionMessageInfo } from "@aigcfroge/client/promise"
+import { SessionTask } from "@aigcfroge/schema/session-task"
+import { SessionGoalID } from "@aigcfroge/schema/session-goal-id"
+import { SessionCommunication } from "@aigcfroge/schema/session-communication"
+import { Option, Schema } from "effect"
 import { shellResultFailed } from "../message/current-tool-state"
+
+const decodeCoordination = Schema.decodeUnknownOption(Schema.Union([
+  Schema.Struct({ coordination: Schema.toEncoded(SessionTask.TaskCoordination) }),
+  Schema.Struct({ goalRound: Schema.toEncoded(SessionGoalID.RoundRef) }),
+  Schema.Struct({ communication: Schema.Struct({ id: SessionCommunication.ID }) }),
+]))
 
 export const timelineCategories = ["shell", "edit", "thinking", "subagents", "notices", "tools"] as const
 
@@ -115,6 +125,7 @@ export function timelineNoticeRequired(message: SessionMessageInfo) {
   const metadata = message.metadata
 
   return (
+    Option.isSome(decodeCoordination(metadata)) ||
     metadata?.state === "error" ||
     (metadata?.source === "shell" && metadata.state === "completed" && shellResultFailed(metadata))
   )

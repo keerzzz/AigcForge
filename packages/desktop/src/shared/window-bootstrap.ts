@@ -7,7 +7,7 @@ export type WindowBootstrap = {
   packaged?: boolean
 }
 
-const prefix = "--opencode-window="
+const prefix = "--aigcfroge-window="
 
 export function windowBootstrapArgument(bootstrap: WindowBootstrap) {
   return prefix + encodeURIComponent(JSON.stringify(bootstrap))

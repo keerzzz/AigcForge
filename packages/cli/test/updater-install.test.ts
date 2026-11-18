@@ -1,8 +1,8 @@
 import { NodeServices } from "@effect/platform-node"
-import { EffectFlock } from "@opencode/util/effect-flock"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { Global } from "@opencode/util/global"
-import { AppProcess } from "@opencode/util/process"
+import { EffectFlock } from "@aigcfroge/util/effect-flock"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Global } from "@aigcfroge/util/global"
+import { AppProcess } from "@aigcfroge/util/process"
 import { expect, spyOn, test } from "bun:test"
 import { Effect, FileSystem, Layer, PlatformError, Stream } from "effect"
 import { ChildProcess, ChildProcessSpawner } from "effect/process"
@@ -13,13 +13,13 @@ import { testEffect } from "../../core/test/lib/effect"
 
 const it = testEffect(NodeServices.layer)
 
-declare const OPENCODE_CLI_NAME: string | undefined
+declare const AIGCFROGE_CLI_NAME: string | undefined
 
 function fixture(
   respond: (command: ChildProcess.StandardCommand) => Partial<AppProcess.RunResult> & {
     error?: AppProcess.AppProcessError
   } = () => ({}),
-  name = "@opencode/cli",
+  name = "@aigcfroge/cli",
   failCleanup = false,
   releasePackage = name,
   formula?: string,
@@ -27,18 +27,18 @@ function fixture(
   return Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem
     const spawner = yield* ChildProcessSpawner.ChildProcessSpawner
-    const root = yield* fs.makeTempDirectoryScoped({ prefix: "opencode-updater-" })
+    const root = yield* fs.makeTempDirectoryScoped({ prefix: "aigcfroge-updater-" })
     const execPath = process.execPath
     const modules = path.join(root, "node_modules")
     const executable = formula
-      ? path.join(root, "Cellar", formula, "2.0.20", "bin", "opencode")
-      : path.join(modules, "@opencode", "cli", "bin", "opencode")
+      ? path.join(root, "Cellar", formula, "2.0.20", "bin", "aigcfroge")
+      : path.join(modules, "@aigcfroge", "cli", "bin", "aigcfroge")
     yield* fs.makeDirectory(path.dirname(executable), { recursive: true })
     yield* fs.writeFileString(executable, "binary")
     if (!formula)
       yield* fs.writeFileString(
-        path.join(modules, "@opencode", "cli", "package.json"),
-        JSON.stringify({ name, bin: { opencode: "bin/opencode" } }),
+        path.join(modules, "@aigcfroge", "cli", "package.json"),
+        JSON.stringify({ name, bin: { aigcfroge: "bin/aigcfroge" } }),
       )
     const requests: string[] = []
     // The updater uses global fetch; scope this replacement to each install test.
@@ -135,13 +135,13 @@ const windows = process.platform === "win32" ? it.live : it.live.skip
 const unix = process.platform === "win32" ? it.live.skip : it.live
 
 const installs = [
-  { method: "npm", command: ["npm", "install", "--global", "--force", "@opencode/cli@2.3.4-beta.1"] },
+  { method: "npm", command: ["npm", "install", "--global", "--force", "@aigcfroge/cli@2.3.4-beta.1"] },
   {
     method: "pnpm",
-    command: ["pnpm", "add", "--global", "--allow-build=@opencode/cli", "@opencode/cli@2.3.4-beta.1"],
+    command: ["pnpm", "add", "--global", "--allow-build=@aigcfroge/cli", "@aigcfroge/cli@2.3.4-beta.1"],
   },
-  { method: "yarn", command: ["yarn", "global", "add", "@opencode/cli@2.3.4-beta.1"] },
-  { method: "vp", command: ["vp", "update", "-g", "@opencode/cli@2.3.4-beta.1"] },
+  { method: "yarn", command: ["yarn", "global", "add", "@aigcfroge/cli@2.3.4-beta.1"] },
+  { method: "vp", command: ["vp", "update", "-g", "@aigcfroge/cli@2.3.4-beta.1"] },
 ] as const
 
 installs.forEach(({ method, command }) => {
@@ -156,9 +156,9 @@ installs.forEach(({ method, command }) => {
 
 it.live("vp force-installs a renamed V2 package that replaces the existing binary owner", () =>
   Effect.gen(function* () {
-    const test = yield* fixture(() => ({}), "@opencode/cli", false, "@opencode/cli-node")
+    const test = yield* fixture(() => ({}), "@aigcfroge/cli", false, "@aigcfroge/cli-node")
     yield* test.updater.upgrade("vp", "v2.3.4-beta.1")
-    expect(test.commands).toEqual([["vp", "install", "-g", "--force", "@opencode/cli-node@2.3.4-beta.1"]])
+    expect(test.commands).toEqual([["vp", "install", "-g", "--force", "@aigcfroge/cli-node@2.3.4-beta.1"]])
   }),
 )
 
@@ -167,9 +167,9 @@ it.live("vp removes the package from its managed global store", () =>
     const test = yield* fixture()
     const removal = test.updater.removal("vp")
     if (!removal) return yield* Effect.die("Expected vp removal command")
-    expect(removal.command).toEqual(["vp", "uninstall", "-g", "@opencode/cli"])
+    expect(removal.command).toEqual(["vp", "uninstall", "-g", "@aigcfroge/cli"])
     yield* removal.run
-    expect(test.commands).toEqual([["vp", "uninstall", "-g", "@opencode/cli"]])
+    expect(test.commands).toEqual([["vp", "uninstall", "-g", "@aigcfroge/cli"]])
   }),
 )
 ;[0, 1].forEach((exitCode) => {
@@ -184,7 +184,7 @@ it.live("vp removes the package from its managed global store", () =>
       const cache = test.commands[0]?.[5]
       expect(cache).toStartWith(path.join(test.global.cache, "update-"))
       expect(test.commands).toEqual([
-        ["bun", "install", "--global", "--trust", "--cache-dir", cache, "@opencode/cli@2.3.4-beta.1"],
+        ["bun", "install", "--global", "--trust", "--cache-dir", cache, "@aigcfroge/cli@2.3.4-beta.1"],
       ])
       expect(yield* test.fs.readDirectory(test.global.cache)).toEqual([])
       expect(result._tag).toBe(exitCode === 0 ? "None" : "Some")
@@ -195,7 +195,7 @@ it.live("vp removes the package from its managed global store", () =>
 
 it.live("bun ignores install cache cleanup failures", () =>
   Effect.gen(function* () {
-    const test = yield* fixture(() => ({}), "@opencode/cli", true)
+    const test = yield* fixture(() => ({}), "@aigcfroge/cli", true)
     yield* test.updater.upgrade("bun", "v2.3.4-beta.1")
     expect(test.commands).toHaveLength(1)
   }),
@@ -219,7 +219,7 @@ it.live("bun ignores install cache cleanup failures", () =>
       const installer = test.commands[0]?.[3]
       expect(installer).toStartWith(path.join(test.global.cache, "update-"))
       expect(test.commands).toEqual([
-        ["curl", "-fsSL", "-o", installer, "https://opencode.ai/v2/install"],
+        ["curl", "-fsSL", "-o", installer, "https://aigcfroge.ai/v2/install"],
         ...(failure === "download" ? [] : [[test.bash, installer, "--version", "2.3.4-beta.1", "--no-modify-path"]]),
       ])
       expect(yield* test.fs.readDirectory(test.global.cache)).toEqual([])
@@ -266,20 +266,20 @@ it.live("install failures expose stderr and process errors do not report success
         stdout: Buffer.from(
           command.command === method
             ? method === "vp"
-              ? JSON.stringify([{ name: "@opencode/cli", version: "2.3.4" }])
-              : "@opencode/cli@2.3.4"
+              ? JSON.stringify([{ name: "@aigcfroge/cli", version: "2.3.4" }])
+              : "@aigcfroge/cli@2.3.4"
             : command.command === "vp"
               ? "[]"
-              : "opencode-ai@1.0.0",
+              : "aigcfroge-ai@1.0.0",
         ),
       }))
       expect(yield* test.updater.method()).toBe(method)
       expect(test.commands).toEqual([
-        ["npm", "list", "-g", "--depth=0", "@opencode/cli"],
-        ["pnpm", "list", "-g", "--depth=0", "@opencode/cli"],
+        ["npm", "list", "-g", "--depth=0", "@aigcfroge/cli"],
+        ["pnpm", "list", "-g", "--depth=0", "@aigcfroge/cli"],
         ["bun", "pm", "ls", "-g"],
         ["yarn", "global", "list"],
-        ["vp", "list", "-g", "--json", "@opencode/cli"],
+        ["vp", "list", "-g", "--json", "@aigcfroge/cli"],
       ])
     }),
   )
@@ -289,7 +289,7 @@ it.live("method detection tolerates unavailable package managers", () =>
   Effect.gen(function* () {
     const test = yield* fixture((command) =>
       command.command === "yarn"
-        ? { stdout: Buffer.from("@opencode/cli@2.3.4") }
+        ? { stdout: Buffer.from("@aigcfroge/cli@2.3.4") }
         : { error: new AppProcess.AppProcessError({ command: command.command }) },
     )
     expect(yield* test.updater.method()).toBe("yarn")
@@ -300,7 +300,7 @@ it.live("method detection tolerates unavailable package managers", () =>
 it.live("vp detection ignores no-match output that repeats the package name", () =>
   Effect.gen(function* () {
     const test = yield* fixture((command) => ({
-      stdout: Buffer.from(command.command === "vp" ? "No global packages matching '@opencode/cli'." : ""),
+      stdout: Buffer.from(command.command === "vp" ? "No global packages matching '@aigcfroge/cli'." : ""),
     }))
     expect(yield* test.updater.method()).toBeUndefined()
   }),
@@ -308,40 +308,40 @@ it.live("vp detection ignores no-match output that repeats the package name", ()
 
 it.live("Homebrew Core installs check and upgrade the Core formula", () =>
   Effect.gen(function* () {
-    const test = yield* fixture(() => ({}), "@opencode/cli", false, "anomalyco/tap/opencode-v2", "opencode")
+    const test = yield* fixture(() => ({}), "@aigcfroge/cli", false, "anomalyco/tap/aigcfroge-v2", "aigcfroge")
     expect(yield* test.updater.method()).toBe("brew")
     expect(yield* test.updater.latest()).toBe("2.0.21")
     yield* test.updater.upgrade("brew", "2.0.21")
-    expect(test.commands).toEqual([["brew", "upgrade", "opencode"]])
+    expect(test.commands).toEqual([["brew", "upgrade", "aigcfroge"]])
     // An explicitly selected method keeps its own release source.
     expect(yield* test.updater.latest("npm")).toBe("2.3.4")
     expect(test.requests).toEqual([
-      "https://formulae.brew.sh/api/formula/opencode.json",
-      "https://opencode.ai/update/api/local/cli/npm?current=local",
+      "https://formulae.brew.sh/api/formula/aigcfroge.json",
+      "https://aigcfroge.ai/update/api/local/cli/npm?current=local",
     ])
   }),
 )
-;["opencode-v2", "opencode-beta"].forEach((formula) => {
+;["aigcfroge-v2", "aigcfroge-beta"].forEach((formula) => {
   it.live(`Homebrew tap installs of ${formula} use the published tap formula`, () =>
     Effect.gen(function* () {
-      const test = yield* fixture(() => ({}), "@opencode/cli", false, `anomalyco/tap/${formula}`, formula)
+      const test = yield* fixture(() => ({}), "@aigcfroge/cli", false, `anomalyco/tap/${formula}`, formula)
       expect(yield* test.updater.method()).toBe("brew")
       expect(yield* test.updater.latest()).toBe("2.3.4")
       yield* test.updater.upgrade("brew", "2.3.4")
       expect(test.commands).toEqual([["brew", "upgrade", `anomalyco/tap/${formula}`]])
       expect(test.requests).toEqual([
-        "https://opencode.ai/update/api/local/cli/homebrew?current=local",
-        "https://opencode.ai/update/api/local/cli/homebrew?current=local",
+        "https://aigcfroge.ai/update/api/local/cli/homebrew?current=local",
+        "https://aigcfroge.ai/update/api/local/cli/homebrew?current=local",
       ])
     }),
   )
 })
 
-// Links are named opencode-upgrade-<pid>-<random>.exe; read them from inside the installer run.
+// Links are named aigcfroge-upgrade-<pid>-<random>.exe; read them from inside the installer run.
 const links = (directory: string) =>
-  existsSync(directory) ? readdirSync(directory).filter((name) => name.startsWith("opencode-")) : []
+  existsSync(directory) ? readdirSync(directory).filter((name) => name.startsWith("aigcfroge-")) : []
 const upgradeLinks = (directory: string) =>
-  links(directory).filter((name) => name.startsWith(`opencode-upgrade-${process.pid}-`))
+  links(directory).filter((name) => name.startsWith(`aigcfroge-upgrade-${process.pid}-`))
 
 windows("windows keeps a second link to the running binary in the cache while the installer runs", () =>
   Effect.gen(function* () {
@@ -357,13 +357,13 @@ windows("windows keeps a second link to the running binary in the cache while th
     layout.cache = test.global.cache
     yield* test.fs.makeDirectory(test.global.cache, { recursive: true })
     // pid 999999999 does not exist; pid 4 is System, alive but not openable (EPERM).
-    yield* test.fs.writeFileString(path.join(test.global.cache, "opencode-upgrade-999999999-dead.exe"), "exited")
-    yield* test.fs.writeFileString(path.join(test.global.cache, "opencode-service-4-aa.exe"), "inaccessible")
+    yield* test.fs.writeFileString(path.join(test.global.cache, "aigcfroge-upgrade-999999999-dead.exe"), "exited")
+    yield* test.fs.writeFileString(path.join(test.global.cache, "aigcfroge-service-4-aa.exe"), "inaccessible")
     yield* test.updater.upgrade("bun", "2.3.4")
     expect(test.commands).toHaveLength(1)
     // The installed path never disappears; the extra link is released and only dead ones are swept.
     expect(yield* test.fs.readFileString(test.executable)).toBe("binary")
-    expect(links(test.global.cache)).toEqual(["opencode-service-4-aa.exe"])
+    expect(links(test.global.cache)).toEqual(["aigcfroge-service-4-aa.exe"])
   }),
 )
 
@@ -394,7 +394,7 @@ windows("windows keeps the uninstall link in the temporary directory, not the re
     const removal = test.updater.removal("bun")
     if (!removal) return yield* Effect.die("Expected bun removal command")
     yield* removal.run
-    expect(test.commands).toEqual([["bun", "remove", "--global", "@opencode/cli"]])
+    expect(test.commands).toEqual([["bun", "remove", "--global", "@aigcfroge/cli"]])
     expect(links(test.global.cache)).toEqual([])
     expect(links(test.global.tmp)).toEqual([])
   }),
@@ -410,7 +410,7 @@ windows("windows links the curl binary before the installer replaces it", () =>
       }
       return {}
     })
-    layout.executable = path.join(test.global.home, ".opencode", "bin", "opencode.exe")
+    layout.executable = path.join(test.global.home, ".aigcfroge", "bin", "aigcfroge.exe")
     layout.cache = test.global.cache
     yield* test.fs.makeDirectory(path.dirname(layout.executable), { recursive: true })
     yield* test.fs.writeFileString(layout.executable, "binary")
@@ -431,7 +431,7 @@ windows("windows leaves a source checkout's runtime alone", () =>
     const test = yield* fixture(() => {
       expect(links(layout.cache)).toEqual([])
       return {}
-    }, "not-opencode")
+    }, "not-aigcfroge")
     layout.cache = test.global.cache
     yield* test.updater.upgrade("bun", "2.3.4")
     expect(test.commands).toHaveLength(1)
@@ -458,7 +458,7 @@ test("Node distribution honors the compile-time CLI name", async () => {
       "test",
       import.meta.path,
       "--define",
-      'OPENCODE_CLI_NAME="opencode2-node"',
+      'AIGCFROGE_CLI_NAME="aigcfroge2-node"',
       "--test-name-pattern",
       "^Node distribution resolves the published npm package$",
     ],
@@ -475,28 +475,28 @@ test("Node distribution honors the compile-time CLI name", async () => {
   expect(stderr).toContain("1 pass")
 })
 
-if (typeof OPENCODE_CLI_NAME === "string" && OPENCODE_CLI_NAME === "opencode2-node") {
+if (typeof AIGCFROGE_CLI_NAME === "string" && AIGCFROGE_CLI_NAME === "aigcfroge2-node") {
   it.live("Node distribution resolves the published npm package", () =>
     Effect.gen(function* () {
       const test = yield* fixture(
         (command) => ({
-          stdout: Buffer.from(command.command === "npm" ? "@opencode/cli-node@2.3.4" : ""),
+          stdout: Buffer.from(command.command === "npm" ? "@aigcfroge/cli-node@2.3.4" : ""),
         }),
-        "@opencode/cli-node",
+        "@aigcfroge/cli-node",
       )
       expect(yield* test.updater.method()).toBe("npm")
       yield* test.updater.upgrade("npm", "v2.3.4")
       yield* test.updater.upgrade("pnpm", "v2.3.4")
       yield* test.updater.upgrade("vp", "v2.3.4")
       expect(test.commands).toEqual([
-        ["npm", "list", "-g", "--depth=0", "@opencode/cli-node"],
-        ["pnpm", "list", "-g", "--depth=0", "@opencode/cli-node"],
+        ["npm", "list", "-g", "--depth=0", "@aigcfroge/cli-node"],
+        ["pnpm", "list", "-g", "--depth=0", "@aigcfroge/cli-node"],
         ["bun", "pm", "ls", "-g"],
         ["yarn", "global", "list"],
-        ["vp", "list", "-g", "--json", "@opencode/cli-node"],
-        ["npm", "install", "--global", "@opencode/cli-node@2.3.4"],
-        ["pnpm", "add", "--global", "--allow-build=@opencode/cli-node", "@opencode/cli-node@2.3.4"],
-        ["vp", "update", "-g", "@opencode/cli-node@2.3.4"],
+        ["vp", "list", "-g", "--json", "@aigcfroge/cli-node"],
+        ["npm", "install", "--global", "@aigcfroge/cli-node@2.3.4"],
+        ["pnpm", "add", "--global", "--allow-build=@aigcfroge/cli-node", "@aigcfroge/cli-node@2.3.4"],
+        ["vp", "update", "-g", "@aigcfroge/cli-node@2.3.4"],
       ])
     }),
   )

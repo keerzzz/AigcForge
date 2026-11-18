@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test"
 import { fixture, installStressSessionTabs } from "../utils/session-fixture"
 import { sessionHref } from "../utils/app"
 import { openWithDirection } from "../utils/direction"
-import { mockOpenCodeServer } from "../utils/mock-server"
+import { mockAigcForgeServer } from "../utils/mock-server"
 import { expectAppVisible } from "../utils/waits"
 
 for (const direction of ["ltr", "rtl"] as const) {
@@ -176,17 +176,17 @@ test.describe("touch composer pickers", () => {
 })
 
 async function openPickerSession(page: Page, direction: "ltr" | "rtl", paid: boolean) {
-  await mockOpenCodeServer(page, {
+  await mockAigcForgeServer(page, {
     ...fixture,
     sessions: fixture.sessions.map((session) => ({
       ...session,
-      model: { id: "mobile-a", providerID: "opencode", variant: "balanced" },
+      model: { id: "mobile-a", providerID: "aigcfroge", variant: "balanced" },
     })),
     provider: {
       all: [
         {
-          id: "opencode",
-          name: "OpenCode",
+          id: "aigcfroge",
+          name: "AigcForge",
           models: Object.fromEntries(
             ["a", "b"].map((id) => [
               `mobile-${id}`,
@@ -201,18 +201,18 @@ async function openPickerSession(page: Page, direction: "ltr" | "rtl", paid: boo
           ),
         },
       ],
-      connected: ["opencode"],
-      default: { providerID: "opencode", modelID: "mobile-a" },
+      connected: ["aigcfroge"],
+      default: { providerID: "aigcfroge", modelID: "mobile-a" },
     },
     pageMessages: () => ({ items: [] }),
   })
   await installStressSessionTabs(page)
   await page.addInitScript((direction) => {
-    localStorage.setItem("opencode-color-scheme", direction === "rtl" ? "dark" : "light")
+    localStorage.setItem("aigcfroge-color-scheme", direction === "rtl" ? "dark" : "light")
     localStorage.setItem(
-      "opencode.global.dat:model",
+      "aigcfroge.global.dat:model",
       JSON.stringify({
-        user: ["a", "b"].map((id) => ({ providerID: "opencode", modelID: `mobile-${id}`, visibility: "show" })),
+        user: ["a", "b"].map((id) => ({ providerID: "aigcfroge", modelID: `mobile-${id}`, visibility: "show" })),
         recent: [],
         variant: {},
       }),

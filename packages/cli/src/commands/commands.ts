@@ -10,7 +10,7 @@ export const PrintLogs = GlobalFlag.Setting("print-logs")({
   ),
 })
 
-declare const OPENCODE_CLI_NAME: string | undefined
+declare const AIGCFROGE_CLI_NAME: string | undefined
 
 const ServerParams = {
   standalone: Flag.Boolean("standalone").pipe(
@@ -35,13 +35,13 @@ const PermissionParams = {
   ),
 }
 
-const Root = Spec.make(typeof OPENCODE_CLI_NAME === "string" ? OPENCODE_CLI_NAME : "opencode", {
-  description: "OpenCode command line interface",
+const Root = Spec.make(typeof AIGCFROGE_CLI_NAME === "string" ? AIGCFROGE_CLI_NAME : "aigcfroge", {
+  description: "AigcForge command line interface",
   params: {
     ...ServerParams,
     ...PermissionParams,
     directory: Argument.String("directory").pipe(
-      Argument.withDescription("Directory to start OpenCode in"),
+      Argument.withDescription("Directory to start AigcForge in"),
       Argument.optional,
     ),
     continue: Flag.Boolean("continue").pipe(
@@ -58,7 +58,7 @@ const Root = Spec.make(typeof OPENCODE_CLI_NAME === "string" ? OPENCODE_CLI_NAME
   },
   commands: [
     Spec.make("upgrade", {
-      description: "Upgrade OpenCode to the latest or a specific version",
+      description: "Upgrade AigcForge to the latest or a specific version",
       aliases: ["update"],
       params: {
         target: Argument.String("target").pipe(
@@ -73,7 +73,7 @@ const Root = Spec.make(typeof OPENCODE_CLI_NAME === "string" ? OPENCODE_CLI_NAME
       },
     }),
     Spec.make("uninstall", {
-      description: "Uninstall OpenCode, keeping session data, configuration, and state",
+      description: "Uninstall AigcForge, keeping session data, configuration, and state",
       params: {
         dryRun: Flag.Boolean("dry-run").pipe(
           Flag.withDescription("Show what would be removed without removing"),
@@ -374,7 +374,7 @@ const Root = Spec.make(typeof OPENCODE_CLI_NAME === "string" ? OPENCODE_CLI_NAME
       },
     }),
     Spec.make("run", {
-      description: "Run OpenCode with a message",
+      description: "Run AigcForge with a message",
       params: {
         ...ServerParams,
         message: Argument.String("message").pipe(
@@ -467,6 +467,29 @@ const Root = Spec.make(typeof OPENCODE_CLI_NAME === "string" ? OPENCODE_CLI_NAME
           },
         }),
       ],
+    }),
+    Spec.make("goal", {
+      description: "Manage a Session's persistent Goal and exact acceptance evidence",
+      params: {
+        ...ServerParams,
+        sessionID: Argument.String("sessionID").pipe(Argument.withDescription("Owning Session ID")),
+        action: Argument.Literals("action", ["list", "read", "set", "edit", "pause", "resume", "cancel", "confirm"]).pipe(Argument.optional),
+        goal: Flag.String("goal").pipe(Flag.withDescription("Saved Goal ID for read or changes"), Flag.optional),
+        data: Flag.String("data").pipe(Flag.withDescription("JSON conditions/objective/budget, edit, or exact acceptance payload"), Flag.optional),
+        revision: Flag.Int("revision").pipe(Flag.withSchema(Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))), Flag.withDescription("Expected saved revision for pause/resume/cancel"), Flag.optional),
+      },
+    }),
+    Spec.make("schedule", {
+      description: "Manage timed work, reminders, and their occurrence history",
+      params: {
+        ...ServerParams,
+        sessionID: Argument.String("sessionID").pipe(Argument.withDescription("Owning Session ID")),
+        action: Argument.Literals("action", ["list", "read", "create", "edit", "pause", "resume", "cancel", "run", "history", "cancel-run"]).pipe(Argument.optional),
+        id: Flag.String("id").pipe(Flag.withDescription("Saved Schedule ID"), Flag.optional),
+        occurrence: Flag.String("occurrence").pipe(Flag.withDescription("Occurrence ID for cancel-run"), Flag.optional),
+        data: Flag.String("data").pipe(Flag.withDescription("JSON schedule target/timezone/trigger or exact revision edit"), Flag.optional),
+        revision: Flag.Int("revision").pipe(Flag.withSchema(Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))), Flag.withDescription("Expected saved revision for pause/resume/cancel/run"), Flag.optional),
+      },
     }),
     Spec.make("service", {
       description: "Manage the background server",

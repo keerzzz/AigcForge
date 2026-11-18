@@ -21,7 +21,7 @@ const RemoteModel = Schema.Struct({
 const Response = Schema.Struct({ models: Schema.Array(RemoteModel) })
 
 export const make = createLocalProviderPlugin({
-  id: "opencode.provider.lmstudio",
+  id: "aigcfroge.provider.lmstudio",
   providerID: "lmstudio",
   name: "LM Studio",
   origin: "http://127.0.0.1:1234",

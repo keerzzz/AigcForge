@@ -1,4 +1,4 @@
-import { encodeFilePath } from "@opencode/util/path"
+import { encodeFilePath } from "@aigcfroge/util/path"
 import type { Files } from "../sdk"
 
 export function pathToFileUrl(filepath: string): string {

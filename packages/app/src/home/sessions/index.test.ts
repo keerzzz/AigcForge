@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { SessionInfo } from "@opencode/client/promise"
+import type { SessionInfo } from "@aigcfroge/client/promise"
 import { SESSION_RECENT_LIMIT, SESSION_RECENT_WINDOW } from "@/runtime/server/global-sync/types"
 import {
   HOME_SESSION_INDEX_LIMIT,
@@ -11,15 +11,17 @@ import {
   retainHomeSessions,
 } from "./index"
 
-const session = (id: string, input: Partial<SessionInfo> = {}) =>
+const session = (id: string, input: Partial<SessionInfo> = {}): SessionInfo =>
   ({
     id,
     projectID: "project",
     title: id,
+    cost: 0,
+    tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
     time: { created: 1, updated: 1 },
     location: { directory: "/repo" },
     ...input,
-  }) as SessionInfo
+  })
 
 // The loader anchors its recent window on the wall clock, so fixtures do too.
 const now = Date.now()
@@ -39,6 +41,31 @@ const history = (directory: string, count: number) =>
 const ids = (sessions: SessionInfo[]) => sessions.map((item) => item.id)
 
 describe("Home session index", () => {
+  test("message ordering retains an active conversation from a later metadata-ordered page", async () => {
+    const renamed = history("/repo", HOME_V2_SESSION_PAGE_LIMIT).map((item) => ({
+      ...item,
+      time: { ...item.time, message: now - 20_000 * minute },
+    }))
+
+    const active = session("active-message-on-last-page", {
+      time: { created: now - 30_000 * minute, updated: now - 30_000 * minute, message: now },
+    })
+
+    const result = await loadHomeSessionIndex(
+      async (input) => {
+        if (!input.cursor) return { data: renamed, cursor: { next: "next" } }
+
+        return { data: [active], cursor: {} }
+      },
+      undefined,
+      undefined,
+      "message",
+    )
+
+    expect(result[0]?.id).toBe(active.id)
+    expect(result.length).toBe(HOME_SESSION_INDEX_LIMIT)
+  })
+
   test("follows cursors across pages and bounds the result per directory", async () => {
     const all = history("/repo", HOME_V2_SESSION_PAGE_LIMIT + 1)
     const calls: Array<{ cursor?: string; parentID: null }> = []

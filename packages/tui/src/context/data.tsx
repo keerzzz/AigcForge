@@ -1,12 +1,12 @@
-import { createData } from "@opencode/client/solid"
-import type { LocationRef } from "@opencode/client"
-import type { Plugin } from "@opencode/plugin/tui"
+import { createData } from "@aigcfroge/client/solid"
+import type { LocationRef } from "@aigcfroge/client"
+import type { Plugin } from "@aigcfroge/plugin/tui"
 import { createStore } from "solid-js/store"
 import { createSimpleContext } from "./helper"
 import { useClient } from "./client"
 
-export { locationKey } from "@opencode/client/solid"
-export type { FormWithLocation } from "@opencode/client/solid"
+export { locationKey } from "@aigcfroge/client/solid"
+export type { FormWithLocation } from "@aigcfroge/client/solid"
 
 export const { use: useData, provider: DataProvider } = createSimpleContext({
   name: "Data",
@@ -26,7 +26,7 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
         ...data.location,
         async sync(ref?: LocationRef) {
           await data.location.syncInfo(ref)
-          await Promise.all([data.location.sync(ref), data.location.config.sync(ref)])
+          await Promise.all([data.location.sync(ref), data.location.config.sync(ref), data.location.model.group.definition.sync(ref)])
         },
       },
       session: {

@@ -1,5 +1,5 @@
-import type { PluginInfo } from "@opencode/client"
-import { Plugin } from "@opencode/plugin/tui"
+import type { PluginInfo } from "@aigcfroge/client"
+import { Plugin } from "@aigcfroge/plugin/tui"
 import path from "path"
 import { createEffect, createMemo, createResource, createSignal, onCleanup, onMount, Show } from "solid-js"
 import { DialogErrorDetails } from "../../component/dialog-error-details"
@@ -9,7 +9,7 @@ import { DialogSelect, type DialogSelectOption } from "../../ui/dialog-select"
 import { useDialog } from "../../ui/dialog"
 import { errorMessage } from "../../util/error"
 
-const id = "opencode.plugins"
+const id = "aigcfroge.plugins"
 
 type Entry =
   | { readonly key: string; readonly runtime: "server"; readonly internal: boolean; readonly plugin: PluginInfo }

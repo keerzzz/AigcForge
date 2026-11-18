@@ -1,10 +1,10 @@
-import { Button } from "@opencode/ui/button"
-import { Dialog, DialogBody, DialogHeader, DialogTitleGroup } from "@opencode/ui/dialog"
-import { Icon } from "@opencode/ui/icon"
-import { RadioGroup, RadioItem } from "@opencode/ui/radio"
-import { Switch } from "@opencode/ui/switch"
-import { TextInput } from "@opencode/ui/text-input"
-import { Tooltip } from "@opencode/ui/tooltip"
+import { Button } from "@aigcfroge/ui/button"
+import { Dialog, DialogBody, DialogHeader, DialogTitleGroup } from "@aigcfroge/ui/dialog"
+import { Icon } from "@aigcfroge/ui/icon"
+import { RadioGroup, RadioItem } from "@aigcfroge/ui/radio"
+import { Switch } from "@aigcfroge/ui/switch"
+import { TextInput } from "@aigcfroge/ui/text-input"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/solid-query"
 import { createMemo, createSignal, For, onCleanup, Show, type Accessor, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
@@ -30,7 +30,7 @@ export type PairingServer = {
 }
 
 /** The command that lets the local server accept connections from other devices. */
-const LISTEN_COMMAND = "opencode service set hostname 0.0.0.0"
+const LISTEN_COMMAND = "aigcfroge service set hostname 0.0.0.0"
 
 export default function PairingPage(props: {
   server: Accessor<PairingServer | undefined>
@@ -368,7 +368,7 @@ function DialogPairing(props: {
     </button>
   )
 
-  // The QR code carries every address as `opencode pair` prints it, {"code","urls"} JSON, so the app's scanner can
+  // The QR code carries every address as `aigcfroge pair` prints it, {"code","urls"} JSON, so the app's scanner can
   // reach this machine over whichever network it shares; the chosen address goes first.
   const qr = createMemo(() => {
     const target = route()

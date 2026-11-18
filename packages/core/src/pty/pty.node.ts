@@ -5,7 +5,7 @@ import type { Opts, Proc } from "./pty.js"
 
 export type { Disp, Exit, Opts, Proc } from "./pty.js"
 
-const pty = createRequire(import.meta.url)(process.env.OPENCODE_NODE_PTY_PATH ?? "@lydell/node-pty") as {
+const pty = createRequire(import.meta.url)(process.env.AIGCFROGE_NODE_PTY_PATH ?? "@lydell/node-pty") as {
   spawn: typeof spawn
 }
 

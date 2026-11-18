@@ -1,9 +1,9 @@
 export * as Generate from "./generate.js"
 
-import { LLM, LLMClient, AIError } from "@opencode/ai"
-import { SessionID } from "@opencode/schema/session-id"
+import { LLM, LLMClient, AIError } from "@aigcfroge/ai"
+import { SessionID } from "@aigcfroge/schema/session-id"
 import { Context, Effect, Layer, Schema } from "effect"
-import { makeLocationNode } from "@opencode/util/effect/app-node"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
 import { llmClient } from "./effect/app-node-platform.js"
 import { ModelResolver } from "./model-resolver.js"
 import { Model } from "./model.js"
@@ -28,7 +28,7 @@ export interface Interface {
   readonly text: (input: TextInput) => Effect.Effect<string, Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/Generate") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Generate") {}
 
 export const layer = Layer.effect(
   Service,
@@ -67,7 +67,7 @@ export const layer = Layer.effect(
             model: resolved.model,
             prompt: input.prompt,
             // Gateways require session attribution even for a stateless call; no Session is stored.
-            http: { headers: { "x-opencode-session": SessionID.create() } },
+            http: { headers: { "x-aigcfroge-session": SessionID.create() } },
           }),
         )
         .pipe(
@@ -84,6 +84,7 @@ export const layer = Layer.effect(
 
     const text: Interface["text"] = (input) =>
       runText(input).pipe(
+        Effect.catchTag("ModelGroup.Unavailable", (error) => new UnavailableError({ message: error.message })),
         Effect.catchTag(
           "Integration.Authorization",
           () =>

@@ -1,0 +1,19 @@
+# Generated 2026-10-10 by docs/research/upstream-v2-sync/scan-divergence.sh (fork main @ d5376379f vs upstream v2 @ 55dde88)
+server (fork) vs server (upstream): identical=0 rename-only=1 diverged=25 diverged-lines=2546 forkonly=29 uponly=66
+storybook (fork) vs storybook (upstream): identical=6 rename-only=1 diverged=13 diverged-lines=392 forkonly=5 uponly=12
+script (fork) vs script (upstream): identical=0 rename-only=0 diverged=3 diverged-lines=57 forkonly=6 uponly=1
+schema (fork) vs schema (upstream): identical=0 rename-only=0 diverged=24 diverged-lines=1534 forkonly=62 uponly=97
+desktop (fork) vs desktop (upstream): identical=160 rename-only=1 diverged=28 diverged-lines=2543 forkonly=60 uponly=167
+http-recorder (fork) vs http-recorder (upstream): identical=1 rename-only=0 diverged=7 diverged-lines=274 forkonly=15 uponly=22
+effect-drizzle-sqlite (fork) vs effect-drizzle-sqlite (upstream): identical=1 rename-only=0 diverged=0 diverged-lines=0 forkonly=24 uponly=1
+app (fork) vs app (upstream): identical=22 rename-only=0 diverged=46 diverged-lines=6776 forkonly=603 uponly=758
+ui (fork) vs ui (upstream): identical=1346 rename-only=32 diverged=106 diverged-lines=6114 forkonly=117 uponly=167
+sdk (fork) vs sdk (upstream): identical=0 rename-only=0 diverged=0 diverged-lines=0 forkonly=47 uponly=34
+session-ui (fork) vs session-ui (upstream): identical=9 rename-only=1 diverged=63 diverged-lines=10493 forkonly=34 uponly=108
+plugin (fork) vs plugin (upstream): identical=1 rename-only=0 diverged=3 diverged-lines=75 forkonly=39 uponly=70
+llm: UPSTREAM-MISSING llm
+effect-sqlite-node: UPSTREAM-MISSING effect-sqlite-node
+tui (fork) vs tui (upstream): identical=13 rename-only=37 diverged=120 diverged-lines=33210 forkonly=70 uponly=331
+core (fork) vs core (upstream): identical=19 rename-only=5 diverged=288 diverged-lines=82529 forkonly=540 uponly=467
+aigcfroge (fork) vs cli (upstream): identical=0 rename-only=0 diverged=25 diverged-lines=7041 forkonly=850 uponly=178
+DONE

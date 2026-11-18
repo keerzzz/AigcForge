@@ -1,13 +1,13 @@
 import { expect, test } from "bun:test"
 import { createComputed, createRoot } from "solid-js"
-import { OpenCode } from "@opencode/client/promise"
-import { createData } from "@opencode/client/solid"
+import { AigcForge } from "@aigcfroge/client/promise"
+import { createData } from "@aigcfroge/client/solid"
 
 test("publishes an initial message page, its index, and its cursor together", async () => {
   const observed: { ids: string[]; more: boolean; text: string | undefined }[] = []
 
-  const api = OpenCode.make({
-    baseUrl: "http://opencode.local",
+  const api = AigcForge.make({
+    baseUrl: "http://aigcfroge.local",
     fetch: async () =>
       Response.json({
         data: [{ id: "msg_page", type: "user", text: "History", time: { created: 1 } }],

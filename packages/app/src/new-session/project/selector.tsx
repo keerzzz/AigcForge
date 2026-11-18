@@ -7,16 +7,21 @@ import {
   splitProps,
   type Accessor,
   type ComponentProps,
+  type JSX,
 } from "solid-js"
 import { createStore } from "solid-js/store"
-import { Menu } from "@opencode/ui/menu"
-import { Icon } from "@opencode/ui/icon"
+import { Predicate } from "effect"
+import { Button } from "@aigcfroge/ui/button"
+import { Menu } from "@aigcfroge/ui/menu"
+import { Icon } from "@aigcfroge/ui/icon"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { TextInput } from "@aigcfroge/ui/text-input"
 import {
   displayName,
   getProjectAvatarSource,
   getProjectAvatarVariant,
   ProjectAvatar,
-} from "@opencode/ui/project-avatar"
+} from "@aigcfroge/ui/project-avatar"
 import { useLanguage } from "@/runtime/i18n/language"
 import { pathKey } from "@/workspaces/path-key"
 import { handleDocumentSearchKeydown } from "@/shell/commands/search-keydown"
@@ -343,14 +348,14 @@ export function PromptProjectSelector(props: {
           <div class="flex flex-col">
             <div class="flex h-7 items-center gap-2 rounded-sm pl-3 pr-1 text-v2-icon-icon-muted">
               <Icon name="magnifying-glass" size="small" class="shrink-0" />
-              <input
+              <TextInput
                 ref={(el) => props.controller.setSearchRef(el)}
                 value={props.controller.search()}
                 placeholder={props.controller.labels.search()}
                 aria-autocomplete="list"
                 aria-controls="prompt-project-menu"
                 aria-activedescendant={props.controller.active() || undefined}
-                class="h-7 min-w-0 flex-1 border-0 bg-transparent text-[13px] font-[440] leading-5 tracking-[-0.04px] text-v2-text-text-base outline-none placeholder:text-v2-text-text-faint"
+                class="min-w-0 !w-auto !flex-1"
                 onInput={(event) => props.controller.setSearch(event.currentTarget.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Tab") {
@@ -400,15 +405,18 @@ export function PromptProjectSelector(props: {
                 }}
               />
               <Show when={props.controller.search().trim()}>
-                <button
+                <IconButton
+                  variant="ghost-muted"
+                  size="small"
                   type="button"
-                  class="flex size-5 items-center justify-center rounded-sm bg-transparent text-v2-icon-icon-faint transition-colors hover:text-v2-icon-icon-base focus-visible:text-v2-icon-icon-base active:text-v2-icon-icon-base"
-                  onPointerDown={(event) => event.preventDefault()}
+                  class="shrink-0"
+                  onPointerDown={(event: Parameters<JSX.EventHandler<HTMLButtonElement, PointerEvent>>[0]) =>
+                    event.preventDefault()
+                  }
                   onClick={() => props.controller.clearSearch()}
                   aria-label={props.controller.labels.clear()}
-                >
-                  <Icon name="circle-xmark" />
-                </button>
+                  icon={<Icon name="circle-xmark" />}
+                />
               </Show>
             </div>
             <div class="my-0.5 max-h-[224px] overflow-y-auto">
@@ -494,16 +502,18 @@ export function PromptProjectSelector(props: {
 
 export function PromptProjectAddButton(props: { controller: PromptProjectController }) {
   return (
-    <button
+    <Button
+      variant="ghost-muted"
+      size="normal"
       data-action="prompt-project"
       type="button"
-      class="flex h-7 min-w-0 max-w-[160px] items-center gap-1.5 rounded-sm px-2 text-[13px] font-[440] leading-5 tracking-[-0.04px] text-v2-text-text-faint transition-colors hover:bg-v2-overlay-simple-overlay-hover focus-visible:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none"
+      class="min-w-0 max-w-[160px] !px-2"
       onClick={() => props.controller.add()}
     >
       <Icon name="folder-add-left" size="small" class="shrink-0 text-v2-icon-icon-muted" />
       <span class="min-w-0 truncate leading-5">{props.controller.labels.new()}</span>
       <Icon name="chevron-down" size="small" class="shrink-0 text-v2-icon-icon-muted" />
-    </button>
+    </Button>
   )
 }
 
@@ -532,7 +542,7 @@ function ProjectTrigger(props: ComponentProps<"button"> & { controller: PromptPr
           return
         }
 
-        if (typeof local.onKeyDown === "function") local.onKeyDown(event)
+        if (Predicate.isFunction(local.onKeyDown)) local.onKeyDown(event)
       }}
     >
       <Show

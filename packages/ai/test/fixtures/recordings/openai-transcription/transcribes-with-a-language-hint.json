@@ -25,7 +25,7 @@
         "headers": {
           "content-type": "application/json"
         },
-        "body": "{\"text\":\"Hello from OpenCode.\",\"languages\":[{\"code\":\"en\"}],\"usage\":{\"type\":\"duration\",\"seconds\":2}}"
+        "body": "{\"text\":\"Hello from AigcForge.\",\"languages\":[{\"code\":\"en\"}],\"usage\":{\"type\":\"duration\",\"seconds\":2}}"
       }
     }
   ]

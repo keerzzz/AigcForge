@@ -37,13 +37,17 @@
 }
 
 .session-summary-row,
+[data-component="button-v2"][data-size].session-summary-row,
 .session-service-row,
 .session-service-config,
+[data-component="button-v2"][data-size].session-service-config,
 [data-component="switch"].session-mcp-row {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 8px;
   width: 100%;
+  height: auto;
   min-height: 32px;
   padding: 4px 12px;
   border-radius: 4px;
@@ -51,10 +55,12 @@
   font-size: 13px;
   font-weight: 440;
   line-height: var(--line-height-base);
+  letter-spacing: normal;
   text-align: start;
 }
 
-.session-summary-card .session-summary-row {
+.session-summary-card .session-summary-row,
+.session-summary-card [data-component="button-v2"].session-summary-row {
   /* Keep copy out of the trailing indicator column, including rows without an indicator. */
   padding-inline-end: 36px;
 }
@@ -88,7 +94,8 @@
   background: var(--v2-overlay-simple-overlay-pressed);
 }
 
-.session-summary-heading {
+.session-summary-heading,
+[data-component="button-v2"][data-size].session-summary-heading {
   color: var(--v2-text-text-muted);
   font-weight: 530;
 }
@@ -142,6 +149,8 @@
 :is(.session-service-menu, .session-service-drawer) .session-summary-row,
 :is(.session-service-menu, .session-service-drawer) .session-service-row,
 :is(.session-service-menu, .session-service-drawer) .session-service-config,
+:is(.session-service-menu, .session-service-drawer)
+  [data-component="button-v2"][data-size]:is(.session-summary-row, .session-service-config),
 :is(.session-service-menu, .session-service-drawer) [data-component="switch"].session-mcp-row {
   font-size: inherit;
   line-height: inherit;
@@ -290,25 +299,16 @@
   position: absolute;
   inset-inline-end: 8px;
   bottom: 8px;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--v2-icon-icon-muted);
-  border-radius: 4px;
-}
-.session-summary-dismiss:hover,
-.session-summary-dismiss:focus-visible {
-  background: var(--v2-overlay-simple-overlay-hover);
-  outline: none;
 }
 
 @media (max-width: 767px) {
   [data-component="session-summary-panel"] .session-summary-row,
+  [data-component="session-summary-panel"] [data-component="button-v2"].session-summary-row,
+  .session-service-menu [data-component="button-v2"].session-summary-row,
   .session-service-menu .session-service-title,
   .session-service-menu .session-service-row,
   .session-service-menu .session-service-config,
+  .session-service-menu [data-component="button-v2"].session-service-config,
   .session-service-menu .session-mcp-row {
     min-height: 44px;
   }

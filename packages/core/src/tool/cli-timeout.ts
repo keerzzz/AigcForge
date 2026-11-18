@@ -1,0 +1,85 @@
+export * as CliTimeout from "./cli-timeout"
+
+import { collectStream } from "../process"
+import { Duration, Effect } from "effect"
+import { ChildProcess } from "effect/process"
+import type { ChildProcessSpawner } from "effect/process/ChildProcessSpawner"
+import type { CliAdapterValue, DelegationResult } from "./cli-adapter"
+
+export function executeWithTimeout(
+  spawner: ChildProcessSpawner["Service"],
+  adapter: CliAdapterValue,
+  input: { prompt: string; cwd: string; resumeId?: string },
+  timeoutMs: number = 300_000,
+): Effect.Effect<DelegationResult> {
+  return Effect.gen(function* () {
+    const available = yield* adapter.detect()
+    if (!available) {
+      return {
+        status: "failed" as const,
+        summary: `CLI "${adapter.name}" not available`,
+        errorCode: "cli_unavailable",
+        recoveryRequired: true,
+        errors: ["CLI not found on system"],
+      }
+    }
+
+    const timeout = adapter.timeout ?? timeoutMs
+    const args = yield* adapter.buildArgs({ prompt: input.prompt, cwd: input.cwd, resumeId: input.resumeId })
+    const result = yield* Effect.scoped(
+      Effect.gen(function* () {
+        const handle = yield* spawner.spawn(
+          ChildProcess.make(adapter.command, [...args], {
+            cwd: input.cwd,
+            extendEnv: true,
+            stdin: "ignore",
+            forceKillAfter: "3 seconds",
+          }),
+        )
+        const [stdout, stderr, exitCode] = yield* Effect.all(
+          [
+            collectStream(handle.stdout, 10 * 1024 * 1024),
+            collectStream(handle.stderr, 10 * 1024 * 1024),
+            handle.exitCode,
+          ],
+          { concurrency: "unbounded" },
+        )
+        return {
+          stdout: stdout.buffer,
+          stderr:
+            exitCode === 0 || stderr.buffer.length
+              ? stderr.buffer
+              : Buffer.from(`Process exited with code ${exitCode}`),
+          timedOut: false as const,
+        }
+      }),
+    ).pipe(
+      Effect.timeoutOrElse({
+        duration: Duration.millis(timeout),
+        orElse: () =>
+          Effect.succeed({
+            stdout: Buffer.alloc(0),
+            stderr: Buffer.from("Timed out"),
+            timedOut: true as const,
+          }),
+      }),
+      Effect.catch((error) =>
+        Effect.succeed({
+          stdout: Buffer.alloc(0),
+          stderr: Buffer.from(error instanceof Error ? error.message : String(error)),
+          timedOut: false as const,
+        }),
+      ),
+    )
+
+    const stdoutStr = result.stdout.toString("utf8")
+    const parsed = yield* adapter.parseOutput(stdoutStr, result.stderr.toString("utf8"))
+    // Preserve raw stdout so the caller can run parseResumeHint on the original
+    // JSONL frames after parseOutput has consumed them.
+    return {
+      ...parsed,
+      rawStdout: stdoutStr,
+      ...(result.timedOut ? { errorCode: "timeout", recoveryRequired: true } : {}),
+    }
+  })
+}

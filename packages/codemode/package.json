@@ -1,13 +1,13 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@opencode/codemode",
+  "name": "@aigcfroge/codemode",
   "version": "2.0.26",
   "description": "Effect-native confined code execution over schema-described tools",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/anomalyco/opencode.git",
+    "url": "git+https://github.com/anomalyco/aigcfroge.git",
     "directory": "packages/codemode"
   },
   "publishConfig": {

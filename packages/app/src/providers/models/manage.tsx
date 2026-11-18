@@ -1,15 +1,20 @@
-import { Button } from "@opencode/ui/button"
-import { Dialog, DialogBody, DialogHeader, DialogTitleGroup } from "@opencode/ui/dialog"
-import { Switch } from "@opencode/ui/switch"
-import { TextInput } from "@opencode/ui/text-input"
-import { useFilteredList } from "@opencode/ui/hooks"
-import { createMemo, For, Show, type Component } from "solid-js"
+import { Button } from "@aigcfroge/ui/button"
+import { Dialog, DialogBody, DialogHeader, DialogTitle, DialogTitleGroup } from "@aigcfroge/ui/dialog"
+import { Switch } from "@aigcfroge/ui/switch"
+import { TextInput } from "@aigcfroge/ui/text-input"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { useFilteredList } from "@aigcfroge/ui/hooks"
+import { createEffect, createMemo, For, onCleanup, Show, type Component, untrack } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLocal } from "@/providers/models/selection"
 import { popularProviders } from "@/providers/catalog/providers"
 import { useLanguage } from "@/runtime/i18n/language"
-import { useDialog } from "@opencode/ui/context/dialog"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { DialogConnectProvider } from "@/providers/connect/dialog"
+import { CustomProviderForm } from "@/providers/credentials/dialog"
+import { ModelTooltip } from "@/providers/models/tooltip"
+import { useData } from "@/runtime/server/current"
+import { useServerSDK } from "@/runtime/server/client"
 import { decode64 } from "@/runtime/persistence/base64"
 import { SettingsList } from "@/settings/list"
 import { SettingsRow } from "@/settings/row"
@@ -22,8 +27,49 @@ export const DialogManageModels: Component = () => {
   const local = useLocal()
   const language = useLanguage()
   const dialog = useDialog()
-  const [store, setStore] = createStore<{ collapsed: Record<string, boolean> }>({ collapsed: {} })
+  const data = useData()
+  const sdk = useServerSDK()
+  const [store, setStore] = createStore<{ collapsed: Record<string, boolean>; error?: string }>({ collapsed: {} })
   const directory = () => decode64(local.slug())
+
+  const location = () => {
+    const value = directory()
+
+    return value ? { directory: value } : undefined
+  }
+
+  const lifetime = { active: true }
+
+  onCleanup(() => { lifetime.active = false })
+
+  createEffect(() => {
+    const api = sdk.api
+    const ref = location()
+
+    if (sdk.connection.status() !== "connected") return
+    untrack(() => {
+      setStore("error", undefined)
+      // oxlint-disable-next-line anti-slop/no-unknown-parameters -- SAFETY: Promise rejection values are opaque; the handler guards Error before producing display text.
+      void data.location.provider.definition.sync(ref).catch((error: unknown) => {
+        if (lifetime.active && api === sdk.api && ref?.directory === location()?.directory)
+          setStore("error", error instanceof Error ? error.message : String(error))
+      })
+    })
+  })
+
+  const editable = (item: ModelItem) => data.location.provider.definition.list(location())?.definitions.find((definition) =>
+    definition.providerID === item.provider.id && definition.target?.writable && definition.definition.models?.[item.id])
+
+  const edit = (item: ModelItem) => {
+    const definition = editable(item)
+
+    if (!definition) return
+    void dialog.show(() => <Dialog size="large" preventBackdropDismiss>
+      <DialogHeader><DialogTitle>{language.t("provider.custom.title")}</DialogTitle></DialogHeader>
+      <DialogBody><CustomProviderForm directory={directory()} providerID={item.provider.id} modelID={item.id}
+        targetPath={definition.target?.path} autofocus={false} /></DialogBody>
+    </Dialog>)
+  }
 
   const handleConnectProvider = () => {
     void dialog.show(() => <DialogConnectProvider directory={directory()} />)
@@ -75,8 +121,14 @@ export const DialogManageModels: Component = () => {
       <SettingsList variant="catalog">
         <For each={props.items}>
           {(item) => (
-            <SettingsRow title={item.name} description="">
-              <div>
+            <SettingsRow title={<Tooltip placement="right-start" gutter={12} openDelay={0}
+              value={<ModelTooltip model={item} v2 />}><span tabIndex={0}>{item.name}</span></Tooltip>}
+              description={item.api.id}>
+              <div class="flex items-center gap-3">
+                <Show when={editable(item)}>
+                  <Button size="small" variant="ghost" onClick={() => edit(item)}
+                    aria-label={language.t("provider.model.edit", { model: item.name })}>{language.t("common.edit")}</Button>
+                </Show>
                 <Switch
                   checked={local.model.visible({ modelID: item.id, providerID: item.provider.id })}
                   onChange={(checked) => setModelVisibility(item, checked)}
@@ -126,6 +178,7 @@ export const DialogManageModels: Component = () => {
         </div>
         <div data-slot="manage-models-scroll" class="relative min-h-0 flex-1">
           <div class="settings-panel settings-models h-full px-4 pt-1 pb-4">
+            <Show when={store.error}><p role="alert" class="text-13-regular text-text-base">{store.error}</p></Show>
             <Show
               when={!list.grouped.loading}
               fallback={

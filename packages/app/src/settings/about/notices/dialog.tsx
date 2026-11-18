@@ -1,6 +1,6 @@
 import { For, Show } from "solid-js"
-import { Dialog, DialogBody, DialogHeader, DialogTitleGroup, type DialogProps } from "@opencode/ui/dialog"
-import { ScrollView } from "@opencode/ui/scroll-view"
+import { Dialog, DialogBody, DialogHeader, DialogTitleGroup, type DialogProps } from "@aigcfroge/ui/dialog"
+import { ScrollView } from "@aigcfroge/ui/scroll-view"
 import { useLanguage } from "@/runtime/i18n/language"
 import { ExternalLink } from "@/runtime/platform/external-link"
 import { fonts } from "./fonts"

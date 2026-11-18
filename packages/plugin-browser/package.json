@@ -1,13 +1,13 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@opencode/plugin-browser",
+  "name": "@aigcfroge/plugin-browser",
   "version": "2.0.26",
-  "description": "OpenCode's desktop browser plugin",
+  "description": "AigcForge's desktop browser plugin",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/anomalyco/opencode.git",
+    "url": "git+https://github.com/anomalyco/aigcfroge.git",
     "directory": "packages/plugin-browser"
   },
   "publishConfig": {
@@ -27,8 +27,8 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@opencode/plugin": "workspace:*",
-    "@opencode/schema": "workspace:*",
+    "@aigcfroge/plugin": "workspace:*",
+    "@aigcfroge/schema": "workspace:*",
     "effect": "catalog:"
   },
   "devDependencies": {

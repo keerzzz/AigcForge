@@ -18,6 +18,10 @@ import { mkdir, writeFile } from "node:fs/promises"
 import { useRoute, useRouteData } from "../../context/route"
 import { createStore } from "solid-js/store"
 import { useData } from "../../context/data"
+import { SessionTask } from "@aigcfroge/schema/session-task"
+import { SessionCommunication } from "@aigcfroge/schema/session-communication"
+import { SessionGoal } from "@aigcfroge/schema/session-goal"
+import { Option, Schema } from "effect"
 import { SplitBorder } from "../../ui/border"
 import { useTuiTerminalEnvironment } from "../../context/runtime"
 import { Spinner, SPINNER_FRAMES } from "../../component/spinner"
@@ -42,7 +46,7 @@ import type {
   SessionMessageUser,
   SessionInfo,
   ModelInfo,
-} from "@opencode/client"
+} from "@aigcfroge/client"
 import { useLocal } from "../../context/local"
 import { Locale } from "../../util/locale"
 import { FilePath } from "../../ui/file-path"
@@ -111,10 +115,11 @@ import {
   type SessionRow,
 } from "./rows"
 import { switchLabel } from "../../util/model"
+import { isModelGroup } from "../../model-preference"
 import { findMessageBoundary, messageNavigationSlack } from "./message-navigation"
 import { stringWidth } from "../../util/string-width"
 import { useArgs } from "../../context/args"
-import { withTimestampedFallback } from "@opencode/util/session-title-fallback"
+import { withTimestampedFallback } from "@aigcfroge/util/session-title-fallback"
 import { useSessionTabs, type ScrollAnchor } from "../../context/session-tabs"
 import { createSingleFlight } from "../../util/single-flight"
 import { createDelayedPresence } from "../../util/delayed-presence"
@@ -973,7 +978,7 @@ export function Session(props: {
         void data.session
           .compact({
             sessionID: route.sessionID,
-            model: selection
+            model: selection && !isModelGroup(selection)
               ? {
                   providerID: selection.providerID,
                   id: selection.modelID,
@@ -1946,6 +1951,8 @@ function AssistantFooter(props: { message: SessionMessageAssistant }) {
 function SessionSwitchMessageV2(props: { message: SessionMessageInfo }) {
   const ctx = use()
   const theme = useTheme()
+  const data = useData()
+  const location = useLocation()
   if (props.message.type === "location-switched")
     return (
       <box paddingLeft={3}>
@@ -1963,7 +1970,7 @@ function SessionSwitchMessageV2(props: { message: SessionMessageInfo }) {
       return `Switched agent to ${agent}`
     }
     if (props.message.type === "model-switched")
-      return switchLabel(props.message.model, ctx.models(), props.message.previous)
+      return switchLabel(props.message.model, ctx.models(), props.message.previous, data.location.model.group.definition.list(location.ref)?.effective)
     return ""
   }
   return (
@@ -1975,12 +1982,40 @@ function SessionSwitchMessageV2(props: { message: SessionMessageInfo }) {
 
 function SessionNoticeMessageV2(props: { message: SessionMessageInfo }) {
   const ctx = use()
+  const data = useData()
   const theme = useTheme()
   const renderer = useRenderer()
   const { navigate } = useRoute()
   const [hover, setHover] = createSignal(false)
   const metadata = () => (props.message.type === "synthetic" ? props.message.metadata : undefined)
   const source = () => stringValue(metadata()?.source)
+  const communicationID = createMemo(() => Schema.decodeUnknownOption(Schema.Struct({ id: SessionCommunication.ID }))(metadata()?.communication))
+  const task = createMemo(() => Schema.decodeUnknownOption(SessionTask.TaskCoordination)(metadata()?.coordination))
+  const communication = createMemo(() => {
+    const record = Schema.decodeUnknownOption(SessionCommunication.Record)(metadata()?.communication)
+    if (Option.isSome(record)) return record.value
+    const id = communicationID()
+    if (Option.isNone(id)) return
+    return data.session.communication.get(ctx.sessionID, id.value.id)
+  })
+  createEffect(() => {
+    const id = communicationID()
+    if (Option.isSome(id) && !communication()) void data.session.communication.readback(ctx.sessionID, id.value.id).catch(() => {})
+  })
+  const goal = createMemo(() => Schema.decodeUnknownOption(SessionGoal.RoundRef)(metadata()?.goalRound))
+  const relation = () => {
+    const record = communication()
+    if (record) {
+      const title = (id: string) => data.session.get(id)?.title ?? id
+      const content = record.contentSource.sessionID === record.actor.sessionID ? "" : ` · content from ${title(record.contentSource.sessionID)}`
+      return `${record.actor.type === "system" ? "Result" : "Message"} from ${title(record.actor.sessionID)} to ${title(record.targetSessionID)}${content}${record.replyTo ? ` · reply to ${record.replyTo}` : ""}`
+    }
+    const coordination = task()
+    if (Option.isSome(coordination)) return `Task ${coordination.value.operationRef.operationID} · ${coordination.value.actorAgent} ${coordination.value.actorSessionID} · target ${coordination.value.targetSessionID}`
+    const round = goal()
+    if (Option.isSome(round)) return `Goal ${round.value.goalID} · revision ${round.value.revision} · round ${round.value.roundID}`
+    return source() === "share" ? `Shared by ${stringValue(metadata()?.actorSessionID) ?? ctx.sessionID} · content from ${stringValue(metadata()?.contentSourceSessionID) ?? stringValue(metadata()?.sourceSessionID) ?? ctx.sessionID}` : undefined
+  }
   const completion = () => source() === "subagent" || source() === "shell"
   const childID = () => (source() === "subagent" ? stringValue(metadata()?.childID) : undefined)
   const state = () => stringValue(metadata()?.state)
@@ -2006,27 +2041,37 @@ function SessionNoticeMessageV2(props: { message: SessionMessageInfo }) {
   }
   return (
     <Show
-      when={completion()}
+      when={relation()}
       fallback={
-        <InlineToolRow icon="◈" color={theme.text.muted} pending="Notice" complete={true}>
-          {text()}
-        </InlineToolRow>
+        <Show
+          when={completion()}
+          fallback={
+            <InlineToolRow icon="◈" color={theme.text.muted} pending="Notice" complete={true}>
+              {text()}
+            </InlineToolRow>
+          }
+        >
+          <box
+            marginLeft={3}
+            onMouseOver={() => childID() && setHover(true)}
+            onMouseOut={() => setHover(false)}
+            onMouseUp={() => {
+              if (renderer.getSelection()?.getSelectedText()) return
+              const id = childID()
+              if (id) navigate({ type: "session", sessionID: id })
+            }}
+          >
+            <text wrapMode="none">
+              <span style={{ fg: color() }}>{heading()}</span>
+              <span style={{ fg: theme.text.muted }}>{suffix()}</span>
+            </text>
+          </box>
+        </Show>
       }
     >
-      <box
-        marginLeft={3}
-        onMouseOver={() => childID() && setHover(true)}
-        onMouseOut={() => setHover(false)}
-        onMouseUp={() => {
-          if (renderer.getSelection()?.getSelectedText()) return
-          const id = childID()
-          if (id) navigate({ type: "session", sessionID: id })
-        }}
-      >
-        <text wrapMode="none">
-          <span style={{ fg: color() }}>{heading()}</span>
-          <span style={{ fg: theme.text.muted }}>{suffix()}</span>
-        </text>
+      <box marginLeft={3} flexDirection="column" gap={1} paddingTop={1} paddingBottom={1}>
+        <text fg={theme.text.feedback.info.base}>{relation()}</text>
+        <text fg={theme.text.base}>{props.message.type === "synthetic" ? props.message.text : text()}</text>
       </box>
     </Show>
   )

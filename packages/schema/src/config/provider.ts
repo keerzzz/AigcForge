@@ -4,6 +4,8 @@ import { Schema } from "effect"
 import { Money } from "../money.js"
 import { Capabilities, Compatibility, Family, ID, VariantID } from "../model.js"
 import { Provider } from "../provider.js"
+import { Credential } from "../credential.js"
+import { ModelSource } from "../model-source.js"
 import { optional } from "../schema.js"
 
 export const Settings = Schema.StructWithRest(
@@ -66,7 +68,7 @@ class Limit extends Schema.Class<Limit>("Config.Model.Limit")({
   output: Schema.Int.pipe(optional),
 }) {}
 
-class Model extends Schema.Class<Model>("Config.Model")({
+export class Model extends Schema.Class<Model>("Config.Model")({
   modelID: ID.pipe(optional),
   family: Family.pipe(optional),
   name: Schema.String.pipe(optional),
@@ -86,15 +88,33 @@ class Model extends Schema.Class<Model>("Config.Model")({
     ...ModelOverlays,
   }).pipe(Schema.Array, optional),
   cost: Schema.Union([Cost, Cost.pipe(Schema.Array)]).pipe(optional),
+  quote: ModelSource.Quote.pipe(optional),
   disabled: Schema.Boolean.pipe(optional),
   limit: Limit.pipe(optional),
+  seed: ModelSource.Seed.pipe(optional),
 }) {}
+
+export interface Adoption extends Schema.Schema.Type<typeof Adoption> {}
+export const Adoption = Schema.Struct({
+  phase: Schema.Literals(["draft", "applying", "ready"]),
+  submissionID: Schema.String,
+  targetDefinitionDigest: Schema.String,
+  stage: Schema.Literals(["credential", "connection", "catalog", "complete"]),
+  credentialAction: Schema.Literals(["keep", "use", "create"]),
+  credentialID: Credential.ID.pipe(optional),
+  credentialLabel: Schema.String.pipe(optional),
+  activate: Schema.Boolean,
+  addedModelIDs: Schema.Array(ID),
+}).annotate({ identifier: "Config.Provider.Adoption" })
 
 export class Info extends Schema.Class<Info>("Config.Provider")({
   canonical: Provider.ID.pipe(optional),
   name: Schema.String.pipe(optional),
   env: Schema.String.pipe(Schema.Array, optional),
   package: Schema.String.pipe(optional),
+  disabled: Schema.Boolean.pipe(optional),
+  adoption: Adoption.pipe(optional),
+  discovery: ModelSource.Discovery.pipe(optional),
   ...Overlays,
   models: Schema.Record(Schema.String, Model).pipe(optional),
 }) {}

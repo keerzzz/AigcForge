@@ -1,5 +1,7 @@
-import { SessionMessage } from "@opencode/schema/session-message"
-import type { SessionMessageUser } from "@opencode/client/promise"
+import { Schema } from "effect"
+import { sameExecutorPreference } from "@/providers/models/agent"
+import { SessionMessage } from "@aigcfroge/schema/session-message"
+import type { SessionExecutorPreference, SessionMessageUser } from "@aigcfroge/client/promise"
 import type { Accessor } from "solid-js"
 import type { PromptComment } from "./comment-note"
 import type { PromptHistoryComment } from "./history/entry"
@@ -13,6 +15,11 @@ import { blobDataUrl, resolveBlobUrl } from "@/runtime/persistence/drafts"
 import { isAttachment } from "./prompt-parts"
 import type { ModelSelection } from "@/providers/models/selection"
 import { parseSlashCommand } from "./client-slash-command"
+import { sameKey, toSelection } from "@/providers/models/key"
+
+export class SelectionReadbackError extends Schema.TaggedError<SelectionReadbackError>()("SelectionReadbackError", {
+  reason: Schema.Literals(["unadopted", "mismatch"]),
+}) {}
 
 const submitting = new WeakSet<object>()
 
@@ -70,12 +77,17 @@ export function createComposerSubmit(input: ComposerSubmitInput) {
         // following the same steer rule as server commands.
         const selection = currentSelection(input)
 
-        if (input.adapter.kind === "active-session" && selection && (input.delivery?.(false) ?? "steer") === "steer")
-          await applySelection(
-            input.adapter.session(),
-            selection,
-            input.adapter.controls().model.selection.trackSessionCommit,
+        if (input.adapter.kind === "active-session" && selection && (input.delivery?.(false) ?? "steer") === "steer") {
+          if (
+            !(await applySelection(
+              input.adapter.session(),
+              selection,
+              input.adapter.controls().model.selection.trackSessionCommit,
+            ))
           )
+            return
+        }
+
         clearClientCommand(input, prompt)
         await clientCommand()
       } catch (error) {
@@ -135,11 +147,16 @@ export function createComposerSubmit(input: ComposerSubmitInput) {
     try {
       const started =
         input.adapter.kind === "active-session"
-          ? { session: input.adapter.session(), cleanupReady: Promise.resolve() }
+          ? {
+              session: input.adapter.session(),
+              cleanupReady: Promise.resolve(),
+              trackSessionCommit: input.adapter.controls().model.selection.trackSessionCommit,
+            }
           : await input.adapter.start(value.selection, submission, handoffMessage(value))
 
       if (!started) return
       const session = started.session
+      const track = started.trackSessionCommit ?? input.adapter.controls().model.selection.trackSessionCommit
 
       input.addToHistory(value.prompt, value.mode)
       input.resetHistory()
@@ -152,12 +169,12 @@ export function createComposerSubmit(input: ComposerSubmitInput) {
         if (optimisticBusy && input.adapter.kind === "new-session")
           session.data.session.setStatus(session.id, "running")
 
-        const sending = sendPrompt(session, value, input.adapter.controls().model.selection.trackSessionCommit, () => {
+        const sending = sendPrompt(session, value, track, () => {
           if (optimisticBusy && input.adapter.kind === "active-session")
             session.data.session.setStatus(session.id, "running")
         }).then(
-          () => ({ ok: true as const }),
-          (error) => ({ ok: false as const, error }),
+          (sent) => (sent ? { status: "admitted" as const } : { status: "cancelled" as const }),
+          (error) => ({ status: "failed" as const, error }),
         )
 
         await started.cleanupReady
@@ -168,10 +185,18 @@ export function createComposerSubmit(input: ComposerSubmitInput) {
         input.comments.clear()
         clearSubmission(input, submission)
         void sending.then((result) => {
-          if (!result.ok)
-            failSubmission(input, session, "prompt", result.error, restore, value.id, () => {
-              if (optimisticBusy) session.data.session.setStatus(session.id, "idle")
-            })
+          if (result.status === "admitted") return
+
+          if (result.status === "cancelled") {
+            session.handoff?.clear(value.id)
+            restore()
+
+            return
+          }
+
+          failSubmission(input, session, "prompt", result.error, restore, value.id, () => {
+            if (optimisticBusy) session.data.session.setStatus(session.id, "idle")
+          })
         })
 
         return
@@ -190,7 +215,10 @@ export function createComposerSubmit(input: ComposerSubmitInput) {
 
       if (command) {
         clearSubmission(input, submission)
-        void sendCommand(session, value, command, input.adapter.controls().model.selection.trackSessionCommit).catch(
+        void sendCommand(session, value, command, track).then(
+          (sent) => {
+            if (!sent) restore()
+          },
           (error) => failSubmission(input, session, "command", error, restore, value.id),
         )
 
@@ -217,9 +245,23 @@ function clearClientCommand(input: ComposerSubmitInput, prompt: Prompt) {
 function selectionModel(selection: ComposerSelection) {
   const model: ComposerSelection["model"] & { variant?: string } = { ...selection.model }
 
-  if (selection.variant) model.variant = selection.variant
+  if (!("type" in model) && selection.variant) model.variant = selection.variant
 
   return model
+}
+
+function executorMetadata(selection: ComposerSelection): NonNullable<SessionMessageUser["metadata"]> {
+  const preference = selection.executorPreference
+
+  if (!preference) return {}
+
+  const executorPreference: SessionExecutorPreference = { agent: preference.agent }
+
+  if (preference.model) {
+    executorPreference.model = { ...preference.model }
+  }
+
+  return { executorPreference }
 }
 
 function submissionText(prompt: Prompt) {
@@ -239,6 +281,9 @@ function handoffMessage(value: ComposerSubmission): SessionMessageUser {
     })),
     metadata: {
       displayText: value.text,
+      sessionReferences: value.prompt.flatMap((part) =>
+        part.type === "session" ? [{ reference: part.reference, start: part.start, end: part.end, content: part.content }] : [],
+      ),
       attachments: value.prompt.flatMap((part) =>
         part.type === "path" ? [{ name: part.filename, mime: part.mime, path: part.path }] : [],
       ),
@@ -261,6 +306,7 @@ function handoffMessage(value: ComposerSubmission): SessionMessageUser {
       }),
       agent: value.selection.agent,
       model: selectionModel(value.selection),
+      ...executorMetadata(value.selection),
     },
     time: { created: Date.now() },
   }
@@ -295,9 +341,8 @@ function readSubmission(
   const retryID =
     retry &&
     retry.agent === selection.agent &&
-    retry.providerID === selection.model.providerID &&
-    retry.modelID === selection.model.modelID &&
-    (retry.variant ?? "default") === (selection.variant ?? "default")
+    sameKey(retry, selection.model) &&
+    (("type" in retry ? undefined : retry.variant) ?? "default") === (selection.variant ?? "default")
       ? retry.id
       : undefined
 
@@ -315,14 +360,19 @@ function readSubmission(
 
 function currentSelection(input: ComposerSubmitInput): ComposerSelection | undefined {
   const controls = input.adapter.controls()
-  const model = controls.model.selection.current()
+  const model = controls.model.selection.identity?.() ?? controls.model.selection.current()
   const agent = controls.agents.current
 
   if (!model || !agent) return
 
+  const preference = agent === "meta" ? controls.executor?.preference() : undefined
+
   return {
     agent,
-    model: { modelID: model.id, providerID: model.provider.id },
+    executorPreference: preference
+      ? { ...preference, model: preference.model ? { ...preference.model } : undefined }
+      : undefined,
+    model: "type" in model && model.type === "group" ? { type: "group", groupID: model.groupID } : { modelID: model.id, providerID: model.provider.id },
     variant: controls.model.selection.variant.current(),
   }
 }
@@ -389,13 +439,9 @@ function restoreSubmission(
 
   // A recovered follow-up changes the payload, so it must use a new admission ID.
   if (value.mode === "normal" && restored.prompt === submission.prompt) {
-    restored.target.retry.set({
-      id: value.id,
-      agent: value.selection.agent,
-      providerID: value.selection.model.providerID,
-      modelID: value.selection.model.modelID,
-      variant: value.selection.variant,
-    })
+    restored.target.retry.set("type" in value.selection.model
+      ? { id: value.id, agent: value.selection.agent, ...value.selection.model }
+      : { id: value.id, agent: value.selection.agent, ...value.selection.model, variant: value.selection.variant })
   }
 
   if (!submission.current(input.adapter.state)) return true
@@ -436,7 +482,7 @@ async function sendCommand(
   const request = await buildSubmissionRequest(session, value)
 
   // Like queued prompts, queued commands must not apply the composer's selection to active work.
-  if (value.delivery === "steer") await applySelection(session, value.selection, track)
+  if (value.delivery === "steer" && !(await applySelection(session, value.selection, track))) return false
   await session.api.command({
     sessionID: session.id,
     name: command.command,
@@ -451,6 +497,8 @@ async function sendCommand(
     skills: request.skills,
     delivery: value.delivery,
   })
+
+  return true
 }
 
 async function applySelection(
@@ -459,13 +507,37 @@ async function applySelection(
   track?: ModelSelection["trackSessionCommit"],
   beforeModel?: () => Promise<void>,
 ) {
-  const cancel = track?.(session.id, selection)
+  const release = track?.(session.id, selection)
 
   try {
     const current = session.current()
 
-    if (current?.agent !== selection.agent) {
-      await session.api.switchAgent({ sessionID: session.id, agent: selection.agent })
+    if (current?.controller?.kind === "child") {
+      await beforeModel?.()
+
+      return true
+    }
+
+    if (current?.agent !== selection.agent || (selection.agent === "meta" && !current?.controller))
+      await session.api.switchAgent({
+        sessionID: session.id,
+        agent: selection.agent,
+        model: toSelection(selection.model, selection.variant),
+      })
+
+    if (
+      selection.agent === "meta" &&
+      selection.executorPreference &&
+      !sameExecutorPreference(selection.executorPreference, current?.executorPreference)
+    ) {
+      if (session.data.session.selectExecutor)
+        await session.data.session.selectExecutor({
+          sessionID: session.id,
+          executorPreference: selection.executorPreference,
+        })
+      else if (session.api.selectExecutor)
+        await session.api.selectExecutor({ sessionID: session.id, payload: selection.executorPreference })
+      else throw new Error("Executor selection is unavailable")
     }
 
     await beforeModel?.()
@@ -473,10 +545,24 @@ async function applySelection(
     // The server deduplicates unchanged selections; cached SSE state may still be behind an earlier switch.
     await session.api.switchModel({
       sessionID: session.id,
-      model: { id: selection.model.modelID, providerID: selection.model.providerID, variant: selection.variant },
+      model: toSelection(selection.model, selection.variant),
     })
+
+    if (current?.controller || selection.agent === "meta") {
+      session.data.session.invalidate?.(session.id)
+      const canonical = await session.data.session.readback?.(session.id)
+
+      if (!canonical) throw new SelectionReadbackError({ reason: "unadopted" })
+      const result = release?.(canonical)
+
+      if (result === "stale") return false
+
+      if (result !== "acknowledged") throw new SelectionReadbackError({ reason: "mismatch" })
+    }
+
+    return true
   } catch (error) {
-    cancel?.()
+    if (release?.() === "stale") return false
     throw error
   }
 }
@@ -500,8 +586,9 @@ async function sendPrompt(
     if (session.current()?.revert) await session.api.revert.commit({ sessionID: session.id })
   }
 
-  if (value.delivery === "steer") await applySelection(session, value.selection, track, settle)
-  else await settle()
+  if (value.delivery === "steer" && !(await applySelection(session, value.selection, track, settle))) return false
+
+  if (value.delivery === "queue") await settle()
 
   const admission = {
     id: value.id,
@@ -520,14 +607,18 @@ async function sendPrompt(
       displayText: request.displayText,
       comments: request.comments,
       attachments: request.attachments,
+      sessionReferences: request.sessionReferences,
       agent: value.selection.agent,
       model: selectionModel(value.selection),
+      ...executorMetadata(value.selection),
     },
   }
 
   const sending = session.data.session.prompt(admission).catch(() => session.data.session.prompt(admission))
   onAdmit()
   await sending
+
+  return true
 }
 
 async function buildSubmissionRequest(session: ComposerSession, value: ComposerSubmission) {

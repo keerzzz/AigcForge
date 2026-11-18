@@ -4,11 +4,15 @@ import { existsSync } from "node:fs"
 import { dirname, join, relative, resolve, sep } from "node:path"
 import { parseSync, Visitor } from "vite"
 
+// The third-party client locates source elements through this attribute.
 const attribute = "data-opencode-picker-source"
 
 export function pickerPlugin() {
   const plugin = picker()
-  const client = "/__vite_opencode_picker_client.js"
+  const client = "/__vite_aigcfroge_picker_client.js"
+  const moduleID = plugin.resolveId("virtual:vite-opencode-picker/client")
+
+  if (!moduleID) throw new Error("Picker client module is unavailable")
   let workspaceRoot = ""
 
   return {
@@ -18,12 +22,15 @@ export function pickerPlugin() {
       workspaceRoot = gitRoot(config.root)
     },
     resolveId(id: string) {
-      return plugin.resolveId(id === client ? "virtual:vite-opencode-picker/client" : id)
+      return id === client ? moduleID : plugin.resolveId(id)
     },
     configureServer(server: Parameters<typeof plugin.configureServer>[0]) {
+      const source = plugin.load(moduleID)
+
+      if (!source) throw new Error("Picker client source is unavailable")
       server.middlewares.use(client, (_request, response) => {
         response.setHeader("content-type", "text/javascript")
-        response.end(plugin.load(plugin.resolveId("virtual:vite-opencode-picker/client")!))
+        response.end(source)
       })
       plugin.configureServer(server)
     },

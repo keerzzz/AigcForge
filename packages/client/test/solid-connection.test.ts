@@ -1,12 +1,12 @@
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 import { createClientConnection } from "../src/solid"
-import { OpenCode, type OpenCodeEvent } from "../src/promise"
+import { AigcForge, type AigcForgeEvent } from "../src/promise"
 
 const connected = { id: "evt_connected", created: 1, type: "server.connected", data: {} }
 
 // One fake server whose event streams stay open until the test writes to them or the client aborts.
-function server() {
+function server(onStart?: () => void) {
   const encoder = new TextEncoder()
   const streams: {
     headers: Headers
@@ -15,8 +15,8 @@ function server() {
     error: (reason: Error) => void
     aborted: boolean
   }[] = []
-  const api = OpenCode.make({
-    baseUrl: "http://opencode.local",
+  const api = AigcForge.make({
+    baseUrl: "http://aigcfroge.local",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
       let controller!: ReadableStreamDefaultController<Uint8Array>
@@ -40,6 +40,7 @@ function server() {
         controller.error(request.signal.reason)
       })
       streams.push(entry)
+      onStart?.()
       return new Response(body, { headers: { "content-type": "text/event-stream" } })
     },
   })
@@ -47,7 +48,7 @@ function server() {
 }
 
 function setup(input: ReturnType<typeof server>, idleTimeout: number) {
-  const events: OpenCodeEvent[] = []
+  const events: AigcForgeEvent[] = []
   return createRoot((dispose) => ({
     events,
     dispose,
@@ -179,3 +180,63 @@ test("a reconnect does not ask the volatile event stream to replay", async () =>
     ctx.dispose()
   }
 })
+
+test.each(["managed", "explicit"] as const)(
+  "MC09 %s API replacement revokes the previous stream and buffered events",
+  async (mode) => {
+    const firstStarted = Promise.withResolvers<void>()
+    const nextStarted = Promise.withResolvers<void>()
+    const firstConnected = Promise.withResolvers<void>()
+    const buffered = Promise.withResolvers<void>()
+    const delivered = Promise.withResolvers<void>()
+    const first = server(() => firstStarted.resolve())
+    const next = server(() => nextStarted.resolve())
+    const events: AigcForgeEvent[] = []
+    const ctx = createRoot((dispose) => ({
+      dispose,
+      connection: createClientConnection(first.api, {
+        flushInterval: 0,
+        reconnect: mode === "managed" ? async () => next.api : undefined,
+        onEvent(event) {
+          events.push(event)
+          if (event.id === "evt_next_owner") delivered.resolve()
+        },
+        log: {
+          info(message) {
+            if (message === "event stream connected") firstConnected.resolve()
+          },
+          debug(message, data) {
+            if (message === "event" && data?.aggregateID === "ses_shared") buffered.resolve()
+          },
+        },
+      }),
+    }))
+    try {
+      await firstStarted.promise
+      first.streams[0].write(`data: ${JSON.stringify(connected)}\n\n`)
+      await firstConnected.promise
+      const old: Extract<AigcForgeEvent, { type: "task.updated" }> = {
+        id: "evt_previous_owner",
+        created: 2,
+        type: "task.updated",
+        durable: { aggregateID: "ses_shared", seq: 1, version: 1 },
+        data: { sessionID: "ses_shared", tasks: [] },
+      }
+      first.streams[0].write(`data: ${JSON.stringify(old)}\n\n`)
+      await buffered.promise
+      if (mode === "managed") first.streams[0].error(new Error("Switch managed server"))
+      if (mode === "explicit") ctx.connection.internal.replaceApi(next.api)
+      await nextStarted.promise
+      next.streams[0].write(`data: ${JSON.stringify({ ...connected, id: "evt_next_connected" })}\n\n`)
+      next.streams[0].write(`data: ${JSON.stringify({ ...old, id: "evt_next_owner" })}\n\n`)
+      await delivered.promise
+      expect(events.map((event) => event.id)).not.toContain("evt_previous_owner")
+      expect(events.map((event) => event.id)).toContain("evt_next_owner")
+      expect(first.streams[0].aborted).toBe(true)
+      expect(ctx.connection.status()).toBe("connected")
+      expect(next.streams[0].headers.get("last-event-id")).toBeNull()
+    } finally {
+      ctx.dispose()
+    }
+  },
+)

@@ -1,8 +1,11 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@opencode/script",
+  "name": "@aigcfroge/script",
   "type": "module",
   "license": "MIT",
+  "scripts": {
+    "typecheck": "tsgo --noEmit"
+  },
   "dependencies": {
     "semver": "^7.6.3"
   },

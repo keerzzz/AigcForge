@@ -1,7 +1,8 @@
-import type { SessionMessageUser } from "@opencode/client/promise"
+import type { SessionMessageUser } from "@aigcfroge/client/promise"
 import { useLocation, useNavigate } from "@solidjs/router"
 import { createEffect, createMemo, onCleanup, onMount } from "solid-js"
 import { messageIdFromHash } from "./message-id-from-hash"
+import { useSessionContent } from "./content-context"
 
 export const useSessionHashScroll = (input: {
   sessionKey: () => string
@@ -23,6 +24,7 @@ export const useSessionHashScroll = (input: {
   consumePendingMessage: (key: string) => string | undefined
 }) => {
   const visibleUserMessages = createMemo(() => input.visibleUserMessages())
+  const content = useSessionContent()
   const messageById = createMemo(() => new Map(visibleUserMessages().map((m) => [m.id, m])))
   let pendingKey = ""
   let clearing = false
@@ -48,16 +50,18 @@ export const useSessionHashScroll = (input: {
 
   const clearMessageHash = () => {
     cancel()
-    input.consumePendingMessage(input.sessionKey())
+
+    if (!content) input.consumePendingMessage(input.sessionKey())
 
     if (input.pendingMessage()) input.setPendingMessage(undefined)
 
-    if (!location.hash) return
+    if (content || !location.hash) return
     clearing = true
     navigate(location.pathname + location.search, { replace: true })
   }
 
   const updateHash = (id: string) => {
+    if (content) return
     const hash = `#${input.anchor(id)}`
 
     if (location.hash === hash) return
@@ -84,7 +88,7 @@ export const useSessionHashScroll = (input: {
 
   const seek = (id: string, behavior: ScrollBehavior, left = 4): boolean => {
     input.revealMessage?.(id)
-    const el = document.getElementById(input.anchor(id))
+    const el = input.scroller()?.querySelector<HTMLElement>(`[id="${CSS.escape(input.anchor(id))}"]`)
 
     if (el) return scrollToElement(el, behavior)
 
@@ -112,6 +116,7 @@ export const useSessionHashScroll = (input: {
   }
 
   const applyHash = (behavior: ScrollBehavior) => {
+    if (content) return
     const hash = location.hash.slice(1)
 
     if (!hash) {
@@ -141,7 +146,7 @@ export const useSessionHashScroll = (input: {
       return
     }
 
-    const target = document.getElementById(hash)
+    const target = input.scroller()?.querySelector<HTMLElement>(`[id="${CSS.escape(hash)}"]`)
 
     if (target) {
       input.follow.unpin()
@@ -157,6 +162,7 @@ export const useSessionHashScroll = (input: {
   }
 
   createEffect(() => {
+    if (content) return
     const hash = location.hash
 
     if (!hash) clearing = false
@@ -167,6 +173,8 @@ export const useSessionHashScroll = (input: {
   })
 
   createEffect(() => {
+    if (content) return
+
     if (!input.sessionID() || !input.messagesReady()) return
 
     visibleUserMessages()
@@ -206,6 +214,7 @@ export const useSessionHashScroll = (input: {
   })
 
   createEffect(() => {
+    if (content) return
     const sessionID = input.sessionID()
 
     if (!sessionID || !input.messagesReady()) return
@@ -226,6 +235,8 @@ export const useSessionHashScroll = (input: {
   })
 
   onMount(() => {
+    if (content) return
+
     if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
       window.history.scrollRestoration = "manual"
     }

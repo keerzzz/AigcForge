@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import path from "path"
-import { resolveGitExecutable } from "@opencode/core/util/git-executable"
+import { resolveGitExecutable } from "@aigcfroge/core/util/git-executable"
 
 describe("Git executable", () => {
   test("uses an absolute executable on Windows", () => {

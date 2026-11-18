@@ -1,27 +1,27 @@
 export * as ConfigCommandPlugin from "./command.js"
 
-import { define } from "@opencode/plugin/effect/plugin"
-import { Info, type Entry } from "@opencode/schema/config"
-import { ConfigCommand } from "@opencode/schema/config/command"
-import { Model } from "@opencode/schema/model"
-import { Provider } from "@opencode/schema/provider"
-import { AppProcess } from "@opencode/util/process"
+import { define } from "@aigcfroge/plugin/effect/plugin"
+import { Info, type Entry } from "@aigcfroge/schema/config"
+import { ConfigCommand } from "@aigcfroge/schema/config/command"
+import { Model } from "../../model.js"
+import { AppProcess } from "@aigcfroge/util/process"
 import path from "path"
 import { Effect, Option, PubSub, Schema, Stream } from "effect"
 import { ChildProcess } from "effect/process"
 import { Agent } from "../../agent.js"
+import { Command } from "../../command.js"
 import { Config } from "../../config.js"
 import { Location } from "../../location.js"
 import { Session } from "../../session.js"
 import { SubagentJob } from "../../session/subagent-job.js"
 import { ShellSelect } from "../../shell/select.js"
-import { FSUtil } from "@opencode/util/fs-util"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { ConfigMarkdown } from "../markdown.js"
 
 const decodeCommand = Schema.decodeUnknownOption(ConfigCommand.Info)
 
 export const Plugin = define({
-  id: "opencode.config.command",
+  id: "aigcfroge.config.command",
   effect: Effect.fn(function* (ctx) {
     const config = yield* Config.Service
     const fs = yield* FSUtil.Service
@@ -83,13 +83,7 @@ export const Plugin = define({
                 const model =
                   command.model === undefined
                     ? commandAgent?.model
-                    : {
-                        id: Model.ID.make(command.model.model),
-                        providerID: Provider.ID.make(command.model.providerID),
-                        ...(command.model.variant === undefined
-                          ? {}
-                          : { variant: Model.VariantID.make(command.model.variant) }),
-                      }
+                    : Model.fromConfig(command.model)
                 const text = yield* evaluateTemplate(command.template, input.prompt.text, {
                   location,
                   processes,
@@ -196,21 +190,7 @@ function evaluateTemplate(
   },
 ) {
   return Effect.gen(function* () {
-    const args = parseArguments(input)
-    const placeholders = template.match(placeholderRegex) ?? []
-    const last = Math.max(0, ...placeholders.map((item) => Number(item.slice(1))))
-    const expanded = template.replaceAll(placeholderRegex, (_, index) => {
-      const position = Number(index)
-      const argIndex = position - 1
-      if (argIndex >= args.length) return ""
-      if (position === last) return args.slice(argIndex).join(" ")
-      return args[argIndex]
-    })
-    const withArguments = expanded.replaceAll("$ARGUMENTS", () => input)
-    const text =
-      placeholders.length === 0 && !template.includes("$ARGUMENTS") && input.trim()
-        ? `${withArguments}\n\n${input}`.trim()
-        : withArguments.trim()
+    const text = Command.interpolate(template, input)
     const matches = Array.from(text.matchAll(shellRegex))
     if (matches.length === 0) return text
     const shell = yield* services.shell.resolve({ priority: "config" })
@@ -240,11 +220,4 @@ function evaluateTemplate(
   })
 }
 
-function parseArguments(input: string) {
-  return (input.match(argsRegex) ?? []).map((arg) => arg.replace(quoteTrimRegex, ""))
-}
-
-const argsRegex = /(?:\[Image\s+\d+\]|"[^"]*"|'[^']*'|[^\s"']+)/gi
-const placeholderRegex = /\$(\d+)/g
-const quoteTrimRegex = /^["']|["']$/g
 const shellRegex = /!`([^`]+)`/g

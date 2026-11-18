@@ -16,7 +16,7 @@ export function requiresStableMacInstaller(platform: string, channel: string) {
 export function stableMacDownload(input: unknown, arch: string) {
   if (arch !== "arm64" && arch !== "x64") return undefined
   const artifact = Option.getOrUndefined(decode(input))
-  const file = artifact?.metadata.files[`opencode-desktop-mac-${arch}.dmg`]
+  const file = artifact?.metadata.files[`aigcfroge-desktop-mac-${arch}.dmg`]
 
   return file && { version: artifact.version, url: file.url }
 }

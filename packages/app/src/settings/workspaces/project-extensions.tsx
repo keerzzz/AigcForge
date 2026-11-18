@@ -1,7 +1,7 @@
-import { Icon } from "@opencode/ui/icon"
-import { Switch } from "@opencode/ui/switch"
-import { Tabs } from "@opencode/ui/tabs"
-import { Button } from "@opencode/ui/button"
+import { Icon } from "@aigcfroge/ui/icon"
+import { Switch } from "@aigcfroge/ui/switch"
+import { Tabs } from "@aigcfroge/ui/tabs"
+import { Button } from "@aigcfroge/ui/button"
 import { useQuery } from "@tanstack/solid-query"
 import {
   type Component,
@@ -367,7 +367,7 @@ export const ProjectSettingsExtensions: Component<{
                 kind="skills"
                 empty={projectSkills().length === 0}
                 action={
-                  <ExternalLink class="settings-extension-link" href="https://opencode.ai/docs/skills/">
+                  <ExternalLink class="settings-extension-link" href="https://aigcfroge.ai/docs/skills/">
                     {language.t("settings.extensions.addSkills")}
                   </ExternalLink>
                 }

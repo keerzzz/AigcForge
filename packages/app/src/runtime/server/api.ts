@@ -1,9 +1,10 @@
-import { OpenCode, type OpenCodeClient } from "@opencode/client/promise"
+import { AigcForge, type AigcForgeClient } from "@aigcfroge/client/promise"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 import type { ServerConnection } from "@/runtime/server/registry"
 import { decode64 } from "@/runtime/persistence/base64"
 
 export function authTokenFromCredentials(input: { password: string }) {
-  return btoa(`opencode:${input.password}`)
+  return btoa(`aigcfroge:${input.password}`)
 }
 
 export function authFromToken(token: string | null) {
@@ -22,18 +23,17 @@ export function authFromToken(token: string | null) {
 export function createApiForServer(input: {
   server: ServerConnection.HttpBase
   fetch?: typeof globalThis.fetch
-}): OpenCodeClient {
-  return OpenCode.make({
+}): AigcForgeClient {
+  const headers = new Headers({ [ProductMode.CAPABILITIES_HEADER]: ProductMode.CAPABILITY_CUSTOM_V1 })
+
+  if (input.server.password)
+    headers.set("Authorization", `Basic ${authTokenFromCredentials({ password: input.server.password })}`)
+
+  return AigcForge.make({
     baseUrl: input.server.url,
     fetch: input.fetch,
-    headers: input.server.password
-      ? {
-          Authorization: `Basic ${authTokenFromCredentials({
-            password: input.server.password,
-          })}`,
-        }
-      : undefined,
+    headers,
   })
 }
 
-export type ServerApi = OpenCodeClient
+export type ServerApi = AigcForgeClient

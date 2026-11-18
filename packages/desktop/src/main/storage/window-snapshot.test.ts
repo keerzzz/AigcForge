@@ -12,7 +12,7 @@ const roots: string[] = []
 afterEach(() => Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }).catch(() => undefined))))
 
 test.each(["missing", "unreadable"])("a $s database distinguishes default enable state from unknown", async (input) => {
-  const root = await mkdtemp(path.join(tmpdir(), "opencode-window-snapshot-"))
+  const root = await mkdtemp(path.join(tmpdir(), "aigcfroge-window-snapshot-"))
   roots.push(root)
 
   if (input === "unreadable") await Bun.write(path.join(root, "drafts.sqlite"), "not a SQLite database")
@@ -23,7 +23,7 @@ test.each(["missing", "unreadable"])("a $s database distinguishes default enable
 })
 
 test.each([false, true])("the early snapshot keeps explicit rows even with legacy files: %s", async (legacy) => {
-  const root = await mkdtemp(path.join(tmpdir(), "opencode-window-snapshot-"))
+  const root = await mkdtemp(path.join(tmpdir(), "aigcfroge-window-snapshot-"))
   roots.push(root)
   const db = new DatabaseSync(path.join(root, "drafts.sqlite"))
   migrateDatabase(db)

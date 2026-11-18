@@ -14,7 +14,7 @@
         "headers": {
           "content-type": "application/json"
         },
-        "body": "{\"model\":\"cogview-4-250304\",\"prompt\":\"A simple flat red circle centered on a plain white background.\",\"size\":\"1024x1024\",\"quality\":\"standard\",\"user_id\":\"opencode-image-test\"}"
+        "body": "{\"model\":\"cogview-4-250304\",\"prompt\":\"A simple flat red circle centered on a plain white background.\",\"size\":\"1024x1024\",\"quality\":\"standard\",\"user_id\":\"aigcfroge-image-test\"}"
       },
       "response": {
         "status": 200,

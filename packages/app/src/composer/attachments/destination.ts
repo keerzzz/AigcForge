@@ -25,14 +25,19 @@ export function useAttachmentDestination(controls: Accessor<ComposerControls>) {
     input: controls().model.selection.current()?.capabilities.input ?? { image: false, pdf: false },
     local: server.isLocal,
     upload: async (file, report, signal) => {
-      const info = await sdk.api.server.info({ signal })
+      const api = sdk.api
+      const saved = { ...location().ref }
+      const http = { ...server.conn.http }
+      const info = await api.server.info({ signal })
       // One directory per upload keeps the original filename without collisions; the server
       // normalizes the separators and returns the resolved path.
-      const url = new URL("/api/experimental/fs/write", server.conn.http.url)
-      url.searchParams.set("location[directory]", location().directory)
+      const url = new URL("/api/experimental/fs/write", http.url)
+      url.searchParams.set("location[directory]", saved.directory)
+
+      if (saved.workspaceID) url.searchParams.set("location[workspaceID]", saved.workspaceID)
       url.searchParams.set("path", `${info.paths.tmp}/uploads/${uuid()}/${file.name}`)
 
-      return write(url, file, server.conn.http.password, report, signal)
+      return write(url, file, http.password, report, signal)
     },
   })
 }
@@ -40,7 +45,13 @@ export function useAttachmentDestination(controls: Accessor<ComposerControls>) {
 // fetch cannot report upload progress and Chromium only streams request bodies over HTTP/2, so
 // the one request that needs both goes through XMLHttpRequest. The browser streams the File
 // from disk; nothing is buffered in the renderer.
-function write(url: URL, file: File, password: string | undefined, report: (loaded: number) => void, signal: AbortSignal) {
+function write(
+  url: URL,
+  file: File,
+  password: string | undefined,
+  report: (loaded: number) => void,
+  signal: AbortSignal,
+) {
   return new Promise<string>((resolve, reject) => {
     const xhr = new XMLHttpRequest()
     xhr.open("POST", url)

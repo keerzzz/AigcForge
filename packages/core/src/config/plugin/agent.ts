@@ -1,22 +1,26 @@
 export * as ConfigAgentPlugin from "./agent.js"
 
-import { define } from "@opencode/plugin/effect/plugin"
-import { Document, Info, type Entry } from "@opencode/schema/config"
-import { ConfigAgent } from "@opencode/schema/config/agent"
+import { define } from "@aigcfroge/plugin/effect/plugin"
+import { Document, Info, type Entry } from "@aigcfroge/schema/config"
+import { ConfigAgent } from "@aigcfroge/schema/config/agent"
+import { AgentAsset } from "@aigcfroge/schema/agent-asset"
 import path from "path"
 import { Effect, Option, PubSub, Schema, Stream } from "effect"
 import { Agent } from "../../agent.js"
+import { Model } from "../../model.js"
 import { Config } from "../../config.js"
 import { ConfigMarkdown } from "../markdown.js"
-import { FSUtil } from "@opencode/util/fs-util"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { ConfigAgentV1 } from "../../v1/config/agent.js"
 import { ConfigMigrateV1 } from "../../v1/config/migrate.js"
-import { Global } from "@opencode/util/global"
+import { Global } from "@aigcfroge/util/global"
 import { Permission } from "../../permission.js"
 import type { FileAccess } from "../../file-access.js"
 import type { ReadTool } from "../../tool/plugin/read.js"
 import type { EditTool } from "../../tool/plugin/edit.js"
 import { AbsolutePath } from "../../schema.js"
+import { AgentProtocol } from "../../agent/protocol.js"
+import { AssetYaml } from "../../util/asset-yaml.js"
 
 const legacySources = [
   { pattern: "{agent,agents}/**/*.md", primary: false },
@@ -32,25 +36,12 @@ const pathActions = ["external_directory", "read", "edit"] as const satisfies re
 const agentKeys = new Set(["variant", ...Object.keys(ConfigAgent.Info.fields)])
 
 export const Plugin = define({
-  id: "opencode.config.agent",
+  id: "aigcfroge.config.agent",
   effect: Effect.fn(function* (ctx) {
     const config = yield* Config.Service
     const fs = yield* FSUtil.Service
     const global = yield* Global.Service
-    const loadEntry = Effect.fnUntraced(function* (entry: Entry) {
-      if (entry.type === "document") return [entry]
-      if (entry.type !== "directory") return []
-      const files = yield* discover(fs, entry.path)
-      return yield* Effect.forEach(files, (file) =>
-        fs.readFileStringSafe(file.filepath).pipe(
-          Effect.map((content) => (content ? decode(file, content) : undefined)),
-          Effect.orElseSucceed(() => undefined),
-        ),
-      ).pipe(Effect.map((documents) => documents.filter((document): document is Document => document !== undefined)))
-    })
-    const load = Effect.fn("ConfigAgentPlugin.load")(function* () {
-      return yield* Effect.forEach(yield* config.entries(), loadEntry).pipe(Effect.map((documents) => documents.flat()))
-    })
+    const load = () => loadDocuments(config, fs)
     const loaded = { documents: [] as Document[] }
     const reload = load().pipe(
       Effect.tap((documents) => Effect.sync(() => (loaded.documents = documents))),
@@ -81,6 +72,7 @@ export const Plugin = define({
     )
     loaded.documents = yield* load()
     yield* ctx.agent.transform((editor) => {
+      const origins = new Map(editor.list().map((agent) => [agent.id, agent.originKind]))
       const permissions = expandPermissions(
         loaded.documents.flatMap((document) => document.info.permissions ?? []),
         global.home,
@@ -91,42 +83,130 @@ export const Plugin = define({
         editor.update(current.id, (agent) => agent.permissions.push(...permissions))
       }
 
-      for (const document of loaded.documents) {
-        for (const [id, item] of Object.entries(document.info.agents ?? {})) {
-          const agentID = Agent.ID.make(id)
-          if (item.disabled) {
-            editor.remove(agentID)
-            continue
-          }
-
-          const exists = editor.get(agentID) !== undefined
-          editor.update(agentID, (agent) => {
-            if (!exists) agent.permissions.push(...permissions)
-            if (item.model !== undefined)
-              agent.model = {
-                id: item.model.model,
-                providerID: item.model.providerID,
-                ...(item.model.variant === undefined ? {} : { variant: item.model.variant }),
-              }
-            if (item.request !== undefined) {
-              Object.assign(agent.request.headers, item.request.headers ?? {})
-              Object.assign(agent.request.body, item.request.body ?? {})
-            }
-            if (item.system !== undefined) agent.system = item.system
-            if (item.description !== undefined) agent.description = item.description
-            if (item.mode !== undefined) agent.mode = item.mode
-            if (item.hidden !== undefined) agent.hidden = item.hidden
-            if (item.color !== undefined) agent.color = item.color
-            if (item.steps !== undefined) agent.steps = item.steps
-            if (item.permissions !== undefined) {
-              agent.permissions.push(...expandPermissions(item.permissions, global.home))
-            }
-          })
+      for (const [id, merged] of declarations(loaded.documents)) {
+        const item = merged.info
+        const agentID = Agent.ID.make(id)
+        if (item.disabled) {
+          editor.remove(agentID)
+          continue
         }
+
+        if (merged.reset) editor.remove(agentID)
+        const exists = editor.get(agentID) !== undefined
+        editor.update(agentID, (agent) => {
+          agent.originKind = origins.get(agentID) ?? "user"
+          if (!exists) agent.permissions.push(...permissions)
+          if (item.model !== undefined)
+            agent.model = Model.fromConfig(item.model)
+          if (item.request !== undefined) {
+            Object.assign(agent.request.headers, item.request.headers ?? {})
+            Object.assign(agent.request.body, item.request.body ?? {})
+          }
+          if (item.system !== undefined) agent.system = item.system
+          if (item.description !== undefined) agent.description = item.description
+          if (item.card !== undefined) Object.assign(agent, { card: item.card })
+          if (item.mode !== undefined) agent.mode = item.mode
+          if (item.hidden !== undefined) agent.hidden = item.hidden
+          if (item.color !== undefined) agent.color = item.color
+          if (item.steps !== undefined) agent.steps = item.steps
+          if (item.handoffs !== undefined) agent.handoffs = Array.from(item.handoffs)
+          if (item.permissions !== undefined) {
+            agent.permissions.push(...expandPermissions(item.permissions, global.home))
+          }
+        })
       }
     })
   }),
 })
+
+export const candidate = Effect.fn("ConfigAgentPlugin.candidate")(function* (id: Agent.ID) {
+  const agents = yield* Agent.Service
+  if ((yield* agents.get(id))?.originKind !== "user") return
+  const config = yield* Config.Service
+  const fs = yield* FSUtil.Service
+  const global = yield* Global.Service
+  const documents = yield* loadDocuments(config, fs)
+  const definition = declarations(documents).get(id)?.info
+  if (!definition || definition.disabled) return
+  const defaults = Agent.Info.default(id)
+  return Option.getOrUndefined(
+    Schema.decodeUnknownOption(AgentAsset.Candidate)({
+      name: id,
+      description: definition.description ?? "",
+      config: AssetYaml.stringify(
+        Schema.encodeSync(ConfigAgent.Info)(
+          new ConfigAgent.Info({
+            ...definition,
+            system: undefined,
+            mode: definition.mode ?? defaults.mode,
+            hidden: definition.hidden ?? defaults.hidden,
+            handoffs: definition.handoffs ?? defaults.handoffs,
+            permissions: expandPermissions(
+              [
+                ...defaults.permissions,
+                ...documents.flatMap((document) => document.info.permissions ?? []),
+                ...(definition.permissions ?? []),
+              ],
+              global.home,
+            ),
+          }),
+        ),
+      ),
+      source: definition.system ?? "",
+      relativePath: "",
+    }),
+  )
+})
+
+function loadDocuments(config: Config.Interface, fs: FSUtil.Interface) {
+  return Effect.gen(function* () {
+    return yield* Effect.forEach(yield* config.entries(), (entry) => {
+      if (entry.type === "document") return Effect.succeed([entry])
+      if (entry.type !== "directory") return Effect.succeed([])
+      return discover(fs, entry.path).pipe(
+        Effect.flatMap((files) =>
+          Effect.forEach(files, (file) =>
+            fs.readFileStringSafe(file.filepath).pipe(
+              Effect.map((content) => (content ? decode(file, content) : undefined)),
+              Effect.orElseSucceed(() => undefined),
+            ),
+          ),
+        ),
+        Effect.map((documents) => documents.filter((document): document is Document => document !== undefined)),
+      )
+    }).pipe(Effect.map((documents) => documents.flat()))
+  })
+}
+
+function declarations(documents: readonly Document[]) {
+  return documents
+    .flatMap((document) => Object.entries(document.info.agents ?? {}))
+    .reduce((result, [id, item]) => {
+      const previous = result.get(id)
+      if (item.disabled) {
+        result.set(id, { info: item, reset: true })
+        return result
+      }
+      const current = previous?.info.disabled ? undefined : previous?.info
+      if (previous?.info.disabled) result.delete(id)
+      result.set(id, {
+        reset: previous?.reset ?? false,
+        info: new ConfigAgent.Info({
+          ...current,
+          ...item,
+          request:
+            current?.request || item.request
+              ? {
+                  headers: { ...current?.request?.headers, ...item.request?.headers },
+                  body: { ...current?.request?.body, ...item.request?.body },
+                }
+              : undefined,
+          permissions: [...(current?.permissions ?? []), ...(item.permissions ?? [])],
+        }),
+      })
+      return result
+    }, new Map<string, { info: ConfigAgent.Info; reset: boolean }>())
+}
 
 // Matches anything at or under <root>/{agent,agents,mode,modes}. No file-suffix
 // check: directory-level events such as renames carry no per-file paths.
@@ -183,20 +263,21 @@ function decode(file: { directory: string; filepath: string; primary: boolean },
     .replace(/^(agent|agents|mode|modes)\//, "")
     .replace(/\.md$/, "")
   const body = markdown.content.trim()
-  const legacy = Object.keys(markdown.data).some((key) => !agentKeys.has(key))
+  const normalized = AgentProtocol.normalizeDefinition(markdown.data)
+  const legacy = Object.keys(normalized.definition).some((key) => !agentKeys.has(key))
   // Join legacy model + variant without sending native request/permissions through migration.
   // Embedded and structured native selections, and a variant without a model, stay unchanged.
   const data =
-    typeof markdown.data.model === "string" &&
-    !markdown.data.model.includes("#") &&
-    typeof markdown.data.variant === "string" &&
-    /^[^#]+$/.test(markdown.data.variant)
-      ? { ...markdown.data, model: `${markdown.data.model}#${markdown.data.variant}` }
-      : markdown.data
+    typeof normalized.definition.model === "string" &&
+    !normalized.definition.model.includes("#") &&
+    typeof normalized.definition.variant === "string" &&
+    /^[^#]+$/.test(normalized.definition.variant)
+      ? { ...normalized.definition, model: `${normalized.definition.model}#${normalized.definition.variant}` }
+      : normalized.definition
   const agent = legacy
     ? Option.getOrUndefined(
         Option.map(
-          decodeLegacyAgent({ name, ...markdown.data, prompt: body }, { errors: "all" }),
+          decodeLegacyAgent({ name, ...normalized.definition, prompt: body }, { errors: "all" }),
           ConfigMigrateV1.migrateAgent,
         ),
       )
@@ -204,7 +285,13 @@ function decode(file: { directory: string; filepath: string; primary: boolean },
   if (!agent) return
   const info = Option.getOrUndefined(
     decodeConfig({
-      agents: { [name]: file.primary ? { ...agent, mode: "primary" } : agent },
+      agents: {
+        [name]: {
+          ...agent,
+          ...(file.primary ? { mode: "primary" } : {}),
+          ...(normalized.card === undefined ? {} : { card: normalized.card }),
+        },
+      },
     }),
   )
   if (!info) return

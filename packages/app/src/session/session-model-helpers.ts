@@ -1,6 +1,10 @@
+import type { ModelKey } from "@/providers/models/key"
+import { sameKey } from "@/providers/models/key"
+import type { PromptModel } from "@/composer/schema"
+
 type ModelSelection = {
   model: {
-    current(): { id: string; provider: { id: string } } | undefined
+    key(): ModelKey | undefined
     variant: {
       current(): string | undefined
     }
@@ -9,25 +13,22 @@ type ModelSelection = {
 
 type PromptState = {
   model: {
-    current(): { providerID: string; modelID: string; variant?: string | null } | undefined
-    set(model: { providerID: string; modelID: string; variant?: string | null }): void
+    current(): PromptModel | undefined
+    set(model: PromptModel): void
   }
 }
 
 export const syncPromptModel = (local: ModelSelection, prompt: PromptState) => {
-  const model = local.model.current()
+  const model = local.model.key()
 
   if (!model) return
 
-  const next = {
-    providerID: model.provider.id,
-    modelID: model.id,
-    variant: local.model.variant.current(),
-  }
+  const next = "type" in model ? model : { ...model, variant: local.model.variant.current() }
 
   const current = prompt.model.current()
 
-  if (current?.providerID === next.providerID && current.modelID === next.modelID && current.variant === next.variant)
+  if (sameKey(current && ("type" in current ? current : { ...current, variant: current.variant ?? undefined }), next) &&
+    (current && !("type" in current) ? current.variant : undefined) === ("type" in next ? undefined : next.variant))
     return
   prompt.model.set(next)
 }

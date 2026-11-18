@@ -80,9 +80,9 @@ export const createAskpass = Effect.fn("Ssh.askpass")(function* (input: {
     env: {
       SSH_ASKPASS: input.binary,
       SSH_ASKPASS_REQUIRE: "force",
-      DISPLAY: process.env.DISPLAY || "opencode",
-      OPENCODE_SSH_ASKPASS_PORT: String(server.address.port),
-      OPENCODE_SSH_ASKPASS_TOKEN: token,
+      DISPLAY: process.env.DISPLAY || "aigcfroge",
+      AIGCFROGE_SSH_ASKPASS_PORT: String(server.address.port),
+      AIGCFROGE_SSH_ASKPASS_TOKEN: token,
     },
     closed: Fiber.join(serving),
     respond: Effect.fn("Ssh.askpass.respond")(function* (id: string, value: string) {

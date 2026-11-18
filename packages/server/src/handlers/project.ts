@@ -1,8 +1,8 @@
-import { Project } from "@opencode/core/project"
+import { Project } from "@aigcfroge/core/project"
 import { Effect } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
 import { Api } from "../api"
-import { ProjectNotFoundError } from "@opencode/protocol/errors"
+import { ProjectNotFoundError } from "@aigcfroge/protocol/errors"
 
 export const ProjectHandler = HttpApiBuilder.group(Api, "server.project", (handlers) =>
   handlers

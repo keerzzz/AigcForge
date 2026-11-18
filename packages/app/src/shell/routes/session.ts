@@ -1,6 +1,32 @@
-import { base64Encode } from "@opencode/util/encode"
+import { base64Encode } from "@aigcfroge/util/encode"
 import { ServerConnection } from "@/runtime/server/registry"
 import { decode64 } from "@/runtime/persistence/base64"
+import { useNavigate } from "@solidjs/router"
+import { useTabs } from "@/shell/tabs/tabs"
+
+/** Opens an existing related session and remembers its route in the source shell tab. */
+export function useRelatedSessionRoute() {
+  const tabs = useTabs()
+  const navigate = useNavigate()
+
+  return (input: {
+    server: ServerConnection.Key
+    from: string
+    sessionID: string
+    parentID?: string
+    reveal?: string
+  }) => {
+    const tab = tabs.store.find(
+      (item) =>
+        item.type === "session" &&
+        item.server === input.server &&
+        (item.sessionId === input.from || item.routeSessionId === input.from),
+    )
+
+    if (tab?.type === "session") tabs.rememberSessionRoute(tab, input.sessionID, input.parentID)
+    navigate(sessionHref(input.server, input.sessionID), input.reveal ? { state: { reveal: input.reveal } } : undefined)
+  }
+}
 
 export function sessionHref(server: ServerConnection.Key, sessionID: string) {
   return `/server/${base64Encode(server)}/session/${sessionID}`

@@ -1,10 +1,10 @@
 import { createMemo, createUniqueId, onCleanup, Show, type Accessor } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createQuery, keepPreviousData } from "@tanstack/solid-query"
-import { Icon } from "@opencode/ui/icon"
-import { SessionFilePanelV2, SessionFilePanelV2Empty } from "@opencode/session-ui/v2/session-file-panel-v2"
-import { SessionReviewV2Sidebar, SessionReviewV2SidebarToggle } from "@opencode/session-ui/v2/session-review-v2"
-import { getFilename } from "@opencode/util/path"
+import { Icon } from "@aigcfroge/ui/icon"
+import { SessionFilePanelV2, SessionFilePanelV2Empty } from "@aigcfroge/session-ui/v2/session-file-panel-v2"
+import { SessionReviewV2Sidebar, SessionReviewV2SidebarToggle } from "@aigcfroge/session-ui/v2/session-review-v2"
+import { getFilename } from "@aigcfroge/util/path"
 import type { ChangeKind } from "../review/contract"
 import {
   createKeyed,
@@ -20,6 +20,7 @@ import SessionFileList, { applyFileListKeyDown } from "./list"
 import { fileTabPath, isFileTab } from "./path"
 import FileTreeV2 from "./tree-v2"
 import { SessionFileView } from "./view"
+import OpenInAppButton from "./open-in-app"
 
 const emptyFiles: string[] = []
 
@@ -107,6 +108,7 @@ export function SessionFileBrowserTab(props: {
     <SessionFilePanelV2
       toolbar={!props.mobile && !props.placeholder && !sidebarOpened()}
       toolbarStart={<span class="truncate font-[530]">{title()}</span>}
+      toolbarEnd={<OpenInAppButton session={props.session} screen={props.screen} />}
       sidebarCollapsed={!sidebarOpened()}
       sidebarToggleGap={10}
       sidebarToggle={
@@ -262,8 +264,10 @@ export default function FileBrowser(props: {
       active={placeholder() ? undefined : fileTabPath(props.screen.file, id())}
       kinds={changes()?.kinds(props.session) ?? empty}
       state={panel.sidebar}
-      onSelect={(path) => shared.open(props.session, path, { tab: "preview" })}
-      onSelectPermanent={(path) => shared.open(props.session, path)}
+      onSelect={(path) => shared.open(props.session, path, { tab: shared.preview.enabled() ? "preview" : "select" })}
+      onSelectPermanent={(path) =>
+        shared.open(props.session, path, { tab: shared.preview.enabled() ? "open" : "select" })
+      }
       filterRef={(element) => {
         shared.filter.element = element
 

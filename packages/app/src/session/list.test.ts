@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { SessionApi, SessionInfo, SessionListInput } from "@opencode/client/promise"
+import type { SessionApi, SessionInfo, SessionListInput } from "@aigcfroge/client/promise"
 import { listAllSessions } from "./list"
 
 describe("listAllSessions", () => {

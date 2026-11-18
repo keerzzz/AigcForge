@@ -3,15 +3,15 @@ import fs from "fs/promises"
 import path from "path"
 import { pathToFileURL } from "node:url"
 import {
-  OpenCode,
+  AigcForge,
   type EventSubscribeOutput,
   type FormInfo,
   type MessageListOutput,
-  type OpenCodeClient,
+  type AigcForgeClient,
   type PermissionRequest,
   type SessionInboxInfo,
   type ToolContent,
-} from "@opencode/client/promise"
+} from "@aigcfroge/client/promise"
 import { createSessionTransport } from "../../src/mini/stream-v2.transport"
 import { runPromptQueue } from "../../src/mini/runtime.queue"
 import { entryBody } from "../../src/mini/entry.body"
@@ -79,7 +79,7 @@ function durable(sessionID: string, seq = 0, version: 1 | 2 = 1) {
   return { aggregateID: sessionID, seq, version }
 }
 
-function promptAdmission(input: Parameters<OpenCodeClient["session"]["prompt"]>[0], sessionID = "ses_1") {
+function promptAdmission(input: Parameters<AigcForgeClient["session"]["prompt"]>[0], sessionID = "ses_1") {
   return {
     id: input.id ?? "msg_prompt",
     sessionID,
@@ -152,12 +152,15 @@ function sdk(input: {
   globals?: FormInfo[]
   globalLocation?: { directory: string; workspaceID?: string }
   permissions?: Record<string, PermissionRequest[]>
-  pending?: Record<string, Awaited<ReturnType<OpenCodeClient["session"]["inbox"]["list"]>>>
+  pending?: Record<string, Awaited<ReturnType<AigcForgeClient["session"]["inbox"]["list"]>>>
   wait?: () => Promise<void>
 }) {
-  const client = OpenCode.make({ baseUrl: "https://opencode.test" })
+  const client = AigcForge.make({ baseUrl: "https://aigcfroge.test" })
   let subscription = 0
-  spyOn(client.event, "subscribe").mockImplementation(() => input.streams[subscription++]?.stream ?? feed().stream)
+  const raw = client.event.subscribe.raw
+  spyOn(client.event, "subscribe").mockImplementation(
+    Object.assign(() => input.streams[subscription++]?.stream ?? feed().stream, { raw }),
+  )
   spyOn(client.message, "list").mockImplementation((request) =>
     ok({
       data: input.messages?.[request.sessionID] ?? [
@@ -214,11 +217,11 @@ function sdk(input: {
         ) ?? [],
     }) as never
   })
-  spyOn(client.model, "default").mockImplementation(
+  spyOn(client.model.group.definition, "get").mockImplementation(
     () =>
       ok({
         location: { directory: "/tmp", project: { id: "proj_1", directory: "/tmp" } },
-        data: undefined,
+        data: { targets: [], definitions: [], effective: [] },
       }) as never,
   )
   return client
@@ -229,6 +232,28 @@ afterEach(() => {
 })
 
 describe("V2 mini transport", () => {
+  test("admits a logical Group without converting it to a physical model", async () => {
+    const events = feed()
+    events.push(connected())
+    const client = sdk({ streams: [events] })
+    const ui = footer()
+    const transport = await createSessionTransport({ sdk: client, sessionID: "ses_1", thinking: false, footer: ui.api })
+    const prompt = spyOn(client.session, "prompt").mockImplementation((request) => ok(promptAdmission(request)) as never)
+    const group = { type: "group" as const, groupID: "fallback" }
+    await transport.admitPromptTurn({
+      agent: undefined, model: group, variant: undefined,
+      prompt: { messageID: "msg_group", text: "Hello group", parts: [] }, files: [], includeFiles: false,
+    }, "queue")
+    expect(client.session.switchModel).toHaveBeenCalledWith({ sessionID: "ses_1", model: group }, expect.anything())
+    expect(prompt).toHaveBeenCalledWith(expect.objectContaining({ id: "msg_group", delivery: "queue" }), expect.anything())
+    await expect(transport.admitPromptTurn({
+      agent: undefined, model: group, variant: "high",
+      prompt: { messageID: "msg_bad_group", text: "Hello", parts: [] }, files: [], includeFiles: false,
+    }, "queue")).rejects.toThrow("Model groups use each member's configured variant")
+    expect(prompt).toHaveBeenCalledTimes(1)
+    await transport.close()
+  })
+
   test.each(["steer", "queue"] as const)("cancels the first local %s after attaching while busy", async (delivery) => {
     const events = feed()
     events.push(connected())
@@ -582,7 +607,10 @@ describe("V2 mini transport", () => {
       sessionID: "ses_1",
       thinking: false,
       footer: ui.api,
-      contextLimit: (model) => (model.providerID === "test" && model.modelID === "model" ? 160_000 : undefined),
+      contextLimit: (model) => {
+        if ("type" in model) return
+        return model.providerID === "test" && model.modelID === "model" ? 160_000 : undefined
+      },
     })
 
     events.push({
@@ -713,9 +741,9 @@ describe("V2 mini transport", () => {
     })
 
     while (!ui.commits.some((commit) => commit.text === "Done.")) await Bun.sleep(0)
-    expect(ui.commits.filter((commit) => commit.kind === "assistant" || commit.kind === "tool").map((commit) => commit.text)).toEqual([
-      "Done.",
-    ])
+    expect(
+      ui.commits.filter((commit) => commit.kind === "assistant" || commit.kind === "tool").map((commit) => commit.text),
+    ).toEqual(["Done."])
     await transport.close()
   })
 
@@ -743,7 +771,11 @@ describe("V2 mini transport", () => {
               model: { providerID: "test", id: "model" },
               content: [
                 { type: "text", text: "I'll check." },
-                canonicalToolPart("read", { status: "completed", input: {}, content: [{ type: "text", text: "file" }] }),
+                canonicalToolPart("read", {
+                  status: "completed",
+                  input: {},
+                  content: [{ type: "text", text: "file" }],
+                }),
               ],
               time: { created: 2, completed: 3 },
             },
@@ -760,7 +792,9 @@ describe("V2 mini transport", () => {
 
     while (!ui.commits.some((commit) => commit.text === "Done.")) await Bun.sleep(0)
     expect(
-      ui.commits.filter((commit) => commit.kind === "user" || commit.kind === "assistant" || commit.kind === "tool").map((commit) => commit.text),
+      ui.commits
+        .filter((commit) => commit.kind === "user" || commit.kind === "assistant" || commit.kind === "tool")
+        .map((commit) => commit.text),
     ).toEqual(["what happened", "Done."])
     await transport.close()
   })
@@ -1352,7 +1386,7 @@ describe("V2 mini transport", () => {
       thinking: false,
       footer: ui.api,
     })
-    let request: Parameters<OpenCodeClient["session"]["prompt"]>[0] | undefined
+    let request: Parameters<AigcForgeClient["session"]["prompt"]>[0] | undefined
     spyOn(client.session, "prompt").mockImplementation((input) => {
       request = input
       queueMicrotask(() => {
@@ -1439,7 +1473,7 @@ describe("V2 mini transport", () => {
       thinking: false,
       footer: ui.api,
     })
-    let request: Parameters<OpenCodeClient["session"]["prompt"]>[0] | undefined
+    let request: Parameters<AigcForgeClient["session"]["prompt"]>[0] | undefined
     // The generated method has conditional return types for throwOnError; this mock represents the successful branch.
     // @ts-expect-error successful SDK response is valid for both modes at runtime
     spyOn(client.session, "prompt").mockImplementation((input) => {
@@ -1527,7 +1561,7 @@ describe("V2 mini transport", () => {
       thinking: false,
       footer: ui.api,
     })
-    let request: Parameters<OpenCodeClient["session"]["prompt"]>[0] | undefined
+    let request: Parameters<AigcForgeClient["session"]["prompt"]>[0] | undefined
     // The generated method has conditional return types for throwOnError; this mock represents the successful branch.
     // @ts-expect-error successful SDK response is valid for both modes at runtime
     spyOn(client.session, "prompt").mockImplementation((input) => {
@@ -1830,7 +1864,7 @@ describe("V2 mini transport", () => {
         cursor: {},
       })
     })
-    const current: OpenCodeClient[] = []
+    const current: AigcForgeClient[] = []
     const ui = footer()
     const transport = await createSessionTransport({
       sdk: first,
@@ -2882,11 +2916,11 @@ describe("V2 mini transport", () => {
       footer: ui.api,
     })
     spyOn(client.session, "get").mockImplementation(() => ok({ model: undefined }) as never)
-    const defaultModel = spyOn(client.model, "default").mockImplementation(
+    const defaultModel = spyOn(client.model.group.definition, "get").mockImplementation(
       () =>
         ok({
           location: { directory: "/tmp", project: { id: "proj_1", directory: "/tmp" } },
-          data: { id: "gpt-5", providerID: "openai" },
+          data: { targets: [], definitions: [], effective: [], defaultSelection: { id: "gpt-5", providerID: "openai" } },
         }) as never,
     )
     const switched = spyOn(client.session, "switchModel").mockImplementation(() => ok(undefined))
@@ -2930,10 +2964,7 @@ describe("V2 mini transport", () => {
       { sessionID: "ses_1", model: { providerID: "openai", id: "gpt-5", variant: "high" } },
       { signal: undefined },
     )
-    expect(defaultModel).toHaveBeenCalledWith(
-      { location: { directory: "/project" } },
-      { signal: undefined },
-    )
+    expect(defaultModel).toHaveBeenCalledWith({ location: { directory: "/project" } }, { signal: undefined })
     await transport.close()
   })
 
@@ -2998,7 +3029,7 @@ describe("V2 mini transport", () => {
       thinking: false,
       footer: ui.api,
     })
-    let request: Parameters<OpenCodeClient["session"]["shell"]>[0] | undefined
+    let request: Parameters<AigcForgeClient["session"]["shell"]>[0] | undefined
     spyOn(client.session, "shell").mockImplementation((input) => {
       request = input
       queueMicrotask(() => {
@@ -3015,7 +3046,7 @@ describe("V2 mini transport", () => {
               command: "ls",
               cwd: "/tmp",
               shell: "/bin/sh",
-              file: "/tmp/opencode-shell",
+              file: "/tmp/aigcfroge-shell",
               metadata: {},
               time: { started: 0 },
             },
@@ -3034,7 +3065,7 @@ describe("V2 mini transport", () => {
               command: "ls",
               cwd: "/tmp",
               shell: "/bin/sh",
-              file: "/tmp/opencode-shell",
+              file: "/tmp/aigcfroge-shell",
               exit: 0,
               metadata: {},
               time: { started: 0, completed: 1 },
@@ -3123,7 +3154,7 @@ describe("V2 mini transport", () => {
       thinking: false,
       footer: ui.api,
     })
-    let request: Parameters<OpenCodeClient["session"]["shell"]>[0] | undefined
+    let request: Parameters<AigcForgeClient["session"]["shell"]>[0] | undefined
     let complete!: () => void
     spyOn(client.session, "shell").mockImplementation((input) => {
       request = input
@@ -3279,7 +3310,7 @@ describe("V2 mini transport", () => {
           command: "ls",
           cwd: "/tmp",
           shell: "/bin/sh",
-          file: "/tmp/opencode-shell",
+          file: "/tmp/aigcfroge-shell",
           exit: 0,
           metadata: {},
           time: { started: 0, completed: 1 },
@@ -3385,7 +3416,7 @@ describe("V2 mini transport", () => {
       thinking: false,
       footer: ui.api,
     })
-    let request: Parameters<OpenCodeClient["session"]["command"]>[0] | undefined
+    let request: Parameters<AigcForgeClient["session"]["command"]>[0] | undefined
     spyOn(client.session, "command").mockImplementation((input) => {
       request = input
       queueMicrotask(() => {
@@ -3467,7 +3498,7 @@ describe("V2 mini transport", () => {
       thinking: false,
       footer: ui.api,
     })
-    let request: Parameters<OpenCodeClient["session"]["prompt"]>[0] | undefined
+    let request: Parameters<AigcForgeClient["session"]["prompt"]>[0] | undefined
     spyOn(client.session, "prompt").mockImplementation((input) => {
       request = input
       queueMicrotask(() => {

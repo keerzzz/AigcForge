@@ -1,7 +1,7 @@
 import pkg from "../../../package.json"
 
 export function desktopVersion() {
-  return import.meta.env.OPENCODE_VERSION ?? pkg.version
+  return import.meta.env.AIGCFROGE_VERSION ?? pkg.version
 }
 
 export async function initializeSentry(version: string) {
@@ -21,7 +21,7 @@ export async function initializeSentry(version: string) {
         (integration) =>
           integration.name !== "Breadcrumbs" &&
           !(
-            import.meta.env.OPENCODE_CHANNEL === "prod" &&
+            import.meta.env.AIGCFROGE_CHANNEL === "prod" &&
             (integration.name === "GlobalHandlers" || integration.name === "BrowserApiErrors")
           ),
       ),

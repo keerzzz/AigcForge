@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test"
+import { fileURLToPath } from "node:url"
 import type { ModelSelection } from "@/providers/models/selection"
-import type { SessionMessageUser } from "@opencode/client/promise"
-import { Skill } from "@opencode/schema/skill"
+import type { SessionMessageUser } from "@aigcfroge/client/promise"
+import { Skill } from "@aigcfroge/schema/skill"
 import type { ActiveComposerAdapter, ComposerControls, ComposerSession, NewSessionComposerAdapter } from "./adapter"
 import { createMemoryComposerState, type Prompt } from "./state"
 import { createComposerSubmit } from "./submit"
@@ -17,6 +18,8 @@ const selectedModel = {
 const selection = {
   ready: Object.assign(() => true, { promise: undefined }),
   current: () => selectedModel,
+  key: () => ({ providerID: selectedModel.provider.id, modelID: selectedModel.id }),
+  groups: () => [],
   recent: () => [selectedModel],
   list: () => [selectedModel],
   cycle() {},
@@ -160,6 +163,30 @@ function session(input: {
 }
 
 describe("Composer submission", () => {
+  test("submits the preserved unavailable identity through the original request", async () => {
+    const state = createMemoryComposerState({ prompt: "/review changes" }).capture()
+    const selected = controls()
+    selected.model.selection = {
+      ...selection,
+      current: () => undefined,
+      identity: () => ({ id: "missing-model", name: "Saved Model", provider: { id: "provider-1", name: "Provider" },
+        unavailable: "Unavailable" }),
+    }
+    const completed = Promise.withResolvers<void>()
+
+    const target = session({
+      calls: [],
+      switchModel: async (request) => {
+        expect(request.model).toEqual({ providerID: "provider-1", id: "missing-model", variant: "balanced" })
+      },
+      command: async () => { completed.resolve() },
+    })
+
+    await submitInput(active(state, target, () => selected), undefined, "normal", () => [{ name: "review" }])
+      .submit(new Event("submit"))
+    await completed.promise
+  })
+
   test("applies the selection and runs a client argument command without admitting it to the session", async () => {
     const state = createMemoryComposerState().capture()
 
@@ -270,7 +297,9 @@ describe("Composer submission", () => {
         })
         calls.push("track")
 
-        return () => calls.push("cancel")
+        return () => {
+          calls.push("cancel")
+        }
       },
     }
     await submitInput(
@@ -585,5 +614,92 @@ describe("Composer submission", () => {
 
     expect(calls).toEqual([])
     expect(state.current().some((part) => part.type === "image")).toBe(true)
+  })
+})
+
+async function runSelectionKeepers(pattern: string) {
+  const child = Bun.spawn(
+    [
+      process.execPath,
+      "test",
+      "--conditions=browser",
+      "--only-failures",
+      "--preload",
+      "./happydom.ts",
+      "--test-name-pattern",
+      pattern,
+      "./src/composer/selection.test.ts",
+    ],
+    {
+      cwd: fileURLToPath(new URL("../../", import.meta.url)),
+      env: { ...process.env, AIGCFROGE_COMPOSER_SELECTION_BROWSER_TEST: "1" },
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+  )
+
+  const [status, stdout, stderr] = await Promise.all([
+    child.exited,
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+  ])
+
+  process.stdout.write(stdout)
+  process.stderr.write(stderr)
+  expect(status, stdout + stderr).toBe(0)
+}
+
+describe("Meta composer submission", () => {
+  test("guards active admission retry ownership through the real adapter and Data", async () => {
+    await runSelectionKeepers("Meta active admission owner keeper:")
+  }, 30_000)
+
+  test("checks canonical submission freshness and API ownership through real providers", async () => {
+    await runSelectionKeepers("Meta submission keeper:")
+  }, 30_000)
+
+  test("captures separate Meta and executor references before admission", async () => {
+    // The owning integration case now includes adopted canonical readback before admission.
+    await runSelectionKeepers("Meta admitted selection keeper:")
+  }, 30_000)
+
+  test("a rejected executor selection prevents model mutation and admission", async () => {
+    const state = createMemoryComposerState({ prompt: "ship it" }).capture()
+    const calls: string[] = []
+
+    const target = session({
+      calls,
+      current: () => ({
+        agent: "meta",
+        controller: { kind: "root" as const, metaAgentID: "meta-1", rootSessionID: "session-1" },
+      }),
+    })
+
+    const owned = {
+      ...target,
+      api: {
+        ...target.api,
+        selectExecutor: async () => {
+          calls.push("select-executor")
+          throw new Error("binding unavailable")
+        },
+      },
+    }
+
+    const ctl = () => ({
+      ...controls(),
+      agents: { ...controls().agents, current: "meta" },
+      executor: { selection, paid: true, loading: false, preference: () => ({ agent: "build" }) },
+    })
+
+    const failed = Promise.withResolvers<string>()
+    await submitInput(active(state, owned, ctl), {
+      missingSelection() {},
+      unqueueable() {},
+      failed: (_kind, error) => failed.resolve(String(error)),
+    }).submit(new Event("submit"))
+    expect(await failed.promise).toBe("Error: binding unavailable")
+    expect(calls).toEqual(["select-executor"])
+    expect(state.current()).toMatchObject([{ type: "text", content: "ship it" }])
   })
 })

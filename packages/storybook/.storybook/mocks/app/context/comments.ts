@@ -1,34 +1,22 @@
-import { createSignal } from "solid-js"
+import { createComponent, createContext, useContext, type ParentProps } from "solid-js"
+import { createCommentSessionForTest } from "../../../../../app/src/composer/comments"
 
-type Comment = {
-  id: string
-  file: string
-  selection: { start: number; end: number }
-  comment: string
-  time: number
+const createComments = () => ({
+  ...createCommentSessionForTest(),
+  ready: () => true,
+})
+
+const CommentsContext = createContext(createComments())
+
+export function CommentsProvider(props: ParentProps) {
+  return createComponent(CommentsContext.Provider, {
+    value: createComments(),
+    get children() {
+      return props.children
+    },
+  })
 }
 
-const [list, setList] = createSignal<Comment[]>([])
-const [focus, setFocus] = createSignal<{ file: string; id: string } | null>(null)
-const [active, setActive] = createSignal<{ file: string; id: string } | null>(null)
-
 export function useComments() {
-  return {
-    all: list,
-    replace(next: Comment[]) {
-      setList(next)
-    },
-    remove(file: string, id: string) {
-      setList((current) => current.filter((item) => !(item.file === file && item.id === id)))
-    },
-    clear() {
-      setList([])
-      setFocus(null)
-      setActive(null)
-    },
-    focus,
-    setFocus,
-    active,
-    setActive,
-  }
+  return useContext(CommentsContext)
 }

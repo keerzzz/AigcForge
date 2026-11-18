@@ -222,7 +222,6 @@
   [data-slot="session-review-v2-sidebar-tree"]
   .scroll-view__thumb[data-orientation="horizontal"] {
   height: 16px;
-  opacity: 1;
 }
 
 [data-component="session-review-v2-sidebar-root"]

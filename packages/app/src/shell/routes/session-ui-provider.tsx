@@ -1,7 +1,10 @@
-import { DataProvider } from "@opencode/session-ui/context"
-import { MarkdownProvider, type ReadMarkdownImage } from "@opencode/session-ui/context/markdown"
-import { useNavigate, useParams } from "@solidjs/router"
+import { DataProvider } from "@aigcfroge/session-ui/context"
+import { SessionCommunication } from "@aigcfroge/schema/session-communication"
+import { createLatest } from "@aigcfroge/gui-extensions/sdk"
+import { MarkdownProvider, type ReadMarkdownImage } from "@aigcfroge/session-ui/context/markdown"
+import { useNavigate } from "@solidjs/router"
 import { createMemo, type ParentProps } from "solid-js"
+import { Option, Schema } from "effect"
 import { useProviders } from "@/providers/catalog/providers"
 import { LocalProvider } from "@/providers/models/selection"
 import type { ServerConnection } from "@/runtime/server/registry"
@@ -12,6 +15,11 @@ import { useTabs } from "@/shell/tabs/tabs"
 import { readLocalImage } from "@/runtime/server/image"
 import { useLanguage } from "@/runtime/i18n/language"
 import { showToast } from "@/shell/notifications/toast"
+import { useSessionContent, useSessionParams } from "@/session/content-context"
+
+const decodeCommunicationMetadata = Schema.decodeUnknownOption(Schema.Struct({
+  communication: Schema.Struct({ id: SessionCommunication.ID }),
+}))
 
 export function SessionUIProvider(
   props: ParentProps<{
@@ -20,7 +28,8 @@ export function SessionUIProvider(
   }>,
 ) {
   const navigate = useNavigate()
-  const params = useParams()
+  const params = useSessionParams()
+  const content = useSessionContent()
   const data = useData()
   const serverSDK = useServerSDK()
   const tabs = useTabs()
@@ -36,6 +45,8 @@ export function SessionUIProvider(
   const href = (sessionID: string) => sessionHref(props.server, sessionID)
 
   const navigateToSession = async (sessionID: string) => {
+    if (content) return content.navigateToSession(sessionID)
+
     const tab = tabs.store.find(
       (item) =>
         item.type === "session" &&
@@ -65,7 +76,52 @@ export function SessionUIProvider(
 
   const providers = useProviders(directory)
 
+  const communicationIDs = createMemo(() => [...new Set(data.session.message.list(params.id).flatMap((message) => {
+    if (message.type !== "synthetic") return []
+    const metadata = Option.getOrUndefined(decodeCommunicationMetadata(message.metadata))
+
+    return metadata ? [metadata.communication.id] : []
+  }))], undefined, { equals: (previous, next) => previous?.join("\n") === next.join("\n") })
+
+  const communicationOwner = createMemo(() => {
+    if (content && !content.active() || serverSDK.connection.status() !== "connected" || !params.id || !communicationIDs().length) return
+
+    return {
+      data,
+      client: serverSDK.api,
+      attempt: serverSDK.connection.attempt(),
+      sessionID: params.id,
+      location: JSON.stringify(data.session.get(params.id)?.location),
+      ids: communicationIDs(),
+      version: data.session.communication.version(params.id),
+    }
+  }, undefined, { equals: (previous, next) => previous?.data === next?.data && previous?.client === next?.client &&
+    previous?.attempt === next?.attempt && previous?.sessionID === next?.sessionID && previous?.location === next?.location &&
+    previous?.ids === next?.ids && previous?.version === next?.version })
+
+  // The visible conversation hydrates its retained references through the original Data owner; rows only read them.
+  createLatest(communicationOwner, async (value, signal) => {
+    await value.data.session.communication.sync(value.sessionID)
+
+    if (signal.aborted) return
+
+    const missingCommunicationIDs = value.ids.filter((id) => !value.data.session.communication.get(value.sessionID, id))
+    await Promise.all(missingCommunicationIDs.map((id) => value.data.session.communication.readback(value.sessionID, id)))
+
+    if (signal.aborted) return
+
+    // Communication participants can be roots outside the displayed Session's loaded family.
+    const missingSessionIDs = [...new Set(value.ids.flatMap((id) => {
+      const record = value.data.session.communication.get(value.sessionID, id)
+
+      return record ? [record.actor.sessionID, record.contentSource.sessionID, record.targetSessionID] : []
+    }))].filter((id) => !value.data.session.get(id) && !value.data.session.deleted(id))
+
+    await Promise.all(missingSessionIDs.map((id) => value.data.session.sync(id).catch(() => undefined)))
+  })
+
   const sessionUIData = createMemo(() => ({
+    modelGroups: data.location.model.group.definition.list({ directory: directory() })?.effective,
     provider: providers.ready()
       ? { all: providers.all(), default: providers.default(), connected: providers.connected().map((item) => item.id) }
       : undefined,
@@ -90,6 +146,9 @@ export function SessionUIProvider(
       shellOutput={(input) => serverSDK.api.shell.output(input)}
       onNavigateToSession={navigateToSession}
       onSessionHref={href}
+      onOpenTask={content?.openTask}
+      onCommunication={(reference) => data.session.communication.get(reference.sessionID, reference.communicationID)}
+      onOpenCommunication={content?.openCommunication}
     >
       <MarkdownProvider readImage={readImage()} openSession={openReferencedSession}>
         <LocalProvider>{props.children}</LocalProvider>

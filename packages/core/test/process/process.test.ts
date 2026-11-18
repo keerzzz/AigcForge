@@ -6,14 +6,14 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { Effect, Exit, Fiber, Stream } from "effect"
 import { ChildProcess } from "effect/process"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { AppProcess } from "@opencode/util/process"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { AppProcess } from "@aigcfroge/util/process"
 import { testEffect } from "../lib/effect"
 
 const it = testEffect(LayerNode.compile(AppProcess.node))
 
 const NODE = process.execPath
-const MISSING_CWD = path.join(tmpdir(), `opencode-missing-cwd-${randomUUID()}`)
+const MISSING_CWD = path.join(tmpdir(), `aigcfroge-missing-cwd-${randomUUID()}`)
 const cmd = (...args: string[]) => ChildProcess.make(NODE, args)
 
 const waitForFile = (file: string) =>
@@ -54,17 +54,22 @@ describe("AppProcess", () => {
       }),
     )
 
-    it.effect(
-      "captures stdout and stderr in emission order",
+    it.live(
+      "combines stdout and stderr while preserving order within each stream",
       Effect.gen(function* () {
         const svc = yield* AppProcess.Service
         const script = [
           'process.stdout.write("out 1\\n")',
-          'setTimeout(() => process.stderr.write("err 1\\n"), 10)',
-          'setTimeout(() => process.stdout.write("out 2\\n"), 20)',
+          'process.stderr.write("err 1\\n")',
+          'process.stdout.write("out 2\\n")',
+          'process.stderr.write("err 2\\n")',
         ].join(";")
         const result = yield* svc.run(cmd("-e", script), { combineOutput: true })
-        expect(result.output?.toString("utf8")).toBe("out 1\nerr 1\nout 2\n")
+        // Independent OS pipes do not define a total order across their reads.
+        const lines = result.output?.toString("utf8").trim().split("\n")
+        expect(lines).toHaveLength(4)
+        expect(lines?.filter((line) => line.startsWith("out"))).toEqual(["out 1", "out 2"])
+        expect(lines?.filter((line) => line.startsWith("err"))).toEqual(["err 1", "err 2"])
         expect(result.stdout.toString("utf8")).toBe("")
         expect(result.stderr.toString("utf8")).toBe("")
       }),
@@ -155,7 +160,7 @@ describe("AppProcess", () => {
       it.live(
         "timeout cleans up the scoped child process",
         Effect.acquireUseRelease(
-          Effect.promise(() => fs.mkdtemp(path.join(tmpdir(), "opencode-process-timeout-"))),
+          Effect.promise(() => fs.mkdtemp(path.join(tmpdir(), "aigcfroge-process-timeout-"))),
           (directory) => {
             const ready = path.join(directory, "ready")
             const settled = path.join(directory, "settled")
@@ -176,7 +181,7 @@ describe("AppProcess", () => {
       it.live(
         "fiber interruption cleans up the scoped child process after readiness",
         Effect.acquireUseRelease(
-          Effect.promise(() => fs.mkdtemp(path.join(tmpdir(), "opencode-process-interrupt-"))),
+          Effect.promise(() => fs.mkdtemp(path.join(tmpdir(), "aigcfroge-process-interrupt-"))),
           (directory) => {
             const ready = path.join(directory, "ready")
             const settled = path.join(directory, "settled")

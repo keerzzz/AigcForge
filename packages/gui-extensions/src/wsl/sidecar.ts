@@ -25,9 +25,9 @@ export async function spawnWslSidecar(
   },
 ): Promise<WslSidecar> {
   const t = opts.t
-  const opencode = await opts.runtime.resolveCli(distro, { signal: opts.signal })
+  const aigcfroge = await opts.runtime.resolveCli(distro, { signal: opts.signal })
 
-  if (!opencode) throw new Error(t("error.opencodeNotInstalled", { distro }))
+  if (!aigcfroge) throw new Error(t("error.aigcfrogeNotInstalled", { distro }))
 
   const port = await allocatePort(t)
   opts.signal.throwIfAborted()
@@ -39,11 +39,11 @@ export async function spawnWslSidecar(
     'PATH=$(awk -v RS=: -v ORS=: \'$0 !~ /^\\/mnt\\//\' <<<"$PATH" | sed "s/:$//")',
     "export PATH",
     "export WSLENV=",
-    "export OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER=true",
-    "export OPENCODE_CLIENT=desktop",
-    `export OPENCODE_SERVER_PASSWORD=${shellEscape(password)}`,
+    "export AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER=true",
+    "export AIGCFROGE_CLIENT=desktop",
+    `export AIGCFROGE_SERVER_PASSWORD=${shellEscape(password)}`,
     'export XDG_STATE_HOME="$HOME/.local/state"',
-    `exec ${shellEscape(opencode)} --log-level ${opts.packaged ? "warn" : "info"} serve --hostname 0.0.0.0 --port ${port}`,
+    `exec ${shellEscape(aigcfroge)} --log-level ${opts.packaged ? "warn" : "info"} serve --hostname 0.0.0.0 --port ${port}`,
   ].join("\n")
 
   const child = spawn("wsl", wslArgs(["bash", "-se"], distro), {
@@ -128,7 +128,7 @@ function stop(child: ChildProcess) {
 }
 
 async function checkHealth(url: string, password: string) {
-  const auth = Buffer.from(`opencode:${password}`).toString("base64")
+  const auth = Buffer.from(`aigcfroge:${password}`).toString("base64")
 
   return fetch(new URL("/api/info", url), {
     method: "GET",

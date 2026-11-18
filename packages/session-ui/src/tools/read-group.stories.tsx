@@ -1,4 +1,4 @@
-import type { JsonValue, SessionMessageAssistant } from "@opencode/client/promise"
+import type { JsonValue, SessionMessageAssistant } from "@aigcfroge/client/promise"
 import { createSignal } from "solid-js"
 import { CurrentSessionProviders } from "../storybook/current-session-story"
 import { STORY_TIME } from "../storybook/current-session-fixtures"
@@ -8,7 +8,7 @@ import { timelinePresets } from "../timeline/detail"
 import { type ContextGroupPart, CurrentContextToolGroup } from "./tool-renderer"
 
 export default {
-  title: "OpenCode/Work/Read group",
+  title: "AigcForge/Work/Read group",
   id: "current-read-group",
   component: CurrentContextToolGroup,
   args: { width: 600 },

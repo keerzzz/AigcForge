@@ -1,6 +1,6 @@
 import { intro, log, outro, select, spinner, text } from "@clack/prompts"
 import { Effect, Option } from "effect"
-import type { FormAnswer, IntegrationInfo, OpenCodeClient } from "@opencode/client"
+import type { FormAnswer, IntegrationInfo, AigcForgeClient } from "@aigcfroge/client"
 import { Commands } from "../../commands"
 import { Runtime } from "../../../framework/runtime"
 import { selectIntegration, type IntegrationChoice } from "../../../ui/integration-picker"
@@ -18,8 +18,8 @@ import {
 } from "./shared"
 
 const integrationPriority = new Map([
-  ["opencode-go", 0],
-  ["opencode", 1],
+  ["aigcfroge-go", 0],
+  ["aigcfroge", 1],
   ["openai", 2],
   ["github-copilot", 3],
   ["anthropic", 4],
@@ -59,7 +59,7 @@ const login = Effect.fn("cli.auth.login.run")(function* (input: {
   outro("Done")
 })
 
-const findIntegration = Effect.fn("cli.auth.login.integration")(function* (client: OpenCodeClient, target?: string) {
+const findIntegration = Effect.fn("cli.auth.login.integration")(function* (client: AigcForgeClient, target?: string) {
   if (target && URL.canParse(target)) {
     const protocol = new URL(target).protocol
     if (protocol === "http:" || protocol === "https:") {
@@ -120,7 +120,7 @@ const chooseMethod = Effect.fn("cli.auth.login.method")(function* (methods: Conn
 })
 
 const authenticate = Effect.fn("cli.auth.login.authenticate")(function* (
-  client: OpenCodeClient,
+  client: AigcForgeClient,
   integration: IntegrationInfo,
   method: ConnectMethod,
   answer?: FormAnswer,
@@ -132,7 +132,7 @@ const authenticate = Effect.fn("cli.auth.login.authenticate")(function* (
 })
 
 const externalLogin = Effect.fn("cli.auth.login.external")(function* (
-  client: OpenCodeClient,
+  client: AigcForgeClient,
   integration: IntegrationInfo,
   method: Extract<ConnectMethod, { type: "external" }>,
   answer?: FormAnswer,
@@ -151,7 +151,7 @@ const externalLogin = Effect.fn("cli.auth.login.external")(function* (
 })
 
 const keyLogin = Effect.fn("cli.auth.login.key")(function* (
-  client: OpenCodeClient,
+  client: AigcForgeClient,
   integration: IntegrationInfo,
   method: Extract<ConnectMethod, { type: "key" }>,
   answer?: FormAnswer,
@@ -168,7 +168,7 @@ const keyLogin = Effect.fn("cli.auth.login.key")(function* (
 })
 
 export const oauthLogin = Effect.fn("cli.auth.login.oauth")(function* (
-  client: OpenCodeClient,
+  client: AigcForgeClient,
   integration: IntegrationInfo,
   method: Extract<ConnectMethod, { type: "oauth" }>,
   answer?: FormAnswer,
@@ -228,7 +228,7 @@ export const oauthLogin = Effect.fn("cli.auth.login.oauth")(function* (
 })
 
 const commandLogin = Effect.fn("cli.auth.login.command")(function* (
-  client: OpenCodeClient,
+  client: AigcForgeClient,
   integration: IntegrationInfo,
   method: Extract<ConnectMethod, { type: "command" }>,
 ) {
@@ -269,7 +269,7 @@ const commandLogin = Effect.fn("cli.auth.login.command")(function* (
 })
 
 const waitForOAuth = Effect.fn("cli.auth.login.oauth.wait")(function* (
-  client: OpenCodeClient,
+  client: AigcForgeClient,
   integrationID: string,
   attemptID: string,
 ) {
@@ -283,7 +283,7 @@ const waitForOAuth = Effect.fn("cli.auth.login.oauth.wait")(function* (
 })
 
 const waitForCommand = Effect.fn("cli.auth.login.command.wait")(function* (
-  client: OpenCodeClient,
+  client: AigcForgeClient,
   integrationID: string,
   attemptID: string,
   update: (message: string) => void,

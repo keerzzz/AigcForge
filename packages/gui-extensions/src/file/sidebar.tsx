@@ -1,5 +1,5 @@
 import { createMemo, Match, onCleanup, Show, Switch } from "solid-js"
-import { Tabs } from "@opencode/ui/tabs"
+import { Tabs } from "@aigcfroge/ui/tabs"
 import type { ChangeKind } from "../review/contract"
 import { createKeyed, useExtension, type MountedSession, type SessionScreen } from "../sdk"
 import { current, useShared } from "./context"
@@ -73,16 +73,24 @@ export default function FileSidebar(props: { session: MountedSession; screen: Se
       class="h-full"
       data-scope="filetree"
     >
-      <Tabs.List>
-        <Show when={changes()}>
-          <Tabs.Trigger value="changes" class="flex-1" classes={{ button: "w-full" }}>
-            {ctx.plural("tree.changes", count())}
+      <div class="flex shrink-0">
+        <Tabs.List class="min-w-0 flex-1">
+          <Show when={changes()}>
+            <Tabs.Trigger
+              value="changes"
+              class="min-w-0 flex-1"
+              classes={{ button: "w-full" }}
+              title={ctx.plural("tree.changes", count())}
+            >
+              {ctx.plural("tree.changes", count())}
+            </Tabs.Trigger>
+          </Show>
+          <Tabs.Trigger value="all" class="min-w-0 flex-1" classes={{ button: "w-full" }} title={ctx.t("tree.all")}>
+            {ctx.t("tree.all")}
           </Tabs.Trigger>
-        </Show>
-        <Tabs.Trigger value="all" class="flex-1" classes={{ button: "w-full" }}>
-          {ctx.t("tree.all")}
-        </Tabs.Trigger>
-      </Tabs.List>
+        </Tabs.List>
+        <div class="shrink-0" style={{ width: "calc(var(--session-header-actions-width, 28px) + 20px)" }} aria-hidden />
+      </div>
       <Show when={tab() === "changes"}>
         <Tabs.Content value="changes" class="bg-background-stronger px-3 py-0">
           <Switch>
@@ -111,7 +119,7 @@ export default function FileSidebar(props: { session: MountedSession; screen: Se
                     // Review shows the change; while it is pending or off, the file opens instead.
                     if (live.status === "active") return live.value.focus(props.session, node.path)
 
-                    shared.open(props.session, node.path)
+                    shared.open(props.session, node.path, { tab: shared.preview.enabled() ? "preview" : "select" })
                   }}
                 />
               </Show>
@@ -131,7 +139,12 @@ export default function FileSidebar(props: { session: MountedSession; screen: Se
                 class="pt-3"
                 modified={diffFiles()}
                 kinds={kinds()}
-                onFileClick={(node) => shared.open(props.session, node.path)}
+                onFileClick={(node) =>
+                  shared.open(props.session, node.path, { tab: shared.preview.enabled() ? "preview" : "select" })
+                }
+                onFileDoubleClick={(node) =>
+                  shared.open(props.session, node.path, { tab: shared.preview.enabled() ? "open" : "select" })
+                }
               />
             </Match>
           </Switch>

@@ -21,8 +21,8 @@ export const make = Effect.gen(function* () {
       : Effect.tryPromise({
           try: async () => {
             ;(
-              globalThis as typeof globalThis & { __OPENCODE_PHOTON_WASM_PATH?: string }
-            ).__OPENCODE_PHOTON_WASM_PATH = path.isAbsolute(photonWasm)
+              globalThis as typeof globalThis & { __AIGCFROGE_PHOTON_WASM_PATH?: string }
+            ).__AIGCFROGE_PHOTON_WASM_PATH = path.isAbsolute(photonWasm)
               ? photonWasm
               : fileURLToPath(new URL(photonWasm, import.meta.url))
             return await import("@silvia-odwyer/photon-node")

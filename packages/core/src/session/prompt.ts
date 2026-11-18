@@ -1,11 +1,11 @@
 export * as SessionPrompt from "./prompt.js"
 
-import { Base64, FileAttachment, Prompt } from "@opencode/schema/prompt"
-import { PromptInput } from "@opencode/schema/prompt-input"
-import { SessionInbox } from "@opencode/schema/session-inbox"
-import type { Session } from "@opencode/schema/session"
-import type { SessionMessage } from "@opencode/schema/session-message"
-import { FSUtil } from "@opencode/util/fs-util"
+import { Base64, FileAttachment, Prompt } from "@aigcfroge/schema/prompt"
+import { PromptInput } from "@aigcfroge/schema/prompt-input"
+import { SessionInbox } from "@aigcfroge/schema/session-inbox"
+import type { Session } from "@aigcfroge/schema/session"
+import type { SessionMessage } from "@aigcfroge/schema/session-message"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { Effect } from "effect"
 import path from "path"
 import { fileURLToPath } from "url"
@@ -15,7 +15,8 @@ import { Mime } from "../mime.js"
 import { Plugin } from "../plugin/service.js"
 import { PluginHooks } from "../plugin/hooks.js"
 import { Skill } from "../skill.js"
-import { AttachmentError, SkillNotFoundError } from "./error.js"
+import { AttachmentError } from "./error.js"
+import { SessionSkill } from "./skill.js"
 
 export type Input = {
   text: string
@@ -56,14 +57,12 @@ export const prepare = Effect.fn("SessionPrompt.prepare")(function* (request: {
     const requested = input.skills
     const selected = yield* Effect.gen(function* () {
       if (!requested?.length) return undefined
-      const skillService = yield* Skill.Service
       const prepared = new Map<Skill.ID, Skill.Name>()
       return yield* Effect.forEach(requested, (attachment) =>
         Effect.gen(function* () {
           const name = prepared.get(attachment.id)
           if (name !== undefined) return { id: attachment.id, name, mention: attachment.mention }
-          const skill = yield* skillService.get(attachment.id)
-          if (!skill) return yield* new SkillNotFoundError({ skill: attachment.id })
+          const skill = yield* SessionSkill.select({ session: request.session, skill: attachment.id })
           prepared.set(skill.id, skill.name)
           return {
             id: skill.id,
@@ -200,7 +199,7 @@ const readFileAttachment = Effect.fn("SessionPrompt.readFileAttachment")(functio
   return { bytes, source: { type: "uri" as const, uri }, start, end, name: path.basename(target), mime: undefined }
 })
 
-const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
+export const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
 
 // A data URL is the whole file; errors and logs must name the attachment, not echo its bytes.
 function attachmentLabel(input: PromptInput.FileAttachment) {

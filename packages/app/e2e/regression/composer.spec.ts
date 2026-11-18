@@ -1,8 +1,339 @@
 import { expect, test, type Locator, type Page } from "@playwright/test"
-import { NO_PROVIDER, T0, provider } from "../utils/app"
-import { openDraft, openSession } from "../utils/workspace"
+import { Schema } from "effect"
+import { NO_PROVIDER, SERVER, T0, provider, sessionHref } from "../utils/app"
+import { mockWorkspace, openDraft, openSession } from "../utils/workspace"
+import { openSidePanel } from "../utils/side-panel"
+import { installSseTransport } from "../utils/sse-transport"
+import { expectSessionTitle } from "../utils/waits"
 
 test.use({ permissions: ["clipboard-read", "clipboard-write"] })
+
+test("SC03 keeps a target draft and attachments after its Shell closes and restores its final released view", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const sourceID = "ses_sc03_source"
+  const targetID = "ses_sc03_target"
+  const otherSourceID = "ses_sc03_other_source"
+  const targetDirectory = "/home/sc03-target"
+
+  const targetLocation = { directory: targetDirectory }
+
+  const writes: { path: string; directory: string; body: string }[] = []
+  const uploads: URL[] = []
+  const prompts: { sessionID: string; body: unknown }[] = []
+  const effects: string[] = []
+  const transport = await installSseTransport(page, { server: SERVER })
+  page.on("request", (request) => {
+    if (request.method() !== "POST") return
+
+    const url = new URL(request.url())
+    const path = url.pathname
+
+    if (path === "/api/session" || path.endsWith("/interrupt")) effects.push(path)
+
+    if (path === "/api/experimental/fs/write") uploads.push(url)
+  })
+
+  const workspace = await openSession(page, {
+    name: "SC03 target memory",
+    sessions: [
+      { id: sourceID, title: "Source A", model: { providerID: "aigcfroge", id: "source-model" } },
+      {
+        id: targetID,
+        title: "Target B",
+        directory: targetDirectory,
+        location: targetLocation,
+        model: { providerID: "aigcfroge", id: "target-model" },
+      },
+      { id: otherSourceID, title: "Source C", model: { providerID: "aigcfroge", id: "source-model" } },
+    ],
+    provider: provider({ id: "source-model", name: "Source model" }, { id: "target-model", name: "Target model" }),
+    pageMessages: (id) => ({
+      items: [{ id: `msg_${id}`, type: "user", text: `History ${id}`, time: { created: T0 } }],
+    }),
+    onFileWrite: (write) => void writes.push(write),
+    onPrompt: (prompt) => void prompts.push(prompt),
+  })
+
+  await transport.waitForConnection()
+  const main = page.locator('[data-slot="session-chat-panel"]')
+  const side = page.locator('[data-component="session-content-panel"]')
+
+  const sideTab = page.locator(
+    `[id="session-side-panel-view-tab-${encodeURIComponent(`${SERVER}\n${sourceID}`)}-session-${encodeURIComponent(`${SERVER}\n${targetID}`)}"]`,
+  )
+
+  await main.locator('[data-component="composer-editor"]').fill("Source draft stays A")
+
+  const attach = async () => {
+    await openSidePanel(page, "Task delegation")
+
+    const root = page
+      .locator('[data-slot="session-content-source"]')
+      .filter({ has: page.getByText(targetID, { exact: true }) })
+
+    await root.getByRole("button", { name: "Attach session", exact: true }).click()
+    await expect(side.locator('[data-component="composer-editor"]')).toBeEditable()
+  }
+
+  await attach()
+  await expect(page).toHaveURL(sessionHref(sourceID))
+  await expect(main).toContainText(`History ${sourceID}`)
+  await expect(side).toContainText(`History ${targetID}`)
+  await side.locator('[data-component="composer-editor"]').fill("Target draft B")
+
+  const transfer = await page.evaluateHandle(() => {
+    const value = new DataTransfer()
+    value.items.add(new File(["Target attachment"], "target.txt", { type: "text/plain" }))
+
+    return value
+  })
+
+  await side.dispatchEvent("drop", { dataTransfer: transfer })
+  await expect(side.locator('[data-component="composer-attachments"]')).toContainText("target.txt")
+  await expect
+    .poll(() => writes)
+    .toEqual([
+      {
+        path: expect.stringMatching(/\/uploads\/[0-9a-f-]{36}\/target\.txt$/),
+        directory: targetDirectory,
+        body: "Target attachment",
+      },
+    ])
+
+  expect(uploads).toHaveLength(1)
+  expect(uploads[0]?.searchParams.get("location[directory]")).toBe(targetLocation.directory)
+  await expect(main.locator('[data-component="composer-attachments"]')).toHaveCount(0)
+
+  await page.locator(`[data-titlebar-tab-slot]:has(a[href="${sessionHref(otherSourceID)}"])`).click()
+  await expectSessionTitle(page, "Source C")
+  await attach()
+  await expect(side.locator('[data-component="composer-editor"]')).toHaveText("Target draft B")
+  await side.locator('[data-component="composer-editor"]').fill("Shared target draft B")
+  await page.locator(`[data-titlebar-tab-slot]:has(a[href="${sessionHref(sourceID)}"])`).click()
+  await expect(main.locator('[data-component="composer-editor"]')).toHaveText("Source draft stays A")
+  await expect(side.locator('[data-component="composer-editor"]')).toHaveText("Shared target draft B")
+  await expect(side.locator('[data-component="composer-attachments"]')).toContainText("target.txt")
+
+  await page
+    .locator(`[data-titlebar-tab-slot]:has(a[href="${sessionHref(targetID)}"])`)
+    .getByRole("button", { name: "Close tab", exact: true })
+    .click()
+  await expect(page).toHaveURL(sessionHref(sourceID))
+  await expect(side.locator('[data-component="composer-editor"]')).toBeEditable()
+  await side.locator('[data-component="composer-editor"]').fill("Final target draft B")
+  expect(prompts).toEqual([])
+  expect(effects).toEqual([])
+  await sideTab.locator("..").getByRole("button", { name: "Close tab", exact: true }).click()
+  await page.locator(`[data-titlebar-tab-slot]:has(a[href="${sessionHref(otherSourceID)}"])`).click()
+  await expect(side.locator('[data-component="composer-editor"]')).toHaveText("Final target draft B")
+  const otherTab = page.locator("#review-panel").getByRole("tab").filter({ hasText: "Target B" })
+  await otherTab.locator("..").getByRole("button", { name: "Close tab", exact: true }).click()
+  await expect(side).toHaveCount(0)
+  expect((await transport.connections()).filter((connection) => connection.endedAt === undefined)).toHaveLength(1)
+
+  await page.goto(sessionHref(targetID))
+  await expectSessionTitle(page, "Target B")
+  await expect(main.locator('[data-component="composer-editor"]')).toHaveText("Final target draft B")
+  await expect(main.locator('[data-component="composer-attachments"]')).toContainText("target.txt")
+  await main.locator('[data-component="composer-editor"]').press("Enter")
+  await expect.poll(() => prompts.length).toBe(1)
+  expect(prompts[0]).toMatchObject({
+    sessionID: targetID,
+    body: {
+      text: `Final target draft B\nAttached file: \`${writes[0]?.path}\``,
+      metadata: {
+        displayText: "Final target draft B",
+        model: { providerID: "aigcfroge", modelID: "target-model" },
+      },
+    },
+  })
+  expect(effects).toEqual([])
+  expect(workspace.directory).not.toBe(targetDirectory)
+})
+
+test("SC03 recovers target history and keeps source Find and root navigation isolated", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const sourceID = "ses_sc03_recovery_source"
+  const failedID = "ses_sc03_recovery_a"
+  const targetID = "ses_sc03_recovery_b"
+  const sourceHistory = "sourceprobe stays in the source timeline"
+  const failedHistory = "Recovered target A history"
+  const targetHistory = "targetprobe stays in target B"
+  const faults = { history: true }
+  const failedReads: string[] = []
+  await mockWorkspace(page, {
+    name: "SC03 target recovery and search",
+    sessions: [
+      { id: sourceID, title: "Recovery source S" },
+      { id: failedID, title: "Recovery target A" },
+      { id: targetID, title: "Recovery target B" },
+    ],
+    pageMessages: (id) => ({
+      items: [
+        {
+          id: `msg_${id}`,
+          type: "user",
+          text: id === sourceID ? sourceHistory : id === failedID ? failedHistory : targetHistory,
+          time: { created: T0 },
+        },
+      ],
+    }),
+  })
+  await page.route(`**/api/session/${failedID}/message?*`, async (route) => {
+    if (faults.history) {
+      failedReads.push(route.request().url())
+      await route.fulfill({ status: 500, json: { message: "Target A history unavailable" } })
+
+      return
+    }
+
+    await route.fallback()
+  })
+  await page.goto(sessionHref(sourceID))
+  await expectSessionTitle(page, "Recovery source S")
+  const main = page.locator('[data-slot="session-chat-panel"]')
+  await expect(main).toContainText(sourceHistory)
+  await expect(main.locator('[data-component="composer-editor"]')).toBeEditable()
+  const sourceKey = encodeURIComponent(`${SERVER}\n${sourceID}`)
+  const failedKey = `${sourceKey}-session-${encodeURIComponent(`${SERVER}\n${failedID}`)}`
+  const targetKey = `${sourceKey}-session-${encodeURIComponent(`${SERVER}\n${targetID}`)}`
+  const failedTab = page.locator(`[id="session-side-panel-view-tab-${failedKey}"]`)
+  const targetTab = page.locator(`[id="session-side-panel-view-tab-${targetKey}"]`)
+
+  const failed = page
+    .locator(`[id="session-side-panel-view-tabpanel-${failedKey}"]`)
+    .locator('[data-component="session-content-panel"]')
+
+  const target = page
+    .locator(`[id="session-side-panel-view-tabpanel-${targetKey}"]`)
+    .locator('[data-component="session-content-panel"]')
+
+  const mainSearch = main.locator('[data-component="timeline-search-bar"]').getByRole("searchbox")
+  const targetSearch = target.locator('[data-component="timeline-search-bar"]').getByRole("searchbox")
+
+  const mainHighlights = () =>
+    main.evaluate((root) => {
+      const hits = [
+        ...Array.from(CSS.highlights.get("timeline-search-hit") ?? []),
+        ...Array.from(CSS.highlights.get("timeline-search-hit-active") ?? []),
+      ]
+
+      return {
+        count: hits.length,
+        local: hits.every((range) => root.contains(range.startContainer) && root.contains(range.endContainer)),
+      }
+    })
+
+  const targetHighlights = () =>
+    target.evaluate((root) =>
+      Array.from(CSS.highlights).some(
+        ([name, hits]) =>
+          name.startsWith("timeline-search-hit-") &&
+          name !== "timeline-search-hit-active" &&
+          hits.size === 1 &&
+          Array.from(hits).every((range) => root.contains(range.startContainer) && root.contains(range.endContainer)),
+      ),
+    )
+
+  const attach = async (sessionID: string) => {
+    await openSidePanel(page, "Task delegation")
+
+    const source = page
+      .locator('[data-slot="session-content-source"]')
+      .filter({ has: page.getByText(sessionID, { exact: true }) })
+
+    await expect(source).toHaveCount(1)
+    await source.getByRole("button", { name: "Attach session", exact: true }).click()
+  }
+
+  await page.keyboard.press("ControlOrMeta+f")
+  await expect(mainSearch).toBeFocused()
+  await mainSearch.fill("sourceprobe")
+  await expect(main.locator('[data-slot="timeline-search-count"]')).toHaveText("1/1")
+  await expect.poll(mainHighlights).toEqual({ count: 1, local: true })
+
+  await attach(failedID)
+  await expect.poll(() => failedReads.length).toBeGreaterThan(0)
+  await expect(failed.getByRole("alert")).toBeVisible()
+  await expect(failed.getByRole("button", { name: "Try again", exact: true })).toBeEnabled()
+  await attach(targetID)
+  await expect(targetTab).toHaveAttribute("aria-selected", "true")
+  await expect(target).toContainText(targetHistory)
+  await expect(target.getByRole("alert")).toHaveCount(0)
+  await expect(target.getByRole("button", { name: "Find...", exact: true }).locator("svg")).toBeVisible()
+  await expect(target.getByRole("button", { name: "Find...", exact: true })).toHaveText("")
+  await page.screenshot({ path: testInfo.outputPath("sc03-target-search-ready.png") })
+  await expect(page).toHaveURL(sessionHref(sourceID))
+  await target.locator('[data-component="composer-editor"]').click()
+  await page.keyboard.press("ControlOrMeta+f")
+  await expect(mainSearch).toBeFocused()
+  await expect(mainSearch).toHaveValue("sourceprobe")
+  await expect(targetSearch).toHaveCount(0)
+  await expect.poll(mainHighlights).toEqual({ count: 1, local: true })
+
+  await failedTab.click()
+  await expect(failed.getByRole("alert")).toBeVisible()
+
+  const retried = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === `/api/session/${failedID}/message` && response.ok(),
+  )
+
+  faults.history = false
+  await failed.getByRole("button", { name: "Try again", exact: true }).click()
+  await retried
+  await expect(failed).toContainText(failedHistory)
+  await expect(failed.getByRole("alert")).toHaveCount(0)
+  await targetTab.click()
+  await expect(target).toContainText(targetHistory)
+  await target.getByRole("button", { name: "Find...", exact: true }).click()
+  await expect(targetSearch).toBeFocused()
+  await targetSearch.fill("targetprobe")
+  await expect(target.locator('[data-slot="timeline-search-count"]')).toHaveText("1/1")
+  await expect(mainSearch).toHaveValue("sourceprobe")
+  await expect.poll(mainHighlights).toEqual({ count: 1, local: true })
+  await expect.poll(targetHighlights).toBe(true)
+
+  const toggle = page.getByRole("button", { name: "Toggle review", exact: true })
+  await toggle.click()
+  await expect(toggle).toHaveAttribute("aria-expanded", "false")
+  await expect(target).toBeHidden()
+  await main.locator('[data-component="composer-editor"]').click()
+  await page.keyboard.press("ControlOrMeta+f")
+  await expect(mainSearch).toBeFocused()
+  await expect(mainSearch).toHaveValue("sourceprobe")
+  await expect.poll(mainHighlights).toEqual({ count: 1, local: true })
+  await toggle.click()
+  await expect(toggle).toHaveAttribute("aria-expanded", "true")
+  await expect(target).toContainText(targetHistory)
+  await target.getByRole("button", { name: "Find...", exact: true }).click()
+  await expect(targetSearch).toBeFocused()
+  await targetSearch.fill("targetprobe")
+  await expect(target.locator('[data-slot="timeline-search-count"]')).toHaveText("1/1")
+  await expect.poll(targetHighlights).toBe(true)
+
+  await targetTab.hover()
+  await targetTab.locator("..").getByRole("button", { name: "Close tab", exact: true }).click()
+  await expect(target).toHaveCount(0)
+  await expect.poll(mainHighlights).toEqual({ count: 1, local: true })
+  await main.locator('[data-component="composer-editor"]').click()
+  await page.keyboard.press("ControlOrMeta+f")
+  await expect(mainSearch).toBeFocused()
+  await expect(mainSearch).toHaveValue("sourceprobe")
+
+  await attach(targetID)
+  await expect(target).toContainText(targetHistory)
+  await target.getByRole("button", { name: "Open as main session", exact: true }).click()
+  await expect(page).toHaveURL(sessionHref(targetID))
+  await expectSessionTitle(page, "Recovery target B")
+  const sourceTab = page.locator(`[data-titlebar-tab-slot]:has(a[href="${sessionHref(sourceID)}"])`)
+  await expect(sourceTab).toHaveCount(1)
+  await expect(sourceTab.locator("a")).toHaveAttribute("href", sessionHref(sourceID))
+  await sourceTab.click()
+  await expect(page).toHaveURL(sessionHref(sourceID))
+  await expect(main).toContainText(sourceHistory)
+})
 
 async function draft(page: Page) {
   const { editor } = await openDraft(page, { name: "ComposerDraft", provider: NO_PROVIDER })
@@ -26,6 +357,127 @@ async function expectCaretVisible(input: Locator) {
     )
     .toBe(true)
 }
+
+test("MP03 Session chips preserve mixed drafts and follow rename, deletion and connection state after typing", async ({
+  page,
+}) => {
+  const sourceID = "ses_mp03_chip_source"
+  const targetID = "ses_mp03_chip_target"
+  const cachedID = "ses_mp03_chip_cached"
+  const directory = "C:/AigcForge/MP03SessionChips"
+  const reads: string[] = []
+  const writes: string[] = []
+  page.on("request", (request) => {
+    if (request.method() !== "POST") return
+    const path = new URL(request.url()).pathname
+
+    if (path === "/api/session" || /\/(prompt|interrupt|communication)$/.test(path)) writes.push(path)
+  })
+  const transport = await installSseTransport(page, { server: SERVER, retry: 60_000 })
+
+  const workspace = await openSession(page, {
+    name: "MP03 Session chips",
+    directory,
+    sessions: [
+      { id: sourceID, title: "Session chip source", mode: "coding", agent: "build" },
+      { id: targetID, title: "Original target", mode: "coding", agent: "build" },
+      { id: cachedID, title: "Cached target", mode: "coding", agent: "build" },
+    ],
+    pageMessages(id) {
+      reads.push(id)
+
+      return { items: [] }
+    },
+  })
+
+  await transport.waitForConnection()
+  const editor = page.locator('[data-slot="session-chat-panel"] [data-component="composer-editor"]')
+  const text = `Ask ${targetID} with ${cachedID} while keeping this text.`
+  await page.evaluate((text) => navigator.clipboard.writeText(text), text)
+  await editor.press("ControlOrMeta+v")
+  const target = editor.getByTitle(new RegExp(`^${targetID} ·`))
+  const cached = editor.getByTitle(new RegExp(`^${cachedID} ·`))
+  await expect(editor.getByRole("link")).toHaveCount(2)
+  await expect(target).toHaveText("Original target")
+  await expect(cached).toHaveText("Cached target")
+  await expect(editor).toHaveText("Ask Original target with Cached target while keeping this text.")
+  expect(reads).not.toContain(targetID)
+  expect(reads).not.toContain(cachedID)
+  await expect
+    .poll(async () => {
+      const values = await page.evaluate(async () => {
+        const database = await new Promise<IDBDatabase>((resolve, reject) => {
+          const request = indexedDB.open("aigcfroge-drafts", 1)
+          request.onsuccess = () => resolve(request.result)
+          request.onerror = () => reject(request.error)
+        })
+
+        try {
+          const transaction = database.transaction("documents", "readonly")
+          const request = transaction.objectStore("documents").getAll()
+
+          const values = await new Promise<unknown[]>((resolve, reject) => {
+            request.onsuccess = () => resolve(request.result)
+            request.onerror = () => reject(request.error)
+          })
+
+          return values
+        } finally {
+          database.close()
+        }
+      })
+
+      return Schema.decodeUnknownSync(Schema.Array(Schema.String))(values).some(
+        (value) => value.includes(targetID) && value.includes('"type":"session"'),
+      )
+    })
+    .toBe(true)
+  await page.reload()
+  await expectSessionTitle(page, "Session chip source")
+  await transport.waitForConnection()
+  await expect(editor.getByRole("link")).toHaveCount(2)
+  await expect(target).toHaveText("Original target")
+  await expect(cached).toHaveText("Cached target")
+  await editor.press("ControlOrMeta+End")
+  await editor.pressSequentially(" Extra draft")
+  await expect(editor).toHaveText("Ask Original target with Cached target while keeping this text. Extra draft")
+  await transport.send({
+    id: "evt_mp03_chip_renamed",
+    type: "session.renamed",
+    created: T0 + 1,
+    location: { directory },
+    durable: { aggregateID: targetID, seq: 1, version: 1 },
+    data: { sessionID: targetID, title: "Renamed target" },
+  })
+  await expect(target).toHaveText("Renamed target")
+  await expect(target).toHaveAttribute("data-reference-status", "ready")
+  await expect(editor).toBeFocused()
+  await editor.pressSequentially(" Still at the end.")
+  await expect(editor).toHaveText(
+    "Ask Renamed target with Cached target while keeping this text. Extra draft Still at the end.",
+  )
+  workspace.sessions.splice(
+    0,
+    workspace.sessions.length,
+    ...workspace.sessions.filter((session) => session.id !== targetID),
+  )
+  await transport.send({
+    id: "evt_mp03_chip_deleted",
+    type: "session.deleted",
+    created: T0 + 2,
+    location: { directory },
+    durable: { aggregateID: targetID, seq: 2, version: 2 },
+    data: { sessionID: targetID },
+  })
+  await expect(target).toHaveAttribute("data-reference-status", "missing")
+  await expect(target).toHaveAttribute("title", /Session unavailable$/)
+  await transport.disconnect()
+  await expect(cached).toHaveAttribute("data-reference-status", "offline")
+  await expect(cached).toHaveText("Cached target")
+  await expect(cached).toHaveAttribute("title", /Server unavailable$/)
+  await expect(target).toHaveAttribute("data-reference-status", "missing")
+  expect(writes).toEqual([])
+})
 
 test("keeps a 25000-line crash report editable in a new session", async ({ page }) => {
   const input = await draft(page)
@@ -194,7 +646,7 @@ test("shows the dropzone and attaches a dropped file", async ({ page }) => {
     .toEqual([
       {
         path: expect.stringMatching(/\/uploads\/[0-9a-f-]{36}\/dropzone\.txt$/),
-        directory: "C:/OpenCode/ComposerDraft",
+        directory: "C:/AigcForge/ComposerDraft",
         body: "Dropzone fixture",
       },
     ])

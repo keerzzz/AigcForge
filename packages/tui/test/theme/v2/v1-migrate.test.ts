@@ -6,19 +6,19 @@ import {
   themeModes,
   type HueScale,
   type ResolvedTheme,
-} from "@opencode/theme/tui"
-import { DEFAULT_THEMES, getOpenCodeTheme, resolveTheme as resolveV1 } from "../../../src/theme"
-import opencodeSource from "../../../src/theme/assets/opencode.json" with { type: "json" }
-import type { ThemeV1Json } from "@opencode/theme/tui/v1"
+} from "@aigcfroge/theme/tui"
+import { DEFAULT_THEMES, getAigcForgeTheme, resolveTheme as resolveV1 } from "../../../src/theme"
+import aigcfrogeSource from "../../../src/theme/assets/aigcfroge.json" with { type: "json" }
+import type { ThemeV1Json } from "@aigcfroge/theme/tui/v1"
 
-const opencodeV1 = opencodeSource as ThemeV1Json
-const opencodeLight = resolveThemeDocument(getOpenCodeTheme(), "light")
-const opencodeLightHues = allHues(opencodeLight)
+const aigcfrogeV1 = aigcfrogeSource as ThemeV1Json
+const aigcfrogeLight = resolveThemeDocument(getAigcForgeTheme(), "light")
+const aigcfrogeLightHues = allHues(aigcfrogeLight)
 
 test("migrates resolved V1 modes into V2 tokens", () => {
-  const migrated = migrateV1(opencodeV1)
+  const migrated = migrateV1(aigcfrogeV1)
   if (!migrated.light || !migrated.dark) throw new Error("Expected both modes")
-  const legacy = resolveV1(opencodeV1, "light")
+  const legacy = resolveV1(aigcfrogeV1, "light")
   const resolved = resolveThemeDocument(migrated, "light")
 
   expect(migrated.base.categorical?.length).toBeGreaterThan(0)
@@ -58,7 +58,7 @@ test("migrates resolved V1 modes into V2 tokens", () => {
 })
 
 test("references generated hues from matching token colors", () => {
-  const source = structuredClone(opencodeV1)
+  const source = structuredClone(aigcfrogeV1)
   source.theme.border = source.theme.primary
   source.theme.borderActive = source.theme.accent
   source.theme.syntaxKeyword = source.theme.error
@@ -74,7 +74,7 @@ test("references generated hues from matching token colors", () => {
 })
 
 test("infers and emits only chromatic hues represented by V1 colors", () => {
-  const source = structuredClone(opencodeV1)
+  const source = structuredClone(aigcfrogeV1)
   const ambiguous = { light: "#808080", dark: "#808080" }
   source.theme.accent = ambiguous
   source.theme.warning = ambiguous
@@ -107,7 +107,7 @@ test("infers and emits only chromatic hues represented by V1 colors", () => {
 })
 
 test("orders categorical hues by V1 semantic color mapping", () => {
-  const source = structuredClone(opencodeV1)
+  const source = structuredClone(aigcfrogeV1)
   const colors = {
     light: {
       red: "#fca5a5",
@@ -147,11 +147,11 @@ test("orders categorical hues by V1 semantic color mapping", () => {
 })
 
 test("gives accent and primary ownership of their inferred hues", () => {
-  const source = structuredClone(opencodeV1)
-  source.theme.success = hex(opencodeLightHues.orange[700])
-  source.theme.accent = hex(opencodeLightHues.orange[600])
-  source.theme.info = hex(opencodeLightHues.blue[700])
-  source.theme.primary = hex(opencodeLightHues.blue[600])
+  const source = structuredClone(aigcfrogeV1)
+  source.theme.success = hex(aigcfrogeLightHues.orange[700])
+  source.theme.accent = hex(aigcfrogeLightHues.orange[600])
+  source.theme.info = hex(aigcfrogeLightHues.blue[700])
+  source.theme.primary = hex(aigcfrogeLightHues.blue[600])
 
   const migrated = migrateV1(source)
   if (!migrated.light) throw new Error("Expected light mode")
@@ -164,7 +164,7 @@ test("gives accent and primary ownership of their inferred hues", () => {
   expect(migrated.light.hue?.accent).toBe("$hue.orange")
   expect(migrated.light.hue?.interactive).toBe("$hue.blue")
 
-  source.theme.primary = hex(opencodeLightHues.orange[500])
+  source.theme.primary = hex(aigcfrogeLightHues.orange[500])
   const collisionMode = migrateV1(source).light
   const collision = collisionMode?.hue?.orange
   if (typeof collision !== "object") throw new Error("Expected concrete orange scale")
@@ -174,7 +174,7 @@ test("gives accent and primary ownership of their inferred hues", () => {
 })
 
 test("uses the semantic neutral hue when V1 categorical colors are ambiguous", () => {
-  const source = structuredClone(opencodeV1)
+  const source = structuredClone(aigcfrogeV1)
   source.theme.secondary = "transparent"
   source.theme.accent = "transparent"
   source.theme.success = "transparent"
@@ -189,7 +189,7 @@ test("uses the semantic neutral hue when V1 categorical colors are ambiguous", (
 })
 
 test("builds and extrapolates gray from V1 surfaces and text without using menus or borders", () => {
-  const source = structuredClone(opencodeV1)
+  const source = structuredClone(aigcfrogeV1)
   source.theme.background = { light: "#eeeeee", dark: "#111111" }
   source.theme.backgroundPanel = { light: "#dddddd", dark: "#222222" }
   source.theme.backgroundElement = { light: "#cccccc", dark: "#333333" }
@@ -228,7 +228,7 @@ test("builds and extrapolates gray from V1 surfaces and text without using menus
 })
 
 test("uses the base text reference for primary actions on transparent backgrounds", () => {
-  const source = structuredClone(opencodeV1)
+  const source = structuredClone(aigcfrogeV1)
   source.theme.background = "transparent"
   source.theme.primary = { light: "#ffffff", dark: "#000000" }
   delete source.theme.selectedListItemText
@@ -240,7 +240,7 @@ test("uses the base text reference for primary actions on transparent background
 })
 
 test("retains V1 circular reference errors", () => {
-  const source = structuredClone(opencodeV1)
+  const source = structuredClone(aigcfrogeV1)
   source.defs = { ...source.defs, one: "two", two: "one" }
   source.theme.primary = "one"
 
@@ -257,7 +257,7 @@ test("migrates every built-in V1 theme in its supported modes", () => {
 })
 
 test("collapses identical V1 backgrounds when both variants infer one mode", () => {
-  const dark = structuredClone(opencodeV1)
+  const dark = structuredClone(aigcfrogeV1)
   dark.theme.background = "#111111"
   dark.theme.text = "#eeeeee"
   const migratedDark = migrateV1(dark)
@@ -266,7 +266,7 @@ test("collapses identical V1 backgrounds when both variants infer one mode", () 
   expect(themeModes(migratedDark)).toEqual(["dark"])
   expect(selectThemeMode(migratedDark, "light").mode).toBe("dark")
 
-  const light = structuredClone(opencodeV1)
+  const light = structuredClone(aigcfrogeV1)
   light.theme.background = "#eeeeee"
   light.theme.text = "#111111"
   const migratedLight = migrateV1(light)
@@ -277,7 +277,7 @@ test("collapses identical V1 backgrounds when both variants infer one mode", () 
 })
 
 test("keeps both modes when a shared background has different contrast", () => {
-  const source = structuredClone(opencodeV1)
+  const source = structuredClone(aigcfrogeV1)
   source.theme.background = "#808080"
   source.theme.text = { light: "#111111", dark: "#eeeeee" }
   const migrated = migrateV1(source)

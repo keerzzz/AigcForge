@@ -15,77 +15,117 @@ import {
   InvalidRequestError,
   RateLimitError,
   UnknownProviderError,
-} from "@opencode/ai"
-import { OpenAIChat } from "@opencode/ai/protocols/openai-chat"
-import { AnthropicMessages, OpenAIResponses } from "@opencode/ai/protocols"
-import { compileRequest } from "@opencode/ai/route/client"
-import { TestLLM } from "@opencode/ai/testing"
-import type { SessionHooks } from "@opencode/plugin/effect/session"
-import { Database } from "@opencode/core/database/database"
-import { makeLocationNode } from "@opencode/util/effect/app-node"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { LayerNodePlatform } from "@opencode/core/effect/app-node-platform"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { Bus } from "@opencode/core/bus"
-import { Event } from "@opencode/schema/event"
-import { App } from "@opencode/core/app"
-import { Permission } from "@opencode/core/permission"
-import { EventTable } from "@opencode/core/event/sql"
-import { Project } from "@opencode/core/project"
-import { ProjectTable } from "@opencode/core/project/sql"
-import { Form } from "@opencode/core/form"
-import { AbsolutePath } from "@opencode/core/schema"
-import { Session } from "@opencode/core/session"
-import { Snapshot } from "@opencode/core/snapshot"
-import { SessionEvent } from "@opencode/core/session/event"
-import { SessionCompaction } from "@opencode/core/session/compaction"
-import { SessionInbox } from "@opencode/core/session/inbox"
-import { SessionMessage } from "@opencode/core/session/message"
-import { SessionModelTransport } from "@opencode/core/session/model-transport"
-import { SessionProviderContext } from "@opencode/core/session/provider-context"
-import { Money } from "@opencode/schema/money"
-import { SessionProjector } from "@opencode/core/session/projector"
-import { SessionExecution } from "@opencode/core/session/execution"
-import { SessionRunCoordinator } from "@opencode/core/session/run-coordinator"
-import { SessionRunner } from "@opencode/core/session/runner/index"
-import { SessionRunnerLLM } from "@opencode/core/session/runner/llm"
-import { SessionRunnerModel } from "@opencode/core/session/runner/model"
-import { SessionUsage } from "@opencode/core/session/usage"
-import { PluginSupervisor } from "@opencode/core/plugin/supervisor"
-import { Plugin } from "@opencode/core/plugin"
-import { PluginHooks } from "@opencode/core/plugin/hooks"
-import { OptimizePlugin } from "@opencode/core/plugin/optimize"
-import { IdentityPlugin } from "@opencode/core/plugin/identity"
-import { QuestionTool } from "@opencode/core/tool/plugin/question"
-import { Agent } from "@opencode/core/agent"
-import { Config } from "@opencode/core/config"
-import { Document, Info } from "@opencode/schema/config"
-import { ConfigCompaction } from "@opencode/schema/config/compaction"
-import { Tool } from "@opencode/core/tool"
-import type { Info as ToolInfo } from "@opencode/schema/tool"
-import { InstructionStateTable, SessionInboxTable, SessionMessageTable, SessionTable } from "@opencode/core/session/sql"
-import { InstructionEntry } from "@opencode/core/session/instruction-entry"
-import { SessionStore } from "@opencode/core/session/store"
-import { Instructions } from "@opencode/core/instructions/index"
-import { InstructionBuiltIns } from "@opencode/core/instructions/builtins"
-import { InstructionDiscovery } from "@opencode/core/instruction-discovery"
-import { SkillInstructions } from "@opencode/core/skill/instructions"
-import { ReferenceInstructions } from "@opencode/core/reference/instructions"
-import { McpInstructions } from "@opencode/core/mcp/instructions"
-import { SessionSystemPrompt } from "@opencode/core/session/system-prompt"
-import { ID, Model } from "@opencode/core/model"
-import { Location } from "@opencode/core/location"
-import { Provider } from "@opencode/core/provider"
+  AuthenticationError,
+  QuotaExceededError,
+} from "@aigcfroge/ai"
+import { OpenAIChat } from "@aigcfroge/ai/protocols/openai-chat"
+import { AnthropicMessages, OpenAIResponses } from "@aigcfroge/ai/protocols"
+import { compileRequest } from "@aigcfroge/ai/route/client"
+import { TestLLM } from "@aigcfroge/ai/testing"
+import type { SessionHooks } from "@aigcfroge/plugin/effect/session"
+import { Database } from "@aigcfroge/core/database/database"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { LayerNodePlatform } from "@aigcfroge/core/effect/app-node-platform"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Bus } from "@aigcfroge/core/bus"
+import { Event } from "@aigcfroge/schema/event"
+import { App } from "@aigcfroge/core/app"
+import { Permission } from "@aigcfroge/core/permission"
+import { ApprovalPresence } from "@aigcfroge/core/permission/approval-presence"
+import { SessionMemoryAdmission } from "@aigcfroge/core/session/memory-admission"
+import { CorrectionStore } from "@aigcfroge/core/session/correction-store"
+import { EventSequenceTable, EventTable } from "@aigcfroge/core/event/sql"
+import { Project } from "@aigcfroge/core/project"
+import { ProjectTable } from "@aigcfroge/core/project/sql"
+import { Form } from "@aigcfroge/core/form"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Session } from "@aigcfroge/core/session"
+import { Snapshot } from "@aigcfroge/core/snapshot"
+import { SessionEvent } from "@aigcfroge/core/session/event"
+import { SessionCompaction } from "@aigcfroge/core/session/compaction"
+import { SessionInbox } from "@aigcfroge/core/session/inbox"
+import { SessionInputResult } from "@aigcfroge/core/session/input-result"
+import { SessionGoal } from "@aigcfroge/core/session/goal"
+import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
+import { SessionMessage } from "@aigcfroge/core/session/message"
+import { SessionModelTransport } from "@aigcfroge/core/session/model-transport"
+import { SessionProviderContext } from "@aigcfroge/core/session/provider-context"
+import { Money } from "@aigcfroge/schema/money"
+import { SessionProjector } from "@aigcfroge/core/session/projector"
+import { SessionExecution } from "@aigcfroge/core/session/execution"
+import { SessionRunCoordinator } from "@aigcfroge/core/session/run-coordinator"
+import { SessionRunner } from "@aigcfroge/core/session/runner/index"
+import { SessionRunnerLLM } from "@aigcfroge/core/session/runner/llm"
+import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
+import { SessionStep } from "@aigcfroge/core/session/runner/step"
+import { SessionUsage } from "@aigcfroge/core/session/usage"
+import { TaskOperation } from "@aigcfroge/core/session/task-operation"
+import { SessionTask } from "@aigcfroge/schema/session-task"
+import { SessionTaskEvent } from "@aigcfroge/schema/session-task-event"
+import { PluginSupervisor } from "@aigcfroge/core/plugin/supervisor"
+import { Plugin } from "@aigcfroge/core/plugin"
+import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
+import { OptimizePlugin } from "@aigcfroge/core/plugin/optimize"
+import { IdentityPlugin } from "@aigcfroge/core/plugin/identity"
+import { CommandPlugin } from "@aigcfroge/core/plugin/command"
+import { Command } from "@aigcfroge/core/command"
+import { GoalTool } from "@aigcfroge/core/tool/plugin/goal"
+import { QuestionTool } from "@aigcfroge/core/tool/plugin/question"
+import { Agent } from "@aigcfroge/core/agent"
+import { Config } from "@aigcfroge/core/config"
+import { ConfigProviderPlugin } from "@aigcfroge/core/config/plugin/provider"
+import { ProviderDiscovery } from "@aigcfroge/core/provider/discovery"
+import { Integration } from "@aigcfroge/core/integration"
+import { Credential } from "@aigcfroge/core/credential"
+import { ModelGroup } from "@aigcfroge/core/model-group"
+import { ModelResolver } from "@aigcfroge/core/model-resolver"
+import { ModelSource } from "@aigcfroge/schema/model-source"
+import { SessionAttempt } from "@aigcfroge/schema/session-attempt"
+import { IntegrationConnection } from "@aigcfroge/core/integration/connection"
+import { ConfigMeta } from "@aigcfroge/core/config/meta"
+import { MetaAgentMemory } from "@aigcfroge/core/agent/meta/memory"
+import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
+import { MetaAgentMemoryTable, MetaAgentSessionTable, MetaAgentTable } from "@aigcfroge/core/meta-agent/sql"
+import { MetaAgent } from "@aigcfroge/schema/meta-agent"
+import { Document, Info } from "@aigcfroge/schema/config"
+import { ConfigCompaction } from "@aigcfroge/schema/config/compaction"
+import { Tool } from "@aigcfroge/core/tool"
+import type { Info as ToolInfo } from "@aigcfroge/schema/tool"
+import {
+  InstructionStateTable,
+  SessionInboxTable,
+  SessionInputResultTable,
+  SessionMessageTable,
+  SessionTable,
+  TaskOperationTable,
+} from "@aigcfroge/core/session/sql"
+import { InstructionEntry } from "@aigcfroge/core/session/instruction-entry"
+import { SessionStore } from "@aigcfroge/core/session/store"
+import { Instructions } from "@aigcfroge/core/instructions/index"
+import { InstructionBuiltIns } from "@aigcfroge/core/instructions/builtins"
+import { InstructionDiscovery } from "@aigcfroge/core/instruction-discovery"
+import { SkillInstructions } from "@aigcfroge/core/skill/instructions"
+import { ReferenceInstructions } from "@aigcfroge/core/reference/instructions"
+import { McpInstructions } from "@aigcfroge/core/mcp/instructions"
+import { SessionSystemPrompt } from "@aigcfroge/core/session/system-prompt"
+import { ID, Model } from "@aigcfroge/core/model"
+import { Location } from "@aigcfroge/core/location"
+import { Provider } from "@aigcfroge/core/provider"
 import { Cause, Context, DateTime, Deferred, Effect, Exit, Fiber, Layer, Queue, Schema, Scope, Stream } from "effect"
 import { TestClock } from "effect/testing"
 import { asc, desc, eq, sql } from "drizzle-orm"
-import { testEffect } from "./lib/effect"
+import { awaitWithTimeout, testEffect } from "./lib/effect"
+import { registerToolPlugin } from "./lib/tool"
 import { promptLocationNode } from "./fixture/prompt-location"
-import { LocationServiceMap } from "@opencode/core/location-service-map"
+import { SessionWire } from "./fixture/session-wire"
+import { tmpdirScoped } from "./fixture/tmpdir"
+import { tempGlobalLayer } from "./fixture/global"
+import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
 import { Expected } from "./lib/session-message"
-import { permissionLayer } from "./lib/permission"
-import { agentHost, modelHost, host, noProviders } from "./plugin/host"
-import { CodeModeInstructions } from "@opencode/core/codemode/instructions"
+import { agentHost, integrationHost, modelHost, providerHost, host, noProviders } from "./plugin/host"
+import { CodeModeInstructions } from "@aigcfroge/core/codemode/instructions"
+import { withCustomMode } from "./lib/product-mode"
 
 const emptyCodeMode = `${CodeModeInstructions.render({ total: 0, shown: 0, namespaces: [] })}\n\n`
 type ToolBarrier = {
@@ -266,237 +306,261 @@ const permissionFail = {
       }),
     }),
 }
-const permission = permissionLayer()
 const transformTools = (registry: Tool.Interface, tools: Readonly<Record<string, ToolInfo>>, options?: Tool.Options) =>
   registry.transform((editor) =>
     Object.entries(tools).forEach(([name, tool]) => editor.add({ ...tool, name, options: options ?? tool.options })),
   )
-const layer = Layer.unwrap(
-  Effect.map(RunnerState, (state) => {
-    const modelTransport = Layer.succeed(
-      SessionModelTransport.Service,
-      SessionModelTransport.Service.of({
-        bind: () => ({ execute: () => Effect.die("Unexpected WebSocket execution") }),
-        close: (sessionID) => Effect.sync(() => state.closedTransports.push(sessionID)),
-        closeAll: Effect.void,
-      }),
-    )
-    const echo = Layer.effectDiscard(
-      Tool.Service.use((registry) =>
-        transformTools(
-          registry,
-          {
-            echo: {
-              name: "echo",
-              description: "Echo text",
-              input: Schema.Struct({ text: Schema.String }),
-              output: Schema.Struct({ text: Schema.String }),
-              execute: ({ text }, context) =>
-                Effect.gen(function* () {
-                  state.authorizations.push(context)
-                  state.executions.push(text)
-                  yield* state.awaitToolBarrier
-                  return { output: { text }, content: text }
-                }),
+const layerFor = <Memory extends boolean>(memory: Memory, realModels = false, transport = false) =>
+  Layer.unwrap(
+    Effect.map(RunnerState, (state) => {
+      const modelTransport = Layer.succeed(
+        SessionModelTransport.Service,
+        SessionModelTransport.Service.of({
+          bind: () => ({ execute: () => Effect.die("Unexpected WebSocket execution") }),
+          close: (sessionID) => Effect.sync(() => state.closedTransports.push(sessionID)),
+          closeAll: Effect.void,
+        }),
+      )
+      const echo = Layer.effectDiscard(
+        Tool.Service.use((registry) =>
+          transformTools(
+            registry,
+            {
+              echo: {
+                name: "echo",
+                description: "Echo text",
+                input: Schema.Struct({ text: Schema.String }),
+                output: Schema.Struct({ text: Schema.String }),
+                execute: ({ text }, context) =>
+                  Effect.gen(function* () {
+                    state.authorizations.push(context)
+                    state.executions.push(text)
+                    yield* state.awaitToolBarrier
+                    return { output: { text }, content: text }
+                  }),
+              },
+              defect: {
+                name: "defect",
+                description: "Fail unexpectedly",
+                input: Schema.Struct({}),
+                output: Schema.Struct({}),
+                execute: () => state.awaitToolBarrier.pipe(Effect.andThen(Effect.die("unexpected tool defect"))),
+              },
+              storefail: {
+                name: "storefail",
+                description: "Produce output that cannot be persisted",
+                input: Schema.Struct({}),
+                output: Schema.Struct({}),
+                execute: () => Effect.succeed({ output: {} }),
+              },
             },
-            defect: {
-              name: "defect",
-              description: "Fail unexpectedly",
-              input: Schema.Struct({}),
-              output: Schema.Struct({}),
-              execute: () => state.awaitToolBarrier.pipe(Effect.andThen(Effect.die("unexpected tool defect"))),
-            },
-            storefail: {
-              name: "storefail",
-              description: "Produce output that cannot be persisted",
-              input: Schema.Struct({}),
-              output: Schema.Struct({}),
-              execute: () => Effect.succeed({ output: {} }),
-            },
-          },
-          { codemode: false },
+            { codemode: false },
+          ),
         ),
-      ),
-    )
-    const echoNode = makeLocationNode({ name: "test/session-runner-tools", layer: echo, deps: [Tool.node] })
-    const models = Layer.mock(SessionRunnerModel.Service)({
-      resolve: (session) =>
-        state.modelResolveHook.pipe(
-          Effect.map(() => {
-            const selected = session.model?.id === "replacement" ? replacementModel : state.currentModel
-            return SessionRunnerModel.resolved(selected, {
-              capabilities: { tools: true, input: ["text", "image"], output: ["text"] },
-              cost: [],
-              limit: modelLimits.get(String(selected.id)) ?? defaultModelLimit,
-              variant: session.model?.variant,
-              compaction: state.compaction,
-            })
-          }),
-        ),
-    })
-    const systemContextKey = Instructions.Key.make("test/context")
-    const systemContext = Layer.mock(InstructionBuiltIns.Service, {
-      load: () =>
-        Effect.sync(() =>
-          Instructions.make({
-            key: systemContextKey,
-            codec: Schema.toCodecJson(Schema.String),
-            read: state.systemLoadHook.pipe(
-              Effect.andThen(
-                Effect.sync(() =>
-                  state.systemUnavailable
-                    ? Instructions.unavailable
-                    : state.systemRemoved
-                      ? Instructions.removed
-                      : state.systemBaseline,
+      )
+      const echoNode = makeLocationNode({ name: "test/session-runner-tools", layer: echo, deps: [Tool.node] })
+      const models = Layer.mock(SessionRunnerModel.Service)({
+        resolve: (session) =>
+          state.modelResolveHook.pipe(
+            Effect.map(() => {
+              const ref = session.model && !Model.Selection.isGroup(session.model) ? session.model : undefined
+              const selected = ref?.id === "replacement" ? replacementModel : state.currentModel
+              return SessionRunnerModel.resolved(transport ? LanguageModel.update(selected, { route: SessionWire.route }) : selected, {
+                capabilities: { tools: true, input: ["text", "image"], output: ["text"] },
+                cost: [],
+                limit: modelLimits.get(String(selected.id)) ?? defaultModelLimit,
+                variant: ref?.variant,
+                compaction: state.compaction,
+                connection: transport ? { type: "env", name: "SESSION_WIRE_KEEPER" } : undefined,
+              })
+            }),
+          ),
+      })
+      const systemContextKey = Instructions.Key.make("test/context")
+      const systemContext = Layer.mock(InstructionBuiltIns.Service, {
+        load: () =>
+          Effect.sync(() =>
+            Instructions.make({
+              key: systemContextKey,
+              codec: Schema.toCodecJson(Schema.String),
+              read: state.systemLoadHook.pipe(
+                Effect.andThen(
+                  Effect.sync(() =>
+                    state.systemUnavailable
+                      ? Instructions.unavailable
+                      : state.systemRemoved
+                        ? Instructions.removed
+                        : state.systemBaseline,
+                  ),
                 ),
               ),
-            ),
-            render: {
-              initial: String,
-              changed: (_previous, current) => current,
-              removed: () => "System context source removed: test/context",
-            },
-          }),
-        ),
-    })
-    const instructionContext = Layer.mock(InstructionDiscovery.Service, {
-      project: true,
-      global: true,
-      load: () => Effect.succeed(Instructions.empty),
-    })
-    const skillInstructions = Layer.mock(SkillInstructions.Service, {
-      load: (permissions) => {
-        // `setup` tags each agent's ruleset with a `skill` rule naming that agent.
-        const baseline = permissions
-          .filter((rule) => rule.action === "skill")
-          .map((rule) => state.skillBaselines.get(Agent.ID.make(rule.resource)))
-          .findLast((text) => text !== undefined)
-        return Effect.succeed(
-          baseline === undefined
-            ? Instructions.empty
-            : Instructions.make({
-                key: Instructions.Key.make("test/skill-guidance"),
-                codec: Schema.toCodecJson(Schema.String),
-                read: Effect.succeed(baseline),
-                render: {
-                  initial: String,
-                  changed: (_previous, current) => current,
-                  removed: () => "Skill guidance removed",
-                },
-              }),
-        )
-      },
-    })
-    const referenceInstructions = Layer.mock(ReferenceInstructions.Service, {
-      load: () => Effect.succeed(Instructions.empty),
-    })
-    const mcpInstructions = Layer.mock(McpInstructions.Service, { load: () => Effect.succeed(Instructions.empty) })
-    const config = Config.testLayer([
-      new Document({
-        type: "document",
-        info: new Info({
-          compaction: new ConfigCompaction.Info({
-            buffer: 3_000,
-            keep: new ConfigCompaction.Keep({ tokens: 1_000 }),
+              render: {
+                initial: String,
+                changed: (_previous, current) => current,
+                removed: () => "System context source removed: test/context",
+              },
+            }),
+          ),
+      })
+      const instructionContext = Layer.mock(InstructionDiscovery.Service, {
+        project: true,
+        global: true,
+        load: () => Effect.succeed(Instructions.empty),
+      })
+      const skillInstructions = Layer.mock(SkillInstructions.Service, {
+        load: (permissions) => {
+          // `setup` tags each agent's ruleset with a `skill` rule naming that agent.
+          const baseline = permissions
+            .filter((rule) => rule.action === "skill")
+            .map((rule) => state.skillBaselines.get(Agent.ID.make(rule.resource)))
+            .findLast((text) => text !== undefined)
+          return Effect.succeed(
+            baseline === undefined
+              ? Instructions.empty
+              : Instructions.make({
+                  key: Instructions.Key.make("test/skill-guidance"),
+                  codec: Schema.toCodecJson(Schema.String),
+                  read: Effect.succeed(baseline),
+                  render: {
+                    initial: String,
+                    changed: (_previous, current) => current,
+                    removed: () => "Skill guidance removed",
+                  },
+                }),
+          )
+        },
+      })
+      const referenceInstructions = Layer.mock(ReferenceInstructions.Service, {
+        load: () => Effect.succeed(Instructions.empty),
+      })
+      const mcpInstructions = Layer.mock(McpInstructions.Service, { load: () => Effect.succeed(Instructions.empty) })
+      const config = Config.testLayer([
+        new Document({
+          type: "document",
+          info: new Info({
+            ...(memory
+              ? { meta: ConfigMeta.Info.make({ memory: ConfigMeta.Memory.make({ enabled: true, top_n: 2 }) }) }
+              : {}),
+            compaction: new ConfigCompaction.Info({
+              buffer: 3_000,
+              keep: new ConfigCompaction.Keep({ tokens: 1_000 }),
+            }),
           }),
         }),
-      }),
-    ])
-    const promptModels = Layer.mock(Model.Service, {
-      get: () => Effect.undefined,
-      all: () => Effect.succeed([]),
-      available: () => Effect.succeed([]),
-      default: () => Effect.undefined,
-      small: () => Effect.undefined,
-    })
-    const replacements: LayerNode.Replacements = [
-      Snapshot.node.replace(Snapshot.noopLayer),
-      LayerNodePlatform.llmClient.replace(TestLLM.clientLayer.pipe(Layer.provide(testLLM))),
-      SessionRunnerModel.node.replace(models),
-      InstructionBuiltIns.node.replace(systemContext),
-      InstructionDiscovery.node.replace(instructionContext),
-      Location.node.replace(Location.boundNode({ directory: AbsolutePath.make("/project") })),
-      SkillInstructions.node.replace(skillInstructions),
-      ReferenceInstructions.node.replace(referenceInstructions),
-      Permission.node.replace(permission),
-      Config.node.replace(config),
-      PluginSupervisor.node.replace(Layer.empty),
-      Plugin.node.replace(Layer.mock(Plugin.Service, { awaitActivation: Effect.void })),
-      SessionModelTransport.node.replace(modelTransport),
-    ]
-    const runnerLayer = AppNodeBuilder.build(SessionRunnerLLM.node, [
-      ...replacements,
-      McpInstructions.node.replace(mcpInstructions),
-    ])
-    const execution = Layer.effect(
-      SessionExecution.Service,
-      Effect.gen(function* () {
-        const sessionRunner = yield* SessionRunner.Service
-        function drain(
-          sessionID: Session.ID,
-          force: boolean,
-          continuation?: SessionRunner.Continuation,
-        ): Effect.Effect<void, SessionRunner.RunError> {
-          return sessionRunner
-            .drain({ sessionID, force, continuation })
-            .pipe(
-              Effect.flatMap((result) =>
-                result._tag === "Complete" ? Effect.void : drain(sessionID, false, result.continuation),
-              ),
-            )
-        }
-        const coordinator = yield* SessionRunCoordinator.make<Session.ID, SessionRunner.RunError>({
-          drain: (sessionID, force) => drain(sessionID, force),
-        })
-        return SessionExecution.Service.of({
-          active: coordinator.active,
-          isActive: coordinator.isActive,
-          resume: coordinator.run,
-          wake: coordinator.wake,
-          interrupt: (sessionID) => coordinator.interrupt(sessionID),
-          awaitIdle: coordinator.awaitIdle,
-        })
-      }),
-    ).pipe(Layer.provide(runnerLayer), Layer.orDie)
-    return AppNodeBuilder.build(
-      LayerNode.group([
-        Database.node,
-        Bus.node,
-        Form.node,
-        SessionProjector.node,
-        SessionStore.node,
-        SessionInbox.node,
-        Agent.node,
-        Model.node,
-        Tool.node,
-        PluginHooks.node,
-        echoNode,
-        SessionRunnerModel.node,
-        InstructionBuiltIns.node,
-        InstructionDiscovery.node,
-        InstructionEntry.node,
-        SkillInstructions.node,
-        ReferenceInstructions.node,
-        Config.node,
-        Snapshot.node,
-        SessionCompaction.node,
-        LayerNodePlatform.llmClient,
-        SessionRunnerLLM.node,
-        SessionExecution.node,
-        Session.node,
-      ]),
-      [
-        ...replacements,
+      ])
+      const promptModels = Layer.mock(Model.Service, {
+        get: () => Effect.undefined,
+        all: () => Effect.succeed([]),
+        available: () => Effect.succeed([]),
+        default: () => Effect.undefined,
+        selection: () => Effect.undefined,
+        small: () => Effect.undefined,
+      })
+      const configTestNode = makeLocationNode({ service: Config.Test, layer: config, deps: [] })
+      const replacements: LayerNode.Replacements = [
+        // The captured runner and the public fixture must observe the same event bus.
         Bus.node.replace(Bus.configured({ persist: true })),
-        LocationServiceMap.node.replace(promptLocationNode),
-        Model.node.replace(promptModels),
-        SessionExecution.node.replace(execution),
-      ],
-    )
-  }),
-).pipe(Layer.provideMerge(Layer.sync(RunnerState, makeRunnerState)), Layer.provideMerge(testLLM))
+        Snapshot.node.replace(Snapshot.noopLayer),
+        LayerNodePlatform.llmClient.replace((transport ? SessionWire.layer : TestLLM.clientLayer).pipe(Layer.provide(testLLM))),
+        ...(realModels ? [] : [SessionRunnerModel.node.replace(models)]),
+        InstructionBuiltIns.node.replace(systemContext),
+        InstructionDiscovery.node.replace(instructionContext),
+        Location.node.replace(Location.boundNode({ directory: AbsolutePath.make("/project") })),
+        SkillInstructions.node.replace(skillInstructions),
+        ReferenceInstructions.node.replace(referenceInstructions),
+        McpInstructions.node.replace(mcpInstructions),
+        Config.node.replace(config),
+        PluginSupervisor.node.replace(Layer.empty),
+        Plugin.node.replace(Layer.mock(Plugin.Service, { awaitActivation: Effect.void })),
+        SessionModelTransport.node.replace(modelTransport),
+      ]
+      const runnerLayer = AppNodeBuilder.build(SessionRunnerLLM.node, replacements)
+      const execution = Layer.effect(
+        SessionExecution.Service,
+        Effect.gen(function* () {
+          const sessionRunner = yield* SessionRunner.Service
+          function drain(
+            sessionID: Session.ID,
+            force: boolean,
+            continuation?: SessionRunner.Continuation,
+          ): Effect.Effect<void, SessionRunner.RunError> {
+            return sessionRunner
+              .drain({ sessionID, force, continuation })
+              .pipe(
+                Effect.flatMap((result) =>
+                  result._tag === "Complete" ? Effect.void : drain(sessionID, false, result.continuation),
+                ),
+              )
+          }
+          const coordinator = yield* SessionRunCoordinator.make<Session.ID, SessionRunner.RunError>({
+            drain: (sessionID, force) => drain(sessionID, force),
+          })
+          return SessionExecution.Service.of({
+            active: coordinator.active,
+            isActive: coordinator.isActive,
+            resume: coordinator.run,
+            wake: coordinator.wake,
+            interrupt: (sessionID) => coordinator.interrupt(sessionID),
+            awaitIdle: coordinator.awaitIdle,
+          })
+        }),
+      ).pipe(Layer.provide(runnerLayer), Layer.orDie)
+      return AppNodeBuilder.build(
+        LayerNode.group([
+          Database.node,
+          Bus.node,
+          Form.node,
+          SessionProjector.node,
+          SessionStore.node,
+          SessionInbox.node,
+          SessionGoal.node,
+          ScheduleService.node,
+          MetaAgentService.node,
+          Command.node,
+          Agent.node,
+          Model.node,
+          Provider.node,
+          Integration.node,
+          Credential.node,
+          Tool.node,
+          PluginHooks.node,
+          echoNode,
+          SessionRunnerModel.node,
+          ModelResolver.node,
+          InstructionBuiltIns.node,
+          InstructionDiscovery.node,
+          InstructionEntry.node,
+          SkillInstructions.node,
+          ReferenceInstructions.node,
+          Config.node,
+          CorrectionStore.node,
+          configTestNode,
+          Snapshot.node,
+          SessionCompaction.node,
+          LayerNodePlatform.llmClient,
+          SessionRunnerLLM.node,
+          MetaAgentMemory.node,
+          Permission.node,
+          Location.node,
+          ApprovalPresence.node,
+          SessionMemoryAdmission.node,
+          SessionExecution.node,
+          Session.node,
+        ]),
+        [
+          ...replacements,
+          LocationServiceMap.node.replace(promptLocationNode),
+          ...(realModels ? [] : [Model.node.replace(promptModels)]),
+          SessionExecution.node.replace(execution),
+        ],
+      )
+    }),
+  ).pipe(Layer.provideMerge(Layer.sync(RunnerState, makeRunnerState)), Layer.provideMerge(testLLM))
+const layer = layerFor(false)
 const it = testEffect(layer)
+const wireIt = testEffect(layerFor(false, false, true))
+const memoryIt = testEffect(layerFor(true))
+const groupIt = testEffect(layerFor(false, true))
 const sessionID = Session.ID.make("ses_runner_test")
 const otherSessionID = Session.ID.make("ses_runner_other")
 
@@ -537,11 +601,13 @@ const setup = Effect.gen(function* () {
   yield* IdentityPlugin.Plugin.effect(pluginHost)
   yield* agents.transform((editor) => {
     editor.update(Agent.ID.make("build"), (agent) => {
+      agent.originKind = "builtin"
       agent.mode = "primary"
     })
     // Skill instructions receive only a ruleset, so tag each agent with a rule naming itself for the mock.
     for (const id of ["build", "reviewer"]) {
       editor.update(Agent.ID.make(id), (agent) => {
+        agent.originKind = "builtin"
         agent.permissions.push({ action: "skill", resource: id, effect: "allow" })
       })
     }
@@ -585,16 +651,676 @@ const setup = Effect.gen(function* () {
   })
 })
 
+it.effect("SC04 a later steer consumes the frozen consultation reference before an admit-only queued first input", () =>
+  Effect.gen(function* () {
+    const s = yield* setup
+    const source = yield* s.admit("SC04_RUNNER_REFERENCE: retained source evidence.")
+
+    expect(yield* SessionInbox.promote(s.db, s.bus, sessionID, "steer")).toBe(1)
+
+    const sourceHistory = yield* s.messages
+    const request = {
+      sourceSessionID: sessionID,
+      id: Session.ID.create(),
+      agent: Agent.ID.make("build"),
+      model: Model.Ref.make({ providerID: Provider.ID.make("fake"), id: Model.ID.make("fake-model") }),
+      boundary: { type: "through" as const, messageID: source.id },
+      prompt: {
+        id: SessionMessage.ID.create(),
+        text: "Queued first question must stay pending.",
+        delivery: "queue" as const,
+      },
+      resume: false,
+    }
+    const created = yield* s.session.createConsultation(request)
+
+    expect(created.admission).toMatchObject({ state: "pending", input: { id: request.prompt.id, delivery: "queue" } })
+    expect(s.requests).toEqual([])
+
+    const steer = yield* s.session.prompt({
+      sessionID: created.session.id,
+      text: "Read the reference in this steering question first.",
+      delivery: "steer",
+      resume: false,
+    })
+
+    expect(steer.payload.files).toContainEqual(created.reference.file)
+
+    yield* s.llm.push(TestLLM.text("Reference consumed by the steer", "sc04-reference-answer"))
+
+    const gate = yield* s.llm.gate
+    const scope = yield* Scope.Scope
+    const running = yield* s.session.resume(created.session.id).pipe(Effect.forkIn(scope))
+
+    yield* awaitWithTimeout(gate.started, "Consultation steer did not reach its model request")
+
+    expect(s.requests).toHaveLength(1)
+    const first = s.requests[0]
+    if (!first) return yield* Effect.die(new Error("Consultation model request is missing"))
+
+    expect(userTexts(first)).toContain(steer.payload.text)
+    expect(userTexts(first).some((text) => text.includes("SC04_RUNNER_REFERENCE"))).toBe(true)
+    expect(userTexts(first)).not.toContain(request.prompt.text)
+    expect(first.system.some((part) => part.text.includes("SC04_RUNNER_REFERENCE"))).toBe(false)
+    expect(yield* s.session.inbox(created.session.id)).toMatchObject([
+      { id: request.prompt.id, delivery: "queue", payload: { files: [created.reference.file] } },
+    ])
+
+    yield* s.session.cancelInbox({ sessionID: created.session.id, inboxID: request.prompt.id })
+    yield* gate.release
+    yield* Fiber.join(running)
+
+    expect(s.requests).toHaveLength(1)
+    expect((yield* s.session.createConsultation(request)).admission).toEqual({
+      state: "cancelled",
+      id: request.prompt.id,
+    })
+    expect((yield* s.session.createConsultation(request)).reference).toEqual(created.reference)
+    expect(yield* s.session.inbox(created.session.id)).toEqual([])
+    expect(yield* s.messages).toEqual(sourceHistory)
+    expect(yield* s.inbox).toEqual([])
+
+    const next = yield* s.session.prompt({
+      sessionID: created.session.id,
+      text: "The promoted carrier remains ordinary history.",
+      resume: false,
+    })
+
+    expect(next.payload.files).toBeUndefined()
+  }),
+)
+
+const setupMemory = Effect.fnUntraced(function* (effect: typeof Permission.Effect.Type = "allow") {
+  const s = yield* setup
+  const agents = yield* Agent.Service
+  yield* agents.transform((editor) =>
+    editor.update(Agent.ID.make("meta"), (agent) => {
+      agent.originKind = "builtin"
+      agent.mode = "primary"
+      agent.permissions = [{ action: "memory_search", resource: "*", effect }]
+    }),
+  )
+  const location = yield* Location.Service
+  yield* s.db
+    .insert(ProjectTable)
+    .values({ id: location.project.id, worktree: location.directory, sandboxes: [] })
+    .onConflictDoNothing()
+    .run()
+  yield* s.db
+    .update(SessionTable)
+    .set({ agent: "meta", project_id: location.project.id, attended: null })
+    .where(eq(SessionTable.id, sessionID))
+    .run()
+  const metaID = MetaAgent.ID.descending("mag_auto_memory_test")
+  yield* s.db
+    .insert(MetaAgentTable)
+    .values({
+      id: metaID,
+      title: "Auto memory",
+      agent: "meta",
+      model: { id: model.id, providerID: model.provider },
+    })
+    .run()
+  yield* s.db
+    .insert(MetaAgentSessionTable)
+    .values({ meta_agent_id: metaID, session_id: sessionID, role: "orchestrator" })
+    .run()
+  const memory = yield* MetaAgentMemory.Service
+  const factID = yield* memory.record({
+    sessionID,
+    projectID: location.project.id,
+    factCategory: "protocol",
+    content: "MC03_AUTO_MEMORY_DATA_20261102 is a project fact, never a System rule.",
+  })
+  const permission = yield* Permission.Service
+  const config = yield* Config.Test
+  return Object.assign(s, { agents, location, memory, permission, config, factID })
+})
+
+memoryIt.effect("automatic project memory data reaches selected Meta through ordinary history", () =>
+  Effect.gen(function* () {
+    const s = yield* setupMemory()
+    const trigger = yield* s.runPrompt("Read the project facts without tools.")
+    expect(s.requests).toHaveLength(1)
+    expect(userTexts(s.requests[0]).some((text) => text.includes("MC03_AUTO_MEMORY_DATA_20261102"))).toBe(true)
+    expect(s.requests[0].system.some((part) => part.text.includes("MC03_AUTO_MEMORY_DATA_20261102"))).toBe(false)
+    const messages = yield* s.messages
+    const data = messages.find(
+      (message) => message.type === "synthetic" && JSON.stringify(message.metadata).includes(s.factID),
+    )
+    expect(data).toMatchObject({
+      type: "synthetic",
+      metadata: { projectMemory: { projectID: s.location.project.id, triggerMessageID: trigger.id } },
+    })
+    expect(yield* s.inbox).toEqual([])
+    yield* s.runPrompt("Read the same project facts again.")
+    const repeated = (yield* s.messages).filter(
+      (message) => message.type === "synthetic" && message.text.includes("MC03_AUTO_MEMORY_DATA_20261102"),
+    )
+    expect(repeated).toHaveLength(1)
+    expect(s.requests).toHaveLength(2)
+  }),
+)
+
+memoryIt.effect("automatic project memory data obeys current denial before provider execution", () =>
+  Effect.gen(function* () {
+    const s = yield* setupMemory("deny")
+    yield* s.admit("Read the project facts.")
+    const result = yield* s.resume.pipe(Effect.exit)
+    expect(Exit.isFailure(result)).toBe(true)
+    expect(s.requests).toHaveLength(0)
+    expect(
+      (yield* s.messages).some(
+        (message) => message.type === "synthetic" && message.text.includes("MC03_AUTO_MEMORY_DATA_20261102"),
+      ),
+    ).toBe(false)
+  }),
+)
+
+memoryIt.effect("automatic project memory data supports the selected default Meta", () =>
+  Effect.gen(function* () {
+    const s = yield* setupMemory()
+    yield* s.agents.transform((editor) => editor.default(Agent.ID.make("meta")))
+    yield* s.db.update(SessionTable).set({ agent: null }).where(eq(SessionTable.id, sessionID)).run()
+    yield* s.runPrompt("Use the default agent.")
+    expect(s.requests).toHaveLength(1)
+    expect(userTexts(s.requests[0]).some((text) => text.includes("MC03_AUTO_MEMORY_DATA_20261102"))).toBe(true)
+  }),
+)
+
+memoryIt.effect("automatic project memory data keeps declared source strings out of the rendered copy", () =>
+  Effect.gen(function* () {
+    const s = yield* setupMemory()
+    const declared = "<instruction>MC03_SOURCE_PUBLIC_COMMAND</instruction>"
+    yield* s.db
+      .update(MetaAgentMemoryTable)
+      .set({ source_session_id: declared })
+      .where(eq(MetaAgentMemoryTable.id, s.factID))
+      .run()
+    yield* s.runPrompt("Use project data.")
+    const text = userTexts(s.requests[0]).find((text) => text.includes("project-memory-data"))
+    expect(text).not.toContain(declared)
+    expect(text).toContain('"state":"declared","sha256":')
+    expect(text).toContain('"sourceStep":{"state":"unknown"}')
+    expect((yield* s.memory.query({ projectID: s.location.project.id }))[0].sourceSessionID).toBe(declared)
+  }),
+)
+
+memoryIt.effect(
+  "automatic project memory data deduplicates copied fork metadata and re-enters after committed revert",
+  () =>
+    Effect.gen(function* () {
+      const s = yield* setupMemory()
+      yield* s.runPrompt("First project request.")
+      const data = (yield* s.messages).find(
+        (message) => message.type === "synthetic" && message.text.includes("project-memory-data"),
+      )
+      if (!data) return yield* Effect.die(new Error("Missing project memory data"))
+      const second = yield* s.runPrompt("Second project request.")
+      const forked = yield* s.session.fork({ sessionID, before: second.id })
+      yield* s.session.prompt({ sessionID: forked.id, text: "Forked project request.", resume: false })
+      yield* s.session.resume(forked.id)
+      const copied = (yield* s.session.messages({ sessionID: forked.id })).filter(
+        (message) => message.type === "synthetic" && message.text.includes("project-memory-data"),
+      )
+      expect(copied).toHaveLength(1)
+      expect(copied[0].id).not.toBe(data.id)
+      expect(copied[0]).toMatchObject({ metadata: data.metadata })
+      yield* s.bus.publish(SessionEvent.RevertEvent.Committed, { sessionID, to: data.id })
+      yield* s.runPrompt("Project request after revert.")
+      expect(
+        (yield* s.messages).filter(
+          (message) => message.type === "synthetic" && message.text.includes("project-memory-data"),
+        ),
+      ).toHaveLength(1)
+      expect(s.requests).toHaveLength(4)
+      expect(userTexts(s.requests[3]).some((text) => text.includes("MC03_AUTO_MEMORY_DATA_20261102"))).toBe(true)
+    }),
+)
+
+memoryIt.effect(
+  "automatic project memory data uses the actual model window across native checkpoint and deployment change",
+  () =>
+    Effect.gen(function* () {
+      const s = yield* setupMemory()
+      yield* s.runPrompt("Project request before checkpoint.")
+      const target = SessionProviderContext.provenance({
+        model: s.currentModel,
+        ref: Model.Ref.make({
+          id: Model.ID.make(s.currentModel.id),
+          providerID: Provider.ID.make(s.currentModel.provider),
+        }),
+      })
+      if (!target) return yield* Effect.die(new Error("Missing fixture model provenance"))
+      yield* s.bus.publish(SessionEvent.Compaction.Ended, {
+        sessionID,
+        reason: "manual",
+        text: "",
+        recent: "",
+        providerContext: SessionProviderContext.encode(target, [
+          Message.assistant(CompactionPart.make({ provider: s.currentModel.provider, encrypted: "memory-window" })),
+        ]),
+      })
+      yield* s.runPrompt("Project request in native window.")
+      expect(userTexts(s.requests[1]).filter((text) => text.includes("project-memory-data"))).toHaveLength(1)
+      const published = (yield* recordedEventTypes(sessionID)).filter((type) => type === "session.synthetic.1").length
+      s.currentModel = LanguageModel.update(s.currentModel, { id: "memory-other-deployment" })
+      yield* s.runPrompt("Re-expanded project request.")
+      expect((yield* recordedEventTypes(sessionID)).filter((type) => type === "session.synthetic.1")).toHaveLength(
+        published,
+      )
+      expect(JSON.stringify(s.requests[2])).not.toContain('"encrypted":"memory-window"')
+      expect(userTexts(s.requests[2]).some((text) => text.includes("MC03_AUTO_MEMORY_DATA_20261102"))).toBe(true)
+    }),
+)
+
+memoryIt.effect("automatic project memory data does not refill a logical Step during provider retry", () =>
+  Effect.gen(function* () {
+    const s = yield* setupMemory()
+    yield* s.admit("Retry the same project request.")
+    yield* s.llm.push(Stream.fail(incompleteStream()), TestLLM.text("Recovered", "memory-retry"))
+    const scheduled = yield* subscribeRetries(s)
+    const run = yield* s.resume.pipe(Effect.forkIn(yield* Effect.scope))
+    yield* Queue.take(scheduled)
+    yield* s.memory.record({
+      sessionID,
+      projectID: s.location.project.id,
+      factCategory: "api",
+      content: "MC03_FACT_ADDED_DURING_RETRY",
+    })
+    yield* TestClock.adjust("2400 millis")
+    yield* awaitWithTimeout(Fiber.join(run), "Memory retry did not settle")
+    expect(s.requests).toHaveLength(2)
+    expect(userTexts(s.requests[1])).toEqual(userTexts(s.requests[0]))
+    expect(JSON.stringify(s.requests[1])).not.toContain("MC03_FACT_ADDED_DURING_RETRY")
+    yield* s.runPrompt("A new project request.")
+    expect(JSON.stringify(s.requests[2])).toContain("MC03_FACT_ADDED_DURING_RETRY")
+  }),
+)
+
+memoryIt.effect("automatic project memory data retains visible facts after opt-out without copying changed rows", () =>
+  Effect.gen(function* () {
+    const s = yield* setupMemory()
+    yield* s.runPrompt("Read current project facts.")
+    yield* s.config.setEntries([])
+    yield* s.db
+      .update(MetaAgentMemoryTable)
+      .set({ content: "api_key=MC03_CHANGED_AFTER_OPT_OUT" })
+      .where(eq(MetaAgentMemoryTable.id, s.factID))
+      .run()
+    yield* s.runPrompt("Continue after opt-out.")
+    expect(s.requests).toHaveLength(2)
+    expect(JSON.stringify(s.requests[1])).toContain("MC03_AUTO_MEMORY_DATA_20261102")
+    expect(JSON.stringify(s.requests[1])).not.toContain("MC03_CHANGED_AFTER_OPT_OUT")
+    expect(
+      (yield* s.messages).filter(
+        (message) => message.type === "synthetic" && message.text.includes("project-memory-data"),
+      ),
+    ).toHaveLength(1)
+  }),
+)
+
+memoryIt.effect("automatic project memory data rejects an unsafe fact after cold compaction", () =>
+  Effect.gen(function* () {
+    const s = yield* setupMemory()
+    yield* s.runPrompt("Original delivered human request.")
+    yield* s.bus.publish(SessionEvent.Compaction.Ended, {
+      sessionID,
+      reason: "manual",
+      text: "## Objective\n- Continue the task",
+      recent: "",
+    })
+    yield* s.db
+      .update(MetaAgentMemoryTable)
+      .set({ content: "api_key=MC03_COLD_UNKNOWN_PUBLIC" })
+      .where(eq(MetaAgentMemoryTable.id, s.factID))
+      .run()
+    const result = yield* s.resume.pipe(Effect.exit)
+    expect(Exit.isFailure(result) && Cause.squash(result.cause)).toMatchObject({
+      _tag: "MetaAgentMemory.InvalidFactError",
+      id: s.factID,
+      reason: "credential",
+    })
+    expect(s.requests).toHaveLength(1)
+    expect(JSON.stringify(s.requests)).not.toContain("MC03_COLD_UNKNOWN_PUBLIC")
+    expect((yield* s.context).some((message) => message.type === "user")).toBe(false)
+    expect(
+      (yield* s.context).some(
+        (message) => message.type === "synthetic" && message.text.includes("project-memory-data"),
+      ),
+    ).toBe(false)
+  }),
+)
+
+memoryIt.effect("automatic project memory data uses the durable human trigger after cold compaction", () =>
+  Effect.gen(function* () {
+    const s = yield* setupMemory()
+    const trigger = yield* s.runPrompt("Original delivered human request.")
+    yield* s.bus.publish(SessionEvent.Compaction.Ended, {
+      sessionID,
+      reason: "manual",
+      text: "## Objective\n- Continue the task",
+      recent: "",
+    })
+    yield* s.db
+      .update(MetaAgentMemoryTable)
+      .set({ content: "MC03_PUBLIC_COLD_CHANGED_20261103 is ordinary project data." })
+      .where(eq(MetaAgentMemoryTable.id, s.factID))
+      .run()
+    yield* s.resume
+    expect(s.requests).toHaveLength(2)
+    expect(userTexts(s.requests[1]).filter((text) => text.includes("MC03_PUBLIC_COLD_CHANGED_20261103"))).toHaveLength(
+      1,
+    )
+    expect(s.requests[1].system.some((part) => part.text.includes("MC03_PUBLIC_COLD_CHANGED_20261103"))).toBe(false)
+    const context = yield* s.context
+    expect(context.some((message) => message.type === "user")).toBe(false)
+    const data = context.find(
+      (message) => message.type === "synthetic" && message.text.includes("MC03_PUBLIC_COLD_CHANGED_20261103"),
+    )
+    expect(data).toMatchObject({
+      metadata: { projectMemory: { triggerMessageID: trigger.id } },
+    })
+    expect((yield* s.messages).some((message) => message.id === trigger.id && message.type === "user")).toBe(true)
+  }),
+)
+
+memoryIt.effect("automatic project memory data rehydrates once after real automatic compaction", () =>
+  Effect.gen(function* () {
+    const s = yield* setupMemory()
+    yield* s.llm.push(TestLLM.textWithUsage("Earlier answer", "memory-before-compaction", 3_950))
+    yield* s.runPrompt("Earlier question ".repeat(180))
+    s.currentModel = compactModel
+    yield* s.llm.push(
+      TestLLM.text("## Objective\n- Preserve the task", "memory-summary"),
+      TestLLM.text("Continued", "memory-final"),
+    )
+    const trigger = yield* s.runPrompt("Recent exact request ".repeat(180))
+    expect(s.requests).toHaveLength(3)
+    expect(userTexts(s.requests[2]).some((text) => text.includes("MC03_AUTO_MEMORY_DATA_20261102"))).toBe(true)
+    expect(s.requests[2].system.some((part) => part.text.includes("MC03_AUTO_MEMORY_DATA_20261102"))).toBe(false)
+    const data = (yield* s.context).filter(
+      (message) => message.type === "synthetic" && message.text.includes("project-memory-data"),
+    )
+    expect(data).toHaveLength(1)
+    expect(data[0]).toMatchObject({ metadata: { projectMemory: { triggerMessageID: trigger.id } } })
+    expect((yield* recordedEventTypes(sessionID)).filter((type) => type === "session.compaction.ended.1")).toHaveLength(
+      1,
+    )
+  }),
+)
+
+memoryIt.effect("automatic project memory data stops a second real compaction rehydration within one Step", () =>
+  Effect.gen(function* () {
+    const s = yield* setupMemory()
+    yield* s.llm.push(TestLLM.textWithUsage("Earlier answer", "memory-before-limit", 3_950))
+    yield* s.runPrompt("Earlier question ".repeat(180))
+    s.currentModel = compactModel
+    yield* s.llm.push(
+      TestLLM.text("## Objective\n- Preserve the task", "memory-limit-summary"),
+      [LLMEvent.providerError({ message: "prompt too long", classification: "context-overflow" })],
+      TestLLM.text("## Objective\n- Preserve the task again", "memory-limit-summary-2"),
+    )
+    yield* s.admit("Recent exact request ".repeat(180))
+    const result = yield* s.resume.pipe(Effect.exit)
+    expect(Exit.isFailure(result) && Cause.squash(result.cause)).toMatchObject({
+      _tag: "SessionMemoryAdmission.Error",
+      reason: "rehydration_limit",
+    })
+    expect(s.requests).toHaveLength(4)
+    expect((yield* recordedEventTypes(sessionID)).filter((type) => type === "session.compaction.ended.1")).toHaveLength(
+      2,
+    )
+    expect((yield* recordedEventTypes(sessionID)).filter((type) => type === "session.synthetic.1")).toHaveLength(2)
+    const eventTypes = yield* recordedEventTypes(sessionID)
+    expect(eventTypes.filter((type) => type === "session.step.started.1")).toHaveLength(2)
+    expect(eventTypes.filter((type) => type === "session.attempt.started.1")).toHaveLength(2)
+  }),
+)
+
+for (const selection of ["disabled", "build", "plan"] as const) {
+  memoryIt.effect(`automatic project memory data skips ${selection} without reading unsafe facts`, () =>
+    Effect.gen(function* () {
+      const s = yield* setupMemory("deny")
+      yield* s.db
+        .update(MetaAgentMemoryTable)
+        .set({ content: "api_key=MC03_SKIPPED_PUBLIC" })
+        .where(eq(MetaAgentMemoryTable.id, s.factID))
+        .run()
+      if (selection === "disabled") yield* s.config.setEntries([])
+      if (selection !== "disabled") {
+        yield* s.agents.transform((editor) =>
+          editor.update(Agent.ID.make(selection), (agent) => {
+            agent.originKind = "builtin"
+            agent.mode = "primary"
+            agent.permissions = [{ action: "memory_search", resource: "*", effect: "deny" }]
+          }),
+        )
+        yield* s.db.update(SessionTable).set({ agent: selection }).where(eq(SessionTable.id, sessionID)).run()
+      }
+      yield* s.runPrompt("Use the selected agent.")
+      expect(s.requests).toHaveLength(1)
+      expect(JSON.stringify(s.requests[0])).not.toContain("MC03_SKIPPED_PUBLIC")
+      expect(
+        (yield* s.messages).some(
+          (message) => message.type === "synthetic" && message.text.includes("project-memory-data"),
+        ),
+      ).toBe(false)
+    }),
+  )
+}
+
+const pendingMemory = Effect.fnUntraced(function* (existing?: Effect.Success<ReturnType<typeof setupMemory>>) {
+  const s = existing ?? (yield* setupMemory("ask"))
+  const physicalBeforeApproval = s.requests.length
+  const presence = yield* ApprovalPresence.Service
+  yield* presence.bindResponder({ custom: true })
+  const asked = yield* Deferred.make<Permission.Request>()
+  const unsubscribe = yield* s.bus.listen((event) =>
+    event.type === Permission.Event.Asked.type
+      ? Deferred.succeed(asked, Schema.decodeUnknownSync(Permission.Request)(event.data)).pipe(Effect.asVoid)
+      : Effect.void,
+  )
+  yield* Effect.addFinalizer(() => unsubscribe)
+  const trigger = yield* s.admit("Approve reading project facts.")
+  const fiber = yield* s.resume.pipe(Effect.forkIn(yield* Effect.scope))
+  const request = yield* awaitWithTimeout(
+    Effect.raceFirst(
+      Deferred.await(asked),
+      Fiber.join(fiber).pipe(
+        Effect.andThen(Effect.die(new Error("Automatic memory execution ended without an approval request"))),
+      ),
+    ),
+    "Automatic memory did not ask for permission",
+  )
+  expect(request).toMatchObject({
+    action: "memory_search",
+    resources: [s.location.project.id],
+    sessionID,
+    metadata: { projectMemory: { triggerMessageID: trigger.id } },
+  })
+  expect(request.source).toBeUndefined()
+  expect(s.requests).toHaveLength(physicalBeforeApproval)
+  expect(
+    (yield* s.context).some(
+      (message) => message.type === "synthetic" && message.text.includes("MC03_AUTO_MEMORY_DATA_20261102"),
+    ),
+  ).toBe(false)
+  return { s, fiber, request }
+})
+
+memoryIt.effect("automatic project memory data waits for real once approval", () =>
+  Effect.gen(function* () {
+    const pending = yield* pendingMemory()
+    yield* pending.s.permission.reply({ requestID: pending.request.id, reply: "once" })
+    yield* awaitWithTimeout(Fiber.join(pending.fiber), "Approved automatic memory did not settle")
+    expect(pending.s.requests).toHaveLength(1)
+    expect(userTexts(pending.s.requests[0]).some((text) => text.includes("MC03_AUTO_MEMORY_DATA_20261102"))).toBe(true)
+    const asked = yield* Deferred.make<Permission.Request>()
+    const unsubscribe = yield* pending.s.bus.listen((event) =>
+      event.type === Permission.Event.Asked.type
+        ? Deferred.succeed(asked, Schema.decodeUnknownSync(Permission.Request)(event.data)).pipe(Effect.asVoid)
+        : Effect.void,
+    )
+    yield* Effect.addFinalizer(() => unsubscribe)
+    yield* pending.s.admit("Read the facts in a new Step.")
+    const next = yield* pending.s.resume.pipe(Effect.forkIn(yield* Effect.scope))
+    const request = yield* awaitWithTimeout(Deferred.await(asked), "The new Step did not request a new authorization")
+    expect(request.id).not.toBe(pending.request.id)
+    expect(pending.s.requests).toHaveLength(1)
+    yield* pending.s.permission.reply({ requestID: request.id, reply: "once" })
+    yield* awaitWithTimeout(Fiber.join(next), "The second authorized Step did not settle")
+    expect(pending.s.requests).toHaveLength(2)
+    expect(
+      (yield* pending.s.messages).filter(
+        (message) => message.type === "synthetic" && message.text.includes("project-memory-data"),
+      ),
+    ).toHaveLength(1)
+  }),
+)
+
+memoryIt.effect("automatic project memory data retains its admitted model window across approval suspension", () =>
+  Effect.gen(function* () {
+    const s = yield* setupMemory()
+    yield* s.runPrompt("Project request before a native checkpoint.")
+    const selectedModel = s.currentModel
+    const target = SessionProviderContext.provenance({
+      model: selectedModel,
+      ref: Model.Ref.make({
+        id: Model.ID.make(selectedModel.id),
+        providerID: Provider.ID.make(selectedModel.provider),
+      }),
+    })
+    if (!target) return yield* Effect.die(new Error("Missing fixture model provenance"))
+    yield* s.bus.publish(SessionEvent.Compaction.Ended, {
+      sessionID,
+      reason: "manual",
+      text: "",
+      recent: "",
+      providerContext: SessionProviderContext.encode(target, [
+        Message.assistant(
+          CompactionPart.make({ provider: selectedModel.provider, encrypted: "memory-approval-window" }),
+        ),
+      ]),
+    })
+    yield* s.agents.transform((editor) =>
+      editor.update(Agent.ID.make("meta"), (agent) => {
+        agent.permissions = [{ action: "memory_search", resource: "*", effect: "ask" }]
+      }),
+    )
+    const pending = yield* pendingMemory(s)
+    s.currentModel = LanguageModel.update(selectedModel, { id: "changed-during-memory-approval" })
+    yield* s.permission.reply({ requestID: pending.request.id, reply: "once" })
+    yield* awaitWithTimeout(Fiber.join(pending.fiber), "Model-window approval did not settle")
+    expect(s.requests).toHaveLength(2)
+    expect(s.requests[1].model.id).toBe(selectedModel.id)
+    expect(JSON.stringify(s.requests[1])).toContain('"encrypted":"memory-approval-window"')
+    expect(userTexts(s.requests[1]).filter((text) => text.includes("project-memory-data"))).toHaveLength(1)
+  }),
+)
+
+memoryIt.effect("automatic project memory data preserves real rejection and interruption", () =>
+  Effect.gen(function* () {
+    const pending = yield* pendingMemory()
+    yield* pending.s.permission.reply({ requestID: pending.request.id, reply: "reject" })
+    const result = yield* awaitWithTimeout(Fiber.await(pending.fiber), "Rejected automatic memory did not settle")
+    expect(Exit.isFailure(result) && Cause.hasDies(result.cause)).toBe(true)
+    expect(pending.s.requests).toHaveLength(0)
+    expect(yield* pending.s.permission.forSession(sessionID)).toEqual([])
+  }),
+)
+
+memoryIt.effect("automatic project memory data cancels a pending authorization", () =>
+  Effect.gen(function* () {
+    const pending = yield* pendingMemory()
+    yield* pending.s.session.interrupt(sessionID)
+    const result = yield* Fiber.await(pending.fiber)
+    expect(Exit.isFailure(result) && Cause.hasInterrupts(result.cause)).toBe(true)
+    expect(pending.s.requests).toHaveLength(0)
+    expect(yield* pending.s.permission.forSession(sessionID)).toEqual([])
+  }),
+)
+
+memoryIt.effect("automatic project memory data rechecks opt-out while awaiting approval", () =>
+  Effect.gen(function* () {
+    const pending = yield* pendingMemory()
+    yield* pending.s.config.setEntries([])
+    yield* pending.s.db
+      .update(MetaAgentMemoryTable)
+      .set({ content: "api_key=MC03_REVOKED_PUBLIC" })
+      .where(eq(MetaAgentMemoryTable.id, pending.s.factID))
+      .run()
+    yield* pending.s.permission.reply({ requestID: pending.request.id, reply: "once" })
+    yield* awaitWithTimeout(Fiber.join(pending.fiber), "Opted-out automatic memory did not settle")
+    expect(pending.s.requests).toHaveLength(1)
+    expect(JSON.stringify(pending.s.requests[0])).not.toContain("MC03_REVOKED_PUBLIC")
+  }),
+)
+
+memoryIt.effect("automatic project memory data rechecks Session placement after approval", () =>
+  Effect.gen(function* () {
+    const pending = yield* pendingMemory()
+    yield* pending.s.db
+      .update(SessionTable)
+      .set({ project_id: Project.ID.global })
+      .where(eq(SessionTable.id, sessionID))
+      .run()
+    yield* pending.s.permission.reply({ requestID: pending.request.id, reply: "once" })
+    const result = yield* awaitWithTimeout(Fiber.await(pending.fiber), "Moved automatic memory did not settle")
+    expect(Exit.isFailure(result) && Cause.squash(result.cause)).toMatchObject({
+      _tag: "SessionMemoryAdmission.Error",
+      reason: "selection_changed",
+    })
+    expect(pending.s.requests).toHaveLength(0)
+    expect(
+      (yield* pending.s.messages).some(
+        (message) => message.type === "synthetic" && message.text.includes("project-memory-data"),
+      ),
+    ).toBe(false)
+  }),
+)
+
+for (const content of ["api_key=MC03_LEGACY_AUTO_PUBLIC", "x".repeat(2001)]) {
+  memoryIt.effect(
+    "automatic project memory data rejects unsafe legacy copies before provider execution: " +
+      (content.length > 2000 ? "length" : "credential"),
+    () =>
+      Effect.gen(function* () {
+        const s = yield* setupMemory()
+        yield* s.db.update(MetaAgentMemoryTable).set({ content }).where(eq(MetaAgentMemoryTable.id, s.factID)).run()
+        yield* s.admit("Read stored facts.")
+        const result = yield* s.resume.pipe(Effect.exit)
+        expect(Exit.isFailure(result)).toBe(true)
+        expect(s.requests).toHaveLength(0)
+        expect(
+          (yield* s.messages).some(
+            (message) => message.type === "synthetic" && message.text.includes("project-memory-data"),
+          ),
+        ).toBe(false)
+      }),
+  )
+}
+
 type Scenario = Effect.Success<typeof setup>
 const scenario = (
   name: string,
   body: (s: Scenario) => Effect.gen.Return<void, unknown, Layer.Success<typeof layer> | Scope.Scope>,
+  transport = false,
 ) =>
-  it.effect(
+  (transport ? wireIt : it).effect(
     name,
     Effect.gen(function* () {
       const s = yield* setup
-      return yield* body(s)
+      yield* body(s)
+      if (!transport) return
+      const observations = (yield* s.messages).flatMap((message) => message.type === "assistant"
+        ? message.attempts?.flatMap((attempt) => attempt.observations) ?? []
+        : [])
+      expect(observations).toEqual(expect.arrayContaining([expect.objectContaining({
+        transport: "http", delivery: "accepted", deployment: expect.objectContaining({
+          protocol: "session-test-events", connection: { type: "env", name: "SESSION_WIRE_KEEPER" },
+        }),
+      })]))
     }),
   )
 
@@ -684,6 +1410,1156 @@ const rateLimited = (retryAfterMs?: number) =>
     reason: new RateLimitError({ message: "Rate limited", retryAfterMs }),
   })
 
+const groupID = Model.GroupID.make("p3-fallback")
+const groupSelection = new Model.GroupRef({ type: "group", groupID })
+const groupA = Model.Ref.parse("p3-primary/a")
+const groupSibling = Model.Ref.parse("p3-primary/a-sibling")
+const groupB = Model.Ref.parse("p3-backup/b")
+const groupC = Model.Ref.parse("p3-single/c")
+const groupDefinition = (members: readonly ModelGroup.Member[] = [groupA, groupB]) => new ModelGroup.Definition({
+  name: "P3 fallback", enabled: true, members: [...members], strategy: "order", affinity: "turn",
+})
+const groupDocument = (definition?: ModelGroup.Definition, priced = false) => new Document({
+  type: "document", info: Schema.decodeUnknownSync(Info)({
+    modelGroups: definition === undefined ? {} : { [groupID]: definition },
+    providers: {
+      "p3-primary": {
+        package: "@aigcfroge/ai/providers/openai-compatible", settings: { baseURL: "https://fixture.invalid/v1" },
+        models: {
+          a: { modelID: "api-a", ...(priced ? { cost: [{ input: 1, output: 2, cache: { read: 0, write: 0 } }] } : {}) },
+          "a-sibling": { modelID: "api-a-sibling" },
+        },
+      },
+      "p3-backup": {
+        package: "@aigcfroge/ai/providers/openai-compatible", settings: { baseURL: "https://fixture.invalid/v1" },
+        models: { b: { modelID: "api-b", ...(priced ? { cost: [{ input: 4, output: 5, cache: { read: 0, write: 0 } }] } : {}) } },
+      },
+      "p3-single": {
+        package: "@aigcfroge/ai/providers/openai-compatible", settings: { baseURL: "https://fixture.invalid/v1" },
+        models: { c: { modelID: "api-c" } },
+      },
+    },
+  }),
+})
+const setupGroup = Effect.fnUntraced(function* (definition = groupDefinition(), priced = false) {
+  const s = yield* setup
+  const config = yield* Config.Test
+  const providers = yield* Provider.Service
+  const integrations = yield* Integration.Service
+  const models = yield* Model.Service
+  const agents = yield* Agent.Service
+  const document = groupDocument(definition, priced)
+  yield* config.setEntries([document])
+  yield* ConfigProviderPlugin.Plugin.effect(host({
+    model: modelHost(models), provider: providerHost(providers), integration: integrationHost(integrations),
+  }))
+  yield* Effect.forEach([groupA.providerID, groupB.providerID, groupC.providerID], (providerID) =>
+    integrations.connection.key({ integrationID: Integration.ID.make(providerID), key: `fixture-${providerID}` }),
+    { discard: true },
+  )
+  if (priced) yield* models.transform((editor) => {
+    [groupA, groupB].forEach((ref) => editor.update(ref.providerID, ref.id, (model) => {
+      Object.assign(model, ProviderDiscovery.resolveMetadata({
+        user: document.info.providers?.[ref.providerID]?.models?.[ref.id], runtime: model,
+      }))
+    }))
+  })
+  yield* models.reload()
+  yield* agents.transform((editor) => editor.remove(Agent.ID.make("title")))
+  yield* s.bus.publish(SessionEvent.ModelSelected, { sessionID, model: groupSelection })
+  return {
+    s, config,
+    // The public virtual Location fixture has no group catalog; B and Server keepers own public selection.
+    admit: (text: string) => s.sessionInbox.admit({
+      id: SessionMessage.ID.create(), sessionID, item: { type: "user", payload: { text }, delivery: "steer" },
+    }),
+  }
+})
+
+describe("P3 model groups through the original runner", () => {
+  groupIt.effect("preserves the selected group and no-candidates reason when every member is unavailable", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup(groupDefinition([Model.Ref.parse("p3-primary/missing")]))
+    const s = fixture.s
+    yield* fixture.admit("Keep the unavailable group selected")
+    expect(yield* s.resume.pipe(Effect.result)).toMatchObject({
+      _tag: "Failure", failure: { _tag: "ModelGroup.Unavailable", groupID, reason: "no-candidates" },
+    })
+    expect((yield* s.session.get(sessionID))?.model).toEqual(groupSelection)
+    expect(s.requests).toEqual([])
+    expect((yield* s.context).filter((message) => message.type === "assistant")).toEqual([])
+  }))
+
+  groupIt.effect("keeps fallback B across following tool Steps and retains physical catalog and account identities", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup()
+    const s = fixture.s
+    yield* fixture.admit("Fall back, execute once, and continue")
+    yield* s.llm.push(
+      Stream.fail(new AIError({ reason: new AuthenticationError({ message: "Account A rejected" }) })),
+      TestLLM.tool("p3-echo", "echo", { text: "once" }),
+      TestLLM.text("Done", "p3-done"),
+    )
+    const scheduled = yield* subscribeRetries(s)
+    const run = yield* s.resume.pipe(Effect.forkChild)
+    yield* Queue.take(scheduled)
+    yield* TestClock.adjust("2400 millis")
+    yield* Fiber.join(run)
+    expect(s.requests.map((request) => String(request.model.id))).toEqual(["api-a", "api-b", "api-b"])
+    expect(s.executions).toEqual(["once"])
+    const messages = (yield* s.context).filter((message): message is SessionMessage.Assistant => message.type === "assistant")
+    expect(messages).toHaveLength(2)
+    expect(messages[0]).toMatchObject({ model: groupB, attempts: [
+      { ordinal: 0, selection: groupSelection, model: groupA, apiModelID: "api-a", terminal: { status: "failed" } },
+      { ordinal: 1, selection: groupSelection, model: groupB, apiModelID: "api-b", transition: "fallback", terminal: { status: "completed" } },
+    ] })
+    expect(messages[1]).toMatchObject({ model: groupB, attempts: [{ ordinal: 0, model: groupB }] })
+    expect(messages[0].attempts?.[0].connection?.type).toBe("credential")
+    expect(messages[0].attempts?.[0].connection).not.toEqual(messages[0].attempts?.[1].connection)
+    expect((yield* s.session.get(sessionID))?.model).toEqual(groupSelection)
+    expect((yield* recordedEventTypes(sessionID)).filter((type) => type === "session.step.started.1")).toHaveLength(2)
+  }))
+
+  groupIt.effect("clears the drain's binding when the Session becomes idle", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup()
+    const s = fixture.s
+    yield* fixture.admit("Finish on B")
+    yield* s.llm.push(Stream.fail(new AIError({ reason: new AuthenticationError({ message: "A rejected" }) })), TestLLM.text("B finished", "p3-idle-b"))
+    const scheduled = yield* subscribeRetries(s)
+    const run = yield* s.resume.pipe(Effect.forkChild)
+    yield* Queue.take(scheduled)
+    yield* TestClock.adjust("2400 millis")
+    yield* Fiber.join(run)
+    yield* fixture.admit("Start a fresh turn")
+    yield* s.llm.push(TestLLM.text("A answered again", "p3-idle-a"))
+    yield* s.resume
+    expect(s.requests.map((request) => String(request.model.id))).toEqual(["api-a", "api-b", "api-a"])
+  }))
+
+  for (const change of ["name", "behavior", "promotion"] as const) {
+    groupIt.effect(`rechecks ${change} at the held tool boundary while preserving completed tool work`, () => Effect.gen(function* () {
+      const fixture = yield* setupGroup()
+      const s = fixture.s
+      yield* fixture.admit("Hold B's tool boundary")
+      yield* s.llm.push(
+        Stream.fail(new AIError({ reason: new AuthenticationError({ message: "Account A rejected" }) })),
+        TestLLM.tool("p3-held", "echo", { text: "held-once" }),
+        TestLLM.text("Continued", "p3-continued"),
+      )
+      const scheduled = yield* subscribeRetries(s)
+      const tools = yield* s.blockTools()
+      const run = yield* s.resume.pipe(Effect.forkChild)
+      yield* Queue.take(scheduled)
+      yield* TestClock.adjust("2400 millis")
+      yield* tools.started
+      const original = ModelGroup.snapshot(groupID, groupDefinition())
+      if (change === "name") yield* fixture.config.setEntries([groupDocument(new ModelGroup.Definition({ ...groupDefinition(), name: "Renamed only" }))])
+      if (change === "behavior") yield* fixture.config.setEntries([groupDocument(groupDefinition([groupC, groupB]))])
+      if (change === "promotion") yield* fixture.admit("Use the next prompt's fresh binding")
+      yield* tools.release
+      yield* Fiber.join(run)
+      expect(s.requests.map((request) => String(request.model.id))).toEqual(["api-a", "api-b", change === "name" ? "api-b" : change === "behavior" ? "api-c" : "api-a"])
+      expect(s.executions).toEqual(["held-once"])
+      const assistants = (yield* s.context).filter((message): message is SessionMessage.Assistant => message.type === "assistant")
+      expect(assistants[0].attempts?.map((attempt) => attempt.behaviorDigest)).toEqual([original.behaviorDigest, original.behaviorDigest])
+      if (change === "name") expect(assistants[1].attempts?.[0].behaviorDigest).toBe(original.behaviorDigest)
+      if (change === "behavior") expect(assistants[1].attempts?.[0].behaviorDigest).not.toBe(original.behaviorDigest)
+      if (change === "promotion") expect((yield* s.context).filter((message) => message.type === "user")).toHaveLength(2)
+    }))
+  }
+
+  for (const reason of ["disabled", "missing"] as const) {
+    groupIt.effect(`stops the next generation when the active group becomes ${reason} during a held tool`, () => Effect.gen(function* () {
+      const fixture = yield* setupGroup()
+      const s = fixture.s
+      yield* fixture.admit("Stop after this completed tool")
+      yield* s.llm.push(TestLLM.tool("p3-disabled-tool", "echo", { text: "settled-once" }), TestLLM.text("Must not run", "p3-unused-disabled"))
+      const tools = yield* s.blockTools()
+      const run = yield* s.resume.pipe(Effect.result, Effect.forkChild)
+      yield* tools.started
+      yield* fixture.config.setEntries([groupDocument(reason === "disabled" ? new ModelGroup.Definition({ ...groupDefinition(), enabled: false }) : undefined)])
+      yield* tools.release
+      expect(yield* Fiber.join(run)).toMatchObject({ _tag: "Failure", failure: { _tag: "ModelGroup.Unavailable", reason } })
+      expect(s.requests.map((request) => String(request.model.id))).toEqual(["api-a"])
+      expect(s.executions).toEqual(["settled-once"])
+      expect(requireAssistant(yield* s.context)).toMatchObject({ attempts: [{ terminal: { status: "completed" } }] })
+    }))
+  }
+
+  groupIt.effect("uses the committed single Selection when the in-flight group is disabled before fallback preview", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup()
+    const s = fixture.s
+    yield* fixture.admit("Switch the in-flight group to C")
+    yield* s.llm.push(Stream.fail(new AIError({ reason: new AuthenticationError({ message: "Old account rejected" }) })), TestLLM.text("C answered", "p3-single-answer"))
+    const scheduled = yield* subscribeRetries(s)
+    const gate = yield* s.llm.gate
+    const run = yield* s.resume.pipe(Effect.forkChild)
+    yield* gate.started
+    yield* s.bus.publish(SessionEvent.ModelSelected, { sessionID, model: groupC })
+    yield* fixture.config.setEntries([groupDocument(new ModelGroup.Definition({ ...groupDefinition(), enabled: false }))])
+    yield* gate.release
+    yield* Queue.take(scheduled)
+    yield* TestClock.adjust("2400 millis")
+    yield* Fiber.join(run)
+    expect(s.requests.map((request) => String(request.model.id))).toEqual(["api-a", "api-c"])
+    const assistant = requireAssistant(yield* s.context)
+    expect(assistant).toMatchObject({ model: groupC, attempts: [
+      { ordinal: 0, selection: groupSelection, model: groupA },
+      { ordinal: 1, selection: groupC, model: groupC },
+    ] })
+    expect(assistant.attempts?.[0].behaviorDigest).toBeDefined()
+    expect(assistant.attempts?.[1].behaviorDigest).toBeUndefined()
+    expect((yield* s.session.get(sessionID))?.model).toEqual({ ...groupC, variant: Model.VariantID.make("default") })
+  }))
+
+  for (const reason of ["model-not-found", "authentication", "quota"] as const) {
+    groupIt.effect(`uses the original account policy for typed ${reason} fallback`, () => Effect.gen(function* () {
+      const fixture = yield* setupGroup(groupDefinition([groupA, groupSibling, groupB]))
+      const s = fixture.s
+      yield* fixture.admit("Select the next applicable candidate")
+      const failure = new AIError({ reason: reason === "model-not-found"
+        ? new InvalidRequestError({ message: "Model is absent", classification: "model-not-found" })
+        : reason === "authentication" ? new AuthenticationError({ message: "Account rejected" })
+        : new QuotaExceededError({ message: "Account quota exhausted" }) })
+      yield* s.llm.push(Stream.fail(failure), TestLLM.text("Recovered", "p3-policy-recovery"))
+      const scheduled = yield* subscribeRetries(s)
+      const run = yield* s.resume.pipe(Effect.forkChild)
+      yield* Queue.take(scheduled)
+      yield* TestClock.adjust("2400 millis")
+      yield* Fiber.join(run)
+      const target = reason === "authentication" ? groupB : groupSibling
+      expect(s.requests.map((request) => String(request.model.id))).toEqual(["api-a", reason === "authentication" ? "api-b" : "api-a-sibling"])
+      const assistant = requireAssistant(yield* s.context)
+      expect(assistant).toMatchObject({ model: target, attempts: [{ model: groupA }, { model: target }] })
+      expect(assistant.attempts?.[0].connection?.type).toBe("credential")
+      if (reason !== "authentication") expect(assistant.attempts?.[1].connection).toEqual(assistant.attempts?.[0].connection)
+      if (reason === "authentication") expect(assistant.attempts?.[1].connection).not.toEqual(assistant.attempts?.[0].connection)
+    }))
+  }
+
+  groupIt.effect("shares the original retry allowance across candidate advancement and same-model retries", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup()
+    const s = fixture.s
+    yield* fixture.admit("Exhaust one shared allowance")
+    yield* s.llm.push(...Array.from({ length: RETRY_GAPS.length + 1 }, () => Stream.fail(providerUnavailable())))
+    const scheduled = yield* subscribeRetries(s)
+    const run = yield* s.resume.pipe(Effect.result, Effect.forkChild)
+    for (const delay of RETRY_GAPS_MAX) {
+      yield* Queue.take(scheduled)
+      yield* TestClock.adjust(delay)
+    }
+    expect(yield* Fiber.join(run)).toMatchObject({ _tag: "Failure", failure: { _tag: "Session.StepFailedError", error: { type: "model-group.retry-budget" } } })
+    expect(s.requests.map((request) => String(request.model.id))).toEqual(["api-a", ...Array<string>(RETRY_GAPS.length).fill("api-b")])
+    const assistant = requireAssistant(yield* s.context)
+    expect(assistant.attempts).toHaveLength(RETRY_GAPS.length + 1)
+    expect(assistant.attempts?.every((attempt) => attempt.terminal?.status === "failed")).toBe(true)
+    const events = yield* recordedEventTypes(sessionID)
+    expect(events.filter((type) => type === "session.step.started.1")).toHaveLength(1)
+    expect(events.filter((type) => type === "session.retry.scheduled.1")).toHaveLength(RETRY_GAPS.length)
+  }))
+
+  groupIt.effect("continues partial output on a new Assistant without repeating a settled local tool", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup()
+    const s = fixture.s
+    yield* fixture.admit("Continue the partial answer")
+    yield* s.llm.push(TestLLM.failAfter(streamDisconnected(),
+      LLMEvent.stepStart({ index: 0 }),
+      LLMEvent.textStart({ id: "p3-partial" }), LLMEvent.textDelta({ id: "p3-partial", text: "Partial" }), LLMEvent.textEnd({ id: "p3-partial" }),
+      LLMEvent.toolCall({ id: "p3-partial-tool", name: "echo", input: { text: "executed-once" } }),
+    ), TestLLM.text("Completed", "p3-continuation"))
+    const scheduled = yield* subscribeRetries(s)
+    const run = yield* s.resume.pipe(Effect.forkChild)
+    yield* Queue.take(scheduled)
+    yield* TestClock.adjust("2400 millis")
+    yield* Fiber.join(run)
+    expect(s.requests.map((request) => String(request.model.id))).toEqual(["api-a", "api-b"])
+    expect(s.executions).toEqual(["executed-once"])
+    const assistants = (yield* s.context).filter((message): message is SessionMessage.Assistant => message.type === "assistant")
+    expect(assistants).toHaveLength(2)
+    expect(assistants[0].id).not.toBe(assistants[1].id)
+    expect(assistants[0]).toMatchObject({ attempts: [{ model: groupA, terminal: { status: "failed", outputStarted: true } }] })
+    expect(assistants[1]).toMatchObject({ attempts: [{ model: groupB, transition: "continuation", terminal: { status: "completed" } }] })
+    expect(s.requests[1].messages.filter((message) => message.role === "tool")).toHaveLength(1)
+    expect((yield* s.context).filter((message) => message.type === "synthetic" && message.text === INCOMPLETE_STREAM_CONTINUATION)).toHaveLength(1)
+  }))
+
+  for (const kind of ["reasoning", "tool input"] as const) {
+    groupIt.effect(`continues partial ${kind} on fallback B while retaining the original Assistant`, () => Effect.gen(function* () {
+      const fixture = yield* setupGroup()
+      const s = fixture.s
+      const fragment = fragmentFixture(kind, `p3-partial-${kind}`, [kind === "reasoning" ? "Partial thought" : '{"text":"partial'])
+      yield* fixture.admit(`Continue after unfinished ${kind}`)
+      yield* s.llm.push(TestLLM.failAfter(streamDisconnected(), ...fragment.partialEvents), TestLLM.text("Completed", "p3-fragment-completed"))
+      const scheduled = yield* subscribeRetries(s)
+      const run = yield* s.resume.pipe(Effect.forkChild)
+      yield* Queue.take(scheduled)
+      yield* TestClock.adjust("2400 millis")
+      yield* Fiber.join(run)
+      expect(s.requests.map((request) => String(request.model.id))).toEqual(["api-a", "api-b"])
+      expect(s.executions).toEqual([])
+      const assistants = (yield* s.context).filter((message): message is SessionMessage.Assistant => message.type === "assistant")
+      expect(assistants).toHaveLength(2)
+      expect(assistants[0].id).not.toBe(assistants[1].id)
+      expect(assistants[0]).toMatchObject({ model: groupA, attempts: [{ model: groupA, terminal: { status: "failed", outputStarted: true } }] })
+      expect(assistants[1]).toMatchObject({ model: groupB, attempts: [{ model: groupB, transition: "continuation", terminal: { status: "completed" } }] })
+      if (kind === "reasoning") {
+        expect(assistants[0].content).toMatchObject([fragment.expectedContent])
+        expect(s.requests[1].messages).toContainEqual(expect.objectContaining({
+          role: "assistant", content: expect.arrayContaining([expect.objectContaining({ type: "text", text: "Partial thought" })]),
+        }))
+      }
+      if (kind === "tool input") expect(assistants[0].content).toMatchObject([{ type: "tool", id: `p3-partial-${kind}`, state: { status: "error" } }])
+      expect((yield* s.context).filter((message) => message.type === "synthetic" && message.text === INCOMPLETE_STREAM_CONTINUATION)).toHaveLength(1)
+    }))
+  }
+
+  for (const status of ["completed", "failed", "cancelled"] as const) {
+    groupIt.effect(`settles differently priced group attempts once when fallback B is ${status}`, () => Effect.gen(function* () {
+      const fixture = yield* setupGroup(groupDefinition(), true)
+      const s = fixture.s
+      const ready = yield* Deferred.make<void>()
+      const second = [LLMEvent.stepStart({ index: 0 }), LLMEvent.stepFinish({
+        index: 0, reason: { normalized: "stop" },
+        usage: { inputTokens: 1_000, nonCachedInputTokens: 1_000, outputTokens: 2_000, reasoningTokens: 1_000 },
+      })]
+      yield* fixture.admit("Keep each physical attempt's own quote")
+      yield* s.llm.push(
+        TestLLM.failAfter(streamDisconnected(), LLMEvent.stepStart({ index: 0 }), LLMEvent.stepFinish({
+          index: 0, reason: { normalized: "stop" }, usage: { inputTokens: 1_000, nonCachedInputTokens: 1_000, outputTokens: 1_000 },
+        })),
+        status === "completed" ? [...second, LLMEvent.finish({ reason: { normalized: "stop" } })]
+          : status === "failed" ? TestLLM.failAfter(invalidRequest(), ...second)
+          : Stream.concat(Stream.fromIterable(second), Stream.fromEffect(Deferred.succeed(ready, undefined)).pipe(Stream.flatMap(() => Stream.never))),
+      )
+      const scheduled = yield* subscribeRetries(s)
+      const run = yield* s.resume.pipe(Effect.result, Effect.forkChild)
+      yield* Queue.take(scheduled)
+      yield* TestClock.adjust("2400 millis")
+      if (status === "cancelled") {
+        yield* awaitWithTimeout(Deferred.await(ready), "Fallback B did not reach its held provider stream")
+        expect(yield* s.session.interrupt(sessionID)).toBe(true)
+        expect(Exit.hasInterrupts(yield* awaitWithTimeout(Fiber.await(run), "The cancelled Session owner did not settle"))).toBe(true)
+      }
+      if (status !== "cancelled") expect((yield* Fiber.join(run))._tag).toBe(status === "completed" ? "Success" : "Failure")
+      expect(s.requests.map((request) => String(request.model.id))).toEqual(["api-a", "api-b"])
+      const assistant = requireAssistant(yield* s.context)
+      expect(assistant.attempts).toHaveLength(2)
+      expect(assistant.attempts?.[0]).toMatchObject({ model: groupA, quoteOrigin: "user", quote: { status: "known", prices: [{ input: 1, output: 2 }] }, terminal: { status: "failed", usage: { input: 1_000, output: 1_000 } } })
+      expect(assistant.attempts?.[1]).toMatchObject({ model: groupB, quoteOrigin: "user", quote: { status: "known", prices: [{ input: 4, output: 5 }] }, terminal: { status, usage: { input: 1_000, output: 1_000, reasoning: 1_000 } } })
+      expect(assistant.attempts?.[0].terminal?.cost).toBeCloseTo(0.003, 10)
+      expect(assistant.attempts?.[1].terminal?.cost).toBeCloseTo(0.014, 10)
+      expect(assistant.cost).toBeCloseTo(0.017, 10)
+      expect(assistant).toMatchObject({ unknownPriceAttempts: 0, missingUsageAttempts: 0, tokens: { input: 2_000, output: 2_000, reasoning: 1_000 } })
+      const goals = yield* SessionGoal.Service
+      yield* SessionStep.reconcile(s.db, s.bus, goals, sessionID)
+      yield* SessionStep.reconcile(s.db, s.bus, goals, sessionID)
+      expect((yield* s.session.get(sessionID))?.cost).toBeCloseTo(0.017, 10)
+      const events = yield* recordedEventTypes(sessionID)
+      expect(events.filter((type) => type === "session.attempt.ended.1")).toHaveLength(2)
+      expect(events.filter((type) => type === "session.step.ended.1" || type === "session.step.failed.1")).toHaveLength(1)
+    }))
+  }
+})
+
+const groupAccounts = Effect.fnUntraced(function* () {
+  const integrations = yield* Integration.Service
+  const active = yield* integrations.connection.active(Integration.ID.make(groupA.providerID))
+  if (active?.type !== "credential") return yield* Effect.die(new Error("The group fixture requires its original credential"))
+  const credentials = yield* Credential.Service
+  const alternate = yield* credentials.create({
+    integrationID: Integration.ID.make(groupA.providerID), activate: false,
+    value: Credential.Key.make({ type: "key", key: "fixture-alternate", configuration: { baseURL: "https://alternate-fixture.invalid/v1" } }),
+  })
+  return {
+    integrations, credentials,
+    active: { type: "credential" as const, id: active.id },
+    alternate: { type: "credential" as const, id: alternate.id },
+  }
+})
+
+describe("P4 model group reservations through the original runner", () => {
+  groupIt.effect("reprepares stale choices before Goal admission and runs two different Session streams concurrently", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup(new ModelGroup.Definition({ ...groupDefinition(), strategy: "rotate" }))
+    const s = fixture.s
+    const metas = yield* MetaAgentService.Service
+    const goals = yield* SessionGoal.Service
+    const agents = yield* Agent.Service
+    yield* agents.transform((editor) => editor.update(Agent.ID.make("meta"), (agent) => {
+      agent.originKind = "builtin"
+      agent.mode = "primary"
+    }))
+    yield* insertSession(otherSessionID)
+    const owners = yield* Effect.forEach([sessionID, otherSessionID], (id) => Effect.gen(function* () {
+      const meta = yield* metas.create({ title: `Reservation ${id}`, agent: "meta", model: Model.Ref.parse("fake/fake-model") })
+      yield* s.db.update(SessionTable).set({ agent: "meta", controller: new MetaAgent.RootController({
+        kind: "root", metaAgentID: meta.id, rootSessionID: id,
+      }) }).where(eq(SessionTable.id, id)).run().pipe(Effect.orDie)
+      yield* metas.attach({ metaID: meta.id, sessionID: id, role: "orchestrator" })
+      yield* s.bus.publish(SessionEvent.ModelSelected, { sessionID: id, model: groupSelection })
+      const goal = yield* goals.set({ sessionID: id, objective: "Hold one real group attempt", budget: { rounds: 1, attempts: 1, steps: 1 },
+        conditions: [SessionGoal.Condition.make({ id: "accept", kind: "human_acceptance", description: "Accept the result" })],
+      })
+      expect((yield* goals.advance({ sessionID: id, goalID: goal.id })).state).toBe("admitted")
+      return { sessionID: id, goalID: goal.id }
+    }))
+    const preparedReady = yield* Deferred.make<void>()
+    const preparedRelease = yield* Deferred.make<void>()
+    const reprepareReady = yield* Deferred.make<Session.ID>()
+    const reprepareRelease = yield* Deferred.make<void>()
+    const streamsReady = yield* Deferred.make<void>()
+    const streamsRelease = yield* Deferred.make<void>()
+    const preparations: { sessionID: Session.ID; model: Model.Ref }[] = []
+    let active = 0
+    let maxActive = 0
+    yield* (yield* PluginHooks.Service).register("session", "model.request", (event) => Effect.gen(function* () {
+      if (event.kind !== "primary") return
+      preparations.push({ sessionID: event.sessionID, model: event.model })
+      if (preparations.length <= 2) {
+        if (preparations.length === 2) yield* Deferred.succeed(preparedReady, undefined)
+        yield* Deferred.await(preparedRelease)
+        return
+      }
+      if (preparations.length === 3) {
+        yield* Deferred.succeed(reprepareReady, event.sessionID)
+        yield* Deferred.await(reprepareRelease)
+      }
+    }))
+    yield* s.llm.push(...["one", "two"].map((id) => Stream.unwrap(Effect.gen(function* () {
+      active++
+      maxActive = Math.max(maxActive, active)
+      if (active === 2) yield* Deferred.succeed(streamsReady, undefined)
+      yield* Deferred.await(streamsRelease)
+      return Stream.fromIterable(TestLLM.text("Done", `p4-concurrent-${id}`))
+    }).pipe(Effect.ensuring(Effect.sync(() => active--))))))
+    const scope = yield* Scope.Scope
+    const runs = yield* Effect.forEach([sessionID, otherSessionID], (id) => s.session.resume(id).pipe(Effect.forkIn(scope)))
+    yield* awaitWithTimeout(Deferred.await(preparedReady), "Both Sessions did not prepare their initial group candidate")
+    expect(preparations.map((entry) => entry.model)).toEqual([groupA, groupA])
+    yield* Deferred.succeed(preparedRelease, undefined)
+    const stale = yield* awaitWithTimeout(Deferred.await(reprepareReady), "The stale candidate was not reprepared before admission")
+    yield* awaitWithTimeout(s.llm.wait(1), "The winning Session did not enter its provider stream")
+    expect(preparations[2]?.model).toEqual(groupB)
+    for (const owner of owners) {
+      const goal = yield* goals.get(owner)
+      expect(goal?.accounting.coordinator.attempts).toBe(owner.sessionID === stale ? 0 : 1)
+    }
+    expect(s.executions).toEqual([])
+    expect(s.requests).toHaveLength(1)
+    yield* Deferred.succeed(reprepareRelease, undefined)
+    yield* awaitWithTimeout(Deferred.await(streamsReady), "The group reservation mutex held a provider stream")
+    expect(active).toBe(2)
+    expect(maxActive).toBe(2)
+    expect(s.requests.map((request) => String(request.model.id)).toSorted()).toEqual(["api-a", "api-b"])
+    for (const owner of owners) {
+      const goal = yield* goals.get(owner)
+      const assistant = requireAssistant(yield* s.session.context(owner.sessionID))
+      expect(goal?.attempts).toHaveLength(1)
+      expect(assistant.attempts).toHaveLength(1)
+      expect(goal?.attempts[0]?.id).toBe(assistant.attempts?.[0]?.attemptID)
+      expect(assistant.attempts?.[0].ordinal).toBe(0)
+    }
+    yield* Deferred.succeed(streamsRelease, undefined)
+    yield* Effect.forEach(runs, Fiber.join, { discard: true })
+    const events = (yield* Effect.forEach([sessionID, otherSessionID], recordedEventTypes)).flat()
+    expect(events.filter((type) => type === "session.attempt.started.1")).toHaveLength(2)
+    expect(events.filter((type) => type === "session.retry.scheduled.1")).toEqual([])
+    expect(s.executions).toEqual([])
+    expect(preparations).toHaveLength(3)
+  }))
+
+  groupIt.effect("allocates member shares before applying account weights inside a member", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup()
+    const accounts = yield* groupAccounts()
+    const definition = new ModelGroup.Definition({ ...groupDefinition(), strategy: "weight", members: [
+      { ...groupA, weight: 1, connections: [{ ref: accounts.active, weight: 1 }, { ref: accounts.alternate, weight: 3 }] },
+      { ...groupB, weight: 1 },
+    ] })
+    yield* fixture.config.setEntries([groupDocument(definition)])
+    for (const index of Array.from({ length: 16 }, (_, index) => index)) {
+      yield* fixture.admit(`Weighted request ${index}`)
+      yield* fixture.s.llm.push(TestLLM.text("Done", `p4-weight-${index}`))
+      yield* fixture.s.resume
+    }
+    const attempts = (yield* fixture.s.context).flatMap((message) => message.type === "assistant" ? message.attempts ?? [] : [])
+    expect(attempts).toHaveLength(16)
+    expect(attempts.filter((attempt) => attempt.groupMemberIndex === 0)).toHaveLength(8)
+    expect(attempts.filter((attempt) => attempt.groupMemberIndex === 1)).toHaveLength(8)
+    expect(attempts.filter((attempt) => attempt.connection?.type === "credential" && attempt.connection.id === accounts.active.id)).toHaveLength(2)
+    expect(attempts.filter((attempt) => attempt.connection?.type === "credential" && attempt.connection.id === accounts.alternate.id)).toHaveLength(6)
+    expect(yield* accounts.integrations.connection.active(Integration.ID.make(groupA.providerID))).toMatchObject(accounts.active)
+    expect(fixture.s.requests).toHaveLength(16)
+  }))
+
+  groupIt.effect("advances to another explicit connection of the same model and retains the actual connection across tool Steps", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup()
+    const accounts = yield* groupAccounts()
+    yield* fixture.config.setEntries([groupDocument(groupDefinition([{ ...groupA, connections: [{ ref: accounts.active }, { ref: accounts.alternate }] }]))])
+    yield* fixture.admit("Use the second account after the first rejects")
+    yield* fixture.s.llm.push(
+      Stream.fail(new AIError({ reason: new AuthenticationError({ message: "First account rejected" }) })),
+      TestLLM.tool("p4-account-tool", "echo", { text: "account-once" }),
+      TestLLM.text("Done", "p4-account-done"),
+    )
+    const scheduled = yield* subscribeRetries(fixture.s)
+    const run = yield* fixture.s.resume.pipe(Effect.forkChild)
+    yield* Queue.take(scheduled)
+    yield* TestClock.adjust("2400 millis")
+    yield* Fiber.join(run)
+    const attempts = (yield* fixture.s.context).flatMap((message) => message.type === "assistant" ? message.attempts ?? [] : [])
+    expect(attempts.map((attempt) => attempt.model)).toEqual([groupA, groupA, groupA])
+    expect(attempts.map((attempt) => attempt.connection)).toEqual([accounts.active, accounts.alternate, accounts.alternate])
+    expect(attempts.map((attempt) => attempt.groupMemberIndex)).toEqual([0, 0, 0])
+    expect(fixture.s.requests.map((request) => request.model.route.endpoint.baseURL)).toEqual([
+      "https://fixture.invalid/v1", "https://alternate-fixture.invalid/v1", "https://alternate-fixture.invalid/v1",
+    ])
+    expect(fixture.s.executions).toEqual(["account-once"])
+    expect(yield* accounts.integrations.connection.active(Integration.ID.make(groupA.providerID))).toMatchObject(accounts.active)
+  }))
+
+  for (const policy of ["omitted", "empty"] as const) {
+    groupIt.effect(`keeps ${policy} connections explicit without automatically expanding all accounts`, () => Effect.gen(function* () {
+      const fixture = yield* setupGroup()
+      const accounts = yield* groupAccounts()
+      yield* fixture.config.setEntries([groupDocument(groupDefinition([
+        { ...groupA, ...(policy === "empty" ? { connections: [] } : {}) }, groupB,
+      ]))])
+      yield* fixture.admit("Honor the authored connection policy")
+      yield* fixture.s.llm.push(...(policy === "omitted" ? [Stream.fail(new AIError({ reason: new AuthenticationError({ message: "Active account rejected" }) }))] : []),
+        TestLLM.text("Backup", "p4-connection-policy"))
+      if (policy === "omitted") {
+        const scheduled = yield* subscribeRetries(fixture.s)
+        const run = yield* fixture.s.resume.pipe(Effect.forkChild)
+        yield* Queue.take(scheduled)
+        yield* TestClock.adjust("2400 millis")
+        yield* Fiber.join(run)
+      }
+      if (policy === "empty") yield* fixture.s.resume
+      expect(fixture.s.requests.map((request) => String(request.model.id))).toEqual(policy === "omitted" ? ["api-a", "api-b"] : ["api-b"])
+      const attempts = requireAssistant(yield* fixture.s.context).attempts ?? []
+      expect(attempts.some((attempt) => attempt.connection?.type === "credential" && attempt.connection.id === accounts.alternate.id)).toBe(false)
+    }))
+  }
+
+  for (const affinity of ["turn", "off"] as const) {
+    groupIt.effect(`applies ${affinity} affinity at each new Logical Step while preserving the local tool`, () => Effect.gen(function* () {
+      const fixture = yield* setupGroup(new ModelGroup.Definition({ ...groupDefinition(), strategy: "rotate", affinity }))
+      yield* fixture.admit("Execute one tool and continue")
+      yield* fixture.s.llm.push(TestLLM.tool("p4-affinity-tool", "echo", { text: "affinity-once" }), TestLLM.text("Done", "p4-affinity-done"))
+      yield* fixture.s.resume
+      expect(fixture.s.requests.map((request) => String(request.model.id))).toEqual(["api-a", affinity === "turn" ? "api-a" : "api-b"])
+      expect(fixture.s.executions).toEqual(["affinity-once"])
+      expect((yield* fixture.s.context).flatMap((message) => message.type === "assistant" ? message.attempts ?? [] : []).map((attempt) => attempt.groupMemberIndex))
+        .toEqual(affinity === "turn" ? [0, 0] : [0, 1])
+    }))
+  }
+
+  groupIt.effect("recovers this Session's binding across idle and clears it when the actual actor changes", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup(new ModelGroup.Definition({ ...groupDefinition(), strategy: "rotate", affinity: "session" }))
+    yield* fixture.admit("Fall back to B")
+    yield* fixture.s.llm.push(Stream.fail(new AIError({ reason: new AuthenticationError({ message: "A rejected" }) })), TestLLM.text("B", "p4-session-b"))
+    const scheduled = yield* subscribeRetries(fixture.s)
+    const run = yield* fixture.s.resume.pipe(Effect.forkChild)
+    yield* Queue.take(scheduled)
+    yield* TestClock.adjust("2400 millis")
+    yield* Fiber.join(run)
+    yield* fixture.admit("Keep this Session's B")
+    yield* fixture.s.llm.push(TestLLM.text("Still B", "p4-session-held"))
+    yield* fixture.s.resume
+    yield* fixture.s.bus.publish(SessionEvent.AgentSelected, { sessionID, agent: Agent.ID.make("reviewer"), model: groupSelection })
+    yield* fixture.admit("The new actor selects afresh")
+    yield* fixture.s.llm.push(TestLLM.text("A", "p4-session-actor"))
+    yield* fixture.s.resume
+    expect(fixture.s.requests.map((request) => String(request.model.id))).toEqual(["api-a", "api-b", "api-b", "api-a"])
+    expect((yield* fixture.s.context).filter((message) => message.type === "assistant").at(-1)?.attempts?.[0].agent).toBe(Agent.ID.make("reviewer"))
+  }))
+
+  groupIt.effect("charges overlapping authored members by their durable member index", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup(new ModelGroup.Definition({ ...groupDefinition(), strategy: "weight", members: [
+      { ...groupA, weight: 1 }, { ...groupA, weight: 3 },
+    ] }))
+    for (const index of Array.from({ length: 8 }, (_, index) => index)) {
+      yield* fixture.admit(`Overlapping member ${index}`)
+      yield* fixture.s.llm.push(TestLLM.text("Done", `p4-overlap-${index}`))
+      yield* fixture.s.resume
+    }
+    const attempts = (yield* fixture.s.context).flatMap((message) => message.type === "assistant" ? message.attempts ?? [] : [])
+    expect(attempts.map((attempt) => attempt.model)).toEqual(Array.from({ length: 8 }, () => groupA))
+    expect(attempts.filter((attempt) => attempt.groupMemberIndex === 0)).toHaveLength(2)
+    expect(attempts.filter((attempt) => attempt.groupMemberIndex === 1)).toHaveLength(6)
+    expect(new Set(attempts.map((attempt) => attempt.attemptID)).size).toBe(8)
+  }))
+
+  groupIt.effect("starts a fork with its own affinity and counts copied receipts only for their original owner", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup(new ModelGroup.Definition({ ...groupDefinition(), strategy: "rotate", affinity: "session" }))
+    yield* fixture.admit("Parent A")
+    yield* fixture.s.llm.push(TestLLM.text("Parent", "p4-fork-parent"))
+    yield* fixture.s.resume
+    const boundary = requireAssistant(yield* fixture.s.messages)
+    const fork = yield* fixture.s.session.fork({ sessionID, through: boundary.id })
+    yield* fixture.s.sessionInbox.admit({ id: SessionMessage.ID.create(), sessionID: fork.id,
+      item: { type: "user", payload: { text: "Fork selects afresh" }, delivery: "steer" },
+    })
+    yield* fixture.s.llm.push(TestLLM.text("Fork B", "p4-fork-owned"))
+    yield* fixture.s.session.resume(fork.id)
+    yield* insertSession(otherSessionID)
+    yield* fixture.s.bus.publish(SessionEvent.ModelSelected, { sessionID: otherSessionID, model: groupSelection })
+    yield* fixture.s.sessionInbox.admit({ id: SessionMessage.ID.create(), sessionID: otherSessionID,
+      item: { type: "user", payload: { text: "Only the two physical reservations count" }, delivery: "steer" },
+    })
+    yield* fixture.s.llm.push(TestLLM.text("Other A", "p4-fork-next"))
+    yield* fixture.s.session.resume(otherSessionID)
+    expect(fixture.s.requests.map((request) => String(request.model.id))).toEqual(["api-a", "api-b", "api-a"])
+    const forkHistory = yield* fixture.s.session.context(fork.id)
+    const owned = forkHistory.flatMap((message) => message.type === "assistant" && message.origin?.kind === "step" && message.origin.sessionID === fork.id ? message.attempts ?? [] : [])
+    expect(owned).toMatchObject([{ model: groupB, groupMemberIndex: 1 }])
+    const copied = forkHistory.find((message) => message.type === "assistant" && message.attempts?.some((attempt) =>
+      attempt.attemptID === boundary.attempts?.[0].attemptID))
+    expect(copied?.origin).toEqual({ kind: "historical" })
+    expect(copied?.type === "assistant" && copied.attempts?.[0].attemptID).toBe(boundary.attempts?.[0].attemptID)
+  }))
+})
+
+const groupQuote = (input: number, output: number, cache = 0) => ({
+  status: "known" as const,
+  prices: [{ input: Money.USDPerMillionTokens.make(input), output: Money.USDPerMillionTokens.make(output),
+    cache: { read: Money.USDPerMillionTokens.make(cache), write: Money.USDPerMillionTokens.make(cache) } }],
+})
+const groupQuota = (
+  connection: ModelSource.ConnectionRef,
+  windows: ModelSource.Quota["windows"],
+  fields: Partial<Omit<ModelSource.Quota, "connection" | "windows">> = {},
+): ModelSource.Quota => ({
+  status: "known", source: "p5-fixture", connection, observedAt: 0, freshUntil: 100_000, allowed: true, windows, ...fields,
+})
+const setGroupMetadata = Effect.fnUntraced(function* (input: readonly {
+  readonly model: Model.Ref
+  readonly connection?: ModelSource.ConnectionRef
+  readonly quote?: ModelSource.Quote
+  readonly quota?: ModelSource.Quota
+  readonly apiModelID?: string
+}[]) {
+  const models = yield* Model.Service
+  yield* models.transform((editor) => input.forEach((entry) => {
+    const connection = editor.connection(Integration.ID.make(entry.model.providerID))
+    if (entry.connection !== undefined &&
+      (connection === undefined || IntegrationConnection.key(connection) !== IntegrationConnection.key(entry.connection))) return
+    editor.update(entry.model.providerID, entry.model.id, (model) => {
+      if (entry.quote !== undefined) Object.assign(model, { metadata: { ...model.metadata, quote: entry.quote } })
+      if (entry.quota !== undefined) Object.assign(model, { metadata: { ...model.metadata, quota: entry.quota } })
+      if (entry.apiModelID !== undefined) Object.assign(model, { modelID: entry.apiModelID })
+    })
+  }))
+  yield* models.reload()
+})
+const installGroupQuota = Effect.fnUntraced(function* (input: readonly {
+  readonly model: Model.Ref
+  readonly connection: ModelSource.ConnectionRef
+  readonly quota: ModelSource.Quota
+}[]) {
+  const hooks = yield* PluginHooks.Service
+  const reads: { readonly model: Model.Ref; readonly connection?: ModelSource.ConnectionRef }[] = []
+  yield* hooks.register("session", "model.quota", (event) => Effect.sync(() => {
+    reads.push({ model: event.model, connection: event.connection })
+    event.quota = input.find((entry) => entry.model.providerID === event.model.providerID && entry.model.id === event.model.id &&
+      event.connection !== undefined && IntegrationConnection.key(entry.connection) === IntegrationConnection.key(event.connection))?.quota
+  }))
+  return reads
+})
+/** Controlled durable input to the original projector and rank owner, independent of live transport calls. */
+const seedGroupReceipt = Effect.fnUntraced(function* (definition: ModelGroup.Definition, input: {
+  readonly model: Model.Ref
+  readonly index: number
+  readonly started: number
+  readonly firstTokenAt?: number
+  readonly firstOutputAt?: number
+  readonly providerEndedAt?: number
+  readonly output?: number
+  readonly reasoning?: number
+  readonly actual?: boolean
+  readonly sentURL?: string
+  readonly connection?: ModelSource.ConnectionRef
+  readonly transition?: SessionAttempt.Started["transition"]
+}) {
+  const bus = yield* Bus.Service
+  const runtime = yield* (yield* ModelResolver.Service).resolve(input.model, input.connection)
+  if (runtime === undefined) return yield* Effect.die(new Error("The speed fixture requires a concrete model"))
+  const assistantMessageID = SessionMessage.ID.create()
+  const preparedDeployment = SessionProviderContext.provenance(runtime)
+  const deployment = SessionProviderContext.provenance(runtime, input.sentURL)
+  const usage = { input: 0, output: input.output ?? 200, reasoning: input.reasoning ?? 0, cache: { read: 0, write: 0 } }
+  const quote = runtime.quote ?? { status: "unknown" as const }
+  const cost = SessionUsage.quotedCost(quote, usage) ?? Money.USD.zero
+  yield* bus.publish(SessionEvent.Attempt.Started, { sessionID, assistantMessageID, ...new SessionAttempt.Started({
+    ordinal: 0, attemptID: "gatt_p5_" + assistantMessageID, agent: Agent.ID.make("build"),
+    selection: groupSelection, behaviorDigest: ModelGroup.snapshot(groupID, definition).behaviorDigest, groupMemberIndex: input.index,
+    model: input.model, apiModelID: String(runtime.model.id),
+    ...(runtime.connection === undefined ? {} : { connection: runtime.connection }),
+    ...(preparedDeployment === undefined ? {} : { preparedDeployment }),
+    quote, goalRefs: [], transition: input.transition ?? "initial", started: input.started,
+  }) })
+  yield* bus.publish(SessionEvent.Step.Started, { sessionID, assistantMessageID, agent: Agent.ID.make("build"), model: input.model, started: input.started })
+  yield* bus.publish(SessionEvent.Attempt.Observed, { sessionID, assistantMessageID, ordinal: 0,
+    observation: new SessionAttempt.Observation({
+      observedAt: input.firstTokenAt ?? input.firstOutputAt ?? input.started, delivery: "accepted",
+      ...(input.actual === false || deployment === undefined ? {} : { deployment }),
+      ...(input.firstTokenAt === undefined ? {} : { firstTokenAt: input.firstTokenAt }),
+      ...(input.firstOutputAt === undefined ? {} : { firstOutputAt: input.firstOutputAt }),
+    }),
+  })
+  yield* bus.publish(SessionEvent.Attempt.Ended, { sessionID, assistantMessageID, ordinal: 0,
+    terminal: new SessionAttempt.Terminal({
+      status: "completed", ended: input.providerEndedAt ?? input.started + 1000, outputStarted: true, finish: "stop",
+      ...(input.providerEndedAt === undefined ? {} : { providerEndedAt: input.providerEndedAt }),
+      usage, cost, delivery: "accepted",
+    }),
+  })
+  yield* bus.publish(SessionEvent.Step.Ended, { sessionID, assistantMessageID, finish: "stop", needsContinuation: false,
+    cost, tokens: usage, unknownPriceAttempts: Number(quote.status === "unknown"), missingUsageAttempts: 0 })
+  return assistantMessageID
+})
+
+describe("P5 dynamic model group strategies through the original runner", () => {
+  groupIt.effect("orders cheap by the valid physical quote before unknown and settles actual usage once", () => Effect.gen(function* () {
+    const definition = new ModelGroup.Definition({ ...groupDefinition([groupC, groupA, groupB]), strategy: "cheap", affinity: "off" })
+    const fixture = yield* setupGroup(definition, true)
+    const accounts = yield* groupAccounts()
+    const reads = yield* installGroupQuota([{ model: groupA, connection: accounts.active, quota: groupQuota(accounts.active, []) }])
+    yield* setGroupMetadata([{ model: groupB, quote: groupQuote(0.2, 0.3) }])
+    yield* fixture.admit("Use the current quote")
+    yield* fixture.s.llm.push(TestLLM.complete({ reason: { normalized: "stop" }, usage: {
+      inputTokens: 1000, nonCachedInputTokens: 1000, outputTokens: 2000,
+    } }, LLMEvent.textStart({ id: "p5-cheap" }), LLMEvent.textDelta({ id: "p5-cheap", text: "Done" }), LLMEvent.textEnd({ id: "p5-cheap" })))
+    yield* fixture.s.resume
+    expect(fixture.s.requests.map((request) => String(request.model.id))).toEqual(["api-b"])
+    expect(reads).toEqual([])
+    const assistant = requireAssistant(yield* fixture.s.context)
+    expect(assistant.attempts).toMatchObject([{ model: groupB, quote: { status: "known", prices: [{ input: 0.2, output: 0.3 }] } }])
+    expect(assistant.attempts?.[0].terminal?.cost).toBeCloseTo(0.0008, 10)
+    expect(assistant.cost).toBeCloseTo(0.0008, 10)
+    expect((yield* fixture.s.session.get(sessionID))?.cost).toBeCloseTo(0.0008, 10)
+  }))
+
+  groupIt.effect("uses current cache rates to break an equal cheap estimate", () => Effect.gen(function* () {
+    const definition = new ModelGroup.Definition({ ...groupDefinition(), strategy: "cheap", affinity: "off" })
+    const fixture = yield* setupGroup(definition)
+    yield* setGroupMetadata([{ model: groupA, quote: groupQuote(1, 2, 0.5) }, { model: groupB, quote: groupQuote(1, 2, 0.1) }])
+    yield* fixture.admit("Keep input/output equal and compare the cache")
+    yield* fixture.s.llm.push(TestLLM.text("Done", "p5-cache"))
+    yield* fixture.s.resume
+    expect(fixture.s.requests.map((request) => String(request.model.id))).toEqual(["api-b"])
+  }))
+
+  for (const status of ["expired", "future", "known-empty", "free-empty"] as const) {
+    groupIt.effect("keeps cheap " + status + " quote semantics explicit", () => Effect.gen(function* () {
+      const fixture = yield* setupGroup(new ModelGroup.Definition({ ...groupDefinition(), strategy: "cheap", affinity: "off" }), true)
+      const base = groupQuote(0, 0)
+      const quote: ModelSource.Quote = status === "free-empty" ? { status: "free", prices: [] } :
+        status === "known-empty" ? { status: "known", prices: [] } :
+          { ...base, ...(status === "expired" ? { validUntil: 0 } : { validFrom: 1000 }) }
+      yield* setGroupMetadata([{ model: groupA, quote }])
+      yield* fixture.admit("Use the quote's declared status and interval")
+      yield* fixture.s.llm.push(TestLLM.text("Done", "p5-quote-" + status))
+      yield* fixture.s.resume
+      expect(fixture.s.requests.map((request) => String(request.model.id))).toEqual([status === "free-empty" ? "api-a" : "api-b"])
+      if (status === "free-empty") expect(requireAssistant(yield* fixture.s.context).attempts?.[0].quote).toEqual({ status: "free", prices: [] })
+    }))
+  }
+
+  groupIt.effect("keeps all unknown cheap quotes in authored order without inferring free", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup(new ModelGroup.Definition({ ...groupDefinition(), strategy: "cheap", affinity: "off" }))
+    yield* fixture.admit("Prices have not been supplied")
+    yield* fixture.s.llm.push(TestLLM.text("Done", "p5-unknown-price"))
+    yield* fixture.s.resume
+    expect(fixture.s.requests.map((request) => String(request.model.id))).toEqual(["api-a"])
+    expect(requireAssistant(yield* fixture.s.context)).toMatchObject({ attempts: [{ quote: { status: "unknown" } }], unknownPriceAttempts: 1 })
+  }))
+
+  groupIt.effect("samples a prepared future quote at the real Started boundary and charges one Goal attempt", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup(new ModelGroup.Definition({ ...groupDefinition([groupA]), strategy: "cheap", affinity: "off" }))
+    yield* setGroupMetadata([{ model: groupA, quote: { ...groupQuote(1, 2), validFrom: 1000, validUntil: 5000 } }])
+    const metas = yield* MetaAgentService.Service
+    const goals = yield* SessionGoal.Service
+    yield* (yield* Agent.Service).transform((editor) => editor.update(Agent.ID.make("meta"), (agent) => {
+      agent.originKind = "builtin"
+      agent.mode = "primary"
+    }))
+    const meta = yield* metas.create({ title: "Quote boundary", agent: "meta", model: Model.Ref.parse("fake/fake-model") })
+    yield* fixture.s.db.update(SessionTable).set({ agent: "meta", controller: new MetaAgent.RootController({
+      kind: "root", metaAgentID: meta.id, rootSessionID: sessionID,
+    }) }).where(eq(SessionTable.id, sessionID)).run().pipe(Effect.orDie)
+    yield* metas.attach({ metaID: meta.id, sessionID, role: "orchestrator" })
+    const preparations: number[] = []
+    yield* (yield* PluginHooks.Service).register("session", "model.request", (event) => Effect.gen(function* () {
+      if (event.sessionID !== sessionID || event.kind !== "primary") return
+      preparations.push((yield* DateTime.nowAsDate).getTime())
+      yield* TestClock.setTime(1000)
+    }))
+    const goal = yield* goals.set({ sessionID, objective: "Price the physical attempt once",
+      budget: { rounds: 1, attempts: 1, steps: 1 },
+      conditions: [SessionGoal.Condition.make({ id: "accept", kind: "human_acceptance", description: "Accept the result" })],
+    })
+    expect((yield* goals.advance({ sessionID, goalID: goal.id })).state).toBe("admitted")
+    yield* fixture.s.llm.push(TestLLM.complete({ reason: { normalized: "stop" }, usage: {
+      inputTokens: 1000, nonCachedInputTokens: 1000, outputTokens: 1000,
+    } }, LLMEvent.textStart({ id: "p5-start-price" }), LLMEvent.textDelta({ id: "p5-start-price", text: "Done" }), LLMEvent.textEnd({ id: "p5-start-price" })))
+    yield* fixture.s.resume
+    const assistant = requireAssistant(yield* fixture.s.context)
+    expect(preparations).toEqual([0])
+    expect(fixture.s.requests).toHaveLength(1)
+    expect(assistant.attempts).toMatchObject([{ started: 1000, quote: { status: "known", validFrom: 1000, validUntil: 5000 } }])
+    expect(assistant.attempts?.[0].terminal?.cost).toBeCloseTo(0.003, 10)
+    expect(assistant.cost).toBeCloseTo(0.003, 10)
+    expect((yield* fixture.s.session.get(sessionID))?.cost).toBeCloseTo(0.003, 10)
+    const accounting = yield* goals.get({ sessionID, goalID: goal.id })
+    expect(accounting?.accounting.coordinator.attempts).toBe(1)
+    expect(accounting?.attempts).toHaveLength(1)
+    expect(accounting?.attempts[0]?.id).toBe(assistant.attempts?.[0].attemptID)
+    expect((yield* recordedEventTypes(sessionID)).filter((type) => type === "session.attempt.started.1")).toHaveLength(1)
+  }))
+
+  groupIt.effect("ranks fast by the latest qualified actual TTFT plus 200 output tokens including reasoning", () => Effect.gen(function* () {
+    const definition = new ModelGroup.Definition({ ...groupDefinition(), strategy: "fast", affinity: "off" })
+    const fixture = yield* setupGroup(definition)
+    const accounts = yield* groupAccounts()
+    const reads = yield* installGroupQuota([{ model: groupA, connection: accounts.active, quota: groupQuota(accounts.active, []) }])
+    yield* seedGroupReceipt(definition, { model: groupA, index: 0, started: 0, firstTokenAt: 10, providerEndedAt: 20, output: 1000 })
+    yield* seedGroupReceipt(definition, { model: groupA, index: 0, started: 100, firstTokenAt: 150, providerEndedAt: 100150, output: 100, reasoning: 100 })
+    yield* seedGroupReceipt(definition, { model: groupB, index: 1, started: 200, firstTokenAt: 700, providerEndedAt: 1700, output: 100, reasoning: 100 })
+    yield* TestClock.setTime(200000)
+    yield* fixture.admit("Compare a short response at each measured pace")
+    yield* fixture.s.llm.push(TestLLM.text("Done", "p5-fast-score"))
+    yield* fixture.s.resume
+    expect(fixture.s.requests.map((request) => String(request.model.id))).toEqual(["api-b"])
+    expect(reads).toEqual([])
+    const assistant = (yield* fixture.s.context).findLast((message): message is SessionMessage.Assistant => message.type === "assistant")
+    expect(assistant?.attempts).toMatchObject([{ model: groupB }])
+  }))
+
+  for (const condition of ["prepared-only", "first-output-only", "expired", "different-deployment", "different-account"] as const) {
+    groupIt.effect("keeps fast " + condition + " evidence unmeasured", () => Effect.gen(function* () {
+      const definition = new ModelGroup.Definition({ ...groupDefinition(), strategy: "fast", affinity: "off" })
+      const fixture = yield* setupGroup(definition)
+      const accounts = yield* groupAccounts()
+      yield* seedGroupReceipt(definition, { model: groupA, index: 0, started: 0, firstOutputAt: 1,
+        ...(condition === "first-output-only" ? {} : { firstTokenAt: 1 }), providerEndedAt: 2, output: 1000,
+        ...(condition === "prepared-only" ? { actual: false } : {}),
+        ...(condition === "different-deployment" ? { sentURL: "https://other-fixture.invalid/v1/chat/completions" } : {}),
+        ...(condition === "different-account" ? { connection: accounts.alternate } : {}),
+      })
+      const time = condition === "expired" ? 24 * 60 * 60 * 1000 + 10000 : 10000
+      yield* seedGroupReceipt(definition, { model: groupB, index: 1, started: time - 2000, firstTokenAt: time - 1900, providerEndedAt: time - 1000 })
+      yield* TestClock.setTime(time)
+      yield* fixture.admit("Use only the matching actual recent measurement")
+      yield* fixture.s.llm.push(TestLLM.text("Done", "p5-fast-proof-" + condition))
+      yield* fixture.s.resume
+      expect(fixture.s.requests.map((request) => String(request.model.id))).toEqual(["api-b"])
+    }))
+  }
+
+  groupIt.effect("uses one normal initial Step in eight to explore unmeasured fast candidates without duplicate requests", () => Effect.gen(function* () {
+    const definition = new ModelGroup.Definition({ ...groupDefinition(), strategy: "fast", affinity: "off" })
+    const fixture = yield* setupGroup(definition)
+    yield* seedGroupReceipt(definition, { model: groupA, index: 0, started: 0, firstTokenAt: 100, providerEndedAt: 1100 })
+    yield* seedGroupReceipt(definition, { model: groupA, index: 0, started: 2000, firstTokenAt: 2100, providerEndedAt: 3100, transition: "retry" })
+    yield* TestClock.setTime(10000)
+    for (const index of Array.from({ length: 8 }, (_, index) => index)) {
+      yield* fixture.admit("Normal Step " + index)
+      yield* fixture.s.llm.push(TestLLM.text("Done", "p5-probe-" + index))
+      yield* fixture.s.resume
+    }
+    expect(fixture.s.requests.map((request) => String(request.model.id))).toEqual([...Array<string>(6).fill("api-a"), "api-b", "api-a"])
+    const attempts = (yield* fixture.s.context).flatMap((message) => message.type === "assistant" ? message.attempts ?? [] : [])
+    expect(attempts.filter((attempt) => attempt.transition === "initial")).toHaveLength(9)
+    expect(attempts.filter((attempt) => attempt.transition === "retry")).toHaveLength(1)
+    expect(fixture.s.executions).toEqual([])
+    expect((yield* recordedEventTypes(sessionID)).filter((type) => type === "session.retry.scheduled.1")).toEqual([])
+  }))
+
+  const quotaStrategies = ["smart", "usage", "pace", "free", "expiring", "drain"] as const
+  for (const strategy of quotaStrategies) {
+    groupIt.effect("uses " + strategy + " facts for the exact account before missing candidates", () => Effect.gen(function* () {
+      const fixture = yield* setupGroup()
+      const accounts = yield* groupAccounts()
+      const definition = new ModelGroup.Definition({ ...groupDefinition([groupC, { ...groupA, connections: [
+        { ref: accounts.active }, { ref: accounts.alternate },
+      ] }]), strategy, affinity: "off" })
+      yield* fixture.config.setEntries([groupDocument(definition)])
+      const reads = yield* installGroupQuota([
+        { model: groupA, connection: accounts.active, quota: groupQuota(accounts.active, [{ id: "budget", unit: "tokens", scope: "account",
+          usedRatio: strategy === "drain" ? 1 : 0.8, total: 100, remaining: strategy === "drain" ? 0 : 20, resetAt: 20000,
+          ...(strategy === "pace" ? {} : { spanMs: 30000 }),
+        }], { freeModel: false, freePlan: strategy === "expiring" }) },
+        { model: groupA, connection: accounts.alternate, quota: groupQuota(accounts.alternate, [{ id: "budget", unit: "tokens", scope: "account",
+          usedRatio: 0.2, total: 100, remaining: 80, resetAt: 10000, ...(strategy === "pace" ? {} : { spanMs: 30000 }),
+        }], { freeModel: strategy === "free", freePlan: strategy === "expiring" }) },
+      ])
+      yield* fixture.admit("Use " + strategy + " on a qualified exact account")
+      yield* fixture.s.llm.push(TestLLM.text("Done", "p5-known-" + strategy))
+      yield* fixture.s.resume
+      const attempt = requireAssistant(yield* fixture.s.context).attempts?.[0]
+      expect(attempt).toMatchObject({ selection: groupSelection, model: groupA, connection: accounts.alternate,
+        quota: { status: "known", connection: accounts.alternate } })
+      expect(fixture.s.requests.map((request) => request.model.route.endpoint.baseURL)).toEqual(["https://alternate-fixture.invalid/v1"])
+      expect(reads.filter((read) => read.model.id === groupA.id)).toHaveLength(2)
+      expect(yield* accounts.integrations.connection.active(Integration.ID.make(groupA.providerID))).toMatchObject(accounts.active)
+    }))
+
+    for (const status of ["unknown", "error", "expired"] as const) {
+      groupIt.effect("preserves " + strategy + " " + status + " adapter data and permits one normal attempt", () => Effect.gen(function* () {
+        const fixture = yield* setupGroup(new ModelGroup.Definition({ ...groupDefinition([groupA]), strategy, affinity: "off" }))
+        const accounts = yield* groupAccounts()
+        const quota = groupQuota(accounts.active, [{ id: "budget", unit: "tokens", scope: "account", usedRatio: 0,
+          total: 100, remaining: 100, resetAt: 10000, spanMs: 30000,
+        }], status === "expired" ? { freshUntil: 0, freeModel: true, freePlan: true } :
+          { status, ...(status === "error" ? { reason: "transport" as const } : {}), freeModel: true, freePlan: true })
+        const reads = yield* installGroupQuota([{ model: groupA, connection: accounts.active, quota }])
+        yield* fixture.admit("Keep unavailable quota data distinct from missing capability")
+        yield* fixture.s.llm.push(TestLLM.text("Done", "p5-data-" + strategy + "-" + status))
+        yield* fixture.s.resume
+        expect(fixture.s.requests.map((request) => String(request.model.id))).toEqual(["api-a"])
+        expect(reads).toHaveLength(1)
+        expect(requireAssistant(yield* fixture.s.context).attempts?.[0]).toMatchObject({
+          quota: { status: status === "expired" ? "known" : status, connection: accounts.active },
+        })
+        if (status === "expired") expect(requireAssistant(yield* fixture.s.context).attempts?.[0].quota?.freshUntil).toBe(0)
+      }))
+    }
+
+    groupIt.effect("returns explicit " + strategy + " unavailable when every adapter is unsupported", () => Effect.gen(function* () {
+      const fixture = yield* setupGroup(new ModelGroup.Definition({ ...groupDefinition([groupA]), strategy, affinity: "off" }))
+      const accounts = yield* groupAccounts()
+      yield* installGroupQuota([{ model: groupA, connection: accounts.active,
+        quota: { status: "unsupported", source: "p5-unsupported", reason: "unsupported", connection: accounts.active, windows: [] } }])
+      yield* fixture.admit("Keep the explicitly unavailable strategy")
+      expect(yield* fixture.s.resume.pipe(Effect.result)).toMatchObject({
+        _tag: "Failure", failure: { _tag: "ModelGroup.Unavailable", groupID, reason: "strategy-unavailable" },
+      })
+      expect(fixture.s.requests).toEqual([])
+      expect((yield* fixture.s.session.get(sessionID))?.model).toEqual(groupSelection)
+    }))
+  }
+
+  groupIt.effect("reports missing quota capability without silently using order", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup(new ModelGroup.Definition({ ...groupDefinition(), strategy: "smart", affinity: "off" }))
+    yield* fixture.admit("The adapter has not been installed")
+    expect(yield* fixture.s.resume.pipe(Effect.result)).toMatchObject({
+      _tag: "Failure", failure: { _tag: "ModelGroup.Unavailable", reason: "strategy-unavailable" },
+    })
+    expect(fixture.s.requests).toEqual([])
+  }))
+
+  groupIt.effect("preserves different units' slots while ordering comparable usage within their own unit", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup()
+    const accounts = yield* groupAccounts()
+    yield* fixture.config.setEntries([groupDocument(new ModelGroup.Definition({ ...groupDefinition([
+      { ...groupA, connections: [{ ref: accounts.active }] }, groupSibling, { ...groupA, connections: [{ ref: accounts.alternate }] },
+    ]), strategy: "usage", affinity: "off" }))])
+    yield* installGroupQuota([
+      { model: groupA, connection: accounts.active, quota: groupQuota(accounts.active, [{ id: "wallet", unit: "tokens", scope: "account", remaining: 10 }]) },
+      { model: groupSibling, connection: accounts.active, quota: groupQuota(accounts.active, [{ id: "wallet", unit: "credits", scope: "account", remaining: 1000000 }]) },
+      { model: groupA, connection: accounts.alternate, quota: groupQuota(accounts.alternate, [{ id: "wallet", unit: "tokens", scope: "account", remaining: 100 }]) },
+    ])
+    yield* fixture.admit("Compare token balances only with token balances")
+    yield* fixture.s.llm.push(TestLLM.text("Done", "p5-units"))
+    yield* fixture.s.resume
+    expect(requireAssistant(yield* fixture.s.context).attempts?.[0]).toMatchObject({ model: groupA, connection: accounts.alternate })
+    expect(fixture.s.requests.map((request) => request.model.route.endpoint.baseURL)).toEqual(["https://alternate-fixture.invalid/v1"])
+  }))
+
+  groupIt.effect("memoizes a quota preparation by actual API model and account across catalog aliases", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup(new ModelGroup.Definition({ ...groupDefinition([groupA, groupSibling]), strategy: "usage", affinity: "off" }))
+    const accounts = yield* groupAccounts()
+    yield* setGroupMetadata([{ model: groupSibling, apiModelID: "api-a" }])
+    const reads = yield* installGroupQuota([{ model: groupA, connection: accounts.active, quota: groupQuota(accounts.active, [
+      { id: "budget", unit: "tokens", scope: "account", usedRatio: 0.2, total: 100, remaining: 80 },
+    ]) }])
+    yield* fixture.admit("Read one physical model quota once")
+    yield* fixture.s.llm.push(TestLLM.text("Done", "p5-memo"))
+    yield* fixture.s.resume
+    expect(reads).toHaveLength(1)
+    expect(requireAssistant(yield* fixture.s.context).attempts?.[0]).toMatchObject({ model: groupA, connection: accounts.active })
+  }))
+
+  groupIt.effect("pins the captured active account when it changes during quota preparation", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup(new ModelGroup.Definition({ ...groupDefinition([groupA]), strategy: "usage", affinity: "off" }))
+    const accounts = yield* groupAccounts()
+    const hooks = yield* PluginHooks.Service
+    const reads: ModelSource.ConnectionRef[] = []
+    yield* hooks.register("session", "model.quota", (event) => Effect.gen(function* () {
+      if (event.model.providerID !== groupA.providerID || event.connection === undefined) return
+      reads.push(event.connection)
+      yield* accounts.credentials.activate(accounts.alternate.id)
+      event.quota = groupQuota(event.connection, [{ id: "budget", unit: "tokens", scope: "account", remaining: 100 }])
+    }))
+    yield* fixture.admit("Keep the quota and catalog on the captured connection")
+    yield* fixture.s.llm.push(TestLLM.text("Done", "p5-active-race"))
+    yield* fixture.s.resume
+    expect(reads).toEqual([accounts.active])
+    expect(requireAssistant(yield* fixture.s.context).attempts?.[0]).toMatchObject({ connection: accounts.active,
+      quota: { status: "known", connection: accounts.active } })
+    expect(fixture.s.requests.map((request) => request.model.route.endpoint.baseURL)).toEqual(["https://fixture.invalid/v1"])
+    expect(yield* accounts.integrations.connection.active(Integration.ID.make(groupA.providerID))).toMatchObject(accounts.alternate)
+  }))
+
+  groupIt.effect("does not rank an account by another account's quota", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup()
+    const accounts = yield* groupAccounts()
+    yield* fixture.config.setEntries([groupDocument(new ModelGroup.Definition({ ...groupDefinition([{ ...groupA, connections: [
+      { ref: accounts.alternate }, { ref: accounts.active },
+    ] }]), strategy: "usage", affinity: "off" }))])
+    yield* installGroupQuota([
+      { model: groupA, connection: accounts.alternate, quota: groupQuota(accounts.active, [{ id: "budget", unit: "tokens", scope: "account", usedRatio: 0, remaining: 100 }], { freeModel: true }) },
+      { model: groupA, connection: accounts.active, quota: groupQuota(accounts.active, [{ id: "budget", unit: "tokens", scope: "account", usedRatio: 0.6, remaining: 40 }]) },
+    ])
+    yield* fixture.admit("Use the account that supplied its own quota")
+    yield* fixture.s.llm.push(TestLLM.text("Done", "p5-quota-account"))
+    yield* fixture.s.resume
+    expect(requireAssistant(yield* fixture.s.context).attempts?.[0]).toMatchObject({ connection: accounts.active,
+      quota: { status: "known", connection: accounts.active } })
+    expect(fixture.s.requests.map((request) => request.model.route.endpoint.baseURL)).toEqual(["https://fixture.invalid/v1"])
+  }))
+
+  groupIt.effect("continues the original quota strategy from a known auth failure to an unknown adapter without a new allowance", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup(new ModelGroup.Definition({ ...groupDefinition(), strategy: "usage", affinity: "off" }))
+    const accounts = yield* groupAccounts()
+    const backup = yield* accounts.integrations.connection.active(Integration.ID.make(groupB.providerID))
+    if (backup?.type !== "credential") return yield* Effect.die(new Error("The backup fixture needs a credential"))
+    const connection = { type: "credential" as const, id: backup.id }
+    yield* installGroupQuota([
+      { model: groupA, connection: accounts.active, quota: groupQuota(accounts.active, [{ id: "budget", unit: "tokens", scope: "account", remaining: 100 }]) },
+      { model: groupB, connection, quota: { status: "unknown", source: "p5-backup", connection, windows: [] } },
+    ])
+    yield* fixture.admit("Retain an unknown executable fallback")
+    yield* fixture.s.llm.push(Stream.fail(new AIError({ reason: new AuthenticationError({ message: "Known account rejected" }) })),
+      TestLLM.text("Recovered", "p5-unknown-fallback"))
+    const scheduled = yield* subscribeRetries(fixture.s)
+    const running = yield* fixture.s.resume.pipe(Effect.forkChild)
+    yield* Queue.take(scheduled)
+    yield* TestClock.adjust("2400 millis")
+    yield* Fiber.join(running)
+    expect(fixture.s.requests.map((request) => String(request.model.id))).toEqual(["api-a", "api-b"])
+    expect(requireAssistant(yield* fixture.s.context).attempts).toMatchObject([
+      { transition: "initial", quota: { status: "known" }, terminal: { status: "failed", failure: { reason: "Authentication" } } },
+      { transition: "fallback", quota: { status: "unknown" }, terminal: { status: "completed" } },
+    ])
+    expect((yield* recordedEventTypes(sessionID)).filter((type) => type === "session.retry.scheduled.1")).toHaveLength(1)
+  }))
+
+  for (const scope of ["account", "model", "unknown", "stale", "mismatch"] as const) {
+    groupIt.effect("limits QuotaExceeded exclusions to the proven " + scope + " scope", () => Effect.gen(function* () {
+      const fixture = yield* setupGroup(groupDefinition([groupA, groupSibling, groupB]))
+      const accounts = yield* groupAccounts()
+      const quota = groupQuota(scope === "mismatch" ? accounts.alternate : accounts.active, scope === "unknown" ? [] : [{
+        id: "budget", unit: "tokens", scope: scope === "model" ? "model" : "account", usedRatio: 1, remaining: 0,
+        ...(scope === "model" ? { modelIDs: ["api-a"] } : {}),
+      }], scope === "unknown" ? { status: "unknown" } : scope === "stale" ? { freshUntil: 0 } : {})
+      yield* setGroupMetadata([{ model: groupA, connection: accounts.active, quota }])
+      yield* fixture.admit("Apply only the evidenced failure scope")
+      yield* fixture.s.llm.push(Stream.fail(new AIError({ reason: new QuotaExceededError({ message: "Quota exceeded" }) })),
+        TestLLM.text("Recovered", "p5-scope-" + scope))
+      const scheduled = yield* subscribeRetries(fixture.s)
+      const running = yield* fixture.s.resume.pipe(Effect.forkChild)
+      yield* Queue.take(scheduled)
+      yield* TestClock.adjust("2400 millis")
+      yield* Fiber.join(running)
+      expect(fixture.s.requests.map((request) => String(request.model.id))).toEqual(["api-a", scope === "account" ? "api-b" : "api-a-sibling"])
+      const attempts = requireAssistant(yield* fixture.s.context).attempts ?? []
+      if (scope === "account") expect(attempts[1].connection).not.toEqual(attempts[0].connection)
+      if (scope !== "account") expect(attempts[1].connection).toEqual(attempts[0].connection)
+      if (scope === "mismatch") expect(attempts[0].quota).toBeUndefined()
+    }))
+  }
+
+  for (const completion of ["stop", "tool"] as const) {
+    groupIt.effect("keeps drain Transport fallback " + completion + " temporary through the next fresh prompt", () => Effect.gen(function* () {
+      const fixture = yield* setupGroup()
+      const accounts = yield* groupAccounts()
+      yield* fixture.config.setEntries([groupDocument(new ModelGroup.Definition({ ...groupDefinition([{ ...groupA, connections: [
+        { ref: accounts.active }, { ref: accounts.alternate },
+      ] }]), strategy: "drain", affinity: "turn" }))])
+      yield* installGroupQuota([
+        { model: groupA, connection: accounts.active, quota: groupQuota(accounts.active, [{ id: "budget", unit: "tokens", scope: "account", remaining: 100 }]) },
+        { model: groupA, connection: accounts.alternate, quota: groupQuota(accounts.alternate, [{ id: "budget", unit: "tokens", scope: "account", remaining: 100 }]) },
+      ])
+      yield* fixture.admit("Use a temporary fallback for the transport failure")
+      yield* fixture.s.llm.push(Stream.fail(streamDisconnected()),
+        completion === "tool" ? TestLLM.tool("p5-transient-tool", "echo", { text: "held-once" }) : TestLLM.text("Recovered", "p5-transient-stop"),
+        ...(completion === "tool" ? [TestLLM.text("Held continuation", "p5-transient-held")] : []))
+      const scheduled = yield* subscribeRetries(fixture.s)
+      const running = yield* fixture.s.resume.pipe(Effect.forkChild)
+      yield* Queue.take(scheduled)
+      yield* TestClock.adjust("2400 millis")
+      yield* Fiber.join(running)
+      yield* fixture.admit("Return to the persistent cursor on a fresh prompt")
+      yield* fixture.s.llm.push(TestLLM.text("Done", "p5-transient-fresh"))
+      yield* fixture.s.resume
+      const attempts = (yield* fixture.s.context).flatMap((message) => message.type === "assistant" ? message.attempts ?? [] : [])
+      expect(attempts.map((attempt) => attempt.connection)).toEqual(completion === "tool"
+        ? [accounts.active, accounts.alternate, accounts.alternate, accounts.active]
+        : [accounts.active, accounts.alternate, accounts.active])
+      expect(fixture.s.executions).toEqual(completion === "tool" ? ["held-once"] : [])
+      expect(fixture.s.requests).toHaveLength(completion === "tool" ? 4 : 3)
+    }))
+  }
+
+  groupIt.effect("keeps drain on the same candidate for RateLimit retries and the next fresh Step", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup()
+    const accounts = yield* groupAccounts()
+    yield* fixture.config.setEntries([groupDocument(new ModelGroup.Definition({ ...groupDefinition([{ ...groupA, connections: [
+      { ref: accounts.active }, { ref: accounts.alternate },
+    ] }]), strategy: "drain", affinity: "off" }))])
+    yield* installGroupQuota([
+      { model: groupA, connection: accounts.active, quota: groupQuota(accounts.active, [{ id: "budget", unit: "tokens", scope: "account", remaining: 100 }]) },
+      { model: groupA, connection: accounts.alternate, quota: groupQuota(accounts.alternate, [{ id: "budget", unit: "tokens", scope: "account", remaining: 100 }]) },
+    ])
+    yield* fixture.admit("Retry the rate limit on the current drain candidate")
+    yield* fixture.s.llm.push(Stream.fail(rateLimited()), TestLLM.text("Recovered", "p5-drain-rate"))
+    const scheduled = yield* subscribeRetries(fixture.s)
+    const running = yield* fixture.s.resume.pipe(Effect.forkChild)
+    yield* Queue.take(scheduled)
+    yield* TestClock.adjust("2400 millis")
+    yield* Fiber.join(running)
+    yield* fixture.admit("Keep that drain cursor after idle")
+    yield* fixture.s.llm.push(TestLLM.text("Done", "p5-drain-next"))
+    yield* fixture.s.resume
+    const attempts = (yield* fixture.s.context).flatMap((message) => message.type === "assistant" ? message.attempts ?? [] : [])
+    expect(attempts.map((attempt) => attempt.connection)).toEqual([accounts.active, accounts.active, accounts.active])
+    expect(attempts.map((attempt) => attempt.transition)).toEqual(["initial", "retry", "initial"])
+    expect(fixture.s.requests).toHaveLength(3)
+  }))
+
+  groupIt.effect("recovers the actual drain cursor from durable Started and terminal receipts after quota renewal", () => Effect.gen(function* () {
+    const fixture = yield* setupGroup()
+    const accounts = yield* groupAccounts()
+    const definition = new ModelGroup.Definition({ ...groupDefinition([{ ...groupA, connections: [
+      { ref: accounts.active }, { ref: accounts.alternate },
+    ] }]), strategy: "drain", affinity: "off" })
+    yield* fixture.config.setEntries([groupDocument(definition)])
+    yield* installGroupQuota([
+      { model: groupA, connection: accounts.active, quota: groupQuota(accounts.active, [{ id: "budget", unit: "tokens", scope: "account", remaining: 100, resetAt: 10000 }]) },
+      { model: groupA, connection: accounts.alternate, quota: groupQuota(accounts.alternate, [{ id: "budget", unit: "tokens", scope: "account", remaining: 100, resetAt: 10000 }]) },
+    ])
+    yield* fixture.admit("Advance the depleted drain candidate")
+    yield* fixture.s.llm.push(Stream.fail(new AIError({ reason: new QuotaExceededError({ message: "First quota exhausted" }) })),
+      TestLLM.text("Recovered", "p5-drain-fallback"))
+    const scheduled = yield* subscribeRetries(fixture.s)
+    const running = yield* fixture.s.resume.pipe(Effect.forkChild)
+    yield* Queue.take(scheduled)
+    yield* TestClock.adjust("2400 millis")
+    yield* Fiber.join(running)
+    yield* TestClock.setTime(10001)
+    yield* setGroupMetadata([
+      { model: groupA, connection: accounts.active, quota: groupQuota(accounts.active, [{ id: "budget", unit: "tokens", scope: "account", remaining: 100, resetAt: 20000 }], { observedAt: 10001 }) },
+      { model: groupA, connection: accounts.alternate, quota: groupQuota(accounts.alternate, [{ id: "budget", unit: "tokens", scope: "account", remaining: 80, resetAt: 20000 }], { observedAt: 10001 }) },
+    ])
+    yield* fixture.admit("Do not move back merely because the first account renewed")
+    yield* fixture.s.llm.push(TestLLM.text("Done", "p5-drain-renewed"))
+    yield* fixture.s.resume
+    const attempts = (yield* fixture.s.context).flatMap((message) => message.type === "assistant" ? message.attempts ?? [] : [])
+    expect(attempts.map((attempt) => attempt.connection)).toEqual([accounts.active, accounts.alternate, accounts.alternate])
+    expect(attempts.map((attempt) => attempt.transition)).toEqual(["initial", "fallback", "initial"])
+    expect(yield* accounts.integrations.connection.active(Integration.ID.make(groupA.providerID))).toMatchObject(accounts.active)
+  }))
+})
+
 const setupOverflowRecovery = Effect.fnUntraced(function* (s: Scenario) {
   yield* s.llm.push(TestLLM.text("Earlier answer", "text-earlier"))
   yield* s.runPrompt("Earlier question ".repeat(700))
@@ -698,6 +2574,233 @@ const messageTexts = (request: LLMRequest, role: "user" | "system") =>
 const userTexts = (request: LLMRequest) => messageTexts(request, "user")
 const systemTexts = (request: LLMRequest) => messageTexts(request, "system")
 const messageRoles = (request: LLMRequest | undefined) => request?.messages.map((message) => message.role)
+
+const setupGoalEntry = Effect.fnUntraced(function* () {
+  const s = yield* setup
+  const agents = yield* Agent.Service
+  yield* agents.transform((editor) =>
+    editor.update(Agent.ID.make("meta"), (agent) => {
+      agent.originKind = "builtin"
+      agent.mode = "primary"
+      agent.permissions.push({ action: GoalTool.name, resource: "*", effect: "allow" })
+    }),
+  )
+  yield* s.session.switchAgent({ sessionID, agent: Agent.ID.make("meta") })
+  const goals = yield* SessionGoal.Service
+  const commands = yield* Command.Service
+  yield* CommandPlugin.MetaCommands.effect(
+    host({
+      command: { ...host().command, transform: commands.transform, reload: commands.reload },
+      session: { prompt: s.session.prompt, synthetic: s.session.synthetic },
+    }),
+  )
+  yield* registerToolPlugin(GoalTool.Plugin)
+  return Object.assign(s, {
+    goals,
+    goalCommand: (text: string) =>
+      commands.execute({ name: "goal", invocation: { sessionID, prompt: { text }, delivery: "steer" } }),
+  })
+})
+
+it.effect("MP04 Goal entry /goal persists one queued round and consumes it after the current input finishes", () =>
+  Effect.gen(function* () {
+    const s = yield* setupGoalEntry()
+    yield* s.llm.push(
+      TestLLM.text("Current input completed", "mp04-existing-input"),
+      TestLLM.text("Complete Goal result 🚀\nReady for acceptance", "mp04-command-result"),
+    )
+    const input = yield* s.admit("Finish the current input first")
+    const gate = yield* s.llm.gate
+    const running = yield* s.resume.pipe(Effect.forkChild)
+    yield* awaitWithTimeout(gate.started, "The current input did not reach its request")
+    const objective = "Complete the accepted implementation"
+    yield* s.goalCommand(objective)
+    const goal = (yield* s.goals.list(sessionID))[0]
+    const round = goal?.rounds[0]
+    if (!goal || !round) return yield* Effect.die(new Error("/goal did not persist its first round"))
+    expect(goal).toMatchObject({ objective, revision: 1, status: "active" })
+    expect(goal.conditions).toMatchObject([{ kind: "human_acceptance", description: objective }])
+    expect(yield* s.inbox).toMatchObject([
+      { id: round.inputID, type: "synthetic", delivery: "queue", payload: { metadata: { source: "goal", goalRound: { goalID: goal.id, roundID: round.roundID } } } },
+    ])
+    expect(s.requests).toHaveLength(1)
+    expect(userTexts(s.requests[0])).toEqual([input.payload.text])
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: round.inputID })).toMatchObject({ status: "pending" })
+    yield* gate.release
+    yield* awaitWithTimeout(Fiber.join(running), "/goal did not finish its safe-boundary continuation")
+    expect(s.requests).toHaveLength(2)
+    expect(userTexts(s.requests[1]).at(-1)).toContain("Objective: " + objective)
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: input.id })).toMatchObject({
+      status: "completed", sharedInputs: [input.id], assistant: { content: [Expected.text("Current input completed")] },
+    })
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: round.inputID })).toMatchObject({
+      status: "completed", sharedInputs: [round.inputID], assistant: { content: [Expected.text("Complete Goal result 🚀\nReady for acceptance")] },
+    })
+    expect(yield* s.goals.get({ sessionID, goalID: goal.id })).toMatchObject({
+      status: "active", accounting: { rounds: 1, coordinator: { steps: 1, attempts: 1, unknownAttempts: 1 } },
+    })
+    yield* s.goalCommand("pause")
+    expect(yield* s.goals.get({ sessionID, goalID: goal.id })).toMatchObject({ status: "paused", pauseReason: "user" })
+    yield* s.goalCommand("resume")
+    expect(yield* s.goals.get({ sessionID, goalID: goal.id })).toMatchObject({ status: "active", rounds: [round] })
+    yield* s.goalCommand("")
+    const status = (yield* s.inbox)[0]
+    if (status?.type !== "synthetic") return yield* Effect.die(new Error("/goal did not admit its saved status"))
+    expect(Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Array(SessionGoal.Info)))(status.payload.text)).toMatchObject([
+      { id: goal.id, objective, revision: 1, status: "active" },
+    ])
+    yield* s.goalCommand("cancel")
+    expect(yield* s.goals.get({ sessionID, goalID: goal.id })).toMatchObject({ status: "cancelled", rounds: [round] })
+    expect(s.requests).toHaveLength(2)
+  }),
+)
+
+it.effect("MP04 Goal entry natural-language goal Tool reaches the original runner and durable result", () =>
+  Effect.gen(function* () {
+    const s = yield* setupGoalEntry()
+    const objective = "Finish the requested work and keep its full result"
+    yield* s.llm.push(
+      TestLLM.tool("mp04-goal-set", GoalTool.name, {
+        action: "set", objective,
+        conditions: [{ id: "acceptance", kind: "human_acceptance", description: "Accept the complete work" }], budget: {},
+      }),
+      TestLLM.text("The Goal is saved", "mp04-tool-step"),
+      TestLLM.text("Full Goal outcome 🚀\nOriginal result retained", "mp04-tool-goal-result"),
+    )
+    const input = yield* s.runPrompt("Keep working on this objective until I accept the complete work")
+    const goal = (yield* s.goals.list(sessionID))[0]
+    const round = goal?.rounds[0]
+    if (!goal || !round) return yield* Effect.die(new Error("The model Goal Tool did not persist its round"))
+    expect(s.requests).toHaveLength(3)
+    expect(s.requests[0].tools.map((tool) => tool.name)).toContain(GoalTool.name)
+    expect(userTexts(s.requests[1])).toEqual([input.payload.text])
+    expect(userTexts(s.requests[2]).at(-1)).toContain("Objective: " + objective)
+    const toolStep = (yield* s.messages).find((message) => message.type === "assistant" && message.content.some((part) => part.type === "tool" && part.id === "mp04-goal-set"))
+    const tool = toolStep?.type === "assistant" ? toolStep.content.find((part) => part.type === "tool" && part.id === "mp04-goal-set") : undefined
+    if (tool?.type !== "tool" || tool.state.status !== "completed") return yield* Effect.die(new Error("The actual Goal Tool result is missing"))
+    expect(Schema.decodeUnknownSync(Schema.fromJsonString(GoalTool.Output))(tool.state.content.filter((part) => part.type === "text").map((part) => part.text).join("\n"))).toMatchObject({
+      data: [{ id: goal.id, objective, rounds: [round] }],
+    })
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: input.id })).toMatchObject({
+      status: "completed", sharedInputs: [input.id], assistant: { content: [Expected.text("The Goal is saved")] },
+    })
+    const result = yield* SessionInputResult.read(s.db, { sessionID, inputID: round.inputID })
+    expect(result).toMatchObject({
+      status: "completed", sharedInputs: [round.inputID], assistant: { content: [Expected.text("Full Goal outcome 🚀\nOriginal result retained")] },
+    })
+    expect(goal).toMatchObject({ status: "active", accounting: { rounds: 1, coordinator: { steps: 1, attempts: 1 }, worker: { attempts: 0 } } })
+    const accepted = yield* s.goals.confirm({ sessionID, goalID: goal.id, expectedRevision: goal.revision, evidenceIDs: goal.currentEvidenceIDs, evidenceSetDigest: goal.evidenceSetDigest })
+    expect(accepted.status).toBe("completed")
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: round.inputID })).toEqual(result)
+    expect(yield* s.goals.advance({ sessionID, goalID: goal.id })).toMatchObject({ state: "skipped", reason: "completed" })
+    expect(yield* s.inbox).toEqual([])
+    expect(s.requests).toHaveLength(3)
+  }),
+)
+
+it.effect("MP04 Goal entry switching Meta to Build cancels the queued Goal until an explicit Meta resume", () =>
+  Effect.gen(function* () {
+    const s = yield* setupGoalEntry()
+    yield* s.llm.push(TestLLM.text("Current Meta input completed", "mp04-switch-input"))
+    yield* s.admit("Finish this Meta input")
+    const gate = yield* s.llm.gate
+    const running = yield* s.resume.pipe(Effect.forkChild)
+    yield* awaitWithTimeout(gate.started, "The Meta input did not start before the switch")
+    yield* s.goalCommand("Continue only with selected Meta")
+    const goal = (yield* s.goals.list(sessionID))[0]
+    const round = goal?.rounds[0]
+    if (!goal || !round) return yield* Effect.die(new Error("The switched Goal round is missing"))
+    yield* s.session.switchAgent({ sessionID, agent: Agent.ID.make("build") })
+    yield* gate.release
+    yield* awaitWithTimeout(Fiber.join(running), "Build did not settle the original Meta input")
+    expect((yield* s.session.get(sessionID)).agent).toBe(Agent.ID.make("build"))
+    expect(yield* s.goals.get({ sessionID, goalID: goal.id })).toMatchObject({
+      status: "paused", pauseReason: "blocked", pauseCode: "agent_changed", accounting: { rounds: 1, coordinator: { attempts: 0 } },
+    })
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: round.inputID })).toMatchObject({ status: "missing" })
+    expect((yield* s.session.log({ sessionID }).pipe(Stream.runCollect)).some((event) =>
+      event.type === SessionEvent.InboxCancelled.type && event.data.inboxID === round.inputID,
+    )).toBe(true)
+    expect(yield* s.inbox).toEqual([])
+    expect(s.requests).toHaveLength(1)
+    const execution = yield* SessionExecution.Service
+    yield* execution.wake(sessionID)
+    yield* awaitWithTimeout(execution.awaitIdle(sessionID), "The idle Build wake did not settle")
+    yield* s.session.switchAgent({ sessionID, agent: Agent.ID.make("meta") })
+    expect(yield* s.goals.advance({ sessionID, goalID: goal.id })).toMatchObject({ state: "blocked", reason: "agent_changed" })
+    expect(s.requests).toHaveLength(1)
+    yield* s.llm.push(TestLLM.text("Resumed Goal work", "mp04-explicit-resume"))
+    yield* s.goalCommand("resume")
+    yield* awaitWithTimeout(execution.awaitIdle(sessionID), "The explicit Meta Goal resume did not settle")
+    const resumed = yield* s.goals.get({ sessionID, goalID: goal.id })
+    expect(resumed).toMatchObject({ status: "active", accounting: { rounds: 2, coordinator: { steps: 1, attempts: 1 } } })
+    const next = resumed?.rounds[1]
+    if (!next) return yield* Effect.die(new Error("Explicit Meta resume did not reserve a new Goal round"))
+    expect(next.inputID).not.toBe(round.inputID)
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: next.inputID })).toMatchObject({
+      status: "completed", sharedInputs: [next.inputID], assistant: { content: [Expected.text("Resumed Goal work")] },
+    })
+    expect(s.requests).toHaveLength(2)
+  }),
+)
+
+it.effect("MP04 Goal entry a saved Goal worker completes and its full result is consumed by Meta", () =>
+  Effect.gen(function* () {
+    const s = yield* setupGoalEntry()
+    const execution = yield* SessionExecution.Service
+    yield* s.llm.push(TestLLM.text("Goal ready for worker dispatch", "mp04-worker-goal"))
+    yield* s.goalCommand("Keep the original worker result for acceptance")
+    yield* awaitWithTimeout(execution.awaitIdle(sessionID), "The initial Goal did not settle before dispatch")
+    const goal = (yield* s.goals.list(sessionID))[0]
+    const round = goal?.rounds[0]
+    if (!goal || !round) return yield* Effect.die(new Error("The worker Goal round is missing"))
+    yield* insertSession(otherSessionID)
+    yield* s.session.setPermissions({ sessionID, permissions: [{ action: "task", resource: "*", effect: "allow" }] })
+    const text = "Full worker result 🚀\nSecond line retained"
+    yield* s.llm.push(
+      TestLLM.text(text, "mp04-worker-completion"),
+      TestLLM.text("Meta consumed the full worker result", "mp04-worker-consumer"),
+    )
+    const gate = yield* s.llm.gate
+    const operation = yield* s.session.dispatchTask({
+      sessionID,
+      request: new SessionTask.OperationRequest({
+        operationID: SessionTask.OperationID.create(), inputID: SessionMessage.ID.create(),
+        target: { type: "existing_root", sessionID: otherSessionID },
+        prompt: "Produce the complete worker result", delivery: "queue", resume: true, background: true,
+      }),
+    }, {
+      source: new SessionTask.OperationGoalSource({
+        type: "goal_round", sessionID, agent: Agent.ID.make("meta"),
+        goalID: goal.id, roundID: round.roundID, revision: round.revision,
+      }),
+    })
+    yield* awaitWithTimeout(gate.started, "The Goal worker did not start its actual request")
+    expect(yield* s.goals.advance({ sessionID, goalID: goal.id })).toMatchObject({ state: "waiting", reason: "worker_running" })
+    expect(yield* s.goals.advance({ sessionID, goalID: goal.id })).toMatchObject({ state: "waiting", reason: "worker_running" })
+    expect(yield* s.goals.get({ sessionID, goalID: goal.id })).toMatchObject({ rounds: [round], taskRefs: [{ sourceSessionID: sessionID, operationID: operation.operationID }] })
+    expect(s.requests).toHaveLength(2)
+    expect(yield* s.inbox).toEqual([])
+    yield* gate.release
+    yield* awaitWithTimeout(s.llm.wait(3), "The original worker result did not wake its Meta consumer")
+    yield* awaitWithTimeout(execution.awaitIdle(otherSessionID), "The Goal worker did not settle")
+    yield* awaitWithTimeout(execution.awaitIdle(sessionID), "The Goal worker result consumer did not settle")
+    const noticeID = TaskOperation.notificationID({ sessionID, operationID: operation.operationID })
+    const notice = `<task operation="${operation.operationID}" state="settled">\n${text}\n</task>`
+    expect(s.requests[2].messages).toContainEqual(expect.objectContaining({
+      id: noticeID, role: "user", content: [{ type: "text", text: notice }],
+    }))
+    const saved = yield* TaskOperation.get(s.db, { sessionID, operationID: operation.operationID })
+    expect(saved).toMatchObject({ phase: "settled", result: { text, inputID: operation.inputID }, source: { type: "goal_round", goalID: goal.id, roundID: round.roundID } })
+    const result = yield* SessionInputResult.read(s.db, { sessionID, inputID: noticeID })
+    expect(result).toMatchObject({ status: "completed", assistant: { content: [Expected.text("Meta consumed the full worker result")] } })
+    if (result.status !== "completed") return yield* Effect.die(new Error("The Meta worker result consumer did not complete"))
+    expect(saved?.consumers).toContainEqual(expect.objectContaining({ consumerSessionID: sessionID, assistantMessageID: result.assistant.id, resultDigest: saved?.result?.digest }))
+    expect(yield* s.goals.get({ sessionID, goalID: goal.id })).toMatchObject({ rounds: [round], accounting: { rounds: 1, worker: { steps: 1, attempts: 1 } } })
+    expect(s.requests).toHaveLength(3)
+    expect(yield* s.inbox).toEqual([])
+  }),
+)
 
 const recordedEventTypes = (id: Session.ID) =>
   Effect.gen(function* () {
@@ -748,7 +2851,7 @@ const requireAssistant = (messages: readonly SessionMessage.Info[]) => {
   return assistant
 }
 
-const replaySessionProjection = (id: Session.ID) =>
+const replaySessionProjection = (id: Session.ID, through?: Event.Seq) =>
   Effect.gen(function* () {
     const { db } = yield* Database.Service
     const bus = yield* Bus.Service
@@ -764,8 +2867,10 @@ const replaySessionProjection = (id: Session.ID) =>
     yield* db.delete(InstructionStateTable).where(eq(InstructionStateTable.session_id, id)).run().pipe(Effect.orDie)
     yield* db.delete(SessionInboxTable).where(eq(SessionInboxTable.session_id, id)).run().pipe(Effect.orDie)
     yield* db.delete(SessionMessageTable).where(eq(SessionMessageTable.session_id, id)).run().pipe(Effect.orDie)
+    if (through !== undefined)
+      yield* db.delete(SessionInputResultTable).where(eq(SessionInputResultTable.session_id, id)).run().pipe(Effect.orDie)
     yield* Effect.forEach(
-      recorded.map((event) => ({
+      recorded.filter((event) => through === undefined || event.seq <= through).map((event) => ({
         id: event.id,
         created: event.created,
         aggregateID: event.aggregate_id,
@@ -865,7 +2970,11 @@ function* verifyEphemeralDeltas(s: Scenario, kind: FragmentKind) {
   const prompt = `Stream ${kind}`
   const chunks = Array.from({ length: 32 }, (_, index) => `${index},`)
   const fixture = fragmentFixture(kind, fragmentID(kind, "many"), chunks)
-  const expectedContext = [{ type: "user", text: prompt }, fixture.expectedAssistant]
+  const expectedContext = [
+    { type: "user", text: prompt },
+    fixture.expectedAssistant,
+    ...(kind === "tool input" ? [Expected.assistant({}, [])] : []),
+  ]
   yield* s.admit(prompt)
   const live = fixture.delta
     ? yield* s.bus.subscribe(fixture.delta).pipe(Stream.take(1), Stream.runCollect, Effect.forkScoped)
@@ -944,7 +3053,8 @@ function* verifyPartialFlushOnInterruption(s: Scenario, kind: FragmentKind) {
   const fiber = yield* runner.drain({ sessionID, force: true }).pipe(Effect.forkChild)
   yield* Deferred.await(streamed)
   yield* Fiber.interrupt(fiber)
-  expect(yield* s.context).toMatchObject([
+  const context = yield* s.context
+  expect(context).toMatchObject([
     Expected.user(prompt),
     Expected.assistant({ finish: "error", error: { type: "aborted", message: "Step interrupted" } }, [
       kind === "tool input"
@@ -952,6 +3062,8 @@ function* verifyPartialFlushOnInterruption(s: Scenario, kind: FragmentKind) {
         : fixture.expectedContent,
     ]),
   ])
+  expect(yield* recordedEventTypes(sessionID)).not.toContain("session.step.completed.1")
+  expect(requireAssistant(context).completion).toBeUndefined()
 }
 
 const prepareTitleGeneration = Effect.gen(function* () {
@@ -978,6 +3090,105 @@ const watchRename = Effect.fnUntraced(function* (sessionID: Session.ID) {
 })
 
 describe("SessionRunnerLLM", () => {
+  scenario("rejects a disabled Custom drain before settling or delivering durable controls", function* (s) {
+    yield* s.admit("Pending work")
+    yield* s.sessionInbox.admitCompaction({ id: SessionMessage.ID.create(), sessionID, delivery: "queue" })
+    yield* s.sessionInbox.admit({
+      id: SessionMessage.ID.create(),
+      sessionID,
+      item: {
+        type: "move",
+        payload: {
+          location: Location.Ref.make({ directory: AbsolutePath.make("/moved") }),
+          projectID: Project.ID.global,
+        },
+        delivery: "queue",
+      },
+    })
+    yield* s.db
+      .update(SessionTable)
+      .set({ mode: "custom" })
+      .where(eq(SessionTable.id, sessionID))
+      .run()
+      .pipe(Effect.orDie)
+    const before = {
+      session: yield* s.session.get(sessionID),
+      inbox: yield* s.inbox,
+      messages: yield* s.messages,
+      events: yield* s.db.select().from(EventTable).all().pipe(Effect.orDie),
+    }
+    const runner = yield* SessionRunner.Service
+    yield* withCustomMode(
+      "false",
+      Effect.forEach([false, true], (force) =>
+        runner.drain({ sessionID, force }).pipe(
+          Effect.flip,
+          Effect.tap((error) =>
+            Effect.sync(() => expect(error).toMatchObject({ _tag: "UnsupportedProductModeError", mode: "custom" })),
+          ),
+        ),
+      ),
+    )
+    expect({
+      session: yield* s.session.get(sessionID),
+      inbox: yield* s.inbox,
+      messages: yield* s.messages,
+      events: yield* s.db.select().from(EventTable).all().pipe(Effect.orDie),
+    }).toEqual(before)
+    expect(s.requests).toHaveLength(0)
+    expect(s.closedTransports).toEqual([])
+  })
+
+  scenario("leaves controls pending when Custom runtime is disabled during a provider turn", function* (s) {
+    yield* s.admit("Finish the active turn")
+    const compaction = yield* s.sessionInbox.admitCompaction({
+      id: SessionMessage.ID.create(),
+      sessionID,
+      delivery: "queue",
+    })
+    const moveID = SessionMessage.ID.create()
+    yield* s.sessionInbox.admit({
+      id: moveID,
+      sessionID,
+      item: {
+        type: "move",
+        payload: {
+          location: Location.Ref.make({ directory: AbsolutePath.make("/moved") }),
+          projectID: Project.ID.global,
+        },
+        delivery: "queue",
+      },
+    })
+    yield* s.llm.push(TestLLM.stop())
+    const gate = yield* s.llm.gate
+    const runner = yield* SessionRunner.Service
+    const running = yield* runner.drain({ sessionID, force: false }).pipe(Effect.forkChild)
+    yield* gate.started
+    // Mark the active row Custom at the provider gate. No frozen context is needed:
+    // the next boundary must reject before any composition or control work.
+    yield* s.db
+      .update(SessionTable)
+      .set({ mode: "custom" })
+      .where(eq(SessionTable.id, sessionID))
+      .run()
+      .pipe(Effect.orDie)
+    yield* withCustomMode(
+      "false",
+      gate.release.pipe(
+        Effect.andThen(Fiber.join(running)),
+        Effect.flip,
+        Effect.tap((error) =>
+          Effect.sync(() => expect(error).toMatchObject({ _tag: "UnsupportedProductModeError", mode: "custom" })),
+        ),
+      ),
+    )
+    expect((yield* s.inbox).map((input) => input.id)).toEqual([compaction.id, moveID])
+    expect((yield* s.session.get(sessionID)).location.directory).toBe(AbsolutePath.make("/project"))
+    expect((yield* s.messages).some((message) => message.type === "compaction")).toBe(false)
+    expect(s.requests).toHaveLength(1)
+    expect(s.closedTransports).toEqual([])
+  })
+
   scenario("generates the title while the first model step is still running", function* (s) {
     yield* prepareTitleGeneration
 
@@ -1121,6 +3332,7 @@ describe("SessionRunnerLLM", () => {
       Expected.assistant({}, [
         Expected.completedTool({ id: "call-location" }, { content: [Expected.text('{"answer":"HELLO"}')] }),
       ]),
+      Expected.assistant({}, []),
     ])
   })
 
@@ -1187,8 +3399,184 @@ describe("SessionRunnerLLM", () => {
       Expected.assistant({}, [
         Expected.completedTool({ id: "call-reloaded" }, { content: [Expected.text('{"value":"advertised"}')] }),
       ]),
+      Expected.assistant({}, []),
     ])
   })
+
+  scenario("delivers ordinary user corrections as one current snapshot before the same model request", function* (s) {
+    yield* s.llm.push(Stream.fromIterable(TestLLM.stop()))
+    yield* s.runPrompt("should be POST not GET")
+    const corrections = yield* CorrectionStore.Service
+    expect(yield* corrections.facts(sessionID)).toEqual([{ key: "user:POST", correct: "POST" }])
+    expect(s.requests).toHaveLength(1)
+    expect(userTexts(s.requests[0])).toContain("should be POST not GET")
+    const data = userTexts(s.requests[0]).filter((text) => text.includes("<correction-data>"))
+    expect(data).toHaveLength(1)
+    expect(data[0]).toContain('"correct":"POST"')
+    expect(data[0]).not.toContain("GET")
+    yield* s.llm.push(Stream.fromIterable(TestLLM.stop()))
+    yield* s.runPrompt("should be POST not GET")
+    const snapshots = (yield* s.messages).filter(
+      (message) => message.type === "synthetic" && message.metadata?.correctionSnapshot,
+    )
+    expect(snapshots).toHaveLength(2)
+    expect(snapshots.filter((message) => message.type === "synthetic" && message.text !== "")).toHaveLength(1)
+    expect(userTexts(s.requests[1]).filter((text) => text.includes("<correction-data>"))).toHaveLength(1)
+  })
+
+  for (const phase of ["source", "checkpoint"] as const) {
+    scenario(`recovers a correction through public resume after ${phase} publication rolls back`, function* (s) {
+      const defect = new Error(`correction ${phase} projection rejected`)
+      let failing = true
+      yield* s.bus.project(SessionEvent.InboxDelivered, () =>
+        phase === "source" && failing ? Effect.die(defect) : Effect.void,
+      )
+      yield* s.bus.project(SessionEvent.Synthetic, (event) =>
+        phase === "checkpoint" && failing && event.data.metadata?.correctionSnapshot ? Effect.die(defect) : Effect.void,
+      )
+      yield* s.admit("should be POST not GET")
+      expect(yield* s.resume.pipe(Effect.catchDefect(Effect.succeed))).toBe(defect)
+      expect(s.requests).toHaveLength(0)
+      const corrections = yield* CorrectionStore.Service
+      expect((yield* corrections.snapshot(sessionID)).current).toBeUndefined()
+      expect((yield* s.messages).filter(CorrectionStore.isCorrectionHistory)).toHaveLength(0)
+      expect(yield* s.inbox).toHaveLength(phase === "source" ? 1 : 0)
+      failing = false
+      yield* s.llm.push(Stream.fromIterable(TestLLM.stop()))
+      yield* s.resume
+      expect(s.requests).toHaveLength(1)
+      const data = userTexts(s.requests[0]).filter((text) => text.includes("<correction-data>"))
+      expect(data).toHaveLength(1)
+      expect(data[0]).toContain('"correct":"POST"')
+      expect(data[0]).not.toContain("GET")
+      expect(yield* s.inbox).toEqual([])
+      expect(yield* corrections.facts(sessionID)).toEqual([{ key: "user:POST", correct: "POST" }])
+    })
+  }
+
+  for (const reason of ["manual", "overflow"] as const) {
+    scenario(
+      `uses current correction data in ${reason} compaction without copying its source into recent`,
+      function* (s) {
+        yield* s.llm.push(TestLLM.text("Earlier answer", "correction-history"))
+        yield* s.runPrompt("Earlier task")
+        const corrections = yield* CorrectionStore.Service
+        yield* corrections.record({
+          sessionID,
+          entry: {
+            key: "private-path",
+            correct: "CURRENT_CORRECTION_NEW",
+            wrong: "SOURCE_CORRECTION_OLD",
+            source: "user-correction",
+            extractLayer: 2,
+          },
+        })
+        const before = s.requests.length
+        if (reason === "manual") {
+          yield* s.llm.push(TestLLM.text("## Objective\n- Continue task", "correction-summary"))
+          yield* s.session.compact({ sessionID })
+          yield* s.resume
+        }
+        if (reason === "overflow") {
+          s.currentModel = recoveryModel
+          yield* s.llm.push(
+            [LLMEvent.providerError({ message: "prompt too long", classification: "context-overflow" })],
+            TestLLM.text("## Objective\n- Continue task", "correction-summary"),
+            TestLLM.text("Continued", "correction-recovered"),
+          )
+          yield* s.runPrompt("Continue task")
+        }
+        const requests = s.requests.slice(before)
+        expect(requests).toHaveLength(reason === "manual" ? 1 : 3)
+        const texts = userTexts(requests[reason === "manual" ? 0 : 1])
+        expect(texts.join("\n")).toContain("CURRENT_CORRECTION_NEW")
+        expect(texts.join("\n")).not.toContain("SOURCE_CORRECTION_OLD")
+        expect(texts.filter((text) => text.includes("<correction-data>"))).toHaveLength(1)
+        const compacted = (yield* s.messages).findLast((message) => message.type === "compaction")
+        if (compacted?.type !== "compaction" || compacted.status !== "completed")
+          return yield* Effect.die(new Error("Completed correction compaction missing"))
+        expect(compacted.status).toBe("completed")
+        expect(compacted.recent).not.toContain("SOURCE_CORRECTION_OLD")
+        expect(compacted.recent).not.toContain("CURRENT_CORRECTION_NEW")
+        expect(compacted.recent).not.toContain("<correction-data>")
+      },
+    )
+  }
+
+  scenario(
+    "ages raw correction facts on six real tool-free completed Steps and preserves their history",
+    function* (s) {
+      const corrections = yield* CorrectionStore.Service
+      yield* corrections.record({
+        sessionID,
+        entry: { key: "raw", correct: "Keep the algorithm simple", source: "user-correction", extractLayer: 3 },
+      })
+      expect(yield* corrections.facts(sessionID)).toHaveLength(1)
+      for (const index of Array.from({ length: 6 }, (_, index) => index)) {
+        yield* s.llm.push(Stream.fromIterable(TestLLM.stop()))
+        yield* s.runPrompt(`Continue task ${index}`)
+        expect(yield* corrections.facts(sessionID)).toHaveLength(index < 5 ? 1 : 0)
+      }
+      expect(s.requests).toHaveLength(6)
+      expect(s.executions).toEqual([])
+      yield* s.llm.push(Stream.fromIterable(TestLLM.stop()))
+      yield* s.runPrompt("Show current work")
+      expect(userTexts(s.requests[6]).join("\n")).not.toContain("Keep the algorithm simple")
+      expect(
+        (yield* s.messages).some(
+          (message) => message.type === "synthetic" && message.text.includes("Keep the algorithm simple"),
+        ),
+      ).toBe(true)
+      expect(userTexts(s.requests[6]).filter((text) => text.includes("<correction-data>"))).toHaveLength(1)
+    },
+  )
+
+  scenario("does not extract a correction from synthetic input", function* (s) {
+    yield* s.llm.push(Stream.fromIterable(TestLLM.stop()))
+    yield* s.session.synthetic({ sessionID, text: "should be POST not GET" })
+    yield* s.resume
+    const corrections = yield* CorrectionStore.Service
+    expect(yield* corrections.facts(sessionID)).toEqual([])
+    expect(userTexts(s.requests[0])).toContain("should be POST not GET")
+    expect(userTexts(s.requests[0]).join("\n")).not.toContain("<correction-data>")
+  })
+
+  for (const partial of [false, true]) {
+    scenario(`counts a correction's retried logical Step once (partial=${partial})`, function* (s) {
+      const corrections = yield* CorrectionStore.Service
+      yield* corrections.record({
+        sessionID,
+        entry: { key: "raw", correct: "Keep work focused", source: "user-correction", extractLayer: 3 },
+      })
+      yield* s.admit("Continue work")
+      yield* s.llm.push(
+        partial
+          ? TestLLM.failAfter(
+              incompleteStream(),
+              LLMEvent.stepStart({ index: 0 }),
+              LLMEvent.textStart({ id: "partial-correction" }),
+              LLMEvent.textDelta({ id: "partial-correction", text: "Partial work" }),
+            )
+          : Stream.fail(incompleteStream()),
+        TestLLM.text("Finished", "correction-retry"),
+      )
+      const scheduled = yield* subscribeRetries(s)
+      const run = yield* s.resume.pipe(Effect.forkIn(yield* Effect.scope))
+      yield* Queue.take(scheduled)
+      yield* TestClock.adjust("2400 millis")
+      yield* awaitWithTimeout(Fiber.join(run), "Correction retry did not settle")
+      expect(s.requests).toHaveLength(2)
+      for (const index of Array.from({ length: 4 }, (_, index) => index)) {
+        yield* s.llm.push(Stream.fromIterable(TestLLM.stop()))
+        yield* s.runPrompt(`Continue work ${index}`)
+      }
+      expect(yield* corrections.facts(sessionID)).toHaveLength(1)
+      yield* s.llm.push(Stream.fromIterable(TestLLM.stop()))
+      yield* s.runPrompt("Finish work")
+      expect(yield* corrections.facts(sessionID)).toEqual([])
+      expect(s.requests).toHaveLength(7)
+    })
+  }
 
   scenario("starts a real runner step after default prompt recording", function* (s) {
     const message = yield* s.session.prompt({
@@ -1198,7 +3586,40 @@ describe("SessionRunnerLLM", () => {
     yield* s.session.wait(sessionID)
 
     expect(s.requests).toHaveLength(1)
-    expect(yield* s.messages).toMatchObject([{ id: message.id, type: "user", text: "Run automatically" }])
+    expect(yield* s.messages).toMatchObject([
+      Expected.assistant({}, []),
+      { id: message.id, type: "user", text: "Run automatically" },
+    ])
+  })
+
+  scenario("binds source protocol origins to actual user delivery and Step events", function* (s) {
+    const input = yield* s.runPrompt("New source protocol request")
+    const events = yield* s.db.select().from(EventTable).where(eq(EventTable.aggregate_id, sessionID)).all()
+    const delivered = events.find((event) => event.type === "session.inbox.delivered.1")
+    const started = events.find((event) => event.type === "session.step.started.1")
+    const attempted = events.find((event) => event.type === "session.attempt.started.1")
+    expect(delivered).toBeDefined()
+    expect(started).toBeDefined()
+    expect(attempted).toBeDefined()
+    expect(delivered?.data).toHaveProperty("correctionSourceVersion", 1)
+    const messages = yield* s.messages
+    expect(messages.find((message) => message.type === "user")).toMatchObject({
+      id: input.id,
+      origin: { kind: "inbox-user", sessionID, id: delivered?.id, seq: delivered?.seq },
+    })
+    expect(messages.find((message) => message.type === "assistant")).toMatchObject({
+      origin: { kind: "step", sessionID, id: attempted?.id, seq: attempted?.seq },
+    })
+    expect(attempted && started && attempted.seq < started.seq).toBe(true)
+  })
+
+  scenario("does not upgrade an unmarked historical source protocol delivery", function* (s) {
+    yield* s.admit("Historical unmarked delivery")
+    yield* SessionInbox.promote(s.db, s.bus, sessionID, "steer")
+    expect((yield* s.context).find((message) => message.type === "user")).toMatchObject({
+      origin: { kind: "historical" },
+    })
+    expect(s.requests).toHaveLength(0)
   })
 
   scenario("runs a follow-up when synthetic input arrives during an active continuation", function* (s) {
@@ -1237,7 +3658,11 @@ describe("SessionRunnerLLM", () => {
       { role: "user", content: [{ type: "text", text: "First" }] },
       { role: "user", content: [{ type: "text", text: "Second" }] },
     ])
-    expect(yield* s.messages).toHaveLength(2)
+    expect(yield* s.messages).toMatchObject([
+      Expected.assistant({}, []),
+      Expected.user("Second"),
+      Expected.user("First"),
+    ])
   })
 
   scenario("marks the initial instruction sync as baseline metadata", function* (s) {
@@ -1714,8 +4139,10 @@ describe("SessionRunnerLLM", () => {
     expect(s.requests[1]?.messages.at(1)?.content).toEqual([Expected.text("Changed context")])
     // The chronological update is a durable client-visible system message.
     const messages = yield* s.messages
-    expect(messages).toHaveLength(3)
-    expect(messages[1]).toMatchObject({ type: "system", text: "Changed context" })
+    expect(messages).toHaveLength(5)
+    expect(messages[0]).toMatchObject(Expected.assistant({}, []))
+    expect(messages[2]).toMatchObject({ type: "system", text: "Changed context" })
+    expect(messages[3]).toMatchObject(Expected.assistant({}, []))
 
     const updates = yield* s.db
       .select({ data: EventTable.data })
@@ -1735,7 +4162,7 @@ describe("SessionRunnerLLM", () => {
       text: "Changed context",
     })
     yield* replaySessionProjection(sessionID)
-    expect(yield* s.messages).toHaveLength(3)
+    expect(yield* s.messages).toHaveLength(5)
   })
 
   scenario("uses the selected model family prompt when the agent does not override it", function* (s) {
@@ -1939,7 +4366,13 @@ describe("SessionRunnerLLM", () => {
     expect(s.requests[1]?.messages.at(1)?.content).toEqual([
       Expected.text("System context source removed: test/context"),
     ])
-    expect(yield* s.messages).toHaveLength(3)
+    expect(yield* s.messages).toMatchObject([
+      Expected.assistant({}, []),
+      Expected.user("Second"),
+      { type: "system", text: "System context source removed: test/context" },
+      Expected.assistant({}, []),
+      Expected.user("First"),
+    ])
   })
 
   scenario("renders API context entries through add, change, and removal", function* (s) {
@@ -2046,14 +4479,17 @@ describe("SessionRunnerLLM", () => {
     expect(s.requests[2]?.messages.filter((message) => message.role === "system")).toHaveLength(2)
     expect((yield* s.context).map((message) => message.type)).toEqual([
       "user",
+      "assistant",
       "system",
       "user",
+      "assistant",
       "model-switched",
       "system",
       "user",
+      "assistant",
     ])
     yield* replaySessionProjection(sessionID)
-    expect(yield* s.messages).toHaveLength(6)
+    expect(yield* s.messages).toHaveLength(9)
     yield* s.runPrompt("Fourth")
   })
 
@@ -3183,7 +5619,7 @@ describe("SessionRunnerLLM", () => {
     yield* s.runPrompt("Fifth real request")
     expect(s.requests).toHaveLength(8)
     expect(JSON.stringify(s.requests[7].messages)).toContain('"encrypted":"second"')
-  })
+  }, true)
 
   scenario("recovers an overflowing native window with another native compaction", function* (s) {
     s.currentModel = LanguageModel.make({ id: "native", provider: "openai", route: OpenAIResponses.route })
@@ -3213,7 +5649,7 @@ describe("SessionRunnerLLM", () => {
       { type: "compaction", status: "completed", providerContext: { version: 1 } },
       { type: "assistant" },
     ])
-  })
+  }, true)
 
   scenario("does not compact immediately when the advertised output limit fills the context", function* (s) {
     s.currentModel = fullOutputModel
@@ -3526,8 +5962,8 @@ describe("SessionRunnerLLM", () => {
     )
     expect(context.slice(-3)).toMatchObject([
       Expected.user("Continue"),
-      { type: "compaction", status: "failed", reason: "auto" },
       { type: "assistant", finish: "error", error: { message: "prompt too long" } },
+      { type: "compaction", status: "failed", reason: "auto" },
     ])
   })
 
@@ -3849,7 +6285,7 @@ describe("SessionRunnerLLM", () => {
         providerMetadata: { openai: { itemId: "rs_1", reasoningEncryptedContent: "encrypted-state" } },
       },
     ])
-  })
+  }, true)
 
   scenario("keeps one durable reasoning part when reasoning closes after text", function* (s) {
     yield* s.admit("Think and answer")
@@ -3897,7 +6333,7 @@ describe("SessionRunnerLLM", () => {
         providerMetadata: { openai: { reasoningField: "reasoning", reasoningDetails: details } },
       },
     ])
-  })
+  }, true)
 
   scenario("restores durable text provider metadata in the next request", function* (s) {
     yield* s.admit("Check first")
@@ -3939,7 +6375,7 @@ describe("SessionRunnerLLM", () => {
         providerMetadata: { openai: { itemId: "msg_commentary", phase: "commentary" } },
       },
     ])
-  })
+  }, true)
 
   scenario("replays durable provider-executed tool results inline in the next request", function* (s) {
     yield* s.admit("Search first")
@@ -3989,7 +6425,7 @@ describe("SessionRunnerLLM", () => {
         providerMetadata: { openai: { blockType: "web_search_tool_result" } },
       },
     ])
-  })
+  }, true)
 
   scenario("starts recorded local tools eagerly and awaits settlement before continuing", function* (s) {
     yield* s.admit("Echo five times")
@@ -4054,6 +6490,7 @@ describe("SessionRunnerLLM", () => {
       Expected.user("Echo twice"),
       Expected.assistant({}, [Expected.completedTool({ id: "tool_0" }, { content: [Expected.text("first")] })]),
       Expected.assistant({}, [Expected.completedTool({ id: "tool_0" }, { content: [Expected.text("second")] })]),
+      Expected.assistant({}, []),
     ]
     expect(s.executions).toEqual(["first", "second"])
     expect(s.requests).toHaveLength(3)
@@ -4181,14 +6618,14 @@ describe("SessionRunnerLLM", () => {
   })
 
   scenario("preserves durable queued input for a later wake after interruption", function* (s) {
-    yield* s.admit("Interrupt current work")
+    const interrupted = yield* s.admit("Interrupt current work")
 
-    yield* s.llm.push([], TestLLM.stop())
+    yield* s.llm.push([], TestLLM.text("Queued work completed", "queued-after-interruption"))
     const stream = yield* s.llm.gate
 
     const run = yield* s.resume.pipe(Effect.forkChild)
     yield* stream.started
-    yield* s.session.prompt({
+    const queued = yield* s.session.prompt({
       sessionID,
       text: "Run after interrupt",
       delivery: "queue",
@@ -4196,6 +6633,17 @@ describe("SessionRunnerLLM", () => {
     yield* s.session.interrupt(sessionID)
     expect(yield* Fiber.await(run)).toMatchObject({ _tag: "Failure" })
     expect(s.requests).toHaveLength(1)
+    // The fixture coordinator owns fibers only; supply the production user-interruption settlement for the runner consumer.
+    yield* s.bus.publish(SessionEvent.Execution.Interrupted, {
+      sessionID,
+      reason: "user",
+      resultAnchorInputID: interrupted.id,
+    })
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: interrupted.id })).toMatchObject({
+      status: "interrupted", sharedInputs: [interrupted.id],
+    })
+    expect(yield* SessionInputResult.current(s.db, sessionID)).toBeUndefined()
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: queued.id })).toMatchObject({ status: "pending" })
     expect(yield* SessionInbox.has(s.db, sessionID, "queue")).toBe(true)
     const resumed = yield* s.resume.pipe(Effect.forkChild)
     yield* stream.started
@@ -4205,6 +6653,13 @@ describe("SessionRunnerLLM", () => {
     expect(s.requests).toHaveLength(2)
     expect(userTexts(s.requests[0])).toEqual(["Interrupt current work"])
     expect(userTexts(s.requests[1])).toEqual(["Interrupt current work", "Run after interrupt"])
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: queued.id })).toMatchObject({
+      status: "completed", sharedInputs: [queued.id], assistant: { content: [Expected.text("Queued work completed")] },
+    })
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: interrupted.id })).toMatchObject({
+      status: "interrupted", sharedInputs: [interrupted.id],
+    })
+    expect(yield* s.inbox).toEqual([])
   })
 
   scenario("preserves durable steering input for a later resume after interruption", function* (s) {
@@ -4249,6 +6704,327 @@ describe("SessionRunnerLLM", () => {
     expect(userTexts(s.requests[1])).toEqual(["Start working", "Queue first"])
     expect(userTexts(s.requests[2])).toEqual(["Start working", "Queue first", "Queue second"])
   })
+
+  scenario("attributes each queued input to its own durable result before later input fails", function* (s) {
+    const initial = yield* s.admit("Initial task")
+    const queued = yield* s.session.prompt({ sessionID, text: "Queued task", delivery: "queue", resume: false })
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: initial.id })).toEqual({ status: "pending" })
+    yield* s.llm.push(TestLLM.text("Initial result", "initial-result"), TestLLM.text("Queued result", "queued-result"))
+    const run = yield* s.resumePaused
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: initial.id })).toMatchObject({
+      status: "processing",
+      sharedInputs: [initial.id],
+    })
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: queued.id })).toEqual({ status: "pending" })
+    yield* run.finish
+
+    const first = yield* SessionInputResult.read(s.db, { sessionID, inputID: initial.id })
+    const second = yield* SessionInputResult.read(s.db, { sessionID, inputID: queued.id })
+    expect(first).toMatchObject({ status: "completed", sharedInputs: [initial.id], assistant: { content: [Expected.text("Initial result")] } })
+    expect(second).toMatchObject({ status: "completed", sharedInputs: [queued.id], assistant: { content: [Expected.text("Queued result")] } })
+    if (first.status !== "completed" || second.status !== "completed") return yield* Effect.die("Missing result")
+    expect(first.assistant.id).not.toBe(second.assistant.id)
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: first.assistant.id })).toEqual({
+      status: "missing",
+    })
+    expect(yield* SessionInputResult.read(s.db, { sessionID: Session.ID.create(), inputID: initial.id })).toEqual({
+      status: "missing",
+    })
+    // The result remains readable beyond the old SubagentJob 20-message window.
+    yield* Effect.forEach(
+      Array.from({ length: 22 }, (_, index) => index),
+      (index) => s.bus.publish(SessionEvent.Synthetic, { sessionID, text: `Later notice ${index}` }),
+    )
+    const failed = yield* s.admit("Fail later")
+    yield* s.llm.push(Stream.fail(invalidRequest()))
+    const failure = yield* s.resume.pipe(Effect.exit)
+    expect(Exit.isFailure(failure)).toBe(true)
+    // This runner fixture bypasses production SessionExecution lifecycle publication.
+    yield* s.bus.publish(SessionEvent.Execution.Failed, {
+      sessionID,
+      resultAnchorInputID: failed.id,
+      error: { type: "provider.invalid-request", message: "Invalid request" },
+    })
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: failed.id })).toMatchObject({ status: "failed" })
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: initial.id })).toEqual(first)
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: queued.id })).toEqual(second)
+    yield* replaySessionProjection(sessionID)
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: initial.id })).toEqual(first)
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: queued.id })).toEqual(second)
+  })
+
+  scenario("keeps shutdown inputs unresolved and separates interrupted and historical results", function* (s) {
+    const interrupted = yield* s.admit("Cancelled work")
+    yield* SessionInbox.promote(s.db, s.bus, sessionID, "steer", undefined, {})
+    yield* s.bus.publish(SessionEvent.Execution.Interrupted, { sessionID, reason: "shutdown", resultAnchorInputID: interrupted.id })
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: interrupted.id })).toMatchObject({
+      status: "processing",
+      sharedInputs: [interrupted.id],
+    })
+    yield* s.bus.publish(SessionEvent.Execution.Interrupted, { sessionID, reason: "user", resultAnchorInputID: interrupted.id })
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: interrupted.id })).toMatchObject({
+      status: "interrupted",
+      sharedInputs: [interrupted.id],
+    })
+
+    const historical = yield* s.admit("Historical work")
+    yield* s.llm.push(TestLLM.text("Historical answer", "historical-result"))
+    yield* s.resume
+    const result = yield* SessionInputResult.read(s.db, { sessionID, inputID: historical.id })
+    expect(result.status).toBe("completed")
+    if (result.status !== "completed") return yield* Effect.die("Missing historical fixture result")
+    // Real stored pre-upgrade messages have no continuation field; never infer it from finish.
+    yield* s.db
+      .update(SessionMessageTable)
+      .set({ data: sql`json_remove(${SessionMessageTable.data}, '$.needsContinuation')` })
+      .where(eq(SessionMessageTable.id, result.assistant.id))
+      .run()
+      .pipe(Effect.orDie)
+    yield* s.db.delete(SessionInputResultTable).where(eq(SessionInputResultTable.input_id, historical.id)).run().pipe(Effect.orDie)
+    const later = yield* s.admit("New work")
+    yield* s.llm.push(TestLLM.text("New answer", "new-result"))
+    yield* s.resume
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: historical.id })).toEqual({
+      status: "unverified",
+    })
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: later.id })).toMatchObject({
+      status: "completed",
+      assistant: { content: [Expected.text("New answer")] },
+    })
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: interrupted.id })).toMatchObject({
+      status: "interrupted",
+      sharedInputs: [interrupted.id],
+    })
+  })
+
+  scenario("attributes a steered input after the active tool continuation settles", function* (s) {
+    const initial = yield* s.admit("Start work")
+    yield* s.llm.push(TestLLM.tool("input-result-tool", "echo", { text: "work" }), TestLLM.text("Done", "done"))
+    const run = yield* s.resumePaused
+    const steer = yield* s.session.prompt({ sessionID, text: "Steer work" })
+    yield* run.finish
+    const first = yield* SessionInputResult.read(s.db, { sessionID, inputID: initial.id })
+    const second = yield* SessionInputResult.read(s.db, { sessionID, inputID: steer.id })
+    expect(first).toMatchObject({ status: "completed", sharedInputs: [initial.id, steer.id], assistant: { content: [Expected.text("Done")] } })
+    expect(second).toEqual(first)
+    expect(yield* SessionInputResult.current(s.db, sessionID)).toBeUndefined()
+    if (first.status !== "completed") return yield* Effect.die("Missing shared result")
+    expect(first.resultEventID).toBe(first.assistant.completion?.id)
+  })
+
+  scenario("MP02 records a batch of steers as one result and ignores metadata operation claims", function* (s) {
+    const first = yield* s.session.prompt({
+      sessionID,
+      text: "First shared input",
+      metadata: { operation: { sourceSessionID: "ses_forged", operationID: "op_forged" } },
+      resume: false,
+    })
+    const second = yield* s.admit("Second shared input")
+    yield* s.llm.push(TestLLM.text("One complete shared answer 🚀\nSecond line", "shared-batch"))
+    const run = yield* s.resumePaused
+    const current = yield* SessionInputResult.current(s.db, sessionID)
+    expect(current).toEqual({
+      anchorInputID: first.id,
+      inputs: [
+        { inputID: first.id, operationRef: undefined },
+        { inputID: second.id, operationRef: undefined },
+      ],
+    })
+    yield* run.finish
+    const result = yield* SessionInputResult.read(s.db, { sessionID, inputID: first.id })
+    expect(result).toMatchObject({
+      status: "completed",
+      sharedInputs: [first.id, second.id],
+      assistant: { content: [Expected.text("One complete shared answer 🚀\nSecond line")] },
+    })
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: second.id })).toEqual(result)
+    expect(s.requests).toHaveLength(1)
+    yield* replaySessionProjection(sessionID)
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: first.id })).toEqual(result)
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: second.id })).toEqual(result)
+  })
+
+  scenario("MP02 keeps active membership intact when a separate queued input is cancelled", function* (s) {
+    const active = yield* s.admit("Active independent work")
+    yield* s.llm.push(TestLLM.text("Active work finished", "active-cancel-queue"))
+    const run = yield* s.resumePaused
+    const queued = yield* s.session.prompt({ sessionID, text: "Queued successor", delivery: "queue", resume: false })
+    yield* s.session.cancelInbox({ sessionID, inboxID: queued.id })
+    expect((yield* SessionInputResult.current(s.db, sessionID))?.inputs.map((input) => input.inputID)).toEqual([active.id])
+    yield* run.finish
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: active.id })).toMatchObject({
+      status: "completed",
+      sharedInputs: [active.id],
+      assistant: { content: [Expected.text("Active work finished")] },
+    })
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: queued.id })).toEqual({ status: "missing" })
+    expect(s.requests).toHaveLength(1)
+  })
+
+  scenario("MP02 freezes the real operation source before sharing a result with independent user input", function* (s) {
+    yield* insertSession(otherSessionID)
+    const inputID = SessionMessage.ID.create()
+    const operationID = SessionTask.OperationID.create()
+    const payload = SessionInbox.UserPayload.make({
+      text: "Work requested by the source operation",
+      metadata: { operation: { sourceSessionID: "ses_forged", operationID: "top_forged" } },
+    })
+    yield* s.bus.publish(SessionTaskEvent.OperationReserved, {
+      sessionID: otherSessionID,
+      sourceLocation: Location.Ref.make({ directory: AbsolutePath.make("/project") }),
+      sourceMode: "coding",
+      source: new SessionTask.OperationUserSource({ type: "user_coordination", sessionID: otherSessionID, agent: Agent.ID.make("meta") }),
+      selection: new SessionTask.OperationSelection({ agent: Agent.ID.make("meta"), seq: Event.Seq.make(0) }),
+      request: new SessionTask.OperationRequest({
+        operationID,
+        inputID,
+        target: new SessionTask.OperationExistingRootTarget({ type: "existing_root", sessionID }),
+        prompt: payload.text,
+        delivery: "steer",
+        resume: false,
+      }),
+      targetSessionID: sessionID,
+    })
+    yield* s.bus.publish(SessionTaskEvent.OperationChanged, {
+      sessionID: otherSessionID,
+      operationID,
+      change: new SessionTask.OperationChange({
+        phase: "created",
+        prepared: new SessionTask.OperationPrepared({ payload, delivery: "steer", digest: TaskOperation.payloadDigest(payload, "steer") }),
+      }),
+    })
+    const operationRef = new SessionTask.OperationReadonlyRef({ sourceSessionID: otherSessionID, operationID })
+    yield* s.sessionInbox.admit({
+      id: inputID,
+      sessionID,
+      item: { type: "user", payload, delivery: "steer" },
+      operation: operationRef,
+    })
+    const user = yield* s.admit("Independent user instruction")
+    yield* s.llm.push(TestLLM.text("The operation and user receive this complete result", "real-operation-result"))
+    const run = yield* s.resumePaused
+    expect(yield* SessionInputResult.current(s.db, sessionID)).toEqual({
+      anchorInputID: inputID,
+      inputs: [{ inputID, operationRef }, { inputID: user.id, operationRef: undefined }],
+    })
+    yield* run.finish
+    const result = yield* SessionInputResult.read(s.db, { sessionID, inputID })
+    expect(result).toMatchObject({ status: "completed", sharedInputs: [inputID, user.id] })
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: user.id })).toEqual(result)
+    yield* s.db.delete(TaskOperationTable).where(eq(TaskOperationTable.operation_id, operationID)).run().pipe(Effect.orDie)
+    yield* replaySessionProjection(sessionID)
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID })).toEqual(result)
+    expect((yield* s.db.select().from(SessionInputResultTable).where(eq(SessionInputResultTable.input_id, inputID)).get().pipe(Effect.orDie))?.operation_ref).toEqual(operationRef)
+    expect(s.requests).toHaveLength(1)
+  })
+
+  scenario("MP02 retains a processing input group through explicit resume after shutdown and keeps queue separate", function* (s) {
+    const interrupted = yield* s.admit("Work persisted before shutdown")
+    yield* SessionInbox.promote(s.db, s.bus, sessionID, "steer", undefined, {})
+    yield* s.bus.publish(SessionEvent.Execution.Interrupted, { sessionID, reason: "shutdown", resultAnchorInputID: interrupted.id })
+    const queued = yield* s.session.prompt({ sessionID, text: "Work after the resumed answer", delivery: "queue", resume: false })
+    yield* s.llm.push(TestLLM.text("Resumed answer", "resumed-group"), TestLLM.text("Queued answer", "resumed-queue"))
+    yield* s.resume
+    const first = yield* SessionInputResult.read(s.db, { sessionID, inputID: interrupted.id })
+    const second = yield* SessionInputResult.read(s.db, { sessionID, inputID: queued.id })
+    expect(first).toMatchObject({ status: "completed", sharedInputs: [interrupted.id], assistant: { content: [Expected.text("Resumed answer")] } })
+    expect(second).toMatchObject({ status: "completed", sharedInputs: [queued.id], assistant: { content: [Expected.text("Queued answer")] } })
+    expect(s.requests).toHaveLength(2)
+    yield* replaySessionProjection(sessionID)
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: interrupted.id })).toEqual(first)
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: queued.id })).toEqual(second)
+  })
+
+  scenario("MP02 joins a persisted processing group when a newly admitted steer wakes the runner", function* (s) {
+    const interrupted = yield* s.admit("Earlier input retained after shutdown")
+    yield* SessionInbox.promote(s.db, s.bus, sessionID, "steer", undefined, {})
+    yield* s.bus.publish(SessionEvent.Execution.Interrupted, { sessionID, reason: "shutdown", resultAnchorInputID: interrupted.id })
+    const steer = yield* s.admit("Continue the retained work with this instruction")
+    yield* s.llm.push(TestLLM.text("One answer after the new steer", "wake-persisted-group"))
+    yield* (yield* SessionRunner.Service).drain({ sessionID, force: false, promotable: "steer" })
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: interrupted.id })).toMatchObject({
+      status: "completed",
+      sharedInputs: [interrupted.id, steer.id],
+    })
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: steer.id })).toEqual(yield* SessionInputResult.read(s.db, { sessionID, inputID: interrupted.id }))
+    expect(s.requests).toHaveLength(1)
+  })
+
+  scenario("MP02 leaves a persisted processing group alone on an advisory wake without admitted input", function* (s) {
+    const interrupted = yield* s.admit("Retained work needs explicit continuation")
+    yield* SessionInbox.promote(s.db, s.bus, sessionID, "steer", undefined, {})
+    yield* s.bus.publish(SessionEvent.Execution.Interrupted, { sessionID, reason: "shutdown", resultAnchorInputID: interrupted.id })
+    yield* (yield* SessionRunner.Service).drain({ sessionID, force: false })
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: interrupted.id })).toMatchObject({
+      status: "processing",
+      sharedInputs: [interrupted.id],
+    })
+    expect(s.requests).toHaveLength(0)
+  })
+
+  scenario("MP02 requires the recorded terminal event and continuation policy for a completed input result", function* (s) {
+    const input = yield* s.admit("Validate the exact result pointer")
+    yield* s.llm.push(TestLLM.text("Actual terminal answer", "exact-result-pointer"))
+    yield* s.resume
+    const result = yield* SessionInputResult.read(s.db, { sessionID, inputID: input.id })
+    expect(result.status).toBe("completed")
+    if (result.status !== "completed") return yield* Effect.die("Missing exact result fixture")
+    yield* s.db.update(SessionMessageTable).set({ data: sql`json_set(${SessionMessageTable.data}, '$.completion.id', 'evt_unrelated')` }).where(eq(SessionMessageTable.id, result.assistant.id)).run().pipe(Effect.orDie)
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: input.id })).toMatchObject({ status: "unverified", sharedInputs: [input.id] })
+    yield* replaySessionProjection(sessionID)
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: input.id })).toEqual(result)
+    yield* s.db.update(SessionMessageTable).set({ data: sql`json_remove(${SessionMessageTable.data}, '$.needsContinuation')` }).where(eq(SessionMessageTable.id, result.assistant.id)).run().pipe(Effect.orDie)
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: input.id })).toMatchObject({ status: "unverified", sharedInputs: [input.id] })
+    yield* replaySessionProjection(sessionID)
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: input.id })).toEqual(result)
+    expect(s.requests).toHaveLength(1)
+  })
+
+  it.live("MP02 reads exact shared and queued results after closing and reopening a real SQLite connection", () =>
+    Effect.gen(function* () {
+      const s = yield* setup
+      const first = yield* s.admit("First shared durable input")
+      const shared = yield* s.admit("Second shared durable input")
+      const queued = yield* s.session.prompt({ sessionID, text: "Independent queued input", delivery: "queue", resume: false })
+      yield* s.llm.push(TestLLM.text("Complete shared result 🚀\nSecond line", "cold-shared-result"), TestLLM.text("Complete queued result", "cold-queued-result"))
+      yield* s.resume
+      const firstResult = yield* SessionInputResult.read(s.db, { sessionID, inputID: first.id })
+      const queuedResult = yield* SessionInputResult.read(s.db, { sessionID, inputID: queued.id })
+      expect(firstResult).toMatchObject({ status: "completed", sharedInputs: [first.id, shared.id] })
+      expect(queuedResult).toMatchObject({ status: "completed", sharedInputs: [queued.id] })
+      const rows = yield* Effect.all({
+        project: s.db.select().from(ProjectTable).where(eq(ProjectTable.id, Project.ID.global)).get(),
+        session: s.db.select().from(SessionTable).where(eq(SessionTable.id, sessionID)).get(),
+        messages: s.db.select().from(SessionMessageTable).where(eq(SessionMessageTable.session_id, sessionID)).all(),
+        results: s.db.select().from(SessionInputResultTable).where(eq(SessionInputResultTable.session_id, sessionID)).all(),
+        events: s.db.select().from(EventTable).where(eq(EventTable.aggregate_id, sessionID)).all(),
+        sequence: s.db.select().from(EventSequenceTable).where(eq(EventSequenceTable.aggregate_id, sessionID)).get(),
+      }).pipe(Effect.orDie)
+      if (!rows.project || !rows.session || !rows.sequence) return yield* Effect.die("Missing persisted result fixture")
+      const project = rows.project
+      const session = rows.session
+      const sequence = rows.sequence
+      const directory = yield* tmpdirScoped()
+      const cold = Database.layer({ path: `${directory.path}/input-result.sqlite` }).pipe(Layer.provide(tempGlobalLayer))
+      yield* Effect.scoped(Effect.gen(function* () {
+        const db = Context.get(yield* Layer.build(Layer.fresh(cold)), Database.Service).db
+        yield* db.insert(ProjectTable).values(project).onConflictDoNothing().run().pipe(Effect.orDie)
+        yield* db.insert(SessionTable).values(session).run().pipe(Effect.orDie)
+        yield* db.insert(SessionMessageTable).values(rows.messages).run().pipe(Effect.orDie)
+        yield* db.insert(SessionInputResultTable).values(rows.results).run().pipe(Effect.orDie)
+        yield* db.insert(EventSequenceTable).values(sequence).run().pipe(Effect.orDie)
+        yield* db.insert(EventTable).values(rows.events).run().pipe(Effect.orDie)
+      }))
+      yield* Effect.scoped(Effect.gen(function* () {
+        const db = Context.get(yield* Layer.build(Layer.fresh(cold)), Database.Service).db
+        expect(yield* SessionInputResult.read(db, { sessionID, inputID: first.id })).toEqual(firstResult)
+        expect(yield* SessionInputResult.read(db, { sessionID, inputID: shared.id })).toEqual(firstResult)
+        expect(yield* SessionInputResult.read(db, { sessionID, inputID: queued.id })).toEqual(queuedResult)
+        expect(yield* SessionInputResult.current(db, sessionID)).toBeUndefined()
+      }))
+      expect(s.requests).toHaveLength(2)
+    }),
+  )
 
   scenario("stops a steer-scoped drain before queued input", function* (s) {
     yield* s.session.prompt({ sessionID, text: "Queue for later", delivery: "queue", resume: false })
@@ -4519,6 +7295,7 @@ describe("SessionRunnerLLM", () => {
           { error: { type: "aborted", message: "Tool execution interrupted: echo" } },
         ),
       ]),
+      Expected.assistant({}, []),
     ])
   })
 
@@ -4582,6 +7359,7 @@ describe("SessionRunnerLLM", () => {
           },
         ),
       ]),
+      Expected.assistant({}, []),
     ])
     const modelResult = JSON.stringify(s.requests[0]?.messages.at(-1))
     expect(modelResult).toContain("ses_existing_child")
@@ -4590,35 +7368,24 @@ describe("SessionRunnerLLM", () => {
 
   scenario("durably fails hosted tools left running by a prior process before continuing inline", function* (s) {
     yield* s.admit("Recover interrupted hosted tool")
-    yield* SessionInbox.promote(s.db, s.bus, sessionID, "steer")
-    const assistantMessageID = SessionMessage.ID.create()
-    yield* s.bus.publish(SessionEvent.Step.Started, {
-      sessionID,
-      assistantMessageID,
-      agent: Agent.ID.make("build"),
-      model: { id: ID.make("fake-model"), providerID: Provider.ID.make("fake") },
-      started: 0,
-    })
-    yield* s.bus.publish(SessionEvent.Tool.Input.Started, {
-      sessionID,
-      assistantMessageID,
-      id: "call-hosted-interrupted",
-      name: "web_search",
-    })
-    yield* s.bus.publish(SessionEvent.Tool.Input.Ended, {
-      sessionID,
-      assistantMessageID,
-      id: "call-hosted-interrupted",
-      text: '{"query":"stale"}',
-    })
-    yield* s.bus.publish(SessionEvent.Tool.Called, {
-      sessionID,
-      assistantMessageID,
-      id: "call-hosted-interrupted",
-      input: { query: "stale" },
-      executed: true,
-      state: { itemId: "call-hosted-interrupted" },
-    })
+    yield* s.llm.push(TestLLM.hangAfter(LLMEvent.toolCall({
+      id: "call-hosted-interrupted", name: "web_search", input: { query: "stale" },
+      providerExecuted: true, providerMetadata: { openai: { itemId: "call-hosted-interrupted" } },
+    })))
+    const running = yield* s.resume.pipe(Effect.forkIn(yield* Effect.scope))
+    const boundary = (yield* awaitWithTimeout(s.bus.log({ aggregateID: sessionID, follow: true }).pipe(
+      Stream.filter((event): event is SessionEvent.Tool.Called => event.type === SessionEvent.Tool.Called.type),
+      Stream.filter((event) => event.data.id === "call-hosted-interrupted"),
+      Stream.take(1), Stream.runCollect,
+    ), "The original HTTP attempt did not produce its hosted tool"))[0]
+    if (!boundary) return yield* Effect.die(new Error("Missing hosted tool recovery boundary"))
+    yield* s.session.interrupt(sessionID)
+    expect(Exit.isFailure(yield* Fiber.await(running))).toBe(true)
+    // Replay the actual pre-interruption prefix as the state left by a prior process.
+    yield* replaySessionProjection(sessionID, boundary.durable.seq)
+    expect(requireAssistant(yield* s.context).content).toMatchObject([
+      { type: "tool", id: "call-hosted-interrupted", state: { status: "running" } },
+    ])
     s.requests.length = 0
     yield* s.llm.push([])
     yield* s.resume
@@ -4634,7 +7401,7 @@ describe("SessionRunnerLLM", () => {
       },
       { type: "tool-result", id: "call-hosted-interrupted", providerExecuted: true, result: { type: "error" } },
     ])
-  })
+  }, true)
 
   scenario("durably fails pending tool input left by a prior process before continuing", function* (s) {
     yield* s.admit("Recover interrupted tool input")
@@ -4662,6 +7429,7 @@ describe("SessionRunnerLLM", () => {
     expect(yield* s.context).toMatchObject([
       Expected.user("Recover interrupted tool input"),
       Expected.assistant({}, [Expected.failedTool({ id: "call-pending-interrupted" }, {})]),
+      Expected.assistant({}, []),
     ])
   })
 
@@ -4717,14 +7485,47 @@ describe("SessionRunnerLLM", () => {
     yield* s.runPrompt("Run correlated request")
 
     expect(s.requests[0]?.http?.headers).toEqual({
-      "x-opencode-session-id": sessionID,
+      "x-aigcfroge-session-id": sessionID,
       "x-session-affinity": sessionID,
       "X-Session-Id": sessionID,
       "User-Agent": App.useragent(App.make()),
-      "x-opencode-project": Project.ID.global,
-      "x-opencode-session": sessionID,
-      "x-opencode-client": "opencode",
+      "x-aigcfroge-project": Project.ID.global,
+      "x-aigcfroge-session": sessionID,
+      "x-aigcfroge-client": "aigcfroge",
     })
+  })
+
+  scenario("uses the selected Agent request headers and body for primary execution", function* (s) {
+    const agents = yield* Agent.Service
+    const request = {
+      settings: { agentOnly: true, temperature: 0.99 },
+      headers: { "X-Agent": "primary" },
+      body: { temperature: 0.75, metadata: { source: "primary-agent" } },
+    }
+    yield* agents.transform((editor) =>
+      editor.update(Agent.ID.make("build"), (agent) => {
+        agent.request = request
+      }),
+    )
+    const hooks = yield* PluginHooks.Service
+    const seen: Agent.ID[] = []
+    yield* hooks.register("session", "model.request", (event) =>
+      Effect.sync(() => {
+        if (event.kind !== "primary") return
+        seen.push(event.agent)
+      }),
+    )
+    yield* s.runPrompt("Run configured Agent request")
+
+    expect(s.requests).toHaveLength(1)
+    expect(s.requests[0]?.http?.headers).toMatchObject({
+      "X-Agent": "primary",
+      "x-aigcfroge-session-id": sessionID,
+    })
+    expect(s.requests[0]?.http?.body).toEqual(request.body)
+    expect(s.requests[0]?.generation?.temperature).toBeUndefined()
+    expect(s.requests[0]?.providerOptions?.agentOnly).toBeUndefined()
+    expect(seen).toEqual([Agent.ID.make("build")])
   })
 
   scenario("uses parent cache affinity for child model requests", function* (s) {
@@ -4739,12 +7540,12 @@ describe("SessionRunnerLLM", () => {
     yield* s.runPrompt("Run child request")
 
     expect(s.requests[0]?.http?.headers).toMatchObject({
-      "x-opencode-session-id": sessionID,
-      "x-opencode-parent-session-id": parentID,
+      "x-aigcfroge-session-id": sessionID,
+      "x-aigcfroge-parent-session-id": parentID,
       "x-session-affinity": parentID,
       "X-Session-Id": parentID,
       "x-parent-session-id": parentID,
-      "x-opencode-session": parentID,
+      "x-aigcfroge-session": parentID,
     })
     expect(s.requests[0]?.promptCacheKey).toBe(parentID)
   })
@@ -5112,6 +7913,8 @@ describe("SessionRunnerLLM", () => {
       ]),
     ])
     const assistant = requireAssistant(context)
+    expect(yield* recordedEventTypes(sessionID)).not.toContain("session.step.completed.1")
+    expect(assistant.completion).toBeUndefined()
     expect(yield* recordedStepSettlementTypes(sessionID, assistant.id)).toEqual([
       "session.step.started.1",
       "session.tool.called.1",
@@ -5121,10 +7924,12 @@ describe("SessionRunnerLLM", () => {
 
     yield* replaySessionProjection(sessionID)
 
-    expect(yield* s.context).toMatchObject([
+    const replayed = yield* s.context
+    expect(replayed).toMatchObject([
       Expected.user("Interrupt blocked tool"),
       Expected.assistant({}, [Expected.failedTool({ id: "call-before-interrupt" }, {})]),
     ])
+    expect(requireAssistant(replayed).completion).toBeUndefined()
     s.requests.length = 0
     yield* s.llm.push([])
     yield* s.resume
@@ -5192,7 +7997,7 @@ describe("SessionRunnerLLM", () => {
         agent.steps = 2
       }),
     )
-    yield* s.admit("Finish at the limit")
+    const input = yield* s.admit("Finish at the limit")
 
     yield* s.llm.push(
       TestLLM.tool("call-terminal", "echo", { text: "done" }),
@@ -5216,6 +8021,15 @@ describe("SessionRunnerLLM", () => {
       Expected.assistant({}, [Expected.completedTool({ id: "call-terminal" }, {})]),
       Expected.assistant({}, [Expected.failedTool({ id: "call-forbidden" }, {})]),
     ])
+    const result = yield* SessionInputResult.read(s.db, { sessionID, inputID: input.id })
+    expect(result).toMatchObject({
+      status: "completed",
+      assistant: { needsContinuation: false, content: [Expected.failedTool({ id: "call-forbidden" }, {})] },
+    })
+    const assistants = (yield* s.session.messages({ sessionID, order: "asc" })).filter(
+      (message) => message.type === "assistant",
+    )
+    expect(assistants.map((message) => message.needsContinuation)).toEqual([true, false])
   })
 
   scenario("resets the configured step allowance when steering input promotes", function* (s) {
@@ -5416,7 +8230,7 @@ describe("SessionRunnerLLM", () => {
       expect(s.requests[1]?.messages).toEqual(s.requests[0]?.messages)
       const eventTypes = yield* recordedEventTypes(sessionID)
       expect(eventTypes).toContain("session.retry.scheduled.1")
-      expect(eventTypes.filter((type) => type === "session.step.started.1")).toHaveLength(2)
+      expect(eventTypes.filter((type) => type === "session.step.started.1")).toHaveLength(1)
       expect(yield* s.context).toMatchObject([
         { type: "user" },
         Expected.assistant({ finish: "stop" }, [Expected.text("Recovered")]),
@@ -5424,9 +8238,12 @@ describe("SessionRunnerLLM", () => {
       yield* replaySessionProjection(sessionID)
       expect((yield* s.context).filter((message) => message.type === "assistant")).toHaveLength(1)
       const assistant = requireAssistant(yield* s.context)
-      expect(DateTime.toEpochMillis(assistant.time.streamed!) - DateTime.toEpochMillis(assistant.time.created)).toBe(
-        400,
-      )
+      const attempts = assistant.attempts
+      if (attempts?.length !== 2 || attempts[0].terminal === undefined || attempts[1].terminal === undefined || assistant.time.streamed === undefined)
+        return yield* Effect.die(new Error("Transparent retry omitted its physical receipts or first streamed time"))
+      expect(DateTime.toEpochMillis(assistant.time.created)).toBe(attempts[0].started)
+      expect(DateTime.toEpochMillis(assistant.time.streamed)).toBe(attempts[0].terminal.ended)
+      expect(attempts[1].terminal.ended - attempts[1].started).toBe(400)
     })
   }
 
@@ -5543,7 +8360,7 @@ describe("SessionRunnerLLM", () => {
 
   scenario("continues an incomplete stream after observable text", function* (s) {
     const failure = incompleteStream()
-    yield* s.admit("Continue partial output")
+    const input = yield* s.admit("Continue partial output")
     yield* s.llm.push(
       TestLLM.failAfter(
         failure,
@@ -5586,10 +8403,18 @@ describe("SessionRunnerLLM", () => {
     ])
     const assistants = context.filter((message) => message.type === "assistant")
     expect(new Set(assistants.map((message) => message.id)).size).toBe(2)
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: input.id })).toMatchObject({
+      status: "completed",
+      assistant: { id: assistants[1]?.id, content: [Expected.text(" continuation")] },
+    })
     expect(context.find((message) => message.type === "synthetic")?.description).toBeUndefined()
     expect(yield* recordedEventTypes(sessionID)).toContain("session.retry.scheduled.1")
     yield* replaySessionProjection(sessionID)
     expect(yield* s.context).toMatchObject(context)
+    expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: input.id })).toMatchObject({
+      status: "completed",
+      assistant: { id: assistants[1]?.id },
+    })
   })
 
   scenario("continues an unknown finish after observable text", function* (s) {
@@ -5937,14 +8762,16 @@ describe("SessionRunnerLLM", () => {
       expect(retries[index]?.data.at).toBeLessThanOrEqual(elapsed * 1.2)
     }
     expect((yield* recordedEventTypes(sessionID)).filter((type) => type === "session.step.started.1")).toHaveLength(
-      RETRY_GAPS.length + 1,
+      1,
     )
     const assistant = requireAssistant(yield* s.context)
     expect(yield* recordedStepSettlementEvents(sessionID, assistant.id)).toMatchObject([
-      ...RETRY_GAPS.map(() => ({ type: "session.step.started.1" })),
       { type: "session.step.started.1" },
       { type: "session.step.failed.1" },
     ])
+    expect(assistant.attempts).toHaveLength(RETRY_GAPS.length + 1)
+    expect(assistant.attempts?.map((attempt) => attempt.ordinal)).toEqual(Array.from({ length: RETRY_GAPS.length + 1 }, (_, ordinal) => ordinal))
+    expect(assistant.attempts?.every((attempt) => attempt.terminal?.status === "failed")).toBe(true)
   })
 
   scenario("retries a model call without consuming the logical agent step", function* (s) {
@@ -5983,7 +8810,8 @@ describe("SessionRunnerLLM", () => {
     })
     expect(s.executions).toEqual(["recovered"])
     const eventTypes = yield* recordedEventTypes(sessionID)
-    expect(eventTypes.filter((type) => type === "session.step.started.1")).toHaveLength(3)
+    expect(eventTypes.filter((type) => type === "session.step.started.1")).toHaveLength(2)
+    expect(eventTypes.filter((type) => type === "session.attempt.started.1")).toHaveLength(3)
     expect(eventTypes.filter((type) => type === "session.retry.scheduled.1")).toHaveLength(1)
     expect((yield* s.context).filter((message) => message.type === "assistant")).toHaveLength(2)
   })

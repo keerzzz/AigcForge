@@ -11,7 +11,7 @@ import {
 import { createTestRenderer } from "@opentui/core/testing"
 import { testRender } from "@opentui/solid"
 import { createSignal } from "solid-js"
-import type { FormInfo } from "@opencode/client/promise"
+import type { FormInfo } from "@aigcfroge/client/promise"
 import { Keymap } from "../../src/context/keymap"
 import type { ClipboardContent, ClipboardService } from "../../src/context/clipboard"
 import {
@@ -39,6 +39,8 @@ import type {
   FooterView,
   MiniSettingChange,
   MiniSettings,
+  MiniSessionSelection,
+  MiniModelDomain,
   QueuedPromptAction,
   RunAgent,
   RunCommand,
@@ -59,8 +61,8 @@ const tuiConfig = createTuiResolvedConfig()
 async function nativeLightTheme() {
   await using tmp = await tmpdir()
   await Bun.write(`${tmp.path}/themes/mini-native-light.json`, JSON.stringify({ light: {} }))
-  const previous = process.env.OPENCODE_CONFIG_DIR
-  process.env.OPENCODE_CONFIG_DIR = tmp.path
+  const previous = process.env.AIGCFROGE_CONFIG_DIR
+  process.env.AIGCFROGE_CONFIG_DIR = tmp.path
   try {
     return await resolveRunTheme(
       {
@@ -72,8 +74,8 @@ async function nativeLightTheme() {
       { name: "mini-native-light" },
     )
   } finally {
-    if (previous === undefined) delete process.env.OPENCODE_CONFIG_DIR
-    else process.env.OPENCODE_CONFIG_DIR = previous
+    if (previous === undefined) delete process.env.AIGCFROGE_CONFIG_DIR
+    else process.env.AIGCFROGE_CONFIG_DIR = previous
   }
 }
 
@@ -104,8 +106,8 @@ function model(input: {
 
 function provider() {
   return {
-    id: "opencode",
-    name: "opencode",
+    id: "aigcfroge",
+    name: "aigcfroge",
     models: {
       "gpt-5": model({ id: "gpt-5", name: "GPT-5", variants: { high: {}, minimal: {} } }),
       "gpt-free": model({ id: "gpt-free", name: "GPT Free", cost: 0 }),
@@ -157,6 +159,9 @@ async function renderFooter(
     height?: number
     state?: Partial<FooterState>
     onCycle?: () => void
+    selection?: MiniSessionSelection
+    onAgentSelect?: (agent: string, domain?: MiniModelDomain) => void
+    onModelSelect?: (model: NonNullable<RunInput["model"]>, domain: MiniModelDomain) => void
     onSubmit?: (prompt: RunPrompt) => boolean | Promise<boolean>
     clipboard?: Pick<ClipboardService, "read">
     history?: RunPrompt[]
@@ -171,6 +176,7 @@ async function renderFooter(
   } = {},
 ) {
   const [view, setView] = createSignal<FooterView>(input.view ?? { type: "prompt" })
+  const [domain, setDomain] = createSignal<MiniModelDomain>("session")
   const [subagents] = createSignal<FooterSubagentState>(
     input.subagents ?? { tabs: [], details: {}, permissions: [], forms: [] },
   )
@@ -188,9 +194,12 @@ async function renderFooter(
           references={() => []}
           commands={() => input.commands ?? []}
           providers={() => input.providers}
-          currentAgent={() => input.currentAgent ?? "Build"}
-          currentAgentID={() => input.currentAgent?.toLowerCase() ?? "build"}
+          currentAgent={() => input.currentAgent ?? input.selection?.agent ?? "Build"}
+          currentAgentID={() => input.currentAgent?.toLowerCase() ?? input.selection?.agent ?? "build"}
           currentModel={() => input.currentModel}
+          selection={() => input.selection}
+          modelDomain={domain}
+          onModelDomainSelect={setDomain}
           variants={() => []}
           currentVariant={() => input.currentVariant}
           state={state}
@@ -213,8 +222,8 @@ async function renderFooter(
           onEditorOpen={async () => undefined}
           onInputClear={() => {}}
           onExit={() => {}}
-          onAgentSelect={() => {}}
-          onModelSelect={() => {}}
+          onAgentSelect={(agent, domain) => input.onAgentSelect?.(agent, domain)}
+          onModelSelect={(model) => input.onModelSelect?.(model, domain())}
           onVariantSelect={() => {}}
           onRows={() => {}}
           onLayout={() => {}}
@@ -247,6 +256,125 @@ async function renderFooter(
     },
   }
 }
+
+test("canonical Mini model panel switches Session and executor domains by keyboard", async () => {
+  const selected: Array<{ model: RunInput["model"]; domain: MiniModelDomain }> = []
+  const app = await renderFooter({
+    width: 150,
+    height: 18,
+    providers: [provider()],
+    selection: {
+      agent: "meta",
+      controller: { kind: "root", metaAgentID: "meta_keyboard", rootSessionID: "ses_keyboard" },
+      model: { providerID: "session", id: "think", variant: "default" },
+      executorPreference: { agent: "build", model: { providerID: "worker", id: "execute", variant: "high" } },
+    },
+    onModelSelect: (model, domain) => selected.push({ model, domain }),
+  })
+  try {
+    await app.renderOnce()
+    expect(app.captureCharFrame()).toContain("session/think#default")
+    expect(app.captureCharFrame()).toContain("meta")
+    expect(app.captureCharFrame()).not.toContain("worker/execute#high")
+    app.mockInput.pressKey("p", { ctrl: true })
+    await app.renderOnce()
+    await app.mockInput.typeText("model")
+    app.mockInput.pressEnter()
+    await app.renderOnce()
+    expect(app.captureCharFrame()).toContain("[Session model]")
+    app.mockInput.pressKey("TAB")
+    await app.renderOnce()
+    expect(app.captureCharFrame()).toContain("[Executor model]")
+    app.mockInput.pressEnter()
+    await app.renderOnce()
+    expect(selected).toHaveLength(1)
+    expect(selected[0]?.domain).toBe("executor")
+    expect(app.captureCharFrame()).toContain("session/think#default")
+  } finally {
+    app.cleanup()
+  }
+})
+
+test.each(["plan", "meta"])(
+  "a %s root opens actual Agent selection and requires an explicit delegation domain",
+  async (agent) => {
+    const choices: Array<{ agent: string; domain?: MiniModelDomain }> = []
+    const app = await renderFooter({
+      height: 18,
+      agents: [
+        { id: "plan", name: "Plan", mode: "primary", hidden: false },
+        { id: "build", name: "Build", mode: "primary", hidden: false },
+        { id: "meta", name: "Meta", mode: "primary", hidden: false },
+        { id: "worker", name: "Worker", mode: "all", hidden: false },
+        { id: "explore", name: "Explore", mode: "subagent", hidden: false },
+      ],
+      selection: {
+        agent,
+        controller: { kind: "root", metaAgentID: "mag_domain", rootSessionID: "ses_domain" },
+        model: { providerID: "provider", id: "model" },
+        executorPreference: { agent: "worker" },
+      },
+      onAgentSelect: (agent, domain) => choices.push({ agent, domain }),
+    })
+    try {
+      app.mockInput.pressKey("p", { ctrl: true })
+      await app.renderOnce()
+      await app.mockInput.typeText("switch agent")
+      app.mockInput.pressEnter()
+      await app.waitForFrame((frame) => frame.includes("Select agent"))
+      const ordinary = app.captureCharFrame()
+      expect(ordinary).toContain("plan")
+      expect(ordinary).toContain("build")
+      expect(ordinary).toContain("meta")
+      expect(ordinary).not.toContain("explore")
+      if (agent === "plan") {
+        app.mockInput.pressKey("TAB")
+        await app.renderOnce()
+        expect(app.captureCharFrame()).toContain("Select agent")
+        expect(app.captureCharFrame()).not.toContain("Delegation preference")
+        return
+      }
+      app.mockInput.pressKey("TAB")
+      await app.waitForFrame((frame) => frame.includes("[Delegation preference]"))
+      expect(app.captureCharFrame()).toContain("Explore")
+      app.mockInput.pressEnter()
+      expect(choices).toEqual([{ agent: "worker", domain: "executor" }])
+    } finally {
+      app.cleanup()
+    }
+  },
+)
+
+test("the delegation panel retains an unavailable saved executor instead of choosing the first entry", async () => {
+  const choices: Array<{ agent: string; domain?: MiniModelDomain }> = []
+  const app = await renderFooter({
+    height: 18,
+    agents: [
+      { id: "worker", name: "Worker", mode: "all", hidden: false },
+      { id: "meta", name: "Meta", mode: "primary", hidden: false },
+    ],
+    selection: {
+      agent: "meta",
+      controller: { kind: "root", metaAgentID: "mag_saved", rootSessionID: "ses_saved" },
+      model: { providerID: "provider", id: "model" },
+      executorPreference: { agent: "removed" },
+    },
+    onAgentSelect: (agent, domain) => choices.push({ agent, domain }),
+  })
+  try {
+    app.mockInput.pressKey("p", { ctrl: true })
+    await app.renderOnce()
+    await app.mockInput.typeText("switch agent")
+    app.mockInput.pressEnter()
+    await app.waitForFrame((frame) => frame.includes("Select agent"))
+    app.mockInput.pressKey("TAB")
+    await app.waitForFrame((frame) => frame.includes("Unavailable executor; saved preference"))
+    app.mockInput.pressEnter()
+    expect(choices).toEqual([{ agent: "removed", domain: "executor" }])
+  } finally {
+    app.cleanup()
+  }
+})
 
 // OpenTUI image teardown crashes Bun 1.3.14's Windows test runner after the assertions pass.
 // Keep the native preview coverage on Linux while the attachment behavior remains covered on both platforms below.
@@ -530,13 +658,13 @@ test("direct footer leads with the active agent and default model", async () => 
 test("direct footer describes commands and context and shows the model provider", async () => {
   const app = await renderFooter({
     providers: [provider()],
-    currentModel: { providerID: "opencode", modelID: "gpt-5" },
+    currentModel: { providerID: "aigcfroge", modelID: "gpt-5" },
     state: { first: true },
   })
   try {
     await app.renderOnce()
     expect(app.captureCharFrame()).toContain("┃ Ask anything, / for commands, @ for context…")
-    expect(app.captureCharFrame()).toContain("Build · GPT-5 · opencode · ctrl+p menu")
+    expect(app.captureCharFrame()).toContain("Build · GPT-5 · aigcfroge · ctrl+p menu")
   } finally {
     app.cleanup()
   }
@@ -547,7 +675,7 @@ test.each([56, 160])("exit confirmation replaces routine footer details at %i co
     width,
     currentAgent: "Build",
     providers: [provider()],
-    currentModel: { providerID: "opencode", modelID: "gpt-5" },
+    currentModel: { providerID: "aigcfroge", modelID: "gpt-5" },
     currentVariant: "high",
     state: { usage: { tokens: 12000, percent: 10 } },
     queuedPrompts: [{ messageID: "queued", prompt: { text: "later", parts: [] }, delivery: "queue" }],
@@ -561,7 +689,7 @@ test.each([56, 160])("exit confirmation replaces routine footer details at %i co
     await app.renderOnce()
     const frame = app.captureCharFrame()
     expect(frame).toContain("Press ctrl+c again to exit")
-    for (const text of ["Build", "GPT-5", "opencode", "high", "12.0K", "queued", "menu"])
+    for (const text of ["Build", "GPT-5", "aigcfroge", "high", "12.0K", "queued", "menu"])
       expect(frame).not.toContain(text)
     app.setState((state) => ({ ...state, exit: 0 }))
     await app.renderOnce()
@@ -902,7 +1030,7 @@ test("direct command panel renders grouped actions without catalog commands", as
     expect(frame).not.toContain("Review code")
     expect(frame).not.toContain("Commands 8")
 
-    await app.mockInput.typeText("agent")
+    await app.mockInput.typeText("switch agent")
     await app.renderOnce()
     expect(app.captureCharFrame()).toContain("Switch agent")
 
@@ -1694,7 +1822,7 @@ test("direct footer counts queued and steering work while running", async () => 
   const app = await renderFooter({
     width: 160,
     state: { phase: "running" },
-    currentModel: { providerID: "opencode", modelID: "a-model-name-long-enough-to-force-responsive-truncation" },
+    currentModel: { providerID: "aigcfroge", modelID: "a-model-name-long-enough-to-force-responsive-truncation" },
     subagents: {
       tabs: [subagent({ sessionID: "s-1", label: "Explore", description: "Inspect auth flow" })],
       details: {},
@@ -1713,7 +1841,7 @@ test("direct footer counts queued and steering work while running", async () => 
     const transparent = RGBA.fromValues(0, 0, 0, 0).toInts()
     const statusline = footerStatusline(app.renderer.root)
     expect(frame).toContain("esc stop · ctrl+x q 2 pending · ↓ 1 subagent · ctrl+b background · Build")
-    expect(frame).toMatch(/opencode · ctrl\+p menu *$/m)
+    expect(frame).toMatch(/aigcfroge · ctrl\+p menu *$/m)
     expect(frame).not.toContain("1 agent")
     expect(statusline.backgroundColor.toInts()).toEqual(transparent)
   } finally {
@@ -1755,7 +1883,7 @@ test.each([16, 20, 24, 32])("status takeovers retain complete instructions at %i
       mono,
       currentVariant: "high",
       providers: [provider()],
-      currentModel: { providerID: "opencode", modelID: "gpt-5" },
+      currentModel: { providerID: "aigcfroge", modelID: "gpt-5" },
       state: { exit: 1, usage: { tokens: 12000, percent: 10 } },
       queuedPrompts: [{ messageID: "queued", prompt: { text: "later", parts: [] }, delivery: "queue" }],
     })
@@ -1781,7 +1909,7 @@ test.each([16, 20, 24, 32])("status takeovers retain complete instructions at %i
           expect(text).toMatch(state.action ? /exit/ : /stop|interrupt/)
           expect(statusline.height).toBe(1)
         }
-        for (const value of ["Build", "GPT-5", "opencode", "high", "12.0K", "queued", "menu", "..."])
+        for (const value of ["Build", "GPT-5", "aigcfroge", "high", "12.0K", "queued", "menu", "..."])
           expect(text).not.toContain(value)
         expect(!!statusline.findDescendantById("mini-work-spinner")).toBe(state.phase === "running")
       }
@@ -1795,7 +1923,7 @@ test.each([
   { field: "agent", text: "esc stop · GPT-5 [high]" },
   {
     field: "model",
-    text: "esc stop · Build · long-model-long-model-lo… [high] · opencode · ctrl+p menu",
+    text: "esc stop · Build · long-model-long-model-lo… [high] · aigcfroge · ctrl+p menu",
   },
   { field: "provider", text: "esc stop · Build · GPT-5 [high]" },
 ])("running footer abbreviates only the model and stops at an oversized $field", async ({ field, text }) => {
@@ -1804,11 +1932,11 @@ test.each([
     width: 80,
     currentAgent: field === "agent" ? long : "Build",
     currentVariant: "high",
-    currentModel: { providerID: "opencode", modelID: "gpt-5" },
+    currentModel: { providerID: "aigcfroge", modelID: "gpt-5" },
     providers: [
       {
         ...provider(),
-        name: field === "provider" ? long : "opencode",
+        name: field === "provider" ? long : "aigcfroge",
         models: { "gpt-5": model({ id: "gpt-5", name: field === "model" ? long : "GPT-5" }) },
       },
     ],
@@ -1973,7 +2101,7 @@ test("identity and context precede the provider and a non-fitting provider block
   const app = await renderFooter({
     width: 56,
     providers: [{ ...provider(), name: "Long provider display name" }],
-    currentModel: { providerID: "opencode", modelID: "gpt-5" },
+    currentModel: { providerID: "aigcfroge", modelID: "gpt-5" },
     currentVariant: "high",
     state: { usage: { tokens: 12000, percent: 10 } },
   })
@@ -2328,7 +2456,7 @@ test("direct model panel keeps native V2 light search and options readable on a 
     provider(),
     { id: "openai", name: "OpenAI", models: { "gpt-5": model({ id: "gpt-5", name: "GPT-5" }) } },
   ])
-  const [current] = createSignal<RunInput["model"]>({ providerID: "opencode", modelID: "gpt-5" })
+  const [current] = createSignal<RunInput["model"]>({ providerID: "aigcfroge", modelID: "gpt-5" })
 
   const app = await testRender(
     () => (
@@ -2355,7 +2483,7 @@ test("direct model panel keeps native V2 light search and options readable on a 
 
     expect(frame).toContain("Select model")
     expect(frame).toContain("Search")
-    expect(frame).toContain("opencode")
+    expect(frame).toContain("aigcfroge")
     expect(frame).toContain("GPT-5")
     expect(frame).toContain("current")
     expect(frame).toContain("GPT Free")
@@ -2379,7 +2507,7 @@ test("direct model panel keeps native V2 light search and options readable on a 
     const search = app.captureCharFrame()
 
     expect(search.match(/GPT-5/g)).toHaveLength(2)
-    expect(search).toContain("opencode")
+    expect(search).toContain("aigcfroge")
     expect(search).toContain("OpenAI")
     const spans = app.captureSpans().lines.flatMap((line) => line.spans)
     const query = spans.find((span) => span.text.includes("gpt-5"))!

@@ -1,18 +1,23 @@
-import type { SessionInfo } from "@opencode/client/promise"
+import type { SessionInfo } from "@aigcfroge/client/promise"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, For, Index, onCleanup, Show } from "solid-js"
 import { createStore, type SetStoreFunction } from "solid-js/store"
-import { InlineInput } from "@opencode/ui/inline-input"
-import { Spinner } from "@opencode/ui/spinner"
-import { ScrollView } from "@opencode/ui/scroll-view"
-import { Button } from "@opencode/ui/button"
-import { Icon } from "@opencode/ui/icon"
-import { IconButton } from "@opencode/ui/icon-button"
-import { Menu } from "@opencode/ui/menu"
-import { Tooltip } from "@opencode/ui/tooltip"
+import { InlineInput } from "@aigcfroge/ui/inline-input"
+import { Select } from "@aigcfroge/ui/select"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { Spinner } from "@aigcfroge/ui/spinner"
+import { ScrollView } from "@aigcfroge/ui/scroll-view"
+import { Button } from "@aigcfroge/ui/button"
+import { Badge } from "@aigcfroge/ui/badge"
+import { Icon } from "@aigcfroge/ui/icon"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { Menu } from "@aigcfroge/ui/menu"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
 import { useLanguage } from "@/runtime/i18n/language"
 import { ServerConnection } from "@/runtime/server/registry"
+import { useGlobal } from "@/runtime/server/runtime"
 import { SessionTabAvatarView } from "@/shell/layout/session-tab-avatar"
+import { SessionProgressIndicatorV2 } from "@aigcfroge/session-ui/v2/session-progress-indicator-v2"
 import { sessionLabel } from "@/session/title"
 import { shouldOpenSessionInBackground } from "./open"
 import { createAltHold } from "./alt-hold"
@@ -38,7 +43,7 @@ const HOME_SESSION_LONG_PRESS_MS = 500
 function isBackgroundOpen(event: MouseEvent) {
   return shouldOpenSessionInBackground({
     button: event.button,
-    mac: typeof navigator === "object" && /(Mac|iPod|iPhone|iPad)/.test(navigator.platform),
+    mac: /(Mac|iPod|iPhone|iPad)/.test(navigator.platform),
     meta: event.metaKey,
     ctrl: event.ctrlKey,
     shift: event.shiftKey,
@@ -49,6 +54,8 @@ function isBackgroundOpen(event: MouseEvent) {
 export type HomeSessionsViewProps = {
   language: ReturnType<typeof useLanguage>
   groups: HomeSessionGroup[]
+  mode?: ProductMode.ID
+  onModeSelect: (mode: ProductMode.ID | undefined) => void
   loading: boolean
   desktop: boolean
   location: (record: HomeSessionRecord) => { worktree: string; branch: string | undefined }
@@ -91,7 +98,7 @@ export type HomeSessionsViewProps = {
 // Session store updates recreate row components, so row-local state would
 // close an open context menu or drop an in-progress rename. Keep both keyed
 // by session ID at the view root, like the projects list does.
-type HomeSessionRowUI = {
+export type HomeSessionRowUI = {
   menu: { id: string; x: number; y: number } | undefined
   editor: { id: string; draft: string; renaming: boolean } | undefined
 }
@@ -111,25 +118,52 @@ export function HomeSessionsView(props: HomeSessionsViewProps) {
         class="sticky top-0 z-30 shrink-0 bg-v2-background-bg-base pb-1 pt-6 md:pb-3 lg:pt-12"
         onWheel={props.onWheel}
       >
-        <HomeSessionSearch
-          {...props}
-          showLocations={showLocations()}
-          hoveredSession={hover.sessionID}
-          onHoverSession={(sessionID) => setHover("sessionID", sessionID)}
-        />
-        <Show when={props.groups.length > 0 && props.canCreateSession}>
-          <div class="pointer-events-none absolute right-0 top-[68px] z-20 flex md:top-[84px] lg:top-[108px]">
-            <Button
-              data-action="home-new-session"
-              variant="ghost-muted"
-              size="normal"
-              icon="edit"
-              class="pointer-events-auto h-7 px-2 [font-weight:530]"
-              onClick={props.onCreateSession}
-            >
-              {props.language.t("command.session.new")}
-            </Button>
+        <div class="flex min-w-0 items-center gap-2">
+          <div class="min-w-0 flex-1">
+            <HomeSessionSearch
+              {...props}
+              showLocations={showLocations()}
+              hoveredSession={hover.sessionID}
+              onHoverSession={(sessionID) => setHover("sessionID", sessionID)}
+            />
           </div>
+          <Select<ProductMode.ID>
+            class="shrink-0"
+            aria-label={props.language.t("newSession.mode.label")}
+            placeholder={props.language.t("newSession.mode.placeholder")}
+            options={[...ProductMode.ID.literals]}
+            current={props.mode}
+            label={(mode) => {
+              if (mode === "custom") return props.language.t("home.sessions.mode.custom")
+
+              return props.language.t(`newSession.mode.${mode}`)
+            }}
+            onSelect={(mode) => {
+              if (!mode) return
+
+              props.onModeSelect(mode)
+            }}
+          />
+        </div>
+        <Show when={props.groups.length > 0 && props.canCreateSession && props.mode}>
+          {(mode) => (
+            <div class="pointer-events-none absolute right-0 top-[68px] z-20 flex md:top-[84px] lg:top-[108px]">
+              <Button
+                data-action="home-new-session"
+                variant="ghost-muted"
+                size="normal"
+                icon="edit"
+                class="pointer-events-auto h-7 px-2 [font-weight:530]"
+                onClick={props.onCreateSession}
+              >
+                {mode() === "custom"
+                  ? props.language.t("home.sessions.startCustom")
+                  : props.language.t("home.sessions.newInMode", {
+                      mode: props.language.t(`newSession.mode.${mode()}`),
+                    })}
+              </Button>
+            </div>
+          )}
         </Show>
       </div>
       <div class="pointer-events-none sticky top-[68px] z-40 h-0 -mr-3 md:top-[84px] lg:top-[108px]">
@@ -154,6 +188,7 @@ export function HomeSessionsView(props: HomeSessionsViewProps) {
               <HomeSessionsEmpty
                 onNewSession={props.canCreateSession ? props.onCreateSession : undefined}
                 language={props.language}
+                mode={props.mode}
               />
             }
           >
@@ -205,19 +240,52 @@ function HomeSessionLeadingController(props: {
   server: HomeSessionsViewProps["server"]
   isOpenTab: HomeSessionsViewProps["isOpenTab"]
   record: HomeSessionRecord
+  statusPlacement?: HomeSessionRowProps["statusPlacement"]
 }) {
+  const global = useGlobal()
+
+  const notification = createMemo(() =>
+    props.statusPlacement === "trailing" ? global.serverCtx(props.server)?.notification.session : undefined,
+  )
+
+  const error = () => notification()?.unseenHasError(props.record.session.id) ?? false
+  const count = () => notification()?.unseenCount(props.record.session.id) ?? 0
+
   return (
     <HomeSessionStatusController
       server={props.server}
       record={props.record}
       isOpenTab={props.isOpenTab}
       render={(state) => (
-        <HomeSessionLeading
-          record={props.record}
-          open={state.open()}
-          unread={state.unread()}
-          loading={state.loading()}
-        />
+        <Show
+          when={props.statusPlacement === "trailing"}
+          fallback={
+            <HomeSessionLeading
+              record={props.record}
+              open={state.open()}
+              unread={state.unread()}
+              loading={state.loading()}
+            />
+          }
+        >
+          <Show when={error() || state.loading() || state.unread()}>
+            <span class="flex shrink-0 items-center gap-1.5">
+              <Show
+                when={error()}
+                fallback={
+                  <Show when={state.loading()} fallback={<Icon name="notifications" class="text-v2-state-fg-info" />}>
+                    <SessionProgressIndicatorV2 />
+                  </Show>
+                }
+              >
+                <Icon name="circle-x" class="text-v2-state-fg-danger" />
+              </Show>
+              <Show when={count() > 0}>
+                <Badge class="shrink-0 tabular-nums">{count()}</Badge>
+              </Show>
+            </span>
+          </Show>
+        </Show>
       )}
     />
   )
@@ -491,16 +559,32 @@ function HomeSessionGroupHeader(props: {
   )
 }
 
-function HomeSessionRow(
-  props: HomeSessionsViewProps & {
-    record: HomeSessionRecord
-    rowUI: HomeSessionRowUI
-    setRowUI: SetStoreFunction<HomeSessionRowUI>
-    showLocations: boolean
-    hoveredSession: string | undefined
-    onHoverSession: (sessionID: string | undefined) => void
-  },
-) {
+export type HomeSessionRowProps = Pick<
+  HomeSessionsViewProps,
+  | "language"
+  | "desktop"
+  | "location"
+  | "showProjectName"
+  | "server"
+  | "isOpenTab"
+  | "onRevealLocations"
+  | "onOpenSession"
+  | "onArchiveSession"
+  | "onRenameSession"
+  | "onExportSession"
+  | "onDeleteSession"
+> & {
+  record: HomeSessionRecord
+  current?: boolean
+  statusPlacement?: "leading" | "trailing"
+  rowUI: HomeSessionRowUI
+  setRowUI: SetStoreFunction<HomeSessionRowUI>
+  showLocations: boolean
+  hoveredSession: string | undefined
+  onHoverSession: (sessionID: string | undefined) => void
+}
+
+export function HomeSessionRow(props: HomeSessionRowProps) {
   const title = createMemo(() => sessionLabel(props.record.session))
   const location = createMemo(() => props.location(props.record))
   const showProjectName = () => props.showProjectName && props.record.projectName
@@ -515,7 +599,8 @@ function HomeSessionRow(
   // Focus targets are looked up by session ID: session store updates recreate
   // row components, so instance refs can point at detached nodes by the time
   // deferred focus runs.
-  const rowSelector = () => `[data-component="home-session-row-container"][data-session-id="${sessionID()}"]`
+  const rowSelector = () =>
+    `[data-component="home-session-row-container"][data-session-id="${sessionID()}"][data-session-server="${CSS.escape(props.server)}"]`
 
   const rowButton = () =>
     document.querySelector<HTMLButtonElement>(`${rowSelector()} [data-component="home-session-row"]`)
@@ -532,7 +617,10 @@ function HomeSessionRow(
   onCleanup(clearLongPress)
 
   const openMenu = (element: HTMLElement, clientX: number, clientY: number) => {
-    const bounds = element.getBoundingClientRect()
+    const bounds = (
+      element.closest<HTMLElement>('[data-component="home-session-row-container"]') ?? element
+    ).getBoundingClientRect()
+
     props.setRowUI("menu", { id: sessionID(), x: clientX - bounds.left, y: clientY - bounds.top })
   }
 
@@ -582,6 +670,7 @@ function HomeSessionRow(
       data-component="home-session-row-container"
       data-project-name={!!showProjectName()}
       data-session-id={props.record.session.id}
+      data-session-server={props.server}
       class="group/session relative flex h-10 min-w-0 items-center rounded-[6px] outline-none focus:outline-none focus-visible:outline-none"
       onContextMenu={(event) => {
         // While renaming, keep the native menu so paste and spelling work.
@@ -598,7 +687,9 @@ function HomeSessionRow(
             class="flex h-10 min-w-0 w-full flex-1 items-center py-3 ps-1.5 pe-3 md:ps-3 md:pe-10"
             classList={{ "gap-1.5": props.desktop, "gap-2": !props.desktop }}
           >
-            <HomeSessionLeadingController server={props.server} isOpenTab={props.isOpenTab} record={props.record} />
+            <Show when={props.statusPlacement !== "trailing"}>
+              <HomeSessionLeadingController server={props.server} isOpenTab={props.isOpenTab} record={props.record} />
+            </Show>
             <div data-slot="home-session-labels" class="contents">
               <InlineInput
                 data-component="home-session-rename"
@@ -643,19 +734,31 @@ function HomeSessionRow(
                 <HomeSessionProjectName name={props.record.projectName} />
               </Show>
             </div>
+            <Show when={props.statusPlacement === "trailing"}>
+              <HomeSessionLeadingController
+                server={props.server}
+                isOpenTab={props.isOpenTab}
+                record={props.record}
+                statusPlacement={props.statusPlacement}
+              />
+            </Show>
           </div>
         }
       >
         <button
           type="button"
           data-component="home-session-row"
+          data-selected={props.current ? "" : undefined}
+          aria-current={props.current ? "page" : undefined}
           aria-haspopup="menu"
           aria-expanded={!!menu()}
           class={`
             flex h-10 min-w-0 w-full flex-1 shrink-0 cursor-default items-center rounded-[6px] border-0
-            bg-transparent py-3 ps-1.5 pe-3 md:ps-3 md:pe-10 text-start text-v2-text-text-muted [font-weight:530]
+            bg-transparent py-3 ps-1.5 pe-10 md:ps-3 text-start text-v2-text-text-muted [font-weight:530]
             transition-[background-color,color,box-shadow] duration-[120ms] ease-in-out
             hover:bg-v2-overlay-simple-overlay-hover focus-visible:bg-v2-overlay-simple-overlay-hover focus-visible:outline-none
+            data-[selected]:bg-v2-background-bg-layer-03 data-[selected]:text-v2-text-text-base
+            data-[selected]:hover:bg-v2-background-bg-layer-03
           `}
           classList={{ "gap-1.5": props.desktop, "gap-2": !props.desktop }}
           onMouseDown={(event) => {
@@ -721,7 +824,9 @@ function HomeSessionRow(
             props.onOpenSession(props.record.session, { background: true })
           }}
         >
-          <HomeSessionLeadingController server={props.server} isOpenTab={props.isOpenTab} record={props.record} />
+          <Show when={props.statusPlacement !== "trailing"}>
+            <HomeSessionLeadingController server={props.server} isOpenTab={props.isOpenTab} record={props.record} />
+          </Show>
           <div
             data-slot="home-session-labels"
             class="min-w-0 flex-1 items-center gap-1.5"
@@ -742,7 +847,33 @@ function HomeSessionRow(
               desktop={props.desktop}
             />
           </div>
+          <Show when={props.statusPlacement === "trailing"}>
+            <HomeSessionLeadingController
+              server={props.server}
+              isOpenTab={props.isOpenTab}
+              record={props.record}
+              statusPlacement={props.statusPlacement}
+            />
+          </Show>
         </button>
+      </Show>
+      <Show when={!editor()}>
+        <IconButton
+          data-action="home-session-menu"
+          variant="ghost-muted"
+          size="large"
+          icon={<Icon name="outline-dots" />}
+          aria-label={props.language.t("common.moreOptions")}
+          aria-haspopup="menu"
+          aria-expanded={!!menu()}
+          data-menu={!!menu()}
+          class="hover-reveal absolute end-1.5 top-1/2 -translate-y-1/2 group-hover/session:opacity-100 group-focus-within/session:opacity-100 data-[menu=true]:opacity-100"
+          onClick={(event) => {
+            event.stopPropagation()
+            const bounds = event.currentTarget.getBoundingClientRect()
+            openMenu(event.currentTarget, bounds.left, bounds.bottom)
+          }}
+        />
       </Show>
       <Menu
         modal={false}
@@ -885,7 +1016,11 @@ function HomeSessionProjectName(props: { name: string; search?: boolean; trailin
   )
 }
 
-function HomeSessionsEmpty(props: { onNewSession?: () => void; language: ReturnType<typeof useLanguage> }) {
+function HomeSessionsEmpty(props: {
+  onNewSession?: () => void
+  language: ReturnType<typeof useLanguage>
+  mode?: ProductMode.ID
+}) {
   return (
     <div class="flex min-h-full flex-col items-center gap-4 px-6 pt-[52px] text-center">
       <div
@@ -902,12 +1037,22 @@ function HomeSessionsEmpty(props: { onNewSession?: () => void; language: ReturnT
           text-v2-text-text-muted [font-weight:440]
         `}
       >
-        {props.language.t("home.sessions.empty.description")}
+        {props.language.t(props.mode ? "home.sessions.empty.description" : "newSession.mode.placeholder")}
       </p>
-      <Show when={props.onNewSession}>
-        {(onNewSession) => (
-          <Button data-action="home-new-session" variant="neutral" size="normal" icon="edit" onClick={onNewSession()}>
-            {props.language.t("command.session.new")}
+      <Show when={props.onNewSession && props.mode}>
+        {(mode) => (
+          <Button
+            data-action="home-new-session"
+            variant="neutral"
+            size="normal"
+            icon="edit"
+            onClick={props.onNewSession}
+          >
+            {mode() === "custom"
+              ? props.language.t("home.sessions.startCustom")
+              : props.language.t("home.sessions.newInMode", {
+                  mode: props.language.t(`newSession.mode.${mode()}`),
+                })}
           </Button>
         )}
       </Show>

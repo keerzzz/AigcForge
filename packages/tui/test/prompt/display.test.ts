@@ -37,7 +37,7 @@ describe("prompt display", () => {
     expect(slashTriggerIndex("中文 /api-design")).toBe(5)
     expect(slashTriggerIndex("Review /api design")).toBeUndefined()
     expect(slashTriggerIndex("Review /tmp/file.ts")).toBeUndefined()
-    expect(slashTriggerIndex("https://opencode.ai/docs")).toBeUndefined()
+    expect(slashTriggerIndex("https://aigcfroge.ai/docs")).toBeUndefined()
     expect(slashTriggerIndex("src/prompt/index.ts")).toBeUndefined()
   })
 })

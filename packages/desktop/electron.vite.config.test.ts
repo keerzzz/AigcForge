@@ -15,28 +15,28 @@ const load = (command: "build" | "serve") =>
 const bundled = ["effect", "@effect/platform-node", "@effect/platform-node-shared", "drizzle-orm"]
 
 test("minifies only builds, previews onboarding only in development, and ships sourcemaps and public assets", async () => {
-  const previous = process.env.OPENCODE_TEST_ONBOARDING
+  const previous = process.env.AIGCFROGE_TEST_ONBOARDING
 
   try {
-    process.env.OPENCODE_TEST_ONBOARDING = "1"
+    process.env.AIGCFROGE_TEST_ONBOARDING = "1"
 
     for (const command of ["build", "serve"] as const) {
       const result = await load(command)
 
       for (const target of [result.config.main, result.config.preload, result.config.renderer])
         expect(target?.build?.minify).toBe(command === "build")
-      expect(result.config.renderer?.define?.["import.meta.env.OPENCODE_TEST_ONBOARDING"]).toBe(
+      expect(result.config.renderer?.define?.["import.meta.env.AIGCFROGE_TEST_ONBOARDING"]).toBe(
         JSON.stringify(command === "serve"),
       )
     }
 
-    delete process.env.OPENCODE_TEST_ONBOARDING
+    delete process.env.AIGCFROGE_TEST_ONBOARDING
     const serve = await load("serve")
-    expect(serve.config.renderer?.define?.["import.meta.env.OPENCODE_TEST_ONBOARDING"]).toBe("false")
+    expect(serve.config.renderer?.define?.["import.meta.env.AIGCFROGE_TEST_ONBOARDING"]).toBe("false")
   } finally {
-    delete process.env.OPENCODE_TEST_ONBOARDING
+    delete process.env.AIGCFROGE_TEST_ONBOARDING
 
-    if (previous !== undefined) process.env.OPENCODE_TEST_ONBOARDING = previous
+    if (previous !== undefined) process.env.AIGCFROGE_TEST_ONBOARDING = previous
   }
 
   const renderer = (await load("build")).config.renderer

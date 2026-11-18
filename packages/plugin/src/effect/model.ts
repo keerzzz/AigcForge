@@ -1,10 +1,13 @@
-import type { ModelApi } from "@opencode/client/effect/api"
-import type { Model } from "@opencode/schema/model"
+import type { ModelApi } from "@aigcfroge/client/effect/api"
+import type { Model } from "@aigcfroge/schema/model"
+import type { Connection } from "@aigcfroge/schema/connection"
 import type { Effect, Types } from "effect"
-import type { ProviderRecord } from "./provider.js"
+import type { ProviderEditor, ProviderRecord } from "./provider.js"
 import type { Transform } from "./registration.js"
 
 export interface ModelEditor {
+  readonly scope?: ProviderEditor["scope"]
+  connection(integrationID: string): Connection.Info | undefined
   /** Candidates from available providers, including models disabled by earlier transforms. */
   list(providerID?: string): readonly Types.DeepMutable<Model.Info>[]
   get(providerID: string, modelID: string): Types.DeepMutable<Model.Info> | undefined

@@ -10,7 +10,7 @@ import {
 
 export type Interface = MediaClient.Interface<SpeechRequestFor, SpeechEvent, SpeechResponse>
 
-export class SpeechClientService extends Context.Service<SpeechClientService, Interface>()("@opencode/SpeechClient") {}
+export class SpeechClientService extends Context.Service<SpeechClientService, Interface>()("@aigcfroge/SpeechClient") {}
 export const Service = SpeechClientService
 export type Service = SpeechClientService
 

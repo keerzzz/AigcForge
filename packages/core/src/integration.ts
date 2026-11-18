@@ -1,6 +1,6 @@
 export * as Integration from "./integration.js"
 
-import { makeLocationNode } from "@opencode/util/effect/app-node"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
 import {
   Cause,
   Clock,
@@ -18,12 +18,13 @@ import {
   SynchronizedRef,
   Types,
 } from "effect"
-import { Integration } from "@opencode/schema/integration"
+import { Integration } from "@aigcfroge/schema/integration"
+import type { ModelSource } from "@aigcfroge/schema/model-source"
 import { Credential } from "./credential.js"
 import { State } from "./state.js"
 import { Bus } from "./bus.js"
 import { IntegrationConnection } from "./integration/connection.js"
-import { AppProcess } from "@opencode/util/process"
+import { AppProcess } from "@aigcfroge/util/process"
 import { ChildProcess } from "effect/process"
 import { Form } from "./form.js"
 
@@ -140,7 +141,7 @@ export class AttemptNotFoundError extends Schema.TaggedError<AttemptNotFoundErro
 
 export type Error = CodeRequiredError | AuthorizationError | AttemptNotFoundError
 
-export { Event } from "@opencode/schema/integration"
+export { Event } from "@aigcfroge/schema/integration"
 
 export const Ref = Integration.Ref
 export type Ref = Integration.Ref
@@ -178,6 +179,7 @@ export interface Interface extends State.Transformable<Editor> {
   readonly connection: {
     /** Returns the active connection for one integration. */
     readonly active: (id: ID) => Effect.Effect<IntegrationConnection.Info | undefined>
+    readonly get: (id: ID, connection: ModelSource.ConnectionRef) => Effect.Effect<IntegrationConnection.Info | undefined>
     /** Resolves a connection into credential material or an external credential-source reference. */
     readonly resolve: (
       connection: IntegrationConnection.Info,
@@ -256,7 +258,7 @@ export interface Interface extends State.Transformable<Editor> {
   }
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/Integration") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Integration") {}
 
 const attemptLifetime = Duration.toMillis(Duration.minutes(10))
 const terminalRetention = Duration.toMillis(Duration.minutes(1))
@@ -719,6 +721,13 @@ const layer = Layer.effect(
         active: Effect.fn("Integration.connection.active")(function* (id) {
           const entry = state.get().integrations.get(id)
           return resolveConnections(entry, yield* credentials.list(id))[0]
+        }),
+        get: Effect.fn("Integration.connection.get")(function* (id, connection) {
+          const entry = state.get().integrations.get(id)
+          if (!entry) return undefined
+          return project(entry, resolveConnections(entry, yield* credentials.list(id))).connections.find(
+            (candidate) => IntegrationConnection.key(candidate) === IntegrationConnection.key(connection),
+          )
         }),
         resolve: Effect.fn("Integration.connection.resolve")(function* (connection) {
           if (connection.type === "env") {

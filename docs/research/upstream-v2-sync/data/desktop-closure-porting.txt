@@ -1,0 +1,16 @@
+# 桌面端闭包内移植面（2026-10-10 范围裁定）：剔除 tui/sdk/effect-sqlite-node/effect-drizzle-sqlite/enterprise
+# 依据：上游依赖闭包验证（报告附录 A-6）+ fork desktop sidecar 证据（src/main/server.ts utilityProcess fork）
+544 core
+496 app
+384 aigcfroge
+75 ui
+66 schema
+41 session-ui
+37 desktop
+22 llm
+20 server
+9 script
+6 plugin
+5 storybook
+2 http-recorder
+SUM 1707

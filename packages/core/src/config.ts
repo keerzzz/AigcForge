@@ -1,22 +1,32 @@
 export * as Config from "./config.js"
 
-import { makeLocationNode } from "@opencode/util/effect/app-node"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
 import path from "path"
 import { isDeepStrictEqual } from "node:util"
 import { applyEdits, modify, type ParseError, parse } from "jsonc-parser"
 import { Context, Effect, FiberMap, Layer, Option, PubSub, Ref, Schema, Semaphore, Stream } from "effect"
-import { Directory, Document, Info, type Patch, type Entry, Event } from "@opencode/schema/config"
+import { Directory, Document, Info, type Patch, type Entry, Event } from "@aigcfroge/schema/config"
 import { Credential } from "./credential.js"
 import { Bus } from "./bus.js"
 import { Watcher } from "./filesystem/watcher.js"
-import { FSUtil } from "@opencode/util/fs-util"
-import { Global } from "@opencode/util/global"
+import { FSUtil } from "@aigcfroge/util/fs-util"
+import { Global } from "@aigcfroge/util/global"
 import { Location } from "./location.js"
 import { AbsolutePath } from "./schema.js"
 import { ConfigVariable } from "./config/variable.js"
 import { ConfigNormalize } from "./config/normalize.js"
 import { ConfigDiscovery } from "./config/discovery.js"
 import { ConfigWatch } from "./config/watch.js"
+import { ConfigProviderFile } from "./config/provider-file.js"
+import { ProviderDefinition } from "@aigcfroge/schema/provider-definition"
+import { Provider } from "@aigcfroge/schema/provider"
+import { Model } from "@aigcfroge/schema/model"
+import { ModelGroup } from "@aigcfroge/schema/model-group"
+import { ConfigProvider } from "@aigcfroge/schema/config/provider"
+import { FileMutation } from "./file-mutation.js"
+import { Environment } from "./environment/index.js"
+import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner"
+import { CrossSpawnSpawner } from "@aigcfroge/util/cross-spawn-spawner"
 import { WellKnown } from "./wellknown.js"
 
 export function latest<K extends keyof Info>(entries: readonly Entry[], key: K): Info[K] | undefined {
@@ -27,6 +37,8 @@ export function latest<K extends keyof Info>(entries: readonly Entry[], key: K):
 export interface Interface {
   /** Returns location config documents and discovery sources from lowest to highest priority. */
   readonly entries: () => Effect.Effect<Entry[]>
+  /** Current loaded entries for synchronous catalog transforms. */
+  readonly current?: () => readonly Entry[]
   /** Compatibility roots consumed by internal compatibility plugins. */
   readonly compatibility?: () => Effect.Effect<{
     readonly claude: readonly AbsolutePath[]
@@ -40,7 +52,42 @@ export interface Interface {
   readonly changes: () => Stream.Stream<Watcher.Update>
   /** Updates supported global config fields while preserving unrelated JSONC content. */
   readonly update?: (patch: Patch) => Effect.Effect<void, FSUtil.Error>
+  readonly provider?: {
+    readonly list: (preview?: { readonly providerID: Provider.ID; readonly target: ProviderDefinition.Target; readonly definition: ConfigProvider.Info }) => Effect.Effect<{
+      readonly targets: readonly ProviderDefinition.TargetRevision[]
+      readonly definitions: readonly {
+        readonly providerID: Provider.ID
+        readonly source: ProviderDefinition.Source
+        readonly target?: ProviderDefinition.TargetRevision
+        readonly definition: ConfigProvider.Info
+      }[]
+      readonly groups: readonly {
+        readonly groupID: Model.GroupID
+        readonly source: ProviderDefinition.Source
+        readonly target?: ProviderDefinition.TargetRevision
+        readonly definition: ModelGroup.Definition
+      }[]
+    }, ConfigProviderFile.Error>
+    readonly transaction: <A, E, R>(
+      target: ProviderDefinition.Target,
+      body: (
+        file: ConfigProviderFile.File,
+        write: (edit: ConfigProviderFile.Edit) => Effect.Effect<ConfigProviderFile.File, ConfigProviderFile.Error>,
+        reload: Effect.Effect<void>,
+      ) => Effect.Effect<A, E, R>,
+    ) => Effect.Effect<A, E | ConfigProviderFile.Error, R>
+    /** Reload this Location when the specified authored target participates in its discovery. */
+    readonly reload: (target: ProviderDefinition.Target) => Effect.Effect<boolean, ConfigProviderFile.Error>
+  }
 }
+
+type AuthoredDeclaration = {
+  readonly source: ProviderDefinition.Source
+  readonly target?: ProviderDefinition.TargetRevision
+} & (
+  | { readonly kind: "provider"; readonly providerID: Provider.ID; readonly definition: ConfigProvider.Info }
+  | { readonly kind: "group"; readonly groupID: Model.GroupID; readonly definition: ModelGroup.Definition }
+)
 
 export const Options = Schema.Struct({
   project: Schema.optional(Schema.Boolean),
@@ -52,7 +99,7 @@ export const Options = Schema.Struct({
 })
 export type Options = typeof Options.Type
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/Config") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Config") {}
 
 export interface TestInterface extends Interface {
   /** Replaces the entries returned by subsequent entries() calls. */
@@ -61,7 +108,7 @@ export interface TestInterface extends Interface {
   readonly emitChange: (update: Watcher.Update) => Effect.Effect<void>
 }
 
-export class Test extends Context.Service<Test, TestInterface>()("@opencode/Config/Test") {}
+export class Test extends Context.Service<Test, TestInterface>()("@aigcfroge/Config/Test") {}
 
 /** In-memory config for tests: static entries with replaceable state and a test-driven change feed. */
 export const testLayer = (
@@ -97,8 +144,18 @@ export const layer = (options?: Options) =>
       const credentials = yield* Credential.Service
       const globalService = yield* Global.Service
       const wellknown = yield* WellKnown.Service
+      const spawner = yield* ChildProcessSpawner
+      // Config reads host-local files even for a workspace-placed Location. Bind
+      // its mutation service to that same filesystem instead of Environment.node.
+      const fileMutation = yield* FileMutation.Service.pipe(
+        Effect.provide(FileMutation.layer),
+        Effect.provideService(Environment.Service, {
+          spawner,
+          files: Environment.makeFiles(Environment.makeLocalDriver(spawner)),
+        }),
+      )
       const reloadLock = Semaphore.makeUnsafe(1)
-      const updateLock = Semaphore.makeUnsafe(1)
+      const locationContext = yield* Effect.context<FSUtil.Service | Global.Service | Location.Service>()
       const decodeOptions = { errors: "all", onExcessProperty: "ignore" } as const
       const decodeInfo = Schema.decodeUnknownOption(Info, decodeOptions)
       const parseInfo = Effect.fn("Config.parseInfo")(function* (text: string, source: string) {
@@ -207,11 +264,11 @@ export const layer = (options?: Options) =>
           options?.content !== undefined
             ? yield* ConfigVariable.substitute({
                 type: "virtual",
-                source: "OPENCODE_CONFIG_CONTENT",
+                source: "AIGCFROGE_CONFIG_CONTENT",
                 dir: location.directory,
                 text: options.content,
               }).pipe(
-                Effect.flatMap((text) => parseInfo(text, "OPENCODE_CONFIG_CONTENT")),
+                Effect.flatMap((text) => parseInfo(text, "AIGCFROGE_CONFIG_CONTENT")),
                 Effect.map((info) => (info ? [new Document({ type: "document", info })] : [])),
                 Effect.orDie,
               )
@@ -331,25 +388,142 @@ export const layer = (options?: Options) =>
           const directory = initial.global ?? AbsolutePath.make(globalService.config)
           const candidates = ConfigDiscovery.names.map((name) => path.join(directory, name))
           const filepath =
-            (yield* Effect.filter(candidates, fs.isFile)).at(-1) ?? path.join(directory, "opencode.jsonc")
-          const text = (yield* fs.readFileStringSafe(filepath)) ?? "{}\n"
-          const updated = yield* Effect.try({
-            try: () =>
-              applyEdits(
-                text,
-                modify(text, ["shell"], patch.shell ?? undefined, {
-                  formattingOptions: { tabSize: 2, insertSpaces: true },
-                }),
-              ),
-            catch: (cause) => new FSUtil.FileSystemError({ method: "config.update", cause }),
-          })
-          yield* fs.writeWithDirs(filepath, updated.endsWith("\n") ? updated : `${updated}\n`)
-          yield* requestReload
+            (yield* Effect.filter(candidates, fs.isFile)).at(-1) ?? path.join(directory, "aigcfroge.jsonc")
+          const resolved = yield* fs.resolve(filepath)
+          yield* fileMutation.withLock([resolved])(Effect.gen(function* () {
+            const text = (yield* fs.readFileString(resolved).pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.undefined))) ?? "{}\n"
+            const errors: ParseError[] = []
+            const input: unknown = parse(text, errors, { allowTrailingComma: true })
+            if (errors.length || typeof input !== "object" || input === null || Array.isArray(input))
+              return yield* new FSUtil.FileSystemError({ method: "config.update", cause: new Error("Configuration must be a valid JSON or JSONC object") })
+            const updated = yield* Effect.try({
+              try: () => applyEdits(text, modify(text, ["shell"], patch.shell ?? undefined, { formattingOptions: { tabSize: 2, insertSpaces: true } })),
+              catch: (cause) => new FSUtil.FileSystemError({ method: "config.update", cause }),
+            })
+            yield* fileMutation.writeAtomic({ target: { absolute: AbsolutePath.make(resolved), resource: resolved }, content: updated.endsWith("\n") ? updated : `${updated}\n` }).pipe(
+              Effect.mapError((cause) => new FSUtil.FileSystemError({ method: "config.update", cause })),
+            )
+            yield* requestReload
+          }))
         },
-        (effect) => updateLock.withPermit(effect),
       )
 
+      const providerTargets = Effect.fn("Config.providerTargets")(function* () {
+        const discovered = yield* ConfigDiscovery.discover(options).pipe(Effect.provideContext(locationContext))
+        const candidates: ProviderDefinition.Target[] = [
+          ...(discovered.global ? ConfigDiscovery.names.map((name) => ({ scope: "global" as const, path: AbsolutePath.make(path.join(discovered.global!, name)) })) : []),
+          ...(discovered.explicit ? [{ scope: "explicit" as const, path: discovered.explicit }] : []),
+          ...discovered.direct.map((filepath) => ({ scope: "project" as const, path: filepath })),
+          ...discovered.project.flatMap((root) => ConfigDiscovery.names.map((name) => ({ scope: "project" as const, path: AbsolutePath.make(path.join(root.path, name)) }))),
+        ]
+        const resolved = yield* Effect.forEach(candidates, (target) => fs.resolve(target.path).pipe(
+          Effect.map((filepath) => ({ ...target, path: AbsolutePath.make(filepath) })),
+        ))
+        const targets = [...new Map(resolved.map((target) => [target.path, target])).values()]
+        const present = new Set(yield* Effect.filter(targets.map((target) => target.path), fs.isFile))
+        const preferred = new Set([
+          targets.filter((target) => target.scope === "global" && present.has(target.path)).at(-1)?.path ?? targets.find((target) => target.scope === "global" && path.basename(target.path) === "aigcfroge.jsonc")?.path,
+          targets.filter((target) => target.scope === "project" && present.has(target.path)).at(-1)?.path ?? targets.find((target) => target.scope === "project" && target.path === path.join(location.directory, "aigcfroge.jsonc"))?.path,
+          targets.find((target) => target.scope === "explicit")?.path,
+        ])
+        return targets.map((target) => ({ target, preferred: preferred.has(target.path) }))
+      })
+
+      const provider: NonNullable<Interface["provider"]> = {
+        list: Effect.fn("Config.provider.list")(function* (preview?: { readonly providerID: Provider.ID; readonly target: ProviderDefinition.Target; readonly definition: ConfigProvider.Info }) {
+          const targets = yield* providerTargets()
+          const files = yield* Effect.forEach(targets, (item) => ConfigProviderFile.read(fs, item.target, item.preferred).pipe(
+            Effect.map((file) => ({ target: file.target, definitions: file.definitions, modelGroups: file.modelGroups })),
+            Effect.catchTag("ConfigProviderFile.InvalidDocument", (error) => Effect.succeed({ target: { ...error.target, message: error.message }, definitions: {}, modelGroups: {} })),
+          ))
+          const definitions = files.flatMap<AuthoredDeclaration>((file) => {
+            const providers: Readonly<Record<string, ConfigProvider.Info>> = preview?.target.path === file.target.path
+              ? { ...file.definitions, [preview.providerID]: preview.definition }
+              : file.definitions
+            return [
+              ...Object.entries(providers).map(([id, definition]) => ({
+                kind: "provider" as const,
+                providerID: Provider.ID.make(id),
+                source: { scope: file.target.scope, path: file.target.path },
+                target: file.target,
+                definition,
+              })),
+              ...Object.entries(file.modelGroups).map(([id, definition]) => ({
+                kind: "group" as const,
+                groupID: Model.GroupID.make(id),
+                source: { scope: file.target.scope, path: file.target.path },
+                target: file.target,
+                definition,
+              })),
+            ]
+          })
+          const ranks = yield* Effect.forEach(configs.filter((entry): entry is Document => entry.type === "document"), (entry) => Effect.gen(function* () {
+            const filepath = entry.path ? yield* fs.resolve(entry.path) : undefined
+            return { filepath, entry }
+          }))
+          const contentEntry = options?.content !== undefined ? configs.at(-1) : undefined
+          const ordered = ranks.flatMap<AuthoredDeclaration>((rank) => rank.entry === contentEntry
+            ? []
+            : rank.filepath
+              ? definitions.filter((item) => item.target?.path === rank.filepath)
+              : [
+                  ...Object.entries(rank.entry.info.providers ?? {}).map(([id, definition]) => ({ kind: "provider" as const, providerID: Provider.ID.make(id), source: { scope: "virtual" as const }, definition })),
+                  ...Object.entries(rank.entry.info.modelGroups ?? {}).map(([id, definition]) => ({ kind: "group" as const, groupID: Model.GroupID.make(id), source: { scope: "virtual" as const }, definition })),
+                ])
+          const present = new Set(ordered.flatMap((item) => item.target ? [item.target.path] : []))
+          const omitted = definitions.filter((item) => item.target && !present.has(item.target.path))
+          const inserted = preview && omitted.find((item) => item.kind === "provider" && item.providerID === preview.providerID && item.target?.path === preview.target.path)
+          const rank = preview ? files.findIndex((file) => file.target.path === preview.target.path) : -1
+          const after = inserted ? ordered.findIndex((item) => item.target && files.findIndex((file) => file.target.path === item.target?.path) > rank) : -1
+          const position = after < 0 ? ordered.length : after
+          // Failed/missing runtime documents still remain editable. Keep explicit
+          // config content after authored files, as Config.load orders it.
+          const content: AuthoredDeclaration[] = contentEntry?.type === "document" && !contentEntry.path
+            ? [
+                ...Object.entries(contentEntry.info.providers ?? {}).map(([id, definition]) => ({ kind: "provider" as const, providerID: Provider.ID.make(id), source: { scope: "virtual" as const }, definition })),
+                ...Object.entries(contentEntry.info.modelGroups ?? {}).map(([id, definition]) => ({ kind: "group" as const, groupID: Model.GroupID.make(id), source: { scope: "virtual" as const }, definition })),
+              ]
+            : []
+          const declarations = [
+            ...ordered.slice(0, position),
+            ...(inserted ? [inserted] : []),
+            ...ordered.slice(position),
+            ...omitted.filter((item) => item !== inserted),
+            ...content,
+          ]
+          return {
+            targets: files.map((file) => file.target),
+            definitions: declarations.filter((item) => item.kind === "provider").map((item) => ({
+              providerID: item.providerID, source: item.source, target: item.target, definition: item.definition,
+            })),
+            groups: declarations.filter((item) => item.kind === "group").map((item) => ({
+              groupID: item.groupID, source: item.source, target: item.target, definition: item.definition,
+            })),
+          }
+        }),
+        transaction: (target, body) => Effect.gen(function* () {
+          const legal = (yield* providerTargets()).find((item) => item.target.scope === target.scope && item.target.path === target.path)
+          if (!legal) return yield* new ConfigProviderFile.InvalidTargetError({ message: "Choose a configuration target returned by provider.definition.get" })
+          return yield* fileMutation.withLock([legal.target.path])(Effect.gen(function* () {
+            let current = yield* ConfigProviderFile.read(fs, legal.target, legal.preferred)
+            const write = Effect.fnUntraced(function* (edit: ConfigProviderFile.Edit) {
+              const next = yield* ConfigProviderFile.write(fs, fileMutation, current, edit)
+              current = next
+              return next
+            })
+            return yield* body(current, write, reload().pipe(Effect.provideContext(locationContext)))
+          }))
+        }),
+        reload: (target) => Effect.gen(function* () {
+          const participates = (yield* providerTargets()).some((item) => item.target.path === target.path)
+          if (!participates) return false
+          yield* reload().pipe(Effect.provideContext(locationContext))
+          return true
+        }),
+      }
+
       return Service.of({
+        current: () => configs,
         entries: Effect.fnUntraced(function* () {
           return configs
         }),
@@ -360,6 +534,7 @@ export const layer = (options?: Options) =>
           }),
         changes: () => Stream.fromPubSub(updates),
         update,
+        provider,
       })
     }),
   )
@@ -368,7 +543,7 @@ export function configured(options?: Options) {
   return makeLocationNode({
     service: Service,
     layer: layer(options),
-    deps: [Watcher.node, Bus.node, FSUtil.node, Global.node, Location.node, Credential.node, WellKnown.node],
+    deps: [Watcher.node, Bus.node, FSUtil.node, Global.node, Location.node, Credential.node, WellKnown.node, CrossSpawnSpawner.node],
   })
 }
 

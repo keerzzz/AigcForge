@@ -6,7 +6,7 @@ import { supportsForeignKeyToggle } from "#sqlite"
 import type { EffectDrizzleSqlite } from "./drizzle.js"
 import { migrations } from "./migration.gen.js"
 import schema from "./schema.gen.js"
-import { Global } from "@opencode/util/global"
+import { Global } from "@aigcfroge/util/global"
 
 type Database = EffectDrizzleSqlite.EffectSQLiteDatabase
 type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0]
@@ -21,11 +21,15 @@ export type Migration = {
 // it is bootstrapping, since two instances over one file must not race.
 export function apply(db: Database) {
   return Effect.gen(function* () {
-    // OpenCode owns the unprefixed table namespace. Embedders sharing this
+    // AigcForge owns the unprefixed table namespace. Embedders sharing this
     // database may own underscore-prefixed tables, which bootstrap ignores.
     const tables = yield* db.all<{ name: string }>(
       sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND substr(name, 1, 1) <> '_'`,
     )
+    if (tables.some((table) => table.name === "session")) {
+      const { LegacyMainMigration } = yield* Effect.promise(() => import("./legacy-main-migration.js"))
+      if (yield* LegacyMainMigration.matches(db)) return yield* LegacyMainMigration.restore(db, migrations)
+    }
     if (tables.some((table) => table.name === "session" || table.name === "session_v2"))
       return yield* applyOnly(db, migrations)
     if (tables.length > 0) return yield* Effect.die(new Error("Database is not empty and has no session table"))

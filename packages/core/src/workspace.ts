@@ -1,7 +1,7 @@
 export * as Workspace from "./workspace.js"
 
-import { Workspace } from "@opencode/schema/workspace"
-import { makeGlobalNode } from "@opencode/util/effect/app-node"
+import { Workspace } from "@aigcfroge/schema/workspace"
+import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
 import { eq } from "drizzle-orm"
 import { Clock, Context, Deferred, Duration, Effect, Exit, FiberSet, Layer, Ref, Schedule, Schema, Scope } from "effect"
 import { systemError } from "effect/PlatformError"
@@ -39,6 +39,8 @@ export interface Interface {
     readonly id?: ID
     readonly provider: string
   }) => Effect.Effect<ID, CreateConflict | WorkspaceDriver.ProviderNotFound>
+  /** Checks the persisted logical workspace without provisioning or contacting its provider. */
+  readonly exists: (workspaceID: ID) => Effect.Effect<boolean>
   /** Starts or joins the shared attempt that makes the backing resource real, then returns it. */
   readonly provision: (
     workspaceID: ID,
@@ -57,7 +59,7 @@ export interface Options {
   readonly pollInterval?: Duration.Input
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/Workspace") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Workspace") {}
 
 interface Connection {
   readonly driver: WorkspaceDriver.Interface
@@ -257,6 +259,9 @@ const layer = (options: Options) =>
             })
           return workspaceID
         }),
+        exists: Effect.fn("Workspace.exists")((workspaceID: ID) =>
+          find(workspaceID).pipe(Effect.map((row) => row !== undefined)),
+        ),
         provision,
         connect: Effect.fn("Workspace.connect")(function* (workspaceID) {
           const acquire = Effect.acquireRelease(

@@ -1,6 +1,6 @@
 import { onCleanup } from "solid-js"
 
-const FOCUS_LOCK = "opencode:notification-focus"
+const FOCUS_LOCK = "aigcfroge:notification-focus"
 
 const MAX_CLAIMED = 500
 
@@ -56,7 +56,7 @@ export function createNotificationCoordinator() {
     }
 
     if (!locks) return execute()
-    await locks.request(`opencode:notification:${key}`, execute)
+    await locks.request(`aigcfroge:notification:${key}`, execute)
   }
 
   return {
@@ -82,7 +82,7 @@ function claim(kind: "sound" | "system", eventID: string, claimed: Set<string>) 
 
   if (typeof localStorage !== "undefined") {
     try {
-      const storageKey = `opencode:notification-${kind}`
+      const storageKey = `aigcfroge:notification-${kind}`
       const value: unknown = JSON.parse(localStorage.getItem(storageKey) ?? "[]")
       const events = Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []
 

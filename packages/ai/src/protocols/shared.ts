@@ -1,4 +1,4 @@
-import { Tool } from "@opencode/schema/tool"
+import { Tool } from "@aigcfroge/schema/tool"
 import { Effect, Option, Schema } from "effect"
 import { Headers, HttpClientRequest } from "effect/http"
 import { Media } from "../media.js"

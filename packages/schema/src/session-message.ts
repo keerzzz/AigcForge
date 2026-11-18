@@ -8,9 +8,11 @@ import { Location } from "./location.js"
 import { Model } from "./model.js"
 import { Project } from "./project.js"
 import { Prompt } from "./prompt.js"
-import { DateTimeUtcFromMillis, PositiveInt, RelativePath, statics } from "./schema.js"
-import { ascending } from "./identifier.js"
+import { DateTimeUtcFromMillis, PositiveInt, RelativePath } from "./schema.js"
+import { ID } from "./session-message-id.js"
+import { SessionAttempt } from "./session-attempt.js"
 import { Event } from "./event.js"
+import { SessionID } from "./session-id.js"
 import { Shell as ShellSchema } from "./shell.js"
 import { FinishReason } from "./llm.js"
 import { SessionError } from "./session-error.js"
@@ -20,18 +22,23 @@ import { Money } from "./money.js"
 import { Snapshot } from "./snapshot.js"
 import { TokenUsage } from "./token-usage.js"
 
-export const ID = Schema.String.check(Schema.isStartingWith("msg_")).pipe(
-  Schema.brand("Session.Message.ID"),
-  Schema.annotate({ identifier: "Session.Message.ID" }),
-  statics((schema) => ({
-    create: () => schema.make("msg_" + ascending()),
-    fromEvent: (eventID: Event.ID) => schema.make(eventID.replace(/^evt_/, "msg_")),
-  })),
-)
-export type ID = typeof ID.Type
+export { ID } from "./session-message-id.js"
+
+export class ProducedOrigin extends Schema.Class<ProducedOrigin>("Session.Message.ProducedOrigin")({
+  kind: Schema.Literals(["inbox-user", "inbox-synthetic", "core-synthetic", "step"]),
+  sessionID: SessionID,
+  id: Event.ID,
+  seq: Event.Seq,
+}) {}
+
+export const Origin = Schema.Union([ProducedOrigin, Schema.Struct({ kind: Schema.Literal("historical") })]).annotate({
+  identifier: "Session.Message.Origin",
+})
+export type Origin = typeof Origin.Type
 
 const Base = {
   id: ID,
+  origin: Origin.pipe(optional),
   metadata: Schema.Record(Schema.String, Schema.Unknown).pipe(optional),
   time: Schema.Struct({ created: DateTimeUtcFromMillis }),
 }
@@ -53,8 +60,8 @@ export interface ModelSelected extends Schema.Schema.Type<typeof ModelSelected> 
 export const ModelSelected = Schema.Struct({
   ...Base,
   type: Schema.tag("model-switched"),
-  model: Model.Ref,
-  previous: Model.Ref.pipe(optional),
+  model: Model.Selection,
+  previous: Model.Selection.pipe(optional),
 }).annotate({ identifier: "Session.Message.ModelSelected" })
 
 export interface LocationSwitched extends Schema.Schema.Type<typeof LocationSwitched> {}
@@ -215,6 +222,9 @@ export const Assistant = Schema.Struct({
   type: Schema.tag("assistant"),
   agent: Agent.ID,
   model: Model.Ref,
+  attempts: Schema.Array(SessionAttempt.Info).pipe(optional),
+  unknownPriceAttempts: SessionAttempt.Accounting.fields.unknownPriceAttempts,
+  missingUsageAttempts: SessionAttempt.Accounting.fields.missingUsageAttempts,
   content: AssistantContent.pipe(Schema.Array),
   snapshot: Schema.Struct({
     start: Snapshot.ID.pipe(optional),
@@ -222,6 +232,10 @@ export const Assistant = Schema.Struct({
     files: Schema.Array(RelativePath).pipe(optional),
   }).pipe(optional),
   finish: FinishReason.pipe(optional),
+  /** Actual runner continuation policy, independent of the provider finish reason. */
+  needsContinuation: Schema.Boolean.pipe(optional),
+  /** The committed normal-completion event; message insertion order is independent. */
+  completion: Schema.Struct({ id: Event.ID, seq: Event.Seq }).pipe(optional),
   rawFinish: Schema.String.pipe(optional),
   providerState: ProviderState.pipe(optional),
   cost: Money.USD.pipe(optional),

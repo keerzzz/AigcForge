@@ -1,16 +1,17 @@
-import { Service, type Endpoint } from "@opencode/client/effect/service"
-import { OpenCode, type SessionMessageAssistantTool } from "@opencode/client/promise"
-import { FSUtil } from "@opencode/util/fs-util"
+import { Service, type Endpoint } from "@aigcfroge/client/effect/service"
+import { AigcForge, type SessionMessageAssistantTool } from "@aigcfroge/client/promise"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { open } from "node:fs/promises"
 import path from "node:path"
 import { readStdin } from "../util/io"
 import { ServerConnection } from "../services/server-connection"
 import { parseSessionTargetModel, resolveSessionTarget } from "../session-target"
-import { toolInlineInfo } from "@opencode/tui/mini/tool"
+import { toolInlineInfo } from "@aigcfroge/tui/mini/tool"
 import { runNonInteractivePrompt } from "./noninteractive"
 import { UI } from "./ui"
 import { Env } from "../env"
 import { errorMessage } from "../util/error"
+import { isModelGroup, toModelPreference, toModelSelection } from "@aigcfroge/tui/model-preference"
 
 export type RunCommandInput = {
   server: ServerConnection.Resolved
@@ -81,7 +82,7 @@ async function run(input: RunCommandInput, options: ExecutionOptions) {
 }
 
 async function execute(input: RunCommandInput, prepared: Prepared, endpoint: Endpoint, options: ExecutionOptions) {
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: endpoint.url,
     headers: Service.headers(endpoint),
     // Bun's default five-minute deadline terminates the event stream used by long-running sessions.
@@ -95,25 +96,23 @@ async function execute(input: RunCommandInput, prepared: Prepared, endpoint: End
     continue: input.continue,
     session: input.session,
     fork: input.fork,
-    model: explicit
-      ? { providerID: explicit.model.providerID, id: explicit.model.modelID, variant: explicit.variant }
-      : undefined,
+    model: explicit ? toModelSelection(explicit.model, explicit.variant) : undefined,
     agent: input.agent,
     environment: input.server.service ? Env.session() : undefined,
     prepare: async (next) => {
       const selected =
         next.model ??
         (options.variant
-          ? await client.model
-              .default({ location: { directory: next.location.directory } })
-              .then((result) => result.data)
+          ? await client.model.group.definition
+              .get({ location: { directory: next.location.directory } })
+              .then((result) => result.data.defaultSelection)
           : undefined)
+      if (selected && isModelGroup(selected) && options.variant)
+        throw new RunTargetError("Model groups use each member's configured variant", next.session?.id)
       const model = selected
-        ? {
-            providerID: selected.providerID,
-            id: selected.id,
-            variant: options.variant ?? ("variant" in selected ? selected.variant : undefined),
-          }
+        ? isModelGroup(selected)
+          ? selected
+          : { providerID: selected.providerID, id: selected.id, variant: options.variant ?? selected.variant }
         : undefined
       if ((options.variant ?? explicit?.variant) && !model)
         throw new RunTargetError("Cannot select a variant before selecting a model", next.session?.id)
@@ -125,8 +124,8 @@ async function execute(input: RunCommandInput, prepared: Prepared, endpoint: End
     return undefined
   })
   if (!target) return
-  const model = target.model ? { providerID: target.model.providerID, modelID: target.model.id } : undefined
-  const variant = target.model?.variant
+  const model = target.model ? toModelPreference(target.model) : undefined
+  const variant = target.model && !isModelGroup(target.model) ? target.model.variant : undefined
   if (!target.resume && input.title !== undefined) {
     await client.session.update({
       sessionID: target.session.id,
@@ -141,6 +140,7 @@ async function execute(input: RunCommandInput, prepared: Prepared, endpoint: End
     message: prepared.message,
     files: prepared.files,
     agent: target.agent,
+    selection: target.session.controller ? target.session : undefined,
     model,
     variant,
     thinking: input.thinking ?? false,
@@ -176,6 +176,7 @@ function localDirectory(root: string) {
 export function parseRunModel(value?: string) {
   const ref = parseSessionTargetModel(value)
   if (!ref) return
+  if (isModelGroup(ref)) return { model: toModelPreference(ref), variant: undefined }
   return {
     model: { providerID: ref.providerID, modelID: ref.id },
     variant: ref.variant,
@@ -264,3 +265,5 @@ export function reportRunError(input: Pick<RunCommandInput, "format">, message: 
 function fail(message: string): never {
   throw new Error(message)
 }
+
+export * as Run from "./run"

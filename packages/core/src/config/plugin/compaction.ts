@@ -1,13 +1,13 @@
 export * as ConfigCompactionPlugin from "./compaction.js"
 
-import { define } from "@opencode/plugin/effect/plugin"
+import { define } from "@aigcfroge/plugin/effect/plugin"
 import { Effect } from "effect"
 import { Config } from "../../config.js"
 import { SessionCompaction } from "../../session/compaction.js"
 import { ConfigEntryObserver } from "./entry-observer.js"
 
 export const Plugin = define({
-  id: "opencode.config.compaction",
+  id: "aigcfroge.config.compaction",
   effect: Effect.fn(function* (ctx) {
     const config = yield* Config.Service
     const compaction = yield* SessionCompaction.Service

@@ -1,10 +1,11 @@
 export * as Job from "./job.js"
 
 import { Array, Cause, Clock, Context, Deferred, Effect, Exit, Layer, Schema, Scope, SynchronizedRef } from "effect"
-import { makeGlobalNode } from "@opencode/util/effect/app-node"
+import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
 import { KV } from "./kv.js"
 import { SessionMessage } from "./session/message.js"
 import { SessionSchema } from "./session/schema.js"
+import { DelegationID, ParticipantID } from "@aigcfroge/schema/delegation-id"
 
 const Background = Schema.Struct({
   id: Schema.String,
@@ -23,6 +24,14 @@ const Background = Schema.Struct({
       agent: Schema.String,
       description: Schema.String,
     }),
+    Schema.Struct({
+      kind: Schema.Literal("delegation"),
+      delegationID: DelegationID.ID,
+      participantID: ParticipantID,
+      parentSessionID: SessionSchema.ID,
+      childSessionID: SessionSchema.ID,
+      description: Schema.String,
+    }),
   ]),
   status: Schema.Literals(["running", "completed", "error", "cancelled"]),
   output: Schema.optionalKey(Schema.String),
@@ -35,7 +44,10 @@ export type Status = Background["status"]
 
 const decodeBackground = Schema.decodeUnknownResult(Background)
 const backgroundPrefix = "job.background/"
+const sessionDeletionPrefix = "job.session-delete/"
 const COMPLETED_LIMIT = 25
+
+const deletionJobID = (sessionID: string) => `${sessionDeletionPrefix}${sessionID}`
 
 export type Info = {
   id: string
@@ -53,12 +65,14 @@ export type Info = {
 type Active = {
   info: Info
   done: Deferred.Deferred<Info>
+  stopped: Deferred.Deferred<void>
   backgrounded: Deferred.Deferred<Info>
   scope: Scope.Closeable
   blockingSessions: Map<SessionSchema.ID, number>
   isBackgrounded: boolean
   consumed: boolean
   recovery?: Recovery
+  deletionReferences?: number
 }
 
 type State = {
@@ -78,7 +92,10 @@ type BackgroundResult = {
   backgrounded?: Deferred.Deferred<Info>
 }
 
-type StartResult = { info: Info } | { info: Info; scope: Scope.Closeable }
+type StartResult =
+  | { info: Info }
+  | { info: Info; scope: Scope.Closeable }
+  | { info: Info; rejectedScope: Scope.Closeable }
 
 type BlockWait = {
   done: Deferred.Deferred<Info>
@@ -132,11 +149,17 @@ export interface Interface {
   readonly background: (id: string) => Effect.Effect<Info | undefined>
   readonly backgroundAll: (input: BackgroundAllInput) => Effect.Effect<Info[]>
   readonly cancel: (id: string) => Effect.Effect<Info | undefined>
+  readonly cancelAllForSession: (sessionID: SessionSchema.ID) => Effect.Effect<void>
+  readonly isDeletingSession: (sessionID: SessionSchema.ID) => Effect.Effect<boolean>
+  readonly withSessionDeletion: <A, E, R>(
+    sessionID: SessionSchema.ID,
+    self: Effect.Effect<A, E, R>,
+  ) => Effect.Effect<A, E, R>
   readonly pendingBackground: Effect.Effect<readonly Background[]>
   readonly completeBackground: (notificationID: SessionMessage.ID) => Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/Job") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Job") {}
 
 function snapshot(job: Active): Info {
   return {
@@ -254,26 +277,49 @@ export const make = Effect.gen(function* () {
       Effect.gen(function* () {
         const started_at = yield* Clock.currentTimeMillis
         const done = yield* Deferred.make<Info>()
+        const stopped = yield* Deferred.make<void>()
         const backgrounded = yield* Deferred.make<Info>()
         const result = yield* SynchronizedRef.modifyEffect(
           state.jobs,
           Effect.fnUntraced(function* (jobs): Effect.fn.Return<readonly [StartResult, Map<string, Active>]> {
             const existing = jobs.get(input.id)
+            const closed = state.scope.state._tag === "Closed"
+            const blocked =
+              closed ||
+              input.id.startsWith(sessionDeletionPrefix) ||
+              [input.metadata?.sessionID, input.metadata?.childSessionID].some(
+                (sessionID) =>
+                  typeof sessionID === "string" && (jobs.get(deletionJobID(sessionID))?.deletionReferences ?? 0) > 0,
+              )
+            const info = {
+              id: input.id,
+              type: input.type,
+              title: input.title,
+              status: blocked ? ("cancelled" as const) : ("running" as const),
+              started_at,
+              metadata: input.metadata,
+              ...(input.notificationID ? { notificationID: input.notificationID } : {}),
+              ...(blocked
+                ? {
+                    completed_at: started_at,
+                    error: closed
+                      ? "Job registry scope is closed"
+                      : input.id.startsWith(sessionDeletionPrefix)
+                        ? "Session deletion Job IDs are reserved"
+                        : "Session deletion in progress",
+                  }
+                : {}),
+            }
+            // An incoming start is rejected without replacing the generation that deletion is already stopping.
+            if (blocked && existing?.info.status === "running") return [{ info }, jobs]
             if (existing?.info.status === "running") {
               return [{ info: snapshot(existing) }, jobs]
             }
             const scope = yield* Scope.fork(state.scope, "parallel")
             const job = {
-              info: {
-                id: input.id,
-                type: input.type,
-                title: input.title,
-                status: "running" as const,
-                started_at,
-                metadata: input.metadata,
-                ...(input.notificationID ? { notificationID: input.notificationID } : {}),
-              },
+              info,
               done,
+              stopped,
               backgrounded,
               scope,
               blockingSessions: new Map<SessionSchema.ID, number>(),
@@ -281,16 +327,26 @@ export const make = Effect.gen(function* () {
               consumed: false,
               recovery: input.recovery,
             }
+            if (blocked) {
+              yield* Deferred.succeed(done, info)
+              yield* Deferred.succeed(stopped, undefined)
+              return [{ info, rejectedScope: scope }, new Map(jobs).set(input.id, job)]
+            }
             return [{ info: snapshot(job), scope }, new Map(jobs).set(input.id, job)]
           }),
         )
         if ("scope" in result)
           yield* restore(input.run).pipe(
+            Effect.ensuring(Deferred.succeed(stopped, undefined)),
             Effect.exit,
             Effect.flatMap((exit) => settle(input.id, result.scope, exit)),
             Effect.asVoid,
             Effect.forkIn(result.scope, { startImmediately: true }),
           )
+        if ("rejectedScope" in result) {
+          yield* Scope.close(result.rejectedScope, Exit.void)
+          yield* consume(input.id, result.rejectedScope)
+        }
         return result.info
       }),
     )
@@ -408,13 +464,14 @@ export const make = Effect.gen(function* () {
     return result.map((item) => item.info)
   })
 
-  const cancel: Interface["cancel"] = Effect.fn("Job.cancel")(function* (id) {
+  const cancel = Effect.fn("Job.cancel")(function* (id: string, generation?: Scope.Closeable) {
     const completed_at = yield* Clock.currentTimeMillis
     const result = yield* SynchronizedRef.modifyEffect(
       state.jobs,
       Effect.fnUntraced(function* (jobs): Effect.fn.Return<readonly [FinishResult, Map<string, Active>]> {
         const job = jobs.get(id)
-        if (!job) return [{}, jobs]
+        if (!job || (generation !== undefined && job.scope !== generation)) return [{}, jobs]
+        if (job.deletionReferences !== undefined) return [{ info: snapshot(job) }, jobs]
         if (job.info.status !== "running") return [{ info: snapshot(job), generation: job.scope }, jobs]
         const next = {
           ...job,
@@ -436,6 +493,111 @@ export const make = Effect.gen(function* () {
     if (result.scope) yield* Scope.close(result.scope, Exit.void)
     if (result.generation) yield* consume(id, result.generation)
     return result.info
+  })
+
+  const cancelAllForSession: Interface["cancelAllForSession"] = Effect.fn("Job.cancelAllForSession")(
+    function* (sessionID) {
+      const owned = Effect.gen(function* () {
+        return yield* Effect.filter(
+          [...(yield* SynchronizedRef.get(state.jobs)).values()].filter(
+            (job) =>
+              job.deletionReferences === undefined &&
+              (job.info.metadata?.sessionID === sessionID || job.info.metadata?.childSessionID === sessionID),
+          ),
+          (job) =>
+            job.info.status === "running"
+              ? Effect.succeed(true)
+              : Deferred.isDone(job.stopped).pipe(Effect.map((stopped) => !stopped)),
+        )
+      })
+      const stop = (job: Active) =>
+        cancel(job.info.id, job.scope).pipe(Effect.andThen(Deferred.await(job.stopped)), Effect.asVoid)
+
+      // Producers must stop before the child snapshot: their finalizers can register more work.
+      yield* Effect.forEach(
+        (yield* owned).filter(
+          (job) => job.info.metadata?.sessionID === sessionID && job.info.metadata?.childSessionID === undefined,
+        ),
+        stop,
+        { discard: true },
+      )
+      // cancel publishes before scope cleanup; join stopped even when another caller already cancelled.
+      while (true) {
+        const remaining = yield* owned
+        if (remaining.length === 0) return
+        yield* Effect.forEach(remaining, stop, { discard: true })
+      }
+    },
+  )
+
+  const isDeletingSession: Interface["isDeletingSession"] = Effect.fn("Job.isDeletingSession")(function* (sessionID) {
+    return ((yield* SynchronizedRef.get(state.jobs)).get(deletionJobID(sessionID))?.deletionReferences ?? 0) > 0
+  })
+
+  const withSessionDeletion: Interface["withSessionDeletion"] = Effect.fn("Job.withSessionDeletion")(function* <
+    A,
+    E,
+    R,
+  >(sessionID: SessionSchema.ID, self: Effect.Effect<A, E, R>): Effect.fn.Return<A, E, R> {
+    const id = deletionJobID(sessionID)
+    return yield* Effect.acquireUseRelease(
+      SynchronizedRef.modifyEffect(
+        state.jobs,
+        Effect.fnUntraced(function* (jobs): Effect.fn.Return<readonly [Scope.Closeable, Map<string, Active>]> {
+          const existing = jobs.get(id)
+          if (existing?.deletionReferences !== undefined)
+            return [
+              existing.scope,
+              new Map(jobs).set(id, { ...existing, deletionReferences: existing.deletionReferences + 1 }),
+            ]
+          const scope = yield* Scope.fork(state.scope, "parallel")
+          return [
+            scope,
+            new Map(jobs).set(id, {
+              info: {
+                id,
+                type: "session_delete",
+                status: "running",
+                started_at: yield* Clock.currentTimeMillis,
+                metadata: { deletingSessionID: sessionID },
+              },
+              done: yield* Deferred.make<Info>(),
+              stopped: yield* Deferred.make<void>(),
+              backgrounded: yield* Deferred.make<Info>(),
+              scope,
+              blockingSessions: new Map<SessionSchema.ID, number>(),
+              isBackgrounded: false,
+              consumed: false,
+              deletionReferences: 1,
+            }),
+          ]
+        }),
+      ),
+      () => self,
+      (scope, exit) =>
+        Effect.gen(function* () {
+          const finished = yield* SynchronizedRef.modify(
+            state.jobs,
+            (jobs): readonly [Active | undefined, Map<string, Active>] => {
+              const job = jobs.get(id)
+              if (!job || job.scope !== scope || job.deletionReferences === undefined) return [undefined, jobs]
+              if (job.deletionReferences > 1)
+                return [undefined, new Map(jobs).set(id, { ...job, deletionReferences: job.deletionReferences - 1 })]
+              const next = new Map(jobs)
+              next.delete(id)
+              return [job, next]
+            },
+          )
+          if (!finished) return
+          yield* Scope.close(scope, exit)
+          yield* Deferred.succeed(finished.stopped, undefined)
+          yield* Deferred.succeed(finished.done, {
+            ...finished.info,
+            status: Exit.isSuccess(exit) ? "completed" : Cause.hasInterruptsOnly(exit.cause) ? "cancelled" : "error",
+            completed_at: yield* Clock.currentTimeMillis,
+          })
+        }),
+    )
   })
 
   const pendingBackground: Interface["pendingBackground"] = Effect.gen(function* () {
@@ -470,6 +632,9 @@ export const make = Effect.gen(function* () {
     background,
     backgroundAll,
     cancel,
+    cancelAllForSession,
+    isDeletingSession,
+    withSessionDeletion,
     pendingBackground,
     completeBackground,
   })

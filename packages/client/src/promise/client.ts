@@ -1,18 +1,21 @@
-export * as OpenCode from "./client.js"
+export * as AigcForge from "./client.js"
 
 import { SharedEvents } from "../shared-events.js"
-import { OpenCode } from "./generated/index.js"
+import { AigcForge } from "./generated/index.js"
 import type { ClientOptions } from "./generated/client.js"
 import { makeRpc } from "./rpc.js"
 
 export type { ClientOptions, RequestOptions } from "./generated/client.js"
 
 export function make(options: ClientOptions) {
-  const raw = OpenCode.make(options)
+  const raw = AigcForge.make(options)
   const events = SharedEvents.make((signal, onActivity) => raw.event.subscribe({ signal, onActivity }))
   return {
     ...raw,
     rpc: Object.assign(makeRpc(raw, events), raw.rpc),
-    event: events,
+    event: {
+      ...events,
+      subscribe: Object.assign(events.subscribe, { raw: raw.event.subscribe.raw }),
+    },
   }
 }

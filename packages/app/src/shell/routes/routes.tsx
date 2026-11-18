@@ -1,4 +1,5 @@
-import { Route, useParams } from "@solidjs/router"
+import { Navigate, Route, useParams } from "@solidjs/router"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { createMemo, lazy, Show, Suspense, type ParentProps } from "solid-js"
 import { Home } from "@/home/route"
 import { ServerProvider } from "@/runtime/server/current"
@@ -11,7 +12,7 @@ import Shell from "@/shell/shell"
 import { requireServerKey } from "./session"
 import { ExtensionAttachment } from "@/runtime/extension/root"
 
-export const File = lazy(() => import("@opencode/session-ui/file").then((module) => ({ default: module.File })))
+export const File = lazy(() => import("@aigcfroge/session-ui/file").then((module) => ({ default: module.File })))
 
 const loadSessionRoute = () => Promise.all([import("@/session/route"), File.preload()]).then(([module]) => module)
 
@@ -44,6 +45,7 @@ export function AppRoutes() {
   return (
     <Route component={AppLayout}>
       <Route path="/" component={Home} />
+      <Route path="/mode/:mode" component={ModeHome} />
       <Route path="/settings" component={SettingsScreen} />
       <Route
         path="/server/:serverKey/session/:id"
@@ -65,6 +67,16 @@ export function AppRoutes() {
       />
       <Route path="/new-session" component={DraftRoute} />
     </Route>
+  )
+}
+
+function ModeHome() {
+  const params = useParams<{ mode: string }>()
+
+  return (
+    <Show when={ProductMode.isID(params.mode)} fallback={<Navigate href="/" />}>
+      <Home />
+    </Show>
   )
 }
 

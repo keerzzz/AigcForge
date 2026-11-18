@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 import { createData, type CreateDataInput } from "../src/solid"
-import { OpenCode, type OpenCodeEvent, type SessionInfo } from "../src/promise"
+import { AigcForge, type AigcForgeEvent, type SessionInfo } from "../src/promise"
 
 test("evicts a whole family while preserving metadata and attention", async () => {
   const setup = fixture()
@@ -114,7 +114,7 @@ function info(id: string, parentID?: string): SessionInfo {
   }
 }
 
-function enqueued(sessionID: string, inboxID = "msg_pending"): OpenCodeEvent {
+function enqueued(sessionID: string, inboxID = "msg_pending"): AigcForgeEvent {
   return {
     id: `evt_${inboxID}`,
     created: 1,
@@ -126,8 +126,8 @@ function enqueued(sessionID: string, inboxID = "msg_pending"): OpenCodeEvent {
 
 function fixture(read?: (url: URL) => Promise<Response | void>) {
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
-  const api = OpenCode.make({
-    baseUrl: "http://opencode.local",
+  const api = AigcForge.make({
+    baseUrl: "http://aigcfroge.local",
     fetch: async (input) => {
       const url = new URL(input instanceof Request ? input.url : String(input))
       const response = await read?.(url)
@@ -171,7 +171,7 @@ function fixture(read?: (url: URL) => Promise<Response | void>) {
     return {
       data,
       dispose,
-      emit: (details: OpenCodeEvent) => listeners.forEach((listener) => listener({ name: details.type, details })),
+      emit: (details: AigcForgeEvent) => listeners.forEach((listener) => listener({ name: details.type, details })),
     }
   })
 }

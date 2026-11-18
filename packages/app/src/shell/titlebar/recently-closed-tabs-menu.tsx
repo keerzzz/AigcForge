@@ -1,10 +1,10 @@
-import { createMemo, For, Show, type JSX } from "solid-js"
+import { createMemo, For, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
-import { Icon } from "@opencode/ui/icon"
-import { IconButton } from "@opencode/ui/icon-button"
-import { Menu } from "@opencode/ui/menu"
-import { Tooltip } from "@opencode/ui/tooltip"
+import { Icon } from "@aigcfroge/ui/icon"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { Menu } from "@aigcfroge/ui/menu"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
 import { useLanguage } from "@/runtime/i18n/language"
 import { ServerConnection } from "@/runtime/server/registry"
 import { useGlobal, useServerCtx } from "@/runtime/server/runtime"
@@ -13,12 +13,7 @@ import { listClosedTabs, type ClosedTab } from "@/shell/tabs/closed"
 import { useTabs } from "@/shell/tabs/tabs"
 import { sessionTabTitle } from "./tab-title"
 
-export function RecentlyClosedTabsMenu(props: {
-  onNewTab: () => void
-  tooltip?: JSX.Element
-  vertical?: boolean
-  keybind?: string
-}) {
+export function RecentlyClosedTabsMenu(props: { onNewTab: () => void; tooltip?: JSX.Element }) {
   const language = useLanguage()
   const tabs = useTabs()
 
@@ -28,42 +23,18 @@ export function RecentlyClosedTabsMenu(props: {
 
   return (
     <Menu.Context modal={false}>
-      <Show
-        when={props.vertical}
-        fallback={
-          <Tooltip placement="bottom" value={props.tooltip}>
-            <Menu.Context.Trigger
-              as={IconButton}
-              type="button"
-              variant="ghost-muted"
-              size="large"
-              class="shrink-0"
-              icon={<Icon name="plus" />}
-              onClick={props.onNewTab}
-              aria-label={language.t("command.session.new")}
-            />
-          </Tooltip>
-        }
-      >
+      <Tooltip placement="bottom" value={props.tooltip}>
         <Menu.Context.Trigger
-          as="button"
+          as={IconButton}
           type="button"
-          data-titlebar-tab-action
-          data-action="vertical-tabs-new-session"
-          class="group flex h-7 w-full shrink-0 items-center gap-1.5 rounded-[6px] ps-1.5 pe-2 text-[13px] leading-4 text-v2-text-text-faint hover:text-v2-text-text-base"
+          variant="ghost-muted"
+          size="large"
+          class="shrink-0"
+          icon={<Icon name="plus" />}
           onClick={props.onNewTab}
           aria-label={language.t("command.session.new")}
-        >
-          <Icon name="edit" class="shrink-0" />
-          <span class="min-w-0 truncate">{language.t("command.session.new")}</span>
-          <span
-            class="ms-auto hidden min-w-0 truncate text-v2-text-text-faint group-hover:block group-focus-visible:block"
-            aria-hidden="true"
-          >
-            <bdi dir="ltr">{props.keybind}</bdi>
-          </span>
-        </Menu.Context.Trigger>
-      </Show>
+        />
+      </Tooltip>
       <Menu.Context.Portal>
         <Menu.Context.Content class="max-h-[66.667dvh] w-56 max-w-56 overflow-y-auto">
           <Menu.Group>

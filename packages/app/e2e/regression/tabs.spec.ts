@@ -1,9 +1,10 @@
 import { expect, test, type Page } from "@playwright/test"
-import type { OpenCodeEvent, SessionMessageInfo } from "@opencode/client/promise"
+import type { AigcForgeEvent, SessionMessageInfo } from "@aigcfroge/client/promise"
 import {
   NO_PROVIDER,
   REMOTE_SERVER,
   SERVER,
+  T0,
   expectPath,
   holdRoute,
   project,
@@ -28,7 +29,7 @@ test("tab strip keeps draft tabs as wide as session tabs and navigates on mouse 
   const workspace = await mockWorkspace(page, {
     name: "Tabs",
     sessions: [a, b],
-    seed: { tabs: [a.id, { draft: "draft_tab_width", directory: "C:/OpenCode/Tabs" }, b.id] },
+    seed: { tabs: [a.id, { draft: "draft_tab_width", directory: "C:/AigcForge/Tabs" }, b.id] },
   })
 
   await page.goto(sessionHref(a.id))
@@ -103,10 +104,26 @@ for (const row of [
 ]) {
   test(`mobile drawer exposes close controls and navigates between tabs (${row.tabLayout})`, async ({ page }) => {
     await page.setViewportSize({ width: row.width, height: 720 })
+
+    const history = Array.from({ length: 3 }, (_, index) => ({
+      id: "ses_mobile_project_history_" + index,
+      title: "Mobile project history " + index,
+      mode: "coding",
+      created: T0 - (index + 1) * 1000,
+    }))
+
+    const work = { id: "ses_mobile_project_work", title: "Mobile Work session", mode: "work" }
+
     await mockWorkspace(page, {
       name: "Tabs",
-      sessions: [a, b, c],
-      seed: { settings: { appearance: { tabLayout: row.tabLayout } } },
+      sessions:
+        row.tabLayout === "horizontal"
+          ? [...[a, b, c].map((item) => ({ ...item, mode: "coding" })), ...history, work]
+          : [a, b, c],
+      seed: {
+        settings: { appearance: { tabLayout: row.tabLayout } },
+        tabs: [a.id, b.id, c.id, ...(row.tabLayout === "horizontal" ? [work.id] : [])],
+      },
     })
     await page.goto(sessionHref(a.id))
     await page.getByRole("button", { name: "Tabs", exact: true }).click()
@@ -124,82 +141,89 @@ for (const row of [
     await expectPath(page, sessionHref(b.id))
     await expect(page.getByRole("dialog", { name: "Tabs", exact: true })).toBeHidden()
 
-    if (row.tabLayout !== "vertical") return
+    if (row.tabLayout === "horizontal") {
+      const older = history[2]
+
+      if (!older) throw new Error("The mobile project fixture must contain a sixth Coding session")
+      await page.getByRole("button", { name: "Tabs", exact: true }).click()
+      const projects = drawer.getByRole("complementary", { name: "Projects", exact: true })
+
+      const olderRow = projects
+        .locator(`[data-component="home-session-row-container"][data-session-id="${older.id}"]`)
+        .locator('[data-component="home-session-row"]')
+
+      await expect(projects).toBeVisible()
+      await expect(projects.locator('[data-component="home-session-row"]')).toHaveCount(5)
+      await expect(projects.locator('[data-component="home-session-title"]')).toHaveText([
+        a.title,
+        b.title,
+        c.title,
+        ...history.slice(0, 2).map((item) => item.title),
+      ])
+      await expect(olderRow).toBeHidden()
+      await expect(projects.locator(`[data-session-id="${work.id}"]`)).toHaveCount(0)
+      await expect(drawer.locator(`[data-titlebar-tab-slot]:has(a[href="${sessionHref(work.id)}"])`)).toBeVisible()
+      await projects.getByRole("button", { name: "Show more", exact: true }).click()
+      await expect(olderRow).toBeVisible()
+      await olderRow.click()
+      await expectPath(page, sessionHref(older.id))
+      await expectSessionTitle(page, older.title)
+      await expect(page.getByRole("dialog", { name: "Tabs", exact: true })).toBeHidden()
+
+      await page.getByRole("button", { name: "Tabs", exact: true }).click()
+      await expect(drawer.locator(`[data-titlebar-tab-slot]:has(a[href="${sessionHref(older.id)}"])`)).toHaveAttribute(
+        "data-active",
+        "true",
+      )
+      await expect(olderRow).toHaveAttribute("aria-current", "page")
+      await olderRow.click()
+      await expectPath(page, sessionHref(older.id))
+      await expect(page.getByRole("dialog", { name: "Tabs", exact: true })).toBeHidden()
+      await page.getByRole("button", { name: "Tabs", exact: true }).click()
+      await drawer.locator('[data-action="mobile-tabs-home"]').click()
+      await expectPath(page, "/")
+      await expect(page.getByRole("dialog", { name: "Tabs", exact: true })).toBeHidden()
+      await page.getByRole("button", { name: "Tabs", exact: true }).click()
+      await expect(projects).toHaveCount(0)
+      await expect(page.getByRole("dialog", { name: "Tabs", exact: true })).not.toHaveAttribute(
+        "data-transitioning",
+        "",
+      )
+      await page.keyboard.press("Escape")
+      await expect(page.getByRole("dialog", { name: "Tabs", exact: true })).toBeHidden()
+
+      return
+    }
+
+    await page.getByRole("button", { name: "Tabs", exact: true }).click()
+    await expect(page.getByRole("dialog", { name: "Tabs", exact: true })).toBeVisible()
     await page.setViewportSize({ width: 1280, height: 720 })
-    await expect(
-      page
-        .locator('[data-slot="vertical-tabs-sidebar"]')
-        .locator(`[data-titlebar-tab-link][href="${sessionHref(b.id)}"]`),
-    ).toBeVisible()
-    await expect(page.locator('[data-slot="titlebar-tabs"]')).toHaveCount(0)
+    await expect(page.locator('[data-slot="vertical-tabs-sidebar"]')).toHaveCount(0)
+    await expect(page.locator(`[data-titlebar-tab-link][href="${sessionHref(b.id)}"]`)).toBeVisible()
+    await expect(page.locator('[data-slot="titlebar-tabs"]')).toBeVisible()
+    await page.setViewportSize({ width: row.width, height: 720 })
+    await expect(page.getByRole("dialog", { name: "Tabs", exact: true })).toBeHidden()
+    await expect(page.locator('[data-slot="mobile-projects-drawer"]')).toHaveCount(0)
   })
 }
 
-test("vertical tabs resize, scroll, show shortcut hints, and navigate", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 480 })
-  const directory = "C:/OpenCode/Tabs"
+test("legacy vertical tabs use the shared top strip on Home and session details", async ({ page }) => {
   await mockWorkspace(page, {
     name: "Tabs",
     sessions: [a, b],
-    seed: {
-      settings: {
-        appearance: { tabLayout: "vertical" },
-        keybinds: { "home.toggle": "ctrl+alt+h", "tab.new": "ctrl+shift+n" },
-      },
-      tabs: [
-        a.id,
-        ...Array.from({ length: 24 }, (_, index) => ({ draft: `draft_vertical_${index}`, directory })),
-        b.id,
-      ],
-    },
+    seed: { settings: { appearance: { tabLayout: "vertical" } } },
   })
   await page.goto(sessionHref(a.id))
-
-  const sidebar = page.locator('[data-slot="vertical-tabs-sidebar"]')
-  const tabB = sidebar.locator(`[data-titlebar-tab-link][href="${sessionHref(b.id)}"]`)
-  await expect(sidebar.locator("[data-titlebar-tab-slot]")).toHaveCount(26)
-  await expect(sidebar).toHaveCSS("width", "260px")
-  await expect(page.locator('[data-slot="titlebar-tabs"]')).toHaveCount(0)
-
-  const handle = sidebar.locator('[data-component="resize-handle"]')
-
-  for (const [offset, width] of [
-    [-80, "180px"],
-    [-200, "140px"],
-  ] as const) {
-    const box = await handle.boundingBox()
-
-    if (!box) throw new Error("vertical tab resize handle has no bounding box")
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-    await page.mouse.down()
-    await page.mouse.move(box.x + box.width / 2 + offset, box.y + box.height / 2)
-    await page.mouse.up()
-    await expect(sidebar).toHaveCSS("width", width)
-  }
-
-  for (const name of ["Home", "New session"]) {
-    const label = sidebar.getByRole("button", { name, exact: true }).getByText(name, { exact: true })
-    await expect(label).toBeVisible()
-    await expect
-      .poll(() => label.evaluate((element) => element.scrollWidth - element.clientWidth), { message: name })
-      .toBeLessThanOrEqual(1)
-  }
-
-  const scroll = sidebar.locator('[data-slot="vertical-tabs-scroll"]')
-  await scroll.evaluate((element) => element.scrollTo(0, element.scrollHeight))
-  await expect(tabB).toBeInViewport({ ratio: 1 })
-
-  await page.locator("html").evaluate((element) => element.setAttribute("dir", "rtl"))
-  const home = sidebar.locator('[data-action="vertical-tabs-home"]')
-  const hint = home.locator('span[aria-hidden="true"]')
-  await expect(hint).toHaveText("Ctrl+Alt+H")
-  await expect(hint.getByText("Ctrl+Alt+H", { exact: true })).toHaveCSS("direction", "ltr")
-  await expect(hint).toBeHidden()
-  await home.focus()
-  await expect(hint).toBeVisible()
-
-  await tabB.click()
+  await expectSessionTitle(page, a.title)
+  await expect(page.locator('[data-slot="vertical-tabs-sidebar"]')).toHaveCount(0)
+  await expect(page.locator('[data-slot="titlebar-tabs"]')).toBeVisible()
+  await page.locator(`[data-titlebar-tab-link][href="${sessionHref(b.id)}"]`).click()
   await expectPath(page, sessionHref(b.id))
+  await expectSessionTitle(page, b.title)
+  await page.goto("/")
+  await expect(page.locator('[data-slot="vertical-tabs-sidebar"]')).toHaveCount(0)
+  await expect(page.locator("#shell-project-sidebar")).toHaveCount(0)
+  await expect(page.locator('[data-slot="titlebar-tabs"]')).toBeVisible()
 })
 
 test("closing the active server's last tab opens the remaining server tab", async ({ page }) => {
@@ -296,7 +320,7 @@ test("inactive tabs stay busy while work waits in their inbox, and pulse on a ne
         inboxID: "inb_tab_c_prompt",
         item: { type: "user", payload: { text: "Another client's prompt" }, delivery: "queue" },
       },
-    } satisfies Extract<OpenCodeEvent, { type: "session.inbox.enqueued" }>,
+    } satisfies Extract<AigcForgeEvent, { type: "session.inbox.enqueued" }>,
   ])
 
   await expect(tab(c.id)).toHaveAttribute("data-test-pulsed", "")
@@ -371,7 +395,7 @@ test("inactive tabs load attention and inbox, but read the transcript only on se
           id: `msg_${id}_assistant`,
           type: "assistant",
           agent: "build",
-          model: { id: "claude-opus-4-6", providerID: "opencode" },
+          model: { id: "claude-opus-4-6", providerID: "aigcfroge" },
           content: [{ type: "text", text: state.text }],
           time: { created: 2, completed: 3 },
         },
@@ -442,7 +466,7 @@ test("five loaded workspace tabs stay rendered and reactive through repeated swi
           id: `msg_assistant_${id}`,
           type: "assistant",
           agent: "build",
-          model: { id: "claude-opus-4-6", providerID: "opencode" },
+          model: { id: "claude-opus-4-6", providerID: "aigcfroge" },
           time: { created: 2, completed: 3 },
           content: [{ type: "text", text: `Answer for ${id}` }],
         },
@@ -485,10 +509,10 @@ test("five loaded workspace tabs stay rendered and reactive through repeated swi
 
 test("each session tab shows its own file tab after a switch to a session in another folder", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  const directory = "C:/OpenCode/FolderSwitch"
+  const directory = "C:/AigcForge/FolderSwitch"
   const alpha = { id: "ses_folderswitch_alpha", title: "Folder switch alpha" }
   const beta = { id: "ses_folderswitch_beta", title: "Folder switch beta" }
-  const other = { id: "ses_folderswitch_other", title: "Folder switch other", directory: "C:/OpenCode/FolderOther" }
+  const other = { id: "ses_folderswitch_other", title: "Folder switch other", directory: "C:/AigcForge/FolderOther" }
   await openSession(page, {
     name: "FolderSwitch",
     sessions: [alpha, beta, other],
@@ -537,7 +561,7 @@ test("each session tab shows its own file tab after a switch to a session in ano
 test("the Windows titlebar menu pastes through the desktop edit action", async ({ page }) => {
   await mockWorkspace(page, { name: "WindowsMenu", sessions: [] })
   await page.goto(`/e2e/utils/windows-menu.html?${new URLSearchParams({ server: SERVER })}`)
-  await page.getByRole("button", { name: "OpenCode menu", exact: true }).click()
+  await page.getByRole("button", { name: "AigcForge menu", exact: true }).click()
   await page.getByRole("menuitem", { name: "Edit", exact: true }).click()
   const paste = page.getByRole("menuitem", { name: /^Paste/ })
   await expect(paste).toHaveText("PasteCtrl+V")

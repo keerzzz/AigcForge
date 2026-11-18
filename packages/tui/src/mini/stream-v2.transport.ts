@@ -2,15 +2,15 @@ import type {
   EventSubscribeOutput,
   FormInfo,
   LocationRef,
-  OpenCodeClient,
+  AigcForgeClient,
   PermissionRequest,
   SessionMessageAssistantTool,
   SessionMessageInfo,
   SessionMessageUser,
   SessionInboxInfo,
-} from "@opencode/client/promise"
-import { Event } from "@opencode/schema/event"
-import { SessionMessage } from "@opencode/schema/session-message"
+} from "@aigcfroge/client/promise"
+import { Event } from "@aigcfroge/schema/event"
+import { SessionMessage } from "@aigcfroge/schema/session-message"
 import { blockerStatus, pickBlockerView } from "./session-data"
 import { writeSessionOutput } from "./stream"
 import { createFragmentReconciler, fragmentRef, type FragmentReconciler } from "./stream-v2.fragment"
@@ -19,6 +19,7 @@ import { messagePrompt } from "./session.shared"
 import { createSubagentTracker, toolCommit, toolFinalPhase } from "./stream-v2.subagent"
 import { normalizeTool, toolOutputText } from "./tool"
 import { toolDisplayContent } from "../util/tool-display"
+import { isModelGroup, toModelSelection } from "../model-preference"
 import type {
   FooterApi,
   FooterPatch,
@@ -40,9 +41,9 @@ type Trace = {
 }
 
 type StreamInput = {
-  sdk: OpenCodeClient
-  reconnect?: (signal: AbortSignal) => Promise<OpenCodeClient>
-  onClient?: (sdk: OpenCodeClient) => void
+  sdk: AigcForgeClient
+  reconnect?: (signal: AbortSignal) => Promise<AigcForgeClient>
+  onClient?: (sdk: AigcForgeClient) => void
   readTextFile?: (url: string) => Promise<string>
   location?: LocationRef
   sessionID: string
@@ -63,6 +64,10 @@ export type SessionTurnInput = {
   agent: string | undefined
   model: RunInput["model"]
   variant: string | undefined
+  selection?: Pick<
+    Awaited<ReturnType<AigcForgeClient["session"]["get"]>>,
+    "controller" | "model" | "executorPreference"
+  >
   prompt: RunPrompt
   files: RunFilePart[]
   includeFiles: boolean
@@ -110,7 +115,7 @@ type RunV2Event = EventSubscribeOutput
 type PromptFilePart = Extract<RunPromptPart, { type: "file" }>
 
 type Attempt = {
-  client: OpenCodeClient
+  client: AigcForgeClient
   signal: AbortSignal
   generation: number
 }
@@ -449,19 +454,25 @@ function compactionError(messageID: string, text: string): StreamCommit {
 
 async function resolveSelectedModel(
   input: StreamInput,
-  sdk: OpenCodeClient,
+  sdk: AigcForgeClient,
   next: Pick<SessionTurnInput, "model" | "variant" | "signal">,
 ) {
-  if (next.model) return { providerID: next.model.providerID, id: next.model.modelID, variant: next.variant }
+  if (next.model) {
+    if (isModelGroup(next.model) && next.variant) throw new Error("Model groups use each member's configured variant")
+    return toModelSelection(next.model, next.variant)
+  }
   if (!next.variant) return
 
   const session = await sdk.session
     .get({ sessionID: input.sessionID }, { signal: next.signal })
     .then((response) => response.model)
-  if (session) return { ...session, variant: next.variant }
+  if (session) {
+    if (isModelGroup(session)) throw new Error("Model groups use each member's configured variant")
+    return { ...session, variant: next.variant }
+  }
 
-  const fallback = await sdk.model
-    .default(
+  const fallback = await sdk.model.group.definition
+    .get(
       input.location
         ? {
             location: {
@@ -471,8 +482,9 @@ async function resolveSelectedModel(
         : undefined,
       { signal: next.signal },
     )
-    .then((response) => response.data)
+    .then((response) => response.data.defaultSelection)
   if (!fallback) return
+  if (isModelGroup(fallback)) throw new Error("Model groups use each member's configured variant")
   return { providerID: fallback.providerID, id: fallback.id, variant: next.variant }
 }
 
@@ -481,7 +493,7 @@ export async function createSessionTransport(input: StreamInput): Promise<Sessio
   let sdk = input.sdk
   let generation = 0
   let activeAttempt: Attempt | undefined
-  let settlementClient: OpenCodeClient | undefined
+  let settlementClient: AigcForgeClient | undefined
   input.signal?.addEventListener("abort", () => controller.abort(), { once: true })
   const state: State = {
     permissions: [],
@@ -898,7 +910,7 @@ export async function createSessionTransport(input: StreamInput): Promise<Sessio
     }
   }
 
-  const projectedMessages = async (client: OpenCodeClient, signal: AbortSignal) =>
+  const projectedMessages = async (client: AigcForgeClient, signal: AbortSignal) =>
     (
       await client.message.list(
         { sessionID: input.sessionID, limit: input.replayLimit ?? 200, order: "desc" },
@@ -906,7 +918,7 @@ export async function createSessionTransport(input: StreamInput): Promise<Sessio
       )
     ).data.toReversed()
 
-  const settleSession = async (client: OpenCodeClient) => {
+  const settleSession = async (client: AigcForgeClient) => {
     await client.session.wait({ sessionID: input.sessionID }, { signal: controller.signal })
     for (const message of await projectedMessages(client, controller.signal)) renderMessage(message, true)
     paintIdle(blockerStatus(state.view))
@@ -914,7 +926,7 @@ export async function createSessionTransport(input: StreamInput): Promise<Sessio
   }
 
   const resolvePermissionSources = async (
-    client: OpenCodeClient,
+    client: AigcForgeClient,
     permissions: PermissionRequest[],
     attempt: Attempt,
   ) => {
@@ -1007,8 +1019,7 @@ export async function createSessionTransport(input: StreamInput): Promise<Sessio
     if (!current(attempt)) return
     const client = attempt.client
     if (catalogEvents.has(event.type)) {
-      if (input.location && event.location && event.location.directory !== input.location.directory)
-        return
+      if (input.location && event.location && event.location.directory !== input.location.directory) return
       void refreshCatalog(attempt)
       return
     }
@@ -1600,7 +1611,7 @@ export async function createSessionTransport(input: StreamInput): Promise<Sessio
   const runTurnWait = async (
     next: SessionTurnInput,
     messageID: string,
-    client: OpenCodeClient,
+    client: AigcForgeClient,
     send: () => Promise<SessionInboxInfo | void>,
     onAdmitted?: () => void,
   ) => {
@@ -1727,7 +1738,7 @@ export async function createSessionTransport(input: StreamInput): Promise<Sessio
   let queuedResizeReplay: SessionResizeReplayInput | undefined
   let closing: Promise<void> | undefined
 
-  const admitPrompt = async (next: SessionTurnInput, client: OpenCodeClient, delivery: RunDelivery) => {
+  const admitPrompt = async (next: SessionTurnInput, client: AigcForgeClient, delivery: RunDelivery) => {
     const messageID = next.prompt.messageID
     if (!messageID) throw new Error("Prompt message ID is required")
     const command = next.prompt.command
@@ -1795,10 +1806,12 @@ export async function createSessionTransport(input: StreamInput): Promise<Sessio
       if (next.prompt.mode === "shell") throw new Error("This prompt cannot be queued")
       await waitUntilConnected(next.signal)
       const client = sdk
-      if (!next.prompt.command && next.agent)
+      if (!next.prompt.command && next.agent && !next.selection?.controller)
         await client.session.switchAgent({ sessionID: input.sessionID, agent: next.agent }, { signal: next.signal })
       if (!next.prompt.command) {
-        const selected = await resolveSelectedModel(input, client, next)
+        const selected = next.selection?.controller
+          ? next.selection.model
+          : await resolveSelectedModel(input, client, next)
         if (next.variant && !selected) throw new Error("Cannot select a variant before selecting a model")
         if (selected)
           await client.session.switchModel({ sessionID: input.sessionID, model: selected }, { signal: next.signal })
@@ -1830,10 +1843,12 @@ export async function createSessionTransport(input: StreamInput): Promise<Sessio
         return
       }
 
-      if (next.agent) {
+      if (next.agent && !next.selection?.controller) {
         await client.session.switchAgent({ sessionID: input.sessionID, agent: next.agent }, { signal: next.signal })
       }
-      const selected = await resolveSelectedModel(input, client, next)
+      const selected = next.selection?.controller
+        ? next.selection.model
+        : await resolveSelectedModel(input, client, next)
       if (next.variant && !selected) throw new Error("Cannot select a variant before selecting a model")
       if (selected)
         await client.session.switchModel({ sessionID: input.sessionID, model: selected }, { signal: next.signal })

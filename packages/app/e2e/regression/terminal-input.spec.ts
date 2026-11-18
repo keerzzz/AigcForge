@@ -1,4 +1,4 @@
-import { base64Encode, checksum } from "@opencode/util/encode"
+import { base64Encode, checksum } from "@aigcfroge/util/encode"
 import { expect, test } from "@playwright/test"
 import { sessionHref } from "../utils/app"
 import { mockWorkspace, openSession, type WorkspaceInput } from "../utils/workspace"
@@ -183,8 +183,8 @@ test("closing the last restored terminal does not create a hidden replacement", 
 })
 
 function legacyTerminalKey() {
-  const dir = base64Encode("C:/OpenCode/TerminalInput")
+  const dir = base64Encode("C:/AigcForge/TerminalInput")
   const head = dir.slice(0, 12).replace(/[^a-zA-Z0-9._-]/g, "-")
 
-  return `opencode.workspace.${head}.${checksum(dir) ?? "0"}.dat:workspace:terminal`
+  return `aigcfroge.workspace.${head}.${checksum(dir) ?? "0"}.dat:workspace:terminal`
 }

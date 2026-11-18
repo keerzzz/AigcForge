@@ -3,41 +3,47 @@ import { realpathSync, watch } from "node:fs"
 import os from "os"
 import path from "path"
 import { describe, expect } from "bun:test"
+import { LanguageModel, LLM, LLMEvent } from "@aigcfroge/ai"
+import { OpenAIChat } from "@aigcfroge/ai/protocols/openai-chat"
+import { normalizeToolHistory } from "@aigcfroge/ai/tool-history"
 import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, Queue, Scope, Stream } from "effect"
-import { Money } from "@opencode/schema/money"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { makeGlobalNode, makeLocationNode } from "@opencode/util/effect/app-node"
-import { filesystem } from "@opencode/util/effect/app-node-platform"
-import { Database } from "@opencode/core/database/database"
-import { Bus } from "@opencode/core/bus"
-import { Config } from "@opencode/core/config"
-import { Environment } from "@opencode/core/environment/index"
-import { FSUtil } from "@opencode/util/fs-util"
-import { Global } from "@opencode/util/global"
-import { Location } from "@opencode/core/location"
-import { FileAccess } from "@opencode/core/file-access"
-import { LocationServiceMap } from "@opencode/core/location-service-map"
-import { Model } from "@opencode/core/model"
-import { Provider } from "@opencode/core/provider"
-import { AbsolutePath } from "@opencode/core/schema"
-import { Agent } from "@opencode/core/agent"
-import { Job } from "@opencode/core/job"
-import { Session } from "@opencode/core/session"
-import { SessionEvent } from "@opencode/core/session/event"
-import { SessionExecution } from "@opencode/core/session/execution"
-import { SessionMessage } from "@opencode/core/session/message"
-import { SessionStore } from "@opencode/core/session/store"
-import { Permission } from "@opencode/core/permission"
-import { PermissionSaved } from "@opencode/core/permission/saved"
-import { Plugin } from "@opencode/core/plugin"
-import { PluginSupervisor } from "@opencode/core/plugin/supervisor"
-import { Shell } from "@opencode/core/shell"
-import { ShellSelect } from "@opencode/core/shell/select"
-import { ID } from "@opencode/schema/shell"
-import { ShellTool } from "@opencode/core/tool/plugin/shell"
-import { ToolOutput } from "@opencode/core/tool-output"
-import { Tool } from "@opencode/core/tool"
+import { Money } from "@aigcfroge/schema/money"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { makeGlobalNode, makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { filesystem } from "@aigcfroge/util/effect/app-node-platform"
+import { Database } from "@aigcfroge/core/database/database"
+import { Bus } from "@aigcfroge/core/bus"
+import { Config } from "@aigcfroge/core/config"
+import { Environment } from "@aigcfroge/core/environment/index"
+import { FSUtil } from "@aigcfroge/util/fs-util"
+import { Global } from "@aigcfroge/util/global"
+import { Location } from "@aigcfroge/core/location"
+import { FileAccess } from "@aigcfroge/core/file-access"
+import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
+import { Model } from "@aigcfroge/core/model"
+import { Provider } from "@aigcfroge/core/provider"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Agent } from "@aigcfroge/core/agent"
+import { Job } from "@aigcfroge/core/job"
+import { Session } from "@aigcfroge/core/session"
+import { SessionEvent } from "@aigcfroge/core/session/event"
+import { SessionExecution } from "@aigcfroge/core/session/execution"
+import { SessionMessage } from "@aigcfroge/core/session/message"
+import { createLLMEventPublisher } from "@aigcfroge/core/session/runner/publish-llm-event"
+import { toLLMMessages } from "@aigcfroge/core/session/runner/to-llm-message"
+import { SessionStore } from "@aigcfroge/core/session/store"
+import { Permission } from "@aigcfroge/core/permission"
+import { PermissionSaved } from "@aigcfroge/core/permission/saved"
+import { ApprovalPresence } from "@aigcfroge/core/permission/approval-presence"
+import { Plugin } from "@aigcfroge/core/plugin"
+import { PluginSupervisor } from "@aigcfroge/core/plugin/supervisor"
+import { Shell } from "@aigcfroge/core/shell"
+import { ShellSelect } from "@aigcfroge/core/shell/select"
+import { ID } from "@aigcfroge/schema/shell"
+import { ShellTool } from "@aigcfroge/core/tool/plugin/shell"
+import { ToolOutput } from "@aigcfroge/core/tool-output"
+import { Tool } from "@aigcfroge/core/tool"
 import { tmpdir, tmpdirScoped } from "./fixture/tmpdir"
 import { tempGlobalLayer } from "./fixture/global"
 import { offlineModels } from "./fixture/models"
@@ -149,6 +155,7 @@ const nodes = LayerNode.group([
   Session.node,
   SessionExecution.node,
   LocationServiceMap.node,
+  ApprovalPresence.node,
   filesystem,
   FSUtil.node,
   Global.node,
@@ -236,7 +243,7 @@ const withScanner = <A, E, R>(
         yield* Effect.promise(() => Promise.all([fs.mkdir(fixture.active), fs.mkdir(fixture.outside)]))
         yield* Effect.promise(() =>
           Bun.write(
-            path.join(fixture.active, "opencode.json"),
+            path.join(fixture.active, "aigcfroge.json"),
             JSON.stringify({ experimental: { portable_shell_scanner: portable } }),
           ),
         )
@@ -265,7 +272,11 @@ const runPermissionCommand = (
 ) =>
   Effect.gen(function* () {
     const permission = yield* Permission.Service
+    const presence = yield* ApprovalPresence.Service
     const bus = yield* Bus.Service
+    // Real approval asks park only when a responder is bound (ADR-20 §2.7);
+    // this harness plays the responder, so bind one for the command's scope.
+    yield* presence.bindResponder({ custom: false })
     const queue = yield* Queue.unbounded<Permission.Request>()
     yield* bus.subscribe(Permission.Event.Asked).pipe(
       Stream.runForEach((event) => Queue.offer(queue, event.data)),
@@ -847,6 +858,44 @@ describe("ShellTool ordinary shell syntax", () => {
 })
 
 describe("ShellTool", () => {
+  it.live("persists a real shell result before lowering its complete output into the next model request", () =>
+    Effect.gen(function* () {
+      reset()
+      const tmp = yield* tmpdirScoped()
+      yield* withSession(tmp.path, (registry) =>
+        Effect.gen(function* () {
+          const bus = yield* Bus.Service
+          const sessions = yield* Session.Service
+          const request = call({ command: helloCommand }, "call-persist-shell")
+          const publisher = createLLMEventPublisher(bus, {
+            sessionID,
+            assistantMessageID: request.messageID,
+            agent: request.agent,
+            model: sessionModel,
+            providerMetadataKey: "openai",
+            started: 0,
+          })
+          yield* publisher.publish(LLMEvent.toolCall(request.call))
+          const snapshot = yield* registry.snapshot()
+          const output = yield* snapshot.execute({ ...request, progress: (value) => publisher.progress(request.call.id, value) })
+          expect(output.metadata).toMatchObject({ exit: 0, commandResult: { command: helloCommand, exit: 0 } })
+          yield* publisher.toolExecution(request.call.id, request.call.name, output)
+          const history = yield* sessions.context(sessionID)
+          const messages = normalizeToolHistory(toLLMMessages(history, sessionModel))
+          const body = yield* OpenAIChat.protocol.body.from(LLM.request({
+            model: LanguageModel.make({ id: sessionModel.id, provider: sessionModel.providerID, route: OpenAIChat.route }),
+            messages,
+          }))
+          expect(body.messages).toMatchObject([
+            { role: "assistant", tool_calls: [{ id: request.call.id, function: { name: "shell" } }] },
+            { role: "tool", tool_call_id: request.call.id, content: "hello" },
+          ])
+          expect(JSON.stringify(body.messages)).not.toContain("Tool result missing")
+        }),
+      )
+    }),
+  )
+
   it.live("returns both parallel CodeMode shell results", () =>
     Effect.acquireUseRelease(
       Effect.promise(() => tmpdir()),
@@ -873,8 +922,12 @@ describe("ShellTool", () => {
             }).pipe(Effect.timeout("3 seconds"))
             expect(result.status).toBe("completed")
             expect(JSON.parse(result.output.output)).toEqual([
-              { output: "one", exit: 0, truncated: false, status: "completed" },
-              { output: "two", exit: 0, truncated: false, status: "completed" },
+              expect.objectContaining({ output: "one", exit: 0, truncated: false, status: "completed",
+                commandResult: expect.objectContaining({ command: command.replace("hello", "one"), exit: 0,
+                  outputDigest: "7692c3ad3540bb803c020b3aee66cd8887123234ea0c6e7143c0add73ff431ed" }) }),
+              expect.objectContaining({ output: "two", exit: 0, truncated: false, status: "completed",
+                commandResult: expect.objectContaining({ command: command.replace("hello", "two"), exit: 0,
+                  outputDigest: "3fc4ccfe745870e2c0d99f71f30ff0656c8dedd41cc1d7d3d376b0dbe685e2f3" }) }),
             ])
           }),
         )
@@ -907,6 +960,15 @@ describe("ShellTool", () => {
               const settled = yield* executeTool(registry, call({ command: helloCommand }))
               expect(settled.status).toBe("completed")
               expect(settled.metadata).toMatchObject({ exit: 0, truncated: false })
+              expect(settled.metadata?.commandResult).toMatchObject({
+                command: helloCommand,
+                cwd: realpathSync(tmp.path),
+                exit: 0,
+                timeout: false,
+                truncated: false,
+              })
+              expect(settled.metadata?.commandResult).toHaveProperty("id")
+              expect(settled.metadata?.commandResult).toHaveProperty("outputDigest")
               expect(settled.content).toEqual([{ type: "text", text: "hello" }])
               expect(assertions).toMatchObject([
                 {
@@ -938,11 +1000,11 @@ describe("ShellTool", () => {
               const sessions = yield* Session.Service
               yield* sessions.environment({
                 sessionID,
-                variables: { OPENCODE_SESSION_ENV_TEST: "from-session" },
+                variables: { AIGCFROGE_SESSION_ENV_TEST: "from-session" },
               })
               const command = isWindows
-                ? "[Console]::Out.Write($env:OPENCODE_SESSION_ENV_TEST)"
-                : 'printf %s "$OPENCODE_SESSION_ENV_TEST"'
+                ? "[Console]::Out.Write($env:AIGCFROGE_SESSION_ENV_TEST)"
+                : 'printf %s "$AIGCFROGE_SESSION_ENV_TEST"'
 
               const settled = yield* executeTool(registry, call({ command }))
 
@@ -968,15 +1030,15 @@ describe("ShellTool", () => {
               const sessions = yield* Session.Service
               yield* sessions.environment({
                 sessionID,
-                variables: { AGENT: "0", OPENCODE: "0", AI_AGENT: "", OPENCODE_SESSION_ID: "stale" },
+                variables: { AGENT: "0", AIGCFROGE: "0", AI_AGENT: "", AIGCFROGE_SESSION_ID: "stale" },
               })
               const command = isWindows
-                ? '[Console]::Out.Write("$env:AGENT|$env:OPENCODE|$env:AI_AGENT|$env:OPENCODE_SESSION_ID")'
-                : 'printf %s "$AGENT|$OPENCODE|$AI_AGENT|$OPENCODE_SESSION_ID"'
+                ? '[Console]::Out.Write("$env:AGENT|$env:AIGCFROGE|$env:AI_AGENT|$env:AIGCFROGE_SESSION_ID")'
+                : 'printf %s "$AGENT|$AIGCFROGE|$AI_AGENT|$AIGCFROGE_SESSION_ID"'
               const settled = yield* executeTool(registry, call({ command }))
 
               expect(settled.status).toBe("completed")
-              expect(settled.content?.[0]).toEqual({ type: "text", text: `1|1|opencode|${sessionID}` })
+              expect(settled.content?.[0]).toEqual({ type: "text", text: `1|1|aigcfroge|${sessionID}` })
             }),
           )
         },
@@ -1259,7 +1321,7 @@ describe("ShellTool", () => {
               reset()
               yield* Effect.promise(() =>
                 Bun.write(
-                  path.join(tmp.path, "opencode.json"),
+                  path.join(tmp.path, "aigcfroge.json"),
                   JSON.stringify({ experimental: { portable_shell_scanner: portable } }),
                 ),
               )
@@ -1307,7 +1369,7 @@ describe("ShellTool", () => {
           name: `test/shell-plugins-${channel}`,
           layer: Layer.effectDiscard(
             registerToolPlugin(ShellTool.Plugin, {
-              app: { name: "opencode", version: "test", channel },
+              app: { name: "aigcfroge", version: "test", channel },
             }),
           ),
           deps: [
@@ -1330,7 +1392,7 @@ describe("ShellTool", () => {
               if (configured !== undefined)
                 yield* Effect.promise(() =>
                   Bun.write(
-                    path.join(tmp.path, "opencode.json"),
+                    path.join(tmp.path, "aigcfroge.json"),
                     JSON.stringify({ experimental: { portable_shell_scanner: configured } }),
                   ),
                 )
@@ -1379,7 +1441,7 @@ describe("ShellTool", () => {
                   reset()
                   yield* Effect.promise(() =>
                     Bun.write(
-                      path.join(tmp.path, "opencode.json"),
+                      path.join(tmp.path, "aigcfroge.json"),
                       JSON.stringify({ experimental: { portable_shell_scanner: portable } }),
                     ),
                   )
@@ -1479,7 +1541,7 @@ describe("ShellTool", () => {
         return Effect.gen(function* () {
           yield* Effect.promise(() =>
             Bun.write(
-              path.join(tmp.path, "opencode.json"),
+              path.join(tmp.path, "aigcfroge.json"),
               JSON.stringify({ tool_output: { max_lines: 2, max_bytes: 1_000 } }),
             ),
           )

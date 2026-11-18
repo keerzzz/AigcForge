@@ -10,9 +10,9 @@ Built-in features of the desktop and web app, each behind the SDK in `src/sdk/`.
 - Another extension may import only your `contract.ts` (tokens and schemas, no runtime code). Declare what other extensions provide in `uses` (or `requires`). Your own tokens, your Ipc included, go in `provides` only: the window reads each as `ctx.uses.<key>` too, and a key that names one token in `provides` and another in `uses` fails to compile. To declare an Ipc without loading its schemas at startup, use `Ipc.ref<typeof Token>("id")` and `ctx.uses.name.load(Token)` from the chunk that loads them; never put a reference in `requires`.
 - Use `requires` only where the extension is meaningless without the contract. Graceful degradation is `uses`. `Extension.compose` rejects duplicate extension ids, and duplicate or missing providers.
 - A contract that returns components binds each with `bindExtension` in the provider's setup, so `useExtension` inside reads the provider's context, not the consumer's. Do not wrap data methods such as `Changes.diffs`.
-- SDK icon fields take an `IconName` from `@opencode/ui/icons/catalog`, the dependency-free icon catalog.
+- SDK icon fields take an `IconName` from `@aigcfroge/ui/icons/catalog`, the dependency-free icon catalog.
 - The APIs the host always provides are context properties (`ctx.layout`, `ctx.sessions`, `ctx.storage`, `ctx.desktop`, …; in main `ctx.storage`, `ctx.windows`, `ctx.serverEndpoints`, …). `useExtension<typeof definition>()` returns the same context in components. Registries and contracts stay tokens: `ctx.add(Registry, item)`, `ctx.provide(Contract, impl)`; main provides Ipcs with `ctx.provide(Ipc, impl)`.
-- Never import `@opencode/app`, `@opencode/desktop`, or `@/` paths. Import CSS with `?inline` and contribute it through `ctx.add(Style, css)`. No module-level state: keep state inside `setup`. `bun run lint` enforces these rules.
+- Never import `@aigcfroge/app`, `@aigcfroge/desktop`, or `@/` paths. Import CSS with `?inline` and contribute it through `ctx.add(Style, css)`. No module-level state: keep state inside `setup`. `bun run lint` enforces these rules.
 - `bun run lint:changed` must pass before you finish: every file you add or edit has no oxlint problem at all, including the warn-level anti-slop rules (`unknown` parameters and returns, unchecked type assertions, widened types, unsafe dictionaries, missing spacing). Touching a file means leaving the whole file clean, older warnings included. Fix the code; suppress only with a `SAFETY:` comment that states a real checked invariant.
 
 ## SDK docs
@@ -87,7 +87,7 @@ Read [You Might Not Need an Effect](https://react.dev/learn/you-might-not-need-a
   - Give a fallback the area's size when the area has fixed geometry, so nothing shifts; leave it empty otherwise.
   - Make a state change that may suspend inside `startTransition`, so the current content stays until the next is ready.
 - Return stable objects from `Panel.list` and reactive contributions, so the host never remounts a trigger or a panel.
-- Never add work to timeline rows. The session header slot is the only timeline surface.
+- Timeline slots may contribute lightweight header and response actions. Render from the host's supplied facts; start extraction, asynchronous requests, or execution only after an explicit click. Never add row-owned subscriptions, background work, or model calls. Keep action objects and mounts stable while tokens stream. The planned response slot follows the [SC00 contract](../../docs/research/upstream-v2-sync/2026-11-10-session-surfaces-task-sheet.md).
 
 ## Localization
 

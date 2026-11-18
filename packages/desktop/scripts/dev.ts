@@ -10,13 +10,13 @@ type ServerSource = { type: "build" } | { type: "download"; version: string }
 type DevOptions = { server: ServerSource; electron: string[] }
 
 async function main() {
-  process.env.OPENCODE_CHANNEL = "local"
-  process.env.OPENCODE_VERSION = `2.0.0-local-${Date.now()}`
-  process.env.OPENCODE_DISABLE_CHANNEL_DB = "0"
+  process.env.AIGCFROGE_CHANNEL = "local"
+  process.env.AIGCFROGE_VERSION = `2.0.0-local-${Date.now()}`
+  process.env.AIGCFROGE_DISABLE_CHANNEL_DB = "0"
   const options = selectOptions()
 
-  if (options.server.type === "build") process.env.OPENCODE_DESKTOP_SERVER_CHANNEL = "local"
-  process.env.OPENCODE_DESKTOP_ISOLATED_SERVER = "1"
+  if (options.server.type === "build") process.env.AIGCFROGE_DESKTOP_SERVER_CHANNEL = "local"
+  process.env.AIGCFROGE_DESKTOP_ISOLATED_SERVER = "1"
   await prepareDesktop()
   await prepareServer(options.server)
   await startDesktop(options.electron)
@@ -25,7 +25,7 @@ async function main() {
 async function prepareDesktop() {
   await Promise.all([
     $`bun run install-electron`,
-    $`bun ./scripts/copy-icons.ts ${process.env.OPENCODE_CHANNEL ?? "dev"}`,
+    $`bun ./scripts/copy-icons.ts ${process.env.AIGCFROGE_CHANNEL ?? "dev"}`,
   ])
 
   if (process.platform === "darwin") process.env.ELECTRON_EXEC_PATH = await prepareDevElectron()
@@ -51,13 +51,13 @@ function selectOptions(): DevOptions {
 
 async function prepareServer(source: ServerSource) {
   if (source.type === "download")
-    return downloadCliToResources(source.version, windowsify("resources/opencode-cli-dev"))
+    return downloadCliToResources(source.version, windowsify("resources/aigcfroge-cli-dev"))
   buildWebUi()
-  process.env.OPENCODE_DESKTOP_CLI_DEV = join(import.meta.dirname, "../../cli")
+  process.env.AIGCFROGE_DESKTOP_CLI_DEV = join(import.meta.dirname, "../../cli")
 
   if (process.platform !== "win32") return
-  process.env.OPENCODE_DESKTOP_WSL_CLI_BUILD = join(import.meta.dirname, "../../cli/script/build.ts")
-  process.env.OPENCODE_DESKTOP_WSL_CLI_OUTPUT = join(import.meta.dirname, "../resources/opencode-cli-wsl")
+  process.env.AIGCFROGE_DESKTOP_WSL_CLI_BUILD = join(import.meta.dirname, "../../cli/script/build.ts")
+  process.env.AIGCFROGE_DESKTOP_WSL_CLI_OUTPUT = join(import.meta.dirname, "../resources/aigcfroge-cli-wsl")
 }
 
 // The source CLI serves packages/app/dist only to paired devices, and nothing on the way to the
@@ -68,7 +68,7 @@ function buildWebUi() {
 
   const build = Bun.spawn(["bun", "run", "build"], {
     cwd: join(import.meta.dirname, "../../app"),
-    env: { ...process.env, VITE_OPENCODE_SERVER_MODE: "origin" },
+    env: { ...process.env, VITE_AIGCFROGE_SERVER_MODE: "origin" },
     stdio: ["ignore", "ignore", "ignore"],
   })
 

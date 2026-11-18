@@ -4,6 +4,8 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  lazy,
+  Suspense,
   getOwner,
   on,
   runWithOwner,
@@ -11,9 +13,11 @@ import {
   type Accessor,
 } from "solid-js"
 import { createStore, produce, type Store } from "solid-js/store"
+import { createTabComposerState } from "@/composer/persistence"
+import { createComposerEditorActions } from "@/composer/editor/actions"
 import type { Schema } from "effect"
-import { useDialog } from "@opencode/ui/context/dialog"
-import { base64Encode } from "@opencode/util/encode"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { base64Encode } from "@aigcfroge/util/encode"
 import {
   Panel,
   type Build,
@@ -24,12 +28,13 @@ import {
   type PanelState,
   type ServerRef,
   type SessionRef,
+  type Sessions,
   type SessionScreen,
   type Storage,
   type StorageScope,
   type StoreFrom,
   type StoreOptions,
-} from "@opencode/gui-extensions/sdk"
+} from "@aigcfroge/gui-extensions/sdk"
 import { usePlatform } from "@/runtime/platform/platform"
 import { same } from "@/runtime/persistence/equality"
 import { Persist, persisted, removePersisted } from "@/runtime/persistence/storage"
@@ -39,6 +44,7 @@ import { useDirectoryPicker } from "@/workspaces/selection/picker"
 import { SessionRouteKey, SessionStateKey, type ServerScope } from "@/runtime/server/scope"
 import { findSessionTab, tabKey, useTabs } from "@/shell/tabs/tabs"
 import { useCurrentRoute, useLayout } from "@/shell/state/layout"
+import { useRelatedSessionRoute } from "@/shell/routes/session"
 import { terminalFontFamily, useSettings } from "@/settings/model"
 import { useSettingsSurface } from "@/settings/surface"
 import { formatKeybindParts, useCommand } from "@/shell/commands/command"
@@ -53,6 +59,10 @@ import { deferredHandle, globalStoreTarget, persistedHandle, storeImports, store
 
 type Attached = {
   sessions: Accessor<readonly SessionRef[]>
+  openSession: Sessions["open"]
+  draft: Sessions["draft"]
+  insertText: Sessions["insertText"]
+  content: Sessions["content"]
   current: Accessor<MountedSession | undefined>
   screen: Accessor<SessionScreen | undefined>
   scope: (server: string) => ServerScope
@@ -249,8 +259,8 @@ export function createHostApis() {
         : undefined,
     build: () => ({
       version: platform.version ?? "",
-      // SAFETY: the build sets VITE_OPENCODE_CHANNEL to one of the release channels, or leaves it unset locally.
-      channel: (import.meta.env.VITE_OPENCODE_CHANNEL ?? "local") as Build["channel"],
+      // SAFETY: the build sets VITE_AIGCFROGE_CHANNEL to one of the release channels, or leaves it unset locally.
+      channel: (import.meta.env.VITE_AIGCFROGE_CHANNEL ?? "local") as Build["channel"],
       platform: platform.platform,
       packaged: platform.extensions?.packaged ?? false,
     }),
@@ -283,9 +293,24 @@ export function createHostApis() {
         })
       },
     }),
-    sessions: () => ({
+    sessions: (_extension, _owner, context) => ({
       list: () => current()?.sessions() ?? [],
       current: () => current()?.current(),
+      openTask: (input) => context.links.open({ href: "", session: input.source, task: input.target }),
+      openCommunication: (input) => context.links.open({ href: "", session: input.source, communication: input.target }),
+      target: (input) => ({
+        key: `${input.server.id}\n${input.sessionID}`,
+        id: input.sessionID,
+        server: input.server,
+        get location() {
+          return current()?.server(input.server.id)?.data.session.get(input.sessionID)?.location
+        },
+      }),
+      content: (input) => current()?.content(input),
+      open: (input) => write((value) => value.openSession(input)),
+      draft: (input) => current()?.draft(input) ?? Promise.reject(new Error(language.t("common.requestFailed"))),
+      insertText: (input) =>
+        current()?.insertText(input) ?? Promise.reject(new Error(language.t("common.requestFailed"))),
     }),
     screen: () => ({
       current: () => {
@@ -360,17 +385,27 @@ export { ExtensionAttachmentProvider, useExtensionAttachment } from "./attachmen
 
 /** Builds the session and layout attachment before readiness; its `attach` connects HostApis as the routes render. */
 export function createExtensionAttachment(apis: HostApis) {
+  const platform = usePlatform()
   const global = useGlobal()
   const tabs = useTabs()
+  const openSessionRoute = useRelatedSessionRoute()
   const layout = useLayout()
   const route = useCurrentRoute()
   const settings = useSettings()
   const surface = useSettingsSurface()
   const host = useExtensionHost()
   const command = useCommand()
+  const language = useLanguage()
   const location = useLocation()
   const desktop = createMediaQuery("(min-width: 768px)")
   const narrow = () => !desktop()
+
+  const TargetContent = lazy(async () => {
+    const { SessionTargetContent } = await import("@/session/content")
+
+    return { default: SessionTargetContent }
+  })
+
   // The mounted session screen, from its first render, and its object for the session it routes once it has mounted;
   // one screen is mounted at a time.
   const [screen, setScreen] = createSignal<SessionScreen>()
@@ -439,6 +474,9 @@ export function createExtensionAttachment(apis: HostApis) {
       },
       get connected() {
         return live().sdk.connection.status() === "connected"
+      },
+      get attempt() {
+        return live().sdk.connection.attempt()
       },
     }
 
@@ -571,14 +609,6 @@ export function createExtensionAttachment(apis: HostApis) {
   // a new token, so a region reopened any other way belongs to the user.
   const openedFor = new WeakMap<object, string>()
 
-  // Keys are `${extension}:${tab id}`; the extension's panel decides the region.
-  const provider = (key: string) => {
-    const extension = key.slice(0, key.indexOf(":"))
-    const matches = host.items(Panel).filter((item) => item.extension === extension)
-
-    return matches.find((item) => item.value.region === "side") ?? matches[0]
-  }
-
   const mountedSession = (session: SessionRef) => {
     const view = current()
 
@@ -606,7 +636,12 @@ export function createExtensionAttachment(apis: HostApis) {
     setMobile({ session: session.key, view, visit: session.key === routed() ? visit() : visit() + 1 })
 
   // The side tabs a mounted session lists right now, plus `adding` as if it were stored; unmounted sessions have none.
-  const listed = (session: SessionRef, value: string, adding?: string) => {
+  const listed = (
+    session: SessionRef,
+    value: string,
+    adding?: string,
+    providers = host.items(Panel).filter((item) => item.value.region === "side"),
+  ) => {
     const view = mountedSession(session)
     const currentScreen = screen()
 
@@ -615,52 +650,78 @@ export function createExtensionAttachment(apis: HostApis) {
     const stored = adding && !all.includes(adding) ? [...all, adding] : all
 
     return untrack(() =>
-      host
-        .items(Panel)
-        .filter((item) => item.value.region === "side")
-        .flatMap((item) => {
-          const prefix = `${item.extension}:`
-          const open = stored.flatMap((key) => (key.startsWith(prefix) ? [key.slice(prefix.length)] : []))
+      providers.flatMap((item) => {
+        const prefix = `${item.extension}:`
 
-          return item.value
-            .list({
-              get session() {
-                return mountedSession(session) ?? view
-              },
-              screen: currentScreen,
-              open,
-            })
-            .map((tab) => ({ key: `${prefix}${tab.id}`, tab }))
-        }),
+        const open =
+          item.value.region === "dock"
+            ? []
+            : stored.flatMap((key) => (key.startsWith(prefix) ? [key.slice(prefix.length)] : []))
+
+        return item.value
+          .list({
+            get session() {
+              return mountedSession(session) ?? view
+            },
+            screen: currentScreen,
+            open,
+          })
+          .map((tab) => ({ key: `${prefix}${tab.id}`, tab, provider: item }))
+      }),
     )
+  }
+
+  // A single provider owns its extension's keys; multiple providers require actual list membership.
+  const provider = (key: string, session: SessionRef) => {
+    const extension = key.slice(0, key.indexOf(":"))
+    const matches = host.items(Panel).filter((item) => item.extension === extension)
+
+    if (matches.length < 2) return matches[0]
+
+    const value = stateKey(session)
+    const known = value ? listed(session, value, key, matches).filter((entry) => entry.key === key) : []
+
+    if (known.length === 1) return known[0]?.provider
+
+    return null
   }
 
   // Writes made before a session's location is known wait for it rather than being dropped.
   const located = createLocatedWrites()
 
   const open = (key: string, session: SessionRef, options?: OpenOptions) => {
-    const item = provider(key)
+    const item = provider(key, session)
 
     if (item?.value.region === "dock") return setDock(session, true)
     const value = stateKey(session)
 
     if (!value) return located.hold(session, () => open(key, session, options))
+
+    if (item === null) return
+
     const placement = options?.tab ?? "open"
 
     // An append adds the tab quietly: no selection, no region change, no preview replacement.
     if (placement === "append") return layout.panel.append(value, key)
 
-    // A select keeps the narrow-screen view and dock, as a background open does, and opens the side region too.
-    if (placement === "select")
-      return batch(() => {
-        tabs.setRegion(shellTab(session), "side", true)
-        layout.panel.append(value, key)
-        layout.panel.focus(value, key)
-      })
     // Lists the opened tab too, so its own fields apply before it is stored. The next preview replaces a transient tab.
     const known = listed(session, value, key)
     const transient = new Set(known.flatMap((entry) => (entry.tab.transient ? [entry.key] : [])))
     const first = known.some((entry) => entry.key === key && entry.tab.first)
+
+    // A select keeps ordinary previews. A selected launcher gives its place to the opened module,
+    // including Browser tabs whose selection arrives later from the desktop.
+    if (placement === "select")
+      return batch(() => {
+        tabs.setRegion(shellTab(session), "side", true)
+        const active = layout.panel.state(value).active
+
+        if (active && transient.has(active) && !transient.has(key))
+          return layout.panel.open(value, key, transient, first)
+
+        layout.panel.append(value, key)
+        layout.panel.focus(value, key)
+      })
     batch(() => {
       if (narrow() && !options?.background) {
         setDock(session, false)
@@ -674,8 +735,14 @@ export function createExtensionAttachment(apis: HostApis) {
       // A background open keeps the narrow-screen view, but its tab still shows once the window is wide.
       if (!narrow() || options?.background) tabs.setRegion(shellTab(session), "side", true)
 
-      // Pinned tabs are listed without being stored; opening one only selects it.
-      if (known.some((entry) => entry.key === key && entry.tab.pinned)) return layout.panel.focus(value, key)
+      // Pinned tabs consume a selected launcher without becoming stored tabs themselves.
+      if (known.some((entry) => entry.key === key && entry.tab.pinned)) {
+        const active = layout.panel.state(value).active
+
+        if (active && active !== key && transient.has(active)) layout.panel.close(value, active)
+
+        return layout.panel.focus(value, key)
+      }
 
       if (placement === "preview") return layout.panel.preview(value, key, transient)
       layout.panel.open(value, key, transient, first)
@@ -683,12 +750,15 @@ export function createExtensionAttachment(apis: HostApis) {
   }
 
   const close = (key: string, session: SessionRef) => {
-    const item = provider(key)
+    const item = provider(key, session)
 
     if (item?.value.region === "dock") return setDock(session, false)
     const value = stateKey(session)
 
     if (!value) return located.hold(session, () => close(key, session))
+
+    if (item === null) return
+
     const tab = listed(session, value).find((entry) => entry.key === key)?.tab
     layout.panel.close(value, key)
     const view = mountedSession(session)
@@ -709,7 +779,12 @@ export function createExtensionAttachment(apis: HostApis) {
   )
 
   const state = (key: string, session: SessionRef): PanelState => {
-    if (provider(key)?.value.region === "dock") return dockOpened(session) ? "visible" : "closed"
+    const item = provider(key, session)
+
+    if (item?.value.region === "dock") return dockOpened(session) ? "visible" : "closed"
+
+    if (item === null) return "closed"
+
     const value = stateKey(session)
 
     if (!value) return "closed"
@@ -754,10 +829,15 @@ export function createExtensionAttachment(apis: HostApis) {
   })
 
   const toggle = (key: string, session: SessionRef) => {
-    if (provider(key)?.value.region === "dock") return setDock(session, !dockOpened(session))
+    const item = provider(key, session)
+
+    if (item?.value.region === "dock") return setDock(session, !dockOpened(session))
     const value = stateKey(session)
 
     if (!value) return located.hold(session, () => toggle(key, session))
+
+    if (item === null) return
+
     const region = sideVisits().get(session.key)
 
     if (state(key, session) === "visible") {
@@ -787,8 +867,94 @@ export function createExtensionAttachment(apis: HostApis) {
     layout.panel.setScroll(value, key, next)
   }
 
+  const openSession: Sessions["open"] = (input) => {
+    const target = input.server ?? input.source.server
+    const info = target.data.session.get(input.sessionID)
+    const parentID = info?.parentID
+
+    const independent =
+      target.id !== input.source.server.id || (!!info && input.sessionID !== input.source.id && !parentID)
+
+    if (narrow()) selectMobile(input.source, "session")
+
+    if (independent) {
+      tabs.select(tabs.addSessionTab({ server: ServerConnection.Key.make(target.id), sessionId: input.sessionID }))
+    }
+
+    openSessionRoute({
+      server: ServerConnection.Key.make(target.id),
+      from: independent ? input.sessionID : input.source.id,
+      sessionID: input.sessionID,
+      parentID,
+      reveal: input.reveal,
+    })
+  }
+
   const mounted: Attached = {
     sessions,
+    openSession,
+    async draft(input) {
+      const current = server(input.source.server.id)
+
+      if (
+        !current ||
+        current.client !== input.source.server.client ||
+        current.data !== input.source.server.data ||
+        current.attempt !== input.source.server.attempt ||
+        !current.connected ||
+        !current.compatible
+      )
+        throw new Error(language.t("common.requestFailed"))
+
+      await tabs.newDraft(
+        {
+          server: ServerConnection.Key.make(input.source.server.id),
+          directory: input.location.directory,
+          location: { ...input.location },
+          worktree: input.location.directory,
+          mode: "chat",
+        },
+        input.text,
+      )
+    },
+    async insertText(input) {
+      const target = input.target
+      const location = target.location
+      const text = input.text
+      const current = server(target.server.id)
+
+      if (
+        !current ||
+        current.client !== target.server.client ||
+        current.data !== target.server.data ||
+        current.attempt !== target.server.attempt ||
+        !location
+      )
+        throw new Error(language.t("common.requestFailed"))
+
+      const tab = {
+        type: "session" as const,
+        server: ServerConnection.Key.make(target.server.id),
+        sessionId: target.id,
+      }
+
+      const scopeKey = scope(target.server.id)
+      const saved = { dir: base64Encode(location.directory), id: target.id }
+      const release = tabs.retain(tab)
+
+      try {
+        const composer = createTabComposerState(tabs, tab, scopeKey, saved, undefined, platform)
+        await composer.ready.promise
+        createComposerEditorActions(composer.store).addText(text)
+      } finally {
+        release()
+      }
+    },
+    content: (input) => (
+      <Suspense>
+        <TargetContent {...input} open={openSession} />
+      </Suspense>
+    ),
     current,
     screen,
     scope,

@@ -1,8 +1,8 @@
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs"
-import type { SessionMessageInfo } from "@opencode/client/promise"
-import { base64Encode } from "@opencode/util/encode"
-import { timelineCategories, timelinePresets } from "@opencode/session-ui/timeline/detail"
-import { mockOpenCodeServer } from "../../utils/mock-server"
+import type { SessionMessageInfo } from "@aigcfroge/client/promise"
+import { base64Encode } from "@aigcfroge/util/encode"
+import { timelineCategories, timelinePresets } from "@aigcfroge/session-ui/timeline/detail"
+import { mockAigcForgeServer } from "../../utils/mock-server"
 import { expectSessionTitle } from "../../utils/waits"
 import { benchmark, expect } from "../benchmark"
 import { measureSessionSwitch, waitForStableTimeline } from "./session-tab-switch-probe"
@@ -74,7 +74,7 @@ for (const mode of ["compact", "ungrouped"] as const) {
     const directory = session.info.location.directory
 
     if (process.env.LAGGY_HTTP !== "1")
-      await mockOpenCodeServer(page, {
+      await mockAigcForgeServer(page, {
         directory,
         project: {
           id: session.info.projectID,
@@ -126,14 +126,14 @@ for (const mode of ["compact", "ungrouped"] as const) {
       ({ detail, directory, server, sessionIDs, dirBase64 }) => {
         localStorage.setItem("settings.v3", JSON.stringify({ general: { timelineDetail: detail } }))
         localStorage.setItem(
-          "opencode.global.dat:server",
+          "aigcfroge.global.dat:server",
           JSON.stringify({
             projects: { local: [{ worktree: directory, expanded: true }] },
             lastProject: { local: directory },
           }),
         )
         localStorage.setItem(
-          "opencode.window.browser.dat:tabs",
+          "aigcfroge.window.browser.dat:tabs",
           JSON.stringify(sessionIDs.map((sessionId) => ({ type: "session", server, dirBase64, sessionId }))),
         )
       },

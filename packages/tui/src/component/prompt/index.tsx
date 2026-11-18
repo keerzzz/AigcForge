@@ -10,6 +10,7 @@ import {
 import { createEffect, createMemo, onMount, createSignal, onCleanup, on, Show, Switch, Match, For } from "solid-js"
 import path from "path"
 import { useLocal } from "../../context/local"
+import { modelPreferenceKey, sameModelSelection, toModelSelection } from "../../model-preference"
 import { useTheme, useThemes } from "../../context/theme"
 import { tint } from "../../theme/color"
 import { createAnimatable, tween } from "../../ui/animation"
@@ -32,7 +33,7 @@ import { stringWidth } from "../../util/string-width"
 import { createStore, produce, unwrap } from "solid-js/store"
 import { emptyPrompt, usePromptHistory, type PromptInfo, type PromptPartRef } from "../../prompt/history"
 import { saveDraft, takeDraft } from "./draft-stash"
-import { Skill } from "@opencode/schema/skill"
+import { Skill } from "@aigcfroge/schema/skill"
 import { computePromptTraits } from "../../prompt/traits"
 import { expandPastedTextPlaceholders, expandTrackedPastedText } from "../../prompt/part"
 import { usePromptStash } from "../../prompt/stash"
@@ -44,6 +45,7 @@ import { errorMessage } from "../../util/error"
 import { createColors, createFrames } from "../../ui/spinner"
 import { useDialog } from "../../ui/dialog"
 import { DialogIntegration } from "../dialog-integration"
+import { DialogModel } from "../dialog-model"
 import { useConnected } from "../use-connected"
 import { useToast } from "../../ui/toast"
 import { createFadeIn } from "../../util/signal"
@@ -58,7 +60,7 @@ import { Keymap, type KeymapCommand } from "../../context/keymap"
 import { useInteractivity } from "../../context/interactivity"
 import { abbreviateHome } from "../../runtime"
 import { Slot } from "../../plugin/render"
-import type { SessionInbox } from "@opencode/schema/session-inbox"
+import type { SessionInbox } from "@aigcfroge/schema/session-inbox"
 import {
   deduplicatePromptImages,
   preserveMentionlessPromptAttachments,
@@ -1154,9 +1156,21 @@ export function Prompt(props: PromptProps) {
       toast.show({ message: "Editor context cannot be queued", variant: "warning" })
       return false
     }
+    const controlled = local.meta()
+    const locked = local.locked()
+    const selectionOwner = local.selection
+    const modelOwner = local.model
+    const executorOwner = local.executor
+    const preference = executorOwner.preference()
+    const executorPreference = preference && { ...preference, model: preference.model && { ...preference.model } }
+    const selectionClient = client.api
     const agent = local.agent.current()
-    if (!agent) return false
-    const selection = local.model.selection()
+    if (!agent) {
+      toast.show({ variant: "warning", message: "Agent unavailable" })
+      return false
+    }
+    const selected = modelOwner.selection()
+    const selection = selected && { ...selected }
     if (!selection) {
       void promptModelWarning()
       return false
@@ -1165,7 +1179,7 @@ export function Prompt(props: PromptProps) {
     if (usesModel && !local.model.available(selection)) {
       toast.show({
         title: "Model unavailable",
-        message: `${selection.providerID}/${selection.modelID} is not available in this session's location`,
+        message: `${modelPreferenceKey(selection)} is not available in this session's location`,
         variant: "warning",
       })
       return false
@@ -1192,6 +1206,7 @@ export function Prompt(props: PromptProps) {
       input.cursorOffset = entry.text.length
     }
     const fail = (title: string, error: unknown) => {
+      if (disposed || !selectionOwner.active() || client.api !== selectionClient) return
       toast.show({ title, message: errorMessage(error), variant: "error" })
       restoreEntry()
     }
@@ -1199,6 +1214,11 @@ export function Prompt(props: PromptProps) {
       return run().then(
         () => true,
         (error: unknown) => {
+          if (newSession) {
+            newSession.recover(error)
+            restoreEntry()
+            return false
+          }
           fail(title, error)
           return false
         },
@@ -1206,6 +1226,7 @@ export function Prompt(props: PromptProps) {
     }
 
     const variant = selection.variant
+    const model = toModelSelection(selection, variant)
     let sessionID = props.sessionID
     let session = sessionID ? data.session.get(sessionID) : undefined
     let finishMoveProgress = false
@@ -1213,6 +1234,7 @@ export function Prompt(props: PromptProps) {
     let newSession: { gate: Promise<unknown>; recover: (error: unknown) => void } | undefined
     if (sessionID == null) {
       const directory = await move.getDirectory()
+      if (disposed || !selectionOwner.active() || client.api !== selectionClient) return false
       if (move.pending() && !directory) {
         restoreEntry()
         return false
@@ -1223,31 +1245,33 @@ export function Prompt(props: PromptProps) {
       // by /cd before a session exists.
       const location = currentLocation.ref ?? data.location.default()
 
-      // Optimistic create: the data layer mints the ID client-side and admits
-      // a local session record synchronously, so the navigation below happens
-      // immediately — enter feels sent even while the create round-trip is in
-      // flight. Sends against the new session gate on the request.
+      // The data layer admits a local session immediately. Dependent sends
+      // wait for creation and adopt the server's canonical session.
       const newSessionID = args.takeNewSessionID()
       const created = data.session.create({
         id: newSessionID,
         location: directory ? { directory } : location,
         agent: agent.id,
-        model: {
-          providerID: selection.providerID,
-          id: selection.modelID,
-          variant,
-        },
+        executorPreference: controlled ? executorPreference : undefined,
+        model,
       })
       if (newSessionID !== undefined) created.request.catch(() => args.restoreNewSessionID(newSessionID))
       sessionID = created.id
       session = data.session.get(created.id)
       newSession = {
-        gate: created.request.then(async (info) => {
+        gate: created.request.then(async () => {
+          requireSelectionOwner()
           if (terminalEnvironment.variables !== undefined) {
-            await client.api.session.environment({ sessionID: created.id, variables: terminalEnvironment.variables })
+            await selectionClient.session.environment({
+              sessionID: created.id,
+              variables: terminalEnvironment.variables,
+            })
+            requireSelectionOwner()
           }
         }),
         recover: (error) => {
+          if (!selectionOwner.active() || client.api !== selectionClient) return
+          if (disposed && (route.data.type !== "session" || route.data.sessionID !== created.id)) return
           toast.show({
             title: data.session.get(created.id) ? "Failed to set up session" : "Creating a session failed",
             message: errorMessage(error),
@@ -1271,22 +1295,110 @@ export function Prompt(props: PromptProps) {
     }
 
     const target = sessionID
+    const requireSelectionOwner = () => {
+      // Navigation hands a new session to Data while the Local owner remains alive.
+      if (!selectionOwner.active() || client.api !== selectionClient) throw new Error("Session selection owner changed")
+    }
+    const readSelection = async () => {
+      data.session.invalidate(target)
+      const adopted = await data.session.readback(target)
+      requireSelectionOwner()
+      const published = data.session.get(target)
+      if (
+        !adopted?.model ||
+        adopted.id !== target ||
+        adopted.agent !== agent.id ||
+        !sameModelSelection(adopted.model, model) ||
+        published?.agent !== adopted.agent ||
+        !sameModelSelection(published?.model, adopted.model) ||
+        (controlled &&
+          (adopted.controller?.kind !== "root" ||
+            adopted.controller.rootSessionID !== target ||
+            published.controller?.kind !== "root" ||
+            published.controller.metaAgentID !== adopted.controller.metaAgentID ||
+            published.controller.rootSessionID !== target))
+      )
+        throw new Error("Could not confirm the session selection")
+      return adopted
+    }
     const prepareAgent = async () => {
+      requireSelectionOwner()
+      if (newSession) {
+        await newSession.gate
+        requireSelectionOwner()
+        session = data.session.get(target)
+        return
+      }
+      if (locked) return
       if (!session) {
         await data.session.sync(target)
+        requireSelectionOwner()
         session = data.session.get(target)
       }
       if (session?.agent !== agent.id) {
-        await client.api.session.switchAgent({ sessionID: target, agent: agent.id })
+        const finishCommit = modelOwner.trackSessionCommit(target, model, agent.id)
+        try {
+          await selectionClient.session.switchAgent({ sessionID: target, agent: agent.id, model })
+          requireSelectionOwner()
+          session = await readSelection()
+          finishCommit("acknowledge")
+          local.selection.reconcile(target)
+        } catch (error) {
+          finishCommit("cancel")
+          throw error
+        }
+      }
+      if (controlled && executorPreference) {
+        const finishCommit = executorOwner.trackCommit(target, executorPreference)
+        try {
+          const acknowledged = await data.session.selectExecutor({ sessionID: target, executorPreference })
+          requireSelectionOwner()
+          const actual = acknowledged.executorPreference
+          const current = data.session.get(target)
+          const published = current?.executorPreference
+          if (
+            acknowledged.id !== target ||
+            acknowledged.controller?.kind !== "root" ||
+            acknowledged.agent !== "meta" ||
+            !actual ||
+            actual.agent !== executorPreference.agent ||
+            !sameModelSelection(actual.model, executorPreference.model) ||
+            current?.controller?.kind !== "root" ||
+            current.agent !== "meta" ||
+            published?.agent !== actual.agent ||
+            !sameModelSelection(published.model, actual.model)
+          )
+            throw new Error("Could not confirm the executor selection")
+          finishCommit("acknowledge")
+          session = acknowledged
+          local.selection.reconcile(target)
+        } catch (error) {
+          finishCommit("cancel")
+          throw error
+        }
       }
     }
-    const commitModel = () => {
-      const model = { providerID: selection.providerID, id: selection.modelID, variant }
-      const cancelCommit = local.model.trackSessionCommit(target, model, agent.id)
-      return client.api.session.switchModel({ sessionID: target, model }).catch((error) => {
-        cancelCommit()
-        throw new Error(`Failed to switch model: ${errorMessage(error)}`, { cause: error })
-      })
+    const commitModel = async () => {
+      requireSelectionOwner()
+      if (newSession || locked) return
+      if (
+        session?.agent === agent.id &&
+        sameModelSelection(session.model, model)
+      )
+        return
+      const finishCommit = modelOwner.trackSessionCommit(target, model, agent.id)
+      try {
+        await selectionClient.session.switchModel({ sessionID: target, model })
+        requireSelectionOwner()
+        if (controlled || session?.controller) {
+          session = await readSelection()
+          finishCommit("acknowledge")
+        }
+        local.selection.reconcile(target)
+      } catch (error) {
+        finishCommit("cancel")
+        throw new Error("Failed to switch model: " + errorMessage(error), { cause: error })
+      }
     }
     const commitSelection = async () => {
       await prepareAgent()
@@ -1304,7 +1416,10 @@ export function Prompt(props: PromptProps) {
     history.append(entry)
     if (currentMode === "shell") {
       move.startSubmit()
-      const send = () => client.api.session.shell({ sessionID: target, command: inputText })
+      const send = () => {
+        requireSelectionOwner()
+        return selectionClient.session.shell({ sessionID: target, command: inputText })
+      }
       void (newSession ? newSession.gate.then(send).catch(newSession.recover) : send())
       setStore("mode", "normal")
     } else if (slashHead && isCommand) {
@@ -1312,7 +1427,8 @@ export function Prompt(props: PromptProps) {
         // Commands inherit the composer selection; command-specific overrides
         // remain server-owned and run after this preparation.
         await commitSelection()
-        return client.api.session.command({
+        requireSelectionOwner()
+        return selectionClient.session.command({
           sessionID: target,
           name: slashHead.name,
           text: slashHead.arguments,
@@ -1829,20 +1945,22 @@ export function Prompt(props: PromptProps) {
               cursorColor={disabled() ? theme.background.raised.base : theme.text.base}
               syntaxStyle={syntax()}
             />
-            <box flexDirection="row" flexShrink={0} paddingTop={1} gap={1} justifyContent="space-between">
-              <PromptMetadataRow
-                mode={store.mode}
-                agent={agentLabel()}
-                auto={local.permission.mode === "autoaccept"}
-                model={promptDisplay().modelLabel}
-                provider={promptDisplay().providerLabel}
-                variant={promptDisplay().variant}
-                muted={!!muted()}
-                highlight={highlight()}
-                agentAlpha={agentMetaAlpha()}
-                modelAlpha={modelMetaAlpha()}
-                variantAlpha={variantMetaAlpha()}
-              />
+            <box flexDirection="column" flexShrink={0} paddingTop={1}>
+              <box onMouseUp={() => dialog.replace(() => <DialogModel />)}>
+                <PromptMetadataRow
+                  mode={store.mode}
+                  agent={agentLabel()}
+                  auto={local.permission.mode === "autoaccept"}
+                  model={promptDisplay().modelLabel}
+                  provider={promptDisplay().providerLabel}
+                  variant={promptDisplay().variant}
+                  muted={!!muted()}
+                  highlight={highlight()}
+                  agentAlpha={agentMetaAlpha()}
+                  modelAlpha={modelMetaAlpha()}
+                  variantAlpha={variantMetaAlpha()}
+                />
+              </box>
             </box>
           </box>
         </box>

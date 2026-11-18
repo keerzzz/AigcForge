@@ -10,8 +10,8 @@ import {
   type Media,
   Message,
   SystemPart,
-} from "@opencode/ai"
-import type { StreamOptions } from "@opencode/ai/route"
+} from "@aigcfroge/ai"
+import type { StreamOptions } from "@aigcfroge/ai/route"
 import type {
   SessionCompaction,
   SessionContext,
@@ -19,16 +19,17 @@ import type {
   SessionRequest,
   SessionRequestKind,
   SessionTitle,
-} from "@opencode/plugin/effect/session"
-import type { Agent } from "@opencode/schema/agent"
-import type { Model } from "@opencode/schema/model"
-import type { Content } from "@opencode/schema/tool"
-import { Cause, Context, Effect, Layer, Result, Stream } from "effect"
+} from "@aigcfroge/plugin/effect/session"
+import type { Agent } from "@aigcfroge/schema/agent"
+import type { Model } from "@aigcfroge/schema/model"
+import type { Content } from "@aigcfroge/schema/tool"
+import { Cause, Clock, Context, Effect, Layer, Option, Result, Stream } from "effect"
 import { HttpClientRequest, HttpClientResponse } from "effect/http"
-import { makeLocationNode } from "@opencode/util/effect/app-node"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
 import { App } from "../app.js"
 import { Permission } from "../permission.js"
 import { PluginHooks } from "../plugin/hooks.js"
+import { Provider } from "../provider.js"
 import { QuestionTool } from "../tool/plugin/question.js"
 import { Tool } from "../tool.js"
 import { SessionAffinity } from "./affinity.js"
@@ -39,6 +40,8 @@ import { SessionSchema } from "./schema.js"
 import { SessionSystemPrompt } from "./system-prompt.js"
 import { toLLMMessages } from "./runner/to-llm-message.js"
 import type { SessionMessage } from "./message.js"
+import { SessionAttempt } from "@aigcfroge/schema/session-attempt"
+import { CorrectionStore } from "./correction-store.js"
 
 const IMAGE_BYTES_TRIGGER = 25 * 1024 * 1024 // 25 MiB
 const IMAGE_BYTES_TARGET = 15 * 1024 * 1024 // 15 MiB
@@ -63,6 +66,8 @@ export interface Prepared<Event = SessionRequest> {
   readonly event: Event
   readonly request: LLMRequest
   readonly options: StreamOptions
+  /** Primary attempts attach durable transport facts; auxiliary calls retain the original options. */
+  readonly optionsForAttempt?: (observe: (observation: SessionAttempt.Observation) => Effect.Effect<void>) => StreamOptions
   readonly retry: (event: PluginHooks.Domains["session"]["retry"]) => Effect.Effect<void>
   /** Runs a tool call against the tools this request advertised. */
   readonly executeTool: (
@@ -73,6 +78,7 @@ export interface Prepared<Event = SessionRequest> {
 export interface Input {
   readonly session: SessionSchema.Info
   readonly agent: Agent.ID
+  readonly request?: Agent.Info["request"]
   readonly model: SessionRunnerModel.Resolved
   readonly tools?: Tool.Snapshot
   readonly system: Array<SystemPart>
@@ -115,7 +121,13 @@ export const baseTranscript = (input: {
     ]
       .filter((part) => part.length > 0)
       .map(SystemPart.make),
-    messages: toLLMMessages(input.messages, input.model.ref, providerMetadataKey),
+    // Stored snapshots remain history. Only the Store's explicitly committed current snapshot is advertised.
+    messages: toLLMMessages(
+      input.messages.filter((message) => !CorrectionStore.isCorrectionHistory(message)),
+      input.model.ref,
+      providerMetadataKey,
+      SessionProviderContext.provenance(input.model),
+    ),
   }
 }
 
@@ -225,7 +237,7 @@ export interface Interface {
   readonly title: (input: Input) => Effect.Effect<Prepared<SessionTitle>>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/SessionModelRequest") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionModelRequest") {}
 
 export const layer = Layer.effect(
   Service,
@@ -233,12 +245,15 @@ export const layer = Layer.effect(
     const hooks = yield* PluginHooks.Service
     const transport = yield* SessionModelTransport.Service
     const app = yield* App.Metadata
+    const corrections = yield* CorrectionStore.Service
     const prepare = Effect.fn("SessionModelRequest.prepare")(function* <
       S extends SessionRequest & { tools?: Definitions },
     >(kind: SessionRequestKind, input: Input, shape: (draft: SessionRequest, tools: Definitions) => Effect.Effect<S>) {
       const session = input.session
       const model = input.model
-      const scope = { sessionID: session.id, agent: input.agent, model: model.ref, kind }
+      const scope = { sessionID: session.id, agent: input.agent, model: model.ref, connection: model.connection, kind }
+      const snapshot = yield* corrections.snapshot(session.id)
+      const messages = input.messages.filter((message) => message.id === undefined || !snapshot.owned.has(message.id))
       const tools = input.tools ?? {
         definitions: [],
         execute: () => new Tool.Error({ message: "Tools are not available for this request" }),
@@ -254,8 +269,12 @@ export const layer = Layer.effect(
         {
           sessionID: session.id,
           model: model.ref,
+          connection: model.connection,
           system: input.system,
-          messages: input.messages,
+          messages:
+            (kind === "primary" || kind === "compaction") && snapshot.current
+              ? [...messages, Message.make({ id: snapshot.current.id, role: "user", content: snapshot.current.text })]
+              : messages,
           options:
             kind === "primary" || kind === "compaction"
               ? { maxTokens: outputLimit(model.limit, kind, input.inputTokens) }
@@ -279,17 +298,21 @@ export const layer = Layer.effect(
       const base = LLM.request({
         model: model.model,
         http: {
-          headers: {
-            "x-opencode-session-id": session.id,
-            ...(session.parentID ? { "x-opencode-parent-session-id": session.parentID } : {}),
-            "x-session-affinity": affinity,
-            "X-Session-Id": affinity,
-            ...(session.parentID ? { "x-parent-session-id": session.parentID } : {}),
-            "User-Agent": App.useragent(app),
-            "x-opencode-project": session.projectID,
-            "x-opencode-session": affinity,
-            "x-opencode-client": app.name,
-          },
+          body: input.request?.body,
+          headers: Provider.mergeHeaders(
+            {
+              "x-aigcfroge-session-id": session.id,
+              ...(session.parentID ? { "x-aigcfroge-parent-session-id": session.parentID } : {}),
+              "x-session-affinity": affinity,
+              "X-Session-Id": affinity,
+              ...(session.parentID ? { "x-parent-session-id": session.parentID } : {}),
+              "User-Agent": App.useragent(app),
+              "x-aigcfroge-project": session.projectID,
+              "x-aigcfroge-session": affinity,
+              "x-aigcfroge-client": app.name,
+            },
+            input.request?.headers,
+          ),
         },
         // TODO: Persist cache lineage so nested forks reuse the root session's cache key.
         promptCacheKey: /^ses_[0-9a-f]{64}$/.test(affinity) ? affinity.slice(4) : affinity,
@@ -311,7 +334,7 @@ export const layer = Layer.effect(
         modelHook.baseURL !== undefined && modelHook.baseURL !== baseURL
           ? base.model.route.with({ endpoint: { baseURL: modelHook.baseURL } })
           : base.model.route
-      const request = LLMRequest.update(base, {
+      const routed = LLMRequest.update(base, {
         model: route === base.model.route ? base.model : LanguageModel.update(base.model, { route }),
         http: new HttpOptions({
           ...base.http,
@@ -322,36 +345,70 @@ export const layer = Layer.effect(
       // routing hook must not send an existing opaque window to another deployment; `prepare` has no
       // error channel, so like hook failures this surfaces as a defect.
       const selected = SessionProviderContext.provenance(model)
+      const sameDeployment = selected !== undefined && SessionProviderContext.compatible(
+        selected,
+        SessionProviderContext.provenance({ model: routed.model, ref: model.ref, connection: model.connection }, undefined, routed),
+      )
       if (
-        selected &&
-        !SessionProviderContext.compatible(
-          selected,
-          SessionProviderContext.provenance({ model: request.model, ref: model.ref }),
-        ) &&
-        request.messages.some((message) => message.content.some((part) => part.type === "compaction"))
+        !sameDeployment &&
+        routed.messages.some((message) => message.content.some((part) => part.type === "compaction"))
       )
         return yield* Effect.die(
           new Error("Provider context is incompatible with the route selected by model request hooks"),
         )
+      const request = sameDeployment ? routed : LLMRequest.update(routed, {
+        messages: routed.messages.map((message) => message.role === "user" || message.role === "system" ? message : new Message({
+          ...message, providerMetadata: undefined,
+          content: message.content.map((part) => ({ ...part, providerMetadata: undefined })),
+        })),
+      })
+      const hasOpaqueHistory = request.messages.some((message) => message.role !== "user" && message.role !== "system" &&
+        (message.providerMetadata !== undefined || message.content.some((part) => part.type === "compaction" || ("providerMetadata" in part && part.providerMetadata !== undefined))))
+      const requestDeployment = SessionProviderContext.provenance({ model: request.model, ref: model.ref, connection: model.connection }, undefined, request)
 
       const hasHttpHooks =
         (yield* hooks.has("session", "http.request", model.ref.providerID)) ||
         (yield* hooks.has("session", "http.response", model.ref.providerID))
-      const http: StreamOptions["http"] = hasHttpHooks
-        ? (req, handler) =>
-            Effect.gen(function* () {
-              const before = yield* hooks.trigger("session", "http.request", {
+      const optionsForAttempt = (observe?: (observation: SessionAttempt.Observation) => Effect.Effect<void>): StreamOptions => {
+        const recordTransport = (url: string | undefined, transport: SessionAttempt.Observation["transport"], delivery: SessionAttempt.Delivery) =>
+          observe === undefined ? Effect.void : Effect.gen(function* () {
+            yield* observe(new SessionAttempt.Observation({
+              observedAt: yield* Clock.currentTimeMillis,
+              deployment: url === undefined ? undefined : SessionProviderContext.provenance({ model: request.model, ref: model.ref, connection: model.connection }, url),
+              transport,
+              delivery,
+            }))
+          })
+        const http: StreamOptions["http"] = hasHttpHooks || observe !== undefined
+          ? (req, handler) => Effect.gen(function* () {
+              const before = hasHttpHooks ? yield* hooks.trigger("session", "http.request", {
                 ...scope,
                 request: yield* HttpClientRequest.toWeb(req),
-              })
-              let sent = HttpClientRequest.fromWeb(before.request)
-              if (before.request.body)
+              }) : undefined
+              let sent = before === undefined ? req : HttpClientRequest.fromWeb(before.request)
+              if (before?.request.body)
                 sent = HttpClientRequest.bodyUint8Array(
                   sent,
                   new Uint8Array(yield* Effect.promise(() => before.request.clone().arrayBuffer())),
                   before.request.headers.get("content-type") ?? undefined,
                 )
+              const url = Option.getOrUndefined(HttpClientRequest.toUrl(sent))?.href
+              if (kind === "primary" && hasOpaqueHistory && (requestDeployment === undefined || !SessionProviderContext.compatible(
+                requestDeployment,
+                url === undefined ? undefined : SessionProviderContext.provenance({ model: request.model, ref: model.ref, connection: model.connection }, url),
+              ))) return yield* Effect.die(new Error("Provider history is incompatible with the deployment selected by HTTP request hooks"))
+              yield* recordTransport(url, "http", "unknown")
               const res = yield* handler(sent)
+              yield* recordTransport(url, "http", res.status >= 200 && res.status < 300 ? "accepted" :
+                res.status >= 400 && res.status < 500 ? "rejected" : "unknown")
+              const gatewayProvider = res.headers["x-magpie-provider"]
+              const gatewayModel = res.headers["x-magpie-model"]
+              if (observe !== undefined && (gatewayProvider !== undefined || gatewayModel !== undefined))
+                yield* observe(new SessionAttempt.Observation({
+                  observedAt: yield* Clock.currentTimeMillis,
+                  gatewayReport: { source: "response-headers", provider: gatewayProvider, model: gatewayModel },
+                }))
+              if (before === undefined) return res
               const after = yield* hooks.trigger("session", "http.response", {
                 ...scope,
                 request: before.request,
@@ -362,41 +419,54 @@ export const layer = Layer.effect(
               })
               return HttpClientResponse.fromWeb(sent, after.response)
             }).pipe(Effect.mapError((cause) => (cause instanceof Error ? cause : new Error(String(cause)))))
-        : undefined
-      // HTTP hooks wrap every HTTP request, including the WebSocket fallback path. The route decides
-      // which transport actually carries the request, so both hook families are always offered.
-      const webSocket =
-        input.webSocket === "session" && model.transport === "websocket"
-          ? transport.bind(
-              session.id,
-              {
-                handshake: (connect) =>
-                  hooks
-                    .trigger("session", "experimental.ws.handshake", {
-                      ...scope,
-                      url: connect.url,
-                      headers: connect.headers,
-                    })
-                    .pipe(Effect.map((event) => ({ url: event.url, headers: event.headers }))),
-                send: (frame) =>
-                  hooks
-                    .trigger("session", "experimental.ws.send", { ...scope, frame })
-                    .pipe(Effect.map((event) => event.frame)),
-                receive: (frame) =>
-                  hooks
-                    .trigger("session", "experimental.ws.receive", { ...scope, frame })
-                    .pipe(Effect.map((event) => event.frame)),
-              },
-              model.chunkTimeout,
-            )
           : undefined
+        let handshakeURL: string | undefined
+        const bound = input.webSocket === "session" && model.transport === "websocket"
+          ? transport.bind(session.id, {
+              provenance: (url) => SessionProviderContext.provenance({ model: request.model, ref: model.ref, connection: model.connection }, url),
+              handshake: (connect) => hooks.trigger("session", "experimental.ws.handshake", {
+                ...scope, url: connect.url, headers: connect.headers,
+              }).pipe(Effect.flatMap((event) => Effect.gen(function* () {
+                if (hasOpaqueHistory && (requestDeployment === undefined || !SessionProviderContext.compatible(requestDeployment,
+                  SessionProviderContext.provenance({ model: request.model, ref: model.ref, connection: model.connection }, event.url))))
+                  return yield* Effect.die(new Error("Provider history is incompatible with the deployment selected by WebSocket handshake hooks"))
+                handshakeURL = event.url
+                return { url: event.url, headers: event.headers }
+              }))),
+              send: (frame) => hooks.trigger("session", "experimental.ws.send", { ...scope, frame }).pipe(Effect.map((event) => event.frame)),
+              sent: (url) => recordTransport(url, "websocket", "ambiguous"),
+              receive: (frame) => hooks.trigger("session", "experimental.ws.receive", { ...scope, frame }).pipe(Effect.map((event) => event.frame)),
+            }, model.chunkTimeout)
+          : undefined
+        const webSocket: StreamOptions["webSocket"] = bound === undefined || observe === undefined ? bound : {
+          execute: (exchange) => Effect.gen(function* () {
+            let delivery: SessionAttempt.Delivery = "unknown"
+            return yield* bound.execute({
+              ...exchange,
+              driver: {
+                create: exchange.driver.create,
+                observe: (create, frame) => exchange.driver.observe(create, frame).pipe(Effect.tap((observation) => {
+                  const next = observation.type === "rejected" ? "rejected" : "accepted"
+                  if (next === delivery) return Effect.void
+                  delivery = next
+                  return recordTransport(handshakeURL ?? exchange.connect.url, "websocket", next)
+                })),
+              },
+            })
+          }),
+        }
+        return { ...(http ? { http } : {}), ...(webSocket ? { webSocket } : {}) }
+      }
 
       return {
         event: shaped,
         request,
-        options: { ...(http ? { http } : {}), ...(webSocket ? { webSocket } : {}) },
-        retry: (event: Parameters<Prepared["retry"]>[0]) =>
-          hooks.trigger("session", "retry", event).pipe(Effect.asVoid),
+        options: optionsForAttempt(),
+        optionsForAttempt,
+        retry: (event: Parameters<Prepared["retry"]>[0]) => Effect.gen(function* () {
+          const updated = yield* hooks.trigger("session", "retry", { ...event, connection: model.connection })
+          event.decision = updated.decision
+        }),
         // Permission.assert and the question tool throw declines as defects so tools cannot
         // catch them and turn a "no" into model-visible output. Recover them here as failures.
         executeTool: (call: Parameters<Prepared["executeTool"]>[0]) =>
@@ -433,5 +503,5 @@ export const layer = Layer.effect(
 export const node = makeLocationNode({
   service: Service,
   layer,
-  deps: [PluginHooks.node, SessionModelTransport.node, App.node],
+  deps: [PluginHooks.node, SessionModelTransport.node, App.node, CorrectionStore.node],
 })

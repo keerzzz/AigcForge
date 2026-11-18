@@ -1,9 +1,10 @@
 import { useCommand } from "@/shell/commands/command"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useData } from "@/runtime/server/current"
-import { Timeline } from "@opencode/session-ui/timeline/projection"
-import { createEffect, createMemo, createSignal, on, onCleanup } from "solid-js"
+import { Timeline } from "@aigcfroge/session-ui/timeline/projection"
+import { createEffect, createMemo, createSignal, createUniqueId, on, onCleanup, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
+import { useSessionContent } from "../content-context"
 
 export type TimelineSearchMatch = {
   messageID: string
@@ -21,13 +22,13 @@ const HIGHLIGHT_ACTIVE = "timeline-search-hit-active"
 const TEXT_SELECTORS = '[data-slot="text-part-body"], [data-slot="user-message-text"]'
 
 function supportsHighlights() {
-  return typeof CSS !== "undefined" && typeof CSS.highlights === "object" && CSS.highlights !== null
+  return globalThis.CSS?.highlights != null
 }
 
-function clearHighlights() {
+function clearHighlights(names: readonly [string, string]) {
   if (!supportsHighlights()) return
-  CSS.highlights.delete(HIGHLIGHT_HIT)
-  CSS.highlights.delete(HIGHLIGHT_ACTIVE)
+  CSS.highlights.delete(names[0])
+  CSS.highlights.delete(names[1])
 }
 
 function collectRanges(
@@ -47,7 +48,7 @@ function collectRanges(
     const isActivePart = activePartID !== undefined && partID === activePartID
     let occurrenceInPart = 0
     const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT)
-    let node = walker.nextNode() as Text | null
+    let node = walker.nextNode()
 
     while (node) {
       const value = node.nodeValue ?? ""
@@ -67,7 +68,7 @@ function collectRanges(
         at = lowerValue.indexOf(lower, from)
       }
 
-      node = walker.nextNode() as Text | null
+      node = walker.nextNode()
     }
   }
 
@@ -79,11 +80,12 @@ function applyHighlights(
   query: string,
   activePartID: string | undefined,
   activeOccurrence: number | undefined,
+  names: readonly [string, string],
 ) {
   if (!supportsHighlights()) return
   const { hits, active } = collectRanges(root, query, activePartID, activeOccurrence)
-  CSS.highlights.set(HIGHLIGHT_HIT, new Highlight(...hits))
-  CSS.highlights.set(HIGHLIGHT_ACTIVE, new Highlight(...active))
+  CSS.highlights.set(names[0], new Highlight(...hits))
+  CSS.highlights.set(names[1], new Highlight(...active))
 }
 
 export function createTimelineSearchController(input: {
@@ -95,6 +97,21 @@ export function createTimelineSearchController(input: {
   const command = useCommand()
   const language = useLanguage()
   const data = useData()
+  const content = useSessionContent()
+  const id = content ? createUniqueId() : undefined
+
+  const highlights = [
+    id ? `${HIGHLIGHT_HIT}-${id}` : HIGHLIGHT_HIT,
+    id ? `${HIGHLIGHT_ACTIVE}-${id}` : HIGHLIGHT_ACTIVE,
+  ] as const
+
+  onMount(() => {
+    if (!id) return
+    const style = document.createElement("style")
+    style.textContent = `::highlight(${highlights[0]}) { background-color: color-mix(in srgb, var(--v2-icon-icon-accent) 28%, transparent); } ::highlight(${highlights[1]}) { background-color: var(--v2-icon-icon-accent); color: var(--v2-background-bg-deep); }`
+    document.head.append(style)
+    onCleanup(() => style.remove())
+  })
   const [state, setState] = createStore({ value: "", active: 0, visible: false })
   const [focusTick, setFocusTick] = createSignal(0)
   let inputEl: HTMLInputElement | undefined
@@ -171,12 +188,12 @@ export function createTimelineSearchController(input: {
     const q = query()
 
     if (!root || !state.visible || !q) {
-      clearHighlights()
+      clearHighlights(highlights)
 
       return
     }
 
-    applyHighlights(root, q, activePartID(), activeOccurrence())
+    applyHighlights(root, q, activePartID(), activeOccurrence(), highlights)
     let frame: number | undefined
 
     const scheduleApply = () => {
@@ -185,7 +202,7 @@ export function createTimelineSearchController(input: {
         frame = undefined
 
         if (!state.visible) return
-        applyHighlights(root, query(), activePartID(), activeOccurrence())
+        applyHighlights(root, query(), activePartID(), activeOccurrence(), highlights)
       })
     }
 
@@ -195,7 +212,7 @@ export function createTimelineSearchController(input: {
       observer.disconnect()
 
       if (frame !== undefined) cancelAnimationFrame(frame)
-      clearHighlights()
+      clearHighlights(highlights)
     })
   })
 
@@ -209,18 +226,20 @@ export function createTimelineSearchController(input: {
     }),
   )
 
-  command.register("session.search", () => [
-    {
-      id: "session.search",
-      title: language.t("session.search.placeholder"),
-      keybind: "mod+f",
-      hidden: true,
-      onSelect: () => open(),
-    },
-  ])
-  const onOpenRequest = () => open()
-  document.addEventListener("opencode:timeline-search-open", onOpenRequest)
-  onCleanup(() => document.removeEventListener("opencode:timeline-search-open", onOpenRequest))
+  if (!content) {
+    command.register("session.search", () => [
+      {
+        id: "session.search",
+        title: language.t("session.search.placeholder"),
+        keybind: "mod+f",
+        hidden: true,
+        onSelect: () => open(),
+      },
+    ])
+    const onOpenRequest = () => open()
+    document.addEventListener("aigcfroge:timeline-search-open", onOpenRequest)
+    onCleanup(() => document.removeEventListener("aigcfroge:timeline-search-open", onOpenRequest))
+  }
 
   function open() {
     setState("visible", true)

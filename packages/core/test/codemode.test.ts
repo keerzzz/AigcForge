@@ -1,10 +1,10 @@
 import { describe, expect } from "bun:test"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { Location } from "@opencode/core/location"
-import { AbsolutePath } from "@opencode/core/schema"
-import { Tool } from "@opencode/core/tool"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { Location } from "@aigcfroge/core/location"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Tool } from "@aigcfroge/core/tool"
 import { Effect, Schema } from "effect"
-import type { Info } from "@opencode/schema/tool"
+import type { Info } from "@aigcfroge/schema/tool"
 import { it } from "./lib/effect"
 
 const toolNode = AppNodeBuilder.build(Tool.node, [

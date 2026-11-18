@@ -1,45 +1,62 @@
 import { describe, expect } from "bun:test"
-import { Deferred, Effect, Fiber, Layer, Schema, Stream } from "effect"
-import { LanguageModel } from "@opencode/ai"
-import { OpenAIChat } from "@opencode/ai/protocols"
-import { TestLLM } from "@opencode/ai/testing"
+import { Cause, Deferred, Effect, Exit, Fiber, Layer, Schema, Stream } from "effect"
+import type { SessionHooks } from "@aigcfroge/plugin/effect/session"
+import { LanguageModel } from "@aigcfroge/ai"
+import { OpenAIChat } from "@aigcfroge/ai/protocols"
+import { TestLLM } from "@aigcfroge/ai/testing"
 import path from "path"
-import { Money } from "@opencode/schema/money"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { LayerNodePlatform } from "@opencode/core/effect/app-node-platform"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { Global } from "@opencode/util/global"
-import { makeGlobalNode, makeLocationNode } from "@opencode/util/effect/app-node"
-import { Database } from "@opencode/core/database/database"
-import { Bus } from "@opencode/core/bus"
-import { Config } from "@opencode/core/config"
-import { Location } from "@opencode/core/location"
-import { Model } from "@opencode/core/model"
-import { Provider } from "@opencode/core/provider"
-import { AbsolutePath } from "@opencode/core/schema"
-import { Agent } from "@opencode/core/agent"
-import { Job } from "@opencode/core/job"
-import { KV } from "@opencode/core/kv"
-import { LocationServiceMap } from "@opencode/core/location-service-map"
-import { Session } from "@opencode/core/session"
-import { SessionEvent } from "@opencode/core/session/event"
-import { SessionExecution } from "@opencode/core/session/execution"
-import { SessionRestart } from "@opencode/core/session/execution/restart"
-import { SessionInbox } from "@opencode/core/session/inbox"
-import { SessionMessage } from "@opencode/core/session/message"
-import { SessionRunnerModel } from "@opencode/core/session/runner/model"
-import { SessionStore } from "@opencode/core/session/store"
-import { SubagentJob } from "@opencode/core/session/subagent-job"
-import { Plugin } from "@opencode/core/plugin"
-import { PluginHooks } from "@opencode/core/plugin/hooks"
-import { PluginSupervisor } from "@opencode/core/plugin/supervisor"
-import { Permission } from "@opencode/core/permission"
-import { SubagentTool } from "@opencode/core/tool/plugin/subagent"
-import { Tool } from "@opencode/core/tool"
-import { tmpdir } from "./fixture/tmpdir"
+import { Money } from "@aigcfroge/schema/money"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { App } from "@aigcfroge/core/app"
+import { LayerNodePlatform } from "@aigcfroge/core/effect/app-node-platform"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Global } from "@aigcfroge/util/global"
+import { makeGlobalNode, makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { Database } from "@aigcfroge/core/database/database"
+import { Bus } from "@aigcfroge/core/bus"
+import { Config } from "@aigcfroge/core/config"
+import { CompositionDigest } from "@aigcfroge/core/composition/digest"
+import { Location } from "@aigcfroge/core/location"
+import { Model } from "@aigcfroge/core/model"
+import { ModelGroup } from "@aigcfroge/core/model-group"
+import { ModelResolver } from "@aigcfroge/core/model-resolver"
+import { Provider } from "@aigcfroge/core/provider"
+import { Project } from "@aigcfroge/core/project"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Agent } from "@aigcfroge/core/agent"
+import { Job } from "@aigcfroge/core/job"
+import { KV } from "@aigcfroge/core/kv"
+import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
+import { Session } from "@aigcfroge/core/session"
+import { SessionComposition } from "@aigcfroge/core/session/composition"
+import { SessionEvent } from "@aigcfroge/core/session/event"
+import { SessionExecution } from "@aigcfroge/core/session/execution"
+import { SessionRestart } from "@aigcfroge/core/session/execution/restart"
+import { SessionInbox } from "@aigcfroge/core/session/inbox"
+import { SessionMessage } from "@aigcfroge/core/session/message"
+import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
+import { SessionStore } from "@aigcfroge/core/session/store"
+import { SessionTask } from "@aigcfroge/core/session/task"
+import { SessionTable } from "@aigcfroge/core/session/sql"
+import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
+import { MetaAgentStepTable } from "@aigcfroge/core/meta-agent/sql"
+import { SubagentJob } from "@aigcfroge/core/session/subagent-job"
+import { Plugin } from "@aigcfroge/core/plugin"
+import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
+import { PluginSupervisor } from "@aigcfroge/core/plugin/supervisor"
+import { Permission } from "@aigcfroge/core/permission"
+import { ApprovalPresence } from "@aigcfroge/core/permission/approval-presence"
+import { SubagentTool } from "@aigcfroge/core/tool/plugin/subagent"
+import { Tool } from "@aigcfroge/core/tool"
+import { and, eq } from "drizzle-orm"
+import { tmpdir, tmpdirScoped } from "./fixture/tmpdir"
 import { tempGlobalLayer } from "./fixture/global"
-import { offlineModels } from "./fixture/models"
-import { testEffect } from "./lib/effect"
+import { createLegacySession, offlineModels, useOfflineCatalog } from "./fixture/models"
+import { awaitWithTimeout, testEffect } from "./lib/effect"
+import { CompositionFixture } from "./lib/composition"
+import { withCustomModeEnabled } from "./lib/product-mode"
+
+withCustomModeEnabled()
 import { executeTool, registerToolPlugin, toolIdentity } from "./lib/tool"
 
 const childText = "child final response"
@@ -117,15 +134,22 @@ const subagentPluginSupervisor = makeLocationNode({
   layer: Layer.effectDiscard(
     Effect.gen(function* () {
       const hooks = yield* PluginHooks.Service
-      yield* registerToolPlugin(SubagentTool.Plugin, {}, (name, callback) => hooks.register("tool", name, callback))
+      yield* registerToolPlugin(
+        SubagentTool.Plugin,
+        { session: { hook: (name, callback, options) => hooks.register("session", name, callback, options) } },
+        (name, callback) => hooks.register("tool", name, callback),
+      )
     }),
   ),
   deps: [
     Agent.node,
     Config.node,
     Model.node,
+    ModelResolver.node,
+    Plugin.node,
     Permission.node,
     Session.node,
+    SessionComposition.node,
     Job.node,
     SubagentJob.node,
     Tool.node,
@@ -135,10 +159,13 @@ const subagentPluginSupervisor = makeLocationNode({
 
 const nodes = LayerNode.group([
   Database.node,
+  Project.node,
   Bus.node,
   Job.node,
   Session.node,
+  SessionComposition.node,
   SessionExecution.node,
+  ApprovalPresence.node,
   LocationServiceMap.node,
 ])
 const replacements = [
@@ -150,8 +177,15 @@ const productionIt = testEffect(AppNodeBuilder.build(nodes, replacements))
 const it = testEffect(
   AppNodeBuilder.build(nodes, [...replacements, PluginSupervisor.node.replace(subagentPluginSupervisor)]),
 )
+const ownershipIt = testEffect(
+  AppNodeBuilder.build(LayerNode.group([nodes, MetaAgentService.node]), [
+    ...replacements,
+    Bus.node.replace(Bus.configured({ persist: true })),
+    PluginSupervisor.node.replace(subagentPluginSupervisor),
+  ]),
+)
 const completionIt = testEffect(
-  AppNodeBuilder.build(LayerNode.group([nodes, SessionRestart.node, KV.node]), [
+  AppNodeBuilder.build(LayerNode.group([nodes, SessionRestart.node, SessionTask.node, KV.node]), [
     Global.node.replace(tempGlobalLayer),
     offlineModels,
     PluginSupervisor.node.replace(subagentPluginSupervisor),
@@ -190,24 +224,685 @@ const withSubagent = (location: Location.Ref) =>
       agents.transform((editor) => {
         // The caller identity used by executeTool; subagent permission asserts against it.
         editor.update(toolIdentity.agent, (agent) => {
+          agent.originKind = "builtin"
           agent.mode = "primary"
           agent.permissions.push({ action: "*", resource: "*", effect: "allow" })
         })
         editor.update(Agent.ID.make("reviewer"), (agent) => {
+          agent.originKind = "builtin"
           agent.mode = "subagent"
           agent.model = childModel
         })
         editor.update(Agent.ID.make("fallback"), (agent) => {
+          agent.originKind = "builtin"
           agent.mode = "subagent"
         })
         editor.update(Agent.ID.make("primary"), (agent) => {
+          agent.originKind = "builtin"
           agent.mode = "primary"
         })
       }),
     ).pipe(Effect.provide(locations.get(location)))
   })
 
+const setupCustom = (effect: "allow" | "deny" = "allow") =>
+  Effect.gen(function* () {
+    const dir = yield* tmpdirScoped()
+    const sessions = yield* Session.Service
+    const parent = yield* createLegacySession({
+      location: Location.Ref.make({ directory: AbsolutePath.make(dir.path) }),
+      model: parentModel,
+    })
+    yield* withSubagent(parent.location)
+    const locations = yield* LocationServiceMap.Service
+    const registry = yield* Tool.Service.pipe(Effect.provide(locations.get(parent.location)))
+    const agents = yield* Agent.Service.pipe(Effect.provide(locations.get(parent.location)))
+    const permission = yield* Permission.Service.pipe(Effect.provide(locations.get(parent.location)))
+    const hooks = yield* PluginHooks.Service.pipe(Effect.provide(locations.get(parent.location)))
+    const compositions = yield* SessionComposition.Service
+    const database = yield* Database.Service
+    const app = yield* App.Metadata
+    const info = Agent.Info.make({
+      ...Agent.Info.empty(Agent.ID.make("frozen-reviewer")),
+      name: Agent.Name.make("review-alias"),
+      description: "Frozen review description",
+      mode: "subagent",
+      model: childModel,
+      permissions: [
+        { action: "*", resource: "*", effect: "deny" },
+        { action: "read", resource: "*", effect: "allow" },
+      ],
+    })
+    yield* CompositionFixture.attach(parent.id, info, {
+      orchestrator: Agent.Info.make({
+        ...Agent.Info.empty(Agent.ID.make("meta")),
+        mode: "primary",
+        permissions: [
+          { action: "*", resource: "*", effect: "deny" },
+          { action: "subagent", resource: info.id, effect },
+        ],
+      }),
+      tools: CompositionDigest.captureTools(
+        (yield* registry.snapshot()).catalog,
+        parent.location.directory,
+        app.version,
+      ),
+    })
+    // Seed legacy Custom placement without using the asset resolver under test elsewhere.
+    yield* database.db
+      .update(SessionTable)
+      .set({ mode: "custom", agent: "meta" })
+      .where(eq(SessionTable.id, parent.id))
+      .run()
+      .pipe(Effect.orDie)
+    return {
+      sessions,
+      parent: yield* sessions.get(parent.id),
+      agents,
+      registry,
+      permission,
+      hooks,
+      compositions,
+      info,
+      execute: (input: Partial<typeof SubagentTool.Input.Type> = {}) =>
+        executeTool(registry, {
+          sessionID: parent.id,
+          agent: Agent.ID.make("meta"),
+          messageID: toolIdentity.messageID,
+          call: {
+            type: "tool-call",
+            id: "call-custom-subagent",
+            name: SubagentTool.name,
+            input: { agent: info.name, description: "Frozen review", prompt: "Review this", ...input },
+          },
+        }),
+    }
+  })
+
+const hookEvent = (sessionID: Session.ID, agent = Agent.ID.make("meta")): SessionHooks["context"] => ({
+  sessionID,
+  agent,
+  model: parentModel,
+  system: [],
+  messages: [],
+  options: {},
+  tools: { [SubagentTool.name]: { description: SubagentTool.description, input: { type: "object" } } },
+})
+
+ownershipIt.live("parses a Group override and retains the Custom child's captured behavior when its definition changes", () => Effect.gen(function* () {
+  const f = yield* setupCustom()
+  const presence = yield* ApprovalPresence.Service
+  yield* presence.bindResponder({ location: f.parent.location, custom: true })
+  const bus = yield* Bus.Service
+  const unsubscribe = yield* bus.listen((event) => {
+    if (event.type !== Permission.Event.Asked.type) return Effect.void
+    const request = Schema.decodeUnknownSync(Permission.Request)(event.data)
+    if (request.sessionID !== f.parent.id || request.action !== SubagentTool.name) return Effect.void
+    expect(request.resources).toEqual([f.info.id])
+    return f.permission.reply({ requestID: request.id, reply: "once" }).pipe(Effect.orDie)
+  })
+  yield* Effect.addFinalizer(() => unsubscribe)
+  const locations = yield* LocationServiceMap.Service
+  const config = yield* Config.Service.pipe(Effect.provide(locations.get(f.parent.location)))
+  if (!config.provider) return yield* Effect.die(new Error("Subagent Group configuration is missing"))
+  const target = (yield* config.provider.list()).targets.find((target) => target.scope === "project" && target.preferred)
+  if (!target) return yield* Effect.die(new Error("Subagent Group target is missing"))
+  const group = new Model.GroupRef({ type: "group", groupID: Model.GroupID.make("review") })
+  const input = { groupID: group.groupID, target: { scope: target.scope, path: target.path }, expectedDigest: target.digest,
+    patch: { set: { name: "Review", enabled: true, members: [childModel], strategy: "order", affinity: "turn" } } }
+  const saved = yield* ModelGroup.save(ModelGroup.decodeSave(input)).pipe(Effect.provideService(Config.Service, config))
+  expect(saved.definition.status).toBe("saved")
+  const original = yield* ModelGroup.behavior(group.groupID).pipe(Effect.provideService(Config.Service, config))
+  const response = yield* f.execute({ model: "group:review" })
+  expect(response).toMatchObject({ status: "completed" })
+  const childID = outputSessionID(response.output)
+  const child = yield* f.sessions.get(childID)
+  expect(child.model).toEqual(group)
+  const snapshot = yield* f.compositions.get(childID)
+  if (snapshot.version !== 2) return yield* Effect.die(new Error("Subagent Group snapshot is not V2"))
+  expect(SessionComposition.groupBehaviorFor(snapshot, f.info.id)).toEqual(original)
+  const edited = yield* ModelGroup.save(ModelGroup.decodeSave({ ...input, expectedDigest: saved.definition.target?.digest, patch: { set: { members: [parentModel] } } })).pipe(Effect.provideService(Config.Service, config))
+  expect(edited.definition.status).toBe("saved")
+  expect((yield* f.execute({ sessionID: childID, background: true })).status).toBe("completed")
+  expect((yield* f.sessions.get(childID)).model).toEqual(group)
+  expect(yield* f.compositions.get(childID)).toEqual(snapshot)
+  const next = yield* f.execute({ model: "group:review" })
+  expect(next.status).toBe("completed")
+  const nextSnapshot = yield* f.compositions.get(outputSessionID(next.output))
+  if (nextSnapshot.version !== 2) return yield* Effect.die(new Error("New subagent Group snapshot is not V2"))
+  expect(SessionComposition.groupBehaviorFor(nextSnapshot, f.info.id)?.members).toEqual([parentModel])
+}))
+
 describe("SubagentTool", () => {
+  it.live("rejects user-defined Coding targets without creating a child", () =>
+    Effect.acquireDisposable(Effect.promise(() => tmpdir())).pipe(
+      Effect.flatMap((tmp) =>
+        Effect.gen(function* () {
+          const parent = yield* createLegacySession({
+            location: Location.Ref.make({ directory: AbsolutePath.make(tmp.path) }),
+            agent: toolIdentity.agent,
+            model: parentModel,
+          })
+          yield* withSubagent(parent.location)
+          const locations = yield* LocationServiceMap.Service
+          const local = locations.get(parent.location)
+          const agents = yield* Agent.Service.pipe(Effect.provide(local))
+          const target = Agent.ID.make("user-reviewer")
+          yield* agents.transform((editor) =>
+            editor.update(target, (agent) => {
+              agent.mode = "subagent"
+              agent.model = childModel
+            }),
+          )
+          expect((yield* agents.get(target))?.originKind).toBe("user")
+          const sessions = yield* Session.Service
+          const before = yield* sessions.list()
+          const registry = yield* Tool.Service.pipe(Effect.provide(local))
+          const response = yield* executeTool(registry, {
+            sessionID: parent.id,
+            agent: toolIdentity.agent,
+            messageID: toolIdentity.messageID,
+            call: {
+              type: "tool-call",
+              id: "call-user-mode",
+              name: SubagentTool.name,
+              input: { agent: target, description: "User target", prompt: "Review" },
+            },
+          })
+          expect(response).toMatchObject({
+            status: "error",
+            error: {
+              message: `Agent "${target}" is not allowed in mode "coding": User-defined agents require an adopted Custom composition`,
+            },
+          })
+          expect(yield* sessions.list()).toEqual(before)
+        }),
+      ),
+    ),
+  )
+  it.live("omits an unattended ask target from all catalog hooks before the registered executor rejects it", () =>
+    Effect.gen(function* () {
+      const seed = yield* setupCustom()
+      const database = yield* Database.Service
+      yield* database.db
+        .update(SessionTable)
+        .set({ mode: "coding", attended: 0 })
+        .where(eq(SessionTable.id, seed.parent.id))
+        .run()
+      yield* seed.agents.transform((editor) => {
+        editor.update(Agent.ID.make("meta"), (agent) => {
+          agent.originKind = "builtin"
+          agent.permissions = [
+            { action: "*", resource: "*", effect: "deny" },
+            { action: "subagent", resource: "reviewer", effect: "ask" },
+          ]
+        })
+      })
+      expect((yield* seed.sessions.get(seed.parent.id)).attended).toBe(false)
+      expect(
+        Permission.evaluate(
+          "subagent",
+          "reviewer",
+          yield* seed.permission.effectiveRules(seed.parent.id, Agent.ID.make("meta")),
+        ).effect,
+      ).toBe("deny")
+      const before = yield* seed.sessions.list()
+      const inbox = yield* seed.sessions.inbox(seed.parent.id)
+      const result = yield* executeTool(seed.registry, {
+        sessionID: seed.parent.id,
+        agent: Agent.ID.make("meta"),
+        messageID: toolIdentity.messageID,
+        call: {
+          type: "tool-call",
+          id: "call-unattended-directory",
+          name: SubagentTool.name,
+          input: { agent: "reviewer", description: "Denied review", prompt: "Review this" },
+        },
+      })
+      expect(result).toEqual({
+        status: "error",
+        error: { type: "permission.rejected", message: "Permission denied: subagent" },
+      })
+      expect(yield* seed.sessions.list()).toEqual(before)
+      expect(yield* seed.sessions.inbox(seed.parent.id)).toEqual(inbox)
+      expect(yield* seed.permission.forSession(seed.parent.id)).toEqual([])
+      yield* Effect.forEach(["context", "compaction", "generate"] as const, (name) =>
+        Effect.gen(function* () {
+          const event = yield* seed.hooks.trigger("session", name, hookEvent(seed.parent.id))
+          expect(event.tools[SubagentTool.name]?.description).toBe(SubagentTool.description)
+        }),
+      )
+    }),
+  )
+  ;["build", "meta"].forEach((actor) => {
+    ownershipIt.live(`keeps captured ${actor} Subagent ownership across a later Started and Agent change`, () =>
+      Effect.gen(function* () {
+        const dir = yield* tmpdirScoped()
+        const sessions = yield* Session.Service
+        const parent = yield* createLegacySession({
+          location: Location.Ref.make({ directory: AbsolutePath.make(dir.path) }),
+          agent: Agent.ID.make("build"),
+          model: parentModel,
+        })
+        yield* withSubagent(parent.location)
+        const locations = yield* LocationServiceMap.Service
+        const local = locations.get(parent.location)
+        yield* useOfflineCatalog([
+          {
+            info: Provider.Info.make({
+              ...Provider.Info.empty(parentModel.providerID),
+              activation: "enabled",
+              package: "@aigcfroge/ai/providers/openai/responses",
+            }),
+            models: [parentModel, childModel].map((ref) => Model.Info.make(Model.Info.default(ref.providerID, ref.id))),
+          },
+        ]).pipe(Effect.provide(local))
+        const agents = yield* Agent.Service.pipe(Effect.provide(local))
+        yield* agents.transform((editor) =>
+          editor.update(Agent.ID.make(actor), (agent) => {
+            agent.originKind = "builtin"
+            agent.permissions = [
+              { action: "*", resource: "*", effect: "allow" },
+              { action: "subagent", resource: "reviewer", effect: "ask" },
+            ]
+          }),
+        )
+        if (actor === "meta")
+          yield* sessions.switchAgent({ sessionID: parent.id, agent: Agent.ID.make("meta"), model: parentModel })
+        const before = yield* sessions.get(parent.id)
+        const bus = yield* Bus.Service
+        const input = { agent: "reviewer", description: "captured review", prompt: "Review this" }
+        const source = {
+          sessionID: parent.id,
+          assistantMessageID: toolIdentity.messageID,
+          id: "call-captured-subagent",
+        }
+        yield* bus.publish(SessionEvent.Step.Started, {
+          sessionID: parent.id,
+          assistantMessageID: toolIdentity.messageID,
+          agent: Agent.ID.make(actor),
+          model: parentModel,
+          started: 0,
+        })
+        yield* bus.publish(SessionEvent.Tool.Input.Started, { ...source, name: "subagent" })
+        yield* bus.publish(SessionEvent.Tool.Called, { ...source, input, executed: false })
+        const presence = yield* ApprovalPresence.Service
+        yield* presence.bindResponder({ custom: true })
+        const permission = yield* Permission.Service.pipe(Effect.provide(local))
+        const registry = yield* Tool.Service.pipe(Effect.provide(local))
+        const asked = yield* Deferred.make<Permission.Request>()
+        const unsubscribe = yield* bus.listen((event) =>
+          event.type === Permission.Event.Asked.type
+            ? Deferred.succeed(asked, Schema.decodeUnknownSync(Permission.Request)(event.data)).pipe(Effect.asVoid)
+            : Effect.void,
+        )
+        yield* Effect.addFinalizer(() => unsubscribe)
+        const fiber = yield* executeTool(registry, {
+          sessionID: parent.id,
+          agent: Agent.ID.make(actor),
+          messageID: toolIdentity.messageID,
+          call: { type: "tool-call", id: source.id, name: "subagent", input },
+        }).pipe(Effect.forkIn(yield* Effect.scope))
+        const request = yield* awaitWithTimeout(Deferred.await(asked), "Captured Subagent did not request permission")
+        const next = Agent.ID.make(actor === "build" ? "meta" : "build")
+        yield* sessions.switchAgent({ sessionID: parent.id, agent: next, model: parentModel })
+        yield* bus.publish(SessionEvent.Step.Started, {
+          sessionID: parent.id,
+          assistantMessageID: toolIdentity.messageID,
+          agent: next,
+          model: parentModel,
+          started: 0,
+        })
+        yield* permission.reply({ requestID: request.id, reply: "once" })
+        const response = yield* awaitWithTimeout(Fiber.join(fiber), "Captured Subagent did not settle")
+        expect(response).toMatchObject({ status: "completed" })
+        const child = yield* sessions.get(outputSessionID(response.metadata))
+        yield* bus.publish(SessionEvent.Tool.Success, {
+          ...source,
+          content: [{ type: "text", text: childText }],
+          executed: false,
+        })
+        const db = (yield* Database.Service).db
+        const steps = yield* db
+          .select()
+          .from(MetaAgentStepTable)
+          .where(
+            and(
+              eq(MetaAgentStepTable.meta_agent_session_id, parent.id),
+              eq(MetaAgentStepTable.meta_agent_id, (yield* sessions.get(parent.id)).controller!.metaAgentID),
+            ),
+          )
+        if (actor === "build") {
+          expect(child.controller).toBeUndefined()
+          expect(steps.map((step) => step.event_type)).toEqual([SessionEvent.Step.Started.type])
+        }
+        if (actor === "meta") {
+          expect(child.controller).toMatchObject({
+            kind: "child",
+            metaAgentID: before.controller?.metaAgentID,
+            executor: { agent: "reviewer", model: childModel },
+            source: { kind: "subagent", assistantMessageID: toolIdentity.messageID, toolCallID: source.id },
+          })
+          yield* MetaAgentService.Service.use((metas) => metas.assertOwner(child))
+          expect(
+            Permission.evaluate("subagent", "reviewer", yield* permission.effectiveRules(child.id, child.agent)).effect,
+          ).toBe("deny")
+          const hooks = yield* PluginHooks.Service.pipe(Effect.provide(local))
+          yield* Effect.forEach(["context", "compaction", "generate"] as const, (name) =>
+            Effect.gen(function* () {
+              const event = yield* hooks.trigger("session", name, hookEvent(child.id, child.agent))
+              expect(event.tools[SubagentTool.name]?.description).toBe(SubagentTool.description)
+            }),
+          )
+          expect(steps.map((step) => step.event_type)).toEqual([
+            SessionEvent.Step.Started.type,
+            SessionEvent.Tool.Called.type,
+            SessionEvent.Tool.Success.type,
+          ])
+        }
+        const other = Agent.ID.make(actor === "build" ? "meta" : "build")
+        yield* agents.transform((editor) =>
+          editor.update(other, (agent) => {
+            agent.originKind = "builtin"
+            agent.permissions = [{ action: "*", resource: "*", effect: "allow" }]
+          }),
+        )
+        expect(
+          yield* executeTool(registry, {
+            sessionID: parent.id,
+            agent: other,
+            messageID: toolIdentity.messageID,
+            call: {
+              type: "tool-call",
+              id: "call-other-owner",
+              name: "subagent",
+              input: { ...input, sessionID: child.id },
+            },
+          }),
+        ).toMatchObject({ status: "error" })
+        expect(yield* sessions.get(child.id)).toEqual(child)
+      }),
+    )
+  })
+
+  it.live("authorizes a frozen Custom alias before creating or switching its canonical child", () =>
+    Effect.gen(function* () {
+      const seed = yield* setupCustom()
+      yield* seed.agents.transform((editor) => {
+        editor.update(seed.info.id, (agent) => {
+          agent.mode = "primary"
+          agent.model = parentModel
+          agent.hidden = true
+          agent.description = "Live canonical description"
+        })
+        editor.update(Agent.ID.make(seed.info.name), (agent) => {
+          agent.mode = "subagent"
+          agent.model = overrideModel
+        })
+      })
+      const presence = yield* ApprovalPresence.Service
+      yield* presence.bindResponder({ custom: true })
+      const bus = yield* Bus.Service
+      const asked = yield* Deferred.make<Permission.Request>()
+      const unsubscribe = yield* bus.listen((event) =>
+        event.type === Permission.Event.Asked.type
+          ? Deferred.succeed(asked, Schema.decodeUnknownSync(Permission.Request)(event.data)).pipe(Effect.asVoid)
+          : Effect.void,
+      )
+      yield* Effect.addFinalizer(() => unsubscribe)
+      const before = yield* seed.sessions.list()
+      const scope = yield* Effect.scope
+      const fiber = yield* seed.execute().pipe(Effect.forkIn(scope))
+      const request = yield* awaitWithTimeout(Deferred.await(asked), "Custom subagent did not request permission")
+      expect(request).toMatchObject({
+        sessionID: seed.parent.id,
+        action: "subagent",
+        resources: [seed.info.id],
+        source: { type: "tool", messageID: toolIdentity.messageID, id: "call-custom-subagent" },
+      })
+      expect(yield* seed.sessions.list()).toEqual(before)
+      yield* seed.permission.reply({ requestID: request.id, reply: "once" })
+      const result = yield* awaitWithTimeout(Fiber.join(fiber), "Custom subagent did not finish", "10 seconds")
+      expect(result).toMatchObject({ status: "completed", metadata: { status: "completed" } })
+      const childID = outputSessionID(result.metadata)
+      expect(yield* seed.sessions.get(childID)).toMatchObject({
+        parentID: seed.parent.id,
+        mode: "custom",
+        agent: seed.info.id,
+        model: childModel,
+      })
+      expect((yield* seed.compositions.selectAgent(childID, seed.info.name)).info.model).toEqual(childModel)
+
+      // A continuation must wait for permission before switching the child's model.
+      const continuedAsk = yield* Deferred.make<Permission.Request>()
+      const unsubscribeContinuation = yield* bus.listen((event) =>
+        event.type === Permission.Event.Asked.type
+          ? Deferred.succeed(continuedAsk, Schema.decodeUnknownSync(Permission.Request)(event.data)).pipe(Effect.asVoid)
+          : Effect.void,
+      )
+      yield* Effect.addFinalizer(() => unsubscribeContinuation)
+      const childBefore = yield* seed.sessions.get(childID)
+      const inboxBefore = yield* seed.sessions.inbox(childID)
+      const continuation = yield* seed
+        .execute({ sessionID: childID, model: "test/override#fast" })
+        .pipe(Effect.forkIn(scope))
+      const continuedRequest = yield* awaitWithTimeout(
+        Deferred.await(continuedAsk),
+        "Custom subagent continuation did not request permission",
+      )
+      expect(continuedRequest.resources).toEqual([seed.info.id])
+      expect(yield* seed.sessions.get(childID)).toEqual(childBefore)
+      expect(yield* seed.sessions.inbox(childID)).toEqual(inboxBefore)
+      yield* seed.permission.reply({ requestID: continuedRequest.id, reply: "once" })
+      expect(yield* awaitWithTimeout(Fiber.join(continuation), "Custom continuation did not finish")).toMatchObject({
+        status: "completed",
+        metadata: { sessionID: childID },
+      })
+      expect(yield* seed.sessions.get(childID)).toMatchObject({ agent: seed.info.id, model: overrideModel })
+    }),
+  )
+
+  it.live("applies a frozen Custom deny to aliases before child state changes", () =>
+    Effect.gen(function* () {
+      const seed = yield* setupCustom("deny")
+      const child = yield* createLegacySession({ parentID: seed.parent.id, agent: seed.info.id, model: parentModel })
+      const before = yield* seed.sessions.list()
+      const inbox = yield* seed.sessions.inbox(child.id)
+      yield* Effect.forEach([undefined, child.id], (sessionID) =>
+        Effect.gen(function* () {
+          expect(
+            yield* seed.execute({ ...(sessionID === undefined ? {} : { sessionID }), model: "test/override#fast" }),
+          ).toEqual({
+            status: "error",
+            error: { type: "permission.rejected", message: "Permission denied: subagent" },
+          })
+        }),
+      )
+      expect(yield* seed.sessions.list()).toEqual(before)
+      expect(yield* seed.sessions.inbox(child.id)).toEqual(inbox)
+      expect(yield* seed.permission.forSession(seed.parent.id)).toEqual([])
+    }),
+  )
+
+  it.live("rejects live-only targets and meta before creating Custom children", () =>
+    Effect.gen(function* () {
+      const seed = yield* setupCustom()
+      const before = yield* seed.sessions.list()
+      expect(yield* seed.execute({ agent: "reviewer" })).toEqual({
+        status: "error",
+        error: {
+          type: "tool.execution",
+          message: "Custom subagent reviewer is unavailable: SessionComposition.AgentDelegationForbiddenError",
+        },
+      })
+      expect(yield* seed.execute({ agent: "meta" })).toEqual({
+        status: "error",
+        error: { type: "tool.execution", message: "Agent meta cannot run as a subagent" },
+      })
+      expect(yield* seed.sessions.list()).toEqual(before)
+      expect(yield* seed.permission.forSession(seed.parent.id)).toEqual([])
+    }),
+  )
+
+  it.live("uses the frozen Custom pool and caller permissions in all subagent catalog hooks", () =>
+    Effect.gen(function* () {
+      const seed = yield* setupCustom()
+      yield* seed.agents.transform((editor) => {
+        editor.update(Agent.ID.make("meta"), (agent) => {
+          agent.originKind = "builtin"
+          agent.permissions = [{ action: "*", resource: "*", effect: "allow" }]
+        })
+        editor.update(seed.info.id, (agent) => {
+          agent.mode = "primary"
+          agent.hidden = true
+          agent.description = "Live canonical description"
+          agent.permissions = [{ action: "*", resource: "*", effect: "allow" }]
+        })
+      })
+      const child = yield* createLegacySession({ parentID: seed.parent.id, agent: seed.info.id })
+      yield* Effect.forEach(["context", "compaction", "generate"] as const, (name) =>
+        Effect.gen(function* () {
+          const root = yield* seed.hooks.trigger("session", name, hookEvent(seed.parent.id))
+          expect(root.tools[SubagentTool.name]?.description).toBe(
+            `${SubagentTool.description}\n\nAvailable subagents:\n- ${seed.info.id}: ${seed.info.description}`,
+          )
+          const executor = yield* seed.hooks.trigger("session", name, hookEvent(child.id, seed.info.id))
+          expect(executor.tools[SubagentTool.name]?.description).toBe(SubagentTool.description)
+        }),
+      )
+    }),
+  )
+
+  it.live("narrows all frozen catalog hooks with Session target denies without starting a child", () =>
+    Effect.gen(function* () {
+      const seed = yield* setupCustom()
+      const database = yield* Database.Service
+      yield* database.db
+        .update(SessionTable)
+        .set({ permission: [{ action: "subagent", resource: seed.info.id, effect: "deny" }] })
+        .where(eq(SessionTable.id, seed.parent.id))
+        .run()
+      expect(
+        Permission.evaluate(
+          "subagent",
+          seed.info.id,
+          yield* seed.permission.effectiveRules(seed.parent.id, Agent.ID.make("meta")),
+        ).effect,
+      ).toBe("deny")
+      const before = yield* seed.sessions.list()
+      const inbox = yield* seed.sessions.inbox(seed.parent.id)
+      yield* Effect.forEach(["context", "compaction", "generate"] as const, (name) =>
+        Effect.gen(function* () {
+          const event = yield* seed.hooks.trigger("session", name, hookEvent(seed.parent.id))
+          expect(event.tools[SubagentTool.name]?.description).toBe(SubagentTool.description)
+          const absent = hookEvent(seed.parent.id)
+          absent.tools = {}
+          expect((yield* seed.hooks.trigger("session", name, absent)).tools).toEqual({})
+        }),
+      )
+      expect(yield* seed.execute()).toEqual({
+        status: "error",
+        error: { type: "permission.rejected", message: "Permission denied: subagent" },
+      })
+      expect(yield* seed.sessions.list()).toEqual(before)
+      expect(yield* seed.sessions.inbox(seed.parent.id)).toEqual(inbox)
+      expect(yield* seed.permission.forSession(seed.parent.id)).toEqual([])
+    }),
+  )
+
+  it.live("keeps the effective live catalog local to each Location", () =>
+    Effect.gen(function* () {
+      const first = yield* setupCustom()
+      const second = yield* setupCustom()
+      const database = yield* Database.Service
+      yield* Effect.forEach(
+        [
+          { seed: first, target: "reviewer", description: "First location" },
+          { seed: second, target: "fallback", description: "Second location" },
+        ],
+        (item) =>
+          Effect.gen(function* () {
+            yield* database.db
+              .update(SessionTable)
+              .set({ mode: "coding", attended: 1 })
+              .where(eq(SessionTable.id, item.seed.parent.id))
+              .run()
+            yield* item.seed.agents.transform((editor) => {
+              editor.update(Agent.ID.make("meta"), (agent) => {
+                agent.originKind = "builtin"
+                agent.permissions = [
+                  { action: "*", resource: "*", effect: "deny" },
+                  { action: "subagent", resource: item.target, effect: "allow" },
+                ]
+              })
+              editor.update(Agent.ID.make(item.target), (agent) => {
+                agent.description = item.description
+              })
+            })
+          }),
+      )
+      expect(first.parent.location.directory).not.toBe(second.parent.location.directory)
+      yield* Effect.forEach(["context", "compaction", "generate"] as const, (name) =>
+        Effect.gen(function* () {
+          const firstEvent = yield* first.hooks.trigger("session", name, hookEvent(first.parent.id))
+          const secondEvent = yield* second.hooks.trigger("session", name, hookEvent(second.parent.id))
+          expect(firstEvent.tools[SubagentTool.name]?.description).toBe(
+            `${SubagentTool.description}\n\nAvailable subagents:\n- reviewer: First location`,
+          )
+          expect(secondEvent.tools[SubagentTool.name]?.description).toBe(
+            `${SubagentTool.description}\n\nAvailable subagents:\n- fallback: Second location`,
+          )
+        }),
+      )
+    }),
+  )
+
+  it.live("fails closed for a missing Custom snapshot in execution and catalog hooks", () =>
+    Effect.gen(function* () {
+      const seed = yield* setupCustom()
+      const parent = yield* createLegacySession({ location: seed.parent.location, model: parentModel })
+      const database = yield* Database.Service
+      yield* database.db
+        .update(SessionTable)
+        .set({ mode: "custom", agent: "meta" })
+        .where(eq(SessionTable.id, parent.id))
+        .run()
+        .pipe(Effect.orDie)
+      const before = yield* seed.sessions.list()
+      expect(
+        yield* executeTool(seed.registry, {
+          sessionID: parent.id,
+          agent: Agent.ID.make("meta"),
+          messageID: toolIdentity.messageID,
+          call: {
+            type: "tool-call",
+            id: "call-missing-composition",
+            name: SubagentTool.name,
+            input: { agent: "reviewer", description: "Missing snapshot", prompt: "Review this" },
+          },
+        }),
+      ).toEqual({
+        status: "error",
+        error: {
+          type: "tool.execution",
+          message: "Custom subagent reviewer is unavailable: SessionComposition.SnapshotNotFoundError",
+        },
+      })
+      yield* Effect.forEach(["context", "compaction", "generate"] as const, (name) =>
+        Effect.gen(function* () {
+          const event = hookEvent(parent.id)
+          const exit = yield* seed.hooks.trigger("session", name, event).pipe(Effect.exit)
+          expect(Exit.isFailure(exit) && Cause.squash(exit.cause)).toBeInstanceOf(
+            SessionComposition.SnapshotNotFoundError,
+          )
+          expect(event.tools[SubagentTool.name]?.description).toBe(SubagentTool.description)
+        }),
+      )
+      expect(yield* seed.sessions.list()).toEqual(before)
+      expect(yield* seed.permission.forSession(parent.id)).toEqual([])
+    }),
+  )
+
   completionIt.live("admits one durable completion across live delivery and restart replay", () =>
     Effect.acquireRelease(
       Effect.promise(() => tmpdir()),
@@ -216,11 +911,13 @@ describe("SubagentTool", () => {
       Effect.flatMap((dir) =>
         Effect.gen(function* () {
           const sessions = yield* Session.Service
-          const parent = yield* sessions.create({
+          const tasks = yield* SessionTask.Service
+          const parent = yield* createLegacySession({
             location: Location.Ref.make({ directory: AbsolutePath.make(dir.path) }),
             model: parentModel,
             title: "Completion recipient",
           })
+          expect(yield* tasks.get(parent.id)).toEqual([])
           yield* withSubagent(parent.location)
           const locations = yield* LocationServiceMap.Service
           const registry = yield* Tool.Service.pipe(Effect.provide(locations.get(parent.location)))
@@ -266,6 +963,7 @@ describe("SubagentTool", () => {
               },
             }),
           ])
+          expect(yield* tasks.get(parent.id)).toEqual([])
 
           // Reproduce a crash after admission but before acknowledgment using the real persisted marker.
           const kv = yield* KV.Service
@@ -278,6 +976,7 @@ describe("SubagentTool", () => {
             messages,
           )
           expect(yield* jobs.pendingBackground).toEqual([])
+          expect(yield* tasks.get(parent.id)).toEqual([])
         }),
       ),
     ),
@@ -291,8 +990,7 @@ describe("SubagentTool", () => {
       Effect.flatMap((dir) =>
         Effect.gen(function* () {
           const location = Location.Ref.make({ directory: AbsolutePath.make(dir.path) })
-          const session = yield* Session.Service
-          const parent = yield* session.create({ location })
+          const parent = yield* createLegacySession({ location })
           yield* withSubagent(parent.location)
 
           const locations = yield* LocationServiceMap.Service
@@ -327,8 +1025,8 @@ describe("SubagentTool", () => {
         Effect.gen(function* () {
           const location = Location.Ref.make({ directory: AbsolutePath.make(dir.path) })
           const sessions = yield* Session.Service
-          const root = yield* sessions.create({ location })
-          const parent = yield* sessions.create({ parentID: root.id, title: "parent" })
+          const root = yield* createLegacySession({ location })
+          const parent = yield* createLegacySession({ parentID: root.id, title: "parent" })
           yield* withSubagent(parent.location)
           const locations = yield* LocationServiceMap.Service
           const registry = yield* Tool.Service.pipe(Effect.provide(locations.get(parent.location)))
@@ -365,12 +1063,12 @@ describe("SubagentTool", () => {
       Effect.flatMap((dir) =>
         Effect.gen(function* () {
           yield* Effect.promise(() =>
-            Bun.write(path.join(dir.path, "opencode.json"), JSON.stringify({ experimental: { subagent_depth: 2 } })),
+            Bun.write(path.join(dir.path, "aigcfroge.json"), JSON.stringify({ experimental: { subagent_depth: 2 } })),
           )
           const location = Location.Ref.make({ directory: AbsolutePath.make(dir.path) })
           const sessions = yield* Session.Service
-          const root = yield* sessions.create({ location })
-          const parent = yield* sessions.create({ parentID: root.id, title: "parent", model: parentModel })
+          const root = yield* createLegacySession({ location })
+          const parent = yield* createLegacySession({ parentID: root.id, title: "parent", model: parentModel })
           yield* withSubagent(parent.location)
           const locations = yield* LocationServiceMap.Service
           const registry = yield* Tool.Service.pipe(Effect.provide(locations.get(parent.location)))
@@ -410,7 +1108,7 @@ describe("SubagentTool", () => {
         Effect.gen(function* () {
           const location = Location.Ref.make({ directory: AbsolutePath.make(dir.path) })
           const sessions = yield* Session.Service
-          const parent = yield* sessions.create({ location, model: parentModel })
+          const parent = yield* createLegacySession({ location, model: parentModel })
           yield* withSubagent(parent.location)
           const locations = yield* LocationServiceMap.Service
           const registry = yield* Tool.Service.pipe(Effect.provide(locations.get(parent.location)))
@@ -473,7 +1171,7 @@ describe("SubagentTool", () => {
         Effect.gen(function* () {
           const location = Location.Ref.make({ directory: AbsolutePath.make(dir.path) })
           const sessions = yield* Session.Service
-          const parent = yield* sessions.create({ location, model: parentModel })
+          const parent = yield* createLegacySession({ location, model: parentModel })
           yield* withSubagent(parent.location)
           const locations = yield* LocationServiceMap.Service
           const registry = yield* Tool.Service.pipe(Effect.provide(locations.get(parent.location)))
@@ -529,8 +1227,8 @@ describe("SubagentTool", () => {
         Effect.gen(function* () {
           const location = Location.Ref.make({ directory: AbsolutePath.make(dir.path) })
           const sessions = yield* Session.Service
-          const parent = yield* sessions.create({ location, model: parentModel })
-          const child = yield* sessions.create({
+          const parent = yield* createLegacySession({ location, model: parentModel })
+          const child = yield* createLegacySession({
             parentID: parent.id,
             title: "review",
             agent: Agent.ID.make("reviewer"),
@@ -582,14 +1280,14 @@ describe("SubagentTool", () => {
         Effect.gen(function* () {
           const location = Location.Ref.make({ directory: AbsolutePath.make(dir.path) })
           const sessions = yield* Session.Service
-          const parent = yield* sessions.create({ location, model: parentModel })
-          const otherParent = yield* sessions.create({ location, model: parentModel })
-          const unrelated = yield* sessions.create({
+          const parent = yield* createLegacySession({ location, model: parentModel })
+          const otherParent = yield* createLegacySession({ location, model: parentModel })
+          const unrelated = yield* createLegacySession({
             parentID: otherParent.id,
             title: "other review",
             agent: Agent.ID.make("reviewer"),
           })
-          const switched = yield* sessions.create({
+          const switched = yield* createLegacySession({
             parentID: parent.id,
             title: "fallback review",
             agent: Agent.ID.make("fallback"),
@@ -678,7 +1376,7 @@ describe("SubagentTool", () => {
         Effect.gen(function* () {
           const location = Location.Ref.make({ directory: AbsolutePath.make(dir.path) })
           const sessions = yield* Session.Service
-          const parent = yield* sessions.create({ location, model: parentModel })
+          const parent = yield* createLegacySession({ location, model: parentModel })
           yield* withSubagent(parent.location)
           const locations = yield* LocationServiceMap.Service
           const registry = yield* Tool.Service.pipe(Effect.provide(locations.get(parent.location)))
@@ -710,7 +1408,7 @@ describe("SubagentTool", () => {
           })
 
           const failures = [
-            ["not-a-ref", 'Invalid model "not-a-ref". Use "providerID/modelID" or "providerID/modelID#variant".'],
+            ["not-a-ref", 'Invalid model "not-a-ref". Use "providerID/modelID", "providerID/modelID#variant", or "group:groupID".'],
             ["test/missing", 'Model "test/missing" is not available. Use the models tool to see what is available.'],
             ["test/override#slow", 'Variant "slow" is not available for "test/override". Available: fast.'],
             ["test/plain#high", 'Model "test/plain" has no variants. Omit the variant.'],
@@ -734,8 +1432,7 @@ describe("SubagentTool", () => {
       Effect.flatMap((dir) =>
         Effect.gen(function* () {
           const location = Location.Ref.make({ directory: AbsolutePath.make(dir.path) })
-          const sessions = yield* Session.Service
-          const parent = yield* sessions.create({ location })
+          const parent = yield* createLegacySession({ location })
           yield* withSubagent(parent.location)
           const locations = yield* LocationServiceMap.Service
           const registry = yield* Tool.Service.pipe(Effect.provide(locations.get(parent.location)))
@@ -772,7 +1469,7 @@ describe("SubagentTool", () => {
         Effect.gen(function* () {
           const location = Location.Ref.make({ directory: AbsolutePath.make(dir.path) })
           const sessions = yield* Session.Service
-          const parent = yield* sessions.create({ location })
+          const parent = yield* createLegacySession({ location })
           yield* withSubagent(parent.location)
           const locations = yield* LocationServiceMap.Service
           const registry = yield* Tool.Service.pipe(Effect.provide(locations.get(parent.location)))
@@ -803,7 +1500,8 @@ describe("SubagentTool", () => {
 
           const admission = Array.from(yield* Fiber.join(admitted))[0]
           expect(admission?.data.item.type).toBe("synthetic")
-          if (admission?.data.item.type !== "synthetic") return yield* Effect.die("Expected synthetic inbox item")
+          if (admission?.data.item.type !== "synthetic")
+            return yield* Effect.die(new Error("Expected synthetic inbox item"))
           expect(admission?.data.item.payload.text).toContain(`<subagent sessionID="${childID}" state="completed"`)
           expect(admission?.data.item.payload).toMatchObject({
             description: "background review",

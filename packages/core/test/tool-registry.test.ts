@@ -1,15 +1,18 @@
 import { describe, expect } from "bun:test"
-import { Agent } from "@opencode/core/agent"
-import type { Permission } from "@opencode/core/permission"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { Image } from "@opencode/core/image"
-import { PluginHooks } from "@opencode/core/plugin/hooks"
-import { Session } from "@opencode/core/session"
-import { SessionMessage } from "@opencode/core/session/message"
-import { State } from "@opencode/core/state"
-import { Tool } from "@opencode/core/tool"
-import type { Info } from "@opencode/schema/tool"
-import { LayerNode } from "@opencode/util/effect/layer-node"
+import { Agent } from "@aigcfroge/core/agent"
+import type { Permission } from "@aigcfroge/core/permission"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { Image } from "@aigcfroge/core/image"
+import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
+import { Session } from "@aigcfroge/core/session"
+import { SessionMessage } from "@aigcfroge/core/session/message"
+import { State } from "@aigcfroge/core/state"
+import { Tool } from "@aigcfroge/core/tool"
+import { CompositionDigest } from "@aigcfroge/core/composition/digest"
+import { Producer } from "@aigcfroge/core/plugin/service"
+import { McpRegistration } from "@aigcfroge/core/tool/mcp-registration"
+import type { Info } from "@aigcfroge/schema/tool"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
 import { codeModeListings, executeTool, toolDefinitions } from "./lib/tool"
 import { Deferred, Effect, Exit, Fiber, Layer, Logger, Schema, SchemaGetter, SchemaIssue, Scope } from "effect"
 import { z } from "zod"
@@ -644,6 +647,496 @@ describe("Tool", () => {
 
       expect(first).toEqual(second)
       expect(first.map((definition) => definition.name)).toEqual(["alpha", "alpha_beta", "zeta", "execute"])
+    }),
+  )
+
+  it.effect("captures complete Code Mode schemas while provider definitions stay stable", () =>
+    Effect.gen(function* () {
+      const service = yield* Tool.Service
+      yield* transform(service, { echo: make() })
+      const original = yield* service.snapshot()
+      const initialDigest = CompositionDigest.computeDigest(original.catalog)
+      expect(original.catalog.map((tool) => [tool.name, tool.placement])).toEqual([
+        ["echo", "codemode"],
+        ["execute", "direct"],
+      ])
+      expect(original.catalog[0]?.inputSchema).toMatchObject({ properties: { text: { type: "string" } } })
+      expect(original.catalog[0]?.outputSchema).toMatchObject({ properties: { text: { type: "string" } } })
+
+      const inputUpdate = yield* service.transform((editor) =>
+        editor.update("echo", (tool) => {
+          tool.input = Schema.Struct({ text: Schema.String, limit: Schema.optionalKey(Schema.Finite) })
+        }),
+      )
+      const changedInput = yield* service.snapshot()
+      expect(changedInput.definitions).toEqual(original.definitions)
+      expect(CompositionDigest.computeDigest(changedInput.catalog)).not.toBe(initialDigest)
+      yield* inputUpdate.dispose
+      expect(CompositionDigest.computeDigest((yield* service.snapshot()).catalog)).toBe(initialDigest)
+
+      const outputUpdate = yield* service.transform((editor) =>
+        editor.update("echo", (tool) => {
+          tool.output = Schema.Struct({ text: Schema.String, length: Schema.optionalKey(Schema.Finite) })
+        }),
+      )
+      const changedOutput = yield* service.snapshot()
+      expect(changedOutput.definitions).toEqual(original.definitions)
+      expect(CompositionDigest.computeDigest(changedOutput.catalog)).not.toBe(initialDigest)
+      yield* outputUpdate.dispose
+      expect(CompositionDigest.computeDigest((yield* service.snapshot()).catalog)).toBe(initialDigest)
+      expect(CompositionDigest.computeDigest(original.catalog)).toBe(initialDigest)
+
+      const result = yield* original.execute({
+        ...call("execute"),
+        call: {
+          type: "tool-call",
+          id: "captured-child",
+          name: "execute",
+          input: { code: 'return await tools.echo({ text: "original" });' },
+        },
+      })
+      expect(result.content).toEqual([{ type: "text", text: '{\n  "text": "original"\n}' }])
+    }),
+  )
+
+  it.effect("captures registration overlays and restores the catalog when their scope closes", () =>
+    Effect.gen(function* () {
+      const service = yield* Tool.Service
+      yield* transform(service, { echo: constant("base") })
+      const original = yield* service.snapshot()
+      const initialDigest = CompositionDigest.computeDigest(original.catalog)
+      const scope = yield* Scope.make()
+      yield* service
+        .transform((editor) => {
+          editor.add({ ...constant("overlay"), name: "echo", description: "Overlay definition" })
+          editor.add({ ...make(), name: "added", options: { codemode: false } })
+        })
+        .pipe(Scope.provide(scope))
+      const overlay = yield* service.snapshot()
+      expect(overlay.catalog.map((tool) => [tool.name, tool.placement])).toEqual([
+        ["added", "direct"],
+        ["echo", "codemode"],
+        ["execute", "direct"],
+      ])
+      expect(overlay.catalog.find((tool) => tool.name === "echo")?.description).toBe("Overlay definition")
+      expect(CompositionDigest.computeDigest(overlay.catalog)).not.toBe(initialDigest)
+      yield* Scope.close(scope, Exit.void)
+      expect(CompositionDigest.computeDigest((yield* service.snapshot()).catalog)).toBe(initialDigest)
+      expect(CompositionDigest.computeDigest(original.catalog)).toBe(initialDigest)
+      expect(overlay.catalog.map((tool) => tool.name)).toEqual(["added", "echo", "execute"])
+
+      const execute = (snapshot: Tool.Snapshot) =>
+        snapshot.execute({
+          ...call("execute"),
+          call: {
+            type: "tool-call",
+            id: "captured-overlay",
+            name: "execute",
+            input: { code: 'return (await tools.echo({ text: "ignored" })).text;' },
+          },
+        })
+      expect((yield* execute(original)).content).toEqual([{ type: "text", text: "base" }])
+      expect((yield* execute(overlay)).content).toEqual([{ type: "text", text: "overlay" }])
+    }),
+  )
+
+  it.effect("captures per-tool producer overlays and restores them without changing request definitions", () =>
+    Effect.gen(function* () {
+      const service = yield* Tool.Service
+      const producer = new Producer({ id: "local-base", revision: "a".repeat(64) })
+      yield* service.transform((editor) => {
+        editor.add({ ...constant("base"), name: "echo", options: { codemode: false } })
+        editor.add({ ...constant("other"), name: "other", options: { codemode: false } })
+      }, producer)
+      const original = yield* service.snapshot()
+      const frozen = CompositionDigest.captureTools(original.catalog, "/project", "host")
+      const scope = yield* Scope.make()
+      const replacement = new Producer({ id: "local-overlay", revision: "b".repeat(64) })
+      yield* service
+        .transform(
+          (editor) =>
+            editor.add({
+              ...constant("overlay"),
+              name: "echo",
+              options: { codemode: false },
+            }),
+          replacement,
+        )
+        .pipe(Scope.provide(scope))
+      const overlay = yield* service.snapshot()
+      expect(overlay.definitions).toEqual(original.definitions)
+      expect(overlay.catalog.find((tool) => tool.name === "echo")?.producer).toEqual(replacement)
+      expect(overlay.catalog.find((tool) => tool.name === "other")?.producer).toEqual(producer)
+      expect(CompositionDigest.validateCurrentTools(frozen, overlay.catalog, "/project", "host")).toMatchObject({
+        _tag: "Failure",
+        failure: { reason: "tool_runtime_definition_mismatch" },
+      })
+      expect((yield* original.execute(call("echo"))).output).toEqual({ text: "base" })
+      expect((yield* overlay.execute(call("echo"))).output).toEqual({ text: "overlay" })
+      yield* Scope.close(scope, Exit.void)
+      expect((yield* service.snapshot()).catalog).toEqual(original.catalog)
+      yield* service.transform((editor) =>
+        editor.update("echo", (tool) => {
+          tool.execute = constant("unproven").execute
+        }),
+      )
+      const unproven = yield* service.snapshot()
+      expect(unproven.catalog.find((tool) => tool.name === "echo")?.producer).toBeUndefined()
+      expect(CompositionDigest.validateCurrentTools(frozen, unproven.catalog, "/project", "host")).toMatchObject({
+        _tag: "Failure",
+        failure: { reason: "tool_runtime_definition_mismatch" },
+      })
+    }),
+  )
+
+  it.effect("does not invent producer evidence when a known updater modifies an unproven base", () =>
+    Effect.gen(function* () {
+      const service = yield* Tool.Service
+      yield* transform(service, { echo: constant("unproven") }, { codemode: false })
+      yield* service.transform(
+        (editor) =>
+          editor.update("echo", (tool) => {
+            tool.description = "Known overlay over an unproven implementation"
+          }),
+        new Producer({ id: "known-updater", revision: "b".repeat(64) }),
+      )
+      expect((yield* service.snapshot()).catalog.find((tool) => tool.name === "echo")).not.toHaveProperty("producer")
+      expect((yield* service.snapshot()).catalog.find((tool) => tool.name === "echo")?.description).toBe(
+        "Known overlay over an unproven implementation",
+      )
+    }),
+  )
+
+  it.effect("retains the known base producer through a stable updating producer", () =>
+    Effect.gen(function* () {
+      const service = yield* Tool.Service
+      const updater = new Producer({ id: "updater", revision: "c".repeat(64) })
+      const base = yield* service.transform(
+        (editor) => editor.add({ ...constant("first"), name: "echo" }),
+        new Producer({ id: "base", revision: "a".repeat(64) }),
+      )
+      yield* service.transform(
+        (editor) =>
+          editor.update("echo", (tool) => {
+            tool.description = "Stable updater"
+          }),
+        updater,
+      )
+      const original = yield* service.snapshot()
+      const digest = CompositionDigest.computeDigest(original.catalog)
+      yield* base.dispose
+      yield* service.transform(
+        (editor) => editor.add({ ...constant("second"), name: "echo" }),
+        new Producer({ id: "base", revision: "b".repeat(64) }),
+      )
+      // Reapply the same update after the replacement, preserving normal transform precedence.
+      yield* service.transform(
+        (editor) =>
+          editor.update("echo", (tool) => {
+            tool.description = "Stable updater"
+          }),
+        updater,
+      )
+      const current = yield* service.snapshot()
+      expect(current.definitions).toEqual(original.definitions)
+      expect(CompositionDigest.computeDigest(current.catalog)).not.toBe(digest)
+    }),
+  )
+
+  it.effect("detaches catalog JSON schemas from producers and request definitions", () =>
+    Effect.gen(function* () {
+      const service = yield* Tool.Service
+      const input = { type: "object", properties: { text: { type: "string", maxLength: 10 } }, required: ["text"] }
+      const output = { type: "object", properties: { text: { type: "string", maxLength: 20 } }, required: ["text"] }
+      yield* service.transform((editor) => {
+        editor.add({ ...make(), name: "direct", input, output, options: { codemode: false } })
+        editor.add({ ...make(), name: "child", input, output })
+      })
+      const original = yield* service.snapshot()
+      const initialDigest = CompositionDigest.computeDigest(original.catalog)
+      expect(JSON.parse(JSON.stringify(original.catalog))).toEqual(original.catalog)
+      input.properties.text.maxLength = 30
+      output.properties.text.maxLength = 40
+      expect(original.definitions.find((tool) => tool.name === "direct")?.inputSchema).toMatchObject({
+        properties: { text: { maxLength: 10 } },
+      })
+      expect(CompositionDigest.computeDigest(original.catalog)).toBe(initialDigest)
+      Object.assign(original.definitions.find((tool) => tool.name === "direct")?.inputSchema ?? {}, {
+        description: "Request hook mutation",
+      })
+      expect(CompositionDigest.computeDigest(original.catalog)).toBe(initialDigest)
+      expect(CompositionDigest.computeDigest((yield* service.snapshot()).catalog)).not.toBe(initialDigest)
+    }),
+  )
+
+  it.effect("captures only reachable callables after permission filtering and distinguishes execute placements", () =>
+    Effect.gen(function* () {
+      const service = yield* Tool.Service
+      yield* service.transform((editor) => {
+        editor.add({ ...make(), name: "visible", options: { codemode: false } })
+        editor.add({ ...make(), name: "hidden", options: { codemode: false, permission: "edit" } })
+        editor.add({ ...make(), name: "child" })
+        editor.add({ ...make(), name: "execute" })
+      })
+      const available = yield* service.snapshot([{ action: "edit", resource: "*", effect: "deny" }])
+      expect(available.catalog.map((tool) => [tool.name, tool.placement])).toEqual([
+        ["child", "codemode"],
+        ["execute", "codemode"],
+        ["execute", "direct"],
+        ["visible", "direct"],
+      ])
+      const denied = yield* service.snapshot([
+        { action: "edit", resource: "*", effect: "deny" },
+        { action: "execute", resource: "*", effect: "deny" },
+      ])
+      expect(denied.catalog.map((tool) => [tool.name, tool.placement])).toEqual([["visible", "direct"]])
+      expect(denied.definitions.map((tool) => tool.name)).toEqual(["visible"])
+      expect(denied.codeModeCatalog).toBeUndefined()
+    }),
+  )
+
+  it.effect("selects bound MCP registrations in catalog, discovery, and Code Mode execution", () =>
+    Effect.gen(function* () {
+      const service = yield* Tool.Service
+      const executed: string[] = []
+      yield* McpRegistration.registerServer(service, {
+        serverName: "bound",
+        tools: {
+          echo: {
+            ...make(),
+            execute: ({ text }) =>
+              Effect.sync(() => executed.push(`bound:${text}`)).pipe(Effect.as({ output: { text } })),
+          },
+        },
+      })
+      yield* McpRegistration.registerServer(service, {
+        serverName: "other",
+        tools: {
+          echo: {
+            ...make(),
+            execute: ({ text }) =>
+              Effect.sync(() => executed.push(`other:${text}`)).pipe(Effect.as({ output: { text } })),
+          },
+        },
+      })
+      const original = yield* service.snapshot()
+      const selected = yield* service.snapshot(undefined, (name) => name === "mcp_bound_echo")
+      expect(selected.definitions.map((tool) => tool.name)).toEqual(["execute"])
+      expect(selected.catalog.map((tool) => [tool.name, tool.placement])).toEqual([
+        ["execute", "direct"],
+        ["mcp_bound_echo", "codemode"],
+      ])
+      if (selected.codeModeCatalog === undefined) return yield* Effect.die("Missing selected Code Mode catalog")
+      expect(codeModeListings(selected.codeModeCatalog).map((tool) => tool.path)).toEqual(["mcp_bound_echo"])
+      const executeCode = (snapshot: Tool.Snapshot, code: string) =>
+        snapshot.execute({
+          ...call("execute"),
+          call: { type: "tool-call", id: "selected-mcp", name: "execute", input: { code } },
+        })
+      expect(
+        (yield* executeCode(selected, 'return (await tools.mcp_bound_echo({ text: "selected" })).text;')).content,
+      ).toEqual([{ type: "text", text: "selected" }])
+      expect(
+        (yield* executeCode(selected, 'return await tools.mcp_other_echo({ text: "excluded" });')).output,
+      ).toMatchObject({ error: true, output: expect.stringContaining("mcp_other_echo") })
+      expect(executed).toEqual(["bound:selected"])
+      expect(
+        (yield* executeCode(original, 'return (await tools.mcp_other_echo({ text: "original" })).text;')).content,
+      ).toEqual([{ type: "text", text: "original" }])
+      expect(executed).toEqual(["bound:selected", "other:original"])
+      expect((yield* service.snapshot()).catalog).toEqual(original.catalog)
+    }),
+  )
+
+  it.effect("filters direct effective names while preserving the synthetic execute entry", () =>
+    Effect.gen(function* () {
+      const service = yield* Tool.Service
+      const executed: string[] = []
+      yield* service.transform((editor) => {
+        editor.add({
+          ...make(),
+          name: "read",
+          options: { namespace: "workspace", codemode: false },
+          execute: ({ text }) => Effect.sync(() => executed.push(text)).pipe(Effect.as({ output: { text } })),
+        })
+        editor.add({ ...make(), name: "denied", options: { codemode: false, permission: "edit" } })
+        editor.add({ ...make(), name: "execute" })
+      })
+      const original = yield* service.snapshot()
+      expect((yield* original.execute(call("workspace_read"))).output).toEqual({
+        text: "workspace_read",
+      })
+      const selected = yield* service.snapshot(
+        [{ action: "edit", resource: "*", effect: "deny" }],
+        (name) => name !== "workspace_read",
+      )
+      expect(selected.definitions.map((tool) => tool.name)).toEqual(["execute"])
+      expect(selected.catalog.map((tool) => [tool.name, tool.placement])).toEqual([
+        ["execute", "codemode"],
+        ["execute", "direct"],
+      ])
+      if (selected.codeModeCatalog === undefined) return yield* Effect.die("Missing selected Code Mode catalog")
+      expect(codeModeListings(selected.codeModeCatalog).map((tool) => tool.path)).toEqual(["execute"])
+      expect((yield* selected.execute(call("workspace_read")).pipe(Effect.flip)).message).toContain("workspace_read")
+      expect((yield* selected.execute(call("denied")).pipe(Effect.flip)).message).toContain("denied")
+      expect(executed).toEqual(["workspace_read"])
+      expect(
+        (yield* selected.execute({
+          ...call("execute"),
+          call: {
+            type: "tool-call",
+            id: "registered-execute",
+            name: "execute",
+            input: { code: 'return (await tools.execute({ text: "child" })).text;' },
+          },
+        })).content,
+      ).toEqual([{ type: "text", text: "child" }])
+      const empty = yield* service.snapshot(undefined, () => false)
+      expect(empty.definitions.map((tool) => tool.name)).toEqual(["execute"])
+      expect(empty.catalog.map((tool) => [tool.name, tool.placement])).toEqual([["execute", "direct"]])
+      expect(empty.codeModeCatalog?.tools).toEqual([])
+    }),
+  )
+
+  it.effect("retains namespace identity and discovery options beside flattened names", () =>
+    Effect.gen(function* () {
+      const service = yield* Tool.Service
+      yield* transform(service, { echo: make() }, { namespace: "acme.tools", pinned: true, permission: "read" })
+      const original = yield* service.snapshot()
+      const initialDigest = CompositionDigest.computeDigest(original.catalog)
+      expect(original.catalog.find((tool) => tool.name === "acme_tools_echo")?.options).toEqual({
+        namespace: "acme.tools",
+        pinned: true,
+        permission: "read",
+      })
+      const overlay = yield* transform(
+        service,
+        { echo: make() },
+        {
+          namespace: "acme_tools",
+          pinned: true,
+          permission: "read",
+        },
+      )
+      const changedPath = yield* service.snapshot()
+      expect(changedPath.definitions).toEqual(original.definitions)
+      expect(changedPath.catalog.map((tool) => tool.name)).toEqual(original.catalog.map((tool) => tool.name))
+      expect(CompositionDigest.computeDigest(changedPath.catalog)).not.toBe(initialDigest)
+      if (changedPath.codeModeCatalog === undefined || original.codeModeCatalog === undefined)
+        return yield* Effect.die("Missing captured Code Mode catalog")
+      expect(codeModeListings(changedPath.codeModeCatalog).map((tool) => tool.path)).toEqual(["acme_tools.echo"])
+      expect(codeModeListings(original.codeModeCatalog).map((tool) => tool.path)).toEqual(["acme.tools.echo"])
+      yield* overlay.dispose
+      expect(CompositionDigest.computeDigest((yield* service.snapshot()).catalog)).toBe(initialDigest)
+      yield* service.transform((editor) =>
+        editor.update("acme_tools_echo", (tool) => {
+          tool.options = { ...tool.options, codemode: true, pinned: false, permission: "write" }
+        }),
+      )
+      expect(CompositionDigest.computeDigest((yield* service.snapshot()).catalog)).not.toBe(initialDigest)
+      expect(CompositionDigest.computeDigest(original.catalog)).toBe(initialDigest)
+    }),
+  )
+
+  it.effect("skips non-JSON raw schema extensions in direct and Code Mode registrations", () => {
+    const output: unknown[] = []
+    const logger = Logger.map(Logger.formatStructured, (entry) => {
+      output.push(entry.message)
+    })
+    return Effect.gen(function* () {
+      const service = yield* Tool.Service
+      const invalid = [
+        { name: "direct_function", placement: false, annotation: () => "unserializable" },
+        { name: "direct_symbol", placement: false, annotation: Symbol("unserializable") },
+        { name: "child_function", placement: true, annotation: () => "unserializable" },
+        { name: "child_symbol", placement: true, annotation: Symbol("unserializable") },
+      ]
+      yield* service.transform((editor) => {
+        editor.add({ ...constant("healthy"), name: "healthy", options: { codemode: false } })
+        invalid.forEach((tool) =>
+          editor.add({
+            ...make(),
+            name: tool.name,
+            input: { type: "object", "x-extension": tool.annotation },
+            options: { codemode: tool.placement },
+          }),
+        )
+      })
+      expect(output).toHaveLength(invalid.length)
+      output.forEach((entry, index) =>
+        expect(entry).toEqual([
+          "Skipping invalid tool registration",
+          {
+            name: invalid[index]?.name,
+            namespace: undefined,
+            error: expect.stringContaining("JSON value"),
+          },
+        ]),
+      )
+      const snapshot = yield* service.snapshot()
+      expect(snapshot.definitions.map((tool) => tool.name)).toEqual(["healthy", "execute"])
+      expect(snapshot.catalog.map((tool) => tool.name)).toEqual(["execute", "healthy"])
+      expect(snapshot.codeModeCatalog?.tools).toEqual([])
+      expect((yield* snapshot.execute(call("healthy"))).output).toEqual({ text: "healthy" })
+
+      yield* service.transform((editor) =>
+        editor.update("healthy", (tool) => {
+          tool.output = { type: "string", "x-extension": Symbol("invalid output") }
+        }),
+      )
+      expect((yield* service.snapshot()).catalog).toEqual(snapshot.catalog)
+      expect((yield* executeTool(service, call("healthy"))).output).toEqual({ text: "healthy" })
+    }).pipe(Effect.provide(Logger.layer([logger])))
+  })
+
+  it.effect("preserves JSON raw schema annotations and omits undefined capture options", () =>
+    Effect.gen(function* () {
+      const service = yield* Tool.Service
+      const input = {
+        type: "object",
+        properties: { text: { type: "string" } },
+        required: ["text"],
+        "x-extension": { enabled: true, values: [null, 1, "tag"] },
+      }
+      const output = {
+        type: "object",
+        properties: { text: { type: "string" } },
+        required: ["text"],
+        "x-extension": { documentation: { note: "preserved" } },
+      }
+      yield* service.transform((editor) => {
+        editor.add({
+          ...make(),
+          name: "direct",
+          input,
+          output,
+          options: { namespace: undefined, permission: undefined, codemode: false },
+        })
+        editor.add({ ...make(), name: "child", input, output })
+      })
+      const snapshot = yield* service.snapshot()
+      expect(snapshot.catalog.filter((tool) => tool.name !== "execute").map((tool) => tool.inputSchema)).toEqual([
+        input,
+        input,
+      ])
+      expect(snapshot.catalog.filter((tool) => tool.name !== "execute").map((tool) => tool.outputSchema)).toEqual([
+        output,
+        output,
+      ])
+      expect(snapshot.catalog.find((tool) => tool.name === "direct")?.options).toEqual({ codemode: false })
+      expect(JSON.parse(JSON.stringify(snapshot.catalog))).toEqual(snapshot.catalog)
+      expect((yield* snapshot.execute(call("direct"))).output).toEqual({ text: "direct" })
+      expect(
+        (yield* snapshot.execute({
+          ...call("execute"),
+          call: {
+            type: "tool-call",
+            id: "json-annotation-child",
+            name: "execute",
+            input: { code: 'return (await tools.child({ text: "child" })).text;' },
+          },
+        })).content,
+      ).toEqual([{ type: "text", text: "child" }])
     }),
   )
 

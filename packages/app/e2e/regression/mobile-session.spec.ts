@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test"
 import { seed, sessionHref, type SeedInput } from "../utils/app"
 import { fixture, mockStressTimeline } from "../utils/session-fixture"
 import { fileNode } from "../utils/workspace"
+import { openSidePanel } from "../utils/side-panel"
 
 // The source and target sessions; the child session is not a home row.
 const rows = 2
@@ -54,8 +55,16 @@ for (const position of ["top", "bottom"] as const) {
     await expect
       .poll(async () => {
         const bounds = await navigation.boundingBox()
+        const panel = await page.locator('[data-slot="session-chat-panel"]').boundingBox()
 
-        return !!bounds && bounds.x >= 1 && bounds.x <= 2 && bounds.width >= 386 && bounds.width <= 388
+        return (
+          !!bounds &&
+          !!panel &&
+          bounds.x - panel.x >= 0 &&
+          bounds.x - panel.x <= 1 &&
+          panel.width - bounds.width >= 0 &&
+          panel.width - bounds.width <= 2
+        )
       })
       .toBe(true)
     await expect
@@ -244,14 +253,19 @@ test("the summary's changes row switches the view and keeps the side tabs", asyn
   await openStress(page, { lastProject: { local: fixture.directory } })
   await page.goto(sessionHref(fixture.targetID))
 
-  // One click previews the file in place of the Open file tab.
+  // Previewing a file preserves the Files navigation tab.
   const panel = page.locator("#review-panel")
   const readme = panel.getByRole("tab", { name: "README.md", exact: true })
   await page.getByRole("button", { name: "Toggle review", exact: true }).click()
-  await panel.getByRole("button", { name: "Open file", exact: true }).click()
+  await openSidePanel(page, "Open file")
+  const preview = panel.getByRole("switch", { name: "Preview files", exact: true })
+
+  await expect(preview).not.toBeChecked()
+  await preview.press("Space")
+  await expect(preview).toBeChecked()
   await panel.getByRole("button", { name: "README.md", exact: true }).click()
   await expect(readme).toHaveAttribute("aria-selected", "true")
-  await expect(panel.getByRole("tab", { name: "Open file", exact: true })).toHaveCount(0)
+  await expect(panel.getByRole("tab", { name: "Open file", exact: true })).toHaveCount(1)
 
   await page.setViewportSize({ width: 390, height: 844 })
   const tabs = page.getByRole("tablist", { name: "Session view", exact: true })
@@ -272,17 +286,22 @@ test("the summary's changes row switches the view and keeps the side tabs", asyn
   await page.setViewportSize({ width: 1280, height: 900 })
   await expect(readme).toHaveAttribute("aria-selected", "true")
 
-  // After a reload forgets the preview, a stored Open file tab is still the slot a narrow-screen file open replaces.
+  // The retained navigator still shows files after reload and a narrow-screen open.
   const launcher = panel.getByRole("tab", { name: "Open file", exact: true })
-  await panel.getByRole("button", { name: "Open file", exact: true }).click()
+  await openSidePanel(page, "Open file")
   await expect(launcher).toHaveAttribute("aria-selected", "true")
-  await expect(readme).toHaveCount(0)
+  await expect(readme).toHaveCount(1)
   await page.reload()
   await expect(launcher).toHaveAttribute("aria-selected", "true")
   await page.setViewportSize({ width: 390, height: 844 })
   await more.click()
   await views.getByRole("button", { name: "Files", exact: true }).click()
   const files = page.locator('[data-slot="session-mobile-files"]')
+  await files
+    .locator('[data-slot="session-mobile-files-header"]')
+    .getByRole("button", { name: "All files", exact: true })
+    .click()
+  await expect(files).toHaveAttribute("data-browsing", "true")
   await files.getByRole("button", { name: "README.md", exact: true }).click()
   await expect(files.getByText("contents:README.md", { exact: true })).toBeVisible()
   await page.setViewportSize({ width: 1280, height: 900 })
@@ -396,7 +415,14 @@ test.describe("touch", () => {
         return !!navigation && !!content && navigation.y + navigation.height <= content.y
       })
       .toBe(true)
-    await expect.poll(async () => (await panel.boundingBox())?.width ?? 0).toBeGreaterThan(350)
+    await expect
+      .poll(async () => {
+        const bounds = await panel.boundingBox()
+        const container = await settings.boundingBox()
+
+        return bounds && container && { x: bounds.x - container.x, width: container.width - bounds.width }
+      })
+      .toEqual({ x: 0, width: 0 })
     await settings.getByRole("button", { name: "Back to app", exact: true }).click()
     await expect(page).toHaveURL("/")
     await expect(settings).toBeHidden()

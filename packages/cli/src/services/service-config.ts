@@ -1,7 +1,7 @@
-import { Global } from "@opencode/util/global"
-import { OPENCODE_CHANNEL, OPENCODE_VERSION } from "../version"
-import { Hash } from "@opencode/util/hash"
-import { Service } from "@opencode/client/effect/service"
+import { Global } from "@aigcfroge/util/global"
+import { AIGCFROGE_CHANNEL, AIGCFROGE_VERSION } from "../version"
+import { Hash } from "@aigcfroge/util/hash"
+import { Service } from "@aigcfroge/client/effect/service"
 import { Effect, FileSystem, Option, Schema } from "effect"
 import { randomBytes } from "crypto"
 import path from "path"
@@ -10,7 +10,7 @@ import { RemoteTunnel } from "./remote-tunnel"
 
 // The CLI's service configuration file, plus the Service.EnsureOptions binding that
 // points the client package's service operations at this CLI: which
-// registration file (by channel), which version, and how to spawn opencode.
+// registration file (by channel), which version, and how to spawn aigcfroge.
 
 export const Info = Schema.Struct({
   disabled: Schema.optional(Schema.Boolean),
@@ -35,26 +35,26 @@ const decodeLegacy = Schema.decodeUnknownOption(
 )
 const decodeRegistration = Schema.decodeUnknownEffect(Schema.fromJsonString(Service.Info))
 
-export function filename(channel = OPENCODE_CHANNEL) {
+export function filename(channel = AIGCFROGE_CHANNEL) {
   if (channel === "latest" || channel === "dev" || channel === "beta" || channel === "next") return "service.json"
   return `service-${channel.replace(/[^a-zA-Z0-9._-]/g, "-")}.json`
 }
 
-export function defaultPort(channel = OPENCODE_CHANNEL) {
+export function defaultPort(channel = AIGCFROGE_CHANNEL) {
   if (channel === "latest" || channel === "dev" || channel === "beta" || channel === "next") return 0xc0de
   if (channel === "local") return 0xc0df
   return 10_000 + (Number.parseInt(Hash.fast(channel).slice(0, 8), 16) % 50_000)
 }
 
-export function legacyFilename(channel = OPENCODE_CHANNEL) {
+export function legacyFilename(channel = AIGCFROGE_CHANNEL) {
   if (channel === "latest" || channel === "local") return
   return `service-${Hash.fast(channel)}.json`
 }
 
 export function versionBelongsToChannel(
   version: string | undefined,
-  channel = OPENCODE_CHANNEL,
-  installedVersion = OPENCODE_VERSION,
+  channel = AIGCFROGE_CHANNEL,
+  installedVersion = AIGCFROGE_VERSION,
 ) {
   if (version === undefined) return false
   if (version === installedVersion) return true
@@ -66,8 +66,8 @@ export function versionBelongsToChannel(
 export const migrateRegistration = Effect.fnUntraced(function* (
   legacy: string,
   file: string,
-  channel = OPENCODE_CHANNEL,
-  installedVersion = OPENCODE_VERSION,
+  channel = AIGCFROGE_CHANNEL,
+  installedVersion = AIGCFROGE_VERSION,
 ) {
   const fs = yield* FileSystem.FileSystem
   const text = yield* fs.readFileString(legacy).pipe(Effect.option)
@@ -112,7 +112,7 @@ const paths = Effect.gen(function* () {
     legacyConfigFile: legacy ? path.join(global.config, legacy) : undefined,
     legacyRegistrationFiles: [
       ...(legacy ? [path.join(global.state, legacy)] : []),
-      ...(name !== "service.json" && OPENCODE_CHANNEL !== "local" ? [path.join(global.state, "service.json")] : []),
+      ...(name !== "service.json" && AIGCFROGE_CHANNEL !== "local" ? [path.join(global.state, "service.json")] : []),
     ],
     configFile: path.join(global.config, name),
   }
@@ -123,7 +123,7 @@ export const options = Effect.fnUntraced(function* (input: { readonly checkVersi
   yield* Effect.forEach(legacyRegistrationFiles, (legacy) => migrateRegistration(legacy, file))
   return {
     file,
-    version: input.checkVersion ? OPENCODE_VERSION : undefined,
+    version: input.checkVersion ? AIGCFROGE_VERSION : undefined,
     env: (yield* read()).env,
     command: [
       ...selfCommand(),
@@ -189,7 +189,7 @@ export const get = Effect.fn("cli.service-config.get")(function* (key?: string, 
     return JSON.stringify(safe.remote === undefined ? safe : { ...safe, remote: {} }, null, 2)
   }
   const selected = configKey(key)
-  if (selected !== "env" && name !== undefined) throw new Error(`Usage: opencode service get ${selected}`)
+  if (selected !== "env" && name !== undefined) throw new Error(`Usage: aigcfroge service get ${selected}`)
   switch (selected) {
     case "disabled": {
       return String((yield* read()).disabled ?? false)
@@ -221,7 +221,7 @@ export const get = Effect.fn("cli.service-config.get")(function* (key?: string, 
 export const set = Effect.fn("cli.service-config.set")(function* (key: string, value: string, nestedValue?: string) {
   const selected = configKey(key)
   if (selected !== "env" && nestedValue !== undefined)
-    throw new Error(`Usage: opencode service set ${selected} <value>`)
+    throw new Error(`Usage: aigcfroge service set ${selected} <value>`)
   switch (selected) {
     case "disabled": {
       if (value !== "true" && value !== "false") throw new Error("Disabled must be true or false")
@@ -261,7 +261,7 @@ export const set = Effect.fn("cli.service-config.set")(function* (key: string, v
       return
     }
     case "env": {
-      if (nestedValue === undefined) throw new Error("Usage: opencode service set env <key> <value>")
+      if (nestedValue === undefined) throw new Error("Usage: aigcfroge service set env <key> <value>")
       yield* Service.stop(yield* options())
       const existing = yield* read()
       yield* write({ ...existing, env: { ...existing.env, [value]: nestedValue } })
@@ -285,7 +285,7 @@ export const set = Effect.fn("cli.service-config.set")(function* (key: string, v
 
 export const unset = Effect.fn("cli.service-config.unset")(function* (key: string, name?: string) {
   const selected = configKey(key)
-  if (selected !== "env" && name !== undefined) throw new Error(`Usage: opencode service unset ${selected}`)
+  if (selected !== "env" && name !== undefined) throw new Error(`Usage: aigcfroge service unset ${selected}`)
   switch (selected) {
     case "disabled": {
       const { disabled: _disabled, ...next } = yield* read()
@@ -317,7 +317,7 @@ export const unset = Effect.fn("cli.service-config.unset")(function* (key: strin
       return
     }
     case "env": {
-      if (name === undefined) throw new Error("Usage: opencode service unset env <key>")
+      if (name === undefined) throw new Error("Usage: aigcfroge service unset env <key>")
       yield* Service.stop(yield* options())
       const existing = yield* read()
       const { [name]: _removed, ...env } = existing.env ?? {}

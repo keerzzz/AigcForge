@@ -1,0 +1,455 @@
+export * as McpCredentialBindingStore from "./store"
+
+import { Context, Effect, Layer, Schema } from "effect"
+import { and, eq, isNotNull, isNull } from "drizzle-orm"
+import { McpScope } from "@aigcfroge/schema/mcp-scope"
+import { Database } from "../../database/database.js"
+import { Bus } from "../../bus.js"
+import { Location } from "../../location.js"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { BindingEvent } from "./event.js"
+import { McpCredentialBindingTable } from "./sql.js"
+
+export class NotFoundError extends Schema.TaggedError<NotFoundError>()("McpBinding.NotFoundError", {
+  id: Schema.String,
+}) {
+  override get message() {
+    return `MCP credential binding ${this.id} not found`
+  }
+}
+
+export class StateError extends Schema.TaggedError<StateError>()("McpBinding.StateError", {
+  id: Schema.String,
+  reason: Schema.Literals(["already_revoked", "revision_mismatch", "duplicate", "not_revoked", "invalid_input"]),
+}) {
+  override get message() {
+    return `MCP credential binding ${this.id} rejected: ${this.reason}`
+  }
+}
+
+export class CrossLocationRefError extends Schema.TaggedError<CrossLocationRefError>()(
+  "McpBinding.CrossLocationRefError",
+  { directory: Schema.String, serverName: Schema.String, credentialRef: Schema.String },
+) {
+  override get message() {
+    return `Credential ref ${this.credentialRef} for server '${this.serverName}' not bound in location ${this.directory}`
+  }
+}
+
+export class DanglingRefError extends Schema.TaggedError<DanglingRefError>()("McpBinding.DanglingRefError", {
+  serverName: Schema.String,
+  credentialRef: Schema.String,
+}) {
+  override get message() {
+    return `Credential ref ${this.credentialRef} for server '${this.serverName}' is not bound`
+  }
+}
+
+export class RevokedRefError extends Schema.TaggedError<RevokedRefError>()("McpBinding.RevokedRefError", {
+  serverName: Schema.String,
+  credentialRef: Schema.String,
+}) {
+  override get message() {
+    return `Credential ref ${this.credentialRef} for server '${this.serverName}' was revoked and requires rebinding`
+  }
+}
+
+export interface Info {
+  readonly id: string
+  readonly directory: string
+  readonly workspaceID?: string
+  readonly serverName: string
+  readonly credentialRef: string
+  readonly bindingRevision: number
+  readonly revokedAt?: number
+  readonly timeCreated: number
+  readonly timeUpdated: number
+}
+
+type Row = typeof McpCredentialBindingTable.$inferSelect
+
+const toInfoSafe = (row: Row | undefined): Info | undefined => {
+  if (!row) return undefined
+  try {
+    const decoded = new McpScope.McpCredentialBinding({
+      id: row.id,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+      directory: row.directory as McpScope.McpCredentialBinding["directory"],
+      workspaceID: row.workspace_id,
+      serverName: row.server_name,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+      credentialRef: row.credential_ref as McpScope.McpCredentialBinding["credentialRef"],
+      bindingRevision: row.binding_revision,
+      ...(row.revoked_at !== null ? { revokedAt: row.revoked_at } : {}),
+      timeCreated: row.time_created,
+      timeUpdated: row.time_updated,
+    })
+    return {
+      id: decoded.id,
+      directory: decoded.directory,
+      ...(decoded.workspaceID !== "" ? { workspaceID: decoded.workspaceID } : {}),
+      serverName: decoded.serverName,
+      credentialRef: decoded.credentialRef,
+      bindingRevision: decoded.bindingRevision,
+      ...(decoded.revokedAt !== undefined ? { revokedAt: decoded.revokedAt } : {}),
+      timeCreated: decoded.timeCreated,
+      timeUpdated: decoded.timeUpdated,
+    }
+  } catch {
+    return undefined
+  }
+}
+
+const toInfo = (row: Row): Info => {
+  const info = toInfoSafe(row)
+  if (!info) throw new Error(`Corrupt binding row ${row.id}`)
+  return info
+}
+
+const normalizeWorkspaceId = McpScope.normalizeWorkspaceId
+
+const decodeCredentialRef = Schema.decodeUnknownEffect(McpScope.CredentialRef)
+const decodeServerName = Schema.decodeUnknownEffect(McpScope.McpCredentialBinding.fields.serverName)
+
+/**
+ * Validates the two caller-supplied strings **before** the transaction opens.
+ *
+ * The read side already enforces these constraints — `toInfoSafe` builds the
+ * branded `McpCredentialBinding`, whose constructor checks the `cred_` prefix and
+ * both length bounds at runtime. The write side did not, and the asymmetry was
+ * not merely untidy: `toInfo` on the post-commit read-back *throws*, and a throw
+ * inside `Effect.gen` is a defect that `bind`'s own `Effect.catch` cannot see. So
+ * an out-of-contract ref left the row committed while `bind` died; `get` then
+ * decoded it as absent while the unique index still held
+ * `(directory, workspace_id, server_name)`, so a retry hit
+ * `onConflictDoNothing` → `duplicate` and the binding became unreachable through
+ * this interface.
+ *
+ * Typed rather than a defect, unlike the sibling `ScopedGrantStore.issue` which
+ * constructs its branded class bare: grant inputs are schema-decoded at an HTTP
+ * boundary before they arrive, and this store has no HTTP boundary at all, so
+ * this method *is* the boundary.
+ *
+ * The rejected value is never echoed. A malformed `credentialRef` is exactly
+ * where someone pastes real credential material by mistake.
+ */
+const validateWriteInput = (id: string, input: { serverName: string; credentialRef: string }) =>
+  Effect.gen(function* () {
+    const serverName = yield* decodeServerName(input.serverName)
+    const credentialRef = yield* decodeCredentialRef(input.credentialRef)
+    return { serverName, credentialRef }
+  }).pipe(Effect.mapError(() => new StateError({ id, reason: "invalid_input" })))
+
+/** Pure predicate for the unique active lookup — used for EXPLAIN assertions. */
+export const lookupFilter = (input: { directory: string; workspaceID?: string; serverName: string }) =>
+  and(
+    eq(McpCredentialBindingTable.directory, input.directory),
+    eq(McpCredentialBindingTable.workspace_id, normalizeWorkspaceId(input.workspaceID)),
+    eq(McpCredentialBindingTable.server_name, input.serverName),
+    isNull(McpCredentialBindingTable.revoked_at),
+  )
+
+/**
+ * Pure CAS predicate for `rebind` (ADR-21 §2.3 v1.2). `revoked_at IS NOT NULL`
+ * is the race guard: the pre-read cannot see a concurrent revoke→rebind, so the
+ * revoked-state invariant has to travel with the UPDATE, not only with the
+ * pre-check. It is unobservable in a single-threaded test, so it is asserted
+ * structurally instead — see the `rebindFilter` case in the store test.
+ */
+export const rebindFilter = (input: { id: string; expectedRevision: number }) =>
+  and(
+    eq(McpCredentialBindingTable.id, input.id),
+    eq(McpCredentialBindingTable.binding_revision, input.expectedRevision),
+    isNotNull(McpCredentialBindingTable.revoked_at),
+  )
+
+export interface BindInput {
+  readonly serverName: string
+  readonly credentialRef: string
+}
+
+export interface GetInput {
+  readonly serverName: string
+}
+
+interface Interface {
+  readonly bind: (input: BindInput) => Effect.Effect<Info, StateError>
+  readonly rebind: (
+    id: string,
+    expectedRevision: number,
+    credentialRef: string,
+  ) => Effect.Effect<Info, NotFoundError | StateError>
+  readonly get: (input: GetInput) => Effect.Effect<Info | undefined>
+  readonly getById: (id: string) => Effect.Effect<Info | undefined>
+  readonly revoke: (id: string, expectedRevision: number) => Effect.Effect<Info, NotFoundError | StateError>
+  /** Resolve and validate that the requested ref is bound in this Location. */
+  readonly resolve: (
+    input: GetInput & { readonly credentialRef: string },
+  ) => Effect.Effect<Info, CrossLocationRefError | DanglingRefError | RevokedRefError | StateError>
+}
+
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/McpCredentialBindingStore") {}
+
+export const layer = Layer.effect(
+  Service,
+  Effect.gen(function* () {
+    const { db } = yield* Database.Service
+    const events = yield* Bus.Service
+    const location = yield* Location.Service
+
+    const currentLocation = () => ({
+      directory: location.directory,
+      workspaceID: location.workspaceID as string | undefined,
+    })
+
+    const service = Service.of({
+      bind: Effect.fn("McpBinding.bind")(function* (input: BindInput) {
+        const id = "mcb_" + crypto.randomUUID().replaceAll("-", "")
+        const now = Date.now()
+        const { directory, workspaceID } = currentLocation()
+        const ws = normalizeWorkspaceId(workspaceID)
+        const valid = yield* validateWriteInput(id, input)
+        return yield* Effect.gen(function* () {
+          yield* BindingEvent.publish(
+            events,
+            { bindingID: id, status: "active", revision: 1, timeUpdated: now },
+            () =>
+              Effect.gen(function* () {
+                const inserted = yield* db
+                  .insert(McpCredentialBindingTable)
+                  .values({
+                    id,
+                    directory,
+                    workspace_id: ws,
+                    server_name: valid.serverName,
+                    credential_ref: valid.credentialRef,
+                    binding_revision: 1,
+                    revoked_at: null,
+                  })
+                  .onConflictDoNothing()
+                  .returning()
+                  .get()
+                  .pipe(Effect.orDie)
+                return inserted !== undefined
+              }),
+          )
+          const row = (yield* db
+            .select()
+            .from(McpCredentialBindingTable)
+            .where(eq(McpCredentialBindingTable.id, id))
+            .all()
+            .pipe(Effect.orDie))[0]
+          if (!row) return yield* Effect.die(new Error(`Binding ${id} not found after successful commit`))
+          return toInfo(row)
+        }).pipe(
+          Effect.catch((error) => {
+            if (error instanceof StateError) return Effect.fail(error)
+            if (error instanceof BindingEvent.CommitRejected)
+              return Effect.fail(new StateError({ id, reason: "duplicate" }))
+            return Effect.die(error)
+          }),
+        )
+      }),
+
+      rebind: Effect.fn("McpBinding.rebind")(function* (id: string, expectedRevision: number, credentialRef: string) {
+        const currentRaw = (yield* db
+          .select()
+          .from(McpCredentialBindingTable)
+          .where(eq(McpCredentialBindingTable.id, id))
+          .all()
+          .pipe(Effect.orDie))[0]
+        if (!currentRaw) return yield* new NotFoundError({ id })
+        const current = toInfoSafe(currentRaw)
+        if (!current) return yield* new NotFoundError({ id })
+        if (current.bindingRevision !== expectedRevision)
+          return yield* new StateError({ id, reason: "revision_mismatch" })
+        if (current.revokedAt === undefined) return yield* new StateError({ id, reason: "not_revoked" })
+        const valid = yield* validateWriteInput(id, { serverName: current.serverName, credentialRef })
+        const nextRevision = current.bindingRevision + 1
+        const now = Date.now()
+        yield* BindingEvent.publish(
+          events,
+          { bindingID: id, status: "active", revision: nextRevision, timeUpdated: now },
+          () =>
+            Effect.gen(function* () {
+              const updated = yield* db
+                .update(McpCredentialBindingTable)
+                .set({ credential_ref: valid.credentialRef, revoked_at: null, binding_revision: nextRevision })
+                .where(rebindFilter({ id, expectedRevision }))
+                .returning()
+                .get()
+                .pipe(Effect.orDie)
+              return updated !== undefined
+            }),
+        ).pipe(
+          Effect.catch((error) => {
+            if (error instanceof BindingEvent.CommitRejected)
+              return Effect.fail(new StateError({ id, reason: "revision_mismatch" }))
+            return Effect.die(error)
+          }),
+        )
+        const updatedRaw = (yield* db
+          .select()
+          .from(McpCredentialBindingTable)
+          .where(eq(McpCredentialBindingTable.id, id))
+          .all()
+          .pipe(Effect.orDie))[0]
+        if (!updatedRaw) return yield* new NotFoundError({ id })
+        const updated = toInfoSafe(updatedRaw)
+        if (!updated) return yield* new NotFoundError({ id })
+        return updated
+      }),
+
+      get: Effect.fn("McpBinding.get")(function* (input: GetInput) {
+        const { directory, workspaceID } = currentLocation()
+        const rows = yield* db
+          .select()
+          .from(McpCredentialBindingTable)
+          .where(lookupFilter({ directory, workspaceID, serverName: input.serverName }))
+          .all()
+          .pipe(Effect.orDie)
+        const info = toInfoSafe(rows[0])
+        if (rows[0] && !info) yield* Effect.logWarning("MCP binding row failed to decode; skipping", { id: rows[0].id })
+        return info
+      }),
+
+      getById: Effect.fn("McpBinding.getById")(function* (id: string) {
+        const rows = yield* db
+          .select()
+          .from(McpCredentialBindingTable)
+          .where(eq(McpCredentialBindingTable.id, id))
+          .all()
+          .pipe(Effect.orDie)
+        const info = toInfoSafe(rows[0])
+        if (rows[0] && !info) yield* Effect.logWarning("MCP binding row failed to decode; skipping", { id })
+        return info
+      }),
+
+      revoke: Effect.fn("McpBinding.revoke")(function* (id: string, expectedRevision: number) {
+        const currentRaw = (yield* db
+          .select()
+          .from(McpCredentialBindingTable)
+          .where(eq(McpCredentialBindingTable.id, id))
+          .all()
+          .pipe(Effect.orDie))[0]
+        if (!currentRaw) return yield* new NotFoundError({ id })
+        const current = toInfoSafe(currentRaw)
+        if (!current) return yield* new NotFoundError({ id })
+        if (current.bindingRevision !== expectedRevision)
+          return yield* new StateError({ id, reason: "revision_mismatch" })
+        if (current.revokedAt !== undefined) return yield* new StateError({ id, reason: "already_revoked" })
+        const nextRevision = current.bindingRevision + 1
+        const now = Date.now()
+        yield* BindingEvent.publish(
+          events,
+          { bindingID: id, status: "revoked", revision: nextRevision, timeUpdated: now },
+          () =>
+            Effect.gen(function* () {
+              const updated = yield* db
+                .update(McpCredentialBindingTable)
+                .set({ revoked_at: now, binding_revision: nextRevision })
+                .where(
+                  and(
+                    eq(McpCredentialBindingTable.id, id),
+                    eq(McpCredentialBindingTable.binding_revision, expectedRevision),
+                    isNull(McpCredentialBindingTable.revoked_at),
+                  ),
+                )
+                .returning()
+                .get()
+                .pipe(Effect.orDie)
+              return updated !== undefined
+            }),
+        ).pipe(
+          Effect.catch((error) => {
+            if (error instanceof BindingEvent.CommitRejected)
+              return Effect.fail(new StateError({ id, reason: "revision_mismatch" }))
+            return Effect.die(error)
+          }),
+        )
+        const updatedRaw = (yield* db
+          .select()
+          .from(McpCredentialBindingTable)
+          .where(eq(McpCredentialBindingTable.id, id))
+          .all()
+          .pipe(Effect.orDie))[0]
+        if (!updatedRaw) return yield* new NotFoundError({ id })
+        const updated = toInfoSafe(updatedRaw)
+        if (!updated) return yield* new NotFoundError({ id })
+        return updated
+      }),
+
+      resolve: Effect.fn("McpBinding.resolve")(function* (input: GetInput & { credentialRef: string }) {
+        const { directory, workspaceID } = currentLocation()
+        const rows = yield* db
+          .select()
+          .from(McpCredentialBindingTable)
+          .where(
+            and(
+              lookupFilter({ directory, workspaceID, serverName: input.serverName }),
+              eq(McpCredentialBindingTable.credential_ref, input.credentialRef),
+            ),
+          )
+          .all()
+          .pipe(Effect.orDie)
+        const row = rows[0]
+        if (row) {
+          const info = toInfoSafe(row)
+          if (info) return info
+        }
+
+        const revoked = (yield* db
+          .select()
+          .from(McpCredentialBindingTable)
+          .where(
+            and(
+              eq(McpCredentialBindingTable.directory, directory),
+              eq(McpCredentialBindingTable.workspace_id, normalizeWorkspaceId(workspaceID)),
+              eq(McpCredentialBindingTable.server_name, input.serverName),
+              eq(McpCredentialBindingTable.credential_ref, input.credentialRef),
+              isNotNull(McpCredentialBindingTable.revoked_at),
+            ),
+          )
+          .all()
+          .pipe(Effect.orDie))[0]
+        if (revoked)
+          return yield* new RevokedRefError({ serverName: input.serverName, credentialRef: input.credentialRef })
+
+        const foreign = (yield* db
+          .select()
+          .from(McpCredentialBindingTable)
+          .where(
+            and(
+              eq(McpCredentialBindingTable.server_name, input.serverName),
+              eq(McpCredentialBindingTable.credential_ref, input.credentialRef),
+              isNull(McpCredentialBindingTable.revoked_at),
+            ),
+          )
+          .all()
+          .pipe(Effect.orDie))[0]
+        if (foreign)
+          return yield* new CrossLocationRefError({
+            directory,
+            serverName: input.serverName,
+            credentialRef: input.credentialRef,
+          })
+
+        return yield* new DanglingRefError({ serverName: input.serverName, credentialRef: input.credentialRef })
+      }),
+    })
+
+    return service
+  }),
+)
+
+/**
+ * Database/EventV2/Location are requirements, not provided here — the Location
+ * composition owns the shared instances, so this layer must resolve them
+ * from the ambient context rather than build its own. Never reintroduce
+ * `Layer.provideMerge(Database…)` here; it would shadow the shared
+ * instance (Phase D regression).
+ */
+export const locationLayer = layer
+
+
+export const node = makeLocationNode({ service: Service, layer: locationLayer, deps: [Database.node, Bus.node, Location.node] })

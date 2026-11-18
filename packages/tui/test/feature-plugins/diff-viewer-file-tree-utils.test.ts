@@ -64,11 +64,11 @@ describe("diff viewer file tree utilities", () => {
 
   test("collapses unary directory chains while flattening", () => {
     const rows = flattenFileTree(
-      buildFileTree([{ file: "packages/opencode/src/cli/app.ts" }, { file: "packages/opencode/src/server/server.ts" }]),
+      buildFileTree([{ file: "packages/aigcfroge/src/cli/app.ts" }, { file: "packages/aigcfroge/src/server/server.ts" }]),
     )
 
     expect(rows.map((row) => `${"  ".repeat(row.depth)}${row.kind}:${row.name}`)).toEqual([
-      "directory:packages/opencode/src",
+      "directory:packages/aigcfroge/src",
       "  directory:cli",
       "    file:app.ts",
       "  directory:server",
@@ -77,10 +77,10 @@ describe("diff viewer file tree utilities", () => {
   })
 
   test("does not collapse a directory into a file row", () => {
-    const rows = flattenFileTree(buildFileTree([{ file: "packages/opencode/src/app.ts" }]))
+    const rows = flattenFileTree(buildFileTree([{ file: "packages/aigcfroge/src/app.ts" }]))
 
     expect(rows.map((row) => `${"  ".repeat(row.depth)}${row.kind}:${row.name}`)).toEqual([
-      "directory:packages/opencode/src",
+      "directory:packages/aigcfroge/src",
       "  file:app.ts",
     ])
   })
@@ -88,15 +88,15 @@ describe("diff viewer file tree utilities", () => {
   test("stops collapsing at branches", () => {
     const rows = flattenFileTree(
       buildFileTree([
-        { file: "packages/opencode/src/cli/app.ts" },
-        { file: "packages/opencode/src/server/server.ts" },
+        { file: "packages/aigcfroge/src/cli/app.ts" },
+        { file: "packages/aigcfroge/src/server/server.ts" },
         { file: "packages/readme.md" },
       ]),
     )
 
     expect(rows.map((row) => `${"  ".repeat(row.depth)}${row.kind}:${row.name}`)).toEqual([
       "directory:packages",
-      "  directory:opencode/src",
+      "  directory:aigcfroge/src",
       "    directory:cli",
       "      file:app.ts",
       "    directory:server",
@@ -135,14 +135,14 @@ describe("diff viewer file tree utilities", () => {
 
   test("collapses expanded unary children under the first visible directory id", () => {
     const tree = buildFileTree([
-      { file: "packages/opencode/src/cli/app.ts" },
-      { file: "packages/opencode/src/server/server.ts" },
+      { file: "packages/aigcfroge/src/cli/app.ts" },
+      { file: "packages/aigcfroge/src/server/server.ts" },
     ])
     const packages = tree.nodes.find((node) => node.kind === "directory" && node.name === "packages")!
 
-    expect(flattenFileTree(tree, new Set()).map((row) => row.name)).toEqual(["packages/opencode/src"])
+    expect(flattenFileTree(tree, new Set()).map((row) => row.name)).toEqual(["packages/aigcfroge/src"])
     expect(flattenFileTree(tree, new Set([packages.id])).map((row) => row.name)).toEqual([
-      "packages/opencode/src",
+      "packages/aigcfroge/src",
       "cli",
       "server",
     ])

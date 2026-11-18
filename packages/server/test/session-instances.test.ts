@@ -1,25 +1,25 @@
 import { expect } from "bun:test"
-import { App } from "@opencode/core/app"
-import { Bus } from "@opencode/core/bus"
-import { Database } from "@opencode/core/database/database"
-import { llmClient } from "@opencode/core/effect/app-node-platform"
-import { Watcher } from "@opencode/core/filesystem/watcher"
-import { Form } from "@opencode/core/form"
-import { Instance } from "@opencode/core/instance"
-import { LocationServiceMap } from "@opencode/core/location-service-map"
-import { ModelsDev } from "@opencode/core/models-dev"
-import { Permission } from "@opencode/core/permission"
-import { Plugin } from "@opencode/core/plugin"
-import { Session } from "@opencode/core/session"
-import { SessionRunnerModel } from "@opencode/core/session/runner/model"
-import { define } from "@opencode/plugin/effect/plugin"
-import type { SessionHooks } from "@opencode/plugin/effect/session"
-import { Agent } from "@opencode/schema/agent"
-import { Location } from "@opencode/schema/location"
-import { AbsolutePath } from "@opencode/schema/schema"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { makeGlobalNode } from "@opencode/util/effect/app-node"
-import { Global } from "@opencode/util/global"
+import { App } from "@aigcfroge/core/app"
+import { Bus } from "@aigcfroge/core/bus"
+import { Database } from "@aigcfroge/core/database/database"
+import { llmClient } from "@aigcfroge/core/effect/app-node-platform"
+import { Watcher } from "@aigcfroge/core/filesystem/watcher"
+import { Form } from "@aigcfroge/core/form"
+import { Instance } from "@aigcfroge/core/instance"
+import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
+import { ModelsDev } from "@aigcfroge/core/models-dev"
+import { Permission } from "@aigcfroge/core/permission"
+import { Plugin } from "@aigcfroge/core/plugin"
+import { Session } from "@aigcfroge/core/session"
+import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
+import { define } from "@aigcfroge/plugin/effect/plugin"
+import type { SessionHooks } from "@aigcfroge/plugin/effect/session"
+import { Agent } from "@aigcfroge/schema/agent"
+import { Location } from "@aigcfroge/schema/location"
+import { AbsolutePath } from "@aigcfroge/schema/schema"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { Global } from "@aigcfroge/util/global"
 import { Context, Duration, Effect, Layer, LayerMap, RcMap, Schema } from "effect"
 import { HttpEffect, HttpRouter, HttpServer } from "effect/http"
 import { LanguageModel, LLMClient } from "../../ai/src"
@@ -170,7 +170,7 @@ it.live(
         Effect.promise(() =>
           handler(
             new Request(
-              `http://opencode.local${route}`,
+              `http://aigcfroge.local${route}`,
               body === undefined
                 ? undefined
                 : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
@@ -329,7 +329,7 @@ it.live(
         }).pipe(instances.provide(entry.session))
       }
       expect(boots).toEqual([first.id, second.id])
-      expect(Array.from(yield* RcMap.keys(locations.rcMap))).toEqual([])
+      expect(Array.from(yield* RcMap.keys(locations.rcMap))).toEqual([location])
     }),
   15_000,
 )

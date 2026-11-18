@@ -1,8 +1,8 @@
-import type { FileDiffInfo } from "@opencode/client/promise"
-import type { SessionReviewLineComment } from "@opencode/session-ui/session-review"
-import { previewSelectedLines } from "@opencode/session-ui/pierre/selection-bridge"
-import { checksum } from "@opencode/util/encode"
-import { showToast } from "@opencode/ui/toast"
+import type { FileDiffInfo } from "@aigcfroge/client/promise"
+import type { SessionReviewLineComment } from "@aigcfroge/session-ui/session-review"
+import { previewSelectedLines } from "@aigcfroge/session-ui/pierre/selection-bridge"
+import { checksum } from "@aigcfroge/util/encode"
+import { showToast } from "@aigcfroge/ui/toast"
 import { createQuery, useQueryClient } from "@tanstack/solid-query"
 import { debounce } from "@solid-primitives/scheduled"
 import { createMemo, on, onCleanup, type Accessor } from "solid-js"
@@ -143,7 +143,8 @@ export function createReviewModel(input: {
   const wantsReview = createMemo(() => {
     const demand = input.demand
 
-    return demand.tree + demand.files + demand.panel > 0
+    // The side-panel launcher uses the same diff count while its own content is selected.
+    return demand.tree + demand.files + demand.panel > 0 || (!layout.narrow() && layout.side.opened(view()))
   })
 
   const turnKey = () => [ctx.id, view().server.id, "session-turn", view().id] as const
@@ -208,7 +209,7 @@ export function createReviewModel(input: {
 
   // Opening the side region refreshes changes a tree already shows. Otherwise it loads them once, so the
   // pinned tab reads "Files Changed N": v2 opened the region on the review tab before selecting another.
-  // A region restored open does not load them until something shows them.
+  // A restored open region also loads the count through wantsReview for its launcher entries.
   const opened = createMemo(
     on(
       () => !layout.narrow() && layout.side.opened(view()),
@@ -439,6 +440,8 @@ export function createReviewModel(input: {
   }))
 
   const open = () => {
+    if (!ctx.stores.display.value.visible) return
+
     if (!layout.side.opened(view())) layout.side.toggle(view())
   }
 

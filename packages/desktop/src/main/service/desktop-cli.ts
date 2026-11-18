@@ -24,7 +24,7 @@ export interface Interface {
   readonly install: Effect.Effect<string, Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("opencode/desktop/DesktopCli") {}
+export class Service extends Context.Service<Service, Interface>()("aigcfroge/desktop/DesktopCli") {}
 
 export const layer = Layer.effect(
   Service,
@@ -43,7 +43,7 @@ export const layer = Layer.effect(
       const home = app.getPath("home")
       yield* runInstaller(cli.binary, home)
 
-      return path.join(home, ".opencode", "bin", "opencode")
+      return path.join(home, ".aigcfroge", "bin", "aigcfroge")
     })
 
     return Service.of({ resolve, install })
@@ -51,8 +51,8 @@ export const layer = Layer.effect(
 )
 
 const make = Effect.fn("DesktopCli.resolve")(function* () {
-  const development = !app.isPackaged && process.env.OPENCODE_DESKTOP_CLI_DEV
-  const version = process.env.OPENCODE_VERSION ?? "local"
+  const development = !app.isPackaged && process.env.AIGCFROGE_DESKTOP_CLI_DEV
+  const version = process.env.AIGCFROGE_VERSION ?? "local"
 
   const cli = development
     ? {
@@ -64,12 +64,12 @@ const make = Effect.fn("DesktopCli.resolve")(function* () {
           "run",
           "--cwd",
           development,
-          "--define=OPENCODE_VERSION=process.env.OPENCODE_VERSION",
+          "--define=AIGCFROGE_VERSION=process.env.AIGCFROGE_VERSION",
           "src/index.ts",
         ],
         binary: undefined,
       }
-    : yield* resolveBundledCli(!app.isPackaged && process.env.OPENCODE_DESKTOP_ISOLATED_SERVER === "1")
+    : yield* resolveBundledCli(!app.isPackaged && process.env.AIGCFROGE_DESKTOP_ISOLATED_SERVER === "1")
 
   return cli satisfies Resolved
 })
@@ -101,7 +101,7 @@ const bundledVersion = Effect.fn("DesktopCli.bundledVersion")(function* (bundled
   // async read waits behind everything else the main thread is doing at that moment.
   const shipped = yield* Effect.sync(() => {
     try {
-      return readFileSync(path.join(path.dirname(bundled), "opencode-cli.version"), "utf8").trim()
+      return readFileSync(path.join(path.dirname(bundled), "aigcfroge-cli.version"), "utf8").trim()
     } catch {
       return ""
     }
@@ -207,9 +207,9 @@ const runInstaller = Effect.fn("DesktopCli.installForUser")(function* (binary: s
 })
 
 function executableName() {
-  return process.platform === "win32" ? "opencode-cli.exe" : "opencode-cli"
+  return process.platform === "win32" ? "aigcfroge-cli.exe" : "aigcfroge-cli"
 }
 
 function developmentExecutableName() {
-  return process.platform === "win32" ? "opencode-cli-dev.exe" : "opencode-cli-dev"
+  return process.platform === "win32" ? "aigcfroge-cli-dev.exe" : "aigcfroge-cli-dev"
 }

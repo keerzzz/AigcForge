@@ -1,21 +1,21 @@
 import { describe, expect } from "bun:test"
-import { Message, ToolFailure } from "@opencode/ai"
+import { Message, ToolFailure } from "@aigcfroge/ai"
 import { DateTime, Effect, Option, Stream, Types } from "effect"
-import type { SessionContext } from "@opencode/plugin/effect/session"
-import type { ToolHooks } from "@opencode/plugin/effect/tool"
-import { Agent } from "@opencode/core/agent"
-import { Environment } from "@opencode/core/environment/index"
-import { Event } from "@opencode/schema/event"
-import { Model } from "@opencode/core/model"
-import { PlanPlugin } from "@opencode/core/plugin/plan"
-import { Permission } from "@opencode/core/permission"
-import { Provider } from "@opencode/core/provider"
-import { Session } from "@opencode/core/session"
-import { SessionEvent } from "@opencode/core/session/event"
-import { SessionInbox } from "@opencode/core/session/inbox"
-import { SessionMessage } from "@opencode/core/session/message"
-import { Tool } from "@opencode/schema/tool"
-import { Global } from "@opencode/util/global"
+import type { SessionContext } from "@aigcfroge/plugin/effect/session"
+import type { ToolHooks } from "@aigcfroge/plugin/effect/tool"
+import { Agent } from "@aigcfroge/core/agent"
+import { Environment } from "@aigcfroge/core/environment/index"
+import { Event } from "@aigcfroge/schema/event"
+import { Model } from "@aigcfroge/core/model"
+import { PlanPlugin } from "@aigcfroge/core/plugin/plan"
+import { Permission } from "@aigcfroge/core/permission"
+import { Provider } from "@aigcfroge/core/provider"
+import { Session } from "@aigcfroge/core/session"
+import { SessionEvent } from "@aigcfroge/core/session/event"
+import { SessionInbox } from "@aigcfroge/core/session/inbox"
+import { SessionMessage } from "@aigcfroge/core/session/message"
+import { Tool } from "@aigcfroge/schema/tool"
+import { Global } from "@aigcfroge/util/global"
 import path from "path"
 import { it } from "../lib/effect"
 import { host } from "./host"
@@ -24,7 +24,7 @@ const sessionID = Session.ID.make("ses_plan_test")
 const plan = Agent.ID.make("plan")
 const build = Agent.ID.make("build")
 const home = "/home/plan-test"
-const planDirectory = path.join(home, ".opencode", "plan")
+const planDirectory = path.join(home, ".aigcfroge", "plan")
 
 const agentSelected = (agent: Agent.ID, previous: Agent.ID): SessionEvent.AgentSelected => ({
   id: Event.ID.create(),

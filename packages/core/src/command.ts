@@ -1,17 +1,17 @@
 export * as Command from "./command.js"
 
-import { Command } from "@opencode/schema/command"
-import type { PromptInput } from "@opencode/schema/prompt-input"
-import type { Session } from "@opencode/schema/session"
-import type { SessionInbox } from "@opencode/schema/session-inbox"
-import { makeLocationNode } from "@opencode/util/effect/app-node"
+import { Command } from "@aigcfroge/schema/command"
+import type { PromptInput } from "@aigcfroge/schema/prompt-input"
+import type { Session } from "@aigcfroge/schema/session"
+import type { SessionInbox } from "@aigcfroge/schema/session-inbox"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
 import { Context, Effect, Layer, Schema } from "effect"
 import { Bus } from "./bus.js"
 import { State } from "./state.js"
 
 export const Info = Command.Info
 export type Info = Command.Info
-export { Event } from "@opencode/schema/command"
+export { Event } from "@aigcfroge/schema/command"
 
 export interface Invocation {
   readonly sessionID: Session.ID
@@ -48,7 +48,7 @@ export interface Interface extends State.Transformable<Editor> {
   }) => Effect.Effect<void, NotFoundError | ExecutionError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/Command") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Command") {}
 
 export const layer = Layer.effect(
   Service,
@@ -96,6 +96,26 @@ export const node = makeLocationNode({
   layer,
   deps: [Bus.node],
 })
+
+/** Expand literal arguments without executing the resulting template. */
+export function interpolate(template: string, input: string) {
+  const args = (input.match(/(?:\[Image\s+\d+\]|"[^"]*"|'[^']*'|[^\s"']+)/gi) ?? []).map((arg) =>
+    arg.replace(/^["']|["']$/g, ""),
+  )
+  const placeholders = template.match(/\$(\d+)/g) ?? []
+  const last = Math.max(0, ...placeholders.map((item) => Number(item.slice(1))))
+  const expanded = template.replaceAll(/\$(\d+)/g, (_, index) => {
+    const position = Number(index)
+    const argIndex = position - 1
+    if (argIndex >= args.length) return ""
+    if (position === last) return args.slice(argIndex).join(" ")
+    return args[argIndex]
+  })
+  const text = expanded.replaceAll("$ARGUMENTS", () => input)
+  return placeholders.length === 0 && !template.includes("$ARGUMENTS") && input.trim()
+    ? `${text}\n\n${input}`.trim()
+    : text.trim()
+}
 
 function errorMessage(error: unknown) {
   if (error instanceof Error) return error.message

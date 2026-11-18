@@ -6,9 +6,9 @@ import {
   type Range,
   type VirtualItem,
 } from "@tanstack/solid-virtual"
-import { isScrollKeyTarget, scrollKey, scrollKeyOwner, ScrollView } from "@opencode/ui/scroll-view"
+import { isScrollKeyTarget, scrollKey, scrollKeyOwner, ScrollView } from "@aigcfroge/ui/scroll-view"
 import { Predicate } from "effect"
-import { Timeline, TimelineRow } from "@opencode/session-ui/timeline/projection"
+import { Timeline, TimelineRow } from "@aigcfroge/session-ui/timeline/projection"
 import { useLanguage } from "@/runtime/i18n/language"
 import {
   batch,
@@ -386,10 +386,11 @@ export function createTimelineVirtualizer(input: Input) {
 
   // Scrolls to a tool call, named by its ID or by the shell ID a backgrounded shell call reports, and expands it and
   // the collapsed context group that hides it. Returns whether the call is in the list.
-  function revealPart(target: string) {
+  function revealPart(target: string, messageID?: string) {
     if (!active()) return false
 
     const matches = (ref: { messageID: string; partID: string }) => {
+      if (messageID !== undefined && ref.messageID !== messageID) return false
       const content = Timeline.resolveContent(input.projection.messageByID().get(ref.messageID), ref.partID)
 
       return (
@@ -493,6 +494,7 @@ export function createTimelineVirtualizer(input: Input) {
   createEffect(() => {
     if (!active()) return
     const root = listRoot()
+    const target = input.reveal?.target()
 
     if (root) input.setScrollRef(root)
 
@@ -504,8 +506,6 @@ export function createTimelineVirtualizer(input: Input) {
       reportRect?.({ width: root.offsetWidth, height: root.offsetHeight })
 
       // A route can open this timeline on a tool call, e.g. a shell picked from inside a subagent, instead of its end.
-      const target = input.reveal?.target()
-
       if (target && revealPart(target)) input.reveal?.done()
       else if (input.pinned()) virtualizer.scrollToEnd()
 
@@ -515,10 +515,15 @@ export function createTimelineVirtualizer(input: Input) {
     input.setRevealMessage?.((id, partID) => {
       if (!active()) return
 
+      if (partID && revealPart(partID, id)) return
+
       const partIndex = partID
         ? rows().findIndex(
             (row) =>
-              Predicate.isTagged(row, "AssistantPart") && row.group.type === "part" && row.group.ref.partID === partID,
+              Predicate.isTagged(row, "AssistantPart") &&
+              row.group.type === "part" &&
+              row.group.ref.messageID === id &&
+              row.group.ref.partID === partID,
           )
         : -1
 

@@ -1,19 +1,22 @@
-import { SessionMessage } from "@opencode/schema/session-message"
-import { SessionInbox } from "@opencode/schema/session-inbox"
-import { PromptInput } from "@opencode/schema/prompt-input"
-import { Session } from "@opencode/schema/session"
-import { SessionStats } from "@opencode/schema/session-stats"
-import { InstructionEntry } from "@opencode/schema/instruction-entry"
-import { Project } from "@opencode/schema/project"
+import { SessionMessage } from "@aigcfroge/schema/session-message"
+import { SessionInbox } from "@aigcfroge/schema/session-inbox"
+import { PromptInput } from "@aigcfroge/schema/prompt-input"
+import { Session } from "@aigcfroge/schema/session"
+import { SessionConsultation } from "@aigcfroge/schema/session-consultation"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { SessionStats } from "@aigcfroge/schema/session-stats"
+import { InstructionEntry } from "@aigcfroge/schema/instruction-entry"
+import { Project } from "@aigcfroge/schema/project"
 import {
   AbsolutePath,
   DateTimeUtcFromMillis,
   NonNegativeInt,
   PositiveInt,
   RelativePath,
+  optional,
   statics,
-} from "@opencode/schema/schema"
-import { Event } from "@opencode/schema/event"
+} from "@aigcfroge/schema/schema"
+import { Event } from "@aigcfroge/schema/event"
 import { Context, Effect, Result, Schema, SchemaGetter, SchemaParser, Struct } from "effect"
 import { Base64Url } from "effect/encoding"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiMiddleware, HttpApiSchema, OpenApi } from "effect/http-api"
@@ -33,16 +36,18 @@ import {
   SessionNotFoundError,
   SkillNotFoundError,
   UnknownError,
+  UnsupportedProductModeError,
 } from "../errors.js"
-import { Agent } from "@opencode/schema/agent"
-import { Skill } from "@opencode/schema/skill"
-import { Model } from "@opencode/schema/model"
-import { Permission } from "@opencode/schema/permission"
-import { Location } from "@opencode/schema/location"
-import { SessionEvent } from "@opencode/schema/session-event"
-import { EventLog } from "@opencode/schema/event-log"
-import { FileDiff } from "@opencode/schema/file-diff"
-import { Form } from "@opencode/schema/form"
+import { Agent } from "@aigcfroge/schema/agent"
+import { Skill } from "@aigcfroge/schema/skill"
+import { Model } from "@aigcfroge/schema/model"
+import { Permission } from "@aigcfroge/schema/permission"
+import { Location } from "@aigcfroge/schema/location"
+import { SessionEvent } from "@aigcfroge/schema/session-event"
+import { SessionTaskEvent } from "@aigcfroge/schema/session-task-event"
+import { EventLog } from "@aigcfroge/schema/event-log"
+import { FileDiff } from "@aigcfroge/schema/file-diff"
+import { Form } from "@aigcfroge/schema/form"
 import { PublicSessionMessage } from "./message.js"
 
 const ParentIDFilter = Schema.Union([
@@ -65,6 +70,9 @@ const SessionsQueryFields = {
     description: "Session order for the first page. Use desc for newest first or asc for oldest first.",
   }),
   search: Schema.optional(Schema.String),
+  mode: ProductMode.ID.pipe(Schema.optional).annotate({
+    description: "Filter by product mode. Omit to include sessions from every mode.",
+  }),
   parentID: ParentIDFilter.pipe(Schema.optional),
 }
 
@@ -223,14 +231,17 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
           id: Session.ID.pipe(Schema.optional),
           parentID: Session.ID.pipe(Schema.optional),
           title: Schema.String.pipe(Schema.optional),
+          mode: ProductMode.ID.pipe(Schema.optional),
           agent: Agent.ID.pipe(Schema.optional),
-          model: Model.Ref.pipe(Schema.optional),
+          model: Model.Selection.pipe(Schema.optional),
           location: Location.PublicRef.pipe(Schema.optional),
           metadata: Session.Metadata.pipe(Schema.optional),
           permissions: Permission.Ruleset.pipe(Schema.optional),
+          control: Schema.Literal("meta").pipe(Schema.optional),
+          executorPreference: Session.ExecutorPreference.pipe(Schema.optional),
         }),
         success: Schema.Struct({ data: PublicSessionInfo }),
-        error: SessionNotFoundError,
+        error: [SessionNotFoundError, InvalidRequestError, UnsupportedProductModeError, LocationNotFoundError],
       }).annotateMerge(
         OpenApi.annotations({
           identifier: "session.create",
@@ -241,13 +252,54 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
       ),
     )
     .add(
+      HttpApiEndpoint.get("session.getConsultation", "/api/session/:sessionID/consultation", {
+        params: { sessionID: Session.ID },
+        success: Schema.Struct({ data: SessionConsultation.Read }),
+        error: [SessionNotFoundError, ConflictError],
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "session.getConsultation",
+          summary: "Read consultation",
+          description:
+            "Read the target's frozen source reference and first input state. This operation never prepares, admits, or wakes work and does not require the source Session to remain present.",
+        }),
+      ),
+    )
+    .add(
+      HttpApiEndpoint.post("session.createConsultation", "/api/session/:sourceSessionID/consultation", {
+        params: { sourceSessionID: Session.ID },
+        payload: SessionConsultation.Input,
+        success: Schema.Struct({
+          data: Schema.Struct({ ...SessionConsultation.Data.fields, session: PublicSessionInfo }).annotate({
+            identifier: "SessionConsultation.Data",
+          }),
+        }),
+        error: [
+          ConflictError,
+          InvalidRequestError,
+          SessionNotFoundError,
+          MessageNotFoundError,
+          LocationNotFoundError,
+          UnknownError,
+          UnsupportedProductModeError,
+        ],
+      }).annotateMerge(
+        OpenApi.annotations({
+          identifier: "session.createConsultation",
+          summary: "Create consultation",
+          description:
+            "Create an ordinary chat root with a frozen source reference and durably admit its first question. Matching retries recover the target's saved reference and admission.",
+        }),
+      ),
+    )
+    .add(
       HttpApiEndpoint.post("session.import", "/api/experimental/session/import", {
         payload: Schema.Struct({
           ...PublicSessionTransfer.fields,
           location: Location.PublicRef.pipe(Schema.optional),
         }),
         success: Schema.Struct({ data: PublicSessionInfo }),
-        error: [ConflictError, SessionNotFoundError],
+        error: [ConflictError, SessionNotFoundError, InvalidRequestError],
       }).annotateMerge(
         OpenApi.annotations({
           identifier: "experimental.session.import",
@@ -279,7 +331,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
           identifier: "session.active",
           summary: "List active sessions",
           description:
-            "Retrieve foreground Session drains currently owned by this OpenCode process. Sessions absent from the result are inactive.",
+            "Retrieve foreground Session drains currently owned by this AigcForge process. Sessions absent from the result are inactive.",
         }),
       ),
     )
@@ -312,9 +364,16 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
     .add(
       HttpApiEndpoint.post("session.fork", "/api/session/:sessionID/fork", {
         params: { sessionID: Session.ID },
-        payload: Schema.Struct({ before: SessionMessage.ID.pipe(Schema.optional) }),
+        payload: Schema.Struct({
+          before: SessionMessage.ID.pipe(Schema.optional),
+          through: SessionMessage.ID.pipe(Schema.optional),
+          control: Schema.Literal("meta").pipe(Schema.optional),
+          model: Model.Selection.pipe(Schema.optional),
+          executorPreference: Session.ExecutorPreference.pipe(Schema.optional),
+          expectedSource: Session.ForkExpectedSource.pipe(Schema.optional),
+        }),
         success: Schema.Struct({ data: PublicSessionInfo }),
-        error: [SessionNotFoundError, MessageNotFoundError, InvalidRequestError],
+        error: [SessionNotFoundError, MessageNotFoundError, InvalidRequestError, UnsupportedProductModeError],
       })
         .middleware(sessionLocationMiddleware)
         .annotateMerge(
@@ -322,16 +381,28 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
             identifier: "session.fork",
             summary: "Fork session",
             description:
-              "Create a child session by copying projected history before a message. Omit before to copy the full history.",
+              "Fork projected history before a message or through an inclusive message boundary. Specify at most one boundary; omit both to copy the full history.",
           }),
+        ),
+    )
+    .add(
+      HttpApiEndpoint.post("session.selectExecutor", "/api/session/:sessionID/executor", {
+        params: { sessionID: Session.ID },
+        payload: Session.ExecutorPreference,
+        success: Schema.Struct({ data: PublicSessionInfo }),
+        error: [SessionNotFoundError, InvalidRequestError, LocationNotFoundError],
+      })
+        .middleware(sessionLocationMiddleware)
+        .annotateMerge(
+          OpenApi.annotations({ identifier: "session.selectExecutor", summary: "Select executor preference" }),
         ),
     )
     .add(
       HttpApiEndpoint.post("session.switchAgent", "/api/session/:sessionID/agent", {
         params: { sessionID: Session.ID },
-        payload: Schema.Struct({ agent: Agent.ID }),
+        payload: Schema.Struct({ agent: Agent.ID, model: Model.Selection.pipe(optional) }),
         success: HttpApiSchema.NoContent,
-        error: SessionNotFoundError,
+        error: [SessionNotFoundError, InvalidRequestError, UnsupportedProductModeError],
       })
         .middleware(sessionLocationMiddleware)
         .annotateMerge(
@@ -345,9 +416,9 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
     .add(
       HttpApiEndpoint.post("session.switchModel", "/api/session/:sessionID/model", {
         params: { sessionID: Session.ID },
-        payload: Schema.Struct({ model: Model.Ref }),
+        payload: Schema.Struct({ model: Model.Selection }),
         success: HttpApiSchema.NoContent,
-        error: SessionNotFoundError,
+        error: [SessionNotFoundError, InvalidRequestError, UnsupportedProductModeError],
       })
         .middleware(sessionLocationMiddleware)
         .annotateMerge(
@@ -383,7 +454,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
         params: { sessionID: Session.ID },
         payload: Schema.Struct({ ...Location.PublicRef.fields, delivery: SessionInbox.Delivery.pipe(Schema.optional) }),
         success: HttpApiSchema.NoContent,
-        error: [SessionNotFoundError, InvalidRequestError],
+        error: [SessionNotFoundError, InvalidRequestError, UnsupportedProductModeError],
       }).annotateMerge(
         OpenApi.annotations({
           identifier: "session.move",
@@ -403,7 +474,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
           resume: Schema.Boolean.pipe(Schema.optional),
         }),
         success: Schema.Struct({ data: SessionInbox.User }),
-        error: [ConflictError, InvalidRequestError, SessionNotFoundError],
+        error: [ConflictError, InvalidRequestError, SessionNotFoundError, UnsupportedProductModeError],
       })
         .middleware(sessionLocationMiddleware)
         .annotateMerge(
@@ -423,14 +494,15 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
           delivery: SessionInbox.Delivery.pipe(Schema.optional),
         }),
         success: HttpApiSchema.NoContent,
-        error: [SessionNotFoundError, CommandNotFoundError, CommandExecutionError],
+        error: [SessionNotFoundError, CommandNotFoundError, CommandExecutionError, UnsupportedProductModeError],
       })
         .middleware(sessionLocationMiddleware)
         .annotateMerge(
           OpenApi.annotations({
             identifier: "session.command",
             summary: "Run command",
-            description: "Execute a slash command callback immediately.",
+            description:
+              "Execute a registered command callback, or durably admit the current Custom consumer's frozen command template.",
           }),
         ),
     )
@@ -442,7 +514,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
           resume: Schema.Boolean.pipe(Schema.optional),
         }),
         success: HttpApiSchema.NoContent,
-        error: [SessionNotFoundError, SkillNotFoundError],
+        error: [SessionNotFoundError, SkillNotFoundError, InvalidRequestError, UnsupportedProductModeError],
       })
         .middleware(sessionLocationMiddleware)
         .annotateMerge(
@@ -484,7 +556,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
           command: Schema.String,
         }),
         success: HttpApiSchema.NoContent,
-        error: SessionNotFoundError,
+        error: [SessionNotFoundError, UnsupportedProductModeError],
       })
         .middleware(sessionLocationMiddleware)
         .annotateMerge(
@@ -504,7 +576,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
           delivery: SessionInbox.Delivery.pipe(Schema.optional),
         }),
         success: Schema.Struct({ data: SessionInbox.Compaction }),
-        error: [ConflictError, SessionNotFoundError],
+        error: [ConflictError, SessionNotFoundError, UnsupportedProductModeError],
       })
         .middleware(sessionLocationMiddleware)
         .annotateMerge(
@@ -711,7 +783,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
         success: Schema.Struct({
           data: Schema.Struct({ text: Schema.String }),
         }).annotate({ identifier: "SessionGenerateResponse" }),
-        error: [SessionNotFoundError, ServiceUnavailableError],
+        error: [SessionNotFoundError, ServiceUnavailableError, UnsupportedProductModeError],
       })
         .middleware(sessionLocationMiddleware)
         .annotateMerge(
@@ -730,7 +802,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
           follow: BooleanFromString.pipe(Schema.optional),
         },
         success: HttpApiSchema.StreamSse({
-          data: Schema.Union([SessionEvent.Durable, EventLog.Synced]).annotate({ identifier: "SessionLogItem" }),
+          data: Schema.Union([SessionEvent.Durable, SessionTaskEvent.Durable, EventLog.Synced]).annotate({ identifier: "SessionLogItem" }),
         }),
         error: SessionNotFoundError,
       }).annotateMerge(
@@ -748,7 +820,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
         query: { resume: BooleanFromString.pipe(Schema.optional) },
         success: Schema.Struct({
           interrupted: Schema.Boolean.annotate({
-            description: "Whether an active execution owned by this OpenCode process was interrupted.",
+            description: "Whether an active execution owned by this AigcForge process was interrupted.",
           }),
         }).annotate({ identifier: "SessionInterruptResponse" }),
         error: SessionNotFoundError,
@@ -759,7 +831,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
             identifier: "session.interrupt",
             summary: "Interrupt session execution",
             description:
-              "Interrupt active execution owned by this OpenCode process. Returns interrupted=true when an active execution was interrupted and false for the idle no-op. When resume=true, execution resumes pending steering input and next-in-line control items (manual compaction, moves) while queued prompts remain parked.",
+              "Interrupt active execution owned by this AigcForge process. Returns interrupted=true when an active execution was interrupted and false for the idle no-op. When resume=true, execution resumes pending steering input and next-in-line control items (manual compaction, moves) while queued prompts remain parked.",
           }),
         ),
     )

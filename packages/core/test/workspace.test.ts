@@ -1,11 +1,11 @@
 import { beforeEach, expect } from "bun:test"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { Database } from "@opencode/core/database/database"
-import { Failed, makeFiles, makeMemoryDriver, NotFound } from "@opencode/core/environment/index"
-import { Workspace } from "@opencode/core/workspace"
-import { WorkspaceDriver } from "@opencode/core/workspace/driver"
-import { WorkspaceTable } from "@opencode/core/workspace/sql"
-import { LayerNode } from "@opencode/util/effect/layer-node"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { Database } from "@aigcfroge/core/database/database"
+import { Failed, makeFiles, makeMemoryDriver, NotFound } from "@aigcfroge/core/environment/index"
+import { Workspace } from "@aigcfroge/core/workspace"
+import { WorkspaceDriver } from "@aigcfroge/core/workspace/driver"
+import { WorkspaceTable } from "@aigcfroge/core/workspace/sql"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
 import { eq } from "drizzle-orm"
 import { Deferred, Effect, Fiber, Sink, Stream } from "effect"
 import { TestClock } from "effect/testing"
@@ -92,6 +92,19 @@ it.effect("creates and persists an ID without provisioning", () =>
   }),
 )
 
+it.effect("checks unknown and unprovisioned workspaces without contacting the provider", () =>
+  Effect.gen(function* () {
+    const workspace = yield* Workspace.Service
+    expect(yield* workspace.exists(Workspace.ID.create())).toBe(false)
+    const workspaceID = yield* workspace.create({ provider: "fake" })
+    expect(yield* workspace.exists(workspaceID)).toBe(true)
+    expect(calls).toEqual([])
+    yield* workspace.destroy(workspaceID)
+    expect(yield* workspace.exists(workspaceID)).toBe(false)
+    expect(calls).toEqual([{ operation: "destroy", binding: null }])
+  }),
+)
+
 it.effect("creates a workspace with a caller-supplied ID", () =>
   Effect.gen(function* () {
     const workspace = yield* Workspace.Service
@@ -145,6 +158,8 @@ it.effect("resolves an existing caller-supplied ID before provider lookup", () =
         .run(),
     ).pipe(Effect.orDie)
 
+    expect(yield* workspace.exists(id)).toBe(true)
+    expect(calls).toEqual([])
     expect(yield* workspace.create({ id, provider: "missing" })).toBe(id)
     expect(yield* workspace.create({ id, provider: "another-missing" }).pipe(Effect.flip)).toEqual(
       new Workspace.CreateConflict({

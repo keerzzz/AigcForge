@@ -1,4 +1,4 @@
-// Shared type vocabulary for the direct interactive mode (`opencode mini`).
+// Shared type vocabulary for the direct interactive mode (`aigcfroge mini`).
 //
 // Direct mode uses a split-footer terminal layout: immutable scrollback for the
 // session transcript, and a mutable footer for prompt input, status, and
@@ -14,16 +14,20 @@
 import type {
   FormAnswer,
   FormInfo,
-  OpenCodeClient,
+  AigcForgeClient,
   LocationGetOutput,
   LocationRef,
   PermissionRequest,
   ReferenceListOutput,
   SessionMessageAssistantTool,
-} from "@opencode/client/promise"
+  SessionInfo,
+  ModelSelection,
+  ModelGroupCurrent,
+} from "@aigcfroge/client/promise"
 import type { Config } from "../config"
 import type { CliRenderer } from "@opentui/core"
-import type { SessionInbox } from "@opencode/schema/session-inbox"
+import type { SessionInbox } from "@aigcfroge/schema/session-inbox"
+import type { ModelPreferenceModel } from "../model-preference"
 
 export type RunFilePart = {
   type: "file"
@@ -32,7 +36,7 @@ export type RunFilePart = {
   mime: string
 }
 
-type PromptModel = { providerID: string; modelID: string }
+type PromptModel = ModelPreferenceModel
 
 export type RunPromptPart =
   | {
@@ -104,12 +108,16 @@ export type RunAgent = {
   description?: string
   mode: "subagent" | "primary" | "all"
   hidden: boolean
+  model?: ModelSelection
 }
+
+export type MiniSessionSelection = Pick<SessionInfo, "agent" | "controller" | "model" | "executorPreference">
+export type MiniModelDomain = "session" | "executor"
 
 export type RunReference = ReferenceListOutput["data"][number]
 
 export type RunInput = {
-  sdk: OpenCodeClient
+  sdk: AigcForgeClient
   location: LocationGetOutput
   agent: string | undefined
   model: PromptModel | undefined
@@ -323,6 +331,7 @@ export type FooterSubagentState = {
 // transport both emit these to update footer state without reaching into
 // internal signals directly.
 export type FooterEvent =
+  | { type: "selection"; selection: MiniSessionSelection }
   | {
       type: "history"
       history: RunPrompt[]
@@ -340,6 +349,7 @@ export type FooterEvent =
   | {
       type: "models"
       providers: RunProvider[]
+      groups?: ModelGroupCurrent[]
     }
   | {
       type: "variants"
@@ -378,7 +388,7 @@ export type FooterEvent =
       state: FooterSubagentState
     }
 
-export type PermissionReply = Parameters<OpenCodeClient["permission"]["reply"]>[0]
+export type PermissionReply = Parameters<AigcForgeClient["permission"]["reply"]>[0]
 
 export type FormReply = {
   sessionID: string

@@ -1,6 +1,6 @@
 import { useCommand, type CommandOption } from "@/shell/commands/command"
-import { useDialog } from "@opencode/ui/context/dialog"
-import { previewSelectedLines } from "@opencode/session-ui/pierre/selection-bridge"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { previewSelectedLines } from "@aigcfroge/session-ui/pierre/selection-bridge"
 import { useFile, selectionFromLines, type FileSelection } from "@/workspaces/files/model"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useLayout } from "@/shell/state/layout"
@@ -14,7 +14,7 @@ import { fetchSessionExport, saveSessionExport, sessionExportFilename } from "@/
 import { usePlatform } from "@/runtime/platform/platform"
 import type { SessionModel } from "@/session/model"
 import type { SessionRevert } from "@/session/revert"
-import { Command } from "@opencode/gui-extensions/sdk"
+import { Command, MenuItem } from "@aigcfroge/gui-extensions/sdk"
 import { useExtensionHost } from "@/runtime/extension/host"
 import type { Region } from "@/runtime/extension/panels"
 
@@ -28,7 +28,7 @@ type SessionCommandSource = {
 
 export type SessionCommandContext = {
   session: SessionCommandSource
-  region: Region
+  region?: Region
   background: {
     blocking: () => boolean
     move: () => Promise<void>
@@ -47,7 +47,7 @@ const withCategory = (category: string) => {
   })
 }
 
-export const useSessionCommands = (actions: SessionCommandContext) => {
+export const useSessionCommands = (actions: SessionCommandContext, options?: { register?: boolean }) => {
   const command = useCommand()
   const dialog = useDialog()
   const file = useFile()
@@ -69,11 +69,11 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
   const shown = settings.visibility.fileTree
 
   // The file the selected side tab shows; other tabs have no line selection.
-  const activeFile = () => actions.region.selected()?.tab.file
+  const activeFile = () => actions.region?.selected()?.tab.file
 
   // Pinned tabs stay open.
   const closableTab = () => {
-    const entry = actions.region.selected()
+    const entry = actions.region?.selected()
 
     return entry && !entry.tab.pinned ? entry.key : undefined
   }
@@ -198,7 +198,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
   const closeTab = () => {
     const tab = closableTab()
 
-    if (tab) actions.region.close(tab)
+    if (tab) actions.region?.close(tab)
   }
 
   const addSelection = () => {
@@ -274,6 +274,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     sessionCommand({
       id: "session.undo",
       title: language.t("command.session.undo"),
+      keybind: "mod+alt+shift+u",
       description: language.t("command.session.undo.description"),
       slash: "undo",
       disabled: !actions.session.identity.params.id || actions.session.history.visibleUserMessages().length === 0,
@@ -282,6 +283,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     sessionCommand({
       id: "session.redo",
       title: language.t("command.session.redo"),
+      keybind: "mod+alt+shift+r",
       description: language.t("command.session.redo.description"),
       slash: "redo",
       disabled: !actions.session.identity.params.id || !actions.session.data.revertMessageID(),
@@ -290,6 +292,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     sessionCommand({
       id: "session.compact",
       title: language.t("command.session.compact"),
+      keybind: "mod+alt+shift+k",
       description: language.t("command.session.compact.description"),
       slash: "compact",
       disabled: !actions.session.identity.params.id || actions.session.history.visibleUserMessages().length === 0,
@@ -305,6 +308,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     sessionCommand({
       id: "session.fork",
       title: language.t("command.session.fork"),
+      keybind: "mod+alt+shift+f",
       description: language.t("command.session.fork.description"),
       slash: "fork",
       disabled: !actions.session.identity.params.id || actions.session.history.visibleUserMessages().length === 0,
@@ -313,6 +317,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     sessionCommand({
       id: "session.export",
       title: language.t("command.session.export"),
+      keybind: "mod+alt+shift+x",
       description: language.t("command.session.export.description"),
       slash: "export",
       disabled: !actions.session.identity.params.id,
@@ -321,6 +326,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     sessionCommand({
       id: "session.copyID",
       title: language.t("command.session.copyID"),
+      keybind: "mod+alt+shift+i",
       disabled: !actions.session.identity.params.id,
       onSelect: copySessionID,
     }),
@@ -336,6 +342,9 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
         description: language.t("palette.search.placeholder"),
         keybind: "mod+p",
         slash: "open",
+        disabled: !host
+          .items(MenuItem)
+          .some((item) => item.value.menu === "session.panel" && item.value.keybind === "file.open"),
         onSelect: openFile,
       }),
       tab &&
@@ -353,6 +362,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     projectCommand({
       id: "project.copyID",
       title: language.t("command.project.copyID"),
+      keybind: "mod+alt+shift+d",
       disabled: !actions.session.data.info()?.projectID,
       onSelect: copyProjectID,
     }),
@@ -436,7 +446,7 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     }),
   ]
 
-  command.register("session", () => [
+  const commands = () => [
     ...sessionCmds(),
     ...projectCmds(),
     ...fileCmds(),
@@ -445,5 +455,9 @@ export const useSessionCommands = (actions: SessionCommandContext) => {
     ...messageCmds(),
     ...mcpCmds(),
     ...permissionsCmds(),
-  ])
+  ]
+
+  if (options?.register !== false) command.register("session", commands)
+
+  return () => (options?.register === false ? sessionCmds().filter((item) => item.id !== "session.new") : commands())
 }

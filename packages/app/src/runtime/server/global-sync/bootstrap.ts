@@ -1,8 +1,8 @@
 import type { Config, Path, Project, ProviderAuthResponse } from "@/runtime/server/types"
-import type { LocationGetInput, LocationGetOutput, ProjectListOutput } from "@opencode/client/promise"
+import type { LocationGetInput, LocationGetOutput, ProjectListOutput } from "@aigcfroge/client/promise"
 import { showToast } from "@/shell/notifications/toast"
-import { getFilename } from "@opencode/util/path"
-import { retry } from "@opencode/util/retry"
+import { getFilename } from "@aigcfroge/util/path"
+import { retry } from "@aigcfroge/util/retry"
 import { reconcile, type SetStoreFunction, type Store } from "solid-js/store"
 import type { State } from "./types"
 import { cmp, normalizeProjectInfo } from "./utils"
@@ -72,7 +72,7 @@ export const loadProjectsQuery = (scope: ServerScope, projects: ProjectApi) =>
           items
             .filter((project) => !!project?.id)
             .map(normalizeProjectInfo)
-            .filter((p) => !!p.worktree && !p.worktree.includes("opencode-test"))
+            .filter((p) => !!p.worktree && !p.worktree.includes("aigcfroge-test"))
             .sort((a, b) => cmp(a.id, b.id)),
         ),
       ),

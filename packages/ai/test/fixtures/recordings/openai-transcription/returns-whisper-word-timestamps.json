@@ -25,7 +25,7 @@
         "headers": {
           "content-type": "application/json"
         },
-        "body": "{\"task\":\"transcribe\",\"language\":\"english\",\"duration\":1.5399999618530273,\"text\":\"Hello from OpenCode!\",\"words\":[{\"word\":\"Hello\",\"start\":0.0,\"end\":0.6200000047683716},{\"word\":\"from\",\"start\":0.6200000047683716,\"end\":0.8799999952316284},{\"word\":\"OpenCode\",\"start\":0.8799999952316284,\"end\":1.399999976158142}],\"usage\":{\"type\":\"duration\",\"seconds\":2}}"
+        "body": "{\"task\":\"transcribe\",\"language\":\"english\",\"duration\":1.5399999618530273,\"text\":\"Hello from AigcForge!\",\"words\":[{\"word\":\"Hello\",\"start\":0.0,\"end\":0.6200000047683716},{\"word\":\"from\",\"start\":0.6200000047683716,\"end\":0.8799999952316284},{\"word\":\"AigcForge\",\"start\":0.8799999952316284,\"end\":1.399999976158142}],\"usage\":{\"type\":\"duration\",\"seconds\":2}}"
       }
     }
   ]

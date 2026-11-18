@@ -2,14 +2,14 @@ import path from "node:path"
 import { stat } from "node:fs/promises"
 
 export function configDirectories(config: string, cwd: string) {
-  return [...new Set([config, ...ancestors(cwd).map((directory) => path.join(directory, ".opencode"))])]
+  return [...new Set([config, ...ancestors(cwd).map((directory) => path.join(directory, ".aigcfroge"))])]
 }
 
 export function projectConfigDirectories(project: string, cwd: string) {
   const directories = ancestors(cwd)
   return directories
     .slice(directories.indexOf(path.resolve(project)))
-    .map((directory) => path.join(directory, ".opencode"))
+    .map((directory) => path.join(directory, ".aigcfroge"))
 }
 
 export async function localProjectDirectory(cwd: string) {

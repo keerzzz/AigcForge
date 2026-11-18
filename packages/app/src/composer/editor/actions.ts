@@ -1,9 +1,11 @@
 import { batch, untrack, type Accessor } from "solid-js"
+import { Predicate } from "effect"
 import type { SetStoreFunction, Store } from "solid-js/store"
 import type {
   ComposerAgentPart,
   ComposerFilePart,
   ComposerSkillPart,
+  ComposerSessionPart,
   ComposerPersistedState,
   ComposerPrompt,
 } from "../types"
@@ -17,12 +19,12 @@ export type ComposerStateStore = [
 export type ComposerStateStoreInput = ComposerStateStore | Accessor<ComposerStateStore>
 
 export function createComposerEditorActions(input: ComposerStateStoreInput) {
-  const tuple = () => (typeof input === "function" ? input() : input)
+  const tuple = () => (Predicate.isFunction(input) ? input() : input)
 
   const store = () => {
     const value = tuple()[0]
 
-    return typeof value === "function" ? value() : value
+    return Predicate.isFunction(value) ? value() : value
   }
 
   const setStore = () => tuple()[1]
@@ -37,7 +39,7 @@ export function createComposerEditorActions(input: ComposerStateStoreInput) {
     },
     setPrompt(prompt: ComposerPrompt, cursor?: number) {
       // Persisted setters encode on every call, even inside a reactive batch.
-      batch(() => setStore()({ prompt, ...(cursor !== undefined ? { cursor } : {}), retry: undefined }))
+      batch(() => setStore()({ prompt, ...(cursor !== undefined && { cursor }), retry: undefined }))
     },
     setCursor(cursor: number) {
       if (untrack(() => store().cursor) === cursor) return
@@ -69,12 +71,41 @@ export function createComposerEditorActions(input: ComposerStateStoreInput) {
         })),
       )
     },
+    replaceRange(range: { start: number; end: number }, inserted: ComposerPrompt) {
+      const prompt = store().prompt
+
+      const left = prompt.flatMap<ComposerPrompt[number]>((part) => {
+        if (isAttachment(part)) return []
+
+        if (part.end <= range.start) return [part]
+
+        if (part.type !== "text" || part.start >= range.start) return []
+
+        return [{ ...part, content: part.content.slice(0, range.start - part.start) }]
+      })
+
+      const right = prompt.flatMap<ComposerPrompt[number]>((part) => {
+        if (isAttachment(part)) return []
+
+        if (part.start >= range.end) return [part]
+
+        if (part.type !== "text" || part.end <= range.end) return []
+
+        return [{ ...part, content: part.content.slice(range.end - part.start) }]
+      })
+
+      setStore()({
+        prompt: withOffsets([...left, ...inserted, ...right, ...prompt.filter(isAttachment)]),
+        cursor: range.start + promptLength(inserted),
+        retry: undefined,
+      })
+    },
     removeContext(key: string) {
       setStore()("context", "items", (items) => items.filter((item) => item.key !== key))
       clearRetry()
     },
     addMention(
-      mention: ComposerFilePart | ComposerAgentPart | ComposerSkillPart,
+      mention: ComposerFilePart | ComposerAgentPart | ComposerSkillPart | ComposerSessionPart,
       range?: { start: number; end: number },
     ) {
       const text = store()
@@ -127,7 +158,7 @@ function insertMention(
   prompt: ComposerPrompt,
   start: number,
   end: number,
-  mention: ComposerFilePart | ComposerAgentPart | ComposerSkillPart,
+  mention: ComposerFilePart | ComposerAgentPart | ComposerSkillPart | ComposerSessionPart,
 ): ComposerPrompt {
   if (start === 0 && end === 0) {
     return withOffsets([mention, { type: "text", content: " ", start: 0, end: 0 }, ...prompt])

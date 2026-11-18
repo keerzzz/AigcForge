@@ -1,18 +1,27 @@
 import { describe, expect, test } from "bun:test"
-import { SystemPart } from "@opencode/ai"
-import { Agent } from "@opencode/core/agent"
-import { Plugin } from "@opencode/core/plugin"
-import { PluginHooks } from "@opencode/core/plugin/hooks"
-import { PluginHost } from "@opencode/core/plugin/host"
-import { OptimizePlugin } from "@opencode/core/plugin/optimize"
-import { Session } from "@opencode/core/session"
-import { SessionSystemPrompt } from "@opencode/core/session/system-prompt"
-import type { SessionHooks } from "@opencode/plugin/effect/session"
-import { Model } from "@opencode/schema/model"
-import { Provider } from "@opencode/core/provider"
+import { LanguageModel, SystemPart } from "@aigcfroge/ai"
+import { OpenAIChat } from "@aigcfroge/ai/protocols"
+import { Agent } from "@aigcfroge/core/agent"
+import { Database } from "@aigcfroge/core/database/database"
+import { Location } from "@aigcfroge/core/location"
+import { Plugin } from "@aigcfroge/core/plugin"
+import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
+import { PluginHost } from "@aigcfroge/core/plugin/host"
+import { OptimizePlugin } from "@aigcfroge/core/plugin/optimize"
+import { Session } from "@aigcfroge/core/session"
+import { SessionComposition } from "@aigcfroge/core/session/composition"
+import { SessionModelRequest } from "@aigcfroge/core/session/model-request"
+import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
+import { SessionTable } from "@aigcfroge/core/session/sql"
+import { SessionSystemPrompt } from "@aigcfroge/core/session/system-prompt"
+import type { SessionHooks } from "@aigcfroge/plugin/effect/session"
+import { Model } from "@aigcfroge/schema/model"
+import { Provider } from "@aigcfroge/core/provider"
 import { Effect } from "effect"
 import { testEffect } from "../lib/effect"
-import { PluginTestLayer } from "./fixture"
+import { CompositionFixture } from "../lib/composition"
+import { withCustomMode } from "../lib/product-mode"
+import { makePluginTestLayerWith } from "./fixture"
 import PROMPT_META from "../../src/plugin/system-prompt/meta.txt"
 import PROMPT_GPT from "../../src/plugin/system-prompt/gpt.txt"
 import PROMPT_ASTRA from "../../src/plugin/system-prompt/gpt-astra.txt"
@@ -20,14 +29,22 @@ import PROMPT_KIMI from "../../src/plugin/system-prompt/kimi.txt"
 import PROMPT_TRINITY from "../../src/plugin/system-prompt/trinity.txt"
 import PROMPT_ANTHROPIC from "../../src/plugin/system-prompt/anthropic.txt"
 
-const it = testEffect(PluginTestLayer)
+const it = testEffect(makePluginTestLayerWith(SessionModelRequest.node))
 const fallback = SessionSystemPrompt.make([])
 const appended = `${fallback}\n\n${SessionSystemPrompt.render(PROMPT_ANTHROPIC, [])}`
 const makeHost = Effect.gen(function* () {
   const agents = yield* Agent.Service
   const plugins = yield* Plugin.Service
+  const sessions = yield* Session.Service
   yield* agents.transform((editor) => editor.update(Agent.ID.make("build"), () => {}))
-  return yield* PluginHost.make(plugins)
+  const pluginHost = yield* PluginHost.make(plugins)
+  yield* sessions.create({
+    id: Session.ID.make("ses_model_optimization"),
+    mode: "work",
+    agent: Agent.ID.make("build"),
+    location: Location.Ref.make({ directory: pluginHost.location.directory }),
+  })
+  return pluginHost
 })
 
 const context = (id: string, system = fallback): SessionHooks["context"] => ({
@@ -48,13 +65,138 @@ const context = (id: string, system = fallback): SessionHooks["context"] => ({
 describe("OptimizePlugin", () => {
   test("enables prompt plugins without model-specific tool optimization", () => {
     expect(OptimizePlugin.Plugins.map((plugin) => plugin.id)).toEqual([
-      "opencode.prompt.openai",
-      "opencode.prompt.anthropic",
-      "opencode.prompt.kimi",
-      "opencode.prompt.arcee",
-      "opencode.prompt.meta",
+      "aigcfroge.prompt.openai",
+      "aigcfroge.prompt.anthropic",
+      "aigcfroge.prompt.kimi",
+      "aigcfroge.prompt.arcee",
+      "aigcfroge.prompt.meta",
     ])
   })
+
+  for (const hasSystem of [true, false]) {
+    it.effect(`uses the frozen Custom system in primary, compaction and generate when hasSystem=${hasSystem}`, () =>
+      withCustomMode(
+        "true",
+        Effect.gen(function* () {
+          const pluginHost = yield* makeHost
+          const sessions = yield* Session.Service
+          const agents = yield* Agent.Service
+          const compositions = yield* SessionComposition.Service
+          const database = yield* Database.Service
+          const source = yield* sessions.get(Session.ID.make("ses_model_optimization"))
+          const rootID = Session.ID.make("ses_model_optimization_custom")
+          const frozen = Agent.Info.make({
+            ...Agent.Info.empty(Agent.ID.make("build")),
+            mode: "subagent",
+            ...(hasSystem ? { system: "Frozen worker system" } : {}),
+          })
+          yield* database.db
+            .insert(SessionTable)
+            .values({
+              id: rootID,
+              project_id: source.projectID,
+              directory: source.location.directory,
+              slug: rootID,
+              title: "Frozen optimize root",
+              version: "test",
+              mode: "custom",
+              agent: "meta",
+              attended: 1,
+            })
+            .run()
+          yield* CompositionFixture.attach(rootID, frozen)
+          const worker = yield* sessions.create({ parentID: rootID, agent: frozen.id })
+          const captured = yield* compositions.get(worker.id)
+          const requests = yield* SessionModelRequest.Service
+          yield* Effect.forEach(OptimizePlugin.Plugins, (plugin) => plugin.effect(pluginHost), { discard: true })
+
+          // Registry updates and removal must not change which system the default hooks select.
+          for (const mutation of ["unchanged", "changed", "removed"] as const) {
+            if (mutation === "changed") {
+              yield* agents.transform((editor) =>
+                editor.update(frozen.id, (agent) => {
+                  agent.system = hasSystem ? undefined : "Late live worker system"
+                }),
+              )
+            }
+            if (mutation === "removed") yield* agents.transform((editor) => editor.remove(frozen.id))
+            const selected = yield* pluginHost.agent.get({ sessionID: worker.id, agentID: frozen.id })
+            expect(selected.data.system).toBe(frozen.system)
+            expect(selected.location).toEqual(worker.location)
+
+            for (const [id, template] of [
+              ["gpt-5", PROMPT_GPT],
+              ["claude-sonnet-4", PROMPT_ANTHROPIC],
+            ] as const) {
+              const model = Model.Info.default(Provider.ID.make("test"), Model.ID.make(id))
+              const resolved = SessionRunnerModel.resolved(
+                LanguageModel.make({ id: model.id, provider: model.providerID, route: OpenAIChat.route }),
+                {
+                  capabilities: model.capabilities,
+                  cost: model.cost,
+                  limit: model.limit,
+                },
+              )
+              for (const kind of ["primary", "compaction", "generate"] as const) {
+                const prepared = yield* requests[kind]({
+                  session: worker,
+                  agent: frozen.id,
+                  model: resolved,
+                  system: [
+                    SystemPart.make(selected.data.system ?? fallback),
+                    SystemPart.make("Frozen project instructions"),
+                  ],
+                  messages: [],
+                })
+                const expected = hasSystem
+                  ? (frozen.system ?? fallback)
+                  : id.includes("claude")
+                    ? `${fallback}\n\n${SessionSystemPrompt.render(template, [])}`
+                    : SessionSystemPrompt.render(template, [])
+                expect(prepared.request.system.map((part) => part.text)).toEqual([
+                  expected,
+                  "Frozen project instructions",
+                ])
+              }
+            }
+          }
+          expect(yield* compositions.get(worker.id)).toEqual(captured)
+        }),
+      ),
+    )
+  }
+
+  it.effect("rejects missing or incomplete Custom Sessions instead of falling back to live agents", () =>
+    Effect.gen(function* () {
+      const pluginHost = yield* makeHost
+      const sessions = yield* Session.Service
+      const database = yield* Database.Service
+      const source = yield* sessions.get(Session.ID.make("ses_model_optimization"))
+      const missingID = Session.ID.make("ses_model_optimization_missing")
+      const liveOnly = Agent.ID.make("build")
+      expect(yield* pluginHost.agent.get({ sessionID: missingID, agentID: liveOnly }).pipe(Effect.flip)).toBeInstanceOf(
+        Session.NotFoundError,
+      )
+      const customID = Session.ID.make("ses_model_optimization_incomplete")
+      yield* database.db
+        .insert(SessionTable)
+        .values({
+          id: customID,
+          project_id: source.projectID,
+          directory: source.location.directory,
+          slug: customID,
+          title: "Missing frozen composition",
+          version: "test",
+          mode: "custom",
+          agent: "meta",
+          attended: 1,
+        })
+        .run()
+      expect(yield* pluginHost.agent.get({ sessionID: customID, agentID: liveOnly }).pipe(Effect.flip)).toBeInstanceOf(
+        SessionComposition.SnapshotNotFoundError,
+      )
+    }),
+  )
 
   it.effect("selects model-lab prompts through session context hooks", () =>
     Effect.gen(function* () {
@@ -127,7 +269,7 @@ describe("OptimizePlugin", () => {
         SessionSystemPrompt.render(PROMPT_GPT, Object.keys(event.tools)),
         "Project instructions",
       ])
-      expect(event.system[0]?.text).not.toContain("${OPENCODE_TOOL_GUIDANCE}")
+      expect(event.system[0]?.text).not.toContain("${AIGCFROGE_TOOL_GUIDANCE}")
       expect(Object.keys(event.tools).sort()).toEqual(["edit", "glob", "grep", "patch", "read", "shell", "write"])
     }),
   )

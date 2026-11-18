@@ -1,9 +1,14 @@
 export * as SkillTool from "./skill.js"
 
-import type { Context } from "@opencode/plugin/effect/plugin"
-import { ToolFailure } from "@opencode/ai"
-import { Effect, Schema } from "effect"
-import { FSUtil } from "@opencode/util/fs-util"
+import type { Context } from "@aigcfroge/plugin/effect/plugin"
+import { ToolFailure } from "@aigcfroge/ai"
+import { Effect, Result, Schema } from "effect"
+import { FSUtil } from "@aigcfroge/util/fs-util"
+import { CompositionConsumerView } from "../../composition/consumer-view.js"
+import { Location } from "../../location.js"
+import { SessionComposition } from "../../session/composition.js"
+import { SessionStore } from "../../session/store.js"
+import { CompositionCatalog } from "../../skill/composition-catalog.js"
 import { Skill } from "../../skill.js"
 import { Permission } from "../../permission.js"
 
@@ -30,11 +35,14 @@ const unableToLoad = (name: string, error?: unknown) =>
   new ToolFailure({ message: `Unable to load skill ${name}`, error })
 
 export const Plugin = {
-  id: "opencode.tool.skill",
+  id: "aigcfroge.tool.skill",
   effect: Effect.fn("SkillTool.Plugin")(function* (ctx: Context) {
     const fs = yield* FSUtil.Service
     const skills = yield* Skill.Service
     const permission = yield* Permission.Service
+    const sessions = yield* SessionStore.Service
+    const composition = yield* SessionComposition.Service
+    const location = yield* Location.Service
     yield* ctx.tool
       .transform((editor) =>
         editor.add({
@@ -45,7 +53,26 @@ export const Plugin = {
           output: Output,
           execute: (input, context) =>
             Effect.gen(function* () {
-              const skill = yield* skills.get(input.id)
+              const session = yield* sessions.get(context.sessionID)
+              const skill = yield* Effect.gen(function* () {
+                if (
+                  session?.mode !== "custom" &&
+                  !(session?.controller?.kind === "child" && session.controller.source.kind === "workflow")
+                )
+                  return yield* skills.get(input.id)
+                if (
+                  session.location.directory !== location.directory ||
+                  session.location.workspaceID !== location.workspaceID
+                )
+                  return yield* unableToLoad(input.id)
+                const selected = yield* composition.selectAgent(session.id, context.agent)
+                const frozen = CompositionCatalog.frozenSkills(
+                  location.directory,
+                  CompositionConsumerView.getSkills(selected.snapshot, selected.scope),
+                )
+                if (Result.isFailure(frozen)) return yield* unableToLoad(input.id, frozen.failure)
+                return frozen.success.find((skill) => skill.id === input.id)
+              }).pipe(Effect.mapError((error) => unableToLoad(input.id, error)))
               if (!skill) return yield* unableToLoad(input.id)
               return yield* Effect.gen(function* () {
                 yield* permission.assert({

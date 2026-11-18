@@ -1,19 +1,20 @@
 export * as Provider from "./provider.js"
 
 import { Context, Effect, Layer, Option, Schema, Stream, Struct } from "effect"
-import { Provider } from "@opencode/schema/provider"
-import { Model } from "@opencode/schema/model"
-import { makeLocationNode } from "@opencode/util/effect/app-node"
-import { HttpTimeout, type ProviderPackageDefinition } from "@opencode/ai"
-import { isRecord } from "@opencode/ai/utils/record"
-import { Npm } from "@opencode/util/npm"
+import { Provider } from "@aigcfroge/schema/provider"
+import { Model } from "@aigcfroge/schema/model"
+import type { ModelSource } from "@aigcfroge/schema/model-source"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { HttpTimeout, type ProviderPackageDefinition } from "@aigcfroge/ai"
+import { isRecord } from "@aigcfroge/ai/utils/record"
+import { Npm } from "@aigcfroge/util/npm"
 import type { DeepMutable } from "./schema.js"
-import { importModule, resolveModule } from "@opencode/util/runtime-import"
+import { importModule, resolveModule } from "@aigcfroge/util/runtime-import"
 import { Bus } from "./bus.js"
 import { Integration } from "./integration.js"
 import { State } from "./state.js"
 import { IntegrationConnection } from "./integration/connection.js"
-import { Credential } from "@opencode/schema/credential"
+import { Credential } from "@aigcfroge/schema/credential"
 import { Location } from "./location.js"
 import { freeze } from "immer"
 import { AISDKNative } from "./aisdk-native.js"
@@ -29,7 +30,7 @@ export function packageName(value: undefined): undefined
 export function packageName(value: string | undefined): string | undefined
 export function packageName(value: string | undefined) {
   // Native provider entrypoints can persist in user configuration across the npm scope migration.
-  if (value?.startsWith("@opencode-ai/ai/")) return value.replace("@opencode-ai/", "@opencode/")
+  if (value?.startsWith("@opencode-ai/ai/")) return value.replace("@opencode-ai/", "@aigcfroge/")
   if (value === undefined || !isAISDK(value)) return value
   return value.slice(AISDK_PREFIX.length)
 }
@@ -46,80 +47,80 @@ export type ProviderPackage = ProviderPackageDefinition
 
 const packages = new Map<string, Promise<unknown>>()
 const builtins = new Map<string, () => Promise<unknown>>([
-  ["@opencode/ai/providers/amazon-bedrock", () => import("@opencode/ai/providers/amazon-bedrock")],
-  ["@opencode/ai/providers/amazon-bedrock/mantle", () => import("@opencode/ai/providers/amazon-bedrock/mantle")],
+  ["@aigcfroge/ai/providers/amazon-bedrock", () => import("@aigcfroge/ai/providers/amazon-bedrock")],
+  ["@aigcfroge/ai/providers/amazon-bedrock/mantle", () => import("@aigcfroge/ai/providers/amazon-bedrock/mantle")],
   [
-    "@opencode/ai/providers/amazon-bedrock/mantle/chat",
-    () => import("@opencode/ai/providers/amazon-bedrock/mantle/chat"),
+    "@aigcfroge/ai/providers/amazon-bedrock/mantle/chat",
+    () => import("@aigcfroge/ai/providers/amazon-bedrock/mantle/chat"),
   ],
   [
-    "@opencode/ai/providers/amazon-bedrock/mantle/responses",
-    () => import("@opencode/ai/providers/amazon-bedrock/mantle/responses"),
+    "@aigcfroge/ai/providers/amazon-bedrock/mantle/responses",
+    () => import("@aigcfroge/ai/providers/amazon-bedrock/mantle/responses"),
   ],
-  ["@opencode/ai/providers/alibaba/chat", () => import("@opencode/ai/providers/alibaba/chat")],
-  ["@opencode/ai/providers/alibaba/messages", () => import("@opencode/ai/providers/alibaba/messages")],
-  ["@opencode/ai/providers/alibaba/responses", () => import("@opencode/ai/providers/alibaba/responses")],
-  ["@opencode/ai/providers/anthropic", () => import("@opencode/ai/providers/anthropic")],
-  ["@opencode/ai/providers/anthropic-compatible", () => import("@opencode/ai/providers/anthropic-compatible")],
-  ["@opencode/ai/providers/azure", () => import("@opencode/ai/providers/azure")],
-  ["@opencode/ai/providers/azure/chat", () => import("@opencode/ai/providers/azure/chat")],
-  ["@opencode/ai/providers/azure/responses", () => import("@opencode/ai/providers/azure/responses")],
-  ["@opencode/ai/providers/baseten", () => import("@opencode/ai/providers/baseten")],
-  ["@opencode/ai/providers/cerebras", () => import("@opencode/ai/providers/cerebras")],
-  ["@opencode/ai/providers/cloudflare-ai-gateway", () => import("@opencode/ai/providers/cloudflare-ai-gateway")],
-  ["@opencode/ai/providers/cloudflare-workers-ai", () => import("@opencode/ai/providers/cloudflare-workers-ai")],
-  ["@opencode/ai/providers/cohere", () => import("@opencode/ai/providers/cohere")],
-  ["@opencode/ai/providers/cohere/chat", () => import("@opencode/ai/providers/cohere/chat")],
-  ["@opencode/ai/providers/deepinfra", () => import("@opencode/ai/providers/deepinfra")],
-  ["@opencode/ai/providers/deepseek", () => import("@opencode/ai/providers/deepseek")],
-  ["@opencode/ai/providers/digitalocean", () => import("@opencode/ai/providers/digitalocean")],
-  ["@opencode/ai/providers/fireworks", () => import("@opencode/ai/providers/fireworks")],
-  ["@opencode/ai/providers/google", () => import("@opencode/ai/providers/google")],
-  ["@opencode/ai/providers/google/interactions", () => import("@opencode/ai/providers/google/interactions")],
-  ["@opencode/ai/providers/google-vertex", () => import("@opencode/ai/providers/google-vertex")],
-  ["@opencode/ai/providers/google-vertex/gemini", () => import("@opencode/ai/providers/google-vertex/gemini")],
+  ["@aigcfroge/ai/providers/alibaba/chat", () => import("@aigcfroge/ai/providers/alibaba/chat")],
+  ["@aigcfroge/ai/providers/alibaba/messages", () => import("@aigcfroge/ai/providers/alibaba/messages")],
+  ["@aigcfroge/ai/providers/alibaba/responses", () => import("@aigcfroge/ai/providers/alibaba/responses")],
+  ["@aigcfroge/ai/providers/anthropic", () => import("@aigcfroge/ai/providers/anthropic")],
+  ["@aigcfroge/ai/providers/anthropic-compatible", () => import("@aigcfroge/ai/providers/anthropic-compatible")],
+  ["@aigcfroge/ai/providers/azure", () => import("@aigcfroge/ai/providers/azure")],
+  ["@aigcfroge/ai/providers/azure/chat", () => import("@aigcfroge/ai/providers/azure/chat")],
+  ["@aigcfroge/ai/providers/azure/responses", () => import("@aigcfroge/ai/providers/azure/responses")],
+  ["@aigcfroge/ai/providers/baseten", () => import("@aigcfroge/ai/providers/baseten")],
+  ["@aigcfroge/ai/providers/cerebras", () => import("@aigcfroge/ai/providers/cerebras")],
+  ["@aigcfroge/ai/providers/cloudflare-ai-gateway", () => import("@aigcfroge/ai/providers/cloudflare-ai-gateway")],
+  ["@aigcfroge/ai/providers/cloudflare-workers-ai", () => import("@aigcfroge/ai/providers/cloudflare-workers-ai")],
+  ["@aigcfroge/ai/providers/cohere", () => import("@aigcfroge/ai/providers/cohere")],
+  ["@aigcfroge/ai/providers/cohere/chat", () => import("@aigcfroge/ai/providers/cohere/chat")],
+  ["@aigcfroge/ai/providers/deepinfra", () => import("@aigcfroge/ai/providers/deepinfra")],
+  ["@aigcfroge/ai/providers/deepseek", () => import("@aigcfroge/ai/providers/deepseek")],
+  ["@aigcfroge/ai/providers/digitalocean", () => import("@aigcfroge/ai/providers/digitalocean")],
+  ["@aigcfroge/ai/providers/fireworks", () => import("@aigcfroge/ai/providers/fireworks")],
+  ["@aigcfroge/ai/providers/google", () => import("@aigcfroge/ai/providers/google")],
+  ["@aigcfroge/ai/providers/google/interactions", () => import("@aigcfroge/ai/providers/google/interactions")],
+  ["@aigcfroge/ai/providers/google-vertex", () => import("@aigcfroge/ai/providers/google-vertex")],
+  ["@aigcfroge/ai/providers/google-vertex/gemini", () => import("@aigcfroge/ai/providers/google-vertex/gemini")],
   [
-    "@opencode/ai/providers/google-vertex/interactions",
-    () => import("@opencode/ai/providers/google-vertex/interactions"),
+    "@aigcfroge/ai/providers/google-vertex/interactions",
+    () => import("@aigcfroge/ai/providers/google-vertex/interactions"),
   ],
-  ["@opencode/ai/providers/google-vertex/chat", () => import("@opencode/ai/providers/google-vertex/chat")],
-  ["@opencode/ai/providers/google-vertex/responses", () => import("@opencode/ai/providers/google-vertex/responses")],
-  ["@opencode/ai/providers/google-vertex/messages", () => import("@opencode/ai/providers/google-vertex/messages")],
-  ["@opencode/ai/providers/google-vertex/mistral", () => import("@opencode/ai/providers/google-vertex/mistral")],
-  ["@opencode/ai/providers/groq", () => import("@opencode/ai/providers/groq")],
-  ["@opencode/ai/providers/meta/chat", () => import("@opencode/ai/providers/meta/chat")],
-  ["@opencode/ai/providers/meta/messages", () => import("@opencode/ai/providers/meta/messages")],
-  ["@opencode/ai/providers/meta/responses", () => import("@opencode/ai/providers/meta/responses")],
-  ["@opencode/ai/providers/minimax/chat", () => import("@opencode/ai/providers/minimax/chat")],
-  ["@opencode/ai/providers/minimax/messages", () => import("@opencode/ai/providers/minimax/messages")],
-  ["@opencode/ai/providers/minimax/responses", () => import("@opencode/ai/providers/minimax/responses")],
-  ["@opencode/ai/providers/mistral", () => import("@opencode/ai/providers/mistral")],
-  ["@opencode/ai/providers/moonshot/chat", () => import("@opencode/ai/providers/moonshot/chat")],
-  ["@opencode/ai/providers/moonshot/messages", () => import("@opencode/ai/providers/moonshot/messages")],
-  ["@opencode/ai/providers/moonshot/responses", () => import("@opencode/ai/providers/moonshot/responses")],
-  ["@opencode/ai/providers/openai", () => import("@opencode/ai/providers/openai")],
-  ["@opencode/ai/providers/openai/chat", () => import("@opencode/ai/providers/openai/chat")],
-  ["@opencode/ai/providers/openai/responses", () => import("@opencode/ai/providers/openai/responses")],
-  ["@opencode/ai/providers/openai-compatible", () => import("@opencode/ai/providers/openai-compatible")],
+  ["@aigcfroge/ai/providers/google-vertex/chat", () => import("@aigcfroge/ai/providers/google-vertex/chat")],
+  ["@aigcfroge/ai/providers/google-vertex/responses", () => import("@aigcfroge/ai/providers/google-vertex/responses")],
+  ["@aigcfroge/ai/providers/google-vertex/messages", () => import("@aigcfroge/ai/providers/google-vertex/messages")],
+  ["@aigcfroge/ai/providers/google-vertex/mistral", () => import("@aigcfroge/ai/providers/google-vertex/mistral")],
+  ["@aigcfroge/ai/providers/groq", () => import("@aigcfroge/ai/providers/groq")],
+  ["@aigcfroge/ai/providers/meta/chat", () => import("@aigcfroge/ai/providers/meta/chat")],
+  ["@aigcfroge/ai/providers/meta/messages", () => import("@aigcfroge/ai/providers/meta/messages")],
+  ["@aigcfroge/ai/providers/meta/responses", () => import("@aigcfroge/ai/providers/meta/responses")],
+  ["@aigcfroge/ai/providers/minimax/chat", () => import("@aigcfroge/ai/providers/minimax/chat")],
+  ["@aigcfroge/ai/providers/minimax/messages", () => import("@aigcfroge/ai/providers/minimax/messages")],
+  ["@aigcfroge/ai/providers/minimax/responses", () => import("@aigcfroge/ai/providers/minimax/responses")],
+  ["@aigcfroge/ai/providers/mistral", () => import("@aigcfroge/ai/providers/mistral")],
+  ["@aigcfroge/ai/providers/moonshot/chat", () => import("@aigcfroge/ai/providers/moonshot/chat")],
+  ["@aigcfroge/ai/providers/moonshot/messages", () => import("@aigcfroge/ai/providers/moonshot/messages")],
+  ["@aigcfroge/ai/providers/moonshot/responses", () => import("@aigcfroge/ai/providers/moonshot/responses")],
+  ["@aigcfroge/ai/providers/openai", () => import("@aigcfroge/ai/providers/openai")],
+  ["@aigcfroge/ai/providers/openai/chat", () => import("@aigcfroge/ai/providers/openai/chat")],
+  ["@aigcfroge/ai/providers/openai/responses", () => import("@aigcfroge/ai/providers/openai/responses")],
+  ["@aigcfroge/ai/providers/openai-compatible", () => import("@aigcfroge/ai/providers/openai-compatible")],
   [
-    "@opencode/ai/providers/openai-compatible/responses",
-    () => import("@opencode/ai/providers/openai-compatible/responses"),
+    "@aigcfroge/ai/providers/openai-compatible/responses",
+    () => import("@aigcfroge/ai/providers/openai-compatible/responses"),
   ],
   [
-    "@opencode/ai/providers/openai-compatible-responses",
-    () => import("@opencode/ai/providers/openai-compatible-responses"),
+    "@aigcfroge/ai/providers/openai-compatible-responses",
+    () => import("@aigcfroge/ai/providers/openai-compatible-responses"),
   ],
-  ["@opencode/ai/providers/openrouter", () => import("@opencode/ai/providers/openrouter")],
-  ["@opencode/ai/providers/togetherai", () => import("@opencode/ai/providers/togetherai")],
-  ["@opencode/ai/providers/venice", () => import("@opencode/ai/providers/venice")],
-  ["@opencode/ai/providers/vercel-ai-gateway", () => import("@opencode/ai/providers/vercel-ai-gateway")],
-  ["@opencode/ai/providers/xai", () => import("@opencode/ai/providers/xai")],
-  ["@opencode/ai/providers/zai/chat", () => import("@opencode/ai/providers/zai/chat")],
-  ["@opencode/ai/providers/zai-coding-plan/chat", () => import("@opencode/ai/providers/zai-coding-plan/chat")],
-  ["@opencode/ai/providers/zai-coding-plan/messages", () => import("@opencode/ai/providers/zai-coding-plan/messages")],
+  ["@aigcfroge/ai/providers/openrouter", () => import("@aigcfroge/ai/providers/openrouter")],
+  ["@aigcfroge/ai/providers/togetherai", () => import("@aigcfroge/ai/providers/togetherai")],
+  ["@aigcfroge/ai/providers/venice", () => import("@aigcfroge/ai/providers/venice")],
+  ["@aigcfroge/ai/providers/vercel-ai-gateway", () => import("@aigcfroge/ai/providers/vercel-ai-gateway")],
+  ["@aigcfroge/ai/providers/xai", () => import("@aigcfroge/ai/providers/xai")],
+  ["@aigcfroge/ai/providers/zai/chat", () => import("@aigcfroge/ai/providers/zai/chat")],
+  ["@aigcfroge/ai/providers/zai-coding-plan/chat", () => import("@aigcfroge/ai/providers/zai-coding-plan/chat")],
+  ["@aigcfroge/ai/providers/zai-coding-plan/messages", () => import("@aigcfroge/ai/providers/zai-coding-plan/messages")],
   [
-    "@opencode/ai/providers/zai-coding-plan/responses",
-    () => import("@opencode/ai/providers/zai-coding-plan/responses"),
+    "@aigcfroge/ai/providers/zai-coding-plan/responses",
+    () => import("@aigcfroge/ai/providers/zai-coding-plan/responses"),
   ],
 ])
 
@@ -128,7 +129,7 @@ export const loadPackage = Effect.fn("Provider.loadPackage")(function* (input: s
   const builtin = builtins.get(specifier)
   if (builtin) return yield* importPackage(specifier, specifier, builtin)
   const resolved = yield* Effect.sync(() => {
-    if (specifier.startsWith("file://") || specifier.startsWith("@opencode/ai/")) return specifier
+    if (specifier.startsWith("file://") || specifier.startsWith("@aigcfroge/ai/")) return specifier
     try {
       return import.meta.resolve(specifier)
     } catch {
@@ -152,7 +153,7 @@ export const loadPackage = Effect.fn("Provider.loadPackage")(function* (input: s
   return yield* importPackage(specifier, entrypoint)
 })
 
-/** opencode settings consumed in Core; native packages never receive them. */
+/** aigcfroge settings consumed in Core; native packages never receive them. */
 const CORE_KEYS = ["chunkTimeout", "compaction", "fetch", "headerTimeout", "timeout", "transport"] as const
 const PROVIDER_ONLY_KEYS = ["chunkTimeout", "headerTimeout", "timeout", "transport"] as const
 
@@ -235,7 +236,7 @@ export type Info = Provider.Info
 
 export type MutableInfo = DeepMutable<Info>
 
-export { Event } from "@opencode/schema/provider"
+export { Event } from "@aigcfroge/schema/provider"
 
 /** Provider metadata owns its drafts; model definitions remain immutable inputs. */
 export type Definition = {
@@ -244,7 +245,18 @@ export type Definition = {
   readonly sourceConnection?: IntegrationConnection.Info
 }
 
+export type ConnectionInput = {
+  readonly providerID: ID
+  readonly connection: ModelSource.ConnectionRef
+}
+
+export function connectionKey(input: ConnectionInput | undefined) {
+  return input ? JSON.stringify([input.providerID, IntegrationConnection.key(input.connection)]) : ""
+}
+
 export interface Editor {
+  readonly scope?: ConnectionInput
+  readonly connection: (integrationID: Integration.ID) => IntegrationConnection.Info | undefined
   readonly list: () => readonly Definition[]
   readonly get: (providerID: ID) => Definition | undefined
   readonly add: (definition: {
@@ -262,20 +274,29 @@ export interface Editor {
 }
 
 export interface Snapshot {
+  readonly scope?: ConnectionInput
+  readonly connections?: ReadonlyMap<Integration.ID, IntegrationConnection.Info>
   readonly records: ReadonlyMap<ID, Definition>
   readonly available: readonly Definition[]
   readonly providers: readonly Info[]
 }
 
 export interface Interface extends State.Transformable<Editor> {
-  readonly get: (providerID: ID) => Effect.Effect<Info | undefined>
+  readonly get: (providerID: ID, connection?: ModelSource.ConnectionRef) => Effect.Effect<Info | undefined>
   readonly all: () => Effect.Effect<readonly Info[]>
   readonly available: () => Effect.Effect<readonly Info[]>
   /** Internal definition/access snapshot; raw model inventories never cross the HTTP API. */
-  readonly snapshot: () => Effect.Effect<Snapshot>
+  readonly snapshot: (input?: ConnectionInput) => Effect.Effect<Snapshot>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/Provider") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Provider") {}
+
+type MutableDefinition = {
+  provider: MutableInfo
+  models: ReadonlyMap<Model.ID, Model.Info>
+  sourceConnection?: IntegrationConnection.Info
+}
+type Records = Map<ID, MutableDefinition>
 
 // Every location references the same index for a shared immutable definition array.
 const definitions = new WeakMap<readonly Model.Info[], Map<ID, ReadonlyMap<Model.ID, Model.Info>>>()
@@ -299,20 +320,10 @@ const layer = Layer.effect(
     const bus = yield* Bus.Service
     const integrations = yield* Integration.Service
     const location = yield* Location.Service
-    const state = State.create<
-      Map<
-        ID,
-        {
-          provider: MutableInfo
-          models: ReadonlyMap<Model.ID, Model.Info>
-          sourceConnection?: IntegrationConnection.Info
-        }
-      >,
-      Editor
-    >({
-      name: "provider",
-      initial: () => new Map(),
-      editor: (records) => {
+    const requested = new Map<string, ConnectionInput>()
+    let byID = new Map<Integration.ID, Integration.Info>()
+    let connectionSignature = ""
+    const editor = (records: Records, input?: ConnectionInput): Editor => {
         const maps = new WeakSet<ReadonlyMap<Model.ID, Model.Info>>()
         const models = new WeakSet<Model.Info>()
         const entry = (id: ID) => {
@@ -332,6 +343,13 @@ const layer = Layer.effect(
           return owned
         }
         return {
+          scope: input,
+          connection: (id) => {
+            const integration = byID.get(id)
+            if (input && id === (records.get(input.providerID)?.provider.integrationID ?? Integration.ID.make(input.providerID)))
+              return integration?.connections.find((connection) => IntegrationConnection.key(connection) === IntegrationConnection.key(input.connection))
+            return integration?.connections[0]
+          },
           list: () => Array.from(records.values()),
           get: (id) => records.get(id),
           add: (definition) => {
@@ -388,30 +406,59 @@ const layer = Layer.effect(
             },
           },
         }
-      },
+      }
+    const state = State.create<Map<string, Records>, Map<string, Editor>>({
+      name: "provider",
+      initial: () => new Map<string, Records>([
+        ["", new Map<ID, MutableDefinition>()],
+        ...Array.from(requested.keys(), (key) => [key, new Map<ID, MutableDefinition>()] as const),
+      ]),
+      editor: (records) => new Map(Array.from(records, ([key, value]) => [key, editor(value, requested.get(key))])),
       notify: () => notify,
     })
     // Registrations may outlive a borrowed service layer; their later disposal must
     // not query dependencies that have already closed.
     yield* Effect.addFinalizer(() => State.shutdown(state.reload()))
-    let cached: { records: Snapshot["records"]; value: Snapshot } | undefined
-    const snapshot = Effect.fn("Provider.snapshot")(function* () {
+    const cached = new Map<string, { records: Snapshot["records"]; value: Snapshot }>()
+    const snapshot = Effect.fn("Provider.snapshot")(function* (input?: ConnectionInput) {
       while (true) {
         const revision = integrations.revision()
-        const records = state.get()
         // Connection presence decides availability; resolving OAuth tokens belongs to execution.
         const connections = yield* integrations.list()
+        const signature = JSON.stringify(connections.map((integration) => [integration.id, integration.connections]))
+        byID = new Map(connections.map((integration) => [integration.id, integration]))
+        if (connectionSignature !== signature) {
+          connectionSignature = signature
+          state.invalidate()
+        }
+        const key = connectionKey(input)
+        if (input && !requested.has(key)) {
+          requested.set(key, input)
+          state.invalidate()
+        }
+        const views = state.get()
         // Either fold can disable a plugin that also contributed to the other domain.
-        if (revision !== integrations.revision() || records !== state.get()) continue
-        const byID = new Map(connections.map((integration) => [integration.id, integration]))
+        if (revision !== integrations.revision() || views !== state.get()) continue
+        const records = views.get(key)
+        if (!records) throw new Error("The provider connection view is unavailable")
+        const target = input && (records.get(input.providerID)?.provider.integrationID ?? Integration.ID.make(input.providerID))
+        const selected = new Map(connections.flatMap((integration) => {
+          const connection = input && integration.id === target
+            ? integration.connections.find((connection) => IntegrationConnection.key(connection) === IntegrationConnection.key(input.connection))
+            : integration.connections[0]
+          return connection ? [[integration.id, connection] as const] : []
+        }))
         const available = Array.from(records.values()).filter((record) => {
           if (record.provider.activation === "disabled") return false
-          const integration = byID.get(record.provider.integrationID ?? Integration.ID.make(record.provider.id))
+          const integrationID = record.provider.integrationID ?? Integration.ID.make(record.provider.id)
+          const integration = byID.get(integrationID)
+          const connection = selected.get(integrationID)
+          if (input && record.provider.id === input.providerID && (!connection || connection.status?.status === "needs_auth")) return false
           // Never combine the previous account's discovered endpoints/models with a new connection.
           if (
             record.sourceConnection &&
             IntegrationConnection.key(record.sourceConnection) !==
-              IntegrationConnection.key(integration?.connections[0])
+              IntegrationConnection.key(connection)
           )
             return false
           if (record.provider.activation === "enabled") return true
@@ -419,14 +466,15 @@ const layer = Layer.effect(
           return record.provider.integrationID === undefined && !integration
         })
         // A credential change that leaves the same definitions available is not a catalog change.
+        const previous = cached.get(key)
         if (
-          cached?.records === records &&
-          cached.value.available.length === available.length &&
-          cached.value.available.every((record, index) => record === available[index])
+          previous && previous.records === records &&
+          previous.value.available.length === available.length &&
+          previous.value.available.every((record, index) => record === available[index])
         )
-          return cached.value
-        const value = freeze({ records, available, providers: available.map((record) => record.provider) }, true)
-        cached = { records, value }
+          return previous.value
+        const value = freeze({ scope: input, connections: selected, records, available, providers: available.map((record) => record.provider) }, true)
+        cached.set(key, { records, value })
         return value
       }
     })
@@ -448,11 +496,13 @@ const layer = Layer.effect(
       Effect.forkScoped({ startImmediately: true }),
     )
     return Service.of({
-      transform: state.transform,
+      transform: (update) => state.transform((editors) => editors.forEach(update)),
       reload: state.reload,
-      get: Effect.fn("Provider.get")((id) => Effect.sync(() => freeze(state.get().get(id)?.provider, true))),
+      get: Effect.fn("Provider.get")((id, connection) => connection
+        ? snapshot({ providerID: id, connection }).pipe(Effect.map((value) => value.records.get(id)?.provider))
+        : Effect.sync(() => freeze(state.get().get("")?.get(id)?.provider, true))),
       all: Effect.fn("Provider.all")(() =>
-        Effect.sync(() => Array.from(state.get().values(), (record) => freeze(record.provider, true))),
+        Effect.sync(() => Array.from(state.get().get("")?.values() ?? [], (record) => freeze(record.provider, true))),
       ),
       available: Effect.fn("Provider.available")(() => snapshot().pipe(Effect.map((value) => value.providers))),
       snapshot,

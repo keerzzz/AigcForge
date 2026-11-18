@@ -1,95 +1,158 @@
 import { NodeFileSystem } from "@effect/platform-node"
-import { compile, emitEffectImported, emitEffectShape, emitPromise, write } from "@opencode/httpapi-codegen"
-import { ClientApi, effectOmitEndpoints, groupNames, promiseOmitEndpoints } from "@opencode/protocol/client"
-import { Agent } from "@opencode/schema/agent"
-import { Command } from "@opencode/schema/command"
-import { Config } from "@opencode/schema/config"
-import { Credential } from "@opencode/schema/credential"
-import { Event } from "@opencode/schema/event"
-import { EventLog } from "@opencode/schema/event-log"
-import { FileDiff } from "@opencode/schema/file-diff"
-import { FileSystem } from "@opencode/schema/filesystem"
-import { Form } from "@opencode/schema/form"
-import { Instruction } from "@opencode/schema/instruction"
-import { InstructionEntry } from "@opencode/schema/instruction-entry"
-import { Integration } from "@opencode/schema/integration"
-import { Location } from "@opencode/schema/location"
-import { Mcp } from "@opencode/schema/mcp"
-import { Model } from "@opencode/schema/model"
-import { Money } from "@opencode/schema/money"
-import { Permission } from "@opencode/schema/permission"
-import { PermissionSaved } from "@opencode/schema/permission-saved"
-import { Plugin } from "@opencode/schema/plugin"
-import { Project } from "@opencode/schema/project"
-import { Worktree } from "@opencode/schema/worktree"
-import { AgentAttachment, FileAttachment, Prompt, PromptMention } from "@opencode/schema/prompt"
-import { PromptInput } from "@opencode/schema/prompt-input"
-import { Provider } from "@opencode/schema/provider"
-import { Pty } from "@opencode/schema/pty"
-import { PtyTicket } from "@opencode/schema/pty-ticket"
-import { Question } from "@opencode/schema/question"
-import { Reference } from "@opencode/schema/reference"
-import { AbsolutePath, RelativePath } from "@opencode/schema/schema"
-import { Session } from "@opencode/schema/session"
-import { SessionMessage } from "@opencode/schema/session-message"
-import { SessionInbox } from "@opencode/schema/session-inbox"
-import { Shell } from "@opencode/schema/shell"
-import { Skill } from "@opencode/schema/skill"
-import { Snapshot } from "@opencode/schema/snapshot"
-import { Vcs } from "@opencode/schema/vcs"
-import { WebSearch } from "@opencode/schema/websearch"
-import { Workspace } from "@opencode/schema/workspace"
-import { SessionsCursor } from "@opencode/protocol/groups/session"
+import { compile, emitEffectImported, emitEffectShape, emitPromise, write } from "@aigcfroge/httpapi-codegen"
+import { ClientApi, effectOmitEndpoints, groupNames, promiseOmitEndpoints } from "@aigcfroge/protocol/client"
+import { Agent } from "@aigcfroge/schema/agent"
+import { Command } from "@aigcfroge/schema/command"
+import { Config } from "@aigcfroge/schema/config"
+import { Credential } from "@aigcfroge/schema/credential"
+import { Event } from "@aigcfroge/schema/event"
+import { EventLog } from "@aigcfroge/schema/event-log"
+import { FileDiff } from "@aigcfroge/schema/file-diff"
+import { FileSystem } from "@aigcfroge/schema/filesystem"
+import { Form } from "@aigcfroge/schema/form"
+import { Instruction } from "@aigcfroge/schema/instruction"
+import { InstructionEntry } from "@aigcfroge/schema/instruction-entry"
+import { McpScope } from "@aigcfroge/schema/mcp-scope"
+import { Integration } from "@aigcfroge/schema/integration"
+import { Location } from "@aigcfroge/schema/location"
+import { Mcp } from "@aigcfroge/schema/mcp"
+import { Model } from "@aigcfroge/schema/model"
+import { ModelGroup } from "@aigcfroge/schema/model-group"
+import { ModelSource } from "@aigcfroge/schema/model-source"
+import { MetaAgent } from "@aigcfroge/schema/meta-agent"
+import { Money } from "@aigcfroge/schema/money"
+import { Permission } from "@aigcfroge/schema/permission"
+import { PermissionSaved } from "@aigcfroge/schema/permission-saved"
+import { Plugin } from "@aigcfroge/schema/plugin"
+import { Project } from "@aigcfroge/schema/project"
+import { PromptAsset } from "@aigcfroge/schema/prompt-asset"
+import { SkillAsset } from "@aigcfroge/schema/skill-asset"
+import { AssetPlacement } from "@aigcfroge/schema/asset-placement"
+import { MCPAsset } from "@aigcfroge/schema/mcp-asset"
+import { CommandAsset } from "@aigcfroge/schema/command-asset"
+import { AgentAsset } from "@aigcfroge/schema/agent-asset"
+import { PluginAsset } from "@aigcfroge/schema/plugin-asset"
+import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
+import { Composition } from "@aigcfroge/schema/composition"
+import { CustomProfile } from "@aigcfroge/schema/custom-profile"
+import { PersonalMemory } from "@aigcfroge/schema/personal-memory"
+import { KBNote } from "@aigcfroge/schema/kb-note"
+import { Schedule } from "@aigcfroge/schema/schedule"
+import { ImportParser } from "@aigcfroge/schema/import-parser"
+import { SessionTask } from "@aigcfroge/schema/session-task"
+import { SessionGoal } from "@aigcfroge/schema/session-goal"
+import { SessionCommunication } from "@aigcfroge/schema/session-communication"
+import { Delegation } from "@aigcfroge/schema/delegation"
+import { DelegationID } from "@aigcfroge/schema/delegation-id"
+import { PermissionV1 } from "@aigcfroge/schema/v1/permission"
+import { ConfigV1 } from "@aigcfroge/schema/v1/config/config"
+import { SessionV1 } from "@aigcfroge/schema/v1/session"
+import { SessionIdentity } from "@aigcfroge/schema/session-identity"
+import { Worktree } from "@aigcfroge/schema/worktree"
+import { AgentAttachment, FileAttachment, Prompt, PromptMention } from "@aigcfroge/schema/prompt"
+import { PromptInput } from "@aigcfroge/schema/prompt-input"
+import { Provider } from "@aigcfroge/schema/provider"
+import { ProviderDefinition } from "@aigcfroge/schema/provider-definition"
+import { ProviderDiscovery } from "@aigcfroge/schema/provider-discovery"
+import { Pty } from "@aigcfroge/schema/pty"
+import { PtyTicket } from "@aigcfroge/schema/pty-ticket"
+import { Question } from "@aigcfroge/schema/question"
+import { Reference } from "@aigcfroge/schema/reference"
+import { AbsolutePath, RelativePath } from "@aigcfroge/schema/schema"
+import { Session } from "@aigcfroge/schema/session"
+import { SessionMessage } from "@aigcfroge/schema/session-message"
+import { SessionInbox } from "@aigcfroge/schema/session-inbox"
+import { Shell } from "@aigcfroge/schema/shell"
+import { Skill } from "@aigcfroge/schema/skill"
+import { Snapshot } from "@aigcfroge/schema/snapshot"
+import { Vcs } from "@aigcfroge/schema/vcs"
+import { WebSearch } from "@aigcfroge/schema/websearch"
+import { Workspace } from "@aigcfroge/schema/workspace"
+import { SessionsCursor } from "@aigcfroge/protocol/groups/session"
+import { AgentWithPrimaryModes } from "@aigcfroge/protocol/groups/instance-instance"
+import { SessionInstanceInfo, SessionInstanceWithParts } from "@aigcfroge/protocol/groups/session-instance"
 import { Effect, Schema } from "effect"
 import { fileURLToPath } from "url"
 
 const promiseContract = compile(ClientApi, { groupNames, omitEndpoints: promiseOmitEndpoints })
 const effectContract = compile(ClientApi, { groupNames, omitEndpoints: effectOmitEndpoints })
 const effectTypeReferences = [
-  ...namespaceTypes("Agent", "@opencode/schema/agent", Agent),
-  ...namespaceTypes("Command", "@opencode/schema/command", Command),
-  ...namespaceTypes("Config", "@opencode/schema/config", Config),
-  ...namespaceTypes("Credential", "@opencode/schema/credential", Credential),
-  ...namespaceTypes("Event", "@opencode/schema/event", Event),
-  ...namespaceTypes("EventLog", "@opencode/schema/event-log", EventLog),
-  ...namespaceTypes("FileDiff", "@opencode/schema/file-diff", FileDiff),
-  ...namespaceTypes("FileSystem", "@opencode/schema/filesystem", FileSystem),
-  ...namespaceTypes("Form", "@opencode/schema/form", Form),
-  ...namespaceTypes("Instruction", "@opencode/schema/instruction", Instruction),
-  ...namespaceTypes("InstructionEntry", "@opencode/schema/instruction-entry", InstructionEntry),
-  ...namespaceTypes("Integration", "@opencode/schema/integration", Integration),
-  typeReference("Location.PublicRef", "@opencode/schema/location", Location.PublicRef),
-  typeReference("Location.PublicInfo", "@opencode/schema/location", Location.PublicInfo),
-  ...namespaceTypes("Mcp", "@opencode/schema/mcp", Mcp),
-  ...namespaceTypes("Model", "@opencode/schema/model", Model),
-  ...namespaceTypes("Money", "@opencode/schema/money", Money),
-  ...namespaceTypes("Permission", "@opencode/schema/permission", Permission),
-  ...namespaceTypes("PermissionSaved", "@opencode/schema/permission-saved", PermissionSaved),
-  ...namespaceTypes("Plugin", "@opencode/schema/plugin", Plugin),
-  ...namespaceTypes("Project", "@opencode/schema/project", Project),
-  ...namespaceTypes("Worktree", "@opencode/schema/worktree", Worktree),
-  ...namespaceTypes("PromptInput", "@opencode/schema/prompt-input", PromptInput),
-  ...namespaceTypes("Provider", "@opencode/schema/provider", Provider),
-  ...namespaceTypes("Pty", "@opencode/schema/pty", Pty),
-  ...namespaceTypes("PtyTicket", "@opencode/schema/pty-ticket", PtyTicket),
-  ...namespaceTypes("Question", "@opencode/schema/question", Question),
-  ...namespaceTypes("Reference", "@opencode/schema/reference", Reference),
-  ...namespaceTypes("Session", "@opencode/schema/session", Session),
-  ...namespaceTypes("SessionMessage", "@opencode/schema/session-message", SessionMessage),
-  ...namespaceTypes("SessionInbox", "@opencode/schema/session-inbox", SessionInbox),
-  ...namespaceTypes("Shell", "@opencode/schema/shell", Shell),
-  ...namespaceTypes("Skill", "@opencode/schema/skill", Skill),
-  ...namespaceTypes("Snapshot", "@opencode/schema/snapshot", Snapshot),
-  ...namespaceTypes("Vcs", "@opencode/schema/vcs", Vcs),
-  ...namespaceTypes("WebSearch", "@opencode/schema/websearch", WebSearch),
-  ...namespaceTypes("Workspace", "@opencode/schema/workspace", Workspace),
-  typeReference("Prompt", "@opencode/schema/prompt", Prompt),
-  typeReference("PromptMention", "@opencode/schema/prompt", PromptMention),
-  typeReference("FileAttachment", "@opencode/schema/prompt", FileAttachment),
-  typeReference("AgentAttachment", "@opencode/schema/prompt", AgentAttachment),
-  typeReference("AbsolutePath", "@opencode/schema/schema", AbsolutePath),
-  typeReference("RelativePath", "@opencode/schema/schema", RelativePath),
-  typeReference("SessionsCursor", "@opencode/protocol/groups/session", SessionsCursor),
+  ...namespaceTypes("Agent", "@aigcfroge/schema/agent", Agent),
+  ...namespaceTypes("Command", "@aigcfroge/schema/command", Command),
+  ...namespaceTypes("Config", "@aigcfroge/schema/config", Config),
+  ...namespaceTypes("Credential", "@aigcfroge/schema/credential", Credential),
+  ...namespaceTypes("Event", "@aigcfroge/schema/event", Event),
+  ...namespaceTypes("EventLog", "@aigcfroge/schema/event-log", EventLog),
+  ...namespaceTypes("FileDiff", "@aigcfroge/schema/file-diff", FileDiff),
+  ...namespaceTypes("FileSystem", "@aigcfroge/schema/filesystem", FileSystem),
+  ...namespaceTypes("Form", "@aigcfroge/schema/form", Form),
+  ...namespaceTypes("Instruction", "@aigcfroge/schema/instruction", Instruction),
+  ...namespaceTypes("McpScope", "@aigcfroge/schema/mcp-scope", McpScope),
+  ...namespaceTypes("InstructionEntry", "@aigcfroge/schema/instruction-entry", InstructionEntry),
+  ...namespaceTypes("Integration", "@aigcfroge/schema/integration", Integration),
+  typeReference("Location.PublicRef", "@aigcfroge/schema/location", Location.PublicRef),
+  typeReference("Location.PublicInfo", "@aigcfroge/schema/location", Location.PublicInfo),
+  ...namespaceTypes("Mcp", "@aigcfroge/schema/mcp", Mcp),
+  ...namespaceTypes("Model", "@aigcfroge/schema/model", Model),
+  ...namespaceTypes("ModelGroup", "@aigcfroge/schema/model-group", ModelGroup),
+  ...namespaceTypes("ModelSource", "@aigcfroge/schema/model-source", ModelSource),
+  ...namespaceTypes("MetaAgent", "@aigcfroge/schema/meta-agent", MetaAgent),
+  ...namespaceTypes("Money", "@aigcfroge/schema/money", Money),
+  ...namespaceTypes("Permission", "@aigcfroge/schema/permission", Permission),
+  ...namespaceTypes("PermissionSaved", "@aigcfroge/schema/permission-saved", PermissionSaved),
+  ...namespaceTypes("Plugin", "@aigcfroge/schema/plugin", Plugin),
+  ...namespaceTypes("Project", "@aigcfroge/schema/project", Project),
+  ...namespaceTypes("PromptAsset", "@aigcfroge/schema/prompt-asset", PromptAsset),
+  ...namespaceTypes("SkillAsset", "@aigcfroge/schema/skill-asset", SkillAsset),
+  ...namespaceTypes("AssetPlacement", "@aigcfroge/schema/asset-placement", AssetPlacement),
+  ...namespaceTypes("MCPAsset", "@aigcfroge/schema/mcp-asset", MCPAsset),
+  ...namespaceTypes("CommandAsset", "@aigcfroge/schema/command-asset", CommandAsset),
+  ...namespaceTypes("AgentAsset", "@aigcfroge/schema/agent-asset", AgentAsset),
+  ...namespaceTypes("PluginAsset", "@aigcfroge/schema/plugin-asset", PluginAsset),
+  ...namespaceTypes("WorkflowAsset", "@aigcfroge/schema/workflow-asset", WorkflowAsset),
+  ...namespaceTypes("Composition", "@aigcfroge/schema/composition", Composition),
+  ...namespaceTypes("CustomProfile", "@aigcfroge/schema/custom-profile", CustomProfile),
+  ...namespaceTypes("PersonalMemory", "@aigcfroge/schema/personal-memory", PersonalMemory),
+  ...namespaceTypes("KBNote", "@aigcfroge/schema/kb-note", KBNote),
+  ...namespaceTypes("Schedule", "@aigcfroge/schema/schedule", Schedule),
+  ...namespaceTypes("ImportParser", "@aigcfroge/schema/import-parser", ImportParser),
+  ...namespaceTypes("SessionTask", "@aigcfroge/schema/session-task", SessionTask),
+  ...namespaceTypes("SessionGoal", "@aigcfroge/schema/session-goal", SessionGoal),
+  ...namespaceTypes("SessionCommunication", "@aigcfroge/schema/session-communication", SessionCommunication),
+  ...namespaceTypes("Delegation", "@aigcfroge/schema/delegation", Delegation),
+  ...namespaceTypes("DelegationID", "@aigcfroge/schema/delegation-id", DelegationID),
+  ...namespaceTypes("PermissionV1", "@aigcfroge/schema/v1/permission", PermissionV1),
+  ...namespaceTypes("ConfigV1", "@aigcfroge/schema/v1/config/config", ConfigV1),
+  ...namespaceTypes("SessionV1", "@aigcfroge/schema/v1/session", SessionV1),
+  ...namespaceTypes("SessionIdentity", "@aigcfroge/schema/session-identity", SessionIdentity),
+  ...namespaceTypes("Worktree", "@aigcfroge/schema/worktree", Worktree),
+  ...namespaceTypes("PromptInput", "@aigcfroge/schema/prompt-input", PromptInput),
+  ...namespaceTypes("Provider", "@aigcfroge/schema/provider", Provider),
+  ...namespaceTypes("ProviderDefinition", "@aigcfroge/schema/provider-definition", ProviderDefinition),
+  ...namespaceTypes("ProviderDiscovery", "@aigcfroge/schema/provider-discovery", ProviderDiscovery),
+  ...namespaceTypes("Pty", "@aigcfroge/schema/pty", Pty),
+  ...namespaceTypes("PtyTicket", "@aigcfroge/schema/pty-ticket", PtyTicket),
+  ...namespaceTypes("Question", "@aigcfroge/schema/question", Question),
+  ...namespaceTypes("Reference", "@aigcfroge/schema/reference", Reference),
+  ...namespaceTypes("Session", "@aigcfroge/schema/session", Session),
+  ...namespaceTypes("SessionMessage", "@aigcfroge/schema/session-message", SessionMessage),
+  ...namespaceTypes("SessionInbox", "@aigcfroge/schema/session-inbox", SessionInbox),
+  ...namespaceTypes("Shell", "@aigcfroge/schema/shell", Shell),
+  ...namespaceTypes("Skill", "@aigcfroge/schema/skill", Skill),
+  ...namespaceTypes("Snapshot", "@aigcfroge/schema/snapshot", Snapshot),
+  ...namespaceTypes("Vcs", "@aigcfroge/schema/vcs", Vcs),
+  ...namespaceTypes("WebSearch", "@aigcfroge/schema/websearch", WebSearch),
+  ...namespaceTypes("Workspace", "@aigcfroge/schema/workspace", Workspace),
+  typeReference("Prompt", "@aigcfroge/schema/prompt", Prompt),
+  typeReference("PromptMention", "@aigcfroge/schema/prompt", PromptMention),
+  typeReference("FileAttachment", "@aigcfroge/schema/prompt", FileAttachment),
+  typeReference("AgentAttachment", "@aigcfroge/schema/prompt", AgentAttachment),
+  typeReference("AbsolutePath", "@aigcfroge/schema/schema", AbsolutePath),
+  typeReference("RelativePath", "@aigcfroge/schema/schema", RelativePath),
+  typeReference("SessionsCursor", "@aigcfroge/protocol/groups/session", SessionsCursor),
+  typeReference("AgentWithPrimaryModes", "@aigcfroge/protocol/groups/instance-instance", AgentWithPrimaryModes),
+  typeReference("SessionInstanceInfo", "@aigcfroge/protocol/groups/session-instance", SessionInstanceInfo),
+  typeReference("SessionInstanceWithParts", "@aigcfroge/protocol/groups/session-instance", SessionInstanceWithParts),
 ]
 
 await Effect.runPromise(
@@ -114,8 +177,8 @@ await Effect.runPromise(
           typeReferences: effectTypeReferences,
           outputTypes: {
             "event.subscribe": {
-              name: "OpenCodeEvent",
-              import: 'import type { OpenCodeEvent } from "@opencode/protocol/groups/event"',
+              name: "AigcForgeEvent",
+              import: 'import type { AigcForgeEvent } from "@aigcfroge/protocol/groups/event"',
             },
           },
         }),

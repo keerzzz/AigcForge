@@ -1,15 +1,15 @@
 import { describe, expect } from "bun:test"
 import { Deferred, Effect, Fiber, Layer, Schedule, Stream } from "effect"
-import { Agent } from "@opencode/core/agent"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { Bus } from "@opencode/core/bus"
-import { Config } from "@opencode/core/config"
-import { ManagedPolicy } from "@opencode/core/managed-policy"
-import { Document, Event } from "@opencode/schema/config"
-import { AbsolutePath } from "@opencode/core/schema"
-import { Skill } from "@opencode/core/skill"
-import { SkillInstructions } from "@opencode/core/skill/instructions"
+import { Agent } from "@aigcfroge/core/agent"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Bus } from "@aigcfroge/core/bus"
+import { Config } from "@aigcfroge/core/config"
+import { ManagedPolicy } from "@aigcfroge/core/managed-policy"
+import { Document, Event } from "@aigcfroge/schema/config"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Skill } from "@aigcfroge/core/skill"
+import { SkillInstructions } from "@aigcfroge/core/skill/instructions"
 import { testEffect } from "./lib/effect"
 import { readInitial } from "./lib/instructions"
 import { registerIntegrationPolicy } from "./fixture/policy"
@@ -219,6 +219,32 @@ describe("Skill", () => {
       )
       const agent = yield* agents.get(Agent.ID.make("reviewer"))
       expect(Skill.available([info("deploy", "Deploy")], agent!.permissions)).toEqual([])
+    }),
+  )
+
+  it.effect("renders only the explicit frozen catalog with the existing permission and autoinvoke filters", () =>
+    Effect.gen(function* () {
+      const skills = yield* Skill.Service
+      yield* skills.transform((editor) => editor.add(info("live", "Live catalog must remain hidden")))
+      const instructions = yield* SkillInstructions.Service
+      const guidance = yield* instructions
+        .load(
+          [{ action: "skill", resource: "denied", effect: "deny" }],
+          [
+            info("frozen", "Frozen summary"),
+            info("denied", "Denied summary"),
+            { ...info("manual", "Manual only"), autoinvoke: false },
+          ],
+        )
+        .pipe(Effect.flatMap(readInitial))
+
+      expect(guidance.text).toContain("<id>frozen</id>")
+      expect(guidance.text).toContain("Frozen summary")
+      expect(guidance.text).not.toContain("live")
+      expect(guidance.text).not.toContain("denied")
+      expect(guidance.text).not.toContain("manual")
+      expect((yield* instructions.load([], []).pipe(Effect.flatMap(readInitial))).text).not.toContain("live")
+      expect((yield* instructions.load([]).pipe(Effect.flatMap(readInitial))).text).toContain("<id>live</id>")
     }),
   )
 })

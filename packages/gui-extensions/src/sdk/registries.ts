@@ -1,7 +1,16 @@
 import type { JSX } from "solid-js"
-import type { IconName } from "@opencode/ui/icons/catalog"
+import type { IconName } from "@aigcfroge/ui/icons/catalog"
+import type { SessionFork } from "@aigcfroge/schema/session-fork"
+import type { SessionReference } from "@aigcfroge/schema/session-reference"
 import { Registry } from "./core"
-import type { SessionRef, MountedSession, SessionScreen } from "./host-apis"
+import type {
+  SessionRef,
+  MountedSession,
+  SessionScreen,
+  SessionTargetRef,
+  TaskTargetRef,
+  CommunicationTargetRef,
+} from "./host-apis"
 
 /** The name of a shared icon; derived from the dependency-free UI artwork catalog, not a component's props. */
 export type { IconName }
@@ -73,7 +82,7 @@ interface MenuItemBase {
   readonly order?: number
 }
 
-/** An item of the + menu before the side panel tabs. */
+/** A module offered by the side panel's new-tab launcher. */
 export interface SessionPanelMenuItem extends MenuItemBase {
   /** The host menu: `session.panel`. */
   readonly menu: "session.panel"
@@ -119,7 +128,7 @@ export interface ServerRowMenuItem extends MenuItemBase {
 
 /**
  * An item of a host menu, by `menu`. Each menu takes only its own fields, so a field the menu ignores fails to compile.
- * - `session.panel`: the + menu before the side panel tabs; shows `icon` and `keybind`.
+ * - `session.panel`: modules in the side panel's new-tab launcher; shows `icon` and `keybind`.
  * - `server.add`: the Add server menu.
  * - `server.row`: the menu of each server row in Settings; `when` and `enabled` filter it per row, and `run` receives
  *   the row's server key.
@@ -164,8 +173,8 @@ export interface PanelTab {
    */
   readonly transient?: boolean
   /**
-   * Renders before the tabs in stored order. Opening it also stores it first and leaves the preview tab open, so
-   * closing it selects the first remaining tab.
+   * Renders before the tabs in stored order. Opening it consumes a selected transient launcher, stores it first,
+   * and keeps ordinary preview tabs, so closing it selects the first remaining tab.
    */
   readonly first?: boolean
   /** Opts into fallback selection: first eligible regular tab, then a `first` tab, then a pinned tab. Defaults to false. */
@@ -237,7 +246,10 @@ export interface Panel {
    *   empty) of the first dock panel.
    */
   readonly region: "side" | "dock"
-  /** Asks for the wider session minimum while the side region is open. Reactive. */
+  /**
+   * Asks for the wider minimum while this panel's tab is selected in the open side region. Reactive; defaults to false.
+   * Only the selected tab's provider determines this request; mounted inactive panels do not affect it.
+   */
   readonly wide?: boolean
   /** Tabs are not restored: stored keys this panel stops listing leave the strip. See also `PanelTab.transient`. */
   readonly transient?: boolean
@@ -489,6 +501,26 @@ export interface Link {
   readonly base?: string
   /** The session the link belongs to. */
   readonly session?: SessionRef
+  /**
+   * An existing session to view on `session.server`, supplied by a session card rather than parsed from `href`.
+   * File handlers do not accept this field. Omit it for ordinary paths and URLs.
+   */
+  readonly sessionID?: string
+  /**
+   * An exact saved Task or operation supplied by a Task control. Handlers inspect this typed reference rather than
+   * parsing `href`; ordinary file and Session links omit it. The source workspace is still `session`.
+   */
+  readonly task?: TaskTargetRef
+  /**
+   * An exact saved communication and participating Session supplied by a timeline or communication control.
+   * Handlers read this typed reference rather than parsing `href`; ordinary file and Session links omit it.
+   */
+  readonly communication?: CommunicationTargetRef
+  /**
+   * A typed read-only Session reference with exact server identity, Session id, title snapshot and selected scope.
+   * Handlers resolve it on that server; opening it never dispatches work or reads unselected history.
+   */
+  readonly reference?: SessionReference.RefEncoded
 }
 
 /** Opens local links that `match` accepts. `Links.open` picks the matching handler with the highest priority. */
@@ -544,6 +576,8 @@ export interface TitlebarItem {
 
 /** The places a `Slot` renders, with the input each passes to `render`. */
 export interface SlotMap {
+  /** Left project/session navigation, mounted only on session details. Contributions replace the built-in navigation. */
+  readonly "window.sidebar": Record<string, never>
   /** Full-width strip under the window content, above toasts. */
   readonly "window.bottom": Record<string, never>
   /** The timeline title row. Cached timelines stay mounted while hidden; `active` is false then. */
@@ -554,6 +588,48 @@ export interface SlotMap {
     readonly session: MountedSession
     /** The timeline is the one on screen. */
     readonly active: boolean
+  }
+  /** Lightweight actions beside a plain-text response. Hidden or incomplete groups offer no executable boundary. */
+  readonly "session.response.actions": {
+    /** The source's constant owning screen; present during the first render and while content is cached. */
+    readonly screen: SessionScreen
+    /** The latest mounted source whose screen owns layout. Read this getter; response actions use `session`. */
+    readonly source: MountedSession
+    /** The response's actual target on its live server and saved Location. It has no shell-tab requirement. */
+    readonly session: SessionTargetRef
+    /** This content view is selected and visible. False while it is hidden or cached. */
+    readonly active: boolean
+    /** The real user message that owns this response group. */
+    readonly userMessageID: string
+    /** The real assistant message containing the clicked plain-text block; it may precede the group's boundary. */
+    readonly assistantMessageID: string
+    /** The Timeline content entry for the clicked plain-text block. It does not define a persisted fork boundary. */
+    readonly contentID: string
+    /** The clicked ordinary text block; reasoning and tool output are separate content. */
+    readonly text: string
+    /** The host has observed that this response group completed. */
+    readonly completed: boolean
+    /** This is the target's latest response group. Completed earlier groups may also offer actions. */
+    readonly latest: boolean
+    /**
+     * The host's persisted boundary for a completed group, including messages after its last text block.
+     * `through` includes its message; `before` excludes it. The response host supplies `through` and omits
+     * the boundary while a group is incomplete. Capture it with the target before asynchronous action work.
+     */
+    readonly boundary?: SessionFork.Boundary
+  }
+  /** Lightweight tools in the actual target's Composer. Hidden views offer no active controls. */
+  readonly "session.composer.actions": {
+    /** The source's constant owning screen. */
+    readonly screen: SessionScreen
+    /** The mounted source whose workspace owns panel layout. */
+    readonly source: MountedSession
+    /** The actual Composer target on its live server and saved Location. */
+    readonly session: SessionTargetRef
+    /** This Composer is visible and interactive. */
+    readonly active: boolean
+    /** The Composer's unsubmitted Agent selection; it does not grant backend capabilities. */
+    readonly draftAgent?: string
   }
   /** The actions at the end of the side region's tab strip. */
   readonly "session.panel.end": {
@@ -579,10 +655,11 @@ export type Slot = {
     /** Slot contents render in ascending order. Defaults to 0. */
     readonly order?: number
     /**
-     * Renders the content once; its own reactivity updates it. Session and active fields are reactive getters, so read
-     * `input.session` where you use it: another routed session arrives through it without a remount. `screen` on a
-     * session slot is its constant owning screen, available during the first render. A render that
-     * throws renders nothing and records the error.
+     * Renders the content once; its own reactivity updates it. Input fields are reactive getters, so read
+     * `input.session` and a response's `input.source` where you use them: another target arrives without a remount.
+     * `screen` on a session slot is its constant owning screen, available during the first render. A render that
+     * throws renders nothing and records the error. Response renders read supplied facts or cached data;
+     * asynchronous requests and extraction start only after a click, with the target and boundary captured first.
      *
      * @param input - The slot's input.
      */

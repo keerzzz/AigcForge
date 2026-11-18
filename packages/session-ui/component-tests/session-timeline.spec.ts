@@ -128,3 +128,42 @@ story("keeps patch file disclosures independent", async ({ mount }) => {
   await expect(modified).toHaveAttribute("aria-expanded", "true")
   await expect(deleted).toHaveAttribute("aria-expanded", "false")
 })
+
+story(
+  "SC05 keeps response actions and copy feedback stable through token updates and hides unfinished actions",
+  async ({ mount, page }) => {
+    const root = await mount("current-session-timeline-rows--conversation", { args: { scenario: "responses" } })
+    const timeline = root.getByRole("region", { name: "Response action timeline" })
+    const action = timeline.getByRole("button", { name: "Fork response", exact: true })
+
+    await expect(timeline.getByRole("button", { name: /^Thought/ })).toHaveCount(1)
+    await expect(timeline.getByText("Tool result has no response actions.", { exact: true })).toBeVisible()
+    await expect(action).toHaveCount(1)
+    await expect(root.getByLabel("Response action mounts")).toHaveText("1")
+
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"])
+    const copy = timeline.getByRole("button", { name: "Copy response", exact: true })
+    await copy.focus()
+    await copy.click()
+    await expect(timeline.getByRole("button", { name: "Copied", exact: true })).toBeVisible()
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("The response stays stable.")
+
+    await root.getByRole("button", { name: "Append response token", exact: true }).click()
+    await expect(timeline.getByRole("button", { name: "Copied", exact: true })).toBeVisible()
+    await expect(root.getByLabel("Response action mounts")).toHaveText("1")
+    await expect(action).toHaveCount(1)
+    await action.focus()
+    await action.click()
+    await expect(root.getByLabel("Response action selection")).toHaveText(
+      "msg_response_actions_user | msg_response_actions_assistant | msg_response_actions_assistant:text:0 | through:msg_response_actions_assistant | The response stays stable. Next token.",
+    )
+
+    await root.getByRole("button", { name: "Start response", exact: true }).click()
+    await expect(action).toHaveCount(0)
+    await expect(timeline.getByRole("button", { name: /^(Copy response|Copied)$/ })).toHaveCount(0)
+
+    await root.getByRole("button", { name: "Complete response", exact: true }).click()
+    await expect(action).toHaveCount(1)
+    await expect(root.getByLabel("Response action mounts")).toHaveText("2")
+  },
+)

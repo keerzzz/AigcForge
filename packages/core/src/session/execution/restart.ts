@@ -1,7 +1,7 @@
 export * as SessionRestart from "./restart.js"
 
-import { Context, Effect, Layer } from "effect"
-import { makeGlobalNode } from "@opencode/util/effect/app-node"
+import { Cause, Context, Effect, Layer } from "effect"
+import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
 import { Bus } from "../../bus.js"
 import { Job } from "../../job.js"
 import { Session } from "../../session.js"
@@ -11,6 +11,13 @@ import { SessionSchema } from "../schema.js"
 import { SessionStore } from "../store.js"
 import { ShellResult } from "../../shell/result.js"
 import { SubagentCompletion } from "../subagent-completion.js"
+import { DelegationExecution } from "../../delegation/execution.js"
+import { ProductModePolicy } from "../../product-mode-policy.js"
+import { WorkflowExecution } from "../../workflow/execution.js"
+import { Database } from "../../database/database.js"
+import { SessionGoal } from "../goal.js"
+import { SessionInputResult } from "../input-result.js"
+import { SessionStep } from "../runner/step.js"
 
 const CONTINUE_AFTER_SERVER_RESTART =
   "The server restarted while you were working. Continue from where you left off without repeating completed work."
@@ -60,7 +67,7 @@ export interface Interface {
  * — the managed server invokes it at boot; embedders may call it from their
  * own start-up.
  */
-export class Service extends Context.Service<Service, Interface>()("@opencode/SessionRestart") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionRestart") {}
 
 export const layer = (options?: Options) =>
   Layer.effect(
@@ -71,10 +78,21 @@ export const layer = (options?: Options) =>
       const bus = yield* Bus.Service
       const jobs = yield* Job.Service
       const sessions = yield* Session.Service
+      const delegations = yield* DelegationExecution.Service
+      const workflows = yield* WorkflowExecution.Service
+      const goals = yield* SessionGoal.Service
+      const db = (yield* Database.Service).db
       const scope = yield* Effect.scope
       const maxAttempts = options?.maxAttempts ?? DEFAULT_MAX_ATTEMPTS
 
+      const isRecoveryEnabled = Effect.fnUntraced(function* (sessionID: SessionSchema.ID) {
+        const session = yield* store.get(sessionID)
+        return session?.mode !== "custom" || ProductModePolicy.isCustomModeEnabled()
+      })
+
       const prepareResume = Effect.fnUntraced(function* (sessionID: SessionSchema.ID) {
+        if (!(yield* isRecoveryEnabled(sessionID))) return false
+        yield* SessionStep.reconcile(db, bus, goals, sessionID)
         // Durable before the resume runs, so a crash inside the resumed turn is
         // counted by the next sweep and the budget cannot be dodged.
         const attempts = yield* store.countResume(sessionID)
@@ -192,23 +210,112 @@ export const layer = (options?: Options) =>
       return Service.of({
         resumeSuspendedSessions: Effect.gen(function* () {
           const active = yield* execution.active
-          const pending = yield* jobs.pendingBackground
+          yield* sessions.recoverTaskOperations
+          const workflowParents = yield* workflows.reconcilePending.pipe(
+            Effect.catchCause((cause) => {
+              if (!Cause.hasInterrupts(cause)) return Effect.failCause(cause)
+              // Recovery has no typed error channel; retain mixed interruption before handling typed failures.
+              return Effect.failCause(
+                Cause.fromReasons<never>(
+                  cause.reasons.map((reason) =>
+                    Cause.isFailReason(reason) ? Cause.makeDieReason(reason.error) : reason,
+                  ),
+                ),
+              )
+            }),
+            Effect.catch((error) =>
+              Effect.logWarning("Workflow recovery failed", { tag: error._tag }).pipe(Effect.as([])),
+            ),
+          )
+          // Session input facts close the crash window before Job.background persists its marker.
+          const delegationRecovery = yield* delegations.recoverPending
+          const deferredChildren = new Set(delegationRecovery.deferredChildren)
+          const deferredParents = new Set(delegationRecovery.deferredParents)
+          // Recover durable tool owners before generic Step cleanup can abort their pending work.
+          yield* Effect.forEach(
+            (yield* store.listSuspended()).filter((sessionID) =>
+              !active.has(sessionID) && !deferredChildren.has(sessionID) && !deferredParents.has(sessionID)),
+            (sessionID) => SessionStep.reconcile(db, bus, goals, sessionID),
+            { discard: true },
+          )
+          const goalParents = yield* goals.recover().pipe(Effect.orDie)
+          const canResume = Effect.fnUntraced(function* (sessionID: SessionSchema.ID) {
+            if (deferredChildren.has(sessionID) || deferredParents.has(sessionID)) return false
+            const state = yield* SessionInputResult.automaticState(db, sessionID)
+            if (state === "completed") {
+              yield* store.release(sessionID)
+              return false
+            }
+            if (state === "deferred") return false
+            if (delegationRecovery.scanAvailable) return true
+            const session = yield* store.get(sessionID)
+            return session !== undefined && session.parentID === undefined
+          })
+          const pending = yield* Effect.filter(yield* jobs.pendingBackground, (background) =>
+            Effect.gen(function* () {
+              const recovery = background.recovery
+              if (recovery.kind === "shell") return yield* isRecoveryEnabled(recovery.sessionID)
+              if (!(yield* isRecoveryEnabled(recovery.parentSessionID))) return false
+              return yield* isRecoveryEnabled(recovery.childSessionID)
+            }),
+          )
           const children = pending.flatMap((background) =>
-            background.status === "running" && background.recovery.kind === "subagent"
+            background.status === "running" && background.recovery.kind !== "shell"
               ? [background.recovery.childSessionID]
               : [],
           )
           // Early notices wait for recovery's accounting, including Sessions that exhaust their budget.
           const suspended = new Set(
-            [...(yield* store.listSuspended()), ...children].filter((sessionID) => !active.has(sessionID)),
+            [...(yield* store.listSuspended()), ...children, ...deferredChildren].filter(
+              (sessionID) => !active.has(sessionID),
+            ),
           )
-          yield* store.releaseChildClaims(children)
+          if (delegationRecovery.scanAvailable)
+            yield* store.releaseChildClaims(
+              [
+                ...new Set([
+                  ...children,
+                  ...deferredChildren,
+                  ...pending.flatMap((background) =>
+                    background.recovery.kind === "delegation" ? [background.recovery.childSessionID] : [],
+                  ),
+                ]),
+              ],
+              { preserveCustom: !ProductModePolicy.isCustomModeEnabled() },
+            )
           yield* Effect.forEach(
             // Admit shell outcomes before a recovered child can start its first model request.
             pending.toSorted((a, b) => Number(a.recovery.kind === "subagent") - Number(b.recovery.kind === "subagent")),
             Effect.fnUntraced(function* (background) {
               if ((yield* jobs.get(background.id))?.status === "running") return
               const recovery = background.recovery
+              if (
+                recovery.kind !== "shell" &&
+                (!delegationRecovery.scanAvailable || deferredChildren.has(recovery.childSessionID))
+              ) {
+                deferredChildren.add(recovery.childSessionID)
+                return
+              }
+              if (recovery.kind === "delegation") {
+                yield* Effect.gen(function* () {
+                  const result = yield* delegations.recover(recovery)
+                  if (result.status === "deferred") {
+                    deferredChildren.add(result.childSessionID)
+                    return
+                  }
+                  yield* jobs.completeBackground(background.notificationID)
+                }).pipe(
+                  Effect.catchCause((cause) => {
+                    if (Cause.hasInterrupts(cause)) return Effect.failCause(cause)
+                    deferredChildren.add(recovery.childSessionID)
+                    return Effect.logWarning("Delegation background recovery was deferred", {
+                      delegationID: recovery.delegationID,
+                      childSessionID: recovery.childSessionID,
+                    })
+                  }),
+                )
+                return
+              }
               yield* recovery.kind === "shell"
                 ? recoverShell(background, recovery)
                 : recoverSubagent(background, recovery, suspended)
@@ -216,10 +323,25 @@ export const layer = (options?: Options) =>
             { discard: true },
           )
 
+          // Pending Task notices may survive admission without a wake. Claimed parents keep their restart budget.
+          yield* Effect.forEach(
+            yield* Effect.filter(
+              [...new Set([...goalParents, ...delegationRecovery.parents, ...workflowParents])].filter(
+                (sessionID) => !suspended.has(sessionID),
+              ),
+              canResume,
+            ),
+            (sessionID) => execution.wake(sessionID),
+            { discard: true },
+          )
+
           // Background completion can wake a parent, so inspect local ownership only after recovery.
           const resumed = yield* execution.active
           yield* Effect.forEach(
-            (yield* store.listSuspended()).filter((sessionID) => !resumed.has(sessionID)),
+            yield* Effect.filter(
+              (yield* store.listSuspended()).filter((sessionID) => !resumed.has(sessionID)),
+              canResume,
+            ),
             (sessionID) =>
               execution
                 .resume(sessionID)
@@ -236,5 +358,15 @@ export const layer = (options?: Options) =>
 export const node = makeGlobalNode({
   service: Service,
   layer: layer(),
-  deps: [SessionStore.node, SessionExecution.node, Bus.node, Job.node, Session.node],
+  deps: [
+    SessionStore.node,
+    SessionExecution.node,
+    Bus.node,
+    Job.node,
+    Session.node,
+    DelegationExecution.node,
+    WorkflowExecution.node,
+    Database.node,
+    SessionGoal.node,
+  ],
 })

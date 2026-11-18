@@ -13,7 +13,7 @@ export function readWindowSnapshot(userData: string, names: readonly string[]): 
   if (!existsSync(file)) return { storage: {}, extensions: [] }
 
   try {
-    const legacy = readdirSync(userData).some((name) => name === "default.dat" || /^opencode\..+\.dat$/.test(name))
+    const legacy = readdirSync(userData).some((name) => name === "default.dat" || /^aigcfroge\..+\.dat$/.test(name))
     const db = new DatabaseSync(file)
 
     try {

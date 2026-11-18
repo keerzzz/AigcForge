@@ -2,6 +2,7 @@ export default {
   "command.open": "開啟瀏覽器",
   "command.reload": "重新載入瀏覽器頁面",
   "tab.title": "瀏覽器",
+  "web.desktop": "內建瀏覽器可在桌面端使用。",
   "address.label": "瀏覽器位址",
   "action.stop": "停止",
   replaced: "瀏覽器控制已移至另一個桌面視窗。",

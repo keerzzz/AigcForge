@@ -1,14 +1,14 @@
-import { Plugin } from "@opencode/plugin/effect"
-import type { IntegrationMethod } from "@opencode/plugin/effect/integration"
-import { Agent } from "@opencode/core/agent"
-import { Credential } from "@opencode/core/credential"
-import { Integration } from "@opencode/core/integration"
-import { Location } from "@opencode/core/location"
-import { Model } from "@opencode/core/model"
-import { Project } from "@opencode/core/project"
-import { Provider } from "@opencode/core/provider"
-import { AbsolutePath } from "@opencode/core/schema"
-import { WebSearch } from "@opencode/core/websearch"
+import { Plugin } from "@aigcfroge/plugin/effect"
+import type { IntegrationMethod } from "@aigcfroge/plugin/effect/integration"
+import { Agent } from "@aigcfroge/core/agent"
+import { Credential } from "@aigcfroge/core/credential"
+import { Integration } from "@aigcfroge/core/integration"
+import { Location } from "@aigcfroge/core/location"
+import { Model } from "@aigcfroge/core/model"
+import { Project } from "@aigcfroge/core/project"
+import { Provider } from "@aigcfroge/core/provider"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { WebSearch } from "@aigcfroge/core/websearch"
 import { Effect, Stream } from "effect"
 
 type Overrides = Partial<Omit<Plugin.Context, "options" | "session">> & {
@@ -48,10 +48,13 @@ export function host(overrides: Overrides = {}): Plugin.Context {
     provider: overrides.provider ?? {
       list: () => Effect.die("unused provider.list"),
       get: () => Effect.die("unused provider.get"),
+      definition: noProviders.definition,
+      discovery: noProviders.discovery,
       transform: () => Effect.die("unused provider.transform"),
       reload: () => Effect.die("unused provider.reload"),
     },
     model: overrides.model ?? {
+      group: noModelGroups,
       list: () => Effect.die("unused model.list"),
       default: () => Effect.die("unused model.default"),
       transform: () => Effect.die("unused model.transform"),
@@ -230,18 +233,24 @@ export function agentHost(agent: Agent.Interface): Plugin.Context["agent"] {
 export function providerHost(providers: Provider.Interface): Plugin.Context["provider"] {
   return {
     list: () => providers.available().pipe(Effect.map(located)),
+    definition: noProviders.definition,
+    discovery: noProviders.discovery,
     get: (input) =>
-      providers.get(Provider.ID.make(input.providerID)).pipe(
-        Effect.flatMap((provider) =>
-          provider === undefined
-            ? Effect.fail(new Error(`Provider not found: ${input.providerID}`))
-            : Effect.succeed(located(provider)),
+      providers
+        .get(Provider.ID.make(input.providerID))
+        .pipe(
+          Effect.flatMap((provider) =>
+            provider === undefined
+              ? Effect.fail(new Error(`Provider not found: ${input.providerID}`))
+              : Effect.succeed(located(provider)),
+          ),
         ),
-      ),
     reload: providers.reload,
     transform: (callback) =>
       providers.transform((editor) =>
         callback({
+          scope: editor.scope,
+          connection: (id) => editor.connection(Integration.ID.make(id)),
           list: editor.list,
           get: (id) => editor.get(Provider.ID.make(id)),
           add: editor.add,
@@ -262,18 +271,31 @@ export function providerHost(providers: Provider.Interface): Plugin.Context["pro
 export const noProviders: Plugin.Context["provider"] = {
   list: () => Effect.succeed(located([])),
   get: () => Effect.die("unused provider.get"),
+  discovery: {
+    get: () => Effect.die("unused provider.discovery.get"),
+    preview: () => Effect.die("unused provider.discovery.preview"),
+    refresh: () => Effect.die("unused provider.discovery.refresh"),
+  },
+  definition: {
+    get: () => Effect.die("unused provider.definition.get"),
+    save: () => Effect.die("unused provider.definition.save"),
+    remove: () => Effect.die("unused provider.definition.remove"),
+  },
   transform: () => Effect.die("unused provider.transform"),
   reload: () => Effect.die("unused provider.reload"),
 }
 
 export function modelHost(models: Model.Interface): Plugin.Context["model"] {
   return {
+    group: noModelGroups,
     list: () => models.available().pipe(Effect.map(located)),
     default: () => models.default().pipe(Effect.map(located)),
     reload: models.reload,
     transform: (callback) =>
       models.transform((editor) =>
         callback({
+          scope: editor.scope,
+          connection: (id) => editor.connection(Integration.ID.make(id)),
           list: (id) => editor.list(id === undefined ? undefined : Provider.ID.make(id)),
           get: (providerID, modelID) => editor.get(Provider.ID.make(providerID), Model.ID.make(modelID)),
           update: (providerID, modelID, update) =>
@@ -290,6 +312,14 @@ export function modelHost(models: Model.Interface): Plugin.Context["model"] {
         }),
       ),
   }
+}
+
+const noModelGroups = {
+  definition: {
+    get: () => Effect.die("unused model.group.definition.get"),
+    save: () => Effect.die("unused model.group.definition.save"),
+    remove: () => Effect.die("unused model.group.definition.remove"),
+  },
 }
 
 export function integrationHost(integration: Integration.Interface): Plugin.Context["integration"] {
@@ -480,6 +510,16 @@ function internalMethod(value: IntegrationMethod): Integration.Method {
 function agentInfo(value: Agent.Info) {
   return {
     ...value,
+    ordinaryModes: value.ordinaryModes && [...value.ordinaryModes],
+    card:
+      value.card &&
+      ("_tag" in value.card
+        ? { ...value.card }
+        : {
+            ...value.card,
+            capabilities: [...value.card.capabilities],
+            constraints: [...value.card.constraints],
+          }),
     model: value.model && { ...value.model },
     request: {
       settings: { ...value.request.settings },
@@ -487,6 +527,7 @@ function agentInfo(value: Agent.Info) {
       body: { ...value.request.body },
     },
     permissions: value.permissions.map((permission) => ({ ...permission })),
+    handoffs: value.handoffs.map((handoff) => ({ ...handoff })),
   }
 }
 

@@ -1,6 +1,7 @@
 import { createPromptProjectController } from "@/new-session/project/selector"
 import { useSettingsSurface } from "@/settings/surface"
 import { useTabs, type DraftTab } from "@/shell/tabs/tabs"
+import { TabStorage } from "@/shell/tabs/schema"
 import { useSettingsServers } from "@/settings/servers/inventory"
 import { useSearchParams } from "@solidjs/router"
 import { createEffect, createMemo, createResource, on, untrack } from "solid-js"
@@ -23,6 +24,8 @@ export default function NewSessionPage(props: { draftId: string }) {
     tabs.store.find((tab): tab is DraftTab => tab.type === "draft" && tab.draftID === search.draftId),
   )
 
+  const mode = createMemo(() => TabStorage.genericMode(draftTab()))
+
   const openWorkspaces = () => {
     const draft = draftTab()
 
@@ -36,13 +39,14 @@ export default function NewSessionPage(props: { draftId: string }) {
   }
 
   const workspace = createNewSessionWorkspaceController({
+    location: () => draftTab()?.location,
     selectedWorktree: () => draftTab()?.worktree,
     selectedBranch: () => draftTab()?.branch,
     setSelectedWorktree: (worktree) => {
-      if (search.draftId) tabs.updateDraft(search.draftId, { worktree })
+      if (search.draftId) tabs.updateDraft(search.draftId, { worktree, location: undefined })
     },
     setSelectedBranch: (branch) => {
-      if (search.draftId) tabs.updateDraft(search.draftId, { branch })
+      if (search.draftId) tabs.updateDraft(search.draftId, { branch, location: undefined })
     },
     onViewAll: openWorkspaces,
   })
@@ -51,6 +55,7 @@ export default function NewSessionPage(props: { draftId: string }) {
 
   const composer = createNewSessionComposerAdapter({
     draftID: props.draftId,
+    mode,
     worktree: workspace.selection.value,
     branch: workspace.bar.branch,
     submitted: workspace.selection.remember,
@@ -104,7 +109,17 @@ export default function NewSessionPage(props: { draftId: string }) {
     <div class="relative size-full overflow-hidden flex flex-col">
       {suspendUntilPromptReady()}
       <div class="flex-1 min-h-0 flex flex-col gap-2 px-[var(--shell-inline-inset,8px)] pb-[var(--shell-bottom-inset,8px)] pt-[var(--shell-top-inset,8px)]">
-        <NewSessionView composer={model} project={project} workspace={workspace} />
+        <NewSessionView
+          composer={model}
+          project={project}
+          workspace={workspace}
+          mode={{
+            current: mode,
+            select: (value) => {
+              if (search.draftId) tabs.updateDraft(search.draftId, { mode: value })
+            },
+          }}
+        />
       </div>
     </div>
   )

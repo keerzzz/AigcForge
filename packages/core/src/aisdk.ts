@@ -1,6 +1,6 @@
 export * as AISDK from "./aisdk.js"
 
-import { makeLocationNode } from "@opencode/util/effect/app-node"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
 import { APICallError } from "@ai-sdk/provider"
 import type {
   JSONSchema7,
@@ -29,9 +29,9 @@ import {
   type Media,
   type ToolDefinition,
   type UsageInput,
-} from "@opencode/ai"
-import { Auth, Endpoint, RequestExecutor, type AnyRoute, type HttpMiddleware } from "@opencode/ai/route"
-import { ProviderShared } from "@opencode/ai/protocols/shared"
+} from "@aigcfroge/ai"
+import { Auth, Endpoint, RequestExecutor, type AnyRoute, type HttpMiddleware } from "@aigcfroge/ai/route"
+import { ProviderShared } from "@aigcfroge/ai/protocols/shared"
 import { Cause, Context, Effect, Layer, Option, Schema, Scope, Stream } from "effect"
 import { makeParser } from "effect/encoding/Sse"
 import { HttpClientRequest, HttpClientResponse } from "effect/http"
@@ -45,7 +45,7 @@ type UserContent = Extract<LanguageModelV3Message, { role: "user" }>["content"]
 type AssistantContent = Extract<LanguageModelV3Message, { role: "assistant" }>["content"]
 type ToolResultContent = Extract<AssistantContent[number], { type: "tool-result" }>
 
-const decodeJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown))
+const decodeJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.MutableJson))
 
 export interface SDKEvent {
   readonly model: RuntimeInfo
@@ -152,18 +152,22 @@ function prepareOptions(model: RuntimeInfo, pkg: string) {
       ].filter((item): item is AbortSignal => item !== undefined && item !== null),
     )
 
-    if (typeof opts.body === "string" && model.body !== undefined) {
+    const middleware = httpMiddleware.getStore()
+    const body = middleware === undefined ? projected.body : middleware.body
+    if (typeof opts.body === "string" && body !== undefined) {
       const decoded = Option.getOrUndefined(decodeJson(opts.body))
       if (Schema.is(Schema.Record(Schema.String, Schema.Json))(decoded)) {
-        opts.body = JSON.stringify(Provider.mergeOverlay(decoded, model.body))
+        opts.body = JSON.stringify(Provider.mergeOverlay(decoded, body))
       }
     }
 
     const send: Fetch = typeof customFetch === "function" ? customFetch : fetch
-    const middleware = httpMiddleware.getStore()
     const res = await (
-      middleware
-        ? throughMiddleware(middleware, send, input, { ...opts, timeout: false })
+      middleware?.http
+        ? throughMiddleware({ http: middleware.http, context: middleware.context }, send, input, {
+            ...opts,
+            timeout: false,
+          })
         : send(input, { ...opts, timeout: false })
     ).finally(() => clearTimeout(headerTimer))
     if (timeouts.chunkTimeout === false) return res
@@ -175,9 +179,13 @@ function prepareOptions(model: RuntimeInfo, pkg: string) {
 
 type Fetch = (input: Parameters<typeof fetch>[0], init?: BunFetchRequestInit) => Promise<Response>
 
-// HTTP hook middleware is scoped to one model request, but the SDK's fetch is baked into the
-// cached language model, so the active middleware rides along in async context instead.
-const httpMiddleware = new AsyncLocalStorage<{ http: HttpMiddleware; context: Context.Context<never> }>()
+// The SDK's fetch belongs to a cached language model. Per-request body and HTTP hooks
+// ride along in async context, after route and model defaults have been resolved.
+const httpMiddleware = new AsyncLocalStorage<{
+  http?: HttpMiddleware
+  context: Context.Context<never>
+  body?: NonNullable<LLMRequest["http"]>["body"]
+}>()
 
 function throughMiddleware(
   store: { http: HttpMiddleware; context: Context.Context<never> },
@@ -249,7 +257,7 @@ export interface Interface {
   readonly model: (model: RuntimeInfo) => Effect.Effect<LanguageModel, InitError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/AISDK") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/AISDK") {}
 
 export const locationLayer = Layer.effect(
   Service,
@@ -409,8 +417,8 @@ function modelFromLanguage(info: RuntimeInfo, language: LanguageModelV3) {
     model: (input) =>
       LanguageModel.make({ ...input, provider: "provider" in input ? input.provider : providerID, route }),
     prepareTransport: (body) => Effect.succeed(body),
-    streamPrepared: (prepared, _request, _runtime, options) =>
-      streamLanguage(language, prepared as LanguageModelV3CallOptions, options?.http),
+    streamPrepared: (prepared, request, _runtime, options) =>
+      streamLanguage(language, prepared as LanguageModelV3CallOptions, request.http?.body, options?.http),
   }
   return LanguageModel.make({
     id: info.modelID ?? info.id,
@@ -719,7 +727,12 @@ function metadataProviderOptions(input: ProviderMetadata | undefined): SharedV3P
   return Object.fromEntries(Object.entries(input).map(([key, value]) => [key, jsonObject(value)]))
 }
 
-function streamLanguage(language: LanguageModelV3, options: LanguageModelV3CallOptions, http?: HttpMiddleware) {
+function streamLanguage(
+  language: LanguageModelV3,
+  options: LanguageModelV3CallOptions,
+  body?: NonNullable<LLMRequest["http"]>["body"],
+  http?: HttpMiddleware,
+) {
   const state: StreamState = { step: 0, toolNames: {}, open: {} }
   return Stream.concat(
     Stream.make(LLMEvent.stepStart({ index: state.step })),
@@ -727,8 +740,7 @@ function streamLanguage(language: LanguageModelV3, options: LanguageModelV3CallO
       Effect.gen(function* () {
         const context = yield* Effect.context<never>()
         return yield* Effect.tryPromise({
-          try: () =>
-            http ? httpMiddleware.run({ http, context }, () => language.doStream(options)) : language.doStream(options),
+          try: () => httpMiddleware.run({ http, context, body }, () => language.doStream(options)),
           catch: (error) => llmError(error, "request"),
         })
       }).pipe(
@@ -922,7 +934,7 @@ function jsonObject(input: Record<string, unknown>) {
 function jsonValue(input: unknown): JSONValue {
   try {
     const encoded = JSON.stringify(input)
-    return encoded === undefined ? null : (JSON.parse(encoded) as JSONValue)
+    return encoded === undefined ? null : Option.getOrElse(decodeJson(encoded), () => messageValue(input))
   } catch {
     return messageValue(input)
   }

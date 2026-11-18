@@ -1,12 +1,25 @@
-import { Session } from "@opencode/core/session"
-import type { Snapshot } from "@opencode/core/snapshot"
-import { MessageNotFoundError, SessionNotFoundError, UnknownError } from "@opencode/protocol/errors"
+import { Session } from "@aigcfroge/core/session"
+import type { SessionComposition } from "@aigcfroge/core/session/composition"
+import type { Snapshot } from "@aigcfroge/core/snapshot"
+import {
+  InvalidRequestError,
+  MessageNotFoundError,
+  SessionNotFoundError,
+  UnknownError,
+} from "@aigcfroge/protocol/errors"
 import { Effect } from "effect"
 
 export function missingSession(error: Session.NotFoundError) {
   return new SessionNotFoundError({
     sessionID: error.sessionID,
     message: `Session not found: ${error.sessionID}`,
+  })
+}
+
+export function invalidComposition(error: SessionComposition.Error | Session.CompositionConflictError) {
+  return new InvalidRequestError({
+    kind: "custom_composition",
+    message: `Custom session selection is invalid: ${"reason" in error ? error.reason : error._tag}`,
   })
 }
 

@@ -87,6 +87,24 @@ Before durable output, generic retries retain the logical step number and assist
 
 A normalized content-filter finish fails the Step. Any partial streamed content remains visible.
 
+## Input Results Stay Session-Owned
+
+`session.step.ended` optionally records `needsContinuation`, the runner's actual decision after provider and tool settlement, including the configured agent step limit. The Assistant projection preserves that fact. Historical events and messages without it remain decodable; consumers must not infer the decision from a provider finish reason.
+
+`SessionInputResult.read` resolves a specific user or synthetic input ID from the authoritative inbox and ordered Session messages in one database snapshot. It reports pending or processing until the first successful Assistant that explicitly ends continuation, or a failed/interrupted Idle marker. A shutdown does not create an Idle marker and leaves the input unresolved. Queued inputs can have distinct results within one busy period; steering inputs can share the same result. Earlier successful results survive later failures and do not depend on a bounded last-message window.
+
+Historical completed Assistants missing the decision return `unverified`, as does an otherwise successful Idle without an attributable Assistant result. This query does not create a new execution identity, result table, model loop, or Delivery projection. Delegation consumers keep full prompts and result text in Session, and use their own durable receipt events for bounded summaries.
+
+Each Workflow run admitted by a foreground Task durably owns its complete frozen SnapshotV2, published step inputs, immutable parent Task id/revision and actual Tool source, committed with its steps before workers wake. Children inherit the parent mode and consume the run's frozen Agent/executor, tool bindings and Skill bodies; permission evaluation uses that frozen Agent and the existing ProductModePolicy. Exact request retries reuse the stored run and Task binding before asset freezing or Task creation; retry lineage retains the original definition and inputs. Legacy Custom runs without stored run bindings use their matching Session snapshot. Unresolved provider work retains the existing recovery policy.
+
+## Agent Origin And Mode Selection
+
+Core Agent owns the source policy through `ordinaryModes(info)` and `assertOrdinaryMode(info, mode)`. The Location catalog remains complete. Public reads project the allowed ordinary modes alongside each definition; clients filter that catalog for their actual Session or Draft mode. `Agent.Info.mode` describes the primary/subagent role, while ProductMode describes the workspace mode.
+
+Built-in registrations explicitly carry `originKind="builtin"`. New Config, file and extension definitions carry `originKind="user"`; Config overrides retain the original registration source across removal and reconstruction. User definitions enter ordinary lists and direct selection only in Custom. A Custom Session adopts asset references into its frozen Composition before execution; saved definitions and the Session's adopted members remain separate states.
+
+Ordinary root selection, agent switching, prompt context and Task/Subagent target selection use that Core rule. A Work workflow explicitly admitted from a published definition executes its stored frozen user agents, including child inputs, subsequent Steps and owner recovery. This execution path keeps Work mode and the existing permission ceiling; it does not expose those agents in Work's ordinary catalog.
+
 ## Instructions Are Value Deltas
 
 Instruction sync persists content-addressed values and may freeze rendered chronological prose. `session.instructions.updated { delta, text? }` maps each changed source key to a SHA-256 content hash, with the literal `"removed"` for observed absence. Canonical JSON bodies live once in the machine-local `instruction_blob` store. The projected `instruction_state` row supplies current and epoch-initial values during normal boundary processing. The runner explicitly combines built-ins, ambient discovery, selected-agent skill guidance, references, MCP guidance, and API-managed instruction entries. There is no instruction registry.

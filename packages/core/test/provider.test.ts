@@ -1,29 +1,29 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { Provider } from "@opencode/core/provider"
+import { Provider } from "@aigcfroge/core/provider"
 
 describe("Provider", () => {
   test("loads bundled native provider entrypoints", async () => {
     const packages = [
-      "@opencode/ai/providers/baseten",
-      "@opencode/ai/providers/cerebras",
-      "@opencode/ai/providers/cloudflare-ai-gateway",
-      "@opencode/ai/providers/cloudflare-workers-ai",
-      "@opencode/ai/providers/cohere",
-      "@opencode/ai/providers/cohere/chat",
-      "@opencode/ai/providers/deepinfra",
-      "@opencode/ai/providers/deepseek",
-      "@opencode/ai/providers/fireworks",
-      "@opencode/ai/providers/google-vertex",
-      "@opencode/ai/providers/google-vertex/gemini",
-      "@opencode/ai/providers/google-vertex/interactions",
-      "@opencode/ai/providers/google-vertex/chat",
-      "@opencode/ai/providers/google-vertex/responses",
-      "@opencode/ai/providers/google-vertex/messages",
-      "@opencode/ai/providers/groq",
-      "@opencode/ai/providers/mistral",
-      "@opencode/ai/providers/togetherai",
-      "@opencode/ai/providers/vercel-ai-gateway",
+      "@aigcfroge/ai/providers/baseten",
+      "@aigcfroge/ai/providers/cerebras",
+      "@aigcfroge/ai/providers/cloudflare-ai-gateway",
+      "@aigcfroge/ai/providers/cloudflare-workers-ai",
+      "@aigcfroge/ai/providers/cohere",
+      "@aigcfroge/ai/providers/cohere/chat",
+      "@aigcfroge/ai/providers/deepinfra",
+      "@aigcfroge/ai/providers/deepseek",
+      "@aigcfroge/ai/providers/fireworks",
+      "@aigcfroge/ai/providers/google-vertex",
+      "@aigcfroge/ai/providers/google-vertex/gemini",
+      "@aigcfroge/ai/providers/google-vertex/interactions",
+      "@aigcfroge/ai/providers/google-vertex/chat",
+      "@aigcfroge/ai/providers/google-vertex/responses",
+      "@aigcfroge/ai/providers/google-vertex/messages",
+      "@aigcfroge/ai/providers/groq",
+      "@aigcfroge/ai/providers/mistral",
+      "@aigcfroge/ai/providers/togetherai",
+      "@aigcfroge/ai/providers/vercel-ai-gateway",
     ]
 
     for (const specifier of packages) {

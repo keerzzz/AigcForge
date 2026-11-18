@@ -1,8 +1,8 @@
 export * as OptimizePlugin from "./optimize.js"
 
-import { define } from "@opencode/plugin/effect/plugin"
-import type { SessionHooks } from "@opencode/plugin/effect/session"
-import { Model } from "@opencode/schema/model"
+import { define } from "@aigcfroge/plugin/effect/plugin"
+import type { SessionHooks } from "@aigcfroge/plugin/effect/session"
+import { Model } from "@aigcfroge/schema/model"
 import { Effect } from "effect"
 import { SessionSystemPrompt } from "../session/system-prompt.js"
 
@@ -13,14 +13,14 @@ import PROMPT_META from "./system-prompt/meta.txt"
 import PROMPT_TRINITY from "./system-prompt/trinity.txt"
 import PROMPT_ANTHROPIC from "./system-prompt/anthropic.txt"
 
-export const OpenAIPlugin = make("opencode.prompt.openai", (model) => {
+export const OpenAIPlugin = make("aigcfroge.prompt.openai", (model) => {
   const id = model.id.toLowerCase()
   if (!id.includes("gpt")) return undefined
   return id.includes("astra") ? PROMPT_ASTRA : PROMPT_GPT
 })
 
 export const AnthropicPlugin = make(
-  "opencode.prompt.anthropic",
+  "aigcfroge.prompt.anthropic",
   (model) => {
     const id = model.id.toLowerCase()
     if (!id.includes("claude")) return undefined
@@ -32,7 +32,7 @@ export const AnthropicPlugin = make(
 // Both OpenAIToolsPlugin and AnthropicToolsPlugin are disabled intentionally until we can figure out a good ux for displaying
 // heavy grep/glob usage done via shell or other mechanisms
 
-export const OpenAIToolsPlugin = make("opencode.optimize.openai.tools", (model, tools) => {
+export const OpenAIToolsPlugin = make("aigcfroge.optimize.openai.tools", (model, tools) => {
   const ids = [model.id, model.modelID, model.family].join(" ").toLowerCase()
   if (!ids.includes("gpt")) return undefined
   delete tools.grep
@@ -40,7 +40,7 @@ export const OpenAIToolsPlugin = make("opencode.optimize.openai.tools", (model, 
   return undefined
 })
 
-export const AnthropicToolsPlugin = make("opencode.optimize.anthropic.tools", (model, tools) => {
+export const AnthropicToolsPlugin = make("aigcfroge.optimize.anthropic.tools", (model, tools) => {
   const ids = [model.id, model.modelID, model.family].join(" ").toLowerCase()
   if (!ids.includes("claude")) return undefined
   delete tools.grep
@@ -48,13 +48,13 @@ export const AnthropicToolsPlugin = make("opencode.optimize.anthropic.tools", (m
   return undefined
 })
 
-export const KimiPlugin = make("opencode.prompt.kimi", (model) =>
+export const KimiPlugin = make("aigcfroge.prompt.kimi", (model) =>
   model.id.toLowerCase().includes("kimi") ? PROMPT_KIMI : undefined,
 )
-export const ArceePlugin = make("opencode.prompt.arcee", (model) =>
+export const ArceePlugin = make("aigcfroge.prompt.arcee", (model) =>
   model.id.toLowerCase().includes("trinity") ? PROMPT_TRINITY : undefined,
 )
-export const MetaPlugin = make("opencode.prompt.meta", (model) => {
+export const MetaPlugin = make("aigcfroge.prompt.meta", (model) => {
   if (!model.id.toLowerCase().includes("muse")) return undefined
   return PROMPT_META.replaceAll("{{MODEL_NAME}}", model.name)
 })
@@ -78,7 +78,7 @@ function make(
           // Curate tools before rendering their guidance, including for agents with a custom system prompt.
           const template = optimize(model, event.tools)
           if (!template) return
-          if ((yield* ctx.agent.get({ agentID: event.agent })).data.system) return
+          if ((yield* ctx.agent.get({ sessionID: event.sessionID, agentID: event.agent })).data.system) return
           const system = event.system[0]
           if (!system) return
           const rendered = SessionSystemPrompt.render(template, Object.keys(event.tools))

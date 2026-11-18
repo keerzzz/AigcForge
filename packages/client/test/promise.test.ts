@@ -1,15 +1,21 @@
 import { expect, test } from "bun:test"
-import { isSessionNotFoundError, isUnauthorizedError, OpenCode } from "../src/promise/index"
+import { Schema } from "effect"
+import { Composition } from "@aigcfroge/schema/composition"
+import { isSessionNotFoundError, isUnauthorizedError, AigcForge } from "../src/promise/index"
 
 test("exposes every standard HTTP API group", () => {
-  const client = OpenCode.make({ baseUrl: "http://localhost:3000" })
+  const client = AigcForge.make({ baseUrl: "http://localhost:3000" })
 
   expect(Object.keys(client)).toEqual([
     "server",
     "location",
     "agent",
+    "server.pathIdentity",
+    "server.grant",
     "plugin",
     "session",
+    "sessionGoal",
+    "sessionCommunication",
     "message",
     "model",
     "generate",
@@ -35,23 +41,54 @@ test("exposes every standard HTTP API group", () => {
     "migration",
     "websearch",
     "config",
+    "prompt-asset",
+    "skill-asset",
+    "mcp-asset",
+    "command-asset",
+    "agent-asset",
+    "plugin-asset",
+    "workflow-asset",
+    "custom-profile",
+    "custom-composition",
+    "memory",
+    "kb",
+    "schedule",
+    "import-parser",
+    "agent-task",
+    "work-artifact",
+    "controlPlane",
+    "control",
+    "sync",
+    "question",
+    "delegation",
+    "projectCopyName",
+    "file-instance",
+    "pty-instance",
+    "project-instance",
+    "permission-instance",
+    "mcp-instance",
+    "config-instance",
+    "workspace-instance",
+    "provider-instance",
+    "instance-instance",
+    "session-instance",
   ])
   expect(Object.keys(client.debug)).toEqual(["location"])
   expect(Object.keys(client.debug.location)).toEqual(["list", "evict"])
   expect(Object.keys(client.message)).toEqual(["list"])
   expect(Object.keys(client.integration)).toEqual(["list", "get", "wellknown", "connect", "oauth", "command"])
   expect(Object.keys(client.integration.wellknown)).toEqual(["add"])
-  expect(Object.keys(client.integration.connect)).toEqual(["key"])
+  expect(Object.keys(client.integration.connect)).toEqual(["key", "external"])
   expect(Object.keys(client.integration.oauth)).toEqual(["connect", "status", "complete", "cancel"])
   expect(Object.keys(client.integration.command)).toEqual(["connect", "status", "cancel"])
   expect(Object.keys(client.websearch)).toEqual(["providers", "query"])
-  expect(Object.keys(client.file)).toEqual(["read", "list", "find"])
-  expect(Object.keys(client.vcs)).toEqual(["get", "base", "status", "branches", "diff"])
+  expect(Object.keys(client.file)).toEqual(["read", "list", "find", "write"])
+  expect(Object.keys(client.vcs)).toEqual(["init", "get", "base", "status", "branch", "diff"])
   expect(Object.keys(client.pty)).toEqual(["list", "create", "get", "update", "remove", "connect"])
   expect(Object.keys(client.pty.connect)).toEqual(["token"])
   expect(Object.keys(client.experimental)).toEqual(["persistentPty"])
   expect(client.experimental.persistentPty.read).toBeFunction()
-  expect(Object.keys(client.shell)).toEqual(["list", "create", "get", "timeout", "output", "remove"])
+  expect(Object.keys(client.shell)).toEqual(["list", "create", "get", "output", "remove"])
   expect(Object.keys(client.project)).toEqual(["list", "update"])
   expect(Object.keys(client.worktree)).toEqual(["list", "create", "remove", "refresh"])
 })
@@ -61,7 +98,7 @@ test("config.get returns ordered config entries for a location", async () => {
   const entries = [
     {
       type: "document" as const,
-      path: "/tmp/project/opencode.json",
+      path: "/tmp/project/aigcfroge.json",
       info: {
         permissions: [
           { action: "shell", resource: "*", effect: "ask" as const },
@@ -70,7 +107,7 @@ test("config.get returns ordered config entries for a location", async () => {
       },
     },
   ]
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async (input) => {
       request = input instanceof Request ? input : new Request(input)
@@ -83,9 +120,581 @@ test("config.get returns ordered config entries for a location", async () => {
   expect(request?.url).toBe("http://localhost:3000/api/config?location%5Bdirectory%5D=%2Ftmp%2Fproject")
 })
 
+test("Custom composition transports AssetRoot and Ref targets and omits absent sources", async () => {
+  const route = { directory: "/repo/packages/app", workspace: "wrk_custom" }
+  const targets = {
+    prompt: { scope: "project" as const, root: "/repo/.aigcfroge/prompts" },
+    skill: { scope: "global" as const, root: "/profile/aigcfroge/skills" },
+    command: { scope: "location" as const, root: "/repo/packages/app/.aigcfroge/commands" },
+  }
+  const input = Schema.decodeUnknownSync(Composition.TemporaryInput)({
+    source: "temporary",
+    root: {
+      source: "asset",
+      id: "release-root",
+      kind: "agent",
+      relativePath: "release-root.md",
+      revision: "a".repeat(64),
+    },
+    agents: [{ kind: "agent", relativePath: "reviewer.md", revision: "b".repeat(64) }],
+    bindings: {
+      orchestrator: {
+        prompts: [{ kind: "prompt", relativePath: "policy.md", revision: "c".repeat(64), target: targets.prompt }],
+        skills: [{ kind: "skill", relativePath: "review.md", revision: "d".repeat(64), target: targets.skill }],
+        commands: [{ kind: "command", relativePath: "check.md", revision: "e".repeat(64), target: targets.command }],
+      },
+    },
+    presentation: "native",
+    requestedCapabilities: [],
+  })
+  const payload = Schema.encodeSync(Composition.TemporaryInput)(input)
+  const plan = Schema.decodeUnknownSync(Composition.Plan)({
+    version: 2,
+    digest: "f".repeat(64),
+    valid: true,
+    input: payload,
+    agents: [
+      {
+        id: "reviewer",
+        name: "Reviewer",
+        description: "Review the release",
+        relativePath: "reviewer.md",
+        revision: "b".repeat(64),
+        consumerKey: "agents/reviewer",
+      },
+    ],
+    commands: [
+      {
+        name: "check",
+        description: "Check the release",
+        relativePath: "check.md",
+        revision: "e".repeat(64),
+        target: targets.command,
+        invocation: "/check",
+        source: "Check $ARGUMENTS.\r\n",
+      },
+    ],
+    skills: [
+      {
+        name: "review",
+        description: "Review checklist",
+        relativePath: "review.md",
+        revision: "d".repeat(64),
+        target: targets.skill,
+      },
+    ],
+    instructions: [{ source: "prompt:policy", content: "Keep {{POLICY}} and 中文.\r\n" }],
+    capabilities: [],
+    diagnostics: [],
+  })
+  const legacyInput = new Composition.TemporaryInput({
+    ...input,
+    root: undefined,
+    bindings: {
+      orchestrator: new Composition.Binding({
+        prompts: input.bindings.orchestrator.prompts.map(
+          (ref) => new Composition.PromptRef({ ...ref, target: undefined }),
+        ),
+        skills: input.bindings.orchestrator.skills.map(
+          (ref) => new Composition.SkillRef({ ...ref, target: undefined }),
+        ),
+        commands: input.bindings.orchestrator.commands.map(
+          (ref) => new Composition.CommandRef({ ...ref, target: undefined }),
+        ),
+      }),
+    },
+  })
+  const legacyPayload = Schema.encodeSync(Composition.TemporaryInput)(legacyInput)
+  const legacyPlan = new Composition.Plan({
+    ...plan,
+    input: legacyInput,
+    commands: plan.commands.map((command) => new Composition.CommandInfo({ ...command, target: undefined })),
+    skills: plan.skills.map((skill) => new Composition.SkillInfo({ ...skill, target: undefined })),
+  })
+  const codec = Schema.toCodecJson(Composition.Plan)
+  const encodedPlan = Schema.encodeSync(codec)(plan)
+  const encodedLegacyPlan = Schema.encodeSync(codec)(legacyPlan)
+  const references = { profiles: [], snapshots: [], snapshotsComplete: true }
+  const responses = [
+    Response.json(encodedPlan),
+    Response.json(references),
+    Response.json(encodedLegacyPlan),
+    Response.json(references),
+  ]
+  const requests: Array<{ method: string; url: string; query: Record<string, string>; body?: unknown }> = []
+  const client = AigcForge.make({
+    baseUrl: "http://localhost:3000",
+    fetch: async (input, init) => {
+      const request = new Request(input, init)
+      const url = new URL(request.url)
+      requests.push({
+        method: request.method,
+        url: url.origin + url.pathname,
+        query: Object.fromEntries(url.searchParams),
+        body: request.method === "GET" ? undefined : await request.json(),
+      })
+      const response = responses.shift()
+      if (!response) throw new Error("Unexpected Custom composition request")
+      return response
+    },
+  })
+
+  expect(await client["custom-composition"].plan({ ...route, payload })).toEqual(encodedPlan)
+  expect(
+    await client["custom-composition"].references({
+      ...route,
+      kind: "skill",
+      path: "review.md",
+      scope: targets.skill.scope,
+      targetRoot: targets.skill.root,
+    }),
+  ).toEqual(references)
+  expect(await client["custom-composition"].plan({ ...route, payload: legacyPayload })).toEqual(encodedLegacyPlan)
+  expect(
+    await client["custom-composition"].references({
+      ...route,
+      kind: "skill",
+      path: "review.md",
+      scope: undefined,
+      targetRoot: undefined,
+    }),
+  ).toEqual(references)
+  expect(responses).toHaveLength(0)
+  expect(requests).toEqual([
+    { method: "POST", url: "http://localhost:3000/custom-composition/plan", query: route, body: payload },
+    {
+      method: "GET",
+      url: "http://localhost:3000/custom-composition/references",
+      query: { ...route, kind: "skill", path: "review.md", scope: targets.skill.scope, targetRoot: targets.skill.root },
+      body: undefined,
+    },
+    { method: "POST", url: "http://localhost:3000/custom-composition/plan", query: route, body: legacyPayload },
+    {
+      method: "GET",
+      url: "http://localhost:3000/custom-composition/references",
+      query: { ...route, kind: "skill", path: "review.md" },
+      body: undefined,
+    },
+  ])
+  expect(requests[2].body).not.toHaveProperty("root")
+  expect(requests[2].body).not.toHaveProperty("bindings.orchestrator.prompts.0.target")
+  expect(requests[2].body).not.toHaveProperty("bindings.orchestrator.skills.0.target")
+  expect(requests[2].body).not.toHaveProperty("bindings.orchestrator.commands.0.target")
+})
+
+test("Command asset methods transport selected owners without replacing Session routing", async () => {
+  const requests: Array<{ method: string; url: string; query: Record<string, string>; body?: unknown }> = []
+  const route = { directory: "/repo/packages/app", workspace: "wrk_command" }
+  const target = { scope: "global" as const, root: "/profile/aigcfroge/commands" }
+  const candidate = {
+    name: "review-command",
+    description: "Review the selected owner.",
+    invocation: "/review-command",
+    args: "",
+    source: "Review $ARGUMENTS.\r\nKeep this exact source.\r\n",
+    relativePath: "review-command.md",
+  }
+  const summary = {
+    kind: "command" as const,
+    name: candidate.name,
+    description: candidate.description,
+    relativePath: candidate.relativePath,
+    revision: "b".repeat(64),
+  }
+  const info = { ...summary, ...candidate, target }
+  const inspection = {
+    relativePath: candidate.relativePath,
+    exists: true,
+    revision: summary.revision,
+    nameConflict: false,
+    pathConflict: false,
+    target,
+  }
+  const responses = [
+    Response.json(inspection),
+    Response.json({ assets: [summary], invalid: [], target }),
+    Response.json(info),
+    Response.json(info),
+    new Response(null, { status: 200 }),
+  ]
+  const client = AigcForge.make({
+    baseUrl: "http://localhost:3000",
+    fetch: async (input, init) => {
+      const request = new Request(input, init)
+      const url = new URL(request.url)
+      requests.push({
+        method: request.method,
+        url: url.origin + url.pathname,
+        query: Object.fromEntries(url.searchParams),
+        body: request.method === "GET" ? undefined : await request.json(),
+      })
+      const response = responses.shift()
+      if (!response) throw new Error("Unexpected Command asset request")
+      return response
+    },
+  })
+
+  const inspected = await client["command-asset"].inspect({
+    ...route,
+    sessionID: "ses_command",
+    candidate,
+    scope: target.scope,
+  })
+  const listed = await client["command-asset"].list({ ...route, scope: target.scope, search: "REVIEW" })
+  const content = await client["command-asset"].content({ ...route, scope: target.scope, path: candidate.relativePath })
+  const applied = await client["command-asset"].apply({
+    ...route,
+    sessionID: "ses_command",
+    candidate,
+    target: inspected.target,
+    baseRevision: inspected.revision ?? undefined,
+    overwrite: true,
+  })
+  const deleted = await client["command-asset"].delete({
+    ...route,
+    sessionID: "ses_command",
+    relativePath: candidate.relativePath,
+    target,
+    baseRevision: summary.revision,
+  })
+
+  expect(inspected).toEqual(inspection)
+  expect(listed).toEqual({ assets: [summary], invalid: [], target })
+  expect(content).toEqual(info)
+  expect(applied).toEqual(info)
+  expect(deleted).toBeUndefined()
+  expect(responses).toHaveLength(0)
+  expect(requests).toEqual([
+    {
+      method: "POST",
+      url: "http://localhost:3000/session/ses_command/command-asset/inspect",
+      query: route,
+      body: { candidate, scope: target.scope },
+    },
+    {
+      method: "GET",
+      url: "http://localhost:3000/command-asset",
+      query: { ...route, scope: target.scope, search: "REVIEW" },
+      body: undefined,
+    },
+    {
+      method: "GET",
+      url: "http://localhost:3000/command-asset/content",
+      query: { ...route, scope: target.scope, path: candidate.relativePath },
+      body: undefined,
+    },
+    {
+      method: "POST",
+      url: "http://localhost:3000/session/ses_command/command-asset/apply",
+      query: route,
+      body: { candidate, target, baseRevision: summary.revision, overwrite: true },
+    },
+    {
+      method: "POST",
+      url: "http://localhost:3000/session/ses_command/command-asset/delete",
+      query: route,
+      body: { relativePath: candidate.relativePath, target, baseRevision: summary.revision },
+    },
+  ])
+})
+
+test("Command asset legacy calls keep scope, target, revision and args omitted on the wire", async () => {
+  const requests: Array<{ method: string; url: string; query: Record<string, string>; body?: unknown }> = []
+  const route = { directory: "/repo/packages/app", workspace: "wrk_command" }
+  const candidate = {
+    name: "review-command",
+    description: "Review the original Location.",
+    invocation: "/review-command",
+    source: "Review $ARGUMENTS.\n",
+    relativePath: "review-command.md",
+  }
+  const summary = {
+    kind: "command" as const,
+    name: candidate.name,
+    description: candidate.description,
+    relativePath: candidate.relativePath,
+    revision: "b".repeat(64),
+  }
+  const info = { ...summary, ...candidate }
+  const responses = [
+    Response.json({ assets: [summary], invalid: [] }),
+    Response.json(info),
+    Response.json(info),
+    new Response(null, { status: 200 }),
+  ]
+  const client = AigcForge.make({
+    baseUrl: "http://localhost:3000",
+    fetch: async (input, init) => {
+      const request = new Request(input, init)
+      const url = new URL(request.url)
+      requests.push({
+        method: request.method,
+        url: url.origin + url.pathname,
+        query: Object.fromEntries(url.searchParams),
+        body: request.method === "GET" ? undefined : await request.json(),
+      })
+      const response = responses.shift()
+      if (!response) throw new Error("Unexpected legacy Command asset request")
+      return response
+    },
+  })
+
+  const listed = await client["command-asset"].list(route)
+  const content = await client["command-asset"].content({ ...route, path: candidate.relativePath })
+  const applied = await client["command-asset"].apply({
+    ...route,
+    sessionID: "ses_command",
+    candidate,
+    overwrite: false,
+    target: undefined,
+    baseRevision: undefined,
+  })
+  const deleted = await client["command-asset"].delete({
+    ...route,
+    sessionID: "ses_command",
+    relativePath: candidate.relativePath,
+    target: undefined,
+    baseRevision: undefined,
+  })
+
+  expect(listed).toEqual({ assets: [summary], invalid: [] })
+  expect(listed).not.toHaveProperty("target")
+  expect(content).toEqual(info)
+  expect(content).not.toHaveProperty("target")
+  expect(applied).toEqual(info)
+  expect(applied).not.toHaveProperty("target")
+  expect(applied).not.toHaveProperty("args")
+  expect(deleted).toBeUndefined()
+  expect(responses).toHaveLength(0)
+  expect(requests).toEqual([
+    { method: "GET", url: "http://localhost:3000/command-asset", query: route, body: undefined },
+    {
+      method: "GET",
+      url: "http://localhost:3000/command-asset/content",
+      query: { ...route, path: candidate.relativePath },
+      body: undefined,
+    },
+    {
+      method: "POST",
+      url: "http://localhost:3000/session/ses_command/command-asset/apply",
+      query: route,
+      body: { candidate, overwrite: false },
+    },
+    {
+      method: "POST",
+      url: "http://localhost:3000/session/ses_command/command-asset/delete",
+      query: route,
+      body: { relativePath: candidate.relativePath },
+    },
+  ])
+})
+
+test("Prompt asset methods transport selected owners without replacing Session routing", async () => {
+  const requests: Array<{ method: string; url: string; query: Record<string, string>; body?: unknown }> = []
+  const route = { directory: "/repo/packages/app", workspace: "wrk_prompt" }
+  const target = { scope: "global" as const, root: "/profile/aigcfroge/prompts" }
+  const candidate = {
+    name: "review-prompt",
+    description: "Review the selected owner.",
+    template: "\uFEFF \tReview {{CODE}}, $ARGUMENTS, $HOME and 中文.\r\n\r\nKeep trailing space. \t\r\n",
+    relativePath: "review-prompt.md",
+  }
+  const summary = {
+    kind: "prompt" as const,
+    name: candidate.name,
+    description: candidate.description,
+    relativePath: candidate.relativePath,
+    revision: "b".repeat(64),
+  }
+  const info = { ...summary, ...candidate, target }
+  const inspection = {
+    relativePath: candidate.relativePath,
+    exists: true,
+    revision: summary.revision,
+    nameConflict: false,
+    pathConflict: false,
+    target,
+  }
+  const responses = [
+    Response.json(inspection),
+    Response.json({ assets: [summary], invalid: [], target }),
+    Response.json(info),
+    Response.json(info),
+    new Response(null, { status: 200 }),
+  ]
+  const client = AigcForge.make({
+    baseUrl: "http://localhost:3000",
+    fetch: async (input, init) => {
+      const request = new Request(input, init)
+      const url = new URL(request.url)
+      requests.push({
+        method: request.method,
+        url: url.origin + url.pathname,
+        query: Object.fromEntries(url.searchParams),
+        body: request.method === "GET" ? undefined : await request.json(),
+      })
+      const response = responses.shift()
+      if (!response) throw new Error("Unexpected Prompt asset request")
+      return response
+    },
+  })
+
+  const inspected = await client["prompt-asset"].inspect({
+    ...route,
+    sessionID: "ses_prompt",
+    candidate,
+    scope: target.scope,
+  })
+  const listed = await client["prompt-asset"].list({ ...route, scope: target.scope, search: "REVIEW" })
+  const content = await client["prompt-asset"].content({ ...route, scope: target.scope, path: candidate.relativePath })
+  const applied = await client["prompt-asset"].apply({
+    ...route,
+    sessionID: "ses_prompt",
+    candidate,
+    target: inspected.target,
+    baseRevision: inspected.revision ?? undefined,
+    overwrite: true,
+  })
+  const deleted = await client["prompt-asset"].delete({
+    ...route,
+    sessionID: "ses_prompt",
+    relativePath: candidate.relativePath,
+    target,
+    baseRevision: summary.revision,
+  })
+
+  expect(inspected).toEqual(inspection)
+  expect(listed).toEqual({ assets: [summary], invalid: [], target })
+  expect(content).toEqual(info)
+  expect(applied).toEqual(info)
+  expect(deleted).toBeUndefined()
+  expect(responses).toHaveLength(0)
+  expect(requests).toEqual([
+    {
+      method: "POST",
+      url: "http://localhost:3000/session/ses_prompt/prompt-asset/inspect",
+      query: route,
+      body: { candidate, scope: target.scope },
+    },
+    {
+      method: "GET",
+      url: "http://localhost:3000/prompt-asset",
+      query: { ...route, scope: target.scope, search: "REVIEW" },
+      body: undefined,
+    },
+    {
+      method: "GET",
+      url: "http://localhost:3000/prompt-asset/content",
+      query: { ...route, scope: target.scope, path: candidate.relativePath },
+      body: undefined,
+    },
+    {
+      method: "POST",
+      url: "http://localhost:3000/session/ses_prompt/prompt-asset/apply",
+      query: route,
+      body: { candidate, target, baseRevision: summary.revision, overwrite: true },
+    },
+    {
+      method: "POST",
+      url: "http://localhost:3000/session/ses_prompt/prompt-asset/delete",
+      query: route,
+      body: { relativePath: candidate.relativePath, target, baseRevision: summary.revision },
+    },
+  ])
+})
+
+test("Prompt asset legacy calls keep scope, target and revision omitted on the wire", async () => {
+  const requests: Array<{ method: string; url: string; query: Record<string, string>; body?: unknown }> = []
+  const route = { directory: "/repo/packages/app", workspace: "wrk_prompt" }
+  const candidate = {
+    name: "review-prompt",
+    description: "Review the original Location.",
+    template: "\uFEFF \tReview {{CODE}}, $ARGUMENTS, $HOME and 中文.\r\n\r\nKeep trailing space. \t\r\n",
+    relativePath: "review-prompt.md",
+  }
+  const summary = {
+    kind: "prompt" as const,
+    name: candidate.name,
+    description: candidate.description,
+    relativePath: candidate.relativePath,
+    revision: "b".repeat(64),
+  }
+  const info = { ...summary, ...candidate }
+  const responses = [
+    Response.json({ assets: [summary], invalid: [] }),
+    Response.json(info),
+    Response.json(info),
+    new Response(null, { status: 200 }),
+  ]
+  const client = AigcForge.make({
+    baseUrl: "http://localhost:3000",
+    fetch: async (input, init) => {
+      const request = new Request(input, init)
+      const url = new URL(request.url)
+      requests.push({
+        method: request.method,
+        url: url.origin + url.pathname,
+        query: Object.fromEntries(url.searchParams),
+        body: request.method === "GET" ? undefined : await request.json(),
+      })
+      const response = responses.shift()
+      if (!response) throw new Error("Unexpected legacy Prompt asset request")
+      return response
+    },
+  })
+
+  const listed = await client["prompt-asset"].list(route)
+  const content = await client["prompt-asset"].content({ ...route, path: candidate.relativePath })
+  const applied = await client["prompt-asset"].apply({
+    ...route,
+    sessionID: "ses_prompt",
+    candidate,
+    overwrite: false,
+    target: undefined,
+    baseRevision: undefined,
+  })
+  const deleted = await client["prompt-asset"].delete({
+    ...route,
+    sessionID: "ses_prompt",
+    relativePath: candidate.relativePath,
+    target: undefined,
+    baseRevision: undefined,
+  })
+
+  expect(listed).toEqual({ assets: [summary], invalid: [] })
+  expect(listed).not.toHaveProperty("target")
+  expect(content).toEqual(info)
+  expect(content).not.toHaveProperty("target")
+  expect(applied).toEqual(info)
+  expect(applied).not.toHaveProperty("target")
+  expect(deleted).toBeUndefined()
+  expect(responses).toHaveLength(0)
+  expect(requests).toEqual([
+    { method: "GET", url: "http://localhost:3000/prompt-asset", query: route, body: undefined },
+    {
+      method: "GET",
+      url: "http://localhost:3000/prompt-asset/content",
+      query: { ...route, path: candidate.relativePath },
+      body: undefined,
+    },
+    {
+      method: "POST",
+      url: "http://localhost:3000/session/ses_prompt/prompt-asset/apply",
+      query: route,
+      body: { candidate, overwrite: false },
+    },
+    {
+      method: "POST",
+      url: "http://localhost:3000/session/ses_prompt/prompt-asset/delete",
+      query: route,
+      body: { relativePath: candidate.relativePath },
+    },
+  ])
+})
+
 test("requests keep a path prefix on baseUrl", async () => {
   let request: Request | undefined
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:8888/ws/abc",
     fetch: async (input) => {
       request = input instanceof Request ? input : new Request(input)
@@ -99,7 +708,7 @@ test("requests keep a path prefix on baseUrl", async () => {
 
 test("requests join against the base URL pathname", async () => {
   let request: Request | undefined
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:8888/ws/abc?tenant=one#fragment",
     fetch: async (input) => {
       request = input instanceof Request ? input : new Request(input)
@@ -115,7 +724,7 @@ test("vcs.base and committed diffs preserve location and explicit base on the wi
   const requests: Request[] = []
   const location = { directory: "/repo", project: { id: "global", directory: "/repo", canonical: "/repo" } }
   const base = { name: "release", ref: "refs/remotes/origin/release", source: "reflog" }
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
@@ -136,7 +745,7 @@ test("vcs.base and committed diffs preserve location and explicit base on the wi
 })
 
 test("vcs.diff exposes unavailable comparisons as errors, not empty diffs", async () => {
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async () =>
       Response.json(
@@ -152,7 +761,7 @@ test("vcs.diff exposes unavailable comparisons as errors, not empty diffs", asyn
 })
 
 test("declared errors are thrown as Error instances that keep the body", async () => {
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async () =>
       Response.json(
@@ -179,7 +788,7 @@ test("worktree errors retain the existing envelope with or without a tag", async
     { name: "WorktreeError", data: { message: "Worktree directory unavailable" } },
     { _tag: "WorktreeError", name: "WorktreeError", data: { message: "Worktree directory unavailable" } },
   ]) {
-    const client = OpenCode.make({
+    const client = AigcForge.make({
       baseUrl: "http://localhost:3000",
       fetch: async () => Response.json(body, { status: 400 }),
     })
@@ -197,7 +806,7 @@ test("worktree errors retain the existing envelope with or without a tag", async
 
 test("client errors keep the reason and describe the failure in the message", async () => {
   const failure = (fetch: () => Promise<Response>) =>
-    OpenCode.make({ baseUrl: "http://localhost:3000", fetch })
+    AigcForge.make({ baseUrl: "http://localhost:3000", fetch })
       .session.list()
       .catch((cause: unknown) => cause)
   expect(await failure(() => Promise.reject(new TypeError("Unable to connect")))).toMatchObject({
@@ -225,7 +834,7 @@ test("project.update uses the global project contract", async () => {
     time: { created: 1, updated: 2 },
     sandboxes: [],
   }
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async (input, init) => {
       request = input instanceof Request ? input : new Request(input, init)
@@ -241,7 +850,7 @@ test("project.update uses the global project contract", async () => {
 
 test("generate.text uses the locationless public contract", async () => {
   let request: Request | undefined
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async (input, init) => {
       request = input instanceof Request ? input : new Request(input, init)
@@ -256,7 +865,7 @@ test("generate.text uses the locationless public contract", async () => {
 
 test("websearch.query uses the public HTTP contract", async () => {
   let request: Request | undefined
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async (input, init) => {
       request = input instanceof Request ? input : new Request(input, init)
@@ -271,7 +880,7 @@ test("websearch.query uses the public HTTP contract", async () => {
   })
 
   const result = await client.websearch.query({
-    query: "opencode",
+    query: "aigcfroge",
     providerID: "exa",
     location: { directory: "/tmp/project" },
   })
@@ -282,12 +891,12 @@ test("websearch.query uses the public HTTP contract", async () => {
   })
   expect(request?.method).toBe("POST")
   expect(request?.url).toBe("http://localhost:3000/api/websearch?location%5Bdirectory%5D=%2Ftmp%2Fproject")
-  expect(await request?.json()).toEqual({ query: "opencode", providerID: "exa" })
+  expect(await request?.json()).toEqual({ query: "aigcfroge", providerID: "exa" })
 })
 
 test("server.info uses the public HTTP contract", async () => {
   let request: Request | undefined
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async (input) => {
       request = input instanceof Request ? input : new Request(input)
@@ -295,7 +904,7 @@ test("server.info uses the public HTTP contract", async () => {
         version: "2.0.0",
         pid: 1,
         urls: ["http://192.168.1.10:4096"],
-        paths: { tmp: "/tmp/opencode" },
+        paths: { tmp: "/tmp/aigcfroge" },
       })
     },
   })
@@ -304,7 +913,7 @@ test("server.info uses the public HTTP contract", async () => {
     version: "2.0.0",
     pid: 1,
     urls: ["http://192.168.1.10:4096"],
-    paths: { tmp: "/tmp/opencode" },
+    paths: { tmp: "/tmp/aigcfroge" },
   })
   expect(request?.method).toBe("GET")
   expect(request?.url).toBe("http://localhost:3000/api/info")
@@ -312,7 +921,7 @@ test("server.info uses the public HTTP contract", async () => {
 
 test("experimental wellknown integration add uses the public HTTP contract", async () => {
   let request: Request | undefined
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async (input, init) => {
       request = input instanceof Request ? input : new Request(input, init)
@@ -334,7 +943,7 @@ test("experimental wellknown integration add uses the public HTTP contract", asy
 
 test("credential.activate uses the public HTTP contract", async () => {
   let request: Request | undefined
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async (input, init) => {
       request = input instanceof Request ? input : new Request(input, init)
@@ -350,7 +959,7 @@ test("credential.activate uses the public HTTP contract", async () => {
 
 test("integration connections optionally submit a form answer", async () => {
   const requests: Request[] = []
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
@@ -393,7 +1002,7 @@ test("integration connections optionally submit a form answer", async () => {
 
 test("MCP resource catalog uses the public HTTP contract", async () => {
   let request: Request | undefined
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async (input) => {
       request = input instanceof Request ? input : new Request(input)
@@ -416,7 +1025,7 @@ test("MCP resource catalog uses the public HTTP contract", async () => {
 
 test("file.read returns binary content from the public HTTP contract", async () => {
   let request: Request | undefined
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async (input) => {
       request = input instanceof Request ? input : new Request(input)
@@ -437,7 +1046,7 @@ test("file.read returns binary content from the public HTTP contract", async () 
 
 test("all worktree operations require a project ID", async () => {
   const requests: Request[] = []
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
@@ -482,9 +1091,9 @@ test("all worktree operations require a project ID", async () => {
 
 test("worktree operations use the explicit project even with default location headers", async () => {
   const requests: Request[] = []
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
-    headers: { "x-opencode-directory": "/unrelated" },
+    headers: { "x-aigcfroge-directory": "/unrelated" },
     fetch: async (input, init) => {
       const request = new Request(input, init)
       requests.push(request)
@@ -522,11 +1131,11 @@ test("shell list and remove use the public HTTP contract", async () => {
     command: "pwd",
     cwd: "/tmp/project",
     shell: "/bin/zsh",
-    file: "/tmp/opencode-shell",
+    file: "/tmp/aigcfroge-shell",
     metadata: { sessionID: "ses_test" },
     time: { started: 1_717_171_717_000 },
   }
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
@@ -550,7 +1159,7 @@ test("shell list and remove use the public HTTP contract", async () => {
 })
 
 test("session.get returns the wire projection", async () => {
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async (input) => {
       expect(typeof input === "string" ? input : input instanceof URL ? input.href : input.url).toBe(
@@ -568,7 +1177,7 @@ test("session.get returns the wire projection", async () => {
 test("session instructions methods use the public HTTP contract", async () => {
   const requests: Array<{ method: string; url: string; body?: unknown }> = []
   const instructions = [{ key: "review-notes", value: { text: "Check the diff", priority: 1 } }]
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
@@ -622,7 +1231,7 @@ test("session.inbox.list uses the public HTTP contract", async () => {
       delivery: "steer",
     },
   ]
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
@@ -639,7 +1248,7 @@ test("session.inbox.list uses the public HTTP contract", async () => {
 
 test("session.inbox mutations use the public HTTP contract", async () => {
   const requests: Array<{ method: string; url: string }> = []
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
@@ -660,7 +1269,7 @@ test("session.inbox mutations use the public HTTP contract", async () => {
 })
 
 test("event.subscribe exposes the Promise event stream wire projection", async () => {
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async () =>
       new Response(
@@ -683,7 +1292,7 @@ test("event.subscribe keeps one request open while delivering multiple events", 
     { id: "evt_first", created: 1, type: "server.connected", data: {} },
     { id: "evt_second", created: 2, type: "server.connected", data: {} },
   ]
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async (input, init) => {
       requests.push(input instanceof Request ? input : new Request(input, init))
@@ -706,7 +1315,7 @@ test("event.subscribe delivers every event from one stream chunk", async () => {
     type: "server.connected",
     data: {},
   }))
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async () =>
       new Response(new TextEncoder().encode(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("")), {
@@ -730,7 +1339,7 @@ test("event.subscribe parses split JSON and a split multibyte code point", async
   const encoded = new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`)
   const multibyte = encoded.indexOf(new TextEncoder().encode("\u2603")[0]!)
   const boundaries = [9, multibyte + 1, multibyte + 2, encoded.length]
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async () =>
       new Response(
@@ -751,7 +1360,7 @@ test("event.subscribe parses split JSON and a split multibyte code point", async
 // Moved from packages/app/e2e/regression/session-timeline-transport.spec.ts
 test("event.subscribe ignores server heartbeat comments", async () => {
   const event = { id: "evt_sentinel", created: 1, type: "server.connected", data: {} }
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async () =>
       new Response(`: heartbeat\n\ndata: ${JSON.stringify(event)}\n\n: heartbeat\n\n`, {
@@ -766,7 +1375,7 @@ test("event.subscribe ignores server heartbeat comments", async () => {
 test("event.subscribe reports heartbeat comments as stream activity", async () => {
   const event = { id: "evt_sentinel", created: 1, type: "server.connected", data: {} }
   const encoder = new TextEncoder()
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async () =>
       new Response(
@@ -792,7 +1401,7 @@ test("event.subscribe reports heartbeat comments as stream activity", async () =
 test("event transport passes through ordinary info requests", async () => {
   const requests: string[] = []
   const event = { id: "evt_connected", created: 1, type: "server.connected", data: {} }
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
@@ -806,7 +1415,7 @@ test("event transport passes through ordinary info requests", async () => {
         version: "2.0.0",
         pid: 1,
         urls: ["http://localhost:3000"],
-        paths: { tmp: "/tmp/opencode" },
+        paths: { tmp: "/tmp/aigcfroge" },
       })
     },
   })
@@ -815,13 +1424,13 @@ test("event transport passes through ordinary info requests", async () => {
     version: "2.0.0",
     pid: 1,
     urls: ["http://localhost:3000"],
-    paths: { tmp: "/tmp/opencode" },
+    paths: { tmp: "/tmp/aigcfroge" },
   })
   expect(requests).toEqual(["/api/event", "/api/info"])
 })
 
 test("event.subscribe terminates on malformed Promise SSE data", async () => {
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async () => new Response("data: {not-json}\n\n", { headers: { "content-type": "text/event-stream" } }),
   })
@@ -832,9 +1441,35 @@ test("event.subscribe terminates on malformed Promise SSE data", async () => {
   })
 })
 
+test("typed event.subscribe rejects unknown events and malformed canonical event fields", async () => {
+  for (const event of [
+    { id: "evt_unknown", type: "test.large", data: { output: "raw" } },
+    { ...modelSwitchedEvent, created: "wrong" },
+    { ...modelSwitchedEvent, id: "wrong" },
+    { ...modelSwitchedEvent, durable: { ...modelSwitchedEvent.durable, seq: -1 } },
+    { ...modelSwitchedEvent, data: { ...modelSwitchedEvent.data, model: { id: "claude", providerID: 1 } } },
+  ]) {
+    const client = AigcForge.make({
+      baseUrl: "http://localhost:3000",
+      fetch: async () =>
+        new Response("data: " + JSON.stringify(event) + "\n\n", {
+          headers: { "content-type": "text/event-stream" },
+        }),
+    })
+    await expect(client.event.subscribe()[Symbol.asyncIterator]().next()).rejects.toMatchObject({
+      name: "ClientError",
+      reason: "MalformedResponse",
+    })
+    await expect(client.event.subscribe.raw()[Symbol.asyncIterator]().next()).resolves.toEqual({
+      done: false,
+      value: event,
+    })
+  }
+})
+
 test("native event signals cancel only their listener and close transport after the last listener", async () => {
   const opened = Promise.withResolvers<Request>()
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     headers: { authorization: "Bearer events" },
     fetch: async (input, init) => {
@@ -866,7 +1501,7 @@ test("native event signals cancel only their listener and close transport after 
 
 test("native pre-aborted event signals do not open a transport", async () => {
   let requests = 0
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async () => {
       requests++
@@ -877,10 +1512,10 @@ test("native pre-aborted event signals do not open a transport", async () => {
   expect(requests).toBe(0)
 })
 
-test("event.subscribe accepts a fragmented SSE event below the size limit", async () => {
+test("event.subscribe.raw accepts a fragmented unknown SSE event below the size limit", async () => {
   const event = { id: "evt_large", type: "test.large", data: { output: "x".repeat(12 * 1024 * 1024) } }
   const encoded = new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`)
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async () =>
       new Response(
@@ -896,11 +1531,14 @@ test("event.subscribe accepts a fragmented SSE event below the size limit", asyn
       ),
   })
 
-  await expect(client.event.subscribe()[Symbol.asyncIterator]().next()).resolves.toEqual({ done: false, value: event })
+  await expect(client.event.subscribe.raw()[Symbol.asyncIterator]().next()).resolves.toEqual({
+    done: false,
+    value: event,
+  })
 })
 
 test("event.subscribe rejects an SSE event above the size limit", async () => {
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async () =>
       new Response(`data: ${JSON.stringify({ output: "x".repeat(16 * 1024 * 1024) })}`, {
@@ -916,7 +1554,7 @@ test("event.subscribe rejects an SSE event above the size limit", async () => {
 
 test("session methods use the public HTTP contract", async () => {
   const requests: Array<{ url: string; init?: RequestInit }> = []
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async (input, init) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
@@ -971,7 +1609,7 @@ test("session methods use the public HTTP contract", async () => {
   const context = await client.session.context({ sessionID: "ses_test" })
   const log = []
   for await (const item of client.session.log({ sessionID: "ses_test", after: 0 })) log.push(item)
-  const interrupted = await client.session.interrupt({ sessionID: "ses_test", continue: true })
+  const interrupted = await client.session.interrupt({ sessionID: "ses_test", resume: true })
   const message = await client.session.message.get({ sessionID: "ses_test", messageID: "msg_model" })
 
   expect(page.cursor.next).toBe("next")
@@ -999,7 +1637,7 @@ test("session methods use the public HTTP contract", async () => {
     ["POST", "http://localhost:3000/api/experimental/session/ses_test/wait"],
     ["GET", "http://localhost:3000/api/session/ses_test/context"],
     ["GET", "http://localhost:3000/api/experimental/session/ses_test/log?after=0"],
-    ["POST", "http://localhost:3000/api/session/ses_test/interrupt?continue=true"],
+    ["POST", "http://localhost:3000/api/session/ses_test/interrupt?resume=true"],
     ["GET", "http://localhost:3000/api/session/ses_test/message/msg_model"],
   ])
   const viewBody = requests.find((request) => request.url.endsWith("/api/session/ses_test/view"))?.init?.body
@@ -1021,7 +1659,7 @@ test("session methods use the public HTTP contract", async () => {
 })
 
 test("middleware errors remain declared client errors", async () => {
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async () =>
       Response.json({ _tag: "UnauthorizedError", message: "Authentication required" }, { status: 401 }),
@@ -1036,7 +1674,7 @@ test("middleware errors remain declared client errors", async () => {
 })
 
 test("session.log decodes SessionNotFoundError", async () => {
-  const client = OpenCode.make({
+  const client = AigcForge.make({
     baseUrl: "http://localhost:3000",
     fetch: async () =>
       Response.json(

@@ -24,12 +24,29 @@ function sessionTab(sessionId: string): SessionTab {
 }
 
 describe("tab migration", () => {
+  test("round trips a captured draft Location beside an older draft", () => {
+    const legacy: Tab = { type: "draft", draftID: "legacy-location", server, directory: "/project" }
+
+    const captured: Tab = {
+      ...legacy,
+      draftID: "captured-location",
+      mode: "chat",
+      directory: "/project/nested",
+      location: { directory: "/project/nested", workspaceID: "wrk_capture" },
+      worktree: "/project/nested",
+    }
+
+    expect(decodeTabs(Schema.encodeSync(TabStorage.Tabs)([legacy, captured]))).toEqual([legacy, captured])
+    expect(Object.hasOwn(decodeTabs([legacy])[0]!, "location")).toBe(false)
+  })
+
   test("round trips draft MCP choices without changing older drafts", () => {
     const legacy: Tab = { type: "draft", draftID: "legacy-draft", server, directory: "/project" }
 
     const draft: Tab = {
       ...legacy,
       draftID: "mcp-draft",
+      mode: "work",
       worktree: "create",
       mcp: { target: "new-worktree", states: { first: true, second: false } },
     }
@@ -37,6 +54,44 @@ describe("tab migration", () => {
     const restored = decodeTabs([legacy, draft])
     expect(restored).toEqual([legacy, draft])
     expect(decodeTabs(Schema.encodeSync(TabStorage.Tabs)(restored))).toEqual([legacy, draft])
+  })
+
+  test("defaults only an omitted draft mode to coding", () => {
+    const draft = { type: "draft" as const, draftID: "legacy-mode", server, directory: "/project" }
+    const restored = decodeTabs([draft])[0]
+
+    expect(restored).toEqual(draft)
+    expect(Object.hasOwn(restored!, "mode")).toBe(false)
+    expect(TabStorage.genericMode(restored?.type === "draft" ? restored : undefined)).toBe("coding")
+    expect(TabStorage.genericMode(undefined)).toBeUndefined()
+    expect(TabStorage.genericMode({ ...draft, mode: undefined })).toBeUndefined()
+  })
+
+  test.each(["chat", "coding", "work", "assistant"] as const)("round trips a %s draft mode", (mode) => {
+    const draft = { type: "draft" as const, draftID: "generic-mode", server, directory: "/project", mode }
+    const restored = decodeTabs(JSON.parse(JSON.stringify(Schema.encodeSync(TabStorage.Tabs)([draft]))))
+
+    expect(restored).toEqual([draft])
+    expect(TabStorage.genericMode(restored[0]?.type === "draft" ? restored[0] : undefined)).toBe(mode)
+  })
+
+  test.each([
+    { name: "custom", mode: "custom" },
+    { name: "unknown", mode: "future-mode" },
+    { name: "empty", mode: "" },
+    { name: "padded", mode: " chat " },
+    { name: "null", mode: null },
+    { name: "number", mode: 1 },
+    { name: "boolean", mode: false },
+    { name: "array", mode: ["chat"] },
+    { name: "object", mode: { id: "chat" } },
+  ])("preserves an unsupported $name draft mode for explicit recovery", ({ mode }) => {
+    const draft = { type: "draft" as const, draftID: "unsupported-mode", server, directory: "/project", mode }
+    const restored = decodeTabs(JSON.parse(JSON.stringify([draft])))
+
+    expect(restored).toEqual([draft])
+    expect(TabStorage.genericMode(restored[0]?.type === "draft" ? restored[0] : undefined)).toBeUndefined()
+    expect(decodeTabs(JSON.parse(JSON.stringify(Schema.encodeSync(TabStorage.Tabs)(restored))))).toEqual([draft])
   })
 
   const dropped: { name: string; stored: unknown; expected: Tab[] }[] = [
@@ -128,7 +183,7 @@ test("finds open root and routed session tabs", () => {
 describe("tab memory", () => {
   test("keeps state until its tab is removed", () => {
     createRoot((dispose) => {
-      const memory = createTabMemory(getOwner())
+      const memory = createTabMemory<{ value: string }>(getOwner())
       let disposed = 0
 
       const first = memory.ensure("tab", "prompt", () => {
@@ -138,13 +193,109 @@ describe("tab memory", () => {
       })
 
       expect(memory.ensure("tab", "prompt", () => ({ value: "other" }))).toBe(first)
-      expect(memory.get<typeof first>("tab", "prompt")).toBe(first)
+      expect(memory.get("tab", "prompt")).toBe(first)
       expect(memory.get("missing", "prompt")).toBeUndefined()
       expect(memory.ensure("other", "prompt", () => ({ value: "other" }))).not.toBe(first)
 
       memory.remove("tab")
       expect(disposed).toBe(1)
       expect(memory.ensure("tab", "prompt", () => ({ value: "new" }))).not.toBe(first)
+      dispose()
+    })
+  })
+
+  test("keeps shared state when a Shell closes and reopens before the last content view releases", () => {
+    createRoot((dispose) => {
+      const memory = createTabMemory<{ text: string }>(getOwner())
+      onCleanup(memory.dispose)
+      const key = tabKey(sessionTab("B"))
+      const closed: string[] = []
+      const releaseShell = memory.retain(key)
+      const releaseMain = memory.retain(key)
+      const releaseSide = memory.retain(key)
+
+      const state = memory.ensure(key, "prompt", () => {
+        onCleanup(() => closed.push("B"))
+
+        return { text: "draft" }
+      })
+
+      releaseShell()
+      releaseMain()
+      state.text = "continued from A"
+      expect(memory.get(key, "prompt")).toBe(state)
+      expect(closed).toEqual([])
+
+      const releaseReopened = memory.retain(key)
+      expect(memory.ensure(key, "prompt", () => ({ text: "replacement" }))).toBe(state)
+      expect(memory.get(key, "prompt")?.text).toBe("continued from A")
+      releaseShell()
+      releaseSide()
+      expect(closed).toEqual([])
+
+      releaseReopened()
+      expect(closed).toEqual(["B"])
+      expect(memory.get(key, "prompt")).toBeUndefined()
+      releaseSide()
+      releaseReopened()
+      expect(closed).toEqual(["B"])
+      dispose()
+    })
+  })
+
+  test("releases state held by an independent content view without a Shell", () => {
+    createRoot((dispose) => {
+      const memory = createTabMemory<{ text: string }>(getOwner())
+      onCleanup(memory.dispose)
+      const key = tabKey(sessionTab("child"))
+      const closed: string[] = []
+      const release = memory.retain(key)
+
+      const state = memory.ensure(key, "prompt", () => {
+        onCleanup(() => closed.push("child"))
+
+        return { text: "child prompt" }
+      })
+
+      expect(memory.get(key, "prompt")).toBe(state)
+      release()
+      expect(closed).toEqual(["child"])
+      expect(memory.get(key, "prompt")).toBeUndefined()
+      dispose()
+    })
+  })
+
+  test.each(["remove", "dispose"] as const)("ignores old releases after forced %s and replacement", (operation) => {
+    createRoot((dispose) => {
+      const memory = createTabMemory<{ text: string }>(getOwner())
+      onCleanup(memory.dispose)
+      const key = tabKey(sessionTab("B"))
+      const closed: string[] = []
+      const releaseOld = memory.retain(key)
+      memory.ensure(key, "prompt", () => {
+        onCleanup(() => closed.push("old"))
+
+        return { text: "old" }
+      })
+
+      if (operation === "remove") memory.remove(key)
+
+      if (operation === "dispose") memory.dispose()
+      expect(closed).toEqual(["old"])
+
+      const releaseCurrent = memory.retain(key)
+
+      const current = memory.ensure(key, "prompt", () => {
+        onCleanup(() => closed.push("current"))
+
+        return { text: "current" }
+      })
+
+      releaseOld()
+      expect(memory.get(key, "prompt")).toBe(current)
+      expect(closed).toEqual(["old"])
+      releaseCurrent()
+      expect(closed).toEqual(["old", "current"])
       dispose()
     })
   })

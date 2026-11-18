@@ -1,24 +1,15 @@
-import {
-  batch,
-  createMemo,
-  createSignal,
-  lazy,
-  on,
-  onCleanup,
-  Show,
-  Suspense,
-  type ParentProps,
-  type Signal,
-} from "solid-js"
+import { showToast } from "@aigcfroge/ui/toast"
+import { batch, createMemo, lazy, on, onCleanup, Show, Suspense, type ParentProps } from "solid-js"
 import { createStore, produce } from "solid-js/store"
-import { Icon } from "@opencode/ui/icon"
-import { encodeFilePath, getFilename } from "@opencode/util/path"
+import { Icon } from "@aigcfroge/ui/icon"
+import { encodeFilePath, getFilename } from "@aigcfroge/util/path"
 import {
   createKeyed,
   bindExtension,
   LinkHandler,
   MenuItem,
   Panel,
+  SettingsPage,
   Slot,
   Style,
   usePanel,
@@ -32,7 +23,7 @@ import {
   type Setup,
   onIdle,
 } from "../sdk"
-import { artifactKind } from "@opencode/util/artifact"
+import { artifactKind } from "@aigcfroge/util/artifact"
 import { resolveArtifactPath } from "./artifact"
 import { FileContext, type FileShared } from "./context"
 import type { OpenApp } from "./apps"
@@ -64,6 +55,36 @@ const setup: Setup<typeof File> = (ctx) => {
   const storage = ctx.storage
   const desktop = ctx.desktop
   const tree = ctx.stores.tree
+  const visible = () => ctx.stores.display.value.visible
+
+  const showHidden = () => {
+    showToast({
+      title: ctx.t("settings.display.hidden"),
+      actions: [{ label: ctx.t("settings.display.restore"), onClick: () => ctx.layout.settings("general") }],
+    })
+  }
+
+  const DisplayRow = lazy(() => import("./display"))
+  onCleanup(onIdle(() => void DisplayRow.preload()))
+  ctx.add(SettingsPage, {
+    id: "display",
+    page: "general",
+    section: "general",
+    get title() {
+      return ctx.t("settings.display.title")
+    },
+    get entries() {
+      return [
+        { id: "settings-file-display", title: ctx.t("settings.display.title"), keywords: "file sidebar panel" },
+        { id: "settings-file-preview", title: ctx.t("settings.preview.title"), keywords: "file preview temporary tab" },
+      ]
+    },
+    render: () => (
+      <Suspense>
+        <DisplayRow />
+      </Suspense>
+    ),
+  })
   const [handoff, setHandoff] = storage.memory<Handoff>("handoff", { initial: { sessions: {} } })
   const preference = desktop ? ctx.stores.app : undefined
   const [request, setRequest] = createStore<{ app?: OpenApp }>({})
@@ -95,6 +116,7 @@ const setup: Setup<typeof File> = (ctx) => {
   const key = (files: Files, path: string) => `file:${fileTabId(files, path)}`
 
   const active = (session: MountedSession, id: string) => {
+    if (!visible()) return false
     const state = layout.state(`file:${id}`, session)
 
     return state === "active" || state === "visible"
@@ -123,6 +145,8 @@ const setup: Setup<typeof File> = (ctx) => {
 
     if (!screen) return
 
+    if (!visible()) return showHidden()
+
     // Not batched: the mobile tab strip must register the new tab before it leaves the browser, or Kobalte falls back
     // to the first tab and reselects it.
     layout.open(key(screen.file, path), session, options)
@@ -145,9 +169,13 @@ const setup: Setup<typeof File> = (ctx) => {
   }
 
   const openPicker = (session: MountedSession, query: string, options?: OpenOptions) => {
+    if (!visible()) return showHidden()
     batch(() => {
       updateFilter(session.key, { text: query, browsing: true })
-      layout.open(`file:${OPEN}`, session, { tab: "preview", background: options?.background })
+      layout.open(`file:${OPEN}`, session, {
+        tab: layout.narrow() ? "preview" : "select",
+        background: options?.background,
+      })
 
       if (!options?.background && layout.narrow() && !layout.side.opened(session)) layout.side.toggle(session)
     })
@@ -166,6 +194,13 @@ const setup: Setup<typeof File> = (ctx) => {
   const shared: FileShared = {
     changes: ctx.uses.changes,
     browser: ctx.uses.browser,
+    preview: {
+      enabled: () => ctx.stores.preview.value.enabled,
+      set: (enabled) =>
+        ctx.stores.preview.update((draft) => {
+          draft.enabled = enabled
+        }),
+    },
     tree: {
       tab: () => tree.value.tab,
       setTab: (tab) =>
@@ -269,7 +304,9 @@ const setup: Setup<typeof File> = (ctx) => {
     ),
     draggable: false,
     closable: "hover",
-    transient: true,
+    get transient() {
+      return layout.narrow()
+    },
     group: GROUP,
     dom: { panel: TABPANEL },
   }
@@ -299,151 +336,125 @@ const setup: Setup<typeof File> = (ctx) => {
     }
   }
 
-  ctx.add(Panel, {
-    id: "main",
-    region: "side",
-    legacy: { "open-file": OPEN },
-    // Older builds stored some files as absolute paths; one file is one tab once the workspace root is known.
-    // Resolves the stored URL once and encodes the result, so an encoded name such as a%23b.txt stays one file.
-    normalize: (input) =>
-      isFileTab(input.id) && input.screen.file.ready()
-        ? `//${encodeFilePath(fileTabPath(input.screen.file, input.id))}`
-        : input.id,
-    mobile: {
-      get title() {
-        return ctx.t("mobile.title")
+  createKeyed(visible, () => {
+    ctx.add(Panel, {
+      id: "main",
+      region: "side",
+      legacy: { "open-file": OPEN },
+      // Older builds stored some files as absolute paths; one file is one tab once the workspace root is known.
+      // Resolves the stored URL once and encodes the result, so an encoded name such as a%23b.txt stays one file.
+      normalize: (input) =>
+        isFileTab(input.id) && input.screen.file.ready()
+          ? `//${encodeFilePath(fileTabPath(input.screen.file, input.id))}`
+          : input.id,
+      mobile: {
+        get title() {
+          return ctx.t("mobile.title")
+        },
+        order: 20,
+        kind: "menu",
+        icon: "folder",
       },
-      order: 20,
-      kind: "menu",
-      icon: "folder",
-    },
-    list(input) {
-      return input.open.flatMap((id) => {
-        if (id === OPEN) return [launcher]
+      list(input) {
+        return input.open.flatMap((id) => {
+          if (id === OPEN) return [launcher]
 
-        if (!isFileTab(id)) return []
+          if (!isFileTab(id)) return []
 
-        const cache = tabsOf(input.screen)
-        const existing = cache.get(id)
+          const cache = tabsOf(input.screen)
+          const existing = cache.get(id)
 
-        if (existing) return [existing]
+          if (existing) return [existing]
 
-        const created = fileTab(input.screen.file, id)
+          const created = fileTab(input.screen.file, id)
 
-        cache.set(id, created)
+          cache.set(id, created)
 
-        return [created]
-      })
-    },
-    close(input) {
-      tabs.get(input.screen)?.delete(input.tab.id)
-    },
-    render: (props) => {
-      const panel = usePanel()
+          return [created]
+        })
+      },
+      close(input) {
+        tabs.get(input.screen)?.delete(input.tab.id)
 
-      return (
-        <FileProvider>
-          <Suspense>
-            <Show
-              when={panel.placement() === "mobile"}
-              fallback={<FileBrowser tab={() => props.tab} session={props.session} screen={props.screen} />}
-            >
-              <MobileFiles session={props.session} screen={props.screen} />
-            </Show>
-          </Suspense>
-        </FileProvider>
-      )
-    },
-    focus(input) {
-      if (!isFileTab(input.tab.id)) return
+        if (!isFileTab(input.tab.id) || layout.narrow()) return
+        const remaining = layout.stored(input.session)
 
-      focused.set(input.screen, input.tab.id)
-      void input.screen.file.sync(fileTabPath(input.screen.file, input.tab.id))
+        if (remaining.includes(OPEN) && !remaining.some(isFileTab))
+          layout.open(`file:${OPEN}`, input.session, { tab: "select" })
+      },
+      render: (props) => {
+        const panel = usePanel()
 
-      // A restored file tab keeps the tree tab the user left, e.g. Changes across a reload.
-      if (!input.restored && tree.value.tab === "changes") shared.tree.setTab("all")
-    },
-  })
+        return (
+          <FileProvider>
+            <Suspense>
+              <Show
+                when={panel.placement() === "mobile"}
+                fallback={<FileBrowser tab={() => props.tab} session={props.session} screen={props.screen} />}
+              >
+                <MobileFiles session={props.session} screen={props.screen} />
+              </Show>
+            </Suspense>
+          </FileProvider>
+        )
+      },
+      focus(input) {
+        if (!isFileTab(input.tab.id)) return
 
-  ctx.add(MenuItem, {
-    menu: "session.panel",
-    id: "open",
-    get title() {
-      return ctx.t("command.open")
-    },
-    icon: "file-tree",
-    keybind: "file.open",
-    order: 10,
-    run() {
-      const session = sessions.current()
+        focused.set(input.screen, input.tab.id)
+        void input.screen.file.sync(fileTabPath(input.screen.file, input.tab.id))
 
-      if (!session) return
+        // A restored file tab keeps the tree tab the user left, e.g. Changes across a reload.
+        if (!input.restored && tree.value.tab === "changes") shared.tree.setTab("all")
+      },
+    })
 
-      openPicker(session, shared.filter.get(session.key))
-    },
+    ctx.add(MenuItem, {
+      menu: "session.panel",
+      id: "open",
+      get title() {
+        return ctx.t("command.open")
+      },
+      icon: "file-tree",
+      keybind: "file.open",
+      order: 10,
+      run() {
+        const session = sessions.current()
+
+        if (!session) return
+
+        openPicker(session, shared.filter.get(session.key))
+      },
+    })
   })
 
   const OpenInAppButton = lazy(() => import("./open-in-app"))
 
-  // How many "Open in" buttons each screen's panel headers show; the tab strip shows its own only while none do.
-  const headers = new WeakMap<SessionScreen, Signal<number>>()
-
-  const headerButtons = (screen: SessionScreen) => {
-    const existing = headers.get(screen)
-
-    if (existing) return existing
-
-    const created = createSignal(0)
-
-    headers.set(screen, created)
-
-    return created
-  }
-
-  if (desktop) {
-    onCleanup(onIdle(() => void OpenInAppButton.preload()))
-    ctx.add(Slot, {
-      at: "session.panel.end",
-      render: (input) => (
-        <Show when={headerButtons(input.screen)[0]() === 0}>
-          <FileProvider>
-            <Suspense>
-              <OpenInAppButton session={input.session} screen={input.screen} />
-            </Suspense>
-          </FileProvider>
-        </Show>
-      ),
-    })
-  }
+  if (desktop) onCleanup(onIdle(() => void OpenInAppButton.preload()))
 
   ctx.provide(OpenInApp, {
-    Button: bindExtension((props) => {
-      const count = headerButtons(props.screen)
-
-      count[1]((value) => value + 1)
-      onCleanup(() => count[1]((value) => value - 1))
-
-      return (
-        <Show when={desktop}>
-          <FileProvider>
-            <Suspense>
-              <OpenInAppButton session={props.session} screen={props.screen} />
-            </Suspense>
-          </FileProvider>
-        </Show>
-      )
-    }),
+    Button: bindExtension((props) => (
+      <Show when={desktop && visible()}>
+        <FileProvider>
+          <Suspense>
+            <OpenInAppButton session={props.session} screen={props.screen} />
+          </Suspense>
+        </FileProvider>
+      </Show>
+    )),
   })
 
-  ctx.add(Slot, {
-    at: "session.panel.sidebar",
-    render: (input) => (
-      <FileProvider>
-        <Suspense>
-          <Sidebar session={input.session} screen={input.screen} />
-        </Suspense>
-      </FileProvider>
-    ),
+  createKeyed(visible, () => {
+    ctx.add(Slot, {
+      at: "session.panel.sidebar",
+      render: (input) => (
+        <FileProvider>
+          <Suspense>
+            <Sidebar session={input.session} screen={input.screen} />
+          </Suspense>
+        </FileProvider>
+      ),
+    })
   })
 
   // The review panel lists its changed files with the browser's tree; it renders under this extension, on the
@@ -524,7 +535,7 @@ const setup: Setup<typeof File> = (ctx) => {
   // Opens files the agent references as side panel tabs, inside or outside the workspace, or as
   // a browser tab for HTML when the desktop can load the file directly.
   ctx.add(LinkHandler, {
-    match: () => true,
+    match: (link) => link.sessionID === undefined && link.communication === undefined,
     exists: linkExists,
     open(link) {
       const session = sessions.current()
@@ -533,6 +544,7 @@ const setup: Setup<typeof File> = (ctx) => {
 
       if (!session || !screen || !files || (link.session && link.session.key !== session.key)) return
 
+      if (!visible()) return showHidden()
       clickController?.abort()
 
       // A known workspace file (the palette, a file comment) opens at once with every file listed.
@@ -557,7 +569,9 @@ const setup: Setup<typeof File> = (ctx) => {
       const stillCurrent = () => {
         const current = sessions.current()
 
-        return !signal.aborted && current?.key === sessionKey && ctx.screen.current() === screen ? current : undefined
+        return !signal.aborted && visible() && current?.key === sessionKey && ctx.screen.current() === screen
+          ? current
+          : undefined
       }
 
       const openResolvedFile = (targetPath: string, selection?: LineRange) => {

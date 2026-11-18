@@ -8,7 +8,8 @@ import { useSettings } from "@/settings/model"
 import { useTabs } from "@/shell/tabs/tabs"
 import { ServerConnection } from "@/runtime/server/registry"
 import { normalizeProjectInfo } from "@/runtime/server/global-sync/utils"
-import { sameDirectory } from "@opencode/util/path"
+import { sameDirectory } from "@aigcfroge/util/path"
+import type { LocationRef } from "@aigcfroge/client/promise"
 import {
   isWorkspaceDirectory,
   isWorkspaceSelection,
@@ -49,6 +50,7 @@ export function cycleNewSessionWorktree(input: { current: string; existing?: str
 }
 
 export function createNewSessionWorkspaceController(input: {
+  location?: () => LocationRef | undefined
   selectedWorktree: () => string | undefined
   selectedBranch: () => string | undefined
   setSelectedWorktree: (worktree: string | undefined) => void
@@ -61,9 +63,12 @@ export function createNewSessionWorkspaceController(input: {
   const settings = useSettings()
   const tabs = useTabs()
 
-  const [state, setState] = createStore({
+  const [state, setState] = createStore<{
+    search: string
+    existing: { projectID: string; directory: string } | undefined
+  }>({
     search: "",
-    existing: undefined as { projectID: string; directory: string } | undefined,
+    existing: undefined,
   })
 
   const searchBranches = debounce((search: string) => setState("search", search.trim()), 100)
@@ -173,12 +178,14 @@ export function createNewSessionWorkspaceController(input: {
     )
   })
 
-  const value = createMemo(() =>
-    resolveNewSessionWorktree({
-      enabled: visible(),
-      selected: selected(),
-      fallback: fallback(),
-    }),
+  const value = createMemo(
+    () =>
+      input.location?.()?.directory ??
+      resolveNewSessionWorktree({
+        enabled: visible(),
+        selected: selected(),
+        fallback: fallback(),
+      }),
   )
 
   const projectRoot = createMemo(() => currentProject()?.worktree ?? sdk().directory)
@@ -186,8 +193,8 @@ export function createNewSessionWorkspaceController(input: {
   const [branches] = createResource(
     () => (visible() ? { directory: projectRoot(), search: state.search } : undefined),
     ({ directory, search }) =>
-      serverSDK.api.vcs
-        .branch.list({ location: { directory }, search, limit: 50 })
+      serverSDK.api.vcs.branch
+        .list({ location: { directory }, search, limit: 50 })
         .then((response) => ({ directory, search, data: response.data }))
         .catch(() => ({ directory, search, data: [] })),
   )

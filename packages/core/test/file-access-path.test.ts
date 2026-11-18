@@ -2,12 +2,12 @@ import fs from "fs/promises"
 import path from "path"
 import { describe, expect, test } from "bun:test"
 import { Effect, Layer, Schema } from "effect"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { Location } from "@opencode/core/location"
-import { FileAccess } from "@opencode/core/file-access"
-import { Permission } from "@opencode/core/permission"
-import { AbsolutePath } from "@opencode/core/schema"
-import { Global } from "@opencode/util/global"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Location } from "@aigcfroge/core/location"
+import { FileAccess } from "@aigcfroge/core/file-access"
+import { Permission } from "@aigcfroge/core/permission"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Global } from "@aigcfroge/util/global"
 import { tmpdirScoped, withTempDir } from "./fixture/tmpdir"
 import { location } from "./fixture/location"
 import { it } from "./lib/effect"
@@ -87,7 +87,7 @@ describe("FileAccess.resolve", () => {
   it.live("allows a relative path outside the Location but inside the project worktree", () =>
     withTempDir(({ path: directory }) =>
       Effect.gen(function* () {
-        const active = path.join(directory, "packages", "opencode")
+        const active = path.join(directory, "packages", "aigcfroge")
         yield* Effect.promise(() => fs.mkdir(active, { recursive: true }))
         const access = yield* FileAccess.Service
         const target = yield* access.resolve({ path: "../../README.md" })
@@ -96,7 +96,7 @@ describe("FileAccess.resolve", () => {
           resource: "../../README.md",
         })
         expect(target.externalDirectory).toBeUndefined()
-      }).pipe(provide(path.join(directory, "packages", "opencode"), directory)),
+      }).pipe(provide(path.join(directory, "packages", "aigcfroge"), directory)),
     ),
   )
 

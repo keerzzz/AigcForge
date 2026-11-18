@@ -1,10 +1,10 @@
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
-import { Model } from "@opencode/core/model"
-import { Plugin } from "@opencode/core/plugin"
-import { PluginHost } from "@opencode/core/plugin/host"
-import { GoogleVertexPlugin } from "@opencode/core/plugin/provider/google-vertex"
-import { Provider } from "@opencode/core/provider"
+import { Model } from "@aigcfroge/core/model"
+import { Plugin } from "@aigcfroge/core/plugin"
+import { PluginHost } from "@aigcfroge/core/plugin/host"
+import { GoogleVertexPlugin } from "@aigcfroge/core/plugin/provider/google-vertex"
+import { Provider } from "@aigcfroge/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
@@ -47,15 +47,15 @@ describe("GoogleVertexPlugin", () => {
     Effect.gen(function* () {
       const catalog = yield* Provider.Service
       yield* catalog.transform((catalog) =>
-        catalog.update(Provider.ID.opencode, (provider) => {
-          provider.package = "@opencode/ai/providers/openai-compatible"
-          provider.settings = { ...provider.settings, baseURL: "https://opencode.ai/zen/v1" }
+        catalog.update(Provider.ID.aigcfroge, (provider) => {
+          provider.package = "@aigcfroge/ai/providers/openai-compatible"
+          provider.settings = { ...provider.settings, baseURL: "https://aigcfroge.ai/zen/v1" }
         }),
       )
       yield* addPlugin()
 
-      const provider = required(yield* catalog.get(Provider.ID.opencode))
-      expect(provider.settings).toEqual({ baseURL: "https://opencode.ai/zen/v1" })
+      const provider = required(yield* catalog.get(Provider.ID.aigcfroge))
+      expect(provider.settings).toEqual({ baseURL: "https://aigcfroge.ai/zen/v1" })
     }),
   )
 
@@ -74,7 +74,7 @@ describe("GoogleVertexPlugin", () => {
           const catalog = yield* Provider.Service
           yield* catalog.transform((catalog) =>
             catalog.update(Provider.ID.make("google-vertex"), (provider) => {
-              provider.package = "@opencode/ai/providers/google-vertex/chat"
+              provider.package = "@aigcfroge/ai/providers/google-vertex/chat"
               provider.settings = {
                 ...provider.settings,
                 baseURL:
@@ -87,7 +87,7 @@ describe("GoogleVertexPlugin", () => {
           expect(provider.settings?.project).toBe("google-cloud-project")
           expect(provider.settings?.location).toBe("google-vertex-location")
           expect(provider).toMatchObject({
-            package: "@opencode/ai/providers/google-vertex/chat",
+            package: "@aigcfroge/ai/providers/google-vertex/chat",
             settings: {
               baseURL:
                 "https://google-vertex-location-aiplatform.googleapis.com/v1/projects/google-cloud-project/locations/google-vertex-location",
@@ -110,7 +110,7 @@ describe("GoogleVertexPlugin", () => {
           const catalog = yield* Provider.Service
           yield* catalog.transform((catalog) =>
             catalog.update(Provider.ID.make("google-vertex"), (provider) => {
-              provider.package = "@opencode/ai/providers/google-vertex"
+              provider.package = "@aigcfroge/ai/providers/google-vertex"
             }),
           )
           yield* addPlugin()
@@ -133,7 +133,7 @@ describe("GoogleVertexPlugin", () => {
           const catalog = yield* Provider.Service
           yield* catalog.transform((catalog) =>
             catalog.update(Provider.ID.make("google-vertex"), (provider) => {
-              provider.package = "@opencode/ai/providers/google-vertex"
+              provider.package = "@aigcfroge/ai/providers/google-vertex"
             }),
           )
           yield* addPlugin()
@@ -159,7 +159,7 @@ describe("GoogleVertexPlugin", () => {
           const catalog = yield* Provider.Service
           yield* catalog.transform((catalog) =>
             catalog.update(Provider.ID.make("google-vertex"), (provider) => {
-              provider.package = "@opencode/ai/providers/google-vertex/chat"
+              provider.package = "@aigcfroge/ai/providers/google-vertex/chat"
               provider.settings = {
                 ...provider.settings,
                 baseURL:
@@ -172,7 +172,7 @@ describe("GoogleVertexPlugin", () => {
 
           expect(provider.settings?.project).toBe("vertex-project")
           expect(provider).toMatchObject({
-            package: "@opencode/ai/providers/google-vertex/chat",
+            package: "@aigcfroge/ai/providers/google-vertex/chat",
             settings: {
               baseURL:
                 "https://europe-west4-aiplatform.googleapis.com/v1/projects/vertex-project/locations/europe-west4",
@@ -198,7 +198,7 @@ describe("GoogleVertexPlugin", () => {
           const models = yield* Model.Service
           yield* catalog.transform((catalog) => {
             catalog.update(Provider.ID.make("google-vertex"), (provider) => {
-              provider.package = "@opencode/ai/providers/google-vertex/chat"
+              provider.package = "@aigcfroge/ai/providers/google-vertex/chat"
               provider.settings = {
                 ...provider.settings,
                 baseURL:
@@ -214,7 +214,7 @@ describe("GoogleVertexPlugin", () => {
           expect(provider.settings?.project).toBe("config-project")
           expect(provider.settings?.location).toBe("global")
           expect(provider).toMatchObject({
-            package: "@opencode/ai/providers/google-vertex/chat",
+            package: "@aigcfroge/ai/providers/google-vertex/chat",
             settings: { baseURL: "https://aiplatform.googleapis.com/v1/projects/config-project/locations/global" },
           })
           expect(model.settings).toEqual(provider.settings)
@@ -227,7 +227,7 @@ describe("GoogleVertexPlugin", () => {
       const catalog = yield* Provider.Service
       yield* catalog.transform((catalog) =>
         catalog.update(Provider.ID.make("google-vertex"), (provider) => {
-          provider.package = "@opencode/ai/providers/google-vertex/chat"
+          provider.package = "@aigcfroge/ai/providers/google-vertex/chat"
           provider.settings = {
             ...provider.settings,
             baseURL:
@@ -239,7 +239,7 @@ describe("GoogleVertexPlugin", () => {
       yield* addPlugin()
       const provider = required(yield* catalog.get(Provider.ID.make("google-vertex")))
       expect(provider).toMatchObject({
-        package: "@opencode/ai/providers/google-vertex/chat",
+        package: "@aigcfroge/ai/providers/google-vertex/chat",
         settings: { baseURL: "https://eu-aiplatform.googleapis.com/v1/projects/config-project/locations/eu" },
       })
     }),
@@ -252,11 +252,11 @@ describe("GoogleVertexPlugin", () => {
       const modelID = Model.ID.make("meta/llama-maas")
       yield* catalog.transform((catalog) => {
         catalog.update(Provider.ID.googleVertex, (provider) => {
-          provider.package = "@opencode/ai/providers/google-vertex"
+          provider.package = "@aigcfroge/ai/providers/google-vertex"
           provider.settings = { project: "config-project", location: "eu" }
         })
         catalog.models.update(Provider.ID.googleVertex, modelID, (model) => {
-          model.package = "@opencode/ai/providers/google-vertex/chat"
+          model.package = "@aigcfroge/ai/providers/google-vertex/chat"
           model.settings = {
             baseURL:
               "https://${GOOGLE_VERTEX_ENDPOINT}/v1/projects/${GOOGLE_VERTEX_PROJECT}/locations/${GOOGLE_VERTEX_LOCATION}/endpoints/openapi",
@@ -265,7 +265,7 @@ describe("GoogleVertexPlugin", () => {
       })
       yield* addPlugin()
       expect(required(yield* models.get(Provider.ID.googleVertex, modelID))).toMatchObject({
-        package: "@opencode/ai/providers/google-vertex/chat",
+        package: "@aigcfroge/ai/providers/google-vertex/chat",
         settings: {
           project: "config-project",
           location: "eu",
@@ -290,7 +290,7 @@ describe("GoogleVertexPlugin", () => {
           const catalog = yield* Provider.Service
           yield* catalog.transform((catalog) =>
             catalog.update(Provider.ID.make("google-vertex"), (provider) => {
-              provider.package = "@opencode/ai/providers/google-vertex"
+              provider.package = "@aigcfroge/ai/providers/google-vertex"
               provider.settings = { ...provider.settings, project: "config-project" }
             }),
           )

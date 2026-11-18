@@ -1,10 +1,11 @@
-import { Icon } from "@opencode/ui/icon"
+import { Button } from "@aigcfroge/ui/button"
+import { Icon } from "@aigcfroge/ui/icon"
 import {
   displayName,
   getProjectAvatarSource,
   getProjectAvatarVariant,
   ProjectAvatar,
-} from "@opencode/ui/project-avatar"
+} from "@aigcfroge/ui/project-avatar"
 import { createUniqueId, Show, type ParentProps } from "solid-js"
 import type { Project } from "../sdk"
 
@@ -19,7 +20,8 @@ export function ProjectDetailsCard(
 
   return (
     <section class="session-summary-card" data-section="project">
-      <button
+      <Button
+        variant="ghost-muted"
         type="button"
         class="session-summary-row session-summary-heading"
         aria-label={displayName(props.project)}
@@ -36,7 +38,7 @@ export function ProjectDetailsCard(
           {displayName(props.project)}
         </span>
         <Icon name="chevron-down" size="small" class="session-summary-disclosure" />
-      </button>
+      </Button>
       <Show when={props.expanded}>
         <div id={contentID} class="session-summary-rows">
           {props.children}

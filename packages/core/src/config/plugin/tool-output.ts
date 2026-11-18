@@ -1,13 +1,13 @@
 export * as ConfigToolOutputPlugin from "./tool-output.js"
 
-import { define } from "@opencode/plugin/effect/plugin"
+import { define } from "@aigcfroge/plugin/effect/plugin"
 import { Effect } from "effect"
 import { Config } from "../../config.js"
 import { ToolOutput } from "../../tool-output.js"
 import { ConfigEntryObserver } from "./entry-observer.js"
 
 export const Plugin = define({
-  id: "opencode.config.tool-output",
+  id: "aigcfroge.config.tool-output",
   effect: Effect.fn(function* (ctx) {
     const config = yield* Config.Service
     const output = yield* ToolOutput.Service

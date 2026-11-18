@@ -8,14 +8,14 @@ const Port = Schema.NumberFromString.check(Schema.isInt(), Schema.isGreaterThan(
 // OpenSSH invokes the executable directly, including on Windows. Run outside
 // normal CLI observability so neither prompts nor responses enter its logs.
 export const askpass = Effect.gen(function* () {
-  const port = yield* Schema.decodeUnknownEffect(Port)(process.env.OPENCODE_SSH_ASKPASS_PORT)
+  const port = yield* Schema.decodeUnknownEffect(Port)(process.env.AIGCFROGE_SSH_ASKPASS_PORT)
   const stdio = yield* Stdio.Stdio
   const socket = yield* NodeSocket.makeNet({ host: "127.0.0.1", port })
   const pull = yield* Socket.readerBytes(socket)
   const writer = yield* socket.writer
   yield* writer.write(
     JSON.stringify({
-      token: process.env.OPENCODE_SSH_ASKPASS_TOKEN,
+      token: process.env.AIGCFROGE_SSH_ASKPASS_TOKEN,
       text: process.argv.slice(2).join(" "),
       confirm: process.env.SSH_ASKPASS_PROMPT === "confirm",
     }) + "\n",

@@ -48,6 +48,20 @@ import m45 from "./migration/20260823191254_nullable_workspace_binding.js"
 import m46 from "./migration/20260910120000_clear_v1_session_permission.js"
 import m47 from "./migration/20260923013825_project_time_active.js"
 import m48 from "./migration/20261007190000_azure_cli_external_credential.js"
+import m49 from "./migration/20261016135025_meta_agent_and_context_epoch.js"
+import m50 from "./migration/20261016140143_delegation_tables.js"
+import m51 from "./migration/20261016143353_mcp_credential_binding.js"
+import m52 from "./migration/20261016145326_personal_memory.js"
+import m53 from "./migration/20261016150416_knowledge_base.js"
+import m54 from "./migration/20261016151043_task_and_schedule.js"
+import m55 from "./migration/20261016151845_workflow_runs.js"
+import m56 from "./migration/20261016152635_grants_and_profiles.js"
+import m57 from "./migration/20261029170604_meta-cpu.js"
+import m58 from "./migration/20261107091758_workflow-task.js"
+import m59 from "./migration/20261110171408_session_consultation.js"
+import m60 from "./migration/20261113012729_task-operation.js"
+import m61 from "./migration/20261113121533_goal-schedule.js"
+import m62 from "./migration/20261114221321_model-groups.js"
 
 export const migrations = [
   m00,
@@ -99,4 +113,18 @@ export const migrations = [
   m46,
   m47,
   m48,
+  m49,
+  m50,
+  m51,
+  m52,
+  m53,
+  m54,
+  m55,
+  m56,
+  m57,
+  m58,
+  m59,
+  m60,
+  m61,
+  m62,
 ] satisfies DatabaseMigration.Migration[]

@@ -15,10 +15,36 @@ for (const reasoningDefaultOpen of [false, true]) {
         "aria-label",
         "Used 4 Read, Skill",
       )
+      const summaryIcon = group.locator('[data-component="context-tool-group-trigger"] [data-slot="tool-summary-icon"]')
+      await expect(summaryIcon.locator('[data-slot="icon-svg"] use')).toHaveAttribute(
+        "href",
+        "#aigcfroge-v2-icon-glasses",
+      )
+      await expect(first.locator('[data-slot="tool-summary-icon"] [data-slot="icon-svg"] use')).toHaveAttribute(
+        "href",
+        "#aigcfroge-v2-icon-brain",
+      )
+      await expect(
+        group.locator('[data-component="read-tool-group"] [data-slot="tool-summary-icon"] [data-slot="icon-svg"] use'),
+      ).toHaveAttribute("href", "#aigcfroge-v2-icon-glasses")
+      await root.getByRole("button", { name: "Start current work", exact: true }).click()
+      await expect(summaryIcon.locator('[data-component="session-progress-indicator-v2"]')).toHaveCount(1)
+      await expect(first.locator('[data-component="session-progress-indicator-v2"]')).toHaveCount(0)
+      await used.click()
+      await expect(used).toHaveAttribute("aria-expanded", "false")
+      await expect(group.locator('[data-component="context-tool-group-list"]')).toBeHidden()
+      await used.press("Enter")
+      await expect(used).toHaveAttribute("aria-expanded", "true")
+      await root.getByRole("button", { name: "Finish current work", exact: true }).click()
+      await expect(summaryIcon.locator('[data-component="session-progress-indicator-v2"]')).toHaveCount(0)
+      await expect(summaryIcon.locator('[data-slot="icon-svg"] use')).toHaveAttribute(
+        "href",
+        "#aigcfroge-v2-icon-glasses",
+      )
       await expect(group.locator('[data-slot="context-tool-group-item"]')).toHaveText([
         /Read.*group\.ts/,
         /Thought/,
-        /Loaded.*opencode.*frontend-design.*skills/,
+        /Loaded.*aigcfroge.*frontend-design.*skills/,
         /Thought/,
         /Loaded.*rtl-aware-development.*skill/,
       ])
@@ -43,7 +69,7 @@ for (const reasoningDefaultOpen of [false, true]) {
       await expect(group.locator('[data-slot="context-tool-group-item"]')).toHaveText([
         /Read.*group\.ts/,
         /Thought/,
-        /Loaded.*opencode.*frontend-design.*skills/,
+        /Loaded.*aigcfroge.*frontend-design.*skills/,
         /Thought/,
         /Loaded.*rtl-aware-development.*skill/,
         /Read.*group\.test\.ts/,
@@ -85,6 +111,10 @@ story("summarizes subagents as Agent while retaining their card titles", async (
   await expect(title).toHaveText("Shell, Read, Agent")
   await expect(title).toHaveCSS("white-space", "nowrap")
   await expect(title).toHaveCSS("text-overflow", "ellipsis")
+  await expect(header.locator('[data-slot="tool-summary-icon"] [data-slot="icon-svg"] use')).toHaveAttribute(
+    "href",
+    "#aigcfroge-v2-icon-glasses",
+  )
   expect(await prefix.evaluate((node) => node.textContent)).toBe("Used")
   expect(await count.evaluate((node) => node.textContent)).toBe("4")
   expect(await prefix.locator("..").evaluate((node) => getComputedStyle(node).columnGap)).toBe("4px")
@@ -107,6 +137,35 @@ story("summarizes subagents as Agent while retaining their card titles", async (
 
   expect(gap).toBeLessThanOrEqual(8)
   await expect(group.locator('[data-component="task-tool-title"]')).toHaveText(["General", "Explore"])
+
+  const trigger = group.getByRole("button", { name: "Used 4 Shell, Read, Agent", exact: true })
+
+  const arrow = group.locator(
+    ':scope > [data-component="collapsible"] > [data-slot="collapsible-trigger"] [data-slot="collapsible-arrow-icon"]',
+  )
+
+  await expect
+    .poll(() =>
+      arrow.evaluate((node) => {
+        const matrix = new DOMMatrixReadOnly(getComputedStyle(node).transform)
+
+        return Math.atan2(matrix.b, matrix.a) * (180 / Math.PI)
+      }),
+    )
+    .toBeCloseTo(0, 0)
+  await trigger.click()
+  await expect(trigger).toHaveAttribute("aria-expanded", "false")
+  await expect
+    .poll(() =>
+      arrow.evaluate((node) => {
+        const matrix = new DOMMatrixReadOnly(getComputedStyle(node).transform)
+
+        return Math.atan2(matrix.b, matrix.a) * (180 / Math.PI)
+      }),
+    )
+    .toBeCloseTo(-90, 0)
+  await trigger.press("Space")
+  await expect(trigger).toHaveAttribute("aria-expanded", "true")
 })
 
 for (const width of [840, 390]) {

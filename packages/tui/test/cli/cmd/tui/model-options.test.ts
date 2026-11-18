@@ -26,7 +26,7 @@ describe("prioritizeFavorites", () => {
 describe("sortModelOptions", () => {
   test.each(["browse", "search", "provider"])("orders %s results free-first, then newest-first", (mode) => {
     const options = [
-      { providerID: "opencode", title: "Claude Haiku 3", releaseDate: 1 },
+      { providerID: "aigcfroge", title: "Claude Haiku 3", releaseDate: 1 },
       { providerID: "anthropic", title: "Claude Haiku 4.5", releaseDate: 2 },
       { providerID: "anthropic", title: "Claude Haiku Free", releaseDate: 0, footer: "Free" },
     ].map((item) => ({ ...item, providerID: mode === "provider" ? "anthropic" : item.providerID }))
@@ -38,22 +38,22 @@ describe("sortModelOptions", () => {
     ])
   })
 
-  test("orders OpenCode Go before Zen and other providers", () => {
+  test("orders AigcForge Go before Zen and other providers", () => {
     const sorted = sortModelOptions([
       { providerID: "openai", providerName: "OpenAI", releaseDate: 3, title: "GPT 5" },
-      { providerID: "opencode", providerName: "OpenCode Zen", releaseDate: 1, title: "Claude Sonnet 4" },
+      { providerID: "aigcfroge", providerName: "AigcForge Zen", releaseDate: 1, title: "Claude Sonnet 4" },
       { providerID: "anthropic", providerName: "Anthropic", releaseDate: 2, title: "Claude Opus 4" },
-      { providerID: "opencode-go", providerName: "OpenCode Go", releaseDate: 0, title: "Kimi K3" },
+      { providerID: "aigcfroge-go", providerName: "AigcForge Go", releaseDate: 0, title: "Kimi K3" },
     ])
 
     expect(sorted.map((model) => model.title)).toEqual(["Kimi K3", "Claude Sonnet 4", "Claude Opus 4", "GPT 5"])
   })
 
-  test("keeps ungrouped results free-first regardless of OpenCode provider", () => {
+  test("keeps ungrouped results free-first regardless of AigcForge provider", () => {
     const sorted = sortModelOptions(
       [
-        { providerID: "opencode-go", releaseDate: 3, title: "Go model" },
-        { providerID: "opencode", releaseDate: 1, title: "Free Zen model", footer: "Free" },
+        { providerID: "aigcfroge-go", releaseDate: 3, title: "Go model" },
+        { providerID: "aigcfroge", releaseDate: 1, title: "Free Zen model", footer: "Free" },
         { providerID: "anthropic", releaseDate: 4, title: "Anthropic model" },
       ],
       false,

@@ -8,32 +8,32 @@ import {
   SystemPart,
   TransportError,
   type LLMRequest,
-} from "@opencode/ai"
-import { OpenAIChat } from "@opencode/ai/protocols"
-import { Agent } from "@opencode/core/agent"
-import { Database } from "@opencode/core/database/database"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { llmClient } from "@opencode/core/effect/app-node-platform"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { Bus } from "@opencode/core/bus"
-import { SessionEvent } from "@opencode/core/session/event"
-import { SessionMessage } from "@opencode/core/session/message"
-import { SessionProjector } from "@opencode/core/session/projector"
-import { SessionRunnerModel } from "@opencode/core/session/runner/model"
-import { SessionTable } from "@opencode/core/session/sql"
-import { SessionStore } from "@opencode/core/session/store"
-import { SessionTitle } from "@opencode/core/session/title"
-import { PluginHooks } from "@opencode/core/plugin/hooks"
-import { PluginSupervisor } from "@opencode/core/plugin/supervisor"
-import { Location } from "@opencode/core/location"
-import { Session } from "@opencode/core/session"
-import { Project } from "@opencode/core/project"
-import { ProjectTable } from "@opencode/core/project/sql"
-import { App } from "@opencode/core/app"
-import { Model } from "@opencode/core/model"
-import { Provider } from "@opencode/core/provider"
-import { AbsolutePath } from "@opencode/core/schema"
-import { Money } from "@opencode/schema/money"
+} from "@aigcfroge/ai"
+import { OpenAIChat } from "@aigcfroge/ai/protocols"
+import { Agent } from "@aigcfroge/core/agent"
+import { Database } from "@aigcfroge/core/database/database"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { llmClient } from "@aigcfroge/core/effect/app-node-platform"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Bus } from "@aigcfroge/core/bus"
+import { SessionEvent } from "@aigcfroge/core/session/event"
+import { SessionMessage } from "@aigcfroge/core/session/message"
+import { SessionProjector } from "@aigcfroge/core/session/projector"
+import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
+import { SessionTable } from "@aigcfroge/core/session/sql"
+import { SessionStore } from "@aigcfroge/core/session/store"
+import { SessionTitle } from "@aigcfroge/core/session/title"
+import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
+import { PluginSupervisor } from "@aigcfroge/core/plugin/supervisor"
+import { Location } from "@aigcfroge/core/location"
+import { Session } from "@aigcfroge/core/session"
+import { Project } from "@aigcfroge/core/project"
+import { ProjectTable } from "@aigcfroge/core/project/sql"
+import { App } from "@aigcfroge/core/app"
+import { Model } from "@aigcfroge/core/model"
+import { Provider } from "@aigcfroge/core/provider"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Money } from "@aigcfroge/schema/money"
 import { Deferred, Effect, Fiber, Layer, Stream } from "effect"
 import { testEffect } from "./lib/effect"
 
@@ -90,12 +90,13 @@ const client = Layer.mock(LLMClient.Service)({
 const models = Layer.mock(SessionRunnerModel.Service)({
   resolve: (session) => {
     selections.push(session.model)
+    const selected = session.model && !Model.Selection.isGroup(session.model) ? session.model : undefined
     return Effect.succeed(
-      SessionRunnerModel.resolved(session.model?.id === "title-small" ? smallModel : model, {
+      SessionRunnerModel.resolved(selected?.id === "title-small" ? smallModel : model, {
         capabilities: { tools: true, input: ["text", "image"], output: ["text"] },
         cost,
         limit: { context: 200_000, output: 32_000 },
-        variant: session.model?.variant,
+        variant: selected?.variant,
       }),
     )
   },
@@ -198,6 +199,48 @@ const enableTitleAgent = Effect.gen(function* () {
   })
 })
 
+it.effect("uses the title Agent request rather than the Session Agent request", () =>
+  Effect.gen(function* () {
+    yield* enableTitleAgent
+    const agents = yield* Agent.Service
+    const request = {
+      settings: { agentOnly: true, temperature: 0.99 },
+      headers: { "X-Agent": "title" },
+      body: { temperature: 0.75, metadata: { source: "title-agent" } },
+    }
+    yield* agents.transform((editor) => {
+      editor.update(Agent.ID.make("build"), (agent) => {
+        agent.request = { settings: {}, headers: { "X-Agent": "build" }, body: { source: "build-agent" } }
+      })
+      editor.update(Agent.ID.make("title"), (agent) => {
+        agent.request = request
+      })
+    })
+    const hooks = yield* PluginHooks.Service
+    const seen: Agent.ID[] = []
+    yield* hooks.register("session", "model.request", (event) =>
+      Effect.sync(() => {
+        seen.push(event.agent)
+      }),
+    )
+    const sessionID = Session.ID.make("ses_title_agent_request")
+    yield* insertSession(sessionID)
+    yield* prompt(sessionID, "Generate a title with its Agent request")
+    const title = yield* SessionTitle.Service
+    yield* title.generate(sessionID)
+
+    expect(requests).toHaveLength(1)
+    expect(requests[0]?.http?.headers).toMatchObject({
+      "X-Agent": "title",
+      "x-aigcfroge-session-id": sessionID,
+    })
+    expect(requests[0]?.http?.body).toEqual(request.body)
+    expect(requests[0]?.generation?.temperature).toBeUndefined()
+    expect(requests[0]?.providerOptions?.agentOnly).toBeUndefined()
+    expect(seen).toEqual([Agent.ID.make("title")])
+  }),
+)
+
 it.effect("generates a title from the sole user message and renames the session", () =>
   Effect.gen(function* () {
     yield* enableTitleAgent
@@ -211,13 +254,13 @@ it.effect("generates a title from the sole user message and renames the session"
 
     expect(requests).toHaveLength(1)
     expect(requests[0]?.http?.headers).toEqual({
-      "x-opencode-session-id": sessionID,
+      "x-aigcfroge-session-id": sessionID,
       "x-session-affinity": sessionID,
       "X-Session-Id": sessionID,
       "User-Agent": App.useragent(App.make()),
-      "x-opencode-project": Project.ID.global,
-      "x-opencode-session": sessionID,
-      "x-opencode-client": "opencode",
+      "x-aigcfroge-project": Project.ID.global,
+      "x-aigcfroge-session": sessionID,
+      "x-aigcfroge-client": "aigcfroge",
     })
     expect(requests[0]?.promptCacheKey).toBe(sessionID)
     expect(requests[0]?.tools).toEqual([])
@@ -298,7 +341,8 @@ it.effect("uses a small model from the primary provider", () =>
     yield* title.generate(sessionID)
 
     expect(requests.map((request) => String(request.model.id))).toEqual(["title-small"])
-    expect(selections[1]?.variant).toBe(Model.VariantID.make("none"))
+    const selected = selections[1]
+    expect(selected && !Model.Selection.isGroup(selected) ? selected.variant : undefined).toBe(Model.VariantID.make("none"))
     const store = yield* SessionStore.Service
     expect((yield* store.get(sessionID))?.title).toBe("Generated Title")
   }),

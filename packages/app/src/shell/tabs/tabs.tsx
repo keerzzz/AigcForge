@@ -1,6 +1,6 @@
-import type { SessionInfo, SessionMessageUser } from "@opencode/client/promise"
+import type { SessionInfo, SessionMessageUser } from "@aigcfroge/client/promise"
 import type { ComposerSelection } from "@/composer/adapter"
-import { createSimpleContext } from "@opencode/ui/context"
+import { createSimpleContext } from "@aigcfroge/ui/context"
 import { createStore, produce } from "solid-js/store"
 import { Persist, persisted, removePersisted, draftPersistedKeys } from "@/runtime/persistence/storage"
 import { ServerConnection, useServers } from "@/runtime/server/registry"
@@ -87,7 +87,8 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
 
     const navigate = useNavigate()
     const location = useLocation()
-    const memory = createTabMemory(getOwner())
+    const memory = createTabMemory<ComposerState>(getOwner())
+    const shells = new Map<string, VoidFunction>()
     const currentRoute = useCurrentRoute()
 
     const closing = new Set<string>()
@@ -148,7 +149,29 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
       )
     }
 
-    onCleanup(memory.dispose)
+    const releaseShell = (key: string) => {
+      const release = shells.get(key)
+      shells.delete(key)
+      release?.()
+    }
+
+    onCleanup(() => {
+      shells.clear()
+      memory.dispose()
+    })
+
+    createEffect(() => {
+      if (!ready()) return
+      const keys = new Set(store.map(tabKey))
+
+      for (const key of keys) {
+        if (!shells.has(key)) shells.set(key, memory.retain(key))
+      }
+
+      for (const key of shells.keys()) {
+        if (!keys.has(key)) releaseShell(key)
+      }
+    })
 
     // A contributed server that is unlisted or whose extension is down is still known: only its removal drops its tabs.
     const known = () =>
@@ -163,7 +186,7 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
         for (const tab of store) {
           if (!serversSet.has(tab.server)) {
             const key = tabKey(tab)
-            memory.remove(key)
+            releaseShell(key)
             removeInfo(key)
             removeRegions(key)
           }
@@ -222,7 +245,7 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
 
         if (nextTab) navigateTab(nextTab)
       }).finally(() => closing.delete(key))
-      memory.remove(key)
+      releaseShell(key)
       removeInfo(key)
       removeRegions(key)
 
@@ -267,7 +290,17 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
       async newDraft(draft: Omit<DraftTab, "type" | "draftID">, prompt?: string, model?: PromptModel) {
         const draftID = uuid()
         const tab = { type: "draft" as const, draftID, ...draft }
-        memory.ensure(tabKey(tab), "prompt", () => createDraftComposerState(draftID, { prompt, model }))
+
+        const composer = memory.ensure(tabKey(tab), "prompt", () =>
+          createDraftComposerState(draftID, { prompt, model }),
+        )
+
+        if (prompt !== undefined || model !== undefined) {
+          await composer.ready.promise
+          // Initial values do not schedule a save. Use the original setter so a reload retains the prefilled draft.
+          composer.set(composer.current(), composer.cursor())
+        }
+
         await startTransition(() => {
           setStore(
             produce((tabs) => {
@@ -313,7 +346,7 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
 
           if (active) navigateTab(next)
         })
-        memory.remove(`draft:${draftID}`)
+        releaseShell(`draft:${draftID}`)
         removeDraftPersisted(draftID)
       },
       pendingSession(server: ServerConnection.Key, sessionID: string): PendingSession | undefined {
@@ -326,6 +359,7 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
       ) {
         // Snapshot the draft before replacing its store entry; keep its composer alive for rollback.
         const draft = { ...actions.draft(draftID) }
+        const releaseDraft = memory.retain(tabKey(draft))
         const next = { type: "session" as const, ...session }
         const key = tabKey(next)
         const composer = createMemoryComposerState()
@@ -349,22 +383,32 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
 
         return {
           ready,
-          async complete(target: ReturnType<ComposerState["capture"]>) {
+          async complete(target: ReturnType<ComposerState["capture"]> & { ready?: ComposerState["ready"] }) {
             await ready
 
-            if (!pending[key]) return
-            await memory.get<ComposerState>(key, "prompt")?.ready.promise
+            if (!pending[key]) {
+              releaseDraft()
+
+              return
+            }
+
+            await (target.ready?.promise ?? memory.get(key, "prompt")?.ready.promise)
 
             if (promptLength(composer.current())) target.set(composer.current(), composer.cursor())
             await startTransition(() => setPending(key, undefined))
-            memory.remove(tabKey(draft))
+            releaseDraft()
             removeDraftPersisted(draftID)
           },
           async rollback(worktree?: string) {
             await ready
 
-            if (!pending[key]) return
-            const original = memory.get<ComposerState>(tabKey(draft), "prompt")
+            if (!pending[key]) {
+              releaseDraft()
+
+              return
+            }
+
+            const original = memory.get(tabKey(draft), "prompt")
 
             if (original && promptLength(composer.current())) {
               // Nothing was submitted: recover both inputs in the original draft.
@@ -398,11 +442,12 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
               setPending(key, undefined)
             })
             updateClosed((stack) => removeClosedTabs(stack, session.server, [session.sessionId]))
-            memory.remove(key)
+            releaseShell(key)
             removeInfo(key)
 
+            releaseDraft()
+
             if (store.some((tab) => tab.type === "draft" && tab.draftID === draftID)) return
-            memory.remove(tabKey(draft))
             removeDraftPersisted(draftID)
           },
         }
@@ -464,7 +509,7 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
         const removed = store.filter((tab) => tab.server === key).map(tabKey)
         setStore((tabs) => tabs.filter((tab) => tab.server !== key))
 
-        for (const key of removed) memory.remove(key)
+        for (const key of removed) releaseShell(key)
 
         for (const key of removed) removeInfo(key)
 
@@ -530,7 +575,7 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
           if (recent.key && removed.includes(recent.key)) setRecentKey(undefined)
         })
 
-        for (const key of removed) memory.remove(key)
+        for (const key of removed) releaseShell(key)
 
         for (const key of removed) removeInfo(key)
       },
@@ -591,11 +636,14 @@ export const { use: useTabs, provider: TabsProvider } = createSimpleContext({
 
         navigate("/")
       },
-      state<T>(tab: Tab, name: string, init: () => T) {
+      state(tab: Tab, name: string, init: () => ComposerState) {
         return memory.ensure(tabKey(tab), name, init)
       },
-      stateValue<T>(tab: Tab, name: string) {
-        return memory.get<T>(tabKey(tab), name)
+      retain(tab: Tab): VoidFunction {
+        return memory.retain(tabKey(tab))
+      },
+      stateValue(tab: Tab, name: string) {
+        return memory.get(tabKey(tab), name)
       },
       region(tab: Tab | undefined, region: TabRegion) {
         if (!tab) return false

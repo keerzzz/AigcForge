@@ -1,11 +1,11 @@
 import { useWorkspaceLocation } from "@/workspaces/location"
 import { Persist, persisted } from "@/runtime/persistence/storage"
-import type { SessionStatus, SessionStepFailed } from "@opencode/client/promise"
+import type { SessionStatus, SessionStepFailed } from "@aigcfroge/client/promise"
 import { onCleanup } from "solid-js"
 import { Schema } from "effect"
 import { Persistence } from "@/runtime/persistence/schema"
 import { useSessionLayout } from "./session-layout"
-import { useDialog, useI18n } from "@opencode/ui/context"
+import { useDialog, useI18n } from "@aigcfroge/ui/context"
 import { DialogUsageExceeded } from "@/providers/connect/usage-exceeded"
 
 const GO_UPSELL_FREE_TIER_LAST_SEEN_AT = "go_upsell_last_seen_at"
@@ -18,7 +18,7 @@ const GO_UPSELL_ACCOUNT_RATE_LIMIT_DONT_SHOW = "go_upsell_account_rate_limit_don
 
 const GO_UPSELL_WINDOW = 86_400_000 // 24 hrs
 
-const GO_UPSELL_PROVIDERS = new Set(["opencode", "opencode-go"])
+const GO_UPSELL_PROVIDERS = new Set(["aigcfroge", "aigcfroge-go"])
 
 const CHATGPT_USAGE_LIMIT_WINDOW = 86_400_000 // 24 hrs
 
@@ -127,7 +127,7 @@ export function useUsageExceededDialogs() {
               else {
                 void import("@/providers/connect/dialog").then((x) => {
                   const controller = x.useProviderConnectController()
-                  controller.select("opencode-go")
+                  controller.select("aigcfroge-go")
                   void dialog.show(() => <x.DialogConnectProvider controller={controller} />)
                 })
               }

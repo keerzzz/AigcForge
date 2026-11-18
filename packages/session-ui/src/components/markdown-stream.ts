@@ -1,6 +1,6 @@
 import { Marked, type Tokens } from "marked"
 import remend from "remend"
-import { markdownMath } from "@opencode/ui/context/marked-parser"
+import { markdownMath } from "@aigcfroge/ui/context/marked-parser"
 import { completedProjection } from "./markdown-projection"
 
 export type Block = {
@@ -29,7 +29,7 @@ function language(value: string | undefined) {
   return value?.trim().split(/\s+/, 1)[0] || undefined
 }
 
-function openCode(raw: string) {
+function aigcfroge(raw: string) {
   const newline = raw.indexOf("\n")
 
   return newline < 0 ? "" : raw.slice(newline + 1)
@@ -106,7 +106,7 @@ export function stream(text: string, live: boolean): Block[] {
   if (!open(code.raw))
     return [...result, { raw, src: code.text, mode: "code", language: language(code.lang), complete: true }]
 
-  return [...result, { raw, src: openCode(code.raw), mode: "code", language: language(code.lang) }]
+  return [...result, { raw, src: aigcfroge(code.raw), mode: "code", language: language(code.lang) }]
 }
 
 export function project(previous: Projection | undefined, text: string, live: boolean): Projection {

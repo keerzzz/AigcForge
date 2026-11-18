@@ -1,21 +1,21 @@
 import { describe, expect } from "bun:test"
-import { Deferred, Effect, Exit, Fiber, Stream } from "effect"
+import { Deferred, Effect, Exit, Fiber, Schema, Stream } from "effect"
 import { eq } from "drizzle-orm"
-import { Bus } from "@opencode/core/bus"
-import { Database } from "@opencode/core/database/database"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { Location } from "@opencode/core/location"
-import { ProjectTable } from "@opencode/core/project/sql"
-import { SessionProjector } from "@opencode/core/session/projector"
-import { SessionMessageTable, SessionTable } from "@opencode/core/session/sql"
-import { Event } from "@opencode/schema/event"
-import { Project } from "@opencode/schema/project"
-import { AbsolutePath } from "@opencode/schema/schema"
-import { SessionID } from "@opencode/schema/session-id"
-import { SessionEvent } from "@opencode/schema/session-event"
-import { SessionMessage } from "@opencode/schema/session-message"
-import { WorkspaceID } from "@opencode/schema/workspace-id"
-import { LayerNode } from "@opencode/util/effect/layer-node"
+import { Bus } from "@aigcfroge/core/bus"
+import { Database } from "@aigcfroge/core/database/database"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { Location } from "@aigcfroge/core/location"
+import { ProjectTable } from "@aigcfroge/core/project/sql"
+import { SessionProjector } from "@aigcfroge/core/session/projector"
+import { SessionMessageTable, SessionTable } from "@aigcfroge/core/session/sql"
+import { Event } from "@aigcfroge/schema/event"
+import { Project } from "@aigcfroge/schema/project"
+import { AbsolutePath } from "@aigcfroge/schema/schema"
+import { SessionID } from "@aigcfroge/schema/session-id"
+import { SessionEvent } from "@aigcfroge/schema/session-event"
+import { SessionMessage } from "@aigcfroge/schema/session-message"
+import { WorkspaceID } from "@aigcfroge/schema/workspace-id"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
 import { location } from "./fixture/location"
 import { testEffect } from "./lib/effect"
 
@@ -310,7 +310,7 @@ describe("Bus Session routing", () => {
         type: Bus.versionedType(SessionEvent.Moved.type, 1),
         seq: 0,
         aggregateID: id,
-        data: { sessionID: id, location: b, projectID: Project.ID.global },
+        data: Schema.encodeSync(SessionEvent.Moved.data)({ sessionID: id, location: b, projectID: Project.ID.global }),
       })
       const after = yield* delta(bus)
       const replayID = Event.ID.create()

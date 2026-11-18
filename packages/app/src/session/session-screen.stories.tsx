@@ -13,10 +13,10 @@ import {
   STORY_TIME,
   subagentDocument,
   terminalPassedDocument,
-} from "@opencode/session-ui/storybook"
+} from "@aigcfroge/session-ui/storybook"
 import { SessionPreview } from "./story-model"
 
-const description = "opencode · modular-session-ui"
+const description = "aigcfroge · modular-session-ui"
 
 const retryAfterInterruption = {
   ...retryDocument,
@@ -48,7 +48,7 @@ const implementAndVerify = () => (
 )
 
 export default {
-  title: "OpenCode/Session/Complete workspace",
+  title: "AigcForge/Session/Complete workspace",
   id: "app-current-session-surface",
   component: SessionPreview,
   parameters: {
@@ -99,7 +99,7 @@ export const MixedDirectionRtl = {
   render: () => (
     <SessionPreview
       title="مراجعة واجهة Session"
-      description="opencode · packages/app/src/session/screen.tsx"
+      description="aigcfroge · packages/app/src/session/screen.tsx"
       document={attachmentsAndCommentsDocument}
       draft="راجع المسار packages/app/src/session/screen.tsx ثم شغّل bun test"
     />

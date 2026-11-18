@@ -1,4 +1,4 @@
-import { define } from "@opencode/plugin/effect/plugin"
+import { define } from "@aigcfroge/plugin/effect/plugin"
 import { Clock, Deferred, Effect, Option, Schema } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 import type { ServerResponse } from "node:http"
@@ -22,7 +22,7 @@ const decodeError = Schema.decodeUnknownOption(
 )
 
 export const PoePlugin = define({
-  id: "opencode.provider.poe",
+  id: "aigcfroge.provider.poe",
   effect: Effect.fn(function* (ctx) {
     const http = yield* HttpClient.HttpClient
     yield* ctx.integration.transform((editor) => {

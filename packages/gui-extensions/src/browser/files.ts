@@ -1,4 +1,4 @@
-import { Browser } from "@opencode/plugin-browser/rpc"
+import { Browser } from "@aigcfroge/plugin-browser/rpc"
 import { mkdir, readFile, stat, writeFile, rm } from "node:fs/promises"
 import { mkdirSync } from "node:fs"
 import { tmpdir } from "node:os"
@@ -7,7 +7,7 @@ import path from "node:path"
 export type BrowserFiles = ReturnType<typeof createBrowserFiles>
 
 export function createBrowserFiles(source: () => readonly string[]) {
-  const directory = path.join(tmpdir(), `opencode-browser-client-${crypto.randomUUID()}`)
+  const directory = path.join(tmpdir(), `aigcfroge-browser-client-${crypto.randomUUID()}`)
 
   const files = new Map<
     Browser.FileID,

@@ -6,18 +6,20 @@ import { Event } from "./event.js"
 import { FinishReason } from "./llm.js"
 import { Content } from "./tool.js"
 import { Model } from "./model.js"
+import { ModelGroup } from "./model-group.js"
+import { SessionAttempt } from "./session-attempt.js"
 import { NonNegativeInt, PositiveInt, RelativePath } from "./schema.js"
 import { SessionID } from "./session-id.js"
 import { SessionMetadata } from "./session-metadata.js"
 import { Location } from "./location.js"
 import { SessionMessage } from "./session-message.js"
 import { Revert } from "./session-revert.js"
-import { Shell as ShellSchema } from "./shell.js"
+import { Info, Output } from "./shell.js"
 import { SessionError } from "./session-error.js"
 import { Instruction } from "./instruction.js"
 import { InstructionEntry } from "./instruction-entry.js"
 import { Agent } from "./agent.js"
-import { Skill as SkillSchema } from "./skill.js"
+import { ID, Name } from "./skill.js"
 import { Money } from "./money.js"
 import { Snapshot } from "./snapshot.js"
 import { TokenUsage } from "./token-usage.js"
@@ -25,6 +27,11 @@ import { SessionInbox } from "./session-inbox.js"
 import { Project } from "./project.js"
 import { SessionFork } from "./session-fork.js"
 import { Permission } from "./permission.js"
+import { ProductMode } from "./product-mode.js"
+import { MetaAgent } from "./meta-agent.js"
+import { SessionConsultation } from "./session-consultation.js"
+import { OperationReadonlyRef } from "./session-task-operation-id.js"
+import { SessionCommunication } from "./session-communication.js"
 
 export const Source = Schema.Struct({
   start: NonNegativeInt,
@@ -34,6 +41,13 @@ export const Source = Schema.Struct({
   identifier: "Session.Event.Source",
 })
 export interface Source extends Schema.Schema.Type<typeof Source> {}
+
+/** The input group this actual Inbox delivery joined; its first input owns the stable anchor. */
+export interface InputMembership extends Schema.Schema.Type<typeof InputMembership> {}
+export const InputMembership = Schema.Struct({
+  anchorInputID: SessionMessage.ID,
+  operationRef: OperationReadonlyRef.pipe(optional),
+}).annotate({ identifier: "SessionEvent.InputMembership" })
 
 const Base = {
   sessionID: SessionID,
@@ -54,13 +68,24 @@ export const Created = Event.durable({
     location: Location.Ref,
     subpath: RelativePath.pipe(optional),
     parentID: SessionID.pipe(optional),
+    /** Root creation records its mode; children inherit the parent's mode. */
+    mode: ProductMode.ID.pipe(optional),
     slug: Schema.String,
     title: Schema.String.pipe(optional),
     agent: Agent.ID.pipe(optional),
-    model: Model.Ref.pipe(optional),
+    model: Model.Selection.pipe(optional),
+    /** Server-captured behavior for a frozen composition when it is not carried by the controller. */
+    groupBehavior: ModelGroup.BehaviorSnapshot.pipe(optional),
+    controller: MetaAgent.Controller.pipe(optional),
+    executorPreference: MetaAgent.ExecutorPreference.pipe(optional),
     /** Host-supplied annotations resolved at creation, including any inherited from a parent. */
     metadata: SessionMetadata.pipe(optional),
     permissions: Permission.Ruleset.pipe(optional),
+    /** Immutable consultation identity and frozen source reference recorded with root creation. */
+    consultation: Schema.Struct({
+      firstMessageID: SessionMessage.ID,
+      reference: Schema.suspend(() => SessionConsultation.Reference),
+    }).pipe(optional),
     version: Schema.String,
   },
 })
@@ -73,6 +98,8 @@ export const AgentSelected = Event.durable({
     ...Base,
     agent: Agent.ID,
     previous: Agent.ID.pipe(optional),
+    model: Model.Selection.pipe(optional),
+    controller: MetaAgent.RootController.pipe(optional),
   },
 })
 export type AgentSelected = typeof AgentSelected.Type
@@ -82,11 +109,20 @@ export const ModelSelected = Event.durable({
   ...options,
   schema: {
     ...Base,
-    model: Model.Ref,
-    previous: Model.Ref.pipe(optional),
+    model: Model.Selection,
+    previous: Model.Selection.pipe(optional),
+    /** Server-captured behavior when adopting a Group into a frozen root. */
+    groupBehavior: ModelGroup.BehaviorSnapshot.pipe(optional),
   },
 })
 export type ModelSelected = typeof ModelSelected.Type
+
+export const ExecutorSelected = Event.durable({
+  type: "session.executor.selected",
+  ...options,
+  schema: { ...Base, executorPreference: MetaAgent.ExecutorPreference },
+})
+export type ExecutorSelected = typeof ExecutorSelected.Type
 
 export const Moved = Event.durable({
   type: "session.moved",
@@ -170,6 +206,7 @@ export const UsageUpdated = Event.ephemeral({
     ...Base,
     cost: Money.USD,
     tokens: TokenUsage.Info,
+    ...SessionAttempt.Accounting.fields,
   },
 })
 export type UsageUpdated = typeof UsageUpdated.Type
@@ -194,7 +231,16 @@ export const Forked = Event.durable({
     ...Base,
     parentID: SessionID,
     boundary: SessionFork.Boundary,
+    /** Preserve child ownership when copying history for a persistent participant. Omission retains a root fork. */
+    child: Schema.Boolean.pipe(optional),
+    /** An explicit selection that differs from inheriting the parent's agent. */
+    agent: Agent.ID.pipe(optional),
     instructions: Instruction.Values.pipe(optional),
+    controller: MetaAgent.Controller.pipe(optional),
+    model: Model.Selection.pipe(optional),
+    /** Frozen behavior for an inherited or explicitly selected Group outside the controller. */
+    groupBehavior: ModelGroup.BehaviorSnapshot.pipe(optional),
+    executorPreference: MetaAgent.ExecutorPreference.pipe(optional),
     instructionEntries: InstructionEntry.Snapshot.pipe(optional),
   },
 })
@@ -208,7 +254,12 @@ const InboxRef = {
 export const InboxDelivered = Event.durable({
   type: "session.inbox.delivered",
   ...options,
-  schema: InboxRef,
+  schema: {
+    ...InboxRef,
+    membership: InputMembership.pipe(optional),
+    /** New correction observation protocol; absent deliveries retain historical treatment. */
+    correctionSourceVersion: Schema.Literal(1).pipe(optional),
+  },
 })
 export type InboxDelivered = typeof InboxDelivered.Type
 
@@ -218,6 +269,11 @@ export const InboxEnqueued = Event.durable({
   schema: {
     ...InboxRef,
     item: SessionInbox.Item,
+    operation: OperationReadonlyRef.pipe(optional),
+    /** The original Inbox transaction also commits the immutable Share-owned communication. */
+    communication: SessionCommunication.Record.pipe(optional),
+    /** Only the owning consultation operation may admit its reserved first prompt. */
+    consultation: Schema.Struct({ sourceSessionID: SessionID, firstMessageID: SessionMessage.ID }).pipe(optional),
   },
 })
 export type InboxEnqueued = typeof InboxEnqueued.Type
@@ -240,20 +296,28 @@ export namespace Execution {
   export const Started = Event.durable({ type: "session.execution.started", ...options, schema: Base })
   export type Started = typeof Started.Type
 
-  export const Succeeded = Event.durable({ type: "session.execution.succeeded", ...options, schema: Base })
+  export const Succeeded = Event.durable({
+    type: "session.execution.succeeded",
+    ...options,
+    schema: { ...Base, resultAnchorInputID: SessionMessage.ID.pipe(optional) },
+  })
   export type Succeeded = typeof Succeeded.Type
 
   export const Failed = Event.durable({
     type: "session.execution.failed",
     ...options,
-    schema: { ...Base, error: SessionError.Error },
+    schema: { ...Base, error: SessionError.Error, resultAnchorInputID: SessionMessage.ID.pipe(optional) },
   })
   export type Failed = typeof Failed.Type
 
   export const Interrupted = Event.durable({
     type: "session.execution.interrupted",
     ...options,
-    schema: { ...Base, reason: Schema.Literals(["user", "shutdown", "superseded", "inactivity"]) },
+    schema: {
+      ...Base,
+      reason: Schema.Literals(["user", "shutdown", "superseded", "inactivity"]),
+      resultAnchorInputID: SessionMessage.ID.pipe(optional),
+    },
   })
   export type Interrupted = typeof Interrupted.Type
 }
@@ -294,8 +358,8 @@ export namespace Skill {
     ...options,
     schema: {
       ...Base,
-      id: SkillSchema.ID,
-      name: SkillSchema.Name,
+      id: ID,
+      name: Name,
       text: Schema.String,
     },
   })
@@ -308,7 +372,7 @@ export namespace Shell {
     ...options,
     schema: {
       ...Base,
-      shell: ShellSchema.Info,
+      shell: Info,
     },
   })
   export type Started = typeof Started.Type
@@ -318,11 +382,29 @@ export namespace Shell {
     ...options,
     schema: {
       ...Base,
-      shell: ShellSchema.Info,
-      output: ShellSchema.Output,
+      shell: Info,
+      output: Output,
     },
   })
   export type Ended = typeof Ended.Type
+}
+
+export const Attempt = {
+  Started: Event.durable({
+    type: "session.attempt.started",
+    ...options,
+    schema: { ...Base, assistantMessageID: SessionMessage.ID, ...SessionAttempt.Started.fields },
+  }),
+  Observed: Event.durable({
+    type: "session.attempt.observed",
+    ...options,
+    schema: { ...Base, assistantMessageID: SessionMessage.ID, ordinal: NonNegativeInt, observation: SessionAttempt.Observation },
+  }),
+  Ended: Event.durable({
+    type: "session.attempt.ended",
+    ...options,
+    schema: { ...Base, assistantMessageID: SessionMessage.ID, ordinal: NonNegativeInt, terminal: SessionAttempt.Terminal },
+  }),
 }
 
 export namespace Step {
@@ -358,16 +440,32 @@ export namespace Step {
     schema: {
       ...Base,
       assistantMessageID: SessionMessage.ID,
+      /** Actual runner continuation policy after provider and tool settlement; absent in historical records. */
+      needsContinuation: Schema.Boolean.pipe(optional),
       finish: FinishReason,
       rawFinish: Schema.String.pipe(optional),
       providerState: SessionMessage.ProviderState.pipe(optional),
       cost: Money.USD,
       tokens: TokenUsage.Info,
+      ...SessionAttempt.Accounting.fields,
       snapshot: Snapshot.ID.pipe(optional),
       files: Schema.Array(RelativePath).pipe(optional),
     },
   })
   export type Ended = typeof Ended.Type
+
+  /** Records normal completion after the provider and local tools settle. */
+  export const Completed = Event.durable({
+    type: "session.step.completed",
+    ...options,
+    schema: {
+      ...Base,
+      assistantMessageID: SessionMessage.ID,
+      /** Present only when this completed Step ends the work joined by these inputs. */
+      resultAnchorInputID: SessionMessage.ID.pipe(optional),
+    },
+  })
+  export type Completed = typeof Completed.Type
 
   export const Failed = Event.durable({
     type: "session.step.failed",
@@ -381,6 +479,7 @@ export namespace Step {
       providerState: SessionMessage.ProviderState.pipe(optional),
       cost: Money.USD.pipe(optional),
       tokens: TokenUsage.Info.pipe(optional),
+      ...SessionAttempt.Accounting.fields,
       snapshot: Snapshot.ID.pipe(optional),
       files: Schema.Array(RelativePath).pipe(optional),
     },
@@ -645,14 +744,57 @@ export namespace RevertEvent {
   export const Committed = Event.durable({
     type: "session.revert.committed",
     ...options,
-    schema: { ...Base, to: SessionMessage.ID },
+    schema: {
+      ...Base,
+      to: SessionMessage.ID,
+      /** The projection row boundary, independent of later updates to that message. */
+      boundarySeq: NonNegativeInt.pipe(optional),
+    },
   })
+}
+
+/** Fork-retained (System Context verification): package verifier lifecycle events. */
+export namespace Verify {
+  const VerifyBase = {
+    ...Base,
+    tool: Schema.String,
+    packageDirectory: Schema.String,
+  }
+
+  export const Started = Event.durable({
+    type: "session.next.verify.started",
+    ...options,
+    schema: VerifyBase,
+  })
+  export type Started = typeof Started.Type
+
+  export const Passed = Event.durable({
+    type: "session.next.verify.passed",
+    ...options,
+    schema: {
+      ...VerifyBase,
+      durationMs: Schema.Finite,
+    },
+  })
+  export type Passed = typeof Passed.Type
+
+  export const Failed = Event.durable({
+    type: "session.next.verify.failed",
+    ...options,
+    schema: {
+      ...VerifyBase,
+      durationMs: Schema.Finite,
+      error: Schema.String,
+    },
+  })
+  export type Failed = typeof Failed.Type
 }
 
 export const Definitions = Event.inventory(
   Created,
   AgentSelected,
   ModelSelected,
+  ExecutorSelected,
   Moved,
   Renamed,
   MetadataUpdated,
@@ -674,9 +816,13 @@ export const Definitions = Event.inventory(
   Skill.Activated,
   Shell.Started,
   Shell.Ended,
+  Attempt.Started,
+  Attempt.Observed,
+  Attempt.Ended,
   Step.Started,
   Step.Streamed,
   Step.Ended,
+  Step.Completed,
   Step.Failed,
   Text.Started,
   Text.Delta,
@@ -699,6 +845,9 @@ export const Definitions = Event.inventory(
   RevertEvent.Staged,
   RevertEvent.Cleared,
   RevertEvent.Committed,
+  Verify.Started,
+  Verify.Passed,
+  Verify.Failed,
 )
 
 // Internal and replay-only events are excluded from the public manifest.
@@ -721,3 +870,15 @@ export const All = Schema.Union([Durable, ...EphemeralDefinitions], { mode: "one
 )
 export type Event = typeof All.Type
 export type Type = Event["type"]
+
+/** Fork-retained (System Context): epoch context update event. */
+export const ContextUpdated = Event.durable({
+  type: "session.next.context.updated",
+  ...options,
+  schema: {
+    ...Base,
+    messageID: SessionMessage.ID,
+    text: Schema.String,
+  },
+})
+export type ContextUpdated = typeof ContextUpdated.Type

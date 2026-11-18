@@ -67,7 +67,7 @@ test("adds configured environment variables when starting a service", async () =
       file: registration,
       version: "test",
       command: fixture.command("environment"),
-      env: { OPENCODE_SERVICE_ENV_TEST: "configured" },
+      env: { AIGCFROGE_SERVICE_ENV_TEST: "configured" },
     }),
   )
   const info = await Bun.file(registration).json()
@@ -455,19 +455,22 @@ test("replaces an incompatible owner that appears during startup", async () => {
     ensure({
       file: registration,
       version: "test",
-      command: fixture.command("delayed", "500"),
+      command: fixture.command("controlled"),
     }),
   )
-  await fixture.waitForFile(registration + ".starts")
+  const [contender] = await fixture.waitForStarts(1)
+  if (contender === undefined) throw new Error("Missing startup contender")
   const old = fixture.spawn("old")
   await fixture.waitForFile()
+  await fixture.waitForFile(registration + ".signal")
+  await old.exited
+  await fixture.release(contender, "ready")
   const endpoint = await starting
   const info = await Bun.file(registration).json()
   fixture.track(info.pid)
 
   expect(endpoint.url).toBe(info.url)
   expect(info.version).toBe("test")
-  await old.exited
 })
 
 function run<A, E>(effect: Effect.Effect<A, E, FileSystem.FileSystem>) {

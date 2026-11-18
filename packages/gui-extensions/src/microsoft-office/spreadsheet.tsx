@@ -1,8 +1,8 @@
 import { createMemo, createSignal, createUniqueId, For, onCleanup, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
-import { Loader } from "@opencode/ui/loader"
-import { showToast } from "@opencode/ui/toast"
+import { Loader } from "@aigcfroge/ui/loader"
+import { showToast } from "@aigcfroge/ui/toast"
 import {
   cellAtPoint,
   extendTo,

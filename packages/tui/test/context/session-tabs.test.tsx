@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/solid */
 import { expect, test } from "bun:test"
-import type { OpenCodeEvent } from "@opencode/client"
+import type { AigcForgeEvent } from "@aigcfroge/client"
 import { testRender } from "@opentui/solid"
 import { mkdirSync, watch } from "fs"
 import path from "path"
@@ -198,7 +198,7 @@ async function renderSessionTabs(
     setSessionTime(sessionID: string, time: { idle?: number; viewed?: number }) {
       sessionTimes[sessionID] = time
     },
-    emit: (event: OpenCodeEvent) => events.emit({ ...event, location: { directory } }),
+    emit: (event: AigcForgeEvent) => events.emit({ ...event, location: { directory } }),
     focus: () => app.renderer.emit("focus"),
     blur: () => app.renderer.emit("blur"),
     flush: () => storage.flush(),
@@ -215,7 +215,7 @@ async function renderSessionTabs(
   }
 }
 
-function admitted(sessionID: string, inboxID: string): OpenCodeEvent {
+function admitted(sessionID: string, inboxID: string): AigcForgeEvent {
   return {
     id: `evt_${inboxID}`,
     created: Date.now(),

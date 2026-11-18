@@ -22,7 +22,7 @@ test("loads and validates a Drive manifest through Effect services", async () =>
           }),
           ConfigProvider.layer(
             ConfigProvider.fromUnknown({
-              OPENCODE_DRIVE: "test-instance",
+              AIGCFROGE_DRIVE: "test-instance",
               DRIVE_REGISTRY_DIR: "/tmp/drive",
             }),
           ),
@@ -60,7 +60,7 @@ test("reports schema-invalid manifests as typed decode failures", async () => {
           }),
           ConfigProvider.layer(
             ConfigProvider.fromUnknown({
-              OPENCODE_DRIVE: "test-instance",
+              AIGCFROGE_DRIVE: "test-instance",
               DRIVE_REGISTRY_DIR: "/tmp/drive",
             }),
           ),

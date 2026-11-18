@@ -1,6 +1,7 @@
-import type { IntegrationOAuthMethodRegistration } from "@opencode/plugin/effect/integration"
-import type { Context } from "@opencode/plugin/effect/plugin"
-import { define } from "@opencode/plugin/effect/plugin"
+import type { IntegrationOAuthMethodRegistration } from "@aigcfroge/plugin/effect/integration"
+import type { Context } from "@aigcfroge/plugin/effect/plugin"
+import type { ModelSource } from "@aigcfroge/schema/model-source"
+import { define } from "@aigcfroge/plugin/effect/plugin"
 // import { Deferred, Duration, Effect, Option, Schema, Semaphore, Stream } from "effect"
 import { Deferred, Effect, Option, Schema, Semaphore, Stream } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
@@ -9,7 +10,7 @@ import { App } from "../../app.js"
 import { Credential } from "../../credential.js"
 import { Bus } from "../../bus.js"
 import { Integration } from "../../integration.js"
-// import { IntegrationConnection } from "../../integration/connection.js"
+import { IntegrationConnection } from "../../integration/connection.js"
 import { Model } from "../../model.js"
 import { OauthCallbackPage } from "../../oauth/page.js"
 import { Provider } from "../../provider.js"
@@ -18,7 +19,7 @@ import type { PluginInternal } from "../internal.js"
 
 // First-time sign-in registers a user-owned client; OpenAI returns its issued client ID on the callback.
 const registrationClientID = "dynamic_agent_client"
-const agentName = "OpenCode"
+const agentName = "AigcForge"
 const issuer = "https://auth.openai.com"
 const tokenURL = `${issuer}/api/accounts/oauth/token`
 const resource = "https://api.openai.com/v1"
@@ -26,7 +27,8 @@ const tokenSharingScope = "chatgpt.tokens.use.direct"
 const providerID = Provider.ID.openai
 const integrationID = Integration.ID.make("openai")
 const methodID = Integration.MethodID.make("chatgpt-token-sharing")
-const modelCacheKey = (clientID: string) => `models:${clientID}`
+const modelCacheKey = (clientID: string, connection?: ModelSource.ConnectionRef) =>
+  connection ? `models:${clientID}:${IntegrationConnection.key(connection)}` : `models:${clientID}`
 const fallbackModels = new Set([
   "gpt-5.5",
   "gpt-5.5-fast",
@@ -206,33 +208,70 @@ function listen(server: Server) {
 }
 
 export const ChatGPTPlugin = define({
-  id: "opencode.provider.chatgpt",
+  id: "aigcfroge.provider.chatgpt",
   effect: Effect.fn(function* (ctx) {
     const bus = yield* Bus.Service
     const credentials = yield* Credential.Service
+    const integrations = yield* Integration.Service
     const loading = Semaphore.makeUnsafe(1)
-    let chatgpt: Credential.OAuth | undefined
-    // let available: ReadonlyArray<RemoteModel> | undefined
-    let source: Effect.Success<ReturnType<typeof ctx.integration.connection.active>>
+    const accounts = new Map<string, {
+      connection: IntegrationConnection.Info
+      credential: Credential.OAuth
+      models?: ReadonlyArray<RemoteModel>
+      syncing: boolean
+      synced: boolean
+    }>()
+    let active: IntegrationConnection.Info | undefined
+    const selected = (connection?: ModelSource.ConnectionRef) =>
+      accounts.get(IntegrationConnection.key(connection ?? active) ?? "")
 
     const load = Effect.fn("ChatGPTPlugin.load")(function* () {
-      // const previous = IntegrationConnection.key(source)
-      const connection = yield* ctx.integration.connection.active(integrationID)
-      const credential = connection
-        ? yield* ctx.integration.connection.resolve(connection).pipe(Effect.orElseSucceed(() => undefined))
-        : undefined
-      chatgpt = credential?.type === "oauth" && credential.methodID === methodID ? credential : undefined
-      source = chatgpt ? connection : undefined
-      // if (previous !== IntegrationConnection.key(source)) {
-      //   const metadata = Option.getOrUndefined(decodeMetadata(chatgpt?.metadata))
-      //   const stored = metadata ? yield* ctx.storage.get(modelCacheKey(metadata.clientID)) : undefined
-      //   available = Option.getOrUndefined(decodeCachedModels(stored))
-      // }
+      const connections = (yield* integrations.get(integrationID))?.connections ?? []
+      const values = new Map((yield* credentials.list(integrationID)).map((entry) => [entry.id, entry.value]))
+      const next = yield* Effect.forEach(connections, (connection) => Effect.gen(function* () {
+        if (connection.type !== "credential") return []
+        const credential = values.get(connection.id)
+        if (credential?.type !== "oauth" || credential.methodID !== methodID) return []
+        const key = IntegrationConnection.key(connection)!
+        const previous = accounts.get(key)
+        const metadata = Option.getOrUndefined(decodeMetadata(credential.metadata))
+        if (previous?.credential.access === credential.access && previous.credential.metadata?.clientID === metadata?.clientID) {
+          previous.connection = connection
+          previous.credential = credential
+          return [[key, previous] as const]
+        }
+        const stored = metadata ? yield* ctx.storage.get(modelCacheKey(metadata.clientID, connection)) : undefined
+        const legacy = stored === undefined && metadata ? yield* ctx.storage.get(modelCacheKey(metadata.clientID)) : stored
+        return [[key, { connection, credential, models: Option.getOrUndefined(decodeCachedModels(legacy)), syncing: false, synced: false }] as const]
+      }))
+      accounts.clear()
+      for (const [key, account] of next.flat()) accounts.set(key, account)
+      active = connections[0]
+    })
+
+    const refreshModels = Effect.fn("ChatGPTPlugin.refreshModels")(function* () {
+      yield* Effect.forEach(Array.from(accounts.values()), (source) => Effect.gen(function* () {
+        const metadata = Option.getOrUndefined(decodeMetadata(source.credential.metadata))
+        if (!metadata || source.syncing || source.synced) return
+        source.syncing = true
+        yield* fetchModels(source.credential.access, ctx.app).pipe(
+          Effect.timeout("15 seconds"),
+          Effect.catch(() => Effect.logDebug("failed to refresh ChatGPT models").pipe(Effect.as(undefined))),
+          Effect.flatMap((models) => loading.withPermit(Effect.gen(function* () {
+            if (!models || accounts.get(IntegrationConnection.key(source.connection)!) !== source) return
+            source.models = models
+            source.synced = true
+            yield* ctx.storage.set(modelCacheKey(metadata.clientID, source.connection), models)
+            yield* ctx.provider.reload()
+          }))),
+          Effect.ensuring(Effect.sync(() => { source.syncing = false })),
+        )
+      }), { concurrency: "unbounded", discard: true })
     })
 
     yield* ctx.integration.transform((editor) => {
       editor.method.update(
-        signIn(ctx.app, () => Option.getOrUndefined(decodeMetadata(chatgpt?.metadata))?.clientID, ctx.storage),
+        signIn(ctx.app, () => Option.getOrUndefined(decodeMetadata(selected()?.credential.metadata))?.clientID, ctx.storage),
       )
     })
     yield* Effect.forEach(
@@ -260,7 +299,7 @@ export const ChatGPTPlugin = define({
       "retry",
       (event) =>
         Effect.sync(() => {
-          if (!chatgpt || !nonRetryableSharingCodes.some((code) => event.error.response?.body.includes(code))) return
+          if (!selected(event.connection) || !nonRetryableSharingCodes.some((code) => event.error.response?.body.includes(code))) return
           event.decision = { retry: false }
         }),
       { providerID },
@@ -269,7 +308,7 @@ export const ChatGPTPlugin = define({
       "model.request",
       (evt) =>
         Effect.gen(function* () {
-          if (!chatgpt) return
+          if (!selected(evt.connection)) return
           const session = yield* ctx.session
             .get({ sessionID: evt.sessionID })
             .pipe(Effect.orElseSucceed(() => undefined))
@@ -283,7 +322,9 @@ export const ChatGPTPlugin = define({
     yield* ctx.provider.transform((providers) => {
       const item = providers.get(providerID)
       if (!item) return
-      if (!chatgpt || !source) return
+      const connection = providers.connection(integrationID)
+      const source = selected(connection)
+      if (!source || !connection) return
       providers.update(providerID, (provider) => {
         provider.settings = Provider.mergeOverlay(provider.settings, {
           baseURL: resource,
@@ -295,17 +336,19 @@ export const ChatGPTPlugin = define({
       if (!updated) return
       providers.add({
         info: updated.provider,
-        // models: available
-        //   ? deriveModels(available, Array.from(item.models.values()))
-        //   : Array.from(item.models.values()).filter((model) => fallbackModels.has(model.id)),
-        models: Array.from(item.models.values()).filter((model) => fallbackModels.has(model.id)),
-        sourceConnection: source,
+        models: source.models
+          ? deriveModels(source.models, Array.from(item.models.values()))
+          : Array.from(item.models.values()).filter((model) => fallbackModels.has(model.id)),
+        sourceConnection: connection,
       })
     })
     yield* ctx.model.transform((models) => {
+      const source = selected(models.connection(integrationID))
+      if (!source || source.connection.type !== "credential") return
+      const quota: ModelSource.Quota = { status: "unsupported", source: "chatgpt-token-sharing", connection: { type: "credential", id: source.connection.id }, reason: "unsupported", windows: [] }
       for (const model of models.list(providerID)) {
         models.update(model.providerID, model.id, (draft) => {
-          if (!chatgpt) return
+          draft.metadata = { ...draft.metadata, quota: { ...quota, windows: [] } }
           draft.compatibility = { ...draft.compatibility, supportsEffortUpdates: false }
           // Token sharing does not support native /responses/compact.
           draft.settings = { ...draft.settings, compaction: { type: "summary" } }
@@ -313,53 +356,25 @@ export const ChatGPTPlugin = define({
             draft.enabled = false
             return
           }
-          // if (available && !available.some((remote) => remote.slug === (draft.modelID ?? draft.id))) {
-          //   draft.enabled = false
-          //   return
-          // }
           draft.cost = []
         })
       }
     })
-    // const refreshModels = Effect.fn("ChatGPTPlugin.refreshModels")(function* () {
-    //   const connection = source
-    //   const credential =
-    //     connection?.type === "credential"
-    //       ? (yield* credentials.get(Credential.ID.make(connection.id)))?.value
-    //       : undefined
-    //   if (credential?.type !== "oauth" || credential.methodID !== methodID || credential.expires <= Date.now() + 60_000)
-    //     return
-    //   const metadata = Option.getOrUndefined(decodeMetadata(credential.metadata))
-    //   if (!metadata) return
-    //   const models = yield* fetchModels(credential.access, ctx.app).pipe(
-    //     Effect.timeout(15_000),
-    //     Effect.catch(() => Effect.logWarning("failed to refresh ChatGPT models").pipe(Effect.as(undefined))),
-    //   )
-    //   if (!models) return
-    //   yield* loading.withPermit(
-    //     Effect.gen(function* () {
-    //       if (
-    //         IntegrationConnection.key(connection) !== IntegrationConnection.key(source) ||
-    //         IntegrationConnection.key(connection) !==
-    //           IntegrationConnection.key(yield* ctx.integration.connection.active(integrationID))
-    //       )
-    //         return
-    //       if (JSON.stringify(models) === JSON.stringify(available)) return
-    //       yield* ctx.storage.set(modelCacheKey(metadata.clientID), models)
-    //       available = models
-    //       yield* ctx.provider.reload()
-    //     }),
-    //   )
-    // })
+    yield* ctx.session.hook("model.quota", (evt) => Effect.gen(function* () {
+      const connection = evt.connection
+        ? yield* integrations.connection.get(integrationID, evt.connection)
+        : yield* integrations.connection.active(integrationID)
+      if (connection?.type !== "credential" || !selected(connection)) return
+      evt.quota = { status: "unsupported", source: "chatgpt-token-sharing", connection: { type: "credential", id: connection.id }, reason: "unsupported", windows: [] }
+    }), { providerID })
     const reload = () => loading.withPermit(load().pipe(Effect.andThen(ctx.provider.reload())))
-    // .pipe(Effect.andThen(refreshModels().pipe(Effect.forkScoped, Effect.asVoid)))
-    yield* bus.subscribe(Credential.Event.Switched).pipe(
-      Stream.filter((event) => event.data.integrationID === integrationID),
+      .pipe(Effect.andThen(refreshModels().pipe(Effect.forkScoped, Effect.asVoid)))
+    yield* bus.subscribe([Credential.Event.Updated, Credential.Event.Switched]).pipe(
+      Stream.filter((event) => event.type === Credential.Event.Updated.type || event.data.integrationID === integrationID),
       Stream.runForEach(reload),
       Effect.forkScoped({ startImmediately: true }),
     )
-    // yield* refreshModels().pipe(Effect.forkScoped)
-    // yield* Effect.sleep(Duration.minutes(15)).pipe(Effect.andThen(refreshModels), Effect.forever, Effect.forkScoped)
+    yield* refreshModels().pipe(Effect.forkScoped)
   }),
 } satisfies PluginInternal.InternalPlugin)
 
@@ -435,7 +450,7 @@ function deriveModel(remote: RemoteModel, previous: Model.Info): Model.Info {
   return {
     ...previous,
     name: previous.id === previous.modelID ? remote.display_name : previous.name,
-    package: previous.package ?? "@opencode/ai/providers/openai",
+    package: previous.package ?? "@aigcfroge/ai/providers/openai",
     capabilities: {
       ...previous.capabilities,
       input: remote.input_modalities.filter((modality) => modality === "text" || modality === "image"),

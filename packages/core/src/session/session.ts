@@ -1,18 +1,25 @@
 export * as Session from "./session.js"
 
 import { DateTime, Effect, Fiber, Scope } from "effect"
-import type { Agent } from "@opencode/schema/agent"
-import type { Model } from "@opencode/schema/model"
-import type { Permission } from "@opencode/schema/permission"
-import { Event } from "@opencode/schema/event"
-import { FSUtil } from "@opencode/util/fs-util"
+import { SessionCommunication } from "@aigcfroge/schema/session-communication"
+import type { Agent } from "@aigcfroge/schema/agent"
+import type { Model } from "@aigcfroge/schema/model"
+import type { ModelGroup } from "@aigcfroge/schema/model-group"
+import type { Permission } from "@aigcfroge/schema/permission"
+import { Event } from "@aigcfroge/schema/event"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { Bus } from "../bus.js"
 import { Database } from "../database/database.js"
 import { Instance } from "../instance/service.js"
+import { ProductModePolicy } from "../product-mode-policy.js"
+import { KeyedMutex } from "../effect/keyed-mutex.js"
 import { ShellResult } from "../shell/result.js"
 import type { Skill } from "../skill.js"
 import {
   BusyError,
+  ControllerConflictError,
+  bindingMatches,
+  sameModel,
   CompactionConflictError,
   InboxConflictError,
   NotFoundError,
@@ -29,11 +36,18 @@ import { SessionShell } from "./shell.js"
 import { SessionSkill } from "./skill.js"
 import { SessionSchema } from "./schema.js"
 import { SessionStore } from "./store.js"
+import { SessionComposition } from "./composition.js"
 
 type PromptRequest = SessionPrompt.Input & {
   id?: SessionMessage.ID
   resume?: boolean
 }
+
+// Agent selection and new cross-Session admission share this source boundary.
+// It is separate from target Inbox locks so simultaneous A → B and B → A do not nest them.
+const selectionLocks = KeyedMutex.makeUnsafe<SessionSchema.ID>()
+export const serializedSelection = <A, E, R>(sessionID: SessionSchema.ID, effect: Effect.Effect<A, E, R>) =>
+  selectionLocks.withLock(sessionID)(effect)
 
 /**
  * Build once in the host Scope: `const sessions = yield* Session.make()`.
@@ -46,6 +60,7 @@ export const make = Effect.fn("Session.make")(function* () {
   const instances = yield* Instance.Service
   const execution = yield* SessionExecution.Service
   const admission = yield* SessionInbox.Service
+  const compositions = yield* SessionComposition.Service
   const fs = yield* FSUtil.Service
   const scope = yield* Scope.Scope
 
@@ -86,25 +101,76 @@ export const make = Effect.fn("Session.make")(function* () {
     yield* get(sessionID)
     yield* bus.publish(SessionEvent.Permissions, { sessionID, permissions: input.permissions })
   })
-  const switchAgent = Effect.fn("Session.switchAgent")(function* (
-    sessionID: SessionSchema.ID,
-    input: { agent: Agent.ID },
-  ) {
-    const session = yield* get(sessionID)
-    yield* bus.publish(SessionEvent.AgentSelected, { sessionID, agent: input.agent, previous: session.agent })
-  })
+  const switchAgent = Effect.fn("Session.switchAgent")(
+    (
+      sessionID: SessionSchema.ID,
+      input: { agent: Agent.ID; model?: Model.Selection; controller?: SessionSchema.RootController },
+    ) =>
+      serializedSelection(
+        sessionID,
+        Effect.gen(function* () {
+          const session = yield* get(sessionID)
+          yield* ProductModePolicy.assertRuntimeSupported(session.mode)
+          if (session.controller?.kind === "child") {
+            if (
+              !bindingMatches(session) ||
+              input.agent !== session.controller.executor.agent ||
+              (input.model !== undefined && !sameModel(input.model, session.controller.executor.model))
+            )
+              return yield* new ControllerConflictError({
+                sessionID,
+                field: "agent",
+                kind: "meta_binding_conflict",
+                message: "Delegated child binding is immutable",
+              })
+            return
+          }
+          const agent =
+            session.mode === "custom"
+              ? (yield* SessionComposition.selectSessionAgent(compositions, session, input.agent)).info.id
+              : input.agent
+          if (
+            session.agent === agent &&
+            !input.controller &&
+            ((session.mode === "custom" && input.model === undefined) ||
+              (session.controller?.kind === "root" && sameModel(input.model ?? session.model, session.model)))
+          )
+            return
+          yield* bus
+            .publish(SessionEvent.AgentSelected, {
+              sessionID,
+              agent,
+              previous: session.agent,
+              model: input.model,
+              controller: input.controller,
+            })
+            .pipe(
+              Effect.catchDefect((defect) =>
+                defect instanceof ControllerConflictError ? Effect.fail(defect) : Effect.die(defect),
+              ),
+            )
+        }),
+      ),
+  )
   const switchModel = Effect.fn("Session.switchModel")(function* (
     sessionID: SessionSchema.ID,
-    input: { model: Model.Ref },
+    input: { model: Model.Selection; groupBehavior?: ModelGroup.BehaviorSnapshot },
   ) {
     const session = yield* get(sessionID)
-    if (
-      session.model?.providerID === input.model.providerID &&
-      session.model.id === input.model.id &&
-      (session.model.variant ?? "default") === (input.model.variant ?? "default")
-    )
+    yield* ProductModePolicy.assertRuntimeSupported(session.mode)
+    if (session.mode === "custom") yield* SessionComposition.selectSessionAgent(compositions, session)
+    if (session.controller?.kind === "child") {
+      if (!bindingMatches(session) || !sameModel(input.model, session.controller.executor.model))
+        return yield* new ControllerConflictError({
+          sessionID,
+          field: "model",
+          kind: "meta_binding_conflict",
+          message: "Delegated child binding is immutable",
+        })
       return
-    yield* bus.publish(SessionEvent.ModelSelected, { sessionID, model: input.model, previous: session.model })
+    }
+    if (sameModel(session.model, input.model)) return
+    yield* bus.publish(SessionEvent.ModelSelected, { sessionID, model: input.model, previous: session.model, groupBehavior: input.groupBehavior })
   })
   const mutatePending = (
     sessionID: SessionSchema.ID,
@@ -146,6 +212,7 @@ export const make = Effect.fn("Session.make")(function* () {
     Effect.uninterruptibleMask((restore) =>
       Effect.gen(function* () {
         const session = yield* get(sessionID)
+        yield* ProductModePolicy.assertRuntimeSupported(session.mode)
         const messageID = input.id ?? SessionMessage.ID.create()
         const admitted = yield* Effect.gen(function* () {
           const existing = yield* admission.reconcile({
@@ -159,10 +226,11 @@ export const make = Effect.fn("Session.make")(function* () {
             SessionPrompt.prepare({ session, messageID, input }).pipe(
               Effect.provideService(Instance.Service, instances),
               Effect.provideService(FSUtil.Service, fs),
+              Effect.provideService(SessionComposition.Service, compositions),
             ),
           )
           // Commit a staged revert only after preparation succeeds, before admitting new work.
-          if (session.revert) yield* SessionRevert.commit(bus, session)
+          if (session.revert) yield* SessionRevert.commit(bus, session, database.db)
           return yield* admission.admit({
             id: messageID,
             sessionID: session.id,
@@ -182,6 +250,7 @@ export const make = Effect.fn("Session.make")(function* () {
   ) {
     const session = yield* get(sessionID)
     // The server owns completion recording even if the submitting client disconnects.
+    yield* ProductModePolicy.assertRuntimeSupported(session.mode)
     const running = yield* Effect.gen(function* () {
       const started = yield* SessionShell.start({ session, command: input.command }).pipe(
         Effect.provideService(Instance.Service, instances),
@@ -225,8 +294,10 @@ export const make = Effect.fn("Session.make")(function* () {
     input: { messageID?: SessionMessage.ID; skill: Skill.ID; resume?: boolean },
   ) {
     const session = yield* get(sessionID)
+    yield* ProductModePolicy.assertRuntimeSupported(session.mode)
     const skill = yield* SessionSkill.get({ session, skill: input.skill }).pipe(
       Effect.provideService(Instance.Service, instances),
+      Effect.provideService(SessionComposition.Service, compositions),
     )
     yield* bus.publish(
       SessionEvent.Skill.Activated,
@@ -248,7 +319,8 @@ export const make = Effect.fn("Session.make")(function* () {
     input: { id?: SessionMessage.ID; delivery?: SessionInbox.Delivery },
   ) {
     const session = yield* get(sessionID)
-    if (session.revert) yield* SessionRevert.commit(bus, session)
+    yield* ProductModePolicy.assertRuntimeSupported(session.mode)
+    if (session.revert) yield* SessionRevert.commit(bus, session, database.db)
     const inputID = input.id ?? SessionMessage.ID.create()
     const admitted = yield* admission
       .admitCompaction({
@@ -267,7 +339,8 @@ export const make = Effect.fn("Session.make")(function* () {
     yield* execution.awaitIdle(sessionID)
   })
   const resume = Effect.fn("Session.resume")(function* (sessionID: SessionSchema.ID) {
-    yield* get(sessionID)
+    const session = yield* get(sessionID)
+    yield* ProductModePolicy.assertRuntimeSupported(session.mode)
     yield* execution.resume(sessionID)
   })
   const synthetic = Effect.fn("Session.synthetic")(
@@ -281,6 +354,7 @@ export const make = Effect.fn("Session.make")(function* () {
         delivery?: SessionInbox.Delivery
         resume?: boolean
       },
+      options?: { readonly communication?: SessionCommunication.Record },
     ) =>
       Effect.uninterruptible(
         Effect.gen(function* () {
@@ -300,6 +374,7 @@ export const make = Effect.fn("Session.make")(function* () {
               id: inputID,
               sessionID,
               item: admittedInput,
+              communication: options?.communication,
             })
             .pipe(
               Effect.catchTag(
@@ -340,7 +415,7 @@ export const make = Effect.fn("Session.make")(function* () {
   const commit = Effect.fn("Session.revert.commit")(function* (sessionID: SessionSchema.ID) {
     const session = yield* get(sessionID)
     if (yield* execution.isActive(sessionID)) return yield* new BusyError({ sessionID })
-    return yield* SessionRevert.commit(bus, session)
+    return yield* SessionRevert.commit(bus, session, database.db)
   })
   const revert = { stage, clear, commit }
   const operations = {

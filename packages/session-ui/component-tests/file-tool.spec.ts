@@ -32,13 +32,19 @@ story("keeps grouped file choices when the Used group reopens", async ({ mount }
 
 for (const tool of ["edit", "write"]) {
   story(`${tool} preserves input fallback and disclosure through completion`, async ({ mount }) => {
-    const root = await mount("current-session-file-changes--file-tool-fallbacks", { args: { tool } })
+    const root = await mount("current-session-file-changes--file-tool-fallbacks", { args: { tool, malformedDiagnostic: tool === "edit" } })
     const file = root.getByRole("button", { name: /example\.ts/ })
     await expect(file).toHaveAttribute("aria-expanded", "false")
     await file.click()
     await expect(root.locator('[data-component="file"]')).toContainText(tool === "edit" ? "after" : "written")
     await root.getByRole("button", { name: "Complete file tool" }).click()
     await expect(root.getByText("Example diagnostic")).toBeVisible()
+
+    if (tool === "edit") {
+      await expect(root.locator('[data-slot="diagnostic-location"]')).toHaveText(["[1:1]"])
+      await expect(root.getByText("Incomplete diagnostic")).toHaveCount(0)
+    }
+
     await expect(file).toHaveAttribute("aria-expanded", "true")
     await file.click()
     await expect(file).toHaveAttribute("aria-expanded", "false")

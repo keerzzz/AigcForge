@@ -1,13 +1,12 @@
 import { readJson, writeJsonAtomic } from "./util/persistence"
 import { isRecord } from "./util/record"
-import { Flock } from "@opencode/util/flock"
+import { Flock } from "@aigcfroge/util/flock"
 import { watch } from "node:fs"
 import path from "node:path"
+import type { ModelGroupRef, ModelSelection } from "@aigcfroge/client/promise"
 
-export type ModelPreferenceModel = {
-  providerID: string
-  modelID: string
-}
+export type ModelPreferenceModel = { providerID: string; modelID: string } | ModelGroupRef
+export type ModelPreferenceSelection = ModelPreferenceModel & { variant?: string }
 
 export type ModelPreference = {
   recent: ModelPreferenceModel[]
@@ -21,6 +20,10 @@ function models(value: unknown) {
   if (!Array.isArray(value)) return []
   return value.flatMap((item): ModelPreferenceModel[] => {
     if (!isRecord(item)) return []
+    if (item.type === "group") {
+      if (typeof item.groupID !== "string" || !item.groupID || /[/#]/u.test(item.groupID)) return []
+      return [{ type: "group", groupID: item.groupID }]
+    }
     if (typeof item.providerID !== "string" || item.providerID.length === 0) return []
     if (typeof item.modelID !== "string" || item.modelID.length === 0) return []
     return [{ providerID: item.providerID, modelID: item.modelID }]
@@ -43,7 +46,32 @@ export function normalizeModelVariant(value: string | undefined) {
 }
 
 export function modelPreferenceKey(model: ModelPreferenceModel) {
+  if (isModelGroup(model)) return `group:${model.groupID}`
   return `${model.providerID}/${model.modelID}`
+}
+
+export function isModelGroup(model: ModelPreferenceModel | ModelSelection): model is ModelGroupRef {
+  return "type" in model && model.type === "group"
+}
+
+export function toModelPreference(model: ModelSelection): ModelPreferenceSelection {
+  if (isModelGroup(model)) return { type: "group", groupID: model.groupID }
+  return { providerID: model.providerID, modelID: model.id, variant: model.variant }
+}
+
+export function toModelSelection(model: ModelPreferenceModel, variant?: string): ModelSelection {
+  if (isModelGroup(model)) return { type: "group", groupID: model.groupID }
+  return { providerID: model.providerID, id: model.modelID, variant }
+}
+
+export function modelSelectionKey(model: ModelSelection | undefined) {
+  if (!model) return JSON.stringify(null)
+  if (isModelGroup(model)) return JSON.stringify(["group", model.groupID])
+  return JSON.stringify([model.providerID, model.id, normalizeModelVariant(model.variant) ?? null])
+}
+
+export function sameModelSelection(left: ModelSelection | undefined, right: ModelSelection | undefined) {
+  return modelSelectionKey(left) === modelSelectionKey(right)
 }
 
 export function recentModels(model: ModelPreferenceModel, recent: ModelPreferenceModel[]) {
@@ -56,7 +84,11 @@ export function recentModels(model: ModelPreferenceModel, recent: ModelPreferenc
       return true
     })
     .slice(0, 10)
-    .map((item) => ({ providerID: item.providerID, modelID: item.modelID }))
+    .map((item) =>
+      isModelGroup(item)
+        ? { type: "group" as const, groupID: item.groupID }
+        : { providerID: item.providerID, modelID: item.modelID },
+    )
 }
 
 export function favoriteModels(model: ModelPreferenceModel, favorite: ModelPreferenceModel[], enabled: boolean) {
@@ -173,9 +205,11 @@ export function createModelPreferenceRepository(filePath: string) {
       }
     },
     async resolveVariant(model: ModelPreferenceModel) {
+      if (isModelGroup(model)) return
       return normalizeModelVariant((await load()).variant[modelPreferenceKey(model)])
     },
     saveVariant(model: ModelPreferenceModel, value: string | undefined) {
+      if (isModelGroup(model)) return Promise.resolve()
       const key = modelPreferenceKey(model)
       const next = normalizeModelVariant(value) ?? "default"
       return update((current) => ({ variant: { ...current.variant, [key]: next } }))

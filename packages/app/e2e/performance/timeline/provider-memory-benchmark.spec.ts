@@ -1,10 +1,10 @@
 import { benchmark, expect } from "../benchmark"
-import { mockOpenCodeServer } from "../../utils/mock-server"
+import { mockAigcForgeServer } from "../../utils/mock-server"
 import { expectSessionTitle } from "../../utils/waits"
 import { fixture, installStressSessionTabs, installTimelineSettings, pageMessages } from "../../utils/session-fixture"
 import { sessionHref } from "../../utils/app"
 import { waitForStableTimeline } from "./session-tab-switch-probe"
-import type { ModelUpdated } from "@opencode/client/promise"
+import type { ModelUpdated } from "@aigcfroge/client/promise"
 
 benchmark("measures retained renderer memory with a large model catalog", async ({ page, report }) => {
   benchmark.setTimeout(120_000)
@@ -13,7 +13,7 @@ benchmark("measures retained renderer memory with a large model catalog", async 
   const provider = fixture.provider.all[0]
   const selected = { ...provider.models["claude-opus-4-6"] }
 
-  const mock = await mockOpenCodeServer(page, {
+  const mock = await mockAigcForgeServer(page, {
     directory: fixture.directory,
     project: fixture.project,
     sessions: fixture.sessions,

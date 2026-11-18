@@ -1,5 +1,11 @@
 import { Extension, type Definition } from "./sdk"
+import panelLauncher from "./panel-launcher"
+import panelLauncherRenderer from "./panel-launcher/renderer"
 import context from "./context"
+import sessionManagement from "./session-management"
+import sessionManagementRenderer from "./session-management/renderer"
+import skillProposals from "./skill-proposals"
+import skillProposalsRenderer from "./skill-proposals/renderer"
 import contextRenderer from "./context/renderer"
 import btw from "./btw"
 import btwRenderer from "./btw/renderer"
@@ -36,7 +42,10 @@ const eager = (setup: Awaited<ReturnType<NonNullable<Definition["renderer"]>>>["
  * checks this composition against the main one.
  */
 export const builtins = Extension.compose(
+  { ...panelLauncher, renderer: eager(panelLauncherRenderer) },
+  { ...sessionManagement, renderer: eager(sessionManagementRenderer) },
   { ...context, renderer: eager(contextRenderer) },
+  { ...skillProposals, renderer: eager(skillProposalsRenderer) },
   { ...btw, renderer: eager(btwRenderer) },
   { ...debug, renderer: eager(debugRenderer) },
   { ...terminal, renderer: eager(terminalRenderer) },

@@ -2,9 +2,9 @@ import { batch, createContext, onCleanup, useContext, type ParentProps } from "s
 import { createStore, produce, reconcile, type Store } from "solid-js/store"
 import path from "path"
 import { mkdirSync, readFileSync, watch } from "fs"
-import { Flock } from "@opencode/util/flock"
+import { Flock } from "@aigcfroge/util/flock"
 import { writeJsonAtomic } from "../util/persistence"
-import { useTuiApp, useTuiPaths } from "./runtime"
+import { useTuiApp, useTuiPaths, type TuiLifecycle } from "./runtime"
 
 type Options<Value extends object> = {
   readonly initial: Value
@@ -48,6 +48,7 @@ export function createStorage(root: string, channel: string) {
   const entries = new Map<string, { readonly value: Entry<object>; readonly reload: () => void }>()
   const memories = new Map<string, MemoryEntry<object>>()
   const pending = new Set<Promise<void>>()
+  let closed = false
   const directory = path.join(root, segment(channel), "tui")
   const locks = path.join(root, segment(channel), "locks")
   mkdirSync(directory, { recursive: true })
@@ -69,6 +70,7 @@ export function createStorage(root: string, channel: string) {
       const merge = (next: Value) => reconcile(next, { key: options.key })
       const reload = () => batch(() => setStore(merge(load())))
       const update = (mutation: (draft: Value) => void) => {
+        if (closed) return Promise.reject(new Error("Storage is closed"))
         const operation = Flock.withLock(
           file,
           async () => {
@@ -134,6 +136,8 @@ export function createStorage(root: string, channel: string) {
   return {
     storage,
     close: () => {
+      if (closed) return
+      closed = true
       clearTimeout(reloadTimer)
       watcher?.close()
     },
@@ -142,8 +146,13 @@ export function createStorage(root: string, channel: string) {
 
 const Context = createContext<Storage>()
 
-export function StorageProvider(props: ParentProps) {
+export function StorageProvider(props: ParentProps<{ lifecycle?: TuiLifecycle }>) {
   const result = createStorage(useTuiPaths().state, useTuiApp().channel)
+  props.lifecycle?.add(async () => {
+    // Await existing writes even when stopping the watcher throws.
+    await using _pendingWrites = { [Symbol.asyncDispose]: () => result.storage.flush() }
+    result.close()
+  })
   onCleanup(result.close)
   return <Context.Provider value={result.storage}>{props.children}</Context.Provider>
 }

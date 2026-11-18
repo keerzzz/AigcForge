@@ -1,21 +1,22 @@
 import { describe, expect } from "bun:test"
 import path from "path"
 import { Effect, Layer } from "effect"
-import { LanguageModel } from "@opencode/ai"
-import { OpenAIChat } from "@opencode/ai/protocols/openai-chat"
-import { TestLLM } from "@opencode/ai/testing"
-import { Agent } from "@opencode/core/agent"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { LayerNodePlatform } from "@opencode/core/effect/app-node-platform"
-import { Watcher } from "@opencode/core/filesystem/watcher"
-import { LocationServiceMap } from "@opencode/core/location-service-map"
-import { Model } from "@opencode/core/model"
-import { Provider } from "@opencode/core/provider"
-import { AbsolutePath } from "@opencode/core/schema"
-import { Session } from "@opencode/core/session"
-import { SessionRunnerModel } from "@opencode/core/session/runner/model"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { Global } from "@opencode/util/global"
+import { LanguageModel } from "@aigcfroge/ai"
+import { OpenAIChat } from "@aigcfroge/ai/protocols/openai-chat"
+import { TestLLM } from "@aigcfroge/ai/testing"
+import { Agent } from "@aigcfroge/core/agent"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { LayerNodePlatform } from "@aigcfroge/core/effect/app-node-platform"
+import { Watcher } from "@aigcfroge/core/filesystem/watcher"
+import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
+import { Model } from "@aigcfroge/core/model"
+import { Plugin } from "@aigcfroge/core/plugin/service"
+import { Provider } from "@aigcfroge/core/provider"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Session } from "@aigcfroge/core/session"
+import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Global } from "@aigcfroge/util/global"
 import { tempGlobalLayer } from "../fixture/global"
 import { offlineModels } from "../fixture/models"
 import { tmpdirScoped } from "../fixture/tmpdir"
@@ -35,7 +36,7 @@ const it = testEffect(
           resolve: (session) =>
             Effect.succeed(
               SessionRunnerModel.resolved(
-                LanguageModel.make({ id: session.model?.id ?? "parent", provider: "test", route: OpenAIChat.route }),
+                LanguageModel.make({ id: session.model && !Model.Selection.isGroup(session.model) ? session.model.id : "parent", provider: "test", route: OpenAIChat.route }),
                 {
                   capabilities: { tools: true, input: ["text"], output: ["text"] },
                   cost: [],
@@ -70,8 +71,8 @@ describe("command subagents", () => {
     {
       name: "subagent mode by default",
       format: "json",
-      command: { agent: "reviewer" },
-      agent: "reviewer",
+      command: { agent: "general" },
+      agent: "general",
       model: "child",
     },
   ] as const) {
@@ -108,13 +109,13 @@ describe("command subagents", () => {
 
   it.live("subagent: false overrides subagent mode and the legacy alias", () =>
     Effect.gen(function* () {
-      const parent = yield* project({ subagent: false, subtask: true, agent: "reviewer" }, "json")
+      const parent = yield* project({ subagent: false, subtask: true, agent: "general" }, "json")
       const sessions = yield* Session.Service
       yield* sessions.command({ sessionID: parent.id, command: "review", text: "changes" })
       yield* sessions.wait(parent.id)
       expect((yield* sessions.list({ parentID: parent.id })).data).toEqual([])
       expect(yield* sessions.get(parent.id)).toMatchObject({
-        agent: "reviewer",
+        agent: "general",
         model: { id: "child" },
       })
       expect((yield* sessions.context(parent.id)).filter((message) => message.type === "user")).toMatchObject([
@@ -133,9 +134,9 @@ function project(
     const definition = { description: "Review code", template: "Review $ARGUMENTS: !`printf ready`", ...command }
     yield* Effect.promise(() =>
       Bun.write(
-        path.join(tmp.path, "opencode.json"),
+        path.join(tmp.path, "aigcfroge.json"),
         JSON.stringify({
-          agents: { reviewer: { mode: "subagent", model: "test/child" } },
+          agents: { general: { model: "test/child" } },
           ...(format === "markdown" ? {} : { commands: { review: definition } }),
         }),
       ),
@@ -143,7 +144,7 @@ function project(
     if (format === "markdown")
       yield* Effect.promise(() =>
         Bun.write(
-          path.join(tmp.path, ".opencode/commands/review.md"),
+          path.join(tmp.path, ".aigcfroge/commands/review.md"),
           [
             "---",
             "description: Review code",
@@ -154,11 +155,21 @@ function project(
         ),
       )
     const sessions = yield* Session.Service
-    return yield* sessions.create({
+    const parent = yield* sessions.create({
       location: { directory: AbsolutePath.make(tmp.path) },
       title: "Parent session",
       agent: Agent.ID.make("build"),
       model: parentModel,
     })
+    expect(yield* Plugin.awaitActivation.pipe(
+      Effect.andThen(Agent.Service.use((agents) => agents.get(Agent.ID.make("general")))),
+      Effect.provide(LocationServiceMap.Service.get(parent.location)),
+    )).toMatchObject({
+      id: "general",
+      originKind: "builtin",
+      mode: "subagent",
+      model: { providerID: "test", id: "child" },
+    })
+    return parent
   })
 }

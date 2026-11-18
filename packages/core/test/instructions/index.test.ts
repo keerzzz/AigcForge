@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test"
 import { Cause, Effect, Exit, Option, Schema } from "effect"
-import { Instructions } from "@opencode/core/instructions/index"
+import { Instructions } from "@aigcfroge/core/instructions/index"
 import { it } from "../lib/effect"
 
 const key = (value: string) => Instructions.Key.make(value)
 const source = (input: {
   key: string
   value: string | Instructions.Unavailable | Instructions.Removed
-  initial?: (value: string) => string
-  changed?: (previous: string, current: string) => string
-  removed?: (value: string) => string
+  initial?: (value: string) => string | undefined
+  changed?: (previous: string, current: string) => string | undefined
+  removed?: (value: string) => string | undefined
 }) =>
   Instructions.make({
     key: key(input.key),
@@ -206,6 +206,29 @@ describe("Instructions", () => {
     expect(() => Instructions.renderInitial(instructions, { "core/empty": "value" })).toThrow(
       "Instruction source core/empty rendered an empty initial",
     )
+  })
+
+  test("skips historical values that the typed renderer cannot present", () => {
+    const instructions = source({
+      key: "core/historical",
+      value: "current",
+      initial: () => undefined,
+      changed: () => undefined,
+      removed: () => undefined,
+    })
+
+    expect(Instructions.renderInitial(instructions, { "core/historical": "previous" })).toBe("")
+    expect(Instructions.renderUpdate(instructions, {}, { "core/historical": Option.some("current") })).toBe("")
+    expect(
+      Instructions.renderUpdate(
+        instructions,
+        { "core/historical": "previous" },
+        { "core/historical": Option.some("current") },
+      ),
+    ).toBe("")
+    expect(
+      Instructions.renderUpdate(instructions, { "core/historical": "previous" }, { "core/historical": Option.none() }),
+    ).toBe("")
   })
 
   test("diffs list values by key", () => {

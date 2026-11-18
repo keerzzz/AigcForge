@@ -1,6 +1,8 @@
-import type { IntegrationOAuthMethodRegistration } from "@opencode/plugin/effect/integration"
-import type { SessionRequestKind, SessionTitle } from "@opencode/plugin/effect/session"
-import { Effect, Option, Schema, Semaphore, Stream } from "effect"
+import type { IntegrationOAuthMethodRegistration } from "@aigcfroge/plugin/effect/integration"
+import type { SessionRequestKind, SessionTitle } from "@aigcfroge/plugin/effect/session"
+import type { ModelSource } from "@aigcfroge/schema/model-source"
+import { DateTime, Effect, Option, Schema, Semaphore, Stream } from "effect"
+import { HttpClient, HttpClientRequest } from "effect/http"
 import { IntegrationConnection } from "../../integration/connection.js"
 import { Credential } from "../../credential.js"
 import { Bus } from "../../bus.js"
@@ -9,14 +11,16 @@ import { App } from "../../app.js"
 import { Integration } from "../../integration.js"
 import { Model } from "../../model.js"
 import { Agent } from "../../agent.js"
-import { define } from "@opencode/plugin/effect/plugin"
+import { define } from "@aigcfroge/plugin/effect/plugin"
 import { Provider } from "../../provider.js"
+import { ProviderQuota } from "../../provider/quota.js"
 import { SessionAffinity } from "../../session/affinity.js"
 import type { PluginInternal } from "../internal.js"
 
 const clientID = "Ov23li8tweQw6odWQebz"
 const apiVersion = "2026-08-01"
 const userApiVersion = "2025-04-01"
+const quotaCacheTTL = 300_000
 const pollingSafetyMargin = 3000
 const methodID = Integration.MethodID.make("device")
 
@@ -101,7 +105,7 @@ const oauth = (app: App.Info) =>
               if (token.access_token) {
                 const access = token.access_token
                 return request(
-                  `${domain === "github.com" ? "https://api.github.com" : `https://api.${domain}`}/copilot_internal/user`,
+                  copilotUserURL(enterprise ? { enterpriseUrl: domain } : undefined),
                   {
                     headers: {
                       Accept: "application/json",
@@ -157,56 +161,86 @@ const oauth = (app: App.Info) =>
   }) satisfies IntegrationOAuthMethodRegistration
 
 export const GithubCopilotPlugin = define({
-  id: "opencode.provider.github.copilot",
+  id: "aigcfroge.provider.github.copilot",
   effect: Effect.fn(function* (ctx) {
     const providers = yield* Provider.Service
+    const models = yield* Model.Service
+    const integrations = yield* Integration.Service
+    const http = yield* HttpClient.HttpClient
     const bus = yield* Bus.Service
     const loading = Semaphore.makeUnsafe(1)
-    const loaded: {
-      baseURL?: string
-      token?: string
+    const accounts = new Map<string, {
+      baseURL: string
+      token: string
+      credential: Credential.OAuth
       models?: CopilotModels.Snapshot
-      connection?: Effect.Success<ReturnType<typeof ctx.integration.connection.active>>
-    } = {}
+      connection: IntegrationConnection.CredentialInfo
+      quota?: ModelSource.Quota
+      lastSuccess?: ModelSource.Quota
+      readAt?: number
+      quotaLoading: ReturnType<typeof Semaphore.makeUnsafe>
+    }>()
+    let active: IntegrationConnection.Info | undefined
+    const selected = (connection?: ModelSource.ConnectionRef) =>
+      accounts.get(IntegrationConnection.key(connection ?? active) ?? "")
+
+    const quotaForModel = (source: NonNullable<ReturnType<typeof selected>>, apiID: string) => {
+      const quota = source.quota ?? { status: "unknown" as const, source: "github-copilot", connection: { type: "credential" as const, id: source.connection.id }, windows: [] }
+      const window = quota.windows.find((window) => window.id === "premium_interactions")
+      const billing = source.models?.get(apiID)?.billing
+      const prices = billing?.token_prices?.default
+      const cache = prices?.cache_read_price ?? prices?.cache_price
+      const premium = window?.unit.endsWith("-token")
+        ? prices && prices.input_price === 0 && prices.output_price === 0 && cache === 0 ? false
+          : prices && [prices.input_price, prices.output_price, cache].some((price) => price !== undefined && price > 0) ? true : undefined
+        : window?.unit.endsWith("-request")
+          ? billing?.multiplier === 0 ? false : billing?.multiplier !== undefined && billing.multiplier > 0 ? true : undefined
+          : undefined
+      return {
+        ...quota,
+        // Unknown billing preserves account observations without claiming model availability.
+        status: quota.status === "known" && premium === undefined ? "unknown" : quota.status,
+        freeModel: premium === undefined ? undefined : !premium,
+        windows: quota.windows.map((window) => ({
+          ...window,
+          ...(window.id === "premium_interactions" && premium !== undefined ? { scope: "model" as const, modelIDs: premium ? [apiID] : [] }
+            : window.id === "completions" ? { scope: "model" as const, modelIDs: [] }
+              : { modelIDs: window.modelIDs && [...window.modelIDs] }),
+        })),
+      } satisfies ModelSource.Quota
+    }
 
     const load = Effect.fn("GithubCopilotPlugin.load")(function* () {
-      const connection = yield* ctx.integration.connection.active("github-copilot")
-      const credential = connection
-        ? yield* ctx.integration.connection.resolve(connection).pipe(Effect.orElseSucceed(() => undefined))
-        : undefined
-      if (credential?.type !== "oauth") {
-        loaded.baseURL = undefined
-        loaded.token = undefined
-        loaded.models = undefined
-        loaded.connection = undefined
-        return
-      }
-
-      const url = copilotBaseURL(credential.metadata) ?? baseURL()
-      const provider = yield* providers.get(Provider.ID.githubCopilot)
-      const remote = yield* Effect.tryPromise({
-        try: () =>
-          CopilotModels.load(url, {
+      const connections = (yield* integrations.get(Integration.ID.make("github-copilot")))?.connections ?? []
+      const next = yield* Effect.forEach(connections, (connection) => Effect.gen(function* () {
+        if (connection.type !== "credential") return []
+        const credential = yield* ctx.integration.connection.resolve(connection).pipe(Effect.orElseSucceed(() => undefined))
+        if (credential?.type !== "oauth") return []
+        const key = IntegrationConnection.key(connection)!
+        const url = copilotBaseURL(credential.metadata)
+        const previous = accounts.get(key)
+        if (previous?.models && previous.baseURL === url && previous.token === credential.refresh) {
+          previous.connection = connection
+          previous.credential = credential
+          return [[key, previous] as const]
+        }
+        const provider = yield* providers.get(Provider.ID.githubCopilot, connection)
+        const remote = yield* Effect.tryPromise({
+          try: () => CopilotModels.load(url, {
             ...provider?.headers,
             Authorization: `Bearer ${credential.refresh}`,
             "User-Agent": App.useragent(ctx.app),
             "X-GitHub-Api-Version": apiVersion,
           }),
-        catch: (cause) => cause,
-      }).pipe(
-        Effect.catch((cause) =>
-          Effect.logWarning("failed to sync GitHub Copilot models", { cause }).pipe(Effect.as(undefined)),
-        ),
-      )
-      if (
-        IntegrationConnection.key(connection) !==
-        IntegrationConnection.key(yield* ctx.integration.connection.active("github-copilot"))
-      )
-        return
-      loaded.baseURL = url
-      loaded.token = credential.refresh
-      loaded.models = remote
-      loaded.connection = connection
+          catch: (cause) => cause,
+        }).pipe(
+          Effect.catch((cause) => Effect.logWarning("failed to sync GitHub Copilot models", { cause }).pipe(Effect.as(undefined))),
+        )
+        return [[key, { baseURL: url, token: credential.refresh, credential, models: remote, connection, quotaLoading: Semaphore.makeUnsafe(1) }] as const]
+      }), { concurrency: "unbounded" })
+      accounts.clear()
+      for (const [key, account] of next.flat()) accounts.set(key, account)
+      active = connections[0]
     })
 
     yield* ctx.integration.transform((editor) => {
@@ -216,11 +250,12 @@ export const GithubCopilotPlugin = define({
     yield* ctx.provider.transform((evt) => {
       const item = evt.get(Provider.ID.githubCopilot)
       if (!item) return
-      if (loaded.models) {
+      const loaded = selected(evt.connection(Integration.ID.make("github-copilot")))
+      if (loaded?.models) {
         evt.add({
           info: item.provider,
           models: Array.from(
-            CopilotModels.derive(loaded.baseURL ?? baseURL(), loaded.models, Array.from(item.models.values())).values(),
+            CopilotModels.derive(loaded.baseURL, loaded.models, Array.from(item.models.values())).values(),
           ),
           sourceConnection: loaded.connection,
         })
@@ -229,11 +264,15 @@ export const GithubCopilotPlugin = define({
       for (const id of item.models.keys()) {
         evt.models.update(item.provider.id, id, (model) => {
           model.package = Provider.aisdk("@ai-sdk/github-copilot")
-          if (loaded.baseURL) model.settings = Provider.mergeOverlay(model.settings, { baseURL: loaded.baseURL })
+          if (loaded?.baseURL) model.settings = Provider.mergeOverlay(model.settings, { baseURL: loaded.baseURL })
         })
       }
     })
     yield* ctx.model.transform((models) => {
+      const source = selected(models.connection(Integration.ID.make("github-copilot")))
+      if (source) for (const model of models.list(Provider.ID.githubCopilot)) {
+        models.update(Provider.ID.githubCopilot, model.id, (draft) => { draft.metadata = { ...draft.metadata, quota: quotaForModel(source, draft.modelID ?? draft.id) } })
+      }
       if (models.get(Provider.ID.githubCopilot, Model.ID.make("gpt-5-chat-latest"))) {
         models.update(Provider.ID.githubCopilot, Model.ID.make("gpt-5-chat-latest"), (model) => {
           // This chat-only alias conflicts with the Copilot GPT-5 Responses route,
@@ -242,9 +281,36 @@ export const GithubCopilotPlugin = define({
         })
       }
     })
+    yield* ctx.session.hook("model.quota", (evt) => Effect.gen(function* () {
+      const connection = evt.connection
+        ? yield* integrations.connection.get(Integration.ID.make("github-copilot"), evt.connection)
+        : yield* integrations.connection.active(Integration.ID.make("github-copilot"))
+      if (connection?.type !== "credential") return
+      const ref = { type: "credential" as const, id: connection.id }
+      if (!selected(ref)) yield* loading.withPermit(load().pipe(Effect.andThen(ctx.provider.reload())))
+      const source = selected(ref)
+      if (!source) return
+      yield* source.quotaLoading.withPermit(Effect.gen(function* () {
+        const now = (yield* DateTime.nowAsDate).getTime()
+        if (!source.quota || source.readAt === undefined || now - source.readAt >= quotaCacheTTL) {
+          const credential = yield* ctx.integration.connection.resolve(connection).pipe(Effect.orElseSucceed(() => undefined))
+          const quota: ModelSource.Quota = credential?.type === "oauth"
+            ? yield* fetchCopilotQuota({ http, app: ctx.app, token: credential.refresh, connection: ref, metadata: credential.metadata })
+            : { status: "error", source: "github-copilot", connection: ref, observedAt: now, freshUntil: now + quotaCacheTTL, reason: "authentication", windows: [] }
+          source.readAt = now
+          if (quota.status === "known") source.lastSuccess = quota
+          source.quota = quota.status !== "known" && source.lastSuccess
+            ? { ...source.lastSuccess, status: "unknown", reason: quota.reason }
+            : quota
+          yield* ctx.model.reload()
+        }
+        const current = yield* models.get(Provider.ID.githubCopilot, Model.ID.make(evt.model.id), ref)
+        evt.quota = quotaForModel(source, current?.modelID ?? evt.model.id)
+      }))
+    }), { providerID: Provider.ID.githubCopilot })
     const refresh = () => loading.withPermit(load().pipe(Effect.andThen(ctx.provider.reload())))
-    yield* bus.subscribe(Credential.Event.Switched).pipe(
-      Stream.filter((event) => event.data.integrationID === Integration.ID.make("github-copilot")),
+    yield* bus.subscribe([Credential.Event.Updated, Credential.Event.Switched]).pipe(
+      Stream.filter((event) => event.type === Credential.Event.Updated.type || event.data.integrationID === Integration.ID.make("github-copilot")),
       Stream.runForEach(refresh),
       Effect.forkScoped({ startImmediately: true }),
     )
@@ -286,7 +352,8 @@ export const GithubCopilotPlugin = define({
       (evt) =>
         Effect.gen(function* () {
           if (evt.model.providerID !== Provider.ID.githubCopilot) return
-          if (!loaded.baseURL || !loaded.token || !loaded.models) return
+          const loaded = selected(evt.connection)
+          if (!loaded?.models) return
           const agent = yield* ctx.agent.get({ agentID: Agent.ID.make("title") }).pipe(Effect.orElseSucceed(() => undefined))
           if (agent?.data.model) return
           const model = utilityTitleModels.find((id) => loaded.models?.has(id))
@@ -375,6 +442,47 @@ export function copilotBaseURL(metadata?: Readonly<Record<string, unknown>>) {
   const enterprise = metadata?.enterpriseUrl
   return baseURL(typeof enterprise === "string" ? enterprise : undefined)
 }
+
+export function copilotUserURL(metadata?: Readonly<Record<string, unknown>>) {
+  const domain = typeof metadata?.enterpriseUrl === "string" ? normalizeDomain(metadata.enterpriseUrl) : "github.com"
+  return `${domain === "github.com" ? "https://api.github.com" : `https://api.${domain}`}/copilot_internal/user`
+}
+
+export const fetchCopilotQuota = Effect.fn("GithubCopilot.fetchQuota")((input: {
+  http: HttpClient.HttpClient
+  app: App.Info
+  token: string
+  connection: ModelSource.ConnectionRef
+  metadata?: Readonly<Record<string, unknown>>
+}) => Effect.gen(function* () {
+  const response = yield* input.http.execute(HttpClientRequest.get(copilotUserURL(input.metadata)).pipe(
+    HttpClientRequest.bearerToken(input.token),
+    HttpClientRequest.setHeaders({ Accept: "application/json", "User-Agent": App.useragent(input.app), "X-GitHub-Api-Version": userApiVersion }),
+  ))
+  const body = response.status >= 200 && response.status < 300
+    ? yield* response.json.pipe(Effect.orElseSucceed(() => undefined))
+    : undefined
+  const observedAt = (yield* DateTime.nowAsDate).getTime()
+  if (body === undefined) return {
+    status: "error", source: "github-copilot", connection: input.connection, observedAt, freshUntil: observedAt + quotaCacheTTL,
+    reason: response.status === 401 || response.status === 403 ? "authentication" : response.status === 429 ? "rate-limit" : response.status >= 200 && response.status < 300 ? "invalid-output" : "transport",
+    windows: [],
+  } satisfies ModelSource.Quota
+  const parsed = ProviderQuota.copilot(body, observedAt)
+  return {
+    status: parsed.known ? "known" : "unknown", source: "github-copilot", connection: input.connection,
+    observedAt, freshUntil: observedAt + quotaCacheTTL, reason: parsed.known ? undefined : "invalid-output",
+    plan: parsed.plan, freePlan: parsed.plan === undefined ? undefined : parsed.plan === "free",
+    allowed: Option.getOrUndefined(decodeUser(body))?.chat_enabled,
+    windows: parsed.windows.map((window) => ({
+      id: window.id, unit: window.unit, scope: "account" as const, usedRatio: window.usedRatio,
+      total: window.total, remaining: window.remaining, unlimited: window.unlimited, resetAt: window.resetAt,
+    })),
+  } satisfies ModelSource.Quota
+}).pipe(Effect.timeout("5 seconds"), Effect.catch(() => Effect.gen(function* () {
+  const observedAt = (yield* DateTime.nowAsDate).getTime()
+  return { status: "error", source: "github-copilot", connection: input.connection, observedAt, freshUntil: observedAt + quotaCacheTTL, reason: "transport", windows: [] } satisfies ModelSource.Quota
+}))))
 
 function headers(app: App.Info) {
   return {

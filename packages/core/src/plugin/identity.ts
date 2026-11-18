@@ -1,9 +1,9 @@
 export * as IdentityPlugin from "./identity.js"
 
-import { SystemPart } from "@opencode/ai"
-import { define } from "@opencode/plugin/effect/plugin"
-import type { SessionHooks } from "@opencode/plugin/effect/session"
-import { Model } from "@opencode/schema/model"
+import { SystemPart } from "@aigcfroge/ai"
+import { define } from "@aigcfroge/plugin/effect/plugin"
+import type { SessionHooks } from "@aigcfroge/plugin/effect/session"
+import { Model } from "@aigcfroge/schema/model"
 import { Effect } from "effect"
 
 export function identity(model: { readonly name: string; readonly ref: Model.Ref }) {
@@ -16,7 +16,7 @@ export function identity(model: { readonly name: string; readonly ref: Model.Ref
 }
 
 export const Plugin = define({
-  id: "opencode.prompt.identity",
+  id: "aigcfroge.prompt.identity",
   effect: Effect.fn("IdentityPlugin")(function* (ctx) {
     const hook = (event: SessionHooks["context"]) =>
       Effect.gen(function* () {

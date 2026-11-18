@@ -20,12 +20,13 @@ import type { PromptInfo, PromptPartRef } from "../../prompt/history"
 import { useFrecency } from "../../prompt/frecency"
 import { Keymap, type KeymapCommand } from "../../context/keymap"
 import { displayCharAt, mentionTriggerIndex, slashTriggerIndex } from "../../prompt/display"
-import type { FileSystemEntry } from "@opencode/client"
-import { Skill } from "@opencode/schema/skill"
+import type { FileSystemEntry } from "@aigcfroge/client"
+import { Skill } from "@aigcfroge/schema/skill"
 import { stringWidth } from "../../util/string-width"
 import { parseFileLineRange, stripFileLineRange } from "../../prompt/parse"
 import { moveSelection, reconcileSelectionWindow, revealSelectionOffset } from "../../ui/select-controller"
 import { directoryAutocomplete, slashArgumentAutocomplete } from "../../prompt/directory-completion"
+import { sessionReferenceText } from "../../prompt/session-reference"
 
 export type AutocompleteRef = {
   onInput: (value: string) => void
@@ -44,7 +45,7 @@ export type AutocompleteOption = {
   path?: string
   absolute?: string
   destructive?: { id: string; confirm: string; run: () => void }
-  kind?: "skill" | "agent" | "reference"
+  kind?: "skill" | "agent" | "reference" | "session"
   queueable?: boolean
 }
 
@@ -274,6 +275,22 @@ export function Autocomplete(props: {
   }
 
   const references = createMemo(() => data.location.reference.list() ?? [])
+  const sessions = createMemo((): AutocompleteOption[] => data.session.list().map((session) => ({
+    display: "@" + (session.title ?? session.id), aliases: [session.id], kind: "session",
+    description: session.id,
+    onSelect: () => {
+      const input = props.input()
+      const end = input.cursorOffset
+      input.cursorOffset = store.index
+      const start = input.logicalCursor
+      input.cursorOffset = end
+      const stop = input.logicalCursor
+      input.deleteRange(start.row, start.col, stop.row, stop.col)
+      input.insertText(sessionReferenceText(session, client.url ?? "current server") + " ")
+      props.setPrompt((draft) => { draft.text = input.plainText })
+      hide()
+    },
+  })))
 
   const referenceMatch = createMemo(() => {
     if (store.visible !== "reference") return
@@ -540,7 +557,7 @@ export function Autocomplete(props: {
     const fileOptions: AutocompleteOption[] = store.visible === "reference" ? fileSearch.options : []
     const nonFileOptions: AutocompleteOption[] =
       store.visible === "reference"
-        ? [...skillOptions(), ...referenceAliasesValue, ...agentsValue]
+        ? [...sessions(), ...skillOptions(), ...referenceAliasesValue, ...agentsValue]
         : store.index === 0
           ? [...commandsValue]
           : []
@@ -839,13 +856,14 @@ export function Autocomplete(props: {
     }
     if (files.loading) return "Searching…"
     if (fileSearch.failed) return "Could not search files. Keep typing to try again."
-    return "No matching files, agents, or references"
+    return "No matching sessions, files, agents, or references"
   })
   const emptyError = createMemo(() => store.visible === "reference" && !files.loading && visibleFiles().failed)
   const labels = {
     skill: "skill",
     agent: "agent",
     reference: "reference",
+    session: "session",
   }
 
   return (

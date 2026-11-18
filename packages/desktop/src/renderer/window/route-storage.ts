@@ -1,3 +1,5 @@
+import { ProductMode } from "@aigcfroge/schema/product-mode"
+
 export function getLastActiveUrl(windowID: string) {
   if (typeof localStorage !== "object") return "/"
 
@@ -24,11 +26,13 @@ export function acceptedLastActiveUrl(value: string | null | undefined) {
 
   if (path === "/new-session") return value ?? "/"
 
+  if (path?.startsWith("/mode/") && ProductMode.isID(path.slice("/mode/".length))) return value ?? "/"
+
   if (/^\/server\/[^/]+\/session\/[^/]+$/.test(path ?? "")) return value ?? "/"
 
   return "/"
 }
 
 function windowLastActiveUrlKey(windowID: string) {
-  return `opencode.desktop.window.${windowID}.last-active-url`
+  return `aigcfroge.desktop.window.${windowID}.last-active-url`
 }

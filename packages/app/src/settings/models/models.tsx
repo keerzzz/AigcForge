@@ -1,12 +1,20 @@
-import { useFilteredList } from "@opencode/ui/hooks"
-import { Switch } from "@opencode/ui/switch"
-import { type Component, createEffect, createMemo, For, Show } from "solid-js"
+import { useFilteredList } from "@aigcfroge/ui/hooks"
+import { Button } from "@aigcfroge/ui/button"
+import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { Dialog, DialogBody, DialogHeader, DialogTitle } from "@aigcfroge/ui/dialog"
+import { Switch } from "@aigcfroge/ui/switch"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { type Component, createEffect, createMemo, For, onCleanup, Show, untrack } from "solid-js"
+import { createStore } from "solid-js/store"
 
 import { Schema } from "effect"
 import { Persistence } from "@/runtime/persistence/schema"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useModels } from "@/providers/models/models"
 import { useServerSDK } from "@/runtime/server/client"
+import { useData } from "@/runtime/server/current"
+import { CustomProviderForm } from "@/providers/credentials/dialog"
+import { ModelTooltip } from "@/providers/models/tooltip"
 import { popularProviders } from "@/providers/catalog/providers"
 import { Persist, persisted } from "@/runtime/persistence/storage"
 import { SettingsList } from "@/settings/list"
@@ -14,6 +22,7 @@ import { SettingsRow } from "@/settings/row"
 import { CONSOLE_GROUP_KEY, consoleModelGroup, ProviderModelSections } from "@/providers/models/provider-group"
 import { SettingsSearchEmpty } from "@/settings/search-empty"
 import { SettingsSearchField } from "@/settings/search-field"
+import { SettingsModelGroups } from "./groups"
 
 import "@/settings/settings.css"
 
@@ -31,6 +40,41 @@ export const SettingsModels: Component<{
   const language = useLanguage()
   const models = useModels()
   const serverSdk = useServerSDK()
+  const data = useData()
+  const dialog = useDialog()
+  const definitions = data.location.provider.definition
+  const [read, setRead] = createStore<{ error?: string }>({})
+  const lifetime = { active: true }
+
+  onCleanup(() => { lifetime.active = false })
+
+  createEffect(() => {
+    const api = serverSdk.api
+
+    if (serverSdk.connection.status() !== "connected") return
+    untrack(() => {
+      setRead("error", undefined)
+      // oxlint-disable-next-line anti-slop/no-unknown-parameters -- SAFETY: Promise rejection values are opaque; the handler guards Error before producing display text.
+      void definitions.sync().catch((error: unknown) => {
+        if (lifetime.active && api === serverSdk.api)
+          setRead("error", error instanceof Error ? error.message : String(error))
+      })
+    })
+  })
+
+  const editable = (item: ModelItem) => definitions.list()?.definitions.find((definition) =>
+    definition.providerID === item.provider.id && definition.target?.writable && definition.definition.models?.[item.id])
+
+  const edit = (item: ModelItem) => {
+    const definition = editable(item)
+
+    if (!definition) return
+    void dialog.show(() => <Dialog size="large" preventBackdropDismiss>
+      <DialogHeader><DialogTitle>{language.t("provider.custom.title")}</DialogTitle></DialogHeader>
+      <DialogBody><CustomProviderForm providerID={item.provider.id} modelID={item.id} targetPath={definition.target?.path}
+        defaultLocation autofocus={false} /></DialogBody>
+    </Dialog>)
+  }
 
   const [store, setStore] = persisted(
     Persist.serverGlobal(serverSdk.scope, "settings-v2.models.providers"),
@@ -83,8 +127,14 @@ export const SettingsModels: Component<{
             const key = { providerID: item.provider.id, modelID: item.id }
 
             return (
-              <SettingsRow title={item.name} description="">
-                <div>
+              <SettingsRow title={<Tooltip placement="right-start" gutter={12} openDelay={0}
+                value={<ModelTooltip model={item} v2 />}><span tabIndex={0}>{item.name}</span></Tooltip>}
+                description={item.api.id}>
+                <div class="flex items-center gap-3">
+                  <Show when={editable(item)}>
+                    <Button size="small" variant="ghost" onClick={() => edit(item)}
+                      aria-label={language.t("provider.model.edit", { model: item.name })}>{language.t("common.edit")}</Button>
+                  </Show>
                   <Switch
                     checked={models.visible(key)}
                     onChange={(checked) => models.setVisibility(key, checked)}
@@ -156,6 +206,8 @@ export const SettingsModels: Component<{
       </div>
 
       <div class="settings-tab-body settings-models">
+        <SettingsModelGroups active={props.active} search={list.filter()} />
+        <Show when={read.error}><p role="alert" class="text-13-regular text-text-base">{read.error}</p></Show>
         <Show
           when={!list.grouped.loading}
           fallback={

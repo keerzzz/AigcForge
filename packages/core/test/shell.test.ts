@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import path from "path"
-import { ShellSelect } from "@opencode/core/shell/select"
-import { FSUtil } from "@opencode/util/fs-util"
-import { which } from "@opencode/core/util/which"
+import { ShellSelect } from "@aigcfroge/core/shell/select"
+import { FSUtil } from "@aigcfroge/util/fs-util"
+import { which } from "@aigcfroge/core/util/which"
 import fs from "node:fs/promises"
 import { tmpdir } from "./fixture/tmpdir"
 
@@ -38,8 +38,8 @@ describe("shell", () => {
     await withShell(undefined, async () => {
       const configured = ShellSelect.resolve({ priority: "config" })
       const compatible = ShellSelect.resolve({ priority: "compat" })
-      expect(ShellSelect.resolve({ priority: "config" }, "opencode-missing-shell")).toBe(configured)
-      expect(ShellSelect.resolve({ priority: "compat" }, "opencode-missing-shell")).toBe(compatible)
+      expect(ShellSelect.resolve({ priority: "config" }, "aigcfroge-missing-shell")).toBe(configured)
+      expect(ShellSelect.resolve({ priority: "compat" }, "aigcfroge-missing-shell")).toBe(compatible)
     })
   })
 

@@ -23,7 +23,7 @@ afterEach(() => {
 })
 
 function tempRoot() {
-  const root = mkdtempSync(path.join(tmpdir(), "opencode-legacy-store-"))
+  const root = mkdtempSync(path.join(tmpdir(), "aigcfroge-legacy-store-"))
   roots.push(root)
 
   return root
@@ -48,62 +48,62 @@ describe("legacy store import", () => {
   test("copies every namespace into state and removes the files", async () => {
     const root = tempRoot()
     const database = openDatabase(":memory:")
-    writeStore(root, "opencode.global.dat", JSON.stringify({ model: "m", layout: { sidebar: 1 } }))
-    writeStore(root, "opencode.window.w1.dat", JSON.stringify({ tabs: "[]" }))
+    writeStore(root, "aigcfroge.global.dat", JSON.stringify({ model: "m", layout: { sidebar: 1 } }))
+    writeStore(root, "aigcfroge.window.w1.dat", JSON.stringify({ tabs: "[]" }))
     writeStore(root, "default.dat", JSON.stringify({ "settings.v3": "{}" }))
-    writeStore(root, "opencode.settings", JSON.stringify({ keep: true }))
+    writeStore(root, "aigcfroge.settings", JSON.stringify({ keep: true }))
     writeStore(root, "unrelated.txt", "x")
 
     const result = await run(database.db, root)
 
     expect(result.imported).toBe(4)
     expect(rows(database.db)).toEqual([
+      { name: "aigcfroge.global.dat", key: "layout", value: '{"sidebar":1}' },
+      { name: "aigcfroge.global.dat", key: "model", value: "m" },
+      { name: "aigcfroge.window.w1.dat", key: "tabs", value: "[]" },
       { name: "default.dat", key: "settings.v3", value: "{}" },
-      { name: "opencode.global.dat", key: "layout", value: '{"sidebar":1}' },
-      { name: "opencode.global.dat", key: "model", value: "m" },
-      { name: "opencode.window.w1.dat", key: "tabs", value: "[]" },
     ])
-    expect(listing(root)).toEqual(["opencode.settings", "unrelated.txt"])
+    expect(listing(root)).toEqual(["aigcfroge.settings", "unrelated.txt"])
   })
 
   test("does not overwrite state that already exists", async () => {
     const root = tempRoot()
     const database = openDatabase(":memory:")
-    database.db.run(sql`INSERT INTO state VALUES ('opencode.global.dat', 'model', 'new', 0)`)
-    writeStore(root, "opencode.global.dat", JSON.stringify({ model: "old" }))
+    database.db.run(sql`INSERT INTO state VALUES ('aigcfroge.global.dat', 'model', 'new', 0)`)
+    writeStore(root, "aigcfroge.global.dat", JSON.stringify({ model: "old" }))
 
     await run(database.db, root)
 
-    expect(rows(database.db)).toEqual([{ name: "opencode.global.dat", key: "model", value: "new" }])
+    expect(rows(database.db)).toEqual([{ name: "aigcfroge.global.dat", key: "model", value: "new" }])
     expect(listing(root)).toEqual([])
   })
 
   test("leaves unreadable files in place", async () => {
     const root = tempRoot()
     const database = openDatabase(":memory:")
-    writeStore(root, "opencode.global.dat", "{not json")
-    writeStore(root, "opencode.workspace.x.dat", JSON.stringify({ terminal: "{}" }))
+    writeStore(root, "aigcfroge.global.dat", "{not json")
+    writeStore(root, "aigcfroge.workspace.x.dat", JSON.stringify({ terminal: "{}" }))
 
     const result = await run(database.db, root)
 
     expect(result.imported).toBe(1)
-    expect(listing(root)).toEqual(["opencode.global.dat"])
+    expect(listing(root)).toEqual(["aigcfroge.global.dat"])
   })
 
   test("applies draft retention: skips empty, stale, and excess draft files", async () => {
     const root = tempRoot()
     const database = openDatabase(":memory:")
-    writeStore(root, "opencode.draft.empty.dat", "{}")
+    writeStore(root, "aigcfroge.draft.empty.dat", "{}")
     writeStore(
       root,
-      "opencode.draft.stale.dat",
+      "aigcfroge.draft.stale.dat",
       JSON.stringify({ "draft:prompt": "old" }),
       new Date(now.getTime() - 31 * day),
     )
     Array.from({ length: 102 }).forEach((_, index) =>
       writeStore(
         root,
-        `opencode.draft.${index}.dat`,
+        `aigcfroge.draft.${index}.dat`,
         JSON.stringify({ "draft:prompt": `${index}` }),
         new Date(now.getTime() - index * 1_000),
       ),
@@ -113,12 +113,12 @@ describe("legacy store import", () => {
 
     expect(result.imported).toBe(100)
     const names = rows(database.db).map((row) => row.name)
-    expect(names).toContain("opencode.draft.0.dat")
-    expect(names).toContain("opencode.draft.99.dat")
-    expect(names).not.toContain("opencode.draft.100.dat")
-    expect(names).not.toContain("opencode.draft.101.dat")
-    expect(names).not.toContain("opencode.draft.stale.dat")
-    expect(names).not.toContain("opencode.draft.empty.dat")
+    expect(names).toContain("aigcfroge.draft.0.dat")
+    expect(names).toContain("aigcfroge.draft.99.dat")
+    expect(names).not.toContain("aigcfroge.draft.100.dat")
+    expect(names).not.toContain("aigcfroge.draft.101.dat")
+    expect(names).not.toContain("aigcfroge.draft.stale.dat")
+    expect(names).not.toContain("aigcfroge.draft.empty.dat")
     expect(listing(root)).toEqual([])
   })
 })

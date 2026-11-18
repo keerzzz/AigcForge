@@ -1,8 +1,9 @@
-import type { SessionMessageInfo, SessionMessageUser } from "@opencode/client/promise"
+import type { SessionMessageInfo, SessionMessageUser } from "@aigcfroge/client/promise"
 import { projectedPromptInput } from "../prompt/codec"
 import { requestOptions } from "./catalog.shared"
 import { promptCopy, promptSame } from "./prompt.shared"
 import type { RunInput, RunPrompt } from "./types"
+import { isModelGroup, modelPreferenceKey, toModelPreference } from "../model-preference"
 
 const LIMIT = 200
 
@@ -85,13 +86,13 @@ export async function resolveCurrentSession(
     ...current,
     turns: current.turns.map((turn) => ({
       ...turn,
-      provider: session.model?.providerID,
-      model: session.model?.id,
-      variant: session.model?.variant,
+      provider: session.model && !isModelGroup(session.model) ? session.model.providerID : undefined,
+      model: session.model && !isModelGroup(session.model) ? session.model.id : undefined,
+      variant: session.model && !isModelGroup(session.model) ? session.model.variant : undefined,
     })),
     ...(session.model && {
-      model: { providerID: session.model.providerID, modelID: session.model.id },
-      variant: session.model.variant,
+      model: toModelPreference(session.model),
+      variant: isModelGroup(session.model) ? undefined : session.model.variant,
     }),
   }
 }
@@ -106,8 +107,8 @@ export function sessionHistory(session: RunSession, limit = LIMIT): RunPrompt[] 
 }
 
 export function sessionVariant(session: RunSession, model: RunInput["model"]): string | undefined {
-  if (!model) return
-  if (session.model?.providerID === model.providerID && session.model.modelID === model.modelID) return session.variant
+  if (!model || isModelGroup(model)) return
+  if (session.model && modelPreferenceKey(session.model) === modelPreferenceKey(model)) return session.variant
 
   return session.turns.findLast((turn) => turn.provider === model.providerID && turn.model === model.modelID)?.variant
 }

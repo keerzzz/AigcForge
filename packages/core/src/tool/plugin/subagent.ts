@@ -1,18 +1,23 @@
 export * as SubagentTool from "./subagent.js"
 
-import { ToolFailure } from "@opencode/ai"
-import type { Context } from "@opencode/plugin/effect/plugin"
-import type { SessionHooks } from "@opencode/plugin/effect/session"
+import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@aigcfroge/plugin/effect/plugin"
+import type { SessionHooks } from "@aigcfroge/plugin/effect/session"
 import { Effect, Predicate, Schema } from "effect"
 import { Agent } from "../../agent.js"
 import { Config } from "../../config.js"
 import { Job } from "../../job.js"
 import { Model } from "../../model.js"
+import { ModelGroup } from "../../model-group.js"
+import { ModelResolver } from "../../model-resolver.js"
+import { Service } from "../../plugin/service.js"
 import { Permission } from "../../permission.js"
 import { Session } from "../../session.js"
+import { SessionComposition } from "../../session/composition.js"
 import { SessionSchema } from "../../session/schema.js"
 import { SubagentCompletion } from "../../session/subagent-completion.js"
 import { SubagentJob } from "../../session/subagent-job.js"
+import { sameModel } from "../../session/error.js"
 
 export const name = "subagent"
 
@@ -35,7 +40,7 @@ export const Input = Schema.Struct({
   prompt: Schema.String.annotate({ description: "The task for the subagent to perform" }),
   model: Schema.optionalKey(Schema.String).annotate({
     description:
-      'NEVER set this unless the user explicitly asks for a particular model or variant. The value is written as "providerID/modelID", or "providerID/modelID#variant" to include a variant. Do not guess the ID: look the model up with the models tool, filtering to your own provider first.',
+      'NEVER set this unless the user explicitly asks for a particular model, variant or group. Use "providerID/modelID", "providerID/modelID#variant", or "group:groupID". Do not guess the ID: look up the available models or groups first.',
   }),
   sessionID: Schema.optionalKey(SessionSchema.ID).annotate({
     description:
@@ -62,24 +67,34 @@ export const description = [
 ].join("\n")
 
 export const Plugin = {
-  id: "opencode.tool.subagent",
+  id: "aigcfroge.tool.subagent",
   effect: Effect.fn("SubagentTool.Plugin")(function* (ctx: Context) {
     const sessions = yield* Session.Service
     const jobs = yield* Job.Service
     const agents = yield* Agent.Service
+    const compositions = yield* SessionComposition.Service
     const config = yield* Config.Service
     const permission = yield* Permission.Service
     const models = yield* Model.Service
+    const resolver = yield* ModelResolver.Service
+    const plugins = yield* Service
     const subagents = yield* SubagentJob.Service
 
     const resolveModel = Effect.fn("SubagentTool.resolveModel")(function* (input: string) {
       const ref = yield* Effect.try({
-        try: () => Model.Ref.parse(input),
+        try: () => Model.Selection.parse(input),
         catch: () =>
           new ToolFailure({
-            message: `Invalid model "${input}". Use "providerID/modelID" or "providerID/modelID#variant".`,
+            message: `Invalid model "${input}". Use "providerID/modelID", "providerID/modelID#variant", or "group:groupID".`,
           }),
       })
+      if (Model.Selection.isGroup(ref)) {
+        yield* ModelGroup.behavior(ref.groupID).pipe(
+          Effect.provideService(Config.Service, config),
+          Effect.mapError((error) => new ToolFailure({ message: error.message, error })),
+        )
+        return ref
+      }
       const model = (yield* models.available()).find(
         (model) => model.providerID === ref.providerID && model.id === ref.id,
       )
@@ -87,7 +102,11 @@ export const Plugin = {
         return yield* new ToolFailure({
           message: `Model "${ref.providerID}/${ref.id}" is not available. Use the models tool to see what is available.`,
         })
-      if (ref.variant !== undefined && !model.variants.some((variant) => variant.id === ref.variant))
+      if (
+        ref.variant !== undefined &&
+        ref.variant !== "default" &&
+        !model.variants.some((variant) => variant.id === ref.variant)
+      )
         return yield* new ToolFailure({
           message:
             model.variants.length === 0
@@ -115,6 +134,8 @@ export const Plugin = {
                   ),
                 )
               let current = parent
+              if (parent.controller?.kind === "child")
+                return yield* new ToolFailure({ message: "Meta children cannot create subagents" })
               let depth = 0
               while (current.parentID) {
                 depth++
@@ -131,9 +152,24 @@ export const Plugin = {
                 return yield* new ToolFailure({
                   message: `Subagent depth limit reached (${limit}). Increase "experimental.subagent_depth" to allow nested subagents.`,
                 })
-              const agent = yield* agents.resolve(input.agent)
+              const agent =
+                parent.mode === "custom"
+                  ? (yield* compositions.selectAgent(parent.id, input.agent).pipe(
+                      Effect.mapError(
+                        (error) =>
+                          new ToolFailure({
+                            message: `Custom subagent ${input.agent} is unavailable: ${error._tag}`,
+                            error,
+                          }),
+                      ),
+                    )).info
+                  : yield* agents.resolve(input.agent)
               if (agent === undefined) return yield* new ToolFailure({ message: `Unknown agent: ${input.agent}` })
-              if (agent.mode === "primary")
+              if (parent.mode !== "custom")
+                yield* Agent.assertOrdinaryMode(agent, parent.mode).pipe(
+                  Effect.mapError((error) => new ToolFailure({ message: error.message, error })),
+                )
+              if (agent.mode === "primary" || (parent.mode === "custom" && agent.id === "meta"))
                 return yield* new ToolFailure({ message: `Agent ${input.agent} cannot run as a subagent` })
               yield* permission
                 .assert({
@@ -165,10 +201,33 @@ export const Plugin = {
                 return yield* new ToolFailure({
                   message: `Session ${existing.id} is not a child of the current session`,
                 })
+              if (existing?.controller?.kind === "child" && context.agent !== "meta")
+                return yield* new ToolFailure({ message: "Meta child does not belong to the captured Agent" })
               const override = input.model === undefined ? undefined : yield* resolveModel(input.model)
+              const executor =
+                existing?.controller?.kind === "child"
+                  ? existing.controller.executor
+                  : context.agent === "meta" && parent.controller
+                    ? yield* Session.resolveExecutor(parent, agent, override).pipe(
+                        Effect.provideService(Model.Service, models),
+                        Effect.provideService(ModelResolver.Service, resolver),
+                        Effect.provideService(Config.Service, config),
+                        Effect.provideService(SessionComposition.Service, compositions),
+                        Effect.provideService(Service, plugins),
+                        Effect.mapError((error) => new ToolFailure({ message: error.message, error })),
+                      )
+                    : undefined
+              if (
+                executor &&
+                existing &&
+                (existing.controller?.kind !== "child" ||
+                  existing.controller.executor.agent !== agent.id ||
+                  (override !== undefined && !sameModel(override, existing.controller.executor.model)))
+              )
+                return yield* new ToolFailure({ message: "Meta child binding changed; create a new child" })
               // Continuing with a different agent switches the child, mirroring create semantics
               // where an explicit model wins over the agent's configured model, which wins over the inherited one.
-              if (existing !== undefined) {
+              if (existing !== undefined && !existing.controller) {
                 const switched = existing.agent !== agent.id
                 const model = override ?? (switched ? agent.model : undefined)
                 yield* Effect.all([
@@ -181,15 +240,21 @@ export const Plugin = {
                 )
               }
 
-              const model = override ?? agent.model ?? parent.model
+              const model = executor?.model ?? override ?? agent.model ?? parent.model
               const child =
                 existing ??
                 (yield* sessions
                   .create({
                     parentID: context.sessionID,
                     title: input.description,
-                    agent: Agent.ID.make(input.agent),
+                    agent: agent.id,
                     model,
+                    executor,
+                    source: new SessionSchema.SubagentControllerSource({
+                      kind: "subagent",
+                      assistantMessageID: context.messageID,
+                      toolCallID: context.id,
+                    }),
                   })
                   .pipe(
                     Effect.mapError(
@@ -283,15 +348,24 @@ export const Plugin = {
       Effect.gen(function* () {
         const tool = event.tools[name]
         if (!tool) return
-        const selected = yield* agents.resolve(event.agent)
+        const session = yield* sessions.get(event.sessionID).pipe(Effect.orDie)
+        const selection =
+          session.mode === "custom"
+            ? yield* compositions.selectAgent(session.id, event.agent).pipe(Effect.orDie)
+            : undefined
+        const selected = selection === undefined ? yield* agents.resolve(event.agent) : selection.info
         if (!selected) return
-        const available = (yield* agents.list())
-          .filter(
-            (agent) =>
-              agent.mode !== "primary" &&
-              !agent.hidden &&
-              Permission.evaluate(name, agent.id, selected.permissions).effect !== "deny",
-          )
+        const pool =
+          selection === undefined
+            ? yield* agents.list()
+            : (selection.snapshot.data.executors ?? []).map((executor) => executor.info)
+        const available = Agent.availableForDelegation(
+          pool,
+          yield* permission.effectiveRules(session.id, event.agent).pipe(Effect.orDie),
+          [name],
+          session.mode,
+        )
+          .filter((agent) => selection === undefined || agent.id !== "meta")
           .toSorted((a, b) => a.id.localeCompare(b.id))
         if (available.length === 0) return
         tool.description = [

@@ -18,34 +18,37 @@ import {
 } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
+// Effect's matcher shares its export name with Solid's JSX Match component.
+import { Match as EffectMatch, Option, Predicate, Schema } from "effect"
 import stripAnsi from "strip-ansi"
 import { createTwoFilesPatch, diffLines } from "diff"
 import { Dynamic } from "solid-js/web"
 import { type SessionSummary, useData } from "../context"
-import { useFileComponent } from "@opencode/ui/context/file"
-import { type UiI18n, useI18n } from "@opencode/ui/context/i18n"
+import { useFileComponent } from "@aigcfroge/ui/context/file"
+import { type UiI18n, useI18n } from "@aigcfroge/ui/context/i18n"
 import { BasicTool, GenericTool } from "../components/basic-tool"
-import { FileIcon } from "@opencode/ui/file-icon"
-import { Icon, type IconProps } from "@opencode/ui/icon"
+import { FileIcon } from "@aigcfroge/ui/file-icon"
+import { Icon, type IconProps } from "@aigcfroge/ui/icon"
 import { ToolErrorCard } from "../components/tool-error-card"
-import { DiffChanges } from "@opencode/ui/diff-changes"
+import { DiffChanges } from "@aigcfroge/ui/diff-changes"
 import { Markdown } from "../components/markdown"
 import { createMarkdownImages } from "../components/markdown-image"
 import { createImagePreview } from "../components/image-preview"
 import { useMarkdown } from "../context/markdown"
-import { getDirectory, getFilename } from "@opencode/util/path"
-import { checksum } from "@opencode/util/encode"
-import { Tooltip } from "@opencode/ui/tooltip"
-import { IconButton } from "@opencode/ui/icon-button"
-import { TextShimmer } from "@opencode/ui/text-shimmer"
+import { getDirectory, getFilename } from "@aigcfroge/util/path"
+import { checksum } from "@aigcfroge/util/encode"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { TextShimmer } from "@aigcfroge/ui/text-shimmer"
 import { changedFileDiff, patchFileGroups } from "../components/apply-patch-file"
 import { animate } from "motion"
 import { SessionProgressIndicatorV2 } from "../v2/components/session-progress-indicator-v2"
 import type {
+  JsonValue,
   SessionMessageAssistantReasoning,
   SessionMessageAssistantTool,
   SessionMessageShell,
-} from "@opencode/client/promise"
+} from "@aigcfroge/client/promise"
 import {
   currentToolError,
   currentToolGroupedRead,
@@ -92,49 +95,36 @@ function ShellSubmessage(props: { text: string; animate?: boolean }) {
   )
 }
 
-interface Diagnostic {
-  range: {
-    start: { line: number; character: number }
-    end: { line: number; character: number }
-  }
-  message: string
-  severity?: number
-}
+class Diagnostic extends Schema.Class<Diagnostic>("SessionUI.DisplayDiagnostic")({
+  range: Schema.Struct({
+    start: Schema.Struct({ line: Schema.Finite, character: Schema.Finite }),
+  }),
+  message: Schema.String,
+  severity: Schema.optional(Schema.Number),
+}) {}
+
+const decodeDiagnostic = Schema.decodeUnknownOption(Diagnostic)
 
 type QuestionInfo = { question: string }
 
 type QuestionAnswer = string[]
 
-function record(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === "object" && !Array.isArray(value)
-}
-
 function questionInfo(value: unknown): value is QuestionInfo {
-  return record(value) && typeof value.question === "string"
+  return Predicate.isObject(value) && Predicate.isString(value.question)
 }
 
 function questionAnswer(value: unknown): value is QuestionAnswer {
-  return Array.isArray(value) && value.every((answer) => typeof answer === "string")
+  return Array.isArray(value) && value.every((answer) => Predicate.isString(answer))
 }
 
-function isDiagnostic(value: unknown): value is Diagnostic {
-  if (!value || typeof value !== "object") return false
-
-  if (!("message" in value) || typeof value.message !== "string") return false
-
-  if (!("range" in value) || !value.range || typeof value.range !== "object") return false
-
-  return "start" in value.range && !!value.range.start && typeof value.range.start === "object"
-}
-
-function getDiagnostics(diagnosticsByFile: unknown, filePath: string | undefined): Diagnostic[] {
-  if (!record(diagnosticsByFile) || !filePath) return []
+function getDiagnostics(diagnosticsByFile: JsonValue | undefined, filePath: string | undefined): Diagnostic[] {
+  if (!Predicate.isObject(diagnosticsByFile) || !filePath) return []
   const diagnostics = diagnosticsByFile[filePath]
 
   if (!Array.isArray(diagnostics)) return []
 
   return diagnostics
-    .filter(isDiagnostic)
+    .flatMap((value) => Option.toArray(decodeDiagnostic(value)))
     .filter((diagnostic) => diagnostic.severity === 1)
     .slice(0, 3)
 }
@@ -200,40 +190,40 @@ function agentTitle(i18n: UiI18n, type?: string) {
   return i18n.t("ui.tool.agent", { type })
 }
 
-const agentTones: Record<string, string> = {
-  ask: "var(--icon-agent-ask-base)",
-  build: "var(--icon-agent-build-base)",
-  docs: "var(--icon-agent-docs-base)",
-  plan: "var(--icon-agent-plan-base)",
-}
+const agentTones = new Map([
+  ["ask", "var(--icon-agent-ask-base)"],
+  ["build", "var(--icon-agent-build-base)"],
+  ["docs", "var(--icon-agent-docs-base)"],
+  ["plan", "var(--icon-agent-plan-base)"],
+])
 
-const v2AgentTones: Record<string, string> = {
-  build: "var(--v2-agent-build-solid)",
-  explore: "var(--v2-agent-explore-solid)",
-  plan: "var(--v2-agent-plan-solid)",
-  review: "var(--v2-agent-review-solid)",
-  writer: "var(--v2-agent-writer-solid)",
-}
+const v2AgentTones = new Map([
+  ["build", "var(--v2-agent-build-solid)"],
+  ["explore", "var(--v2-agent-explore-solid)"],
+  ["plan", "var(--v2-agent-plan-solid)"],
+  ["review", "var(--v2-agent-review-solid)"],
+  ["writer", "var(--v2-agent-writer-solid)"],
+])
 
-const agentThemeColors: Record<string, string> = {
-  primary: "var(--text-interactive-base)",
-  secondary: "var(--text-base)",
-  accent: "var(--icon-info-base)",
-  success: "var(--icon-success-base)",
-  warning: "var(--icon-warning-base)",
-  error: "var(--icon-critical-base)",
-  info: "var(--icon-info-base)",
-}
+const agentThemeColors = new Map([
+  ["primary", "var(--text-interactive-base)"],
+  ["secondary", "var(--text-base)"],
+  ["accent", "var(--icon-info-base)"],
+  ["success", "var(--icon-success-base)"],
+  ["warning", "var(--icon-warning-base)"],
+  ["error", "var(--icon-critical-base)"],
+  ["info", "var(--icon-info-base)"],
+])
 
-const v2AgentThemeColors: Record<string, string> = {
-  primary: "var(--v2-text-text-accent)",
-  secondary: "var(--v2-text-text-muted)",
-  accent: "var(--v2-icon-icon-accent)",
-  success: "var(--v2-state-fg-success)",
-  warning: "var(--v2-state-fg-warning)",
-  error: "var(--v2-state-fg-danger)",
-  info: "var(--v2-state-fg-info)",
-}
+const v2AgentThemeColors = new Map([
+  ["primary", "var(--v2-text-text-accent)"],
+  ["secondary", "var(--v2-text-text-muted)"],
+  ["accent", "var(--v2-icon-icon-accent)"],
+  ["success", "var(--v2-state-fg-success)"],
+  ["warning", "var(--v2-state-fg-warning)"],
+  ["error", "var(--v2-state-fg-danger)"],
+  ["info", "var(--v2-state-fg-info)"],
+])
 
 const agentPalette = [
   "var(--icon-agent-ask-base)",
@@ -259,14 +249,14 @@ function tone(name: string) {
 }
 
 function taskAgent(
-  raw: unknown,
+  raw: JsonValue | undefined,
   list?: readonly { name: string; color?: string }[],
-): { name?: string; color?: string; v2Color?: string } {
-  if (typeof raw !== "string" || !raw) return {}
+) {
+  if (!Predicate.isString(raw) || !raw) return {}
   const key = raw.toLowerCase()
   const item = list?.find((entry) => entry.name === raw || entry.name.toLowerCase() === key)
-  const v2Tone = item?.color ? undefined : v2AgentTones[key]
-  const color = agentColor(item?.color, agentThemeColors) ?? agentTones[key] ?? tone(key)
+  const v2Tone = item?.color ? undefined : v2AgentTones.get(key)
+  const color = agentColor(item?.color, agentThemeColors) ?? agentTones.get(key) ?? tone(key)
   const v2Color = agentColor(item?.color, v2AgentThemeColors) ?? v2Tone ?? color
 
   return {
@@ -276,20 +266,20 @@ function taskAgent(
   }
 }
 
-function agentColor(value: string | undefined, themeColors: Record<string, string>) {
+function agentColor(value: string | undefined, themeColors: ReadonlyMap<string, string>) {
   if (!value) return undefined
 
-  return themeColors[value] ?? value
+  return themeColors.get(value) ?? value
 }
 
-function webSearchProviderLabel(provider: unknown, i18n: ReturnType<typeof useI18n>) {
+function webSearchProviderLabel(provider: JsonValue | undefined, i18n: ReturnType<typeof useI18n>) {
   const name =
-    typeof provider !== "string" || !provider
+    !Predicate.isString(provider) || !provider
       ? undefined
       : provider === "tinyfish"
         ? "TinyFish"
-        : provider === "opencode"
-          ? "OpenCode"
+        : provider === "aigcfroge"
+          ? "AigcForge"
           : `${provider[0].toUpperCase()}${provider.slice(1)}`
 
   if (name) return i18n.t("ui.tool.websearch.provider", { provider: name })
@@ -297,33 +287,33 @@ function webSearchProviderLabel(provider: unknown, i18n: ReturnType<typeof useI1
   return i18n.t("ui.tool.websearch")
 }
 
-function readToolPath(input: Record<string, unknown>) {
-  if (typeof input.path === "string") return input.path
+function readToolPath(input: Record<string, JsonValue>) {
+  if (Predicate.isString(input.path)) return input.path
 
   return undefined
 }
 
-function readArgs(input: Record<string, unknown>) {
+function readArgs(input: Record<string, JsonValue>) {
   return [
-    ...(typeof input.offset === "number" ? [`offset=${input.offset}`] : []),
-    ...(typeof input.limit === "number" ? [`limit=${input.limit}`] : []),
+    ...(Predicate.isNumber(input.offset) ? [`offset=${input.offset}`] : []),
+    ...(Predicate.isNumber(input.limit) ? [`limit=${input.limit}`] : []),
   ]
 }
 
-function skillToolName(input: Record<string, unknown>, metadata?: Record<string, unknown>) {
-  if (typeof metadata?.name === "string") return metadata.name
+function skillToolName(input: Record<string, JsonValue>, metadata?: Record<string, JsonValue>) {
+  if (metadata && Predicate.isString(metadata.name)) return metadata.name
 
-  if (typeof input.id === "string") return input.id
+  if (Predicate.isString(input.id)) return input.id
 
-  if (typeof input.name === "string") return input.name
+  if (Predicate.isString(input.name)) return input.name
 
   return undefined
 }
 
 export function getToolInfo(
   tool: string,
-  input: Record<string, unknown> = {},
-  metadata: Record<string, unknown> | undefined = {},
+  input: Record<string, JsonValue> = {},
+  metadata: Record<string, JsonValue> | undefined = {},
 ): ToolInfo {
   const i18n = useI18n()
 
@@ -342,19 +332,19 @@ export function getToolInfo(
       return {
         icon: "bullet-list",
         title: i18n.t("ui.tool.list"),
-        subtitle: typeof input.path === "string" ? getFilename(input.path) : undefined,
+        subtitle: Predicate.isString(input.path) ? getFilename(input.path) : undefined,
       }
     case "glob":
       return {
         icon: "magnifying-glass-menu",
         title: i18n.t("ui.tool.glob"),
-        subtitle: typeof input.pattern === "string" ? input.pattern : undefined,
+        subtitle: Predicate.isString(input.pattern) ? input.pattern : undefined,
       }
     case "grep":
       return {
         icon: "magnifying-glass-menu",
         title: i18n.t("ui.tool.grep"),
-        subtitle: typeof input.pattern === "string" ? input.pattern : undefined,
+        subtitle: Predicate.isString(input.pattern) ? input.pattern : undefined,
       }
     case "browser":
       return {
@@ -365,22 +355,22 @@ export function getToolInfo(
       return {
         icon: "window-cursor",
         title: i18n.t("ui.tool.webfetch"),
-        subtitle: typeof input.url === "string" ? input.url : undefined,
+        subtitle: Predicate.isString(input.url) ? input.url : undefined,
       }
     case "websearch":
       return {
         icon: "window-cursor",
         title: webSearchProviderLabel(metadata?.provider, i18n),
-        subtitle: typeof input.query === "string" ? input.query : undefined,
+        subtitle: Predicate.isString(input.query) ? input.query : undefined,
       }
     case "subagent": {
       const raw = input.agent
-      const type = typeof raw === "string" && raw ? raw[0].toUpperCase() + raw.slice(1) : undefined
+      const type = Predicate.isString(raw) && raw ? raw[0].toUpperCase() + raw.slice(1) : undefined
 
       return {
         icon: "task",
         title: agentTitle(i18n, type),
-        subtitle: typeof input.description === "string" ? input.description : undefined,
+        subtitle: Predicate.isString(input.description) ? input.description : undefined,
       }
     }
 
@@ -388,25 +378,25 @@ export function getToolInfo(
       return {
         icon: "console",
         title: i18n.t("ui.tool.shell"),
-        subtitle: typeof input.command === "string" ? input.command : undefined,
+        subtitle: Predicate.isString(input.command) ? input.command : undefined,
       }
     case "execute":
       return {
         icon: "console",
         title: i18n.t("ui.tool.execute"),
-        subtitle: typeof input.code === "string" ? input.code : undefined,
+        subtitle: Predicate.isString(input.code) ? input.code : undefined,
       }
     case "edit":
       return {
         icon: "code-lines",
         title: i18n.t("ui.messagePart.title.edit"),
-        subtitle: typeof input.path === "string" ? getFilename(input.path) : undefined,
+        subtitle: Predicate.isString(input.path) ? getFilename(input.path) : undefined,
       }
     case "write":
       return {
         icon: "code-lines",
         title: i18n.t("ui.messagePart.title.write"),
-        subtitle: typeof input.path === "string" ? getFilename(input.path) : undefined,
+        subtitle: Predicate.isString(input.path) ? getFilename(input.path) : undefined,
       }
     case "patch":
       return {
@@ -444,14 +434,14 @@ function urls(text: string | undefined) {
   if (!text) return []
   const seen = new Set<string>()
 
-  return [...text.matchAll(/https?:\/\/[^\s<>"'`)\]]+/g)]
-    .map((item) => item[0].replace(/[),.;:!?]+$/g, ""))
-    .filter((item) => {
-      if (seen.has(item)) return false
-      seen.add(item)
+  return [...text.matchAll(/https?:\/\/[^\s<>"'`)\]]+/g)].flatMap((item) => {
+    const url = item[0].replace(/[),.;:!?]+$/g, "")
 
-      return true
-    })
+    if (seen.has(url)) return []
+    seen.add(url)
+
+    return [url]
+  })
 }
 
 function sessionLink(id: string | undefined, href?: (id: string) => string | undefined) {
@@ -461,12 +451,12 @@ function sessionLink(id: string | undefined, href?: (id: string) => string | und
 }
 
 function taskSession(
-  input: Record<string, unknown>,
+  input: Record<string, JsonValue>,
   parentID: string | undefined,
   sessions: SessionSummary[] | undefined,
 ) {
   if (!parentID) return undefined
-  const description = typeof input.description === "string" ? input.description : ""
+  const description = Predicate.isString(input.description) ? input.description : ""
 
   return (sessions ?? [])
     .filter((session) => session.parentID === parentID && !session.time?.archived)
@@ -558,6 +548,22 @@ export function CurrentContextToolGroup(props: {
   const pending = createMemo(
     () => props.busy || tools().some((tool) => tool.state.status === "streaming" || tool.state.status === "running"),
   )
+
+  const icon = createMemo(() => {
+    const kinds = new Set(props.parts.map((part) => (part.type === "tool" ? part.name : part.type)))
+
+    if (kinds.size !== 1) return "glasses"
+
+    if (kinds.has("reasoning")) return "brain"
+
+    if (kinds.has("shell")) return "console"
+
+    const tool = tools()[0]
+
+    if (!tool) return "glasses"
+
+    return getToolInfo(tool.name, undefined, tool.name === "websearch" ? currentToolMetadata(tool) : undefined).icon
+  })
 
   const names = createMemo(() =>
     i18n.list([
@@ -690,7 +696,7 @@ export function CurrentContextToolGroup(props: {
       data-timeline-part-ids={props.parts.map((part) => part.id).join(",")}
     >
       <BasicTool
-        icon="glasses"
+        icon={icon()}
         status={pending() ? "running" : "completed"}
         compact
         hasContent
@@ -699,6 +705,11 @@ export function CurrentContextToolGroup(props: {
         onOpenChange={change}
         trigger={
           <div data-component="context-tool-group-trigger" aria-label={label().text}>
+            <span data-slot="tool-summary-icon" data-working={pending() ? "" : undefined} aria-hidden="true">
+              <Show when={pending()} fallback={<Icon name={icon()} size="small" />}>
+                <SessionProgressIndicatorV2 />
+              </Show>
+            </span>
             <span data-slot="context-tool-group-title">
               <Show when={label().before || label().count || label().between}>
                 <span data-slot="context-tool-group-usage">
@@ -782,7 +793,7 @@ export function CurrentContextToolGroup(props: {
                       }),
                     )
 
-                    const marker = "__OPENCODE_LOADED_SKILL__"
+                    const marker = "__AIGCFROGE_LOADED_SKILL__"
 
                     const loaded = createMemo(() =>
                       i18n.plural("ui.tool.loadedSkills", skills().length, { name: marker }),
@@ -991,6 +1002,11 @@ export function CurrentReadToolGroup(props: {
           <div data-slot="basic-tool-tool-info">
             <div data-slot="basic-tool-tool-info-structured">
               <div data-slot="basic-tool-tool-info-main">
+                <span data-slot="tool-summary-icon" data-working={pending() ? "" : undefined} aria-hidden="true">
+                  <Show when={pending()} fallback={<Icon name="glasses" size="small" />}>
+                    <SessionProgressIndicatorV2 />
+                  </Show>
+                </span>
                 <span data-slot="basic-tool-tool-title">
                   <TextShimmer text={i18n.t("ui.tool.read")} active={pending()} />
                 </span>
@@ -1030,7 +1046,7 @@ export function CurrentFileToolGroup(props: {
   onFileOpenChange?: (path: string, open: boolean) => void
   onSizeChange?: () => void
 }) {
-  const files = createMemo((previous: { key: string; toolID: string; value: unknown }[]) => {
+  const files = createMemo((previous: { key: string; toolID: string; value: JsonValue }[]) => {
     const next = props.tools.flatMap((tool) => {
       const files = currentToolMetadata(tool).files
 
@@ -1038,9 +1054,9 @@ export function CurrentFileToolGroup(props: {
         return files.map((value, index) => ({ key: `${tool.id}:${index}`, toolID: tool.id, value }))
       const input = currentToolInput(tool)
 
-      if (typeof input.path !== "string") return []
+      if (!Predicate.isString(input.path)) return []
 
-      if (tool.name === "edit" && typeof input.oldString === "string" && typeof input.newString === "string") {
+      if (tool.name === "edit" && Predicate.isString(input.oldString) && Predicate.isString(input.newString)) {
         const changes = diffLines(input.oldString, input.newString)
 
         const additions = changes
@@ -1068,7 +1084,7 @@ export function CurrentFileToolGroup(props: {
         ]
       }
 
-      if (tool.name !== "write" || typeof input.content !== "string" || !input.content) return []
+      if (tool.name !== "write" || !Predicate.isString(input.content) || !input.content) return []
 
       return [
         {
@@ -1090,14 +1106,15 @@ export function CurrentFileToolGroup(props: {
     const owners = new Set(props.tools.map((tool) => tool.id))
 
     const result = [
-      ...previous
-        .filter((entry) => owners.has(entry.toolID))
-        .map((entry) => {
-          if (!updates.has(entry.key)) return entry
-          const value = updates.get(entry.key)
+      ...previous.flatMap((entry) => {
+        if (!owners.has(entry.toolID)) return []
 
-          return samePatchFile(value, entry.value) ? entry : { ...entry, value }
-        }),
+        const value = updates.get(entry.key)
+
+        if (value === undefined) return [entry]
+
+        return [samePatchFile(value, entry.value) ? entry : { ...entry, value }]
+      }),
       ...next.filter((entry) => !existing.has(entry.key)),
     ]
 
@@ -1158,10 +1175,10 @@ function isFileChangeTool(tool: SessionMessageAssistantTool) {
   return tool.state.status !== "error" && (tool.name === "edit" || tool.name === "write" || tool.name === "patch")
 }
 
-function samePatchFile(a: unknown, b: unknown) {
+function samePatchFile(a: JsonValue | undefined, b: JsonValue | undefined) {
   if (a === b) return true
 
-  if (!record(a) || !record(b)) return false
+  if (!Predicate.isObject(a) || !Predicate.isObject(b)) return false
 
   return (
     a.file === b.file &&
@@ -1175,13 +1192,18 @@ function samePatchFile(a: unknown, b: unknown) {
 function currentContextToolTrigger(tool: SessionMessageAssistantTool, i18n: ReturnType<typeof useI18n>) {
   const input = currentToolInput(tool)
   const metadata = currentToolMetadata(tool)
-  const path = typeof input.path === "string" ? input.path : "/"
-  const pattern = typeof input.pattern === "string" ? input.pattern : undefined
-  const include = typeof input.include === "string" ? input.include : undefined
-  const count = tool.name === "glob" ? metadata.count : tool.name === "grep" ? metadata.matches : undefined
+  const path = Predicate.isString(input.path) ? input.path : "/"
+  const pattern = Predicate.isString(input.pattern) ? input.pattern : undefined
+  const include = Predicate.isString(input.include) ? input.include : undefined
+
+  const count = EffectMatch.value(tool.name).pipe(
+    EffectMatch.when("glob", () => metadata.count),
+    EffectMatch.when("grep", () => metadata.matches),
+    EffectMatch.orElse(() => undefined),
+  )
 
   const matches =
-    typeof count === "number" && Number.isFinite(count) && count !== 0
+    Predicate.isNumber(count) && Number.isFinite(count) && count !== 0
       ? i18n.plural("ui.messagePart.context.match", count)
       : undefined
 
@@ -1205,8 +1227,8 @@ function currentContextToolTrigger(tool: SessionMessageAssistantTool, i18n: Retu
 }
 
 export interface ToolProps {
-  input: Record<string, unknown>
-  metadata: Record<string, unknown>
+  input: Record<string, JsonValue>
+  metadata: Record<string, JsonValue>
   tool: string
   sessionID?: string
   output?: string
@@ -1297,12 +1319,19 @@ function FileAccordionGroup(props: { children: JSX.Element }) {
         if (index < 0) return
         event.preventDefault()
 
-        const next =
-          event.key === "Home"
-            ? 0
-            : event.key === "End"
-              ? triggers.length - 1
-              : (index + (event.key === "ArrowDown" ? 1 : -1) + triggers.length) % triggers.length
+        if (event.key === "Home") {
+          triggers[0]?.focus()
+
+          return
+        }
+
+        if (event.key === "End") {
+          triggers[triggers.length - 1]?.focus()
+
+          return
+        }
+
+        const next = (index + (event.key === "ArrowDown" ? 1 : -1) + triggers.length) % triggers.length
 
         triggers[next]?.focus()
       }}
@@ -1441,7 +1470,7 @@ export function ToolDisplay(
     if (props.tool !== "subagent") return undefined
     const value = props.metadata.sessionID
 
-    if (typeof value === "string" && value) return value
+    if (Predicate.isString(value) && value) return value
 
     return undefined
   })
@@ -1452,7 +1481,7 @@ export function ToolDisplay(
     if (props.tool !== "subagent") return undefined
     const value = props.input.description
 
-    if (typeof value === "string" && value) return value
+    if (Predicate.isString(value) && value) return value
 
     return taskId()
   })
@@ -1515,7 +1544,7 @@ export function ToolDisplay(
 // Each branch must stay in sync with its tool trigger's subtitle expression so
 // failed rows read like their non-error counterparts ("Shell sleep 30").
 function toolErrorSubtitle(props: ToolProps, i18n: UiI18n) {
-  const text = (value: unknown) => (typeof value === "string" && value ? value : undefined)
+  const text = (value: JsonValue | undefined) => (Predicate.isString(value) && value ? value : undefined)
 
   if (props.tool === "shell") return text(props.input.command) ?? text(props.metadata.command)
 
@@ -1562,7 +1591,7 @@ function toolDisplayError(props: ToolProps & { error?: string }, fallback: strin
 
   if (!executeToolFailed(props.metadata)) return undefined
 
-  if (typeof props.output === "string" && props.output) return props.output
+  if (props.output) return props.output
 
   return fallback
 }
@@ -1580,7 +1609,7 @@ ToolRegistry.register({
 
       if (!value || !Array.isArray(value)) return []
 
-      return value.filter((p): p is string => typeof p === "string")
+      return value.filter((p): p is string => Predicate.isString(p))
     })
 
     const paths = createMemo(() =>
@@ -1591,7 +1620,7 @@ ToolRegistry.register({
       }),
     )
 
-    const marker = "__OPENCODE_LOADED_PATH__"
+    const marker = "__AIGCFROGE_LOADED_PATH__"
     const parts = createMemo(() => i18n.t("ui.tool.loadedFile", { path: marker }).split(marker))
 
     return (
@@ -1678,7 +1707,7 @@ ToolRegistry.register({
         hasContent={!!props.output}
         trigger={{
           title: i18n.t("ui.tool.list"),
-          subtitle: displayDirectory(typeof props.input.path === "string" ? props.input.path : "/"),
+          subtitle: displayDirectory(Predicate.isString(props.input.path) ? props.input.path : "/"),
         }}
       >
         <Show when={props.output}>
@@ -1709,8 +1738,8 @@ ToolRegistry.register({
         hasContent={!!props.output}
         trigger={{
           title: i18n.t("ui.tool.glob"),
-          subtitle: displayDirectory(typeof props.input.path === "string" ? props.input.path : "/"),
-          args: typeof props.input.pattern === "string" ? ["pattern=" + props.input.pattern] : [],
+          subtitle: displayDirectory(Predicate.isString(props.input.path) ? props.input.path : "/"),
+          args: Predicate.isString(props.input.pattern) ? ["pattern=" + props.input.pattern] : [],
         }}
       >
         <Show when={props.output}>
@@ -1735,9 +1764,9 @@ ToolRegistry.register({
     const i18n = useI18n()
     const args: string[] = []
 
-    if (typeof props.input.pattern === "string") args.push("pattern=" + props.input.pattern)
+    if (Predicate.isString(props.input.pattern)) args.push("pattern=" + props.input.pattern)
 
-    if (typeof props.input.include === "string") args.push("include=" + props.input.include)
+    if (Predicate.isString(props.input.include)) args.push("include=" + props.input.include)
 
     return (
       <BasicTool
@@ -1746,7 +1775,7 @@ ToolRegistry.register({
         hasContent={!!props.output}
         trigger={{
           title: i18n.t("ui.tool.grep"),
-          subtitle: displayDirectory(typeof props.input.path === "string" ? props.input.path : "/"),
+          subtitle: displayDirectory(Predicate.isString(props.input.path) ? props.input.path : "/"),
           args,
         }}
       >
@@ -1775,7 +1804,7 @@ ToolRegistry.register({
     const url = createMemo(() => {
       const value = props.input.url
 
-      if (typeof value !== "string") return ""
+      if (!Predicate.isString(value)) return ""
 
       return value
     })
@@ -1820,7 +1849,7 @@ ToolRegistry.register({
     const query = createMemo(() => {
       const value = props.input.query
 
-      if (typeof value !== "string") return ""
+      if (!Predicate.isString(value)) return ""
 
       return value
     })
@@ -1853,7 +1882,7 @@ ToolRegistry.register({
     const childSessionId = createMemo(() => {
       const value = props.metadata.sessionID
 
-      if (typeof value === "string" && value) return value
+      if (Predicate.isString(value) && value) return value
 
       return taskSession(props.input, data.sessionID, data.store.session)
     })
@@ -1869,7 +1898,7 @@ ToolRegistry.register({
 
     const subtitle = createMemo(() => {
       const value =
-        typeof props.input.description === "string" && props.input.description
+        Predicate.isString(props.input.description) && props.input.description
           ? props.input.description
           : childSessionId()
 
@@ -2030,7 +2059,7 @@ ToolRegistry.register({
   render(props) {
     const i18n = useI18n()
     const pending = () => props.status === "streaming" || props.status === "running"
-    const code = createMemo(() => (typeof props.input.code === "string" ? props.input.code : ""))
+    const code = createMemo(() => (Predicate.isString(props.input.code) ? props.input.code : ""))
     const output = () => stripAnsi(props.output ?? "").replace(/\r\n?/g, "\n")
     const sawPending = pending()
 
@@ -2074,14 +2103,14 @@ ToolRegistry.register({
     const pending = () =>
       streaming() ||
       props.status === "running" ||
-      (typeof props.metadata.shellID === "string" && data.shellRunning?.(props.metadata.shellID) === true)
+      (Predicate.isString(props.metadata.shellID) && data.shellRunning?.(props.metadata.shellID) === true)
 
     const sawStreaming = streaming()
 
     const command = () => {
-      if (typeof props.input.command === "string") return props.input.command
+      if (Predicate.isString(props.input.command)) return props.input.command
 
-      if (typeof props.metadata.command === "string") return props.metadata.command
+      if (Predicate.isString(props.metadata.command)) return props.metadata.command
 
       return ""
     }
@@ -2101,13 +2130,13 @@ ToolRegistry.register({
         const id = props.metadata.shellID
         const load = data.shellOutput
 
-        if (typeof id !== "string" || !load) return
+        if (!Predicate.isString(id) || !load) return
         onCleanup(followShellOutput({ id, directory: data.directory, running: pending(), load, onOutput: setStreamed }))
       })
 
       const output = createMemo(() =>
         stripAnsi(
-          saved() ?? ((typeof props.metadata.shellID === "string" && streamed()) || props.output || ""),
+          saved() ?? ((Predicate.isString(props.metadata.shellID) && streamed()) || props.output || ""),
         ).replace(/\r\n?/g, "\n"),
       )
 
@@ -2185,8 +2214,8 @@ export function SessionShellMessage(props: {
         metadata={{
           shellID: props.message.shellID,
           status: props.message.status,
-          exit: props.message.exit,
-          truncated: props.message.output?.truncated,
+          ...(props.message.exit !== undefined && { exit: props.message.exit }),
+          ...(props.message.output?.truncated !== undefined && { truncated: props.message.output.truncated }),
         }}
         output={props.message.output?.output}
         status={props.message.status === "running" ? "running" : "completed"}
@@ -2206,7 +2235,7 @@ ToolRegistry.register({
   render(props) {
     const i18n = useI18n()
     const fileComponent = useFileComponent()
-    const inputPath = () => (typeof props.input.path === "string" ? props.input.path : "")
+    const inputPath = () => (Predicate.isString(props.input.path) ? props.input.path : "")
 
     const diff = createMemo(() => {
       const files = props.metadata.files
@@ -2221,7 +2250,7 @@ ToolRegistry.register({
     const path = createMemo(() => {
       const value = diff()
 
-      return typeof value?.file === "string" ? value.file : inputPath()
+      return value?.file ?? inputPath()
     })
 
     const pending = () => props.status === "streaming" || props.status === "running"
@@ -2233,8 +2262,8 @@ ToolRegistry.register({
         if (!source) return undefined
 
         return {
-          file: typeof source.file === "string" ? source.file : inputPath(),
-          patch: typeof source.patch === "string" ? source.patch : undefined,
+          file: source.file,
+          patch: source.patch,
         }
       },
       undefined,
@@ -2257,11 +2286,11 @@ ToolRegistry.register({
       return {
         before: {
           name: path(),
-          contents: typeof props.input.oldString === "string" ? props.input.oldString : "",
+          contents: Predicate.isString(props.input.oldString) ? props.input.oldString : "",
         },
         after: {
           name: path(),
-          contents: typeof props.input.newString === "string" ? props.input.newString : "",
+          contents: Predicate.isString(props.input.newString) ? props.input.newString : "",
         },
       }
     })
@@ -2305,8 +2334,8 @@ ToolRegistry.register({
   name: "write",
   render(props) {
     const fileComponent = useFileComponent()
-    const path = createMemo(() => (typeof props.input.path === "string" ? props.input.path : ""))
-    const content = createMemo(() => (typeof props.input.content === "string" ? props.input.content : ""))
+    const path = createMemo(() => (Predicate.isString(props.input.path) ? props.input.path : ""))
+    const content = createMemo(() => (Predicate.isString(props.input.content) ? props.input.content : ""))
     const diagnostics = createMemo(() => getDiagnostics(props.metadata.diagnostics, path()))
 
     return (
@@ -2349,13 +2378,13 @@ ToolRegistry.register({
     const files = createMemo(() => patchFileGroups(props.metadata.files))
     const [expanded, setExpanded] = createSignal<string[]>([])
 
-    const title = createMemo(() =>
-      props.tool === "edit"
-        ? i18n.t("ui.messagePart.title.edit")
-        : props.tool === "write"
-          ? i18n.t("ui.messagePart.title.write")
-          : i18n.t("ui.tool.patch"),
-    )
+    const title = createMemo(() => {
+      if (props.tool === "edit") return i18n.t("ui.messagePart.title.edit")
+
+      if (props.tool === "write") return i18n.t("ui.messagePart.title.write")
+
+      return i18n.t("ui.tool.patch")
+    })
 
     const open = createMemo(() => {
       if (!props.fileOpen) return expanded()
@@ -2529,7 +2558,7 @@ ToolRegistry.register({
     const i18n = useI18n()
     const name = createMemo(() => skillToolName(props.input, props.metadata))
     const running = createMemo(() => props.status === "streaming" || props.status === "running")
-    const marker = "__OPENCODE_LOADED_SKILL__"
+    const marker = "__AIGCFROGE_LOADED_SKILL__"
     const parts = createMemo(() => i18n.t("ui.tool.loadedSkill", { name: marker }).split(marker))
 
     return (

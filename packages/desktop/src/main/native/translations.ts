@@ -5,7 +5,7 @@ import {
   formatDesktopNativeMessage,
   type DesktopNativeBundle,
   type DesktopNativeKey,
-} from "@opencode/app/i18n/desktop-native"
+} from "@aigcfroge/app/i18n/desktop-native"
 
 let bundle: DesktopNativeBundle = { locale: "en", messages: { ...DESKTOP_NATIVE_ENGLISH } }
 

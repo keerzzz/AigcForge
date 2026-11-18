@@ -6,13 +6,17 @@ import type {
   PathAttachmentPart,
   Prompt,
   SkillPart,
+  SessionPart,
 } from "./state"
+import type { PromptHistoryComment } from "./schema"
 
 export type ComposerFilePart = FileAttachmentPart
 
 export type ComposerAgentPart = AgentPart
 
 export type ComposerSkillPart = SkillPart
+
+export type ComposerSessionPart = SessionPart
 
 export type ComposerAttachment = ImageAttachmentPart | PathAttachmentPart
 
@@ -24,14 +28,14 @@ export type ComposerPersistedState = ComposerStore
 
 export type ComposerHistoryEntry = {
   prompt: ComposerPrompt
-  metadata?: unknown
+  metadata?: PromptHistoryComment[]
 }
 
 export type ComposerHistory = {
   entries: (mode: "normal" | "shell") => ComposerHistoryEntry[]
   add: (prompt: ComposerPrompt, mode: "normal" | "shell") => void
-  capture?: () => unknown
-  restore?: (metadata: unknown) => void
+  capture?: () => PromptHistoryComment[]
+  restore?: (metadata: PromptHistoryComment[]) => void
 }
 
 export type ComposerOption = {
@@ -42,7 +46,7 @@ export type ComposerOption = {
 
 export type ComposerSuggestion = {
   id: string
-  kind: "agent" | "command" | "file" | "reference" | "resource" | "skill"
+  kind: "agent" | "command" | "file" | "reference" | "resource" | "skill" | "session"
   label: string
   title?: string
   trigger?: string
@@ -50,5 +54,5 @@ export type ComposerSuggestion = {
   path?: string
   keybind?: string[]
   recent?: boolean
-  mention?: ComposerFilePart | ComposerAgentPart | ComposerSkillPart
+  mention?: ComposerFilePart | ComposerAgentPart | ComposerSkillPart | ComposerSessionPart
 }

@@ -2,21 +2,26 @@ import { expect } from "bun:test"
 import { cp } from "node:fs/promises"
 import path from "node:path"
 import { Brand, Cause, Deferred, Effect, Exit, Fiber, Layer, Option, Schedule, Schema, Scope, Stream } from "effect"
-import { Agent } from "@opencode/schema/agent"
-import { Session } from "@opencode/schema/session"
-import { SessionMessage } from "@opencode/schema/session-message"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { Watcher } from "@opencode/core/filesystem/watcher"
-import { Plugin } from "@opencode/core/plugin"
-import { ManagedPolicy } from "@opencode/core/managed-policy"
-import { PluginModule } from "@opencode/core/plugin/module"
-import { Rpc } from "@opencode/core/rpc"
-import { Tool } from "@opencode/core/tool"
-import { execute } from "@opencode/core/tool/runtime"
-import { Global } from "@opencode/util/global"
-import { Npm } from "@opencode/util/npm"
-import { createForeignPackageFilter, ensurePluginRuntime } from "@opencode/plugin/runtime"
-import { createLoader, discoverPluginRuntimeSpecifiers, pluginRuntimeLoaderCode } from "@opencode/plugin/runtime-modules"
+import { Agent } from "@aigcfroge/schema/agent"
+import { Session } from "@aigcfroge/schema/session"
+import { SessionMessage } from "@aigcfroge/schema/session-message"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { Watcher } from "@aigcfroge/core/filesystem/watcher"
+import { Plugin } from "@aigcfroge/core/plugin"
+import { ManagedPolicy } from "@aigcfroge/core/managed-policy"
+import { PluginModule } from "@aigcfroge/core/plugin/module"
+import { CompositionDigest } from "@aigcfroge/core/composition/digest"
+import { Rpc } from "@aigcfroge/core/rpc"
+import { Tool } from "@aigcfroge/core/tool"
+import { execute } from "@aigcfroge/core/tool/runtime"
+import { Global } from "@aigcfroge/util/global"
+import { Npm } from "@aigcfroge/util/npm"
+import { createForeignPackageFilter, ensurePluginRuntime } from "@aigcfroge/plugin/runtime"
+import {
+  createLoader,
+  discoverPluginRuntimeSpecifiers,
+  pluginRuntimeLoaderCode,
+} from "@aigcfroge/plugin/runtime-modules"
 import { tempGlobalLayer } from "../fixture/global"
 import { tmpdirScoped } from "../fixture/tmpdir"
 import { testEffect } from "../lib/effect"
@@ -53,6 +58,84 @@ it.live("watches creation of an external helper with missing parent directories"
     const loaded = yield* modules.load(operation)
     expect(loaded).toMatchObject({ id: "appeared" })
   }),
+)
+
+it.live(
+  "keeps local producer identity across cold loads and rejects an unchanged tool definition after helper changes",
+  () =>
+    Effect.gen(function* () {
+      const directory = yield* tmpdirScoped()
+      const helper = path.join(directory.path, "helper.ts")
+      yield* Effect.promise(() => Bun.write(helper, 'export const value = "first"'))
+      yield* Effect.promise(() =>
+        Bun.write(
+          path.join(directory.path, "index.ts"),
+          `
+        import { Effect, Schema } from "effect"
+        import { value } from "./helper.ts"
+        await import("./missing-optional.ts").catch(() => undefined)
+        export default {
+          id: "stable-local-producer",
+          effect: (ctx) => ctx.tool.transform((editor) => editor.add({
+            name: "stable",
+            description: "Return the local helper value",
+            input: Schema.Struct({}),
+            output: Schema.String,
+            options: { codemode: false },
+            execute: () => Effect.succeed({ output: ctx.options.prefix + value }),
+          })),
+        }
+      `,
+        ),
+      )
+      const firstLoader = yield* PluginModule.make()
+      const operation = { type: "add" as const, target: directory.path, options: { prefix: "selected:", count: 1 } }
+      const first = yield* firstLoader.load(operation)
+      if ("pending" in first || "blocked" in first) return yield* Effect.die(new Error("Expected local producer"))
+      expect(first.producer?.revision).toMatch(/^[a-f0-9]{64}$/)
+      const plugins = yield* Plugin.Service
+      const tools = yield* Tool.Service
+      yield* plugins.activate([first])
+      const original = yield* tools.snapshot()
+      const frozen = CompositionDigest.captureTools(original.catalog, directory.path, "test-host")
+      const coldLoader = yield* PluginModule.make()
+      const cold = yield* coldLoader.load({ ...operation, options: { count: 1, prefix: "selected:" } })
+      if ("pending" in cold || "blocked" in cold) return yield* Effect.die(new Error("Expected cold local producer"))
+      expect(cold.revision).not.toBe(first.revision)
+      expect(cold.producer).toEqual(first.producer)
+      yield* Effect.promise(() => Bun.write(path.join(directory.path, "unrelated.txt"), "watch-only change"))
+      const unrelated = yield* coldLoader.load(operation)
+      if ("pending" in unrelated || "blocked" in unrelated)
+        return yield* Effect.die(new Error("Expected unchanged local producer"))
+      expect(unrelated.producer).toEqual(first.producer)
+      yield* plugins.activate([unrelated])
+      expect(
+        CompositionDigest.validateCurrentTools(frozen, (yield* tools.snapshot()).catalog, directory.path, "test-host"),
+      ).toMatchObject({ _tag: "Success" })
+      const configured = yield* coldLoader.load({ ...operation, options: { prefix: "different:", count: 1 } })
+      if ("pending" in configured || "blocked" in configured)
+        return yield* Effect.die(new Error("Expected configured local producer"))
+      expect(configured.producer?.revision).not.toBe(first.producer?.revision)
+      yield* Effect.promise(() => Bun.write(helper, 'export const value = "second"'))
+      const changed = yield* coldLoader.load(operation)
+      if ("pending" in changed || "blocked" in changed)
+        return yield* Effect.die(new Error("Expected changed local producer"))
+      expect(changed.producer?.revision).not.toBe(first.producer?.revision)
+      yield* plugins.activate([changed])
+      const current = yield* tools.snapshot()
+      expect(current.definitions).toEqual(original.definitions)
+      expect(
+        CompositionDigest.validateCurrentTools(frozen, current.catalog, directory.path, "test-host"),
+      ).toMatchObject({ _tag: "Failure", failure: { reason: "tool_runtime_definition_mismatch" } })
+      const call = {
+        sessionID: Session.ID.make("ses_stable_producer"),
+        agent: Agent.ID.make("build"),
+        messageID: SessionMessage.ID.make("msg_stable_producer"),
+        call: { type: "tool-call" as const, id: "stable-source", name: "stable", input: {} },
+      }
+      expect((yield* original.execute(call)).output).toBe("selected:first")
+      expect((yield* current.execute(call)).output).toBe("selected:second")
+    }),
 )
 
 it.live("interrupts pending watcher setup when the loader scope closes during module evaluation", () =>
@@ -106,7 +189,7 @@ it.live("interrupts pending watcher setup when the loader scope closes during mo
   }),
 )
 
-it.live("loads plugins and their transitive dependencies against the host's Effect and @opencode/plugin instances", () =>
+it.live("loads plugins and their transitive dependencies against the host's Effect and @aigcfroge/plugin instances", () =>
   Effect.gen(function* () {
     const directory = yield* tmpdirScoped()
     const pluginDir = path.join(directory.path, "plugin")
@@ -153,12 +236,12 @@ export const depToolInput = Schema.Struct({
   code: Schema.Trim.check(Schema.isPattern(/^v[0-9]+$/)),
 })
 export const depCaptured = { Effect, Schema, some }`,
-        "node_modules/@opencode/plugin/package.json":
-          '{"name":"@opencode/plugin","type":"module","exports":{"./effect":"./effect.js","./rpc":"./rpc.js"}}',
-        "node_modules/@opencode/plugin/effect.js": "export const Plugin = { define: (p) => p }",
-        "node_modules/@opencode/plugin/rpc.js": "export const Rpc = { define: (d) => d }",
-        "index.ts": `import { Plugin } from "@opencode/plugin/effect"
-import { Rpc } from "@opencode/plugin/rpc"
+        "node_modules/@aigcfroge/plugin/package.json":
+          '{"name":"@aigcfroge/plugin","type":"module","exports":{"./effect":"./effect.js","./rpc":"./rpc.js"}}',
+        "node_modules/@aigcfroge/plugin/effect.js": "export const Plugin = { define: (p) => p }",
+        "node_modules/@aigcfroge/plugin/rpc.js": "export const Rpc = { define: (d) => d }",
+        "index.ts": `import { Plugin } from "@aigcfroge/plugin/effect"
+import { Rpc } from "@aigcfroge/plugin/rpc"
 import { Effect, Schema } from "effect"
 import { some } from "effect/Option"
 import { nominal } from "effect/Brand"
@@ -324,8 +407,8 @@ it.live("discovers exported specifiers from the resolved tree even when dist/ ex
 
     yield* Effect.promise(() =>
       writeFiles(directory.path, {
-        "consumer/node_modules/@opencode/plugin/package.json": JSON.stringify({
-          name: "@opencode/plugin",
+        "consumer/node_modules/@aigcfroge/plugin/package.json": JSON.stringify({
+          name: "@aigcfroge/plugin",
           type: "module",
           exports: {
             ".": "./src/promise/index.ts",
@@ -333,22 +416,22 @@ it.live("discovers exported specifiers from the resolved tree even when dist/ ex
             "./effect/*": "./src/effect/*.ts",
           },
         }),
-        "consumer/node_modules/@opencode/plugin/src/promise/index.ts": "export const root = 'src'",
-        "consumer/node_modules/@opencode/plugin/src/effect/index.ts": "export * as plugin from './plugin.ts'",
-        "consumer/node_modules/@opencode/plugin/src/effect/plugin.ts": "export const leaf = 'src'",
-        "consumer/node_modules/@opencode/plugin/src/unexported.ts": "export const secret = true",
-        "consumer/node_modules/@opencode/plugin/dist/promise/index.js": "export const root = 'dist'",
-        "consumer/node_modules/@opencode/plugin/dist/effect/index.js": "export const index = 'dist'",
-        "consumer/node_modules/@opencode/plugin/dist/effect/plugin.js": "export const leaf = 'dist'",
+        "consumer/node_modules/@aigcfroge/plugin/src/promise/index.ts": "export const root = 'src'",
+        "consumer/node_modules/@aigcfroge/plugin/src/effect/index.ts": "export * as plugin from './plugin.ts'",
+        "consumer/node_modules/@aigcfroge/plugin/src/effect/plugin.ts": "export const leaf = 'src'",
+        "consumer/node_modules/@aigcfroge/plugin/src/unexported.ts": "export const secret = true",
+        "consumer/node_modules/@aigcfroge/plugin/dist/promise/index.js": "export const root = 'dist'",
+        "consumer/node_modules/@aigcfroge/plugin/dist/effect/index.js": "export const index = 'dist'",
+        "consumer/node_modules/@aigcfroge/plugin/dist/effect/plugin.js": "export const leaf = 'dist'",
         "async-mod.ts": "await new Promise((r) => setTimeout(r, 20)); export const nonce = Math.random()",
       }),
     )
 
-    const discovered = discoverPluginRuntimeSpecifiers(consumerDir, ["@opencode/plugin"])
-    expect(discovered.get("@opencode/plugin")?.replaceAll("\\", "/")).toEndWith("src/promise/index.ts")
-    expect(discovered.get("@opencode/plugin/effect")?.replaceAll("\\", "/")).toEndWith("src/effect/index.ts")
-    expect(discovered.get("@opencode/plugin/effect/plugin")?.replaceAll("\\", "/")).toEndWith("src/effect/plugin.ts")
-    expect(discovered.has("@opencode/plugin/unexported")).toBe(false)
+    const discovered = discoverPluginRuntimeSpecifiers(consumerDir, ["@aigcfroge/plugin"])
+    expect(discovered.get("@aigcfroge/plugin")?.replaceAll("\\", "/")).toEndWith("src/promise/index.ts")
+    expect(discovered.get("@aigcfroge/plugin/effect")?.replaceAll("\\", "/")).toEndWith("src/effect/index.ts")
+    expect(discovered.get("@aigcfroge/plugin/effect/plugin")?.replaceAll("\\", "/")).toEndWith("src/effect/plugin.ts")
+    expect(discovered.has("@aigcfroge/plugin/unexported")).toBe(false)
 
     const hostDiscovered = discoverPluginRuntimeSpecifiers()
     expect(hostDiscovered.has("effect/schema/SchemaJITCompiler")).toBe(true)
@@ -375,16 +458,16 @@ it.live("discovers exported specifiers from the resolved tree even when dist/ ex
     expect(res1).toBe(res2)
 
     const winFilter = createForeignPackageFilter([
-      "C:\\runner\\_work\\opencode\\node_modules\\.bun\\effect@4.0.0-rc.112\\node_modules\\effect",
+      "C:\\runner\\_work\\aigcfroge\\node_modules\\.bun\\effect@4.0.0-rc.112\\node_modules\\effect",
     ])
     expect(
       winFilter.test(
-        "C:\\runner\\_work\\opencode\\node_modules\\.bun\\effect@4.0.0-rc.112\\node_modules\\effect\\dist\\index.js",
+        "C:\\runner\\_work\\aigcfroge\\node_modules\\.bun\\effect@4.0.0-rc.112\\node_modules\\effect\\dist\\index.js",
       ),
     ).toBe(false)
     expect(
       winFilter.test(
-        "C:/runner/_work/opencode/node_modules/.bun/effect@4.0.0-rc.112/node_modules/effect/dist/index.js",
+        "C:/runner/_work/aigcfroge/node_modules/.bun/effect@4.0.0-rc.112/node_modules/effect/dist/index.js",
       ),
     ).toBe(false)
     expect(winFilter.test("C:\\Users\\plugin\\node_modules\\effect\\dist\\index.js")).toBe(true)

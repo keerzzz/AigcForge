@@ -116,7 +116,7 @@ export const isRetryable = (error: AIError) => {
 }
 
 const decodeJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown))
-// OpenCode Zen reports account caps as typed 429/402 errors that are not throttles.
+// AigcForge Zen reports account caps as typed 429/402 errors that are not throttles.
 const QUOTA_CODES = new Set([
   "insufficient_quota",
   "usage_not_included",
@@ -158,7 +158,7 @@ const CONTENT_POLICY_CODES = new Set([
   "image_content_policy_violation",
   "refusal",
 ])
-// OpenCode Zen replaces upstream codes outside its allow-list but keeps the original
+// AigcForge Zen replaces upstream codes outside its allow-list but keeps the original
 // as a `[code]` label at the start of the rewritten message.
 const GATEWAY_CODE_LABEL = /^[^:\n]+: \[([A-Za-z0-9_.-]+)\]/
 // xAI reports an invalid API key as HTTP 400 with the generic `invalid-argument` code.
@@ -288,7 +288,7 @@ export function classifyProviderFailure(input: ProviderFailure): AIError["reason
     input.status === 409 ||
     (input.status !== undefined && input.status >= 500) ||
     // Server codes and phrasing only decide when no HTTP status contradicts them:
-    // gateways such as OpenCode Zen substitute `server_error` for codes they do
+    // gateways such as AigcForge Zen substitute `server_error` for codes they do
     // not forward, so a 4xx with a server code is still a rejected request.
     ((input.status === undefined || input.status < 400) &&
       ((!codes.some((code) => INVALID_REQUEST_CODES.has(code)) && SERVER_ERROR_TEXT.test(text)) ||
@@ -298,6 +298,8 @@ export function classifyProviderFailure(input: ProviderFailure): AIError["reason
       ...details,
       retryAfterMs: input.retryAfterMs,
     })
+  if (codes.includes("model_not_found"))
+    return new InvalidRequestError({ ...details, classification: "model-not-found" })
   if (codes.some((code) => INVALID_REQUEST_CODES.has(code))) return new InvalidRequestError(details)
   // Any remaining 4xx is a deterministic rejection of this request.
   if (input.status !== undefined && input.status >= 400 && input.status < 500) return new InvalidRequestError(details)

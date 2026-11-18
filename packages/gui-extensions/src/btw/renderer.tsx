@@ -1,31 +1,55 @@
-import { createMemo, lazy, onCleanup, Suspense } from "solid-js"
-import { Icon } from "@opencode/ui/icon"
-import { Command, createKeyed, onIdle, Panel, type PanelTab, type Setup } from "../sdk"
+import { createMemo, lazy, onCleanup, Show, Suspense } from "solid-js"
+import { Icon } from "@aigcfroge/ui/icon"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { showToast } from "@aigcfroge/ui/toast"
+import { errorMessage } from "@aigcfroge/util/error"
+import { Command, createKeyed, MenuItem, onIdle, Panel, Slot, type PanelTab, type Setup } from "../sdk"
 import type Btw from "./index"
 import { createBtw } from "./model"
 
 const setup: Setup<typeof Btw> = (ctx) => {
   const SessionBtwPanel = lazy(() => import("./panel"))
   onCleanup(onIdle(() => void SessionBtwPanel.preload()))
-  const layout = ctx.layout
-  const sessions = ctx.sessions
   const btw = createBtw(ctx)
-  // Changes when a session mounts or unmounts, not on every switch between sessions.
-  const mounted = createMemo(() => !!sessions.current())
-
-  // Tab objects per session, reused so strip updates and session switches do not rebuild a trigger.
+  const mounted = createMemo(() => !!ctx.sessions.current())
   const tabs = new Map<string, Map<string, PanelTab>>()
 
-  // Drops the tab objects of sessions whose shell tab closed.
+  const launcher: PanelTab = {
+    id: "main",
+    get title() {
+      return ctx.t("list.title")
+    },
+    transient: true,
+    closable: "hover",
+    label: () => (
+      <div class="flex min-w-0 items-center gap-1.5">
+        <Icon name="bubble-5" size="small" />
+        <span class="truncate">{ctx.t("list.title")}</span>
+      </div>
+    ),
+  }
+
+  // Sync chunk readiness with restored layouts; neither this nor tab restoration executes a Session.
   createKeyed(
-    () => [...sessions.list().map((session) => session.key), sessions.current()?.key].join("\u0000"),
+    () => ctx.sessions.list().some((session) => ctx.layout.stored(session).length > 0),
+    () => void SessionBtwPanel.preload(),
+  )
+  createKeyed(
+    () => [...ctx.sessions.list().map((session) => session.key), ctx.sessions.current()?.key].join("\u0000"),
     () => {
-      const keep = new Set([...sessions.list().map((session) => session.key), sessions.current()?.key])
+      const keep = new Set([...ctx.sessions.list().map((session) => session.key), ctx.sessions.current()?.key])
       tabs.forEach((_cache, key) => {
         if (!keep.has(key)) tabs.delete(key)
       })
     },
   )
+
+  const openList = () => {
+    const session = ctx.sessions.current()
+
+    if (session) ctx.layout.open(ctx.id + ":main", session)
+  }
 
   ctx.add(
     Command,
@@ -37,30 +61,78 @@ const setup: Setup<typeof Btw> = (ctx) => {
       section: "session",
       slash: { name: "btw", arguments: true },
       hidden: true,
-      // Offered only while a session is open in a desktop-width window.
-      enabled: !layout.narrow() && mounted(),
+      enabled: mounted(),
       run: (input) => btw.ask(input),
     }),
   )
+  ctx.add(
+    Command,
+    (): Command => ({
+      id: "open",
+      title: ctx.t("list.title"),
+      group: ctx.t("command.category.session"),
+      section: "session",
+      bind: "mod+alt+b",
+      enabled: mounted(),
+      run: openList,
+    }),
+  )
+  ctx.add(MenuItem, {
+    id: "open",
+    menu: "session.panel",
+    get title() {
+      return ctx.t("list.title")
+    },
+    icon: "bubble-5",
+    keybind: "btw.open",
+    run: openList,
+  })
+
+  ctx.add(Slot, {
+    at: "session.response.actions",
+    render(input) {
+      return (
+        <Show when={input.active && input.completed && input.boundary}>
+          <Tooltip value={ctx.t("action.title")}>
+            <IconButton
+              size="small"
+              variant="ghost-muted"
+              icon={<Icon name="bubble-5" size="small" />}
+              aria-label={ctx.t("action.title")}
+              disabled={!input.session.server.connected}
+              onClick={() => {
+                const boundary = input.boundary ? { ...input.boundary } : undefined
+
+                if (!input.active || !input.completed || !boundary) return
+                // oxlint-disable-next-line anti-slop/no-unknown-parameters -- SAFETY: errorMessage checks the Promise rejection and produces display text.
+                void btw.draft({ source: input.source, target: input.session, boundary }).catch((error: unknown) => {
+                  if (!ctx.signal.aborted) showToast({ title: errorMessage(error, ctx.t("common.requestFailed")) })
+                })
+              }}
+            />
+          </Tooltip>
+        </Show>
+      )
+    },
+  })
 
   ctx.add(Panel, {
     id: "main",
     region: "side",
     transient: true,
-    // Layouts saved before extensions store the tab as "btw"; as a panel key it leaves like any unlisted transient tab.
     legacy: { btw: "main" },
-    // One tab per stored question. Until the session's store loads, its tabs stay listed but hidden so restore keeps
-    // them; afterwards a tab without a stored question leaves the strip.
-    list: (input) => {
-      if (input.open.length === 0) return []
-
+    get mobile(): Panel["mobile"] {
+      return { title: ctx.t("list.title"), kind: "menu", order: 55 }
+    },
+    list(input) {
       const saved = btw.saved(input.session)
       const cache = tabs.get(input.session.key) ?? new Map<string, PanelTab>()
       tabs.set(input.session.key, cache)
 
       return input.open.flatMap((id) => {
-        if (saved.ready() && !saved.value?.chats.some((item) => item.id === id)) return []
+        if (id === "main") return [launcher]
 
+        if (saved.ready() && !saved.value?.chats.some((chat) => chat.id === id)) return []
         const existing = cache.get(id)
 
         if (existing) return [existing]
@@ -68,15 +140,32 @@ const setup: Setup<typeof Btw> = (ctx) => {
         const tab: PanelTab = {
           id,
           get title() {
-            return saved.value?.chats.find((item) => item.id === id)?.question ?? ctx.t("tab.title")
+            const chat = saved.value?.chats.find((item) => item.id === id)
+            const server = chat?.intent ? ctx.servers.get(chat.intent.serverID) : undefined
+
+            return server?.data.session.get(chat?.intent?.targetID ?? "")?.title || chat?.question || ctx.t("tab.title")
           },
           get hidden() {
             return !saved.ready()
           },
+          closable: "hover",
+          fallback: true,
+          dom: {
+            tab: "session-btw-tab-" + encodeURIComponent(input.session.key) + "-" + id,
+            panel: "session-btw-tabpanel-" + encodeURIComponent(input.session.key) + "-" + id,
+          },
           label: (state) => (
             <div class="flex min-w-0 items-center gap-1.5">
               <Icon name="bubble-5" size="small" />
-              <span class="truncate">{btw.question(state.session, id) ?? ctx.t("tab.title")}</span>
+              <span class="truncate">{btw.title(state.session, id)}</span>
+              <Show when={!state.active && btw.unread(state.session, id)}>
+                <span
+                  data-slot="session-btw-unread"
+                  role="status"
+                  aria-label={ctx.t("unread")}
+                  class="size-1.5 shrink-0 rounded-full bg-v2-state-fg-accent"
+                />
+              </Show>
             </div>
           ),
         }
@@ -88,11 +177,12 @@ const setup: Setup<typeof Btw> = (ctx) => {
     },
     render: (props) => (
       <Suspense>
-        <SessionBtwPanel btw={btw} session={props.session} id={props.tab.id} />
+        <SessionBtwPanel btw={btw} session={props.session} screen={props.screen} id={props.tab.id} />
       </Suspense>
     ),
-    close: (input) => {
-      btw.remove(input.session, input.tab.id)
+    focus: (input) => btw.markRead(input.session, input.tab.id),
+    close(input) {
+      btw.markRead(input.session, input.tab.id)
       tabs.get(input.session.key)?.delete(input.tab.id)
     },
   })

@@ -97,7 +97,7 @@ Review endpoints in document order. For each endpoint, select one disposition an
 | [x] 018 | `GET` | `/api/command` | `command.list` | Keep | Request and response accepted as-is. |
 | [x] 019 | `GET` | `/api/skill` | `skill.list` | Keep | Renamed `location` to `path`; removed the skill-specific `slash` flag and slash-command behavior. |
 | [x] 020 | `GET` | `/api/reference` | `reference.list` | Keep | Removed duplicate `description` and `hidden` fields from nested `source`. |
-| [x] 021 | `GET` | `/api/config` | `config.get` | Keep | Compatibility entries removed; response now contains only documents and OpenCode directories. |
+| [x] 021 | `GET` | `/api/config` | `config.get` | Keep | Compatibility entries removed; response now contains only documents and AigcForge directories. |
 | [x] 022 | `GET` | `/api/config/preferences` | `config.preferences` | Remove | Redundant special projection of global config. |
 | [x] 023 | `PATCH` | `/api/config/preferences` | `config.updatePreferences` | Remove | Redundant field-specific config mutation API. |
 | [x] 024 | `GET` | `/api/config/shell` | `config.shells` | Keep | Required by the server Terminal shell setting. |

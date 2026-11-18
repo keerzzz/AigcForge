@@ -1,0 +1,1021 @@
+{
+  "baseline": "4617210822bdbb31e5749751afbfb4584ccedac8",
+  "sourceBranch": "v2-dev",
+  "sourceHEAD": "0a09f6bccdb71f1234eea759eb99e8a336d1d4da",
+  "acceptedIndexTree": "c309bfc7567e2913e31d4c663d233a8a6bc5bc9c",
+  "filteredSourceTree": "ddf629152d3de1004aa7a26018282e9d051eb59c",
+  "sourceCommits": [
+    {
+      "sha": "ae30e473ccb00acba8f8bd0a0b47ce89d9fe4cc8",
+      "subject": "chore: trim base to desktop closure (20 package dirs, drop services)"
+    },
+    {
+      "sha": "9c29234af30f3cd36aed4b52c0ba99da536e20d6",
+      "subject": "chore: apply rename bridge (opencode -> aigcfroge)"
+    },
+    {
+      "sha": "6ac686f341d16d13affbfc95d514a8659cc4054d",
+      "subject": "docs: mark R0 window complete"
+    },
+    {
+      "sha": "fc1714de4e6d328b8d351398f6ec2c29da6c758f",
+      "subject": "feat(schema): port fork contracts onto effect 4.0.1 base (R1a)"
+    },
+    {
+      "sha": "20d5eea61647223163855463a536545900419a3f",
+      "subject": "docs(research): refresh divergence scan against upstream 461721082"
+    },
+    {
+      "sha": "c8362a8a8d78b8d3c45d8b71a80a5d6cbc7164cd",
+      "subject": "docs: record R1a completion in alignment plan"
+    },
+    {
+      "sha": "69ad60b86453a93223cac59cb96d41645d053b5c",
+      "subject": "feat(protocol): register prompt-asset endpoints and generate client (R1b slice 1)"
+    },
+    {
+      "sha": "086abae29ae446a38edc5b15ccb55ef99727fe41",
+      "subject": "docs: record R1b slice 1 completion in alignment plan"
+    },
+    {
+      "sha": "4d8d0e2a928ee2bfbefa0a0bc98baf323d52881e",
+      "subject": "feat(protocol): register six asset endpoint groups and generate client (R1b batch 2)"
+    },
+    {
+      "sha": "262d673118db1c2c26f07594d98015ab052ccb8c",
+      "subject": "feat(protocol): register custom-profile and custom-composition groups (R1b batch 3)"
+    },
+    {
+      "sha": "869ce98a591ec46c8209bed3f7221cf4f44bc38f",
+      "subject": "docs: record R1b batches 2-3 progress"
+    },
+    {
+      "sha": "434670599f48cd8d086030b53ca612959cccd054",
+      "subject": "feat(protocol): register memory, kb, schedule and import-parser groups (R1b batch 4)"
+    },
+    {
+      "sha": "fd045ca042995510967551dcb44563c0f03df3d4",
+      "subject": "docs: record R1b batch 4 progress (13/37 groups)"
+    },
+    {
+      "sha": "65c38a20cb994b9911193920a79bb9f6ca412f9b",
+      "subject": "feat(protocol): register agent-task, work-artifact, control-plane, control and sync groups (R1b batch 5)"
+    },
+    {
+      "sha": "0143ecd5a363a1a24db88817fb8962b522751fc7",
+      "subject": "docs: record R1b batch 5 progress (18/35 groups)"
+    },
+    {
+      "sha": "a2d9c41e79b66d62e92dbe3d6332527dbd1fa823",
+      "subject": "feat(protocol): register question, delegation and project-copy groups (R1b batch 6)"
+    },
+    {
+      "sha": "81c2777780d50447c32e164ce1b4fadcf994ff43",
+      "subject": "docs: record R1b batch 6 progress (21/35 groups)"
+    },
+    {
+      "sha": "107503b05a8fd444b862e7a0391099668ada7e79",
+      "subject": "feat(protocol): register file and pty instance mirror groups (R1b batch 7)"
+    },
+    {
+      "sha": "3ac1a4897750d6b553873a6134324fe24bced4e9",
+      "subject": "docs: record R1b batch 7 progress (24/35 groups)"
+    },
+    {
+      "sha": "12b3e1685aafe4e15d1b669b25ae6d692d9ea43b",
+      "subject": "docs: close server test triage (3 env-fixed, 3 upstream-side)"
+    },
+    {
+      "sha": "49c2ca96f51fdaff5c397ba7483c7ac1c383fc69",
+      "subject": "feat(protocol): register project and permission instance mirror groups (R1b batch 8)"
+    },
+    {
+      "sha": "2596294a650a9e766b0fca1399330460f4ae442b",
+      "subject": "docs: record R1b batch 8 progress (27/35 groups)"
+    },
+    {
+      "sha": "5323b25bd135b3c543086683dfa7e999161efdb8",
+      "subject": "feat(protocol): register mcp instance mirror group (R1b batch 9)"
+    },
+    {
+      "sha": "2a7c9742786c25a8b16b9675248c5881041baa74",
+      "subject": "docs: record R1b batch 9 progress (28/35 groups)"
+    },
+    {
+      "sha": "e7cffc626170104ac6917a602815ff78916b3d0f",
+      "subject": "docs: record tui skip ruling and config slice scoping (R1b roadmap)"
+    },
+    {
+      "sha": "e31fe6d9cf72e82248d675190126bdddfd83be8e",
+      "subject": "feat(schema,protocol): lift v1 config subtree to schema and register config-instance group (R1b batch 10)"
+    },
+    {
+      "sha": "d15201b9ef72875793ab1f442cbbff8f037d530f",
+      "subject": "docs: record R1b batch 10 (config slice) progress"
+    },
+    {
+      "sha": "09b91c78e9a9c289d3c954494212f15894041fb4",
+      "subject": "feat(protocol): register workspace instance mirror group (R1b batch 11)"
+    },
+    {
+      "sha": "7c7f9df9515df3448bdc40568f84bf6a7ad5e850",
+      "subject": "docs: record R1b batch 11 progress (31/34 groups)"
+    },
+    {
+      "sha": "7a1cd3ade8cd4bf7e49cbd53bbb0e438bb6fe290",
+      "subject": "feat(protocol): register provider instance mirror group with shared contract (R1b batch 12)"
+    },
+    {
+      "sha": "72d781759c90046180ee85809498d970906ee46f",
+      "subject": "docs: record R1b batch 12 progress (32/34 groups)"
+    },
+    {
+      "sha": "54ab3e5a71ebd6bf6309628ba24be0506912f63f",
+      "subject": "docs: finalize R1b ledger with skip rulings and session slice manifest"
+    },
+    {
+      "sha": "ff0c80347c8f32c4eb05d3e53871bf78aa50e66e",
+      "subject": "feat(protocol): register instance mirror group with VCS surface (R1b batch 13)"
+    },
+    {
+      "sha": "ed150f9e5093befc6055f713003bd9cac7a1399c",
+      "subject": "docs: record R1b batch 13 progress (33/35 groups)"
+    },
+    {
+      "sha": "a9e526e5c3ab8a384b468f71218f16607ddf9148",
+      "subject": "feat(protocol): register session instance group end to end (R1b final boss, 45 endpoints)"
+    },
+    {
+      "sha": "f27679acf97372a83db86451459342a7ce7cd087",
+      "subject": "docs: mark R1b contract surface fully delivered"
+    },
+    {
+      "sha": "b8a9b239e7df76585fd1c91dd630ba32f7b95cd6",
+      "subject": "docs: open R2 window with seam map and slice 2.1 manifest"
+    },
+    {
+      "sha": "5378b51f26e3f9660187eb95a5086fa8b6fb98bd",
+      "subject": "docs: refine slice 2.1 execution order from first port drill"
+    },
+    {
+      "sha": "c36e0a0d0d820c6c60913bbe94f79c7db6255897",
+      "subject": "feat(core): land slice 2.1 base (system context, epoch, verifier closure)"
+    },
+    {
+      "sha": "df2b4f4cf5169a1d62fd96f1f66d9c7adbbe96ae",
+      "subject": "docs: record slice 2.1 first wave delivery"
+    },
+    {
+      "sha": "5adfa94adf0b1fa1e3eef155a9ecfac96a735c23",
+      "subject": "feat(core): port product-mode governance with tests (slice 2.2 opening)"
+    },
+    {
+      "sha": "ce95f646be2ce1dd6d404d1a00a721dcd6d8872b",
+      "subject": "docs: record slice 2.2 opening (execution arbitration + product-mode governance)"
+    },
+    {
+      "sha": "21336fcd38ec6eed4149d106ecaf78b4e61c443c",
+      "subject": "feat(core): port attachment resolver, auth seam, and park v2 prompt contract (slice 2.2)"
+    },
+    {
+      "sha": "ee90252983c4ed052ae37985316526b0895e7bd4",
+      "subject": "docs: record slice 2.2 delivery (runner arbitration + v2 prompt parking)"
+    },
+    {
+      "sha": "3f51155d89b4060e5cb6e65003058fc5f4af922a",
+      "subject": "feat(core): port fork leaf domains (cache, composition, installation, question, id, hash) (slice 2.3)"
+    },
+    {
+      "sha": "3dfe35b7fd126c759c721f847fceb05f0d32ddbf",
+      "subject": "docs: record slice 2.3 leaf domains delivery"
+    },
+    {
+      "sha": "cd458af70b6f36696094b11de86bfbec3c36e479",
+      "subject": "feat(core): port agent meta chain and prompt orchestrators (slice 2.3 second ring)"
+    },
+    {
+      "sha": "c24fd91cae13fefdd128772f5b0a5dd1981b6745",
+      "subject": "docs: record slice 2.3 second ring delivery"
+    },
+    {
+      "sha": "196cc95bffcd25ebef5b269549cec79ae2327c7c",
+      "subject": "feat(core): port asset domain infrastructure (migration, paths, kind, hash consolidation) (slice 2.3 third ring)"
+    },
+    {
+      "sha": "762d7078fec6bf4a6c65c965b84c7e985b307c78",
+      "subject": "docs: record slice 2.3 third ring first wave"
+    },
+    {
+      "sha": "929fd069c8955a0c00c739eaa39a4d90832d29dc",
+      "subject": "feat(core): port asset model layer, agent bridge, and schema agent fusion (slice 2.3 third ring)"
+    },
+    {
+      "sha": "5224a3019f403a825f032b4b6de72f6ebcee9b57",
+      "subject": "docs: record slice 2.3 third ring body"
+    },
+    {
+      "sha": "982c60ac4f69e07965205b4ac83369b4ae8857c3",
+      "subject": "feat(core): port asset services, meta-agent service, file loader, and generate migration slice"
+    },
+    {
+      "sha": "03bcbcade7469aeb1c6c2c5cac2f79b18b715b7c",
+      "subject": "docs: record slice 2.3 third ring finale and migration slice"
+    },
+    {
+      "sha": "c56564ab8df248daa303df29d39e599bc201052b",
+      "subject": "feat(core): port delegation logic core with projector and migration (slice 2.4)"
+    },
+    {
+      "sha": "c2ce001f5b1bcbfb13f5c3c03b49728c0277d297",
+      "subject": "docs: record slice 2.4 first wave (delegation logic core)"
+    },
+    {
+      "sha": "ed1b66178b50c2431c8b1811e6eba1ab3eeab961",
+      "subject": "feat(core): port mcp credential binding store with migration"
+    },
+    {
+      "sha": "cb188b0ac02a0aa25b24f39249a382ab4d206f66",
+      "subject": "docs: record 2.4b rescoping and mcp binding delivery"
+    },
+    {
+      "sha": "5ce70388aee2d74688e876294a7da56caf8ae79c",
+      "subject": "feat(core): port mcp contributor, mcp-v2 facade, and credential scanner"
+    },
+    {
+      "sha": "1f197bad624dda93dee9f20e5f604ae2fdbdc6c9",
+      "subject": "docs: record mcp leaf modules and tool domain findings"
+    },
+    {
+      "sha": "c54f0cf11b407f90f78936d8117cdd8cf2a862a2",
+      "subject": "feat(core): port session summary suite (tool-summary, summary, share-v2, v2-snapshot)"
+    },
+    {
+      "sha": "007c0f105f5e9f65e48ed750fd7cf7504b2df61e",
+      "subject": "docs: record authoritative remaining-work reconciliation and session summary suite"
+    },
+    {
+      "sha": "6c5cb0d19ae1b0b4aa825dea519a43fe9ab992fb",
+      "subject": "feat(core): port session utility and governance clusters (artifact, doom-loop, reference-checker, memory, work)"
+    },
+    {
+      "sha": "07a56275e479fdaa1a7e59c489cd6960b915a9c1",
+      "subject": "docs: record session utility and governance clusters"
+    },
+    {
+      "sha": "ef33ea74d36cf9834b3ba5a6d845eff1f5519555",
+      "subject": "feat(core): port knowledge base and task/schedule clusters with schema fusion"
+    },
+    {
+      "sha": "f4434c5ead89b71f3cf7353d465e4c0fbe95ada8",
+      "subject": "docs: record kb and task/schedule clusters with session table fusion"
+    },
+    {
+      "sha": "090e4395869cc4e7f0155329aba9098bd4ef7a6e",
+      "subject": "feat(core): port composition, workflow run/event, and workflow asset path"
+    },
+    {
+      "sha": "18146007831a27c58aa515dd7227187f98d0e2cb",
+      "subject": "docs: record composition and workflow ready surface"
+    },
+    {
+      "sha": "fde20c9c15175b40fa90d4aae8e419c5fdd26608",
+      "subject": "feat(core): port grant store, permission overrides, custom profiles, and plugin assets"
+    },
+    {
+      "sha": "b53c121f787f96a42e52f2beed0b961770cc1fed",
+      "subject": "docs: record grant/permission/custom-profile/plugin-asset clusters"
+    },
+    {
+      "sha": "9767283db934cb91ab847686cf737b0b59d78041",
+      "subject": "feat(core): port session identity projection with effectiveRules and schema round two"
+    },
+    {
+      "sha": "a78e8253f6d1b1d593133491f4b78420738a2925",
+      "subject": "docs: record session identity hub"
+    },
+    {
+      "sha": "715fe6b9fa473e8004ac46b034c49779d41791f5",
+      "subject": "feat(core): port v1 session/permission modules and cache diagnostics"
+    },
+    {
+      "sha": "55183a7fb96a9963d021fcffeb5556630cd27d96",
+      "subject": "docs: record v1 modules and cache diagnostics"
+    },
+    {
+      "sha": "ccc2885527220382f8f78d4622e948412c142910",
+      "subject": "feat(protocol+server): register grant and path-identity groups with real handlers"
+    },
+    {
+      "sha": "fb6fff7e7e6f34519be48e5a2794a68d022c34ff",
+      "subject": "docs: record grant and path-identity full-stack registration"
+    },
+    {
+      "sha": "06a42de9caca3e80d34a5d4ccad38c20ebe54275",
+      "subject": "chore(core): add CLI agent SDKs and record tool flow work order"
+    },
+    {
+      "sha": "8a9228bdbe88a3d459c94b754e1c44a62c13e988",
+      "subject": "feat(core): port CLI adapter leaves with config cli-agents schema fusion"
+    },
+    {
+      "sha": "b456dd402e09550262817f36400d80a7b48cff87",
+      "subject": "docs: record phase A cli adapter leaves"
+    },
+    {
+      "sha": "fc51db11bc0036294e929228518812e711b09c9e",
+      "subject": "feat(core): port MCP connection chain onto tool service"
+    },
+    {
+      "sha": "8c313ba7ebd1adb98ddd50b543bb3666c3ff3817",
+      "subject": "docs: record mcp connection chain arbitration"
+    },
+    {
+      "sha": "9e675d48b2d101c876ba63e2a20aec80b5cdab57",
+      "subject": "feat(core): port ACP and SDK CLI client cluster"
+    },
+    {
+      "sha": "9e9a93f36523bb15679e0561b51059289659c730",
+      "subject": "feat(core): port kb memory reminder asset proposal tools as plugins"
+    },
+    {
+      "sha": "9b0455b4ae94e9ef4cb03af787f9be20d3382680",
+      "subject": "feat(core): port task todo schedule taskspawn tools as plugins"
+    },
+    {
+      "sha": "a251db78a524cf99088cf55f59f94358882d8f3f",
+      "subject": "feat(core): fuse permission grants approval presence and ask bounds"
+    },
+    {
+      "sha": "04464540f241ec7e5100871d62c749fd0cbe34e3",
+      "subject": "test(core): bind approval responder in shell permission harness after ask-bounds fusion"
+    },
+    {
+      "sha": "c33ac20d1ffbf2fdad1e0df3ded1296fd9d6f7b4",
+      "subject": "fix(core): skip asset migration marker write for empty entry sets"
+    },
+    {
+      "sha": "b25b36d6aa9229f19868eaed4ad00b31f4b51c83",
+      "subject": "docs: record session window and branch approval review"
+    },
+    {
+      "sha": "a6106abfd1266c221bd22db5428d4719fa4e9044",
+      "subject": "test(ai,client,app): finish rename-bridge alignment in fixtures and expectations"
+    },
+    {
+      "sha": "8b0661b2a9278373cb020b0998ef0943bb433459",
+      "subject": "docs: record full-repo verification pass"
+    },
+    {
+      "sha": "699aef9583b8d2b48e0adbed87be003b6038541c",
+      "subject": "fix(core): enforce tool approvals and align V2 runtime"
+    },
+    {
+      "sha": "791b812e55660aad3cb8406825f02966ea02dad7",
+      "subject": "fix(core): preserve native configuration and align test boundaries"
+    },
+    {
+      "sha": "1a02c0e44e459bbec981b4edfd85ced533b32b89",
+      "subject": "fix(ci): validate retained V2 packages and workerd entry"
+    },
+    {
+      "sha": "8723a40210bedefdea5a81b6e24664a05f7d2a19",
+      "subject": "feat(core): restore v2 durable admission surfaces"
+    },
+    {
+      "sha": "2afd9422ed5a2634dc5100f96647a62d43c648a9",
+      "subject": "feat(core): resolve durable session input results"
+    },
+    {
+      "sha": "81a151cc688ea11b7d33fccc7893812bc22ee15d",
+      "subject": "feat(core): execute durable internal delegations"
+    },
+    {
+      "sha": "1e81396c740ea2e37fd842ae98ec9452eddfa999",
+      "subject": "fix(core): preserve delegation cleanup ownership"
+    },
+    {
+      "sha": "026c850927233b51d55150aa5733c9895f55f9da",
+      "subject": "feat(core): integrate persistent task tool"
+    },
+    {
+      "sha": "bcba143b0aabfd24229b7f1fd28a779468c7eeb7",
+      "subject": "feat(server): implement atomic task CRUD"
+    },
+    {
+      "sha": "4f65b63fb37ecd5780a11643a461eae9ccdcc275",
+      "subject": "feat(server): implement delegation lifecycle"
+    },
+    {
+      "sha": "9267e9e7754b656a812dc69973f9f35a66b0aad0",
+      "subject": "feat(core): expose profile reverse references"
+    },
+    {
+      "sha": "c40022ef51ee7b9da5a30bc762451cb5512761af",
+      "subject": "feat(core): freeze custom composition inputs"
+    },
+    {
+      "sha": "2c2b5f90818c77d8e20bf9426677cc8f473d96c1",
+      "subject": "docs: record custom freeze checkpoint evidence"
+    },
+    {
+      "sha": "5cba410d886f448467f38639b8d8dd4ef19bad2d",
+      "subject": "feat(core): consume frozen custom sessions"
+    },
+    {
+      "sha": "d1bea71c41a566d11715e4766db95268ec4b37b1",
+      "subject": "docs: record custom runtime checkpoint"
+    },
+    {
+      "sha": "51ad583c98b235826134df2ef9615a0ee5f5df88",
+      "subject": "feat(core): execute frozen command templates"
+    },
+    {
+      "sha": "14401fbaaa9c0fe7c58c9e46d99f05b76a408f16",
+      "subject": "docs: record frozen command checkpoint"
+    },
+    {
+      "sha": "9eb94dcd7247fb0fc881070632ff4ec30c3dfeff",
+      "subject": "feat(core): expose frozen session references"
+    },
+    {
+      "sha": "d3b433f2475b78824db6c16ae9b10ac0cbd54e3a",
+      "subject": "docs: record session reference checkpoint"
+    },
+    {
+      "sha": "a50d4d2409211780620dc9f5c957c59aecbda26a",
+      "subject": "feat(server): expose composition and workflow status"
+    },
+    {
+      "sha": "50c4da530ba233584e4ef1cb5b1c365cffe8a1db",
+      "subject": "docs: record workflow read checkpoint"
+    },
+    {
+      "sha": "9fee6607b5b012ddb3f77e3a302e31e79701f05a",
+      "subject": "fix(core): redact complete private key blocks"
+    },
+    {
+      "sha": "dceae7d2cf0db377920f030ebc11cc900137697a",
+      "subject": "fix(core): reconcile delegation task decisions"
+    },
+    {
+      "sha": "4342b0bf225b3006a4396c34dfa35cb0c52e14c5",
+      "subject": "fix(core): reconcile promoted admission retries"
+    },
+    {
+      "sha": "617141b099c4d66bb53dd37d2a953d5e6e23be0f",
+      "subject": "feat(core): execute durable workflows"
+    },
+    {
+      "sha": "251c0fe38041a326e624db464d1ee0efd1522881",
+      "subject": "docs: record workflow execution checkpoint"
+    },
+    {
+      "sha": "520adf9dbec94214cdf2493df1fce602500cb410",
+      "subject": "fix(core): retain task timezones and due schedules"
+    },
+    {
+      "sha": "629259b8521f63eb93504ee8b25c00fa0d1ea8f0",
+      "subject": "feat(server): connect skill command and prompt assets"
+    },
+    {
+      "sha": "b4ce37198e7ad06d1d581221ae48ff1f1a146891",
+      "subject": "feat(gui): connect asset proposal review and prompt insertion"
+    },
+    {
+      "sha": "84d2e56a92c0e4b2d56af7ee1be9236961148f30",
+      "subject": "feat(server): connect agent asset backend"
+    },
+    {
+      "sha": "b4d75c884ad594f2399370643e3325b09b32ee29",
+      "subject": "feat(gui): add agent asset proposal review"
+    },
+    {
+      "sha": "5f3b7919a93cbbb12fc325c88d6d9a0ec9d422eb",
+      "subject": "feat(server): connect MCP asset backend"
+    },
+    {
+      "sha": "7c9822b7c7739b834d3b193fe1ec6f1d60ee0066",
+      "subject": "feat(gui): add MCP asset proposal review"
+    },
+    {
+      "sha": "e9053f4d1b8a99168a8949c6fbb57ebfa838adad",
+      "subject": "docs: normalize MCP evidence whitespace"
+    },
+    {
+      "sha": "ccfa1f22d6df2367f72eebb0f0bb847ab028a64c",
+      "subject": "feat(server): connect plugin declaration assets"
+    },
+    {
+      "sha": "1bef0b81df3ce8ca605262daa428ccafaa63b7a0",
+      "subject": "feat(gui): add plugin declaration review"
+    },
+    {
+      "sha": "d8769398cacc19a4684a5b16e8e69fff27041489",
+      "subject": "feat(server): connect workflow declaration assets"
+    },
+    {
+      "sha": "f26548b1eb4d40c23365cf69e1f3a71a1c52a6b7",
+      "subject": "feat(gui): add workflow declaration review"
+    },
+    {
+      "sha": "aad89b310bbda4d58a17bb8454292951654fe799",
+      "subject": "feat(core): support explicit skill asset targets"
+    },
+    {
+      "sha": "e9967a9dbc855d45fc2f7e2656172fd1f0fc50c7",
+      "subject": "feat(gui): support skill asset placement"
+    },
+    {
+      "sha": "52e9848df27d9279324aba9a1a77c909571eb100",
+      "subject": "feat(core): support command asset placement"
+    },
+    {
+      "sha": "e93c4bebd70e90098f2f3fad8f76b7f48e4c7a47",
+      "subject": "feat(gui): support command asset placement"
+    },
+    {
+      "sha": "28b73ea65ddc5f19b61550b999f65d7cc22c9ee8",
+      "subject": "feat(core): bind prompt assets to selected owners"
+    },
+    {
+      "sha": "d6495e2738f1249f579f653b02b697b988fa78dd",
+      "subject": "feat(gui): bind prompt review and insertion to targets"
+    },
+    {
+      "sha": "7f5e5b70a22160e1314a3ff665660e05ed12e219",
+      "subject": "fix(desktop): pin compatible bundled dev runtime"
+    },
+    {
+      "sha": "9e2c6577ef6dd65c8f01ff94d46da0142bcb877c",
+      "subject": "fix(cli): route retained APIs before the web shell"
+    },
+    {
+      "sha": "0486d8bd06a13b5c9797fb976124f60af300662f",
+      "subject": "feat(meta): complete validated V2 foundation and meta-agent workflows"
+    },
+    {
+      "sha": "982143ecddc0ad70876c00bd9cb3187b4bf14c80",
+      "subject": "feat(app): unify session management sidebar"
+    },
+    {
+      "sha": "8d1facfb57466820dd81a6375db2882ea7b8c083",
+      "subject": "fix(app): show agent tasks in composer dock"
+    },
+    {
+      "sha": "e728c9c8683ac0d0b117413661c41e30a088f712",
+      "subject": "fix(app): correct task dock toggle icon"
+    },
+    {
+      "sha": "41aea3410fa922da5a2cf2292cc9c6374eb8ba11",
+      "subject": "fix(app): keep sidebar tab close buttons visible"
+    },
+    {
+      "sha": "6de276b643bd8f8453f49b9cd883780a6ae56e5b",
+      "subject": "feat(app): add extension-driven panel launcher"
+    },
+    {
+      "sha": "022e35f2665b2a0bf90597711f0d951b75c5152b",
+      "subject": "feat(app): unify context and review launcher entries"
+    },
+    {
+      "sha": "eb420c7da397c6bc8fa6427cb185e9068005f455",
+      "subject": "feat(app): tailor panel launcher by session mode"
+    },
+    {
+      "sha": "c95b327bdc963aecb804fc2c351eec649260f712",
+      "subject": "fix(app): make file preview navigation explicit"
+    },
+    {
+      "sha": "0a09f6bccdb71f1234eea759eb99e8a336d1d4da",
+      "subject": "fix(app): reuse module icons in panel launcher"
+    }
+  ],
+  "sourceCommitListCommand": "git log --format=%H%x09%s --reverse 4617210822bdbb31e5749751afbfb4584ccedac8..v2-dev",
+  "scope": {
+    "acceptedIndexVsHEADFiles": 638,
+    "completeFilteredSourceVsBaselineFiles": 5193,
+    "completeFilteredSourceInsertions": 632929,
+    "completeFilteredSourceDeletions": 579960,
+    "retainedEntries": 7985,
+    "retainedTestPaths": 1877,
+    "retainedFixturePaths": 371,
+    "rawExcludedFiles": 2296,
+    "rawExcludedBytes": 98983357,
+    "publicationMetadataAddedFiles": 3,
+    "completePRChangedFiles": 5196
+  },
+  "validation": {
+    "canonicalCheck": {
+      "name": "publication-canonical-check",
+      "cwd": "/home/keer/workspace/aigcfroge-v2",
+      "command": [
+        "/home/keer/workspace/aigcfroge-v2/script/bun",
+        "run",
+        "check"
+      ],
+      "startedUTC": "2026-11-18T09:57:22.937202+00:00",
+      "exitCode": 0,
+      "durationSeconds": 39.85,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/publication-canonical-check.log"
+    },
+    "canonicalLintWarnings": 1140,
+    "canonicalLintErrors": 0,
+    "typecheckTasksSuccessful": 24,
+    "typecheckTasksTotal": 24,
+    "typecheckTasksCached": 21,
+    "strictFullScopeGUI": {
+      "diagnosticCount": 685,
+      "dirtyFileCount": 181,
+      "checkedGUIFiles": 1164,
+      "selectionRule": "script/lint-changed.ts:18-21",
+      "base": "5afd079ae1a386cc0d289f205afca79806a0fdb5",
+      "indexTree": "c309bfc7567e2913e31d4c663d233a8a6bc5bc9c",
+      "ruleCounts": {
+        "anti-slop(require-safety-comment-for-type-assertion)": 247,
+        "anti-slop(no-runtime-typeof)": 113,
+        "anti-slop(no-known-value-widening)": 63,
+        "anti-slop(require-readable-spacing)": 55,
+        "anti-slop(no-unknown-parameters)": 40,
+        "anti-slop(no-unsafe-dictionary-type)": 40,
+        "anti-slop(no-conditional-empty-object-spread)": 39,
+        "anti-slop(no-chained-type-assertions)": 22,
+        "anti-slop(no-shape-in-symbol-names)": 17,
+        "anti-slop(no-unknown-returns)": 13,
+        "anti-slop-effect(prefer-effect-match)": 13,
+        "anti-slop(no-array-filter-map)": 12,
+        "anti-slop-effect(no-manual-tagged-construction)": 6,
+        "anti-slop(no-reduce-accumulator-copy)": 2,
+        "anti-slop-effect(no-service-constructor-imports)": 2,
+        "oxc(no-accumulating-spread)": 1
+      },
+      "fileCounts": {
+        "packages/app/src/runtime/persistence/drafts.ts": 50,
+        "packages/desktop/scripts/profile-by-source.ts": 39,
+        "packages/app/e2e/utils/app.ts": 25,
+        "packages/app/src/runtime/server/health.test.ts": 22,
+        "packages/desktop/scripts/bench-startup.ts": 21,
+        "packages/ui/src/theme/context.tsx": 15,
+        "packages/session-ui/src/pierre/file-find.ts": 13,
+        "packages/session-ui/src/components/file.tsx": 12,
+        "packages/app/src/session/requests/background.ts": 12,
+        "packages/app/e2e/utils/session-fixture.ts": 12,
+        "packages/app/e2e/performance/unit/mock-server.test.ts": 12,
+        "packages/app/e2e/utils/sse-transport.ts": 12,
+        "packages/session-ui/src/components/basic-tool.tsx": 11,
+        "packages/session-ui/src/timeline/research-and-agents.stories.tsx": 11,
+        "packages/app/src/runtime/i18n/desktop-native.ts": 10,
+        "packages/app/src/shell/notifications/notification-alert.test.ts": 10,
+        "packages/session-ui/src/components/apply-patch-file.ts": 10,
+        "packages/app/src/runtime/i18n/language.tsx": 9,
+        "packages/app/src/settings/keybinds/keybinds.tsx": 9,
+        "packages/app/e2e/performance/timeline/composer-write-batch-benchmark.spec.ts": 9,
+        "packages/app/src/runtime/server/health.ts": 9,
+        "packages/gui-extensions/src/debug/metrics.ts": 8,
+        "packages/app/e2e/regression/timeline-cache.spec.ts": 8,
+        "packages/app/src/session/commands/export.test.ts": 8,
+        "packages/session-ui/src/components/line-comment-annotations.tsx": 8,
+        "packages/app/src/runtime/server/global-sync/child-store.test.ts": 8,
+        "packages/app/e2e/performance/composer-history/fixture.tsx": 7,
+        "packages/app/e2e/performance/timeline/home-session-index-benchmark.spec.ts": 7,
+        "packages/desktop/src/main/native/logging.ts": 7,
+        "packages/desktop/src/main/storage/store.ts": 6,
+        "packages/app/e2e/performance/timeline/review-pane-scaling-benchmark.spec.ts": 6,
+        "packages/app/src/shell/commands/command.tsx": 6,
+        "packages/session-ui/src/storybook/current-session-scenarios.ts": 6,
+        "packages/app/test-browser/session-background.test.ts": 6,
+        "packages/app/e2e/utils/workspace.ts": 6,
+        "packages/app/src/runtime/persistence/storage.test.ts": 5,
+        "packages/app/src/session/requests/session-question-dock.tsx": 5,
+        "packages/app/src/shell/notifications/coordinator.ts": 5,
+        "packages/gui-extensions/src/browser/files.ts": 5,
+        "packages/ui/src/components/popover.tsx": 4,
+        "packages/app/e2e/performance/timeline/navigation-milestones.ts": 4,
+        "packages/app/src/runtime/server/image.test.ts": 4,
+        "packages/app/src/session/composer/adapter.ts": 4,
+        "packages/app/src/workspaces/paths.test.ts": 4,
+        "packages/session-ui/src/components/markdown.worker.ts": 4,
+        "packages/app/e2e/performance/benchmark.ts": 4,
+        "packages/session-ui/src/v2/components/line-comment-annotations-v2.tsx": 4,
+        "packages/app/src/shell/titlebar/session-events.ts": 4,
+        "packages/app/src/shell/notifications/toast.tsx": 4,
+        "packages/app/src/runtime/server/global-sync/bootstrap.ts": 3,
+        "packages/desktop/src/renderer/window/route-storage.test.ts": 3,
+        "packages/app/test-browser/timeline-cache.test.ts": 3,
+        "packages/session-ui/src/components/file-ssr.tsx": 3,
+        "packages/app/e2e/performance/timeline/inactive-tab-prefetch-benchmark.spec.ts": 3,
+        "packages/app/test-browser/toast-owner.test.ts": 3,
+        "packages/app/src/session/requests/session-request-tree.test.ts": 3,
+        "packages/session-ui/src/v2/components/session-review-file-preview-v2.tsx": 3,
+        "packages/ui/src/components/list.tsx": 3,
+        "packages/desktop/src/main/windows/early.ts": 3,
+        "packages/app/src/session/requests/websearch.ts": 3,
+        "packages/app/e2e/performance/terminals/terminal-benchmark.spec.ts": 3,
+        "packages/session-ui/src/components/line-comment.tsx": 3,
+        "packages/app/e2e/performance/timeline/session-parent-hydration-benchmark.spec.ts": 3,
+        "packages/app/src/shell/commands/desktop-menu.ts": 3,
+        "packages/app/src/runtime/server/global-sync/bootstrap.test.ts": 3,
+        "packages/desktop/src/main/windows/appearance.ts": 3,
+        "packages/ui/src/context/marked-theme.tsx": 3,
+        "packages/app/src/home/sessions/records.test.ts": 3,
+        "packages/gui-extensions/src/browser/errors.ts": 3,
+        "packages/ui/src/components/card.tsx": 3,
+        "packages/app/e2e/performance/timeline/home-session-index.fixture.ts": 2,
+        "packages/app/src/runtime/extension/commands.tsx": 2,
+        "packages/gui-extensions/src/review/kinds.ts": 2,
+        "packages/desktop/electron-builder.config.test.ts": 2,
+        "packages/gui-extensions/src/browser/diagnostics.ts": 2,
+        "packages/desktop/src/main/constants.ts": 2,
+        "packages/app/src/settings/workspaces/project-model.ts": 2,
+        "packages/desktop/src/main/storage/legacy.ts": 2,
+        "packages/app/src/session/commands/export.ts": 2,
+        "packages/app/e2e/performance/timeline/laggy-session-benchmark.spec.ts": 2,
+        "packages/app/src/home/sessions/archive.ts": 2,
+        "packages/desktop/src/main/windows/defaults.ts": 2,
+        "packages/session-ui/src/timeline/mermaid.stories.tsx": 2,
+        "packages/app/e2e/regression/settings-search.spec.ts": 2,
+        "packages/session-ui/src/import-boundaries.test.ts": 2,
+        "packages/app/e2e/regression/background-read-failure.spec.ts": 2,
+        "packages/desktop/src/main/native/menu.ts": 2,
+        "packages/ui/src/forms/field/field.tsx": 2,
+        "packages/desktop/src/renderer/window/route-storage.ts": 2,
+        "packages/app/vite.config.ts": 2,
+        "packages/desktop/scripts/finalize-latest-json.ts": 2,
+        "packages/ui/src/i18n/dv.ts": 1,
+        "packages/ui/src/i18n/hr.ts": 1,
+        "packages/ui/src/i18n/lv.ts": 1,
+        "packages/ui/src/i18n/si.ts": 1,
+        "packages/desktop/electron.vite.config.test.ts": 1,
+        "packages/ui/src/i18n/is.ts": 1,
+        "packages/ui/src/i18n/uz.ts": 1,
+        "packages/app/src/session/route-error.tsx": 1,
+        "packages/app/src/settings/general/controllers.ts": 1,
+        "packages/app/e2e/regression/session-notice-truncation.spec.ts": 1,
+        "packages/ui/src/i18n/el.ts": 1,
+        "packages/ui/src/i18n/hy.ts": 1,
+        "packages/ui/src/i18n/sl.ts": 1,
+        "packages/app/src/settings/workspaces/project-lsp.ts": 1,
+        "packages/app/src/shell/layout/helpers.test.ts": 1,
+        "packages/app/src/workspaces/selection/domain.ts": 1,
+        "packages/session-ui/src/tools/read-group.stories.tsx": 1,
+        "packages/desktop/scripts/finalize-latest-yml.ts": 1,
+        "packages/session-ui/src/components/tool-count-label.tsx": 1,
+        "packages/ui/src/data-display/project-avatar/project-avatar.tsx": 1,
+        "packages/session-ui/src/components/session-review.stories.tsx": 1,
+        "packages/ui/src/i18n/az.ts": 1,
+        "packages/app/src/runtime/server/data.test.ts": 1,
+        "packages/ui/src/i18n/id.ts": 1,
+        "packages/ui/src/i18n/ms.ts": 1,
+        "packages/app/src/runtime/server/data.ts": 1,
+        "packages/ui/src/i18n/sq.ts": 1,
+        "packages/ui/src/context/marked.tsx": 1,
+        "packages/app/src/session/list.test.ts": 1,
+        "packages/ui/src/i18n/hi.ts": 1,
+        "packages/ui/src/i18n/lt.ts": 1,
+        "packages/ui/src/i18n/ur.ts": 1,
+        "packages/ui/src/theme/loader.ts": 1,
+        "packages/app/test-browser/pwa-route.test.ts": 1,
+        "packages/gui-extensions/src/wsl/local.ts": 1,
+        "packages/app/src/workspaces/path-key.ts": 1,
+        "packages/app/src/providers/connect/mcp-dialog.tsx": 1,
+        "packages/gui-extensions/src/ssh/command.test.ts": 1,
+        "packages/desktop/src/main/lifecycle/index.ts": 1,
+        "packages/app/e2e/performance/chrome-trace.ts": 1,
+        "packages/session-ui/src/components/file-search.tsx": 1,
+        "packages/session-ui/src/components/tool-status-title.tsx": 1,
+        "packages/gui-extensions/src/browser/profiling.ts": 1,
+        "packages/desktop/src/main/lifecycle/environment.ts": 1,
+        "packages/app/src/runtime/server/persistence.test.ts": 1,
+        "packages/app/src/theme-preload.test.ts": 1,
+        "packages/session-ui/src/components/message-file.ts": 1,
+        "packages/ui/src/i18n/fa.ts": 1,
+        "packages/app/src/shell/notifications/notification.tsx": 1,
+        "packages/ui/src/i18n/nl.ts": 1,
+        "packages/session-ui/src/components/message-file.test.ts": 1,
+        "packages/app/src/session/requests/session-permission-dock.tsx": 1,
+        "packages/ui/src/i18n/ro.ts": 1,
+        "packages/ui/src/i18n/uk.ts": 1,
+        "packages/ui/src/i18n/fo.ts": 1,
+        "packages/gui-extensions/src/debug/metrics.test.ts": 1,
+        "packages/ui/src/i18n/pa.ts": 1,
+        "packages/ui/src/i18n/tk.ts": 1,
+        "packages/gui-extensions/src/updater/migration.ts": 1,
+        "packages/session-ui/src/storybook/current-session-fixtures.ts": 1,
+        "packages/app/src/settings/search.tsx": 1,
+        "packages/app/src/settings/workspaces/project-row.tsx": 1,
+        "packages/ui/src/i18n/cs.ts": 1,
+        "packages/app/src/workspaces/inventory.test.ts": 1,
+        "packages/session-ui/src/tools/shell-output.test.ts": 1,
+        "packages/app/src/providers/catalog/plugin.ts": 1,
+        "packages/app/src/settings/search-results.test.ts": 1,
+        "packages/desktop/scripts/utils.ts": 1,
+        "packages/ui/src/i18n/dz.ts": 1,
+        "packages/ui/src/i18n/hu.ts": 1,
+        "packages/ui/src/i18n/fi.ts": 1,
+        "packages/app/component-tests/timeline-virtualizer.spec.ts": 1,
+        "packages/ui/src/i18n/ka.ts": 1,
+        "packages/app/src/servers/registry/row.tsx": 1,
+        "packages/ui/src/i18n/sk.ts": 1,
+        "packages/ui/src/i18n/vi.ts": 1,
+        "packages/desktop/src/main/windows/index.ts": 1,
+        "packages/app/src/session/requests/session-request-tree.ts": 1,
+        "packages/app/src/shell/commands/dialog.tsx": 1,
+        "packages/ui/src/i18n/ca.ts": 1,
+        "packages/app/src/workspaces/create.test.ts": 1,
+        "packages/ui/src/i18n/bn.ts": 1,
+        "packages/ui/src/i18n/sv.ts": 1,
+        "packages/ui/src/i18n/et.ts": 1,
+        "packages/app/src/providers/models/provider-group.tsx": 1,
+        "packages/ui/src/i18n/it.ts": 1,
+        "packages/app/src/runtime/server/global-sync/child-store.ts": 1,
+        "packages/ui/src/i18n/ne.ts": 1,
+        "packages/ui/src/i18n/am.ts": 1,
+        "packages/app/e2e/regression/timeline-geometry.spec.ts": 1
+      },
+      "sourceBaseline": "4617210822bdbb31e5749751afbfb4584ccedac8",
+      "equivalentSourceAndReviewBaseTrees": true
+    },
+    "patchCheck": {
+      "name": "publication-full-patch-check-final-v2",
+      "cwd": "/home/keer/.codex/worktrees/v2-delivery/aigcfroge-v2",
+      "command": [
+        "git",
+        "diff",
+        "--cached",
+        "--check",
+        "--no-renames"
+      ],
+      "startedUTC": "2026-11-18T10:04:26.932987+00:00",
+      "exitCode": 0,
+      "durationSeconds": 0.74,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/publication-full-patch-check-final-v2.log"
+    },
+    "formatOnlyEdits": [
+      {
+        "path": "docs/research/upstream-v2-sync/2026-10-16-upstream-v2-desktop-alignment-plan.md",
+        "htmlEqualExceptParagraphFinalSpaces": true,
+        "originalBreaks": 7,
+        "currentBreaks": 7
+      },
+      {
+        "path": "docs/review/upstream-v2-desktop-alignment-approval-2026-10-16.md",
+        "htmlEqualExceptParagraphFinalSpaces": true,
+        "originalBreaks": 4,
+        "currentBreaks": 4
+      },
+      {
+        "path": "packages/core/src/session/summary.ts",
+        "onlyEndOfFileWhitespaceChanged": true
+      },
+      {
+        "path": "packages/protocol/src/groups/provider-contract.ts",
+        "onlyEndOfFileWhitespaceChanged": true
+      }
+    ],
+    "workflowStaticReview": {
+      "path": "/home/keer/.codex/outputs/2026-11-18/v2-pr-publication/workflow-trigger-review.json",
+      "sha256": "7eabf51844488e7996f215a6068601d223176c1b2d2e1c4f4cb0d5d3da12022f",
+      "pushMatchCountForBaseAndHead": 0,
+      "PRPublicationEventPaths": 0,
+      "actionsRuntime": "Pending actual PR creation; static evidence does not grant successful CI status."
+    },
+    "strictFullScopeGUISourceBaselineRunner": {
+      "name": "publication-full-gui-lint-before",
+      "cwd": "/home/keer/workspace/aigcfroge-v2",
+      "command": [
+        "/home/keer/workspace/aigcfroge-v2/script/bun",
+        "run",
+        "lint:changed",
+        "4617210822bdbb31e5749751afbfb4584ccedac8"
+      ],
+      "startedUTC": "2026-11-18T09:56:15.340123+00:00",
+      "exitCode": 1,
+      "durationSeconds": 4.99,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/publication-full-gui-lint-before.log"
+    },
+    "strictFullScopeGUIRunner": {
+      "name": "publication-actual-base-gui-lint",
+      "cwd": "/home/keer/workspace/aigcfroge-v2",
+      "command": [
+        "/home/keer/workspace/aigcfroge-v2/script/bun",
+        "run",
+        "lint:changed",
+        "5afd079ae1a386cc0d289f205afca79806a0fdb5"
+      ],
+      "startedUTC": "2026-11-18T10:25:46.938692+00:00",
+      "exitCode": 1,
+      "durationSeconds": 5.54,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/publication-actual-base-gui-lint.log"
+    }
+  },
+  "evidencePolicy": {
+    "rawPrefixExcluded": "docs/review/evidence/",
+    "committedRawArchive": {
+      "archive": "/home/keer/.codex/outputs/2026-11-18/v2-pr-publication/committed-raw-evidence-c309.tar.gz",
+      "sha256": "c3f3b7eb8e88a6da84bd53b36fcca18610be8a6d70395a319545c43910dc6cd5",
+      "bytes": 31593820,
+      "sourceTree": "c309bfc7567e2913e31d4c663d233a8a6bc5bc9c",
+      "includedPrefix": "docs/review/evidence/",
+      "status": "independently-verified-all-2296-members"
+    },
+    "localRawFilesAndSourceHistoryPreserved": true,
+    "archiveVersions": "The earlier 13048-file archive covers the staged/uncommitted evidence range. The c309 archive covers historical committed evidence; common paths can carry different bytes.",
+    "publicReferenceStatus": "Retained review documents preserve local paths to historical raw evidence. Their targets are outside the PR; use the local archives and original receipts when reviewing those claims.",
+    "committedRawVerification": {
+      "path": "/home/keer/.codex/outputs/2026-11-18/v2-pr-publication/committed-raw-backup-independent.json",
+      "sha256": "ae68813e4619979cf0c669882bfea87267cb10d405cbbf60f7d03b5e3d6e96a4",
+      "matched": 2296,
+      "missing": 0,
+      "extra": 0,
+      "mismatch": 0
+    },
+    "committedRawIndex": "v2-committed-evidence-index-2026-11-18.json",
+    "historicalLinkRepair": {
+      "document": "docs/review/v2-delegation-service-2026-10-20.md",
+      "originalMissingTarget": "verification.json",
+      "replacementReceipts": [
+        "lint-final.json",
+        "format-test-final.json",
+        "diff-check-final.json"
+      ],
+      "verifiedHistoricalExitCodes": [
+        0,
+        0,
+        0
+      ],
+      "typecheckUnrunStatementPreserved": true
+    }
+  },
+  "reviewState": {
+    "intent": "draft-pr",
+    "fullSemanticReview": "Prior incremental acceptance remains bound to HEAD-to-index scopes; the complete historical migration has not been granted full semantic review credit.",
+    "strictGUIBlocked": true,
+    "cutoverOwner": "Project owner / Root",
+    "cutoverUnlock": "Confirm PR/base/remote/release scope, then satisfy existing V2-R01-RELEASE and V2-VALIDATION contracts before integration."
+  },
+  "selfHashPolicy": "This record does not embed its own or the publication commit/tree hash; final identities live in the external receipt.",
+  "pr": {
+    "owner": "keerzzz",
+    "repo": "AigcForge",
+    "head": "v2-delivery",
+    "base": "v2-review-base",
+    "draft": true,
+    "baseSHA": "5afd079ae1a386cc0d289f205afca79806a0fdb5",
+    "targetAuthority": "User explicitly selected v2-review-base draft PR in the current conversation.",
+    "sourceBaselineCommit": "4617210822bdbb31e5749751afbfb4584ccedac8",
+    "sourceBaselineTree": "89f56b689675de8f6035ad3fd74375a50d324434"
+  },
+  "publicationEdits": {
+    "formatOnly": [
+      {
+        "path": "docs/research/upstream-v2-sync/2026-10-16-upstream-v2-desktop-alignment-plan.md",
+        "htmlEqualExceptParagraphFinalSpaces": true,
+        "originalBreaks": 7,
+        "currentBreaks": 7
+      },
+      {
+        "path": "docs/review/upstream-v2-desktop-alignment-approval-2026-10-16.md",
+        "htmlEqualExceptParagraphFinalSpaces": true,
+        "originalBreaks": 4,
+        "currentBreaks": 4
+      },
+      {
+        "path": "packages/core/src/session/summary.ts",
+        "onlyEndOfFileWhitespaceChanged": true
+      },
+      {
+        "path": "packages/protocol/src/groups/provider-contract.ts",
+        "onlyEndOfFileWhitespaceChanged": true
+      }
+    ],
+    "reviewMetadataPaths": [
+      "docs/technical-debt.md",
+      "docs/review/v2-delegation-service-2026-10-20.md",
+      "docs/review/v2-acceptance-continued-2026-11-18.md"
+    ],
+    "addedMetadataPaths": [
+      "docs/review/v2-pr-publication-2026-11-18.md",
+      "docs/review/v2-pr-publication-2026-11-18.json",
+      "docs/review/v2-committed-evidence-index-2026-11-18.json"
+    ],
+    "productLogicChangedAfterAcceptedTree": false
+  },
+  "reviewBaseSnapshot": {
+    "sourceBaselineCommit": "4617210822bdbb31e5749751afbfb4584ccedac8",
+    "sourceBaselineTree": "89f56b689675de8f6035ad3fd74375a50d324434",
+    "reviewBaseCommit": "5afd079ae1a386cc0d289f205afca79806a0fdb5",
+    "reviewBaseTree": "89f56b689675de8f6035ad3fd74375a50d324434",
+    "parent": "d11d3c7c16f0bcf318a0197bfb647c3cf81b06fd",
+    "treeDiffFiles": 0,
+    "treeComparisonCommand": [
+      "git",
+      "diff",
+      "--exit-code",
+      "4617210822bdbb31e5749751afbfb4584ccedac8",
+      "5afd079ae1a386cc0d289f205afca79806a0fdb5"
+    ],
+    "reason": "Source upstream Git transport failed and origin rejected a ref to the absent source commit object; a tree-identical bootstrap keeps the approved code baseline and uses an existing target-repository parent.",
+    "originalDeliveryCommit": "97f6467f3d1f93a9b41a3e6211bbda5ffcc3ca56",
+    "originalSourceBranchUnchanged": "v2-dev",
+    "defaultWorkspaceBranchUnchanged": "main"
+  }
+}

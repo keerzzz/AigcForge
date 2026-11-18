@@ -1,35 +1,40 @@
-import type { FileSystem } from "@opencode/core/filesystem"
+import type { FileSystem } from "@aigcfroge/core/filesystem"
 import { describe, expect } from "bun:test"
+import { eq } from "drizzle-orm"
 import path from "path"
 import { chmod, mkdir, readdir, rm } from "fs/promises"
-import { Cause, Context, Deferred, Duration, Effect, Exit, Fiber, Layer, LayerMap, Queue } from "effect"
-import { Worktree } from "@opencode/schema/worktree"
-import { Workspace } from "@opencode/schema/workspace"
-import { Bus } from "@opencode/core/bus"
-import { Config } from "@opencode/core/config"
-import { Database } from "@opencode/core/database/database"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { Instance } from "@opencode/core/instance"
-import { Location } from "@opencode/core/location"
-import { LocationServiceMap } from "@opencode/core/location-service-map"
-import type { LocationServices } from "@opencode/core/location-services"
-import { Project } from "@opencode/core/project"
-import { AbsolutePath } from "@opencode/core/schema"
-import { Session } from "@opencode/core/session"
-import { SessionEvent } from "@opencode/core/session/event"
-import { SessionExecution } from "@opencode/core/session/execution"
-import { SessionMove } from "@opencode/core/session/move"
-import { SessionProjector } from "@opencode/core/session/projector"
-import { SessionRunner } from "@opencode/core/session/runner/index"
-import { SessionStore } from "@opencode/core/session/store"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { makeGlobalNode } from "@opencode/util/effect/app-node"
-import { Global } from "@opencode/util/global"
+import { Cause, Context, Deferred, Duration, Effect, Exit, Fiber, Layer, LayerMap, Queue, Scope } from "effect"
+import { Worktree } from "@aigcfroge/schema/worktree"
+import { Workspace } from "@aigcfroge/schema/workspace"
+import { Bus } from "@aigcfroge/core/bus"
+import { Config } from "@aigcfroge/core/config"
+import { Database } from "@aigcfroge/core/database/database"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { Instance } from "@aigcfroge/core/instance"
+import { Location } from "@aigcfroge/core/location"
+import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
+import type { LocationServices } from "@aigcfroge/core/location-services"
+import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
+import { Project } from "@aigcfroge/core/project"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Session } from "@aigcfroge/core/session"
+import { SessionEvent } from "@aigcfroge/core/session/event"
+import { SessionExecution } from "@aigcfroge/core/session/execution"
+import { SessionMessage } from "@aigcfroge/core/session/message"
+import { SessionMove } from "@aigcfroge/core/session/move"
+import { SessionProjector } from "@aigcfroge/core/session/projector"
+import { SessionRunner } from "@aigcfroge/core/session/runner/index"
+import { SessionTable } from "@aigcfroge/core/session/sql"
+import { SessionStore } from "@aigcfroge/core/session/store"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { Global } from "@aigcfroge/util/global"
 import { tempGlobalLayer } from "./fixture/global"
 import { offlineModels } from "./fixture/models"
 import { tmpdirScoped } from "./fixture/tmpdir"
 import { testEffect } from "./lib/effect"
 import { globalProjectNode } from "./lib/project"
+import { withCustomMode } from "./lib/product-mode"
 
 const it = testEffect(
   AppNodeBuilder.build(
@@ -104,7 +109,7 @@ const sourceProbe = (options: { execution?: boolean } = {}) =>
     yield* Effect.promise(() => mkdir(source))
     const probes = yield* Queue.unbounded<Deferred.Deferred<void>>()
     const context = yield* Layer.build(
-      AppNodeBuilder.build(LayerNode.group([Session.node, Bus.node, SessionExecution.node]), [
+      AppNodeBuilder.build(LayerNode.group([Session.node, Bus.node, SessionExecution.node, Database.node]), [
         Global.node.replace(tempGlobalLayer),
         ...(options.execution ? [] : [SessionExecution.node.replace(SessionExecution.noopLayer)]),
         offlineModels,
@@ -139,11 +144,154 @@ const sourceProbe = (options: { execution?: boolean } = {}) =>
       probes,
       session: Context.get(context, Session.Service),
       bus: Context.get(context, Bus.Service),
+      database: Context.get(context, Database.Service),
       execution: Context.get(context, SessionExecution.Service),
     }
   })
 
 describe("Session.move", () => {
+  for (const unavailable of [false, true]) {
+    for (const boundary of ["entry", "probe"] as const) {
+      itWithInstance.live(
+        `rejects Custom movement at ${boundary} without residue from ${unavailable ? "unavailable" : "healthy"} sources`,
+        () =>
+          withCustomMode(
+            boundary === "entry" ? undefined : "true",
+            Effect.gen(function* () {
+              const fixture = yield* sourceProbe()
+              const created = yield* fixture.session.create({
+                location: Location.Ref.make({ directory: fixture.source }),
+              })
+              yield* fixture.session.synthetic({ sessionID: created.id, text: "Keep pending", resume: false })
+              yield* fixture.bus.publish(SessionEvent.InboxEnqueued, {
+                sessionID: created.id,
+                inboxID: SessionMessage.ID.create(),
+                item: {
+                  type: "move",
+                  delivery: "queue",
+                  payload: {
+                    location: Location.Ref.make({ directory: fixture.destination }),
+                    projectID: created.projectID,
+                  },
+                },
+              })
+              // Reopening a recorded Custom Session must hit the guard before needing its frozen dependency.
+              yield* fixture.database.db
+                .update(SessionTable)
+                .set({ mode: "custom" })
+                .where(eq(SessionTable.id, created.id))
+                .run()
+                .pipe(Effect.orDie)
+              const recorded = yield* fixture.session.get(created.id)
+              const row = yield* fixture.database.db
+                .select()
+                .from(SessionTable)
+                .where(eq(SessionTable.id, created.id))
+                .get()
+              const pending = yield* fixture.session.inbox(created.id)
+              const published = new Array<string>()
+              const unsubscribe = yield* fixture.bus.listen((event) =>
+                Effect.sync(() => {
+                  if (event.durable?.aggregateID === created.id) published.push(event.type)
+                }),
+              )
+              yield* Effect.addFinalizer(() => unsubscribe)
+
+              const rejection = yield* Effect.gen(function* () {
+                const move = fixture.session.move({ sessionID: created.id, directory: fixture.destination })
+                if (boundary === "entry") {
+                  if (unavailable) yield* Effect.promise(() => rm(fixture.source, { recursive: true }))
+                  return yield* move.pipe(Effect.flip)
+                }
+                const moving = yield* move.pipe(Effect.flip, Effect.forkIn(yield* Scope.Scope))
+                const release = yield* Queue.take(fixture.probes)
+                yield* Effect.addFinalizer(() => Deferred.interrupt(release))
+                return yield* withCustomMode(
+                  undefined,
+                  Effect.gen(function* () {
+                    if (unavailable) yield* Deferred.die(release, new Error("source unavailable"))
+                    if (!unavailable) yield* Deferred.succeed(release, undefined)
+                    return yield* Fiber.join(moving)
+                  }),
+                )
+              })
+
+              expect(rejection).toEqual(
+                new ProductModePolicy.UnsupportedProductModeError({
+                  mode: "custom",
+                  message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
+                }),
+              )
+              expect(yield* fixture.session.get(created.id)).toEqual(recorded)
+              expect(
+                yield* fixture.database.db.select().from(SessionTable).where(eq(SessionTable.id, created.id)).get(),
+              ).toEqual(row)
+              expect(yield* fixture.session.inbox(created.id)).toEqual(pending)
+              expect(pending).toMatchObject([{ type: "synthetic" }, { type: "move" }])
+              expect(published).toEqual([])
+              expect(yield* Queue.size(fixture.probes)).toBe(0)
+            }).pipe(Effect.timeout("10 seconds")),
+          ),
+      )
+    }
+  }
+
+  for (const missing of [false, true]) {
+    itWithInstance.live(
+      `moves Work Sessions with Custom disabled from ${missing ? "missing" : "healthy"} sources`,
+      () =>
+        withCustomMode(
+          undefined,
+          Effect.gen(function* () {
+            const fixture = yield* sourceProbe()
+            const created = yield* fixture.session.create({
+              location: Location.Ref.make({ directory: fixture.source }),
+              mode: "work",
+            })
+            const pending = yield* fixture.session.synthetic({
+              sessionID: created.id,
+              text: "Keep pending",
+              resume: false,
+            })
+            const published = new Array<string>()
+            const unsubscribe = yield* fixture.bus.listen((event) =>
+              Effect.sync(() => {
+                if (event.durable?.aggregateID === created.id) published.push(event.type)
+              }),
+            )
+            yield* Effect.addFinalizer(() => unsubscribe)
+            yield* Effect.gen(function* () {
+              const move = fixture.session.move({
+                sessionID: created.id,
+                directory: fixture.destination,
+                delivery: "queue",
+              })
+              if (missing) {
+                yield* Effect.promise(() => rm(fixture.source, { recursive: true }))
+                return yield* move
+              }
+              const moving = yield* move.pipe(Effect.forkIn(yield* Scope.Scope))
+              const release = yield* Queue.take(fixture.probes)
+              yield* Effect.addFinalizer(() => Deferred.interrupt(release))
+              yield* Deferred.succeed(release, undefined)
+              yield* Fiber.join(moving)
+            })
+
+            expect((yield* fixture.session.get(created.id)).location.directory).toBe(
+              missing ? fixture.destination : fixture.source,
+            )
+            expect((yield* fixture.session.get(created.id)).mode).toBe("work")
+            const inbox = yield* fixture.session.inbox(created.id)
+            expect(inbox[0]).toEqual(pending)
+            if (missing) expect(inbox).toEqual([pending])
+            if (!missing) expect(inbox.slice(1)).toMatchObject([{ type: "move", delivery: "queue" }])
+            expect(published).toEqual([missing ? "session.moved" : "session.inbox.enqueued"])
+            expect(yield* Queue.size(fixture.probes)).toBe(0)
+          }).pipe(Effect.timeout("10 seconds")),
+        ),
+    )
+  }
+
   itWithInstance.live("moves through the bound service without depending on the Session facade", () =>
     Effect.gen(function* () {
       const tmp = yield* tmpdirScoped()
@@ -215,7 +363,10 @@ describe("Session.move", () => {
           yield* Effect.promise(() => Promise.all([mkdir(source), mkdir(destination)]))
           if (broken)
             yield* Effect.promise(() =>
-              Bun.write(path.join(source, "opencode.json"), JSON.stringify({ instructions: ["{file:./missing.txt}"] })),
+              Bun.write(
+                path.join(source, "aigcfroge.json"),
+                JSON.stringify({ instructions: ["{file:./missing.txt}"] }),
+              ),
             )
           const session = yield* Session.Service
           const execution = yield* SessionExecution.Service
@@ -272,7 +423,7 @@ describe("Session.move", () => {
           const destination = AbsolutePath.make(path.join(tmp.path, "destination"))
           yield* Effect.promise(() => Promise.all([mkdir(source.directory), mkdir(destination)]))
           const config = JSON.stringify({ instructions: ["{file:./missing.txt}"] })
-          if (!broken) yield* Effect.promise(() => Bun.write(path.join(source.directory, "opencode.json"), config))
+          if (!broken) yield* Effect.promise(() => Bun.write(path.join(source.directory, "aigcfroge.json"), config))
           const selectedID = Session.ID.create()
           const replacements: LayerNode.Replacements = [
             Global.node.replace(tempGlobalLayer),

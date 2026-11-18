@@ -1,6 +1,6 @@
-import { OpenCode, type OpenCodeEvent } from "@opencode/client"
+import { AigcForge, type AigcForgeEvent } from "@aigcfroge/client"
 
-export const worktree = "/tmp/opencode"
+export const worktree = "/tmp/aigcfroge"
 export const directory = `${worktree}/packages/tui`
 
 export function json(data: unknown, init?: ResponseInit) {
@@ -51,7 +51,7 @@ export function createEventStream() {
   }
 
   return {
-    emit(event: OpenCodeEvent) {
+    emit(event: AigcForgeEvent) {
       send(v2, pending, event)
     },
     v2() {
@@ -136,6 +136,8 @@ export function createFetch(override?: FetchHandler, events?: ReturnType<typeof 
       })
     if (url.pathname === "/api/session") return json({ data: [], cursor: {} })
     if (url.pathname === "/api/config") return json([])
+    if (url.pathname === "/api/model/group")
+      return json({ location: { directory }, data: { targets: [], definitions: [], effective: [] } })
     if (url.pathname === "/api/session/active") return json({ data: {} })
     if (request.method === "POST" && /^\/api\/session\/[^/]+\/model$/.test(url.pathname))
       return new Response(null, { status: 204 })
@@ -147,6 +149,8 @@ export function createFetch(override?: FetchHandler, events?: ReturnType<typeof 
     if (url.pathname === "/api/form")
       return json({ location: { directory, project: { id: "proj_test", directory: worktree } }, data: [] })
     if (/^\/api\/session\/[^/]+\/permission$/.test(url.pathname)) return json({ data: [] })
+    if (/^\/session\/[^/]+\/identity$/.test(url.pathname))
+      return json({ sessionID: url.pathname.split("/")[2], coordination: { available: false, reasons: [] } })
     if (/^\/api\/session\/[^/]+\/form$/.test(url.pathname)) return json({ data: [] })
     if (/^\/api\/experimental\/session\/[^/]+\/terminal$/.test(url.pathname)) return json({ data: [] })
     if (
@@ -174,5 +178,5 @@ export function createFetch(override?: FetchHandler, events?: ReturnType<typeof 
 }
 
 export function createApi(fetch: typeof globalThis.fetch) {
-  return OpenCode.make({ baseUrl: "http://test", fetch })
+  return AigcForge.make({ baseUrl: "http://test", fetch })
 }

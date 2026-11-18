@@ -1,12 +1,20 @@
-import { base64Encode } from "@opencode/util/encode"
-import type { JsonValue, OpenCodeEvent, SessionMessageAssistant, SessionMessageInfo } from "@opencode/client/promise"
+import { base64Encode } from "@aigcfroge/util/encode"
+import type {
+  AigcForgeEvent,
+  FileDiffInfo,
+  SessionMessageAssistant,
+  SessionMessageAssistantTool,
+  SessionMessageInfo,
+  SessionMessageToolStateCompleted,
+} from "@aigcfroge/client/promise"
 import type { Page } from "@playwright/test"
-import { mockOpenCodeServer } from "../../utils/mock-server"
+import { mockAigcForgeServer } from "../../utils/mock-server"
 import { expectAppVisible, expectSessionTitle } from "../../utils/waits"
+import { validateTimelineEvent } from "../../utils/timeline"
 import { expect } from "../benchmark"
 import { createTwoFilesPatch } from "diff"
 
-const directory = "C:/OpenCode/TimelineStateRegression"
+const directory = "C:/AigcForge/TimelineStateRegression"
 
 const projectID = "proj_timeline_state_regression"
 
@@ -25,9 +33,9 @@ export const textPartID = `${assistantMessageID}:text:0`
 
 const title = "Timeline collapse state regression"
 
-const model = { providerID: "opencode", modelID: "claude-opus-4-6", variant: "max" }
+const model = { providerID: "aigcfroge", modelID: "claude-opus-4-6", variant: "max" }
 
-type EventPayload = OpenCodeEvent
+type EventPayload = AigcForgeEvent
 
 const userMessage = {
   id: userMessageID,
@@ -74,23 +82,23 @@ export async function setupTimelineBenchmark(
     historyTurns: number
     eventBatch: number
     vcsDiff?: unknown[]
-    turnDiffs?: unknown[]
+    turnDiffs?: FileDiffInfo[]
     busy?: boolean
-    historyShape?: "mixed" | "tool-heavy"
+    historyLayout?: "mixed" | "tool-heavy"
   },
 ) {
   const events: EventPayload[] = []
   let eventBatch = options.eventBatch
 
   const currentUserMessage = options.turnDiffs
-    ? { ...userMessage, metadata: { diffs: options.turnDiffs as JsonValue } }
+    ? { ...userMessage, metadata: { diffs: options.turnDiffs } }
     : userMessage
 
   const messages = [
     ...Array.from({ length: options.historyTurns }, (_, index) => performanceTurn(index))
       .flat()
       .map((message) => {
-        if (options.historyShape !== "tool-heavy" || message.type !== "assistant") return message
+        if (options.historyLayout !== "tool-heavy" || message.type !== "assistant") return message
 
         return {
           ...message,
@@ -121,7 +129,7 @@ export async function setupTimelineBenchmark(
     assistantMessage,
   ]
 
-  await mockOpenCodeServer(page, {
+  await mockAigcForgeServer(page, {
     directory,
     project: project(),
     provider: provider(),
@@ -223,14 +231,14 @@ export function buildStreamDeltaEvents(deltaCount: number): EventPayload[] {
   )
 }
 
-function performanceTurn(index: number) {
+export function performanceTurn(index: number) {
   const suffix = String(index).padStart(4, "0")
   const userID = `msg_0000_${suffix}_a_user`
   const assistantID = `msg_0000_${suffix}_b_assistant`
   const before = historicalSource(index, false)
   const after = historicalSource(index, true)
 
-  const parts = [
+  const parts: ContentSeed[] = [
     ...(index % 5 === 0
       ? [
           {
@@ -241,7 +249,7 @@ function performanceTurn(index: number) {
             text: `Reviewing the existing implementation. ${"constraint analysis ".repeat(20)}`,
             time: { start: 1690000001000 + index * 2_000, end: 1690000001200 + index * 2_000 },
           },
-        ]
+        ] satisfies ContentSeed[]
       : []),
     {
       id: `prt_0000_${suffix}_assistant`,
@@ -270,7 +278,7 @@ function performanceTurn(index: number) {
               completed: 1690000001400 + index * 2_000,
             },
           },
-        ]
+        ] satisfies ContentSeed[]
       : []),
     ...(index % 12 === 0
       ? [
@@ -290,7 +298,7 @@ function performanceTurn(index: number) {
               completed: 1690000001500 + index * 2_000,
             },
           },
-        ]
+        ] satisfies ContentSeed[]
       : []),
     ...(index % 16 === 0
       ? [
@@ -316,9 +324,9 @@ function performanceTurn(index: number) {
               completed: 1690000001700 + index * 2_000,
             },
           },
-        ]
+        ] satisfies ContentSeed[]
       : []),
-  ] as unknown as ContentSeed[]
+  ]
 
   return [
     {
@@ -352,17 +360,8 @@ function performanceTurn(index: number) {
   ] satisfies SessionMessageInfo[]
 }
 
-type ToolSeed = {
-  id: string
-  type: "tool"
-  name: string
-  state: {
-    status: "completed"
-    input: Record<string, unknown>
-    content: [{ type: "text"; text: string }]
-    metadata: Record<string, unknown>
-  }
-  time: { created: number; ran: number; completed: number }
+type ToolSeed = SessionMessageAssistantTool & {
+  state: SessionMessageToolStateCompleted
 }
 
 type ContentSeedBase = { id?: string; sessionID?: string; messageID?: string }
@@ -380,30 +379,40 @@ function toolContent(part: ToolSeed): SessionMessageAssistant["content"][number]
     time: part.time,
     state: {
       status: "completed",
-      input: part.state.input as Record<string, JsonValue>,
+      input: part.state.input,
       content: part.state.content,
-      metadata: part.state.metadata as Record<string, JsonValue>,
+      metadata: part.state.metadata,
     },
   }
 }
 
 let eventSequence = 0
 
-function timelineEvent<Type extends "session.text.started" | "session.text.delta">(
+export function timelineEvent<
+  Type extends
+    | "session.text.started"
+    | "session.text.delta"
+    | "session.text.ended"
+    | "session.step.completed"
+    | "session.execution.succeeded",
+>(
   type: Type,
-  data: Extract<OpenCodeEvent, { type: Type }>["data"],
+  data: Extract<AigcForgeEvent, { type: Type }>["data"],
   durable = false,
-): Extract<OpenCodeEvent, { type: Type }> {
+): AigcForgeEvent {
   eventSequence++
 
-  return {
+  const event = {
     id: `evt_timeline_benchmark_${eventSequence}`,
     created: 1700000002000 + eventSequence,
     type,
     data,
     location: { directory },
-    ...(durable ? { durable: { aggregateID: sessionID, seq: eventSequence, version: 1 } } : {}),
-  } as unknown as Extract<OpenCodeEvent, { type: Type }>
+  }
+
+  if (!durable) return validateTimelineEvent(event)
+
+  return validateTimelineEvent({ ...event, durable: { aggregateID: data.sessionID, seq: eventSequence, version: 1 } })
 }
 
 function historicalMarkdown(index: number) {
@@ -550,12 +559,12 @@ function provider() {
   return {
     all: [
       {
-        id: "opencode",
-        name: "OpenCode",
+        id: "aigcfroge",
+        name: "AigcForge",
         models: { "claude-opus-4-6": { id: "claude-opus-4-6", name: "Claude Opus 4.6", limit: { context: 200_000 } } },
       },
     ],
-    connected: ["opencode"],
-    default: { providerID: "opencode", modelID: "claude-opus-4-6" },
+    connected: ["aigcfroge"],
+    default: { providerID: "aigcfroge", modelID: "claude-opus-4-6" },
   }
 }

@@ -17,12 +17,12 @@
 // session, so only whole-session `v2.session.background(parentID)` exists.
 import type {
   EventSubscribeOutput,
-  OpenCodeClient,
+  AigcForgeClient,
   PermissionRequest,
   SessionMessageAssistantTool,
   SessionMessageInfo,
   SessionMessageUser,
-} from "@opencode/client/promise"
+} from "@aigcfroge/client/promise"
 import { Locale } from "../util/locale"
 import { createFragmentReconciler, fragmentRef, type FragmentReconciler } from "./stream-v2.fragment"
 import { toolImageCommits, userImageCommits } from "./stream-v2.image"
@@ -132,24 +132,24 @@ export type SubagentTrackerInput = {
 }
 
 export type SubagentTracker = {
-  main(sdk: OpenCodeClient, event: V2Event, signal?: AbortSignal): void
-  foreign(sdk: OpenCodeClient, sessionID: string, event: V2Event, signal?: AbortSignal): void
+  main(sdk: AigcForgeClient, event: V2Event, signal?: AbortSignal): void
+  foreign(sdk: AigcForgeClient, sessionID: string, event: V2Event, signal?: AbortSignal): void
   hydrate(next: {
-    sdk: OpenCodeClient
+    sdk: AigcForgeClient
     messages: SessionMessageInfo[]
     active: Record<string, unknown>
     signal?: AbortSignal
     reconnect?: boolean
   }): Promise<void>
   ready(): Promise<void>
-  select(sdk: OpenCodeClient, sessionID: string | undefined): void
+  select(sdk: AigcForgeClient, sessionID: string | undefined): void
   snapshot(): FooterSubagentState
   settleForm(sessionID: string, formID: string): void
   close(): void
 }
 
 type DiscoveryJob = {
-  sdk: OpenCodeClient
+  sdk: AigcForgeClient
   sessionID: string
   signal: AbortSignal
   task: Promise<void>
@@ -398,7 +398,7 @@ export function createSubagentTracker(input: SubagentTrackerInput): SubagentTrac
     }
   }
 
-  const hydrateChild = (sdk: OpenCodeClient, child: ChildState, signal = input.signal): Promise<void> => {
+  const hydrateChild = (sdk: AigcForgeClient, child: ChildState, signal = input.signal): Promise<void> => {
     if (!active(signal)) return Promise.resolve()
     const existing = hydrations.get(child.sessionID)
     if (existing) return existing
@@ -451,7 +451,7 @@ export function createSubagentTracker(input: SubagentTrackerInput): SubagentTrac
     active(signal) && epoch === blockerEpoch && children.get(child.sessionID) === child
 
   const resolvePermissionTools = async (
-    sdk: OpenCodeClient,
+    sdk: AigcForgeClient,
     child: ChildState,
     permissions: PermissionRequest[],
     epoch: number,
@@ -505,7 +505,7 @@ export function createSubagentTracker(input: SubagentTrackerInput): SubagentTrac
     }
   }
 
-  function scheduleBlockerRetry(sdk: OpenCodeClient, child: ChildState, epoch: number, signal = input.signal) {
+  function scheduleBlockerRetry(sdk: AigcForgeClient, child: ChildState, epoch: number, signal = input.signal) {
     if (!blockerCurrent(child, epoch, signal) || child.blockersHydrated || blockerRetryTimers.has(child.sessionID))
       return
     const attempt = blockerRetryAttempts.get(child.sessionID) ?? 0
@@ -521,7 +521,7 @@ export function createSubagentTracker(input: SubagentTrackerInput): SubagentTrac
   }
 
   function hydrateBlockers(
-    sdk: OpenCodeClient,
+    sdk: AigcForgeClient,
     child: ChildState,
     epoch = blockerEpoch,
     signal = input.signal,
@@ -638,7 +638,7 @@ export function createSubagentTracker(input: SubagentTrackerInput): SubagentTrac
     }
   }
 
-  const discover = (sdk: OpenCodeClient, sessionID: string, signal = input.signal) => {
+  const discover = (sdk: AigcForgeClient, sessionID: string, signal = input.signal) => {
     if (!active(signal) || children.size >= FAMILY_LIST_LIMIT) return Promise.resolve()
     if (checked.has(sessionID) || children.has(sessionID) || sessionID === input.sessionID) return Promise.resolve()
     const existing = discoveryJobs.get(sessionID)

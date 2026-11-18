@@ -20,8 +20,9 @@ import type {
   ServerRef,
   MountedSession,
   SessionScreen,
-} from "@opencode/gui-extensions/sdk"
+} from "@aigcfroge/gui-extensions/sdk"
 import { useComments } from "@/composer/comments"
+import { createComposerEditorActions } from "@/composer/editor/actions"
 import { useComposerState } from "@/composer/persistence"
 import { useServer } from "@/runtime/server/current"
 import { ServerConnection, serverName } from "@/runtime/server/registry"
@@ -80,6 +81,9 @@ export function createMountedSession(session: SessionModel) {
     },
     get connected() {
       return server.ctx.sdk.connection.status() === "connected"
+    },
+    get attempt() {
+      return server.ctx.sdk.connection.attempt()
     },
   }
 
@@ -143,6 +147,7 @@ export function createMountedSession(session: SessionModel) {
   }
 
   const composerRef: Composer = {
+    addText: (content) => createComposerEditorActions(composer.capture().store).addText(content),
     attach: (part) => composer.context.add(part),
     update: (id, patch) => composer.context.updateComment(id, patch),
     detach: (id) => composer.context.removeComment(id),

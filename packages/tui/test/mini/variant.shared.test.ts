@@ -21,6 +21,12 @@ const providers: RunProvider[] = [
 ]
 
 describe("run variant shared", () => {
+  test("labels Groups from their definitions and never adds a member variant", () => {
+    const group = { type: "group" as const, groupID: "fallback" }
+    expect(formatModelLabel(group, "high", providers)).toBe("group:fallback · Model group")
+    expect(formatModelLabel(group, "high", providers, [{ groupID: "fallback", definition: { name: "Fast path", enabled: true, members: [], strategy: "order", affinity: "turn" } }])).toBe("Fast path · Model group")
+    expect(pickVariant(group, { first: false, model: group, variant: "high", turns: [] })).toBeUndefined()
+  })
   test("prefers cli then session then saved variants", () => {
     expect(resolveVariant("max", "high", "low", ["low", "high"])).toBe("max")
     expect(resolveVariant("default", "high", "low", ["low", "high"])).toBeUndefined()

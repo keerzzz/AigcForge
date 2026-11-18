@@ -280,3 +280,34 @@
 [data-slot="session-turn-list"] {
   gap: 24px;
 }
+[data-slot="session-timeline-coordination"] {
+  color: var(--v2-text-text-base);
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-base);
+  overflow-wrap: anywhere;
+
+  [data-slot="coordination-heading"],
+  [data-slot="coordination-route"] {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: calc(var(--spacing) * 2);
+    min-width: 0;
+  }
+
+  [data-slot="coordination-heading"] {
+    font-weight: 600;
+  }
+
+  [data-slot="coordination-route"] {
+    color: var(--v2-text-text-muted);
+  }
+
+  pre {
+    max-height: calc(var(--spacing) * 60);
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font: inherit;
+  }
+}

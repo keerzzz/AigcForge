@@ -6,7 +6,7 @@ import { storyDocument, storyTool } from "../storybook/current-session-scenarios
 import { type ContextGroupPart, CurrentContextToolGroup } from "./tool-renderer"
 
 export default {
-  title: "OpenCode/Work/Tool group",
+  title: "AigcForge/Work/Tool group",
   id: "current-tool-group",
   component: CurrentContextToolGroup,
 }
@@ -71,6 +71,7 @@ export const MixedReasoning = {
   render: (args: { reasoningDefaultOpen: boolean }) => {
     const [open, setOpen] = createSignal(true)
     const [appended, setAppended] = createSignal(false)
+    const [busy, setBusy] = createSignal(false)
 
     const parts = createMemo<ContextGroupPart[]>(() => [
       storyTool("reasoning_read", "read", "completed", { path: "src/group.ts" }),
@@ -79,7 +80,7 @@ export const MixedReasoning = {
         id: "reasoning_first",
         text: "The renderer groups adjacent tools. Check the relevant skills before changing it.",
       },
-      storyTool("reasoning_skill_first", "skill", "completed", { id: "opencode" }),
+      storyTool("reasoning_skill_first", "skill", "completed", { id: "aigcfroge" }),
       storyTool("reasoning_skill_second", "skill", "completed", { id: "frontend-design" }),
       {
         type: "reasoning",
@@ -92,13 +93,16 @@ export const MixedReasoning = {
 
     return (
       <section class="mx-auto flex w-full max-w-[860px] flex-col gap-4 p-6">
+        <button type="button" onClick={() => setBusy((value) => !value)}>
+          {busy() ? "Finish current work" : "Start current work"}
+        </button>
         <button type="button" onClick={() => setAppended((value) => !value)}>
           {appended() ? "Remove follow-up read" : "Append follow-up read"}
         </button>
         <CurrentSessionProviders document={storyDocument(parts())}>
           <CurrentContextToolGroup
             parts={parts()}
-            busy={false}
+            busy={busy()}
             open={open()}
             onOpenChange={setOpen}
             reasoningDefaultOpen={args.reasoningDefaultOpen}
@@ -151,7 +155,7 @@ const stickyParts: ContextGroupPart[] = [
             `sticky_grep_${index}`,
             "grep",
             "completed",
-            { path: "C:/tmp/opencode/stack/packages/plugin-review-desktop/", pattern: 'turn"|lastTurn|session\\.diff' },
+            { path: "C:/tmp/aigcfroge/stack/packages/plugin-review-desktop/", pattern: 'turn"|lastTurn|session\\.diff' },
             { metadata: { matches: 4 } },
           )
         : storyTool(
@@ -168,7 +172,10 @@ export const StickyHeader = {
   args: { height: 720 },
   argTypes: { height: { control: { type: "range", min: 320, max: 1200, step: 20 } } },
   render: (args: { height: number }) => {
-    const [state, setState] = createStore({ open: true, files: {} as Record<string, boolean> })
+    const [state, setState] = createStore<{ open: boolean; files: Record<string, boolean> }>({
+      open: true,
+      files: {},
+    })
 
     return (
       <section

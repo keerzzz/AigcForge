@@ -19,7 +19,7 @@ describe("new session project selection", () => {
 
     const controls: PromptProjectControls = {
       available: [generic, current],
-      directory: "/repo/.opencode/worktree/feature",
+      directory: "/repo/.aigcfroge/worktree/feature",
       projectID: "current",
       select() {},
       add() {},

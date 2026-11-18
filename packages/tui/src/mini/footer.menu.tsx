@@ -1,14 +1,73 @@
 /** @jsxImportSource @opentui/solid */
 import { TextAttributes, type ColorInput } from "@opentui/core"
-import { useTerminalDimensions, type JSX } from "@opentui/solid"
+import { useTerminalDimensions, useKeyboard, type JSX } from "@opentui/solid"
 import { createEffect, createMemo, createSignal, type Accessor } from "solid-js"
 import { transparent, type RunFooterTheme } from "./theme"
 import { Locale } from "../util/locale"
 import { stringWidth } from "../util/string-width"
 import { moveSelection, moveSelectionOffset, reconcileSelection, revealSelectionOffset } from "../ui/select-controller"
+import type { RunAgent } from "./types"
 
 export const FOOTER_MENU_ROWS = 8
 export const FOOTER_COMPACT_WIDTH = 40
+
+export function RunExecutorSelectBody(props: {
+  theme: Accessor<RunFooterTheme>
+  agents: Accessor<RunAgent[]>
+  current: Accessor<string | undefined>
+  onClose: () => void
+  onSelect: (agent: string) => void
+  mono?: boolean
+}) {
+  const entries = createMemo(() => {
+    const agents = props.agents().filter((agent) => agent.id !== "meta" && agent.mode !== "primary" && !agent.hidden)
+    const current = props.current()
+    if (!current || agents.some((agent) => agent.id === current)) return agents
+    return [...agents, { id: current, name: current, description: "Unavailable executor; saved preference" }]
+  })
+  const menu = createFooterMenuState({ count: () => entries().length })
+  createEffect(() => {
+    const current = props.current()
+    if (current) menu.reveal(entries().findIndex((agent) => agent.id === current))
+  })
+  useKeyboard((event) => {
+    if (event.defaultPrevented) return
+    const name = event.name.toLowerCase()
+    if (name === "escape") {
+      event.preventDefault()
+      props.onClose()
+      return
+    }
+    if (name === "up" || name === "down") {
+      event.preventDefault()
+      menu.move(name === "up" ? -1 : 1)
+      return
+    }
+    if (name !== "return") return
+    event.preventDefault()
+    const agent = entries()[menu.selected()]
+    if (!agent) return
+    props.onSelect(agent.id)
+    props.onClose()
+  })
+  return (
+    <RunFooterMenu
+      theme={props.theme}
+      items={() =>
+        entries().map((agent) => ({
+          display: agent.name,
+          description: agent.description,
+          current: agent.id === props.current(),
+        }))
+      }
+      selected={menu.selected}
+      offset={menu.offset}
+      rows={menu.rows}
+      mono={props.mono}
+      empty="No executors available"
+    />
+  )
+}
 
 export function footerMenuText(text: string, width: number, mono = false) {
   if (!mono) return Locale.truncateWidth(text, width)

@@ -1,4 +1,7 @@
 export default {
+  "settings.display.hidden": "Review is hidden",
+  "settings.display.restore": "Open settings",
+  "settings.display.title": "Show Review",
   "tab.title": "Review",
   "tab.count.one": "Files Changed {{count}}",
   "tab.count.other": "Files Changed {{count}}",

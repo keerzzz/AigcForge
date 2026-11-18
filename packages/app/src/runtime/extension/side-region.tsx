@@ -1,4 +1,5 @@
-import { For, Show, createMemo, onCleanup, type JSX } from "solid-js"
+import { For, Show, createMemo, onCleanup } from "solid-js"
+import { createStore } from "solid-js/store"
 import { createMediaQuery } from "@solid-primitives/media"
 import { createEventListener } from "@solid-primitives/event-listener"
 import { DragDropProvider, PointerSensor } from "@dnd-kit/solid"
@@ -6,35 +7,25 @@ import { isSortable } from "@dnd-kit/solid/sortable"
 import { Accessibility, AutoScroller, Feedback, PointerActivationConstraints } from "@dnd-kit/dom"
 import { RestrictToHorizontalAxis } from "@dnd-kit/abstract/modifiers"
 import { RestrictToElement } from "@dnd-kit/dom/modifiers"
-import { Tabs } from "@opencode/ui/tabs"
-import { IconButton } from "@opencode/ui/icon-button"
-import { Icon } from "@opencode/ui/icon"
-import { ResizeHandle } from "@opencode/ui/resize-handle"
-import { Mark } from "@opencode/ui/logo"
-import { Keybind } from "@opencode/ui/keybind"
-import { Tooltip } from "@opencode/ui/tooltip"
-import { Menu } from "@opencode/ui/menu"
-import {
-  MenuItem,
-  type MountedSession,
-  type SessionScreen,
-  type PanelSidebar,
-  type SessionPanelMenuItem,
-} from "@opencode/gui-extensions/sdk"
-import { useCommand } from "@/shell/commands/command"
+import { Tabs } from "@aigcfroge/ui/tabs"
+import { Icon } from "@aigcfroge/ui/icon"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { ResizeHandle } from "@aigcfroge/ui/resize-handle"
+import { Mark } from "@aigcfroge/ui/logo"
+import type { MountedSession, SessionScreen, PanelSidebar } from "@aigcfroge/gui-extensions/sdk"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useLayout } from "@/shell/state/layout"
 import { useSessionLayout } from "@/session/session-layout"
 import type { Sizing } from "@/session/helpers"
-import { useExtensionHost } from "./host"
 import { PanelTrigger } from "./panel-trigger"
 import { RegionContent, type Region } from "./panels"
 import { ExtensionSlot } from "./render"
 import { createTabStripScroll } from "./tab-strip-scroll"
+import { SessionHeaderSpacer } from "@/session/header/session-header"
 
 const FILE_TREE_WIDTH_MIN = 240
 
-/** The side region: the tab strip with its "+" menu, the selected panel, and the inner sidebar. */
+/** The side region: the tab strip with contributed actions, the selected panel, and the inner sidebar. */
 export function SideRegion(props: {
   view: MountedSession
   screen: SessionScreen
@@ -47,7 +38,6 @@ export function SideRegion(props: {
 }) {
   const layout = useLayout()
   const language = useLanguage()
-  const host = useExtensionHost()
   const { tabs, view, params } = useSessionLayout()
 
   const isDesktop = createMediaQuery("(min-width: 768px)")
@@ -68,15 +58,19 @@ export function SideRegion(props: {
 
   const treeWidth = createMemo(() => (fileOpen() ? `${fileTreeWidth()}px` : "0px"))
 
-  const menu = createMemo(() =>
-    host
-      .list(MenuItem)
-      .flatMap((item) => (item.menu === "session.panel" ? [item] : []))
-      .toSorted((a, b) => (a.order ?? 0) - (b.order ?? 0)),
-  )
-
   let tabList: HTMLDivElement | undefined
   let selectionEvent: Event | undefined
+
+  const [scroll, setScroll] = createStore({ overflow: false, previous: false, next: false })
+
+  const scrollTabs = (direction: -1 | 1) => {
+    if (!tabList) return
+
+    tabList.scrollBy({
+      left: (getComputedStyle(tabList).direction === "rtl" ? -direction : direction) * tabList.clientWidth * 0.8,
+      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    })
+  }
 
   return (
     <Show when={isDesktop() && !!params.id}>
@@ -90,8 +84,7 @@ export function SideRegion(props: {
           "h-full shrink-0": !props.stacked,
           "h-full min-h-0": props.stacked,
           "pointer-events-none": !open(),
-          "transition-[width] duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[width] motion-reduce:transition-none":
-            !props.size.active(),
+          "side-width-transition": !props.size.active(),
           "flex-1": tabsVisible(),
         }}
         style={{ width: panelWidth() }}
@@ -103,7 +96,12 @@ export function SideRegion(props: {
             style={{ width: "var(--session-side-content-width, 100%)" }}
           >
             <Show when={tabsVisible()}>
-              <div class="relative min-w-0 h-full flex-1 overflow-hidden bg-v2-background-bg-base">
+              <div
+                id="session-side-panel-tabs"
+                aria-hidden={!tabsOpen()}
+                inert={!tabsOpen()}
+                class="relative min-w-0 h-full flex-1 overflow-hidden bg-v2-background-bg-base"
+              >
                 <div class="size-full min-w-0 h-full bg-v2-background-bg-base">
                   <DragDropProvider
                     sensors={[
@@ -112,6 +110,7 @@ export function SideRegion(props: {
                         preventActivation: (event) =>
                           event.target instanceof Element &&
                           (!!event.target.closest('[data-slot="tabs-trigger-close-button"]') ||
+                            !!event.target.closest(".session-review-v2-tab-scroll") ||
                             !!event.target.closest(".session-review-v2-open-in-app-slot")),
                       }),
                     ]}
@@ -135,7 +134,7 @@ export function SideRegion(props: {
                       value={props.region.active() ?? "empty"}
                       onChange={(value) => {
                         // Kobalte selects the first tab while triggers register, including while the
-                        // "+" menu's click is still dispatching. Persist input events on a tab only; the
+                        // action's click is still dispatching. Persist input events on a tab only; the
                         // region owns fallback selection.
                         if (
                           selectionEvent &&
@@ -152,46 +151,69 @@ export function SideRegion(props: {
                         class="session-review-v2-tabs-bar sticky top-0 shrink-0 flex items-center"
                         style={{ "--tabs-bar-height": props.stacked ? "51px" : "48px" }}
                       >
-                        <Tabs.List
-                          ref={(el: HTMLDivElement) => {
-                            tabList = el
-                            createEventListener(
-                              el,
-                              ["pointerdown", "click", "keydown"],
-                              (event) => (selectionEvent = event),
-                              { capture: true },
-                            )
-                            onCleanup(createTabStripScroll({ el, lead: props.region.lead }))
-                          }}
-                        >
-                          <For each={props.region.keys()}>
-                            {(key) => (
-                              <Show when={props.region.entry(key)}>
-                                {(entry) => (
-                                  <PanelTrigger
-                                    value={key}
-                                    extension={entry().extension}
-                                    tab={entry().tab}
-                                    session={props.view}
-                                    index={tabs().all().indexOf(key)}
-                                    active={props.region.active() === key}
-                                    preview={tabs().preview() === key}
-                                    onClose={props.region.close}
-                                    onPromote={(value) => void tabs().open(value)}
-                                  />
-                                )}
-                              </Show>
-                            )}
-                          </For>
-                          <div class="h-full shrink-0 sticky end-0 z-10 flex items-center justify-center bg-v2-background-bg-base">
-                            <Show
-                              when={menu().length > 1}
-                              fallback={<Show when={menu()[0]}>{(item) => <AddButton item={item()} />}</Show>}
-                            >
-                              <AddMenu items={menu()} />
-                            </Show>
-                          </div>
-                        </Tabs.List>
+                        <div class="session-review-v2-tab-strip">
+                          <Show when={scroll.overflow}>
+                            <IconButton
+                              class="session-review-v2-tab-scroll"
+                              variant="ghost-muted"
+                              size="large"
+                              icon={<Icon name="chevron-left" />}
+                              aria-label={language.t("session.tabs.scrollPrevious")}
+                              disabled={!scroll.previous}
+                              onClick={() => scrollTabs(-1)}
+                            />
+                          </Show>
+                          <Tabs.List
+                            ref={(el: HTMLDivElement) => {
+                              tabList = el
+                              createEventListener(
+                                el,
+                                ["pointerdown", "click", "keydown"],
+                                (event) => (selectionEvent = event),
+                                { capture: true },
+                              )
+                              onCleanup(
+                                createTabStripScroll({
+                                  el,
+                                  lead: props.region.lead,
+                                  onOverflowChange: setScroll,
+                                }),
+                              )
+                            }}
+                          >
+                            <For each={props.region.keys()}>
+                              {(key) => (
+                                <Show when={props.region.entry(key)}>
+                                  {(entry) => (
+                                    <PanelTrigger
+                                      value={key}
+                                      extension={entry().extension}
+                                      tab={entry().tab}
+                                      icon={entry().provider.mobile?.icon}
+                                      session={props.view}
+                                      index={tabs().all().indexOf(key)}
+                                      active={props.region.active() === key}
+                                      preview={tabs().preview() === key}
+                                      onClose={props.region.close}
+                                      onPromote={(value) => void tabs().open(value)}
+                                    />
+                                  )}
+                                </Show>
+                              )}
+                            </For>
+                          </Tabs.List>
+                          <Show when={scroll.overflow}>
+                            <IconButton
+                              class="session-review-v2-tab-scroll"
+                              variant="ghost-muted"
+                              size="large"
+                              icon={<Icon name="chevron-right" />}
+                              aria-label={language.t("session.tabs.scrollNext")}
+                              disabled={!scroll.next}
+                              onClick={() => scrollTabs(1)}
+                            />
+                          </Show>
+                        </div>
                         <div
                           data-slot="session-side-panel-actions"
                           class="session-review-v2-open-in-app-slot h-[var(--tabs-bar-height)] shrink-0 flex items-center gap-2 pe-3"
@@ -209,9 +231,7 @@ export function SideRegion(props: {
                               },
                             }}
                           />
-                          <Show when={tabsVisible()}>
-                            <div class="size-7 shrink-0" aria-hidden />
-                          </Show>
+                          <SessionHeaderSpacer visible={tabsVisible() && !fileOpen()} />
                         </div>
                       </div>
 
@@ -258,7 +278,7 @@ export function SideRegion(props: {
               >
                 <div
                   class="h-full flex flex-col overflow-hidden group/filetree"
-                  classList={{ "border-l border-border-weaker-base": tabsOpen() }}
+                  classList={{ "border-s border-border-weaker-base": tabsOpen() }}
                 >
                   <ExtensionSlot
                     at="session.panel.sidebar"
@@ -291,81 +311,5 @@ export function SideRegion(props: {
         </Show>
       </aside>
     </Show>
-  )
-}
-
-function AddButton(props: { item: SessionPanelMenuItem }): JSX.Element {
-  const command = useCommand()
-  const keybind = createMemo(() => (props.item.keybind ? command.keybindParts(props.item.keybind) : []))
-
-  return (
-    <Tooltip
-      value={
-        <>
-          {props.item.title}
-          <Show when={keybind().length > 0}>
-            <Keybind keys={keybind()} variant="neutral" />
-          </Show>
-        </>
-      }
-      placement="bottom"
-      class="flex items-center"
-    >
-      <IconButton
-        icon={<Icon name="plus" />}
-        variant="ghost-muted"
-        size="large"
-        onClick={() => props.item.run()}
-        aria-label={props.item.title}
-      />
-    </Tooltip>
-  )
-}
-
-function AddMenu(props: { items: readonly SessionPanelMenuItem[] }): JSX.Element {
-  const language = useLanguage()
-  const command = useCommand()
-
-  return (
-    <Tooltip value={language.t("session.tab.add")} placement="bottom" class="flex items-center">
-      <Menu appearance="standard" modal={false} placement="bottom-start" gutter={4}>
-        <Menu.Trigger
-          as={IconButton}
-          icon={<Icon name="plus" />}
-          variant="ghost-muted"
-          size="large"
-          aria-label={language.t("session.tab.add")}
-          // The tablist redirects focus entering it to the selected
-          // tab, which counts as focus-outside and closes the menu.
-          onPointerDown={(event: PointerEvent) => event.preventDefault()}
-        />
-        <Menu.Portal>
-          <Menu.Content>
-            <For each={props.items}>
-              {(item) => {
-                const keybind = createMemo(() => (item.keybind ? command.keybindParts(item.keybind) : []))
-
-                return (
-                  <Menu.Item
-                    class="!gap-6"
-                    onSelect={() => item.run()}
-                    shortcut={
-                      <Show when={keybind().length > 0}>
-                        <Keybind keys={keybind()} variant="neutral" />
-                      </Show>
-                    }
-                  >
-                    <div class="flex items-center gap-2">
-                      <Show when={item.icon}>{(icon) => <Icon name={icon()} size="small" />}</Show>
-                      <span>{item.title}</span>
-                    </div>
-                  </Menu.Item>
-                )
-              }}
-            </For>
-          </Menu.Content>
-        </Menu.Portal>
-      </Menu>
-    </Tooltip>
   )
 }

@@ -7,7 +7,13 @@ export function selfCommand() {
   if (runtime !== "bun" && runtime !== "node" && runtime !== "nodejs") return [process.execPath]
   if (!entrypoint) throw new Error("Failed to resolve CLI entrypoint")
   if (runtime === "node" || runtime === "nodejs") return [process.execPath, ...nodeFlags(), entrypoint]
-  return [process.execPath, entrypoint]
+  // Source CLI children must keep the compile-time identity their parent advertises to service discovery.
+  const defines = process.execArgv.flatMap((arg, index, args) => {
+    if (index > 0 && args[index - 1] === "--define") return []
+    if (arg === "--define") return args[index + 1] ? [arg, args[index + 1]] : []
+    return arg.startsWith("--define=") ? [arg] : []
+  })
+  return [process.execPath, ...defines, entrypoint]
 }
 
 function nodeFlags() {

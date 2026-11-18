@@ -1,10 +1,11 @@
 export * as SessionProviderContext from "./provider-context.js"
 
-import { Message } from "@opencode/ai"
-import { SessionProviderContext } from "@opencode/schema/session-provider-context"
+import { Message, type LLMRequest } from "@aigcfroge/ai"
+import { Endpoint } from "@aigcfroge/ai/route"
+import { SessionProviderContext } from "@aigcfroge/schema/session-provider-context"
 import { Predicate, Schema } from "effect"
 import { isDeepStrictEqual } from "node:util"
-import { Hash } from "@opencode/util/hash"
+import { Hash } from "@aigcfroge/util/hash"
 import type { SessionMessage } from "./message.js"
 import type { SessionRunnerModel } from "./runner/model.js"
 
@@ -15,28 +16,38 @@ export type Info = SessionProviderContext.Info
 const messages = Schema.toCodecJson(Schema.Array(Message))
 
 /** No guessed endpoints. Dynamic URL builders cannot establish a durable deployment identity here. */
-export function provenance(resolved: Pick<SessionRunnerModel.Resolved, "model" | "ref">): Provenance | undefined {
+export function provenance(
+  resolved: Pick<SessionRunnerModel.Resolved, "model" | "ref" | "connection">,
+  sentURL?: string,
+  request?: Pick<LLMRequest, "http">,
+): Provenance | undefined {
   const model = resolved.model
   const endpoint = model.route.endpoint
-  if (!endpoint.baseURL || typeof endpoint.path !== "string") return undefined
-  return {
+  if (sentURL === undefined && (!endpoint.baseURL || typeof endpoint.path !== "string")) return undefined
+  const url = sentURL === undefined
+    ? Endpoint.render({ baseURL: endpoint.baseURL, path: typeof endpoint.path === "string" ? endpoint.path : "", query: endpoint.query }, { request: undefined, body: undefined })
+    : URL.parse(sentURL)
+  if (!url) return undefined
+  if (sentURL === undefined) Object.entries(request?.http?.query ?? {}).forEach(([key, value]) => url.searchParams.set(key, value))
+  // The original WebSocket transport maps HTTP URLs to WS URLs for this same route.
+  if (url.protocol === "wss:") url.protocol = "https:"
+  if (url.protocol === "ws:") url.protocol = "http:"
+  url.searchParams.sort()
+  const proof = {
     providerID: resolved.ref.providerID,
     provider: model.provider,
     modelID: model.id,
     route: model.route.id,
     protocol: model.route.protocol,
-    endpoint: Hash.sha256(
-      JSON.stringify([
-        endpoint.baseURL,
-        endpoint.path,
-        Object.entries(endpoint.query ?? {}).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)),
-      ]),
-    ),
+    endpoint: Hash.sha256(url.toString()),
+    ...(resolved.connection === undefined ? {} : { connection: resolved.connection }),
   }
+  return { ...proof, deployment: Hash.sha256(JSON.stringify(proof)) }
 }
 
 export const compatible = (source: Provenance, target: Provenance | undefined) =>
-  target !== undefined && isDeepStrictEqual(source, target)
+  source.deployment !== undefined && target?.deployment !== undefined &&
+  isDeepStrictEqual({ ...source, connection: source.connection }, { ...target, connection: target.connection })
 
 /** A completed compaction that installed a native replacement window instead of a local summary. */
 export const isCheckpoint = (

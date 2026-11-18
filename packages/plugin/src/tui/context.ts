@@ -9,8 +9,8 @@ import type {
   McpResource,
   McpServer,
   ModelInfo,
-  OpenCodeClient,
-  OpenCodeEvent,
+  AigcForgeClient,
+  AigcForgeEvent,
   PermissionSavedInfo,
   PermissionRequest,
   Project,
@@ -22,8 +22,8 @@ import type {
   ShellInfo,
   SkillInfo,
   VcsInfo,
-} from "@opencode/client"
-import type { ResolvedTheme } from "@opencode/theme/tui"
+} from "@aigcfroge/client"
+import type { ResolvedTheme } from "@aigcfroge/theme/tui"
 import type { CliRenderer, KeyEvent, MarkdownCodeBlockRenderer, Renderable } from "@opentui/core"
 import type { JSX } from "@opentui/solid"
 import type { Store } from "solid-js/store"
@@ -58,14 +58,14 @@ interface LocationCollection<Value> {
   invalidate(location?: LocationRef): void
 }
 
-type OpenCodeEventMap = { [Type in OpenCodeEvent["type"]]: Extract<OpenCodeEvent, { type: Type }> }
+type AigcForgeEventMap = { [Type in AigcForgeEvent["type"]]: Extract<AigcForgeEvent, { type: Type }> }
 
 export interface Data {
-  readonly on: <Type extends OpenCodeEvent["type"]>(
+  readonly on: <Type extends AigcForgeEvent["type"]>(
     type: Type,
-    handler: (event: OpenCodeEventMap[Type]) => void,
+    handler: (event: AigcForgeEventMap[Type]) => void,
   ) => () => void
-  readonly listen: (handler: (event: { details: OpenCodeEvent }) => void) => () => void
+  readonly listen: (handler: (event: { details: AigcForgeEvent }) => void) => () => void
   readonly session: {
     list(): SessionInfo[]
     get(sessionID: string): SessionInfo | undefined
@@ -433,7 +433,7 @@ export interface KeymapCommand {
 }
 
 export interface KeymapLayer {
-  /** Limits the layer to one OpenCode input mode. Use global to opt out; defaults to base. */
+  /** Limits the layer to one AigcForge input mode. Use global to opt out; defaults to base. */
   readonly mode?: string
   /** Enables or disables the complete layer. */
   readonly enabled?: boolean | (() => boolean)
@@ -478,7 +478,7 @@ export interface Keymap {
   pending(): readonly KeymapPending[]
   /** Returns bindings reachable from the pending key sequence. Reactive when read in a Solid computation. */
   active(): readonly KeymapActive[]
-  /** Controls mutually exclusive OpenCode input modes. */
+  /** Controls mutually exclusive AigcForge input modes. */
   readonly mode: {
     /** Returns the active mode. */
     current(): string
@@ -546,7 +546,7 @@ export interface Context {
   readonly location: LocationRef | undefined
   readonly app: App
   readonly renderer: CliRenderer
-  readonly client: OpenCodeClient
+  readonly client: AigcForgeClient
   readonly data: Data
   readonly attention: Attention
   readonly theme: ResolvedTheme

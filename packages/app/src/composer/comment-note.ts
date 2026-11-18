@@ -1,7 +1,8 @@
-import type { SessionMessageUser } from "@opencode/client/promise"
+import type { SessionMessageUser } from "@aigcfroge/client/promise"
 import { Option, Schema } from "effect"
 import { Persistence } from "@/runtime/persistence/schema"
 import { uuid } from "@/runtime/persistence/uuid"
+import { SessionReference } from "@aigcfroge/schema/session-reference"
 import { FileSelection } from "@/workspaces/files/types"
 import { durableNote, LegacyBrowserNote, NoteComment, type ContextItem } from "./schema"
 
@@ -34,16 +35,25 @@ const decodePromptPresentation = Schema.decodeUnknownOption(
     displayText: Schema.String,
     comments: Schema.Array(Schema.Unknown),
     attachments: Persistence.array(PromptAttachmentReference),
+    sessionReferences: Persistence.array(Schema.Unknown),
   }),
 )
 
 const decodePromptComment = Schema.decodeUnknownOption(Schema.Union([NoteComment, LegacyBrowserNote, PromptFileComment]))
+
+const decodeSessionMention = Schema.decodeUnknownOption(Schema.toEncoded(SessionReference.Mention))
 
 export function readPromptPresentation(metadata: SessionMessageUser["metadata"]) {
   return Option.getOrUndefined(
     Option.map(decodePromptPresentation(metadata), (presentation) => ({
       displayText: presentation.displayText,
       attachments: presentation.attachments,
+      sessionReferences: presentation.sessionReferences.flatMap((value) => {
+        const mention = Option.getOrUndefined(decodeSessionMention(value))
+
+        return mention && mention.start >= 0 && mention.end > mention.start && mention.end <= presentation.displayText.length &&
+          presentation.displayText.slice(mention.start, mention.end) === mention.content ? [mention] : []
+      }),
       comments: presentation.comments.flatMap((item): PromptComment[] => Option.toArray(decodePromptComment(item))),
     })),
   )

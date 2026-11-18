@@ -1,5 +1,5 @@
 {
-  "name": "@opencode/session-ui",
+  "name": "@aigcfroge/session-ui",
   "version": "2.0.26",
   "private": true,
   "type": "module",
@@ -63,9 +63,10 @@
   },
   "dependencies": {
     "@kobalte/core": "catalog:",
-    "@opencode/client": "workspace:*",
-    "@opencode/ui": "workspace:*",
-    "@opencode/util": "workspace:*",
+    "@aigcfroge/client": "workspace:*",
+    "@aigcfroge/schema": "workspace:*",
+    "@aigcfroge/ui": "workspace:*",
+    "@aigcfroge/util": "workspace:*",
     "@pierre/diffs": "catalog:",
     "@shikijs/stream": "catalog:",
     "@solid-primitives/event-listener": "catalog:",

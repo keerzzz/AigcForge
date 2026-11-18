@@ -6,9 +6,13 @@ export function isAttachment(part: ContentPart): part is ImageAttachmentPart | P
 }
 
 export function clonePrompt(prompt: Prompt): Prompt {
-  return prompt.map((part) =>
-    part.type === "file" ? { ...part, selection: part.selection ? { ...part.selection } : undefined } : { ...part },
-  )
+  return prompt.map((part) => {
+    if (part.type === "file") return { ...part, selection: part.selection ? { ...part.selection } : undefined }
+
+    if (part.type === "session") return { ...part, reference: { ...part.reference, scope: { ...part.reference.scope } } }
+
+    return { ...part }
+  })
 }
 
 export function promptLength(prompt: Prompt) {

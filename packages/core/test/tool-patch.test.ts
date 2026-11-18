@@ -2,25 +2,25 @@ import fs from "fs/promises"
 import path from "path"
 import { describe, expect } from "bun:test"
 import { Effect, Exit, Layer, Schema } from "effect"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { Environment } from "@opencode/core/environment/index"
-import { Formatter } from "@opencode/core/formatter"
-import { FileMutation } from "@opencode/core/file-mutation"
-import { Location } from "@opencode/core/location"
-import { FileAccess } from "@opencode/core/file-access"
-import { Model } from "@opencode/core/model"
-import { Permission } from "@opencode/core/permission"
-import { Provider } from "@opencode/core/provider"
-import { AbsolutePath } from "@opencode/core/schema"
-import { Session } from "@opencode/core/session"
-import { Tool } from "@opencode/core/tool"
-import { PatchTool } from "@opencode/core/tool/plugin/patch"
-import type { SessionHooks } from "@opencode/plugin/effect/session"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Environment } from "@aigcfroge/core/environment/index"
+import { Formatter } from "@aigcfroge/core/formatter"
+import { FileMutation } from "@aigcfroge/core/file-mutation"
+import { Location } from "@aigcfroge/core/location"
+import { FileAccess } from "@aigcfroge/core/file-access"
+import { Model } from "@aigcfroge/core/model"
+import { Permission } from "@aigcfroge/core/permission"
+import { Provider } from "@aigcfroge/core/provider"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Session } from "@aigcfroge/core/session"
+import { Tool } from "@aigcfroge/core/tool"
+import { PatchTool } from "@aigcfroge/core/tool/plugin/patch"
+import type { SessionHooks } from "@aigcfroge/plugin/effect/session"
 import { transformEnvironmentFiles } from "./fixture/environment"
 import { location } from "./fixture/location"
 import { tmpdir } from "./fixture/tmpdir"
-import { makeLocationNode } from "@opencode/util/effect/app-node"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
 import { testEffect } from "./lib/effect"
 import { permissionLayer } from "./lib/permission"
 import { toolIdentity, executeTool, registerToolPlugin, toolDefinitions } from "./lib/tool"
@@ -401,7 +401,10 @@ describe("PatchTool", () => {
                 ).toMatchObject({
                   status: "completed",
                   content: [
-                    { type: "text", text: "Success. Updated the following files:\nA created.txt\nM moved.txt" },
+                    {
+                      type: "text",
+                      text: "Success. Updated the following files:\nA created.txt\nM moved.txt\nD old.txt",
+                    },
                   ],
                 })
                 expect(yield* exists(source)).toBe(false)
@@ -470,7 +473,7 @@ describe("PatchTool", () => {
           ),
         ).toMatchObject({
           status: "completed",
-          content: [{ type: "text", text: "Success. Updated the following files:\nM moved.txt" }],
+          content: [{ type: "text", text: "Success. Updated the following files:\nM moved.txt\nD old.txt" }],
         })
         expect(yield* exists(source)).toBe(false)
         expect(yield* Effect.promise(() => fs.readFile(destination, "utf8"))).toBe("same\n")
@@ -515,7 +518,10 @@ describe("PatchTool", () => {
         expect(settled.status).toBe("completed")
         if (settled.status !== "completed") return
         expect(settled.output).toMatchObject({
-          applied: [{ type: "update", resource: "renamed/dir/name.txt" }],
+          applied: [
+            { type: "update", resource: "renamed/dir/name.txt" },
+            { type: "delete", resource: "old/name.txt", target: source },
+          ],
           files: [
             {
               file: "renamed/dir/name.txt",
@@ -573,7 +579,7 @@ describe("PatchTool", () => {
                   )
                   expect(settled).toMatchObject({
                     status: "completed",
-                    output: { applied: [{ resource: "moved.txt" }] },
+                    output: { applied: [{ resource: "moved.txt" }, { type: "delete", resource: "old.txt" }] },
                   })
                   expect(assertions).toMatchObject([{ action: "edit", resources: ["old.txt", "moved.txt"] }])
                 }),
@@ -1093,7 +1099,12 @@ describe("PatchTool", () => {
                 )
                 expect(settled).toMatchObject({
                   status: "completed",
-                  output: { applied: [{ resource: destination.replaceAll("\\", "/") }] },
+                  output: {
+                    applied: [
+                      { resource: destination.replaceAll("\\", "/") },
+                      { type: "delete", resource: "source.txt" },
+                    ],
+                  },
                 })
                 expect(assertions).toMatchObject([
                   {

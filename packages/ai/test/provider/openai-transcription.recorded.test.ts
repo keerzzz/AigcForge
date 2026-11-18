@@ -82,7 +82,7 @@ describe("OpenAI Transcription recorded", () => {
         timestamps: "word",
       })
 
-      expect(response.words?.map((word) => word.text.toLowerCase())).toEqual(["hello", "from", "opencode"])
+      expect(response.words?.map((word) => word.text.toLowerCase())).toEqual(["hello", "from", "aigcforge"])
       expect(response.words?.every((word) => word.endSeconds > word.startSeconds)).toBe(true)
       expect(response.language).toBe("english")
       expect(response.usage).toEqual({ type: "seconds", seconds: expect.any(Number) })

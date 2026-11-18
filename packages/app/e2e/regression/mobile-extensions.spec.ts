@@ -1,20 +1,83 @@
 import { expect, test, type Page, type Request } from "@playwright/test"
 import { sessionHref } from "../utils/app"
+import { openCommandPalette } from "../utils/command-palette"
 import { fixture, mockStressTimeline } from "../utils/session-fixture"
-import { fileNode } from "../utils/workspace"
+import { fileNode, openSession } from "../utils/workspace"
 
 test.use({ viewport: { width: 390, height: 844 } })
 
-async function openFiles(page: Page) {
+const proposals = [
+  { kind: "prompt", title: "Prompt proposals" },
+  { kind: "skill", title: "Skill proposals" },
+  { kind: "command", title: "Command proposals" },
+  { kind: "agent", title: "Agent proposals" },
+  { kind: "mcp", title: "MCP proposals" },
+  { kind: "plugin", title: "Plugin proposals" },
+  { kind: "workflow", title: "Workflow proposals" },
+] as const
+
+async function openMobilePanel(page: Page, title = "Files") {
   await page
     .getByRole("tablist", { name: "Session view", exact: true })
     .getByRole("tab", { name: "More...", exact: true })
     .click()
-  await page
-    .getByRole("dialog", { name: "More options", exact: true })
-    .getByRole("button", { name: "Files", exact: true })
-    .click()
+  const menu = page.getByRole("dialog", { name: "More options", exact: true })
+
+  await menu.getByRole("button", { name: title, exact: true }).click()
+  await expect(menu).toBeHidden()
 }
+
+test("mobile proposal menu switches the rendered provider without returning to the conversation", async ({ page }) => {
+  await openSession(page, { name: "MobileProposals", sessions: [{ id: "ses_mobile_proposals", mode: "chat" }] })
+
+  const more = page.getByRole("tablist", { name: "Session view", exact: true }).getByRole("tab", {
+    name: "More...",
+    exact: true,
+  })
+
+  for (const item of proposals) {
+    await openMobilePanel(page, item.title)
+
+    const panel = page.locator(`[data-component="${item.kind}-proposals-panel"]`)
+
+    await expect(panel.getByRole("heading", { name: item.title, exact: true })).toBeVisible()
+    await expect(more).toHaveAttribute("aria-selected", "true")
+  }
+})
+
+test("mobile proposal commands select their own provider from the conversation", async ({ page }) => {
+  const { dialog, input } = await openCommandPalette(page)
+
+  const conversation = page.getByRole("tablist", { name: "Session view", exact: true }).getByRole("tab", {
+    name: "Session",
+    exact: true,
+  })
+
+  for (const [index, item] of proposals.toReversed().entries()) {
+    if (index > 0) {
+      await conversation.click()
+
+      const editor = page.locator('[data-component="composer-editor"]')
+
+      await expect(editor).toBeEditable()
+      await editor.click()
+      await page.keyboard.press("ControlOrMeta+Shift+P")
+    }
+
+    await expect(input).toBeFocused()
+    await input.fill(item.title)
+    const option = dialog.getByRole("option").filter({ has: page.getByText(item.title, { exact: true }) })
+
+    await expect(option).toHaveCount(1)
+    await option.click()
+    await expect(dialog).toBeHidden()
+    await expect(
+      page
+        .locator(`[data-component="${item.kind}-proposals-panel"]`)
+        .getByRole("heading", { name: item.title, exact: true }),
+    ).toBeVisible()
+  }
+})
 
 test("mobile files browse, comment, search, and close tabs", async ({ page }) => {
   await mockStressTimeline(page, {
@@ -25,7 +88,7 @@ test("mobile files browse, comment, search, and close tabs", async ({ page }) =>
   })
   await page.goto(sessionHref(fixture.targetID))
   const navigation = page.getByRole("tablist", { name: "Session view", exact: true })
-  await openFiles(page)
+  await openMobilePanel(page)
   const files = page.locator('[data-slot="session-mobile-files"]')
   await files.getByRole("button", { name: "first.ts", exact: true }).click()
   await expect(files.getByText("contents:first.ts", { exact: true })).toBeVisible()
@@ -61,7 +124,7 @@ test("mobile files browse, comment, search, and close tabs", async ({ page }) =>
     .click()
   await expect(session).toHaveAttribute("aria-selected", "true")
   await expect(page.getByRole("textbox", { name: "Prompt", exact: true })).toBeVisible()
-  await openFiles(page)
+  await openMobilePanel(page)
   await expect(files.getByText("contents:first.ts", { exact: true })).toBeVisible()
   const filter = files.getByRole("combobox", { name: "Filter files", exact: true })
   await expect(filter).toBeHidden()
@@ -74,7 +137,7 @@ test("mobile files browse, comment, search, and close tabs", async ({ page }) =>
   await openTabs.getByRole("tab", { name: "first.ts", exact: true }).click()
   await expect(files.getByText("contents:first.ts", { exact: true })).toBeVisible()
   await navigation.getByRole("tab", { name: "Session", exact: true }).click()
-  await openFiles(page)
+  await openMobilePanel(page)
   await expect(files.getByText("contents:first.ts", { exact: true })).toBeVisible()
   await files
     .locator('[data-slot="tabs-v2-trigger-wrapper"]')
@@ -200,7 +263,7 @@ test("mobile changes summarize expanded diffs, stage comments, wrap by setting, 
 
   const storedWrap = () =>
     page.evaluate(
-      () => JSON.parse(localStorage.getItem("opencode.global.dat:extension.review.mobileDiff") ?? "{}").wrap,
+      () => JSON.parse(localStorage.getItem("aigcfroge.global.dat:extension.review.mobileDiff") ?? "{}").wrap,
     )
 
   await expect(wrap).toBeChecked()

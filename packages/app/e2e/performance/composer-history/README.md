@@ -22,8 +22,8 @@ and correct text/image completion; it also includes Playwright overhead.
 IndexedDB reads and blob sizes are mechanism metrics, not desktop IPC bytes or
 process memory. No timing threshold is enforced.
 
-From `packages/app`, set `OPENCODE_HISTORY_BUILD` and
-`OPENCODE_HISTORY_OUTPUT` to artifact directories outside Git, then run:
+From `packages/app`, set `AIGCFROGE_HISTORY_BUILD` and
+`AIGCFROGE_HISTORY_OUTPUT` to artifact directories outside Git, then run:
 
 ```sh
 bun x vite build --config e2e/performance/composer-history/vite.config.ts
@@ -33,5 +33,5 @@ bun x playwright test --config e2e/performance/composer-history/playwright.confi
 The preview server owns port 4783 and is stopped by Playwright. Preserve each
 build and its revision/hash for comparisons. `BENCHMARK` JSON lines contain all
 raw samples. Optional Chrome traces use the existing
-`OPENCODE_PERFORMANCE_TRACE_DIR` setting; keep trace runs separate from clean
+`AIGCFROGE_PERFORMANCE_TRACE_DIR` setting; keep trace runs separate from clean
 timing. Screenshots are captured after timing on the first repeat only.

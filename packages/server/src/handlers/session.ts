@@ -1,13 +1,13 @@
-import { Session } from "@opencode/core/session"
-import { SessionStats } from "@opencode/core/session/stats"
-import { SessionTitle } from "@opencode/core/session/title"
-import { SessionTransfer } from "@opencode/core/session/transfer"
-import { InstructionEntry } from "@opencode/core/session/instruction-entry"
-import { Form } from "@opencode/core/form"
+import { Session } from "@aigcfroge/core/session"
+import { SessionStats } from "@aigcfroge/core/session/stats"
+import { SessionTitle } from "@aigcfroge/core/session/title"
+import { SessionTransfer } from "@aigcfroge/core/session/transfer"
+import { InstructionEntry } from "@aigcfroge/core/session/instruction-entry"
+import { Form } from "@aigcfroge/core/form"
 import { DateTime, Effect, Stream } from "effect"
 import { HttpApiBuilder, HttpApiSchema } from "effect/http-api"
 import { Api } from "../api"
-import { SessionsCursor } from "@opencode/protocol/groups/session"
+import { SessionsCursor } from "@aigcfroge/protocol/groups/session"
 import {
   ConflictError,
   CommandExecutionError,
@@ -21,12 +21,21 @@ import {
   ServiceUnavailableError,
   SessionBusyError,
   SkillNotFoundError,
-} from "@opencode/protocol/errors"
-import { AbsolutePath } from "@opencode/core/schema"
+  UnsupportedProductModeError,
+} from "@aigcfroge/protocol/errors"
+import { AbsolutePath } from "@aigcfroge/core/schema"
 import { locationErrors } from "../location"
-import { failedMessageDecode, failedSnapshot, missingMessage, missingSession } from "./session-error"
+import {
+  failedMessageDecode,
+  failedSnapshot,
+  invalidComposition,
+  missingMessage,
+  missingSession,
+} from "./session-error"
 
 const DefaultSessionsLimit = 50
+const invalidController = (error: { message: string; field: string; kind: string }) =>
+  new InvalidRequestError({ message: error.message, field: error.field, kind: error.kind })
 
 function missingForm(id: Form.ID) {
   return new FormNotFoundError({ id, message: `Form not found: ${id}` })
@@ -130,21 +139,111 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
               .create({
                 id: ctx.payload.id,
                 title: ctx.payload.title,
+                mode: ctx.payload.mode,
                 agent: ctx.payload.agent,
                 model: ctx.payload.model,
                 metadata: ctx.payload.metadata,
                 permissions: ctx.payload.permissions,
+                control: ctx.payload.control,
+                executorPreference: ctx.payload.executorPreference,
                 ...(ctx.payload.parentID === undefined
                   ? { location: ctx.payload.location ?? { directory: AbsolutePath.make(process.cwd()) } }
                   : { parentID: ctx.payload.parentID }),
               })
-              .pipe(Effect.catchTag("Session.NotFoundError", missingSession)),
+              .pipe(
+                Effect.catchTag("Session.NotFoundError", missingSession),
+                Effect.catchTag("Session.ControllerConflictError", invalidController),
+                locationErrors,
+                Effect.catchTag("Session.CompositionConflictError", invalidComposition),
+                Effect.catchTag("SessionComposition.SnapshotNotFoundError", invalidComposition),
+                Effect.catchTag("SessionComposition.SnapshotDecodeError", invalidComposition),
+                Effect.catchTag("SessionComposition.DependencyMissingError", invalidComposition),
+                Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", invalidComposition),
+                Effect.catchTag(
+                  "AgentNotAllowedError",
+                  (error) =>
+                    new InvalidRequestError({ message: error.message, field: "agent", kind: "agent_mode_unavailable" }),
+                ),
+                Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
+              ),
+          }
+        }),
+      )
+      .handle(
+        "session.getConsultation",
+        Effect.fn(function* (ctx) {
+          return {
+            data: yield* session.getConsultation(ctx.params.sessionID).pipe(
+              Effect.catchTag("Session.NotFoundError", missingSession),
+              Effect.catchTag(
+                "Session.ConsultationConflictError",
+                (error) => new ConflictError({ resource: error.sessionID, message: error.message }),
+              ),
+            ),
+          }
+        }),
+      )
+      .handle(
+        "session.createConsultation",
+        Effect.fn(function* (ctx) {
+          return {
+            data: yield* session
+              .createConsultation({ sourceSessionID: ctx.params.sourceSessionID, ...ctx.payload })
+              .pipe(
+                Effect.catchTag("Session.NotFoundError", missingSession),
+                Effect.catchTag("Session.MessageNotFoundError", missingMessage),
+                Effect.catchTag("Session.MessageDecodeError", failedMessageDecode),
+                Effect.catchTag(
+                  "Session.ConsultationConflictError",
+                  (error) => new ConflictError({ resource: error.sessionID, message: error.message }),
+                ),
+                Effect.catchTag(
+                  "Session.InvalidConsultationError",
+                  (error) => new InvalidRequestError({ field: error.field, message: error.message }),
+                ),
+                Effect.catchTag(
+                  "Session.BusyError",
+                  (error) =>
+                    new ConflictError({ resource: error.sessionID, message: `Session is busy: ${error.sessionID}` }),
+                ),
+                Effect.catchTag("Session.ControllerConflictError", invalidController),
+                Effect.catchTag(
+                  "Session.AttachmentError",
+                  (error) => new InvalidRequestError({ message: error.message, field: "files" }),
+                ),
+                Effect.catchTag(
+                  "Session.SkillNotFoundError",
+                  (error) => new InvalidRequestError({ message: `Skill not found: ${error.skill}`, field: "skills" }),
+                ),
+                Effect.catchTag("Session.CompositionConflictError", invalidComposition),
+                Effect.catchTag("SessionComposition.SnapshotNotFoundError", invalidComposition),
+                Effect.catchTag("SessionComposition.SnapshotDecodeError", invalidComposition),
+                Effect.catchTag("SessionComposition.DependencyMissingError", invalidComposition),
+                Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", invalidComposition),
+                Effect.catchTag(
+                  "Composition.ResolveError",
+                  (error) => new InvalidRequestError({ message: error.message, field: "skills", kind: error.code }),
+                ),
+                Effect.catchTag(
+                  "AgentNotAllowedError",
+                  (error) =>
+                    new InvalidRequestError({ message: error.message, field: "agent", kind: "agent_mode_unavailable" }),
+                ),
+                Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
+                locationErrors,
+              ),
           }
         }),
       )
       .handle(
         "session.import",
         Effect.fn(function* (ctx) {
+          if (ctx.payload.info.controller !== undefined)
+            return yield* new InvalidRequestError({
+              field: "info.controller",
+              kind: "meta_import_unsupported",
+              message: "Meta session import is unsupported",
+            })
           return {
             data: yield* transfer
               .import({
@@ -226,9 +325,26 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         "session.fork",
         Effect.fn(function* (ctx) {
           return {
-            data: yield* session.fork({ sessionID: ctx.params.sessionID, before: ctx.payload.before }).pipe(
+            data: yield* session.fork({ sessionID: ctx.params.sessionID, ...ctx.payload }).pipe(
               Effect.catchTag("Session.NotFoundError", missingSession),
+              Effect.catchTag("Session.ControllerConflictError", invalidController),
+              locationErrors,
               Effect.catchTag("Session.MessageNotFoundError", missingMessage),
+              Effect.catchTag("Session.CompositionConflictError", invalidComposition),
+              Effect.catchTag("SessionComposition.SnapshotNotFoundError", invalidComposition),
+              Effect.catchTag("SessionComposition.SnapshotDecodeError", invalidComposition),
+              Effect.catchTag("SessionComposition.DependencyMissingError", invalidComposition),
+              Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", invalidComposition),
+              Effect.catchTag(
+                "AgentNotAllowedError",
+                (error) =>
+                  new InvalidRequestError({ message: error.message, field: "agent", kind: "agent_mode_unavailable" }),
+              ),
+              Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
+              Effect.catchTag(
+                "Session.ForkConflictError",
+                (error) => new InvalidRequestError({ message: error.message, kind: "fork_conflict" }),
+              ),
               Effect.catchTag(
                 "Session.ForkEmptyError",
                 (error) => new InvalidRequestError({ message: error.message, kind: "empty_session" }),
@@ -241,18 +357,57 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         "session.switchAgent",
         Effect.fn(function* (ctx) {
           yield* session
-            .switchAgent({ sessionID: ctx.params.sessionID, agent: ctx.payload.agent })
-            .pipe(Effect.catchTag("Session.NotFoundError", missingSession))
+            .switchAgent({
+              sessionID: ctx.params.sessionID,
+              agent: ctx.payload.agent,
+              model: ctx.payload.model,
+            })
+            .pipe(
+              locationErrors,
+              Effect.catchTag("Session.NotFoundError", missingSession),
+              Effect.catchTag("Session.ControllerConflictError", invalidController),
+              Effect.catchTag("SessionComposition.SnapshotNotFoundError", invalidComposition),
+              Effect.catchTag("SessionComposition.SnapshotDecodeError", invalidComposition),
+              Effect.catchTag("SessionComposition.DependencyMissingError", invalidComposition),
+              Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", invalidComposition),
+              Effect.catchTag(
+                "AgentNotAllowedError",
+                (error) =>
+                  new InvalidRequestError({ message: error.message, field: "agent", kind: "agent_mode_unavailable" }),
+              ),
+              Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
+            )
           return HttpApiSchema.NoContent.make()
         }),
       )
       .handle(
         "session.switchModel",
         Effect.fn(function* (ctx) {
-          yield* session
-            .switchModel({ sessionID: ctx.params.sessionID, model: ctx.payload.model })
-            .pipe(Effect.catchTag("Session.NotFoundError", missingSession))
+          yield* session.switchModel({ sessionID: ctx.params.sessionID, model: ctx.payload.model }).pipe(
+            locationErrors,
+            Effect.catchTag("Session.NotFoundError", missingSession),
+            Effect.catchTag("Session.ControllerConflictError", invalidController),
+            Effect.catchTag("SessionComposition.SnapshotNotFoundError", invalidComposition),
+            Effect.catchTag("SessionComposition.SnapshotDecodeError", invalidComposition),
+            Effect.catchTag("SessionComposition.DependencyMissingError", invalidComposition),
+            Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", invalidComposition),
+            Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
+          )
           return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.selectExecutor",
+        Effect.fn(function* (ctx) {
+          return {
+            data: yield* session
+              .selectExecutor({ sessionID: ctx.params.sessionID, executorPreference: ctx.payload })
+              .pipe(
+                Effect.catchTag("Session.NotFoundError", missingSession),
+                Effect.catchTag("Session.ControllerConflictError", invalidController),
+                locationErrors,
+              ),
+          }
         }),
       )
       .handle(
@@ -300,6 +455,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
               Effect.catchTag("Session.DestinationUnavailableError", (error) =>
                 Effect.fail(new InvalidRequestError({ message: `Directory is unavailable: ${error.directory}` })),
               ),
+              Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
             )
           return HttpApiSchema.NoContent.make()
         }),
@@ -322,6 +478,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
               })
               .pipe(
                 Effect.catchTag("Session.NotFoundError", missingSession),
+                Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
                 Effect.catchTag("Session.PromptConflictError", (error) =>
                   Effect.fail(
                     new ConflictError({
@@ -335,6 +492,14 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                 ),
                 Effect.catchTag("Session.SkillNotFoundError", (error) =>
                   Effect.fail(new InvalidRequestError({ message: `Skill not found: ${error.skill}`, field: "skills" })),
+                ),
+                Effect.catchTag("SessionComposition.SnapshotNotFoundError", invalidComposition),
+                Effect.catchTag("SessionComposition.SnapshotDecodeError", invalidComposition),
+                Effect.catchTag("SessionComposition.DependencyMissingError", invalidComposition),
+                Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", invalidComposition),
+                Effect.catchTag(
+                  "Composition.ResolveError",
+                  (error) => new InvalidRequestError({ message: error.message, field: "skills", kind: error.code }),
                 ),
                 locationErrors,
               ),
@@ -356,6 +521,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
             })
             .pipe(
               Effect.catchTag("Session.NotFoundError", missingSession),
+              Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
               Effect.catchTag("Command.NotFoundError", (error) =>
                 Effect.fail(
                   new CommandNotFoundError({
@@ -388,8 +554,17 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
             })
             .pipe(
               Effect.catchTag("Session.NotFoundError", missingSession),
+              Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
               Effect.catchTag("Session.SkillNotFoundError", (error) =>
                 Effect.fail(new SkillNotFoundError({ skill: error.skill, message: `Skill not found: ${error.skill}` })),
+              ),
+              Effect.catchTag("SessionComposition.SnapshotNotFoundError", invalidComposition),
+              Effect.catchTag("SessionComposition.SnapshotDecodeError", invalidComposition),
+              Effect.catchTag("SessionComposition.DependencyMissingError", invalidComposition),
+              Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", invalidComposition),
+              Effect.catchTag(
+                "Composition.ResolveError",
+                (error) => new InvalidRequestError({ message: error.message, field: "skills", kind: error.code }),
               ),
               locationErrors,
             )
@@ -428,7 +603,10 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         Effect.fn(function* (ctx) {
           yield* session
             .shell({ sessionID: ctx.params.sessionID, id: ctx.payload.id, command: ctx.payload.command })
-            .pipe(Effect.catchTag("Session.NotFoundError", missingSession))
+            .pipe(
+              Effect.catchTag("Session.NotFoundError", missingSession),
+              Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
+            )
           return HttpApiSchema.NoContent.make()
         }),
       )
@@ -440,6 +618,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
               .compact({ sessionID: ctx.params.sessionID, id: ctx.payload.id, delivery: ctx.payload.delivery })
               .pipe(
                 Effect.catchTag("Session.NotFoundError", missingSession),
+                Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
                 Effect.catchTag("Session.CompactionConflictError", (error) =>
                   Effect.fail(
                     new ConflictError({
@@ -595,15 +774,16 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       .handle(
         "session.generate",
         Effect.fn(function* (ctx) {
-          const text = yield* session
-            .generate({ sessionID: ctx.params.sessionID, prompt: ctx.payload.prompt })
-            .pipe(
-              Effect.mapError((error) =>
-                error._tag === "Session.NotFoundError"
+          const text = yield* session.generate({ sessionID: ctx.params.sessionID, prompt: ctx.payload.prompt }).pipe(
+            Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
+            Effect.mapError((error) =>
+              error._tag === "UnsupportedProductModeError"
+                ? error
+                : error._tag === "Session.NotFoundError"
                   ? missingSession(error)
                   : new ServiceUnavailableError({ message: error.message, service: "session generation" }),
-              ),
-            )
+            ),
+          )
           return { data: { text } }
         }),
       )

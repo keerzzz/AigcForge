@@ -1,6 +1,6 @@
-@import "@opencode/ui/styles/tailwind";
-@import "@opencode/session-ui/styles";
-@import "@opencode/ui/styles/tokens";
+@import "@aigcfroge/ui/styles/tailwind";
+@import "@aigcfroge/session-ui/styles";
+@import "@aigcfroge/ui/styles/tokens";
 @import "tw-animate-css";
 
 @font-face {
@@ -44,11 +44,18 @@
     visibility: hidden;
   }
 
-  [data-slot="session-side-panel-presence"][data-opened="true"] {
+  .side-width-transition {
+    transition: width 240ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: width;
+  }
+
+  [data-slot="session-side-panel-presence"][data-opened="true"],
+  #shell-project-sidebar[data-opened="true"] {
     animation: side-region-presence-in 240ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  [data-slot="session-side-panel-presence"][data-opened="false"] {
+  [data-slot="session-side-panel-presence"][data-opened="false"],
+  #shell-project-sidebar[data-opened="false"] {
     animation: side-region-presence-out 240ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
   }
 
@@ -76,6 +83,27 @@
           transparent calc(100cqi - 40px)
         ),
         linear-gradient(to top, #000 1px, transparent 1px);
+    }
+  }
+
+  /* Titles give space to close controls; the add action lives outside the scrolling strip. */
+  :root
+    body
+    #review-panel
+    [data-component="tabs"][data-variant="normal"][data-orientation="horizontal"]
+    .session-review-v2-tabs-bar
+    [data-slot="tabs-trigger-wrapper"] {
+    min-width: 128px;
+    max-width: 100%;
+    flex-shrink: 1;
+
+    [data-slot="tabs-trigger"] {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    [data-slot="tabs-trigger-close-button"] {
+      flex: none;
     }
   }
 
@@ -135,13 +163,15 @@
     [data-slot="terminal-panel-presence"],
     [data-slot="side-terminal-panel-presence"],
     [data-slot="session-side-panel-presence"],
+    #shell-project-sidebar,
     [data-slot="session-review-content"],
     [data-slot="session-side-region-presence"],
     [data-component="terminal-panel"] {
       animation: none !important;
     }
 
-    [data-slot="session-review-content"] {
+    [data-slot="session-review-content"],
+    .side-width-transition {
       transition: none !important;
     }
   }

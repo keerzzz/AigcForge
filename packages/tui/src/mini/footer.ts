@@ -40,6 +40,8 @@ import { resolveRunTheme, type RunTheme } from "./theme"
 import { modelInfo } from "./variant.shared"
 import { entrySplash } from "./splash"
 import { SEED_LAUNCH } from "../ui/one-cell-motion"
+import { isModelGroup, modelPreferenceKey, toModelPreference } from "../model-preference"
+import type { ModelGroupCurrent } from "@aigcfroge/client/promise"
 import type {
   FooterApi,
   FooterEvent,
@@ -63,6 +65,8 @@ import type {
   RunReference,
   RunTuiConfig,
   StreamCommit,
+  MiniSessionSelection,
+  MiniModelDomain,
 } from "./types"
 
 type CycleResult = {
@@ -96,9 +100,15 @@ type RunFooterOptions = {
   onFormReply: (input: FormReply) => void | Promise<void>
   onFormCancel: (input: FormCancel) => void | Promise<void>
   onCycleVariant?: () => CycleResult | void
-  onAgentSelect?: (agent: string) => void
-  onModelSelect?: (model: NonNullable<RunInput["model"]>) => CycleResult | void | Promise<CycleResult | void>
-  onVariantSelect?: (variant: string | undefined) => CycleResult | void | Promise<CycleResult | void>
+  onAgentSelect?: (agent: string, domain?: MiniModelDomain) => void
+  onModelSelect?: (
+    model: NonNullable<RunInput["model"]>,
+    domain?: MiniModelDomain,
+  ) => CycleResult | void | Promise<CycleResult | void>
+  onVariantSelect?: (
+    variant: string | undefined,
+    domain?: MiniModelDomain,
+  ) => CycleResult | void | Promise<CycleResult | void>
   onInterrupt?: () => void
   onBackground?: () => void
   onQueuedPromptAction?: (action: QueuedPromptAction, inboxID: string) => Promise<void>
@@ -181,11 +191,18 @@ export class RunFooter implements FooterApi {
   private commands: Accessor<RunCommand[] | undefined>
   private setCommands: Setter<RunCommand[] | undefined>
   private providers: Accessor<RunProvider[] | undefined>
+  private groups: Accessor<ModelGroupCurrent[]>
+  private setGroups: Setter<ModelGroupCurrent[]>
   private setProviders: Setter<RunProvider[] | undefined>
   private currentAgent: Accessor<string>
   private currentAgentID: Accessor<string | undefined>
   private setCurrentAgentID: Setter<string | undefined>
   private currentModel: Accessor<RunInput["model"]>
+  private selection: Accessor<MiniSessionSelection | undefined>
+  private setSelection: Setter<MiniSessionSelection | undefined>
+  private modelDomain: Accessor<MiniModelDomain>
+  private setModelDomain: Setter<MiniModelDomain>
+  private choiceGeneration = 0
   private setCurrentModel: Setter<RunInput["model"]>
   private variants: Accessor<string[]>
   private setVariants: Setter<string[]>
@@ -267,9 +284,21 @@ export class RunFooter implements FooterApi {
     this.setCommands = setCommands
     const [providers, setProviders] = createSignal<RunProvider[] | undefined>()
     this.providers = providers
+    const [groups, setGroups] = createSignal<ModelGroupCurrent[]>([])
+    this.groups = groups
+    this.setGroups = setGroups
     this.setProviders = setProviders
     const [selectedAgentID, setCurrentAgentID] = createSignal(options.agent)
-    const currentAgent = () => resolveRunAgent(this.agents(), selectedAgentID())
+    const [selection, setSelection] = createSignal<MiniSessionSelection>()
+    this.selection = selection
+    this.setSelection = setSelection
+    const [modelDomain, setModelDomain] = createSignal<MiniModelDomain>("session")
+    this.modelDomain = modelDomain
+    this.setModelDomain = setModelDomain
+    const currentAgent = () =>
+      selection()?.controller
+        ? this.agents().find((agent) => agent.id === selectedAgentID())
+        : resolveRunAgent(this.agents(), selectedAgentID())
     this.currentAgentID = () => currentAgent()?.id ?? selectedAgentID()
     this.setCurrentAgentID = setCurrentAgentID
     this.currentAgent = () => {
@@ -340,9 +369,13 @@ export class RunFooter implements FooterApi {
               references: footer.references,
               commands: footer.commands,
               providers: footer.providers,
+              groups: footer.groups,
               currentAgent: footer.currentAgent,
               currentAgentID: footer.currentAgentID,
               currentModel: footer.currentModel,
+              selection: footer.selection,
+              modelDomain: footer.modelDomain,
+              onModelDomainSelect: footer.handleModelDomainSelect,
               variants: footer.variants,
               currentVariant: footer.currentVariant,
               theme: footer.theme,
@@ -436,6 +469,13 @@ export class RunFooter implements FooterApi {
   }
 
   public event(next: FooterEvent): void {
+    if (next.type === "selection") {
+      if (this.isClosed) return
+      this.setSelection(next.selection)
+      this.setCurrentAgentID(next.selection.agent)
+      this.handleModelDomainSelect(this.modelDomain())
+      return
+    }
     if (next.type === "history") {
       this.setHistory(next.history)
       return
@@ -461,7 +501,7 @@ export class RunFooter implements FooterApi {
         .then(() =>
           this.scrollback.writeTurnSummary({
             agent,
-            model: current ? modelInfo(this.providers(), current).model : this.state().model,
+            model: current ? modelInfo(this.providers(), current, this.groups()).model : this.state().model,
             duration: next.duration,
           }),
         )
@@ -490,6 +530,7 @@ export class RunFooter implements FooterApi {
       }
 
       this.setProviders(next.providers)
+      this.setGroups(next.groups ?? [])
       return
     }
 
@@ -834,6 +875,15 @@ export class RunFooter implements FooterApi {
   }
 
   private handleCycle = (): void => {
+    const model = this.currentModel()
+    if (model && isModelGroup(model)) return this.setNotice("Model groups use each member's configured variant")
+    const controller = this.selection()?.controller
+    if (controller?.kind === "child") return this.setNotice("Child Agent selection is fixed by its first binding")
+    if (controller) {
+      const variants = [undefined, ...this.variants()]
+      this.handleVariantSelect(variants[(variants.indexOf(this.currentVariant()) + 1) % variants.length])
+      return
+    }
     const result = this.options.onCycleVariant?.()
     if (!result) {
       this.setNotice("no variants available")
@@ -844,14 +894,48 @@ export class RunFooter implements FooterApi {
     if (result.status === undefined) this.setNotice("variant updated")
   }
 
+  private handleModelDomainSelect = (requested: MiniModelDomain): void => {
+    if (this.isClosed) return
+    ++this.choiceGeneration
+    const selection = this.selection()
+    const domain =
+      requested === "executor" && selection?.agent === "meta" && selection.controller?.kind === "root"
+        ? requested
+        : "session"
+    this.setModelDomain(domain)
+    if (!selection) return
+    const model =
+      selection.controller?.kind === "child"
+        ? selection.controller.executor.model
+        : domain === "session"
+          ? selection.model
+          : selection.executorPreference?.model
+    this.setCurrentModel(model ? toModelPreference(model) : undefined)
+    this.setCurrentVariant(model && !isModelGroup(model) ? model.variant : undefined)
+    this.setVariants(
+      model && !isModelGroup(model)
+        ? Object.keys(
+            this.providers()?.find((provider) => provider.id === model.providerID)?.models[model.id]?.variants ?? {},
+          )
+        : [],
+    )
+  }
+
   private handleModelSelect = (model: NonNullable<RunInput["model"]>): void => {
     if (this.isClosed) {
+      return
+    }
+    if (this.selection()?.controller?.kind === "child") return
+    const generation = ++this.choiceGeneration
+    const domain = this.modelDomain()
+    if (this.selection()?.controller) {
+      void this.options.onModelSelect?.(model, domain)
       return
     }
 
     const previous = this.currentModel()
     this.setCurrentModel(model)
-    if (!previous || previous.providerID !== model.providerID || previous.modelID !== model.modelID) {
+    if (!previous || modelPreferenceKey(previous) !== modelPreferenceKey(model)) {
       this.setCurrentVariant(undefined)
     }
     void Promise.resolve()
@@ -860,10 +944,10 @@ export class RunFooter implements FooterApi {
         const current = this.currentModel()
         if (
           !result ||
+          generation !== this.choiceGeneration ||
           this.isClosed ||
           !current ||
-          current.providerID !== model.providerID ||
-          current.modelID !== model.modelID
+          modelPreferenceKey(current) !== modelPreferenceKey(model)
         ) {
           return
         }
@@ -872,15 +956,34 @@ export class RunFooter implements FooterApi {
       .catch(() => {})
   }
 
-  private handleAgentSelect = (agent: string): void => {
-    if (this.isClosed || this.currentAgentID() === agent) return
+  private handleAgentSelect = (agent: string, domain: MiniModelDomain = "session"): void => {
+    if (
+      this.isClosed ||
+      (domain === "session" ? this.currentAgentID() : this.selection()?.executorPreference?.agent) === agent
+    )
+      return
+    if (this.selection()?.controller?.kind === "child") return
+    ++this.choiceGeneration
+    if (this.selection()?.controller || domain === "executor" || (agent === "meta" && this.selection())) {
+      this.options.onAgentSelect?.(agent, domain)
+      return
+    }
     this.setCurrentAgentID(agent)
-    this.options.onAgentSelect?.(agent)
+    this.options.onAgentSelect?.(agent, domain)
     this.setNotice(`agent ${this.currentAgent()}`)
   }
 
   private handleVariantSelect = (variant: string | undefined): void => {
     if (this.isClosed) {
+      return
+    }
+    if (this.selection()?.controller?.kind === "child") return
+    const selected = this.currentModel()
+    if (selected && isModelGroup(selected)) return this.setNotice("Model groups use each member's configured variant")
+    const generation = ++this.choiceGeneration
+    const domain = this.modelDomain()
+    if (this.selection()?.controller) {
+      void this.options.onVariantSelect?.(variant, domain)
       return
     }
 
@@ -891,8 +994,9 @@ export class RunFooter implements FooterApi {
         const current = this.currentModel()
         if (
           !result ||
+          generation !== this.choiceGeneration ||
           this.isClosed ||
-          (model && (!current || current.providerID !== model.providerID || current.modelID !== model.modelID))
+          (model && (!current || modelPreferenceKey(current) !== modelPreferenceKey(model)))
         ) {
           return
         }

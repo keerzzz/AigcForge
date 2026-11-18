@@ -2,8 +2,8 @@
 
 Every feature of the desktop and web app that is not the core shell is an extension: the terminal, review, files, the browser, SSH, WSL, the updater and more. Each one builds only on the SDK in [`src/sdk`](src/sdk). The SDK is typed so that the common bugs fail to compile or fail the lint, and every declaration has TSDoc, so editor hovers answer most questions. This guide shows how the parts fit, with code from the extensions that ship. [Build your first extension](#build-your-first-extension) walks through [`src/pairing`](src/pairing), a small built-in that uses both processes. `bun run lint` checks every code block marked with its source against that source.
 
-- Window SDK: `@opencode/gui-extensions/sdk` ([`index.ts`](src/sdk/index.ts))
-- Main-process SDK: `@opencode/gui-extensions/sdk/main` ([`main.ts`](src/sdk/main.ts))
+- Window SDK: `@aigcfroge/gui-extensions/sdk` ([`index.ts`](src/sdk/index.ts))
+- Main-process SDK: `@aigcfroge/gui-extensions/sdk/main` ([`main.ts`](src/sdk/main.ts))
 - Rules for agents: [`AGENTS.md`](AGENTS.md)
 
 ```mermaid
@@ -35,16 +35,16 @@ Unit tests of logic that carries a contract sit beside the code as `*.test.ts`, 
 
 `Extension.define` is the manifest. The host reads it before any entry loads.
 
-| Field      | What it declares                                                              | In the context                                    |
-| ---------- | ----------------------------------------------------------------------------- | ------------------------------------------------- |
-| `id`       | Prefix of every id: commands, panel keys, stored keys, contract and Ipc ids   | `ctx.id`                                          |
+| Field      | What it declares                                                                   | In the context                                    |
+| ---------- | ---------------------------------------------------------------------------------- | ------------------------------------------------- |
+| `id`       | Prefix of every id: commands, panel keys, stored keys, contract and Ipc ids        | `ctx.id`                                          |
 | `legacy`   | Earlier extension ids, newest first; preserves desktop enable state after a rename |                                                   |
-| `os`       | The operating systems it runs on; omit it to run everywhere, the web included |                                                   |
-| `provides` | Contracts from the window entry, Ipcs from the main entry                     | `ctx.provide(token, impl)`, and `ctx.uses.name()` |
-| `uses`     | Optional dependencies other extensions provide; it works while one is missing | `ctx.uses.name()` is `Live<T>`                    |
-| `requires` | Hard dependencies; setup runs only while all are active                       | `ctx.requires.name` is `T`                        |
-| `stores`   | State the host stores: window stores load before they are read, main's always | `ctx.stores.name`, each process its own           |
-| `i18n`     | The extension's copy                                                          | `ctx.t`, `ctx.plural`                             |
+| `os`       | The operating systems it runs on; omit it to run everywhere, the web included      |                                                   |
+| `provides` | Contracts from the window entry, Ipcs from the main entry                          | `ctx.provide(token, impl)`, and `ctx.uses.name()` |
+| `uses`     | Optional dependencies other extensions provide; it works while one is missing      | `ctx.uses.name()` is `Live<T>`                    |
+| `requires` | Hard dependencies; setup runs only while all are active                            | `ctx.requires.name` is `T`                        |
+| `stores`   | State the host stores: window stores load before they are read, main's always      | `ctx.stores.name`, each process its own           |
+| `i18n`     | The extension's copy                                                               | `ctx.t`, `ctx.plural`                             |
 
 - [`src/renderer.ts`](src/renderer.ts) and [`src/main.ts`](src/main.ts) list the built-ins, each through `Extension.compose`. These are the only files that name extensions.
 - Another extension imports only your `contract.ts`.
@@ -130,12 +130,21 @@ flowchart LR
 
 - Each routed session gets its own frozen `MountedSession`: `key`, `id`, `tab`, `server`, `directory` and `visit` never change on one object, and `location`, `project` and the other fields read that session's data, never the route's. It has nothing that acts on another session.
 - A session that moves to another directory gets a new object too, with the new `directory` and the same `key` and `visit`. Key per-session state by `key`.
+- `session.server.attempt` reads the existing connection generation. Capture it with the live client for asynchronous work and compare both before accepting a reply after reconnecting.
+- `ctx.sessions.open({ source, server?, sessionID, reveal? })` navigates an existing session through the original shell navigation. `server` defaults to `source.server`; pass the content target's actual server for an explicit target. Independent roots and targets on another server use a real Shell tab for that target; a related child keeps the original source tab's parent-route memory. `source` remains the real initiating Session in both cases. `reveal` names a tool call or shell to scroll to and expand. On a narrow screen it returns to the conversation. Setup calls wait for the app interface.
+- `ctx.sessions.openTask({ source, target })` sends a typed `TaskTargetRef` through the existing LinkHandler registry. `source` is the mounted Session whose workspace owns panel layout; `target.server` and `target.sourceSessionID` identify the Task record. Supply `taskID` for an ordinary Task, and optionally `operationID` for one retained dispatch. A reservation that precedes its Task binding supplies `operationID` alone. It returns false when no registered handler can display the reference. The shipping Collaborations handler opens its existing detail area and retains the exact binding in source-owned storage.
+- `ctx.sessions.openCommunication({ source, target })` routes a `CommunicationTargetRef` through the same LinkHandler registry. `source` owns panel layout; `target.server`, `target.sessionID` and `target.communicationID` identify the exact retained communication as viewed by a participating Session. The shipping Meta handler retains that binding in source-owned storage and opens its existing communications area. It returns false when no registered handler can display it. Opening reads the saved record; the user sends a reply through its captured server, Session and exact communication id.
+- `ctx.sessions.draft({ source, location, text })` opens an editable Chat draft through the original Tab and Composer owners. `source` is the actual `SessionTargetRef`, including a side target without a Shell tab; copy its saved `location` and the text before asynchronous work. The draft starts on that server with the captured directory and optional workspace identity. User edits and reloads retain this placement; explicitly choosing another project or workspace replaces it. Opening the draft creates no Session, sends no prompt and saves no asset. The Promise rejects when the app interface is absent or the source server is unavailable. Call this from an explicit user action on mounted content.
+- `ctx.sessions.insertText({ target, text })` inserts literal text into the captured Session's shared draft at its saved cursor, preserving mentions and attachments. Pass the original source as `target` to insert a side-chat answer into its draft after navigation. The host retains that draft while it loads and releases it after the edit. The Promise rejects when the target server is unregistered or its saved Location is unavailable. The user sends the edited draft through its Composer.
+- The built-in `session-management` extension contributes Collaborations, Meta, Workflow run, Artifacts, and target-bound session views opened from Collaborations. Agent-managed tasks appear in the App composer dock as a read-only list. Display preferences live in its General settings rows; ordinary stored tabs keep their order while a display contribution is withdrawn. Each module uses session-scoped storage for serializable drafts and `storage.memory` for in-flight actions and their acknowledgements, so closing a panel does not repeat or cancel a write.
 - Renders stay mounted. The host hands them the next object through a reactive getter, so read `props.session` (panels), `input.session` (slots) or `state.session` (tab labels) where you use it, and never copy it into a variable.
+- `screen.composer.addText(content)` inserts literal text at the saved cursor, preserving mentions and attachments. It edits the draft without sending it. Resolve the screen in the action, and verify its Session after any asynchronous content read.
 - The workspace files, line comments and composer follow the route, so they belong to the session screen. An action through it targets the session routed at that moment. Read it inside a render or a handler, not once in setup. Key per-screen state, such as cached tab objects, by the screen; key per-session state by `session.key`.
 - `ctx.screen.current()` and `ctx.sessions.current()` are published together in one batched effect after the screen's first render, with v2's original session-mount timing. Renders already receive their owning screen and session directly. Both public accessors are undefined during the first render, on Home, on a draft, before the interface mounts and once the route leaves the mounted screen. The screen has no `session` property.
 - All panel callbacks take one named input: `list({ session, screen, open })`, `render({ tab, session, screen })`, `focus({ tab, session, screen, restored })`, `close({ tab, session, screen })`, `normalize({ id, session, screen })`. Session fields are getters; the screen is the constant owning screen. Render tab fields are live getters too; lifecycle callbacks receive their event's tab. Stored ids and `restored` describe that call. Do not destructure live getters. Every `session.*` slot gets a non-null `screen`; `window.bottom` does not.
 - Render effects can run before public publication too: change-list views call `Changes.watch(input.screen, source)`, not `ctx.screen.current()`, so their first demand is never lost.
 - `fallback: true` opts a tab into selection when the stored selection is missing or cannot be selected; false or omission opts out. The host takes the first eligible regular tab, then a `first` tab, then a pinned tab, preserving order within each tier. Closing a tab still selects its neighbour.
+- `Panel.wide` is a reactive request for the wider minimum while that provider's tab is selected in the open side region. It defaults to false. Only the selected provider controls the requirement; mounted inactive panels do not affect it. Switching panels clamps the displayed session width as needed while preserving the user's saved requested width.
 
 ```ts
 ctx.add(Panel, {
@@ -156,6 +165,46 @@ ctx.add(Command, {
   run: () => ctx.screen.current()?.composer.attach({ type: "file", path: "README.md" }),
 })
 ```
+
+### Explicit session content
+
+`ctx.sessions.target({ server, sessionID })` returns a `SessionTargetRef` for an existing Session on a registered live `ServerRef`. It obtains an identity without creating or executing a Session. The reference has four readonly fields: `key`, `id`, `server`, and `location`. Its key is `${server.id}\n${sessionID}`; `location` is the target's saved Location and remains undefined until the host resolves it. Read the ref's live server whenever you act.
+
+The shipping [session view](src/session-management/session-panel.tsx) resolves its saved binding through the server registry:
+
+<!-- source: src/session-management/session-panel.tsx#target -->
+
+```ts
+const target = createMemo(() => {
+  const binding = props.binding
+  const server = binding ? ctx.servers.get(binding.serverID) : undefined
+
+  return binding && server ? ctx.sessions.target({ server, sessionID: binding.sessionID }) : undefined
+})
+```
+
+`ctx.sessions.content({ source, screen, target, active, interaction, onNavigateToSession? })` returns the App's shared Timeline and content host as a `JSX.Element`. Pass the real Panel inputs and keep changing fields reactive, as the shipping view does with getters:
+
+| Field                 | Value and owner                                                                                                                   |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `source`              | `props.session`, the real `MountedSession` whose layout and stored panel bindings contain this view                               |
+| `screen`              | The actual owning `SessionScreen` read through `props.screen`, with a getter so a source move receives the current input          |
+| `target`              | The explicit `SessionTargetRef`; its server, Session and saved Location own messages, attachments, composer, requests and actions |
+| `active`              | `usePanel().visible()`, so the content host knows which view is visible                                                           |
+| `interaction`         | `interactive` for an independent root's composer and request surface; `readonly` for a child timeline view                        |
+| `onNavigateToSession` | Optional card navigation on the target's server; the shipping session view opens nested children in the source's side region      |
+
+`ctx.sessions.current()` and `ctx.screen.current()` continue to describe the main route while another target appears beside it. A target ref has no shell-tab field. Use `content` for target-owned input and actions, and pass `target.server` and `target.id` to `sessions.open` when the user chooses **Open as main session**.
+
+Session cards supply an explicit `Link.sessionID` and the source `Link.session` to the link host. The session-management handler opens the existing target in the source's side region; file handlers leave session links alone. Ordinary paths and URLs omit `sessionID`. When the session handler is unavailable, card navigation retains the App's main-session fallback. Explicit **Open as main session** and request-owner navigation always keep their original route behavior.
+
+Collaborations offers **View session** for ordinary subagents, Related sessions, and local Delegation children. These open readonly content. Its **Open sessions** section lists actual root Sessions from `ctx.sessions.list()`; **Attach session** opens an interactive view of that existing Session, including a root on another server. This entry uses the user's already-open shell inventory.
+
+The extension's `views` session store saves only each target's `serverID`, `sessionID`, and `interaction` under the source. The [Panel implementation](src/session-management/renderer.tsx) derives a stable tab id from the complete target key and reuses it when the same source opens the same target again. It keeps restored ids listed but hidden until the session store is ready, then renders the saved binding. An unregistered server leaves the binding intact and shows an unavailable state; registration of the live ref resumes content. Target read failures and disconnections use the App content host's recovery state.
+
+On a narrow screen, **View session** and **Attach session** use ordinary `Layout.open` placement to switch directly to the target's mobile content. Wide screens use `{ tab: "select" }` to preserve the existing preview. If Files or Collaborations was selected when the window narrowed, opening **Session views** lists the source's saved targets; **Open view** selects their existing Layout key. The picker uses stored bindings and keeps their interaction mode.
+
+Closing a content tab removes that source's view binding and releases its content mount. It does not create, prompt, or interrupt the target. Draft and attachment memory belong to the App's original composer owner: an interactive side view retains the target when its shell closes, and releasing the final view leaves the saved draft available for restoration. Readonly reduces view interaction; original permission and child-control rules still apply.
 
 ## Primitives
 
@@ -209,52 +258,114 @@ const screenActive = useQuery(() => ({
 
 Each line links to the file whose TSDoc covers every field.
 
-SDK icon fields use `IconName` from `@opencode/ui/icons/catalog`, a dependency-free module with no Solid or CSS imports. The UI renderer reads that same catalog: there is no copied name list or dependency on a UI component's props, and no artwork in the general-purpose util package.
+SDK icon fields use `IconName` from `@aigcfroge/ui/icons/catalog`, a dependency-free module with no Solid or CSS imports. The UI renderer reads that same catalog: there is no copied name list or dependency on a UI component's props, and no artwork in the general-purpose util package.
 
 ### Registries
 
-| Registry                                | Process | What an item is                                                                             |
-| --------------------------------------- | ------- | ------------------------------------------------------------------------------------------- |
-| [`Command`](src/sdk/registries.ts)      | window  | A palette command with an optional keybind and slash command                                |
-| [`MenuItem`](src/sdk/registries.ts)     | window  | An item of a host menu: the side panel + menu, Add server, a server row                     |
-| [`Panel`](src/sdk/registries.ts)        | window  | Tabs in the session's side region, or the dock                                              |
-| [`SettingsPage`](src/sdk/registries.ts) | window  | A settings page, a section on a host page, or rows in a host section                        |
-| [`Server`](src/sdk/registries.ts)       | window  | A source of servers, such as SSH hosts                                                      |
-| [`LinkHandler`](src/sdk/registries.ts)  | window  | Opens local links, such as file paths in messages, and says whether their target exists     |
-| [`TitlebarItem`](src/sdk/registries.ts) | window  | A titlebar pill, or the dev channel badge as a toggle                                       |
-| [`Slot`](src/sdk/registries.ts)         | window  | Content for `window.bottom`, `session.header`, `session.panel.end`, `session.panel.sidebar` |
-| [`Style`](src/sdk/registries.ts)        | window  | CSS imported with `?inline`                                                                 |
-| [`MenubarItem`](src/sdk/main.ts)        | main    | An item of the native app menu                                                              |
+| Registry                                | Process | What an item is                                                                                                                                                       |
+| --------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`Command`](src/sdk/registries.ts)      | window  | A palette command with an optional keybind and slash command                                                                                                          |
+| [`MenuItem`](src/sdk/registries.ts)     | window  | A side-panel launcher entry, Add server item, or server-row action                                                                                                    |
+| [`Panel`](src/sdk/registries.ts)        | window  | Tabs in the session's side region, or the dock                                                                                                                        |
+| [`SettingsPage`](src/sdk/registries.ts) | window  | A settings page, a section on a host page, or rows in a host section                                                                                                  |
+| [`Server`](src/sdk/registries.ts)       | window  | A source of servers, such as SSH hosts                                                                                                                                |
+| [`LinkHandler`](src/sdk/registries.ts)  | window  | Opens local links, such as file paths in messages, and says whether their target exists                                                                               |
+| [`TitlebarItem`](src/sdk/registries.ts) | window  | A titlebar pill, or the dev channel badge as a toggle                                                                                                                 |
+| [`Slot`](src/sdk/registries.ts)         | window  | Content for `window.sidebar`, `window.bottom`, `session.header`, `session.response.actions`, `session.composer.actions`, `session.panel.end`, `session.panel.sidebar` |
+| [`Style`](src/sdk/registries.ts)        | window  | CSS imported with `?inline`                                                                                                                                           |
+| [`MenubarItem`](src/sdk/main.ts)        | main    | An item of the native app menu                                                                                                                                        |
+
+### Response actions
+
+The `window.sidebar` Slot replaces the built-in project/session navigation in the session detail workspace: the left panel on desktop and the project section of the existing navigation drawer on mobile. It receives an empty input. Home retains its own project and session lists; withdrawing the last contribution restores the built-in navigation through the same Slot owner.
+
+Contribute a lightweight action with `ctx.add(Slot, { at: "session.response.actions", render })`. The original Slot registry orders contributions, withdraws them with their owner, and isolates render failures. Its input distinguishes the source screen that owns layout from the actual content target:
+
+| Input                             | Meaning                                                                                                                                                                                                        |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `screen`, `source`                | The source's constant screen and live `MountedSession`; use them for source-owned layout.                                                                                                                      |
+| `session`                         | The actual `SessionTargetRef`, including its live server and saved Location. A side target can be on another server and need not own a shell tab.                                                              |
+| `active`                          | The content view is selected and visible; false for hidden or cached content.                                                                                                                                  |
+| `userMessageID`                   | The real user message owning the response group.                                                                                                                                                               |
+| `assistantMessageID`, `contentID` | The assistant and Timeline entry containing the clicked plain-text block.                                                                                                                                      |
+| `text`                            | That ordinary text block; reasoning and tool output have separate content.                                                                                                                                     |
+| `completed`, `latest`             | Whether the response group completed and whether it is the target's latest group. Completed earlier groups remain actionable.                                                                                  |
+| `boundary`                        | Optional `SessionFork.Boundary`. The host supplies `through` with the group's last completed persisted message, including tools or later assistants after the text block. An incomplete group has no boundary. |
+
+Render from these live getters and cached data. Keep the contribution and action mount stable while text streams; start asynchronous work only after an explicit click. Do not add row-owned connections, subscriptions, history parsing, or model work.
+
+The shipping session-management Fork action uses the catalog's `branch` icon. It captures the source, target, client, message IDs, text, and inclusive boundary synchronously, then calls that client with the extension's abort signal. Success remembers the returned Session and opens it as the main conversation through `Sessions.open`; it sends no prompt. The same action uses the actual target for main content and side content across servers. Hidden or incomplete groups and Meta child targets show no Fork action, a disconnected server disables it, and a failed request reports its error. Results and errors are applied only while the owner, extension, and captured server attempt remain current.
+
+The shipping skill-proposals action offers **Save as asset** on an active target's latest completed non-Chat response while that target is idle. It captures the target's live server and client, Session ID, saved Location, assistant and content IDs, and the exact assistant's ordinary text before its first await. Reasoning, synthetic or ignored text and other assistants stay outside that captured body. `Sessions.draft` opens the original editable Chat draft with this body and its source details; later output or source navigation does not replace them. Draft preparation makes zero model calls. The user edits and sends before the existing seven proposal tools and their inspect, confirm, CAS and apply owners take over.
+
+Completed proposal buttons use the host's user-message identity to find tools in that cached response group, including a later assistant after the last text block. Each button opens the existing kind's Panel at its exact assistant/tool candidate key. A source-scoped store retains the real target server, Session ID and selection; layout and visit lifetime remain with the real source, while candidate reads and writes use the target's client and saved Location. Explicit missing candidates show a status. Menu and palette entries open the routed source's original proposal list. Original confirmation, cancellation, conflict review, discovery and adoption stay with the asset Panel. A side target can be opened as main to use its own composer.
+
+### Composer actions and Task details
+
+The `session.composer.actions` Slot places lightweight controls in the actual content target's Composer toolbar. The host supplies the source's `screen` and mounted `source`, the actual target as `session`, the view's `active` flag, and optional `draftAgent`. A side view of B inside A supplies A for layout and B for execution. `draftAgent` describes the unsubmitted menu selection; it does not grant a server capability.
+
+The shipping Meta control reads `session.identity.coordination.available` from the shared Client Data owner. It hides active coordination while the pending Agent selection differs from the saved identity. Selecting Meta before adoption offers **Enable Meta coordination**, which calls the existing `session.switchAgent` API and reads back the identity before opening the Meta panel. The Meta button toggles the original side region, and its palette command uses the same opening action. A display preference or unavailable extension withdraws these controls.
+
+Task dock **Details** opens the saved Task through the same typed Link handler. The original **View source** action still reveals its tool call. The detail area reads Tasks and retained operations from shared Data, displays recorded dependencies, source and target identities, fixed input, phase, cancellation intent and result references, and opens targets through the existing Session view or explicit main-session navigation. Deleting a Task or switching the source to Build or Plan preserves recorded operations and their view and cancellation controls.
+
+The Meta form stores its editable draft and exact dispatch request by server and actor Session identity. Before sending, it saves the generated operation and input IDs with the immutable payload; an uncertain reply offers an explicit retry of that saved request. New work creates a new request identity. New Custom targets use the existing saved-profile plan and expected digest. HTTP acknowledgements, SSE and detail readback merge into the Client's single operation facts bucket; the UI does not manufacture success messages or a second execution loop.
+
+### Side-panel modules
+
+A module contributes its real `Panel` and a `MenuItem` with `menu: "session.panel"`. The new-tab launcher reads these contributions reactively through `ctx.list(MenuItem)`, sorts them by `order`, and displays their translated `title`, `icon`, and optional `keybind`. Conditional contributions disappear when their owner disables or withdraws them. Keep the opening action in the owning extension's `run()`; the launcher does not infer tab keys from panel ids.
+
+The shipping [panel launcher](src/panel-launcher/renderer.tsx) uses the existing `Slot` for the + button and a transient `PanelTab` for the guide. The + button selects one guide per session without replacing an ordinary file preview. An opened module replaces the selected guide; fixed tab keys reuse an existing tab, while a Browser opening can contribute a new key. `Layout.open(..., { tab: "select" })` also replaces a selected transient launcher, preserving another file preview. A file-picker preview uses the existing single preview slot.
+
+Context and Review contribute launcher entries alongside their existing shortcuts. Both routes open the same panel: Context keeps its first position, and Review stays pinned without entering stored tab order. Opening either from a selected transient launcher consumes that launcher and keeps ordinary file previews.
+
+Each extension owns its launcher availability, combined with its display setting. Switching sessions updates the same guide; mode filtering does not remove stored panels or their original shortcuts.
+
+| Module                                 | Launcher availability                                                                                                     |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| File, Browser, Context, Collaborations | All modes, subject to each module's existing capability conditions                                                        |
+| Review                                 | A project, and either Coding mode or actual diffs in the existing review model; the original pinned tab remains available |
+| Seven asset proposal kinds             | All seven by default in Chat; other modes offer each kind after a completed corresponding proposal tool result exists     |
+| Meta                                   | A session controller is present                                                                                           |
+| Workflow run                           | Work or Custom                                                                                                            |
+| Artifacts                              | Work                                                                                                                      |
+
+Review keeps its existing diff query active while the side region is open, so filesystem events update launcher availability even while the guide is selected. Proposal discovery reads the existing message store and keeps the parser and panel chunk lazy.
+
+The desktop File navigator remains as its own tab. Tree clicks open independent file tabs by default; its explicit **Preview files** switch opts into the existing replaceable preview slot. Double-click keeps a preview, and reopening the same path selects its existing tab. Closing the last file returns to an open File navigator. The switch uses a File-owned persisted preference and does not change the shared file-tree visibility preference. Narrow-screen file navigation retains its existing view switching.
+
+The existing **Open in** application button lives in File and Review toolbars and still targets the workspace directory. Other modules and the new-tab guide do not show it. Both consumers share the File extension's existing request and installed-app cache.
+
+These are running extension contributions. Loading a newly installed external renderer into the window still requires the external renderer loader; adding an archive alone does not register a module.
 
 ### Host APIs
 
-| Property                     | Type ([window](src/sdk/host-apis.ts), [main](src/sdk/main.ts)) | What it does                                                      |
-| ---------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `ctx.layout`                 | `Layout`                                                       | Side panel tabs, the dock, scroll offsets, settings, open project |
-| `ctx.sessions`               | `Sessions`                                                     | Sessions of open tabs, and the mounted `MountedSession`           |
-| `ctx.screen`                 | `Screen`                                                       | The session screen's files, comments and composer                 |
-| `ctx.storage`                | `Storage`                                                      | Stores for keys known only at runtime, and window memory          |
-| `ctx.system`                 | `System`                                                       | Clipboard, saving files, `openExternal`                           |
-| `ctx.desktop`                | `Desktop \| undefined`                                         | Desktop-only: reveal, launch, installed, zoom, forceFocus         |
-| `ctx.dialogs`                | `Dialogs`                                                      | `open` returns a handle to close; a dialog closes with its owner  |
-| `ctx.links`                  | `Links`                                                        | Opens a local link, or checks it exists, with the best handler    |
-| `ctx.embeds`                 | `Embeds`                                                       | Shows a web page the main entry created                           |
-| `ctx.build`                  | `Build`                                                        | Version, channel, platform, packaged                              |
-| `ctx.locale`                 | `Locale`                                                       | Locale and writing direction                                      |
-| `ctx.appearance`             | `Appearance`                                                   | The user's mono font                                              |
-| `ctx.router`                 | `Router`                                                       | The route path, and whether it is changing                        |
-| `ctx.keybinds`               | `Keybinds`                                                     | Display and matching of command keybinds                          |
-| `ctx.servers`                | `Servers`                                                      | The servers the app lists, and each one's live `ServerRef`        |
-| `ctx.workspaces`             | `Workspaces`                                                   | `on("remove", …)` when a workspace is removed                     |
-| `ctx.scope` (main)           | `Scope`                                                        | The instance's lifetime                                           |
-| `ctx.storage` (main)         | `Storage`                                                      | Synchronous storage, the same `Persisted` shape                   |
-| `ctx.log` (main)             | `Log`                                                          | The desktop log file                                              |
-| `ctx.lifecycle` (main)       | `Lifecycle`                                                    | `restart(handoff, { keep })`                                      |
-| `ctx.build` (main)           | `Build`                                                        | The same shape; `platform` is `"desktop"`                         |
-| `ctx.serverEndpoints` (main) | `ServerEndpoints`                                              | URL and credentials of a server the windows use                   |
-| `ctx.windows` (main)         | `Windows`                                                      | The app's main windows                                            |
-| `ctx.embeds` (main)          | `Embeds`                                                       | `create(view, window)` places a web page                          |
-| `ctx.cli` (main)             | `Cli`                                                          | The opencode CLI the app runs                                     |
+| Property                     | Type ([window](src/sdk/host-apis.ts), [main](src/sdk/main.ts)) | What it does                                                                  |
+| ---------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `ctx.layout`                 | `Layout`                                                       | Side panel tabs, the dock, scroll offsets, settings, open project             |
+| `ctx.sessions`               | `Sessions`                                                     | Open shell Sessions, main-route identity, explicit targets and shared content |
+| `ctx.screen`                 | `Screen`                                                       | The session screen's files, comments and composer                             |
+| `ctx.storage`                | `Storage`                                                      | Stores for keys known only at runtime, and window memory                      |
+| `ctx.system`                 | `System`                                                       | Clipboard, saving files, `openExternal`                                       |
+| `ctx.desktop`                | `Desktop \| undefined`                                         | Desktop-only: reveal, launch, installed, zoom, forceFocus                     |
+| `ctx.dialogs`                | `Dialogs`                                                      | `open` returns a handle to close; a dialog closes with its owner              |
+| `ctx.links`                  | `Links`                                                        | Opens a local link, or checks it exists, with the best handler                |
+| `ctx.embeds`                 | `Embeds`                                                       | Shows a web page the main entry created                                       |
+| `ctx.build`                  | `Build`                                                        | Version, channel, platform, packaged                                          |
+| `ctx.locale`                 | `Locale`                                                       | Locale and writing direction                                                  |
+| `ctx.appearance`             | `Appearance`                                                   | The user's mono font                                                          |
+| `ctx.router`                 | `Router`                                                       | The route path, and whether it is changing                                    |
+| `ctx.keybinds`               | `Keybinds`                                                     | Display and matching of command keybinds                                      |
+| `ctx.servers`                | `Servers`                                                      | The servers the app lists, and each one's live `ServerRef`                    |
+| `ctx.workspaces`             | `Workspaces`                                                   | `on("remove", …)` when a workspace is removed                                 |
+| `ctx.scope` (main)           | `Scope`                                                        | The instance's lifetime                                                       |
+| `ctx.storage` (main)         | `Storage`                                                      | Synchronous storage, the same `Persisted` shape                               |
+| `ctx.log` (main)             | `Log`                                                          | The desktop log file                                                          |
+| `ctx.lifecycle` (main)       | `Lifecycle`                                                    | `restart(handoff, { keep })`                                                  |
+| `ctx.build` (main)           | `Build`                                                        | The same shape; `platform` is `"desktop"`                                     |
+| `ctx.serverEndpoints` (main) | `ServerEndpoints`                                              | URL and credentials of a server the windows use                               |
+| `ctx.windows` (main)         | `Windows`                                                      | The app's main windows                                                        |
+| `ctx.embeds` (main)          | `Embeds`                                                       | `create(view, window)` places a web page                                      |
+| `ctx.cli` (main)             | `Cli`                                                          | The aigcfroge CLI the app runs                                                |
 
 ## Ipc: main ↔ window
 
@@ -421,7 +532,7 @@ legacy: ["summary"],
 - **The lint bans raw effects.** `createEffect`, `createRenderEffect` and `createComputed` may not be imported outside `src/sdk`. An escape hatch needs an `oxlint-disable` comment with a reason.
 - **Suspense only on first load.** Wrap each `lazy()` component in its own `<Suspense>`, read async data through `.latest` or `createLatest`, and never read a refetching resource in render: it blanks the nearest boundary.
 - **Stable objects.** Return the same object from `Panel.list` and reactive contributions while nothing changed, so the host never remounts.
-- **No timeline work.** `session.header` is the only timeline surface.
+- **Lightweight timeline actions.** Header and response slots render supplied facts or cached data. Requests and extraction start on a click; rows own no connections, subscriptions, background parsing, or model work.
 - **No module state.** Keep state inside setup; module state survives a reload and leaks across windows.
 
 ## Testing
@@ -468,6 +579,8 @@ export const Pairing = Ipc.define({
 
 2. **Write the definition.** Pairing provides its Ipc, so its window entry reads it as `ctx.uses.pairing` with no second declaration. Whether main keeps the display awake is a main store, imported once from the key the desktop kept it under before. The addresses pairing links use are a window store, which the settings page reads.
 
+<!-- prettier-ignore-start -->
+
 <!-- source: src/pairing/index.ts -->
 
 ```ts
@@ -481,13 +594,15 @@ export default Extension.define({
   provides: { pairing: Pairing },
   stores: {
     // Whether main keeps the display awake; stored before in the desktop's own settings namespace.
-    keepScreenActive: Store.main(Schema.Boolean, false, { state: ["opencode.settings", "keepScreenActive"] }),
+    keepScreenActive: Store.main(Schema.Boolean, false, { state: ["aigcfroge.settings", "keepScreenActive"] }),
     // An address of this computer the server cannot see (a VPN, tunnel or proxy), and the address links use.
     links: Store.global(Schema.Struct({ custom: Schema.String, selected: Schema.String }), { custom: "", selected: "" }),
   },
   i18n: { en },
 })
 ```
+
+<!-- prettier-ignore-end -->
 
 3. **Provide it from main.** `MainSetup<typeof definition>` types `ctx.stores`, which main reads synchronously. A finalizer releases the blocker when the instance goes away.
 
@@ -637,7 +752,10 @@ The window list adds each window entry, loaded with the app:
  * checks this composition against the main one.
  */
 export const builtins = Extension.compose(
+  { ...panelLauncher, renderer: eager(panelLauncherRenderer) },
+  { ...sessionManagement, renderer: eager(sessionManagementRenderer) },
   { ...context, renderer: eager(contextRenderer) },
+  { ...skillProposals, renderer: eager(skillProposalsRenderer) },
   { ...btw, renderer: eager(btwRenderer) },
   { ...debug, renderer: eager(debugRenderer) },
   { ...terminal, renderer: eager(terminalRenderer) },

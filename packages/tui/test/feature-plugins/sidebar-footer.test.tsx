@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test"
 import { RGBA } from "@opentui/core"
 import { testRender } from "@opentui/solid"
-import type { Context } from "@opencode/plugin/tui/context"
+import type { Context } from "@aigcfroge/plugin/tui/context"
 import { createStore, produce } from "solid-js/store"
 import { SidebarOnboarding } from "../../src/feature-plugins/sidebar/footer"
 
@@ -86,7 +86,7 @@ test("sidebar shows onboarding without a connected integration", async () => {
   try {
     const frame = app.captureCharFrame()
     expect(frame).toContain("Getting started")
-    expect(frame).toContain("OpenCode includes free models")
+    expect(frame).toContain("AigcForge includes free models")
     expect(frame).toContain("Connect provider")
     expect(frame).toContain("/connect")
   } finally {

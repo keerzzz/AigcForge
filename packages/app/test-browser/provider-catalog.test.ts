@@ -17,6 +17,8 @@ test("shares catalog snapshots and reacts to replacement lists", () => {
       modelID: "gpt-5",
       providerID: "openai",
       name: "GPT-5",
+      metadata: { capabilities: { tools: false }, quote: { status: "unknown" as const } },
+      origins: { capabilities: { tools: "live" as const }, quote: "unknown" as const },
       settings: {},
       headers: {},
       capabilities: { tools: true, input: ["text" as const], output: ["text" as const] },
@@ -33,6 +35,10 @@ test("shares catalog snapshots and reacts to replacement lists", () => {
     const second = createMemo(() => normalizeProviderList(store.providers, store.models))
     expect(first()).toBe(second())
     const initial = first()
+    expect(initial.all.get("openai")?.models[model.id]).toMatchObject({
+      metadata: { capabilities: { tools: false }, quote: { status: "unknown" } },
+      origins: { capabilities: { tools: "live" }, quote: "unknown" },
+    })
     setStore("models", [{ ...model, name: "Renamed", limit: { context: 256_000, output: 16384 } }])
     expect(first()).not.toBe(initial)
     expect(first()).toBe(second())

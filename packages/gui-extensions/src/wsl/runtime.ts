@@ -304,7 +304,7 @@ export function createWslRuntime(t: MainContext["t"]) {
         DEFAULT_WSL_INSTALL_TIMEOUT_MS,
       )
 
-      requireSuccess(result, t("error.installOpencode"))
+      requireSuccess(result, t("error.installAigcfroge"))
     },
 
     async probeDistro(name: string, opts?: RunWslOptions): Promise<WslDistroProbe> {

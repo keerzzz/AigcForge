@@ -1,10 +1,11 @@
 import { Popover } from "@kobalte/core/popover"
-import type { PluginInfo } from "@opencode/client"
-import { Icon } from "@opencode/ui/icon"
-import { Switch } from "@opencode/ui/switch"
-import { showToast } from "@opencode/ui/toast"
-import { Tooltip } from "@opencode/ui/tooltip"
-import { getDirectory } from "@opencode/util/path"
+import type { PluginInfo } from "@aigcfroge/client"
+import { Button } from "@aigcfroge/ui/button"
+import { Icon } from "@aigcfroge/ui/icon"
+import { Switch } from "@aigcfroge/ui/switch"
+import { showToast } from "@aigcfroge/ui/toast"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { getDirectory } from "@aigcfroge/util/path"
 import { useMutation } from "@tanstack/solid-query"
 import {
   children,
@@ -67,7 +68,8 @@ export function SessionServerPanel(props: {
 
   return (
     <section class="session-summary-card" data-section="server">
-      <button
+      <Button
+        variant="ghost-muted"
         type="button"
         class="session-summary-row session-summary-heading"
         aria-expanded={props.expanded}
@@ -79,7 +81,7 @@ export function SessionServerPanel(props: {
           {name()}
         </span>
         <Icon name="chevron-down" size="small" class="session-summary-disclosure" />
-      </button>
+      </Button>
       <Show when={props.expanded ? props.directory : undefined} keyed>
         {(directory) => (
           <div id={contentID} class="session-summary-rows">
@@ -468,10 +470,11 @@ function ServicePopover(props: ServiceMenuProps & ServiceBodyProps & { empty: bo
     ))
 
     return (
-      <button
+      <Button
+        variant="ghost-muted"
         type="button"
         class="session-summary-row"
-        onClick={(event) => {
+        onClick={(event: Parameters<JSX.EventHandler<HTMLButtonElement, MouseEvent>>[0]) => {
           if (!props.loading) void props.retry()
           drawer.open({ title: ctx.t(props.service.label), content: content(), trigger: event.currentTarget })
         }}
@@ -479,7 +482,7 @@ function ServicePopover(props: ServiceMenuProps & ServiceBodyProps & { empty: bo
         <Icon name={props.service.icon} class="shrink-0 text-v2-icon-icon-muted" />
         <span class="session-summary-label">{ctx.t(props.service.label)}</span>
         <Icon name="chevron-right" class="session-summary-menu-indicator shrink-0 text-v2-icon-icon-muted" />
-      </button>
+      </Button>
     )
   }
 
@@ -533,9 +536,9 @@ function ServiceBody(props: ServiceBodyProps) {
         fallback={
           <div class="session-service-message" role="alert">
             <p>{ctx.t("common.requestFailed")}</p>
-            <button type="button" class="session-summary-row" onClick={() => props.retry()}>
+            <Button variant="ghost-muted" type="button" class="session-summary-row" onClick={() => props.retry()}>
               {ctx.t("retry")}
-            </button>
+            </Button>
           </div>
         }
       >
@@ -614,11 +617,12 @@ function ServiceConfigLink(props: { session: MountedSession; directory: string; 
           forceOpen={store.copied ? true : undefined}
           class="w-full"
         >
-          <button
+          <Button
+            variant="ghost-muted"
             type="button"
             class="session-service-config"
             disabled={store.opening}
-            onMouseDown={(event) => {
+            onMouseDown={(event: Parameters<JSX.EventHandler<HTMLButtonElement, MouseEvent>>[0]) => {
               if (!local()) event.preventDefault()
             }}
             onClick={() => void activate()}
@@ -631,7 +635,7 @@ function ServiceConfigLink(props: { session: MountedSession; directory: string; 
             <Show when={local()}>
               <Icon name="arrow-up-right" class="session-service-config-arrow shrink-0" />
             </Show>
-          </button>
+          </Button>
         </Tooltip>
       </Show>
     </>

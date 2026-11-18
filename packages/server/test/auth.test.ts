@@ -1,20 +1,20 @@
 import { expect, test } from "bun:test"
-import { ServerAuth } from "@opencode/server/auth"
+import { ServerAuth } from "@aigcfroge/server/auth"
 import { Option, Redacted } from "effect"
 
-test("accepts only the fixed opencode username", () => {
-  const config = { password: Option.some("secret"), username: "opencode" }
-  expect(ServerAuth.authorized({ username: "opencode", password: Redacted.make("secret") }, config)).toBe(true)
+test("accepts only the fixed aigcfroge username", () => {
+  const config = { password: Option.some("secret"), username: "aigcfroge" }
+  expect(ServerAuth.authorized({ username: "aigcfroge", password: Redacted.make("secret") }, config)).toBe(true)
   expect(ServerAuth.authorized({ username: "custom", password: Redacted.make("secret") }, config)).toBe(false)
 })
 
 test("session tokens expire, resist tampering, and are revoked by changing the password", () => {
-  const config = { password: Option.some("secret"), username: "opencode" }
+  const config = { password: Option.some("secret"), username: "aigcfroge" }
   const now = Date.now()
   const token = ServerAuth.issueSession(config, now)
   if (!token) throw new Error("Expected a session token")
   expect(ServerAuth.verifySession(token, config, now)).toBe(true)
-  expect(ServerAuth.authorized({ username: "opencode", password: Redacted.make(token) }, config)).toBe(true)
+  expect(ServerAuth.authorized({ username: "aigcfroge", password: Redacted.make(token) }, config)).toBe(true)
   expect(ServerAuth.verifySession(token, config, now + ServerAuth.SESSION_TTL_SECONDS * 1000)).toBe(false)
   expect(ServerAuth.verifySession(`${token}x`, config, now)).toBe(false)
   const parts = token.split(".")

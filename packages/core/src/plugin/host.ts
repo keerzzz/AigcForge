@@ -1,10 +1,10 @@
 export * as PluginHost from "./host.js"
 
-import { Plugin } from "@opencode/plugin/effect"
-import type { IntegrationMethodRegistration } from "@opencode/plugin/effect/integration"
-import { EventManifest } from "@opencode/schema/event-manifest"
-import type { Event } from "@opencode/schema/event"
-import { ServerConfig } from "@opencode/schema/mcp"
+import { Plugin } from "@aigcfroge/plugin/effect"
+import type { IntegrationMethodRegistration } from "@aigcfroge/plugin/effect/integration"
+import { EventManifest } from "@aigcfroge/schema/event-manifest"
+import type { Event } from "@aigcfroge/schema/event"
+import { ServerConfig } from "@aigcfroge/schema/mcp"
 import { App } from "../app.js"
 import { Effect, Schema, Stream } from "effect"
 import { Agent } from "../agent.js"
@@ -19,8 +19,11 @@ import { LocationServiceMap } from "../location-service-map.js"
 import { Model } from "../model.js"
 import { Mcp } from "../mcp/index.js"
 import { Session } from "../session.js"
+import { SessionComposition } from "../session/composition.js"
 import { PersistentPty } from "../persistent-pty.js"
 import { Provider } from "../provider.js"
+import { ProviderDefinition } from "../provider/definition.js"
+import { ProviderDiscovery } from "../provider/discovery.js"
 import { Reference } from "../reference.js"
 import { Rpc } from "../rpc.js"
 import { AbsolutePath, type DeepMutable } from "../schema.js"
@@ -35,7 +38,7 @@ import { Generate } from "../generate.js"
 import { Permission } from "../permission.js"
 import { PluginHooks } from "./hooks.js"
 import type { Interface } from "../plugin.js"
-import { LayerNode } from "@opencode/util/effect/layer-node"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
 
 const mutable = <T>(value: T) => value as DeepMutable<T>
 type RpcEvent = Event.Payload & {
@@ -55,6 +58,7 @@ export const make = Effect.fn("PluginHost.make")(function* (
   const models = yield* Model.Service
   const commands = yield* Command.Service
   const bus = yield* Bus.Service
+  const credentials = yield* Credential.Service
   const integration = yield* Integration.Service
   const kv = yield* KV.Service
   const mcp = yield* Mcp.Service
@@ -69,6 +73,7 @@ export const make = Effect.fn("PluginHost.make")(function* (
   const permission = yield* Permission.Service
   const hooks = yield* PluginHooks.Service
   const sessions = yield* Session.Service
+  const compositions = yield* SessionComposition.Service
   const persistentPty = yield* PersistentPty.Service
   const locations = yield* LocationServiceMap.Service
   const worktrees = yield* Worktree.Service
@@ -118,25 +123,31 @@ export const make = Effect.fn("PluginHost.make")(function* (
     options: {},
     rpc: Object.assign(rpc.client, { register: rpc.register }),
     agent: {
-      get: (input) => {
-        const ref = locationRef(input)
-        const output =
-          ref && !isCurrentLocation(ref)
-            ? listAgents(ref).pipe(
-                Effect.map((result) => ({
-                  ...result,
-                  data: result.data.find((agent) => agent.id === input.agentID),
-                })),
-              )
-            : response(agents.get(input.agentID))
-        return output.pipe(
-          Effect.flatMap((result) =>
-            result.data
-              ? Effect.succeed({ ...result, data: result.data })
-              : Effect.fail(new Error(`Agent not found: ${input.agentID}`)),
-          ),
-        )
-      },
+      get: (input) =>
+        Effect.gen(function* () {
+          const session = input.sessionID === undefined ? undefined : yield* sessions.get(input.sessionID)
+          const ref = session?.location ?? locationRef(input)
+          if (session?.mode === "custom") {
+            const selection = yield* SessionComposition.selectSessionAgent(compositions, session, input.agentID)
+            return { location: session.location, data: selection.info }
+          }
+          const output =
+            ref && !isCurrentLocation(ref)
+              ? listAgents(ref).pipe(
+                  Effect.map((result) => ({
+                    ...result,
+                    data: result.data.find((agent) => agent.id === input.agentID),
+                  })),
+                )
+              : response(agents.get(input.agentID))
+          return yield* output.pipe(
+            Effect.flatMap((result) =>
+              result.data
+                ? Effect.succeed({ ...result, data: result.data })
+                : Effect.fail(new Error(`Agent not found: ${input.agentID}`)),
+            ),
+          )
+        }),
       list: (input) => {
         const ref = locationRef(input)
         if (ref && !isCurrentLocation(ref)) return listAgents(ref)
@@ -188,6 +199,71 @@ export const make = Effect.fn("PluginHost.make")(function* (
     },
     provider: {
       list: () => response(providers.available()),
+      discovery: {
+        get: (input) => {
+          const ref = locationRef(input)
+          return Effect.gen(function* () {
+            const current = yield* Location.Service
+            const discovery = yield* ProviderDiscovery.Service
+            return { location: current, data: yield* discovery.get(input) }
+          }).pipe(Effect.provide(locations.get(ref ?? location)), Effect.orDie)
+        },
+        preview: (input) => {
+          const ref = locationRef(input)
+          return Effect.gen(function* () {
+            const current = yield* Location.Service
+            const discovery = yield* ProviderDiscovery.Service
+            return { location: current, data: yield* discovery.preview(input) }
+          }).pipe(Effect.provide(locations.get(ref ?? location)), Effect.orDie)
+        },
+        refresh: (input) => {
+          const ref = locationRef(input)
+          return Effect.gen(function* () {
+            const current = yield* Location.Service
+            const discovery = yield* ProviderDiscovery.Service
+            return { location: current, data: yield* discovery.refresh(input) }
+          }).pipe(Effect.provide(locations.get(ref ?? location)), Effect.orDie)
+        },
+      },
+      definition: {
+        get: (input) => {
+          const ref = locationRef(input)
+          const read = Effect.gen(function* () {
+            const current = yield* Location.Service
+            return { location: current, data: yield* ProviderDefinition.get(input?.providerID) }
+          })
+          return read.pipe(
+            Effect.provideService(Credential.Service, credentials),
+            Effect.provide(locations.get(ref ?? location)),
+            Effect.orDie,
+          )
+        },
+        save: (input) => {
+          const ref = locationRef(input)
+          const save = Effect.gen(function* () {
+            const current = yield* Location.Service
+            return { location: current, data: yield* ProviderDefinition.save(input) }
+          })
+          return save.pipe(
+            Effect.provideService(Credential.Service, credentials),
+            Effect.provideService(Bus.Service, bus),
+            Effect.provide(locations.get(ref ?? location)),
+            Effect.orDie,
+          )
+        },
+        remove: (input) => {
+          const ref = locationRef(input)
+          const remove = Effect.gen(function* () {
+            const current = yield* Location.Service
+            return { location: current, data: yield* ProviderDefinition.remove(input) }
+          })
+          return remove.pipe(
+            Effect.provideService(Credential.Service, credentials),
+            Effect.provide(locations.get(ref ?? location)),
+            Effect.orDie,
+          )
+        },
+      },
       get: (input) =>
         providers
           .get(Provider.ID.make(input.providerID))
@@ -202,6 +278,8 @@ export const make = Effect.fn("PluginHost.make")(function* (
       transform: (callback) =>
         providers.transform((editor) => {
           callback({
+            scope: editor.scope,
+            connection: (id) => editor.connection(Integration.ID.make(id)),
             list: editor.list,
             get: (id) => editor.get(Provider.ID.make(id)),
             add: (definition) =>
@@ -225,12 +303,44 @@ export const make = Effect.fn("PluginHost.make")(function* (
         }),
     },
     model: {
+      group: {
+        definition: {
+          get: (input) => {
+            const ref = locationRef(input)
+            return Effect.gen(function* () {
+              const { ModelGroup } = yield* Effect.promise(() => import("../model-group.js"))
+              const current = yield* Location.Service
+              const models = yield* Model.Service
+              const read = yield* ModelGroup.get(input?.groupID)
+              return { location: current, data: new ModelGroup.Read({ ...read, defaultSelection: yield* models.selection() }) }
+            }).pipe(Effect.provide(locations.get(ref ?? location)), Effect.orDie)
+          },
+          save: (input) => {
+            const ref = locationRef(input)
+            return Effect.gen(function* () {
+              const { ModelGroup } = yield* Effect.promise(() => import("../model-group.js"))
+              const current = yield* Location.Service
+              return { location: current, data: yield* ModelGroup.save(ModelGroup.decodeSave(input.payload)) }
+            }).pipe(Effect.provide(locations.get(ref ?? location)), Effect.orDie)
+          },
+          remove: (input) => {
+            const ref = locationRef(input)
+            return Effect.gen(function* () {
+              const { ModelGroup } = yield* Effect.promise(() => import("../model-group.js"))
+              const current = yield* Location.Service
+              return { location: current, data: yield* ModelGroup.remove(input.payload) }
+            }).pipe(Effect.provide(locations.get(ref ?? location)), Effect.orDie)
+          },
+        },
+      },
       list: () => response(models.available()),
       default: () => response(models.default()),
       reload: models.reload,
       transform: (callback) =>
         models.transform((editor) =>
           callback({
+            scope: editor.scope,
+            connection: (id) => editor.connection(Integration.ID.make(id)),
             list: (providerID) => editor.list(providerID === undefined ? undefined : Provider.ID.make(providerID)),
             get: (providerID, modelID) => editor.get(Provider.ID.make(providerID), Model.ID.make(modelID)),
             update: (providerID, modelID, update) =>
@@ -579,6 +689,7 @@ export const make = Effect.fn("PluginHost.make")(function* (
 })
 
 export const requirements = LayerNode.group([
+  Credential.node,
   App.node,
   Agent.node,
   AISDK.node,
@@ -602,6 +713,7 @@ export const requirements = LayerNode.group([
   Permission.node,
   PluginHooks.node,
   Session.node,
+  SessionComposition.node,
   PersistentPty.node,
   LocationServiceMap.node,
 ])

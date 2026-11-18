@@ -7,11 +7,18 @@ import { coalesceProgressCommit, resolveRunAgent, RunFooter } from "../../src/mi
 import { createRunDemo } from "../../src/mini/demo"
 import { resolveMiniSettings } from "../../src/mini/runtime.boot"
 import { RUN_THEME_FALLBACK, RUN_THEME_FALLBACK_LIGHT, RUN_THEME_MONO } from "../../src/mini/theme"
-import type { MiniSettingChange, MiniSettings, RunAgent, RunTuiConfig, StreamCommit } from "../../src/mini/types"
+import type {
+  MiniModelDomain,
+  MiniSettingChange,
+  MiniSettings,
+  RunAgent,
+  RunTuiConfig,
+  StreamCommit,
+} from "../../src/mini/types"
 import { createTuiResolvedConfig } from "../fixture/tui-runtime"
 import { tmpdir } from "../fixture/fixture"
 import { createFooterApiFixture } from "./fixture/footer-api"
-import { getOpenCodeTheme } from "../../src/theme"
+import { getAigcForgeTheme } from "../../src/theme"
 
 function progress(input: Partial<StreamCommit> = {}): StreamCommit {
   return {
@@ -102,6 +109,8 @@ async function setup(
     startup?: { version: string; detail: string }
     cursorRow?: number
     update?: (change: MiniSettingChange) => Promise<MiniSettings>
+    agents?: RunAgent[]
+    onAgentSelect?: (agent: string, domain?: MiniModelDomain) => void
   } = {},
 ) {
   const mono = input.mono ?? true
@@ -129,7 +138,7 @@ async function setup(
   const footer = new RunFooter(app.renderer, {
     directory: () => "/project",
     findFiles: async () => [],
-    agents: [{ id: "build", name: "Build", mode: "primary", hidden: false }],
+    agents: input.agents ?? [{ id: "build", name: "Build", mode: "primary", hidden: false }],
     references: [],
     agent: "build",
     modelLabel: "GPT-5",
@@ -148,10 +157,92 @@ async function setup(
     onFormReply: () => {},
     onFormCancel: () => {},
     onEditorOpen: async () => undefined,
+    onAgentSelect: input.onAgentSelect,
     subscribeThemeSignal: () => () => {},
   })
   return { ...app, footer, output }
 }
+
+test("ordinary selection switches Build to Plan and back without a canonical event", async () => {
+  const choices: Array<{ agent: string; domain?: MiniModelDomain }> = []
+  const app = await setup({
+    agents: [
+      { id: "build", name: "Build", mode: "primary", hidden: false },
+      { id: "plan", name: "Plan", mode: "primary", hidden: false },
+      { id: "meta", name: "Meta", mode: "primary", hidden: false },
+    ],
+    onAgentSelect: (agent, domain) => choices.push({ agent, domain }),
+  })
+  try {
+    app.footer.event({ type: "selection", selection: { agent: "build" } })
+    await app.renderOnce()
+    expect(app.captureCharFrame()).toContain("Build")
+    app.mockInput.pressKey("p", { ctrl: true })
+    await app.renderOnce()
+    await app.mockInput.typeText("switch agent")
+    app.mockInput.pressEnter()
+    await app.waitForFrame((frame) => frame.includes("Select agent"))
+    await app.mockInput.typeText("plan")
+    await app.renderOnce()
+    app.mockInput.pressEnter()
+    await app.waitForFrame((frame) => !frame.includes("Select agent") && frame.includes("Plan"))
+    const plan = app.captureCharFrame()
+    expect(plan).not.toContain("Select agent")
+    app.mockInput.pressKey("p", { ctrl: true })
+    await app.renderOnce()
+    await app.mockInput.typeText("switch agent")
+    app.mockInput.pressEnter()
+    await app.waitForFrame((frame) => frame.includes("Select agent"))
+    await app.mockInput.typeText("build")
+    await app.renderOnce()
+    app.mockInput.pressEnter()
+    await app.renderOnce()
+    expect({ planVisible: plan.includes("Plan"), choices }).toEqual({
+      planVisible: true,
+      choices: [
+        { agent: "plan", domain: "session" },
+        { agent: "build", domain: "session" },
+      ],
+    })
+    expect(app.captureCharFrame()).toContain("Build")
+    expect(app.captureCharFrame()).not.toContain("Select agent")
+  } finally {
+    app.footer.destroy()
+    app.renderer.destroy()
+  }
+})
+
+test("selecting Build from Meta does not short-circuit against the saved delegation Agent", async () => {
+  const choices: Array<{ agent: string; domain?: MiniModelDomain }> = []
+  const app = await setup({
+    agents: ["plan", "build", "meta"].map((id) => ({ id, name: id, mode: "primary", hidden: false })),
+    onAgentSelect: (agent, domain) => choices.push({ agent, domain }),
+  })
+  try {
+    app.footer.event({
+      type: "selection",
+      selection: {
+        agent: "meta",
+        controller: { kind: "root", metaAgentID: "mag_footer", rootSessionID: "ses_footer" },
+        model: { providerID: "provider", id: "model" },
+        executorPreference: { agent: "build" },
+      },
+    })
+    await app.renderOnce()
+    app.mockInput.pressKey("p", { ctrl: true })
+    await app.renderOnce()
+    await app.mockInput.typeText("switch agent")
+    app.mockInput.pressEnter()
+    await app.waitForFrame((frame) => frame.includes("Select agent"))
+    await app.mockInput.typeText("build")
+    await app.renderOnce()
+    app.mockInput.pressEnter()
+    expect(choices).toEqual([{ agent: "build", domain: "session" }])
+  } finally {
+    app.footer.destroy()
+    app.renderer.destroy()
+  }
+})
 
 test.each([1, 5, 24])("startup preserves the terminal prompt row from cursor row %s", async (cursorRow) => {
   const app = await setup({ mono: false, startup: { version: "test", detail: "/project" }, cursorRow })
@@ -359,8 +450,8 @@ test.each([false, true])("production footer preserves wrapped input and status o
 
 test("explicit theme refresh reloads custom colors without a palette event", async () => {
   await using tmp = await tmpdir()
-  const previous = process.env.OPENCODE_CONFIG_DIR
-  process.env.OPENCODE_CONFIG_DIR = tmp.path
+  const previous = process.env.AIGCFROGE_CONFIG_DIR
+  process.env.AIGCFROGE_CONFIG_DIR = tmp.path
   const app = await setup({ mono: false, theme: { name: "mini-refresh", mode: "dark" } })
   app.renderer.getPalette = async () => {
     throw new Error("no OSC response")
@@ -372,8 +463,8 @@ test("explicit theme refresh reloads custom colors without a palette event", asy
       await Bun.write(
         path.join(tmp.path, "themes", "mini-refresh.json"),
         JSON.stringify({
-          base: { ...getOpenCodeTheme().base, text: { ...getOpenCodeTheme().base.text, base: color } },
-          dark: { hue: getOpenCodeTheme().dark.hue },
+          base: { ...getAigcForgeTheme().base, text: { ...getAigcForgeTheme().base.text, base: color } },
+          dark: { hue: getAigcForgeTheme().dark.hue },
         }),
       )
       await app.footer.refreshTheme()
@@ -389,8 +480,8 @@ test("explicit theme refresh reloads custom colors without a palette event", asy
   } finally {
     app.footer.destroy()
     app.renderer.destroy()
-    if (previous === undefined) delete process.env.OPENCODE_CONFIG_DIR
-    else process.env.OPENCODE_CONFIG_DIR = previous
+    if (previous === undefined) delete process.env.AIGCFROGE_CONFIG_DIR
+    else process.env.AIGCFROGE_CONFIG_DIR = previous
   }
 })
 

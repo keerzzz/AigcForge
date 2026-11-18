@@ -11,11 +11,11 @@ describe("debug paths command", () => {
     expect(debug.stdout).toContain("paths")
     expect(debug.stdout).toContain("Show global paths (data, config, cache, state)")
     expect(paths.exitCode).toBe(0)
-    expect(paths.stdout).toContain("opencode debug paths [flags]")
+    expect(paths.stdout).toContain("aigcfroge debug paths [flags]")
   })
 
   test("prints resolved global paths without starting a server", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "opencode-debug-paths-"))
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-debug-paths-"))
 
     try {
       const result = await cli(["debug", "paths"], {
@@ -34,16 +34,16 @@ describe("debug paths command", () => {
       expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({ exitCode: 0, stderr: "" })
       expect(paths).toMatchObject({
         home: os.homedir(),
-        data: path.join(root, "data", "opencode"),
-        config: path.join(root, "config", "opencode"),
-        cache: path.join(root, "cache", "opencode"),
-        state: path.join(root, "state", "opencode"),
-        bin: path.join(root, "cache", "opencode", "bin"),
-        log: path.join(root, "data", "opencode", "log"),
-        repos: path.join(root, "data", "opencode", "repos"),
+        data: path.join(root, "data", "aigcfroge"),
+        config: path.join(root, "config", "aigcfroge"),
+        cache: path.join(root, "cache", "aigcfroge"),
+        state: path.join(root, "state", "aigcfroge"),
+        bin: path.join(root, "cache", "aigcfroge", "bin"),
+        log: path.join(root, "data", "aigcfroge", "log"),
+        repos: path.join(root, "data", "aigcfroge", "repos"),
       })
       expect(paths.tmp).toBeTruthy()
-      expect(await Bun.file(path.join(root, "state", "opencode", "service-local.json")).exists()).toBe(false)
+      expect(await Bun.file(path.join(root, "state", "aigcfroge", "service-local.json")).exists()).toBe(false)
     } finally {
       await fs.rm(root, { recursive: true, force: true })
     }

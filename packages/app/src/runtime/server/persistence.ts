@@ -1,5 +1,6 @@
 import { Effect, Option, Predicate, Schema, SchemaGetter } from "effect"
 import { Persistence } from "@/runtime/persistence/schema"
+import { ModelKey } from "@/providers/models/key"
 
 export const ServerKey = Schema.String.pipe(Schema.brand("ServerConnection.Key"))
 
@@ -109,7 +110,7 @@ export const ModelState = Persistence.struct({
       favorite: Schema.optional(Schema.Boolean),
     }),
   ),
-  recent: Persistence.array(Persistence.struct({ providerID: Schema.String, modelID: Schema.String })),
+  recent: Persistence.array(ModelKey),
   variant: Schema.Record(
     Schema.String,
     Schema.mutableKey(

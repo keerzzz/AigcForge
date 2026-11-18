@@ -7,7 +7,7 @@ const path = text(1_024)
 
 /** `manifest.json` at the root of an installed extension archive. */
 export const Manifest = Schema.Struct({
-  schema: Schema.Literal("opencode.gui-extension/1"),
+  schema: Schema.Literal("aigcfroge.gui-extension/1"),
   id: text(128).check(Schema.isPattern(/^[a-z0-9][a-z0-9._-]*$/)),
   name: text(256),
   version: text(128),

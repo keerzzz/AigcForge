@@ -21,7 +21,7 @@ Derived from Figma \`_sessionProgressIndicator\` with 8-frame rotation.
 `
 
 export default {
-  title: "OpenCode/Status/Session progress",
+  title: "AigcForge/Status/Session progress",
   id: "components-session-progress-indicator-v2",
   component: SessionProgressIndicatorV2,
   tags: ["autodocs"],

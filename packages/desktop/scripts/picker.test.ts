@@ -49,6 +49,8 @@ test.each([true, false])(
             const message: { type: string } = JSON.parse(String(event.data))
 
             if (message.type === "full-reload") resolve()
+
+            if (message.type === "error") reject(new Error("Vite picker fixture failed to build"))
           })
         })
       }
@@ -67,7 +69,7 @@ test.each([true, false])(
         expect([html, ...scripts].join("\n")).not.toMatch(/\bimport(?:\s*\(\s*|\s*)["']virtual:/)
       }
 
-      const direct = await fetch(new URL("/__vite_opencode_picker_client.js", url))
+      const direct = await fetch(new URL("/__vite_aigcfroge_picker_client.js", url))
       expect(direct.ok).toBe(true)
       expect(await direct.text()).toContain("opencodePickerUi")
     } finally {

@@ -47,6 +47,26 @@ test.each([
     expected: state(["file://a.ts", "file://b.ts"], "file://b.ts"),
   },
   {
+    name: "open replaces the selected launcher and retains a different file preview",
+    run: () =>
+      openSessionTab(
+        state(["file://a.ts", OPEN, "launcher:new"], "launcher:new", "file://a.ts"),
+        "management:main",
+        new Set([OPEN, "launcher:new"]),
+      ),
+    expected: state(["file://a.ts", OPEN, "management:main"], "management:main", "file://a.ts"),
+  },
+  {
+    name: "reusing a module removes the selected launcher and keeps the unrelated preview",
+    run: () =>
+      openSessionTab(
+        state(["management:main", "file://a.ts", "launcher:new"], "launcher:new", "file://a.ts"),
+        "management:main",
+        new Set(["launcher:new"]),
+      ),
+    expected: state(["management:main", "file://a.ts"], "management:main", "file://a.ts"),
+  },
+  {
     name: "close clears preview metadata and selects the left neighbor",
     run: () =>
       closeSessionTab(
@@ -54,6 +74,29 @@ test.each([
         "file://b.ts",
       ),
     expected: state(["file://a.ts", "file://c.ts"], "file://a.ts"),
+  },
+  {
+    name: "opening a first tab consumes the selected launcher and preserves the original preview",
+    run: () =>
+      openSessionTab(
+        state(["file://a.ts", "launcher:new"], "launcher:new", "file://a.ts"),
+        "context:main",
+        new Set(["launcher:new"]),
+        true,
+      ),
+    expected: state(["context:main", "file://a.ts"], "context:main", "file://a.ts"),
+  },
+  {
+    name: "reusing a first tab clears the selected launcher preview",
+    run: () =>
+      openSessionTab(state(["context:main", "file://a.ts", OPEN], OPEN, OPEN), "context:main", launchers, true),
+    expected: state(["context:main", "file://a.ts"], "context:main"),
+  },
+  {
+    name: "opening a first tab keeps an unselected launcher and ordinary preview",
+    run: () =>
+      openSessionTab(state(["file://a.ts", OPEN], "file://a.ts", "file://a.ts"), "context:main", launchers, true),
+    expected: state(["context:main", "file://a.ts", OPEN], "context:main", "file://a.ts"),
   },
 ])("$name", ({ run, expected }) => {
   expect(run()).toEqual(expected)

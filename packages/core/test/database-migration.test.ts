@@ -3,39 +3,267 @@ import { $ } from "bun"
 import { fileURLToPath } from "url"
 import path from "path"
 import { SqliteClient } from "@effect/sql-sqlite-bun"
-import { EffectDrizzleSqlite } from "@opencode/core/database/drizzle"
-import { Deferred, Effect, Fiber, Layer } from "effect"
+import { EffectDrizzleSqlite } from "@aigcfroge/core/database/drizzle"
+import { Cause, Deferred, Effect, Fiber, Layer, Schema } from "effect"
 import { Reactivity } from "effect/reactivity"
 import { SqlClient, Statement } from "effect/sql"
 import { sql } from "drizzle-orm"
-import { DatabaseMigration } from "@opencode/core/database/migration"
-import { migrations } from "@opencode/core/database/migration.gen"
-import workspaceNameMigration from "@opencode/core/database/migration/20260410174513_workspace-name"
-import { Database } from "@opencode/core/database/database"
+import { DatabaseMigration } from "@aigcfroge/core/database/migration"
+import { migrations } from "@aigcfroge/core/database/migration.gen"
+import workspaceNameMigration from "@aigcfroge/core/database/migration/20260410174513_workspace-name"
+import { Database } from "@aigcfroge/core/database/database"
 import { tmpdir } from "./fixture/tmpdir"
-import legacyCredentialsMigration from "@opencode/core/database/migration/20260805200742_import_legacy_credentials"
-import worktreeMigration from "@opencode/core/database/migration/20260812213948_worktree"
-import previousV2Migration from "@opencode/core/database/migration/20260804233008_loose_psylocke"
-import workspaceMigration from "@opencode/core/database/migration/20260808023530_workspace_domain"
-import executionClaimsMigration from "@opencode/core/database/migration/20260811161259_execution_claim_attempts"
-import sessionInboxMigration from "@opencode/core/database/migration/20260812181746_session_inbox"
-import sessionViewedStateMigration from "@opencode/core/database/migration/20260819222447_session_viewed_state"
-import azureCliCredentialMigration from "@opencode/core/database/migration/20261007190000_azure_cli_external_credential"
-import { Global } from "@opencode/util/global"
+import legacyCredentialsMigration from "@aigcfroge/core/database/migration/20260805200742_import_legacy_credentials"
+import worktreeMigration from "@aigcfroge/core/database/migration/20260812213948_worktree"
+import previousV2Migration from "@aigcfroge/core/database/migration/20260804233008_loose_psylocke"
+import workspaceMigration from "@aigcfroge/core/database/migration/20260808023530_workspace_domain"
+import executionClaimsMigration from "@aigcfroge/core/database/migration/20260811161259_execution_claim_attempts"
+import sessionInboxMigration from "@aigcfroge/core/database/migration/20260812181746_session_inbox"
+import sessionViewedStateMigration from "@aigcfroge/core/database/migration/20260819222447_session_viewed_state"
+import azureCliCredentialMigration from "@aigcfroge/core/database/migration/20261007190000_azure_cli_external_credential"
+import taskAndScheduleMigration from "@aigcfroge/core/database/migration/20261016151043_task_and_schedule"
+import taskOperationMigration from "@aigcfroge/core/database/migration/20261113012729_task-operation"
+import goalScheduleMigration from "@aigcfroge/core/database/migration/20261113121533_goal-schedule"
+import { Global } from "@aigcfroge/util/global"
+import { V1Migration } from "@aigcfroge/core/database/v1-migration"
+import { SessionMessage } from "@aigcfroge/schema/session-message"
 
 const run = <A, E>(
   effect: Effect.Effect<A, E, SqlClient.SqlClient | Global.Service>,
   global = Global.make({ data: path.join(process.cwd(), ".test-data") }),
+  filename = ":memory:",
 ) =>
   Effect.runPromise(
     effect.pipe(
       Effect.provideService(Global.Service, global),
-      Effect.provide(SqliteClient.layer({ filename: ":memory:", disableWAL: true })),
+      Effect.provide(SqliteClient.layer({ filename, disableWAL: true })),
       Effect.scoped,
     ),
   )
 
 const makeDb = EffectDrizzleSqlite.makeWithDefaults()
+
+const legacyMainFixture = Effect.fnUntraced(function* (db: Effect.Success<typeof makeDb>) {
+  yield* DatabaseMigration.apply(db)
+  yield* db.run(sql`DROP TABLE workspace`)
+  yield* db.run(sql`
+    CREATE TABLE workspace (
+      id TEXT PRIMARY KEY, type TEXT NOT NULL, name TEXT NOT NULL DEFAULT '',
+      branch TEXT, directory TEXT, extra TEXT,
+      project_id TEXT NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+      time_used INTEGER NOT NULL DEFAULT 0
+    )
+  `)
+  yield* db.run(sql`ALTER TABLE session_v2 RENAME TO session`)
+  yield* db.run(sql`DROP INDEX session_v2_time_suspended_idx`)
+  for (const column of [
+    "fork_session_id",
+    "fork_boundary",
+    "time_idle",
+    "time_viewed",
+    "idle_outcome",
+    "time_suspended",
+    "resume_attempts",
+  ])
+    yield* db.run(sql`ALTER TABLE session DROP COLUMN ${sql.identifier(column)}`)
+  // The broken upgrade had already introduced an empty current Session table.
+  yield* db.run(sql`CREATE TABLE session_v2 (id text PRIMARY KEY)`)
+  yield* db.run(sql`
+    CREATE TABLE message (
+      id text PRIMARY KEY, session_id text NOT NULL, time_created integer NOT NULL,
+      time_updated integer NOT NULL, data text NOT NULL
+    )
+  `)
+  yield* db.run(sql`
+    CREATE TABLE part (
+      id text PRIMARY KEY, message_id text NOT NULL, session_id text NOT NULL,
+      time_created integer NOT NULL, time_updated integer NOT NULL, data text NOT NULL
+    )
+  `)
+  yield* db.run(sql`DELETE FROM migration WHERE id LIKE '20261016%'`)
+  yield* db.run(sql`
+    INSERT INTO migration VALUES ('20260629103917_meta_agent', 1), ('20260906023000_harden_external_cli_session_id', 2)
+  `)
+  yield* db.run(sql`
+    INSERT INTO project (id, worktree, time_created, time_updated, time_active, sandboxes)
+    VALUES ('legacy-project', '/legacy', 1, 1, 1, '[]')
+  `)
+  yield* db.run(sql`
+    INSERT INTO session (id, project_id, mode, slug, directory, version, permission_tier, attended, time_created, time_updated)
+    VALUES ('ses_legacy_events', 'legacy-project', 'work', 'events', '/legacy', 'legacy', 'propose', 1, 1, 30),
+      ('ses_legacy_v1', 'legacy-project', 'coding', 'v1', '/legacy', 'legacy', 'propose', 1, 1, 11)
+  `)
+  yield* db.run(sql`
+    INSERT INTO session_composition_snapshot (session_id, digest, data, time_created)
+    VALUES ('ses_legacy_events', 'synthetic-digest', '{"preserved":true}', 1)
+  `)
+  yield* db.run(sql`INSERT INTO event_sequence (aggregate_id, seq) VALUES ('ses_legacy_events', 8)`)
+  const base = { sessionID: "ses_legacy_events" }
+  const events: { type: string; data: Record<string, unknown> }[] = [
+    {
+      type: "session.next.model.switched.1",
+      data: { ...base, timestamp: 2, messageID: "msg_legacy_model", model: { id: "model", providerID: "provider" } },
+    },
+    {
+      type: "session.next.agent.switched.1",
+      data: { ...base, timestamp: 3, messageID: "msg_legacy_agent", agent: "build" },
+    },
+    {
+      type: "session.next.prompt.admitted.1",
+      data: {
+        ...base, timestamp: 4, messageID: "msg_legacy_user",
+        prompt: { text: "Synthetic legacy request" }, delivery: "steer",
+      },
+    },
+    {
+      type: "session.next.prompted.1",
+      data: {
+        ...base, timestamp: 5, messageID: "msg_legacy_user",
+        prompt: { text: "Synthetic legacy request" }, delivery: "steer",
+      },
+    },
+    {
+      type: "session.next.step.started.1",
+      data: {
+        ...base, timestamp: 6, assistantMessageID: "msg_legacy_answer", agent: "build",
+        model: { id: "model", providerID: "provider" },
+      },
+    },
+    {
+      type: "session.next.text.started.1",
+      data: { ...base, timestamp: 7, assistantMessageID: "msg_legacy_answer", textID: "text-1" },
+    },
+    {
+      type: "session.next.text.ended.1",
+      data: {
+        ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", textID: "text-1",
+        text: "Synthetic recovered answer",
+      },
+    },
+    {
+      type: "session.next.reasoning.started.1",
+      data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", reasoningID: "reason-1" },
+    },
+    {
+      type: "session.next.reasoning.ended.1",
+      data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", reasoningID: "reason-1", text: "Synthetic reasoning" },
+    },
+    {
+      type: "session.next.reasoning.started.1",
+      data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", reasoningID: "reason-1" },
+    },
+    {
+      type: "session.next.reasoning.ended.1",
+      data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", reasoningID: "reason-1", text: "Second reasoning span" },
+    },
+    {
+      type: "session.next.text.started.1",
+      data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", textID: "text-1" },
+    },
+    {
+      type: "session.next.text.ended.1",
+      data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", textID: "text-1", text: "Second text span" },
+    },
+    ...["success", "failed"].flatMap((status) => [
+      {
+        type: "session.next.tool.input.started.1",
+        data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", callID: `call-${status}`, name: "read" },
+      },
+      {
+        type: "session.next.tool.input.ended.1",
+        data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", callID: `call-${status}`, text: '{"filePath":"/legacy/result.txt"}' },
+      },
+      {
+        type: "session.next.tool.called.1",
+        data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", callID: `call-${status}`, tool: "read", input: { filePath: "/legacy/result.txt" }, provider: { executed: false, metadata: { fixture: "called" } } },
+      },
+      {
+        type: `session.next.tool.${status}.1`,
+        data: {
+          ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", callID: `call-${status}`,
+          ...(status === "success"
+            ? { structured: { preview: "Synthetic preview" }, content: [{ type: "text", text: "Synthetic tool full response" }], result: { type: "text", value: "Original raw result" }, outputPaths: ["/legacy/result.txt"] }
+            : { error: { type: "tool.execution", message: "Synthetic tool failed" } }),
+          provider: { executed: false, metadata: { fixture: "returned" } },
+        },
+      },
+    ]),
+    {
+      type: "session.next.tool.input.started.1",
+      data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", callID: "call-input-failed", name: "read" },
+    },
+    {
+      type: "session.next.tool.input.ended.1",
+      data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", callID: "call-input-failed", text: '{"bad":' },
+    },
+    {
+      type: "session.next.tool.failed.1",
+      data: { ...base, timestamp: 8, assistantMessageID: "msg_legacy_answer", callID: "call-input-failed", error: { type: "tool.execution", message: "Invalid raw input" }, provider: { executed: false } },
+    },
+    {
+      type: "session.next.step.ended.2",
+      data: {
+        ...base, timestamp: 9, assistantMessageID: "msg_legacy_answer", finish: "stop", cost: 0,
+        tokens: { input: 1, output: 2, reasoning: 0, cache: { read: 0, write: 0 } },
+      },
+    },
+    {
+      type: "session.next.step.started.1",
+      data: { ...base, timestamp: 10, assistantMessageID: "msg_legacy_failed", agent: "build", model: { id: "model", providerID: "provider" } },
+    },
+    {
+      type: "session.next.text.started.1",
+      data: { ...base, timestamp: 10, assistantMessageID: "msg_legacy_failed", textID: "partial" },
+    },
+    {
+      type: "session.next.text.ended.1",
+      data: { ...base, timestamp: 10, assistantMessageID: "msg_legacy_failed", textID: "partial", text: "Synthetic partial before failure" },
+    },
+    {
+      type: "session.next.step.failed.2",
+      data: { ...base, timestamp: 11, assistantMessageID: "msg_legacy_failed", error: { type: "unknown", message: "Synthetic failed step" } },
+    },
+    {
+      type: "session.next.retried.1",
+      data: { ...base, timestamp: 12, attempt: 1, error: { message: "Synthetic retry", isRetryable: true, statusCode: 503, responseBody: "Original retry response" } },
+    },
+    {
+      type: "session.next.step.started.1",
+      data: { ...base, timestamp: 13, assistantMessageID: "msg_legacy_retry", agent: "build", model: { id: "model", providerID: "provider" } },
+    },
+    {
+      type: "session.next.step.ended.2",
+      data: { ...base, timestamp: 14, assistantMessageID: "msg_legacy_retry", finish: "stop", cost: 0, tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } } },
+    },
+    {
+      type: "session.next.synthetic.1",
+      data: { ...base, timestamp: 15, messageID: "msg_legacy_synthetic", text: "Synthetic historical notification" },
+    },
+    {
+      type: "session.next.prompt.admitted.1",
+      data: {
+        ...base, timestamp: 20, messageID: "msg_legacy_pending",
+        prompt: { text: "Synthetic pending request" }, delivery: "queue",
+      },
+    },
+  ]
+  for (const [seq, event] of events.entries())
+    yield* db.run(sql`
+      INSERT INTO event (id, aggregate_id, seq, type, data)
+      VALUES (${"evt_legacy_" + seq}, 'ses_legacy_events', ${seq}, ${event.type}, ${JSON.stringify(event.data)})
+    `)
+  yield* db.run(sql`UPDATE event_sequence SET seq = ${events.length - 1} WHERE aggregate_id = 'ses_legacy_events'`)
+  yield* db.run(sql`
+    INSERT INTO message VALUES ('msg_legacy_v1', 'ses_legacy_v1', 10, 11,
+      ${JSON.stringify({ role: "user", time: { created: 10 }, agent: "build", model: { providerID: "provider", modelID: "model" } })})
+  `)
+  yield* db.run(sql`
+    INSERT INTO part VALUES ('prt_legacy_v1', 'msg_legacy_v1', 'ses_legacy_v1', 10, 11,
+      ${JSON.stringify({ type: "text", text: "Synthetic V1 request" })})
+  `)
+  yield* db.run(sql`PRAGMA foreign_keys = ON`)
+  return events.length
+})
 
 // A real in-memory SqlClient whose schema inspection signals `arrived` and then
 // waits on `gate`. Bootstrap inspects the schema as its first locked statement,
@@ -63,6 +291,109 @@ const parkedClient = (arrived: Deferred.Deferred<void>, gate: Deferred.Deferred<
   ).pipe(Layer.provide(SqliteClient.layer({ filename: ":memory:", disableWAL: true })), Layer.provide(Reactivity.layer))
 
 describe("DatabaseMigration", () => {
+  test("recovers old main history and snapshots without deleting the legacy source", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        const eventCount = yield* legacyMainFixture(db)
+        yield* DatabaseMigration.apply(db)
+
+        expect(yield* db.get(sql`SELECT count(*) AS count FROM _legacy_main_event`)).toEqual({ count: eventCount })
+        expect(yield* db.get(sql`SELECT count(*) AS count FROM _legacy_main_session`)).toEqual({ count: 2 })
+        expect(yield* db.get(sql`SELECT count(*) AS count FROM _legacy_main_message`)).toEqual({ count: 1 })
+        expect(yield* db.get(sql`SELECT count(*) AS count FROM _legacy_main_part`)).toEqual({ count: 1 })
+        expect(yield* db.get(sql`SELECT count(*) AS count FROM _legacy_main_workspace`)).toEqual({ count: 0 })
+        expect(yield* db.get(sql`SELECT count(*) AS count FROM workspace`)).toEqual({ count: 0 })
+        expect((yield* db.all<{ name: string }>(sql`PRAGMA table_info(_legacy_main_workspace)`)).map((column) => column.name)).toEqual([
+          "id", "type", "name", "branch", "directory", "extra", "project_id", "time_used",
+        ])
+        expect((yield* db.all<{ name: string }>(sql`PRAGMA table_info(workspace)`)).map((column) => column.name)).toEqual(
+          expect.arrayContaining(["provider", "binding"]),
+        )
+        expect(yield* db.get(sql`SELECT count(*) AS count FROM migration`)).toEqual({ count: migrations.length })
+        expect(yield* db.get(sql`SELECT mode, permission_tier, attended FROM session_v2 WHERE id = 'ses_legacy_events'`)).toEqual({
+          mode: "work", permission_tier: "propose", attended: 1,
+        })
+        expect(yield* db.get(sql`SELECT data FROM session_composition_snapshot`)).toEqual({ data: '{"preserved":true}' })
+        expect(yield* db.all<{ table: string }>(sql`PRAGMA foreign_key_list(session_composition_snapshot)`)).toContainEqual(
+          expect.objectContaining({ table: "session_v2" }),
+        )
+        const messages = yield* db.all<{ id: string; type: string; data: string }>(sql`SELECT id, type, data FROM session_message ORDER BY session_id, seq`)
+        expect(messages).toHaveLength(8)
+        for (const message of messages)
+          Schema.decodeUnknownSync(SessionMessage.Info)({ ...JSON.parse(message.data), id: message.id, type: message.type })
+        expect(yield* db.get(sql`SELECT json_extract(data, '$.content[0].text') AS text FROM session_message WHERE id = 'msg_legacy_answer'`)).toEqual({ text: "Synthetic recovered answer" })
+        expect(yield* db.get(sql`SELECT json_extract(data, '$.text') AS text FROM session_message WHERE id = 'msg_legacy_v1'`)).toEqual({ text: "Synthetic V1 request" })
+        const answer = JSON.parse(messages.find((message) => message.id === "msg_legacy_answer")!.data)
+        expect(answer.content).toContainEqual({ type: "reasoning", text: "Synthetic reasoning", time: { created: 8, completed: 8 } })
+        expect(answer.content).toContainEqual({ type: "reasoning", text: "Second reasoning span", time: { created: 8, completed: 8 } })
+        expect(answer.content).toContainEqual({ type: "text", text: "Second text span" })
+        expect(answer.content.find((block: { id?: string }) => block.id === "call-success")).toMatchObject({
+          state: { status: "completed", input: { filePath: "/legacy/result.txt" }, content: [{ type: "text", text: "Synthetic tool full response" }], metadata: { preview: "Synthetic preview", legacy: { rawInput: '{"filePath":"/legacy/result.txt"}', result: { type: "text", value: "Original raw result" }, outputPaths: ["/legacy/result.txt"] } } },
+          providerState: { fixture: "called" }, providerResultState: { fixture: "returned" },
+        })
+        expect(answer.content.find((block: { id?: string }) => block.id === "call-failed")).toMatchObject({ state: { status: "error", error: { message: "Synthetic tool failed" } } })
+        expect(answer.content.find((block: { id?: string }) => block.id === "call-input-failed")).toMatchObject({
+          state: {
+            status: "error",
+            input: {},
+            metadata: { legacy: { rawInput: '{"bad":' } },
+          },
+        })
+        expect(JSON.parse(messages.find((message) => message.id === "msg_legacy_failed")!.data)).toMatchObject({
+          content: [{ type: "text", text: "Synthetic partial before failure" }], finish: "error", error: { type: "unknown", message: "Synthetic failed step" }, time: { created: 10, completed: 11 },
+        })
+        expect(JSON.parse(messages.find((message) => message.id === "msg_legacy_retry")!.data)).toMatchObject({ retry: { attempt: 1, at: 12, error: { message: "Synthetic retry", status: 503, response: { body: "Original retry response" } } } })
+        expect(JSON.parse(messages.find((message) => message.id === "msg_legacy_synthetic")!.data)).toMatchObject({ text: "Synthetic historical notification" })
+        expect(yield* db.get(sql`SELECT id, delivery FROM session_inbox`)).toEqual({ id: "msg_legacy_pending", delivery: "queue" })
+        expect(yield* db.all(sql`PRAGMA foreign_key_check`)).toEqual([])
+
+        yield* DatabaseMigration.apply(db)
+        expect(yield* V1Migration.run().pipe(Effect.provideService(Database.Service, { db }))).toEqual({ status: "completed" })
+        expect(yield* db.get(sql`SELECT count(*) AS count FROM _legacy_main_event`)).toEqual({ count: eventCount })
+        expect(yield* db.get(sql`SELECT count(*) AS count FROM session_message`)).toEqual({ count: 8 })
+        expect(yield* db.get(sql`SELECT count(*) AS count FROM kv WHERE key = 'migration.v1-v2'`)).toEqual({ count: 0 })
+      }),
+    )
+  })
+
+  test.each(["unknown event", "nonempty legacy workspace"])("rolls back legacy main recovery for %s", async (scenario) => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        const eventCount = yield* legacyMainFixture(db)
+        if (scenario === "unknown event")
+          yield* db.run(sql`UPDATE event SET type = 'session.next.future.1' WHERE seq = 0`)
+        if (scenario === "nonempty legacy workspace")
+          yield* db.run(sql`INSERT INTO workspace (id, type, project_id) VALUES ('legacy-workspace', 'git', 'legacy-project')`)
+        const result = yield* Effect.exit(DatabaseMigration.apply(db))
+        expect(result._tag).toBe("Failure")
+        if (scenario === "nonempty legacy workspace" && result._tag === "Failure")
+          expect(Cause.squash(result.cause)).toMatchObject({ reason: "Unsupported legacy column: workspace.type" })
+        expect(yield* db.get(sql`SELECT count(*) AS count FROM session`)).toEqual({ count: 2 })
+        expect(yield* db.get(sql`SELECT count(*) AS count FROM event`)).toEqual({ count: eventCount })
+        expect(yield* db.get(sql`SELECT name FROM sqlite_master WHERE name = '_legacy_main_session'`)).toBeUndefined()
+        expect(yield* db.get(sql`SELECT count(*) AS count FROM workspace`)).toEqual({
+          count: scenario === "nonempty legacy workspace" ? 1 : 0,
+        })
+        expect(yield* db.get(sql`SELECT count(*) AS count FROM migration WHERE id LIKE '20261016%'`)).toEqual({ count: 0 })
+        expect(yield* db.get(sql`PRAGMA foreign_keys`)).toEqual({ foreign_keys: 1 })
+      }),
+    )
+  })
+
+  test("blocks direct V1 import of event-sourced legacy main sessions", async () => {
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        const eventCount = yield* legacyMainFixture(db)
+        expect((yield* Effect.exit(V1Migration.run().pipe(Effect.provideService(Database.Service, { db }))))._tag).toBe("Failure")
+        expect(yield* db.get(sql`SELECT count(*) AS count FROM event`)).toEqual({ count: eventCount })
+        expect(yield* db.get(sql`SELECT count(*) AS count FROM kv WHERE key = 'migration.v1-v2'`)).toEqual({ count: 0 })
+      }),
+    )
+  })
+
   test("defaults missing workspace names while preserving legacy workspace data", async () => {
     await run(
       Effect.gen(function* () {
@@ -188,8 +519,189 @@ describe("DatabaseMigration", () => {
         expect(
           yield* db.get(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'session_pending'`),
         ).toEqual({ name: "session_pending" })
+        expect(yield* db.all(sql`
+          SELECT 'session_input_result' AS name, count(*) AS count FROM session_input_result
+          UNION ALL SELECT 'task_operation', count(*) FROM task_operation
+          UNION ALL SELECT 'session_goal', count(*) FROM session_goal
+          UNION ALL SELECT 'schedule_occurrence', count(*) FROM schedule_occurrence
+        `)).toEqual([
+          { name: "session_input_result", count: 0 },
+          { name: "task_operation", count: 0 },
+          { name: "session_goal", count: 0 },
+          { name: "schedule_occurrence", count: 0 },
+        ])
+        expect(yield* db.all(sql`
+          SELECT id FROM migration
+          WHERE id IN (${taskOperationMigration.id}, ${goalScheduleMigration.id}) ORDER BY id
+        `)).toEqual([{ id: taskOperationMigration.id }, { id: goalScheduleMigration.id }])
         expect(yield* db.get(sql`SELECT count(*) AS count FROM migration`)).toEqual({ count: migrations.length })
       }),
+    )
+  })
+
+  test("AC23 upgrades a copied previous V2 Schedule database twice while preserving reminders, Deliveries, and Tasks", async () => {
+    await using tmp = await tmpdir()
+    const source = path.join(tmp.path, "previous-v2.sqlite")
+    const copy = path.join(tmp.path, "upgraded.sqlite")
+    const global = Global.make({ data: tmp.path })
+    const input = [taskOperationMigration, goalScheduleMigration]
+    const schedules = sql`
+      SELECT id, session_id, kind, content, due_at, timezone, status, attempts, next_attempt_at,
+        lease_owner, lease_expires_at, delivery_key, time_created, time_updated
+      FROM schedule ORDER BY id
+    `
+    const tasks = sql`
+      SELECT id, session_id, content, status, priority, parent_id, output_digest, agent_id,
+        scheduled_at, recurrence, spawned_from, depends_on, revision, position, time_created, time_updated
+      FROM task ORDER BY id
+    `
+    const deliveries = sql`SELECT * FROM delivery ORDER BY delivery_key`
+    const journal = sql`SELECT id, time_completed FROM migration ORDER BY id`
+    const empty = sql`
+      SELECT 'session_input_result' AS name, count(*) AS count FROM session_input_result
+      UNION ALL SELECT 'task_operation', count(*) FROM task_operation
+      UNION ALL SELECT 'session_goal', count(*) FROM session_goal
+      UNION ALL SELECT 'schedule_occurrence', count(*) FROM schedule_occurrence
+    `
+
+    const previous = await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`PRAGMA foreign_keys = ON`)
+        yield* db.run(sql`CREATE TABLE project (id text PRIMARY KEY)`)
+        yield* db.run(sql`
+          CREATE TABLE session_v2 (
+            id text PRIMARY KEY, project_id text NOT NULL REFERENCES project(id) ON DELETE CASCADE,
+            directory text NOT NULL, time_updated integer NOT NULL
+          )
+        `)
+        yield* db.run(sql`
+          CREATE TABLE session_message (
+            id text PRIMARY KEY, session_id text NOT NULL REFERENCES session_v2(id) ON DELETE CASCADE,
+            type text NOT NULL, data text NOT NULL
+          )
+        `)
+        // Use the production migration for the old Task, Schedule, and Delivery shapes.
+        yield* DatabaseMigration.applyOnly(db, [taskAndScheduleMigration])
+        yield* db.run(sql`INSERT INTO project VALUES ('project')`)
+        yield* db.run(sql`
+          INSERT INTO session_v2 (id, project_id, directory, time_updated)
+          VALUES ('ses_previous', 'project', '/previous', 20)
+        `)
+        yield* db.run(sql`
+          INSERT INTO session_message VALUES ('msg_previous', 'ses_previous', 'user',
+            ${JSON.stringify({ text: "Original input", time: { created: 10 } })})
+        `)
+        yield* db.run(sql`
+          INSERT INTO schedule (id, session_id, kind, content, due_at, timezone, status, attempts,
+            next_attempt_at, lease_owner, lease_expires_at, delivery_key, time_created, time_updated)
+          VALUES
+            ('sch_pending', 'ses_previous', 'reminder', 'Pending reminder', 60000, 'Asia/Shanghai', 'pending',
+              0, NULL, NULL, NULL, 'legacy:pending', 10, 20),
+            ('sch_running', 'ses_previous', 'reminder', 'Running reminder', 60000, 'UTC', 'running',
+              3, 90000, 'original-owner', 120000, 'legacy:running', 11, 80000)
+        `)
+        yield* db.run(sql`
+          INSERT INTO delivery (delivery_key, schedule_id, session_id, kind, content, delivered_at,
+            caught_up, is_read, time_created)
+          VALUES ('legacy:running', 'sch_running', 'ses_previous', 'reminder', 'Original visible delivery',
+            75000, 1, 1, 75000)
+        `)
+        yield* db.run(sql`
+          INSERT INTO task (id, session_id, content, status, priority, output_digest, agent_id, scheduled_at,
+            recurrence, revision, position, time_created, time_updated)
+          VALUES
+            ('old-due', 'ses_previous', 'Original due input', 'scheduled', 'medium', NULL, 'build',
+              60000, NULL, 4, 0, 10, 20),
+            ('old-running', 'ses_previous', 'Original execution', 'in_progress', 'high', 'Previous result', 'build',
+              NULL, ${JSON.stringify({ cron: "* * * * *", enabled: true, timezone: "UTC" })}, 7, 1, 11, 21)
+        `)
+        expect(yield* db.all(sql`PRAGMA foreign_key_check`)).toEqual([])
+        return {
+          schedules: yield* db.all(schedules),
+          tasks: yield* db.all(tasks),
+          deliveries: yield* db.all(deliveries),
+          messages: yield* db.all(sql`SELECT * FROM session_message ORDER BY id`),
+          journal: yield* db.all(journal),
+        }
+      }),
+      global,
+      source,
+    )
+    // run closes the source connection before the isolated copy is made.
+    await Bun.write(copy, Bun.file(source))
+
+    const upgraded = await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`PRAGMA foreign_keys = ON`)
+        yield* DatabaseMigration.applyOnly(db, input)
+        expect(yield* db.all(schedules)).toEqual(previous.schedules)
+        expect(yield* db.all(tasks)).toEqual(previous.tasks)
+        expect(yield* db.all(deliveries)).toEqual(previous.deliveries)
+        expect(yield* db.all(sql`SELECT * FROM session_message ORDER BY id`)).toEqual(previous.messages)
+        expect(yield* db.all(sql`
+          SELECT id, revision, recurrence, target, execution_policy, source_agent, task_id, next_due_at,
+            active_occurrence_id, bound_target_session_id, last_error
+          FROM schedule ORDER BY id
+        `)).toEqual(["sch_pending", "sch_running"].map((id) => ({
+          id, revision: 1, recurrence: null, target: null, execution_policy: null, source_agent: null,
+          task_id: null, next_due_at: null, active_occurrence_id: null, bound_target_session_id: null, last_error: null,
+        })))
+        expect(yield* db.all(sql`SELECT id, operation_id FROM task ORDER BY id`)).toEqual([
+          { id: "old-due", operation_id: null },
+          { id: "old-running", operation_id: null },
+        ])
+        expect(yield* db.all(empty)).toEqual([
+          { name: "session_input_result", count: 0 },
+          { name: "task_operation", count: 0 },
+          { name: "session_goal", count: 0 },
+          { name: "schedule_occurrence", count: 0 },
+        ])
+        expect(yield* db.all(sql`SELECT id FROM migration ORDER BY id`)).toEqual([
+          { id: taskAndScheduleMigration.id },
+          { id: taskOperationMigration.id },
+          { id: goalScheduleMigration.id },
+        ])
+        expect(yield* db.all(sql`PRAGMA foreign_key_check`)).toEqual([])
+        return { journal: yield* db.all(journal), empty: yield* db.all(empty) }
+      }),
+      global,
+      copy,
+    )
+
+    // Upgrade again through a fresh connection to exercise persisted migration identity.
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        yield* db.run(sql`PRAGMA foreign_keys = ON`)
+        yield* DatabaseMigration.applyOnly(db, input)
+        expect(yield* db.all(schedules)).toEqual(previous.schedules)
+        expect(yield* db.all(tasks)).toEqual(previous.tasks)
+        expect(yield* db.all(deliveries)).toEqual(previous.deliveries)
+        expect(yield* db.all(sql`SELECT * FROM session_message ORDER BY id`)).toEqual(previous.messages)
+        expect(yield* db.all(journal)).toEqual(upgraded.journal)
+        expect(yield* db.all(empty)).toEqual(upgraded.empty)
+        expect(yield* db.all(sql`PRAGMA foreign_key_check`)).toEqual([])
+      }),
+      global,
+      copy,
+    )
+
+    await run(
+      Effect.gen(function* () {
+        const db = yield* makeDb
+        expect(yield* db.all(schedules)).toEqual(previous.schedules)
+        expect(yield* db.all(tasks)).toEqual(previous.tasks)
+        expect(yield* db.all(deliveries)).toEqual(previous.deliveries)
+        expect(yield* db.all(journal)).toEqual(previous.journal)
+        expect(yield* db.all(sql`
+          SELECT name FROM sqlite_master WHERE type = 'table'
+            AND name IN ('session_input_result', 'task_operation', 'session_goal', 'schedule_occurrence')
+        `)).toEqual([])
+      }),
+      global,
+      source,
     )
   })
 

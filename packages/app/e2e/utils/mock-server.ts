@@ -1,10 +1,62 @@
 import type { Page } from "@playwright/test"
-import type { OpenCodeEvent, SessionMessageInfo } from "@opencode/client/promise"
-import { Permission } from "@opencode/schema/permission"
-import { Worktree } from "@opencode/schema/worktree"
-import { Duration, Effect, Layer, Option, Predicate, Schema } from "effect"
+import type {
+  AigcForgeEvent,
+  AgentInfo,
+  SessionMessageInfo,
+  SessionForkInput,
+  DelegationLegacyState,
+  PersonalMemoryInfo,
+  WorkflowAssetWorkflowStatusResponse,
+  WorkflowAssetInfo,
+  AgentAssetSummary,
+  MetaAgentRead,
+  MetaAgentMemoryRecord,
+  SessionInstanceCacheDiagnostics,
+  WorkArtifactApplyOutput,
+  WorkArtifactApplyInput,
+  DelegationResult,
+  DelegationResultInput,
+  SessionIdentityIdentity,
+  SessionTaskOperationInfo,
+  SessionGoalInfo,
+  SessionCommunicationMessage,
+  SessionCommunicationReceipt,
+  SessionCommunicationCapability,
+  ScheduleRule,
+  ScheduleOccurrence,
+} from "@aigcfroge/client/promise"
+import { Composition } from "@aigcfroge/schema/composition"
+import { CustomProfile } from "@aigcfroge/schema/custom-profile"
+import { Permission } from "@aigcfroge/schema/permission"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { Event } from "@aigcfroge/schema/event"
+import { SessionTask } from "@aigcfroge/schema/session-task"
+import { SessionGoal } from "@aigcfroge/schema/session-goal"
+import { SessionCommunication } from "@aigcfroge/schema/session-communication"
+import { Schedule } from "@aigcfroge/schema/schedule"
+import { Session } from "@aigcfroge/schema/session"
+import { SessionConsultation } from "@aigcfroge/schema/session-consultation"
+import { WorkContract } from "@aigcfroge/schema/work-contract"
+import { Model } from "@aigcfroge/schema/model"
+import { ModelGroup } from "@aigcfroge/schema/model-group"
+import { ProviderDefinition } from "@aigcfroge/schema/provider-definition"
+import { ProviderDiscovery } from "@aigcfroge/schema/provider-discovery"
+import { ModelSource } from "@aigcfroge/schema/model-source"
+import { MetaAgent } from "@aigcfroge/schema/meta-agent"
+import { SessionTaskEvent } from "@aigcfroge/schema/session-task-event"
+import { Worktree } from "@aigcfroge/schema/worktree"
+import { ApiNotFoundError, ConflictError, InvalidRequestError } from "@aigcfroge/protocol/errors"
+import type { SessionInstanceGroup } from "@aigcfroge/protocol/groups/session-instance"
+import { WorkspaceRoutingQuery } from "@aigcfroge/protocol/middleware/workspace-routing"
+import { LegacyDelegationState } from "@aigcfroge/protocol/groups/delegation"
+import {
+  CustomProfileApplyPayload,
+  CustomProfileContentQuery,
+  CustomProfileListQuery,
+} from "@aigcfroge/protocol/groups/custom-profile"
+import { DateTime, Duration, Effect, Layer, Option, Predicate, Schema } from "effect"
 import { HttpRouter, HttpServer, HttpServerResponse } from "effect/http"
-import { HttpApiBuilder, HttpApiSchema } from "effect/http-api"
+import { HttpApiBuilder, HttpApiEndpoint, HttpApiSchema } from "effect/http-api"
 import { SERVER } from "./app"
 import {
   MockApi,
@@ -34,7 +86,44 @@ export type MockProviderCatalog = {
 // oxlint-disable-next-line anti-slop/no-unsafe-dictionary-type -- scenarios seed arbitrary session fields
 export type MockSession = { id: string } & Record<string, unknown>
 
+type MockSessionLocation = { directory: string | undefined; workspaceID?: string }
+
 export type MockMcpStatus = { status: string; error?: string }
+
+type MockTaskScope = { sessionID: string; directory: string }
+
+export type MockTaskMutation = MockTaskScope &
+  (
+    | {
+        action: "create"
+        body: Schema.Schema.Type<HttpApiEndpoint.Payload<typeof SessionInstanceGroup.endpoints.createTask>>
+      }
+    | {
+        action: "patch"
+        taskID: string
+        body: Schema.Schema.Type<HttpApiEndpoint.Payload<typeof SessionInstanceGroup.endpoints.patchTask>>
+      }
+    | { action: "delete"; taskID: string }
+  )
+
+export type MockGoalMutation = { sessionID: string } & (
+  | { action: "set"; body: typeof SessionGoal.CreateInput.Type }
+  | { action: "edit"; goalID: string; body: typeof SessionGoal.EditInput.Type }
+  | { action: "pause" | "resume" | "cancel"; goalID: string; body: typeof SessionGoal.RevisionInput.Type }
+  | { action: "confirm"; goalID: string; body: typeof SessionGoal.ConfirmInput.Type }
+)
+
+export type MockCommunicationMutation = { sessionID: string; directory?: string; workspace?: string } & (
+  | { action: "send"; body: SessionCommunication.Send }
+  | { action: "reply"; communicationID: string; body: SessionCommunication.Reply }
+)
+
+export type MockScheduleMutation = (
+  | { action: "create"; body: Schedule.Create }
+  | { action: "edit"; id: string; body: Schedule.Edit }
+  | { action: "pause" | "resume" | "cancel" | "run"; id: string; body: Schedule.Mutation }
+  | { action: "cancelRun"; occurrenceID: string }
+) & { directory?: string; workspace?: string }
 
 export type MockFileContent =
   | string
@@ -44,7 +133,23 @@ export type MockFileContent =
 export interface MockServerConfig {
   server?: string
   provider: Resolvable<MockProviderCatalog>
+  agents?: Resolvable<AgentInfo[]>
   integrations?: unknown[]
+  providerDefinitions?: Resolvable<Schema.Codec.Encoded<typeof ProviderDefinition.List>>
+  modelGroups?: Resolvable<Schema.Codec.Encoded<typeof ModelGroup.Read>>
+  onModelGroupSave?: (input: typeof ModelGroup.SaveInput.Type) =>
+    Schema.Codec.Encoded<typeof ModelGroup.SaveResult> | Promise<Schema.Codec.Encoded<typeof ModelGroup.SaveResult>>
+  onModelGroupRemove?: (input: typeof ModelGroup.RemoveInput.Type) =>
+    Schema.Codec.Encoded<typeof ModelGroup.RemoveResult> | Promise<Schema.Codec.Encoded<typeof ModelGroup.RemoveResult>>
+  providerDiscovery?: (input: typeof ProviderDiscovery.GetInput.Type) => Schema.Codec.Encoded<typeof ProviderDiscovery.Read>
+  onProviderDiscoveryPreview?: (input: typeof ProviderDiscovery.PreviewInput.Type) =>
+    Schema.Codec.Encoded<typeof ProviderDiscovery.Read> | Promise<Schema.Codec.Encoded<typeof ProviderDiscovery.Read>>
+  onProviderDiscoveryRefresh?: (input: typeof ProviderDiscovery.RefreshInput.Type) =>
+    Schema.Codec.Encoded<typeof ProviderDiscovery.Read> | Promise<Schema.Codec.Encoded<typeof ProviderDiscovery.Read>>
+  onProviderDefinitionSave?: (input: typeof ProviderDefinition.SaveInput.Type) =>
+    Schema.Codec.Encoded<typeof ProviderDefinition.SaveResult> | Promise<Schema.Codec.Encoded<typeof ProviderDefinition.SaveResult>>
+  onProviderDefinitionRemove?: (input: typeof ProviderDefinition.RemoveInput.Type) =>
+    Schema.Codec.Encoded<typeof ProviderDefinition.RemoveResult> | Promise<Schema.Codec.Encoded<typeof ProviderDefinition.RemoveResult>>
   onConnectKey?: (input: { integrationID: string; body: unknown }) => void
   // Terminal shells the settings offer (`/api/config/shell`).
   shells?: unknown[]
@@ -82,8 +187,107 @@ export interface MockServerConfig {
   message?: (sessionID: string, messageID: string) => SessionMessageInfo | undefined
   onMessage?: (input: { sessionID: string; messageID: string }) => void
   onRevertStage?: (input: { sessionID: string; messageID: string }) => void
-  onSession?: (sessionID: string) => void
-  events?: () => OpenCodeEvent[]
+  onSession?: ((sessionID: string) => void) | ((sessionID: string) => Promise<void>)
+  sessionReadError?: (sessionID: string) => MockNotFound | undefined
+  compositions?: Record<string, Composition.Snapshot>
+  profiles?: Resolvable<CustomProfile.Info[]>
+  onProfileList?: (input: { directory: string; search?: string }) => MockAnswer | Promise<MockAnswer>
+  onProfileContent?: (input: { directory: string; path: string }) => MockAnswer | Promise<MockAnswer>
+  onProfileApply?: (input: {
+    directory: string
+    body: typeof CustomProfileApplyPayload.Type
+  }) => (MockAnswer & { disconnect?: boolean }) | Promise<MockAnswer & { disconnect?: boolean }>
+  onCompositionPlan?: (input: {
+    directory: string
+    body: Composition.CompositionInput
+  }) => MockAnswer | Promise<MockAnswer>
+  onCompositionStart?: (input: {
+    directory: string
+    body: Composition.StartInput
+  }) => (MockAnswer & { disconnect?: boolean }) | Promise<MockAnswer & { disconnect?: boolean }>
+  onSessionFork?: (input: SessionForkInput) => void | Promise<void>
+  // Mutable persisted Task rows shared with the scenario; reads and single-row writes retain other Sessions' rows.
+  tasks?: SessionTask.Info[]
+  identities?: Record<string, SessionIdentityIdentity | undefined>
+  onIdentityRead?: (sessionID: string) => void | Promise<void>
+  operations?: SessionTaskOperationInfo[]
+  onOperationRead?: (input: { sessionID: string; operationID?: string }) => void | InvalidRequestError | Promise<void | InvalidRequestError>
+  onTaskDispatch?: (input: { sessionID: string; request: SessionTask.OperationRequest }) => SessionTaskOperationInfo | InvalidRequestError | ConflictError | Promise<SessionTaskOperationInfo | InvalidRequestError | ConflictError>
+  onTaskCancelOperation?: (input: { sessionID: string; operationID: string }) => SessionTaskOperationInfo | InvalidRequestError | Promise<SessionTaskOperationInfo | InvalidRequestError>
+  communications?: SessionCommunicationMessage[]
+  communicationCapabilities?: Record<string, SessionCommunicationCapability>
+  onCommunicationRead?: (input: { sessionID: string; communicationID?: string; directory?: string; workspace?: string; cursor?: string; limit?: number }) => void | InvalidRequestError | Promise<void | InvalidRequestError>
+  onCommunicationMutation?: (input: MockCommunicationMutation) => SessionCommunicationReceipt | InvalidRequestError | ConflictError | Promise<SessionCommunicationReceipt | InvalidRequestError | ConflictError>
+  goals?: SessionGoalInfo[]
+  onGoalRead?: (input: { sessionID: string; goalID?: string }) => void | Promise<void>
+  onGoalMutation?: (input: MockGoalMutation) => SessionGoalInfo | InvalidRequestError | ConflictError | Promise<SessionGoalInfo | InvalidRequestError | ConflictError>
+  schedules?: ScheduleRule[]
+  scheduleRuns?: ScheduleOccurrence[]
+  onScheduleRead?: (input: { sessionID?: string; id?: string; directory?: string; workspace?: string }) => void | Promise<void>
+  onScheduleMutation?: (input: MockScheduleMutation) => ScheduleRule | ScheduleOccurrence | InvalidRequestError | Promise<ScheduleRule | ScheduleOccurrence | InvalidRequestError>
+  delegations?: Resolvable<DelegationLegacyState[]>
+  onDelegationResult?: (
+    input: DelegationResultInput,
+  ) => DelegationResult | InvalidRequestError | Promise<DelegationResult | InvalidRequestError>
+  memory?: PersonalMemoryInfo[]
+  onMemoryRead?: () => InvalidRequestError | undefined
+  onMemoryAction?: (
+    action: "confirm" | "reject" | "edit" | "remove",
+    id: string,
+    body:
+      | Schema.Schema.Type<HttpApiEndpoint.Payload<(typeof MockApi.groups.mock.endpoints)["memory.edit"]>>
+      | undefined,
+  ) => PersonalMemoryInfo | InvalidRequestError | Promise<PersonalMemoryInfo | InvalidRequestError>
+  meta?: Record<string, MetaAgentRead>
+  projectMemory?: Record<string, MetaAgentMemoryRecord[]>
+  cacheDiagnostics?: Record<string, SessionInstanceCacheDiagnostics>
+  onCacheRead?: (input: { sessionID: string }) => void | InvalidRequestError | Promise<void | InvalidRequestError>
+  workflows?: Record<string, WorkflowAssetWorkflowStatusResponse>
+  workflowHistory?: WorkflowAssetWorkflowStatusResponse[]
+  onWorkflowRead?: (input: { sessionID: string; runID?: string }) => InvalidRequestError | undefined
+  workflowAssets?: Resolvable<WorkflowAssetInfo[]>
+  agentAssets?: Resolvable<AgentAssetSummary[]>
+  onWorkflowAction?: (
+    action: "run" | "cancelRun" | "cancelStep" | "retryStep",
+    input: {
+      sessionID: string
+      runID?: string
+      stepRunID?: string
+      body: Schema.Schema.Type<
+        HttpApiEndpoint.Payload<
+          (typeof MockApi.groups.mock.endpoints)[
+            | "workflow.run"
+            | "workflow.cancelRun"
+            | "workflow.cancelStep"
+            | "workflow.retryStep"]
+        >
+      >
+    },
+  ) =>
+    | WorkflowAssetWorkflowStatusResponse
+    | InvalidRequestError
+    | ConflictError
+    | Promise<WorkflowAssetWorkflowStatusResponse | InvalidRequestError | ConflictError>
+  onArtifactApply?: (
+    input: WorkArtifactApplyInput,
+  ) =>
+    | WorkArtifactApplyOutput
+    | ConflictError
+    | InvalidRequestError
+    | Promise<WorkArtifactApplyOutput | ConflictError | InvalidRequestError>
+  fileReadAnswer?: (path: string) => MockAnswer | undefined | Promise<MockAnswer | undefined>
+  onDelegationRead?: () => void | InvalidRequestError | Promise<void | InvalidRequestError>
+  onDelegationAction?: (input: {
+    action: "interrupt" | "close" | "reconcile" | "retry"
+    delegationID: string
+    turnID?: string
+    directory: string
+    body: unknown
+  }) => DelegationLegacyState | InvalidRequestError | Promise<DelegationLegacyState | InvalidRequestError>
+  onTaskRead?: (input: MockTaskScope) => void | InvalidRequestError | Promise<void | InvalidRequestError>
+  // Runs before a single-row mutation, so scenarios can observe or hold its request at the API boundary.
+  onTaskMutation?: (input: MockTaskMutation) => void | Promise<void>
+  events?: () => AigcForgeEvent[]
   eventRetry?: number
   // Idle event streams send a comment every 15 s like the real server. Set false only to test the client's stall watchdog.
   keepalive?: boolean
@@ -113,6 +317,15 @@ export interface MockServerConfig {
   onWorktreeRemove?: (input: Worktree.RemoveInput) => void | Promise<void>
   // POST /api/session keeps the client-reserved `id` and `location`. Return an answer to fail the attempt (1-based).
   onSessionCreate?: (body: Schema.JsonObject, attempt: number) => void | MockAnswer
+  // Controlled SC04 creation/first-question responses, including a held ACK or a stage-B failure.
+  onConsultation?: (
+    input: { sourceSessionID: string; body: Schema.Schema.Type<typeof SessionConsultation.Input> },
+    attempt: number,
+  ) => MockAnswer | Promise<MockAnswer>
+  // Read-only saved reference/admission. Returning this never admits or wakes a prompt.
+  onConsultationRead?: (sessionID: string) => MockAnswer | Promise<MockAnswer>
+  // Records the actual target stop; without it an idle target answers interrupted=false.
+  onInterrupt?: (sessionID: string) => { interrupted: boolean } | Promise<{ interrupted: boolean }>
   // Title of created sessions (default: the request's title, else "New session").
   createdSessionTitle?: string
   // Slash commands served by `/api/command`.
@@ -193,7 +406,7 @@ type MockStreamWindow = Window & {
   __mockServerStreams?: Record<string, MockStream>
 }
 
-export async function mockOpenCodeServer(page: Page, config: MockServerConfig) {
+export async function mockAigcForgeServer(page: Page, config: MockServerConfig) {
   const server = config.server ?? SERVER
 
   mockedOrigins(page).add(server)
@@ -290,7 +503,7 @@ export async function mockOpenCodeServer(page: Page, config: MockServerConfig) {
 
   // Delivers events on this server's mock stream; buffered until the app connects.
   // An origin served by an SSE transport receives the events as one burst on its active connection.
-  const push = (payloads: readonly OpenCodeEvent[]) =>
+  const push = (payloads: readonly AigcForgeEvent[]) =>
     page.evaluate<void, { server: string; payloads: readonly unknown[] }>(
       ({ server, payloads }) => {
         // SAFETY: only the init script, `installSseTransport`, and benchmarks write these globals, in the declared shapes.
@@ -307,7 +520,7 @@ export async function mockOpenCodeServer(page: Page, config: MockServerConfig) {
     )
 
   // Server-side events the mock publishes itself; delivery failures other than a missing document fail the test.
-  const emit = (events: OpenCodeEvent[]) =>
+  const emit = (events: AigcForgeEvent[]) =>
     void push(events).catch((cause: unknown) => {
       if (page.isClosed() || retryableDelivery(cause)) return
       throw cause
@@ -315,7 +528,7 @@ export async function mockOpenCodeServer(page: Page, config: MockServerConfig) {
 
   if (config.events) {
     // Batches stay queued until the page accepts them; failures other than a missing document fail the test.
-    const pending: OpenCodeEvent[] = []
+    const pending: AigcForgeEvent[] = []
     const pump = { busy: false, pending }
 
     const timer = setInterval(() => {
@@ -349,67 +562,82 @@ export async function mockOpenCodeServer(page: Page, config: MockServerConfig) {
   const transport = createMockServerHandler(config, emit)
   page.on("close", () => void transport.dispose())
 
-  await page.route("**/api/**", async (route) => {
-    const url = new URL(route.request().url())
+  await page.route(
+    /\/api\/|\/(?:memory|agent-task|delegation|agent-asset|workflow-asset|custom-composition|custom-profile|schedule)(?:\/|\?|$)|\/session\/[^/?]+\/(?:task(?:\/[^?]*)?|identity|composition|meta|project-memory(?:\/[^/?]+)?|cache-diagnostics|workflow(?:\/[^?]*)?|work-artifact\/apply)(?:\?|$)/,
+    async (route) => {
+      const url = new URL(route.request().url())
 
-    if (!answers(page, server, url)) return route.fallback()
+      if (!answers(page, server, url)) return route.fallback()
 
-    // Production serves the UI and API from one origin; leave app assets to Vite.
-    if (!url.pathname.startsWith("/api/")) return route.fallback()
+      // Production serves the UI and API from one origin; leave app assets to Vite.
+      if (
+        !url.pathname.startsWith("/api/") &&
+        !/^\/(?:memory|agent-task|delegation|agent-asset|workflow-asset|custom-composition|custom-profile|schedule)(?:\/|$)/.test(
+          url.pathname,
+        ) &&
+        !/^\/session\/[^/]+\/(?:task(?:\/.*)?|identity|composition|meta|project-memory(?:\/[^/]+)?|cache-diagnostics|workflow(?:\/.*)?|work-artifact\/apply)$/.test(
+          url.pathname,
+        )
+      )
+        return route.fallback()
 
-    if (route.request().method() === "OPTIONS") {
-      return route.fulfill({ status: 204, headers: corsHeaders })
-    }
+      if (route.request().method() === "OPTIONS") {
+        return route.fulfill({ status: 204, headers: corsHeaders })
+      }
 
-    const password = config.password === undefined ? undefined : resolve(config.password)
+      const password = config.password === undefined ? undefined : resolve(config.password)
 
-    if (
-      password !== undefined &&
-      (await route.request().headerValue("authorization")) !== `Basic ${btoa(`opencode:${password}`)}`
-    ) {
+      if (
+        password !== undefined &&
+        (await route.request().headerValue("authorization")) !== `Basic ${btoa(`aigcfroge:${password}`)}`
+      ) {
+        return route.fulfill({
+          status: 401,
+          headers: corsHeaders,
+          json: Schema.encodeSync(MockUnauthorized)(new MockUnauthorized({ message: "Authentication required" })),
+        })
+      }
+
+      const directory = url.searchParams.get("directory") ?? url.searchParams.get("location[directory]")
+
+      if (config.strictDirectory && directory && !ownedDirectories(config).has(directory)) {
+        return route.fulfill({ status: 500, headers: corsHeaders, json: { name: "InvalidDirectory" } })
+      }
+
+      const body = route.request().postDataBuffer()
+
+      const response = await transport.handler(
+        new Request(url, {
+          method: route.request().method(),
+          headers: route.request().headers(),
+          body: body ? Uint8Array.from(body) : undefined,
+        }),
+      )
+
+      const payload = Buffer.from(await response.arrayBuffer())
+
+      // The handler committed its normal state, but this scenario loses the HTTP reply.
+      if (response.headers.get("x-aigcfroge-mock-disconnect") === "true") return route.abort("connectionclosed")
+
+      // A handler's 404 carries a tagged error; a route the mock does not define must not reach the app server, whose
+      // SPA fallback would answer HTML 200. Answer 501 and fail the test from the route handler.
+      if (response.status === 404 && !payload.toString().includes('"_tag"')) {
+        const request = `${route.request().method()} ${url.pathname}`
+        await route.fulfill({
+          status: 501,
+          headers: corsHeaders,
+          json: { name: "MockUnsupported", message: `The mock server has no route for ${request}` },
+        })
+        throw new Error(`Unmocked API request: ${request} (add it to e2e/utils/mock-server.ts)`)
+      }
+
       return route.fulfill({
-        status: 401,
-        headers: corsHeaders,
-        json: Schema.encodeSync(MockUnauthorized)(new MockUnauthorized({ message: "Authentication required" })),
+        status: response.status,
+        headers: { ...Object.fromEntries(response.headers), ...corsHeaders },
+        body: payload,
       })
-    }
-
-    const directory = url.searchParams.get("directory") ?? url.searchParams.get("location[directory]")
-
-    if (config.strictDirectory && directory && !ownedDirectories(config).has(directory)) {
-      return route.fulfill({ status: 500, headers: corsHeaders, json: { name: "InvalidDirectory" } })
-    }
-
-    const body = route.request().postDataBuffer()
-
-    const response = await transport.handler(
-      new Request(url, {
-        method: route.request().method(),
-        headers: route.request().headers(),
-        body: body ? Uint8Array.from(body) : undefined,
-      }),
-    )
-
-    const payload = Buffer.from(await response.arrayBuffer())
-
-    // A handler's 404 carries a tagged error; a route the mock does not define must not reach the app server, whose
-    // SPA fallback would answer HTML 200. Answer 501 and fail the test from the route handler.
-    if (response.status === 404 && !payload.toString().includes('"_tag"')) {
-      const request = `${route.request().method()} ${url.pathname}`
-      await route.fulfill({
-        status: 501,
-        headers: corsHeaders,
-        json: { name: "MockUnsupported", message: `The mock server has no route for ${request}` },
-      })
-      throw new Error(`Unmocked API request: ${request} (add it to e2e/utils/mock-server.ts)`)
-    }
-
-    return route.fulfill({
-      status: response.status,
-      headers: { ...Object.fromEntries(response.headers), ...corsHeaders },
-      body: payload,
-    })
-  })
+    },
+  )
 
   if (config.pairing) {
     const pairing = { ...config.pairing, redeemed: false }
@@ -481,7 +709,7 @@ export async function mockServers(page: Page, servers: Record<string, Omit<MockS
           keepalive: config.keepalive,
         })
 
-        const mock = await mockOpenCodeServer(page, { ...config, server: origin })
+        const mock = await mockAigcForgeServer(page, { ...config, server: origin })
 
         return [origin, { transport, pty: mock.pty }] as const
       }),
@@ -490,7 +718,7 @@ export async function mockServers(page: Page, servers: Record<string, Omit<MockS
 }
 
 // `emit` publishes the events a real server sends after a mutation (without a page, nothing is published).
-export function createMockServerHandler(config: MockServerConfig, emit: (events: OpenCodeEvent[]) => void = () => {}) {
+export function createMockServerHandler(config: MockServerConfig, emit: (events: AigcForgeEvent[]) => void = () => {}) {
   const pty = createPty(config)
 
   const web = HttpRouter.toWebHandler(
@@ -500,6 +728,8 @@ export function createMockServerHandler(config: MockServerConfig, emit: (events:
           cursors: new Map<string, string>(),
           nextCursor: 0,
           sessionCreates: 0,
+          consultationCreates: 0,
+          tasks: config.tasks ?? [],
           pty,
           emit,
           mcp: new Map<string, MockMcpStatus>(),
@@ -683,8 +913,10 @@ function mockHandlers(
     cursors: Map<string, string>
     nextCursor: number
     sessionCreates: number
+    consultationCreates: number
+    tasks: SessionTask.Info[]
     pty: ReturnType<typeof createPty>
-    emit: (events: OpenCodeEvent[]) => void
+    emit: (events: AigcForgeEvent[]) => void
     // MCP status overrides by `<directory>\n<server>`, and OAuth attempt creation times by attempt ID.
     mcp: Map<string, MockMcpStatus>
     attempts: Map<string, number>
@@ -693,6 +925,45 @@ function mockHandlers(
   const noContent = Effect.succeed(HttpApiSchema.NoContent.make())
   const delay = config.messageDelay === undefined ? Effect.void : Effect.sleep(Duration.millis(config.messageDelay))
   const configEntries = config.configEntries ?? []
+
+  const taskSession = (sessionID: string, query: Schema.Schema.Type<typeof WorkspaceRoutingQuery>) => {
+    const session = config.sessions.find((item) => item.id === sessionID)
+
+    if (!session) return
+    const owner = currentSession(session, config.directory).location
+
+    if ((query.directory ?? config.directory) !== owner.directory || query.workspace !== owner.workspaceID) return
+
+    return session
+  }
+
+  const taskMutation = (input: MockTaskMutation) => Effect.promise(async () => config.onTaskMutation?.(input))
+
+  const publishTasks = (sessionID: string, directory: string, created: number) => {
+    const tasks = state.tasks.filter((task) => task.sessionID === sessionID)
+    state.emit([
+      {
+        id: Event.ID.create(),
+        created,
+        type: SessionTaskEvent.Updated.type,
+        location: { directory },
+        data: {
+          sessionID,
+          tasks: tasks.map((task) => ({ ...task, dependsOn: task.dependsOn && [...task.dependsOn] })),
+        },
+      },
+      {
+        id: Event.ID.create(),
+        created,
+        type: SessionTaskEvent.TodoUpdated.type,
+        location: { directory },
+        data: {
+          sessionID,
+          todos: tasks.map((task) => ({ content: task.content, status: task.status, priority: task.priority })),
+        },
+      },
+    ])
+  }
 
   const ptyEnabled = Effect.suspend(() =>
     config.pty ? Effect.void : Effect.fail(new MockNotFound({ message: "PTY is not enabled for this mock server" })),
@@ -742,8 +1013,375 @@ function mockHandlers(
       new MockUnsupported({ message: `The mock server does not ${operation}; configure ${handler} for this scenario` }),
     )
 
+  const delegationAction = (
+    action: "interrupt" | "close" | "reconcile" | "retry",
+    input: {
+      params: { delegationID: string; turnID?: string }
+      query: Schema.Schema.Type<typeof WorkspaceRoutingQuery>
+      payload: unknown
+    },
+  ) =>
+    Effect.gen(function* () {
+      const value = resolve(config.delegations ?? []).find((item) => item.delegation.id === input.params.delegationID)
+
+      if (!value || !taskSession(value.delegation.parentSessionID, input.query))
+        return yield* new InvalidRequestError({ message: "Delegation does not belong to this Location" })
+
+      if (!config.onDelegationAction)
+        return yield* new InvalidRequestError({
+          message: "Delegation action is not configured",
+          kind: "not_implemented",
+        })
+
+      const result = yield* Effect.promise(() =>
+        Promise.resolve(
+          config.onDelegationAction?.({
+            action,
+            ...input.params,
+            directory: input.query.directory ?? config.directory,
+            body: input.payload,
+          }),
+        ),
+      )
+
+      if (result instanceof InvalidRequestError) return yield* result
+
+      return Schema.decodeUnknownSync(LegacyDelegationState)(result ?? value)
+    })
+
+  const memoryRead = (pending = false) =>
+    Effect.gen(function* () {
+      const error = config.onMemoryRead?.()
+
+      if (error) return yield* error
+
+      return (config.memory ?? []).filter((item) => !pending || item.status === "pending")
+    })
+
+  const memoryAction = (
+    action: "confirm" | "reject" | "edit" | "remove",
+    id: string,
+    body: Parameters<NonNullable<MockServerConfig["onMemoryAction"]>>[2],
+  ) =>
+    Effect.gen(function* () {
+      if (!config.onMemoryAction) return yield* new InvalidRequestError({ message: "Memory action is not configured" })
+      const result = yield* Effect.promise(() => Promise.resolve(config.onMemoryAction?.(action, id, body)))
+
+      if (result instanceof InvalidRequestError) return yield* result
+
+      if (!result) return yield* new InvalidRequestError({ message: "Memory not found" })
+      const position = config.memory?.findIndex((item) => item.id === id) ?? -1
+
+      if (config.memory && position >= 0) config.memory[position] = result
+
+      return result
+    })
+
+  const workflowAction = (
+    action: "run" | "cancelRun" | "cancelStep" | "retryStep",
+    params: { sessionID: string; runID?: string; stepRunID?: string },
+    body: Parameters<NonNullable<MockServerConfig["onWorkflowAction"]>>[1]["body"],
+  ) =>
+    Effect.gen(function* () {
+      if (!config.onWorkflowAction)
+        return yield* new InvalidRequestError({ message: "Workflow action is not configured" })
+
+      const result = yield* Effect.promise(() =>
+        Promise.resolve(config.onWorkflowAction?.(action, { ...params, body })),
+      )
+
+      if (result instanceof InvalidRequestError || result instanceof ConflictError) return yield* result
+
+      return result ?? { steps: [] }
+    })
+
+  const goalMutation = (input: MockGoalMutation) => Effect.gen(function* () {
+    if (!config.onGoalMutation) return yield* new InvalidRequestError({ message: "Goal mutation is not configured" })
+    const result = yield* Effect.promise(() => Promise.resolve(config.onGoalMutation?.(input)))
+
+    if (result instanceof InvalidRequestError || result instanceof ConflictError) return yield* result
+
+    if (!result) return yield* new InvalidRequestError({ message: "Goal mutation returned no acknowledgement" })
+
+    return { data: result }
+  })
+
+  const scheduleMutation = (input: MockScheduleMutation) => Effect.gen(function* () {
+    if (!config.onScheduleMutation) return yield* new InvalidRequestError({ message: "Schedule mutation is not configured" })
+    const result = yield* Effect.promise(() => Promise.resolve(config.onScheduleMutation?.(input)))
+
+    if (result instanceof InvalidRequestError) return yield* result
+
+    if (!result) return yield* new InvalidRequestError({ message: "Schedule mutation returned no acknowledgement" })
+
+    return result
+  })
+
+  const communicationMutation = (input: MockCommunicationMutation) => Effect.gen(function* () {
+    if (!config.onCommunicationMutation) return yield* new InvalidRequestError({ message: "Communication mutation is not configured" })
+    const result = yield* Effect.promise(() => Promise.resolve(config.onCommunicationMutation?.(input)))
+
+    if (result instanceof InvalidRequestError || result instanceof ConflictError) return yield* result
+
+    if (!result) return yield* new InvalidRequestError({ message: "Communication mutation returned no acknowledgement" })
+
+    return { data: result }
+  })
+
+  const communicationRead = (input: { sessionID: string; communicationID?: string }, query: typeof WorkspaceRoutingQuery.Type & { cursor?: string; limit?: number }) => Effect.gen(function* () {
+    if (!taskSession(input.sessionID, query)) return yield* new ApiNotFoundError({ name: "NotFoundError", data: { message: "Communication Session not found" } })
+    const error = yield* Effect.promise(() => Promise.resolve(config.onCommunicationRead?.({ ...input, ...query })))
+
+    if (error instanceof InvalidRequestError) return yield* error
+
+    return (config.communications ?? []).filter((message) =>
+      (message.actor.sessionID === input.sessionID || message.targetSessionID === input.sessionID) &&
+      (!input.communicationID || message.id === input.communicationID))
+  })
+
+  const operationRead = (input: { sessionID: string; operationID?: string }, query: typeof WorkspaceRoutingQuery.Type) => Effect.gen(function* () {
+    if (!taskSession(input.sessionID, query)) return yield* new ApiNotFoundError({ name: "NotFoundError", data: { message: "Task source Session not found" } })
+    const error = yield* Effect.promise(() => Promise.resolve(config.onOperationRead?.(input)))
+
+    if (error instanceof InvalidRequestError) return yield* error
+
+    return (config.operations ?? []).filter((operation) => operation.sourceSessionID === input.sessionID &&
+      (!input.operationID || operation.operationID === input.operationID))
+  })
+
   return HttpApiBuilder.group(MockApi, "mock", (handlers) =>
     handlers
+      .handleRaw("profileList", (ctx) =>
+        Effect.gen(function* () {
+          const query = yield* Effect.orDie(
+            Schema.decodeUnknownEffect(CustomProfileListQuery)(
+              Object.fromEntries(new URL(ctx.request.url, "http://localhost").searchParams),
+            ),
+          )
+
+          const handler = config.onProfileList
+
+          if (handler) {
+            const answer = yield* Effect.promise(() =>
+              Promise.resolve(handler({ directory: query.directory ?? config.directory, search: query.search })),
+            )
+
+            return HttpServerResponse.jsonUnsafe(answer.body, { status: answer.status })
+          }
+
+          return HttpServerResponse.jsonUnsafe({
+            assets: resolve(config.profiles ?? [])
+              .filter((profile) => !query.search || profile.name.toLowerCase().includes(query.search.toLowerCase()))
+              .map((profile) => ({
+                kind: profile.kind,
+                name: profile.name,
+                description: profile.description,
+                relativePath: profile.relativePath,
+                revision: profile.revision,
+              })),
+            invalid: [],
+          })
+        }),
+      )
+      .handleRaw("profileContent", (ctx) =>
+        Effect.gen(function* () {
+          const query = yield* Effect.orDie(
+            Schema.decodeUnknownEffect(CustomProfileContentQuery)(
+              Object.fromEntries(new URL(ctx.request.url, "http://localhost").searchParams),
+            ),
+          )
+
+          const handler = config.onProfileContent
+
+          if (handler) {
+            const answer = yield* Effect.promise(() =>
+              Promise.resolve(handler({ directory: query.directory ?? config.directory, path: query.path })),
+            )
+
+            return HttpServerResponse.jsonUnsafe(answer.body, { status: answer.status })
+          }
+
+          const profile = resolve(config.profiles ?? []).find((profile) => profile.relativePath === query.path)
+
+          if (!profile)
+            return HttpServerResponse.jsonUnsafe(
+              Schema.encodeSync(ApiNotFoundError)(
+                new ApiNotFoundError({ name: "NotFoundError", data: { message: "Profile not found" } }),
+              ),
+              { status: 404 },
+            )
+
+          return HttpServerResponse.jsonUnsafe(Schema.encodeSync(Schema.toCodecJson(CustomProfile.Info))(profile))
+        }),
+      )
+      .handleRaw("profileApply", (ctx) =>
+        Effect.gen(function* () {
+          const handler = config.onProfileApply
+
+          if (!handler)
+            return HttpServerResponse.jsonUnsafe(
+              { name: "MockUnsupported", message: "No profile save configured" },
+              { status: 501 },
+            )
+
+          const body = yield* Effect.orDie(
+            ctx.request.json.pipe(
+              Effect.flatMap(Schema.decodeUnknownEffect(Schema.toCodecJson(CustomProfileApplyPayload))),
+            ),
+          )
+
+          const directory =
+            new URL(ctx.request.url, "http://localhost").searchParams.get("directory") ?? config.directory
+
+          const answer = yield* Effect.promise(() => Promise.resolve(handler({ directory, body })))
+
+          return HttpServerResponse.jsonUnsafe(answer.body, {
+            status: answer.status,
+            headers: answer.disconnect ? { "x-aigcfroge-mock-disconnect": "true" } : undefined,
+          })
+        }),
+      )
+      .handle("agent-asset.list", () => Effect.succeed({ assets: resolve(config.agentAssets ?? []), invalid: [] }))
+      .handle("workflow-asset.list", () =>
+        Effect.succeed({
+          assets: resolve(config.workflowAssets ?? []).map((asset) => ({
+            kind: asset.kind,
+            name: asset.name,
+            description: asset.description,
+            relativePath: asset.relativePath,
+            revision: asset.revision,
+          })),
+          invalid: [],
+        }),
+      )
+      .handle("workflow-asset.content", ({ query }) =>
+        Effect.gen(function* () {
+          const asset = resolve(config.workflowAssets ?? []).find((asset) => asset.relativePath === query.path)
+
+          if (!asset) return yield* new InvalidRequestError({ message: "Workflow asset not found" })
+
+          return asset
+        }),
+      )
+      .handle("memory.list", () => memoryRead())
+      .handle("memory.pending", () => memoryRead(true))
+      .handle("memory.confirm", ({ params }) => memoryAction("confirm", params.id, undefined))
+      .handle("memory.reject", ({ params }) => memoryAction("reject", params.id, undefined))
+      .handle("memory.edit", ({ params, payload }) => memoryAction("edit", params.id, payload))
+      .handle("memory.remove", ({ params }) => memoryAction("remove", params.id, undefined))
+      .handle("hub.list", ({ query }) =>
+        Effect.succeed((config.tasks ?? []).filter((task) => !!taskSession(task.sessionID, query))),
+      )
+      .handle("meta.get", ({ params }) => Effect.succeed(config.meta?.[params.sessionID] ?? { sessions: [] }))
+      .handle("facts.get", ({ params, query }) =>
+        Effect.succeed(
+          (config.projectMemory?.[params.sessionID] ?? []).filter(
+            (fact) =>
+              (!query.keyword || fact.content.includes(query.keyword)) &&
+              (!query.category || fact.factCategory === query.category),
+          ),
+        ),
+      )
+      .handle("facts.remove", ({ params }) =>
+        Effect.sync(() => {
+          if (config.projectMemory)
+            config.projectMemory[params.sessionID] =
+              config.projectMemory[params.sessionID]?.filter((fact) => fact.id !== params.id) ?? []
+        }),
+      )
+      .handle("cache.get", ({ params }) =>
+        Effect.gen(function* () {
+          const error = yield* Effect.promise(async () => config.onCacheRead?.({ sessionID: params.sessionID }))
+
+          if (error) return yield* error
+
+          return (
+            config.cacheDiagnostics?.[params.sessionID] ?? {
+              sessionHitRate: 0,
+              sessionCacheRead: 0,
+              sessionCacheWrite: 0,
+              sessionTotalInput: 0,
+              confidence: "unavailable",
+              perStep: [],
+            }
+          )
+        }),
+      )
+      .handle("workflow.get", ({ params, query }) =>
+        Effect.gen(function* () {
+          const error = config.onWorkflowRead?.({ sessionID: params.sessionID, runID: query.runID })
+
+          if (error) return yield* error
+
+          const latest = config.workflows?.[params.sessionID]
+
+          if (!query.runID) return latest ?? { steps: [] }
+
+          const selected = [latest, ...(config.workflowHistory ?? [])].find(
+            (value) => value?.run?.id === query.runID && value?.run?.sessionID === params.sessionID,
+          )
+
+          if (selected) return selected
+
+          return yield* new ApiNotFoundError({ name: "NotFoundError", data: { message: "Workflow run not found" } })
+        }),
+      )
+      .handle("workflow.run", ({ params, payload }) => workflowAction("run", params, payload))
+      .handle("workflow.cancelRun", ({ params, payload }) => workflowAction("cancelRun", params, payload))
+      .handle("workflow.cancelStep", ({ params, payload }) => workflowAction("cancelStep", params, payload))
+      .handle("workflow.retryStep", ({ params, payload }) => workflowAction("retryStep", params, payload))
+      .handle("artifact.apply", ({ params, query, payload }) =>
+        Effect.gen(function* () {
+          if (!config.onArtifactApply)
+            return yield* new InvalidRequestError({ message: "Artifact action is not configured" })
+
+          const body = Schema.decodeUnknownSync(
+            Schema.Struct({
+              title: Schema.String,
+              relativePath: Schema.String,
+              content: Schema.String,
+              overwrite: Schema.Boolean,
+            }),
+          )(payload)
+
+          const result = yield* Effect.promise(() =>
+            Promise.resolve(config.onArtifactApply?.({ ...params, directory: query.directory, ...body })),
+          )
+
+          if (result instanceof ConflictError || result instanceof InvalidRequestError) return yield* result
+
+          return result
+        }),
+      )
+      .handle("delegation.result", ({ params, query }) =>
+        Effect.gen(function* () {
+          const result = yield* Effect.promise(() =>
+            Promise.resolve(config.onDelegationResult?.({ ...params, ...query })),
+          )
+
+          if (result instanceof InvalidRequestError) return yield* result
+
+          return result
+        }),
+      )
+      .handle("delegation.list", ({ query }) =>
+        Effect.gen(function* () {
+          const error = yield* Effect.promise(() => Promise.resolve(config.onDelegationRead?.()))
+
+          if (error instanceof InvalidRequestError) return yield* error
+
+          if (query.parentSessionID && !taskSession(query.parentSessionID, query))
+            return yield* new InvalidRequestError({ message: "Delegation does not belong to this Location" })
+
+          return resolve(config.delegations ?? [])
+            .filter((item) => !query.parentSessionID || item.delegation.parentSessionID === query.parentSessionID)
+            .map((item) => Schema.decodeUnknownSync(LegacyDelegationState)(item))
+        }),
+      )
+      .handle("delegation.interrupt", (input) => delegationAction("interrupt", input))
+      .handle("delegation.close", (input) => delegationAction("close", input))
+      .handle("delegation.reconcile", (input) => delegationAction("reconcile", input))
+      .handle("delegation.retry", (input) => delegationAction("retry", input))
       .handleRaw("event", () => {
         const events = config.events?.()
         const retry = config.eventRetry === undefined ? "" : `retry: ${config.eventRetry}\n\n`
@@ -757,6 +1395,9 @@ function mockHandlers(
       .handleRaw("fsRead", (ctx) =>
         Effect.gen(function* () {
           const path = decodeURIComponent(new URL(ctx.request.url, "http://localhost").pathname.slice(13))
+          const answer = yield* Effect.promise(() => Promise.resolve(config.fileReadAnswer?.(path)))
+
+          if (answer) return HttpServerResponse.jsonUnsafe(answer.body, { status: answer.status })
           const value = yield* Effect.promise(() => Promise.resolve(config.fileContent?.(path)))
           const content = Predicate.isString(value) ? value : (value?.content ?? "")
 
@@ -788,20 +1429,135 @@ function mockHandlers(
           return HttpServerResponse.jsonUnsafe(answer.body, { status: answer.status })
         }),
       )
+      .handleRaw("compositionPlan", (ctx) =>
+        Effect.gen(function* () {
+          const handler = config.onCompositionPlan
+
+          if (!handler)
+            return HttpServerResponse.jsonUnsafe(
+              { name: "MockUnsupported", message: "No composition plan configured" },
+              { status: 501 },
+            )
+
+          const body = yield* Effect.orDie(
+            ctx.request.json.pipe(
+              Effect.flatMap(Schema.decodeUnknownEffect(Schema.toCodecJson(Composition.CompositionInput))),
+            ),
+          )
+
+          const directory =
+            new URL(ctx.request.url, "http://localhost").searchParams.get("directory") ?? config.directory
+
+          const answer = yield* Effect.promise(() => Promise.resolve(handler({ directory, body })))
+
+          return HttpServerResponse.jsonUnsafe(answer.body, { status: answer.status })
+        }),
+      )
+      .handleRaw("compositionStart", (ctx) =>
+        Effect.gen(function* () {
+          const handler = config.onCompositionStart
+
+          if (!handler)
+            return HttpServerResponse.jsonUnsafe(
+              { name: "MockUnsupported", message: "No composition start configured" },
+              { status: 501 },
+            )
+
+          const body = yield* Effect.orDie(
+            ctx.request.json.pipe(
+              Effect.flatMap(Schema.decodeUnknownEffect(Schema.toCodecJson(Composition.StartInput))),
+            ),
+          )
+
+          const directory =
+            new URL(ctx.request.url, "http://localhost").searchParams.get("directory") ?? config.directory
+
+          const answer = yield* Effect.promise(() => Promise.resolve(handler({ directory, body })))
+
+          if (answer.status === 200) {
+            const started = Schema.decodeUnknownSync(Schema.toCodecJson(Composition.StartResponse))(answer.body)
+
+            if (!config.sessions.some((session) => session.id === started.session.id))
+              config.sessions.push(Schema.encodeSync(Composition.StartResponse)(started).session)
+
+            config.compositions ??= {}
+            config.compositions[started.session.id] = started.snapshot
+          }
+
+          return HttpServerResponse.jsonUnsafe(answer.body, {
+            status: answer.status,
+            headers: answer.disconnect ? { "x-aigcfroge-mock-disconnect": "true" } : undefined,
+          })
+        }),
+      )
       .handleRaw("sessionCreate", (ctx) =>
         Effect.gen(function* () {
           const input = yield* Effect.orDie(ctx.request.json)
-          const payload = Option.getOrElse(decodeJsonObject(input), () => ({}))
+          const payload = Option.getOrElse(decodeJsonObject(input), (): Schema.JsonObject => ({}))
           const fields = Option.getOrUndefined(decodeSessionCreate(payload))
           state.sessionCreates += 1
           const answer = config.onSessionCreate?.(payload, state.sessionCreates)
 
           if (answer) return HttpServerResponse.jsonUnsafe(answer.body, { status: answer.status })
 
+          const id = fields?.id ?? "ses_mock_created"
+          const existing = config.sessions.find((session) => session.id === id)
+
+          if (existing) return HttpServerResponse.jsonUnsafe({ data: currentSession(existing, config.directory) })
+
+          const parent = fields?.parentID
+            ? config.sessions.find((session) => session.id === fields.parentID)
+            : undefined
+
+          if (
+            parent &&
+            Predicate.isObject(parent.controller) &&
+            (parent.controller.kind === "child" || parent.agent === "meta")
+          )
+            return HttpServerResponse.jsonUnsafe(
+              Schema.encodeSync(InvalidRequestError)(
+                new InvalidRequestError({
+                  field: "parentID",
+                  kind: parent.controller.kind === "child" ? "meta_child_recursion" : "meta_child_source_required",
+                  message: "Meta children require their saved source and binding",
+                }),
+              ),
+              { status: 400 },
+            )
+          const agent = Predicate.isString(payload.agent) ? payload.agent : "build"
+          const metaSelected = fields?.parentID === undefined && agent === "meta"
+          const catalog = resolve(config.provider)
+          const fallback = currentDefaultModel(catalog) ?? currentModels(catalog)[0]
+
+          const modelInput =
+            payload.model ??
+            (metaSelected && fallback ? { id: fallback.id, providerID: fallback.providerID } : undefined)
+
+          const model =
+            modelInput === undefined ? undefined : Schema.decodeUnknownSync(Schema.toCodecJson(Model.Selection))(modelInput)
+
+          const controller = metaSelected
+            ? new Session.RootController({
+                kind: "root",
+                metaAgentID: MetaAgent.ID.descending(),
+                rootSessionID: Session.ID.make(id),
+              })
+            : undefined
+
+          const executorPreference =
+            !metaSelected || payload.executorPreference === undefined
+              ? undefined
+              : Schema.decodeUnknownSync(Schema.toCodecJson(Session.ExecutorPreference))(payload.executorPreference)
+
           const created = currentSession(
             {
               ...payload,
-              id: fields?.id ?? "ses_mock_created",
+              id,
+              mode: payload.mode ?? parent?.mode ?? ProductMode.Default,
+              agent,
+              model,
+              controller,
+              executorPreference,
               projectID: projectSeed(config)?.id,
               title: config.createdSessionTitle ?? fields?.title ?? "New session",
               parentID: fields?.parentID,
@@ -814,33 +1570,149 @@ function mockHandlers(
           return HttpServerResponse.jsonUnsafe({ data: created })
         }),
       )
+      .handleRaw("sessionCreateConsultation", (ctx) =>
+        Effect.gen(function* () {
+          const create = config.onConsultation
+
+          if (!create) return yield* unsupported("create consultations", "onConsultation")
+          const payload = yield* Effect.orDie(ctx.request.json)
+          const body = Schema.decodeUnknownSync(SessionConsultation.Input)(payload)
+          state.consultationCreates += 1
+
+          const answer = yield* Effect.promise(() =>
+            Promise.resolve(create({ sourceSessionID: ctx.params.sourceSessionID, body }, state.consultationCreates)),
+          )
+
+          return HttpServerResponse.jsonUnsafe(answer.body, { status: answer.status })
+        }),
+      )
+      .handleRaw("sessionConsultation", (ctx) =>
+        Effect.gen(function* () {
+          const read = config.onConsultationRead
+
+          if (!read) return yield* unsupported("read consultation references", "onConsultationRead")
+          const answer = yield* Effect.promise(() => Promise.resolve(read(ctx.params.sessionID)))
+
+          return HttpServerResponse.jsonUnsafe(answer.body, { status: answer.status })
+        }),
+      )
       .handleAll({
         info: () =>
           Effect.succeed({
             version: "2.0.0",
             pid: 1,
             urls: config.server ? [config.server] : [],
-            paths: { tmp: "/tmp/opencode" },
+            paths: { tmp: "/tmp/aigcfroge" },
           }),
         config: () => Effect.succeed(configEntries),
         reference: () => Effect.succeed({ location: location(config), data: [] }),
         agent: (ctx) =>
           Effect.succeed({
             location: location(config, requestDirectory(config, ctx.request)),
-            data: [
+            data: resolve(config.agents ?? [
               {
                 id: "build",
                 name: "Build",
+                mode: "all",
+                hidden: false,
+                request: { settings: {}, headers: {}, body: {} },
+                permissions: [],
+                handoffs: [],
+                ordinaryModes: [...ProductMode.ID.literals],
+              },
+              {
+                id: "meta",
+                name: "Meta",
                 mode: "primary",
                 hidden: false,
                 request: { settings: {}, headers: {}, body: {} },
                 permissions: [],
+                handoffs: [],
+                ordinaryModes: [...ProductMode.ID.literals],
               },
-            ],
+              {
+                id: "plan",
+                name: "Plan",
+                mode: "primary",
+                hidden: false,
+                request: { settings: {}, headers: {}, body: {} },
+                permissions: [],
+                handoffs: [],
+                ordinaryModes: [...ProductMode.ID.literals],
+              },
+              {
+                id: "explore",
+                name: "Explore",
+                mode: "subagent",
+                hidden: false,
+                request: { settings: {}, headers: {}, body: {} },
+                permissions: [],
+                handoffs: [],
+                ordinaryModes: [...ProductMode.ID.literals],
+              },
+            ]),
           }),
         provider: () =>
           Effect.succeed({ location: location(config), data: currentProviders(resolve(config.provider)) }),
+        providerDefinition: () => Effect.succeed({
+          location: location(config),
+          data: config.providerDefinitions ? resolve(config.providerDefinitions) : { targets: [], definitions: [] },
+        }),
+        providerDiscovery: (ctx) => Effect.succeed({ location: location(config), data: config.providerDiscovery?.(ctx.query) ?? {
+          status: { providerID: ctx.query.providerID, phase: "idle", cachePersisted: false, generation: 0 }, candidates: [], managed: [],
+        } }),
+        providerDiscoveryPreview: (ctx) => {
+          const preview = config.onProviderDiscoveryPreview
+
+          if (!preview) return unsupported("preview provider model lists", "onProviderDiscoveryPreview")
+
+          return Effect.promise(() => Promise.resolve(preview(ctx.payload)))
+            .pipe(Effect.map((data) => ({ location: location(config), data })))
+        },
+        providerDiscoveryRefresh: (ctx) => {
+          const refresh = config.onProviderDiscoveryRefresh
+
+          if (!refresh) return unsupported("refresh provider model lists", "onProviderDiscoveryRefresh")
+
+          return Effect.promise(() => Promise.resolve(refresh(ctx.payload)))
+            .pipe(Effect.map((data) => ({ location: location(config), data })))
+        },
+        providerDefinitionSave: (ctx) => {
+          const save = config.onProviderDefinitionSave
+
+          if (!save) return unsupported("save provider definitions", "onProviderDefinitionSave")
+
+          return Effect.promise(() => Promise.resolve(save(ctx.payload)))
+            .pipe(Effect.map((data) => ({ location: location(config), data })))
+        },
+        providerDefinitionRemove: (ctx) => {
+          const remove = config.onProviderDefinitionRemove
+
+          if (!remove) return unsupported("remove provider definitions", "onProviderDefinitionRemove")
+
+          return Effect.promise(() => Promise.resolve(remove(ctx.payload)))
+            .pipe(Effect.map((data) => ({ location: location(config), data })))
+        },
         model: () => Effect.succeed({ location: location(config), data: currentModels(resolve(config.provider)) }),
+        modelGroupDefinition: () => Effect.succeed({ location: location(config),
+          data: config.modelGroups ? resolve(config.modelGroups) : { targets: [], definitions: [], effective: [] },
+        }),
+        modelGroupDefinitionSave: (ctx) => {
+          const save = config.onModelGroupSave
+
+          if (!save) return unsupported("save model groups", "onModelGroupSave")
+
+          return Effect.promise(() => Promise.resolve(save(ctx.payload)))
+            .pipe(Effect.map((data) => ({ location: location(config), data })))
+        },
+        modelGroupDefinitionRemove: (ctx) => {
+          const remove = config.onModelGroupRemove
+
+          if (!remove) return unsupported("remove model groups", "onModelGroupRemove")
+
+          return Effect.promise(() => Promise.resolve(remove(ctx.payload)))
+            .pipe(Effect.map((data) => ({ location: location(config), data })))
+        },
         modelDefault: () =>
           Effect.succeed({ location: location(config), data: currentDefaultModel(resolve(config.provider)) }),
         integrationList: () => Effect.succeed({ location: location(config), data: config.integrations ?? [] }),
@@ -1000,13 +1872,13 @@ function mockHandlers(
               : (config.vcsDiff ?? []),
           })),
         fsList: (ctx) =>
-          Effect.promise(() => Promise.resolve(config.fileList?.(ctx.query.path ?? ""))).pipe(
+          Effect.promise(() => Promise.resolve(config.fileList?.(ctx.query.path ?? "") ?? [])).pipe(
             Effect.map((data) => ({ location: location(config), data })),
           ),
         fsFind: (ctx) =>
           Effect.promise(() =>
             Promise.resolve(
-              config.findFiles?.({ query: ctx.query.query ?? "", dirs: ctx.query.type, limit: ctx.query.limit }),
+              config.findFiles?.({ query: ctx.query.query ?? "", dirs: ctx.query.type, limit: ctx.query.limit }) ?? [],
             ),
           ).pipe(
             Effect.map((entries) => ({
@@ -1175,13 +2047,17 @@ function mockHandlers(
             ),
           }),
         sessionGet: (ctx) =>
-          Effect.suspend(() => {
-            config.onSession?.(ctx.params.sessionID)
+          Effect.gen(function* () {
+            yield* Effect.promise(async () => config.onSession?.(ctx.params.sessionID))
+            const error = config.sessionReadError?.(ctx.params.sessionID)
+
+            if (error) return yield* error
+
             const session = config.sessions.find((item) => item.id === ctx.params.sessionID)
 
-            return session
-              ? Effect.succeed({ data: currentSession(session, config.directory) })
-              : Effect.fail(new MockNotFound({ message: "Session not found" }))
+            if (!session) return yield* new MockNotFound({ message: "Session not found" })
+
+            return { data: currentSession(session, config.directory) }
           }),
         sessionRemove: () => noContent,
         sessionShell: () => noContent,
@@ -1200,6 +2076,253 @@ function mockHandlers(
               (item) => Predicate.isObject(item) && item.sessionID === ctx.params.sessionID,
             ),
           })),
+        sessionIdentity: (ctx) => Effect.gen(function* () {
+          if (!taskSession(ctx.params.sessionID, ctx.query)) return yield* new ApiNotFoundError({ name: "NotFoundError", data: { message: "Session not found" } })
+          yield* Effect.promise(() => Promise.resolve(config.onIdentityRead?.(ctx.params.sessionID)))
+          const selected = config.identities?.[ctx.params.sessionID]
+
+          if (selected) return selected
+          const source = config.sessions.find((session) => session.id === ctx.params.sessionID)
+
+          if (!source) return yield* new ApiNotFoundError({ name: "NotFoundError", data: { message: "Session not found" } })
+          const session = currentSession(source, config.directory)
+
+          return { sessionID: session.id, location: session.location, projectID: session.projectID, mode: session.mode ?? "coding", agent: session.agent ?? "build",
+            model: { status: "missing" }, permission: { declaredTier: "propose", effect: "ask" }, capability: { health: "degraded", reasons: [{ code: "mode-detail-not-projected", severity: "info" }] },
+            detail: { status: "missing", reason: "mode-detail-not-projected" } }
+        }),
+        taskOperations: (ctx) => operationRead(ctx.params, ctx.query),
+        taskOperation: (ctx) => Effect.gen(function* () {
+          const operations = yield* operationRead(ctx.params, ctx.query)
+
+          if (!operations[0]) return yield* new ApiNotFoundError({ name: "NotFoundError", data: { message: "Task operation not found" } })
+
+          return operations[0]
+        }),
+        taskDispatch: (ctx) => Effect.gen(function* () {
+          if (!config.onTaskDispatch) return yield* new InvalidRequestError({ message: "Task dispatch is not configured" })
+          const result = yield* Effect.promise(() => Promise.resolve(config.onTaskDispatch?.({ sessionID: ctx.params.sessionID, request: ctx.payload })))
+
+          if (result instanceof InvalidRequestError || result instanceof ConflictError) return yield* result
+
+          if (!result) return yield* new InvalidRequestError({ message: "Task dispatch returned no acknowledgement" })
+
+          return result
+        }),
+        taskCancelOperation: (ctx) => Effect.gen(function* () {
+          if (!config.onTaskCancelOperation) return yield* new InvalidRequestError({ message: "Task cancellation is not configured" })
+          const result = yield* Effect.promise(() => Promise.resolve(config.onTaskCancelOperation?.(ctx.params)))
+
+          if (result instanceof InvalidRequestError) return yield* result
+
+          if (!result) return yield* new InvalidRequestError({ message: "Task cancellation returned no acknowledgement" })
+
+          return result
+        }),
+        communicationList: (ctx) => Effect.gen(function* () {
+          const items = yield* communicationRead(ctx.params, ctx.query)
+
+          return { data: { items, capability: config.communicationCapabilities?.[ctx.params.sessionID] ?? { read: true, list: true, send: false, reply: false, reasons: ["fixture-read-only"] } } }
+        }),
+        communicationRead: (ctx) => Effect.gen(function* () {
+          const items = yield* communicationRead(ctx.params, ctx.query)
+
+          return { data: items[0] ?? null }
+        }),
+        communicationSend: (ctx) => communicationMutation({ action: "send", ...ctx.params, ...ctx.query, body: ctx.payload }),
+        communicationReply: (ctx) => communicationMutation({ action: "reply", ...ctx.params, ...ctx.query, body: ctx.payload }),
+        goalList: (ctx) => Effect.gen(function* () {
+          yield* Effect.promise(() => Promise.resolve(config.onGoalRead?.(ctx.params)))
+
+          return { data: (config.goals ?? []).filter((goal) => goal.sessionID === ctx.params.sessionID) }
+        }),
+        goalGet: (ctx) => Effect.gen(function* () {
+          yield* Effect.promise(() => Promise.resolve(config.onGoalRead?.(ctx.params)))
+
+          return { data: config.goals?.find((goal) => goal.sessionID === ctx.params.sessionID && goal.id === ctx.params.goalID) ?? null }
+        }),
+        goalSet: (ctx) => goalMutation({ ...ctx.params, action: "set", body: ctx.payload }),
+        goalEdit: (ctx) => goalMutation({ ...ctx.params, action: "edit", body: ctx.payload }),
+        goalPause: (ctx) => goalMutation({ ...ctx.params, action: "pause", body: ctx.payload }),
+        goalResume: (ctx) => goalMutation({ ...ctx.params, action: "resume", body: ctx.payload }),
+        goalCancel: (ctx) => goalMutation({ ...ctx.params, action: "cancel", body: ctx.payload }),
+        goalConfirm: (ctx) => goalMutation({ ...ctx.params, action: "confirm", body: ctx.payload }),
+        scheduleRules: (ctx) => Effect.gen(function* () {
+          yield* Effect.promise(() => Promise.resolve(config.onScheduleRead?.({ ...ctx.params, ...ctx.query })))
+
+          return (config.schedules ?? []).filter((rule) => rule.sessionID === ctx.params.sessionID)
+        }),
+        scheduleRule: (ctx) => Effect.gen(function* () {
+          yield* Effect.promise(() => Promise.resolve(config.onScheduleRead?.({ ...ctx.params, ...ctx.query })))
+          const rule = config.schedules?.find((rule) => rule.id === ctx.params.id)
+
+          if (!rule) return yield* new InvalidRequestError({ message: "Schedule rule not found" })
+
+          return rule
+        }),
+        scheduleRuns: (ctx) => Effect.gen(function* () {
+          yield* Effect.promise(() => Promise.resolve(config.onScheduleRead?.({ ...ctx.params, ...ctx.query })))
+
+          return (config.scheduleRuns ?? []).filter((run) => run.scheduleID === ctx.params.id)
+        }),
+        scheduleCreate: (ctx) => scheduleMutation({ action: "create", body: ctx.payload, ...ctx.query }),
+        scheduleEdit: (ctx) => scheduleMutation({ action: "edit", ...ctx.params, body: ctx.payload, ...ctx.query }),
+        schedulePause: (ctx) => scheduleMutation({ action: "pause", ...ctx.params, body: ctx.payload, ...ctx.query }),
+        scheduleResume: (ctx) => scheduleMutation({ action: "resume", ...ctx.params, body: ctx.payload, ...ctx.query }),
+        scheduleCancel: (ctx) => scheduleMutation({ action: "cancel", ...ctx.params, body: ctx.payload, ...ctx.query }),
+        scheduleRun: (ctx) => scheduleMutation({ action: "run", ...ctx.params, body: ctx.payload, ...ctx.query }),
+        scheduleCancelRun: (ctx) => scheduleMutation({ action: "cancelRun", ...ctx.params, ...ctx.query }),
+        sessionTaskGet: (ctx) =>
+          Effect.gen(function* () {
+            if (!taskSession(ctx.params.sessionID, ctx.query))
+              return yield* new ApiNotFoundError({
+                name: "NotFoundError",
+                data: { message: `Session not found: ${ctx.params.sessionID}` },
+              })
+
+            const failure = yield* Effect.promise(async () =>
+              config.onTaskRead?.({
+                sessionID: ctx.params.sessionID,
+                directory: ctx.query.directory ?? config.directory,
+              }),
+            )
+
+            if (failure) return yield* failure
+
+            return state.tasks.filter((task) => task.sessionID === ctx.params.sessionID)
+          }),
+        sessionTaskCreate: (ctx) =>
+          Effect.gen(function* () {
+            if (!taskSession(ctx.params.sessionID, ctx.query))
+              return yield* new ApiNotFoundError({
+                name: "NotFoundError",
+                data: { message: `Session not found: ${ctx.params.sessionID}` },
+              })
+            const directory = ctx.query.directory ?? config.directory
+            yield* taskMutation({ action: "create", sessionID: ctx.params.sessionID, directory, body: ctx.payload })
+
+            const id =
+              ctx.payload.id ??
+              Array.from({ length: state.tasks.length + 1 }, (_, index) => `tsk_mock_${index + 1}`).find(
+                (id) => !state.tasks.some((task) => task.id === id),
+              )
+
+            if (!id) return yield* Effect.die(new Error("Mock Task identity was not allocated"))
+
+            if (state.tasks.some((task) => task.id === id))
+              return yield* new InvalidRequestError({ message: `Task id already exists: ${id}`, kind: "duplicate" })
+            const now = (yield* DateTime.nowAsDate).getTime()
+
+            const task = new SessionTask.Info({
+              id,
+              sessionID: ctx.params.sessionID,
+              content: ctx.payload.content,
+              status: ctx.payload.status,
+              priority: ctx.payload.priority,
+              parentID: ctx.payload.parentID,
+              agentID: ctx.payload.agentID,
+              scheduledAt: ctx.payload.scheduledAt,
+              recurrence: ctx.payload.recurrence,
+              spawnedFrom: ctx.payload.spawnedFrom,
+              dependsOn: ctx.payload.dependsOn,
+              revision: 1,
+              createdAt: now,
+              updatedAt: now,
+            })
+
+            state.tasks.push(task)
+            publishTasks(ctx.params.sessionID, directory, now)
+
+            return task
+          }),
+        sessionTaskPatch: (ctx) =>
+          Effect.gen(function* () {
+            if (!taskSession(ctx.params.sessionID, ctx.query))
+              return yield* new ApiNotFoundError({
+                name: "NotFoundError",
+                data: { message: `Session not found: ${ctx.params.sessionID}` },
+              })
+            const directory = ctx.query.directory ?? config.directory
+            yield* taskMutation({
+              action: "patch",
+              sessionID: ctx.params.sessionID,
+              taskID: ctx.params.taskID,
+              directory,
+              body: ctx.payload,
+            })
+
+            const index = state.tasks.findIndex(
+              (task) => task.sessionID === ctx.params.sessionID && task.id === ctx.params.taskID,
+            )
+
+            const prior = state.tasks[index]
+
+            if (!prior)
+              return yield* new ApiNotFoundError({
+                name: "NotFoundError",
+                data: { message: `Task not found: ${ctx.params.taskID}` },
+              })
+
+            if (
+              ctx.payload.content === undefined &&
+              ctx.payload.status === undefined &&
+              ctx.payload.priority === undefined
+            )
+              return yield* new InvalidRequestError({ message: "At least one task field is required" })
+
+            if (ctx.payload.expectedRevision !== undefined && ctx.payload.expectedRevision !== prior.revision)
+              return yield* new InvalidRequestError({
+                message: "Task changed since the caller last read it",
+                kind: "stale_revision",
+              })
+            const now = (yield* DateTime.nowAsDate).getTime()
+
+            const task = new SessionTask.Info({
+              // oxlint-disable-next-line no-misused-spread -- Task rows carry only schema fields across this fixture write.
+              ...prior,
+              content: ctx.payload.content ?? prior.content,
+              status: ctx.payload.status ?? prior.status,
+              priority: ctx.payload.priority ?? prior.priority,
+              revision: prior.revision + 1,
+              updatedAt: now,
+            })
+
+            state.tasks[index] = task
+            publishTasks(ctx.params.sessionID, directory, now)
+
+            return task
+          }),
+        sessionTaskDelete: (ctx) =>
+          Effect.gen(function* () {
+            if (!taskSession(ctx.params.sessionID, ctx.query))
+              return yield* new ApiNotFoundError({
+                name: "NotFoundError",
+                data: { message: `Session not found: ${ctx.params.sessionID}` },
+              })
+            const directory = ctx.query.directory ?? config.directory
+            yield* taskMutation({
+              action: "delete",
+              sessionID: ctx.params.sessionID,
+              taskID: ctx.params.taskID,
+              directory,
+            })
+
+            const index = state.tasks.findIndex(
+              (task) => task.sessionID === ctx.params.sessionID && task.id === ctx.params.taskID,
+            )
+
+            const task = state.tasks[index]
+
+            if (!task)
+              return yield* new ApiNotFoundError({
+                name: "NotFoundError",
+                data: { message: `Task not found: ${ctx.params.taskID}` },
+              })
+            state.tasks.splice(index, 1)
+            publishTasks(ctx.params.sessionID, directory, (yield* DateTime.nowAsDate).getTime())
+
+            return task
+          }),
         sessionPrompt: (ctx) =>
           Effect.sync(() => {
             const body = Option.getOrElse(decodeJsonObject(ctx.payload), () => ({}))
@@ -1253,8 +2376,193 @@ function mockHandlers(
               action: ctx.payload.delivery,
             }),
           ).pipe(Effect.andThen(noContent)),
-        sessionSwitchAgent: () => noContent,
-        sessionSwitchModel: () => noContent,
+        sessionSwitchAgent: (ctx) =>
+          Effect.gen(function* () {
+            const session = config.sessions.find((item) => item.id === ctx.params.sessionID)
+            const controller = session?.controller
+
+            if (
+              Predicate.isObject(controller) &&
+              controller.kind === "child" &&
+              (ctx.payload.agent !== session?.agent ||
+                (ctx.payload.model &&
+                  (!session ||
+                    !Schema.toEquivalence(Model.Selection)(
+                      currentSession(session, config.directory).model,
+                      ctx.payload.model,
+                    ))))
+            )
+              return yield* new InvalidRequestError({
+                field: "agent",
+                kind: "meta_binding_conflict",
+                message: "Delegated Agent is fixed",
+              })
+
+            if (!session) return HttpApiSchema.NoContent.make()
+
+            if (Predicate.isObject(controller) && controller.kind === "child") return HttpApiSchema.NoContent.make()
+
+            if (ctx.payload.agent === "meta" && !controller)
+              session.controller = new Session.RootController({
+                kind: "root",
+                rootSessionID: Session.ID.make(session.id),
+                metaAgentID: MetaAgent.ID.descending(),
+              })
+            session.agent = ctx.payload.agent
+
+            if (ctx.payload.model) session.model = ctx.payload.model
+
+            return HttpApiSchema.NoContent.make()
+          }),
+        sessionSwitchModel: (ctx) =>
+          Effect.gen(function* () {
+            const session = config.sessions.find((item) => item.id === ctx.params.sessionID)
+            const controller = session?.controller
+            const model = session ? currentSession(session, config.directory).model : undefined
+
+            if (
+              Predicate.isObject(controller) &&
+              controller.kind === "child" &&
+              (!model || !Schema.toEquivalence(Model.Selection)(model, ctx.payload.model))
+            )
+              return yield* new InvalidRequestError({
+                field: "model",
+                kind: "meta_binding_conflict",
+                message: "Delegated model is fixed",
+              })
+
+            if (session) session.model = ctx.payload.model
+
+            return HttpApiSchema.NoContent.make()
+          }),
+        sessionSelectExecutor: (ctx) =>
+          Effect.gen(function* () {
+            const session = config.sessions.find((item) => item.id === ctx.params.sessionID)
+
+            if (!session) return yield* new MockNotFound({ message: "Session not found" })
+
+            if (
+              !Predicate.isObject(session.controller) ||
+              session.controller.kind !== "root" ||
+              session.agent !== "meta"
+            )
+              return yield* new InvalidRequestError({
+                field: "executorPreference",
+                kind: "executor_selection_unsupported",
+                message: "Delegation preferences require a selected Meta root",
+              })
+            session.executorPreference = ctx.payload
+
+            return { data: currentSession(session, config.directory) }
+          }),
+        sessionFork: (ctx) =>
+          Effect.gen(function* () {
+            yield* Effect.promise(async () =>
+              config.onSessionFork?.({ sessionID: ctx.params.sessionID, ...ctx.payload }),
+            )
+            const source = config.sessions.find((item) => item.id === ctx.params.sessionID)
+
+            if (!source) return yield* new MockNotFound({ message: "Session not found" })
+            const current = currentSession(source, config.directory)
+            const digest = current.mode === "custom" ? config.compositions?.[current.id]?.digest : undefined
+
+            const expectedSource = {
+              sourceSessionID: current.id,
+              mode: current.mode,
+            }
+
+            if (current.agent !== undefined) Object.assign(expectedSource, { agent: current.agent })
+
+            if (current.controller !== undefined) Object.assign(expectedSource, { controller: current.controller })
+
+            if (current.model !== undefined) Object.assign(expectedSource, { model: current.model })
+
+            if (digest !== undefined) Object.assign(expectedSource, { compositionDigest: digest })
+
+            const expected = Schema.decodeUnknownSync(Session.ForkExpectedSource)(expectedSource)
+
+            if (
+              ctx.payload.expectedSource &&
+              !Schema.toEquivalence(Session.ForkExpectedSource)(ctx.payload.expectedSource, expected)
+            )
+              return yield* new InvalidRequestError({
+                field: "expectedSource",
+                kind: "fork_source_conflict",
+                message: "Fork source changed; preview again",
+              })
+
+            const metaControlled =
+              (Predicate.isObject(source.controller) && source.controller.kind === "root" && source.agent === "meta") ||
+              ctx.payload.control === "meta"
+
+            if (Predicate.isObject(source.controller) && source.controller.kind === "child")
+              return yield* new InvalidRequestError({
+                field: "sessionID",
+                kind: "meta_child_recursion",
+                message: "Meta children cannot fork new work",
+              })
+
+            if (ctx.payload.control === "meta" && !source.controller && !ctx.payload.expectedSource)
+              return yield* new InvalidRequestError({
+                field: "expectedSource",
+                kind: "fork_source_conflict",
+                message: "Preview the source before adopting Meta orchestration",
+              })
+            const id = Session.ID.create()
+
+            const messageID =
+              ctx.payload.before ??
+              ctx.payload.through ??
+              config.pageMessages(source.id, Number.MAX_SAFE_INTEGER).items.at(-1)?.id
+
+            const forked = currentSession(
+              {
+                ...source,
+                id,
+                parentID: undefined,
+                fork: messageID
+                  ? {
+                      sessionID: source.id,
+                      boundary: { type: ctx.payload.before ? "before" : "through", messageID },
+                    }
+                  : undefined,
+                agent: metaControlled ? "meta" : source.agent,
+                model: ctx.payload.model ?? source.model,
+                executorPreference: metaControlled
+                  ? (ctx.payload.executorPreference ?? source.executorPreference)
+                  : undefined,
+                controller: metaControlled
+                  ? new Session.RootController({
+                      kind: "root",
+                      rootSessionID: id,
+                      metaAgentID:
+                        Predicate.isObject(source.controller) && Predicate.isString(source.controller.metaAgentID)
+                          ? MetaAgent.ID.make(source.controller.metaAgentID)
+                          : MetaAgent.ID.descending(),
+                    })
+                  : undefined,
+              },
+              config.directory,
+            )
+
+            config.sessions.push(forked)
+
+            if (config.compositions?.[source.id]) config.compositions[id] = config.compositions[source.id]!
+
+            return { data: forked }
+          }),
+        sessionComposition: (ctx) =>
+          Effect.gen(function* () {
+            const snapshot = config.compositions?.[ctx.params.sessionID]
+
+            if (!snapshot)
+              return yield* new ApiNotFoundError({
+                name: "NotFoundError",
+                data: { message: "Session composition not found" },
+              })
+
+            return snapshot
+          }),
         // Only the session's own list; location requests (`permissions`) come from `/api/permission/request`.
         sessionPermission: (ctx) =>
           Effect.sync(() => ({
@@ -1312,7 +2620,8 @@ function mockHandlers(
           )
         },
         // Like the server for an idle session: nothing was running to interrupt.
-        sessionInterrupt: () => Effect.succeed({ interrupted: false }),
+        sessionInterrupt: (ctx) =>
+          Effect.promise(async () => config.onInterrupt?.(ctx.params.sessionID) ?? { interrupted: false }),
         // The mock runs no agent loop, so every session is already idle.
         sessionWait: () => noContent,
         sessionRevertStage: (ctx) => {
@@ -1329,7 +2638,9 @@ function mockHandlers(
         sessionRevertCommit: () => noContent,
         messageGet: (ctx) =>
           Effect.gen(function* () {
-            config.onMessage?.({ sessionID: ctx.params.sessionID, messageID: ctx.params.messageID })
+            yield* Effect.promise(async () =>
+              config.onMessage?.({ sessionID: ctx.params.sessionID, messageID: ctx.params.messageID }),
+            )
             yield* delay
 
             const message =
@@ -1398,6 +2709,7 @@ function currentProviders(catalog: MockProviderCatalog) {
     .map((provider) => ({
       id: provider.id,
       name: provider.name,
+      integrationID: provider.integrationID,
       package: provider.id,
       activation: connected.has(provider.id) ? "enabled" : "auto",
     }))
@@ -1414,11 +2726,13 @@ function currentModels(catalog: MockProviderCatalog) {
           modelID: model.api?.id ?? model.id,
           providerID: provider.id,
           name: model.name,
+          metadata: model.metadata,
+          origins: model.origins,
           capabilities: { tools: true, input: ["text"], output: ["text"] },
           variants: Object.entries(model.variants ?? {}).map(([id, settings]) =>
             Predicate.isObject(settings) ? { id, settings } : { id },
           ),
-          time: { released: Date.now() },
+          time: { released: model.release_date ? Date.parse(model.release_date) : Date.now() },
           cost: [{ input: model.cost?.input ?? 0, output: model.cost?.output ?? 0, cache: { read: 0, write: 0 } }],
           status: "active",
           enabled: true,
@@ -1466,20 +2780,43 @@ function currentPermissions(values: readonly unknown[]) {
 export function currentSession(session: MockSession, fallbackDirectory?: string) {
   const seed = decodeSession(session)
 
+  const placement: MockSessionLocation = {
+    directory: seed.location?.directory ?? seed.directory ?? fallbackDirectory,
+  }
+
+  if (seed.location?.workspaceID !== undefined) placement.workspaceID = seed.location.workspaceID
+
   return {
     id: session.id,
     parentID: session.parentID,
     projectID: session.projectID ?? "project",
+    mode: seed.mode,
     agent: session.agent ?? "build",
-    model: session.model ?? { id: "mock-model", providerID: "mock-provider" },
+    model: Schema.decodeUnknownSync(Model.Selection)(session.model ?? { id: "mock-model", providerID: "mock-provider" }),
+    controller:
+      session.controller === undefined ? undefined : Schema.decodeUnknownSync(Session.Controller)(session.controller),
+    executorPreference:
+      session.executorPreference === undefined
+        ? undefined
+        : Schema.decodeUnknownSync(Session.ExecutorPreference)(session.executorPreference),
+    fork: session.fork,
+    metadata: session.metadata === undefined ? undefined : Schema.decodeUnknownSync(Session.Metadata)(session.metadata),
     cost: session.cost ?? 0,
+    ...Schema.decodeUnknownSync(Schema.Struct({
+      unknownPriceAttempts: lenient(Session.Info.fields.unknownPriceAttempts),
+      missingUsageAttempts: lenient(Session.Info.fields.missingUsageAttempts),
+    }))(session),
     tokens: session.tokens ?? { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
     ...decodeSessionOutcome(session),
     time: { created: seed.time?.created ?? 0, updated: seed.time?.updated ?? 0, ...seed.time },
     title: session.title ?? session.id,
-    location: { directory: seed.location?.directory ?? seed.directory ?? fallbackDirectory },
+    location: placement,
     subpath: session.subpath ?? session.path,
     revert: session.revert,
+    workContract:
+      session.workContract === undefined
+        ? undefined
+        : Schema.decodeUnknownSync(WorkContract.Snapshot)(session.workContract),
   }
 }
 
@@ -1529,7 +2866,11 @@ const decodePromptPayload = Schema.decodeUnknownOption(
   }),
 )
 
-const decodeProvider = Schema.decodeUnknownOption(Schema.Struct({ id: Schema.String, name: Schema.String }))
+const decodeProvider = Schema.decodeUnknownOption(Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
+  integrationID: Schema.optionalKey(Schema.String),
+}))
 
 const decodeModelProvider = Schema.decodeUnknownOption(
   Schema.Struct({ id: Schema.String, models: Schema.Record(Schema.String, Schema.Unknown) }),
@@ -1540,6 +2881,9 @@ const decodeModel = Schema.decodeUnknownOption(
     id: Schema.String,
     name: Schema.String,
     api: lenient(Schema.Struct({ id: Schema.String })),
+    metadata: lenient(ModelSource.Metadata),
+    origins: lenient(ModelSource.Origins),
+    release_date: lenient(Schema.String),
     limit: lenient(Schema.Struct({ context: lenient(Schema.Number), output: lenient(Schema.Number) })),
     cost: lenient(Schema.Struct({ input: lenient(Schema.Number), output: lenient(Schema.Number) })),
     variants: lenient(Schema.Record(Schema.String, Schema.Unknown)),
@@ -1549,16 +2893,18 @@ const decodeModel = Schema.decodeUnknownOption(
 // Every field is lenient, so any session object decodes.
 const decodeSession = Schema.decodeUnknownSync(
   Schema.Struct({
+    mode: lenient(ProductMode.ID),
     time: lenient(
       Schema.Struct({
         created: lenient(Schema.Number),
         updated: lenient(Schema.Number),
+        message: lenient(Schema.Number),
         idle: lenient(Schema.Number),
         viewed: lenient(Schema.Number),
         archived: Schema.optionalKey(Schema.Unknown),
       }),
     ),
-    location: lenient(Schema.Struct({ directory: lenient(Schema.String) })),
+    location: lenient(Schema.Struct({ directory: lenient(Schema.String), workspaceID: lenient(Schema.String) })),
     directory: lenient(Schema.String),
   }),
 )

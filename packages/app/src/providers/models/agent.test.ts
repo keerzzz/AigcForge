@@ -10,10 +10,10 @@ const agents = [{ name: "plan" }, { name: "build" }, { name: "custom" }]
 
 const rows: { name: string; agents: { name: string }[]; requested?: string; expected: string }[] = [
   { name: "the requested available agent", agents, requested: "custom", expected: "custom" },
-  { name: "build without a request", agents, requested: undefined, expected: "build" },
-  { name: "build for a missing agent", agents, requested: "missing", expected: "build" },
+  { name: "the backend default without a request", agents, requested: undefined, expected: "plan" },
+  { name: "the backend default for a missing agent", agents, requested: "missing", expected: "plan" },
   {
-    name: "the first agent when build is unavailable",
+    name: "the backend default when build is unavailable",
     agents: [{ name: "custom" }],
     requested: "missing",
     expected: "custom",

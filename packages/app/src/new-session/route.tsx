@@ -34,7 +34,7 @@ function ResolvedDraftRoute(props: { draft: DraftTab }) {
   const conn = createMemo(() => global.servers.list().find((item) => ServerConnection.key(item) === props.draft.server))
 
   return (
-    <Show when={`${props.draft.server}\0${props.draft.directory}`} keyed>
+    <Show when={`${props.draft.server}\0${props.draft.directory}\0${props.draft.location?.workspaceID ?? ""}`} keyed>
       <Show when={conn()} keyed>
         {(conn) => (
           <ServerProvider conn={conn}>
@@ -68,7 +68,7 @@ function ResolvedDraftContent(props: { draft: DraftTab }) {
       }
     >
       <ModelsProvider directory={props.draft.directory}>
-        <LocationProvider directory={props.draft.directory}>
+        <LocationProvider directory={props.draft.directory} workspaceID={props.draft.location?.workspaceID}>
           <SessionUIProvider directory={props.draft.directory} server={props.draft.server}>
             <DraftProviders>
               <NewSession draftId={props.draft.draftID} />

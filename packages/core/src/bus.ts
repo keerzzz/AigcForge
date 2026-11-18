@@ -1,19 +1,19 @@
 export * as Bus from "./bus.js"
 
 import { Cause, Clock, Context, Effect, Layer, Option, PubSub, Schema, Stream } from "effect"
-import { Event } from "@opencode/schema/event"
-import type { EventLog } from "@opencode/schema/event-log"
+import { Event } from "@aigcfroge/schema/event"
+import type { EventLog } from "@aigcfroge/schema/event-log"
 import { and, asc, eq, gt, lte, sql } from "drizzle-orm"
 import { Database } from "./database/database.js"
 import { EventSequenceTable, EventTable } from "./event/sql.js"
-import type { Location } from "@opencode/schema/location"
+import type { Location } from "@aigcfroge/schema/location"
 import { KeyedMutex } from "./effect/keyed-mutex.js"
-import { makeGlobalNode } from "@opencode/util/effect/app-node"
+import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
 import { isDeepStrictEqual } from "node:util"
-import { Durable } from "@opencode/schema/durable-event-manifest"
-import { SessionEvent } from "@opencode/schema/session-event"
-import type { SessionID } from "@opencode/schema/session-id"
-import { AbsolutePath } from "@opencode/schema/schema"
+import { Durable } from "@aigcfroge/schema/durable-event-manifest"
+import { SessionEvent } from "@aigcfroge/schema/session-event"
+import type { SessionID } from "@aigcfroge/schema/session-id"
+import { AbsolutePath } from "@aigcfroge/schema/schema"
 
 export type Subscriber<D extends Event.Definition = Event.Definition> = (event: Event.Payload<D>) => Effect.Effect<void>
 export type Unsubscribe = Effect.Effect<void>
@@ -70,7 +70,7 @@ const envelope = (aggregateID: string, seq: number, version: number) => ({
   version: Event.Version.make(version),
 })
 
-const decodeSerializedEvent = (event: SerializedEvent): Event.Payload => {
+export const decodeSerializedEvent = (event: SerializedEvent): Event.Payload => {
   const definition = Durable.get(event.type)
   if (!definition?.durable) {
     throw new InvalidDurableEventError({ type: event.type, message: `Unknown durable event type ${event.type}` })
@@ -137,6 +137,8 @@ const isDefinition = (input: Event.Definition | readonly Event.Definition[]): in
   !Array.isArray(input)
 
 export interface Interface {
+  /** Whether this Bus retains durable event payloads for historical reads and replay. */
+  readonly retainsEvents: boolean
   readonly publish: <D extends Event.Definition>(
     definition: D,
     data: Event.Data<D>,
@@ -169,7 +171,7 @@ export interface Interface {
   readonly claim: (aggregateID: string, ownerID: string) => Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@opencode/Bus") {}
+export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Bus") {}
 
 interface Options {
   readonly beforeAggregateRead?: (aggregateID: string) => Effect.Effect<void>
@@ -592,7 +594,6 @@ export function configured(options?: Options) {
                             durable: envelope(aggregateID, firstSeq + index, item.definition.durable.version),
                           }))
                           const route = yield* prepareRoutes(queued)
-                          const rows = new Array<typeof EventTable.$inferInsert>()
                           const ids = new Set<Event.ID>()
                           for (const [index, item] of payloads.entries()) {
                             const seq = firstSeq + index
@@ -630,15 +631,27 @@ export function configured(options?: Options) {
                               yield* projector(event)
                             }
                             if (item.commit) yield* item.commit(seq)
+                            if (persist && index === 0 && row === undefined)
+                              yield* db
+                                .insert(EventSequenceTable)
+                                .values({ aggregate_id: aggregateID, seq })
+                                .onConflictDoNothing({ target: EventSequenceTable.aggregate_id })
+                                .run()
+                                .pipe(Effect.orDie)
+                            // Keep the earlier prefix visible to later projectors inside the batch transaction.
                             if (persist)
-                              rows.push({
-                                id: event.id,
-                                aggregate_id: aggregateID,
-                                seq,
-                                created: event.created,
-                                type: versionedType(item.definition.type, item.definition.durable.version),
-                                data: encoded,
-                              })
+                              yield* db
+                                .insert(EventTable)
+                                .values({
+                                  id: event.id,
+                                  aggregate_id: aggregateID,
+                                  seq,
+                                  created: event.created,
+                                  type: versionedType(item.definition.type, item.definition.durable.version),
+                                  data: encoded,
+                                })
+                                .run()
+                                .pipe(Effect.orDie)
                           }
                           yield* db
                             .insert(EventSequenceTable)
@@ -646,7 +659,6 @@ export function configured(options?: Options) {
                             .onConflictDoUpdate({ target: EventSequenceTable.aggregate_id, set: { seq: finalSeq } })
                             .run()
                             .pipe(Effect.orDie)
-                          if (persist) yield* db.insert(EventTable).values(rows).run().pipe(Effect.orDie)
                           return { events: queued, route }
                         }),
                       { behavior: "immediate" },
@@ -890,6 +902,7 @@ export function configured(options?: Options) {
           })
 
         return Service.of({
+          retainsEvents: persist,
           publish,
           publishAll,
           subscribe,

@@ -1,33 +1,33 @@
 import { expect, test } from "bun:test"
-import { GenerationOptions, LLMClient, LLMEvent, LanguageModel, ToolDefinition, type LLMRequest } from "@opencode/ai"
-import { OpenAIChat } from "@opencode/ai/protocols"
-import { Database } from "@opencode/core/database/database"
-import { AppNodeBuilder } from "@opencode/core/effect/app-node-builder"
-import { llmClient } from "@opencode/core/effect/app-node-platform"
-import { LayerNode } from "@opencode/util/effect/layer-node"
-import { Bus } from "@opencode/core/bus"
-import { EventTable } from "@opencode/core/event/sql"
-import { SessionCompaction } from "@opencode/core/session/compaction"
-import type { SessionContext } from "@opencode/core/session/context"
-import { SessionEvent } from "@opencode/core/session/event"
-import { SessionMessage } from "@opencode/core/session/message"
-import { SessionModelRequest } from "@opencode/core/session/model-request"
-import { PluginHooks } from "@opencode/core/plugin/hooks"
-import { SessionProjector } from "@opencode/core/session/projector"
-import { SessionRunnerModel } from "@opencode/core/session/runner/model"
-import { SessionTable } from "@opencode/core/session/sql"
-import { SessionStore } from "@opencode/core/session/store"
-import { Session } from "@opencode/core/session"
-import { Location } from "@opencode/core/location"
-import { Project } from "@opencode/core/project"
-import { ProjectTable } from "@opencode/core/project/sql"
-import { App } from "@opencode/core/app"
-import { Agent } from "@opencode/core/agent"
-import { Provider } from "@opencode/core/provider"
-import { AbsolutePath } from "@opencode/core/schema"
-import { Money } from "@opencode/schema/money"
-import { Skill } from "@opencode/schema/skill"
-import { Shell } from "@opencode/schema/shell"
+import { GenerationOptions, LLMClient, LLMEvent, LanguageModel, ToolDefinition, type LLMRequest } from "@aigcfroge/ai"
+import { OpenAIChat } from "@aigcfroge/ai/protocols"
+import { Database } from "@aigcfroge/core/database/database"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { llmClient } from "@aigcfroge/core/effect/app-node-platform"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Bus } from "@aigcfroge/core/bus"
+import { EventTable } from "@aigcfroge/core/event/sql"
+import { SessionCompaction } from "@aigcfroge/core/session/compaction"
+import type { SessionContext } from "@aigcfroge/core/session/context"
+import { SessionEvent } from "@aigcfroge/core/session/event"
+import { SessionMessage } from "@aigcfroge/core/session/message"
+import { SessionModelRequest } from "@aigcfroge/core/session/model-request"
+import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
+import { SessionProjector } from "@aigcfroge/core/session/projector"
+import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
+import { SessionTable } from "@aigcfroge/core/session/sql"
+import { SessionStore } from "@aigcfroge/core/session/store"
+import { Session } from "@aigcfroge/core/session"
+import { Location } from "@aigcfroge/core/location"
+import { Project } from "@aigcfroge/core/project"
+import { ProjectTable } from "@aigcfroge/core/project/sql"
+import { App } from "@aigcfroge/core/app"
+import { Agent } from "@aigcfroge/core/agent"
+import { Provider } from "@aigcfroge/core/provider"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Money } from "@aigcfroge/schema/money"
+import { Skill } from "@aigcfroge/schema/skill"
+import { Shell } from "@aigcfroge/schema/shell"
 import { DateTime, Effect, Fiber, Layer, Schema, Stream } from "effect"
 import { asc, eq } from "drizzle-orm"
 import { testEffect } from "./lib/effect"
@@ -198,6 +198,12 @@ it.effect("auto compaction estimates current content against the buffered prompt
         definitions: [
           ToolDefinition.make({ name: "read", description: "Read files", inputSchema: { type: "object" } }),
         ],
+        catalog: [
+          {
+            ...ToolDefinition.make({ name: "read", description: "Read files", inputSchema: { type: "object" } }),
+            placement: "direct" as const,
+          },
+        ],
         execute: () => Effect.die("unused"),
       },
     })
@@ -330,7 +336,7 @@ const loaded = (session: Session.Info, messages: readonly SessionMessage.Info[])
   model: resolved,
   agent: { id: Agent.defaultID, info: Agent.Info.default(Agent.defaultID) },
   initial: "Session instructions",
-  tools: { definitions: [], execute: () => Effect.die("Compaction must not execute tools") },
+  tools: { definitions: [], catalog: [], execute: () => Effect.die("Compaction must not execute tools") },
 })
 
 /** Opens the compaction's message as the runner does when it delivers `/compact`, then compacts. */
@@ -350,6 +356,59 @@ const compactManually = (
     })
     return yield* compaction.compact({ reason: "manual", context: loaded(session, messages), inputID })
   })
+
+it.effect("uses the context Agent request for summary compaction", () =>
+  Effect.gen(function* () {
+    requests = []
+    const session = yield* insertSession(Session.ID.make("ses_compaction_agent_request"))
+    const context = loaded(session, [
+      SessionMessage.User.make({
+        id: SessionMessage.ID.create(),
+        type: "user",
+        text: "Summarize this request with the context Agent overlays",
+        time: { created: DateTime.makeUnsafe(0) },
+      }),
+    ])
+    const request = {
+      settings: { agentOnly: true, temperature: 0.99 },
+      headers: { "X-Agent": "compaction" },
+      body: { temperature: 0.75, metadata: { source: "context-agent" } },
+    }
+    const hooks = yield* PluginHooks.Service
+    const seen: Agent.ID[] = []
+    yield* hooks.register("session", "model.request", (event) =>
+      Effect.sync(() => {
+        seen.push(event.agent)
+      }),
+    )
+    const bus = yield* Bus.Service
+    const inputID = SessionMessage.ID.create()
+    yield* bus.publish(SessionEvent.Compaction.Started, {
+      sessionID: session.id,
+      reason: "manual",
+      recent: "",
+      inputID,
+    })
+    const compaction = yield* SessionCompaction.Service
+    expect(
+      yield* compaction.compact({
+        reason: "manual",
+        context: { ...context, agent: { ...context.agent, info: { ...context.agent.info, request } } },
+        inputID,
+      }),
+    ).toEqual({ status: "completed" })
+
+    expect(requests).toHaveLength(1)
+    expect(requests[0]?.http?.headers).toMatchObject({
+      "X-Agent": "compaction",
+      "x-aigcfroge-session-id": session.id,
+    })
+    expect(requests[0]?.http?.body).toEqual(request.body)
+    expect(requests[0]?.generation?.temperature).toBeUndefined()
+    expect(requests[0]?.providerOptions?.agentOnly).toBeUndefined()
+    expect(seen).toEqual([context.agent.id])
+  }),
+)
 
 /** The recent text a manual compaction keeps when the latest exchange is one tool call with this output. */
 const recentWithToolOutput = (id: Session.ID, content: SessionMessage.ToolStateCompleted["content"]) =>
@@ -450,15 +509,15 @@ it.effect("manual compaction summarizes short context instead of no-op", () =>
     expect(requests).toHaveLength(1)
     expect(requests[0]?.promptCacheKey).toBe(parentID)
     expect(requests[0]?.http?.headers).toEqual({
-      "x-opencode-session-id": session.id,
-      "x-opencode-parent-session-id": parentID,
+      "x-aigcfroge-session-id": session.id,
+      "x-aigcfroge-parent-session-id": parentID,
       "x-session-affinity": parentID,
       "X-Session-Id": parentID,
       "x-parent-session-id": parentID,
       "User-Agent": App.useragent(App.make()),
-      "x-opencode-project": Project.ID.global,
-      "x-opencode-session": parentID,
-      "x-opencode-client": "opencode",
+      "x-aigcfroge-project": Project.ID.global,
+      "x-aigcfroge-session": parentID,
+      "x-aigcfroge-client": "aigcfroge",
     })
     expect(requests[0]?.generation).toEqual(GenerationOptions.make({ maxTokens: 20_000 }))
     expect(JSON.stringify(requests[0]?.messages)).toContain("Manual compaction should include this short conversation.")

@@ -1,4 +1,4 @@
-export const SETTINGS_STORE = "opencode.settings"
+export const SETTINGS_STORE = "aigcfroge.settings"
 
 export const FIRST_LAUNCH_ONBOARDING_COMPLETE_KEY = "firstLaunchOnboardingComplete"
 

@@ -20,7 +20,7 @@ export type HttpMiddleware = (
 ) => Effect.Effect<HttpClientResponse.HttpClientResponse, Error>
 
 export class RequestExecutorService extends Context.Service<RequestExecutorService, Interface>()(
-  "@opencode/AI/RequestExecutor",
+  "@aigcfroge/AI/RequestExecutor",
 ) {}
 export const Service = RequestExecutorService
 export type Service = RequestExecutorService

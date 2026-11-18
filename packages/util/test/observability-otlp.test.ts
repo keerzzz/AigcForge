@@ -33,7 +33,7 @@ test("exports a span through the configured OTLP trace endpoint", async () => {
       resourceSpans: [
         {
           resource: {
-            attributes: expect.arrayContaining([{ key: "service.name", value: { stringValue: "opencode" } }]),
+            attributes: expect.arrayContaining([{ key: "service.name", value: { stringValue: "aigcfroge" } }]),
           },
           scopeSpans: [{ spans: [expect.objectContaining({ name: "otlp-smoke" })] }],
         },

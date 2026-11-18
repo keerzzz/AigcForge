@@ -1,11 +1,11 @@
 import { createEffect, createMemo, createResource, Match, Show, Switch, untrack } from "solid-js"
 import { createStore, unwrap } from "solid-js/store"
-import { Dynamic, Portal } from "solid-js/web"
+import { Dynamic } from "solid-js/web"
 import { useLocation, useNavigate } from "@solidjs/router"
-import { IconButton } from "@opencode/ui/icon-button"
-import { Icon } from "@opencode/ui/icon"
-import { Keybind } from "@opencode/ui/keybind"
-import { Tooltip } from "@opencode/ui/tooltip"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { Icon } from "@aigcfroge/ui/icon"
+import { Keybind } from "@aigcfroge/ui/keybind"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
 
 import { LayoutRoute, useLayout } from "@/shell/state/layout"
 import { usePlatform } from "@/runtime/platform/platform"
@@ -21,19 +21,22 @@ import { readSessionTabsRemovedDetail, SESSION_TABS_REMOVED_EVENT } from "@/shel
 import { useGlobal } from "@/runtime/server/runtime"
 import { ServerConnection } from "@/runtime/server/registry"
 import { tabKey, useTabs } from "@/shell/tabs/tabs"
-import type { ComposerState } from "@/composer/persistence"
 import "./titlebar.css"
 import { TitlebarRightMount } from "@/shell/titlebar/right-slot"
 import { MobileDrawer, MobileDrawerContent, MobileDrawerLabel, MobileDrawerTrigger } from "@/shell/mobile-drawer"
 import { sessionTabTitle } from "./tab-title"
 import { SessionTabAvatar } from "@/shell/layout/session-tab-avatar"
-import { SessionProgressIndicatorV2 } from "@opencode/session-ui/v2/session-progress-indicator-v2"
+import { SessionProgressIndicatorV2 } from "@aigcfroge/session-ui/v2/session-progress-indicator-v2"
 import { RecentlyClosedTabsMenu } from "./recently-closed-tabs-menu"
 import { useSettingsDialog } from "@/settings/command"
 import { rootSession } from "@/shell/routes/session"
-import { TitlebarItem } from "@opencode/gui-extensions/sdk"
+import { TitlebarItem } from "@aigcfroge/gui-extensions/sdk"
 import { useExtensionHost } from "@/runtime/extension/host"
 import { TitlebarItems, useTitlebarItems } from "@/runtime/extension/titlebar-items"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { ModeRoute } from "@/shell/routes/mode"
+import { showToast } from "@/shell/notifications/toast"
+import { ProjectSidebar } from "@/shell/project-sidebar"
 import devIcon from "../../../../desktop/icons/dev/64x64.png"
 import betaIcon from "../../../../desktop/icons/beta/64x64.png"
 
@@ -48,13 +51,11 @@ const windowsControlsBaseWidth = 138 // 3 native Windows caption buttons at 46px
 // Native controls: 14px left inset, two 20px button pitches, and a 14px button.
 const macTrafficLightsBaseWidth = 68
 
-const macTrafficLightsTopClearance = 28
-
 // iOS blurs page content just below the status bar in Home Screen web apps, so with a top safe area the phone
 // titlebar row stays 16px clear of it, as ChatGPT's phone header does. Without one, 8px matches the content gap below.
 const mobileTopClearance = "max(8px, min(16px, env(safe-area-inset-top, 0px) * 1000))"
 
-export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
+export function Titlebar() {
   const platform = usePlatform()
   const command = useCommand()
   const language = useLanguage()
@@ -70,7 +71,6 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
   const windows = createMemo(() => platform.platform === "desktop" && platform.os === "windows")
   const linux = createMemo(() => platform.platform === "desktop" && platform.os === "linux")
   const macTrafficLights = createMemo(() => mac() && !platform.windowFullscreen?.())
-  const macVerticalTabs = createMemo(() => mac() && !!props.verticalTabs)
   const zoom = () => platform.webviewZoom?.() ?? 1
   const titlebarZoom = () => (windows() ? Math.max(zoom(), minTitlebarZoom) : zoom())
 
@@ -108,7 +108,6 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
   })
 
   const titlebarItems = useTitlebarItems()
-  const hideVerticalTitlebar = createMemo(() => !!props.verticalTabs && !windows())
 
   const back = () => {
     const next = backPath(history)
@@ -146,7 +145,6 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
   return (
     <header
       data-slot="titlebar-v2"
-      hidden={hideVerticalTitlebar()}
       classList={{
         "shrink-0 relative flex flex-row h-9 bg-v2-background-bg-deep overflow-visible": true,
         "order-last": bottom(),
@@ -323,6 +321,25 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
               tabsStoreActions.removeSessions(detail)
             })
 
+            const startDraft = (
+              draft: Parameters<typeof tabs.newDraft>[0],
+              model?: Parameters<typeof tabs.newDraft>[2],
+            ) => {
+              const mode = draft.mode
+
+              if (!ProductMode.isID(mode) || !ProductMode.isGenericSessionMode(mode)) {
+                showToast({
+                  description: language.t(
+                    mode === "custom" ? "mode.navigation.customCreation" : "newSession.mode.unsupported",
+                  ),
+                })
+
+                return
+              }
+
+              void tabs.newDraft({ ...draft, mode }, "", model)
+            }
+
             const openNewTab = () => {
               const route = layout.route()
 
@@ -331,8 +348,15 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
                   const pending = tabs.pendingSession(route.server, route.sessionId)
 
                   if (pending) {
-                    const model = tabs.stateValue<ComposerState>(pending.draft, "prompt")?.model.current()
-                    void tabs.newDraft({ server: route.server, directory: pending.draft.directory }, "", model)
+                    const model = tabs.stateValue(pending.draft, "prompt")?.model.current()
+                    startDraft(
+                      {
+                        server: route.server,
+                        directory: pending.draft.directory,
+                        mode: ModeRoute.sourceMode(route, pending.draft, undefined),
+                      },
+                      model,
+                    )
 
                     return
                   }
@@ -347,10 +371,13 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
                     sessionId: activeSession.id,
                   }
 
-                  const model = tabs.stateValue<ComposerState>(sessionTab, "prompt")?.model.current()
-                  void tabs.newDraft(
-                    { server: sessionTab.server, directory: activeSession.location.directory },
-                    "",
+                  const model = tabs.stateValue(sessionTab, "prompt")?.model.current()
+                  startDraft(
+                    {
+                      server: sessionTab.server,
+                      directory: activeSession.location.directory,
+                      mode: ModeRoute.sourceMode(route, undefined, activeSession),
+                    },
                     model,
                   )
 
@@ -362,15 +389,32 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
 
                   if (activeTab?.type !== "draft") return
 
-                  const model = tabs.stateValue<ComposerState>(activeTab, "prompt")?.model.current()
-                  void tabs.newDraft({ server: activeTab.server, directory: activeTab.directory }, "", model)
+                  const model = tabs.stateValue(activeTab, "prompt")?.model.current()
+                  startDraft(
+                    {
+                      server: activeTab.server,
+                      directory: activeTab.directory,
+                      mode: ModeRoute.sourceMode(route, activeTab, undefined),
+                    },
+                    model,
+                  )
 
                   return
                 }
 
                 case "settings":
                 case "connect":
-                case "home": {
+                case "home":
+                case "mode": {
+                  const mode = route.type === "mode" ? route.mode : layout.home.mode()
+
+                  if (mode === undefined) {
+                    showToast({ description: language.t("newSession.mode.placeholder") })
+                    navigate("/")
+
+                    return
+                  }
+
                   const selection = layout.home.selection()
 
                   const conn =
@@ -385,7 +429,19 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
                     projects?.list()[0]
 
                   if (conn && project) {
-                    void tabs.newDraft({ server: ServerConnection.key(conn), directory: project.worktree }, "")
+                    if (mode === "custom") {
+                      if (route.type !== "mode")
+                        layout.home.setSelection({ server: ServerConnection.key(conn), directory: project.worktree })
+                      navigate(ModeRoute.href(mode))
+
+                      return
+                    }
+
+                    startDraft({
+                      server: ServerConnection.key(conn),
+                      directory: project.worktree,
+                      mode,
+                    })
 
                     return
                   }
@@ -395,54 +451,29 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
 
             const toggleHome = () => tabs.toggleHome({ home: layout.route().type === "home", current: currentTab() })
 
-            const homeButton = (vertical = false) => (
-              <Show
-                when={vertical}
-                fallback={
-                  <Tooltip
-                    placement="bottom"
-                    value={
-                      <>
-                        {language.t("home.title")}
-                        <Keybind keys={command.keybindParts("home.toggle")} variant="neutral" />
-                      </>
-                    }
-                    class="shrink-0"
-                  >
-                    <IconButton
-                      type="button"
-                      variant="ghost-muted"
-                      size="large"
-                      class="!w-9 shrink-0"
-                      icon={<Icon name="grid-plus" />}
-                      state={layout.route().type === "home" ? "pressed" : undefined}
-                      onClick={toggleHome}
-                      aria-label={language.t("home.title")}
-                      aria-pressed={layout.route().type === "home"}
-                    />
-                  </Tooltip>
+            const homeButton = () => (
+              <Tooltip
+                placement="bottom"
+                value={
+                  <>
+                    {language.t("home.title")}
+                    <Keybind keys={command.keybindParts("home.toggle")} variant="neutral" />
+                  </>
                 }
+                class="shrink-0"
               >
-                <button
+                <IconButton
                   type="button"
-                  data-titlebar-tab-action
-                  data-action="vertical-tabs-home"
-                  data-state={layout.route().type === "home" ? "pressed" : undefined}
-                  class="group mb-1 flex h-7 w-full shrink-0 items-center gap-1.5 rounded-[6px] ps-1.5 pe-2 text-[13px] leading-4 text-v2-text-text-faint hover:text-v2-text-text-base data-[state=pressed]:text-v2-text-text-base"
+                  variant="ghost-muted"
+                  size="large"
+                  class="!w-9 shrink-0"
+                  icon={<Icon name="grid-plus" />}
+                  state={layout.route().type === "home" ? "pressed" : undefined}
                   onClick={toggleHome}
                   aria-label={language.t("home.title")}
                   aria-pressed={layout.route().type === "home"}
-                >
-                  <Icon name="grid-plus" class="shrink-0" />
-                  <span class="min-w-0 truncate">{language.t("home.title")}</span>
-                  <span
-                    class="ms-auto hidden min-w-0 truncate text-v2-text-text-faint group-hover:block group-focus-visible:block"
-                    aria-hidden="true"
-                  >
-                    <bdi dir="ltr">{command.keybind("home.toggle")}</bdi>
-                  </span>
-                </button>
-              </Show>
+                />
+              </Tooltip>
             )
 
             command.register("titlebar-home", () => [
@@ -491,7 +522,7 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
               ].filter((v) => v !== undefined)
             })
 
-            const [mobileTabs, setMobileTabs] = createStore({ open: false, settings: false })
+            const [mobileTabs, setMobileTabs] = createStore({ open: false, present: false, settings: false })
 
             const currentProject = createMemo(() => {
               const tab = currentTab()
@@ -521,6 +552,9 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
               path()
               mobile()
               setMobileTabs("open", false)
+
+              // Switching to desktop disposes the drawer before it can report its final presence.
+              if (!mobile()) setMobileTabs("present", false)
             })
 
             return (
@@ -534,13 +568,13 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
                   "ps-3.5": windows(),
                 }}
               >
-                <Show when={!mobile() && (!props.verticalTabs || windows())}>
-                  <ChannelIndicator horizontal />
+                <Show when={!mobile()}>
+                  <ChannelIndicator />
                 </Show>
                 <Show when={windows() || linux()}>
                   <WindowsAppMenu command={command} platform={platform} />
                 </Show>
-                <Show when={!mobile() && !props.verticalTabs}>{homeButton()}</Show>
+                <Show when={!mobile()}>{homeButton()}</Show>
 
                 <Show
                   when={!mobile()}
@@ -549,6 +583,8 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
                       open={mobileTabs.open}
                       onOpenChange={(open) => setMobileTabs("open", open)}
                       onContentPresentChange={(present) => {
+                        setMobileTabs("present", present)
+
                         if (present || !mobileTabs.settings) return
                         setMobileTabs("settings", false)
                         openSettings()
@@ -604,8 +640,22 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
                       </MobileDrawerTrigger>
                       <MobileDrawerContent>
                         <MobileDrawerLabel class="sr-only">{language.t("titlebar.tabs")}</MobileDrawerLabel>
-                        <div data-slot="mobile-tabs-drawer" data-corvu-no-drag>
+                        <div
+                          data-slot="mobile-tabs-drawer"
+                          data-projects={layout.route().type === "session" ? "true" : undefined}
+                          data-corvu-no-drag
+                        >
+                          <Show when={layout.route().type === "session" && (mobileTabs.open || mobileTabs.present)}>
+                            <div data-slot="mobile-projects-drawer">
+                              <ProjectSidebar onNavigate={() => setMobileTabs("open", false)} />
+                            </div>
+                          </Show>
                           <div data-slot="mobile-tabs-drawer-list">
+                            <Show when={layout.route().type === "session"}>
+                              <div class="shrink-0 px-1.5 py-1 text-[13px] leading-[var(--line-height-compact)] text-v2-text-text-muted">
+                                {language.t("titlebar.tabs")}
+                              </div>
+                            </Show>
                             <TitlebarTabStrip
                               orientation="vertical"
                               tabs={tabsStore}
@@ -665,7 +715,7 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
                                 class="flex h-7 shrink-0 items-center gap-2 rounded-[6px] px-2 text-[13px] leading-4 text-v2-text-text-faint hover:bg-v2-background-bg-layer-02 focus-visible:outline-none focus-visible:bg-v2-background-bg-layer-02"
                                 onClick={() => {
                                   setMobileTabs("open", false)
-                                  platform.openExternal("https://opencode.ai/desktop-feedback")
+                                  platform.openExternal("https://aigcfroge.ai/desktop-feedback")
                                 }}
                               >
                                 <Icon name="help" size="small" />
@@ -678,97 +728,37 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
                     </MobileDrawer>
                   }
                 >
-                  <Show
-                    when={props.verticalTabs}
-                    fallback={
-                      <>
-                        <TitlebarTabStrip
-                          tabs={tabsStore}
-                          currentTab={currentTab()}
-                          onNavigate={(tab, el) => {
-                            tabs.select(tab)
-                            el?.scrollIntoView({ behavior: "instant" })
-                          }}
-                          onClose={(tab) => {
-                            const index = tabsStore.findIndex((item) => tabKey(item) === tabKey(tab))
+                  <TitlebarTabStrip
+                    tabs={tabsStore}
+                    currentTab={currentTab()}
+                    onNavigate={(tab, el) => {
+                      tabs.select(tab)
+                      el?.scrollIntoView({ behavior: "instant" })
+                    }}
+                    onClose={(tab) => {
+                      const index = tabsStore.findIndex((item) => tabKey(item) === tabKey(tab))
 
-                            if (index !== -1) tabsStoreActions.closeTab(index)
-                          }}
-                          onReorder={(keys) => tabsStoreActions.reorder(keys)}
-                        />
-                        <RecentlyClosedTabsMenu
-                          onNewTab={openNewTab}
-                          tooltip={
-                            <>
-                              {language.t("command.session.new")}
-                              <Keybind keys={command.keybindParts("tab.new")} variant="neutral" />
-                            </>
-                          }
-                        />
+                      if (index !== -1) tabsStoreActions.closeTab(index)
+                    }}
+                    onReorder={(keys) => tabsStoreActions.reorder(keys)}
+                  />
+                  <RecentlyClosedTabsMenu
+                    onNewTab={openNewTab}
+                    tooltip={
+                      <>
+                        {language.t("command.session.new")}
+                        <Keybind keys={command.keybindParts("tab.new")} variant="neutral" />
                       </>
                     }
-                  >
-                    {(vertical) => (
-                      <Show when={vertical().mount} keyed>
-                        {(mount) => (
-                          <Portal
-                            mount={mount}
-                            ref={(element) => (element.className = "flex size-full min-h-0 flex-col")}
-                          >
-                            <Show when={macVerticalTabs()}>
-                              <div
-                                class="mb-4 min-h-7 w-full shrink-0"
-                                style={{ height: `${macTrafficLightsTopClearance / zoom()}px` }}
-                                data-tauri-drag-region
-                              />
-                            </Show>
-                            <Show when={!windows()}>
-                              <ChannelIndicator sidebar />
-                            </Show>
-                            {homeButton(true)}
-                            <RecentlyClosedTabsMenu
-                              vertical
-                              onNewTab={openNewTab}
-                              keybind={command.keybind("tab.new")}
-                            />
-                            <div class="h-4 w-full shrink-0" aria-hidden="true" />
-                            <div class="flex min-h-0 flex-1 flex-col gap-1">
-                              <TitlebarTabStrip
-                                orientation="vertical"
-                                tabs={tabsStore}
-                                currentTab={currentTab()}
-                                onNavigate={(tab, el) => {
-                                  tabs.select(tab)
-                                  el?.scrollIntoView({ behavior: "instant", block: "nearest" })
-                                }}
-                                onClose={(tab) => {
-                                  const index = tabsStore.findIndex((item) => tabKey(item) === tabKey(tab))
-
-                                  if (index !== -1) tabsStoreActions.closeTab(index)
-                                }}
-                                onReorder={(keys) => tabsStoreActions.reorder(keys)}
-                              />
-                            </div>
-                            <Show when={titlebarItems.ids().length > 0}>
-                              <div data-slot="vertical-tabs-footer" class="mt-2 flex w-full shrink-0 flex-col">
-                                <TitlebarItems items={titlebarItems} vertical />
-                              </div>
-                            </Show>
-                          </Portal>
-                        )}
-                      </Show>
-                    )}
-                  </Show>
+                  />
                 </Show>
                 <Show when={!mobile()}>
                   <div class="flex-1" />
                 </Show>
-                <Show when={!props.verticalTabs}>
-                  <div class="relative z-20 flex shrink-0 items-center justify-end gap-0 overflow-visible">
-                    <TitlebarItems items={titlebarItems} />
-                    <TitlebarRightMount />
-                  </div>
-                </Show>
+                <div class="relative z-20 flex shrink-0 items-center justify-end gap-0 overflow-visible">
+                  <TitlebarItems items={titlebarItems} />
+                  <TitlebarRightMount />
+                </div>
               </div>
             )
           }}
@@ -778,11 +768,11 @@ export function Titlebar(props: { verticalTabs?: { mount?: HTMLElement } }) {
   )
 }
 
-function ChannelIndicator(props: { horizontal?: boolean; sidebar?: boolean }) {
+function ChannelIndicator() {
   const language = useLanguage()
   const platform = usePlatform()
   const host = useExtensionHost()
-  const channel = import.meta.env.VITE_OPENCODE_CHANNEL
+  const channel = import.meta.env.VITE_AIGCFROGE_CHANNEL
 
   if (!channel || channel === "prod") return null
 
@@ -796,18 +786,16 @@ function ChannelIndicator(props: { horizontal?: boolean; sidebar?: boolean }) {
 
   return (
     <Tooltip
-      placement={props.sidebar ? "right" : "bottom"}
+      placement="bottom"
       value={label()}
-      class={`shrink-0 [app-region:no-drag] ${props.sidebar ? "mb-4 ms-0.5 self-start" : ""} ${props.horizontal ? "me-1.5" : ""} ${props.horizontal && platform.platform === "web" ? "ps-2.5" : ""}`}
+      class={`shrink-0 me-1.5 [app-region:no-drag] ${platform.platform === "web" ? "ps-2.5" : ""}`}
     >
       <Dynamic
         component={debug() ? "button" : "div"}
         type={debug() ? "button" : undefined}
         data-slot="channel-indicator"
-        class="flex h-7 shrink-0 items-center rounded-[6px] [app-region:no-drag]"
+        class="flex h-7 w-5 shrink-0 items-center rounded-[6px] [app-region:no-drag]"
         classList={{
-          "w-6": props.sidebar,
-          "w-5": !props.sidebar,
           "cursor-pointer hover:bg-v2-background-bg-layer-02 focus-visible:outline-none focus-visible:bg-v2-background-bg-layer-02":
             !!debug(),
         }}
@@ -818,8 +806,7 @@ function ChannelIndicator(props: { horizontal?: boolean; sidebar?: boolean }) {
         <img
           src={channel === "beta" ? betaIcon : devIcon}
           alt={debug() ? "" : label()}
-          class="shrink-0 rounded-[4px] shadow-[var(--v2-elevation-raised)]"
-          classList={{ "size-6": props.sidebar, "size-5": !props.sidebar }}
+          class="size-5 shrink-0 rounded-[4px] shadow-[var(--v2-elevation-raised)]"
           draggable={false}
         />
       </Dynamic>

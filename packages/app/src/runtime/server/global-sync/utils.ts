@@ -1,7 +1,9 @@
-import type { AgentListOutput, ModelListOutput, ProviderListOutput } from "@opencode/client/promise"
+import type { AgentListOutput, ModelListOutput, ProviderListOutput } from "@aigcfroge/client/promise"
 import type { Agent, Project, Provider, ProviderListResponse } from "@/runtime/server/types"
-import type { Project as CurrentProject } from "@opencode/client/promise"
+import type { Project as CurrentProject } from "@aigcfroge/client/promise"
 import { unwrap } from "solid-js/store"
+import { Option, Schema } from "effect"
+import { fromSelection } from "@/providers/models/key"
 
 export { pathKey as directoryKey, type PathKey as DirectoryKey } from "@/workspaces/path-key"
 
@@ -12,28 +14,33 @@ const providerCatalogs = new WeakMap<
   WeakMap<ModelListOutput["data"], ProviderListResponse>
 >()
 
-export function normalizeAgentList(input: AgentListOutput["data"] | Agent[]): Agent[] {
-  if (input.every((agent) => !("request" in agent))) return input as Agent[]
+const decodeSamplingSetting = Schema.decodeUnknownOption(Schema.Number)
 
-  return (input as AgentListOutput["data"]).map((agent) => ({
+export function normalizeAgentList(input: AgentListOutput["data"] | Agent[]): Agent[] {
+  if (input.every((agent): agent is Agent => !("request" in agent))) return input
+
+  return input.map((agent) => ({
     name: agent.id,
     description: agent.description,
     mode: agent.mode,
     hidden: agent.hidden,
-    temperature:
-      typeof agent.request.settings.temperature === "number" ? agent.request.settings.temperature : undefined,
-    topP: typeof agent.request.settings.topP === "number" ? agent.request.settings.topP : undefined,
+    temperature: Option.getOrUndefined(decodeSamplingSetting(agent.request.settings.temperature)),
+    topP: Option.getOrUndefined(decodeSamplingSetting(agent.request.settings.topP)),
     color: agent.color,
     permission: agent.permissions.map((rule) => ({
       permission: rule.action,
       pattern: rule.resource,
       action: rule.effect,
     })),
-    model: agent.model && { providerID: agent.model.providerID, modelID: agent.model.id },
-    variant: agent.model?.variant,
+    model: agent.model && fromSelection(agent.model),
+    variant: agent.model && !("type" in agent.model) ? agent.model.variant : undefined,
     prompt: agent.system,
     options: agent.request.settings,
     steps: agent.steps,
+    originKind: agent.originKind,
+    ordinaryModes: agent.ordinaryModes,
+    originRelativePath: agent.originRelativePath,
+    originRevision: agent.originRevision,
   }))
 }
 
@@ -79,6 +86,8 @@ export function normalizeProviderList(
       },
       name: model.name,
       family: model.family,
+      metadata: model.metadata,
+      origins: model.origins,
       capabilities: {
         temperature: false,
         reasoning: false,

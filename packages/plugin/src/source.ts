@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import path from "node:path"
-import { Hash } from "@opencode/util/hash"
+import { Hash } from "@aigcfroge/util/hash"
 
 // Keep source fingerprints and import attempts together. Filesystem events
 // should reload changed local graphs, not repeat unchanged evaluations.
@@ -34,7 +34,19 @@ export function createPluginSources(watch: (file: string) => Promise<void>) {
       if (prepared.dispose) cleanups.push(prepared.dispose)
       // Cache the attempt before evaluating it: unchanged failing modules must
       // not repeat import-time effects on every filesystem notification.
-      const loaded = prepared.load().then((module) => ({ version: prepared.version, module }))
+      const loaded = prepared.load().then((module) => ({
+        version: prepared.version,
+        module,
+        // Watch-only directories can change without changing the loaded implementation.
+        sourceDigest: Hash.sha256(
+          JSON.stringify(
+            [...files]
+              .filter(([, item]) => !item.directory)
+              .toSorted(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0))
+              .map(([file, item]) => [file, item.digest]),
+          ),
+        ),
+      }))
       sources.set(entrypoint, { loaded, files })
       return loaded.finally(() => Promise.all(watching))
     },
@@ -46,7 +58,7 @@ export function createPluginSources(watch: (file: string) => Promise<void>) {
 }
 
 type Source = {
-  loaded: Promise<{ version: string; module: unknown }>
+  loaded: Promise<{ version: string; module: unknown; sourceDigest: string }>
   files: Map<string, { digest: string; directory: boolean }>
 }
 

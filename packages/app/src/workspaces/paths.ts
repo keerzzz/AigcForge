@@ -1,6 +1,6 @@
-import { containsDirectory, sameDirectory } from "@opencode/util/path"
+import { containsDirectory, sameDirectory } from "@aigcfroge/util/path"
 import type { WorkspaceDefaultDestination, WorkspaceLastUsed } from "@/settings/model"
-import type { SessionInfo, WorktreeDirectory } from "@opencode/client/promise"
+import type { SessionInfo, WorktreeDirectory } from "@aigcfroge/client/promise"
 
 type WorkspaceProject = {
   worktree: string

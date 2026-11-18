@@ -2,7 +2,7 @@
 // source maps. Run with: bun scripts/profile-by-source.ts <profile.cpuprofile> [out/renderer/assets]
 import { readFileSync, readdirSync } from "node:fs"
 import { join } from "node:path"
-import { TraceMap, originalPositionFor } from "C:/Users/Lukem/.local/share/opencode/worktree/6c1049/quiet-wolf-2/node_modules/.bun/@jridgewell+trace-mapping@0.3.31/node_modules/@jridgewell/trace-mapping/dist/trace-mapping.mjs"
+import { TraceMap, originalPositionFor } from "C:/Users/Lukem/.local/share/aigcfroge/worktree/6c1049/quiet-wolf-2/node_modules/.bun/@jridgewell+trace-mapping@0.3.31/node_modules/@jridgewell/trace-mapping/dist/trace-mapping.mjs"
 
 const profilePath = process.argv[2]!
 const assets = process.argv[3] ?? "out/renderer/assets"

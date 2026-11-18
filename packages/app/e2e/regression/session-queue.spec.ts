@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test"
-import type { OpenCodeEvent, SessionInboxInfo, SessionMessageInfo } from "@opencode/client/promise"
-import { PromptInput } from "@opencode/schema/prompt-input"
-import { SessionInbox } from "@opencode/schema/session-inbox"
-import { SessionMessage } from "@opencode/schema/session-message"
+import type { AigcForgeEvent, SessionInboxInfo, SessionMessageInfo } from "@aigcfroge/client/promise"
+import { PromptInput } from "@aigcfroge/schema/prompt-input"
+import { SessionInbox } from "@aigcfroge/schema/session-inbox"
+import { SessionMessage } from "@aigcfroge/schema/session-message"
 import { Schema } from "effect"
 import { provider } from "../utils/app"
 import type { MockServerConfig } from "../utils/mock-server"
@@ -52,7 +52,7 @@ function storedFile(file: NonNullable<typeof PromptBody.Type.files>[number]) {
 
 function createQueueMock(seed: string[], messages: SessionMessageInfo[] = []) {
   const rows: InboxRow[] = seed.map((text, index) => ({
-    id: `inb_seed_${index + 1}`,
+    id: `msg_seed_${index + 1}`,
     sessionID,
     time: { created: 1700000000000 + index },
     type: "user",
@@ -60,26 +60,26 @@ function createQueueMock(seed: string[], messages: SessionMessageInfo[] = []) {
     delivery: "queue",
   }))
 
-  const events: OpenCodeEvent[] = []
+  const events: AigcForgeEvent[] = []
   const prompts: (typeof PromptBody.Type)[] = []
   const compactions: SessionInboxInfo[] = []
   const changes: { inboxID: string; action: "cancel" | "steer" | "queue" }[] = []
   const log: string[] = []
   let sequence = 0
 
-  const emit = <Type extends OpenCodeEvent["type"]>(
+  const emit = <Type extends AigcForgeEvent["type"]>(
     type: Type,
-    data: Extract<OpenCodeEvent, { type: Type }>["data"],
+    data: Extract<AigcForgeEvent, { type: Type }>["data"],
   ) => {
     sequence += 1
-    // SAFETY: `type` selects `data` from the same OpenCodeEvent member, so the pair is that member.
+    // SAFETY: `type` selects `data` from the same AigcForgeEvent member, so the pair is that member.
     events.push({
       id: `evt_queue_${sequence}`,
       type,
       created: Date.now(),
       durable: { aggregateID: sessionID, seq: sequence, version: type === "session.tool.success" ? 2 : 1 },
       data,
-    } as OpenCodeEvent)
+    } as AigcForgeEvent)
   }
 
   return {
@@ -97,7 +97,7 @@ function createQueueMock(seed: string[], messages: SessionMessageInfo[] = []) {
       log.push(`prompt:${body.delivery ?? "steer"}`)
 
       const row: InboxRow = {
-        id: body.id ?? `inb_mock_${sequence}`,
+        id: body.id ?? `msg_mock_${sequence}`,
         sessionID: input.sessionID,
         time: { created: Date.now() },
         type: "user",
@@ -169,7 +169,7 @@ async function openQueue(
       {
         id: sessionID,
         title: "Session queue regression",
-        model: { id: model.id, providerID: "opencode" },
+        model: { id: model.id, providerID: "aigcfroge" },
         revert: revert ? { messageID: revert } : undefined,
       },
     ],
@@ -254,9 +254,9 @@ test("dragging reorders queued prompts", async ({ page }) => {
   // A re-admitted file keeps the URI it came from instead of becoming an inline snapshot.
   expect(mock.prompts[2].files).toMatchObject([{ uri: "file:///repo/main.ts", name: "main.ts" }])
   expect(mock.changes).toEqual([
-    { inboxID: "inb_seed_1", action: "cancel" },
-    { inboxID: "inb_seed_2", action: "cancel" },
-    { inboxID: "inb_seed_3", action: "cancel" },
+    { inboxID: "msg_seed_1", action: "cancel" },
+    { inboxID: "msg_seed_2", action: "cancel" },
+    { inboxID: "msg_seed_3", action: "cancel" },
   ])
 })
 
@@ -299,7 +299,7 @@ for (const change of ["reorder", "edit"] as const) {
     // The replacements admitted before the failure are withdrawn; the originals stay in place.
     await expect.poll(() => mock.log.includes(`cancel:${mock.prompts.at(-1)?.id}`)).toBe(true)
     await expect.poll(() => mock.changes.length).toBe(mock.prompts.length)
-    expect(mock.changes.every((entry) => entry.action === "cancel" && !entry.inboxID.startsWith("inb_seed_"))).toBe(
+    expect(mock.changes.every((entry) => entry.action === "cancel" && !entry.inboxID.startsWith("msg_seed_"))).toBe(
       true,
     )
     await expect(view.rows.locator('[data-action="session-queue-edit"]')).toHaveText(order)
@@ -345,8 +345,8 @@ test("editing restores the existing draft and replaces only the original queue p
   ])
   expect(mock.prompts.every((prompt) => prompt.delivery === "queue" && prompt.resume === false)).toBe(true)
   expect(mock.changes).toEqual([
-    { inboxID: "inb_seed_2", action: "cancel" },
-    { inboxID: "inb_seed_3", action: "cancel" },
+    { inboxID: "msg_seed_2", action: "cancel" },
+    { inboxID: "msg_seed_3", action: "cancel" },
   ])
   expect(mock.log[0]).toBe("prompt:queue")
 })
@@ -445,6 +445,7 @@ test("editing a comment-only prompt keeps its notes once", async ({ page }) => {
   // With no display text, the editor shows the note itself, so the edit owns it as text.
   await view.rows.getByText(note, { exact: true }).click()
   await expect(view.input).toHaveText(note)
+  await expect(view.input).toBeFocused()
   await view.input.press("End")
   await view.input.pressSequentially(", please")
   await expect(view.input).toHaveText(`${note}, please`)
@@ -472,7 +473,7 @@ test("Undo cancels only the selected queued prompt and focuses the restored inpu
   await expect(view.rows.locator('[data-action="session-queue-edit"]')).toHaveText(rest)
   await expect(view.input).toHaveText(text)
   await expect(view.input).toBeFocused()
-  expect(mock.changes).toEqual([{ inboxID: "inb_seed_2", action: "cancel" }])
+  expect(mock.changes).toEqual([{ inboxID: "msg_seed_2", action: "cancel" }])
   expect(mock.prompts).toEqual([])
 })
 
@@ -493,7 +494,7 @@ test("Undo appends to an existing draft and restores inline attachments", async 
   await expect(view.input).toHaveText("my draft\n\nqueued with image")
   await expect(view.input).toBeFocused()
   await expect(view.composer.getByRole("img", { name: "shot.png" })).toBeVisible()
-  expect(mock.changes).toEqual([{ inboxID: "inb_seed_1", action: "cancel" }])
+  expect(mock.changes).toEqual([{ inboxID: "msg_seed_1", action: "cancel" }])
 })
 
 test("Undo of a comment-only prompt keeps the draft text and restores the comment once", async ({ page }) => {
@@ -734,7 +735,7 @@ test("/compact runs with the composer model and shows a queued compaction, as in
   await expect(page.locator('[data-timeline-row="CompactionQueued"]')).toHaveText("Session compaction queued")
   // The row is optimistic; the model switch still precedes the admission.
   await expect.poll(() => mock.log).toEqual(["model", "compact"])
-  expect(models).toMatchObject([{ model: { id: "queue-model", providerID: "opencode" } }])
+  expect(models).toMatchObject([{ model: { id: "queue-model", providerID: "aigcfroge" } }])
 })
 
 for (const [action, status] of [
@@ -825,7 +826,7 @@ for (const delivery of ["steer", "queue"] as const) {
   test(`keeps finished tools above a pending ${delivery === "queue" ? "queue-to-steer" : "steer"} follow-up`, async ({
     page,
   }, testInfo) => {
-    const model = { id: "queue-model", providerID: "opencode" }
+    const model = { id: "queue-model", providerID: "aigcfroge" }
     const userID = "msg_queue_initial_user"
     const assistantID = "msg_queue_continued_assistant"
     const followUp = "U2: Also check the retry path."

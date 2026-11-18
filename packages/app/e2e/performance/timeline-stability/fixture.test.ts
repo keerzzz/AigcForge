@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test"
+import { EventManifest } from "@aigcfroge/schema/event-manifest"
+import { Schema } from "effect"
 import {
   assistantMessage,
+  directory,
   event,
   toolPart,
   userMessage,
@@ -17,6 +20,7 @@ describe("timeline fixture validation", () => {
   test("rejects malformed SDK values at runtime", () => {
     expect(() =>
       assistantMessage([], {
+        // SAFETY: Deliberately malformed SDK input must be rejected by the runtime codec.
         error: { type: "APIError", message: 1 } as never,
       }),
     ).toThrow()
@@ -28,11 +32,14 @@ describe("timeline fixture validation", () => {
         data: { sessionID: "ses_timeline_stability", status: { type: "retry", attempt: 1 } },
       }),
     ).toThrow()
+    // SAFETY: Bypass the SDK type only to verify invalid message IDs fail runtime validation.
     expect(() => validateTimelineMessages([{ ...userMessage(), id: "invalid" } as never])).toThrow()
+    // SAFETY: Bypass the SDK type only to verify invalid timestamps fail runtime validation.
     expect(() => validateTimelineMessages([{ ...userMessage(), time: { created: "invalid" } } as never])).toThrow()
     expect(() =>
       validateTimelineMessages([
         userMessage(),
+        // SAFETY: An incomplete tool result must fail the public message codec despite this negative-test cast.
         {
           ...assistantMessage(),
           content: [{ type: "tool", id: "call_invalid", name: "shell", state: { status: "completed" } }],
@@ -53,6 +60,17 @@ describe("timeline fixture validation", () => {
     const second = event("session.status", { sessionID: "ses_timeline_stability", status: { type: "idle" } })
     expect(first.id).toMatch(/^evt_timeline_\d{4}$/)
     expect(Number(second.id.slice(-4))).toBe(Number(first.id.slice(-4)) + 1)
+  })
+
+  test("keeps an omitted workspace ID valid across builder and transport decoding", () => {
+    const output = event("session.status", { sessionID: "ses_timeline_stability", status: { type: "busy" } })
+    const definition = EventManifest.ServerDefinitions.find((definition) => definition.type === output.type)
+
+    if (!definition) throw new Error(`Missing public codec for ${output.type}`)
+
+    expect(Schema.decodeUnknownSync(definition)(output)).toMatchObject({ location: { directory } })
+    expect(output.location).toStrictEqual({ directory })
+    expect(validateTimelineEvent(output)).toStrictEqual(output)
   })
 })
 

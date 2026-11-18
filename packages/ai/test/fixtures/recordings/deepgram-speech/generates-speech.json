@@ -18,7 +18,7 @@
         "headers": {
           "content-type": "application/json"
         },
-        "body": "{\"text\":\"Hello from OpenCode.\"}"
+        "body": "{\"text\":\"Hello from AigcForge.\"}"
       },
       "response": {
         "status": 200,
