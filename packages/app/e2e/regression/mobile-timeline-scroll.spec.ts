@@ -301,6 +301,10 @@ for (const device of ["Pixel 7", "iPhone 13"]) {
         }
 
         await devtools.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
+        if (nestedStart) {
+          await nested.blur()
+          await expect(nested).not.toBeFocused()
+        }
         await expect(root.locator('[data-orientation="vertical"][data-visible="false"]')).toHaveCount(1)
         const released = await tail.evaluate((element) => element.getBoundingClientRect().top)
         await timeline.send(
@@ -609,6 +613,10 @@ for (const device of ["Pixel 7", "iPhone 13"]) {
         if (toStart) await expect(first).toBeInViewport()
 
         if (!toStart) await expect(page.getByText("Reading 59.", { exact: true })).toBeInViewport()
+        if (handoff.key !== "latest" && !usesScrollbar) {
+          await scroller.blur()
+          await expect(scroller).not.toBeFocused()
+        }
         await expect(timeline.locator('[data-orientation="vertical"][data-visible="false"]')).toHaveCount(1)
 
         if (handoff.held) await devtools.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] })
@@ -754,6 +762,8 @@ for (const device of ["Pixel 7", "iPhone 13"]) {
           expect(await anchor.evaluate((element) => element.getBoundingClientRect().top)).toBeCloseTo(before, 0)
           await scroller.press("Home")
           await expect(first).toBeInViewport()
+          await scroller.blur()
+          await expect(scroller).not.toBeFocused()
           await expect(hidden).toHaveCount(1)
           expect(await first.evaluate((element) => element.getBoundingClientRect().top)).toBeCloseTo(start, 0)
           await testInfo.attach("home-after-touch.png", { body: await page.screenshot(), contentType: "image/png" })
