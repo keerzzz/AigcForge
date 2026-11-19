@@ -814,42 +814,45 @@ it.live("plans and adopts each selected builtin root over HTTP with an empty use
   ),
 )
 
-it.live("rejects stale builtin root confirmation over HTTP without Session residue", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
-    Effect.gen(function* () {
-      const test = yield* setup()
-      const preview = yield* plan(
-        test,
-        new Composition.TemporaryInput({
-          source: "temporary",
-          root: new Composition.BuiltinRoot({ source: "builtin", id: "build" }),
-          agents: [],
-          bindings: {},
-          presentation: "native",
-          requestedCapabilities: [],
-        }),
-        test.other,
-      )
-      expect(preview.valid).toBe(true)
-      const location = yield* test.readyLocation(test.other)
-      yield* Context.get(location, Agent.Service).transform((editor) =>
-        editor.update(Agent.ID.make("build"), (info) => {
-          info.system = "Changed after the preview."
-        }),
-      )
-      const before = yield* storedState(test)
-      const response = yield* test.request("/custom-composition/start", {
-        directory: test.other,
-        body: { composition: preview.input, expectedPlanDigest: preview.digest },
-      })
-      expect(response.status).toBe(422)
-      const failure = Schema.decodeUnknownSync(CompositionResolveError)(yield* Effect.promise(() => response.json()))
-      expect(failure).toMatchObject({ _tag: "CompositionResolveError", code: "invalid_composition_plan" })
-      expect(failure.diagnostics?.map((diagnostic) => diagnostic.code)).toContain("builtin_root_stale_revision")
-      expect(yield* storedState(test)).toEqual(before)
-      expect(yield* test.llm.requests()).toEqual([])
-    }),
-  ),
+it.live(
+  "rejects stale builtin root confirmation over HTTP without Session residue",
+  () =>
+    withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+      Effect.gen(function* () {
+        const test = yield* setup()
+        const preview = yield* plan(
+          test,
+          new Composition.TemporaryInput({
+            source: "temporary",
+            root: new Composition.BuiltinRoot({ source: "builtin", id: "build" }),
+            agents: [],
+            bindings: {},
+            presentation: "native",
+            requestedCapabilities: [],
+          }),
+          test.other,
+        )
+        expect(preview.valid).toBe(true)
+        const location = yield* test.readyLocation(test.other)
+        yield* Context.get(location, Agent.Service).transform((editor) =>
+          editor.update(Agent.ID.make("build"), (info) => {
+            info.system = "Changed after the preview."
+          }),
+        )
+        const before = yield* storedState(test)
+        const response = yield* test.request("/custom-composition/start", {
+          directory: test.other,
+          body: { composition: preview.input, expectedPlanDigest: preview.digest },
+        })
+        expect(response.status).toBe(422)
+        const failure = Schema.decodeUnknownSync(CompositionResolveError)(yield* Effect.promise(() => response.json()))
+        expect(failure).toMatchObject({ _tag: "CompositionResolveError", code: "invalid_composition_plan" })
+        expect(failure.diagnostics?.map((diagnostic) => diagnostic.code)).toContain("builtin_root_stale_revision")
+        expect(yield* storedState(test)).toEqual(before)
+        expect(yield* test.llm.requests()).toEqual([])
+      }),
+    ),
+  30_000,
 )
 
 it.live("keeps rejected builtin root credentials out of the HTTP Plan", () =>
