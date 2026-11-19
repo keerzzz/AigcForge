@@ -1,48 +1,70 @@
-name: quality environment diagnostic
+name: V2 diagnostic evidence
 on:
   workflow_dispatch:
-    inputs:
-      source_sha:
-        description: Exact PR source SHA
-        required: true
-        type: string
-      merge_sha:
-        description: Exact verified PR merge checkout
-        required: true
-        type: string
 permissions:
   contents: read
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 jobs:
-  quality:
-    name: quality on ubuntu-24.04
+  diagnose:
+    name: diagnostic (${{ matrix.check }})
     runs-on: ubuntu-24.04
     timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [quality, paging]
+    env:
+      CI: true
+      PLAYWRIGHT_BUILD: '1'
+      PLAYWRIGHT_WORKERS: '3'
+      PLAYWRIGHT_FULLY_PARALLEL: '1'
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.playwright-browsers
     steps:
-      - name: Checkout exact merge
+      - name: Read diagnostic payload
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - name: Preserve exact patch
+        run: |
+          git rev-parse HEAD
+          cp .github/acceptance/candidate.patch "$RUNNER_TEMP/candidate.patch"
+          cp .github/acceptance/candidate-files.json "$RUNNER_TEMP/candidate-files.json"
+          test "$(sha256sum "$RUNNER_TEMP/candidate.patch" | cut -d' ' -f1)" = 6a462ead0cedffa538b278fd71dd1de482535740613988631d685e8a2b7e92cb
+      - name: Checkout exact PR merge
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
-          ref: ${{ inputs.merge_sha }}
+          ref: 986c9fd8f29a2f4cf896e019d8c2a7352589b73d
           fetch-depth: 2
-      - name: Verify source and checkout
-        env:
-          SOURCE_SHA: ${{ inputs.source_sha }}
-          MERGE_SHA: ${{ inputs.merge_sha }}
+      - name: Verify and apply diagnostic candidate
         run: |
-          test "$(git rev-parse HEAD)" = "$MERGE_SHA"
-          test "$(git rev-parse HEAD^2)" = "$SOURCE_SHA"
+          test "$(git rev-parse HEAD)" = 986c9fd8f29a2f4cf896e019d8c2a7352589b73d
           test "$(git rev-parse HEAD^1)" = d11d3c7c16f0bcf318a0197bfb647c3cf81b06fd
-          git log -1 --format='%H %P'
-          node --version
-          free -m
+          test "$(git rev-parse HEAD^2)" = 09352951d18f52f46a1f9144a29b93748bb0f1c6
+          git apply --check "$RUNNER_TEMP/candidate.patch"
+          git apply "$RUNNER_TEMP/candidate.patch"
+          node --input-type=module -e 'import {readFileSync} from "node:fs"; import {createHash} from "node:crypto"; const files=JSON.parse(readFileSync(process.env.RUNNER_TEMP+"/candidate-files.json","utf8")); for(const [path,sha] of Object.entries(files)){if(createHash("sha256").update(readFileSync(path)).digest("hex")!==sha) throw new Error(path); console.log("CANDIDATE_FILE",path,sha)}'
+          git diff --stat
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
-      - name: Select package-lint candidate
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.15'
+      - name: Select workspace serial lint candidate
+        if: matrix.check == 'quality'
         run: |
-          bun -e 'const file="package.json"; const text=await Bun.file(file).text(); const before="\"lint\": \"oxlint && "; if(text.split(before).length!==2) throw new Error("Unexpected lint command"); await Bun.write(file,text.replace(before,"\"lint\": \"oxlint packages/core && oxlint packages/app && oxlint --ignore-pattern '"'"'packages/core/**'"'"' --ignore-pattern '"'"'packages/app/**'"'"' . && "))'
-          git diff -- package.json
-      - name: Run canonical checks with resource observation
+          cat > "$RUNNER_TEMP/lint-workspaces.sh" <<'LINT'
+          set -euo pipefail
+          for lint_manifest in packages/*/package.json; do
+            lint_directory=${lint_manifest%/package.json}
+            echo "LINT_WORKSPACE $lint_directory"
+            ./node_modules/.bin/oxlint "$lint_directory"
+          done
+          echo LINT_OUTSIDE_WORKSPACES
+          ./node_modules/.bin/oxlint --ignore-pattern 'packages/**' .
+          LINT
+          bun -e 'const file="package.json"; const text=await Bun.file(file).text(); const before="\"lint\": \"oxlint && "; if(text.split(before).length!==2) throw new Error("Unexpected lint command"); await Bun.write(file,text.replace(before,"\"lint\": \"bash "+process.env.RUNNER_TEMP+"/lint-workspaces.sh && "))'
+      - name: Run canonical quality candidate with resource observations
+        if: matrix.check == 'quality'
         run: |
           (
             while true; do
@@ -50,19 +72,19 @@ jobs:
               free -m
               ps -eo pid,ppid,rss,comm --sort=-rss | head -12
               cat /proc/pressure/memory
-              for resource_file in memory.current memory.max memory.events; do
-                if [ -r "/sys/fs/cgroup/$resource_file" ]; then
-                  echo "CGROUP_$resource_file"
-                  cat "/sys/fs/cgroup/$resource_file"
-                fi
-              done
               sleep 5
             done
           ) &
           resource_monitor_pid=$!
           trap 'kill "$resource_monitor_pid" 2>/dev/null || true' EXIT
           bun run check
-      - name: Check app E2E types
-        run: bun --cwd packages/app typecheck:e2e
-      - name: Lint changed files
-        run: bun run lint:changed HEAD^1
+          bun --cwd packages/app typecheck:e2e
+          bun run lint:changed HEAD^1
+      - name: Install Chromium
+        if: matrix.check == 'paging'
+        working-directory: packages/app
+        run: bunx playwright install --with-deps chromium
+      - name: Probe original keeper with mount witness
+        if: matrix.check == 'paging'
+        working-directory: packages/app
+        run: bunx playwright test regression/timeline-history.spec.ts --grep 'mounts every part once' --workers=3 --retries=0 --repeat-each=3 --reporter=line

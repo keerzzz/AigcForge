@@ -1,0 +1,813 @@
+diff --git a/packages/app/e2e/regression/timeline-history.spec.ts b/packages/app/e2e/regression/timeline-history.spec.ts
+index fc6751039c..6b6ee71eee 100644
+--- a/packages/app/e2e/regression/timeline-history.spec.ts
++++ b/packages/app/e2e/regression/timeline-history.spec.ts
+@@ -361,6 +361,60 @@ test.describe("timeline history", () => {
+     const expectedMessages = fixture.expected.targetMessageIDs
+     const seenParts = new Set<string>()
+     const seenMessages = new Set<string>()
++    const markerWitness = await timelineScroller(page).evaluateHandle((scroller, ids) => {
++      const expected = new Set(ids)
++      const evidence = new Map<string, { initial: boolean; added: boolean; removed: boolean; changed: boolean }>()
++      const totals = { mutations: 0 }
++      const record = (value: string | null, phase: "initial" | "added" | "removed" | "changed") => {
++        value?.split(",").forEach((id) => {
++          if (!expected.has(id)) return
++          const marker = evidence.get(id) ?? { initial: false, added: false, removed: false, changed: false }
++          marker[phase] = true
++          evidence.set(id, marker)
++        })
++      }
++      const scan = (node: Node, phase: "initial" | "added" | "removed") => {
++        if (!(node instanceof Element)) return
++        Array.from(node.querySelectorAll("[data-timeline-part-id], [data-timeline-part-ids]"))
++          .concat(node)
++          .forEach((element) => {
++            record(element.getAttribute("data-timeline-part-id"), phase)
++            record(element.getAttribute("data-timeline-part-ids"), phase)
++          })
++      }
++      const capture = (changes: MutationRecord[]) => {
++        totals.mutations += changes.length
++        changes.forEach((change) => {
++          change.addedNodes.forEach((node) => scan(node, "added"))
++          change.removedNodes.forEach((node) => scan(node, "removed"))
++          if (change.type !== "attributes" || !(change.target instanceof Element) || !change.attributeName) return
++          record(change.oldValue, "changed")
++          record(change.target.getAttribute(change.attributeName), "changed")
++        })
++      }
++      const observer = new MutationObserver(capture)
++      observer.observe(scroller, {
++        childList: true,
++        subtree: true,
++        attributes: true,
++        attributeFilter: ["data-timeline-part-id", "data-timeline-part-ids"],
++        attributeOldValue: true,
++      })
++      scan(scroller, "initial")
++
++      return {
++        snapshot(missing: string[]) {
++          capture(observer.takeRecords())
++          return {
++            expected: expected.size,
++            observed: evidence.size,
++            mutationRecords: totals.mutations,
++            missing: missing.map((id) => ({ id, marker: evidence.get(id) ?? null })),
++          }
++        },
++        disconnect: () => observer.disconnect(),
++      }
++    }, expectedParts)
+     const observe = async () => {
+       const state = await visibleTimeline(page)
+       expectOrdered(expectedParts, state.parts, "mounted parts")
+@@ -382,72 +436,99 @@ test.describe("timeline history", () => {
+       }
+     }
+ 
+-    for (;;) {
+-      const state = await observe()
++    try {
++      for (;;) {
++        const state = await observe()
++
++        if (state.ready && state.scrollTop <= 1 && seenParts.size === expectedParts.length) break
++
++        if (held.length) {
++          held.splice(0).forEach((release) => release())
++          await expect.poll(() => loads.ended).toBe(loads.started)
++          let previous = ""
++          await expect
++            .poll(async () => {
++              const next = await observe()
++              if (held.length) return true
++              const stable = next.ready && next.signature === previous
++              previous = next.ready ? next.signature : ""
++
++              return stable
++            })
++            .toBe(true)
++          continue
++        }
+ 
+-      if (state.ready && state.scrollTop <= 1 && seenParts.size === expectedParts.length) break
++        if (!state.ready) {
++          await expect
++            .poll(async () => {
++              const next = await observe()
++              return held.length > 0 || next.ready
++            })
++            .toBe(true)
++          continue
++        }
+ 
+-      if (held.length) {
+-        held.splice(0).forEach((release) => release())
+-        await expect.poll(() => loads.ended).toBe(loads.started)
+-        let previous = ""
++        // Keep consecutive observation windows overlapping. A large measured overscan row can otherwise
++        // carry a step past rows mounted during the next range and size update.
++        await timelineScroller(page).evaluate((element, delta) => {
++          element.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: -delta }))
++          element.scrollTop -= delta
++        }, state.mountedAbove)
++        const observed = { next: state, samples: 0 }
+         await expect
+           .poll(async () => {
+             const next = await observe()
+-            if (held.length) return true
+-            const stable = next.ready && next.signature === previous
+-            previous = next.ready ? next.signature : ""
+-
+-            return stable
+-          })
+-          .toBe(true)
+-        continue
+-      }
++            observed.next = next
++            observed.samples++
+ 
+-      if (!state.ready) {
+-        await expect
+-          .poll(async () => {
+-            const next = await observe()
+-            return held.length > 0 || next.ready
++            return held.length > 0 || (next.ready && next.signature !== state.signature)
+           })
+           .toBe(true)
+-        continue
+-      }
+-
+-      // Keep consecutive observation windows overlapping. A large measured overscan row can otherwise
+-      // carry a step past rows mounted during the next range and size update.
+-      await timelineScroller(page).evaluate((element, delta) => {
+-        element.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: -delta }))
+-        element.scrollTop -= delta
+-      }, state.mountedAbove)
+-      const observed = { next: state }
+-      await expect
+-        .poll(async () => {
+-          const next = await observe()
+-          observed.next = next
+-
+-          return held.length > 0 || (next.ready && next.signature !== state.signature)
+-        })
+-        .toBe(true)
+-        .catch(async (error) => {
+-          await testInfo.attach("timeline-paging-no-progress.json", {
+-            body: JSON.stringify({
++          .catch(async (error) => {
++            const report = {
++              retry: testInfo.retry,
++              repeatEachIndex: testInfo.repeatEachIndex,
++              workerIndex: testInfo.workerIndex,
+               before: state,
+               after: observed.next,
++              afterSource: observed.samples ? "poll" : "before-fallback",
++              afterSamples: observed.samples,
+               held: held.length,
+               loads,
+               missingParts: expectedParts.filter((id) => !seenParts.has(id)),
+               missingMessages: expectedMessages.filter((id) => !seenMessages.has(id)),
+-            }),
+-            contentType: "application/json",
++            }
++            // Preserve the state report even if the test deadline closes the page before witness retrieval.
++            console.info("TIMELINE_PAGING_NO_PROGRESS", JSON.stringify(report))
++            const markerEvidence = await markerWitness
++              .evaluate((witness, missing) => witness.snapshot(missing), report.missingParts)
++              .catch(() => ({ unavailable: true }))
++            console.info(
++              "TIMELINE_PAGING_MARKER_EVIDENCE",
++              JSON.stringify({
++                retry: testInfo.retry,
++                repeatEachIndex: testInfo.repeatEachIndex,
++                workerIndex: testInfo.workerIndex,
++                markerEvidence,
++              }),
++            )
++            await testInfo.attach("timeline-paging-no-progress.json", {
++              body: JSON.stringify({ ...report, markerEvidence }),
++              contentType: "application/json",
++            })
++            throw error
+           })
+-          throw error
+-        })
+-    }
++      }
+ 
+-    expect(expectedParts.filter((id) => !seenParts.has(id))).toEqual([])
+-    expect(expectedMessages.filter((id) => !seenMessages.has(id))).toEqual([])
+-    expect(errors).toEqual([])
++      expect(expectedParts.filter((id) => !seenParts.has(id))).toEqual([])
++      expect(expectedMessages.filter((id) => !seenMessages.has(id))).toEqual([])
++      expect(errors).toEqual([])
++    } finally {
++      // Playwright destroys the isolated page on a deadline; cleanup must preserve the original failure.
++      await markerWitness.evaluate((witness) => witness.disconnect()).catch(() => undefined)
++      await markerWitness.dispose()
++    }
+   })
+ 
+   for (const scenario of [
+diff --git a/packages/app/src/composer/selection.test.ts b/packages/app/src/composer/selection.test.ts
+index 1c75f1de99..39f6e98740 100644
+--- a/packages/app/src/composer/selection.test.ts
++++ b/packages/app/src/composer/selection.test.ts
+@@ -1634,12 +1634,14 @@ async function browserKeepers() {
+     expect(local.executor.preference()).toEqual(executor("explore", "removed", "low"))
+   })
+ 
+-  test("bound drafts restore their own Meta, executor, and raw efforts", () => {
++  test.each(["low", null])("bound drafts restore their own Meta, executor, and raw effort %p", (variant) => {
+     const f = fixture({ newSession: true })
+-    f.prompt.model.set({ ...key("b"), variant: "low" })
+-    const { local } = f.mount("draft_a", true)
++    f.prompt.model.set({ ...key("b"), variant })
++    const mounted = f.mount("draft_a", true)
++    const local = mounted.local
+     expect(local.model.current()?.id).toBe("b")
+-    expect(local.model.variant.current()).toBe("low")
++    expect(local.model.variant.current()).toBe(variant ?? undefined)
++    flushPersisted()
+     local.executor.set(executor("explore"))
+     local.executor.model.set(key("c"))
+     local.executor.model.variant.set("high")
+@@ -1660,6 +1662,10 @@ async function browserKeepers() {
+     expect(selection(local)).toEqual(first)
+     local.session.bindDraft("draft_b")
+     expect(selection(local)).toEqual(second)
++    mounted.dispose()
++    flushPersisted()
++    f.prompt.model.set(undefined)
++    expect(selection(f.mount("draft_a", true).local)).toEqual(first)
+   })
+ 
+   test("a fresh draft does not adopt the previous draft's promotion", () => {
+diff --git a/packages/app/src/new-session/composer-adapter.ts b/packages/app/src/new-session/composer-adapter.ts
+index a65b676844..5bda86342a 100644
+--- a/packages/app/src/new-session/composer-adapter.ts
++++ b/packages/app/src/new-session/composer-adapter.ts
+@@ -41,7 +41,11 @@ export function createNewSessionComposerAdapter(props: {
+   const model = createComposerModelSelection({ draftID: props.draftID })
+   createEffect(() => {
+     if (!prompt.ready() || !local.session.ready()) return
+-    local.session.bindDraft(props.draftID, prompt.model.current())
++    const initial = prompt.model.current()
++    local.session.bindDraft(
++      props.draftID,
++      !initial || "type" in initial ? initial : { ...initial, variant: initial.variant ?? undefined },
++    )
+   })
+   let disposed = false
+   let generation = 0
+diff --git a/packages/core/script/test.ts b/packages/core/script/test.ts
+index 896fc3712e..02b6f13569 100644
+--- a/packages/core/script/test.ts
++++ b/packages/core/script/test.ts
+@@ -35,7 +35,7 @@ const environment = {
+ }
+ 
+ const child = Bun.spawn({
+-  cmd: [process.execPath, "test", "--only-failures", ...process.argv.slice(2)],
++  cmd: [process.execPath, "test", "--only-failures", "--timeout", "30000", ...process.argv.slice(2)],
+   env: environment,
+   stdin: "inherit",
+   stdout: "inherit",
+diff --git a/packages/core/test/meta-agent-integration.test.ts b/packages/core/test/meta-agent-integration.test.ts
+index 06744b8728..0b4df70418 100644
+--- a/packages/core/test/meta-agent-integration.test.ts
++++ b/packages/core/test/meta-agent-integration.test.ts
+@@ -3806,7 +3806,7 @@ effectTest.live(
+         TestLLM.text("Consumed the actual repair.", "mc07-r2-sticky-parent"),
+       )
+       yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Repair the rejected artifact." })
+-      yield* awaitWithTimeout(fixture.llm.wait(11), "MC07 sticky repair did not reach its parent")
++      yield* awaitWithTimeout(fixture.llm.wait(11), "MC07 sticky repair did not reach its parent", "10 seconds")
+       yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 sticky repair did not settle")
+       const repaired = yield* fixture.delegations.foldState(fixture.receipt.delegationID)
+       const digest = repaired?.delegation.latestRevisionDigest
+@@ -7319,7 +7319,6 @@ for (const ownerDuringRead of [false, true])
+         expect(external.state.turns).toBe(1)
+         expect(external.calls.filter((call) => call.method === "thread/read")).toHaveLength(1)
+       }),
+-    { timeout: 30_000 },
+   )
+ 
+ for (const transport of ["sdk", "acp", "jsonl"] as const)
+@@ -13085,7 +13084,7 @@ effectTest.live(
+         TestLLM.text("Consumed the complete R2 producer.", "mc06-sdk-review-repair-parent"),
+       )
+       yield* f.sessions.prompt({ sessionID: f.root.id, text: "Repair R1 in the same original producer." })
+-      yield* awaitWithTimeout(f.llm.wait(count + 4), "SDK R2 repair did not reach the original parent")
++      yield* awaitWithTimeout(f.llm.wait(count + 4), "SDK R2 repair did not reach the original parent", "10 seconds")
+       yield* awaitWithTimeout(f.runs.awaitIdle(f.root.id), "SDK R2 repair did not settle")
+       const repair = yield* mc07Consumed(f, "mc06-sdk-review-repair")
+       const producer = Schema.decodeUnknownSync(Schema.fromJsonString(DelegationService.Governance))(
+@@ -13383,227 +13382,221 @@ for (const scenario of [
+   { kind: "invalid", name: "restores full text and invalid governance exactly once" },
+   { kind: "owner", name: "defers when a new parent owner starts during finalization" },
+ ] as const)
+-  testEffect(Layer.empty).live(
+-    `MC06 SDK review cold recovery ${scenario.name}`,
+-    () =>
+-      Effect.gen(function* () {
+-        const originalContext = yield* Layer.build(metaLayer(true))
+-        const sdk = yield* sdkTaskSetup("Read", true, undefined, false, "artifact.txt").pipe(
+-          Effect.provide(originalContext),
+-        )
+-        const f = { ...sdk, ...(yield* mc07Build("artifact.txt", "", true, sdk).pipe(Effect.provide(originalContext))) }
+-        const id = `mc06-sdk-review-cold-${scenario.kind}`
+-        sdk.outputs[0] =
+-          sdk.text +
+-          (scenario.kind === "invalid"
+-            ? "<review>{not-json}</review>"
+-            : `<review>${JSON.stringify({ kind: "aigcfroge.review.v1", reviewed_revision_digest: f.digest, verdict: "approved", findings: [], summary: "The original R1 is approved." })}</review>`)
+-        const locations = Context.get(originalContext, LocationServiceMap.Service)
+-        const hooks = yield* PluginHooks.Service.pipe(Effect.provide(locations.get(f.root.location)))
+-        const entered = yield* Deferred.make<void>()
+-        const release = yield* Deferred.make<void>()
+-        yield* Effect.addFinalizer(() => Deferred.succeed(release, undefined).pipe(Effect.asVoid))
+-        yield* hooks.register("tool", "execute.after", (event) => {
+-          if (event.tool !== "task" || event.id !== id || event.status !== "completed") return Effect.void
+-          return Deferred.succeed(entered, undefined).pipe(Effect.andThen(Deferred.await(release)))
+-        })
+-        yield* Deferred.succeed(sdk.resultGate, undefined)
+-        yield* f.llm.push(
+-          TestLLM.tool(id, TaskTool.name, {
+-            description: "Persist the SDK review before publishing its parent result",
+-            prompt: "Review the original bound R1 and preserve the complete verdict.",
+-            execution_type: "external-cli",
+-            cli_target: "claude-code",
+-            subagent_type: "claude-code",
+-            intent: "review",
+-            attended: false,
+-            delegation_id: f.receipt.delegationID,
+-            revision_digest: f.digest,
++  testEffect(Layer.empty).live(`MC06 SDK review cold recovery ${scenario.name}`, () =>
++    Effect.gen(function* () {
++      const originalContext = yield* Layer.build(metaLayer(true))
++      const sdk = yield* sdkTaskSetup("Read", true, undefined, false, "artifact.txt").pipe(
++        Effect.provide(originalContext),
++      )
++      const f = { ...sdk, ...(yield* mc07Build("artifact.txt", "", true, sdk).pipe(Effect.provide(originalContext))) }
++      const id = `mc06-sdk-review-cold-${scenario.kind}`
++      sdk.outputs[0] =
++        sdk.text +
++        (scenario.kind === "invalid"
++          ? "<review>{not-json}</review>"
++          : `<review>${JSON.stringify({ kind: "aigcfroge.review.v1", reviewed_revision_digest: f.digest, verdict: "approved", findings: [], summary: "The original R1 is approved." })}</review>`)
++      const locations = Context.get(originalContext, LocationServiceMap.Service)
++      const hooks = yield* PluginHooks.Service.pipe(Effect.provide(locations.get(f.root.location)))
++      const entered = yield* Deferred.make<void>()
++      const release = yield* Deferred.make<void>()
++      yield* Effect.addFinalizer(() => Deferred.succeed(release, undefined).pipe(Effect.asVoid))
++      yield* hooks.register("tool", "execute.after", (event) => {
++        if (event.tool !== "task" || event.id !== id || event.status !== "completed") return Effect.void
++        return Deferred.succeed(entered, undefined).pipe(Effect.andThen(Deferred.await(release)))
++      })
++      yield* Deferred.succeed(sdk.resultGate, undefined)
++      yield* f.llm.push(
++        TestLLM.tool(id, TaskTool.name, {
++          description: "Persist the SDK review before publishing its parent result",
++          prompt: "Review the original bound R1 and preserve the complete verdict.",
++          execution_type: "external-cli",
++          cli_target: "claude-code",
++          subagent_type: "claude-code",
++          intent: "review",
++          attended: false,
++          delegation_id: f.receipt.delegationID,
++          revision_digest: f.digest,
++        }),
++        TestLLM.text("Consumed the original persisted SDK review.", `${id}-original-parent`),
++      )
++      yield* f.sessions.prompt({ sessionID: f.root.id, text: "Capture the real completed SDK review checkpoint." })
++      yield* awaitWithTimeout(Deferred.await(entered), "SDK review did not reach its after hook")
++      const originalKV = Context.get(originalContext, KV.Service)
++      const binding = Schema.decodeUnknownSync(DelegationReceipt.Binding)(
++        (yield* originalKV.scan({ prefix: `delegation:external:${f.receipt.delegationID}:` })).entries[0]?.value,
++      )
++      expect(binding.source.id).toBe(id)
++      expect(binding.settlement?.text).toBe(sdk.outputs[0])
++      expect(binding.settlement?.governance).toMatchObject(
++        scenario.kind === "invalid"
++          ? { kind: "review", status: "invalid", reason: "malformed" }
++          : { kind: "review", status: "valid", reviewedRevisionDigest: f.digest },
++      )
++      expect((yield* mc07Result(f, id)).tool.state.status).toBe("running")
++      expect((yield* f.delegations.foldState(f.receipt.delegationID))?.reviews).toHaveLength(
++        scenario.kind === "invalid" ? 0 : 1,
++      )
++      const originalDatabase = Context.get(originalContext, Database.Service)
++      const snapshot = `${(yield* tmpdirScoped()).path}/mc06-sdk-review-cold.sqlite`
++      yield* originalDatabase.db.run(sql`VACUUM INTO ${snapshot}`)
++      yield* Deferred.succeed(release, undefined)
++      yield* awaitWithTimeout(f.runs.awaitIdle(f.root.id), "Original SDK review parent did not finish")
++      const original = yield* mc07Consumed(f, id)
++      if (original.tool.state.status !== "completed") return yield* Effect.die(new Error("Original SDK review failed"))
++      const receipt = Schema.decodeUnknownSync(DelegationReceipt.Sdk)(original.tool.state.metadata?.externalReceipt)
++      const context = yield* Layer.build(Layer.fresh(metaLayer(true, snapshot)))
++      const database = Context.get(context, Database.Service)
++      expect(database).not.toBe(originalDatabase)
++      const sessions = Context.get(context, Session.Service)
++      const root = yield* sessions.get(f.root.id)
++      const local = Context.get(context, LocationServiceMap.Service).get(root.location)
++      yield* useOfflineCatalog([
++        {
++          info: Provider.Info.make({
++            ...Provider.Info.empty(f.metaModel.providerID),
++            activation: "enabled",
++            package: "@aigcfroge/ai/providers/openai/responses",
+           }),
+-          TestLLM.text("Consumed the original persisted SDK review.", `${id}-original-parent`),
+-        )
+-        yield* f.sessions.prompt({ sessionID: f.root.id, text: "Capture the real completed SDK review checkpoint." })
+-        yield* awaitWithTimeout(Deferred.await(entered), "SDK review did not reach its after hook")
+-        const originalKV = Context.get(originalContext, KV.Service)
+-        const binding = Schema.decodeUnknownSync(DelegationReceipt.Binding)(
+-          (yield* originalKV.scan({ prefix: `delegation:external:${f.receipt.delegationID}:` })).entries[0]?.value,
+-        )
+-        expect(binding.source.id).toBe(id)
+-        expect(binding.settlement?.text).toBe(sdk.outputs[0])
+-        expect(binding.settlement?.governance).toMatchObject(
+-          scenario.kind === "invalid"
+-            ? { kind: "review", status: "invalid", reason: "malformed" }
+-            : { kind: "review", status: "valid", reviewedRevisionDigest: f.digest },
++          models: [f.metaModel, f.executorModel].map((ref) =>
++            Model.Info.make(Model.Info.default(ref.providerID, ref.id)),
++          ),
++        },
++      ]).pipe(Effect.provide(local))
++      const opened = {
++        ...f,
++        sessions,
++        root,
++        llm: Context.get(context, TestLLM.Test),
++        runs: Context.get(context, SessionExecution.Service),
++      }
++      const kv = Context.get(context, KV.Service)
++      const key = DelegationReceipt.key(receipt)
++      if (scenario.kind === "conflict")
++        yield* kv.set(
++          key,
++          Schema.encodeSync(Schema.toCodecJson(DelegationReceipt.Binding))(
++            new DelegationReceipt.Binding({ ...binding, externalThreadID: "sdk-conflicting-review-session" }),
++          ),
+         )
+-        expect((yield* mc07Result(f, id)).tool.state.status).toBe("running")
+-        expect((yield* f.delegations.foldState(f.receipt.delegationID))?.reviews).toHaveLength(
+-          scenario.kind === "invalid" ? 0 : 1,
++      const beforeBinding = yield* kv.get(key)
++      const tasks = Context.get(context, SessionTask.Service)
++      const beforeTasks = yield* tasks.get(root.id)
++      const delegations = Context.get(context, DelegationService.Service)
++      const beforeState = yield* delegations.foldState(f.receipt.delegationID)
++      const metas = database.db
++        .select()
++        .from(MetaAgentStepTable)
++        .where(
++          and(
++            eq(MetaAgentStepTable.meta_agent_session_id, root.id),
++            eq(MetaAgentStepTable.tool_call_id, id),
++            eq(MetaAgentStepTable.type, "receipt"),
++          ),
+         )
+-        const originalDatabase = Context.get(originalContext, Database.Service)
+-        const snapshot = `${(yield* tmpdirScoped()).path}/mc06-sdk-review-cold.sqlite`
+-        yield* originalDatabase.db.run(sql`VACUUM INTO ${snapshot}`)
+-        yield* Deferred.succeed(release, undefined)
+-        yield* awaitWithTimeout(f.runs.awaitIdle(f.root.id), "Original SDK review parent did not finish")
+-        const original = yield* mc07Consumed(f, id)
+-        if (original.tool.state.status !== "completed")
+-          return yield* Effect.die(new Error("Original SDK review failed"))
+-        const receipt = Schema.decodeUnknownSync(DelegationReceipt.Sdk)(original.tool.state.metadata?.externalReceipt)
+-        const context = yield* Layer.build(Layer.fresh(metaLayer(true, snapshot)))
+-        const database = Context.get(context, Database.Service)
+-        expect(database).not.toBe(originalDatabase)
+-        const sessions = Context.get(context, Session.Service)
+-        const root = yield* sessions.get(f.root.id)
+-        const local = Context.get(context, LocationServiceMap.Service).get(root.location)
+-        yield* useOfflineCatalog([
+-          {
+-            info: Provider.Info.make({
+-              ...Provider.Info.empty(f.metaModel.providerID),
+-              activation: "enabled",
+-              package: "@aigcfroge/ai/providers/openai/responses",
+-            }),
+-            models: [f.metaModel, f.executorModel].map((ref) =>
+-              Model.Info.make(Model.Info.default(ref.providerID, ref.id)),
+-            ),
+-          },
+-        ]).pipe(Effect.provide(local))
+-        const opened = {
+-          ...f,
+-          sessions,
+-          root,
+-          llm: Context.get(context, TestLLM.Test),
+-          runs: Context.get(context, SessionExecution.Service),
+-        }
+-        const kv = Context.get(context, KV.Service)
+-        const key = DelegationReceipt.key(receipt)
+-        if (scenario.kind === "conflict")
+-          yield* kv.set(
+-            key,
+-            Schema.encodeSync(Schema.toCodecJson(DelegationReceipt.Binding))(
+-              new DelegationReceipt.Binding({ ...binding, externalThreadID: "sdk-conflicting-review-session" }),
+-            ),
+-          )
+-        const beforeBinding = yield* kv.get(key)
+-        const tasks = Context.get(context, SessionTask.Service)
+-        const beforeTasks = yield* tasks.get(root.id)
+-        const delegations = Context.get(context, DelegationService.Service)
+-        const beforeState = yield* delegations.foldState(f.receipt.delegationID)
+-        const metas = database.db
+-          .select()
+-          .from(MetaAgentStepTable)
+-          .where(
+-            and(
+-              eq(MetaAgentStepTable.meta_agent_session_id, root.id),
+-              eq(MetaAgentStepTable.tool_call_id, id),
+-              eq(MetaAgentStepTable.type, "receipt"),
+-            ),
+-          )
+-          .all()
+-        const successes = database.db
+-          .select()
+-          .from(EventTable)
+-          .where(
+-            and(
+-              eq(EventTable.aggregate_id, root.id),
+-              eq(
+-                EventTable.type,
+-                Bus.versionedType(SessionEvent.Tool.Success.type, SessionEvent.Tool.Success.durable.version),
+-              ),
++        .all()
++      const successes = database.db
++        .select()
++        .from(EventTable)
++        .where(
++          and(
++            eq(EventTable.aggregate_id, root.id),
++            eq(
++              EventTable.type,
++              Bus.versionedType(SessionEvent.Tool.Success.type, SessionEvent.Tool.Success.durable.version),
+             ),
+-          )
+-          .all()
+-          .pipe(Effect.map((events) => events.filter((event) => event.data.id === id)))
+-        expect(yield* metas).toEqual([])
+-        expect(yield* successes).toEqual([])
+-        const execution = Context.get(context, DelegationExecution.Service)
+-        if (scenario.kind === "owner") {
+-          const before = Effect.all({
+-            result: mc07Result(opened, id),
+-            state: delegations.foldState(f.receipt.delegationID),
+-            tasks: tasks.get(root.id),
+-            binding: kv.get(key),
+-            metas,
+-            successes,
+-          })
+-          const observed = yield* Deferred.make<Effect.Success<typeof before>>()
+-          const held = yield* Deferred.make<void>()
+-          const ownerRelease = yield* Deferred.make<void>()
+-          yield* Effect.addFinalizer(() => Deferred.succeed(ownerRelease, undefined).pipe(Effect.asVoid))
+-          yield* opened.llm.push(
+-            Stream.fromEffect(
+-              Deferred.succeed(held, undefined).pipe(Effect.andThen(Deferred.await(ownerRelease))),
+-            ).pipe(
+-              Stream.flatMap(() =>
+-                Stream.fromIterable(TestLLM.text("The new parent owner completed.", `${id}-new-owner`)),
+-              ),
++          ),
++        )
++        .all()
++        .pipe(Effect.map((events) => events.filter((event) => event.data.id === id)))
++      expect(yield* metas).toEqual([])
++      expect(yield* successes).toEqual([])
++      const execution = Context.get(context, DelegationExecution.Service)
++      if (scenario.kind === "owner") {
++        const before = Effect.all({
++          result: mc07Result(opened, id),
++          state: delegations.foldState(f.receipt.delegationID),
++          tasks: tasks.get(root.id),
++          binding: kv.get(key),
++          metas,
++          successes,
++        })
++        const observed = yield* Deferred.make<Effect.Success<typeof before>>()
++        const held = yield* Deferred.make<void>()
++        const ownerRelease = yield* Deferred.make<void>()
++        yield* Effect.addFinalizer(() => Deferred.succeed(ownerRelease, undefined).pipe(Effect.asVoid))
++        yield* opened.llm.push(
++          Stream.fromEffect(Deferred.succeed(held, undefined).pipe(Effect.andThen(Deferred.await(ownerRelease)))).pipe(
++            Stream.flatMap(() =>
++              Stream.fromIterable(TestLLM.text("The new parent owner completed.", `${id}-new-owner`)),
+             ),
+-          )
+-          const coldHooks = yield* PluginHooks.Service.pipe(Effect.provide(local))
+-          yield* coldHooks.register("tool", "execute.after", (event) => {
+-            if (event.tool !== "task" || event.id !== id || event.status !== "completed") return Effect.void
+-            return Effect.gen(function* () {
+-              yield* opened.sessions.prompt({
+-                sessionID: root.id,
+-                text: "New parent input while the old SDK review is being finalized.",
+-              })
+-              yield* awaitWithTimeout(Deferred.await(held), "The new parent owner did not start")
+-              yield* Deferred.succeed(observed, yield* before)
+-            }).pipe(Effect.orDie)
+-          })
+-          yield* execution.recoverPending
+-          expect(yield* opened.runs.isActive(root.id)).toBe(true)
+-          expect(yield* before).toEqual(
+-            yield* awaitWithTimeout(Deferred.await(observed), "Cold SDK recovery did not observe the new owner"),
+-          )
+-          expect(sdk.queries).toHaveLength(1)
+-          expect(sdk.state).toEqual({ reads: 1, closed: 1, hookCalls: 1 })
+-          yield* Deferred.succeed(ownerRelease, undefined)
+-          yield* awaitWithTimeout(opened.runs.awaitIdle(root.id), "The new parent owner did not finish")
+-          return
+-        }
++          ),
++        )
++        const coldHooks = yield* PluginHooks.Service.pipe(Effect.provide(local))
++        yield* coldHooks.register("tool", "execute.after", (event) => {
++          if (event.tool !== "task" || event.id !== id || event.status !== "completed") return Effect.void
++          return Effect.gen(function* () {
++            yield* opened.sessions.prompt({
++              sessionID: root.id,
++              text: "New parent input while the old SDK review is being finalized.",
++            })
++            yield* awaitWithTimeout(Deferred.await(held), "The new parent owner did not start")
++            yield* Deferred.succeed(observed, yield* before)
++          }).pipe(Effect.orDie)
++        })
+         yield* execution.recoverPending
+-        if (scenario.kind === "conflict") {
+-          expect((yield* mc07Result(opened, id)).tool.state.status).toBe("running")
+-          yield* execution.recoverPending
+-          expect(yield* successes).toEqual([])
+-          expect(yield* metas).toEqual([])
+-        }
+-        if (scenario.kind !== "conflict") {
+-          const recovered = yield* mc07Result(opened, id)
+-          if (recovered.tool.state.status !== "completed")
+-            return yield* Effect.die(new Error("Cold SDK review was not recovered"))
+-          const output = Schema.decodeUnknownSync(Schema.fromJsonString(DelegationReceipt.SdkOutput))(
+-            recovered.tool.state.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join(""),
+-          )
+-          expect(output.output).toBe(sdk.outputs[0])
+-          expect(output.governance).toEqual(binding.settlement?.governance)
+-          expect(output.sdkMessage).toEqual(receipt.sdkMessage)
+-          expect(recovered.tool.state.content).toEqual(original.tool.state.content)
+-          expect((yield* execution.wait(receipt)).governance).toEqual(output.governance)
+-          yield* execution.recoverPending
+-          expect(yield* mc07Result(opened, id)).toEqual(recovered)
+-          yield* opened.llm.push(TestLLM.text("Consumed the complete cold SDK review proof.", `${id}-cold-parent`))
+-          yield* opened.runs.resume(root.id)
+-          yield* awaitWithTimeout(opened.runs.awaitIdle(root.id), "Recovered SDK review parent did not finish")
+-          expect((yield* mc07Consumed(opened, id)).text).toBe(original.text)
+-          const meta = yield* metas
+-          expect(meta).toHaveLength(1)
+-          expect(Schema.decodeUnknownSync(DelegationReceipt.Outcome)(meta[0]?.provenance?.externalReceipt)).toEqual(
+-            receipt,
+-          )
+-          expect(yield* successes).toHaveLength(1)
+-          const messages = yield* sessions.context(root.id)
+-          yield* execution.recoverPending
+-          expect(yield* metas).toEqual(meta)
+-          expect(yield* successes).toHaveLength(1)
+-          expect(yield* sessions.context(root.id)).toEqual(messages)
+-        }
+-        expect(yield* delegations.foldState(f.receipt.delegationID)).toEqual(beforeState)
+-        expect(yield* tasks.get(root.id)).toEqual(beforeTasks)
+-        expect(yield* kv.get(key)).toEqual(beforeBinding)
++        expect(yield* opened.runs.isActive(root.id)).toBe(true)
++        expect(yield* before).toEqual(
++          yield* awaitWithTimeout(Deferred.await(observed), "Cold SDK recovery did not observe the new owner"),
++        )
+         expect(sdk.queries).toHaveLength(1)
+         expect(sdk.state).toEqual({ reads: 1, closed: 1, hookCalls: 1 })
+-      }),
+-    { timeout: 30_000 },
++        yield* Deferred.succeed(ownerRelease, undefined)
++        yield* awaitWithTimeout(opened.runs.awaitIdle(root.id), "The new parent owner did not finish")
++        return
++      }
++      yield* execution.recoverPending
++      if (scenario.kind === "conflict") {
++        expect((yield* mc07Result(opened, id)).tool.state.status).toBe("running")
++        yield* execution.recoverPending
++        expect(yield* successes).toEqual([])
++        expect(yield* metas).toEqual([])
++      }
++      if (scenario.kind !== "conflict") {
++        const recovered = yield* mc07Result(opened, id)
++        if (recovered.tool.state.status !== "completed")
++          return yield* Effect.die(new Error("Cold SDK review was not recovered"))
++        const output = Schema.decodeUnknownSync(Schema.fromJsonString(DelegationReceipt.SdkOutput))(
++          recovered.tool.state.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join(""),
++        )
++        expect(output.output).toBe(sdk.outputs[0])
++        expect(output.governance).toEqual(binding.settlement?.governance)
++        expect(output.sdkMessage).toEqual(receipt.sdkMessage)
++        expect(recovered.tool.state.content).toEqual(original.tool.state.content)
++        expect((yield* execution.wait(receipt)).governance).toEqual(output.governance)
++        yield* execution.recoverPending
++        expect(yield* mc07Result(opened, id)).toEqual(recovered)
++        yield* opened.llm.push(TestLLM.text("Consumed the complete cold SDK review proof.", `${id}-cold-parent`))
++        yield* opened.runs.resume(root.id)
++        yield* awaitWithTimeout(opened.runs.awaitIdle(root.id), "Recovered SDK review parent did not finish")
++        expect((yield* mc07Consumed(opened, id)).text).toBe(original.text)
++        const meta = yield* metas
++        expect(meta).toHaveLength(1)
++        expect(Schema.decodeUnknownSync(DelegationReceipt.Outcome)(meta[0]?.provenance?.externalReceipt)).toEqual(
++          receipt,
++        )
++        expect(yield* successes).toHaveLength(1)
++        const messages = yield* sessions.context(root.id)
++        yield* execution.recoverPending
++        expect(yield* metas).toEqual(meta)
++        expect(yield* successes).toHaveLength(1)
++        expect(yield* sessions.context(root.id)).toEqual(messages)
++      }
++      expect(yield* delegations.foldState(f.receipt.delegationID)).toEqual(beforeState)
++      expect(yield* tasks.get(root.id)).toEqual(beforeTasks)
++      expect(yield* kv.get(key)).toEqual(beforeBinding)
++      expect(sdk.queries).toHaveLength(1)
++      expect(sdk.state).toEqual({ reads: 1, closed: 1, hookCalls: 1 })
++    }),
+   )
+ 
+ effectTest.live(
+@@ -15552,7 +15545,6 @@ for (const phase of ["delivery", "legacy"] as const)
+         expect(f.queries).toHaveLength(1)
+         expect(f.state).toEqual({ reads: 1, closed: 1, hookCalls: 1 })
+       }),
+-    { timeout: 30_000 },
+   )
+ 
+ class JsonlPeerEvent extends Schema.Class<JsonlPeerEvent>("Test.JsonlPeerEvent")({
+diff --git a/packages/core/test/tool-shell.test.ts b/packages/core/test/tool-shell.test.ts
+index 1f5a1fe10d..5cc64dd81f 100644
+--- a/packages/core/test/tool-shell.test.ts
++++ b/packages/core/test/tool-shell.test.ts
+@@ -793,33 +793,29 @@ describe("ShellTool ordinary shell syntax", () => {
+       "Write-Output `\n  hello",
+       "Write-Output @'\nhello\n'@",
+     ]) {
+-      test(
+-        `PowerShell ${portable ? "native" : "legacy"}: ordinary syntax reuses approvals: ${command}`,
+-        () =>
+-          withScanner(
+-            portable,
+-            (registry, directory) =>
+-              Effect.gen(function* () {
+-                const saved = yield* PermissionSaved.Service
+-                const location = yield* Location.Service
+-                yield* saved.add({
+-                  projectID: location.project.id,
+-                  action: "shell",
+-                  resources: ["Write-Output *", "Show-Value *"],
+-                })
+-                const result = yield* runPermissionCommand(registry, command, path.join(directory.active, "marker"), [])
+-                expect(result.requests).toEqual([])
+-                expect(result.exit).toMatchObject({
+-                  _tag: "Success",
+-                  value: { status: "completed", metadata: { exit: 0 } },
+-                })
+-                if (Exit.isSuccess(result.exit))
+-                  expect(result.exit.value.content?.[0]).toEqual(Expected.text(isWindows ? "hello\r\n" : "hello\n"))
+-              }),
+-            pwsh ?? "pwsh",
+-          ),
+-        { timeout: 30_000 },
+-      )
++      test(`PowerShell ${portable ? "native" : "legacy"}: ordinary syntax reuses approvals: ${command}`, () =>
++        withScanner(
++          portable,
++          (registry, directory) =>
++            Effect.gen(function* () {
++              const saved = yield* PermissionSaved.Service
++              const location = yield* Location.Service
++              yield* saved.add({
++                projectID: location.project.id,
++                action: "shell",
++                resources: ["Write-Output *", "Show-Value *"],
++              })
++              const result = yield* runPermissionCommand(registry, command, path.join(directory.active, "marker"), [])
++              expect(result.requests).toEqual([])
++              expect(result.exit).toMatchObject({
++                _tag: "Success",
++                value: { status: "completed", metadata: { exit: 0 } },
++              })
++              if (Exit.isSuccess(result.exit))
++                expect(result.exit.value.content?.[0]).toEqual(Expected.text(isWindows ? "hello\r\n" : "hello\n"))
++            }),
++          pwsh ?? "pwsh",
++        ))
+     }
+   }
+ 
