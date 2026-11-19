@@ -38,9 +38,9 @@ jobs:
           free -m
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
-      - name: Select serial typed-lint candidate
+      - name: Select package-lint candidate
         run: |
-          bun -e 'const file="package.json"; const text=await Bun.file(file).text(); const before="\"lint\": \"oxlint && "; if(text.split(before).length !== 2) throw new Error("Unexpected lint command"); await Bun.write(file,text.replace(before,"\"lint\": \"oxlint --threads 1 && "))'
+          bun -e 'const file="package.json"; const text=await Bun.file(file).text(); const before="\"lint\": \"oxlint && "; if(text.split(before).length!==2) throw new Error("Unexpected lint command"); await Bun.write(file,text.replace(before,"\"lint\": \"oxlint packages/core && oxlint packages/app && oxlint --ignore-pattern '"'"'packages/core/**'"'"' --ignore-pattern '"'"'packages/app/**'"'"' . && "))'
           git diff -- package.json
       - name: Run canonical checks with resource observation
         run: |
