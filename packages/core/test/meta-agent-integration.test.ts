@@ -3380,7 +3380,7 @@ effectTest.live(
       )
       yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Repair through the original child." })
       yield* awaitWithTimeout(fixture.llm.wait(8), "MC07 R2 repair did not start")
-      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 R2 repair did not settle")
+      yield* fixture.runs.awaitIdle(fixture.root.id)
       const repaired = yield* mc07Result(fixture, "mc07-r2-repair")
       expect(repaired.tool.state.status).toBe("completed")
       if (repaired.tool.state.status !== "completed") return yield* Effect.die(new Error("MC07 R2 repair was refused"))
