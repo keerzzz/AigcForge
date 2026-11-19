@@ -28,7 +28,7 @@ jobs:
           git rev-parse HEAD
           cp .github/acceptance/candidate.patch "$RUNNER_TEMP/candidate.patch"
           cp .github/acceptance/candidate-files.json "$RUNNER_TEMP/candidate-files.json"
-          test "$(sha256sum "$RUNNER_TEMP/candidate.patch" | cut -d' ' -f1)" = 23f46ce690efa0b6d2ccf3bf7553be51a9ba63b0bf56d5253631d80f197a27ac
+          test "$(sha256sum "$RUNNER_TEMP/candidate.patch" | cut -d' ' -f1)" = ad079579110b444564c1ad3d79df27dd79b67fe71f86751f93c474f026ce61dd
       - name: Checkout exact PR merge
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
@@ -49,10 +49,10 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24.15'
-      - name: Select full lint memory budget candidate
+      - name: Select full lint budget and serial types candidate
         if: matrix.check == 'quality'
         run: |
-          bun -e 'const file="package.json"; const text=await Bun.file(file).text(); const before="\"lint\": \"oxlint && "; if(text.split(before).length!==2) throw new Error("Unexpected lint command"); await Bun.write(file,text.replace(before,"\"lint\": \"GOMEMLIMIT=6GiB NODE_OPTIONS=--max-old-space-size=3072 oxlint && "))'
+          bun -e 'const file="package.json"; const text=await Bun.file(file).text(); const lint="\"lint\": \"oxlint && "; const types="\"typecheck\": \"bun turbo typecheck --concurrency=3\""; if(text.split(lint).length!==2||text.split(types).length!==2) throw new Error("Unexpected quality commands"); await Bun.write(file,text.replace(lint,"\"lint\": \"GOMEMLIMIT=6GiB NODE_OPTIONS=--max-old-space-size=3072 oxlint && ").replace(types,"\"typecheck\": \"bun turbo typecheck --concurrency=1\""))'
           git diff -- package.json
       - name: Run canonical quality candidate with resource observations
         if: matrix.check == 'quality'

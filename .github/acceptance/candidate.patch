@@ -1,8 +1,25 @@
 diff --git a/packages/app/e2e/regression/timeline-history.spec.ts b/packages/app/e2e/regression/timeline-history.spec.ts
-index fc6751039c..e318c9ff0f 100644
+index fc6751039c..f816f96eac 100644
 --- a/packages/app/e2e/regression/timeline-history.spec.ts
 +++ b/packages/app/e2e/regression/timeline-history.spec.ts
-@@ -361,8 +361,96 @@ test.describe("timeline history", () => {
+@@ -346,6 +346,16 @@ test.describe("timeline history", () => {
+     const errors = trackPageErrors(page)
+     const held: (() => void)[] = []
+     const loads = { started: 0, ended: 0 }
++    const adjustmentTrace: { sequence: number; recent: { sequence: number; message: string }[] } = {
++      sequence: 0,
++      recent: [],
++    }
++    page.on("console", (message) => {
++      const text = message.text()
++      if (!text.startsWith("TIMELINE_VIRTUAL_")) return
++      adjustmentTrace.recent.push({ sequence: ++adjustmentTrace.sequence, message: text })
++      if (adjustmentTrace.recent.length > 128) adjustmentTrace.recent.shift()
++    })
+     await page.setViewportSize({ width: 1280, height: 1400 })
+     await openStressTarget(page, {
+       // Older pages land only between scroll steps, so a step never races the prepend.
+@@ -361,8 +371,97 @@ test.describe("timeline history", () => {
      const expectedMessages = fixture.expected.targetMessageIDs
      const seenParts = new Set<string>()
      const seenMessages = new Set<string>()
@@ -83,6 +100,7 @@ index fc6751039c..e318c9ff0f 100644
 +        after: Awaited<ReturnType<typeof visibleTimeline>>
 +        beforeLoading: { held: number; started: number; ended: number }
 +        afterLoading: { held: number; started: number; ended: number }
++        adjustments: { sequence: number; message: string }[]
 +        missing: string[]
 +      }
 +    >()
@@ -99,7 +117,7 @@ index fc6751039c..e318c9ff0f 100644
        expectOrdered(expectedParts, state.parts, "mounted parts")
        expectOrdered(expectedParts, state.visibleParts, "visible parts")
        expectOrdered(expectedMessages, state.messages, "mounted messages")
-@@ -370,6 +458,43 @@ test.describe("timeline history", () => {
+@@ -370,6 +469,44 @@ test.describe("timeline history", () => {
        expect(state.errorToasts).toBe(0)
        state.parts.forEach((id) => seenParts.add(id))
        state.messages.forEach((id) => seenMessages.add(id))
@@ -136,6 +154,7 @@ index fc6751039c..e318c9ff0f 100644
 +              after: state,
 +              beforeLoading: prior.loading,
 +              afterLoading: loading,
++              adjustments: [...adjustmentTrace.recent],
 +              missing,
 +            })
 +        }
@@ -143,7 +162,7 @@ index fc6751039c..e318c9ff0f 100644
  
        return {
          ...state,
-@@ -382,72 +507,127 @@ test.describe("timeline history", () => {
+@@ -382,72 +519,129 @@ test.describe("timeline history", () => {
        }
      }
  
@@ -214,23 +233,23 @@ index fc6751039c..e318c9ff0f 100644
 -            if (held.length) return true
 -            const stable = next.ready && next.signature === previous
 -            previous = next.ready ? next.signature : ""
--
--            return stable
--          })
--          .toBe(true)
--        continue
--      }
 +            observed.next = next
 +            observed.samples++
  
+-            return stable
++            return held.length > 0 || (next.ready && next.signature !== state.signature)
+           })
+           .toBe(true)
+-        continue
+-      }
+-
 -      if (!state.ready) {
 -        await expect
 -          .poll(async () => {
 -            const next = await observe()
 -            return held.length > 0 || next.ready
-+            return held.length > 0 || (next.ready && next.signature !== state.signature)
-           })
-           .toBe(true)
+-          })
+-          .toBe(true)
 -        continue
 -      }
 -
@@ -264,6 +283,7 @@ index fc6751039c..e318c9ff0f 100644
 +              movementSteps: movement.steps,
 +              firstGaps: [...gaps.values()],
 +              nativeSteps: [...nativeSteps].map(([step, native]) => ({ step, ...native })),
++              adjustmentTrace: [...adjustmentTrace.recent],
                held: held.length,
                loads,
                missingParts: expectedParts.filter((id) => !seenParts.has(id)),
@@ -312,6 +332,7 @@ index fc6751039c..e318c9ff0f 100644
 +          movementSteps: movement.steps,
 +          firstGaps: [...gaps.values()],
 +          nativeSteps: [...nativeSteps].map(([step, native]) => ({ step, ...native })),
++          adjustmentTraceTotal: adjustmentTrace.sequence,
 +        }),
 +      )
 +      // Playwright destroys the isolated page on a deadline; cleanup must preserve the original failure.
@@ -321,7 +342,7 @@ index fc6751039c..e318c9ff0f 100644
    })
  
    for (const scenario of [
-@@ -709,9 +889,26 @@ function visibleTimeline(page: Page) {
+@@ -709,9 +903,26 @@ function visibleTimeline(page: Page) {
      const messages = [...scroller.querySelectorAll<HTMLElement>("[data-message-id]")]
      const messageIDs = (elements: HTMLElement[]) => [...new Set(elements.map((element) => element.dataset.messageId!))]
  
@@ -351,7 +372,7 @@ index fc6751039c..e318c9ff0f 100644
  
      return {
        parts: parts.flatMap(partIDs),
-@@ -721,7 +918,9 @@ function visibleTimeline(page: Page) {
+@@ -721,7 +932,9 @@ function visibleTimeline(page: Page) {
        scrollTop: Math.round(scroller.scrollTop),
        scrollHeight: scroller.scrollHeight,
        viewportTop: view.top,
@@ -958,4 +979,146 @@ index 1f5a1fe10d..5cc64dd81f 100644
 +        ))
      }
    }
+ 
+diff --git a/packages/app/src/session/timeline/virtualizer.tsx b/packages/app/src/session/timeline/virtualizer.tsx
+index f5553ac4e6439d30922322ca6f4d4f8cff46aa18..23362b1c4e831bbda9581632530e78c21f3d2533 100644
+--- a/packages/app/src/session/timeline/virtualizer.tsx
++++ b/packages/app/src/session/timeline/virtualizer.tsx
+@@ -191,6 +191,8 @@
+   let reportOffset: ((offset: number, scrolling: boolean) => void) | undefined
+   let reportRect: ((rect: { width: number; height: number }) => void) | undefined
+   let batchingColdSizes = false
++  let traceSequence = 0
++  let resizeContext: { sequence: number; key: string; index: number } | undefined
+ 
+   const virtualizer = createVirtualizer<HTMLDivElement, HTMLDivElement>({
+     get count() {
+@@ -268,10 +270,47 @@
+       if (!active()) return
+ 
+       if (batchingColdSizes && input.pinned()) return
++      const sequence = ++traceSequence
++      console.info(
++        "TIMELINE_VIRTUAL_SCROLL_BEFORE",
++        JSON.stringify({
++          ownerSessionKey,
++          sequence,
++          resize: resizeContext ?? null,
++          offset,
++          adjustments: options.adjustments ?? 0,
++          target: offset + (options.adjustments ?? 0),
++          behavior: options.behavior ?? null,
++          logicalOffset: instance.scrollOffset,
++          scrollDirection: instance.scrollDirection,
++          scrollAdjustments: instance.scrollAdjustments,
++          nativeTop: instance.scrollElement?.scrollTop,
++          scrollHeight: instance.scrollElement?.scrollHeight,
++          clientHeight: instance.scrollElement?.clientHeight,
++          sizerHeight: virtualContent?.style.height,
++          renderingAdjustment: rendering.scrollAdjustment,
++        }),
++      )
+       setRendering("scrollAdjustment", 0)
+ 
+       if (virtualContent) virtualContent.style.height = `${instance.getTotalSize()}px`
+       elementScroll(offset, options, instance)
++      console.info(
++        "TIMELINE_VIRTUAL_SCROLL_AFTER",
++        JSON.stringify({
++          ownerSessionKey,
++          sequence,
++          resize: resizeContext ?? null,
++          logicalOffset: instance.scrollOffset,
++          scrollDirection: instance.scrollDirection,
++          scrollAdjustments: instance.scrollAdjustments,
++          nativeTop: instance.scrollElement?.scrollTop,
++          scrollHeight: instance.scrollElement?.scrollHeight,
++          clientHeight: instance.scrollElement?.clientHeight,
++          sizerHeight: virtualContent?.style.height,
++          renderingAdjustment: rendering.scrollAdjustment,
++        }),
++      )
+     },
+     get getItemKey() {
+       return getItemKey()
+@@ -331,7 +370,45 @@
+           const row = rows()[index]
+ 
+           if (!row || TimelineRow.key(row) !== value.key) return
++          const context = { sequence: ++traceSequence, key: value.key, index }
++          resizeContext = context
++          console.info(
++            "TIMELINE_VIRTUAL_RESIZE_BEFORE",
++            JSON.stringify({
++              ownerSessionKey,
++              ...context,
++              cachedSize: virtualizer.itemSizeCache.get(value.key) ?? null,
++              measuredSize: value.size,
++              logicalOffset: virtualizer.scrollOffset,
++              scrollDirection: virtualizer.scrollDirection,
++              rangeStart: virtualizer.range?.startIndex,
++              rangeEnd: virtualizer.range?.endIndex,
++              scrollAdjustments: virtualizer.scrollAdjustments,
++              nativeTop: listRoot()?.scrollTop,
++              scrollHeight: listRoot()?.scrollHeight,
++              touchAdjustment,
++              renderingAdjustment: rendering.scrollAdjustment,
++            }),
++          )
+           resizeItem(index, value.size)
++          console.info(
++            "TIMELINE_VIRTUAL_RESIZE_AFTER",
++            JSON.stringify({
++              ownerSessionKey,
++              ...context,
++              cachedSize: virtualizer.itemSizeCache.get(value.key) ?? null,
++              logicalOffset: virtualizer.scrollOffset,
++              scrollDirection: virtualizer.scrollDirection,
++              rangeStart: virtualizer.range?.startIndex,
++              rangeEnd: virtualizer.range?.endIndex,
++              scrollAdjustments: virtualizer.scrollAdjustments,
++              nativeTop: listRoot()?.scrollTop,
++              scrollHeight: listRoot()?.scrollHeight,
++              touchAdjustment,
++              renderingAdjustment: rendering.scrollAdjustment,
++            }),
++          )
++          resizeContext = undefined
+ 
+           // TanStack recalculates its range after each resize. Advance the
+           // logical fold before deciding whether the next row needs anchoring.
+@@ -369,6 +446,34 @@
+     const adjust = addedKeys.has(String(item.key))
+       ? item.end <= (instance.scrollOffset ?? 0) + instance.scrollAdjustments + instance.options.scrollMargin
+       : first !== undefined && item.index < first
++
++    console.info(
++      "TIMELINE_VIRTUAL_ADJUST",
++      JSON.stringify({
++        ownerSessionKey,
++        resize: resizeContext ?? null,
++        key: String(item.key),
++        index: item.index,
++        delta,
++        cachedSize: instance.itemSizeCache.get(item.key) ?? null,
++        itemSize: item.size,
++        firstMeasure: !instance.itemSizeCache.has(item.key),
++        added: addedKeys.has(String(item.key)),
++        itemStart: item.start,
++        itemEnd: item.end,
++        rangeStart: first,
++        rangeEnd: instance.range?.endIndex,
++        logicalOffset: instance.scrollOffset,
++        scrollDirection: instance.scrollDirection,
++        scrollAdjustments: instance.scrollAdjustments,
++        nativeTop: instance.scrollElement?.scrollTop,
++        pinned: input.pinned(),
++        touchScrolling,
++        touchAdjustment,
++        adjust,
++        nativeAdjust: !touchScrolling || input.pinned() ? adjust : false,
++      }),
++    )
+ 
+     if (!touchScrolling || input.pinned()) return adjust
  
