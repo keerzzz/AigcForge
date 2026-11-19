@@ -36,10 +36,10 @@ index 6a05184513..08c78513fa 100644
      ".agent/**",
      ".agents/**",
 diff --git a/docs/review/v2-main-integration-2026-11-18.md b/docs/review/v2-main-integration-2026-11-18.md
-index ac9acc1ceb..b90c2073ff 100644
+index ac9acc1ceb..fc1bc869cb 100644
 --- a/docs/review/v2-main-integration-2026-11-18.md
 +++ b/docs/review/v2-main-integration-2026-11-18.md
-@@ -181,3 +181,23 @@ Formal production E2E reports 625 passed, five failed and four flaky on Linux; W
+@@ -181,3 +181,25 @@ Formal production E2E reports 625 passed, five failed and four flaky on Linux; W
  Four titlebar New keepers now bind the source Session to the model declared in its fixture catalog and wait for the exact source label before navigation. An actual mock HTTP before/after probe confirms all four model identities; this is fixture evidence, not browser credit. MP03 reload snapshots already contain the correct Communications detail and saved request, so the keeper waits for that panel instead of the absent list-page Advanced button. Its exact retry, reply, identity and duplicate checks remain. Paging treats empty observation arrays as not ready, retains strict ordering for nonempty samples and credits mounted partial history. All three readiness waits return to the outer release path when another held request appears. The stress-case budget is 600 seconds; final complete part/message coverage and page-error assertions remain. Windows's prior ten-second progress failure still needs the new browser run.
  
  The Windows App component log records Storybook exiting with ERR_STREAM_WRITE_AFTER_END under Bun 1.4.2, followed by one failed dynamic import and 86 refused connections. The shared launch command now follows the installed CLI's Node shebang by removing --bun. A package-local CLI probe confirms Storybook 10.4.4 runs on Node 24.15.0, matching hosted E2E; the log does not identify the stream or middleware that produced the fatal error. Both component suites retain their original assertions and retry settings. The three App files and Storybook configuration pass scoped syntax lint with zero diagnostics; the six affected browser scenarios collect. All six final source/test syntax trees are unchanged by formatting. Windows component execution, full typed checks and all seven required contexts remain pending on the new source.
@@ -54,7 +54,7 @@ index ac9acc1ceb..b90c2073ff 100644
 +
 +The paging trace separates observed native restoration from the idle-cache hypothesis. All 52 traced resize scroll writes correctly apply offset plus adjustment. Thirty unexpected base-point changes occur with idle state and zero accumulated adjustment; one chain restores the native offset from 84 to 2664, then a resize uses logical offset 84 and writes 131 after a correct +47 adjustment. The installed virtual-core fallback passes its cached offset to the existing application observer. Three real-timer cases reproduce that boundary directly: an actual scroll event delivers 84, the native position changes to 2664 without another event, and the idle callback incorrectly delivers 84. The vertical, horizontal LTR and horizontal RTL cases fail before the fix; four existing offset keepers pass. This identifies a concrete stale-value mechanism; final paging coverage still requires browser verification of the production correction.
 +
-+Temporary console, DOM-witness and geometry probes are archived outside the repository. The paging keeper returns to the exact `09352951d1` bytes, retaining its original actions, readiness, 80px minimum step, complete coverage assertions and failure attachment. Production timeline benchmarking completed on frozen pre-fix source `6ef67131e00575c3c1bd78185e65305fbd34cb54` before editing the observer. Run `44484576662` passes all nine entry, streaming and history-search samples with one worker and zero retries. Its helper bytes match the local pre-fix helper exactly. The final same-runner comparison remains required acceptance evidence.
++Temporary console, DOM-witness and geometry probes are archived outside the repository. The paging coverage scenario retains its original `09352951d1` actions, readiness, 80px minimum step, complete coverage assertions and failure attachment. Production timeline benchmarking completed on frozen pre-fix source `6ef67131e00575c3c1bd78185e65305fbd34cb54` before editing the observer. Run `44484576662` passes all nine entry, streaming and history-search samples with one worker and zero retries. Its helper bytes match the local pre-fix helper exactly. The final same-runner comparison remains required acceptance evidence.
 +
 +The observer now refreshes the native offset only when delivering idle state; active scrolling retains its event value. Reconnection checks use the same axis and RTL normalization. All seven offset keepers pass locally with 22 expectations, including the three real timers that failed before the correction. The patch uses the existing observer and native position, preserving the virtualizer's adjustment policy.
 +
@@ -63,6 +63,8 @@ index ac9acc1ceb..b90c2073ff 100644
 +The remaining integration lint fixes make void returns explicit and reuse existing type-aware keys, record narrowing and Immer draft identity operations. Typed copy-on-write maps still return their owned objects. Independent review found one missed map registration; the existing model-plugin keeper fails with the missed registration and passes all six cases after its correction, with 47 expectations. Full typed lint and the approved snapshot increment will validate the complete frozen candidate in hosted quality.
 +
 +Complete quality candidate V2, run `44493070435`, passed root lint with 3,952 warnings and zero errors. Five package type tasks completed before the no-attachment TUI fixture error stopped the graph. Core emitted a task header without a completion result; App E2E types and snapshot increment were skipped. The corrected candidate requires a fresh complete quality run before final source publication.
++
++Quality candidate V3, run `44496919193`, passes complete lint, all 24 real package type tasks with zero cached tasks, App E2E types and the approved ancestor check. Its snapshot increment reports two remaining unsafe assertions in App tests. The real-timer cases now construct the installed Virtualizer with the existing DOM preload and native observer functions. All seven cases pass with 22 expectations; the same test bytes against isolated pre-fix helper `6ef67131e0` still fail all three native-restore cases with expected 2664 and received 84, while the four earlier keepers pass. Production helper bytes remain unchanged. The event-observation fixture is narrowed by its discriminator, following the adjacent existing keeper; its full event, durable sequence and paging coverage requirements remain. A fresh complete candidate run must verify these final test changes.
 diff --git a/docs/testing.md b/docs/testing.md
 index 1d7c28e1e6..696cc6f562 100644
 --- a/docs/testing.md
@@ -89,6 +91,32 @@ index 15a19d7991..be53e44d92 100644
      "check": "bun run lint && bun run typecheck",
      "typecheck:profile": "bun script/profile-typecheck.ts",
      "typecheck:profile:packages": "bun script/profile-typecheck-packages.ts",
+diff --git a/packages/app/e2e/regression/timeline-history.spec.ts b/packages/app/e2e/regression/timeline-history.spec.ts
+index fc6751039c..f8c0f7f6ae 100644
+--- a/packages/app/e2e/regression/timeline-history.spec.ts
++++ b/packages/app/e2e/regression/timeline-history.spec.ts
+@@ -1,5 +1,4 @@
+ import type {
+-  AigcForgeEvent,
+   ModelGroupRead,
+   SessionAttemptInfo,
+   SessionMessageAssistant,
+@@ -194,13 +193,13 @@ test.describe("timeline history", () => {
+       },
+     }
+ 
+-    // SAFETY: makeEvent preserves the literal event type supplied here.
+     const observed = makeEvent("session.attempt.observed", {
+       sessionID,
+       assistantMessageID: completed.id,
+       ordinal: 1,
+       observation,
+-    }) as Extract<AigcForgeEvent, { type: "session.attempt.observed" }>
++    })
++    if (observed.type !== "session.attempt.observed") throw new Error("Expected an attempt observation")
+ 
+     await timeline.send(observed)
+     await expect(actual).toContainText("Time to first token (TTFT)250 ms")
 diff --git a/packages/app/src/composer/selection.test.ts b/packages/app/src/composer/selection.test.ts
 index 1c75f1de99..39f6e98740 100644
 --- a/packages/app/src/composer/selection.test.ts
@@ -141,10 +169,13 @@ index a65b676844..5bda86342a 100644
    let disposed = false
    let generation = 0
 diff --git a/packages/app/src/session/timeline/observe-element-offset.test.ts b/packages/app/src/session/timeline/observe-element-offset.test.ts
-index 2a2eea1449..666c82e78a 100644
+index 2a2eea1449..611eaa9af4 100644
 --- a/packages/app/src/session/timeline/observe-element-offset.test.ts
 +++ b/packages/app/src/session/timeline/observe-element-offset.test.ts
-@@ -3,6 +3,51 @@ import { type Virtualizer } from "@tanstack/solid-virtual"
+@@ -1,8 +1,60 @@
+ import { expect, test } from "bun:test"
+-import { type Virtualizer } from "@tanstack/solid-virtual"
++import { Virtualizer, elementScroll, observeElementOffset, observeElementRect } from "@tanstack/solid-virtual"
  import { Node, Window } from "happy-dom"
  import { observeElementOffsetReconnectAware } from "./observe-element-offset"
  
@@ -153,16 +184,23 @@ index 2a2eea1449..666c82e78a 100644
 +  { name: "horizontal LTR", horizontal: true, isRtl: false },
 +  { name: "horizontal RTL", horizontal: true, isRtl: true },
 +])("reads the current native offset when scrolling becomes idle: $name", async (options) => {
-+  const targetWindow = new Window()
-+  const viewport = targetWindow.document.createElement("div")
-+  targetWindow.document.body.append(viewport)
++  const viewport = document.createElement("div")
++  document.body.append(viewport)
 +
-+  const instance = {
-+    scrollElement: viewport,
-+    targetWindow,
-+    scrollOffset: 0,
-+    options: { ...options, isScrollingResetDelay: 1, useScrollendEvent: false },
-+  } as unknown as Virtualizer<HTMLDivElement, HTMLDivElement>
++  const instance = new Virtualizer<HTMLDivElement, HTMLDivElement>({
++    ...options,
++    count: 1,
++    getScrollElement: () => viewport,
++    estimateSize: () => 1,
++    scrollToFn: elementScroll,
++    observeElementOffset,
++    observeElementRect,
++    isScrollingResetDelay: 1,
++    useScrollendEvent: false,
++  })
++  instance.scrollElement = viewport
++  instance.targetWindow = window
++  instance.scrollOffset = 0
 +
 +  const idle = Promise.withResolvers<number>()
 +  const calls: [number, boolean][] = []
@@ -176,7 +214,7 @@ index 2a2eea1449..666c82e78a 100644
 +    const axis = options.horizontal ? "scrollLeft" : "scrollTop"
 +    const direction = options.horizontal && options.isRtl ? -1 : 1
 +    viewport[axis] = 84 * direction
-+    viewport.dispatchEvent(new targetWindow.Event("scroll"))
++    viewport.dispatchEvent(new Event("scroll"))
 +    expect(calls).toEqual([[84, true]])
 +
 +    // Restoring a cached view can move its native position before the next scroll event.
@@ -189,7 +227,7 @@ index 2a2eea1449..666c82e78a 100644
 +    expect(instance.scrollOffset).toBe(2664)
 +  } finally {
 +    cleanup()
-+    await targetWindow.happyDOM.close()
++    viewport.remove()
 +  }
 +})
 +

@@ -15,8 +15,8 @@ jobs:
           git rev-parse HEAD
           cp .github/acceptance/candidate.patch "$RUNNER_TEMP/candidate.patch"
           cp .github/acceptance/candidate-files.json "$RUNNER_TEMP/candidate-files.json"
-          test "$(sha256sum "$RUNNER_TEMP/candidate.patch" | cut -d' ' -f1)" = 2d243621e998269ff6995fd4974d23ddc10bde10a024a34fa4f6e220ada0b4a5
-          test "$(sha256sum "$RUNNER_TEMP/candidate-files.json" | cut -d' ' -f1)" = f9d473aa2b9b2cca4f429cad4b2c19c10241d2156c70412c6e8fad92da1d417e
+          test "$(sha256sum "$RUNNER_TEMP/candidate.patch" | cut -d' ' -f1)" = 98a2dcfa4a606ae8d73528ae2b59db3c16453df7245b01b8ba6b9b446397e1b2
+          test "$(sha256sum "$RUNNER_TEMP/candidate-files.json" | cut -d' ' -f1)" = fc0b3f15575ce31ab7c1de88aa2c76ee7b6432d80030d6739025804f90a71784
       - name: Checkout exact PR merge
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
