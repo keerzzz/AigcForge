@@ -1875,12 +1875,8 @@ test.describe("session management", () => {
     await page.goto(sessionHref(ids.parent))
     await expectSessionTitle(page, "SC02 collaboration sources")
     await openSidePanel(page, "Subagents")
-    const subagentPanel = page
-      .locator("#session-side-panel-subagents-tabpanel")
-      .locator('[data-component="session-delegation-panel"]')
-    const panel = page
-      .locator("#session-side-panel-collaborations-tabpanel")
-      .locator('[data-component="session-delegation-panel"]')
+    const subagentPanel = page.getByRole("region", { name: "Subagents", exact: true })
+    const panel = page.getByRole("region", { name: "Task delegation", exact: true })
     const ordinary = subagentPanel.locator('[data-slot="subagent-group"]')
     const child = (id: string) => ordinary.getByRole("article", { name: `Subagent: ${id}`, exact: true })
 

@@ -2771,10 +2771,15 @@ effectTest.live(
         sessionID: fixture.root.id,
         text: "Attempt the empty commit without an accepted predecessor.",
       })
-      yield* awaitWithTimeout(fixture.llm.wait(4), "MC07 no_code_change missing-previous Task did not reach its parent")
+      yield* awaitWithTimeout(
+        fixture.llm.wait(4),
+        "MC07 no_code_change missing-previous Task did not reach its parent",
+        "10 seconds",
+      )
       yield* awaitWithTimeout(
         fixture.runs.awaitIdle(fixture.root.id),
         "MC07 no_code_change missing-previous Task did not settle",
+        "10 seconds",
       )
       const result = yield* mc07Result(fixture, "mc07-ncc-no-previous")
       expect(result.tool.state.status).toBe("completed")
@@ -2933,7 +2938,7 @@ for (const failure of ["non_direct", "tree_change", "index_drift", "target_drift
           const observed: Environment.Files["read"] = (file, range) =>
             read(file, range).pipe(
               Effect.tap((content) => {
-                if (file !== `${directory}/artifact.txt`) return Effect.void
+                if (file !== path.join(directory, "artifact.txt")) return Effect.void
                 capturedTargets.push(createHash("sha256").update(content.bytes).digest("hex"))
                 return Effect.promise(() => Bun.write(file, "base\nr1\ndiff-drift\n")).pipe(Effect.asVoid)
               }),
@@ -3037,540 +3042,550 @@ for (const failure of ["non_direct", "tree_change", "index_drift", "target_drift
     30_000,
   )
 
-effectTest.live("MC07 R2 preserves the original producer for a new no_change input", () =>
-  Effect.gen(function* () {
-    const fixture = yield* mc07Build()
-    const original = yield* fixture.delegations.revision({
-      delegationID: fixture.receipt.delegationID,
-      revisionDigest: fixture.digest,
-    })
-    yield* mc07Review(fixture, "mc07-r2-original-approval", "approved")
-    yield* fixture.llm.push(
-      TestLLM.tool("mc07-r2-no-change", TaskTool.name, {
-        description: "Confirm the current artifact",
-        prompt: "Keep the current artifact unchanged and report its result.",
-        subagent_type: fixture.worker,
-        delegation_id: fixture.receipt.delegationID,
-        task_id: fixture.receipt.childSessionID,
-        artifact_path: "artifact.txt",
-      }),
-      TestLLM.text("The original artifact is unchanged.", "mc07-r2-no-change-child"),
-      TestLLM.text("Consumed the new unchanged input.", "mc07-r2-no-change-parent"),
-    )
-    yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Confirm the same child's current artifact." })
-    yield* awaitWithTimeout(fixture.llm.wait(8), "MC07 R2 no_change request did not start")
-    yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 R2 no_change did not settle")
-    const completed = yield* mc07Result(fixture, "mc07-r2-no-change")
-    expect(completed.tool.state.status).toBe("completed")
-    if (completed.tool.state.status !== "completed")
-      return yield* Effect.die(new Error("MC07 R2 unchanged input was refused"))
-    const receipt = Schema.decodeUnknownSync(Delegation.Receipt)(completed.tool.state.metadata?.receipt)
-    const governance = Schema.decodeUnknownSync(DelegationService.Governance)(completed.tool.state.metadata?.governance)
-    expect(receipt.childSessionID).toBe(fixture.receipt.childSessionID)
-    expect(receipt.participantID).toBe(fixture.receipt.participantID)
-    expect(receipt.inputID).not.toBe(fixture.receipt.inputID)
-    expect(governance).toMatchObject({
-      kind: "revision",
-      receipt,
-      source: { type: "tool", messageID: completed.assistant.id, id: "mc07-r2-no-change" },
-      artifact: { revisionDigest: fixture.digest, changeKind: "no_change", normalizedDiff: mc07Diff },
-      producer: { receipt: original.receipt, source: original.source, revisionDigest: fixture.digest },
-    })
-    const state = yield* fixture.delegations.foldState(receipt.delegationID)
-    expect(state?.revisions).toHaveLength(1)
-    expect(
-      yield* fixture.delegations.revision({ delegationID: receipt.delegationID, revisionDigest: fixture.digest }),
-    ).toEqual(original)
-    if (!state) return yield* Effect.die(new Error("MC07 R2 no_change aggregate is missing"))
-    expect(
-      DelegationReview.evaluateReviewBarrier({
-        participants: [...state.participants.values()],
-        reviews: state.reviews,
-        revisions: state.revisions,
-        latestRevisionDigest: state.delegation.latestRevisionDigest,
-        rejectionBlocked: state.delegation.rejectionBlocked,
-      }).passed,
-    ).toBe(true)
-    const kv = yield* KV.Service
-    const parentTask = Schema.decodeUnknownSync(Schema.Struct({ parentTaskID: Schema.String }))(
-      completed.tool.state.metadata,
-    )
-    const key = `delegation:task-settlement:${DelegationReceipt.notificationID(receipt.inputID, parentTask.parentTaskID)}`
-    const settlement = yield* kv.get(key)
-    if (settlement === undefined) return yield* Effect.die(new Error("MC07 copy settlement is missing"))
-    const settlementJson = JSON.stringify(settlement)
-    const retained = Schema.decodeUnknownSync(
-      Schema.Struct({
-        status: Schema.String,
-        revision: Schema.Int,
-        governance: DelegationService.Governance,
-      }),
-    )(settlement)
-    expect(retained.status).toBe("completed")
-    expect(typeof retained.revision).toBe("number")
-    expect(retained.governance).toEqual(governance)
-    const requests = yield* fixture.llm.requests()
-    const consumed = requests
-      .at(-1)
-      ?.messages.flatMap((message) => message.content)
-      .find((part) => part.type === "tool-result" && part.id === "mc07-r2-no-change")
-    expect(consumed).toMatchObject({ result: { type: "text" } })
-    if (consumed?.type !== "tool-result" || consumed.result.type !== "text")
-      return yield* Effect.die(new Error("MC07 R2 no_change result was not consumed"))
-    expect(consumed.result.value).toBe(
-      completed.tool.state.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join(""),
-    )
-    expect(consumed.result.value).toContain(JSON.stringify(mc07Diff).slice(1, -1))
-    const execution = yield* DelegationExecution.Service
-    const originalResult = yield* execution.wait(receipt)
-    yield* fixture.llm.push(
-      TestLLM.tool("mc07-r2-after-copy", TaskTool.name, {
-        description: "Produce a later actual revision",
-        prompt: "Write base, r1, and r2 on separate lines.",
-        subagent_type: fixture.worker,
-        delegation_id: receipt.delegationID,
-        participant_id: receipt.participantID,
-        artifact_path: "artifact.txt",
-        command: "append",
-        intent: "implement",
-      }),
-      TestLLM.tool("mc07-r2-after-copy-write", "write", { path: "artifact.txt", content: "base\nr1\nr2\n" }),
-      TestLLM.text("Later R2 is ready.", "mc07-r2-after-copy-child"),
-      TestLLM.text("Consumed the later R2.", "mc07-r2-after-copy-parent"),
-    )
-    yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Produce the later R2 in the same child." })
-    yield* awaitWithTimeout(fixture.llm.wait(14), "MC07 later R2 did not reach its parent")
-    yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 later R2 did not settle")
-    const later = yield* fixture.delegations.foldState(receipt.delegationID)
-    const laterDigest = later?.delegation.latestRevisionDigest
-    if (!later || !laterDigest) return yield* Effect.die(new Error("MC07 later R2 is missing"))
-    expect(later.revisions).toHaveLength(2)
-    expect(later.delegation.latestRevisionDigest).not.toBe(fixture.digest)
-    expect(
-      DelegationReview.evaluateReviewBarrier({
-        participants: [...later.participants.values()],
-        reviews: later.reviews,
-        revisions: later.revisions,
-        latestRevisionDigest: later.delegation.latestRevisionDigest,
-        rejectionBlocked: later.delegation.rejectionBlocked,
-      }).passed,
-    ).toBe(false)
-    const bus = yield* Bus.Service
-    const before = yield* bus.log({ aggregateID: receipt.delegationID }).pipe(
-      Stream.filter((item) => !Bus.isSynced(item)),
-      Stream.runCollect,
-    )
-    yield* execution.recover({
-      kind: "delegation",
-      ...receipt,
-      parentSessionID: fixture.root.id,
-      description: "Completed no_change reentry after R2",
-    })
-    expect(yield* execution.wait(receipt)).toEqual(originalResult)
-    expect(yield* kv.get(key)).toEqual(settlement)
-    expect(yield* fixture.delegations.foldState(receipt.delegationID)).toEqual(later)
-    expect(
-      yield* bus.log({ aggregateID: receipt.delegationID }).pipe(
+effectTest.live(
+  "MC07 R2 preserves the original producer for a new no_change input",
+  () =>
+    Effect.gen(function* () {
+      const fixture = yield* mc07Build()
+      const original = yield* fixture.delegations.revision({
+        delegationID: fixture.receipt.delegationID,
+        revisionDigest: fixture.digest,
+      })
+      yield* mc07Review(fixture, "mc07-r2-original-approval", "approved")
+      yield* fixture.llm.push(
+        TestLLM.tool("mc07-r2-no-change", TaskTool.name, {
+          description: "Confirm the current artifact",
+          prompt: "Keep the current artifact unchanged and report its result.",
+          subagent_type: fixture.worker,
+          delegation_id: fixture.receipt.delegationID,
+          task_id: fixture.receipt.childSessionID,
+          artifact_path: "artifact.txt",
+        }),
+        TestLLM.text("The original artifact is unchanged.", "mc07-r2-no-change-child"),
+        TestLLM.text("Consumed the new unchanged input.", "mc07-r2-no-change-parent"),
+      )
+      yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Confirm the same child's current artifact." })
+      yield* awaitWithTimeout(fixture.llm.wait(8), "MC07 R2 no_change request did not start")
+      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 R2 no_change did not settle")
+      const completed = yield* mc07Result(fixture, "mc07-r2-no-change")
+      expect(completed.tool.state.status).toBe("completed")
+      if (completed.tool.state.status !== "completed")
+        return yield* Effect.die(new Error("MC07 R2 unchanged input was refused"))
+      const receipt = Schema.decodeUnknownSync(Delegation.Receipt)(completed.tool.state.metadata?.receipt)
+      const governance = Schema.decodeUnknownSync(DelegationService.Governance)(
+        completed.tool.state.metadata?.governance,
+      )
+      expect(receipt.childSessionID).toBe(fixture.receipt.childSessionID)
+      expect(receipt.participantID).toBe(fixture.receipt.participantID)
+      expect(receipt.inputID).not.toBe(fixture.receipt.inputID)
+      expect(governance).toMatchObject({
+        kind: "revision",
+        receipt,
+        source: { type: "tool", messageID: completed.assistant.id, id: "mc07-r2-no-change" },
+        artifact: { revisionDigest: fixture.digest, changeKind: "no_change", normalizedDiff: mc07Diff },
+        producer: { receipt: original.receipt, source: original.source, revisionDigest: fixture.digest },
+      })
+      const state = yield* fixture.delegations.foldState(receipt.delegationID)
+      expect(state?.revisions).toHaveLength(1)
+      expect(
+        yield* fixture.delegations.revision({ delegationID: receipt.delegationID, revisionDigest: fixture.digest }),
+      ).toEqual(original)
+      if (!state) return yield* Effect.die(new Error("MC07 R2 no_change aggregate is missing"))
+      expect(
+        DelegationReview.evaluateReviewBarrier({
+          participants: [...state.participants.values()],
+          reviews: state.reviews,
+          revisions: state.revisions,
+          latestRevisionDigest: state.delegation.latestRevisionDigest,
+          rejectionBlocked: state.delegation.rejectionBlocked,
+        }).passed,
+      ).toBe(true)
+      const kv = yield* KV.Service
+      const parentTask = Schema.decodeUnknownSync(Schema.Struct({ parentTaskID: Schema.String }))(
+        completed.tool.state.metadata,
+      )
+      const key = `delegation:task-settlement:${DelegationReceipt.notificationID(receipt.inputID, parentTask.parentTaskID)}`
+      const settlement = yield* kv.get(key)
+      if (settlement === undefined) return yield* Effect.die(new Error("MC07 copy settlement is missing"))
+      const settlementJson = JSON.stringify(settlement)
+      const retained = Schema.decodeUnknownSync(
+        Schema.Struct({
+          status: Schema.String,
+          revision: Schema.Int,
+          governance: DelegationService.Governance,
+        }),
+      )(settlement)
+      expect(retained.status).toBe("completed")
+      expect(typeof retained.revision).toBe("number")
+      expect(retained.governance).toEqual(governance)
+      const requests = yield* fixture.llm.requests()
+      const consumed = requests
+        .at(-1)
+        ?.messages.flatMap((message) => message.content)
+        .find((part) => part.type === "tool-result" && part.id === "mc07-r2-no-change")
+      expect(consumed).toMatchObject({ result: { type: "text" } })
+      if (consumed?.type !== "tool-result" || consumed.result.type !== "text")
+        return yield* Effect.die(new Error("MC07 R2 no_change result was not consumed"))
+      expect(consumed.result.value).toBe(
+        completed.tool.state.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join(""),
+      )
+      expect(consumed.result.value).toContain(JSON.stringify(mc07Diff).slice(1, -1))
+      const execution = yield* DelegationExecution.Service
+      const originalResult = yield* execution.wait(receipt)
+      yield* fixture.llm.push(
+        TestLLM.tool("mc07-r2-after-copy", TaskTool.name, {
+          description: "Produce a later actual revision",
+          prompt: "Write base, r1, and r2 on separate lines.",
+          subagent_type: fixture.worker,
+          delegation_id: receipt.delegationID,
+          participant_id: receipt.participantID,
+          artifact_path: "artifact.txt",
+          command: "append",
+          intent: "implement",
+        }),
+        TestLLM.tool("mc07-r2-after-copy-write", "write", { path: "artifact.txt", content: "base\nr1\nr2\n" }),
+        TestLLM.text("Later R2 is ready.", "mc07-r2-after-copy-child"),
+        TestLLM.text("Consumed the later R2.", "mc07-r2-after-copy-parent"),
+      )
+      yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Produce the later R2 in the same child." })
+      yield* awaitWithTimeout(fixture.llm.wait(14), "MC07 later R2 did not reach its parent", "10 seconds")
+      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 later R2 did not settle", "10 seconds")
+      const later = yield* fixture.delegations.foldState(receipt.delegationID)
+      const laterDigest = later?.delegation.latestRevisionDigest
+      if (!later || !laterDigest) return yield* Effect.die(new Error("MC07 later R2 is missing"))
+      expect(later.revisions).toHaveLength(2)
+      expect(later.delegation.latestRevisionDigest).not.toBe(fixture.digest)
+      expect(
+        DelegationReview.evaluateReviewBarrier({
+          participants: [...later.participants.values()],
+          reviews: later.reviews,
+          revisions: later.revisions,
+          latestRevisionDigest: later.delegation.latestRevisionDigest,
+          rejectionBlocked: later.delegation.rejectionBlocked,
+        }).passed,
+      ).toBe(false)
+      const bus = yield* Bus.Service
+      const before = yield* bus.log({ aggregateID: receipt.delegationID }).pipe(
         Stream.filter((item) => !Bus.isSynced(item)),
         Stream.runCollect,
-      ),
-    ).toEqual(before)
-    expect(yield* fixture.llm.requests()).toHaveLength(14)
-
-    if (!("artifact" in governance)) return yield* Effect.die(new Error("MC07 copy evidence is missing"))
-    const record = {
-      delegationID: receipt.delegationID,
-      turnID: receipt.turnID,
-      participantID: receipt.participantID,
-      receipt,
-      source: governance.source,
-      commitSha: governance.artifact.commitSha,
-      revisionDigest: governance.artifact.revisionDigest,
-      changeKind: governance.artifact.changeKind,
-    }
-    const db = (yield* Database.Service).db
-    const row = yield* db.select().from(SessionMessageTable).where(eq(SessionMessageTable.id, receipt.inputID)).get()
-    if (!row) return yield* Effect.die(new Error("MC07 copy input is missing"))
-    const user = Schema.decodeUnknownSync(SessionMessage.User)({ ...row.data, type: row.type, id: row.id })
-    const link = Schema.decodeUnknownSync(
-      Schema.Struct({
-        parentTaskID: Schema.String,
-        parentTaskRevision: Schema.Int,
-        description: Schema.String,
-        background: Schema.Boolean,
-        source: Permission.Source,
-        artifact: DelegationExecution.ArtifactBaseline,
-      }),
-    )(user.metadata?.task)
-    for (const changed of [
-      { link: { ...link, source: original.source }, reason: "Revision has no matching completed input evidence" },
-      {
-        link: {
-          ...link,
-          artifact: new DelegationExecution.ArtifactBaseline({
-            ...link.artifact,
-            previous: new DelegationService.RevisionReference({ ...original, source: governance.source }),
-          }),
-        },
-        reason: "Artifact baseline has no matching original producer lineage",
-      },
-      {
-        link: {
-          ...link,
-          artifact: new DelegationExecution.ArtifactBaseline({
-            ...link.artifact,
-            previous: new DelegationService.RevisionReference({ ...original, revisionDigest: laterDigest }),
-          }),
-        },
-        reason: "Artifact baseline has no matching original producer lineage",
-      },
-    ]) {
-      yield* db
-        .update(SessionMessageTable)
-        .set({ data: { ...row.data, metadata: { ...user.metadata, task: changed.link } } })
-        .where(eq(SessionMessageTable.id, row.id))
-        .run()
-      expect(yield* fixture.delegations.recordRevision(record).pipe(Effect.flip)).toMatchObject({
-        _tag: "Delegation.DelegationInvalidStateError",
-        reason: changed.reason,
+      )
+      yield* execution.recover({
+        kind: "delegation",
+        ...receipt,
+        parentSessionID: fixture.root.id,
+        description: "Completed no_change reentry after R2",
       })
-      yield* db.update(SessionMessageTable).set({ data: row.data }).where(eq(SessionMessageTable.id, row.id)).run()
+      expect(yield* execution.wait(receipt)).toEqual(originalResult)
       expect(yield* kv.get(key)).toEqual(settlement)
-      expect(yield* fixture.delegations.recordRevision(record).pipe(Effect.exit)).toMatchObject({
-        _tag: "Success",
-        value: "reused",
-      })
-    }
-    expect(
-      yield* fixture.delegations.recordRevision({ ...record, source: original.source }).pipe(Effect.flip),
-    ).toMatchObject({ reason: "Revision has no matching completed input evidence" })
-    for (const changed of [
-      {
-        value: { governance },
-        reason: "Artifact baseline is no longer the latest revision",
-      },
-      {
-        value: {
-          status: "completed",
-          governance,
-        },
-        reason: "Artifact baseline is no longer the latest revision",
-      },
-      {
-        value: {
-          status: "completed",
-          revision: 1,
-          governance: {
-            kind: governance.kind,
-            receipt: governance.receipt,
-            source: governance.source,
-            artifact: governance.artifact,
-          },
-        },
-        reason: "Artifact baseline is no longer the latest revision",
-      },
-      {
-        value: {
-          status: "completed",
-          revision: 1,
-          governance: {
-            ...governance,
-            producer: new DelegationService.RevisionReference({
-              receipt: original.receipt,
-              path: original.path,
-              revisionDigest: original.revisionDigest,
-              source: governance.source,
+      expect(yield* fixture.delegations.foldState(receipt.delegationID)).toEqual(later)
+      expect(
+        yield* bus.log({ aggregateID: receipt.delegationID }).pipe(
+          Stream.filter((item) => !Bus.isSynced(item)),
+          Stream.runCollect,
+        ),
+      ).toEqual(before)
+      expect(yield* fixture.llm.requests()).toHaveLength(14)
+
+      if (!("artifact" in governance)) return yield* Effect.die(new Error("MC07 copy evidence is missing"))
+      const record = {
+        delegationID: receipt.delegationID,
+        turnID: receipt.turnID,
+        participantID: receipt.participantID,
+        receipt,
+        source: governance.source,
+        commitSha: governance.artifact.commitSha,
+        revisionDigest: governance.artifact.revisionDigest,
+        changeKind: governance.artifact.changeKind,
+      }
+      const db = (yield* Database.Service).db
+      const row = yield* db.select().from(SessionMessageTable).where(eq(SessionMessageTable.id, receipt.inputID)).get()
+      if (!row) return yield* Effect.die(new Error("MC07 copy input is missing"))
+      const user = Schema.decodeUnknownSync(SessionMessage.User)({ ...row.data, type: row.type, id: row.id })
+      const link = Schema.decodeUnknownSync(
+        Schema.Struct({
+          parentTaskID: Schema.String,
+          parentTaskRevision: Schema.Int,
+          description: Schema.String,
+          background: Schema.Boolean,
+          source: Permission.Source,
+          artifact: DelegationExecution.ArtifactBaseline,
+        }),
+      )(user.metadata?.task)
+      for (const changed of [
+        { link: { ...link, source: original.source }, reason: "Revision has no matching completed input evidence" },
+        {
+          link: {
+            ...link,
+            artifact: new DelegationExecution.ArtifactBaseline({
+              ...link.artifact,
+              previous: new DelegationService.RevisionReference({ ...original, source: governance.source }),
             }),
           },
+          reason: "Artifact baseline has no matching original producer lineage",
         },
-        reason: "Revision digest belongs to a different producing input",
-      },
-    ]) {
-      yield* kv.set(key, {
-        ...(changed.value.status === undefined ? {} : { status: changed.value.status }),
-        ...(changed.value.revision === undefined ? {} : { revision: changed.value.revision }),
-        governance: Schema.encodeSync(Schema.toCodecJson(DelegationService.Governance))(changed.value.governance),
-      })
-      expect(yield* fixture.delegations.recordRevision(record).pipe(Effect.flip)).toMatchObject({
-        _tag: "Delegation.DelegationInvalidStateError",
-        reason: changed.reason,
-      })
-      yield* kv.set(key, settlement)
-      const restored = yield* kv.get(key)
-      expect(JSON.stringify(restored)).toBe(settlementJson)
+        {
+          link: {
+            ...link,
+            artifact: new DelegationExecution.ArtifactBaseline({
+              ...link.artifact,
+              previous: new DelegationService.RevisionReference({ ...original, revisionDigest: laterDigest }),
+            }),
+          },
+          reason: "Artifact baseline has no matching original producer lineage",
+        },
+      ]) {
+        yield* db
+          .update(SessionMessageTable)
+          .set({ data: { ...row.data, metadata: { ...user.metadata, task: changed.link } } })
+          .where(eq(SessionMessageTable.id, row.id))
+          .run()
+        expect(yield* fixture.delegations.recordRevision(record).pipe(Effect.flip)).toMatchObject({
+          _tag: "Delegation.DelegationInvalidStateError",
+          reason: changed.reason,
+        })
+        yield* db.update(SessionMessageTable).set({ data: row.data }).where(eq(SessionMessageTable.id, row.id)).run()
+        expect(yield* kv.get(key)).toEqual(settlement)
+        expect(yield* fixture.delegations.recordRevision(record).pipe(Effect.exit)).toMatchObject({
+          _tag: "Success",
+          value: "reused",
+        })
+      }
       expect(
-        Schema.decodeUnknownSync(Schema.Struct({ governance: DelegationService.Governance }))(restored).governance,
-      ).toMatchObject({
-        receipt: record.receipt,
-        source: record.source,
-        artifact: { commitSha: record.commitSha, changeKind: record.changeKind },
-      })
-      const replay = yield* fixture.delegations.recordRevision(record).pipe(Effect.exit)
-      expect(Exit.isSuccess(replay)).toBe(true)
-      if (Exit.isFailure(replay)) return yield* Effect.die(new Error(Cause.pretty(replay.cause)))
-      expect(replay.value).toBe("reused")
-    }
-    expect(
-      yield* bus.log({ aggregateID: receipt.delegationID }).pipe(
-        Stream.filter((item) => !Bus.isSynced(item)),
-        Stream.runCollect,
-      ),
-    ).toEqual(before)
-  }),
+        yield* fixture.delegations.recordRevision({ ...record, source: original.source }).pipe(Effect.flip),
+      ).toMatchObject({ reason: "Revision has no matching completed input evidence" })
+      for (const changed of [
+        {
+          value: { governance },
+          reason: "Artifact baseline is no longer the latest revision",
+        },
+        {
+          value: {
+            status: "completed",
+            governance,
+          },
+          reason: "Artifact baseline is no longer the latest revision",
+        },
+        {
+          value: {
+            status: "completed",
+            revision: 1,
+            governance: {
+              kind: governance.kind,
+              receipt: governance.receipt,
+              source: governance.source,
+              artifact: governance.artifact,
+            },
+          },
+          reason: "Artifact baseline is no longer the latest revision",
+        },
+        {
+          value: {
+            status: "completed",
+            revision: 1,
+            governance: {
+              ...governance,
+              producer: new DelegationService.RevisionReference({
+                receipt: original.receipt,
+                path: original.path,
+                revisionDigest: original.revisionDigest,
+                source: governance.source,
+              }),
+            },
+          },
+          reason: "Revision digest belongs to a different producing input",
+        },
+      ]) {
+        yield* kv.set(key, {
+          ...(changed.value.status === undefined ? {} : { status: changed.value.status }),
+          ...(changed.value.revision === undefined ? {} : { revision: changed.value.revision }),
+          governance: Schema.encodeSync(Schema.toCodecJson(DelegationService.Governance))(changed.value.governance),
+        })
+        expect(yield* fixture.delegations.recordRevision(record).pipe(Effect.flip)).toMatchObject({
+          _tag: "Delegation.DelegationInvalidStateError",
+          reason: changed.reason,
+        })
+        yield* kv.set(key, settlement)
+        const restored = yield* kv.get(key)
+        expect(JSON.stringify(restored)).toBe(settlementJson)
+        expect(
+          Schema.decodeUnknownSync(Schema.Struct({ governance: DelegationService.Governance }))(restored).governance,
+        ).toMatchObject({
+          receipt: record.receipt,
+          source: record.source,
+          artifact: { commitSha: record.commitSha, changeKind: record.changeKind },
+        })
+        const replay = yield* fixture.delegations.recordRevision(record).pipe(Effect.exit)
+        expect(Exit.isSuccess(replay)).toBe(true)
+        if (Exit.isFailure(replay)) return yield* Effect.die(new Error(Cause.pretty(replay.cause)))
+        expect(replay.value).toBe("reused")
+      }
+      expect(
+        yield* bus.log({ aggregateID: receipt.delegationID }).pipe(
+          Stream.filter((item) => !Bus.isSynced(item)),
+          Stream.runCollect,
+        ),
+      ).toEqual(before)
+    }),
+  30_000,
 )
 
-effectTest.live("MC07 R2 repairs the same child and requires the current typed review", () =>
-  Effect.gen(function* () {
-    const fixture = yield* mc07Build()
-    yield* fixture.llm.push(
-      TestLLM.tool("mc07-r2-changes", TaskTool.name, {
-        description: "Review the first artifact",
-        prompt: "Review R1 and request its actual repair.",
-        subagent_type: fixture.worker,
-        delegation_id: fixture.receipt.delegationID,
-        intent: "review",
-        revision_digest: fixture.digest,
-      }),
-      TestLLM.text(
-        `<review>${JSON.stringify({ kind: "aigcfroge.review.v1", reviewed_revision_digest: fixture.digest, verdict: "changes_requested", findings: [], summary: "Add the required r2 line." })}</review>`,
-        "mc07-r2-changes-child",
-      ),
-      TestLLM.text("Consumed the request for repair.", "mc07-r2-changes-parent"),
-    )
-    yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Review the original R1." })
-    yield* awaitWithTimeout(fixture.llm.wait(7), "MC07 R2 changes review did not reach its parent")
-    yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 R2 changes review did not settle")
-    const reviewed = yield* mc07Result(fixture, "mc07-r2-changes")
-    if (reviewed.tool.state.status !== "completed") return yield* Effect.die(new Error("MC07 changes review failed"))
-    const reviewer = Schema.decodeUnknownSync(Delegation.Receipt)(reviewed.tool.state.metadata?.receipt)
-    const before = yield* fixture.delegations.foldState(fixture.receipt.delegationID)
-    expect(before?.reviews.at(-1)?.verdict).toBe("changes_requested")
-    if (!before) return yield* Effect.die(new Error("MC07 R2 review aggregate is missing"))
-    expect([...before.deliveries.values()].every((delivery) => delivery.status === "completed")).toBe(true)
-    yield* fixture.llm.push(
-      TestLLM.tool("mc07-r2-repair", TaskTool.name, {
-        description: "Repair the original artifact",
-        prompt: "Use the review and write base, r1, and r2 on separate lines.",
-        subagent_type: fixture.worker,
-        delegation_id: fixture.receipt.delegationID,
-        task_id: fixture.receipt.childSessionID,
-        artifact_path: "artifact.txt",
-      }),
-      TestLLM.tool("mc07-r2-write", "write", { path: "artifact.txt", content: "base\nr1\nr2\n" }),
-      TestLLM.text("The requested R2 is ready.", "mc07-r2-repair-child"),
-      TestLLM.text("Consumed the actual repair.", "mc07-r2-repair-parent"),
-    )
-    yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Repair through the original child." })
-    yield* awaitWithTimeout(fixture.llm.wait(8), "MC07 R2 repair did not start")
-    yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 R2 repair did not settle")
-    const repaired = yield* mc07Result(fixture, "mc07-r2-repair")
-    expect(repaired.tool.state.status).toBe("completed")
-    if (repaired.tool.state.status !== "completed") return yield* Effect.die(new Error("MC07 R2 repair was refused"))
-    const repair = Schema.decodeUnknownSync(Delegation.Receipt)(repaired.tool.state.metadata?.receipt)
-    expect(repair.childSessionID).toBe(fixture.receipt.childSessionID)
-    expect(repair.participantID).toBe(fixture.receipt.participantID)
-    expect(repair.inputID).not.toBe(fixture.receipt.inputID)
-    const state = yield* fixture.delegations.foldState(repair.delegationID)
-    const digest = state?.delegation.latestRevisionDigest
-    expect(state?.revisions).toHaveLength(2)
-    expect(digest).not.toBe(fixture.digest)
-    if (!state || !digest) return yield* Effect.die(new Error("MC07 R2 revision is missing"))
-    expect(
-      DelegationReview.evaluateReviewBarrier({
-        participants: [...state.participants.values()],
-        reviews: state.reviews,
-        revisions: state.revisions,
-        latestRevisionDigest: digest,
-        rejectionBlocked: state.delegation.rejectionBlocked,
-      }).passed,
-    ).toBe(false)
-    yield* fixture.llm.push(
-      TestLLM.tool("mc07-r2-approve", TaskTool.name, {
-        description: "Review the actual R2",
-        prompt: "Review the current repaired artifact and approve only that digest.",
-        subagent_type: fixture.worker,
-        delegation_id: repair.delegationID,
-        task_id: reviewer.childSessionID,
-        intent: "review",
-        revision_digest: digest,
-      }),
-      TestLLM.text(
-        `<review>${JSON.stringify({ kind: "aigcfroge.review.v1", reviewed_revision_digest: digest, verdict: "approved", findings: [], summary: "The actual R2 is approved." })}</review>`,
-        "mc07-r2-approve-child",
-      ),
-      TestLLM.text("Consumed the current approval.", "mc07-r2-approve-parent"),
-    )
-    yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Review the current R2." })
-    yield* awaitWithTimeout(fixture.llm.wait(14), "MC07 R2 approval did not reach its parent")
-    yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 R2 approval did not settle")
-    const approved = yield* fixture.delegations.foldState(repair.delegationID)
-    if (!approved) return yield* Effect.die(new Error("MC07 R2 aggregate is missing"))
-    expect(
-      DelegationReview.canComplete({
-        participants: [...approved.participants.values()],
-        reviews: approved.reviews,
-        revisions: approved.revisions,
-        latestRevisionDigest: approved.delegation.latestRevisionDigest,
-        rejectionBlocked: approved.delegation.rejectionBlocked,
-        turns: [...approved.turns.values()],
-        deliveries: [...approved.deliveries.values()],
-      }),
-    ).toBe(true)
-    const original = yield* fixture.delegations.revision({
-      delegationID: repair.delegationID,
-      revisionDigest: fixture.digest,
-    })
-    const current = yield* fixture.delegations.revision({ delegationID: repair.delegationID, revisionDigest: digest })
-    expect(current.artifact).toMatchObject({
-      location: original.artifact?.location,
-      repository: original.artifact?.repository,
-      path: "artifact.txt",
-      commitSha: original.artifact?.commitSha,
-      baseSha256: original.artifact?.baseSha256,
-      changeKind: "rework",
-    })
-    expect(current.artifact?.targetSha256).toBe("1894ce0ca98d816bded15e17cb540bd3d748fb81271a6eefb68bb6c0ba9ba11f")
-    expect(current.artifact?.normalizedDiff).toBe(mc07R2Diff)
-    expect(current.receipt).toEqual(repair)
-    expect(current.source).toEqual({ type: "tool", messageID: repaired.assistant.id, id: "mc07-r2-repair" })
-    const inputs = (yield* fixture.sessions.context(repair.childSessionID)).filter(
-      (message): message is SessionMessage.User => message.type === "user",
-    )
-    const firstBaseline = Schema.decodeUnknownSync(Schema.Struct({ artifact: DelegationExecution.ArtifactBaseline }))(
-      inputs.find((input) => input.id === fixture.receipt.inputID)?.metadata?.task,
-    ).artifact
-    const repairBaseline = Schema.decodeUnknownSync(
-      Schema.Struct({ source: Permission.Source, artifact: DelegationExecution.ArtifactBaseline }),
-    )(inputs.find((input) => input.id === repair.inputID)?.metadata?.task)
-    expect(repairBaseline.artifact).toMatchObject({
-      blob: firstBaseline.blob,
-      commitSha: firstBaseline.commitSha,
-      baseSha256: firstBaseline.baseSha256,
-      previous: original,
-      agent: "meta",
-    })
-    expect(repairBaseline.source).toEqual(current.source)
-    const repairConsumed = (yield* fixture.llm.requests())[10]?.messages
-      .flatMap((message) => message.content)
-      .find((part) => part.type === "tool-result" && part.id === "mc07-r2-repair")
-    if (repairConsumed?.type !== "tool-result" || repairConsumed.result.type !== "text")
-      return yield* Effect.die(new Error("MC07 R2 repair was not consumed"))
-    expect(repairConsumed.result.value).toBe(
-      repaired.tool.state.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join(""),
-    )
-    const bus = yield* Bus.Service
-    const beforeComplete = yield* bus.log({ aggregateID: repair.delegationID }).pipe(
-      Stream.filter((item) => !Bus.isSynced(item)),
-      Stream.runCollect,
-    )
-    yield* fixture.llm.push(
-      TestLLM.tool("mc07-r2-complete", TaskTool.name, {
-        description: "Complete the approved delegation",
-        prompt: "Complete and archive the approved R2.",
-        subagent_type: fixture.worker,
-        delegation_id: repair.delegationID,
-        command: "complete",
-      }),
-      TestLLM.text("Consumed the completed archive.", "mc07-r2-complete-parent"),
-    )
-    yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Complete the approved delegation." })
-    yield* awaitWithTimeout(fixture.llm.wait(16), "MC07 R2 completion did not reach its parent")
-    yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 R2 completion did not settle")
-    const completed = yield* mc07Result(fixture, "mc07-r2-complete")
-    if (completed.tool.state.status !== "completed")
-      return yield* Effect.die(
-        new Error(
-          JSON.stringify({
-            callID: "mc07-r2-complete",
-            tool: completed.tool.state,
-            delegation: (yield* fixture.delegations.foldState(repair.delegationID))?.delegation,
-            nextRequest: (yield* fixture.llm.requests())[15]?.messages
-              .flatMap((message) => message.content)
-              .filter((part) => part.type === "tool-result" && part.id === "mc07-r2-complete"),
-            requests: (yield* fixture.llm.requests()).slice(14).map((request) => ({
-              model: request.model.id,
-              toolResults: request.messages
-                .flatMap((message) => message.content)
-                .flatMap((part) => (part.type === "tool-result" ? [part.id] : [])),
-            })),
-            events: (yield* bus.log({ aggregateID: fixture.root.id }).pipe(
-              Stream.filter((item) => !Bus.isSynced(item)),
-              Stream.runCollect,
-            )).filter(
-              (event) =>
-                !Bus.isSynced(event) &&
-                event.type.startsWith("session.tool.") &&
-                JSON.stringify(event.data).includes('"mc07-r2-complete"'),
-            ),
-          }),
+effectTest.live(
+  "MC07 R2 repairs the same child and requires the current typed review",
+  () =>
+    Effect.gen(function* () {
+      const fixture = yield* mc07Build()
+      yield* fixture.llm.push(
+        TestLLM.tool("mc07-r2-changes", TaskTool.name, {
+          description: "Review the first artifact",
+          prompt: "Review R1 and request its actual repair.",
+          subagent_type: fixture.worker,
+          delegation_id: fixture.receipt.delegationID,
+          intent: "review",
+          revision_digest: fixture.digest,
+        }),
+        TestLLM.text(
+          `<review>${JSON.stringify({ kind: "aigcfroge.review.v1", reviewed_revision_digest: fixture.digest, verdict: "changes_requested", findings: [], summary: "Add the required r2 line." })}</review>`,
+          "mc07-r2-changes-child",
         ),
+        TestLLM.text("Consumed the request for repair.", "mc07-r2-changes-parent"),
       )
-    expect(completed.tool.state.metadata?.status).toBe("completed")
-    const final = yield* fixture.delegations.foldState(repair.delegationID)
-    if (!final) return yield* Effect.die(new Error("MC07 completed archive is missing"))
-    expect(final.delegation.status).toBe("archived")
-    expect(final.archivedFrom).toBe("completed")
-    expect(final.delegation.completedAt).toEqual(expect.any(Number))
-    expect([...final.participants.values()].every((participant) => participant.phase === "closed")).toBe(true)
-    const full = completed.tool.state.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("")
-    const summary = /<task_result>\n([\s\S]+)\n<\/task_result>/.exec(full)
-    if (!summary?.[1]) return yield* Effect.die(new Error("MC07 completion summary is missing"))
-    const barrier = {
-      participants: [...final.participants.values()],
-      reviews: final.reviews,
-      revisions: final.revisions,
-      latestRevisionDigest: final.delegation.latestRevisionDigest,
-      rejectionBlocked: final.delegation.rejectionBlocked,
-      turns: [...final.turns.values()],
-      deliveries: [...final.deliveries.values()],
-    }
-    expect(Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown))(summary[1])).toEqual({
-      command: "complete",
-      source: { type: "tool", messageID: completed.assistant.id, id: "mc07-r2-complete" },
-      delegation: Schema.encodeSync(Schema.toCodecJson(Delegation.Info))(final.delegation),
-      archivedFrom: "completed",
-      latestRevisionDigest: digest,
-      reviewBarrier: DelegationReview.evaluateReviewBarrier(barrier),
-      canComplete: DelegationReview.canComplete(barrier),
-    })
-    const consumed = (yield* fixture.llm.requests())[15]?.messages
-      .flatMap((message) => message.content)
-      .find((part) => part.type === "tool-result" && part.id === "mc07-r2-complete")
-    if (consumed?.type !== "tool-result" || consumed.result.type !== "text")
-      return yield* Effect.die(new Error("MC07 completion was not consumed"))
-    expect(consumed.result.value).toBe(full)
-    const completedEvents = yield* bus.log({ aggregateID: repair.delegationID }).pipe(
-      Stream.filter((item) => !Bus.isSynced(item)),
-      Stream.runCollect,
-    )
-    const types = completedEvents.slice(beforeComplete.length).map((event) => event.type)
-    expect(types.indexOf(DelegationEvent.Closing.type)).toBeGreaterThanOrEqual(0)
-    expect(types.indexOf(DelegationEvent.Completed.type)).toBeGreaterThan(types.indexOf(DelegationEvent.Closing.type))
-    expect(types.indexOf(DelegationEvent.Archived.type)).toBeGreaterThan(types.indexOf(DelegationEvent.Completed.type))
-    expect(yield* fixture.sessions.inbox(repair.childSessionID)).toEqual([])
-    expect(yield* fixture.runs.isActive(repair.childSessionID)).toBe(false)
-    yield* fixture.llm.push(
-      TestLLM.tool("mc07-r2-complete-again", TaskTool.name, {
-        description: "Read the completed archive",
-        prompt: "Repeat completion of the same approved delegation.",
-        subagent_type: fixture.worker,
-        delegation_id: repair.delegationID,
-        command: "complete",
-      }),
-      TestLLM.text("The same completed archive is retained.", "mc07-r2-complete-again-parent"),
-    )
-    yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Repeat the completed operation." })
-    yield* awaitWithTimeout(fixture.llm.wait(18), "MC07 repeat completion did not reach its parent")
-    yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 repeat completion did not settle")
-    expect((yield* mc07Result(fixture, "mc07-r2-complete-again")).tool.state.status).toBe("completed")
-    expect(yield* fixture.delegations.foldState(repair.delegationID)).toEqual(final)
-    expect(
-      yield* bus.log({ aggregateID: repair.delegationID }).pipe(
+      yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Review the original R1." })
+      yield* awaitWithTimeout(fixture.llm.wait(7), "MC07 R2 changes review did not reach its parent")
+      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 R2 changes review did not settle")
+      const reviewed = yield* mc07Result(fixture, "mc07-r2-changes")
+      if (reviewed.tool.state.status !== "completed") return yield* Effect.die(new Error("MC07 changes review failed"))
+      const reviewer = Schema.decodeUnknownSync(Delegation.Receipt)(reviewed.tool.state.metadata?.receipt)
+      const before = yield* fixture.delegations.foldState(fixture.receipt.delegationID)
+      expect(before?.reviews.at(-1)?.verdict).toBe("changes_requested")
+      if (!before) return yield* Effect.die(new Error("MC07 R2 review aggregate is missing"))
+      expect([...before.deliveries.values()].every((delivery) => delivery.status === "completed")).toBe(true)
+      yield* fixture.llm.push(
+        TestLLM.tool("mc07-r2-repair", TaskTool.name, {
+          description: "Repair the original artifact",
+          prompt: "Use the review and write base, r1, and r2 on separate lines.",
+          subagent_type: fixture.worker,
+          delegation_id: fixture.receipt.delegationID,
+          task_id: fixture.receipt.childSessionID,
+          artifact_path: "artifact.txt",
+        }),
+        TestLLM.tool("mc07-r2-write", "write", { path: "artifact.txt", content: "base\nr1\nr2\n" }),
+        TestLLM.text("The requested R2 is ready.", "mc07-r2-repair-child"),
+        TestLLM.text("Consumed the actual repair.", "mc07-r2-repair-parent"),
+      )
+      yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Repair through the original child." })
+      yield* awaitWithTimeout(fixture.llm.wait(8), "MC07 R2 repair did not start")
+      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 R2 repair did not settle")
+      const repaired = yield* mc07Result(fixture, "mc07-r2-repair")
+      expect(repaired.tool.state.status).toBe("completed")
+      if (repaired.tool.state.status !== "completed") return yield* Effect.die(new Error("MC07 R2 repair was refused"))
+      const repair = Schema.decodeUnknownSync(Delegation.Receipt)(repaired.tool.state.metadata?.receipt)
+      expect(repair.childSessionID).toBe(fixture.receipt.childSessionID)
+      expect(repair.participantID).toBe(fixture.receipt.participantID)
+      expect(repair.inputID).not.toBe(fixture.receipt.inputID)
+      const state = yield* fixture.delegations.foldState(repair.delegationID)
+      const digest = state?.delegation.latestRevisionDigest
+      expect(state?.revisions).toHaveLength(2)
+      expect(digest).not.toBe(fixture.digest)
+      if (!state || !digest) return yield* Effect.die(new Error("MC07 R2 revision is missing"))
+      expect(
+        DelegationReview.evaluateReviewBarrier({
+          participants: [...state.participants.values()],
+          reviews: state.reviews,
+          revisions: state.revisions,
+          latestRevisionDigest: digest,
+          rejectionBlocked: state.delegation.rejectionBlocked,
+        }).passed,
+      ).toBe(false)
+      yield* fixture.llm.push(
+        TestLLM.tool("mc07-r2-approve", TaskTool.name, {
+          description: "Review the actual R2",
+          prompt: "Review the current repaired artifact and approve only that digest.",
+          subagent_type: fixture.worker,
+          delegation_id: repair.delegationID,
+          task_id: reviewer.childSessionID,
+          intent: "review",
+          revision_digest: digest,
+        }),
+        TestLLM.text(
+          `<review>${JSON.stringify({ kind: "aigcfroge.review.v1", reviewed_revision_digest: digest, verdict: "approved", findings: [], summary: "The actual R2 is approved." })}</review>`,
+          "mc07-r2-approve-child",
+        ),
+        TestLLM.text("Consumed the current approval.", "mc07-r2-approve-parent"),
+      )
+      yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Review the current R2." })
+      yield* awaitWithTimeout(fixture.llm.wait(14), "MC07 R2 approval did not reach its parent")
+      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 R2 approval did not settle")
+      const approved = yield* fixture.delegations.foldState(repair.delegationID)
+      if (!approved) return yield* Effect.die(new Error("MC07 R2 aggregate is missing"))
+      expect(
+        DelegationReview.canComplete({
+          participants: [...approved.participants.values()],
+          reviews: approved.reviews,
+          revisions: approved.revisions,
+          latestRevisionDigest: approved.delegation.latestRevisionDigest,
+          rejectionBlocked: approved.delegation.rejectionBlocked,
+          turns: [...approved.turns.values()],
+          deliveries: [...approved.deliveries.values()],
+        }),
+      ).toBe(true)
+      const original = yield* fixture.delegations.revision({
+        delegationID: repair.delegationID,
+        revisionDigest: fixture.digest,
+      })
+      const current = yield* fixture.delegations.revision({ delegationID: repair.delegationID, revisionDigest: digest })
+      expect(current.artifact).toMatchObject({
+        location: original.artifact?.location,
+        repository: original.artifact?.repository,
+        path: "artifact.txt",
+        commitSha: original.artifact?.commitSha,
+        baseSha256: original.artifact?.baseSha256,
+        changeKind: "rework",
+      })
+      expect(current.artifact?.targetSha256).toBe("1894ce0ca98d816bded15e17cb540bd3d748fb81271a6eefb68bb6c0ba9ba11f")
+      expect(current.artifact?.normalizedDiff).toBe(mc07R2Diff)
+      expect(current.receipt).toEqual(repair)
+      expect(current.source).toEqual({ type: "tool", messageID: repaired.assistant.id, id: "mc07-r2-repair" })
+      const inputs = (yield* fixture.sessions.context(repair.childSessionID)).filter(
+        (message): message is SessionMessage.User => message.type === "user",
+      )
+      const firstBaseline = Schema.decodeUnknownSync(Schema.Struct({ artifact: DelegationExecution.ArtifactBaseline }))(
+        inputs.find((input) => input.id === fixture.receipt.inputID)?.metadata?.task,
+      ).artifact
+      const repairBaseline = Schema.decodeUnknownSync(
+        Schema.Struct({ source: Permission.Source, artifact: DelegationExecution.ArtifactBaseline }),
+      )(inputs.find((input) => input.id === repair.inputID)?.metadata?.task)
+      expect(repairBaseline.artifact).toMatchObject({
+        blob: firstBaseline.blob,
+        commitSha: firstBaseline.commitSha,
+        baseSha256: firstBaseline.baseSha256,
+        previous: original,
+        agent: "meta",
+      })
+      expect(repairBaseline.source).toEqual(current.source)
+      const repairConsumed = (yield* fixture.llm.requests())[10]?.messages
+        .flatMap((message) => message.content)
+        .find((part) => part.type === "tool-result" && part.id === "mc07-r2-repair")
+      if (repairConsumed?.type !== "tool-result" || repairConsumed.result.type !== "text")
+        return yield* Effect.die(new Error("MC07 R2 repair was not consumed"))
+      expect(repairConsumed.result.value).toBe(
+        repaired.tool.state.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join(""),
+      )
+      const bus = yield* Bus.Service
+      const beforeComplete = yield* bus.log({ aggregateID: repair.delegationID }).pipe(
         Stream.filter((item) => !Bus.isSynced(item)),
         Stream.runCollect,
-      ),
-    ).toEqual(completedEvents)
-  }),
+      )
+      yield* fixture.llm.push(
+        TestLLM.tool("mc07-r2-complete", TaskTool.name, {
+          description: "Complete the approved delegation",
+          prompt: "Complete and archive the approved R2.",
+          subagent_type: fixture.worker,
+          delegation_id: repair.delegationID,
+          command: "complete",
+        }),
+        TestLLM.text("Consumed the completed archive.", "mc07-r2-complete-parent"),
+      )
+      yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Complete the approved delegation." })
+      yield* awaitWithTimeout(fixture.llm.wait(16), "MC07 R2 completion did not reach its parent")
+      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 R2 completion did not settle")
+      const completed = yield* mc07Result(fixture, "mc07-r2-complete")
+      if (completed.tool.state.status !== "completed")
+        return yield* Effect.die(
+          new Error(
+            JSON.stringify({
+              callID: "mc07-r2-complete",
+              tool: completed.tool.state,
+              delegation: (yield* fixture.delegations.foldState(repair.delegationID))?.delegation,
+              nextRequest: (yield* fixture.llm.requests())[15]?.messages
+                .flatMap((message) => message.content)
+                .filter((part) => part.type === "tool-result" && part.id === "mc07-r2-complete"),
+              requests: (yield* fixture.llm.requests()).slice(14).map((request) => ({
+                model: request.model.id,
+                toolResults: request.messages
+                  .flatMap((message) => message.content)
+                  .flatMap((part) => (part.type === "tool-result" ? [part.id] : [])),
+              })),
+              events: (yield* bus.log({ aggregateID: fixture.root.id }).pipe(
+                Stream.filter((item) => !Bus.isSynced(item)),
+                Stream.runCollect,
+              )).filter(
+                (event) =>
+                  !Bus.isSynced(event) &&
+                  event.type.startsWith("session.tool.") &&
+                  JSON.stringify(event.data).includes('"mc07-r2-complete"'),
+              ),
+            }),
+          ),
+        )
+      expect(completed.tool.state.metadata?.status).toBe("completed")
+      const final = yield* fixture.delegations.foldState(repair.delegationID)
+      if (!final) return yield* Effect.die(new Error("MC07 completed archive is missing"))
+      expect(final.delegation.status).toBe("archived")
+      expect(final.archivedFrom).toBe("completed")
+      expect(final.delegation.completedAt).toEqual(expect.any(Number))
+      expect([...final.participants.values()].every((participant) => participant.phase === "closed")).toBe(true)
+      const full = completed.tool.state.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("")
+      const summary = /<task_result>\n([\s\S]+)\n<\/task_result>/.exec(full)
+      if (!summary?.[1]) return yield* Effect.die(new Error("MC07 completion summary is missing"))
+      const barrier = {
+        participants: [...final.participants.values()],
+        reviews: final.reviews,
+        revisions: final.revisions,
+        latestRevisionDigest: final.delegation.latestRevisionDigest,
+        rejectionBlocked: final.delegation.rejectionBlocked,
+        turns: [...final.turns.values()],
+        deliveries: [...final.deliveries.values()],
+      }
+      expect(Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Unknown))(summary[1])).toEqual({
+        command: "complete",
+        source: { type: "tool", messageID: completed.assistant.id, id: "mc07-r2-complete" },
+        delegation: Schema.encodeSync(Schema.toCodecJson(Delegation.Info))(final.delegation),
+        archivedFrom: "completed",
+        latestRevisionDigest: digest,
+        reviewBarrier: DelegationReview.evaluateReviewBarrier(barrier),
+        canComplete: DelegationReview.canComplete(barrier),
+      })
+      const consumed = (yield* fixture.llm.requests())[15]?.messages
+        .flatMap((message) => message.content)
+        .find((part) => part.type === "tool-result" && part.id === "mc07-r2-complete")
+      if (consumed?.type !== "tool-result" || consumed.result.type !== "text")
+        return yield* Effect.die(new Error("MC07 completion was not consumed"))
+      expect(consumed.result.value).toBe(full)
+      const completedEvents = yield* bus.log({ aggregateID: repair.delegationID }).pipe(
+        Stream.filter((item) => !Bus.isSynced(item)),
+        Stream.runCollect,
+      )
+      const types = completedEvents.slice(beforeComplete.length).map((event) => event.type)
+      expect(types.indexOf(DelegationEvent.Closing.type)).toBeGreaterThanOrEqual(0)
+      expect(types.indexOf(DelegationEvent.Completed.type)).toBeGreaterThan(types.indexOf(DelegationEvent.Closing.type))
+      expect(types.indexOf(DelegationEvent.Archived.type)).toBeGreaterThan(
+        types.indexOf(DelegationEvent.Completed.type),
+      )
+      expect(yield* fixture.sessions.inbox(repair.childSessionID)).toEqual([])
+      expect(yield* fixture.runs.isActive(repair.childSessionID)).toBe(false)
+      yield* fixture.llm.push(
+        TestLLM.tool("mc07-r2-complete-again", TaskTool.name, {
+          description: "Read the completed archive",
+          prompt: "Repeat completion of the same approved delegation.",
+          subagent_type: fixture.worker,
+          delegation_id: repair.delegationID,
+          command: "complete",
+        }),
+        TestLLM.text("The same completed archive is retained.", "mc07-r2-complete-again-parent"),
+      )
+      yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Repeat the completed operation." })
+      yield* awaitWithTimeout(fixture.llm.wait(18), "MC07 repeat completion did not reach its parent")
+      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 repeat completion did not settle")
+      expect((yield* mc07Result(fixture, "mc07-r2-complete-again")).tool.state.status).toBe("completed")
+      expect(yield* fixture.delegations.foldState(repair.delegationID)).toEqual(final)
+      expect(
+        yield* bus.log({ aggregateID: repair.delegationID }).pipe(
+          Stream.filter((item) => !Bus.isSynced(item)),
+          Stream.runCollect,
+        ),
+      ).toEqual(completedEvents)
+    }),
+  30_000,
 )
 
 for (const failure of ["read_deny", "read_reject", "target_drift", "diff_drift", "other_child"] as const)
@@ -3588,7 +3603,14 @@ for (const failure of ["read_deny", "read_reject", "target_drift", "diff_drift",
         yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 drift write did not settle")
       }
       if (failure === "diff_drift")
-        yield* Effect.promise(() => $`chmod 755 ${`${fixture.root.location.directory}/artifact.txt`}`.quiet())
+        yield* Effect.promise(async () => {
+          // Windows has no executable-bit drift; exercise the same unsupported-diff refusal with Git attributes.
+          if (process.platform === "win32") {
+            await Bun.write(path.join(fixture.root.location.directory, ".gitattributes"), "artifact.txt -diff\n")
+            return
+          }
+          await $`chmod 755 ${`${fixture.root.location.directory}/artifact.txt`}`.quiet()
+        })
       if (failure === "read_deny" || failure === "read_reject")
         yield* fixture.sessions.setPermissions({
           sessionID: fixture.root.id,
@@ -3764,327 +3786,333 @@ effectTest.live("MC07 R2 capture uses the new invocation's current read authoriz
   }),
 )
 
-effectTest.live("MC07 R2 preserves a sticky rejection until the authorized matching retraction", () =>
-  Effect.gen(function* () {
-    const fixture = yield* mc07Build()
-    const rejected = yield* mc07Review(fixture, "mc07-r2-sticky-rejected", "rejected")
-    yield* fixture.llm.push(
-      TestLLM.tool("mc07-r2-sticky-repair", TaskTool.name, {
-        description: "Repair the rejected artifact",
-        prompt: "Write the real R2.",
-        subagent_type: fixture.worker,
-        delegation_id: fixture.receipt.delegationID,
-        task_id: fixture.receipt.childSessionID,
-        artifact_path: "artifact.txt",
-      }),
-      TestLLM.tool("mc07-r2-sticky-write", "write", { path: "artifact.txt", content: "base\nr1\nr2\n" }),
-      TestLLM.text("The rejected artifact was repaired.", "mc07-r2-sticky-child"),
-      TestLLM.text("Consumed the actual repair.", "mc07-r2-sticky-parent"),
-    )
-    yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Repair the rejected artifact." })
-    yield* awaitWithTimeout(fixture.llm.wait(11), "MC07 sticky repair did not reach its parent")
-    yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 sticky repair did not settle")
-    const repaired = yield* fixture.delegations.foldState(fixture.receipt.delegationID)
-    const digest = repaired?.delegation.latestRevisionDigest
-    if (!digest) return yield* Effect.die(new Error("MC07 sticky R2 is missing"))
-    yield* mc07Review(fixture, "mc07-r2-sticky-approved", "approved", digest, rejected.receipt.childSessionID)
-    const blocked = yield* fixture.delegations.foldState(fixture.receipt.delegationID)
-    if (!blocked) return yield* Effect.die(new Error("MC07 sticky aggregate is missing"))
-    expect(blocked.delegation.rejectionBlocked).toBe(true)
-    expect(blocked.reviews.map((review) => review.verdict)).toEqual(["rejected", "approved"])
-    expect(
-      DelegationReview.evaluateReviewBarrier({
-        participants: [...blocked.participants.values()],
-        reviews: blocked.reviews,
-        revisions: blocked.revisions,
-        latestRevisionDigest: digest,
-        rejectionBlocked: blocked.delegation.rejectionBlocked,
-      }).passed,
-    ).toBe(false)
-    for (const failure of ["participant", "deny"] as const) {
-      if (failure === "deny")
-        yield* fixture.sessions.setPermissions({
-          sessionID: fixture.root.id,
-          permissions: [
-            { action: "*", resource: "*", effect: "allow" },
-            { action: "task_reconcile", resource: fixture.receipt.delegationID, effect: "deny" },
-          ],
-        })
-      const callID = `mc07-r2-retract-${failure}`
-      yield* fixture.llm.push(
-        TestLLM.tool(callID, TaskTool.name, {
-          description: "Attempt rejection retraction",
-          prompt: "Retract this blocker.",
-          subagent_type: fixture.worker,
-          delegation_id: fixture.receipt.delegationID,
-          command: "retract_rejection",
-          participant_id: failure === "participant" ? fixture.receipt.participantID : rejected.receipt.participantID,
-        }),
-        TestLLM.text("The invalid retraction was refused.", `${callID}-parent`),
-      )
-      yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Attempt the explicit retraction." })
-      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 invalid retraction did not settle")
-      expect((yield* mc07Result(fixture, callID)).tool.state.status).toBe("error")
-      expect(yield* fixture.delegations.foldState(fixture.receipt.delegationID)).toEqual(blocked)
-    }
-    yield* fixture.sessions.setPermissions({
-      sessionID: fixture.root.id,
-      permissions: [
-        { action: "*", resource: "*", effect: "allow" },
-        { action: "task_reconcile", resource: fixture.receipt.delegationID, effect: "ask" },
-      ],
-    })
-    const locations = yield* LocationServiceMap.Service
-    const permission = yield* Permission.Service.pipe(Effect.provide(locations.get(fixture.root.location)))
-    const presence = yield* ApprovalPresence.Service
-    yield* presence.bindResponder({ location: fixture.root.location, custom: false })
-    const bus = yield* Bus.Service
-    const before = yield* bus.log({ aggregateID: fixture.receipt.delegationID }).pipe(
-      Stream.filter((item) => !Bus.isSynced(item)),
-      Stream.runCollect,
-    )
-    yield* fixture.llm.push(
-      TestLLM.tool("mc07-r2-retract-once", TaskTool.name, {
-        description: "Retract the matching blocker",
-        prompt: "Explicitly retract the original rejection.",
-        subagent_type: fixture.worker,
-        delegation_id: fixture.receipt.delegationID,
-        command: "retract_rejection",
-        participant_id: rejected.receipt.participantID,
-      }),
-      TestLLM.text("The explicit retraction was consumed.", "mc07-r2-retract-once-parent"),
-    )
-    yield* fixture.sessions.prompt({
-      sessionID: fixture.root.id,
-      text: "Retract the matching blocker with current approval.",
-    })
-    const request = yield* pollWithTimeout(
-      permission
-        .forSession(fixture.root.id)
-        .pipe(Effect.map((requests) => requests.find((item) => item.action === "task_reconcile"))),
-      "MC07 retraction did not ask",
-    )
-    const pending = yield* mc07Result(fixture, "mc07-r2-retract-once")
-    expect(request).toMatchObject({
-      action: "task_reconcile",
-      resources: [fixture.receipt.delegationID],
-      source: { type: "tool", messageID: pending.assistant.id, id: "mc07-r2-retract-once" },
-    })
-    expect(yield* fixture.delegations.foldState(fixture.receipt.delegationID)).toEqual(blocked)
-    yield* permission.reply({ requestID: request.id, reply: "once" })
-    yield* awaitWithTimeout(fixture.llm.wait(20), "MC07 retraction did not reach its parent")
-    yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 retraction did not settle")
-    expect((yield* mc07Result(fixture, "mc07-r2-retract-once")).tool.state.status).toBe("completed")
-    const final = yield* fixture.delegations.foldState(fixture.receipt.delegationID)
-    if (!final) return yield* Effect.die(new Error("MC07 retracted aggregate is missing"))
-    expect(final.delegation.rejectionBlocked).toBe(false)
-    expect(final.reviews).toEqual(blocked.reviews)
-    expect(final.revisions).toEqual(blocked.revisions)
-    expect(
-      DelegationReview.canComplete({
-        participants: [...final.participants.values()],
-        reviews: final.reviews,
-        revisions: final.revisions,
-        latestRevisionDigest: digest,
-        rejectionBlocked: final.delegation.rejectionBlocked,
-        turns: [...final.turns.values()],
-        deliveries: [...final.deliveries.values()],
-      }),
-    ).toBe(true)
-    expect(
-      (yield* bus.log({ aggregateID: fixture.receipt.delegationID }).pipe(
-        Stream.filter((item) => !Bus.isSynced(item)),
-        Stream.runCollect,
-      ))
-        .slice(before.length)
-        .map((event) => event.type),
-    ).toEqual([DelegationEvent.RejectionRetracted.type])
-  }),
-)
-
-for (const action of ["task_close", "task_archive"] as const)
-  effectTest.live(`MC07 R2 complete fences new work after ${action} approval returns`, () =>
+effectTest.live(
+  "MC07 R2 preserves a sticky rejection until the authorized matching retraction",
+  () =>
     Effect.gen(function* () {
       const fixture = yield* mc07Build()
-      yield* mc07Review(fixture, `mc07-r2-race-approved-${action}`, "approved")
-      const locations = yield* LocationServiceMap.Service
-      const permission = yield* Permission.Service.pipe(Effect.provide(locations.get(fixture.root.location)))
-      const presence = yield* ApprovalPresence.Service
-      yield* presence.bindResponder({ location: fixture.root.location, custom: false })
+      const rejected = yield* mc07Review(fixture, "mc07-r2-sticky-rejected", "rejected")
+      yield* fixture.llm.push(
+        TestLLM.tool("mc07-r2-sticky-repair", TaskTool.name, {
+          description: "Repair the rejected artifact",
+          prompt: "Write the real R2.",
+          subagent_type: fixture.worker,
+          delegation_id: fixture.receipt.delegationID,
+          task_id: fixture.receipt.childSessionID,
+          artifact_path: "artifact.txt",
+        }),
+        TestLLM.tool("mc07-r2-sticky-write", "write", { path: "artifact.txt", content: "base\nr1\nr2\n" }),
+        TestLLM.text("The rejected artifact was repaired.", "mc07-r2-sticky-child"),
+        TestLLM.text("Consumed the actual repair.", "mc07-r2-sticky-parent"),
+      )
+      yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Repair the rejected artifact." })
+      yield* awaitWithTimeout(fixture.llm.wait(11), "MC07 sticky repair did not reach its parent")
+      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 sticky repair did not settle")
+      const repaired = yield* fixture.delegations.foldState(fixture.receipt.delegationID)
+      const digest = repaired?.delegation.latestRevisionDigest
+      if (!digest) return yield* Effect.die(new Error("MC07 sticky R2 is missing"))
+      yield* mc07Review(fixture, "mc07-r2-sticky-approved", "approved", digest, rejected.receipt.childSessionID)
+      const blocked = yield* fixture.delegations.foldState(fixture.receipt.delegationID)
+      if (!blocked) return yield* Effect.die(new Error("MC07 sticky aggregate is missing"))
+      expect(blocked.delegation.rejectionBlocked).toBe(true)
+      expect(blocked.reviews.map((review) => review.verdict)).toEqual(["rejected", "approved"])
+      expect(
+        DelegationReview.evaluateReviewBarrier({
+          participants: [...blocked.participants.values()],
+          reviews: blocked.reviews,
+          revisions: blocked.revisions,
+          latestRevisionDigest: digest,
+          rejectionBlocked: blocked.delegation.rejectionBlocked,
+        }).passed,
+      ).toBe(false)
+      for (const failure of ["participant", "deny"] as const) {
+        if (failure === "deny")
+          yield* fixture.sessions.setPermissions({
+            sessionID: fixture.root.id,
+            permissions: [
+              { action: "*", resource: "*", effect: "allow" },
+              { action: "task_reconcile", resource: fixture.receipt.delegationID, effect: "deny" },
+            ],
+          })
+        const callID = `mc07-r2-retract-${failure}`
+        yield* fixture.llm.push(
+          TestLLM.tool(callID, TaskTool.name, {
+            description: "Attempt rejection retraction",
+            prompt: "Retract this blocker.",
+            subagent_type: fixture.worker,
+            delegation_id: fixture.receipt.delegationID,
+            command: "retract_rejection",
+            participant_id: failure === "participant" ? fixture.receipt.participantID : rejected.receipt.participantID,
+          }),
+          TestLLM.text("The invalid retraction was refused.", `${callID}-parent`),
+        )
+        yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Attempt the explicit retraction." })
+        yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 invalid retraction did not settle")
+        expect((yield* mc07Result(fixture, callID)).tool.state.status).toBe("error")
+        expect(yield* fixture.delegations.foldState(fixture.receipt.delegationID)).toEqual(blocked)
+      }
       yield* fixture.sessions.setPermissions({
         sessionID: fixture.root.id,
         permissions: [
           { action: "*", resource: "*", effect: "allow" },
-          { action: "task_close", resource: fixture.receipt.delegationID, effect: "ask" },
-          { action: "task_archive", resource: fixture.receipt.delegationID, effect: "ask" },
+          { action: "task_reconcile", resource: fixture.receipt.delegationID, effect: "ask" },
         ],
       })
-      const completeID = `mc07-r2-race-complete-${action}`
-      const repairID = `mc07-r2-race-repair-${action}`
-      const closeAsked = yield* Deferred.make<Permission.Request>()
-      const archiveAsked = yield* Deferred.make<Permission.Request>()
-      const releaseChild = yield* Deferred.make<void>()
-      yield* Effect.addFinalizer(() => Deferred.succeed(releaseChild, undefined).pipe(Effect.asVoid))
+      const locations = yield* LocationServiceMap.Service
+      const permission = yield* Permission.Service.pipe(Effect.provide(locations.get(fixture.root.location)))
+      const presence = yield* ApprovalPresence.Service
+      yield* presence.bindResponder({ location: fixture.root.location, custom: false })
       const bus = yield* Bus.Service
-      const unsubscribe = yield* bus.listen((event) => {
-        if (event.type !== Permission.Event.Asked.type) return Effect.void
-        const request = Schema.decodeUnknownSync(Permission.Request)(event.data)
-        if (request.source?.type !== "tool" || request.source.id !== completeID) return Effect.void
-        if (request.action === "task_close") return Deferred.succeed(closeAsked, request).pipe(Effect.asVoid)
-        if (request.action === "task_archive") return Deferred.succeed(archiveAsked, request).pipe(Effect.asVoid)
-        return Effect.void
-      })
-      yield* Effect.addFinalizer(() => unsubscribe)
       const before = yield* bus.log({ aggregateID: fixture.receipt.delegationID }).pipe(
         Stream.filter((item) => !Bus.isSynced(item)),
         Stream.runCollect,
       )
-      const response = TestLLM.toolCalls(
-        LLMEvent.toolCall({
-          id: completeID,
-          name: TaskTool.name,
-          input: {
-            description: "Complete the approved delegation",
-            prompt: "Complete the current approved artifact.",
-            subagent_type: fixture.worker,
-            delegation_id: fixture.receipt.delegationID,
-            command: "complete",
-          },
-        }),
-        LLMEvent.toolCall({
-          id: repairID,
-          name: TaskTool.name,
-          input: {
-            description: "Admit the next real repair",
-            prompt: "Write the real R2 and finish.",
-            subagent_type: fixture.worker,
-            delegation_id: fixture.receipt.delegationID,
-            task_id: fixture.receipt.childSessionID,
-            artifact_path: "artifact.txt",
-          },
-        }),
-      )
       yield* fixture.llm.push(
-        Stream.fromIterable(response.slice(0, 2)).pipe(
-          Stream.concat(
-            Stream.unwrap(
-              Deferred.await(action === "task_close" ? closeAsked : archiveAsked).pipe(
-                Effect.as(Stream.fromIterable(response.slice(2))),
-              ),
-            ),
-          ),
-        ),
-        Stream.unwrap(
-          Deferred.await(releaseChild).pipe(
-            Effect.as(
-              Stream.fromIterable(
-                TestLLM.tool(`mc07-r2-race-write-${action}`, "write", {
-                  path: "artifact.txt",
-                  content: "base\nr1\nr2\n",
-                }),
-              ),
-            ),
-          ),
-        ),
-        TestLLM.text("The new repair completed.", `mc07-r2-race-child-${action}`),
-        TestLLM.text("The late completion was refused and the repair completed.", `mc07-r2-race-parent-${action}`),
+        TestLLM.tool("mc07-r2-retract-once", TaskTool.name, {
+          description: "Retract the matching blocker",
+          prompt: "Explicitly retract the original rejection.",
+          subagent_type: fixture.worker,
+          delegation_id: fixture.receipt.delegationID,
+          command: "retract_rejection",
+          participant_id: rejected.receipt.participantID,
+        }),
+        TestLLM.text("The explicit retraction was consumed.", "mc07-r2-retract-once-parent"),
       )
       yield* fixture.sessions.prompt({
         sessionID: fixture.root.id,
-        text: "Complete while the next repair is admitted in the same Step.",
+        text: "Retract the matching blocker with current approval.",
       })
-      const close = yield* awaitWithTimeout(Deferred.await(closeAsked), "MC07 complete did not ask task_close")
-      if (action === "task_archive") yield* permission.reply({ requestID: close.id, reply: "once" })
-      yield* awaitWithTimeout(fixture.llm.wait(9), "MC07 same-Step repair did not request its child model")
-      const active = yield* pollWithTimeout(
-        fixture.delegations.foldState(fixture.receipt.delegationID).pipe(
-          Effect.map((state) => {
-            const turn = [...(state?.turns.values() ?? [])].at(-1)
-            return state && turn?.kind === "repair" && turn.status === "running" ? { state, turn } : undefined
-          }),
-        ),
-        "MC07 same-Step repair has no running Turn",
+      const request = yield* pollWithTimeout(
+        permission
+          .forSession(fixture.root.id)
+          .pipe(Effect.map((requests) => requests.find((item) => item.action === "task_reconcile"))),
+        "MC07 retraction did not ask",
       )
-      const users = (yield* fixture.sessions.context(fixture.receipt.childSessionID)).filter(
-        (message): message is SessionMessage.User => message.type === "user",
-      )
-      expect(users).toHaveLength(2)
-      const input = users.at(-1)
-      if (!input) return yield* Effect.die(new Error("MC07 same-Step repair input is missing"))
-      expect(active.turn.participantIDs).toEqual([fixture.receipt.participantID])
-      const complete = yield* mc07Result(fixture, completeID)
-      const repair = yield* mc07Result(fixture, repairID)
-      expect(repair.assistant.id).toBe(complete.assistant.id)
-      const link = Schema.decodeUnknownSync(
-        Schema.Struct({ source: Permission.Source, artifact: DelegationExecution.ArtifactBaseline }),
-      )(input.metadata?.task)
-      expect(link.source).toEqual({ type: "tool", messageID: complete.assistant.id, id: repairID })
-      expect(link.artifact.previous?.receipt).toEqual(fixture.receipt)
-      if (action === "task_close") yield* permission.reply({ requestID: close.id, reply: "once" })
-      const archive = yield* awaitWithTimeout(Deferred.await(archiveAsked), "MC07 complete did not ask task_archive")
-      expect(close.source).toEqual({ type: "tool", messageID: complete.assistant.id, id: completeID })
-      expect(archive.source).toEqual(close.source)
-      expect(archive.id).not.toBe(close.id)
-      expect([close.action, archive.action]).toEqual(["task_close", "task_archive"])
-      expect(close.resources).toEqual([fixture.receipt.delegationID])
-      expect(archive.resources).toEqual(close.resources)
-      expect(archive.sessionID).toBe(close.sessionID)
-      expect(close.sessionID).toBe(fixture.root.id)
-      const forbidden = [
-        DelegationEvent.Closing.type,
-        DelegationEvent.DeliveryCancelled.type,
-        DelegationEvent.Completed.type,
-        DelegationEvent.Archived.type,
-      ]
-      expect(
-        (yield* bus.log({ aggregateID: fixture.receipt.delegationID }).pipe(
-          Stream.filter((item) => !Bus.isSynced(item)),
-          Stream.runCollect,
-        ))
-          .slice(before.length)
-          .filter((event) => forbidden.some((type) => type === event.type)),
-      ).toEqual([])
-      yield* permission.reply({ requestID: archive.id, reply: "once" })
-      const refused = yield* pollWithTimeout(
-        mc07Result(fixture, completeID).pipe(
-          Effect.map((result) => (result.tool.state.status === "error" ? result : undefined)),
-        ),
-        "MC07 completion did not reject the fresh running Turn",
-      )
-      if (refused.tool.state.status !== "error") return yield* Effect.die(new Error("MC07 complete did not refuse"))
-      expect(refused.tool.state.error.message).toContain("completion barrier")
-      expect(
-        (yield* bus.log({ aggregateID: fixture.receipt.delegationID }).pipe(
-          Stream.filter((item) => !Bus.isSynced(item)),
-          Stream.runCollect,
-        ))
-          .slice(before.length)
-          .filter((event) => forbidden.some((type) => type === event.type)),
-      ).toEqual([])
-      yield* Deferred.succeed(releaseChild, undefined)
-      yield* awaitWithTimeout(fixture.llm.wait(11), "MC07 permitted repair did not reach its parent")
-      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 same-Step parent did not settle")
-      const completed = yield* mc07Result(fixture, repairID)
-      expect(completed.tool.state.status).toBe("completed")
-      if (completed.tool.state.status !== "completed")
-        return yield* Effect.die(new Error("MC07 complete cancelled the newer repair"))
-      const receipt = Schema.decodeUnknownSync(Delegation.Receipt)(completed.tool.state.metadata?.receipt)
-      expect(receipt.childSessionID).toBe(fixture.receipt.childSessionID)
-      expect(receipt.turnID).toBe(active.turn.id)
-      expect(receipt.inputID).toBe(input.id)
+      const pending = yield* mc07Result(fixture, "mc07-r2-retract-once")
+      expect(request).toMatchObject({
+        action: "task_reconcile",
+        resources: [fixture.receipt.delegationID],
+        source: { type: "tool", messageID: pending.assistant.id, id: "mc07-r2-retract-once" },
+      })
+      expect(yield* fixture.delegations.foldState(fixture.receipt.delegationID)).toEqual(blocked)
+      yield* permission.reply({ requestID: request.id, reply: "once" })
+      yield* awaitWithTimeout(fixture.llm.wait(20), "MC07 retraction did not reach its parent")
+      yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 retraction did not settle")
+      expect((yield* mc07Result(fixture, "mc07-r2-retract-once")).tool.state.status).toBe("completed")
       const final = yield* fixture.delegations.foldState(fixture.receipt.delegationID)
-      expect(final?.revisions).toHaveLength(2)
-      expect(final?.delegation.latestRevisionDigest).not.toBe(fixture.digest)
-      expect(final?.reviews).toEqual(active.state.reviews)
+      if (!final) return yield* Effect.die(new Error("MC07 retracted aggregate is missing"))
+      expect(final.delegation.rejectionBlocked).toBe(false)
+      expect(final.reviews).toEqual(blocked.reviews)
+      expect(final.revisions).toEqual(blocked.revisions)
+      expect(
+        DelegationReview.canComplete({
+          participants: [...final.participants.values()],
+          reviews: final.reviews,
+          revisions: final.revisions,
+          latestRevisionDigest: digest,
+          rejectionBlocked: final.delegation.rejectionBlocked,
+          turns: [...final.turns.values()],
+          deliveries: [...final.deliveries.values()],
+        }),
+      ).toBe(true)
       expect(
         (yield* bus.log({ aggregateID: fixture.receipt.delegationID }).pipe(
           Stream.filter((item) => !Bus.isSynced(item)),
           Stream.runCollect,
         ))
           .slice(before.length)
-          .filter((event) => forbidden.some((type) => type === event.type)),
-      ).toEqual([])
+          .map((event) => event.type),
+      ).toEqual([DelegationEvent.RejectionRetracted.type])
     }),
+  30_000,
+)
+
+for (const action of ["task_close", "task_archive"] as const)
+  effectTest.live(
+    `MC07 R2 complete fences new work after ${action} approval returns`,
+    () =>
+      Effect.gen(function* () {
+        const fixture = yield* mc07Build()
+        yield* mc07Review(fixture, `mc07-r2-race-approved-${action}`, "approved")
+        const locations = yield* LocationServiceMap.Service
+        const permission = yield* Permission.Service.pipe(Effect.provide(locations.get(fixture.root.location)))
+        const presence = yield* ApprovalPresence.Service
+        yield* presence.bindResponder({ location: fixture.root.location, custom: false })
+        yield* fixture.sessions.setPermissions({
+          sessionID: fixture.root.id,
+          permissions: [
+            { action: "*", resource: "*", effect: "allow" },
+            { action: "task_close", resource: fixture.receipt.delegationID, effect: "ask" },
+            { action: "task_archive", resource: fixture.receipt.delegationID, effect: "ask" },
+          ],
+        })
+        const completeID = `mc07-r2-race-complete-${action}`
+        const repairID = `mc07-r2-race-repair-${action}`
+        const closeAsked = yield* Deferred.make<Permission.Request>()
+        const archiveAsked = yield* Deferred.make<Permission.Request>()
+        const releaseChild = yield* Deferred.make<void>()
+        yield* Effect.addFinalizer(() => Deferred.succeed(releaseChild, undefined).pipe(Effect.asVoid))
+        const bus = yield* Bus.Service
+        const unsubscribe = yield* bus.listen((event) => {
+          if (event.type !== Permission.Event.Asked.type) return Effect.void
+          const request = Schema.decodeUnknownSync(Permission.Request)(event.data)
+          if (request.source?.type !== "tool" || request.source.id !== completeID) return Effect.void
+          if (request.action === "task_close") return Deferred.succeed(closeAsked, request).pipe(Effect.asVoid)
+          if (request.action === "task_archive") return Deferred.succeed(archiveAsked, request).pipe(Effect.asVoid)
+          return Effect.void
+        })
+        yield* Effect.addFinalizer(() => unsubscribe)
+        const before = yield* bus.log({ aggregateID: fixture.receipt.delegationID }).pipe(
+          Stream.filter((item) => !Bus.isSynced(item)),
+          Stream.runCollect,
+        )
+        const response = TestLLM.toolCalls(
+          LLMEvent.toolCall({
+            id: completeID,
+            name: TaskTool.name,
+            input: {
+              description: "Complete the approved delegation",
+              prompt: "Complete the current approved artifact.",
+              subagent_type: fixture.worker,
+              delegation_id: fixture.receipt.delegationID,
+              command: "complete",
+            },
+          }),
+          LLMEvent.toolCall({
+            id: repairID,
+            name: TaskTool.name,
+            input: {
+              description: "Admit the next real repair",
+              prompt: "Write the real R2 and finish.",
+              subagent_type: fixture.worker,
+              delegation_id: fixture.receipt.delegationID,
+              task_id: fixture.receipt.childSessionID,
+              artifact_path: "artifact.txt",
+            },
+          }),
+        )
+        yield* fixture.llm.push(
+          Stream.fromIterable(response.slice(0, 2)).pipe(
+            Stream.concat(
+              Stream.unwrap(
+                Deferred.await(action === "task_close" ? closeAsked : archiveAsked).pipe(
+                  Effect.as(Stream.fromIterable(response.slice(2))),
+                ),
+              ),
+            ),
+          ),
+          Stream.unwrap(
+            Deferred.await(releaseChild).pipe(
+              Effect.as(
+                Stream.fromIterable(
+                  TestLLM.tool(`mc07-r2-race-write-${action}`, "write", {
+                    path: "artifact.txt",
+                    content: "base\nr1\nr2\n",
+                  }),
+                ),
+              ),
+            ),
+          ),
+          TestLLM.text("The new repair completed.", `mc07-r2-race-child-${action}`),
+          TestLLM.text("The late completion was refused and the repair completed.", `mc07-r2-race-parent-${action}`),
+        )
+        yield* fixture.sessions.prompt({
+          sessionID: fixture.root.id,
+          text: "Complete while the next repair is admitted in the same Step.",
+        })
+        const close = yield* awaitWithTimeout(Deferred.await(closeAsked), "MC07 complete did not ask task_close")
+        if (action === "task_archive") yield* permission.reply({ requestID: close.id, reply: "once" })
+        yield* awaitWithTimeout(fixture.llm.wait(9), "MC07 same-Step repair did not request its child model")
+        const active = yield* pollWithTimeout(
+          fixture.delegations.foldState(fixture.receipt.delegationID).pipe(
+            Effect.map((state) => {
+              const turn = [...(state?.turns.values() ?? [])].at(-1)
+              return state && turn?.kind === "repair" && turn.status === "running" ? { state, turn } : undefined
+            }),
+          ),
+          "MC07 same-Step repair has no running Turn",
+        )
+        const users = (yield* fixture.sessions.context(fixture.receipt.childSessionID)).filter(
+          (message): message is SessionMessage.User => message.type === "user",
+        )
+        expect(users).toHaveLength(2)
+        const input = users.at(-1)
+        if (!input) return yield* Effect.die(new Error("MC07 same-Step repair input is missing"))
+        expect(active.turn.participantIDs).toEqual([fixture.receipt.participantID])
+        const complete = yield* mc07Result(fixture, completeID)
+        const repair = yield* mc07Result(fixture, repairID)
+        expect(repair.assistant.id).toBe(complete.assistant.id)
+        const link = Schema.decodeUnknownSync(
+          Schema.Struct({ source: Permission.Source, artifact: DelegationExecution.ArtifactBaseline }),
+        )(input.metadata?.task)
+        expect(link.source).toEqual({ type: "tool", messageID: complete.assistant.id, id: repairID })
+        expect(link.artifact.previous?.receipt).toEqual(fixture.receipt)
+        if (action === "task_close") yield* permission.reply({ requestID: close.id, reply: "once" })
+        const archive = yield* awaitWithTimeout(Deferred.await(archiveAsked), "MC07 complete did not ask task_archive")
+        expect(close.source).toEqual({ type: "tool", messageID: complete.assistant.id, id: completeID })
+        expect(archive.source).toEqual(close.source)
+        expect(archive.id).not.toBe(close.id)
+        expect([close.action, archive.action]).toEqual(["task_close", "task_archive"])
+        expect(close.resources).toEqual([fixture.receipt.delegationID])
+        expect(archive.resources).toEqual(close.resources)
+        expect(archive.sessionID).toBe(close.sessionID)
+        expect(close.sessionID).toBe(fixture.root.id)
+        const forbidden = [
+          DelegationEvent.Closing.type,
+          DelegationEvent.DeliveryCancelled.type,
+          DelegationEvent.Completed.type,
+          DelegationEvent.Archived.type,
+        ]
+        expect(
+          (yield* bus.log({ aggregateID: fixture.receipt.delegationID }).pipe(
+            Stream.filter((item) => !Bus.isSynced(item)),
+            Stream.runCollect,
+          ))
+            .slice(before.length)
+            .filter((event) => forbidden.some((type) => type === event.type)),
+        ).toEqual([])
+        yield* permission.reply({ requestID: archive.id, reply: "once" })
+        const refused = yield* pollWithTimeout(
+          mc07Result(fixture, completeID).pipe(
+            Effect.map((result) => (result.tool.state.status === "error" ? result : undefined)),
+          ),
+          "MC07 completion did not reject the fresh running Turn",
+        )
+        if (refused.tool.state.status !== "error") return yield* Effect.die(new Error("MC07 complete did not refuse"))
+        expect(refused.tool.state.error.message).toContain("completion barrier")
+        expect(
+          (yield* bus.log({ aggregateID: fixture.receipt.delegationID }).pipe(
+            Stream.filter((item) => !Bus.isSynced(item)),
+            Stream.runCollect,
+          ))
+            .slice(before.length)
+            .filter((event) => forbidden.some((type) => type === event.type)),
+        ).toEqual([])
+        yield* Deferred.succeed(releaseChild, undefined)
+        yield* awaitWithTimeout(fixture.llm.wait(11), "MC07 permitted repair did not reach its parent")
+        yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 same-Step parent did not settle")
+        const completed = yield* mc07Result(fixture, repairID)
+        expect(completed.tool.state.status).toBe("completed")
+        if (completed.tool.state.status !== "completed")
+          return yield* Effect.die(new Error("MC07 complete cancelled the newer repair"))
+        const receipt = Schema.decodeUnknownSync(Delegation.Receipt)(completed.tool.state.metadata?.receipt)
+        expect(receipt.childSessionID).toBe(fixture.receipt.childSessionID)
+        expect(receipt.turnID).toBe(active.turn.id)
+        expect(receipt.inputID).toBe(input.id)
+        const final = yield* fixture.delegations.foldState(fixture.receipt.delegationID)
+        expect(final?.revisions).toHaveLength(2)
+        expect(final?.delegation.latestRevisionDigest).not.toBe(fixture.digest)
+        expect(final?.reviews).toEqual(active.state.reviews)
+        expect(
+          (yield* bus.log({ aggregateID: fixture.receipt.delegationID }).pipe(
+            Stream.filter((item) => !Bus.isSynced(item)),
+            Stream.runCollect,
+          ))
+            .slice(before.length)
+            .filter((event) => forbidden.some((type) => type === event.type)),
+        ).toEqual([])
+      }),
+    30_000,
   )
 
 effectTest.live("MC07 R2 refuses a retained archive from cancelled", () =>
@@ -4921,7 +4949,9 @@ for (const failure of ["failure", "interruption", "mixed"] as const)
             ? Cause.combine(defect, Cause.interrupt())
             : defect
       const observedRead: Environment.Files["read"] = (file, range) =>
-        file === `${fixture.root.location.directory}/artifact.txt` ? Effect.failCause(cause) : read(file, range)
+        file === path.join(fixture.root.location.directory, "artifact.txt")
+          ? Effect.failCause(cause)
+          : read(file, range)
       Object.assign(environment.files, { read: observedRead })
       yield* Effect.addFinalizer(() => Effect.sync(() => Object.assign(environment.files, { read })))
       yield* Deferred.succeed(release, undefined)
@@ -13182,6 +13212,7 @@ effectTest.live(
       expect(sdk.state).toEqual({ reads: 2, closed: 2, hookCalls: 2 })
       expect(sdk.queries).toHaveLength(2)
     }),
+  30_000,
 )
 
 for (const invalid of ["missing", "malformed", "wrong_digest"] as const)
@@ -15530,11 +15561,12 @@ class JsonlPeerEvent extends Schema.Class<JsonlPeerEvent>("Test.JsonlPeerEvent")
 const jsonlTaskSetup = Effect.fnUntraced(function* () {
   const directory = yield* tmpdirScoped()
   const files = yield* FSUtil.Service
-  const command = `${directory.path}/jsonl-peer.ts`
+  const peer = path.join(directory.path, "jsonl-peer.ts")
+  const command = process.platform === "win32" ? path.join(directory.path, "jsonl-peer.cmd") : peer
   const logPath = `${directory.path}/jsonl-peer.jsonl`
   yield* files.writeFileString(logPath, "")
   yield* files.writeWithDirs(
-    command,
+    peer,
     [
       `#!${process.execPath}`,
       'import { appendFileSync, existsSync, watch } from "node:fs"',
@@ -15635,6 +15667,8 @@ reader.on("close", () => {
     ].join("\n"),
     0o755,
   )
+  if (process.platform === "win32")
+    yield* files.writeFileString(command, `@echo off\r\n"${process.execPath}" "${peer}" %*\r\n`)
   expect(yield* ClaudeCodeAdapter.makeClaudeCodeAdapter(command).detect()).toBe(true)
   const fixture = yield* metaSetup(
     Agent.ID.make("keeper-worker"),

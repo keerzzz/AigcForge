@@ -1052,7 +1052,7 @@ function partRef(id: string, messageID: string, type: PartRef["type"]): PartRef 
 
 export function makeEvent<Type extends AigcForgeEvent["type"]>(
   type: Type,
-  data: Extract<AigcForgeEvent, { type: Type }>["data"],
+  data: Extract<AigcForgeEvent, { type: Type }>["data"] & { sessionID: string },
 ): AigcForgeEvent {
   const state = scenario()
   const sequence = ++state.eventSequence
@@ -1066,7 +1066,7 @@ export function makeEvent<Type extends AigcForgeEvent["type"]>(
     definition.durability === "durable"
       ? {
           ...base,
-          durable: { aggregateID: sessionID, seq: ++state.durableSequence, version: definition.durable.version },
+          durable: { aggregateID: data.sessionID, seq: ++state.durableSequence, version: definition.durable.version },
         }
       : base
 

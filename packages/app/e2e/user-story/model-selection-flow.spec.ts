@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test"
+import { Schema } from "effect"
 import { provider, sessionHref } from "../utils/app"
 import { mockAigcForgeServer } from "../utils/mock-server"
 import { expectAppVisible } from "../utils/waits"
@@ -9,8 +10,24 @@ const directory = "C:/AigcForge/NewProject"
 
 test("creates a session in a new project and selects its model", async ({ page }) => {
   // An empty draft must remain usable when the file viewer is unavailable.
-  await page.route(/(?:\/_assets\/file-(?!icon-)[^/]+\.js|\/session-ui\/src\/components\/file\.tsx)(?:\?|$)/, (route) =>
-    route.abort(),
+  await page.route(
+    /(?:\/_assets\/file-(?!icon-)[^/]+\.js|\/session-ui\/src\/components\/file\.tsx)(?:\?|$)/,
+    async (route) => {
+      const url = new URL(route.request().url())
+
+      if (url.pathname.endsWith("/session-ui/src/components/file.tsx")) return route.abort()
+      // Startup modules can share the file-* chunk name; only the viewer must fail.
+      url.pathname += ".map"
+      const response = await route.fetch({ url: url.href })
+      await expect(response).toBeOK()
+      const map = Schema.decodeUnknownSync(Schema.Struct({ sources: Schema.Array(Schema.String) }))(
+        await response.json(),
+      )
+
+      return map.sources.some((source) => source.endsWith("/session-ui/src/components/file.tsx"))
+        ? route.abort()
+        : route.continue()
+    },
   )
   await mockAigcForgeServer(page, {
     directory,

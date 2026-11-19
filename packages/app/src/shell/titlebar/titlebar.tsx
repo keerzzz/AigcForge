@@ -19,6 +19,8 @@ import { makeEventListener } from "@solid-primitives/event-listener"
 import { createMediaQuery } from "@solid-primitives/media"
 import { readSessionTabsRemovedDetail, SESSION_TABS_REMOVED_EVENT } from "@/shell/titlebar/session-events"
 import { useGlobal } from "@/runtime/server/runtime"
+import { createTabComposerState } from "@/composer/persistence"
+import { base64Encode } from "@aigcfroge/util/encode"
 import { ServerConnection } from "@/runtime/server/registry"
 import { tabKey, useTabs } from "@/shell/tabs/tabs"
 import "./titlebar.css"
@@ -340,7 +342,7 @@ export function Titlebar() {
               void tabs.newDraft({ ...draft, mode }, "", model)
             }
 
-            const openNewTab = () => {
+            const openNewTab = async () => {
               const route = layout.route()
 
               switch (route.type) {
@@ -371,15 +373,21 @@ export function Titlebar() {
                     sessionId: activeSession.id,
                   }
 
-                  const model = tabs.stateValue(sessionTab, "prompt")?.model.current()
-                  startDraft(
-                    {
-                      server: sessionTab.server,
-                      directory: activeSession.location.directory,
-                      mode: ModeRoute.sourceMode(route, undefined, activeSession),
-                    },
-                    model,
-                  )
+                  const draft = {
+                    server: sessionTab.server,
+                    directory: activeSession.location.directory,
+                    mode: ModeRoute.sourceMode(route, undefined, activeSession),
+                  }
+                  const ctx = global.serverCtx(sessionTab.server)
+                  const composer = ctx
+                    ? createTabComposerState(tabs, sessionTab, ctx.sdk.scope, {
+                        dir: base64Encode(draft.directory),
+                        id: activeSession.id,
+                      })
+                    : undefined
+
+                  if (composer && !composer.ready()) await composer.ready.promise
+                  startDraft(draft, composer?.model.current())
 
                   return
                 }
@@ -677,7 +685,7 @@ export function Titlebar() {
                             data-action="mobile-tabs-new-session"
                             class="flex h-7 w-full shrink-0 items-center gap-2 rounded-[6px] px-2 text-[13px] leading-4 text-v2-text-text-base hover:bg-v2-background-bg-layer-02 focus-visible:outline-none focus-visible:bg-v2-background-bg-layer-02"
                             onClick={() => {
-                              openNewTab()
+                              void openNewTab()
                               setMobileTabs("open", false)
                             }}
                           >

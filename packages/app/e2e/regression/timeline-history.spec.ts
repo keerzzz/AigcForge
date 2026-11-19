@@ -361,8 +361,7 @@ test.describe("timeline history", () => {
     const expectedMessages = fixture.expected.targetMessageIDs
     const seenParts = new Set<string>()
     const seenMessages = new Set<string>()
-
-    for (;;) {
+    const observe = async () => {
       const state = await visibleTimeline(page)
       expectOrdered(expectedParts, state.parts, "mounted parts")
       expectOrdered(expectedParts, state.visibleParts, "visible parts")
@@ -372,6 +371,12 @@ test.describe("timeline history", () => {
       state.parts.forEach((id) => seenParts.add(id))
       state.messages.forEach((id) => seenMessages.add(id))
 
+      return state
+    }
+
+    for (;;) {
+      const state = await observe()
+
       if (state.scrollTop <= 1 && seenParts.size === expectedParts.length) break
 
       if (held.length) {
@@ -380,7 +385,7 @@ test.describe("timeline history", () => {
         let previous = ""
         await expect
           .poll(async () => {
-            const next = (await visibleTimeline(page)).signature
+            const next = (await observe()).signature
             const stable = next === previous
             previous = next
 
@@ -390,8 +395,8 @@ test.describe("timeline history", () => {
         continue
       }
 
-      // Scroll instantly and only as far as rows the virtualizer has measured, so neither a smooth wheel
-      // animation nor estimated row heights can carry a step past an unmounted row.
+      // Keep consecutive observation windows overlapping. A large measured overscan row can otherwise
+      // carry a step past rows mounted during the next range and size update.
       await timelineScroller(page).evaluate((element, delta) => {
         element.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: -delta }))
         element.scrollTop -= delta
@@ -399,7 +404,7 @@ test.describe("timeline history", () => {
       const observed = { next: state }
       await expect
         .poll(async () => {
-          const next = await visibleTimeline(page)
+          const next = await observe()
           observed.next = next
 
           return held.length > 0 || (next.signature !== state.signature && next.covered)
@@ -701,7 +706,7 @@ function visibleTimeline(page: Page) {
       // Mounted rows reach the top edge, so the virtualizer has rendered this position. Below 200px the
       // timeline requests the next older page instead.
       covered: scroller.scrollTop < 200 || firstRowTop <= view.top + 1,
-      mountedAbove: Math.max(80, Math.floor(view.top - firstRowTop)),
+      mountedAbove: Math.min(Math.floor(view.height / 2), Math.max(80, Math.floor(view.top - firstRowTop))),
       errorToasts: document.querySelectorAll(".toast-v2--error").length,
       signature: JSON.stringify([
         Math.round(scroller.scrollTop),

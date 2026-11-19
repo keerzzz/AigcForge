@@ -297,9 +297,8 @@ export const layer = Layer.effect(
               durationMs,
             })
           }
-          const output = [result.result.stdout.toString("utf8"), result.result.stderr.toString("utf8")]
-            .filter(Boolean)
-            .join("\n")
+          const stderr = result.result.stderr.toString("utf8")
+          const output = [result.result.stdout.toString("utf8"), stderr].filter(Boolean).join("\n")
           if (result.result.exitCode === 0) {
             yield* Ref.update(failures, (state) => {
               state.delete(key)
@@ -325,7 +324,10 @@ export const layer = Layer.effect(
             (characters.length > 8_000 || result.result.stdoutTruncated || result.result.stderrTruncated
               ? "\n[输出已截断]"
               : "")
-          const unavailable = [126, 127].includes(result.result.exitCode)
+          // Bun's Windows shell reports a missing executable as exit 1.
+          const unavailable =
+            [126, 127].includes(result.result.exitCode) ||
+            (result.result.exitCode === 1 && /^bun: command not found: [^\r\n]+\r?$/m.test(stderr))
           yield* events.publish(SessionEvent.Verify.Failed, {
             sessionID: input.sessionID,
             tool: input.toolName,

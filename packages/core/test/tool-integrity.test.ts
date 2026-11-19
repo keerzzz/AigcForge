@@ -229,6 +229,28 @@ it.live("reports an unavailable executable without recording a code correction",
   }),
 )
 
+it.live("keeps a real exit 1 diagnostic as a code failure", () =>
+  Effect.gen(function* () {
+    const f = yield* setup()
+    yield* f.fs.writeWithDirs(
+      path.join(f.location.directory, "package.json"),
+      JSON.stringify({
+        packageManager: "bun@1.4.2",
+        scripts: {
+          typecheck: "bun -e 'console.error(\"diagnostic mentions bun: command not found: sample\"); process.exit(1)'",
+        },
+      }),
+    )
+    const result = yield* f.write("input.ts", "export const value = 1\n")
+    expect(result.status).toBe("completed")
+    expect(result.metadata?.verification).toMatchObject({
+      status: "failed",
+      packages: [{ status: "failed", executed: true, exitCode: 1 }],
+    })
+    expect((yield* f.store.facts(f.sessionID)).some((fact) => fact.key === `verify:${f.location.directory}`)).toBe(true)
+  }),
+)
+
 it.live("MC04b retains passed packages when another actual package check is unavailable", () =>
   Effect.gen(function* () {
     const f = yield* setup()
@@ -258,7 +280,7 @@ it.live("MC04b retains passed packages when another actual package check is unav
       status: "unavailable",
       packages: [
         { status: "passed", executed: true, exitCode: 0 },
-        { status: "unavailable", executed: true, exitCode: 127 },
+        { status: "unavailable", executed: true, exitCode: process.platform === "win32" ? 1 : 127 },
       ],
     })
     expect((yield* f.store.facts(f.sessionID)).filter((fact) => fact.key.startsWith("verify:"))).toHaveLength(0)

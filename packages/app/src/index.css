@@ -70,8 +70,8 @@
     mask-image:
       linear-gradient(
         to right,
-        #000 calc(100cqi - 40px - var(--session-review-header-fade)),
-        transparent calc(100cqi - 40px)
+        #000 calc(100cqi - var(--session-header-actions-width, 28px) - 12px - var(--session-review-header-fade)),
+        transparent calc(100cqi - var(--session-header-actions-width, 28px) - 12px)
       ),
       linear-gradient(to top, #000 1px, transparent 1px);
 
@@ -79,8 +79,8 @@
       mask-image:
         linear-gradient(
           to left,
-          #000 calc(100cqi - 40px - var(--session-review-header-fade)),
-          transparent calc(100cqi - 40px)
+          #000 calc(100cqi - var(--session-header-actions-width, 28px) - 12px - var(--session-review-header-fade)),
+          transparent calc(100cqi - var(--session-header-actions-width, 28px) - 12px)
         ),
         linear-gradient(to top, #000 1px, transparent 1px);
     }

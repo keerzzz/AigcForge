@@ -740,12 +740,20 @@ test("shows thinking on hover or a non-default selection while preserving keyboa
   const { editor: input } = await openSession(page, {
     name: "ComposerThinking",
     provider: provider({ id: "thinking-model", name: "Thinking Model", variants: { high: {} } }),
+    sessions: [
+      {
+        id: "ses_composerthinking",
+        title: "ComposerThinking",
+        model: { id: "thinking-model", providerID: "aigcfroge" },
+      },
+    ],
   })
 
   const composer = page.locator('[data-component="composer"]')
   const control = composer.getByRole("button", { name: "Choose model variant" })
   const option = (name: string) => page.getByRole("menuitemradio", { name, exact: true })
 
+  await expect(composer.locator('[data-action="composer-model"]')).toHaveText("Thinking Model")
   await page.mouse.move(0, 0)
   await expect(control).toHaveText("Default")
   await expect(control).toHaveCSS("opacity", "0")

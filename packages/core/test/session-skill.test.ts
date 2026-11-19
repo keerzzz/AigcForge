@@ -40,7 +40,7 @@ import { withCustomMode } from "./lib/product-mode"
 import { globalProjectNode } from "./lib/project"
 import { registerIntegrationPolicy } from "./fixture/policy"
 
-const location = Location.Ref.make({ directory: AbsolutePath.make("/project") })
+const location = Location.Ref.make({ directory: AbsolutePath.make(path.resolve("/project")) })
 const info = Skill.Info.make({
   id: Skill.ID.make("effect"),
   name: Skill.Name.make("Effect"),

@@ -236,7 +236,7 @@ describe("ReferenceChecker config", () => {
       Effect.flatMap(([, layer]) => runCheck({ sessionID, files: ["src/target.ts"] }).pipe(Effect.provide(layer))),
       Effect.map((warning) => {
         expect(warning).toContain("./target.js#missing")
-        expect(warning).toContain("src/consumer.ts")
+        expect(warning).toContain(path.join("src", "consumer.ts"))
       }),
     ),
   )

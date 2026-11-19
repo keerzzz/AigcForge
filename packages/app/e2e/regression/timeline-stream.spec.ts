@@ -1002,14 +1002,7 @@ test.describe("background shortcut", () => {
       page.locator('[data-timeline-part-id="call_shell_backgrounded"] [data-component="text-shimmer"]'),
     ).toHaveAttribute("data-active", "true")
 
-    // SAFETY: the transport forwards this payload unchanged, and the client marks a session idle from
-    // `type` and `data.sessionID` alone; the child session's event needs no durable metadata here.
-    await timeline.transport.send({
-      id: "evt_background_succeeded",
-      created: Date.now(),
-      type: "session.execution.succeeded",
-      data: { sessionID: backgroundID },
-    } as never)
+    await timeline.transport.send(status("idle", 1, backgroundID))
     await expect(backgroundCard.locator('[data-component="session-progress-indicator-v2"]')).toHaveCount(0)
     await expect(backgroundCard).toContainText("Background task (background)")
   })
@@ -1148,7 +1141,17 @@ test.describe("background shortcut", () => {
 
     await timeline.transport.send(status("idle", 1, childID))
     await expect.poll(() => exit.evaluate((animations) => animations.length)).toBeGreaterThan(0)
-    await exit.evaluate((animations) => animations.forEach((animation) => (animation.currentTime = 100)))
+    await exit.evaluate(async (animations) => {
+      await Promise.all(animations.map((animation) => animation.ready))
+      animations.forEach((animation) => {
+        const duration = animation.effect?.getComputedTiming().activeDuration
+
+        if (typeof duration !== "number" || !Number.isFinite(duration) || duration <= 0)
+          throw new Error("The working indicator must have a finite exit animation")
+
+        animation.currentTime = duration / 2
+      })
+    })
     await expect(working).toBeAttached()
 
     const midway = await title.boundingBox()
