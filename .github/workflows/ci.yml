@@ -1,89 +1,46 @@
-name: V2 focused acceptance
+name: quality environment diagnostic
 on:
   workflow_dispatch:
     inputs:
-      source_ref:
-        description: Exact source commit
+      source_sha:
+        description: Exact PR source SHA
         required: true
         type: string
-      baseline_ref:
-        description: Optional paired baseline on the same runner
-        required: false
-        type: string
-      check:
-        description: Focused check
+      merge_sha:
+        description: Exact verified PR merge checkout
         required: true
-        default: benchmark
-        type: choice
-        options: [benchmark, regression]
+        type: string
 permissions:
   contents: read
-concurrency:
-  group: v2-focused-acceptance-${{ github.ref }}
-  cancel-in-progress: false
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 jobs:
-  focused:
+  quality:
+    name: quality on ubuntu-24.04
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
-    env:
-      CI: true
-      PLAYWRIGHT_BUILD: '1'
-      PLAYWRIGHT_WORKERS: '1'
-      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.playwright-browsers
-      SOURCE_REF: ${{ inputs.source_ref }}
-      BASELINE_REF: ${{ inputs.baseline_ref }}
+    timeout-minutes: 40
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - name: Checkout exact merge
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
-          ref: ${{ inputs.source_ref }}
-          fetch-depth: 0
-      - uses: ./.github/actions/setup-bun
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
-        with:
-          node-version: '24.15'
-      - name: Record source and runner
-        shell: bash
+          ref: ${{ inputs.merge_sha }}
+          fetch-depth: 2
+      - name: Verify source and checkout
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          MERGE_SHA: ${{ inputs.merge_sha }}
         run: |
-          test "$(git rev-parse HEAD)" = "$SOURCE_REF"
-          mkdir -p acceptance-results
-          git rev-parse HEAD > acceptance-results/source-head.txt
-          uname -a > acceptance-results/runner.txt
-          lscpu >> acceptance-results/runner.txt
-          bun --version >> acceptance-results/runner.txt
-          node --version >> acceptance-results/runner.txt
-      - name: Install Chromium
-        working-directory: packages/app
-        run: bunx playwright install --with-deps chromium
-      - name: Paired baseline
-        if: inputs.check == 'benchmark' && inputs.baseline_ref != ''
-        shell: bash
-        run: |
-          set -o pipefail
-          git checkout --detach "$BASELINE_REF"
-          test "$(git rev-parse HEAD)" = "$BASELINE_REF"
-          cd packages/app
-          bunx playwright test --config e2e/performance/playwright.config.ts session-entry-benchmark.spec.ts --grep 'entry: new session from session' --workers=1 --retries=0 --repeat-each=3 --reporter=line 2>&1 | tee ../../acceptance-results/baseline.log
-          cd ../..
-          git checkout --detach "$SOURCE_REF"
-      - name: Production benchmark
-        if: inputs.check == 'benchmark'
-        working-directory: packages/app
-        shell: bash
-        run: |
-          set -o pipefail
-          test "$(git rev-parse HEAD)" = "$SOURCE_REF"
-          bunx playwright test --config e2e/performance/playwright.config.ts session-entry-benchmark.spec.ts --grep 'entry: new session from session' --workers=1 --retries=0 --repeat-each=3 --reporter=line 2>&1 | tee ../../acceptance-results/candidate.log
-      - name: Focused production regression
-        if: inputs.check == 'regression'
-        working-directory: packages/app
-        shell: bash
-        run: |
-          set -o pipefail
-          bunx playwright test regression/composer.spec.ts user-story/model-selection-flow.spec.ts regression/session-header.spec.ts regression/review.spec.ts regression/timeline-stream.spec.ts regression/timeline-history.spec.ts --grep 'thinking on hover|new project|restores each existing|SC02|review toggle stays|separates blocking|only running subagent|mounts every part' --workers=1 --retries=0 --reporter=line 2>&1 | tee ../../acceptance-results/regression.log
-      - name: Upload focused evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: focused-${{ inputs.check }}-${{ github.run_id }}
-          retention-days: 7
-          path: acceptance-results
+          test "$(git rev-parse HEAD)" = "$MERGE_SHA"
+          test "$(git rev-parse HEAD^2)" = "$SOURCE_SHA"
+          test "$(git rev-parse HEAD^1)" = d11d3c7c16f0bcf318a0197bfb647c3cf81b06fd
+          git log -1 --format='%H %P'
+          node --version
+          free -m
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+      - name: Run canonical checks
+        run: bun run check
+      - name: Check app E2E types
+        run: bun --cwd packages/app typecheck:e2e
+      - name: Lint changed files
+        run: bun run lint:changed HEAD^1
