@@ -1,0 +1,46 @@
+name: quality environment diagnostic
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact PR source SHA
+        required: true
+        type: string
+      merge_sha:
+        description: Exact verified PR merge checkout
+        required: true
+        type: string
+permissions:
+  contents: read
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+jobs:
+  quality:
+    name: quality on ubuntu-24.04
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout exact merge
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: ${{ inputs.merge_sha }}
+          fetch-depth: 2
+      - name: Verify source and checkout
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          MERGE_SHA: ${{ inputs.merge_sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$MERGE_SHA"
+          test "$(git rev-parse HEAD^2)" = "$SOURCE_SHA"
+          test "$(git rev-parse HEAD^1)" = d11d3c7c16f0bcf318a0197bfb647c3cf81b06fd
+          git log -1 --format='%H %P'
+          node --version
+          free -m
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+      - name: Run canonical checks
+        run: bun run check
+      - name: Check app E2E types
+        run: bun --cwd packages/app typecheck:e2e
+      - name: Lint changed files
+        run: bun run lint:changed HEAD^1
