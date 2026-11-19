@@ -78,13 +78,12 @@ export function PanelTrigger(props: {
     </Tooltip>
   )
 
-  const closeButton = (reveal: boolean) =>
+  const closeButton = () =>
     tooltip(
       <IconButton
         size="small"
         variant="ghost-muted"
-        class={reveal ? "hover-reveal relative z-10 group-hover:opacity-100" : undefined}
-        classList={reveal ? { "opacity-100": props.active } : undefined}
+        class="hover-reveal relative z-10 group-hover:opacity-100 group-focus-within:opacity-100"
         onPointerDown={(event) => {
           event.preventDefault()
           event.stopPropagation()
@@ -100,7 +99,13 @@ export function PanelTrigger(props: {
     )
 
   const compactClose = () =>
-    tooltip(<Tabs.CloseButton onClick={() => props.onClose(props.value)} aria-label={language.t("common.closeTab")} />)
+    tooltip(
+      <Tabs.CloseButton
+        class="hover-reveal group-hover:opacity-100 group-focus-within:opacity-100"
+        onClick={() => props.onClose(props.value)}
+        aria-label={language.t("common.closeTab")}
+      />,
+    )
 
   // The close button `closable` asks for; a plain one by default.
   const close = () => {
@@ -110,7 +115,7 @@ export function PanelTrigger(props: {
 
     if (closable === "compact") return compactClose()
 
-    return closeButton(closable === "hover")
+    return closeButton()
   }
 
   return (
@@ -120,17 +125,6 @@ export function PanelTrigger(props: {
           value={props.value}
           id={props.tab.dom?.tab}
           aria-controls={props.active ? props.tab.dom?.panel : undefined}
-        >
-          {content()}
-        </Tabs.Trigger>
-      </Match>
-      <Match when={props.tab.draggable === false && props.tab.closable === "compact"}>
-        <Tabs.Trigger
-          value={props.value}
-          id={props.tab.dom?.tab}
-          onMiddleClick={() => props.onClose(props.value)}
-          closeButton={compactClose()}
-          hideCloseButton
         >
           {content()}
         </Tabs.Trigger>
@@ -179,6 +173,7 @@ function SortableTrigger(props: {
           id={props.tab.dom?.tab}
           aria-controls={props.active ? props.tab.dom?.panel : undefined}
           aria-label={props.tab.missing ? props.tab.title : undefined}
+          class="group"
           onMiddleClick={props.tab.closable === false ? undefined : () => props.onClose(props.value)}
           onDblClick={() => {
             if (props.preview) props.onPromote(props.value)

@@ -62,6 +62,22 @@
     font-size: 13px;
   }
 
+  [data-slot="basic-tool-tool-icon"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    align-self: center;
+    color: var(--v2-text-text-muted);
+
+    [data-slot="icon-svg"] {
+      width: 18px;
+      height: 18px;
+    }
+  }
+
   [data-slot="basic-tool-tool-info-structured"] {
     flex: 0 1 auto;
     width: auto;
@@ -167,6 +183,34 @@
     display: inline-flex;
     align-items: center;
     flex-shrink: 0;
+  }
+}
+
+[data-component="collapsible"].tool-collapsible > [data-slot="collapsible-trigger"] {
+  :is(
+    [data-slot="basic-tool-tool-icon"],
+    [data-slot="tool-summary-icon"]:not([data-working]),
+    [data-slot="collapsible-arrow"]
+  ) {
+    transition: color 0.15s ease;
+  }
+
+  &:is(:hover, :focus-visible, [aria-expanded="true"]):not([data-locked]):not([data-hide-details="true"]) {
+    :is(
+      [data-slot="basic-tool-tool-icon"],
+      [data-slot="tool-summary-icon"]:not([data-working]),
+      [data-slot="collapsible-arrow"]
+    ) {
+      color: var(--text-interactive-base);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-component="collapsible"].tool-collapsible > [data-slot="collapsible-trigger"] {
+    :is([data-slot="basic-tool-tool-icon"], [data-slot="tool-summary-icon"], [data-slot="collapsible-arrow"]) {
+      transition: none;
+    }
   }
 }
 

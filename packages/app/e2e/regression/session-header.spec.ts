@@ -1496,6 +1496,14 @@ test.describe("session management", () => {
     const answer = await read
     expect(answer.status(), await answer.text()).toBe(200)
     const collaboration = page.getByRole("region", { name: "Task delegation", exact: true })
+    const technical = collaboration.getByRole("button", { name: "Technical details", exact: true })
+    const openTechnical = async () => {
+      await expect(technical).toBeVisible()
+      if ((await technical.getAttribute("aria-expanded")) !== "true") await technical.click()
+      await expect(technical).toHaveAttribute("aria-expanded", "true")
+    }
+
+    await openTechnical()
     await expect(collaboration.getByRole("heading", { name: value.delegation.title, exact: true })).toBeVisible()
     await expect(collaboration.getByText("Saved reviewer rejection", { exact: true })).toBeVisible()
     const first = collaboration.getByRole("listitem", { name: "Participant: build · par_one", exact: true })
@@ -1602,6 +1610,7 @@ test.describe("session management", () => {
     await expect(originalTool.getByText("prompt=Review the recovered work", { exact: true })).toBeVisible()
     await page.screenshot({ path: testInfo.outputPath("collaboration-original-tool.png") })
     await openSidePanel(page, "Task delegation")
+    await openTechnical()
     await first.getByRole("button", { name: "Open as main session", exact: true }).click()
     await expect(page).toHaveURL(/\/session\/ses_par_one$/)
     await expectSessionTitle(page, "Saved worker result")
@@ -1611,6 +1620,7 @@ test.describe("session management", () => {
     await expectSessionTitle(page, "Delegation consumer")
     await page.setViewportSize({ width: 390, height: 844 })
     await openSidePanel(page, "Task delegation")
+    await openTechnical()
     await expect(collaboration.getByRole("heading", { name: value.delegation.title, exact: true })).toBeVisible()
     await expect(second).toBeVisible()
     await page.screenshot({ path: testInfo.outputPath("collaboration-narrow.png") })

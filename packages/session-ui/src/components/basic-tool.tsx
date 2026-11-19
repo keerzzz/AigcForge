@@ -15,7 +15,7 @@ import { animate, type AnimationPlaybackControls } from "motion"
 import { useI18n } from "@aigcfroge/ui/context/i18n"
 import { createStore } from "solid-js/store"
 import { Collapsible } from "@aigcfroge/ui/collapsible"
-import type { IconProps } from "@aigcfroge/ui/icon"
+import { Icon, type IconProps } from "@aigcfroge/ui/icon"
 import { TextShimmer } from "@aigcfroge/ui/text-shimmer"
 
 export type TriggerTitle = {
@@ -238,6 +238,9 @@ export function BasicTool(props: BasicToolProps) {
               {(title) => (
                 <div data-slot="basic-tool-tool-info-structured">
                   <div data-slot="basic-tool-tool-info-main">
+                    <span data-slot="basic-tool-tool-icon" aria-hidden="true">
+                      <Icon name={props.icon} size="small" />
+                    </span>
                     <span
                       data-slot="basic-tool-tool-title"
                       classList={{
@@ -397,6 +400,8 @@ function args(input: Record<string, unknown> | undefined) {
 
 export function GenericTool(props: {
   tool: string
+  icon?: IconProps["name"]
+  title?: string
   status?: string
   hideDetails?: boolean
   input?: Record<string, unknown>
@@ -405,10 +410,10 @@ export function GenericTool(props: {
 
   return (
     <BasicTool
-      icon="mcp"
+      icon={props.icon ?? "mcp"}
       status={props.status}
       trigger={{
-        title: i18n.t("ui.basicTool.called", { tool: props.tool }),
+        title: props.title ?? i18n.t("ui.basicTool.called", { tool: props.tool }),
         subtitle: label(props.input),
         args: args(props.input),
       }}

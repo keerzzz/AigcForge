@@ -443,7 +443,7 @@ for (const state of [
 
     if (state.recovery !== "closed") await page.goto(sessionHref(fixture.targetID))
 
-    const header = page.locator("[data-session-title]")
+    const header = page.getByRole("heading", { name: fixture.expected.targetTitle, exact: true }).locator("..")
     const trigger = header.getByRole("button", { name, exact: true })
     const menu = page.getByRole("menu", { name, exact: true })
     const projectItem = menu.getByRole("menuitem", { name, exact: true })
@@ -490,7 +490,10 @@ for (const state of [
 
       await expect(navigation).toHaveAttribute("aria-expanded", "false")
       await navigation.click()
-      await expect(page.locator("#shell-project-sidebar")).toBeVisible()
+      const sidebar = page.locator("#shell-project-sidebar")
+      await expect(sidebar).toBeVisible()
+      await expect(sidebar.getByRole("button", { name: "Settings", exact: true })).toHaveCount(0)
+      await expect(sidebar.getByRole("button", { name: "Help", exact: true })).toHaveCount(0)
     }
 
     await trigger.click()
@@ -507,6 +510,9 @@ for (const state of [
     await expect(page.locator("#shell-project-sidebar")).toBeHidden()
     await expect(page.locator('[data-slot="home-projects-scroll"]')).toHaveCount(1)
     await expect(page.locator('[data-slot="home-panel"] [data-slot="home-projects-scroll"]')).toHaveCount(1)
+    const home = page.locator('[data-slot="home-panel"]')
+    await expect(home.getByRole("button", { name: "Settings", exact: true })).toBeVisible()
+    await expect(home.getByRole("button", { name: "Help", exact: true })).toBeVisible()
     await project.click()
     await expect(project).not.toHaveAttribute("data-selected", "")
     await expect(
@@ -533,7 +539,7 @@ test("the project menu path arrow has a glyph when the page has an older icon sp
     },
   )
   await page.goto(sessionHref(fixture.targetID))
-  const header = page.locator("[data-session-title]")
+  const header = page.getByRole("heading", { name: fixture.expected.targetTitle, exact: true }).locator("..")
   await expect(header.getByRole("heading")).toHaveText(fixture.expected.targetTitle)
   await header.getByRole("button", { name: fixture.project.name, exact: true }).click()
 
@@ -1302,7 +1308,7 @@ test("Home filters mode before its quota, persists the filter, and keeps cross-m
 
   await tab.click()
   await expectPath(page, sessionHref("ses_home_mode_coding_199"))
-  await expect(page.locator("[data-session-title]").getByRole("heading")).toHaveText("Home coding 199")
+  await expect(page.getByRole("heading", { name: "Home coding 199", exact: true })).toBeVisible()
   await expect(page.locator('[data-component="composer-editor"]')).toBeEditable({ timeout: APP_READY_TIMEOUT })
   await page.getByRole("button", { name: "Home", exact: true }).click()
   await expectPath(page, "/")
@@ -1691,7 +1697,7 @@ for (const state of ["cached", "pending"] as const) {
       await expect(results.getByRole("option")).toContainText("Home remote child exact")
       await results.getByRole("option").click()
       await expectPath(page, sessionHref("ses_home_scope_remote_child", REMOTE_SERVER))
-      await expect(page.locator("[data-session-title]").getByRole("heading")).toHaveText("Home remote child exact")
+      await expect(page.getByRole("heading", { name: "Home remote child exact", exact: true })).toBeVisible()
       await expect(page.getByRole("button", { name: "Back to main session.", exact: true })).toBeEnabled()
     } finally {
       late?.release()

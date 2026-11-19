@@ -106,6 +106,17 @@ test("web browser module uses the shared launcher without native IPC or extra co
   await page.locator('[data-component="composer-editor"]').click()
   await page.keyboard.press("Control+Shift+B")
   await expect(panel).toBeVisible()
+  const browserTab = page.locator("#review-panel").getByRole("tab", { name: "Browser", exact: true })
+  const browserClose = browserTab.locator("..").getByRole("button", { name: "Close tab", exact: true })
+  await page.locator('[data-component="composer-editor"]').click()
+  await page.mouse.move(0, 0)
+  await expect(browserClose).toHaveCSS("opacity", "0")
+  await browserTab.hover()
+  await expect(browserClose).toHaveCSS("opacity", "1")
+  await browserClose.click()
+  await expect(browserTab).toHaveCount(0)
+  await page.locator('[data-component="composer-editor"]').press("Control+Shift+B")
+  await expect(panel).toBeVisible()
   await testInfo.attach("browser-reopened-geometry", {
     body: JSON.stringify(await geometry(), null, 2),
     contentType: "application/json",
@@ -653,6 +664,50 @@ test("Chat launcher shares Context and Review tabs with original controls and di
   }
 })
 
+test("panel close controls reveal on hover and preserve the draft and closed tabs after reload", async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  const title = "Panel close controls"
+  await openSession(page, {
+    name: "PanelCloseControls",
+    sessions: [{ id: "ses_panel_close_controls", title, mode: "chat" }],
+    vcsDiff: [],
+  })
+  await openSidePanel(page, "Context")
+  await openSidePanel(page, "Review")
+  const side = page.locator("#review-panel")
+  const add = side.getByRole("button", { name: "Add tab", exact: true })
+  const launcher = side.locator('[data-component="session-panel-launcher"]')
+  const context = side.getByRole("tab", { name: "Context", exact: true })
+  const review = side.locator("#session-side-panel-review-tab")
+  const composer = page.locator('[data-component="composer-editor"]')
+  await composer.fill("Keep this draft while closing panels")
+  for (const [name, tab] of [
+    ["Context", context],
+    ["Review", review],
+  ] as const) {
+    const close = tab.locator("..").getByRole("button", { name: "Close tab", exact: true })
+    await composer.click()
+    await page.mouse.move(0, 0)
+    await expect(close).toHaveCSS("opacity", "0")
+    await tab.hover()
+    await expect(close).toHaveCSS("opacity", "1")
+    await close.click()
+    await expect(tab).toHaveCount(0)
+    await expect(composer).toHaveText("Keep this draft while closing panels")
+    await add.click()
+    await launcher.getByRole("button", { name, exact: true }).click()
+    await expect(tab).toHaveAttribute("aria-selected", "true")
+  }
+  await review.locator("..").getByRole("button", { name: "Close tab", exact: true }).click()
+  await page.reload()
+  await expectSessionTitle(page, title)
+  await expect(review).toHaveCount(0)
+  await expect(context).toHaveCount(1)
+  await expect(composer).toHaveText("Keep this draft while closing panels")
+  await openSidePanel(page, "Review")
+  await expect(review).toHaveAttribute("aria-selected", "true")
+})
+
 test("side-panel shortcuts follow saved custom bindings and retain the composer draft", async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   const title = "Custom sidebar shortcuts"
@@ -696,7 +751,7 @@ test("side-panel shortcuts follow saved custom bindings and retain the composer 
 test("the new tab launcher follows Chat, Coding, Work, Custom, and Assistant session modes", async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
 
-  const common = ["Context", "Open file", "Task delegation"]
+  const common = ["Context", "Open file", "Task delegation", "Review"]
 
   const proposals = [
     "Skill proposals",
@@ -715,7 +770,7 @@ test("the new tab launcher follows Chat, Coding, Work, Custom, and Assistant ses
     },
     {
       session: { id: "ses_launcher_coding", title: "Launcher Coding", mode: "coding" },
-      visible: [...common, "Review"],
+      visible: common,
     },
     {
       session: {
@@ -879,7 +934,7 @@ test("the new tab launcher follows Chat, Coding, Work, Custom, and Assistant ses
   }
 })
 
-test("Chat review launcher availability follows filesystem events while its guide stays selected", async ({ page }) => {
+test("Chat review stays reopenable while filesystem events update its unselected tab", async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
 
   // SAFETY: The VCS fixture starts empty; every added entry comes from fileDiff().
@@ -898,12 +953,12 @@ test("Chat review launcher availability follows filesystem events while its guid
   const entry = launcher.getByRole("button", { name: "Review", exact: true })
   const initial = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/vcs/diff"))
 
-  await page.getByRole("button", { name: "Toggle review", exact: true }).click()
+  await openSidePanel(page, "Review")
   expect((await initial).status()).toBe(200)
   await expect(side.getByText("No file changes yet", { exact: true })).toBeVisible()
   await side.getByRole("button", { name: "Add tab", exact: true }).click()
   await expect(guide).toHaveAttribute("aria-selected", "true")
-  await expect(entry).toHaveCount(0)
+  await expect(entry).toBeVisible()
   await expect(launcher.getByRole("button", { name: "Context", exact: true })).toBeVisible()
 
   const changed = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/vcs/diff"))
@@ -936,7 +991,7 @@ test("Chat review launcher availability follows filesystem events while its guid
     },
   ])
   expect((await removed).status()).toBe(200)
-  await expect(entry).toHaveCount(0)
+  await expect(entry).toBeVisible()
   await expect(review).toHaveText("Review")
   await expect(review).toHaveAttribute("data-value", "review:changes")
   await expect(review).toHaveCount(1)

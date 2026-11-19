@@ -365,11 +365,18 @@ export function getToolInfo(
       const type = Predicate.isString(raw) && raw ? raw[0].toUpperCase() + raw.slice(1) : undefined
 
       return {
-        icon: "task",
+        icon: "subagent",
         title: agentTitle(i18n, type),
         subtitle: Predicate.isString(input.description) ? input.description : undefined,
       }
     }
+
+    case "task":
+      return {
+        icon: Predicate.isObject(input.target) && input.target.type === "new_root" ? "new-session" : "task",
+        title: i18n.t("ui.tool.task"),
+        subtitle: Predicate.isString(input.description) ? input.description : undefined,
+      }
 
     case "shell":
       return {
@@ -547,7 +554,10 @@ export function CurrentContextToolGroup(props: {
   )
 
   const icon = createMemo(() => {
-    const kinds = new Set(props.parts.map((part) => (part.type === "tool" ? part.name : part.type)))
+    const actions = props.parts.filter((part) => part.type === "tool" || part.type === "shell")
+    const kinds = new Set(
+      (actions.length ? actions : props.parts).map((part) => (part.type === "tool" ? part.name : part.type)),
+    )
 
     if (kinds.size !== 1) return "glasses"
 
@@ -559,7 +569,16 @@ export function CurrentContextToolGroup(props: {
 
     if (!tool) return "glasses"
 
-    return getToolInfo(tool.name, undefined, tool.name === "websearch" ? currentToolMetadata(tool) : undefined).icon
+    const selectedIcon = getToolInfo(
+      tool.name,
+      tool.name === "task" ? currentToolInput(tool) : undefined,
+      tool.name === "websearch" ? currentToolMetadata(tool) : undefined,
+    ).icon
+
+    return tool.name === "task" &&
+      tools().some((item) => getToolInfo(item.name, currentToolInput(item)).icon !== selectedIcon)
+      ? "task"
+      : selectedIcon
   })
 
   const names = createMemo(() =>
@@ -1866,6 +1885,15 @@ ToolRegistry.register({
         <ExaOutput output={props.output} />
       </BasicTool>
     )
+  },
+})
+
+ToolRegistry.register({
+  name: "task",
+  render(props) {
+    const info = createMemo(() => getToolInfo(props.tool, props.input, props.metadata))
+
+    return <GenericTool {...props} icon={info().icon} title={info().title} />
   },
 })
 

@@ -11,7 +11,7 @@ import { mockServers, type MockGoalMutation } from "../utils/mock-server"
 import { installSseTransport } from "../utils/sse-transport"
 import { expectSessionTitle } from "../utils/waits"
 import { mockWorkspace, type WorkspaceInput } from "../utils/workspace"
-import { attachSession } from "../utils/side-panel"
+import { attachSession, openSidePanel } from "../utils/side-panel"
 
 const directory = "C:/AigcForge/RequestDocks"
 
@@ -917,6 +917,7 @@ test("MP03 Task dock and notice open the exact saved operation without reading l
   const targetID = "ses_mp03_task_target"
   const taskID = "tsk_mp03_operation"
   const operationID = "top_mp03_operation"
+  const taskTitle = "Inspect the exact saved operation"
 
   const operations: SessionTaskOperationInfo[] = [
     {
@@ -963,7 +964,7 @@ test("MP03 Task dock and notice open the exact saved operation without reading l
     new SessionTask.Info({
       id: taskID,
       sessionID: sourceID,
-      content: "Inspect the exact saved operation",
+      content: taskTitle,
       status: "in_progress",
       priority: "high",
       revision: 1,
@@ -1032,10 +1033,35 @@ test("MP03 Task dock and notice open the exact saved operation without reading l
   await expectSessionTitle(page, "Task operation source")
   await transport.waitForConnection()
   const dock = page.getByRole("region", { name: "Tasks", exact: true })
-  await dock.getByRole("button", { name: "View details for Inspect the exact saved operation", exact: true }).click()
+  await dock.getByRole("button", { name: `View details for ${taskTitle}`, exact: true }).click()
   const side = page.locator("#review-panel")
   const details = side.getByRole("region", { name: "Task details", exact: true })
   const dispatch = details.getByRole("article", { name: `Dispatch ${operationID}`, exact: true })
+  await expect(dispatch).toContainText("Awaiting source Task update")
+  await details.getByRole("button", { name: "Back to collaborations", exact: true }).click()
+  await openSidePanel(page, "Task delegation")
+  const monitor = side.getByRole("region", { name: "Task dispatch", exact: true })
+  const running = monitor.getByRole("button", { name: "Running", exact: true })
+  const completed = monitor.getByRole("button", { name: "Completed", exact: true })
+  const taskList = monitor.getByRole("region", { name: "Tasks", exact: true })
+  const taskButton = taskList.getByRole("button", { name: `View task: ${taskTitle}`, exact: true })
+  const overview = side.getByRole("region", { name: "Task overview", exact: true })
+
+  await expect(running.getByText("1", { exact: true })).toBeVisible()
+  await expect(completed.getByText("0", { exact: true })).toBeVisible()
+  await completed.click()
+  await expect(completed).toHaveAttribute("aria-pressed", "true")
+  await expect(taskButton).toHaveCount(0)
+  await running.click()
+  await expect(running).toHaveAttribute("aria-pressed", "true")
+  await expect(taskButton).toHaveCount(1)
+  await taskButton.click()
+  await expect(overview.getByRole("heading", { name: taskTitle, exact: true })).toBeVisible()
+  await overview.getByRole("button", { name: "All tasks", exact: true }).click()
+  await expect(running).toHaveAttribute("aria-pressed", "true")
+  await expect(taskButton).toHaveCount(1)
+  await taskButton.click()
+  await overview.getByRole("button", { name: "Task details", exact: true }).click()
   await expect(dispatch.getByText("Exact saved dispatch prompt", { exact: true })).toBeVisible()
   await expect(dispatch.getByText("Complete durable Task result\nSecond result line", { exact: true })).toBeVisible()
   await expect(dispatch).toContainText("Awaiting source Task update")
@@ -1078,6 +1104,46 @@ test("MP03 Task dock and notice open the exact saved operation without reading l
   await expect(dispatch.getByRole("button", { name: "Read result text", exact: true })).toHaveCount(0)
   expect(reads).not.toContain(targetID)
   await details.getByRole("button", { name: "Back to collaborations", exact: true }).click()
+  await expect(overview.getByRole("heading", { name: taskTitle, exact: true })).toBeVisible()
+  await overview.getByRole("button", { name: "All tasks", exact: true }).click()
+  await expect(running).toHaveAttribute("aria-pressed", "true")
+  await expect(running.getByText("1", { exact: true })).toBeVisible()
+  await expect(completed.getByText("0", { exact: true })).toBeVisible()
+  await expect(taskButton).toHaveCount(1)
+
+  const currentTask = tasks[0]
+
+  if (!currentTask) throw new Error("The saved Task fixture is missing")
+  tasks[0] = new SessionTask.Info({
+    ...currentTask,
+    status: "completed",
+    outputDigest: persisted.result?.text,
+    revision: currentTask.revision + 1,
+    updatedAt: 5,
+  })
+  const taskUpdated = page.waitForResponse(
+    (response) =>
+      response.request().method() === "GET" && new URL(response.url()).pathname === `/session/${sourceID}/task`,
+  )
+
+  await transport.send({
+    id: "evt_mp03_task_completed",
+    created: 5,
+    type: SessionTaskEvent.Updated.type,
+    location: { directory },
+    data: {
+      sessionID: sourceID,
+      tasks: tasks.map((task) => ({ ...task, dependsOn: task.dependsOn && [...task.dependsOn] })),
+    },
+  })
+  expect((await taskUpdated).status()).toBe(200)
+  await expect(running.getByText("0", { exact: true })).toBeVisible()
+  await expect(completed.getByText("1", { exact: true })).toBeVisible()
+  await expect(taskButton).toHaveCount(0)
+  await completed.click()
+  await expect(completed).toHaveAttribute("aria-pressed", "true")
+  await expect(taskButton).toHaveCount(1)
+  await expect(taskList.getByText("Completed", { exact: true })).toBeVisible()
 
   const notice = page
     .locator('[data-slot="session-chat-panel"] [data-slot="session-timeline-coordination"]')

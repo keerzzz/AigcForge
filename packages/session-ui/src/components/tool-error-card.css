@@ -86,8 +86,15 @@
     }
   }
 
-  [data-component="tool-error-card-icon"] [data-slot="icon-svg"] {
-    color: var(--card-accent);
+  [data-component="tool-error-card-icon"] {
+    width: 18px;
+    height: 18px;
+
+    [data-slot="icon-svg"] {
+      width: 18px;
+      height: 18px;
+      color: var(--card-accent);
+    }
   }
 
   [data-slot="tool-error-card-content"] {
