@@ -49,6 +49,10 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24.15'
+      - name: Install ripgrep on Windows
+        if: inputs.check == 'windows_unit'
+        shell: bash
+        run: choco install ripgrep --yes --no-progress
       - name: Record Windows source and runner
         id: windows_source
         if: inputs.check == 'windows_unit'
@@ -66,6 +70,7 @@ jobs:
           printf 'RUNNER_OS=%s\nRUNNER_ARCH=%s\n' "$RUNNER_OS" "$RUNNER_ARCH" > acceptance-results/runner.txt
           uname -a >> acceptance-results/runner.txt
           git --version >> acceptance-results/runner.txt
+          rg --version >> acceptance-results/runner.txt
           bun --version >> acceptance-results/runner.txt
           node --version >> acceptance-results/runner.txt
           cat acceptance-results/source-head.txt
