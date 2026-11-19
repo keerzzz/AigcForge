@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        check: [paging]
+        check: [quality, paging]
     env:
       CI: true
       PLAYWRIGHT_BUILD: '1'
@@ -28,7 +28,7 @@ jobs:
           git rev-parse HEAD
           cp .github/acceptance/candidate.patch "$RUNNER_TEMP/candidate.patch"
           cp .github/acceptance/candidate-files.json "$RUNNER_TEMP/candidate-files.json"
-          test "$(sha256sum "$RUNNER_TEMP/candidate.patch" | cut -d' ' -f1)" = f32744df72c170931d1f1e35e2dbc36f6b35116332046ad5d8d6623f926d89dd
+          test "$(sha256sum "$RUNNER_TEMP/candidate.patch" | cut -d' ' -f1)" = 23f46ce690efa0b6d2ccf3bf7553be51a9ba63b0bf56d5253631d80f197a27ac
       - name: Checkout exact PR merge
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
@@ -49,20 +49,11 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24.15'
-      - name: Select workspace serial lint candidate
+      - name: Select full lint memory budget candidate
         if: matrix.check == 'quality'
         run: |
-          cat > "$RUNNER_TEMP/lint-workspaces.sh" <<'LINT'
-          set -euo pipefail
-          for lint_manifest in packages/*/package.json; do
-            lint_directory=${lint_manifest%/package.json}
-            echo "LINT_WORKSPACE $lint_directory"
-            ./node_modules/.bin/oxlint "$lint_directory"
-          done
-          echo LINT_OUTSIDE_WORKSPACES
-          ./node_modules/.bin/oxlint --ignore-pattern 'packages/**' .
-          LINT
-          bun -e 'const file="package.json"; const text=await Bun.file(file).text(); const before="\"lint\": \"oxlint && "; if(text.split(before).length!==2) throw new Error("Unexpected lint command"); await Bun.write(file,text.replace(before,"\"lint\": \"bash "+process.env.RUNNER_TEMP+"/lint-workspaces.sh && "))'
+          bun -e 'const file="package.json"; const text=await Bun.file(file).text(); const before="\"lint\": \"oxlint && "; if(text.split(before).length!==2) throw new Error("Unexpected lint command"); await Bun.write(file,text.replace(before,"\"lint\": \"GOMEMLIMIT=6GiB NODE_OPTIONS=--max-old-space-size=3072 oxlint && "))'
+          git diff -- package.json
       - name: Run canonical quality candidate with resource observations
         if: matrix.check == 'quality'
         run: |
@@ -72,14 +63,31 @@ jobs:
               free -m
               ps -eo pid,ppid,rss,comm --sort=-rss | head -12
               cat /proc/pressure/memory
+              python3 - <<'BUDGET'
+          from pathlib import Path
+          import json, os
+          for process in Path('/proc').iterdir():
+              if not process.name.isdigit():
+                  continue
+              try:
+                  executable = Path(os.readlink(process / 'exe')).name
+                  if executable not in ('tsgolint', 'node', 'bun'):
+                      continue
+                  values = (process / 'environ').read_bytes().split(b'\0')
+                  selected = [value.decode() for value in values if value.startswith((b'GOMEMLIMIT=', b'NODE_OPTIONS='))]
+                  if selected:
+                      print('RUNTIME_BUDGET', json.dumps({'pid': int(process.name), 'executable': executable, 'settings': selected}))
+              except (OSError, PermissionError):
+                  pass
+          BUDGET
               sleep 5
             done
           ) &
           resource_monitor_pid=$!
           trap 'kill "$resource_monitor_pid" 2>/dev/null || true' EXIT
-          bun run check
+          timeout --signal=TERM --kill-after=60s 20m bun run check
           bun --cwd packages/app typecheck:e2e
-          bun run lint:changed HEAD^1
+          GOMEMLIMIT=6GiB NODE_OPTIONS=--max-old-space-size=3072 timeout --signal=TERM --kill-after=60s 20m bun run lint:changed HEAD^1
       - name: Install Chromium
         if: matrix.check == 'paging'
         working-directory: packages/app
