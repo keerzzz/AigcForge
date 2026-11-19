@@ -1,7 +1,7 @@
 {
   ".github/workflows/ci.yml": "e2827c101b705788dc30e2b497fea302babfc76caae7718955aaca294db2febc",
   ".oxlintrc.json": "e38e1e0ddfb2699daed9aa7b68e473e4b247c348bc95de30c5e92e5d4b5f3abd",
-  "docs/review/v2-main-integration-2026-11-18.md": "42655fd886463aafec84c1612c6c44a40075832cb2a46cf96fff12835e485e96",
+  "docs/review/v2-main-integration-2026-11-18.md": "a9d8369c5983e6ef4c18786960e6cbe7bc4b8a9858861669ba49c87e2317788b",
   "docs/testing.md": "d08183c5e8db85c728c29a57311ff1af0c842589a5d0defb90e0152b306d2ed2",
   "package.json": "fca40a04422571b3a21cc8ad37a67ce86da2c38a99628ea4fd8250207d1dc140",
   "packages/app/src/composer/selection.test.ts": "17ddf8e03b5b38a8f72c571a36822b353a513478c7f2aeacf4accebe8d9c471f",
@@ -59,6 +59,6 @@
   "packages/tui/src/context/local.tsx": "ed3ab820288650efe2f4fd77d14a6768faf95fe9514b7992c606ffd5a83b33b0",
   "packages/tui/src/routes/session/index.tsx": "91b48d04d4a3d2faa7848b0dfa15d8ab3d5178a98c3cadb8769b630f36abeb78",
   "packages/tui/test/meta-management.test.tsx": "a4d84cd44cd0890188c2d2336e43212bce9287b0a8f5100eda9b1437047859bb",
-  "packages/tui/test/mini/stream-v2.transport.test.ts": "3aaac4a8e79935ffb1fe6f1f77329f456a5fbe5a5618dbc67b6783d47f3d9945",
+  "packages/tui/test/mini/stream-v2.transport.test.ts": "0ce6041ae0c4726202ba89c41d882e6f8bb771799019739cdf8918a9581d7720",
   "packages/tui/test/theme/v2/resolve.test.ts": "c5a00139511f3e8599ea52ac4de507b5140e22b60ff324bd01973f15d64073e3"
 }

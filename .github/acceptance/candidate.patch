@@ -36,10 +36,10 @@ index 6a05184513..08c78513fa 100644
      ".agent/**",
      ".agents/**",
 diff --git a/docs/review/v2-main-integration-2026-11-18.md b/docs/review/v2-main-integration-2026-11-18.md
-index ac9acc1ceb..21cac39e97 100644
+index ac9acc1ceb..b90c2073ff 100644
 --- a/docs/review/v2-main-integration-2026-11-18.md
 +++ b/docs/review/v2-main-integration-2026-11-18.md
-@@ -181,3 +181,21 @@ Formal production E2E reports 625 passed, five failed and four flaky on Linux; W
+@@ -181,3 +181,23 @@ Formal production E2E reports 625 passed, five failed and four flaky on Linux; W
  Four titlebar New keepers now bind the source Session to the model declared in its fixture catalog and wait for the exact source label before navigation. An actual mock HTTP before/after probe confirms all four model identities; this is fixture evidence, not browser credit. MP03 reload snapshots already contain the correct Communications detail and saved request, so the keeper waits for that panel instead of the absent list-page Advanced button. Its exact retry, reply, identity and duplicate checks remain. Paging treats empty observation arrays as not ready, retains strict ordering for nonempty samples and credits mounted partial history. All three readiness waits return to the outer release path when another held request appears. The stress-case budget is 600 seconds; final complete part/message coverage and page-error assertions remain. Windows's prior ten-second progress failure still needs the new browser run.
  
  The Windows App component log records Storybook exiting with ERR_STREAM_WRITE_AFTER_END under Bun 1.4.2, followed by one failed dynamic import and 86 refused connections. The shared launch command now follows the installed CLI's Node shebang by removing --bun. A package-local CLI probe confirms Storybook 10.4.4 runs on Node 24.15.0, matching hosted E2E; the log does not identify the stream or middleware that produced the fatal error. Both component suites retain their original assertions and retry settings. The three App files and Storybook configuration pass scoped syntax lint with zero diagnostics; the six affected browser scenarios collect. All six final source/test syntax trees are unchanged by formatting. Windows component execution, full typed checks and all seven required contexts remain pending on the new source.
@@ -58,9 +58,11 @@ index ac9acc1ceb..21cac39e97 100644
 +
 +The observer now refreshes the native offset only when delivering idle state; active scrolling retains its event value. Reconnection checks use the same axis and RTL normalization. All seven offset keepers pass locally with 22 expectations, including the three real timers that failed before the correction. The patch uses the existing observer and native position, preserving the virtualizer's adjustment policy.
 +
-+Two remaining integration assertions are corrected at their existing owners. Mini transport's admission fixture copies readonly request arrays into mutable result arrays, preserving element values and the generated client's direct result shape; its 70 original cases pass with 194 expectations. Desktop's shared raw-row reader now verifies that each extension id is a string. An actual migrated SQLite database accepts a binary id in its non-STRICT TEXT column; before the fix, the early snapshot incorrectly exposes that binary value through the string bridge. The corrected reader skips non-string identities at that single raw-row boundary, keeping every valid string row and the existing strict current/legacy matching behavior. A mixed valid/binary-row fixture rejects the initial whole-read failure candidate and confirms the final reader preserves the complete valid snapshot. Thirteen window-snapshot and manager cases pass with 39 expectations, covering mixed invalid/valid rows, saved storage, and the original valid/current/legacy enable-state resolution. The enabled comparison remains exactly `row.enabled === 1`; no database data is rewritten.
++Two remaining integration assertions are corrected at their existing owners. Mini transport's no-attachment Group keeper now reuses the adjacent text-only admission receipt. The request carries URI references, while the canonical response requires resolved attachment data, MIME and source; copying the request arrays did not satisfy that contract. The shared helper retains its original array references, and the keeper asserts that this request has no files. Its original Group switch, queue, variant rejection and one-prompt assertions remain; all 70 original cases pass with 194 expectations. Desktop's shared raw-row reader now verifies that each extension id is a string. An actual migrated SQLite database accepts a binary id in its non-STRICT TEXT column; before the fix, the early snapshot incorrectly exposes that binary value through the string bridge. The corrected reader skips non-string identities at that single raw-row boundary, keeping every valid string row and the existing strict current/legacy matching behavior. A mixed valid/binary-row fixture rejects the initial whole-read failure candidate and confirms the final reader preserves the complete valid snapshot. Thirteen window-snapshot and manager cases pass with 39 expectations, covering mixed invalid/valid rows, saved storage, and the original valid/current/legacy enable-state resolution. The enabled comparison remains exactly `row.enabled === 1`; no database data is rewritten.
 +
 +The remaining integration lint fixes make void returns explicit and reuse existing type-aware keys, record narrowing and Immer draft identity operations. Typed copy-on-write maps still return their owned objects. Independent review found one missed map registration; the existing model-plugin keeper fails with the missed registration and passes all six cases after its correction, with 47 expectations. Full typed lint and the approved snapshot increment will validate the complete frozen candidate in hosted quality.
++
++Complete quality candidate V2, run `44493070435`, passed root lint with 3,952 warnings and zero errors. Five package type tasks completed before the no-attachment TUI fixture error stopped the graph. Core emitted a task header without a completion result; App E2E types and snapshot increment were skipped. The corrected candidate requires a fresh complete quality run before final source publication.
 diff --git a/docs/testing.md b/docs/testing.md
 index 1d7c28e1e6..696cc6f562 100644
 --- a/docs/testing.md
@@ -2273,31 +2275,29 @@ index 4362762077..da9a1cd06c 100644
    })
    await setup.ready
 diff --git a/packages/tui/test/mini/stream-v2.transport.test.ts b/packages/tui/test/mini/stream-v2.transport.test.ts
-index f00d272b56..2e2ac0a51b 100644
+index f00d272b56..78f51b4e63 100644
 --- a/packages/tui/test/mini/stream-v2.transport.test.ts
 +++ b/packages/tui/test/mini/stream-v2.transport.test.ts
-@@ -86,8 +86,8 @@ function promptAdmission(input: Parameters<AigcForgeClient["session"]["prompt"]>
-     type: "user" as const,
-     payload: {
-       text: input.text,
--      files: input.files,
--      agents: input.agents,
-+      files: input.files?.slice(),
-+      agents: input.agents?.slice(),
-       metadata: input.metadata,
-     },
-     delivery: input.delivery ?? ("steer" as const),
-@@ -238,9 +238,7 @@ describe("V2 mini transport", () => {
+@@ -238,8 +238,8 @@ describe("V2 mini transport", () => {
      const client = sdk({ streams: [events] })
      const ui = footer()
      const transport = await createSessionTransport({ sdk: client, sessionID: "ses_1", thinking: false, footer: ui.api })
 -    const prompt = spyOn(client.session, "prompt").mockImplementation(
 -      (request) => ok(promptAdmission(request)) as never,
--    )
-+    const prompt = spyOn(client.session, "prompt").mockImplementation((request) => ok(promptAdmission(request)))
++    const prompt = spyOn(client.session, "prompt").mockImplementation((request) =>
++      ok({ ...promptAdmission(request), payload: { text: request.text } }),
+     )
      const group = { type: "group" as const, groupID: "fallback" }
      await transport.admitPromptTurn(
-       {
+@@ -255,7 +255,7 @@ describe("V2 mini transport", () => {
+     )
+     expect(client.session.switchModel).toHaveBeenCalledWith({ sessionID: "ses_1", model: group }, expect.anything())
+     expect(prompt).toHaveBeenCalledWith(
+-      expect.objectContaining({ id: "msg_group", delivery: "queue" }),
++      expect.objectContaining({ id: "msg_group", delivery: "queue", files: undefined }),
+       expect.anything(),
+     )
+     await expect(
 diff --git a/packages/tui/test/theme/v2/resolve.test.ts b/packages/tui/test/theme/v2/resolve.test.ts
 index 393b1d56c4..c7355f7a69 100644
 --- a/packages/tui/test/theme/v2/resolve.test.ts
