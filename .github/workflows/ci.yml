@@ -1,4 +1,4 @@
-name: V2 final integration quality verification
+name: V2 complete integration quality verification
 on:
   workflow_dispatch:
 permissions:
@@ -15,8 +15,8 @@ jobs:
           git rev-parse HEAD
           cp .github/acceptance/candidate.patch "$RUNNER_TEMP/candidate.patch"
           cp .github/acceptance/candidate-files.json "$RUNNER_TEMP/candidate-files.json"
-          test "$(sha256sum "$RUNNER_TEMP/candidate.patch" | cut -d' ' -f1)" = 0ef93f8919676b3f2cacdf5139d6e2bfd776d56325548e9618d301bf300ae657
-          test "$(sha256sum "$RUNNER_TEMP/candidate-files.json" | cut -d' ' -f1)" = 424719afdea64d211702a450848bf7764ca76a25aed19427da3ccc6f0ea4b9c2
+          test "$(sha256sum "$RUNNER_TEMP/candidate.patch" | cut -d' ' -f1)" = a0958380875e17f50bfb2220412e399464714fdf587d14d15f1c1b111650a157
+          test "$(sha256sum "$RUNNER_TEMP/candidate-files.json" | cut -d' ' -f1)" = 2b0287da5645fdf105ac35a259d0ea4605461d40dff302f589e89d78d6ac165d
       - name: Checkout exact PR merge
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:

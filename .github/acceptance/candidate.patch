@@ -584,7 +584,7 @@ index efef50ce46..da895758b3 100644
  
        const last = current.last
 diff --git a/packages/core/src/provider.ts b/packages/core/src/provider.ts
-index b40364036b..56c2bce9bc 100644
+index b40364036b..98d4a5d39a 100644
 --- a/packages/core/src/provider.ts
 +++ b/packages/core/src/provider.ts
 @@ -16,7 +16,7 @@ import { State } from "./state.js"
@@ -629,7 +629,7 @@ index b40364036b..56c2bce9bc 100644
              const current = target.get(modelID)
              const model = // An earlier add/set can publish and freeze an owned model within this fold.
 -              (
-+              castDraft(
++              castDraft<Model.Info>(
                  current && models.has(current) && !Object.isFrozen(current)
                    ? current
                    : current
@@ -844,14 +844,22 @@ index 6485081f12..1e3cc56047 100644
      .flatMap((attempt) => {
        const terminal = attempt.terminal
 diff --git a/packages/core/src/session/runner/to-llm-message.ts b/packages/core/src/session/runner/to-llm-message.ts
-index 9a9da99d71..cd95b721cf 100644
+index 9a9da99d71..4cc29a561b 100644
 --- a/packages/core/src/session/runner/to-llm-message.ts
 +++ b/packages/core/src/session/runner/to-llm-message.ts
-@@ -360,6 +360,7 @@ function toLLMMessage(
+@@ -11,6 +11,7 @@ import { Model } from "@aigcfroge/schema/model"
+ import { SessionCommunication } from "@aigcfroge/schema/session-communication"
+ import { SessionID } from "@aigcfroge/schema/session-id"
+ import { Option, Schema } from "effect"
++import { absurd } from "effect/Function"
+ import { fileURLToPath } from "url"
+ import { SessionMessage } from "../message.js"
+ import { SessionProviderContext } from "../provider-context.js"
+@@ -360,6 +361,7 @@ function toLLMMessage(
          }),
        ]
    }
-+  return undefined
++  return absurd(message)
  }
  
  /** Translate projected Session history into canonical @aigcfroge/ai context. */
@@ -1467,28 +1475,46 @@ index b78d913228..b7881310ee 100644
  )
  
 diff --git a/packages/core/test/plugin/provider-github-copilot.test.ts b/packages/core/test/plugin/provider-github-copilot.test.ts
-index e7d1b2ed7d..38e0d31233 100644
+index e7d1b2ed7d..e953eb8792 100644
 --- a/packages/core/test/plugin/provider-github-copilot.test.ts
 +++ b/packages/core/test/plugin/provider-github-copilot.test.ts
-@@ -143,7 +143,7 @@ describe("GithubCopilotPlugin", () => {
+@@ -23,6 +23,7 @@ import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
+ import { Provider } from "@aigcfroge/core/provider"
+ import { Integration } from "@aigcfroge/core/integration"
+ import { Credential } from "@aigcfroge/core/credential"
++import { isRecord } from "@aigcfroge/core/util/record"
+ import type { SessionRequestKind } from "@aigcfroge/plugin/effect/session"
+ import { fakeSelectorSdk } from "../fixture/selector"
+ import { pollWithTimeout, testEffect } from "../lib/effect"
+@@ -143,7 +144,8 @@ describe("GithubCopilotPlugin", () => {
                  })
                }
                if (path.endsWith("/chat/completions")) {
 -                const body = (await request.json()) as { model?: unknown }
-+                const body: { model?: unknown } = await request.json()
++                const body = await request.json()
++                if (!isRecord(body)) throw new TypeError("Expected model request object")
                  titleRequests.push({ path, authorization: request.headers.get("authorization"), model: body.model })
                  return Response.json({ choices: [{ message: { content: `Account ${account} title` } }] })
                }
 diff --git a/packages/core/test/provider-discovery.test.ts b/packages/core/test/provider-discovery.test.ts
-index 2df28b8ff9..6be233c243 100644
+index 2df28b8ff9..6ccaf22751 100644
 --- a/packages/core/test/provider-discovery.test.ts
 +++ b/packages/core/test/provider-discovery.test.ts
-@@ -980,7 +980,7 @@ describe("P5 Magpie standard protocols", () => {
+@@ -20,6 +20,7 @@ import { Provider } from "@aigcfroge/core/provider"
+ import { ProviderDiscovery } from "@aigcfroge/core/provider/discovery"
+ import { ProviderDiscoveryHTTP } from "@aigcfroge/core/provider/discovery-http"
+ import { SessionUsage } from "@aigcfroge/core/session/usage"
++import { isRecord } from "@aigcfroge/core/util/record"
+ import { ConfigProvider } from "@aigcfroge/schema/config/provider"
+ import { Document, Info } from "@aigcfroge/schema/config"
+ import { Money } from "@aigcfroge/schema/money"
+@@ -980,7 +981,8 @@ describe("P5 Magpie standard protocols", () => {
          const running = yield* server(async (request) => {
            const path = new URL(request.url).pathname
            if (path.endsWith("/models")) return Response.json({ data: [{ id: "openai/test" }, { id: "group/fast" }] })
 -          const body = (await request.json()) as { model: unknown }
-+          const body: { model: unknown } = await request.json()
++          const body = await request.json()
++          if (!isRecord(body)) throw new TypeError("Expected model request object")
            requests.push({ path, model: body.model })
            if (fail)
              return Response.json(
