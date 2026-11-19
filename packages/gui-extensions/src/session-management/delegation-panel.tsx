@@ -27,6 +27,7 @@ import {
 import type definition from "./index"
 import { TaskDetails } from "./task-details"
 import { SessionPanel } from "./session-panel"
+import { delegationRunning, executionStatus, operationRunning } from "./execution-status"
 
 type DelegationAction = "interrupt" | "close" | "reconcile" | "retry"
 
@@ -184,19 +185,7 @@ function DelegationContent(props: Props & { server: ServerRef }) {
   const state = () => memory()[0]
   const connected = () => props.server.connected
 
-  const sessionStatus = (id: string | undefined) => {
-    if (!id || !props.server.data.session.get(id)) return undefined
-
-    if (!connected()) return "disconnected"
-
-    if (
-      (props.server.data.session.permission.list(id)?.length ?? 0) > 0 ||
-      (props.server.data.session.form.list(id)?.length ?? 0) > 0
-    )
-      return "waiting"
-
-    return props.server.data.session.status(id)
-  }
+  const sessionStatus = (id?: string) => executionStatus(props.server, id)
 
   const response = (id: string | undefined) => {
     if (!id) return undefined
@@ -472,16 +461,8 @@ function DelegationContent(props: Props & { server: ServerRef }) {
   }
 
   const monitorRunning = (node: MonitorNode) => {
-    if (node.kind === "delegation")
-      return (
-        !node.delegation.softExpired &&
-        node.delegation.participants.some(
-          (participant) =>
-            participant.runtimeStatus === "running" && sessionStatus(participant.childSessionID) !== "waiting",
-        )
-      )
-
-    return node.operation?.phase === "running" && !waitingForInput(node)
+    if (node.kind === "delegation") return delegationRunning(node.delegation, sessionStatus)
+    return node.operation ? operationRunning(node.operation, sessionStatus) : false
   }
 
   const matches = (node: MonitorNode, selected: MonitorFilter) => {
@@ -834,6 +815,7 @@ function DelegationContent(props: Props & { server: ServerRef }) {
     <section
       data-component="session-delegation-panel"
       data-slot="delegation-list"
+      data-live={props.active && connected() ? "true" : "false"}
       aria-label={ctx.t(props.childrenOnly ? "tab.subagents" : "session.collaboration.title")}
     >
       <div data-slot="task-toolbar">
@@ -1727,7 +1709,11 @@ function DelegationContent(props: Props & { server: ServerRef }) {
                       aria-label={ctx.t("session.collaboration.delegation", { id: value.delegation.id })}
                     >
                       <h4>
-                        <span data-slot="task-running-indicator" aria-hidden="true" />
+                        <span
+                          data-slot="task-running-indicator"
+                          data-running={delegationRunning(value, sessionStatus) ? "true" : "false"}
+                          aria-hidden="true"
+                        />
                         {value.delegation.title}
                       </h4>
                       <div data-slot="task-metadata">

@@ -124,6 +124,7 @@ export function PanelTrigger(props: {
         <Tabs.Trigger
           value={props.value}
           id={props.tab.dom?.tab}
+          aria-label={props.tab.title}
           aria-controls={props.active ? props.tab.dom?.panel : undefined}
         >
           {content()}
@@ -133,6 +134,7 @@ export function PanelTrigger(props: {
         <Tabs.Trigger
           value={props.value}
           id={props.tab.dom?.tab}
+          aria-label={props.tab.title}
           class="group"
           onMiddleClick={props.tab.closable === false ? undefined : () => props.onClose(props.value)}
           closeButton={close()}
@@ -172,7 +174,7 @@ function SortableTrigger(props: {
           value={props.value}
           id={props.tab.dom?.tab}
           aria-controls={props.active ? props.tab.dom?.panel : undefined}
-          aria-label={props.tab.missing ? props.tab.title : undefined}
+          aria-label={props.tab.title}
           class="group"
           onMiddleClick={props.tab.closable === false ? undefined : () => props.onClose(props.value)}
           onDblClick={() => {

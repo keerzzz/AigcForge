@@ -23,6 +23,10 @@ const decodeCommunicationMetadata = Schema.decodeUnknownOption(
   }),
 )
 
+const decodeFormTool = Schema.decodeUnknownOption(
+  Schema.Struct({ tool: Schema.Struct({ messageID: Schema.String, id: Schema.String }) }),
+)
+
 export function SessionUIProvider(
   props: ParentProps<{
     directory: string
@@ -153,6 +157,22 @@ export function SessionUIProvider(
     await Promise.all(missingSessionIDs.map((id) => value.data.session.sync(id).catch(() => undefined)))
   })
 
+  // Requests retain raw running tool records. Suspend only their presentation, using the original source IDs.
+  const toolRequests = createMemo(() => {
+    const permissions = data.session.permission.list(params.id) ?? []
+    const forms = data.session.form.list(params.id) ?? []
+    const sources = [
+      ...permissions.flatMap((request) => (request.source?.type === "operation" ? [] : [request.source])),
+      ...forms.map((form) => Option.getOrUndefined(decodeFormTool(form.metadata))?.tool),
+    ]
+
+    return {
+      waiting: permissions.length > 0 || forms.length > 0,
+      unscoped: sources.some((source) => !source),
+      ids: new Set(sources.flatMap((source) => (source ? [source.id, `${source.messageID}:${source.id}`] : []))),
+    }
+  })
+
   const sessionUIData = createMemo(() => ({
     modelGroups: data.location.model.group.definition.list({ directory: directory() })?.effective,
     provider: providers.ready()
@@ -164,7 +184,12 @@ export function SessionUIProvider(
         .list()
         .map((session) => [
           session.id,
-          data.session.status(session.id) === "running" ? ({ type: "busy" } as const) : ({ type: "idle" } as const),
+          serverSDK.connection.status() === "connected" &&
+          data.session.status(session.id) === "running" &&
+          !data.session.permission.list(session.id)?.length &&
+          !data.session.form.list(session.id)?.length
+            ? ({ type: "busy" } as const)
+            : ({ type: "idle" } as const),
         ]),
     ),
     session_diff: {},
@@ -175,6 +200,10 @@ export function SessionUIProvider(
       data={sessionUIData()}
       directory={directory()}
       sessionID={params.id}
+      toolMotion={(id) =>
+        serverSDK.connection.status() === "connected" &&
+        (id ? !toolRequests().unscoped && !toolRequests().ids.has(id) : !toolRequests().waiting)
+      }
       shellRunning={(id) => !!data.shell.get(id)}
       shellOutput={(input) => serverSDK.api.shell.output(input)}
       onNavigateToSession={navigateToSession}

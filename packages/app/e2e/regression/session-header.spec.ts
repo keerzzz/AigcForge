@@ -1437,7 +1437,7 @@ test.describe("session management", () => {
     const state = { unreadable: false, actionCount: 0 }
     const calls: unknown[] = []
     const resultReads: DelegationResultInput[] = []
-    await openSession(page, {
+    const workspace = await openSession(page, {
       name: "Delegation consumer",
       sessions: [
         {
@@ -1503,6 +1503,67 @@ test.describe("session management", () => {
       await expect(technical).toHaveAttribute("aria-expanded", "true")
     }
 
+    await openTechnical()
+    const node = collaboration.locator('[data-slot="monitor-node"]')
+    const runningTab = page.getByRole("tab", { name: "Task delegation", exact: true })
+    await expect(node).toHaveCount(1)
+    await expect(node).toHaveAttribute("data-running", "false")
+    value.participants[0].runtimeStatus = "running"
+    await page.reload()
+    await expect(node).toHaveAttribute("data-running", "true")
+    await expect(runningTab.locator('[data-slot="session-management-tab-status"]')).toHaveText("1")
+    await expect
+      .poll(() =>
+        node
+          .locator('[data-slot="monitor-node-disc"]')
+          .evaluate((element) => getComputedStyle(element, "::after").animationName),
+      )
+      .toBe("delegation-orbit")
+    await page.emulateMedia({ reducedMotion: "reduce" })
+    await expect
+      .poll(() =>
+        node
+          .locator('[data-slot="monitor-node-disc"]')
+          .evaluate((element) => getComputedStyle(element, "::after").animationName),
+      )
+      .toBe("none")
+    await page.emulateMedia({ reducedMotion: "no-preference" })
+    await workspace.push([
+      {
+        id: "evt_icon_permission_waiting",
+        type: "permission.asked",
+        created: 10,
+        location: { directory: workspace.directory },
+        data: {
+          id: "per_icon_waiting",
+          sessionID: "ses_par_one",
+          action: "read",
+          resources: ["src/**"],
+          source: { type: "tool", messageID: "msg_worker_read", id: "call_worker_read" },
+        },
+      },
+    ])
+    await expect(node).toHaveAttribute("data-running", "false")
+    await expect(runningTab.locator('[data-slot="session-management-tab-status"]')).toHaveCount(0)
+    await workspace.push([
+      {
+        id: "evt_icon_permission_resumed",
+        type: "permission.replied",
+        created: 11,
+        location: { directory: workspace.directory },
+        data: { sessionID: "ses_par_one", requestID: "per_icon_waiting", reply: "once" },
+      },
+    ])
+    await expect(node).toHaveAttribute("data-running", "true")
+    await expect(runningTab.locator('[data-slot="session-management-tab-status"]')).toHaveText("1")
+    value.delegation.status = "completed"
+    await page.reload()
+    await expect(node).toHaveAttribute("data-running", "false")
+    await expect(runningTab.locator('[data-slot="session-management-tab-status"]')).toHaveCount(0)
+    // Completed ownership wins even if the participant's last runtime observation is still running.
+    value.participants[0].runtimeStatus = "idle"
+    value.delegation.status = "running"
+    await page.reload()
     await openTechnical()
     await expect(collaboration.getByRole("heading", { name: value.delegation.title, exact: true })).toBeVisible()
     await expect(collaboration.getByText("Saved reviewer rejection", { exact: true })).toBeVisible()
@@ -1887,6 +1948,12 @@ test.describe("session management", () => {
     await openSidePanel(page, "Subagents")
     const subagentPanel = page.getByRole("region", { name: "Subagents", exact: true })
     const panel = page.getByRole("region", { name: "Task delegation", exact: true })
+    const openTechnical = async () => {
+      const trigger = panel.getByRole("button", { name: "Technical details", exact: true })
+      await expect(trigger).toBeVisible()
+      if ((await trigger.getAttribute("aria-expanded")) !== "true") await trigger.click()
+      await expect(trigger).toHaveAttribute("aria-expanded", "true")
+    }
     const ordinary = subagentPanel.locator('[data-slot="subagent-group"]')
     const child = (id: string) => ordinary.getByRole("article", { name: `Subagent: ${id}`, exact: true })
 
@@ -2132,6 +2199,7 @@ test.describe("session management", () => {
     await expect(firstOutput.locator("pre")).toHaveText(foregroundResult)
     await page.screenshot({ path: testInfo.outputPath("sc02-subagents-normal.png") })
     await openSidePanel(page, "Task delegation")
+    await openTechnical()
     await expect(panel.getByRole("heading", { name: "Delegations", exact: true })).toBeVisible()
     await expect(panel.getByRole("heading", { name: "Saved formal collaboration", exact: true })).toBeVisible()
     await expect(panel.getByRole("listitem", { name: "Participant: build · par_sc02", exact: true })).toBeVisible()
@@ -2196,6 +2264,7 @@ test.describe("session management", () => {
     const formal = meta.getByRole("listitem", { name: `Session: ${ids.formal}`, exact: true })
     await expect(formal.getByText("Session: Idle", { exact: true })).toBeVisible()
     await formal.getByRole("button", { name: "Open Task source", exact: true }).click()
+    await openTechnical()
     const selected = panel.getByRole("region", { name: "Selected collaboration source", exact: true })
     await expect(selected.getByText("dlg_sc02", { exact: true })).toBeVisible()
     await expect(selected.getByText("par_sc02", { exact: true })).toBeVisible()
@@ -2208,6 +2277,7 @@ test.describe("session management", () => {
     await expect(selected).toHaveCount(0)
     await page.setViewportSize({ width: 390, height: 844 })
     await openSidePanel(page, "Task delegation")
+    await openTechnical()
     await expect(panel.getByRole("heading", { name: "Saved formal collaboration", exact: true })).toBeVisible()
     await openSidePanel(page, "Subagents")
     await expect(subagentPanel.getByRole("heading", { name: "Subagents", exact: true })).toBeVisible()

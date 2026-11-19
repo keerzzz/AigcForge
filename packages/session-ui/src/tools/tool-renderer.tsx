@@ -547,10 +547,17 @@ export function CurrentContextToolGroup(props: {
   patchGroupKey?: (tools: SessionMessageAssistantTool[]) => string
 }) {
   const i18n = useI18n()
+  const data = useData()
   const tools = createMemo(() => props.parts.filter((part) => part.type === "tool"))
 
   const pending = createMemo(
-    () => props.busy || tools().some((tool) => tool.state.status === "streaming" || tool.state.status === "running"),
+    () =>
+      (props.busy && data.toolMotion?.() !== false) ||
+      tools().some(
+        (tool) =>
+          (tool.state.status === "streaming" || tool.state.status === "running") &&
+          data.toolMotion?.(tool.id) !== false,
+      ),
   )
 
   const icon = createMemo(() => {
@@ -892,7 +899,10 @@ export function CurrentContextToolGroup(props: {
                                           <TextShimmer
                                             as="span"
                                             text={name}
-                                            active={["streaming", "running"].includes(group()[index()]!.state.status)}
+                                            active={
+                                              ["streaming", "running"].includes(group()[index()].state.status) &&
+                                              data.toolMotion?.(group()[index()].id) !== false
+                                            }
                                           />
                                         </>
                                       )}
@@ -918,7 +928,9 @@ export function CurrentContextToolGroup(props: {
                                         <TextShimmer
                                           text={trigger().title}
                                           active={
-                                            tool().state.status === "streaming" || tool().state.status === "running"
+                                            (tool().state.status === "streaming" ||
+                                              tool().state.status === "running") &&
+                                            data.toolMotion?.(tool().id) !== false
                                           }
                                         />
                                       </span>
@@ -963,12 +975,16 @@ export function CurrentReadToolGroup(props: {
   onSizeChange?: () => void
 }) {
   const i18n = useI18n()
+  const data = useData()
   const [state, setState] = createStore({ open: false, truncated: false })
   const open = () => props.open ?? state.open
   const expandable = () => open() || state.truncated
 
   const pending = createMemo(() =>
-    props.tools.some((tool) => tool.state.status === "streaming" || tool.state.status === "running"),
+    props.tools.some(
+      (tool) =>
+        (tool.state.status === "streaming" || tool.state.status === "running") && data.toolMotion?.(tool.id) !== false,
+    ),
   )
 
   const files = createMemo(() =>
@@ -1062,6 +1078,7 @@ export function CurrentFileToolGroup(props: {
   onFileOpenChange?: (path: string, open: boolean) => void
   onSizeChange?: () => void
 }) {
+  const data = useData()
   const files = createMemo((previous: { key: string; toolID: string; value: JsonValue }[]) => {
     const next = props.tools.flatMap((tool) => {
       const files = currentToolMetadata(tool).files
@@ -1158,6 +1175,15 @@ export function CurrentFileToolGroup(props: {
   return (
     <div
       data-component="tool-part-wrapper"
+      data-tool-motion={
+        props.tools.some(
+          (tool) =>
+            (tool.state.status === "streaming" || tool.state.status === "running") &&
+            data.toolMotion?.(tool.id) !== false,
+        )
+          ? undefined
+          : "false"
+      }
       data-timeline-part-id={props.tools.length === 1 ? props.tools[0]?.id : undefined}
       data-timeline-part-ids={props.tools.length > 1 ? props.tools.map((tool) => tool.id).join(",") : undefined}
     >
@@ -1508,7 +1534,15 @@ export function ToolDisplay(
 
   return (
     <Show when={!hideQuestion()}>
-      <div data-component="tool-part-wrapper" data-timeline-part-id={props.id}>
+      <div
+        data-component="tool-part-wrapper"
+        data-tool-motion={
+          !(props.tool === "subagent" && props.status === "completed") && data.toolMotion?.(props.id) === false
+            ? "false"
+            : undefined
+        }
+        data-timeline-part-id={props.id}
+      >
         <Switch>
           <Match when={error()}>
             {(error) => {
@@ -1989,9 +2023,7 @@ ToolRegistry.register({
                 }
               >
                 <span data-component="task-tool-spinner" style={{ color: tone() ?? "var(--icon-interactive-base)" }}>
-                  <SessionProgressIndicatorV2
-                    style={{ color: v2Tone() ?? "light-dark(var(--v2-text-text-base), #ffffff)" }}
-                  />
+                  <SessionProgressIndicatorV2 style={{ color: v2Tone() ?? "var(--v2-icon-icon-base)" }} />
                 </span>
               </Show>
               <span data-component="task-tool-title">{title()}</span>

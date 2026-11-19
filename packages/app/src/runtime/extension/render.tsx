@@ -79,6 +79,7 @@ export function ExtensionLinks(props: ParentProps<{ session: MountedSession }>) 
       data={data.store}
       directory={data.directory}
       sessionID={data.sessionID}
+      toolMotion={data.toolMotion}
       shellRunning={data.shellRunning}
       shellOutput={data.shellOutput}
       onSessionHref={data.sessionHref}

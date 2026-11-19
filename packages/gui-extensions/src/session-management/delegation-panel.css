@@ -49,6 +49,7 @@
   }
 
   [data-slot="task-running-indicator"] {
+    position: relative;
     display: inline-grid;
     place-items: center;
     width: calc(var(--spacing) * 3);
@@ -69,7 +70,13 @@
       [data-state="provisioning"]
     )
     [data-slot="task-running-indicator"] {
-    background: var(--v2-text-text-base);
+    background: transparent;
+  }
+
+  &[data-live="true"] [data-slot="task-running-indicator"][data-running="true"] {
+    border-color: var(--v2-border-border-base);
+    border-top-color: var(--v2-icon-icon-base);
+    animation: delegation-orbit 1.2s linear infinite;
   }
 
   :is([data-slot="task-disclosure"], [data-slot="delegation-result"], [data-slot="delegation-revision"]) {
@@ -656,6 +663,7 @@
   }
 
   [data-slot="monitor-node-disc"] {
+    position: relative;
     display: grid;
     place-items: center;
     width: 38px;
@@ -701,9 +709,16 @@
     border-radius: 50%;
   }
 
-  [data-slot="monitor-diagram"][data-live="true"] [data-slot="monitor-network"] line[data-running="true"] {
-    stroke-dasharray: 4 5;
-    animation: delegation-flow 1.2s linear infinite;
+  [data-slot="monitor-diagram"][data-live="true"]
+    [data-slot="monitor-node"][data-running="true"]
+    [data-slot="monitor-node-disc"]::after {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    border: 1.25px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: delegation-orbit 1.2s linear infinite;
   }
 
   [data-slot="monitor-map-caption"] {
@@ -898,9 +913,32 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    [data-slot="monitor-diagram"][data-live="true"] [data-slot="monitor-network"] line[data-running="true"] {
+    [data-slot="task-running-indicator"] {
+      animation: none !important;
+    }
+    [data-slot="monitor-diagram"][data-live="true"]
+      [data-slot="monitor-node"][data-running="true"]
+      [data-slot="monitor-node-disc"]::after {
       animation: none;
     }
+  }
+}
+
+[data-component="session-management-tab"],
+[data-slot="session-management-tab-status"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+[data-slot="session-management-tab-status"] {
+  font-variant-numeric: tabular-nums;
+  color: var(--v2-text-text-base);
+
+  > span:last-child {
+    min-width: 2ch;
+    text-align: end;
   }
 }
 
@@ -925,8 +963,8 @@
   }
 }
 
-@keyframes delegation-flow {
+@keyframes delegation-orbit {
   to {
-    stroke-dashoffset: -18;
+    transform: rotate(360deg);
   }
 }

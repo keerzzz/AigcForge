@@ -19,7 +19,11 @@ export async function openSidePanel(page: Page, title: string) {
   if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click()
 
   await expect(toggle).toHaveAttribute("aria-expanded", "true")
-  const tab = page.locator("#review-panel").getByRole("tab", { name: title, exact: true })
+  // Review's visible and accessible title includes its current change count.
+  const tab =
+    title === "Review"
+      ? page.locator("#session-side-panel-review-tab")
+      : page.locator("#review-panel").getByRole("tab", { name: title, exact: true })
 
   if (await tab.count()) {
     await tab.click()

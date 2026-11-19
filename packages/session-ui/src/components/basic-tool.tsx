@@ -12,11 +12,12 @@ import {
   type JSX,
 } from "solid-js"
 import { animate, type AnimationPlaybackControls } from "motion"
+import { createMediaQuery } from "@solid-primitives/media"
 import { useI18n } from "@aigcfroge/ui/context/i18n"
 import { createStore } from "solid-js/store"
 import { Collapsible } from "@aigcfroge/ui/collapsible"
 import { Icon, type IconProps } from "@aigcfroge/ui/icon"
-import { TextShimmer } from "@aigcfroge/ui/text-shimmer"
+import { SessionProgressIndicatorV2 } from "../v2/components/session-progress-indicator-v2"
 
 export type TriggerTitle = {
   title: string
@@ -62,7 +63,7 @@ export interface BasicToolProps {
   compact?: boolean
 }
 
-const SPRING = { type: "spring" as const, visualDuration: 0.35, bounce: 0 }
+const SPRING = { type: "spring" as const, visualDuration: 0.2, bounce: 0 }
 
 const deferredMounts: Array<{ active: boolean; fn: () => void }> = []
 
@@ -109,6 +110,7 @@ function scheduleFrameMount(fn: () => void) {
 }
 
 export function BasicTool(props: BasicToolProps) {
+  const reducedMotion = createMediaQuery("(prefers-reduced-motion: reduce)")
   const [state, setState] = createStore({
     open: props.defaultOpen ?? false,
     ready: !props.defer && (props.defaultOpen ?? false),
@@ -192,10 +194,16 @@ export function BasicTool(props: BasicToolProps) {
 
   createEffect(
     on(
-      open,
-      (isOpen) => {
+      () => [open(), reducedMotion()] as const,
+      ([isOpen, reduced]) => {
         if (!props.animated || !contentRef) return
         heightAnim?.stop()
+
+        if (reduced) {
+          contentRef.style.height = isOpen ? "auto" : "0px"
+          contentRef.style.overflow = isOpen ? "visible" : "hidden"
+          return
+        }
 
         if (isOpen) {
           contentRef.style.overflow = "hidden"
@@ -241,13 +249,18 @@ export function BasicTool(props: BasicToolProps) {
                     <span data-slot="basic-tool-tool-icon" aria-hidden="true">
                       <Icon name={props.icon} size="small" />
                     </span>
+                    <span data-slot="basic-tool-tool-progress" aria-hidden="true">
+                      <Show when={pending()}>
+                        <SessionProgressIndicatorV2 width={14} height={14} />
+                      </Show>
+                    </span>
                     <span
                       data-slot="basic-tool-tool-title"
                       classList={{
                         [title().titleClass ?? ""]: !!title().titleClass,
                       }}
                     >
-                      <TextShimmer text={title().title} active={pending()} />
+                      {title().title}
                     </span>
                     <Show when={!pending() || title().subtitle || title().args?.length}>
                       <Show when={title().subtitle}>

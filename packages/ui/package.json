@@ -23,6 +23,8 @@
     "!src/**/*.stories.ts",
     "!src/**/*.stories.tsx",
     "src/**/*.css",
+    "src/icons/NOTICE.md",
+    "src/icons/provenance.json",
     "src/theme/themes/*.json",
     "src/components/app-icons/sprite.svg",
     "src/components/file-icons/sprite.svg",

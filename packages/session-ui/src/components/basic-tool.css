@@ -97,6 +97,14 @@
     overflow: hidden;
   }
 
+  [data-slot="basic-tool-tool-progress"] {
+    display: inline-flex;
+    align-self: center;
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+
   [data-slot="basic-tool-tool-title"] {
     flex-shrink: 0;
     font-family: var(--font-family-sans);
@@ -138,7 +146,7 @@
       transition: color 0.15s ease;
 
       &:hover {
-        color: var(--v2-text-text-muted);
+        color: var(--text-interactive-base);
       }
     }
 
@@ -184,6 +192,15 @@
     align-items: center;
     flex-shrink: 0;
   }
+}
+
+/* A real execution indicator owns continuous feedback; its label stays readable and still. */
+[data-component="tool-trigger"]:has([data-component="session-progress-indicator-v2"])
+  [data-slot="text-shimmer-char-shimmer"] {
+  animation: none;
+  background-image: none;
+  color: inherit;
+  -webkit-text-fill-color: currentColor;
 }
 
 [data-component="collapsible"].tool-collapsible > [data-slot="collapsible-trigger"] {
@@ -503,4 +520,18 @@
       display: inline-flex;
     }
   }
+}
+
+/* A waiting tool keeps its raw state and layout while its execution feedback is static. */
+[data-tool-motion="false"] [data-progress-arc],
+[data-tool-motion="false"] [data-slot="text-shimmer-char-shimmer"] {
+  animation: none !important;
+}
+
+[data-tool-motion="false"] [data-slot="text-shimmer-char-base"] {
+  opacity: 1 !important;
+}
+
+[data-tool-motion="false"] [data-slot="text-shimmer-char-shimmer"] {
+  opacity: 0 !important;
 }

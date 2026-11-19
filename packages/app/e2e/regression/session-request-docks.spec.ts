@@ -275,19 +275,191 @@ test("shows a pending question dock", async ({ page }) => {
   expect((await reply).postDataJSON()).toEqual({ answer: { q0: "minimal" } })
 })
 
+test("background Subagent feedback follows the child request owner", async ({ page }) => {
+  const childID = "ses_background_feedback_child"
+  const transport = await installSseTransport(page, { server: SERVER, retry: 20 })
+  const messages: SessionMessageInfo[] = [
+    { id: "msg_background_prompt", type: "user", text: "Track background work", time: { created: 1 } },
+    {
+      id: "msg_background_reply",
+      type: "assistant",
+      agent: "build",
+      model: { providerID: "fixture", id: "fixture" },
+      time: { created: 2, completed: 3 },
+      content: [
+        {
+          id: "tool_background_child",
+          type: "tool",
+          name: "subagent",
+          time: { created: 2, ran: 2, completed: 3 },
+          state: {
+            status: "completed",
+            input: { description: "Background worker", agent: "build" },
+            content: [{ type: "text", text: "The child was admitted in the background." }],
+            metadata: { sessionID: childID, background: true, status: "running" },
+          },
+        },
+      ],
+    },
+  ]
+  await mockWorkspace(page, {
+    name: "RequestDocks",
+    directory,
+    sessions: [
+      { id: sessionID, title },
+      { id: childID, parentID: sessionID, title: "Background worker" },
+    ],
+    pageMessages: () => ({ items: messages }),
+    sessionStatus: { [childID]: { type: "busy" } },
+  })
+  await page.goto(sessionHref(sessionID))
+  await expectSessionTitle(page, title)
+  await transport.waitForConnection()
+  await page.locator('[data-component="context-tool-group-trigger"]').click()
+  const tool = page.locator('[data-component="tool-part-wrapper"][data-timeline-part-id="tool_background_child"]')
+  const progress = tool.locator('[data-component="session-progress-indicator-v2"]')
+  await expect(progress).toHaveCount(1)
+  await transport.send({
+    id: "evt_child_waiting",
+    created: 4,
+    type: "permission.asked",
+    location: { directory },
+    data: {
+      id: "per_background_child",
+      sessionID: childID,
+      action: "read",
+      resources: ["child.txt"],
+      source: { type: "tool", messageID: "msg_child_work", id: "tool_child_read" },
+    },
+  })
+  await expect(progress).toHaveCount(0)
+  await transport.send({
+    id: "evt_child_resumed",
+    created: 5,
+    type: "permission.replied",
+    location: { directory },
+    data: { sessionID: childID, requestID: "per_background_child", reply: "once" },
+  })
+  await expect(progress).toHaveCount(1)
+  await transport.send({
+    id: "evt_child_form_waiting",
+    created: 6,
+    type: "form.created",
+    location: { directory },
+    data: {
+      form: {
+        id: "frm_child_waiting",
+        sessionID: childID,
+        title: "Child question",
+        fields: [{ key: "q0", type: "string", title: "Continue the child" }],
+      },
+    },
+  })
+  await expect(progress).toHaveCount(0)
+  await transport.send({
+    id: "evt_child_form_resumed",
+    created: 7,
+    type: "form.replied",
+    location: { directory },
+    data: { id: "frm_child_waiting", sessionID: childID, answer: { q0: "yes" } },
+  })
+  await expect(progress).toHaveCount(1)
+  await transport.send({
+    id: "evt_parent_waiting",
+    created: 8,
+    type: "form.created",
+    location: { directory },
+    data: {
+      form: {
+        id: "frm_parent_waiting",
+        sessionID,
+        title: "Questions",
+        metadata: { kind: "question" },
+        fields: [
+          {
+            key: "q0",
+            type: "string",
+            title: "Continue",
+            description: "Continue the parent?",
+            options: [{ value: "yes", label: "Yes" }],
+            custom: true,
+          },
+        ],
+      },
+    },
+  })
+  await expect(page.locator('[data-component="dock-prompt"][data-kind="question"]')).toBeVisible()
+  await expect(progress.locator("[data-progress-arc]")).toHaveCSS("animation-name", "session-progress-orbit")
+})
+
 test("shows a pending permission dock", async ({ page }) => {
+  const messages: SessionMessageInfo[] = [
+    {
+      id: "msg_user_permission_pending",
+      type: "user",
+      text: "Publish the verified preview build to the canary channel.",
+      time: {
+        created: 1735689683000,
+      },
+      metadata: {
+        agent: "build",
+        model: {
+          id: "claude-sonnet-4",
+          providerID: "anthropic",
+          variant: "balanced",
+        },
+      },
+    },
+    {
+      id: "msg_assistant_permission_pending",
+      type: "assistant",
+      agent: "build",
+      model: {
+        id: "claude-sonnet-4",
+        providerID: "anthropic",
+        variant: "balanced",
+      },
+      content: [
+        {
+          type: "tool",
+          id: "tool_permission_pending",
+          name: "shell",
+          state: {
+            status: "running",
+            input: {
+              command: "npm publish --tag canary",
+            },
+            metadata: {},
+          },
+          time: {
+            created: 1735689684100,
+            ran: 1735689684200,
+          },
+        },
+      ],
+      time: {
+        created: 1735689684000,
+      },
+    },
+  ]
   const replies: { sessionID: string; permissionID: string; body: unknown }[] = []
-  await mockServer(page, {
+  await mockWorkspace(page, {
+    name: "RequestDocks",
+    directory,
+    sessions: [{ id: sessionID, title }],
+    sessionStatus: { [sessionID]: { type: "busy" } },
+    pageMessages: () => ({ items: messages }),
     onPermissionReply: (reply) => replies.push(reply),
     sessionPermissions: {
       [sessionID]: [
         {
           id: "permission-request",
           sessionID,
-          permission: "shell",
-          patterns: ["git status", "git diff"],
+          action: "shell",
+          resources: ["git status", "git diff"],
+          source: { type: "tool", messageID: "msg_assistant_permission_pending", id: "tool_permission_pending" },
           metadata: {},
-          always: [],
+          save: [],
         },
       ],
     },
@@ -303,6 +475,13 @@ test("shows a pending permission dock", async ({ page }) => {
   await expect(permission.locator('[data-slot="permission-footer-actions"] button')).toHaveCount(3)
   await expect(page.locator('[data-component="composer"]')).toHaveCount(0)
 
+  const group = page.locator('[data-component="context-tool-group-trigger"]')
+  await expect(group.locator('[data-component="session-progress-indicator-v2"]')).toHaveCount(0)
+  await group.click()
+  const tool = page.locator('[data-component="tool-part-wrapper"][data-timeline-part-id$="tool_permission_pending"]')
+  await expect(tool).toBeVisible()
+  const shimmer = tool.locator('[data-slot="text-shimmer-char-shimmer"]').first()
+  await expect(shimmer).toHaveCSS("animation-name", "none")
   const reply = page.waitForResponse((response) => response.request().method() === "POST")
   await permission.getByRole("button", { name: "Allow once" }).click()
   const response = await reply
@@ -311,6 +490,8 @@ test("shows a pending permission dock", async ({ page }) => {
   expect(response.status()).toBe(204)
   expect(replies).toEqual([{ sessionID, permissionID: "permission-request", body: { decision: "once" } }])
   await expect(permission).toHaveCount(0)
+  await expect(shimmer).toHaveCSS("animation-name", "text-shimmer-sweep")
+  await expect(group.locator('[data-component="session-progress-indicator-v2"]')).toHaveCount(1)
   await expect(page.locator('[data-component="composer"]')).toBeVisible()
 })
 

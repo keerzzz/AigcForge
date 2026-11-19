@@ -221,7 +221,7 @@ test("Chinese sidebar labels follow live language changes", async ({ page }, tes
   await expect(side.getByRole("switch", { name: "预览文件", exact: true })).toHaveCount(0)
 
   for (const [name, expected] of [
-    ["任务委派", "已加载的记录中暂无协作。"],
+    ["任务委派", "暂无任务。"],
     ["技能提案", "此会话尚无已完成的技能提案。"],
     ["命令提案", "此会话尚无已完成的命令提案。"],
     ["提示词提案", "此会话尚无已完成的提示词提案。"],
@@ -273,7 +273,7 @@ test("Chinese sidebar labels follow live language changes", async ({ page }, tes
   await expect(side.getByRole("switch", { name: "Preview files", exact: true })).toHaveCount(0)
   await openSidePanel(page, "Task delegation")
   await expect(side.getByRole("region", { name: "Task delegation", exact: true })).toBeVisible()
-  await expect(side.getByText("No collaborations in loaded history.", { exact: true })).toBeVisible()
+  await expect(side.getByText("No tasks yet.", { exact: true })).toBeVisible()
   await page.locator('[data-component="composer-editor"]').click()
   await page.keyboard.press("Control+,")
   await settings.locator('[data-action="settings-language"]').click()
@@ -290,7 +290,7 @@ test("Chinese sidebar labels follow live language changes", async ({ page }, tes
   await drawer.getByRole("button", { name: "任务委派", exact: true }).click()
   await expect(drawer).toBeHidden()
   await expect(page.getByRole("region", { name: "任务委派", exact: true })).toBeVisible()
-  await expect(page.getByText("已加载的记录中暂无协作。", { exact: true })).toBeVisible()
+  await expect(page.getByText("暂无任务。", { exact: true })).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath("sidebar-chinese-narrow.png") })
 
   await page.setViewportSize({ width: 1600, height: 900 })
@@ -300,7 +300,7 @@ test("Chinese sidebar labels follow live language changes", async ({ page }, tes
   await expect(page.locator("html")).toHaveAttribute("lang", "zh-Hant")
   await expect(side.getByRole("tab", { name: "任務委派", exact: true })).toHaveAttribute("aria-selected", "true")
   await expect(side.getByRole("region", { name: "任務委派", exact: true })).toBeVisible()
-  await expect(side.getByText("已載入的記錄中暫無協作。", { exact: true })).toBeVisible()
+  await expect(side.getByText("尚無任務。", { exact: true })).toBeVisible()
   await side.getByRole("button", { name: "新增分頁", exact: true }).click()
   await expect(launcher).toBeVisible()
 
@@ -2667,6 +2667,7 @@ test("the selected side panel owns the resize limit and preserves the requested 
   const prompt = page.locator('[data-component="prompt-proposals-panel"]')
   const promptTab = page.locator("#session-side-panel-prompt-proposals-tab")
 
+  await openSidePanel(page, "Review")
   await openSidePanel(page, "Prompt proposals")
   await expect(prompt.getByRole("heading", { name: "Prompt proposals", exact: true })).toBeVisible()
   await expect(chat).toHaveCSS("width", "450px")
@@ -2773,6 +2774,7 @@ test("long file and management tabs keep close buttons reachable while the side 
   const scrollPrevious = side.getByRole("button", { name: "Scroll tabs backward", exact: true })
   const scrollNext = side.getByRole("button", { name: "Scroll tabs forward", exact: true })
 
+  await openSidePanel(page, "Review")
   for (const name of ["Task delegation", "Workflow run"]) {
     await openSidePanel(page, name)
     await expect(strip.getByRole("tab", { name, exact: true })).toHaveCount(1)

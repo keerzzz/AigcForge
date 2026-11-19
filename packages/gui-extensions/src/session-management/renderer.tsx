@@ -27,6 +27,8 @@ import {
 } from "../sdk"
 import type definition from "./index"
 import { isChildSession } from "./panel-drafts"
+import { delegationRunning, executionStatus, operationRunning } from "./execution-status"
+import { SessionProgressIndicatorV2 } from "@aigcfroge/session-ui/v2/session-progress-indicator-v2"
 import delegationStyles from "./delegation-panel.css?inline"
 import metaStyles from "./meta-agent-panel.css?inline"
 import workflowStyles from "./workflow-run-panel.css?inline"
@@ -559,7 +561,7 @@ const setup: Setup<typeof definition> = (ctx) => {
   })
 
   const modules = [
-    { id: "collaborations", icon: "subagent", bind: "mod+alt+q", View: Collaborations },
+    { id: "collaborations", icon: "task", bind: "mod+alt+q", View: Collaborations },
     { id: "subagents", icon: "subagent", bind: "mod+alt+a", View: Collaborations },
     { id: "workflow", icon: "branch", bind: "mod+alt+w", View: Workflow },
     { id: "artifacts", icon: "file-tree", bind: "mod+alt+f", View: Artifacts },
@@ -573,6 +575,42 @@ const setup: Setup<typeof definition> = (ctx) => {
       id: panelID,
       get title() {
         return title()
+      },
+      label(state) {
+        const running = () => {
+          const session = state.session
+          if (!session.server.connected) return 0
+          const data = session.server.data.session
+          const status = (id?: string) => executionStatus(session.server, id)
+          if (module.id === "subagents")
+            return data
+              .family(session.id)
+              .filter((id) => data.get(id)?.parentID === session.id && status(id) === "running").length
+          if (module.id !== "collaborations") return 0
+          return (
+            (data.delegation.list(session.id) ?? []).filter((value) => delegationRunning(value, status)).length +
+            (data.task.operation.list(session.id) ?? []).filter((value) => operationRunning(value, status)).length
+          )
+        }
+        return (
+          <span data-component="session-management-tab">
+            <Icon name={module.icon} size="small" />
+            <span>{title()}</span>
+            <Show when={running()}>
+              {(count) => (
+                <span
+                  data-slot="session-management-tab-status"
+                  title={ctx.plural("session.dispatchMonitor.executions", count())}
+                >
+                  <span data-visible={state.active}>
+                    <SessionProgressIndicatorV2 width={12} height={12} />
+                  </span>
+                  <span>{count()}</span>
+                </span>
+              )}
+            </Show>
+          </span>
+        )
       },
       closable: "hover",
       fallback: true,
