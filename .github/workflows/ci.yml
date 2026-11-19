@@ -15,7 +15,7 @@ on:
         required: true
         default: benchmark
         type: choice
-        options: [benchmark, regression]
+        options: [benchmark, regression, windows_unit]
 permissions:
   contents: read
 concurrency:
@@ -23,7 +23,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   focused:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ inputs.check == 'windows_unit' && 'windows-2022' || 'ubuntu-24.04' }}
     timeout-minutes: 35
     env:
       CI: true
@@ -49,7 +49,48 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24.15'
+      - name: Record Windows source and runner
+        id: windows_source
+        if: inputs.check == 'windows_unit'
+        shell: bash
+        run: |
+          test "$RUNNER_OS" = "Windows"
+          test "$SOURCE_REF" = "3f8742421348e4ec429199b473b3ae5f9d660afe"
+          test "$(git rev-parse HEAD)" = "$SOURCE_REF"
+          mkdir -p acceptance-results
+          git rev-parse HEAD > acceptance-results/source-head.txt
+          git config --global user.email "bot@aigcfroge.ai"
+          git config --global user.name "aigcfroge"
+          git config --global --get user.email > acceptance-results/git-identity.txt
+          git config --global --get user.name >> acceptance-results/git-identity.txt
+          printf 'RUNNER_OS=%s\nRUNNER_ARCH=%s\n' "$RUNNER_OS" "$RUNNER_ARCH" > acceptance-results/runner.txt
+          uname -a >> acceptance-results/runner.txt
+          git --version >> acceptance-results/runner.txt
+          bun --version >> acceptance-results/runner.txt
+          node --version >> acceptance-results/runner.txt
+          cat acceptance-results/source-head.txt
+          cat acceptance-results/git-identity.txt
+          cat acceptance-results/runner.txt
+      - name: Windows Server stale-root contract
+        if: inputs.check == 'windows_unit'
+        working-directory: packages/server
+        shell: bash
+        env:
+          AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER: 'true'
+        run: |
+          set -o pipefail
+          GITHUB_ACTIONS=false bun run test test/custom-composition.test.ts -t '^rejects stale builtin root confirmation over HTTP without Session residue$' --timeout 30000 2>&1 | tee ../../acceptance-results/windows-server.log
+      - name: Windows Core MC07 R2 contract
+        if: ${{ !cancelled() && inputs.check == 'windows_unit' && steps.windows_source.outcome == 'success' }}
+        working-directory: packages/core
+        shell: bash
+        env:
+          AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER: 'true'
+        run: |
+          set -o pipefail
+          GITHUB_ACTIONS=false bun run test test/meta-agent-integration.test.ts -t '^MC07 R2 repairs the same child and requires the current typed review$' 2>&1 | tee ../../acceptance-results/windows-core.log
       - name: Record source and runner
+        if: inputs.check != 'windows_unit'
         shell: bash
         run: |
           test "$(git rev-parse HEAD)" = "$SOURCE_REF"
@@ -60,6 +101,7 @@ jobs:
           bun --version >> acceptance-results/runner.txt
           node --version >> acceptance-results/runner.txt
       - name: Install Chromium
+        if: inputs.check != 'windows_unit'
         working-directory: packages/app
         run: bunx playwright install --with-deps chromium
       - name: Paired baseline
