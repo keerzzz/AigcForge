@@ -38,8 +38,26 @@ jobs:
           free -m
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
-      - name: Run canonical checks
-        run: bun run check
+      - name: Run canonical checks with resource observation
+        run: |
+          (
+            while true; do
+              date -u +RESOURCE_SAMPLE_%FT%TZ
+              free -m
+              ps -eo pid,ppid,rss,comm --sort=-rss | head -12
+              cat /proc/pressure/memory
+              for resource_file in memory.current memory.max memory.events; do
+                if [ -r "/sys/fs/cgroup/$resource_file" ]; then
+                  echo "CGROUP_$resource_file"
+                  cat "/sys/fs/cgroup/$resource_file"
+                fi
+              done
+              sleep 5
+            done
+          ) &
+          resource_monitor_pid=$!
+          trap 'kill "$resource_monitor_pid" 2>/dev/null || true' EXIT
+          bun run check
       - name: Check app E2E types
         run: bun --cwd packages/app typecheck:e2e
       - name: Lint changed files
