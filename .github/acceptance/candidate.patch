@@ -1,5 +1,5 @@
 diff --git a/packages/app/e2e/regression/timeline-history.spec.ts b/packages/app/e2e/regression/timeline-history.spec.ts
-index fc6751039c..d129152e84 100644
+index fc6751039c..a9613cd5e1 100644
 --- a/packages/app/e2e/regression/timeline-history.spec.ts
 +++ b/packages/app/e2e/regression/timeline-history.spec.ts
 @@ -361,6 +361,60 @@ test.describe("timeline history", () => {
@@ -63,33 +63,18 @@ index fc6751039c..d129152e84 100644
      const observe = async () => {
        const state = await visibleTimeline(page)
        expectOrdered(expectedParts, state.parts, "mounted parts")
-@@ -375,6 +429,7 @@ test.describe("timeline history", () => {
-         ...state,
-         ready:
-           state.covered &&
-+          state.pendingMarkdown === 0 &&
-           state.parts.length > 0 &&
-           state.visibleParts.length > 0 &&
-           state.messages.length > 0 &&
-@@ -382,72 +437,120 @@ test.describe("timeline history", () => {
+@@ -382,72 +436,114 @@ test.describe("timeline history", () => {
        }
      }
  
 -    for (;;) {
 -      const state = await observe()
++    const boundarySteps = new Map<
++      number,
++      { before: Awaited<ReturnType<typeof observe>>; after?: Awaited<ReturnType<typeof observe>> }
++    >()
++    const movement = { steps: 0 }
 +    try {
-+      let initial = ""
-+      await expect
-+        .poll(async () => {
-+          const next = await observe()
-+          const stable = next.ready && next.signature === initial
-+          initial = next.ready ? next.signature : ""
-+
-+          return held.length > 0 || stable
-+        })
-+        .toBe(true)
- 
--      if (state.ready && state.scrollTop <= 1 && seenParts.size === expectedParts.length) break
 +      for (;;) {
 +        const state = await observe()
 +
@@ -111,16 +96,13 @@ index fc6751039c..d129152e84 100644
 +            .toBe(true)
 +          continue
 +        }
-+
+ 
+-      if (state.ready && state.scrollTop <= 1 && seenParts.size === expectedParts.length) break
 +        if (!state.ready) {
-+          let previous = ""
 +          await expect
 +            .poll(async () => {
 +              const next = await observe()
-+              const stable = next.ready && next.signature === previous
-+              previous = next.ready ? next.signature : ""
-+
-+              return held.length > 0 || stable
++              return held.length > 0 || next.ready
 +            })
 +            .toBe(true)
 +          continue
@@ -129,39 +111,45 @@ index fc6751039c..d129152e84 100644
 -      if (held.length) {
 -        held.splice(0).forEach((release) => release())
 -        await expect.poll(() => loads.ended).toBe(loads.started)
+-        let previous = ""
 +        // Keep consecutive observation windows overlapping. A large measured overscan row can otherwise
 +        // carry a step past rows mounted during the next range and size update.
++        // An 80px floor can cross the mounted boundary when less than 80px remains above the viewport.
++        movement.steps++
++        if (state.availableAbove < 80) {
++          boundarySteps.set(movement.steps, { before: state })
++          if (boundarySteps.size > 64) boundarySteps.delete(boundarySteps.keys().next().value!)
++        }
 +        await timelineScroller(page).evaluate((element, delta) => {
 +          element.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: -delta }))
 +          element.scrollTop -= delta
 +        }, state.mountedAbove)
 +        const observed = { next: state, samples: 0 }
-         let previous = ""
          await expect
            .poll(async () => {
              const next = await observe()
 -            if (held.length) return true
-+            observed.next = next
-+            observed.samples++
-+            // Native scrolling can precede the range update and asynchronous row measurements.
-+            // Move again only after the rendered window has settled, while still sampling every change.
-             const stable = next.ready && next.signature === previous
-             previous = next.ready ? next.signature : ""
- 
+-            const stable = next.ready && next.signature === previous
+-            previous = next.ready ? next.signature : ""
+-
 -            return stable
-+            return held.length > 0 || (stable && next.signature !== state.signature)
-           })
-           .toBe(true)
+-          })
+-          .toBe(true)
 -        continue
 -      }
--
++            observed.next = next
++            observed.samples++
++            const boundary = boundarySteps.get(movement.steps)
++            if (boundary) boundary.after = next
+ 
 -      if (!state.ready) {
 -        await expect
 -          .poll(async () => {
 -            const next = await observe()
 -            return held.length > 0 || next.ready
--          })
--          .toBe(true)
++            return held.length > 0 || (next.ready && next.signature !== state.signature)
+           })
+           .toBe(true)
 -        continue
 -      }
 -
@@ -192,7 +180,8 @@ index fc6751039c..d129152e84 100644
                after: observed.next,
 +              afterSource: observed.samples ? "poll" : "before-fallback",
 +              afterSamples: observed.samples,
-+              lastReadySignature: previous,
++              movementSteps: movement.steps,
++              boundarySteps: [...boundarySteps].map(([step, state]) => ({ step, ...state })),
                held: held.length,
                loads,
                missingParts: expectedParts.filter((id) => !seenParts.has(id)),
@@ -239,11 +228,43 @@ index fc6751039c..d129152e84 100644
    })
  
    for (const scenario of [
-@@ -726,6 +829,7 @@ function visibleTimeline(page: Page) {
+@@ -709,9 +805,10 @@ function visibleTimeline(page: Page) {
+     const messages = [...scroller.querySelectorAll<HTMLElement>("[data-message-id]")]
+     const messageIDs = (elements: HTMLElement[]) => [...new Set(elements.map((element) => element.dataset.messageId!))]
+ 
+-    const firstRowTop = Math.min(
+-      ...[...scroller.querySelectorAll("[data-timeline-key]")].map((row) => row.getBoundingClientRect().top),
+-    )
++    const rows = [...scroller.querySelectorAll<HTMLElement>("[data-timeline-key]")]
++    const rowTops = rows.map((row) => row.getBoundingClientRect().top)
++    const firstRowTop = Math.min(...rowTops)
++    const firstRow = rows[rowTops.indexOf(firstRowTop)]
+ 
+     return {
+       parts: parts.flatMap(partIDs),
+@@ -721,11 +818,24 @@ function visibleTimeline(page: Page) {
+       scrollTop: Math.round(scroller.scrollTop),
+       scrollHeight: scroller.scrollHeight,
+       viewportTop: view.top,
++      viewportHeight: view.height,
+       firstRowTop,
++      firstRowKey: firstRow?.dataset.timelineKey,
++      firstRowIndex: firstRow?.querySelector("[data-index]")?.getAttribute("data-index"),
+       // Mounted rows reach the top edge, so the virtualizer has rendered this position. Below 200px the
        // timeline requests the next older page instead.
        covered: scroller.scrollTop < 200 || firstRowTop <= view.top + 1,
-       mountedAbove: Math.min(Math.floor(view.height / 2), Math.max(80, Math.floor(view.top - firstRowTop))),
-+      pendingMarkdown: scroller.querySelectorAll('[data-component="markdown"]:not([data-markdown-ready])').length,
+-      mountedAbove: Math.min(Math.floor(view.height / 2), Math.max(80, Math.floor(view.top - firstRowTop))),
++      availableAbove: view.top - firstRowTop,
++      mountedAbove: Math.min(Math.floor(view.height / 2), Math.max(1, Math.floor(view.top - firstRowTop))),
++      rows: rows.map((row) => ({
++        key: row.dataset.timelineKey,
++        index: row.querySelector("[data-index]")?.getAttribute("data-index"),
++        top: row.style.top,
++        height: row.style.height,
++        parts: [...row.querySelectorAll<HTMLElement>("[data-timeline-part-id], [data-timeline-part-ids]")].flatMap(
++          partIDs,
++        ),
++      })),
        errorToasts: document.querySelectorAll(".toast-v2--error").length,
        signature: JSON.stringify([
          Math.round(scroller.scrollTop),
