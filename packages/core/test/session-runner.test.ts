@@ -3251,6 +3251,7 @@ describe("P5 dynamic model group strategies through the original runner", () => 
         expect(
           (yield* recordedEventTypes(sessionID)).filter((type) => type === "session.retry.scheduled.1"),
         ).toHaveLength(1)
+        return undefined
       }),
   )
 
@@ -8125,6 +8126,7 @@ describe("SessionRunnerLLM", () => {
       yield* replaySessionProjection(sessionID)
       expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: input.id })).toEqual(result)
       expect(s.requests).toHaveLength(1)
+      return undefined
     },
   )
 
@@ -8580,6 +8582,7 @@ describe("SessionRunnerLLM", () => {
         },
         { type: "tool-result", id: "call-hosted-interrupted", providerExecuted: true, result: { type: "error" } },
       ])
+      return undefined
     },
     true,
   )

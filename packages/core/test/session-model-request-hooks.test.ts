@@ -224,6 +224,7 @@ describe("SessionModelRequest HTTP hooks", () => {
         expect(encoded).not.toContain("private-ws-query")
         expect(encoded).not.toContain("private-ws-header")
         expect(encoded).not.toContain("private-ws-body")
+        return undefined
       }),
     )
   }
@@ -259,6 +260,7 @@ describe("SessionModelRequest HTTP hooks", () => {
       ])
       expect(prepared.options.http).toBeUndefined()
       expect(JSON.stringify(observations)).not.toContain(url)
+      return undefined
     }).pipe(Effect.provideService(SessionModelTransport.Service, transport)),
   )
 
@@ -311,6 +313,7 @@ describe("SessionModelRequest HTTP hooks", () => {
       expect(encoded).not.toContain("private-query")
       expect(encoded).not.toContain("private-header")
       expect(encoded).not.toContain("private-body")
+      return undefined
     }).pipe(Effect.provideService(SessionModelTransport.Service, transport)),
   )
 
@@ -458,6 +461,7 @@ describe("SessionModelRequest HTTP hooks", () => {
         { kind: "primary", agent: Agent.ID.make("build"), url: primaryURL },
         { kind: "title", agent: Agent.ID.make("title"), url: titleURL },
       ])
+      return undefined
     }).pipe(Effect.provideService(SessionModelTransport.Service, transport)),
   )
 

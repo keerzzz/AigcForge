@@ -109,7 +109,7 @@ export const MetaCommands = define({
                 text: JSON.stringify(Schema.encodeSync(Schema.Array(SessionGoal.Info))(saved)),
                 resume: false,
               })
-              return
+              return undefined
             }
             const current =
               saved.find((goal) => goal.status === "active") ?? saved.findLast((goal) => goal.status === "paused")
@@ -118,16 +118,16 @@ export const MetaCommands = define({
               const ref = { sessionID: input.sessionID, goalID: current.id, expectedRevision: current.revision }
               if (text === "pause") {
                 yield* goals.pause(ref)
-                return
+                return undefined
               }
               if (text === "cancel") {
                 yield* goals.cancel(ref)
-                return
+                return undefined
               }
               const resumed = yield* goals.resume(ref)
               const advanced = yield* goals.advance({ sessionID: input.sessionID, goalID: resumed.id })
               if (advanced.state === "admitted") yield* execution.wake(input.sessionID)
-              return
+              return undefined
             }
             const config = text.startsWith("{")
               ? yield* Schema.decodeUnknownEffect(Schema.fromJsonString(SessionGoal.CreateInput))(text)
@@ -141,6 +141,7 @@ export const MetaCommands = define({
             const goal = yield* goals.set({ ...config, sessionID: input.sessionID })
             const advanced = yield* goals.advance({ sessionID: input.sessionID, goalID: goal.id })
             if (advanced.state === "admitted") yield* execution.wake(input.sessionID)
+            return undefined
           }),
       })
       editor.add({

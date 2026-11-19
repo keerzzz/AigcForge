@@ -793,33 +793,29 @@ describe("ShellTool ordinary shell syntax", () => {
       "Write-Output `\n  hello",
       "Write-Output @'\nhello\n'@",
     ]) {
-      test(
-        `PowerShell ${portable ? "native" : "legacy"}: ordinary syntax reuses approvals: ${command}`,
-        () =>
-          withScanner(
-            portable,
-            (registry, directory) =>
-              Effect.gen(function* () {
-                const saved = yield* PermissionSaved.Service
-                const location = yield* Location.Service
-                yield* saved.add({
-                  projectID: location.project.id,
-                  action: "shell",
-                  resources: ["Write-Output *", "Show-Value *"],
-                })
-                const result = yield* runPermissionCommand(registry, command, path.join(directory.active, "marker"), [])
-                expect(result.requests).toEqual([])
-                expect(result.exit).toMatchObject({
-                  _tag: "Success",
-                  value: { status: "completed", metadata: { exit: 0 } },
-                })
-                if (Exit.isSuccess(result.exit))
-                  expect(result.exit.value.content?.[0]).toEqual(Expected.text(isWindows ? "hello\r\n" : "hello\n"))
-              }),
-            pwsh ?? "pwsh",
-          ),
-        { timeout: 30_000 },
-      )
+      test(`PowerShell ${portable ? "native" : "legacy"}: ordinary syntax reuses approvals: ${command}`, () =>
+        withScanner(
+          portable,
+          (registry, directory) =>
+            Effect.gen(function* () {
+              const saved = yield* PermissionSaved.Service
+              const location = yield* Location.Service
+              yield* saved.add({
+                projectID: location.project.id,
+                action: "shell",
+                resources: ["Write-Output *", "Show-Value *"],
+              })
+              const result = yield* runPermissionCommand(registry, command, path.join(directory.active, "marker"), [])
+              expect(result.requests).toEqual([])
+              expect(result.exit).toMatchObject({
+                _tag: "Success",
+                value: { status: "completed", metadata: { exit: 0 } },
+              })
+              if (Exit.isSuccess(result.exit))
+                expect(result.exit.value.content?.[0]).toEqual(Expected.text(isWindows ? "hello\r\n" : "hello\n"))
+            }),
+          pwsh ?? "pwsh",
+        ))
     }
   }
 

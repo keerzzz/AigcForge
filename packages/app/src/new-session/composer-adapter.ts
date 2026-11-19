@@ -41,7 +41,11 @@ export function createNewSessionComposerAdapter(props: {
   const model = createComposerModelSelection({ draftID: props.draftID })
   createEffect(() => {
     if (!prompt.ready() || !local.session.ready()) return
-    local.session.bindDraft(props.draftID, prompt.model.current())
+    const initial = prompt.model.current()
+    local.session.bindDraft(
+      props.draftID,
+      !initial || "type" in initial ? initial : { ...initial, variant: initial.variant ?? undefined },
+    )
   })
   let disposed = false
   let generation = 0

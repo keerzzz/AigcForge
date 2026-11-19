@@ -101,7 +101,7 @@ export function SessionUIProvider(
         !params.id ||
         !communicationIDs().length
       )
-        return
+        return undefined
 
       return {
         data,

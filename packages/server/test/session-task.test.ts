@@ -770,9 +770,9 @@ it.live("MP04 artifact HTTP apply records the exact producer after the Location 
     })
     const unsubscribe = yield* bus.listen((event) =>
       Effect.gen(function* () {
-        if (event.type !== WorkArtifact.Event.ArtifactApplied.type) return
+        if (event.type !== WorkArtifact.Event.ArtifactApplied.type) return undefined
         const applied = Schema.decodeUnknownSync(WorkArtifact.Event.ArtifactApplied.data)(event.data)
-        if (applied.sessionID !== root.id) return
+        if (applied.sessionID !== root.id) return undefined
         // apply allocates the Artifact ID before updating its snapshot; bind the existing Goal to that actual ID.
         const goal = yield* goals.edit({
           sessionID: root.id,
@@ -784,6 +784,7 @@ it.live("MP04 artifact HTTP apply records the exact producer after the Location 
         if (!round) return yield* Effect.die(new Error("missing Goal round"))
         expect(round).toMatchObject({ goalID: originalGoal.id, sessionID: root.id, revision: goal.revision })
         yield* SessionInbox.promote(db, bus, root.id, "input", undefined, { anchorInputID: round.inputID })
+        return undefined
       }).pipe(Effect.orDie),
     )
     yield* Effect.addFinalizer(() => unsubscribe)

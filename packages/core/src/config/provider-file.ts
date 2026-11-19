@@ -10,6 +10,7 @@ import { ModelGroup } from "@aigcfroge/schema/model-group"
 import { FSUtil } from "@aigcfroge/util/fs-util"
 import { Hash } from "@aigcfroge/util/hash"
 import { FileMutation } from "../file-mutation.js"
+import { isRecord } from "../util/record.js"
 
 type Json = Schema.Schema.Type<typeof Schema.Json>
 
@@ -149,13 +150,7 @@ export function patchText(file: File, edit: Edit) {
       !Array.isArray(item.value) &&
       !Object.keys(item.value).length
     ) {
-      const present = item.path.reduce<unknown>(
-        (value, key) =>
-          typeof value === "object" && value !== null && !Array.isArray(value)
-            ? (value as Readonly<Record<string, unknown>>)[key]
-            : undefined,
-        file.data,
-      )
+      const present = item.path.reduce<unknown>((value, key) => (isRecord(value) ? value[key] : undefined), file.data)
       if (present !== undefined) return text
     }
     return set(text, item.path, item.value)

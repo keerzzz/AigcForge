@@ -2652,7 +2652,7 @@ export function createData(config: CreateDataInput) {
             owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) ||
             !cache?.listed
           )
-            return
+            return undefined
           return Object.values(cache.items).toSorted(
             (left, right) => right.createdAt - left.createdAt || left.id.localeCompare(right.id),
           )
@@ -2755,7 +2755,7 @@ export function createData(config: CreateDataInput) {
             owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) ||
             !cache?.listed
           )
-            return
+            return undefined
           return Object.values(cache.items).toSorted(
             (left, right) => Number(right.createdAt) - Number(left.createdAt) || left.id.localeCompare(right.id),
           )
@@ -2862,7 +2862,7 @@ export function createData(config: CreateDataInput) {
             owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) ||
             !cache?.listed
           )
-            return
+            return undefined
           return Object.values(cache.rules).toSorted(
             (left, right) => Number(right.createdAt) - Number(left.createdAt) || left.id.localeCompare(right.id),
           )

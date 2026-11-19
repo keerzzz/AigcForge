@@ -1951,7 +1951,7 @@ export const layer = Layer.effect(
               participant.target === input.agent &&
               participant.role === "implementer"
             )
-              return
+              return undefined
             return yield* new Delegation.DelegationInvalidStateError({
               delegationID,
               currentStatus: participant.phase,
@@ -1971,6 +1971,7 @@ export const layer = Layer.effect(
           const error = participantExecutorError(parent, state, candidate, "addParticipant")
           if (error) return yield* error
           yield* createParticipant(candidate, participantID)
+          return undefined
         }),
       )
       yield* appendTurn(

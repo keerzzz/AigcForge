@@ -17,7 +17,7 @@ describe("acp catalog and config options over the wire", () => {
           : undefined
     await using acp = await startWire({
       fetch: (request) => {
-        if (request.path !== "/api/model/group") return
+        if (request.path !== "/api/model/group") return undefined
         return Response.json({
           location: { directory: "/workspace" },
           data: {

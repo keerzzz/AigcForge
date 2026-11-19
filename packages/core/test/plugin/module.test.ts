@@ -332,7 +332,7 @@ export default Plugin.define({
 
       const checkTool = (yield* tools.list()).find((tool) => tool.id === "check_tool")
       expect(checkTool).toBeDefined()
-      if (!checkTool) return
+      if (!checkTool) return undefined
 
       const context = {
         sessionID: Session.ID.make("ses_host_effect"),
@@ -347,6 +347,7 @@ export default Plugin.define({
         content: [{ type: "text", text: "from-dep:v42:3" }],
       })
       expect(yield* rpc.call("host-effect-rpc", "check", { tag: " v9 " })).toEqual({ value: "v9#5" })
+      return undefined
     }),
 )
 

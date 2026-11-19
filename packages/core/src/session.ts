@@ -1178,7 +1178,7 @@ const layer = Layer.effect(
                       }),
                   ),
                 )
-                return
+                return undefined
               }
               const candidate = (yield* catalog.available()).find(
                 (item) => item.id === selected.id && item.providerID === selected.providerID,
@@ -1201,6 +1201,7 @@ const layer = Layer.effect(
                     }),
                 ),
               )
+              return undefined
             })
           }
         }

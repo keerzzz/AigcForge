@@ -1515,7 +1515,7 @@ export function Session(props: {
                     }}
                   </Show>
                 </Match>
-                <Match when={session() && currentLocation.error?.location.directory === session()!.location.directory}>
+                <Match when={session() && currentLocation.error?.location.directory === session().location.directory}>
                   <SessionLocationMissing
                     directory={session()!.location.directory}
                     projectID={session()!.projectID}

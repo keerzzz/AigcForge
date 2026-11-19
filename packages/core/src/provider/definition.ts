@@ -112,7 +112,7 @@ export const save = Effect.fn("ProviderDefinition.save")(function* (input: Provi
           (yield* providers.get(input.providerID))?.integrationID ?? Integration.ID.make(input.providerID)
         const active = yield* integrations.connection.active(integrationID)
         const credentialID = retry
-          ? original.adoption!.credentialID
+          ? original.adoption.credentialID
           : action.type === "create"
             ? Credential.ID.create()
             : action.type === "use"
@@ -194,13 +194,13 @@ export const save = Effect.fn("ProviderDefinition.save")(function* (input: Provi
           })
 
         addedModelIDs = retry
-          ? original.adoption!.addedModelIDs
+          ? original.adoption.addedModelIDs
           : Object.keys(candidate.models ?? {})
               .filter((id) => !original?.models?.[id])
               .map((id) => Model.ID.make(id))
         const simple = action.type === "keep" && (!original?.adoption || original.adoption.phase === "ready")
         let adoption: ConfigProvider.Adoption = retry
-          ? original.adoption!
+          ? original.adoption
           : {
               phase: simple ? "ready" : action.type === "create" && !action.key?.trim() ? "draft" : "applying",
               submissionID: input.submissionID,
@@ -214,7 +214,7 @@ export const save = Effect.fn("ProviderDefinition.save")(function* (input: Provi
             }
 
         const qualifyCredential = Effect.fnUntraced(function* () {
-          if (!adoption.credentialID) return
+          if (!adoption.credentialID) return undefined
           const stored = yield* credentials.get(adoption.credentialID)
           if (stored && stored.integrationID !== integrationID)
             return yield* new ConfigProviderFile.ConflictError({
@@ -254,7 +254,7 @@ export const save = Effect.fn("ProviderDefinition.save")(function* (input: Provi
           catalog = (yield* providers.available()).some((provider) => provider.id === input.providerID)
             ? { status: "ready" }
             : { status: "unavailable", message: "The definition is saved; this provider is currently unavailable" }
-          return
+          return undefined
         }
 
         const adoptCatalog = Effect.gen(function* () {
@@ -302,7 +302,7 @@ export const save = Effect.fn("ProviderDefinition.save")(function* (input: Provi
                   credentialID: adoption.credentialID,
                   message: "Enter the API key to finish this saved definition",
                 }
-                return
+                return undefined
               }
               yield* credentialBoundary(
                 credentials.create({
@@ -367,6 +367,7 @@ export const save = Effect.fn("ProviderDefinition.save")(function* (input: Provi
               status: "unavailable",
               message: "The definition is saved; execution is disabled or denied by provider policy",
             }
+        return undefined
       }),
     )
     .pipe(
@@ -432,7 +433,7 @@ export const remove = Effect.fn("ProviderDefinition.remove")(function* (input: P
           })
         if (!file.definitions[input.providerID]) {
           definition = { status: "unchanged", target: file.target }
-          return
+          return undefined
         }
         const written = yield* write({ type: "remove", providerID: input.providerID })
         definition = { status: "saved", target: written.target }
@@ -442,6 +443,7 @@ export const remove = Effect.fn("ProviderDefinition.remove")(function* (input: P
         yield* providers.reload()
         yield* models.reload()
         if (locations) yield* reloadLocations(locations, config, input.target)
+        return undefined
       }),
     )
     .pipe(
@@ -527,6 +529,7 @@ function reloadLocations(
             message: "A loaded Location has not suspended the pending provider",
           })
       }
+      return undefined
     }),
   )
 }

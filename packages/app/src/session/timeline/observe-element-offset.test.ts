@@ -1,7 +1,59 @@
 import { expect, test } from "bun:test"
-import { type Virtualizer } from "@tanstack/solid-virtual"
+import { Virtualizer, elementScroll, observeElementOffset, observeElementRect } from "@tanstack/solid-virtual"
 import { Node, Window } from "happy-dom"
 import { observeElementOffsetReconnectAware } from "./observe-element-offset"
+
+test.each([
+  { name: "vertical", horizontal: false, isRtl: false },
+  { name: "horizontal LTR", horizontal: true, isRtl: false },
+  { name: "horizontal RTL", horizontal: true, isRtl: true },
+])("reads the current native offset when scrolling becomes idle: $name", async (options) => {
+  const viewport = document.createElement("div")
+  document.body.append(viewport)
+
+  const instance = new Virtualizer<HTMLDivElement, HTMLDivElement>({
+    ...options,
+    count: 1,
+    getScrollElement: () => viewport,
+    estimateSize: () => 1,
+    scrollToFn: elementScroll,
+    observeElementOffset,
+    observeElementRect,
+    isScrollingResetDelay: 1,
+    useScrollendEvent: false,
+  })
+  instance.scrollElement = viewport
+  instance.targetWindow = window
+  instance.scrollOffset = 0
+
+  const idle = Promise.withResolvers<number>()
+  const calls: [number, boolean][] = []
+  const cleanup = observeElementOffsetReconnectAware(instance, (offset, isScrolling) => {
+    calls.push([offset, isScrolling])
+    instance.scrollOffset = offset
+    if (!isScrolling) idle.resolve(offset)
+  })
+
+  try {
+    const axis = options.horizontal ? "scrollLeft" : "scrollTop"
+    const direction = options.horizontal && options.isRtl ? -1 : 1
+    viewport[axis] = 84 * direction
+    viewport.dispatchEvent(new Event("scroll"))
+    expect(calls).toEqual([[84, true]])
+
+    // Restoring a cached view can move its native position before the next scroll event.
+    viewport[axis] = 2664 * direction
+    expect(await idle.promise).toBe(2664)
+    expect(calls).toEqual([
+      [84, true],
+      [2664, false],
+    ])
+    expect(instance.scrollOffset).toBe(2664)
+  } finally {
+    cleanup()
+    viewport.remove()
+  }
+})
 
 test("restores a view observed before its first attachment", async () => {
   const targetWindow = new Window()

@@ -103,6 +103,7 @@ it.live("AC17 serves Schedule rules and the six retained reminder endpoints with
     )
     expect((yield* fixture.request("/schedule/sch_missing/cancel", { body: {} })).status).toBe(400)
     expect(yield* fixture.llm.requests()).toHaveLength(0)
+    return undefined
   }),
 )
 

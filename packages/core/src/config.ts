@@ -425,6 +425,7 @@ export const layer = (options?: Options) =>
               })
               .pipe(Effect.mapError((cause) => new FSUtil.FileSystemError({ method: "config.update", cause })))
             yield* requestReload
+            return undefined
           }),
         )
       })

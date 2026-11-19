@@ -23,6 +23,7 @@ import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 import { Provider } from "@aigcfroge/core/provider"
 import { Integration } from "@aigcfroge/core/integration"
 import { Credential } from "@aigcfroge/core/credential"
+import { isRecord } from "@aigcfroge/core/util/record"
 import type { SessionRequestKind } from "@aigcfroge/plugin/effect/session"
 import { fakeSelectorSdk } from "../fixture/selector"
 import { pollWithTimeout, testEffect } from "../lib/effect"
@@ -143,7 +144,8 @@ describe("GithubCopilotPlugin", () => {
                 })
               }
               if (path.endsWith("/chat/completions")) {
-                const body = (await request.json()) as { model?: unknown }
+                const body = await request.json()
+                if (!isRecord(body)) throw new TypeError("Expected model request object")
                 titleRequests.push({ path, authorization: request.headers.get("authorization"), model: body.model })
                 return Response.json({ choices: [{ message: { content: `Account ${account} title` } }] })
               }

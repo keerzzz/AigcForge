@@ -481,6 +481,7 @@ leafIt.live("inherits a Judge summary Group and records its actual fallback API 
       { selection: group, model: rejected, api: "rejected-api" },
       { selection: group, model: accepted, api: "summary-api" },
     ])
+    return undefined
   }),
 )
 
@@ -506,6 +507,7 @@ leafIt.live("keeps the original Judge packet and omits runtime when an inherited
         .filter((message) => message.type === "assistant")
         .flatMap((message) => message.attempts ?? []),
     ).toEqual([])
+    return undefined
   }),
 )
 
@@ -563,7 +565,7 @@ for (const mode of ["foreground", "background", "admit-only"] as const) {
         )
         expect(operation).toBeUndefined()
         expect(yield* f.sessions.inbox(f.root.id)).toEqual([])
-        return
+        return undefined
       }
       if (!operation) return yield* Effect.die(new Error("The asynchronous self-target operation was not admitted"))
       expect(yield* tasks.operations({ sessionID: f.root.id })).toHaveLength(1)
@@ -586,6 +588,7 @@ for (const mode of ["foreground", "background", "admit-only"] as const) {
         }),
       ).toMatchObject({ status: "completed" })
       expect(yield* f.sessions.inbox(f.root.id)).toEqual([])
+      return undefined
     }).pipe(
       Effect.ensuring(
         Effect.gen(function* () {

@@ -20,6 +20,7 @@ import { Provider } from "@aigcfroge/core/provider"
 import { ProviderDiscovery } from "@aigcfroge/core/provider/discovery"
 import { ProviderDiscoveryHTTP } from "@aigcfroge/core/provider/discovery-http"
 import { SessionUsage } from "@aigcfroge/core/session/usage"
+import { isRecord } from "@aigcfroge/core/util/record"
 import { ConfigProvider } from "@aigcfroge/schema/config/provider"
 import { Document, Info } from "@aigcfroge/schema/config"
 import { Money } from "@aigcfroge/schema/money"
@@ -980,7 +981,8 @@ describe("P5 Magpie standard protocols", () => {
         const running = yield* server(async (request) => {
           const path = new URL(request.url).pathname
           if (path.endsWith("/models")) return Response.json({ data: [{ id: "openai/test" }, { id: "group/fast" }] })
-          const body = (await request.json()) as { model: unknown }
+          const body = await request.json()
+          if (!isRecord(body)) throw new TypeError("Expected model request object")
           requests.push({ path, model: body.model })
           if (fail)
             return Response.json(

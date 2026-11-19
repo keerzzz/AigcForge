@@ -369,6 +369,7 @@ describe("Session notification lifecycle", () => {
           resultDigest: fixture.resultDigest,
         },
       ])
+      return undefined
     }),
   )
 

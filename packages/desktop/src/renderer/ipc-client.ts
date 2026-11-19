@@ -59,7 +59,9 @@ const port = new Promise<MessagePort>((resolve) => {
 window.addEventListener(
   "pagehide",
   () =>
-    void Promise.allSettled([...beforeDispose].map((callback) => callback())).then(() => port.then((p) => p.close())),
+    void Promise.allSettled([...beforeDispose].map((callback) => Promise.resolve(callback()))).then(() =>
+      port.then((p) => p.close()),
+    ),
   { once: true },
 )
 

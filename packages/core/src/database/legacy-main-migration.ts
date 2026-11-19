@@ -44,7 +44,7 @@ export const matches = Effect.fn("LegacyMainMigration.matches")(function* (db: D
 const copy = Effect.fn("LegacyMainMigration.copy")(function* (tx: Transaction, source: string, target: string) {
   const sourceCount = yield* tx.get<{ count: number }>(sql`SELECT count(*) AS count FROM ${sql.identifier(source)}`)
   // The fresh schema has no seeded rows; empty archived tables need no column conversion.
-  if (sourceCount?.count === 0) return
+  if (sourceCount?.count === 0) return undefined
   const before = yield* tx.all<Column>(sql`SELECT * FROM pragma_table_xinfo(${source})`)
   const after = yield* tx.all<Column>(sql`SELECT * FROM pragma_table_xinfo(${target})`)
   const columns = new Map(after.map((column) => [column.name, column]))
@@ -82,6 +82,7 @@ const copy = Effect.fn("LegacyMainMigration.copy")(function* (tx: Transaction, s
   `)
   if (sourceCount?.count !== targetCount?.count || mismatch)
     return yield* new LegacyMainHistory.RecoveryError({ reason: `Legacy table copy was not exact: ${target}` })
+  return undefined
 })
 
 export const restore = Effect.fn("LegacyMainMigration.restore")(function* (

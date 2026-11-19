@@ -67,7 +67,7 @@ App 的单元、browser 与 E2E 类型各有独立入口：
 /home/keer/workspace/aigcfroge-v2/script/bun run --cwd=packages/protocol check:generated
 ```
 
-根 `check` 为 canonical lint/typecheck，默认 typecheck concurrency=3。日常按受影响包串行；低资源全类型检查需明确任务与资源安排。禁止 `tsc`、跳 hook 或假定旧 skip 环境变量仍适用。
+根 `check` 为 canonical lint/typecheck，默认 typecheck concurrency=1，保留全部包任务。日常按受影响包串行；低资源全类型检查需明确任务与资源安排。禁止 `tsc`、跳 hook 或假定旧 skip 环境变量仍适用。
 
 ## 3. 每个小节的证据
 

@@ -856,7 +856,7 @@ export const layer = Layer.effect(
                       inputID: input.request.inputID,
                       projected: true,
                     }).pipe(Effect.orDie)
-                    if (!task || predecessorID !== undefined) return
+                    if (!task || predecessorID !== undefined) return undefined
                     const updated = yield* db
                       .update(TaskTable)
                       .set({
@@ -897,6 +897,7 @@ export const layer = Layer.effect(
                     if (row)
                       yield* saveClaim(toInfo(row, now), TaskOperation.permissionSource(saved), saved.operationID)
                     yield* ScheduleTask.sync(db, { sessionID: input.sessionID, now, previous, execution: true })
+                    return undefined
                   }),
               })
               .pipe(
@@ -1168,6 +1169,7 @@ export const layer = Layer.effect(
                   if (row)
                     yield* saveClaim(toInfo(row, now), TaskOperation.permissionSource(operation), operation.operationID)
                   yield* ScheduleTask.sync(db, { sessionID: input.sessionID, now, previous, execution: true })
+                  return undefined
                 }),
             })
             .pipe(

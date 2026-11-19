@@ -11,6 +11,7 @@ import { Model } from "@aigcfroge/schema/model"
 import { SessionCommunication } from "@aigcfroge/schema/session-communication"
 import { SessionID } from "@aigcfroge/schema/session-id"
 import { Option, Schema } from "effect"
+import { absurd } from "effect/Function"
 import { fileURLToPath } from "url"
 import { SessionMessage } from "../message.js"
 import { SessionProviderContext } from "../provider-context.js"
@@ -360,6 +361,7 @@ function toLLMMessage(
         }),
       ]
   }
+  return absurd(message)
 }
 
 /** Translate projected Session history into canonical @aigcfroge/ai context. */

@@ -165,7 +165,7 @@ export const layer = Layer.effect(
     const metaAgent = yield* MetaAgentService.Service
 
     const validateSource = Effect.fnUntraced(function* (input: RecordInput) {
-      if (input.sourceSessionID === undefined && input.sourceStepID === undefined) return
+      if (input.sourceSessionID === undefined && input.sourceStepID === undefined) return undefined
       const step =
         input.sourceStepID === undefined
           ? undefined
@@ -186,7 +186,7 @@ export const layer = Layer.effect(
         .pipe(Effect.orDie)
       if (!source) return yield* new InvalidSourceError({ reason: "session_missing" })
       if (source.project_id !== input.projectID) return yield* new InvalidSourceError({ reason: "project_mismatch" })
-      if (!step) return
+      if (!step) return undefined
       const definition = sourceDefinitions.find((definition) => definition.type === step.event_type)
       const provenance = Schema.decodeUnknownOption(SourceProvenance)(step.provenance)
       if (
@@ -261,7 +261,7 @@ export const layer = Layer.effect(
         return yield* new InvalidSourceError({ reason: "step_unverified" })
       if (modelStarted && controller.kind === "root" && event.data.agent !== "meta")
         return yield* new InvalidSourceError({ reason: "step_unverified" })
-      if (retained) return
+      if (retained) return undefined
       // Without event retention, only an exact producer projection verifies this occurrence.
       if (!modelStarted) return yield* new InvalidSourceError({ reason: "step_unverified" })
       const row = yield* db
@@ -286,6 +286,7 @@ export const layer = Layer.effect(
         !sameModel(assistant.value.model, event.data.model)
       )
         return yield* new InvalidSourceError({ reason: "step_unverified" })
+      return undefined
     })
 
     const record = Effect.fn("MetaAgentMemory.record")(function* (input: RecordInput) {

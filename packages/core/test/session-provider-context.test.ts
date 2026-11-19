@@ -327,6 +327,7 @@ it.effect(
         type: "compaction",
         providerContext: { provenance: proof },
       })
+      return undefined
     }),
 )
 

@@ -217,7 +217,7 @@ const context = createSimpleContext({
           .list(location.ref)
           ?.findLast((entry) => entry.type === "document" && entry.info.model !== undefined)
         const configured = entry?.type === "document" ? entry.info.model : undefined
-        if (!configured) return
+        if (!configured) return undefined
         if (typeof configured === "string") return parse(configured)
         if ("type" in configured) return { type: "group" as const, groupID: configured.groupID }
         return { providerID: configured.providerID, modelID: configured.model, variant: configured.variant }

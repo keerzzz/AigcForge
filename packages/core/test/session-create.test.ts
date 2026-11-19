@@ -261,6 +261,7 @@ admissionIt.live("runs ordinary Meta Group selection from current configuration 
     yield* saveSessionGroup(f.location, group.groupID, [next])
     expect((yield* context.resolveModel(root)).ref).toEqual(next)
     expect(yield* compositions.read(root.id)).toBeUndefined()
+    return undefined
   }),
 )
 
@@ -324,6 +325,7 @@ admissionIt.live(
         expect(upgraded.snapshot.data.groupBehavior).toEqual(edited)
         expect((yield* context.resolveModel(upgraded.session)).ref).toEqual(next)
         expect(yield* compositions.get(root.id)).toEqual(original)
+        return undefined
       }),
     ),
 )
@@ -402,6 +404,7 @@ admissionIt.live("keeps a frozen child Group on exact retry and carries its beha
       expect(fork.model).toEqual(childGroup)
       expect(forkSnapshot.data.groupBehavior).toEqual(firstBehavior)
       expect((yield* context.resolveModel(fork)).ref).toEqual(next)
+      return undefined
     }),
   ),
 )
@@ -518,6 +521,7 @@ admissionIt.live("captures an asset executor's Group during real freeze and keep
           })),
         ).toEqual([{ selection: group, model: f.model, api: "frozen-group-api" }])
       }
+      return undefined
     }),
   ),
 )

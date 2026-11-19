@@ -149,10 +149,14 @@ function resolveView(
   }
 }
 
-function statefulActions(actions: Readonly<Record<ActionVariant, StatefulColor>>) {
-  return Object.fromEntries(
-    ActionVariant.literals.map((variant) => [variant, statefulColor(actions[variant])]),
-  ) as Readonly<Record<ActionVariant, StatefulColor>>
+function statefulActions(
+  actions: Readonly<Record<ActionVariant, StatefulColor>>,
+): Readonly<Record<ActionVariant, StatefulColor>> {
+  return {
+    primary: statefulColor(actions.primary),
+    secondary: statefulColor(actions.secondary),
+    destructive: statefulColor(actions.destructive),
+  }
 }
 
 function statefulColor(color: StatefulColor): StatefulColor {

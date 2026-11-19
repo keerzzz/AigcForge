@@ -1634,12 +1634,14 @@ async function browserKeepers() {
     expect(local.executor.preference()).toEqual(executor("explore", "removed", "low"))
   })
 
-  test("bound drafts restore their own Meta, executor, and raw efforts", () => {
+  test.each(["low", null])("bound drafts restore their own Meta, executor, and raw effort %p", (variant) => {
     const f = fixture({ newSession: true })
-    f.prompt.model.set({ ...key("b"), variant: "low" })
-    const { local } = f.mount("draft_a", true)
+    f.prompt.model.set({ ...key("b"), variant })
+    const mounted = f.mount("draft_a", true)
+    const local = mounted.local
     expect(local.model.current()?.id).toBe("b")
-    expect(local.model.variant.current()).toBe("low")
+    expect(local.model.variant.current()).toBe(variant ?? undefined)
+    flushPersisted()
     local.executor.set(executor("explore"))
     local.executor.model.set(key("c"))
     local.executor.model.variant.set("high")
@@ -1660,6 +1662,10 @@ async function browserKeepers() {
     expect(selection(local)).toEqual(first)
     local.session.bindDraft("draft_b")
     expect(selection(local)).toEqual(second)
+    mounted.dispose()
+    flushPersisted()
+    f.prompt.model.set(undefined)
+    expect(selection(f.mount("draft_a", true).local)).toEqual(first)
   })
 
   test("a fresh draft does not adopt the previous draft's promotion", () => {

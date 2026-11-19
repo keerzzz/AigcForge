@@ -100,6 +100,7 @@ const setup = Effect.fnUntraced(function* () {
         sessionID: session.id,
         revert: { messageID: boundary.id, files: [] },
       })
+      return undefined
     }),
   )
   return {
@@ -357,6 +358,7 @@ describe("Session communication through original Share and Inbox", () => {
         first.id,
         reply.id,
       ])
+      return undefined
     }),
   )
 

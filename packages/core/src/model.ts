@@ -7,7 +7,7 @@ import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
 import { Bus } from "./bus.js"
 import { State } from "./state.js"
 import { Location } from "./location.js"
-import { freeze } from "immer"
+import { castDraft, freeze } from "immer"
 import { AISDKNative } from "./aisdk-native.js"
 import { ModelGroup } from "./model-group.js"
 import type { ConfigModel } from "@aigcfroge/schema/config/model"
@@ -128,14 +128,15 @@ const layer = Layer.effect(
     let input = new Map<string, Provider.Snapshot>()
     const editor = (data: Data, providerInput?: Provider.Snapshot): Editor => {
       // Definitions are shared across Locations; a provider's map and a model are copied before their first edit.
-      const owned = new WeakSet<ReadonlyMap<ID, Info>>()
-      const drafts = new WeakSet<Info>()
+      const owned = new WeakMap<ReadonlyMap<ID, Info>, Map<ID, Info>>()
+      const drafts = new WeakMap<Info, MutableInfo>()
       const writable = (providerID: Provider.ID) => {
         const current = data.models.get(providerID)
         if (!current) return undefined
-        if (owned.has(current)) return current as Map<ID, Info>
+        const mutable = owned.get(current)
+        if (mutable) return mutable
         const copy = new Map(current)
-        owned.add(copy)
+        owned.set(copy, copy)
         data.models.set(providerID, copy)
         return copy
       }
@@ -144,9 +145,10 @@ const layer = Layer.effect(
         if (!models) return undefined
         const current = models.get(modelID)
         if (!current) return undefined
-        if (drafts.has(current)) return current as MutableInfo
-        const copy = structuredClone(current) as MutableInfo
-        drafts.add(copy)
+        const mutable = drafts.get(current)
+        if (mutable) return mutable
+        const copy = castDraft(structuredClone(current))
+        drafts.set(copy, copy)
         models.set(modelID, copy)
         return copy
       }
@@ -175,7 +177,7 @@ const layer = Layer.effect(
             canonical: model.canonical ?? provider?.canonical,
             modelID: model.modelID ?? modelID,
           })
-          drafts.add(model)
+          drafts.set(model, model)
           models.set(modelID, model)
         },
         remove: (providerID, modelID) => {

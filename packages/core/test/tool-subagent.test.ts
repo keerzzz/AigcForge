@@ -388,6 +388,7 @@ ownershipIt.live(
       const nextSnapshot = yield* f.compositions.get(outputSessionID(next.output))
       if (nextSnapshot.version !== 2) return yield* Effect.die(new Error("New subagent Group snapshot is not V2"))
       expect(SessionComposition.groupBehaviorFor(nextSnapshot, f.info.id)?.members).toEqual([parentModel])
+      return undefined
     }),
 )
 

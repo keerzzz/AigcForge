@@ -30,7 +30,7 @@ export const Plugin = define({
     const sessions = new Map<Session.ID, { last: number; expires: number; settings: typeof defaults }>()
     const loop: (sessionID: Session.ID) => Effect.Effect<void> = Effect.fn("WarmingPlugin.loop")(function* (sessionID) {
       const current = sessions.get(sessionID)
-      if (!current) return
+      if (!current) return undefined
 
       const now = yield* Clock.currentTimeMillis
       const next = Math.min(current.last + Duration.toMillis(current.settings.interval), current.expires)
@@ -40,7 +40,7 @@ export const Plugin = define({
       }
       if (now >= current.expires) {
         sessions.delete(sessionID)
-        return
+        return undefined
       }
 
       const last = current.last

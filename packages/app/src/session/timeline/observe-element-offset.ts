@@ -6,14 +6,17 @@ export function observeElementOffsetReconnectAware<TScrollElement extends Elemen
   onReconnect?: () => void,
 ) {
   let active = true
+  const element = instance.scrollElement
+  const readOffset = (target: TScrollElement) =>
+    instance.options.horizontal ? target.scrollLeft * (instance.options.isRtl ? -1 : 1) : target.scrollTop
 
   const deliver = (offset: number, isScrolling: boolean) => {
     if (!active) return
-    callback(offset, isScrolling)
+    // The idle timer can outlive a native position restore and still carry the previous scroll event's offset.
+    callback(!isScrolling && element ? readOffset(element) : offset, isScrolling)
   }
 
   const cleanupOffset = observeElementOffset(instance, deliver)
-  const element = instance.scrollElement
   const targetWindow = instance.targetWindow
   const root = element?.closest("main") ?? element?.ownerDocument.body
 
@@ -40,12 +43,10 @@ export function observeElementOffsetReconnectAware<TScrollElement extends Elemen
 
     const check = (time: number) => {
       frame = undefined
+      const offset = readOffset(element)
 
-      if (
-        element.isConnected &&
-        (instance.scrollOffset === null || Math.abs(element.scrollTop - instance.scrollOffset) > 1)
-      )
-        deliver(element.scrollTop, false)
+      if (element.isConnected && (instance.scrollOffset === null || Math.abs(offset - instance.scrollOffset) > 1))
+        deliver(offset, false)
 
       if (time >= deadline) framesAfterDeadline += 1
 

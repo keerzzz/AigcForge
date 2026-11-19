@@ -313,7 +313,7 @@ export function update(adapter: Adapter, event: SessionEvent.DurableEvent) {
                 return yield* Effect.die(
                   new Bus.InvalidDurableEventError({ type: event.type, message: "Conflicting physical attempt start" }),
                 )
-              return
+              return undefined
             }
             if (existing.unknownPriceAttempts !== undefined || existing.completion !== undefined)
               return yield* Effect.die(
@@ -355,7 +355,7 @@ export function update(adapter: Adapter, event: SessionEvent.DurableEvent) {
                 draft.needsContinuation = undefined
               }),
             )
-            return
+            return undefined
           }
           if (started.ordinal !== 0)
             return yield* Effect.die(
@@ -390,6 +390,7 @@ export function update(adapter: Adapter, event: SessionEvent.DurableEvent) {
               time: { created: DateTime.makeUnsafe(started.started) },
             }),
           )
+          return undefined
         }),
       "session.attempt.observed": (event) =>
         updateOwnedAssistant(

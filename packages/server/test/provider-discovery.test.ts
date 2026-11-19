@@ -573,6 +573,7 @@ it.live(
               request.headers.get("authorization") === "Bearer " + chat.key,
           ),
       ).toBe(true)
+      return undefined
     }),
   30_000,
 )
@@ -741,6 +742,7 @@ it.live(
       expect(fixture.requests.filter((request) => request.method === "POST")).toHaveLength(0)
       yield* Fiber.interrupt(right.fiber)
       yield* Fiber.interrupt(reconnected.fiber)
+      return undefined
     }),
   30_000,
 )
@@ -834,6 +836,7 @@ it.live(
       expect(generation?.headers.get("anthropic-version")).toBe("2023-06-01")
       expect(generation?.body).toMatchObject({ model: messages.alternateModelID, stream: true, max_tokens: 2_048 })
       expect(fixture.requests.filter((request) => request.method === "POST")).toHaveLength(1)
+      return undefined
     }),
   30_000,
 )
@@ -977,6 +980,7 @@ it.live(
       ).toBe(true)
       yield* Fiber.interrupt(events)
       yield* Fiber.interrupt(discovery.fiber)
+      return undefined
     }),
   30_000,
 )

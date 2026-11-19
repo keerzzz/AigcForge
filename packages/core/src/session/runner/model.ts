@@ -405,7 +405,7 @@ const layer = Layer.effect(
             candidates.some((candidate) => candidate.quota !== undefined && candidate.quota.status !== "unsupported")
           const ranked = (receipts: typeof ledger, time: number) => {
             const eligible = candidates.filter((candidate) => !rejected.has(candidate))
-            if (eligible.length === 0 || !strategyAvailable) return
+            if (eligible.length === 0 || !strategyAvailable) return undefined
             if (held !== undefined) {
               const pinned = eligible.find(
                 (candidate) =>
@@ -912,9 +912,9 @@ function supportsStrategy(strategy: ModelGroup.Definition["strategy"], facts: Re
 
 /** The actual transport proof owns a speed sample; prepared-only records cannot establish one. */
 function speedSample(candidate: Candidate, attempts: readonly SessionAttempt.Info[], time: number) {
-  if (candidate.runtime === undefined) return
+  if (candidate.runtime === undefined) return undefined
   const target = SessionProviderContext.provenance(candidate.runtime)
-  if (target === undefined) return
+  if (target === undefined) return undefined
   return attempts
     .flatMap((attempt) => {
       const terminal = attempt.terminal

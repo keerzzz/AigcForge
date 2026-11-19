@@ -408,6 +408,7 @@ describe("Schedule execution consumes original owners", () => {
       expect(receipt.inputID).toBe(claimed.inputID)
       expect(yield* fixture.schedules.runs(rule.id)).toHaveLength(1)
       expect(yield* fixture.llm.requests()).toHaveLength(1)
+      return undefined
     }),
   )
 

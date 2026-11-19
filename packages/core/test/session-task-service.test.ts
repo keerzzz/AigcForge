@@ -2694,6 +2694,7 @@ describe("Task schedule write boundaries", () => {
       expect(yield* tasks.get(sessionID)).toEqual(before)
       expect(yield* schedules.getRule(rule.id)).toEqual(scheduleBefore)
       expect(published).toEqual([])
+      return undefined
     }),
   )
 
@@ -2774,6 +2775,7 @@ describe("Task schedule write boundaries", () => {
         expect(yield* tasks.get(sessionID)).toEqual([])
         expect((yield* schedules.getRule(ScheduleTask.idFor(second.id)))?.status).toBe("cancelled")
         expect(yield* schedules.runs(current.id)).toEqual([run])
+        return undefined
       }),
   )
 
@@ -2814,6 +2816,7 @@ describe("Task schedule write boundaries", () => {
         expect((yield* tasks.get(sessionID))[0]?.status).toBe("scheduled")
         expect((yield* tasks.get(sessionID))[0]?.nextRun).toBeUndefined()
         expect((yield* tasks.listAll()).find((row) => row.id === task.id)?.nextRun).toBeUndefined()
+        return undefined
       }),
   )
 })
@@ -2917,6 +2920,7 @@ describe("Task operation reservations", () => {
       yield* tasks.removeTask({ sessionID, id: seed.id })
       expect(yield* tasks.get(sessionID)).toEqual([])
       expect(yield* tasks.operations({ sessionID, taskID: seed.id })).toEqual([failed])
+      return undefined
     }),
   )
 
@@ -3117,6 +3121,7 @@ describe("Task operation reservations", () => {
         })
         expect(retried.sourceSettlement).toBe("settled")
         expect((yield* tasks.get(sessionID))[0]).toEqual(edited)
+        return undefined
       }),
   )
 
@@ -3172,6 +3177,7 @@ describe("Task operation reservations", () => {
           .get()
           .pipe(Effect.orDie),
       ).toEqual(currentClaim)
+      return undefined
     }),
   )
 
@@ -3303,6 +3309,7 @@ describe("Task operation reservations", () => {
             .get()
             .pipe(Effect.orDie),
         ).toBeUndefined()
+        return undefined
       }),
   )
 

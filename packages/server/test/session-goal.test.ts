@@ -278,5 +278,6 @@ it.live("maps invalid Goal admission and missing Session errors without dispatch
     const listed = yield* fixture.request(path)
     expect(goalsResponse(yield* Effect.promise(() => listed.json())).data).toEqual([])
     expect(yield* fixture.llm.requests()).toHaveLength(0)
+    return undefined
   }),
 )

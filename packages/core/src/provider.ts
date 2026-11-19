@@ -16,7 +16,7 @@ import { State } from "./state.js"
 import { IntegrationConnection } from "./integration/connection.js"
 import { Credential } from "@aigcfroge/schema/credential"
 import { Location } from "./location.js"
-import { freeze } from "immer"
+import { castDraft, freeze } from "immer"
 import { AISDKNative } from "./aisdk-native.js"
 
 export const ID = Provider.ID
@@ -327,22 +327,23 @@ const layer = Layer.effect(
     let byID = new Map<Integration.ID, Integration.Info>()
     let connectionSignature = ""
     const editor = (records: Records, input?: ConnectionInput): Editor => {
-      const maps = new WeakSet<ReadonlyMap<Model.ID, Model.Info>>()
+      const maps = new WeakMap<ReadonlyMap<Model.ID, Model.Info>, Map<Model.ID, Model.Info>>()
       const models = new WeakSet<Model.Info>()
       const entry = (id: ID) => {
         const current = records.get(id)
         if (current) return current
         const added = { provider: Info.empty(id) as MutableInfo, models: new Map<Model.ID, Model.Info>() }
         records.set(id, added)
-        maps.add(added.models)
+        maps.set(added.models, added.models)
         return added
       }
       const writable = (id: ID) => {
         const record = entry(id)
-        if (maps.has(record.models)) return record.models as Map<Model.ID, Model.Info>
+        const current = maps.get(record.models)
+        if (current) return current
         const owned = new Map(record.models)
         record.models = owned
-        maps.add(owned)
+        maps.set(owned, owned)
         return owned
       }
       return {
@@ -389,13 +390,13 @@ const layer = Layer.effect(
             const target = writable(providerID)
             const current = target.get(modelID)
             const model = // An earlier add/set can publish and freeze an owned model within this fold.
-              (
+              castDraft<Model.Info>(
                 current && models.has(current) && !Object.isFrozen(current)
                   ? current
                   : current
                     ? structuredClone(current)
-                    : Model.Info.default(providerID, modelID)
-              ) as DeepMutable<Model.Info>
+                    : Model.Info.default(providerID, modelID),
+              )
             update(model)
             model.id = modelID
             model.providerID = providerID

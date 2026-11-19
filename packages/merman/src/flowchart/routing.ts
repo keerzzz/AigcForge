@@ -1359,7 +1359,7 @@ function avoidNodeObstacles(
     const current = segments ?? routeSegments(candidate)
     return otherRoutes.some(
       (other, index) =>
-        endpointDisjoint(candidate.edge, other.edge) && pathsIntersect(current, otherRouteSegments[index]!),
+        endpointDisjoint(candidate.edge, other.edge) && pathsIntersect(current, otherRouteSegments[index]),
     )
   }
   const intersectsObstacle = (candidate: FlowchartEdgeRoute, segments?: ReturnType<typeof routeSegments>): boolean => {
@@ -1510,7 +1510,7 @@ function avoidNodeObstacles(
   const currentTargetSide = sideForOutsidePoint(to, route.points.at(-1)!)
   const preservedTargets = refine
     ? []
-    : buses.map((bus) => routeViaBus(route, route.points[0]!, to, currentTargetSide, bus))
+    : buses.map((bus) => routeViaBus(route, route.points[0], to, currentTargetSide, bus))
   const sameSides: FlowchartEdgeRoute[] = refine
     ? []
     : [
@@ -1545,7 +1545,7 @@ function avoidNodeObstacles(
       ]
   const preservedSources = refine
     ? []
-    : targetSides.flatMap((targetSide) => buses.map((bus) => routeViaBus(route, route.points[0]!, to, targetSide, bus)))
+    : targetSides.flatMap((targetSide) => buses.map((bus) => routeViaBus(route, route.points[0], to, targetSide, bus)))
   const attachments = sourceSides.flatMap((sourceSide) =>
     terminalSides.flatMap((targetSide) =>
       buses.map((bus) => routeViaBus(route, boundsSidePoint(from, sourceSide), to, targetSide, bus)),
@@ -1578,13 +1578,13 @@ function avoidNodeObstacles(
     const currentWidth = measuredRouteWidth(
       routeIndex,
       route,
-      refinement.segments[routeIndex]!,
+      refinement.segments[routeIndex],
       refinement,
       currentInkBounds,
     )
     const parallelPaths = new Set(
       refinement.pathKeys.flatMap((key, index) =>
-        index !== routeIndex && routes[index]!.edge.from === route.edge.from && routes[index]!.edge.to === route.edge.to
+        index !== routeIndex && routes[index].edge.from === route.edge.from && routes[index].edge.to === route.edge.to
           ? [key]
           : [],
       ),
@@ -1873,11 +1873,7 @@ export function refineFlowchartRoutes(
           )
         )
           return false
-        const contacts = [
-          current.points[0]!,
-          current.points.at(-1)!,
-          flowchartSourceConnector(from, current.points[0]!),
-        ]
+        const contacts = [current.points[0], current.points.at(-1)!, flowchartSourceConnector(from, current.points[0])]
         if (
           trialGeometry.labels.some((label) =>
             contacts.some((point) =>
@@ -2155,7 +2151,7 @@ export function routeFlowchartEdges(
   }
   for (let index = routes.length - 1; index >= 0; index--) {
     routes[index] = avoidNodeObstacles(
-      routes[index]!,
+      routes[index],
       routes,
       bounds,
       subgraphBounds,

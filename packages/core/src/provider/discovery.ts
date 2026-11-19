@@ -14,6 +14,7 @@ import {
   Schema,
   Scope,
   Semaphore,
+  Struct,
 } from "effect"
 import { SqlError } from "effect/sql/SqlError"
 import { HttpClient } from "effect/http"
@@ -146,7 +147,7 @@ export const layer = Layer.effect(
         (entry) =>
           entry.type === "document" &&
           entry.info.providers?.[providerID]?.adoption !== undefined &&
-          entry.info.providers[providerID].adoption!.phase !== "ready",
+          entry.info.providers[providerID].adoption.phase !== "ready",
       )
     const notify = (providerID: Provider.ID, connection?: ModelSource.ConnectionRef) =>
       bus.publish(
@@ -1109,10 +1110,11 @@ export function resolveMetadata(input: {
   const name = pick((metadata) => metadata.name)
   const family = pick((metadata) => metadata.family)
   const compatibility = Object.fromEntries(
-    [...new Set(candidates.flatMap((candidate) => Object.keys(candidate.metadata.compatibility ?? {})))].map((key) => [
-      key,
-      pick((metadata) => metadata.compatibility?.[key as keyof Model.Compatibility])!,
-    ]),
+    [
+      ...new Set(
+        candidates.flatMap((candidate) => Struct.keys<Model.Compatibility>(candidate.metadata.compatibility ?? {})),
+      ),
+    ].map((key) => [key, pick((metadata) => metadata.compatibility?.[key])!]),
   )
   const tools = pick((metadata) => metadata.capabilities?.tools)
   const modalityInput = pick((metadata) => metadata.capabilities?.input)

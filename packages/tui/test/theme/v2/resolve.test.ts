@@ -72,9 +72,7 @@ test("validates and resolves categorical hues in configured order", () => {
   expect(theme.categorical[2]).toBe(theme.hue.interactive)
   expect(theme.surface("dialog").categorical).toBe(theme.categorical)
   expect(() => resolveSource(complete("light", { categorical: [] }), "light")).toThrow("Invalid theme")
-  expect(() => resolveSource(complete("light", { categorical: ["magenta"] as never }), "light")).toThrow(
-    "Invalid theme",
-  )
+  expect(() => resolveSource(complete("light", { categorical: ["magenta"] }), "light")).toThrow("Invalid theme")
 })
 
 test("resolves arbitrary hue names across aliases, categorical colors, and token references", () => {
@@ -285,7 +283,7 @@ test("resolves transparent colors", () => {
 
 test("reports theme decoding failures as native errors", () => {
   expect(() =>
-    resolveSource(complete("light", { text: { ...light.text, base: "opaque" } }) as never, "light", "custom"),
+    resolveSource(complete("light", { text: { ...light.text, base: "opaque" } }), "light", "custom"),
   ).toThrow('Invalid theme: custom "opaque" is an invalid value')
 })
 
@@ -328,13 +326,13 @@ test("validates complete hues, resolved groups, and hue-only syntax", () => {
     resolveTheme({
       ...light,
       hue: { ...light.hue, accent: "$hue.missing" },
-    } as unknown as ThemeDefinition),
+    }),
   ).toThrow("$hue.missing")
   expect(() =>
     resolveTheme({
       ...light,
       syntax: { ...light.syntax, keyword: "$text.base" },
-    } as unknown as ThemeDefinition),
+    }),
   ).toThrow("$text.base")
 })
 

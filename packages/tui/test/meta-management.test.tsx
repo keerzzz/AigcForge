@@ -314,6 +314,7 @@ test("operation permissions read durable Goal origin and complete delegated inpu
         return json(operation)
       }
       if (/^\/api\/session\/[^/]+\/(message|inbox)$/.test(url.pathname)) return json({ data: [], cursor: {} })
+      return undefined
     },
   })
   await setup.ready

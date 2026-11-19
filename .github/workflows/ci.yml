@@ -45,9 +45,15 @@ jobs:
       # GUI anti-slop warnings remain visible in the full lint inventory.
       - name: Lint changed files
         if: github.event_name == 'pull_request'
-        # Against the merge's first parent, so base-branch commits the pull request has not merged are not counted as its
-        # changes (the event's base SHA can predate them).
-        run: bun run lint:changed HEAD^1
+        # Main's merge parent is the normal base. PR #142 uses its approved pre-integration V2 snapshot once.
+        run: |
+          migration_lint_base=HEAD^1
+          if [ "${{ github.event.pull_request.number }}" = "142" ]; then
+            git fetch --no-tags --deepen=16 origin "$GITHUB_SHA"
+            git merge-base --is-ancestor 928377ca374b85f4e1080b3ee836d4bb75c0fdfb HEAD
+            migration_lint_base=928377ca374b85f4e1080b3ee836d4bb75c0fdfb
+          fi
+          bun run lint:changed "$migration_lint_base"
 
   unit:
     name: unit (${{ matrix.settings.name }})

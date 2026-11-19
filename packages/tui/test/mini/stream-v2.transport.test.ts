@@ -238,8 +238,8 @@ describe("V2 mini transport", () => {
     const client = sdk({ streams: [events] })
     const ui = footer()
     const transport = await createSessionTransport({ sdk: client, sessionID: "ses_1", thinking: false, footer: ui.api })
-    const prompt = spyOn(client.session, "prompt").mockImplementation(
-      (request) => ok(promptAdmission(request)) as never,
+    const prompt = spyOn(client.session, "prompt").mockImplementation((request) =>
+      ok({ ...promptAdmission(request), payload: { text: request.text } }),
     )
     const group = { type: "group" as const, groupID: "fallback" }
     await transport.admitPromptTurn(
@@ -255,7 +255,7 @@ describe("V2 mini transport", () => {
     )
     expect(client.session.switchModel).toHaveBeenCalledWith({ sessionID: "ses_1", model: group }, expect.anything())
     expect(prompt).toHaveBeenCalledWith(
-      expect.objectContaining({ id: "msg_group", delivery: "queue" }),
+      expect.objectContaining({ id: "msg_group", delivery: "queue", files: undefined }),
       expect.anything(),
     )
     await expect(

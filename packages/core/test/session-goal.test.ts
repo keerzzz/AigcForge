@@ -536,6 +536,7 @@ describe("SessionGoal persisted owner", () => {
       expect((yield* fixture.goals.get({ sessionID: fixture.sessionID, goalID: next.goal.id }))?.status).toBe(
         "cancelled",
       )
+      return undefined
     }),
   )
 
@@ -603,6 +604,7 @@ describe("SessionGoal persisted owner", () => {
       expect(accepted.satisfiedConditionIDs).toEqual(["command", "accept"])
       expect(accepted.currentEvidenceIDs).toEqual(observed?.currentEvidenceIDs ?? [])
       expect((yield* fixture.goals.advance({ sessionID: fixture.sessionID, goalID: goal.id })).reason).toBe("completed")
+      return undefined
     }),
   )
 
@@ -1151,6 +1153,7 @@ describe("SessionGoal persisted owner", () => {
           expect.arrayContaining(references),
         )
         expect(goal?.accounting.worker).toMatchObject({ steps: 1, attempts: 1, recordedTokens: 10 })
+        return undefined
       }),
     )
   }
@@ -1230,6 +1233,7 @@ describe("SessionGoal persisted owner", () => {
       expect(
         (yield* rebuilt.get({ sessionID: fixture.sessionID, goalID: started.goal.id }))?.currentEvidenceIDs,
       ).toEqual(accepted.currentEvidenceIDs)
+      return undefined
     }),
   )
 
@@ -1284,6 +1288,7 @@ describe("SessionGoal persisted owner", () => {
       expect(accepted.status).toBe("completed")
       expect(accepted.currentEvidenceIDs).toEqual(current.currentEvidenceIDs)
       expect(accepted.evidenceSetDigest).toBe(current.evidenceSetDigest)
+      return undefined
     }),
   )
 })

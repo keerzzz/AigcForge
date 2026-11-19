@@ -146,6 +146,7 @@ describe("Schedule rule and occurrence ownership", () => {
         cleared,
       )
       expect(yield* bus.log({ aggregateID: sessionID }).pipe(Stream.runCollect)).toEqual(clearedEvents)
+      return undefined
     }),
   )
 
@@ -187,6 +188,7 @@ describe("Schedule rule and occurrence ownership", () => {
       expect((yield* schedules.getRule(rule.id))?.status).toBe("pending")
       expect((yield* schedules.getRule(rule.id))?.nextDueAt).toBe(120_000)
       expect((yield* schedules.getRule(rule.id))?.activeOccurrenceID).toBeUndefined()
+      return undefined
     }),
   )
 
@@ -248,6 +250,7 @@ describe("Schedule rule and occurrence ownership", () => {
         yield* schedules.advanceOccurrence(final.id, new Schedule.OccurrenceChange({ status: "completed" }))
         expect((yield* schedules.getRule(rule.id))?.status).toBe("completed")
         expect((yield* schedules.getRule(rule.id))?.nextDueAt).toBeUndefined()
+        return undefined
       }),
     )
   }
@@ -283,6 +286,7 @@ describe("Schedule rule and occurrence ownership", () => {
       expect((yield* schedules.getRule(rule.id))?.activeOccurrenceID).toBeUndefined()
       expect((yield* schedules.getRule(rule.id))?.revision).toBe(resumed.revision)
       expect((yield* schedules.getRule(rule.id))?.nextDueAt).toBe(resumed.nextDueAt)
+      return undefined
     }),
   )
 
@@ -312,6 +316,7 @@ describe("Schedule rule and occurrence ownership", () => {
       expect(inbox[0]?.caughtUp).toBe(true)
       expect((yield* schedules.list(sessionID))[0]?.status).toBe("completed")
       expect((yield* schedules.occurrence(run.id))?.legacyClaim?.owner).toBe("dead-owner")
+      return undefined
     }),
   )
 
@@ -376,6 +381,7 @@ describe("Schedule rule and occurrence ownership", () => {
       expect((yield* schedules.getRule(id))?.status).toBe("completed")
       expect(yield* schedules.claimOccurrence(id, 240_000, "retry-owner")).toBeUndefined()
       expect(yield* schedules.runs(id)).toHaveLength(1)
+      return undefined
     }),
   )
 
@@ -402,6 +408,7 @@ describe("Schedule rule and occurrence ownership", () => {
       })
       expect(yield* deliveries.listInbox(sessionID)).toHaveLength(0)
       expect((yield* schedules.getRule(rule.id))?.activeOccurrenceID).toBeUndefined()
+      return undefined
     }),
   )
 
@@ -428,6 +435,7 @@ describe("Schedule rule and occurrence ownership", () => {
       yield* schedules.deliverOccurrence(second.id, second.scheduledAt)
       expect(first.deliveryKey).not.toBe(second.deliveryKey)
       expect(yield* deliveries.listInbox(sessionID)).toHaveLength(2)
+      return undefined
     }),
   )
 
@@ -569,6 +577,7 @@ describe("Schedule rule and occurrence ownership", () => {
         expect((yield* schedules.getRule(running.id))?.status).toBe("pending")
         expect((yield* schedules.getRule(running.id))?.error).toBeUndefined()
         expect(yield* schedules.runs(running.id)).toHaveLength(0)
+        return undefined
       }),
   )
 })

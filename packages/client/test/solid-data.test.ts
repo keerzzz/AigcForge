@@ -4379,7 +4379,7 @@ test("physical attempt SSE preserves logical selection, exact observations and a
         attemptID: "physical-a",
         agent: "build",
         selection,
-        model: models[0]!,
+        model: models[0],
         apiModelID: "api-a",
         connection: { type: "credential", id: "cred_a" },
         quote: { status: "unknown" },
@@ -4393,7 +4393,7 @@ test("physical attempt SSE preserves logical selection, exact observations and a
       type: "session.step.started",
       created: 2,
       durable: durable(2),
-      data: { ...identity, agent: "build", model: models[0]!, started: 1 },
+      data: { ...identity, agent: "build", model: models[0], started: 1 },
     })
     setup.emit({ id: "evt_a_streamed", type: "session.step.streamed", created: 3, durable: durable(3), data: identity })
     setup.emit({
@@ -4424,7 +4424,7 @@ test("physical attempt SSE preserves logical selection, exact observations and a
         attemptID: "physical-b",
         agent: "build",
         selection,
-        model: models[1]!,
+        model: models[1],
         apiModelID: "api-b",
         connection: { type: "credential", id: "cred_b" },
         quote: { status: "free", prices: [{ input: 0, output: 0, cache: { read: 0, write: 0 } }] },
@@ -4449,7 +4449,7 @@ test("physical attempt SSE preserves logical selection, exact observations and a
       type: "session.step.started",
       created: 6,
       durable: durable(8),
-      data: { ...identity, agent: "build", model: models[1]!, started: 6 },
+      data: { ...identity, agent: "build", model: models[1], started: 6 },
     })
     setup.emit({ id: "evt_b_streamed", type: "session.step.streamed", created: 6, durable: durable(9), data: identity })
     setup.emit({

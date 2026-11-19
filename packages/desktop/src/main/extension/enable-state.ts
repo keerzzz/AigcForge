@@ -6,10 +6,10 @@ export function readEnableState(db: DatabaseSync): readonly EnableState[] {
   return db
     .prepare("SELECT id, enabled FROM extension")
     .all()
-    .map((row) => {
-      // SAFETY: extension.id is TEXT PRIMARY KEY; extension.enabled is INTEGER NOT NULL in every journaled schema.
-      const id = row.id as string
+    .flatMap((row) => {
+      // Non-STRICT TEXT affinity permits blobs, which cannot match any string extension identity.
+      if (typeof row.id !== "string") return []
 
-      return { id, enabled: row.enabled === 1 }
+      return [{ id: row.id, enabled: row.enabled === 1 }]
     })
 }

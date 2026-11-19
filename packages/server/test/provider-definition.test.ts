@@ -457,6 +457,7 @@ it.live(
       })
       expect(removed.data.definition.status).toBe("saved")
       expect(removed.data.readback?.effective[0]?.unavailable).toBe("missing")
+      return undefined
     }),
   30_000,
 )
@@ -587,6 +588,7 @@ it.live(
       expect(
         new Set(connections.flatMap((connection) => (connection?.type === "credential" ? [connection.id] : []))).size,
       ).toBe(2)
+      return undefined
     }),
   30_000,
 )
@@ -693,6 +695,7 @@ it.live(
             request.headers.get("authorization") === "Bearer " + updatedChat.key,
         ),
       ).toHaveLength(0)
+      return undefined
     }),
   30_000,
 )

@@ -1,5 +1,4 @@
 import type {
-  AigcForgeEvent,
   ModelGroupRead,
   SessionAttemptInfo,
   SessionMessageAssistant,
@@ -194,13 +193,13 @@ test.describe("timeline history", () => {
       },
     }
 
-    // SAFETY: makeEvent preserves the literal event type supplied here.
     const observed = makeEvent("session.attempt.observed", {
       sessionID,
       assistantMessageID: completed.id,
       ordinal: 1,
       observation,
-    }) as Extract<AigcForgeEvent, { type: "session.attempt.observed" }>
+    })
+    if (observed.type !== "session.attempt.observed") throw new Error("Expected an attempt observation")
 
     await timeline.send(observed)
     await expect(actual).toContainText("Time to first token (TTFT)250 ms")
