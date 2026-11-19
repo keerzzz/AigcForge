@@ -1,246 +1,89 @@
-name: CI
-
+name: V2 focused acceptance
 on:
-  push:
-    branches:
-      - dev
-      - main
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review, edited]
   workflow_dispatch:
-
-concurrency:
-  # Preserve every branch push for release consumers; PRs cancel stale runs.
-  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.run_id || github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
+    inputs:
+      source_ref:
+        description: Exact source commit
+        required: true
+        type: string
+      baseline_ref:
+        description: Optional paired baseline on the same runner
+        required: false
+        type: string
+      check:
+        description: Focused check
+        required: true
+        default: benchmark
+        type: choice
+        options: [benchmark, regression]
 permissions:
   contents: read
-  checks: write
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
+concurrency:
+  group: v2-focused-acceptance-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
-  quality:
-    name: typecheck
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          # A pull request checks out its merge into the current base; the first parent is that base.
-          fetch-depth: 2
-
-      - name: Setup Bun
-        uses: ./.github/actions/setup-bun
-
-      - name: Run checks
-        run: bun run check
-
-      - name: Check app E2E types
-        run: bun --cwd packages/app typecheck:e2e
-
-      # Guard main's six semantic rules on newly added JavaScript and TypeScript lines.
-      # GUI anti-slop warnings remain visible in the full lint inventory.
-      - name: Lint changed files
-        if: github.event_name == 'pull_request'
-        # Against the merge's first parent, so base-branch commits the pull request has not merged are not counted as its
-        # changes (the event's base SHA can predate them).
-        run: bun run lint:changed HEAD^1
-
-  unit:
-    name: unit (${{ matrix.settings.name }})
-    strategy:
-      fail-fast: false
-      matrix:
-        settings:
-          - name: linux
-            host: ubuntu-latest
-          - name: windows
-            host: windows-latest
-    runs-on: ${{ matrix.settings.host }}
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
-
-      - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: "24"
-
-      - name: Setup Bun
-        uses: ./.github/actions/setup-bun
-
-      - name: Test Effect simplification rules
-        if: runner.os == 'Linux'
-        run: bun run test:effect-simplification-rules
-
-      - name: Check Effect simplifications
-        if: runner.os == 'Linux'
-        run: bun run lint:effect-simplifications
-
-      - name: Configure git identity
-        run: |
-          git config --global user.email "bot@aigcfroge.ai"
-          git config --global user.name "aigcfroge"
-
-      - name: Install ripgrep on Linux
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install --yes ripgrep
-
-      - name: Install ripgrep on Windows
-        if: runner.os == 'Windows'
-        run: choco install ripgrep --yes --no-progress
-
-      - name: Cache Turbo
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: node_modules/.cache/turbo
-          key: turbo-${{ runner.os }}-${{ hashFiles('turbo.json', '**/package.json') }}-${{ github.sha }}
-          restore-keys: |
-            turbo-${{ runner.os }}-${{ hashFiles('turbo.json', '**/package.json') }}-
-            turbo-${{ runner.os }}-
-
-      - name: Run unit tests
-        timeout-minutes: ${{ runner.os == 'Windows' && 90 || 40 }}
-        run: GITHUB_ACTIONS=false bun turbo test --concurrency=3
-        env:
-          AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || 'false' }}
-
-      - name: Verify codemode package contents
-        if: runner.os == 'Linux'
-        working-directory: packages/codemode
-        run: |
-          bun run build
-          bun pm pack --dry-run --ignore-scripts
-
-      - name: Verify workerd module graph
-        if: runner.os == 'Linux'
-        timeout-minutes: 15
-        working-directory: packages/server
-        run: bun run probe:workerd
-
-      - name: Check generated client
-        if: runner.os == 'Linux'
-        working-directory: packages/client
-        run: bun run check:generated
-
-  e2e:
-    name: e2e (${{ matrix.settings.name }})
-    strategy:
-      fail-fast: false
-      matrix:
-        settings:
-          - name: linux
-            host: ubuntu-24.04
-          - name: windows
-            host: windows-latest
-    runs-on: ${{ matrix.settings.host }}
+  focused:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
     env:
+      CI: true
+      PLAYWRIGHT_BUILD: '1'
+      PLAYWRIGHT_WORKERS: '1'
       PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.playwright-browsers
-    defaults:
-      run:
-        shell: bash
+      SOURCE_REF: ${{ inputs.source_ref }}
+      BASELINE_REF: ${{ inputs.baseline_ref }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup Bun
-        uses: ./.github/actions/setup-bun
-
-      - name: Setup Node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+          ref: ${{ inputs.source_ref }}
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-bun
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
-          # Playwright 1.59 hangs while extracting Chromium with Node 24.16.
-          node-version: "24.15"
-
-      - name: Read Playwright version
-        id: playwright-version
+          node-version: '24.15'
+      - name: Record source and runner
+        shell: bash
         run: |
-          version=$(node -e 'console.log(require("./package.json").workspaces.catalog["@playwright/test"])')
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Playwright browsers
-        id: playwright-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ${{ github.workspace }}/.playwright-browsers
-          key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ steps.playwright-version.outputs.version }}-chromium
-
-      - name: Install Playwright system dependencies
-        if: runner.os == 'Linux'
+          test "$(git rev-parse HEAD)" = "$SOURCE_REF"
+          mkdir -p acceptance-results
+          git rev-parse HEAD > acceptance-results/source-head.txt
+          uname -a > acceptance-results/runner.txt
+          lscpu >> acceptance-results/runner.txt
+          bun --version >> acceptance-results/runner.txt
+          node --version >> acceptance-results/runner.txt
+      - name: Install Chromium
         working-directory: packages/app
-        run: bunx playwright install-deps chromium
-
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: bunx playwright install --with-deps chromium
+      - name: Paired baseline
+        if: inputs.check == 'benchmark' && inputs.baseline_ref != ''
+        shell: bash
+        run: |
+          set -o pipefail
+          git checkout --detach "$BASELINE_REF"
+          test "$(git rev-parse HEAD)" = "$BASELINE_REF"
+          cd packages/app
+          bunx playwright test --config e2e/performance/playwright.config.ts session-entry-benchmark.spec.ts --grep 'entry: new session from session' --workers=1 --retries=0 --repeat-each=3 --reporter=line 2>&1 | tee ../../acceptance-results/baseline.log
+          cd ../..
+          git checkout --detach "$SOURCE_REF"
+      - name: Production benchmark
+        if: inputs.check == 'benchmark'
         working-directory: packages/app
-        run: bunx playwright install chromium
-
-      - name: Run app e2e tests against production build
-        run: bun --cwd packages/app test:e2e:built
-        env:
-          CI: true
-          PLAYWRIGHT_WORKERS: ${{ runner.os == 'Windows' && '2' || '3' }}
-        timeout-minutes: ${{ runner.os == 'Windows' && 50 || 90 }}
-
-      - name: Verify service worker precaching and upgrades
+        shell: bash
+        run: |
+          set -o pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_REF"
+          bunx playwright test --config e2e/performance/playwright.config.ts session-entry-benchmark.spec.ts --grep 'entry: new session from session' --workers=1 --retries=0 --repeat-each=3 --reporter=line 2>&1 | tee ../../acceptance-results/candidate.log
+      - name: Focused production regression
+        if: inputs.check == 'regression'
         working-directory: packages/app
-        run: bunx playwright test --config e2e/service-worker/playwright.config.ts
-        timeout-minutes: 5
-
-      - name: Run session UI component tests
-        if: ${{ !cancelled() }}
-        run: bun --cwd packages/session-ui test:components
-        env:
-          CI: true
-        timeout-minutes: 15
-
-      - name: Run app component tests
-        if: ${{ !cancelled() }}
-        run: bun --cwd packages/app test:components
-        env:
-          CI: true
-        timeout-minutes: 15
-
-      - name: Upload Playwright artifacts
+        shell: bash
+        run: |
+          set -o pipefail
+          bunx playwright test regression/composer.spec.ts user-story/model-selection-flow.spec.ts regression/session-header.spec.ts regression/review.spec.ts regression/timeline-stream.spec.ts regression/timeline-history.spec.ts --grep 'thinking on hover|new project|restores each existing|SC02|review toggle stays|separates blocking|only running subagent|mounts every part' --workers=1 --retries=0 --reporter=line 2>&1 | tee ../../acceptance-results/regression.log
+      - name: Upload focused evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: playwright-${{ matrix.settings.name }}-${{ github.run_attempt }}
-          if-no-files-found: ignore
+          name: focused-${{ inputs.check }}-${{ github.run_id }}
           retention-days: 7
-          path: |
-            packages/app/e2e/test-results
-            packages/app/e2e/playwright-report
-            packages/session-ui/component-tests/test-results
-            packages/session-ui/component-tests/playwright-report
-            packages/app/component-tests/test-results
-            packages/app/component-tests/playwright-report
-
-  lint-test-typecheck:
-    name: Lint, Test, and Typecheck
-    needs: [quality, unit, e2e]
-    if: always()
-    runs-on: ubuntu-latest
-    steps:
-      - name: Verify CI results
-        shell: bash
-        env:
-          QUALITY_RESULT: ${{ needs.quality.result }}
-          UNIT_RESULT: ${{ needs.unit.result }}
-          E2E_RESULT: ${{ needs.e2e.result }}
-        run: |
-          printf 'quality=%s unit=%s e2e=%s\n' "$QUALITY_RESULT" "$UNIT_RESULT" "$E2E_RESULT"
-          if [ "$QUALITY_RESULT" != success ] || [ "$UNIT_RESULT" != success ] || [ "$E2E_RESULT" != success ]; then
-            exit 1
-          fi
+          path: acceptance-results
