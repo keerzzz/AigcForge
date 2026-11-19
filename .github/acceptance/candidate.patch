@@ -1,5 +1,5 @@
 diff --git a/packages/app/e2e/regression/timeline-history.spec.ts b/packages/app/e2e/regression/timeline-history.spec.ts
-index fc6751039c..6b6ee71eee 100644
+index fc6751039c..d129152e84 100644
 --- a/packages/app/e2e/regression/timeline-history.spec.ts
 +++ b/packages/app/e2e/regression/timeline-history.spec.ts
 @@ -361,6 +361,60 @@ test.describe("timeline history", () => {
@@ -63,13 +63,33 @@ index fc6751039c..6b6ee71eee 100644
      const observe = async () => {
        const state = await visibleTimeline(page)
        expectOrdered(expectedParts, state.parts, "mounted parts")
-@@ -382,72 +436,99 @@ test.describe("timeline history", () => {
+@@ -375,6 +429,7 @@ test.describe("timeline history", () => {
+         ...state,
+         ready:
+           state.covered &&
++          state.pendingMarkdown === 0 &&
+           state.parts.length > 0 &&
+           state.visibleParts.length > 0 &&
+           state.messages.length > 0 &&
+@@ -382,72 +437,120 @@ test.describe("timeline history", () => {
        }
      }
  
 -    for (;;) {
 -      const state = await observe()
 +    try {
++      let initial = ""
++      await expect
++        .poll(async () => {
++          const next = await observe()
++          const stable = next.ready && next.signature === initial
++          initial = next.ready ? next.signature : ""
++
++          return held.length > 0 || stable
++        })
++        .toBe(true)
+ 
+-      if (state.ready && state.scrollTop <= 1 && seenParts.size === expectedParts.length) break
 +      for (;;) {
 +        const state = await observe()
 +
@@ -91,13 +111,16 @@ index fc6751039c..6b6ee71eee 100644
 +            .toBe(true)
 +          continue
 +        }
- 
--      if (state.ready && state.scrollTop <= 1 && seenParts.size === expectedParts.length) break
++
 +        if (!state.ready) {
++          let previous = ""
 +          await expect
 +            .poll(async () => {
 +              const next = await observe()
-+              return held.length > 0 || next.ready
++              const stable = next.ready && next.signature === previous
++              previous = next.ready ? next.signature : ""
++
++              return held.length > 0 || stable
 +            })
 +            .toBe(true)
 +          continue
@@ -106,7 +129,6 @@ index fc6751039c..6b6ee71eee 100644
 -      if (held.length) {
 -        held.splice(0).forEach((release) => release())
 -        await expect.poll(() => loads.ended).toBe(loads.started)
--        let previous = ""
 +        // Keep consecutive observation windows overlapping. A large measured overscan row can otherwise
 +        // carry a step past rows mounted during the next range and size update.
 +        await timelineScroller(page).evaluate((element, delta) => {
@@ -114,29 +136,32 @@ index fc6751039c..6b6ee71eee 100644
 +          element.scrollTop -= delta
 +        }, state.mountedAbove)
 +        const observed = { next: state, samples: 0 }
+         let previous = ""
          await expect
            .poll(async () => {
              const next = await observe()
 -            if (held.length) return true
--            const stable = next.ready && next.signature === previous
--            previous = next.ready ? next.signature : ""
--
--            return stable
--          })
--          .toBe(true)
--        continue
--      }
 +            observed.next = next
 +            observed.samples++
++            // Native scrolling can precede the range update and asynchronous row measurements.
++            // Move again only after the rendered window has settled, while still sampling every change.
+             const stable = next.ready && next.signature === previous
+             previous = next.ready ? next.signature : ""
  
+-            return stable
++            return held.length > 0 || (stable && next.signature !== state.signature)
+           })
+           .toBe(true)
+-        continue
+-      }
+-
 -      if (!state.ready) {
 -        await expect
 -          .poll(async () => {
 -            const next = await observe()
 -            return held.length > 0 || next.ready
-+            return held.length > 0 || (next.ready && next.signature !== state.signature)
-           })
-           .toBe(true)
+-          })
+-          .toBe(true)
 -        continue
 -      }
 -
@@ -167,6 +192,7 @@ index fc6751039c..6b6ee71eee 100644
                after: observed.next,
 +              afterSource: observed.samples ? "poll" : "before-fallback",
 +              afterSamples: observed.samples,
++              lastReadySignature: previous,
                held: held.length,
                loads,
                missingParts: expectedParts.filter((id) => !seenParts.has(id)),
@@ -213,6 +239,14 @@ index fc6751039c..6b6ee71eee 100644
    })
  
    for (const scenario of [
+@@ -726,6 +829,7 @@ function visibleTimeline(page: Page) {
+       // timeline requests the next older page instead.
+       covered: scroller.scrollTop < 200 || firstRowTop <= view.top + 1,
+       mountedAbove: Math.min(Math.floor(view.height / 2), Math.max(80, Math.floor(view.top - firstRowTop))),
++      pendingMarkdown: scroller.querySelectorAll('[data-component="markdown"]:not([data-markdown-ready])').length,
+       errorToasts: document.querySelectorAll(".toast-v2--error").length,
+       signature: JSON.stringify([
+         Math.round(scroller.scrollTop),
 diff --git a/packages/app/src/composer/selection.test.ts b/packages/app/src/composer/selection.test.ts
 index 1c75f1de99..39f6e98740 100644
 --- a/packages/app/src/composer/selection.test.ts
