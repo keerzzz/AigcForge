@@ -1,3 +1,199 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 1c74a035e9..bf0a63d326 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -45,9 +45,15 @@ jobs:
+       # GUI anti-slop warnings remain visible in the full lint inventory.
+       - name: Lint changed files
+         if: github.event_name == 'pull_request'
+-        # Against the merge's first parent, so base-branch commits the pull request has not merged are not counted as its
+-        # changes (the event's base SHA can predate them).
+-        run: bun run lint:changed HEAD^1
++        # Main's merge parent is the normal base. PR #142 uses its approved pre-integration V2 snapshot once.
++        run: |
++          migration_lint_base=HEAD^1
++          if [ "${{ github.event.pull_request.number }}" = "142" ]; then
++            git fetch --no-tags --deepen=16 origin "$GITHUB_SHA"
++            git merge-base --is-ancestor 928377ca374b85f4e1080b3ee836d4bb75c0fdfb HEAD
++            migration_lint_base=928377ca374b85f4e1080b3ee836d4bb75c0fdfb
++          fi
++          bun run lint:changed "$migration_lint_base"
+ 
+   unit:
+     name: unit (${{ matrix.settings.name }})
+diff --git a/.oxlintrc.json b/.oxlintrc.json
+index 6a05184513..08c78513fa 100644
+--- a/.oxlintrc.json
++++ b/.oxlintrc.json
+@@ -229,6 +229,9 @@
+     "**/*.d.ts",
+     "**/sdk.gen.ts",
+     "packages/sdk/js/src/**/gen/**",
++    "packages/client/src/promise/generated/**",
++    "packages/client/src/effect/generated/**",
++    "packages/client/src/effect/api/**",
+     "docs/review/evidence/**",
+     ".agent/**",
+     ".agents/**",
+diff --git a/docs/review/v2-main-integration-2026-11-18.md b/docs/review/v2-main-integration-2026-11-18.md
+index ac9acc1ceb..21cac39e97 100644
+--- a/docs/review/v2-main-integration-2026-11-18.md
++++ b/docs/review/v2-main-integration-2026-11-18.md
+@@ -181,3 +181,21 @@ Formal production E2E reports 625 passed, five failed and four flaky on Linux; W
+ Four titlebar New keepers now bind the source Session to the model declared in its fixture catalog and wait for the exact source label before navigation. An actual mock HTTP before/after probe confirms all four model identities; this is fixture evidence, not browser credit. MP03 reload snapshots already contain the correct Communications detail and saved request, so the keeper waits for that panel instead of the absent list-page Advanced button. Its exact retry, reply, identity and duplicate checks remain. Paging treats empty observation arrays as not ready, retains strict ordering for nonempty samples and credits mounted partial history. All three readiness waits return to the outer release path when another held request appears. The stress-case budget is 600 seconds; final complete part/message coverage and page-error assertions remain. Windows's prior ten-second progress failure still needs the new browser run.
+ 
+ The Windows App component log records Storybook exiting with ERR_STREAM_WRITE_AFTER_END under Bun 1.4.2, followed by one failed dynamic import and 86 refused connections. The shared launch command now follows the installed CLI's Node shebang by removing --bun. A package-local CLI probe confirms Storybook 10.4.4 runs on Node 24.15.0, matching hosted E2E; the log does not identify the stream or middleware that produced the fatal error. Both component suites retain their original assertions and retry settings. The three App files and Storybook configuration pass scoped syntax lint with zero diagnostics; the six affected browser scenarios collect. All six final source/test syntax trees are unchanged by formatting. Windows component execution, full typed checks and all seven required contexts remain pending on the new source.
++
++## Final acceptance follow-up on 19 November
++
++Formal CI on `09352951d18f52f46a1f9144a29b93748bb0f1c6` finished with four of seven required contexts successful. Windows unit and Linux history paging failed; the aggregate remained blocked. Windows production E2E and both component phases succeeded. All required contexts, Storybook and review must pass on the final delivery HEAD before normal merge.
++
++Hosted quality trial `44480551654` completed full lint with zero errors, all 24 package typecheck tasks and App E2E typecheck. Its type graph used concurrency one and retained every task. The root typecheck script now adopts this serial graph. The trial's temporary lint memory settings are excluded from this change because its observed timings do not establish a performance improvement. The original shutdown signal's cause remains unclassified.
++
++The requester approved one migration exception: only PR #142 uses pre-integration V2 snapshot `928377ca374b85f4e1080b3ee836d4bb75c0fdfb` for incremental lint. The workflow fetches the exact merge SHA and verifies that snapshot is an ancestor before using it. Later pull requests still use their main merge parent. The six semantic rules and complete current-tree checks remain. The original main comparison contains 3,408 diagnostics; the snapshot comparison selects 131 diagnostics in integration-added lines. Historical diagnostics retain their complete external index. The existing generated-code exclusion policy now follows the Client generator's three actual output directories, accounting for 14 diagnostics in the original inventory. Generated files are unchanged.
++
++The paging trace separates observed native restoration from the idle-cache hypothesis. All 52 traced resize scroll writes correctly apply offset plus adjustment. Thirty unexpected base-point changes occur with idle state and zero accumulated adjustment; one chain restores the native offset from 84 to 2664, then a resize uses logical offset 84 and writes 131 after a correct +47 adjustment. The installed virtual-core fallback passes its cached offset to the existing application observer. Three real-timer cases reproduce that boundary directly: an actual scroll event delivers 84, the native position changes to 2664 without another event, and the idle callback incorrectly delivers 84. The vertical, horizontal LTR and horizontal RTL cases fail before the fix; four existing offset keepers pass. This identifies a concrete stale-value mechanism; final paging coverage still requires browser verification of the production correction.
++
++Temporary console, DOM-witness and geometry probes are archived outside the repository. The paging keeper returns to the exact `09352951d1` bytes, retaining its original actions, readiness, 80px minimum step, complete coverage assertions and failure attachment. Production timeline benchmarking completed on frozen pre-fix source `6ef67131e00575c3c1bd78185e65305fbd34cb54` before editing the observer. Run `44484576662` passes all nine entry, streaming and history-search samples with one worker and zero retries. Its helper bytes match the local pre-fix helper exactly. The final same-runner comparison remains required acceptance evidence.
++
++The observer now refreshes the native offset only when delivering idle state; active scrolling retains its event value. Reconnection checks use the same axis and RTL normalization. All seven offset keepers pass locally with 22 expectations, including the three real timers that failed before the correction. The patch uses the existing observer and native position, preserving the virtualizer's adjustment policy.
++
++Two remaining integration assertions are corrected at their existing owners. Mini transport's admission fixture copies readonly request arrays into mutable result arrays, preserving element values and the generated client's direct result shape; its 70 original cases pass with 194 expectations. Desktop's shared raw-row reader now verifies that each extension id is a string. An actual migrated SQLite database accepts a binary id in its non-STRICT TEXT column; before the fix, the early snapshot incorrectly exposes that binary value through the string bridge. The corrected reader skips non-string identities at that single raw-row boundary, keeping every valid string row and the existing strict current/legacy matching behavior. A mixed valid/binary-row fixture rejects the initial whole-read failure candidate and confirms the final reader preserves the complete valid snapshot. Thirteen window-snapshot and manager cases pass with 39 expectations, covering mixed invalid/valid rows, saved storage, and the original valid/current/legacy enable-state resolution. The enabled comparison remains exactly `row.enabled === 1`; no database data is rewritten.
++
++The remaining integration lint fixes make void returns explicit and reuse existing type-aware keys, record narrowing and Immer draft identity operations. Typed copy-on-write maps still return their owned objects. Independent review found one missed map registration; the existing model-plugin keeper fails with the missed registration and passes all six cases after its correction, with 47 expectations. Full typed lint and the approved snapshot increment will validate the complete frozen candidate in hosted quality.
+diff --git a/docs/testing.md b/docs/testing.md
+index 1d7c28e1e6..696cc6f562 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -67,7 +67,7 @@ App 的单元、browser 与 E2E 类型各有独立入口：
+ /home/keer/workspace/aigcfroge-v2/script/bun run --cwd=packages/protocol check:generated
+ ```
+ 
+-根 `check` 为 canonical lint/typecheck，默认 typecheck concurrency=3。日常按受影响包串行；低资源全类型检查需明确任务与资源安排。禁止 `tsc`、跳 hook 或假定旧 skip 环境变量仍适用。
++根 `check` 为 canonical lint/typecheck，默认 typecheck concurrency=1，保留全部包任务。日常按受影响包串行；低资源全类型检查需明确任务与资源安排。禁止 `tsc`、跳 hook 或假定旧 skip 环境变量仍适用。
+ 
+ ## 3. 每个小节的证据
+ 
+diff --git a/package.json b/package.json
+index 15a19d7991..be53e44d92 100644
+--- a/package.json
++++ b/package.json
+@@ -17,7 +17,7 @@
+     "lint:effect-simplifications": "ast-grep scan -c script/ast-grep/effect-simplifications/sgconfig.yml --off=unused-suppression packages",
+     "test:lint-rules": "ast-grep test -c script/ast-grep/sgconfig.yml",
+     "test:effect-simplification-rules": "ast-grep test -c script/ast-grep/effect-simplifications/sgconfig.yml",
+-    "typecheck": "bun turbo typecheck --concurrency=3",
++    "typecheck": "bun turbo typecheck --concurrency=1",
+     "check": "bun run lint && bun run typecheck",
+     "typecheck:profile": "bun script/profile-typecheck.ts",
+     "typecheck:profile:packages": "bun script/profile-typecheck-packages.ts",
+diff --git a/packages/app/src/composer/selection.test.ts b/packages/app/src/composer/selection.test.ts
+index 1c75f1de99..39f6e98740 100644
+--- a/packages/app/src/composer/selection.test.ts
++++ b/packages/app/src/composer/selection.test.ts
+@@ -1634,12 +1634,14 @@ async function browserKeepers() {
+     expect(local.executor.preference()).toEqual(executor("explore", "removed", "low"))
+   })
+ 
+-  test("bound drafts restore their own Meta, executor, and raw efforts", () => {
++  test.each(["low", null])("bound drafts restore their own Meta, executor, and raw effort %p", (variant) => {
+     const f = fixture({ newSession: true })
+-    f.prompt.model.set({ ...key("b"), variant: "low" })
+-    const { local } = f.mount("draft_a", true)
++    f.prompt.model.set({ ...key("b"), variant })
++    const mounted = f.mount("draft_a", true)
++    const local = mounted.local
+     expect(local.model.current()?.id).toBe("b")
+-    expect(local.model.variant.current()).toBe("low")
++    expect(local.model.variant.current()).toBe(variant ?? undefined)
++    flushPersisted()
+     local.executor.set(executor("explore"))
+     local.executor.model.set(key("c"))
+     local.executor.model.variant.set("high")
+@@ -1660,6 +1662,10 @@ async function browserKeepers() {
+     expect(selection(local)).toEqual(first)
+     local.session.bindDraft("draft_b")
+     expect(selection(local)).toEqual(second)
++    mounted.dispose()
++    flushPersisted()
++    f.prompt.model.set(undefined)
++    expect(selection(f.mount("draft_a", true).local)).toEqual(first)
+   })
+ 
+   test("a fresh draft does not adopt the previous draft's promotion", () => {
+diff --git a/packages/app/src/new-session/composer-adapter.ts b/packages/app/src/new-session/composer-adapter.ts
+index a65b676844..5bda86342a 100644
+--- a/packages/app/src/new-session/composer-adapter.ts
++++ b/packages/app/src/new-session/composer-adapter.ts
+@@ -41,7 +41,11 @@ export function createNewSessionComposerAdapter(props: {
+   const model = createComposerModelSelection({ draftID: props.draftID })
+   createEffect(() => {
+     if (!prompt.ready() || !local.session.ready()) return
+-    local.session.bindDraft(props.draftID, prompt.model.current())
++    const initial = prompt.model.current()
++    local.session.bindDraft(
++      props.draftID,
++      !initial || "type" in initial ? initial : { ...initial, variant: initial.variant ?? undefined },
++    )
+   })
+   let disposed = false
+   let generation = 0
+diff --git a/packages/app/src/session/timeline/observe-element-offset.test.ts b/packages/app/src/session/timeline/observe-element-offset.test.ts
+index 2a2eea1449..666c82e78a 100644
+--- a/packages/app/src/session/timeline/observe-element-offset.test.ts
++++ b/packages/app/src/session/timeline/observe-element-offset.test.ts
+@@ -3,6 +3,51 @@ import { type Virtualizer } from "@tanstack/solid-virtual"
+ import { Node, Window } from "happy-dom"
+ import { observeElementOffsetReconnectAware } from "./observe-element-offset"
+ 
++test.each([
++  { name: "vertical", horizontal: false, isRtl: false },
++  { name: "horizontal LTR", horizontal: true, isRtl: false },
++  { name: "horizontal RTL", horizontal: true, isRtl: true },
++])("reads the current native offset when scrolling becomes idle: $name", async (options) => {
++  const targetWindow = new Window()
++  const viewport = targetWindow.document.createElement("div")
++  targetWindow.document.body.append(viewport)
++
++  const instance = {
++    scrollElement: viewport,
++    targetWindow,
++    scrollOffset: 0,
++    options: { ...options, isScrollingResetDelay: 1, useScrollendEvent: false },
++  } as unknown as Virtualizer<HTMLDivElement, HTMLDivElement>
++
++  const idle = Promise.withResolvers<number>()
++  const calls: [number, boolean][] = []
++  const cleanup = observeElementOffsetReconnectAware(instance, (offset, isScrolling) => {
++    calls.push([offset, isScrolling])
++    instance.scrollOffset = offset
++    if (!isScrolling) idle.resolve(offset)
++  })
++
++  try {
++    const axis = options.horizontal ? "scrollLeft" : "scrollTop"
++    const direction = options.horizontal && options.isRtl ? -1 : 1
++    viewport[axis] = 84 * direction
++    viewport.dispatchEvent(new targetWindow.Event("scroll"))
++    expect(calls).toEqual([[84, true]])
++
++    // Restoring a cached view can move its native position before the next scroll event.
++    viewport[axis] = 2664 * direction
++    expect(await idle.promise).toBe(2664)
++    expect(calls).toEqual([
++      [84, true],
++      [2664, false],
++    ])
++    expect(instance.scrollOffset).toBe(2664)
++  } finally {
++    cleanup()
++    await targetWindow.happyDOM.close()
++  }
++})
++
+ test("restores a view observed before its first attachment", async () => {
+   const targetWindow = new Window()
+   const mutations = controlledMutations(targetWindow)
 diff --git a/packages/app/src/session/timeline/observe-element-offset.ts b/packages/app/src/session/timeline/observe-element-offset.ts
 index 80f3d5fb4d..a86a2dea1d 100644
 --- a/packages/app/src/session/timeline/observe-element-offset.ts
@@ -37,4 +233,2082 @@ index 80f3d5fb4d..a86a2dea1d 100644
 +        deliver(offset, false)
  
        if (time >= deadline) framesAfterDeadline += 1
+ 
+diff --git a/packages/app/src/shell/routes/session-ui-provider.tsx b/packages/app/src/shell/routes/session-ui-provider.tsx
+index 40a2cfe1bb..fa321b88f2 100644
+--- a/packages/app/src/shell/routes/session-ui-provider.tsx
++++ b/packages/app/src/shell/routes/session-ui-provider.tsx
+@@ -101,7 +101,7 @@ export function SessionUIProvider(
+         !params.id ||
+         !communicationIDs().length
+       )
+-        return
++        return undefined
+ 
+       return {
+         data,
+diff --git a/packages/cli/test/acp/catalog.test.ts b/packages/cli/test/acp/catalog.test.ts
+index fcd5cdac03..6ce56ffdca 100644
+--- a/packages/cli/test/acp/catalog.test.ts
++++ b/packages/cli/test/acp/catalog.test.ts
+@@ -17,7 +17,7 @@ describe("acp catalog and config options over the wire", () => {
+           : undefined
+     await using acp = await startWire({
+       fetch: (request) => {
+-        if (request.path !== "/api/model/group") return
++        if (request.path !== "/api/model/group") return undefined
+         return Response.json({
+           location: { directory: "/workspace" },
+           data: {
+diff --git a/packages/client/src/solid/data.ts b/packages/client/src/solid/data.ts
+index 4e64ffb1f2..a978495bc8 100644
+--- a/packages/client/src/solid/data.ts
++++ b/packages/client/src/solid/data.ts
+@@ -2652,7 +2652,7 @@ export function createData(config: CreateDataInput) {
+             owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) ||
+             !cache?.listed
+           )
+-            return
++            return undefined
+           return Object.values(cache.items).toSorted(
+             (left, right) => right.createdAt - left.createdAt || left.id.localeCompare(right.id),
+           )
+@@ -2755,7 +2755,7 @@ export function createData(config: CreateDataInput) {
+             owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) ||
+             !cache?.listed
+           )
+-            return
++            return undefined
+           return Object.values(cache.items).toSorted(
+             (left, right) => Number(right.createdAt) - Number(left.createdAt) || left.id.localeCompare(right.id),
+           )
+@@ -2862,7 +2862,7 @@ export function createData(config: CreateDataInput) {
+             owner.location !== locationKey(store.session.info[sessionID]?.location ?? defaultLocation()) ||
+             !cache?.listed
+           )
+-            return
++            return undefined
+           return Object.values(cache.rules).toSorted(
+             (left, right) => Number(right.createdAt) - Number(left.createdAt) || left.id.localeCompare(right.id),
+           )
+diff --git a/packages/client/test/solid-data.test.ts b/packages/client/test/solid-data.test.ts
+index 8065273d92..10ced88ec2 100644
+--- a/packages/client/test/solid-data.test.ts
++++ b/packages/client/test/solid-data.test.ts
+@@ -4379,7 +4379,7 @@ test("physical attempt SSE preserves logical selection, exact observations and a
+         attemptID: "physical-a",
+         agent: "build",
+         selection,
+-        model: models[0]!,
++        model: models[0],
+         apiModelID: "api-a",
+         connection: { type: "credential", id: "cred_a" },
+         quote: { status: "unknown" },
+@@ -4393,7 +4393,7 @@ test("physical attempt SSE preserves logical selection, exact observations and a
+       type: "session.step.started",
+       created: 2,
+       durable: durable(2),
+-      data: { ...identity, agent: "build", model: models[0]!, started: 1 },
++      data: { ...identity, agent: "build", model: models[0], started: 1 },
+     })
+     setup.emit({ id: "evt_a_streamed", type: "session.step.streamed", created: 3, durable: durable(3), data: identity })
+     setup.emit({
+@@ -4424,7 +4424,7 @@ test("physical attempt SSE preserves logical selection, exact observations and a
+         attemptID: "physical-b",
+         agent: "build",
+         selection,
+-        model: models[1]!,
++        model: models[1],
+         apiModelID: "api-b",
+         connection: { type: "credential", id: "cred_b" },
+         quote: { status: "free", prices: [{ input: 0, output: 0, cache: { read: 0, write: 0 } }] },
+@@ -4449,7 +4449,7 @@ test("physical attempt SSE preserves logical selection, exact observations and a
+       type: "session.step.started",
+       created: 6,
+       durable: durable(8),
+-      data: { ...identity, agent: "build", model: models[1]!, started: 6 },
++      data: { ...identity, agent: "build", model: models[1], started: 6 },
+     })
+     setup.emit({ id: "evt_b_streamed", type: "session.step.streamed", created: 6, durable: durable(9), data: identity })
+     setup.emit({
+diff --git a/packages/core/script/test.ts b/packages/core/script/test.ts
+index 896fc3712e..02b6f13569 100644
+--- a/packages/core/script/test.ts
++++ b/packages/core/script/test.ts
+@@ -35,7 +35,7 @@ const environment = {
+ }
+ 
+ const child = Bun.spawn({
+-  cmd: [process.execPath, "test", "--only-failures", ...process.argv.slice(2)],
++  cmd: [process.execPath, "test", "--only-failures", "--timeout", "30000", ...process.argv.slice(2)],
+   env: environment,
+   stdin: "inherit",
+   stdout: "inherit",
+diff --git a/packages/core/src/agent/meta/memory.ts b/packages/core/src/agent/meta/memory.ts
+index ece3faf309..eead54e831 100644
+--- a/packages/core/src/agent/meta/memory.ts
++++ b/packages/core/src/agent/meta/memory.ts
+@@ -165,7 +165,7 @@ export const layer = Layer.effect(
+     const metaAgent = yield* MetaAgentService.Service
+ 
+     const validateSource = Effect.fnUntraced(function* (input: RecordInput) {
+-      if (input.sourceSessionID === undefined && input.sourceStepID === undefined) return
++      if (input.sourceSessionID === undefined && input.sourceStepID === undefined) return undefined
+       const step =
+         input.sourceStepID === undefined
+           ? undefined
+@@ -186,7 +186,7 @@ export const layer = Layer.effect(
+         .pipe(Effect.orDie)
+       if (!source) return yield* new InvalidSourceError({ reason: "session_missing" })
+       if (source.project_id !== input.projectID) return yield* new InvalidSourceError({ reason: "project_mismatch" })
+-      if (!step) return
++      if (!step) return undefined
+       const definition = sourceDefinitions.find((definition) => definition.type === step.event_type)
+       const provenance = Schema.decodeUnknownOption(SourceProvenance)(step.provenance)
+       if (
+@@ -261,7 +261,7 @@ export const layer = Layer.effect(
+         return yield* new InvalidSourceError({ reason: "step_unverified" })
+       if (modelStarted && controller.kind === "root" && event.data.agent !== "meta")
+         return yield* new InvalidSourceError({ reason: "step_unverified" })
+-      if (retained) return
++      if (retained) return undefined
+       // Without event retention, only an exact producer projection verifies this occurrence.
+       if (!modelStarted) return yield* new InvalidSourceError({ reason: "step_unverified" })
+       const row = yield* db
+@@ -286,6 +286,7 @@ export const layer = Layer.effect(
+         !sameModel(assistant.value.model, event.data.model)
+       )
+         return yield* new InvalidSourceError({ reason: "step_unverified" })
++      return undefined
+     })
+ 
+     const record = Effect.fn("MetaAgentMemory.record")(function* (input: RecordInput) {
+diff --git a/packages/core/src/config.ts b/packages/core/src/config.ts
+index 516b2e05c7..2ed590283f 100644
+--- a/packages/core/src/config.ts
++++ b/packages/core/src/config.ts
+@@ -425,6 +425,7 @@ export const layer = (options?: Options) =>
+               })
+               .pipe(Effect.mapError((cause) => new FSUtil.FileSystemError({ method: "config.update", cause })))
+             yield* requestReload
++            return undefined
+           }),
+         )
+       })
+diff --git a/packages/core/src/config/provider-file.ts b/packages/core/src/config/provider-file.ts
+index c6b13e0598..819fd803ef 100644
+--- a/packages/core/src/config/provider-file.ts
++++ b/packages/core/src/config/provider-file.ts
+@@ -10,6 +10,7 @@ import { ModelGroup } from "@aigcfroge/schema/model-group"
+ import { FSUtil } from "@aigcfroge/util/fs-util"
+ import { Hash } from "@aigcfroge/util/hash"
+ import { FileMutation } from "../file-mutation.js"
++import { isRecord } from "../util/record.js"
+ 
+ type Json = Schema.Schema.Type<typeof Schema.Json>
+ 
+@@ -149,13 +150,7 @@ export function patchText(file: File, edit: Edit) {
+       !Array.isArray(item.value) &&
+       !Object.keys(item.value).length
+     ) {
+-      const present = item.path.reduce<unknown>(
+-        (value, key) =>
+-          typeof value === "object" && value !== null && !Array.isArray(value)
+-            ? (value as Readonly<Record<string, unknown>>)[key]
+-            : undefined,
+-        file.data,
+-      )
++      const present = item.path.reduce<unknown>((value, key) => (isRecord(value) ? value[key] : undefined), file.data)
+       if (present !== undefined) return text
+     }
+     return set(text, item.path, item.value)
+diff --git a/packages/core/src/database/legacy-main-migration.ts b/packages/core/src/database/legacy-main-migration.ts
+index e1ff41eb33..914242c0a7 100644
+--- a/packages/core/src/database/legacy-main-migration.ts
++++ b/packages/core/src/database/legacy-main-migration.ts
+@@ -44,7 +44,7 @@ export const matches = Effect.fn("LegacyMainMigration.matches")(function* (db: D
+ const copy = Effect.fn("LegacyMainMigration.copy")(function* (tx: Transaction, source: string, target: string) {
+   const sourceCount = yield* tx.get<{ count: number }>(sql`SELECT count(*) AS count FROM ${sql.identifier(source)}`)
+   // The fresh schema has no seeded rows; empty archived tables need no column conversion.
+-  if (sourceCount?.count === 0) return
++  if (sourceCount?.count === 0) return undefined
+   const before = yield* tx.all<Column>(sql`SELECT * FROM pragma_table_xinfo(${source})`)
+   const after = yield* tx.all<Column>(sql`SELECT * FROM pragma_table_xinfo(${target})`)
+   const columns = new Map(after.map((column) => [column.name, column]))
+@@ -82,6 +82,7 @@ const copy = Effect.fn("LegacyMainMigration.copy")(function* (tx: Transaction, s
+   `)
+   if (sourceCount?.count !== targetCount?.count || mismatch)
+     return yield* new LegacyMainHistory.RecoveryError({ reason: `Legacy table copy was not exact: ${target}` })
++  return undefined
+ })
+ 
+ export const restore = Effect.fn("LegacyMainMigration.restore")(function* (
+diff --git a/packages/core/src/delegation/service.ts b/packages/core/src/delegation/service.ts
+index 19b932bb69..7f67c06609 100644
+--- a/packages/core/src/delegation/service.ts
++++ b/packages/core/src/delegation/service.ts
+@@ -1951,7 +1951,7 @@ export const layer = Layer.effect(
+               participant.target === input.agent &&
+               participant.role === "implementer"
+             )
+-              return
++              return undefined
+             return yield* new Delegation.DelegationInvalidStateError({
+               delegationID,
+               currentStatus: participant.phase,
+@@ -1971,6 +1971,7 @@ export const layer = Layer.effect(
+           const error = participantExecutorError(parent, state, candidate, "addParticipant")
+           if (error) return yield* error
+           yield* createParticipant(candidate, participantID)
++          return undefined
+         }),
+       )
+       yield* appendTurn(
+diff --git a/packages/core/src/model.ts b/packages/core/src/model.ts
+index e6eb3aeb1d..b09b6cc4d0 100644
+--- a/packages/core/src/model.ts
++++ b/packages/core/src/model.ts
+@@ -7,7 +7,7 @@ import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+ import { Bus } from "./bus.js"
+ import { State } from "./state.js"
+ import { Location } from "./location.js"
+-import { freeze } from "immer"
++import { castDraft, freeze } from "immer"
+ import { AISDKNative } from "./aisdk-native.js"
+ import { ModelGroup } from "./model-group.js"
+ import type { ConfigModel } from "@aigcfroge/schema/config/model"
+@@ -128,14 +128,15 @@ const layer = Layer.effect(
+     let input = new Map<string, Provider.Snapshot>()
+     const editor = (data: Data, providerInput?: Provider.Snapshot): Editor => {
+       // Definitions are shared across Locations; a provider's map and a model are copied before their first edit.
+-      const owned = new WeakSet<ReadonlyMap<ID, Info>>()
+-      const drafts = new WeakSet<Info>()
++      const owned = new WeakMap<ReadonlyMap<ID, Info>, Map<ID, Info>>()
++      const drafts = new WeakMap<Info, MutableInfo>()
+       const writable = (providerID: Provider.ID) => {
+         const current = data.models.get(providerID)
+         if (!current) return undefined
+-        if (owned.has(current)) return current as Map<ID, Info>
++        const mutable = owned.get(current)
++        if (mutable) return mutable
+         const copy = new Map(current)
+-        owned.add(copy)
++        owned.set(copy, copy)
+         data.models.set(providerID, copy)
+         return copy
+       }
+@@ -144,9 +145,10 @@ const layer = Layer.effect(
+         if (!models) return undefined
+         const current = models.get(modelID)
+         if (!current) return undefined
+-        if (drafts.has(current)) return current as MutableInfo
+-        const copy = structuredClone(current) as MutableInfo
+-        drafts.add(copy)
++        const mutable = drafts.get(current)
++        if (mutable) return mutable
++        const copy = castDraft(structuredClone(current))
++        drafts.set(copy, copy)
+         models.set(modelID, copy)
+         return copy
+       }
+@@ -175,7 +177,7 @@ const layer = Layer.effect(
+             canonical: model.canonical ?? provider?.canonical,
+             modelID: model.modelID ?? modelID,
+           })
+-          drafts.add(model)
++          drafts.set(model, model)
+           models.set(modelID, model)
+         },
+         remove: (providerID, modelID) => {
+diff --git a/packages/core/src/plugin/command.ts b/packages/core/src/plugin/command.ts
+index 739bd1b88c..22b13de5ec 100644
+--- a/packages/core/src/plugin/command.ts
++++ b/packages/core/src/plugin/command.ts
+@@ -109,7 +109,7 @@ export const MetaCommands = define({
+                 text: JSON.stringify(Schema.encodeSync(Schema.Array(SessionGoal.Info))(saved)),
+                 resume: false,
+               })
+-              return
++              return undefined
+             }
+             const current =
+               saved.find((goal) => goal.status === "active") ?? saved.findLast((goal) => goal.status === "paused")
+@@ -118,16 +118,16 @@ export const MetaCommands = define({
+               const ref = { sessionID: input.sessionID, goalID: current.id, expectedRevision: current.revision }
+               if (text === "pause") {
+                 yield* goals.pause(ref)
+-                return
++                return undefined
+               }
+               if (text === "cancel") {
+                 yield* goals.cancel(ref)
+-                return
++                return undefined
+               }
+               const resumed = yield* goals.resume(ref)
+               const advanced = yield* goals.advance({ sessionID: input.sessionID, goalID: resumed.id })
+               if (advanced.state === "admitted") yield* execution.wake(input.sessionID)
+-              return
++              return undefined
+             }
+             const config = text.startsWith("{")
+               ? yield* Schema.decodeUnknownEffect(Schema.fromJsonString(SessionGoal.CreateInput))(text)
+@@ -141,6 +141,7 @@ export const MetaCommands = define({
+             const goal = yield* goals.set({ ...config, sessionID: input.sessionID })
+             const advanced = yield* goals.advance({ sessionID: input.sessionID, goalID: goal.id })
+             if (advanced.state === "admitted") yield* execution.wake(input.sessionID)
++            return undefined
+           }),
+       })
+       editor.add({
+diff --git a/packages/core/src/plugin/warming.ts b/packages/core/src/plugin/warming.ts
+index efef50ce46..da895758b3 100644
+--- a/packages/core/src/plugin/warming.ts
++++ b/packages/core/src/plugin/warming.ts
+@@ -30,7 +30,7 @@ export const Plugin = define({
+     const sessions = new Map<Session.ID, { last: number; expires: number; settings: typeof defaults }>()
+     const loop: (sessionID: Session.ID) => Effect.Effect<void> = Effect.fn("WarmingPlugin.loop")(function* (sessionID) {
+       const current = sessions.get(sessionID)
+-      if (!current) return
++      if (!current) return undefined
+ 
+       const now = yield* Clock.currentTimeMillis
+       const next = Math.min(current.last + Duration.toMillis(current.settings.interval), current.expires)
+@@ -40,7 +40,7 @@ export const Plugin = define({
+       }
+       if (now >= current.expires) {
+         sessions.delete(sessionID)
+-        return
++        return undefined
+       }
+ 
+       const last = current.last
+diff --git a/packages/core/src/provider.ts b/packages/core/src/provider.ts
+index b40364036b..56c2bce9bc 100644
+--- a/packages/core/src/provider.ts
++++ b/packages/core/src/provider.ts
+@@ -16,7 +16,7 @@ import { State } from "./state.js"
+ import { IntegrationConnection } from "./integration/connection.js"
+ import { Credential } from "@aigcfroge/schema/credential"
+ import { Location } from "./location.js"
+-import { freeze } from "immer"
++import { castDraft, freeze } from "immer"
+ import { AISDKNative } from "./aisdk-native.js"
+ 
+ export const ID = Provider.ID
+@@ -327,22 +327,23 @@ const layer = Layer.effect(
+     let byID = new Map<Integration.ID, Integration.Info>()
+     let connectionSignature = ""
+     const editor = (records: Records, input?: ConnectionInput): Editor => {
+-      const maps = new WeakSet<ReadonlyMap<Model.ID, Model.Info>>()
++      const maps = new WeakMap<ReadonlyMap<Model.ID, Model.Info>, Map<Model.ID, Model.Info>>()
+       const models = new WeakSet<Model.Info>()
+       const entry = (id: ID) => {
+         const current = records.get(id)
+         if (current) return current
+         const added = { provider: Info.empty(id) as MutableInfo, models: new Map<Model.ID, Model.Info>() }
+         records.set(id, added)
+-        maps.add(added.models)
++        maps.set(added.models, added.models)
+         return added
+       }
+       const writable = (id: ID) => {
+         const record = entry(id)
+-        if (maps.has(record.models)) return record.models as Map<Model.ID, Model.Info>
++        const current = maps.get(record.models)
++        if (current) return current
+         const owned = new Map(record.models)
+         record.models = owned
+-        maps.add(owned)
++        maps.set(owned, owned)
+         return owned
+       }
+       return {
+@@ -389,13 +390,13 @@ const layer = Layer.effect(
+             const target = writable(providerID)
+             const current = target.get(modelID)
+             const model = // An earlier add/set can publish and freeze an owned model within this fold.
+-              (
++              castDraft(
+                 current && models.has(current) && !Object.isFrozen(current)
+                   ? current
+                   : current
+                     ? structuredClone(current)
+-                    : Model.Info.default(providerID, modelID)
+-              ) as DeepMutable<Model.Info>
++                    : Model.Info.default(providerID, modelID),
++              )
+             update(model)
+             model.id = modelID
+             model.providerID = providerID
+diff --git a/packages/core/src/provider/definition.ts b/packages/core/src/provider/definition.ts
+index f90bcf3332..598bbff300 100644
+--- a/packages/core/src/provider/definition.ts
++++ b/packages/core/src/provider/definition.ts
+@@ -112,7 +112,7 @@ export const save = Effect.fn("ProviderDefinition.save")(function* (input: Provi
+           (yield* providers.get(input.providerID))?.integrationID ?? Integration.ID.make(input.providerID)
+         const active = yield* integrations.connection.active(integrationID)
+         const credentialID = retry
+-          ? original.adoption!.credentialID
++          ? original.adoption.credentialID
+           : action.type === "create"
+             ? Credential.ID.create()
+             : action.type === "use"
+@@ -194,13 +194,13 @@ export const save = Effect.fn("ProviderDefinition.save")(function* (input: Provi
+           })
+ 
+         addedModelIDs = retry
+-          ? original.adoption!.addedModelIDs
++          ? original.adoption.addedModelIDs
+           : Object.keys(candidate.models ?? {})
+               .filter((id) => !original?.models?.[id])
+               .map((id) => Model.ID.make(id))
+         const simple = action.type === "keep" && (!original?.adoption || original.adoption.phase === "ready")
+         let adoption: ConfigProvider.Adoption = retry
+-          ? original.adoption!
++          ? original.adoption
+           : {
+               phase: simple ? "ready" : action.type === "create" && !action.key?.trim() ? "draft" : "applying",
+               submissionID: input.submissionID,
+@@ -214,7 +214,7 @@ export const save = Effect.fn("ProviderDefinition.save")(function* (input: Provi
+             }
+ 
+         const qualifyCredential = Effect.fnUntraced(function* () {
+-          if (!adoption.credentialID) return
++          if (!adoption.credentialID) return undefined
+           const stored = yield* credentials.get(adoption.credentialID)
+           if (stored && stored.integrationID !== integrationID)
+             return yield* new ConfigProviderFile.ConflictError({
+@@ -254,7 +254,7 @@ export const save = Effect.fn("ProviderDefinition.save")(function* (input: Provi
+           catalog = (yield* providers.available()).some((provider) => provider.id === input.providerID)
+             ? { status: "ready" }
+             : { status: "unavailable", message: "The definition is saved; this provider is currently unavailable" }
+-          return
++          return undefined
+         }
+ 
+         const adoptCatalog = Effect.gen(function* () {
+@@ -302,7 +302,7 @@ export const save = Effect.fn("ProviderDefinition.save")(function* (input: Provi
+                   credentialID: adoption.credentialID,
+                   message: "Enter the API key to finish this saved definition",
+                 }
+-                return
++                return undefined
+               }
+               yield* credentialBoundary(
+                 credentials.create({
+@@ -367,6 +367,7 @@ export const save = Effect.fn("ProviderDefinition.save")(function* (input: Provi
+               status: "unavailable",
+               message: "The definition is saved; execution is disabled or denied by provider policy",
+             }
++        return undefined
+       }),
+     )
+     .pipe(
+@@ -432,7 +433,7 @@ export const remove = Effect.fn("ProviderDefinition.remove")(function* (input: P
+           })
+         if (!file.definitions[input.providerID]) {
+           definition = { status: "unchanged", target: file.target }
+-          return
++          return undefined
+         }
+         const written = yield* write({ type: "remove", providerID: input.providerID })
+         definition = { status: "saved", target: written.target }
+@@ -442,6 +443,7 @@ export const remove = Effect.fn("ProviderDefinition.remove")(function* (input: P
+         yield* providers.reload()
+         yield* models.reload()
+         if (locations) yield* reloadLocations(locations, config, input.target)
++        return undefined
+       }),
+     )
+     .pipe(
+@@ -527,6 +529,7 @@ function reloadLocations(
+             message: "A loaded Location has not suspended the pending provider",
+           })
+       }
++      return undefined
+     }),
+   )
+ }
+diff --git a/packages/core/src/provider/discovery.ts b/packages/core/src/provider/discovery.ts
+index f18264571f..4f5e6bed8e 100644
+--- a/packages/core/src/provider/discovery.ts
++++ b/packages/core/src/provider/discovery.ts
+@@ -14,6 +14,7 @@ import {
+   Schema,
+   Scope,
+   Semaphore,
++  Struct,
+ } from "effect"
+ import { SqlError } from "effect/sql/SqlError"
+ import { HttpClient } from "effect/http"
+@@ -146,7 +147,7 @@ export const layer = Layer.effect(
+         (entry) =>
+           entry.type === "document" &&
+           entry.info.providers?.[providerID]?.adoption !== undefined &&
+-          entry.info.providers[providerID].adoption!.phase !== "ready",
++          entry.info.providers[providerID].adoption.phase !== "ready",
+       )
+     const notify = (providerID: Provider.ID, connection?: ModelSource.ConnectionRef) =>
+       bus.publish(
+@@ -1109,10 +1110,11 @@ export function resolveMetadata(input: {
+   const name = pick((metadata) => metadata.name)
+   const family = pick((metadata) => metadata.family)
+   const compatibility = Object.fromEntries(
+-    [...new Set(candidates.flatMap((candidate) => Object.keys(candidate.metadata.compatibility ?? {})))].map((key) => [
+-      key,
+-      pick((metadata) => metadata.compatibility?.[key as keyof Model.Compatibility])!,
+-    ]),
++    [
++      ...new Set(
++        candidates.flatMap((candidate) => Struct.keys<Model.Compatibility>(candidate.metadata.compatibility ?? {})),
++      ),
++    ].map((key) => [key, pick((metadata) => metadata.compatibility?.[key])!]),
+   )
+   const tools = pick((metadata) => metadata.capabilities?.tools)
+   const modalityInput = pick((metadata) => metadata.capabilities?.input)
+diff --git a/packages/core/src/session.ts b/packages/core/src/session.ts
+index aa10c3ee4f..78dd04ac2f 100644
+--- a/packages/core/src/session.ts
++++ b/packages/core/src/session.ts
+@@ -1178,7 +1178,7 @@ const layer = Layer.effect(
+                       }),
+                   ),
+                 )
+-                return
++                return undefined
+               }
+               const candidate = (yield* catalog.available()).find(
+                 (item) => item.id === selected.id && item.providerID === selected.providerID,
+@@ -1201,6 +1201,7 @@ const layer = Layer.effect(
+                     }),
+                 ),
+               )
++              return undefined
+             })
+           }
+         }
+diff --git a/packages/core/src/session/message-updater.ts b/packages/core/src/session/message-updater.ts
+index 00c4724d4e..a7b59eb824 100644
+--- a/packages/core/src/session/message-updater.ts
++++ b/packages/core/src/session/message-updater.ts
+@@ -313,7 +313,7 @@ export function update(adapter: Adapter, event: SessionEvent.DurableEvent) {
+                 return yield* Effect.die(
+                   new Bus.InvalidDurableEventError({ type: event.type, message: "Conflicting physical attempt start" }),
+                 )
+-              return
++              return undefined
+             }
+             if (existing.unknownPriceAttempts !== undefined || existing.completion !== undefined)
+               return yield* Effect.die(
+@@ -355,7 +355,7 @@ export function update(adapter: Adapter, event: SessionEvent.DurableEvent) {
+                 draft.needsContinuation = undefined
+               }),
+             )
+-            return
++            return undefined
+           }
+           if (started.ordinal !== 0)
+             return yield* Effect.die(
+@@ -390,6 +390,7 @@ export function update(adapter: Adapter, event: SessionEvent.DurableEvent) {
+               time: { created: DateTime.makeUnsafe(started.started) },
+             }),
+           )
++          return undefined
+         }),
+       "session.attempt.observed": (event) =>
+         updateOwnedAssistant(
+diff --git a/packages/core/src/session/runner/model.ts b/packages/core/src/session/runner/model.ts
+index 6485081f12..1e3cc56047 100644
+--- a/packages/core/src/session/runner/model.ts
++++ b/packages/core/src/session/runner/model.ts
+@@ -405,7 +405,7 @@ const layer = Layer.effect(
+             candidates.some((candidate) => candidate.quota !== undefined && candidate.quota.status !== "unsupported")
+           const ranked = (receipts: typeof ledger, time: number) => {
+             const eligible = candidates.filter((candidate) => !rejected.has(candidate))
+-            if (eligible.length === 0 || !strategyAvailable) return
++            if (eligible.length === 0 || !strategyAvailable) return undefined
+             if (held !== undefined) {
+               const pinned = eligible.find(
+                 (candidate) =>
+@@ -912,9 +912,9 @@ function supportsStrategy(strategy: ModelGroup.Definition["strategy"], facts: Re
+ 
+ /** The actual transport proof owns a speed sample; prepared-only records cannot establish one. */
+ function speedSample(candidate: Candidate, attempts: readonly SessionAttempt.Info[], time: number) {
+-  if (candidate.runtime === undefined) return
++  if (candidate.runtime === undefined) return undefined
+   const target = SessionProviderContext.provenance(candidate.runtime)
+-  if (target === undefined) return
++  if (target === undefined) return undefined
+   return attempts
+     .flatMap((attempt) => {
+       const terminal = attempt.terminal
+diff --git a/packages/core/src/session/runner/to-llm-message.ts b/packages/core/src/session/runner/to-llm-message.ts
+index 9a9da99d71..cd95b721cf 100644
+--- a/packages/core/src/session/runner/to-llm-message.ts
++++ b/packages/core/src/session/runner/to-llm-message.ts
+@@ -360,6 +360,7 @@ function toLLMMessage(
+         }),
+       ]
+   }
++  return undefined
+ }
+ 
+ /** Translate projected Session history into canonical @aigcfroge/ai context. */
+diff --git a/packages/core/src/session/task.ts b/packages/core/src/session/task.ts
+index 705aea03e5..11d18ac9a3 100644
+--- a/packages/core/src/session/task.ts
++++ b/packages/core/src/session/task.ts
+@@ -856,7 +856,7 @@ export const layer = Layer.effect(
+                       inputID: input.request.inputID,
+                       projected: true,
+                     }).pipe(Effect.orDie)
+-                    if (!task || predecessorID !== undefined) return
++                    if (!task || predecessorID !== undefined) return undefined
+                     const updated = yield* db
+                       .update(TaskTable)
+                       .set({
+@@ -897,6 +897,7 @@ export const layer = Layer.effect(
+                     if (row)
+                       yield* saveClaim(toInfo(row, now), TaskOperation.permissionSource(saved), saved.operationID)
+                     yield* ScheduleTask.sync(db, { sessionID: input.sessionID, now, previous, execution: true })
++                    return undefined
+                   }),
+               })
+               .pipe(
+@@ -1168,6 +1169,7 @@ export const layer = Layer.effect(
+                   if (row)
+                     yield* saveClaim(toInfo(row, now), TaskOperation.permissionSource(operation), operation.operationID)
+                   yield* ScheduleTask.sync(db, { sessionID: input.sessionID, now, previous, execution: true })
++                  return undefined
+                 }),
+             })
+             .pipe(
+diff --git a/packages/core/test/meta-agent-integration.test.ts b/packages/core/test/meta-agent-integration.test.ts
+index 06744b8728..f5a8804672 100644
+--- a/packages/core/test/meta-agent-integration.test.ts
++++ b/packages/core/test/meta-agent-integration.test.ts
+@@ -677,6 +677,7 @@ effectTest.live(
+           })),
+         }),
+       )
++      return undefined
+     }),
+   30_000,
+ )
+@@ -957,6 +958,7 @@ effectTest.live("MC04b failed Judge worker retains its completed sibling observa
+       status: "completed",
+       text: observed,
+     })
++    return undefined
+   }),
+ )
+ 
+@@ -1329,6 +1331,7 @@ for (const reportsIssue of [true, false]) {
+             repeated: repeated.text,
+           }),
+         )
++        return undefined
+       }),
+   )
+ }
+@@ -1446,6 +1449,7 @@ effectTest.live(
+           deliveries: [...(after?.deliveries.values() ?? [])],
+         }),
+       )
++      return undefined
+     }),
+ )
+ 
+@@ -3038,6 +3042,7 @@ for (const failure of ["non_direct", "tree_change", "index_drift", "target_drift
+             governance,
+           }),
+         )
++        return undefined
+       }),
+     30_000,
+   )
+@@ -3325,6 +3330,7 @@ effectTest.live(
+           Stream.runCollect,
+         ),
+       ).toEqual(before)
++      return undefined
+     }),
+   30_000,
+ )
+@@ -3584,6 +3590,7 @@ effectTest.live(
+           Stream.runCollect,
+         ),
+       ).toEqual(completedEvents)
++      return undefined
+     }),
+   30_000,
+ )
+@@ -3806,7 +3813,7 @@ effectTest.live(
+         TestLLM.text("Consumed the actual repair.", "mc07-r2-sticky-parent"),
+       )
+       yield* fixture.sessions.prompt({ sessionID: fixture.root.id, text: "Repair the rejected artifact." })
+-      yield* awaitWithTimeout(fixture.llm.wait(11), "MC07 sticky repair did not reach its parent")
++      yield* awaitWithTimeout(fixture.llm.wait(11), "MC07 sticky repair did not reach its parent", "10 seconds")
+       yield* awaitWithTimeout(fixture.runs.awaitIdle(fixture.root.id), "MC07 sticky repair did not settle")
+       const repaired = yield* fixture.delegations.foldState(fixture.receipt.delegationID)
+       const digest = repaired?.delegation.latestRevisionDigest
+@@ -3923,6 +3930,7 @@ effectTest.live(
+           .slice(before.length)
+           .map((event) => event.type),
+       ).toEqual([DelegationEvent.RejectionRetracted.type])
++      return undefined
+     }),
+   30_000,
+ )
+@@ -4111,6 +4119,7 @@ for (const action of ["task_close", "task_archive"] as const)
+             .slice(before.length)
+             .filter((event) => forbidden.some((type) => type === event.type)),
+         ).toEqual([])
++        return undefined
+       }),
+     30_000,
+   )
+@@ -6536,6 +6545,7 @@ effectTest.live(
+             parentStatus: parent.tool.state.status,
+             text: binding.settlement?.text,
+           })
++          return undefined
+         }).pipe(Effect.orDie),
+       )
+       yield* fixture.llm.push(
+@@ -7050,6 +7060,7 @@ effectTest.live(
+       expect(
+         yield* db.select().from(ScopedGrantTable).where(eq(ScopedGrantTable.session_id, fixture.root.id)).all(),
+       ).toEqual([])
++      return undefined
+     }),
+   30_000,
+ )
+@@ -7319,7 +7330,6 @@ for (const ownerDuringRead of [false, true])
+         expect(external.state.turns).toBe(1)
+         expect(external.calls.filter((call) => call.method === "thread/read")).toHaveLength(1)
+       }),
+-    { timeout: 30_000 },
+   )
+ 
+ for (const transport of ["sdk", "acp", "jsonl"] as const)
+@@ -13085,7 +13095,7 @@ effectTest.live(
+         TestLLM.text("Consumed the complete R2 producer.", "mc06-sdk-review-repair-parent"),
+       )
+       yield* f.sessions.prompt({ sessionID: f.root.id, text: "Repair R1 in the same original producer." })
+-      yield* awaitWithTimeout(f.llm.wait(count + 4), "SDK R2 repair did not reach the original parent")
++      yield* awaitWithTimeout(f.llm.wait(count + 4), "SDK R2 repair did not reach the original parent", "10 seconds")
+       yield* awaitWithTimeout(f.runs.awaitIdle(f.root.id), "SDK R2 repair did not settle")
+       const repair = yield* mc07Consumed(f, "mc06-sdk-review-repair")
+       const producer = Schema.decodeUnknownSync(Schema.fromJsonString(DelegationService.Governance))(
+@@ -13383,227 +13393,221 @@ for (const scenario of [
+   { kind: "invalid", name: "restores full text and invalid governance exactly once" },
+   { kind: "owner", name: "defers when a new parent owner starts during finalization" },
+ ] as const)
+-  testEffect(Layer.empty).live(
+-    `MC06 SDK review cold recovery ${scenario.name}`,
+-    () =>
+-      Effect.gen(function* () {
+-        const originalContext = yield* Layer.build(metaLayer(true))
+-        const sdk = yield* sdkTaskSetup("Read", true, undefined, false, "artifact.txt").pipe(
+-          Effect.provide(originalContext),
+-        )
+-        const f = { ...sdk, ...(yield* mc07Build("artifact.txt", "", true, sdk).pipe(Effect.provide(originalContext))) }
+-        const id = `mc06-sdk-review-cold-${scenario.kind}`
+-        sdk.outputs[0] =
+-          sdk.text +
+-          (scenario.kind === "invalid"
+-            ? "<review>{not-json}</review>"
+-            : `<review>${JSON.stringify({ kind: "aigcfroge.review.v1", reviewed_revision_digest: f.digest, verdict: "approved", findings: [], summary: "The original R1 is approved." })}</review>`)
+-        const locations = Context.get(originalContext, LocationServiceMap.Service)
+-        const hooks = yield* PluginHooks.Service.pipe(Effect.provide(locations.get(f.root.location)))
+-        const entered = yield* Deferred.make<void>()
+-        const release = yield* Deferred.make<void>()
+-        yield* Effect.addFinalizer(() => Deferred.succeed(release, undefined).pipe(Effect.asVoid))
+-        yield* hooks.register("tool", "execute.after", (event) => {
+-          if (event.tool !== "task" || event.id !== id || event.status !== "completed") return Effect.void
+-          return Deferred.succeed(entered, undefined).pipe(Effect.andThen(Deferred.await(release)))
+-        })
+-        yield* Deferred.succeed(sdk.resultGate, undefined)
+-        yield* f.llm.push(
+-          TestLLM.tool(id, TaskTool.name, {
+-            description: "Persist the SDK review before publishing its parent result",
+-            prompt: "Review the original bound R1 and preserve the complete verdict.",
+-            execution_type: "external-cli",
+-            cli_target: "claude-code",
+-            subagent_type: "claude-code",
+-            intent: "review",
+-            attended: false,
+-            delegation_id: f.receipt.delegationID,
+-            revision_digest: f.digest,
++  testEffect(Layer.empty).live(`MC06 SDK review cold recovery ${scenario.name}`, () =>
++    Effect.gen(function* () {
++      const originalContext = yield* Layer.build(metaLayer(true))
++      const sdk = yield* sdkTaskSetup("Read", true, undefined, false, "artifact.txt").pipe(
++        Effect.provide(originalContext),
++      )
++      const f = { ...sdk, ...(yield* mc07Build("artifact.txt", "", true, sdk).pipe(Effect.provide(originalContext))) }
++      const id = `mc06-sdk-review-cold-${scenario.kind}`
++      sdk.outputs[0] =
++        sdk.text +
++        (scenario.kind === "invalid"
++          ? "<review>{not-json}</review>"
++          : `<review>${JSON.stringify({ kind: "aigcfroge.review.v1", reviewed_revision_digest: f.digest, verdict: "approved", findings: [], summary: "The original R1 is approved." })}</review>`)
++      const locations = Context.get(originalContext, LocationServiceMap.Service)
++      const hooks = yield* PluginHooks.Service.pipe(Effect.provide(locations.get(f.root.location)))
++      const entered = yield* Deferred.make<void>()
++      const release = yield* Deferred.make<void>()
++      yield* Effect.addFinalizer(() => Deferred.succeed(release, undefined).pipe(Effect.asVoid))
++      yield* hooks.register("tool", "execute.after", (event) => {
++        if (event.tool !== "task" || event.id !== id || event.status !== "completed") return Effect.void
++        return Deferred.succeed(entered, undefined).pipe(Effect.andThen(Deferred.await(release)))
++      })
++      yield* Deferred.succeed(sdk.resultGate, undefined)
++      yield* f.llm.push(
++        TestLLM.tool(id, TaskTool.name, {
++          description: "Persist the SDK review before publishing its parent result",
++          prompt: "Review the original bound R1 and preserve the complete verdict.",
++          execution_type: "external-cli",
++          cli_target: "claude-code",
++          subagent_type: "claude-code",
++          intent: "review",
++          attended: false,
++          delegation_id: f.receipt.delegationID,
++          revision_digest: f.digest,
++        }),
++        TestLLM.text("Consumed the original persisted SDK review.", `${id}-original-parent`),
++      )
++      yield* f.sessions.prompt({ sessionID: f.root.id, text: "Capture the real completed SDK review checkpoint." })
++      yield* awaitWithTimeout(Deferred.await(entered), "SDK review did not reach its after hook")
++      const originalKV = Context.get(originalContext, KV.Service)
++      const binding = Schema.decodeUnknownSync(DelegationReceipt.Binding)(
++        (yield* originalKV.scan({ prefix: `delegation:external:${f.receipt.delegationID}:` })).entries[0]?.value,
++      )
++      expect(binding.source.id).toBe(id)
++      expect(binding.settlement?.text).toBe(sdk.outputs[0])
++      expect(binding.settlement?.governance).toMatchObject(
++        scenario.kind === "invalid"
++          ? { kind: "review", status: "invalid", reason: "malformed" }
++          : { kind: "review", status: "valid", reviewedRevisionDigest: f.digest },
++      )
++      expect((yield* mc07Result(f, id)).tool.state.status).toBe("running")
++      expect((yield* f.delegations.foldState(f.receipt.delegationID))?.reviews).toHaveLength(
++        scenario.kind === "invalid" ? 0 : 1,
++      )
++      const originalDatabase = Context.get(originalContext, Database.Service)
++      const snapshot = `${(yield* tmpdirScoped()).path}/mc06-sdk-review-cold.sqlite`
++      yield* originalDatabase.db.run(sql`VACUUM INTO ${snapshot}`)
++      yield* Deferred.succeed(release, undefined)
++      yield* awaitWithTimeout(f.runs.awaitIdle(f.root.id), "Original SDK review parent did not finish")
++      const original = yield* mc07Consumed(f, id)
++      if (original.tool.state.status !== "completed") return yield* Effect.die(new Error("Original SDK review failed"))
++      const receipt = Schema.decodeUnknownSync(DelegationReceipt.Sdk)(original.tool.state.metadata?.externalReceipt)
++      const context = yield* Layer.build(Layer.fresh(metaLayer(true, snapshot)))
++      const database = Context.get(context, Database.Service)
++      expect(database).not.toBe(originalDatabase)
++      const sessions = Context.get(context, Session.Service)
++      const root = yield* sessions.get(f.root.id)
++      const local = Context.get(context, LocationServiceMap.Service).get(root.location)
++      yield* useOfflineCatalog([
++        {
++          info: Provider.Info.make({
++            ...Provider.Info.empty(f.metaModel.providerID),
++            activation: "enabled",
++            package: "@aigcfroge/ai/providers/openai/responses",
+           }),
+-          TestLLM.text("Consumed the original persisted SDK review.", `${id}-original-parent`),
+-        )
+-        yield* f.sessions.prompt({ sessionID: f.root.id, text: "Capture the real completed SDK review checkpoint." })
+-        yield* awaitWithTimeout(Deferred.await(entered), "SDK review did not reach its after hook")
+-        const originalKV = Context.get(originalContext, KV.Service)
+-        const binding = Schema.decodeUnknownSync(DelegationReceipt.Binding)(
+-          (yield* originalKV.scan({ prefix: `delegation:external:${f.receipt.delegationID}:` })).entries[0]?.value,
+-        )
+-        expect(binding.source.id).toBe(id)
+-        expect(binding.settlement?.text).toBe(sdk.outputs[0])
+-        expect(binding.settlement?.governance).toMatchObject(
+-          scenario.kind === "invalid"
+-            ? { kind: "review", status: "invalid", reason: "malformed" }
+-            : { kind: "review", status: "valid", reviewedRevisionDigest: f.digest },
++          models: [f.metaModel, f.executorModel].map((ref) =>
++            Model.Info.make(Model.Info.default(ref.providerID, ref.id)),
++          ),
++        },
++      ]).pipe(Effect.provide(local))
++      const opened = {
++        ...f,
++        sessions,
++        root,
++        llm: Context.get(context, TestLLM.Test),
++        runs: Context.get(context, SessionExecution.Service),
++      }
++      const kv = Context.get(context, KV.Service)
++      const key = DelegationReceipt.key(receipt)
++      if (scenario.kind === "conflict")
++        yield* kv.set(
++          key,
++          Schema.encodeSync(Schema.toCodecJson(DelegationReceipt.Binding))(
++            new DelegationReceipt.Binding({ ...binding, externalThreadID: "sdk-conflicting-review-session" }),
++          ),
+         )
+-        expect((yield* mc07Result(f, id)).tool.state.status).toBe("running")
+-        expect((yield* f.delegations.foldState(f.receipt.delegationID))?.reviews).toHaveLength(
+-          scenario.kind === "invalid" ? 0 : 1,
++      const beforeBinding = yield* kv.get(key)
++      const tasks = Context.get(context, SessionTask.Service)
++      const beforeTasks = yield* tasks.get(root.id)
++      const delegations = Context.get(context, DelegationService.Service)
++      const beforeState = yield* delegations.foldState(f.receipt.delegationID)
++      const metas = database.db
++        .select()
++        .from(MetaAgentStepTable)
++        .where(
++          and(
++            eq(MetaAgentStepTable.meta_agent_session_id, root.id),
++            eq(MetaAgentStepTable.tool_call_id, id),
++            eq(MetaAgentStepTable.type, "receipt"),
++          ),
+         )
+-        const originalDatabase = Context.get(originalContext, Database.Service)
+-        const snapshot = `${(yield* tmpdirScoped()).path}/mc06-sdk-review-cold.sqlite`
+-        yield* originalDatabase.db.run(sql`VACUUM INTO ${snapshot}`)
+-        yield* Deferred.succeed(release, undefined)
+-        yield* awaitWithTimeout(f.runs.awaitIdle(f.root.id), "Original SDK review parent did not finish")
+-        const original = yield* mc07Consumed(f, id)
+-        if (original.tool.state.status !== "completed")
+-          return yield* Effect.die(new Error("Original SDK review failed"))
+-        const receipt = Schema.decodeUnknownSync(DelegationReceipt.Sdk)(original.tool.state.metadata?.externalReceipt)
+-        const context = yield* Layer.build(Layer.fresh(metaLayer(true, snapshot)))
+-        const database = Context.get(context, Database.Service)
+-        expect(database).not.toBe(originalDatabase)
+-        const sessions = Context.get(context, Session.Service)
+-        const root = yield* sessions.get(f.root.id)
+-        const local = Context.get(context, LocationServiceMap.Service).get(root.location)
+-        yield* useOfflineCatalog([
+-          {
+-            info: Provider.Info.make({
+-              ...Provider.Info.empty(f.metaModel.providerID),
+-              activation: "enabled",
+-              package: "@aigcfroge/ai/providers/openai/responses",
+-            }),
+-            models: [f.metaModel, f.executorModel].map((ref) =>
+-              Model.Info.make(Model.Info.default(ref.providerID, ref.id)),
+-            ),
+-          },
+-        ]).pipe(Effect.provide(local))
+-        const opened = {
+-          ...f,
+-          sessions,
+-          root,
+-          llm: Context.get(context, TestLLM.Test),
+-          runs: Context.get(context, SessionExecution.Service),
+-        }
+-        const kv = Context.get(context, KV.Service)
+-        const key = DelegationReceipt.key(receipt)
+-        if (scenario.kind === "conflict")
+-          yield* kv.set(
+-            key,
+-            Schema.encodeSync(Schema.toCodecJson(DelegationReceipt.Binding))(
+-              new DelegationReceipt.Binding({ ...binding, externalThreadID: "sdk-conflicting-review-session" }),
+-            ),
+-          )
+-        const beforeBinding = yield* kv.get(key)
+-        const tasks = Context.get(context, SessionTask.Service)
+-        const beforeTasks = yield* tasks.get(root.id)
+-        const delegations = Context.get(context, DelegationService.Service)
+-        const beforeState = yield* delegations.foldState(f.receipt.delegationID)
+-        const metas = database.db
+-          .select()
+-          .from(MetaAgentStepTable)
+-          .where(
+-            and(
+-              eq(MetaAgentStepTable.meta_agent_session_id, root.id),
+-              eq(MetaAgentStepTable.tool_call_id, id),
+-              eq(MetaAgentStepTable.type, "receipt"),
+-            ),
+-          )
+-          .all()
+-        const successes = database.db
+-          .select()
+-          .from(EventTable)
+-          .where(
+-            and(
+-              eq(EventTable.aggregate_id, root.id),
+-              eq(
+-                EventTable.type,
+-                Bus.versionedType(SessionEvent.Tool.Success.type, SessionEvent.Tool.Success.durable.version),
+-              ),
++        .all()
++      const successes = database.db
++        .select()
++        .from(EventTable)
++        .where(
++          and(
++            eq(EventTable.aggregate_id, root.id),
++            eq(
++              EventTable.type,
++              Bus.versionedType(SessionEvent.Tool.Success.type, SessionEvent.Tool.Success.durable.version),
+             ),
+-          )
+-          .all()
+-          .pipe(Effect.map((events) => events.filter((event) => event.data.id === id)))
+-        expect(yield* metas).toEqual([])
+-        expect(yield* successes).toEqual([])
+-        const execution = Context.get(context, DelegationExecution.Service)
+-        if (scenario.kind === "owner") {
+-          const before = Effect.all({
+-            result: mc07Result(opened, id),
+-            state: delegations.foldState(f.receipt.delegationID),
+-            tasks: tasks.get(root.id),
+-            binding: kv.get(key),
+-            metas,
+-            successes,
+-          })
+-          const observed = yield* Deferred.make<Effect.Success<typeof before>>()
+-          const held = yield* Deferred.make<void>()
+-          const ownerRelease = yield* Deferred.make<void>()
+-          yield* Effect.addFinalizer(() => Deferred.succeed(ownerRelease, undefined).pipe(Effect.asVoid))
+-          yield* opened.llm.push(
+-            Stream.fromEffect(
+-              Deferred.succeed(held, undefined).pipe(Effect.andThen(Deferred.await(ownerRelease))),
+-            ).pipe(
+-              Stream.flatMap(() =>
+-                Stream.fromIterable(TestLLM.text("The new parent owner completed.", `${id}-new-owner`)),
+-              ),
++          ),
++        )
++        .all()
++        .pipe(Effect.map((events) => events.filter((event) => event.data.id === id)))
++      expect(yield* metas).toEqual([])
++      expect(yield* successes).toEqual([])
++      const execution = Context.get(context, DelegationExecution.Service)
++      if (scenario.kind === "owner") {
++        const before = Effect.all({
++          result: mc07Result(opened, id),
++          state: delegations.foldState(f.receipt.delegationID),
++          tasks: tasks.get(root.id),
++          binding: kv.get(key),
++          metas,
++          successes,
++        })
++        const observed = yield* Deferred.make<Effect.Success<typeof before>>()
++        const held = yield* Deferred.make<void>()
++        const ownerRelease = yield* Deferred.make<void>()
++        yield* Effect.addFinalizer(() => Deferred.succeed(ownerRelease, undefined).pipe(Effect.asVoid))
++        yield* opened.llm.push(
++          Stream.fromEffect(Deferred.succeed(held, undefined).pipe(Effect.andThen(Deferred.await(ownerRelease)))).pipe(
++            Stream.flatMap(() =>
++              Stream.fromIterable(TestLLM.text("The new parent owner completed.", `${id}-new-owner`)),
+             ),
+-          )
+-          const coldHooks = yield* PluginHooks.Service.pipe(Effect.provide(local))
+-          yield* coldHooks.register("tool", "execute.after", (event) => {
+-            if (event.tool !== "task" || event.id !== id || event.status !== "completed") return Effect.void
+-            return Effect.gen(function* () {
+-              yield* opened.sessions.prompt({
+-                sessionID: root.id,
+-                text: "New parent input while the old SDK review is being finalized.",
+-              })
+-              yield* awaitWithTimeout(Deferred.await(held), "The new parent owner did not start")
+-              yield* Deferred.succeed(observed, yield* before)
+-            }).pipe(Effect.orDie)
+-          })
+-          yield* execution.recoverPending
+-          expect(yield* opened.runs.isActive(root.id)).toBe(true)
+-          expect(yield* before).toEqual(
+-            yield* awaitWithTimeout(Deferred.await(observed), "Cold SDK recovery did not observe the new owner"),
+-          )
+-          expect(sdk.queries).toHaveLength(1)
+-          expect(sdk.state).toEqual({ reads: 1, closed: 1, hookCalls: 1 })
+-          yield* Deferred.succeed(ownerRelease, undefined)
+-          yield* awaitWithTimeout(opened.runs.awaitIdle(root.id), "The new parent owner did not finish")
+-          return
+-        }
++          ),
++        )
++        const coldHooks = yield* PluginHooks.Service.pipe(Effect.provide(local))
++        yield* coldHooks.register("tool", "execute.after", (event) => {
++          if (event.tool !== "task" || event.id !== id || event.status !== "completed") return Effect.void
++          return Effect.gen(function* () {
++            yield* opened.sessions.prompt({
++              sessionID: root.id,
++              text: "New parent input while the old SDK review is being finalized.",
++            })
++            yield* awaitWithTimeout(Deferred.await(held), "The new parent owner did not start")
++            yield* Deferred.succeed(observed, yield* before)
++          }).pipe(Effect.orDie)
++        })
+         yield* execution.recoverPending
+-        if (scenario.kind === "conflict") {
+-          expect((yield* mc07Result(opened, id)).tool.state.status).toBe("running")
+-          yield* execution.recoverPending
+-          expect(yield* successes).toEqual([])
+-          expect(yield* metas).toEqual([])
+-        }
+-        if (scenario.kind !== "conflict") {
+-          const recovered = yield* mc07Result(opened, id)
+-          if (recovered.tool.state.status !== "completed")
+-            return yield* Effect.die(new Error("Cold SDK review was not recovered"))
+-          const output = Schema.decodeUnknownSync(Schema.fromJsonString(DelegationReceipt.SdkOutput))(
+-            recovered.tool.state.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join(""),
+-          )
+-          expect(output.output).toBe(sdk.outputs[0])
+-          expect(output.governance).toEqual(binding.settlement?.governance)
+-          expect(output.sdkMessage).toEqual(receipt.sdkMessage)
+-          expect(recovered.tool.state.content).toEqual(original.tool.state.content)
+-          expect((yield* execution.wait(receipt)).governance).toEqual(output.governance)
+-          yield* execution.recoverPending
+-          expect(yield* mc07Result(opened, id)).toEqual(recovered)
+-          yield* opened.llm.push(TestLLM.text("Consumed the complete cold SDK review proof.", `${id}-cold-parent`))
+-          yield* opened.runs.resume(root.id)
+-          yield* awaitWithTimeout(opened.runs.awaitIdle(root.id), "Recovered SDK review parent did not finish")
+-          expect((yield* mc07Consumed(opened, id)).text).toBe(original.text)
+-          const meta = yield* metas
+-          expect(meta).toHaveLength(1)
+-          expect(Schema.decodeUnknownSync(DelegationReceipt.Outcome)(meta[0]?.provenance?.externalReceipt)).toEqual(
+-            receipt,
+-          )
+-          expect(yield* successes).toHaveLength(1)
+-          const messages = yield* sessions.context(root.id)
+-          yield* execution.recoverPending
+-          expect(yield* metas).toEqual(meta)
+-          expect(yield* successes).toHaveLength(1)
+-          expect(yield* sessions.context(root.id)).toEqual(messages)
+-        }
+-        expect(yield* delegations.foldState(f.receipt.delegationID)).toEqual(beforeState)
+-        expect(yield* tasks.get(root.id)).toEqual(beforeTasks)
+-        expect(yield* kv.get(key)).toEqual(beforeBinding)
++        expect(yield* opened.runs.isActive(root.id)).toBe(true)
++        expect(yield* before).toEqual(
++          yield* awaitWithTimeout(Deferred.await(observed), "Cold SDK recovery did not observe the new owner"),
++        )
+         expect(sdk.queries).toHaveLength(1)
+         expect(sdk.state).toEqual({ reads: 1, closed: 1, hookCalls: 1 })
+-      }),
+-    { timeout: 30_000 },
++        yield* Deferred.succeed(ownerRelease, undefined)
++        yield* awaitWithTimeout(opened.runs.awaitIdle(root.id), "The new parent owner did not finish")
++        return
++      }
++      yield* execution.recoverPending
++      if (scenario.kind === "conflict") {
++        expect((yield* mc07Result(opened, id)).tool.state.status).toBe("running")
++        yield* execution.recoverPending
++        expect(yield* successes).toEqual([])
++        expect(yield* metas).toEqual([])
++      }
++      if (scenario.kind !== "conflict") {
++        const recovered = yield* mc07Result(opened, id)
++        if (recovered.tool.state.status !== "completed")
++          return yield* Effect.die(new Error("Cold SDK review was not recovered"))
++        const output = Schema.decodeUnknownSync(Schema.fromJsonString(DelegationReceipt.SdkOutput))(
++          recovered.tool.state.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join(""),
++        )
++        expect(output.output).toBe(sdk.outputs[0])
++        expect(output.governance).toEqual(binding.settlement?.governance)
++        expect(output.sdkMessage).toEqual(receipt.sdkMessage)
++        expect(recovered.tool.state.content).toEqual(original.tool.state.content)
++        expect((yield* execution.wait(receipt)).governance).toEqual(output.governance)
++        yield* execution.recoverPending
++        expect(yield* mc07Result(opened, id)).toEqual(recovered)
++        yield* opened.llm.push(TestLLM.text("Consumed the complete cold SDK review proof.", `${id}-cold-parent`))
++        yield* opened.runs.resume(root.id)
++        yield* awaitWithTimeout(opened.runs.awaitIdle(root.id), "Recovered SDK review parent did not finish")
++        expect((yield* mc07Consumed(opened, id)).text).toBe(original.text)
++        const meta = yield* metas
++        expect(meta).toHaveLength(1)
++        expect(Schema.decodeUnknownSync(DelegationReceipt.Outcome)(meta[0]?.provenance?.externalReceipt)).toEqual(
++          receipt,
++        )
++        expect(yield* successes).toHaveLength(1)
++        const messages = yield* sessions.context(root.id)
++        yield* execution.recoverPending
++        expect(yield* metas).toEqual(meta)
++        expect(yield* successes).toHaveLength(1)
++        expect(yield* sessions.context(root.id)).toEqual(messages)
++      }
++      expect(yield* delegations.foldState(f.receipt.delegationID)).toEqual(beforeState)
++      expect(yield* tasks.get(root.id)).toEqual(beforeTasks)
++      expect(yield* kv.get(key)).toEqual(beforeBinding)
++      expect(sdk.queries).toHaveLength(1)
++      expect(sdk.state).toEqual({ reads: 1, closed: 1, hookCalls: 1 })
++    }),
+   )
+ 
+ effectTest.live(
+@@ -15552,7 +15556,6 @@ for (const phase of ["delivery", "legacy"] as const)
+         expect(f.queries).toHaveLength(1)
+         expect(f.state).toEqual({ reads: 1, closed: 1, hookCalls: 1 })
+       }),
+-    { timeout: 30_000 },
+   )
+ 
+ class JsonlPeerEvent extends Schema.Class<JsonlPeerEvent>("Test.JsonlPeerEvent")({
+diff --git a/packages/core/test/plugin/module.test.ts b/packages/core/test/plugin/module.test.ts
+index b78d913228..b7881310ee 100644
+--- a/packages/core/test/plugin/module.test.ts
++++ b/packages/core/test/plugin/module.test.ts
+@@ -332,7 +332,7 @@ export default Plugin.define({
+ 
+       const checkTool = (yield* tools.list()).find((tool) => tool.id === "check_tool")
+       expect(checkTool).toBeDefined()
+-      if (!checkTool) return
++      if (!checkTool) return undefined
+ 
+       const context = {
+         sessionID: Session.ID.make("ses_host_effect"),
+@@ -347,6 +347,7 @@ export default Plugin.define({
+         content: [{ type: "text", text: "from-dep:v42:3" }],
+       })
+       expect(yield* rpc.call("host-effect-rpc", "check", { tag: " v9 " })).toEqual({ value: "v9#5" })
++      return undefined
+     }),
+ )
+ 
+diff --git a/packages/core/test/plugin/provider-github-copilot.test.ts b/packages/core/test/plugin/provider-github-copilot.test.ts
+index e7d1b2ed7d..38e0d31233 100644
+--- a/packages/core/test/plugin/provider-github-copilot.test.ts
++++ b/packages/core/test/plugin/provider-github-copilot.test.ts
+@@ -143,7 +143,7 @@ describe("GithubCopilotPlugin", () => {
+                 })
+               }
+               if (path.endsWith("/chat/completions")) {
+-                const body = (await request.json()) as { model?: unknown }
++                const body: { model?: unknown } = await request.json()
+                 titleRequests.push({ path, authorization: request.headers.get("authorization"), model: body.model })
+                 return Response.json({ choices: [{ message: { content: `Account ${account} title` } }] })
+               }
+diff --git a/packages/core/test/provider-discovery.test.ts b/packages/core/test/provider-discovery.test.ts
+index 2df28b8ff9..6be233c243 100644
+--- a/packages/core/test/provider-discovery.test.ts
++++ b/packages/core/test/provider-discovery.test.ts
+@@ -980,7 +980,7 @@ describe("P5 Magpie standard protocols", () => {
+         const running = yield* server(async (request) => {
+           const path = new URL(request.url).pathname
+           if (path.endsWith("/models")) return Response.json({ data: [{ id: "openai/test" }, { id: "group/fast" }] })
+-          const body = (await request.json()) as { model: unknown }
++          const body: { model: unknown } = await request.json()
+           requests.push({ path, model: body.model })
+           if (fail)
+             return Response.json(
+diff --git a/packages/core/test/schedule-execution.test.ts b/packages/core/test/schedule-execution.test.ts
+index 20ec0bd4b4..1fcc0fe2b3 100644
+--- a/packages/core/test/schedule-execution.test.ts
++++ b/packages/core/test/schedule-execution.test.ts
+@@ -408,6 +408,7 @@ describe("Schedule execution consumes original owners", () => {
+       expect(receipt.inputID).toBe(claimed.inputID)
+       expect(yield* fixture.schedules.runs(rule.id)).toHaveLength(1)
+       expect(yield* fixture.llm.requests()).toHaveLength(1)
++      return undefined
+     }),
+   )
+ 
+diff --git a/packages/core/test/schedule-rule.test.ts b/packages/core/test/schedule-rule.test.ts
+index 4521670609..8a818f1e5a 100644
+--- a/packages/core/test/schedule-rule.test.ts
++++ b/packages/core/test/schedule-rule.test.ts
+@@ -146,6 +146,7 @@ describe("Schedule rule and occurrence ownership", () => {
+         cleared,
+       )
+       expect(yield* bus.log({ aggregateID: sessionID }).pipe(Stream.runCollect)).toEqual(clearedEvents)
++      return undefined
+     }),
+   )
+ 
+@@ -187,6 +188,7 @@ describe("Schedule rule and occurrence ownership", () => {
+       expect((yield* schedules.getRule(rule.id))?.status).toBe("pending")
+       expect((yield* schedules.getRule(rule.id))?.nextDueAt).toBe(120_000)
+       expect((yield* schedules.getRule(rule.id))?.activeOccurrenceID).toBeUndefined()
++      return undefined
+     }),
+   )
+ 
+@@ -248,6 +250,7 @@ describe("Schedule rule and occurrence ownership", () => {
+         yield* schedules.advanceOccurrence(final.id, new Schedule.OccurrenceChange({ status: "completed" }))
+         expect((yield* schedules.getRule(rule.id))?.status).toBe("completed")
+         expect((yield* schedules.getRule(rule.id))?.nextDueAt).toBeUndefined()
++        return undefined
+       }),
+     )
+   }
+@@ -283,6 +286,7 @@ describe("Schedule rule and occurrence ownership", () => {
+       expect((yield* schedules.getRule(rule.id))?.activeOccurrenceID).toBeUndefined()
+       expect((yield* schedules.getRule(rule.id))?.revision).toBe(resumed.revision)
+       expect((yield* schedules.getRule(rule.id))?.nextDueAt).toBe(resumed.nextDueAt)
++      return undefined
+     }),
+   )
+ 
+@@ -312,6 +316,7 @@ describe("Schedule rule and occurrence ownership", () => {
+       expect(inbox[0]?.caughtUp).toBe(true)
+       expect((yield* schedules.list(sessionID))[0]?.status).toBe("completed")
+       expect((yield* schedules.occurrence(run.id))?.legacyClaim?.owner).toBe("dead-owner")
++      return undefined
+     }),
+   )
+ 
+@@ -376,6 +381,7 @@ describe("Schedule rule and occurrence ownership", () => {
+       expect((yield* schedules.getRule(id))?.status).toBe("completed")
+       expect(yield* schedules.claimOccurrence(id, 240_000, "retry-owner")).toBeUndefined()
+       expect(yield* schedules.runs(id)).toHaveLength(1)
++      return undefined
+     }),
+   )
+ 
+@@ -402,6 +408,7 @@ describe("Schedule rule and occurrence ownership", () => {
+       })
+       expect(yield* deliveries.listInbox(sessionID)).toHaveLength(0)
+       expect((yield* schedules.getRule(rule.id))?.activeOccurrenceID).toBeUndefined()
++      return undefined
+     }),
+   )
+ 
+@@ -428,6 +435,7 @@ describe("Schedule rule and occurrence ownership", () => {
+       yield* schedules.deliverOccurrence(second.id, second.scheduledAt)
+       expect(first.deliveryKey).not.toBe(second.deliveryKey)
+       expect(yield* deliveries.listInbox(sessionID)).toHaveLength(2)
++      return undefined
+     }),
+   )
+ 
+@@ -569,6 +577,7 @@ describe("Schedule rule and occurrence ownership", () => {
+         expect((yield* schedules.getRule(running.id))?.status).toBe("pending")
+         expect((yield* schedules.getRule(running.id))?.error).toBeUndefined()
+         expect(yield* schedules.runs(running.id)).toHaveLength(0)
++        return undefined
+       }),
+   )
+ })
+diff --git a/packages/core/test/session-communication.test.ts b/packages/core/test/session-communication.test.ts
+index afe4f762d2..3536f0b47a 100644
+--- a/packages/core/test/session-communication.test.ts
++++ b/packages/core/test/session-communication.test.ts
+@@ -100,6 +100,7 @@ const setup = Effect.fnUntraced(function* () {
+         sessionID: session.id,
+         revert: { messageID: boundary.id, files: [] },
+       })
++      return undefined
+     }),
+   )
+   return {
+@@ -357,6 +358,7 @@ describe("Session communication through original Share and Inbox", () => {
+         first.id,
+         reply.id,
+       ])
++      return undefined
+     }),
+   )
+ 
+diff --git a/packages/core/test/session-create.test.ts b/packages/core/test/session-create.test.ts
+index 65197c3438..76a67928c2 100644
+--- a/packages/core/test/session-create.test.ts
++++ b/packages/core/test/session-create.test.ts
+@@ -261,6 +261,7 @@ admissionIt.live("runs ordinary Meta Group selection from current configuration
+     yield* saveSessionGroup(f.location, group.groupID, [next])
+     expect((yield* context.resolveModel(root)).ref).toEqual(next)
+     expect(yield* compositions.read(root.id)).toBeUndefined()
++    return undefined
+   }),
+ )
+ 
+@@ -324,6 +325,7 @@ admissionIt.live(
+         expect(upgraded.snapshot.data.groupBehavior).toEqual(edited)
+         expect((yield* context.resolveModel(upgraded.session)).ref).toEqual(next)
+         expect(yield* compositions.get(root.id)).toEqual(original)
++        return undefined
+       }),
+     ),
+ )
+@@ -402,6 +404,7 @@ admissionIt.live("keeps a frozen child Group on exact retry and carries its beha
+       expect(fork.model).toEqual(childGroup)
+       expect(forkSnapshot.data.groupBehavior).toEqual(firstBehavior)
+       expect((yield* context.resolveModel(fork)).ref).toEqual(next)
++      return undefined
+     }),
+   ),
+ )
+@@ -518,6 +521,7 @@ admissionIt.live("captures an asset executor's Group during real freeze and keep
+           })),
+         ).toEqual([{ selection: group, model: f.model, api: "frozen-group-api" }])
+       }
++      return undefined
+     }),
+   ),
+ )
+diff --git a/packages/core/test/session-goal.test.ts b/packages/core/test/session-goal.test.ts
+index d58f968d90..e7b244d285 100644
+--- a/packages/core/test/session-goal.test.ts
++++ b/packages/core/test/session-goal.test.ts
+@@ -536,6 +536,7 @@ describe("SessionGoal persisted owner", () => {
+       expect((yield* fixture.goals.get({ sessionID: fixture.sessionID, goalID: next.goal.id }))?.status).toBe(
+         "cancelled",
+       )
++      return undefined
+     }),
+   )
+ 
+@@ -603,6 +604,7 @@ describe("SessionGoal persisted owner", () => {
+       expect(accepted.satisfiedConditionIDs).toEqual(["command", "accept"])
+       expect(accepted.currentEvidenceIDs).toEqual(observed?.currentEvidenceIDs ?? [])
+       expect((yield* fixture.goals.advance({ sessionID: fixture.sessionID, goalID: goal.id })).reason).toBe("completed")
++      return undefined
+     }),
+   )
+ 
+@@ -1151,6 +1153,7 @@ describe("SessionGoal persisted owner", () => {
+           expect.arrayContaining(references),
+         )
+         expect(goal?.accounting.worker).toMatchObject({ steps: 1, attempts: 1, recordedTokens: 10 })
++        return undefined
+       }),
+     )
+   }
+@@ -1230,6 +1233,7 @@ describe("SessionGoal persisted owner", () => {
+       expect(
+         (yield* rebuilt.get({ sessionID: fixture.sessionID, goalID: started.goal.id }))?.currentEvidenceIDs,
+       ).toEqual(accepted.currentEvidenceIDs)
++      return undefined
+     }),
+   )
+ 
+@@ -1284,6 +1288,7 @@ describe("SessionGoal persisted owner", () => {
+       expect(accepted.status).toBe("completed")
+       expect(accepted.currentEvidenceIDs).toEqual(current.currentEvidenceIDs)
+       expect(accepted.evidenceSetDigest).toBe(current.evidenceSetDigest)
++      return undefined
+     }),
+   )
+ })
+diff --git a/packages/core/test/session-model-request-hooks.test.ts b/packages/core/test/session-model-request-hooks.test.ts
+index 5bd193fe36..4f2ea29849 100644
+--- a/packages/core/test/session-model-request-hooks.test.ts
++++ b/packages/core/test/session-model-request-hooks.test.ts
+@@ -224,6 +224,7 @@ describe("SessionModelRequest HTTP hooks", () => {
+         expect(encoded).not.toContain("private-ws-query")
+         expect(encoded).not.toContain("private-ws-header")
+         expect(encoded).not.toContain("private-ws-body")
++        return undefined
+       }),
+     )
+   }
+@@ -259,6 +260,7 @@ describe("SessionModelRequest HTTP hooks", () => {
+       ])
+       expect(prepared.options.http).toBeUndefined()
+       expect(JSON.stringify(observations)).not.toContain(url)
++      return undefined
+     }).pipe(Effect.provideService(SessionModelTransport.Service, transport)),
+   )
+ 
+@@ -311,6 +313,7 @@ describe("SessionModelRequest HTTP hooks", () => {
+       expect(encoded).not.toContain("private-query")
+       expect(encoded).not.toContain("private-header")
+       expect(encoded).not.toContain("private-body")
++      return undefined
+     }).pipe(Effect.provideService(SessionModelTransport.Service, transport)),
+   )
+ 
+@@ -458,6 +461,7 @@ describe("SessionModelRequest HTTP hooks", () => {
+         { kind: "primary", agent: Agent.ID.make("build"), url: primaryURL },
+         { kind: "title", agent: Agent.ID.make("title"), url: titleURL },
+       ])
++      return undefined
+     }).pipe(Effect.provideService(SessionModelTransport.Service, transport)),
+   )
+ 
+diff --git a/packages/core/test/session-notification.test.ts b/packages/core/test/session-notification.test.ts
+index 5dac61e148..6c2653ae11 100644
+--- a/packages/core/test/session-notification.test.ts
++++ b/packages/core/test/session-notification.test.ts
+@@ -369,6 +369,7 @@ describe("Session notification lifecycle", () => {
+           resultDigest: fixture.resultDigest,
+         },
+       ])
++      return undefined
+     }),
+   )
+ 
+diff --git a/packages/core/test/session-provider-context.test.ts b/packages/core/test/session-provider-context.test.ts
+index 2243efce62..dd51487ca9 100644
+--- a/packages/core/test/session-provider-context.test.ts
++++ b/packages/core/test/session-provider-context.test.ts
+@@ -327,6 +327,7 @@ it.effect(
+         type: "compaction",
+         providerContext: { provenance: proof },
+       })
++      return undefined
+     }),
+ )
+ 
+diff --git a/packages/core/test/session-runner.test.ts b/packages/core/test/session-runner.test.ts
+index 71b611cb18..31e7dfd39c 100644
+--- a/packages/core/test/session-runner.test.ts
++++ b/packages/core/test/session-runner.test.ts
+@@ -3251,6 +3251,7 @@ describe("P5 dynamic model group strategies through the original runner", () =>
+         expect(
+           (yield* recordedEventTypes(sessionID)).filter((type) => type === "session.retry.scheduled.1"),
+         ).toHaveLength(1)
++        return undefined
+       }),
+   )
+ 
+@@ -8125,6 +8126,7 @@ describe("SessionRunnerLLM", () => {
+       yield* replaySessionProjection(sessionID)
+       expect(yield* SessionInputResult.read(s.db, { sessionID, inputID: input.id })).toEqual(result)
+       expect(s.requests).toHaveLength(1)
++      return undefined
+     },
+   )
+ 
+@@ -8580,6 +8582,7 @@ describe("SessionRunnerLLM", () => {
+         },
+         { type: "tool-result", id: "call-hosted-interrupted", providerExecuted: true, result: { type: "error" } },
+       ])
++      return undefined
+     },
+     true,
+   )
+diff --git a/packages/core/test/session-task-service.test.ts b/packages/core/test/session-task-service.test.ts
+index 50d8dc9742..0525109266 100644
+--- a/packages/core/test/session-task-service.test.ts
++++ b/packages/core/test/session-task-service.test.ts
+@@ -2694,6 +2694,7 @@ describe("Task schedule write boundaries", () => {
+       expect(yield* tasks.get(sessionID)).toEqual(before)
+       expect(yield* schedules.getRule(rule.id)).toEqual(scheduleBefore)
+       expect(published).toEqual([])
++      return undefined
+     }),
+   )
+ 
+@@ -2774,6 +2775,7 @@ describe("Task schedule write boundaries", () => {
+         expect(yield* tasks.get(sessionID)).toEqual([])
+         expect((yield* schedules.getRule(ScheduleTask.idFor(second.id)))?.status).toBe("cancelled")
+         expect(yield* schedules.runs(current.id)).toEqual([run])
++        return undefined
+       }),
+   )
+ 
+@@ -2814,6 +2816,7 @@ describe("Task schedule write boundaries", () => {
+         expect((yield* tasks.get(sessionID))[0]?.status).toBe("scheduled")
+         expect((yield* tasks.get(sessionID))[0]?.nextRun).toBeUndefined()
+         expect((yield* tasks.listAll()).find((row) => row.id === task.id)?.nextRun).toBeUndefined()
++        return undefined
+       }),
+   )
+ })
+@@ -2917,6 +2920,7 @@ describe("Task operation reservations", () => {
+       yield* tasks.removeTask({ sessionID, id: seed.id })
+       expect(yield* tasks.get(sessionID)).toEqual([])
+       expect(yield* tasks.operations({ sessionID, taskID: seed.id })).toEqual([failed])
++      return undefined
+     }),
+   )
+ 
+@@ -3117,6 +3121,7 @@ describe("Task operation reservations", () => {
+         })
+         expect(retried.sourceSettlement).toBe("settled")
+         expect((yield* tasks.get(sessionID))[0]).toEqual(edited)
++        return undefined
+       }),
+   )
+ 
+@@ -3172,6 +3177,7 @@ describe("Task operation reservations", () => {
+           .get()
+           .pipe(Effect.orDie),
+       ).toEqual(currentClaim)
++      return undefined
+     }),
+   )
+ 
+@@ -3303,6 +3309,7 @@ describe("Task operation reservations", () => {
+             .get()
+             .pipe(Effect.orDie),
+         ).toBeUndefined()
++        return undefined
+       }),
+   )
+ 
+diff --git a/packages/core/test/tool-shell.test.ts b/packages/core/test/tool-shell.test.ts
+index 1f5a1fe10d..5cc64dd81f 100644
+--- a/packages/core/test/tool-shell.test.ts
++++ b/packages/core/test/tool-shell.test.ts
+@@ -793,33 +793,29 @@ describe("ShellTool ordinary shell syntax", () => {
+       "Write-Output `\n  hello",
+       "Write-Output @'\nhello\n'@",
+     ]) {
+-      test(
+-        `PowerShell ${portable ? "native" : "legacy"}: ordinary syntax reuses approvals: ${command}`,
+-        () =>
+-          withScanner(
+-            portable,
+-            (registry, directory) =>
+-              Effect.gen(function* () {
+-                const saved = yield* PermissionSaved.Service
+-                const location = yield* Location.Service
+-                yield* saved.add({
+-                  projectID: location.project.id,
+-                  action: "shell",
+-                  resources: ["Write-Output *", "Show-Value *"],
+-                })
+-                const result = yield* runPermissionCommand(registry, command, path.join(directory.active, "marker"), [])
+-                expect(result.requests).toEqual([])
+-                expect(result.exit).toMatchObject({
+-                  _tag: "Success",
+-                  value: { status: "completed", metadata: { exit: 0 } },
+-                })
+-                if (Exit.isSuccess(result.exit))
+-                  expect(result.exit.value.content?.[0]).toEqual(Expected.text(isWindows ? "hello\r\n" : "hello\n"))
+-              }),
+-            pwsh ?? "pwsh",
+-          ),
+-        { timeout: 30_000 },
+-      )
++      test(`PowerShell ${portable ? "native" : "legacy"}: ordinary syntax reuses approvals: ${command}`, () =>
++        withScanner(
++          portable,
++          (registry, directory) =>
++            Effect.gen(function* () {
++              const saved = yield* PermissionSaved.Service
++              const location = yield* Location.Service
++              yield* saved.add({
++                projectID: location.project.id,
++                action: "shell",
++                resources: ["Write-Output *", "Show-Value *"],
++              })
++              const result = yield* runPermissionCommand(registry, command, path.join(directory.active, "marker"), [])
++              expect(result.requests).toEqual([])
++              expect(result.exit).toMatchObject({
++                _tag: "Success",
++                value: { status: "completed", metadata: { exit: 0 } },
++              })
++              if (Exit.isSuccess(result.exit))
++                expect(result.exit.value.content?.[0]).toEqual(Expected.text(isWindows ? "hello\r\n" : "hello\n"))
++            }),
++          pwsh ?? "pwsh",
++        ))
+     }
+   }
+ 
+diff --git a/packages/core/test/tool-subagent.test.ts b/packages/core/test/tool-subagent.test.ts
+index 4c550a40cd..1abd466ed9 100644
+--- a/packages/core/test/tool-subagent.test.ts
++++ b/packages/core/test/tool-subagent.test.ts
+@@ -388,6 +388,7 @@ ownershipIt.live(
+       const nextSnapshot = yield* f.compositions.get(outputSessionID(next.output))
+       if (nextSnapshot.version !== 2) return yield* Effect.die(new Error("New subagent Group snapshot is not V2"))
+       expect(SessionComposition.groupBehaviorFor(nextSnapshot, f.info.id)?.members).toEqual([parentModel])
++      return undefined
+     }),
+ )
+ 
+diff --git a/packages/core/test/tool-task.test.ts b/packages/core/test/tool-task.test.ts
+index 8f7ba2c7d0..918a449ee0 100644
+--- a/packages/core/test/tool-task.test.ts
++++ b/packages/core/test/tool-task.test.ts
+@@ -481,6 +481,7 @@ leafIt.live("inherits a Judge summary Group and records its actual fallback API
+       { selection: group, model: rejected, api: "rejected-api" },
+       { selection: group, model: accepted, api: "summary-api" },
+     ])
++    return undefined
+   }),
+ )
+ 
+@@ -506,6 +507,7 @@ leafIt.live("keeps the original Judge packet and omits runtime when an inherited
+         .filter((message) => message.type === "assistant")
+         .flatMap((message) => message.attempts ?? []),
+     ).toEqual([])
++    return undefined
+   }),
+ )
+ 
+@@ -563,7 +565,7 @@ for (const mode of ["foreground", "background", "admit-only"] as const) {
+         )
+         expect(operation).toBeUndefined()
+         expect(yield* f.sessions.inbox(f.root.id)).toEqual([])
+-        return
++        return undefined
+       }
+       if (!operation) return yield* Effect.die(new Error("The asynchronous self-target operation was not admitted"))
+       expect(yield* tasks.operations({ sessionID: f.root.id })).toHaveLength(1)
+@@ -586,6 +588,7 @@ for (const mode of ["foreground", "background", "admit-only"] as const) {
+         }),
+       ).toMatchObject({ status: "completed" })
+       expect(yield* f.sessions.inbox(f.root.id)).toEqual([])
++      return undefined
+     }).pipe(
+       Effect.ensuring(
+         Effect.gen(function* () {
+diff --git a/packages/desktop/src/main/extension/enable-state.ts b/packages/desktop/src/main/extension/enable-state.ts
+index 4629bd63fe..b1e41be64c 100644
+--- a/packages/desktop/src/main/extension/enable-state.ts
++++ b/packages/desktop/src/main/extension/enable-state.ts
+@@ -6,10 +6,10 @@ export function readEnableState(db: DatabaseSync): readonly EnableState[] {
+   return db
+     .prepare("SELECT id, enabled FROM extension")
+     .all()
+-    .map((row) => {
+-      // SAFETY: extension.id is TEXT PRIMARY KEY; extension.enabled is INTEGER NOT NULL in every journaled schema.
+-      const id = row.id as string
++    .flatMap((row) => {
++      // Non-STRICT TEXT affinity permits blobs, which cannot match any string extension identity.
++      if (typeof row.id !== "string") return []
+ 
+-      return { id, enabled: row.enabled === 1 }
++      return [{ id: row.id, enabled: row.enabled === 1 }]
+     })
+ }
+diff --git a/packages/desktop/src/main/storage/window-snapshot.test.ts b/packages/desktop/src/main/storage/window-snapshot.test.ts
+index 3c39eb3512..80c73fa837 100644
+--- a/packages/desktop/src/main/storage/window-snapshot.test.ts
++++ b/packages/desktop/src/main/storage/window-snapshot.test.ts
+@@ -24,7 +24,11 @@ test.each(["missing", "unreadable"])("a $s database distinguishes default enable
+   )
+ })
+ 
+-test.each([false, true])("the early snapshot keeps explicit rows even with legacy files: %s", async (legacy) => {
++test.each([
++  { legacy: false, invalidID: false },
++  { legacy: true, invalidID: false },
++  { legacy: false, invalidID: true },
++])("the early snapshot keeps valid rows with legacy $legacy and invalid id $invalidID", async (input) => {
+   const root = await mkdtemp(path.join(tmpdir(), "aigcfroge-window-snapshot-"))
+   roots.push(root)
+   const db = new DatabaseSync(path.join(root, "drafts.sqlite"))
+@@ -32,12 +36,13 @@ test.each([false, true])("the early snapshot keeps explicit rows even with legac
+   db.prepare("INSERT INTO state (name, key, value, updated_at) VALUES (?, ?, ?, 0)").run("shell", "theme", "dark")
+   db.prepare("INSERT INTO extension (id, enabled) VALUES (?, ?)").run("previous", 0)
+   db.prepare("INSERT INTO extension (id, enabled) VALUES (?, ?)").run("current", 1)
++  if (input.invalidID) db.prepare("INSERT INTO extension (id, enabled) VALUES (?, ?)").run(new Uint8Array([1]), 0)
+   db.close()
+ 
+-  if (legacy) await Bun.write(path.join(root, "default.dat"), "{}")
++  if (input.legacy) await Bun.write(path.join(root, "default.dat"), "{}")
+ 
+   expect(readWindowSnapshot(root, ["shell"])).toEqual({
+-    storage: legacy ? {} : { shell: { items: { theme: "dark" }, revision: 0 } },
++    storage: input.legacy ? {} : { shell: { items: { theme: "dark" }, revision: 0 } },
+     extensions: [
+       { id: "previous", enabled: false },
+       { id: "current", enabled: true },
+diff --git a/packages/desktop/src/renderer/ipc-client.ts b/packages/desktop/src/renderer/ipc-client.ts
+index 19f362c8b1..30d322d347 100644
+--- a/packages/desktop/src/renderer/ipc-client.ts
++++ b/packages/desktop/src/renderer/ipc-client.ts
+@@ -59,7 +59,9 @@ const port = new Promise<MessagePort>((resolve) => {
+ window.addEventListener(
+   "pagehide",
+   () =>
+-    void Promise.allSettled([...beforeDispose].map((callback) => callback())).then(() => port.then((p) => p.close())),
++    void Promise.allSettled([...beforeDispose].map((callback) => Promise.resolve(callback()))).then(() =>
++      port.then((p) => p.close()),
++    ),
+   { once: true },
+ )
+ 
+diff --git a/packages/merman/src/flowchart/routing.ts b/packages/merman/src/flowchart/routing.ts
+index f48dd61e2a..08fcdc3908 100644
+--- a/packages/merman/src/flowchart/routing.ts
++++ b/packages/merman/src/flowchart/routing.ts
+@@ -1359,7 +1359,7 @@ function avoidNodeObstacles(
+     const current = segments ?? routeSegments(candidate)
+     return otherRoutes.some(
+       (other, index) =>
+-        endpointDisjoint(candidate.edge, other.edge) && pathsIntersect(current, otherRouteSegments[index]!),
++        endpointDisjoint(candidate.edge, other.edge) && pathsIntersect(current, otherRouteSegments[index]),
+     )
+   }
+   const intersectsObstacle = (candidate: FlowchartEdgeRoute, segments?: ReturnType<typeof routeSegments>): boolean => {
+@@ -1510,7 +1510,7 @@ function avoidNodeObstacles(
+   const currentTargetSide = sideForOutsidePoint(to, route.points.at(-1)!)
+   const preservedTargets = refine
+     ? []
+-    : buses.map((bus) => routeViaBus(route, route.points[0]!, to, currentTargetSide, bus))
++    : buses.map((bus) => routeViaBus(route, route.points[0], to, currentTargetSide, bus))
+   const sameSides: FlowchartEdgeRoute[] = refine
+     ? []
+     : [
+@@ -1545,7 +1545,7 @@ function avoidNodeObstacles(
+       ]
+   const preservedSources = refine
+     ? []
+-    : targetSides.flatMap((targetSide) => buses.map((bus) => routeViaBus(route, route.points[0]!, to, targetSide, bus)))
++    : targetSides.flatMap((targetSide) => buses.map((bus) => routeViaBus(route, route.points[0], to, targetSide, bus)))
+   const attachments = sourceSides.flatMap((sourceSide) =>
+     terminalSides.flatMap((targetSide) =>
+       buses.map((bus) => routeViaBus(route, boundsSidePoint(from, sourceSide), to, targetSide, bus)),
+@@ -1578,13 +1578,13 @@ function avoidNodeObstacles(
+     const currentWidth = measuredRouteWidth(
+       routeIndex,
+       route,
+-      refinement.segments[routeIndex]!,
++      refinement.segments[routeIndex],
+       refinement,
+       currentInkBounds,
+     )
+     const parallelPaths = new Set(
+       refinement.pathKeys.flatMap((key, index) =>
+-        index !== routeIndex && routes[index]!.edge.from === route.edge.from && routes[index]!.edge.to === route.edge.to
++        index !== routeIndex && routes[index].edge.from === route.edge.from && routes[index].edge.to === route.edge.to
+           ? [key]
+           : [],
+       ),
+@@ -1873,11 +1873,7 @@ export function refineFlowchartRoutes(
+           )
+         )
+           return false
+-        const contacts = [
+-          current.points[0]!,
+-          current.points.at(-1)!,
+-          flowchartSourceConnector(from, current.points[0]!),
+-        ]
++        const contacts = [current.points[0], current.points.at(-1)!, flowchartSourceConnector(from, current.points[0])]
+         if (
+           trialGeometry.labels.some((label) =>
+             contacts.some((point) =>
+@@ -2155,7 +2151,7 @@ export function routeFlowchartEdges(
+   }
+   for (let index = routes.length - 1; index >= 0; index--) {
+     routes[index] = avoidNodeObstacles(
+-      routes[index]!,
++      routes[index],
+       routes,
+       bounds,
+       subgraphBounds,
+diff --git a/packages/server/test/provider-definition.test.ts b/packages/server/test/provider-definition.test.ts
+index 458a14cbbf..39b843c957 100644
+--- a/packages/server/test/provider-definition.test.ts
++++ b/packages/server/test/provider-definition.test.ts
+@@ -457,6 +457,7 @@ it.live(
+       })
+       expect(removed.data.definition.status).toBe("saved")
+       expect(removed.data.readback?.effective[0]?.unavailable).toBe("missing")
++      return undefined
+     }),
+   30_000,
+ )
+@@ -587,6 +588,7 @@ it.live(
+       expect(
+         new Set(connections.flatMap((connection) => (connection?.type === "credential" ? [connection.id] : []))).size,
+       ).toBe(2)
++      return undefined
+     }),
+   30_000,
+ )
+@@ -693,6 +695,7 @@ it.live(
+             request.headers.get("authorization") === "Bearer " + updatedChat.key,
+         ),
+       ).toHaveLength(0)
++      return undefined
+     }),
+   30_000,
+ )
+diff --git a/packages/server/test/provider-discovery.test.ts b/packages/server/test/provider-discovery.test.ts
+index c3aaf63e44..825400374c 100644
+--- a/packages/server/test/provider-discovery.test.ts
++++ b/packages/server/test/provider-discovery.test.ts
+@@ -573,6 +573,7 @@ it.live(
+               request.headers.get("authorization") === "Bearer " + chat.key,
+           ),
+       ).toBe(true)
++      return undefined
+     }),
+   30_000,
+ )
+@@ -741,6 +742,7 @@ it.live(
+       expect(fixture.requests.filter((request) => request.method === "POST")).toHaveLength(0)
+       yield* Fiber.interrupt(right.fiber)
+       yield* Fiber.interrupt(reconnected.fiber)
++      return undefined
+     }),
+   30_000,
+ )
+@@ -834,6 +836,7 @@ it.live(
+       expect(generation?.headers.get("anthropic-version")).toBe("2023-06-01")
+       expect(generation?.body).toMatchObject({ model: messages.alternateModelID, stream: true, max_tokens: 2_048 })
+       expect(fixture.requests.filter((request) => request.method === "POST")).toHaveLength(1)
++      return undefined
+     }),
+   30_000,
+ )
+@@ -977,6 +980,7 @@ it.live(
+       ).toBe(true)
+       yield* Fiber.interrupt(events)
+       yield* Fiber.interrupt(discovery.fiber)
++      return undefined
+     }),
+   30_000,
+ )
+diff --git a/packages/server/test/schedule.test.ts b/packages/server/test/schedule.test.ts
+index 7947a7c1e6..a0ec487463 100644
+--- a/packages/server/test/schedule.test.ts
++++ b/packages/server/test/schedule.test.ts
+@@ -103,6 +103,7 @@ it.live("AC17 serves Schedule rules and the six retained reminder endpoints with
+     )
+     expect((yield* fixture.request("/schedule/sch_missing/cancel", { body: {} })).status).toBe(400)
+     expect(yield* fixture.llm.requests()).toHaveLength(0)
++    return undefined
+   }),
+ )
+ 
+diff --git a/packages/server/test/session-goal.test.ts b/packages/server/test/session-goal.test.ts
+index 932f4ddabf..dec11b34a5 100644
+--- a/packages/server/test/session-goal.test.ts
++++ b/packages/server/test/session-goal.test.ts
+@@ -278,5 +278,6 @@ it.live("maps invalid Goal admission and missing Session errors without dispatch
+     const listed = yield* fixture.request(path)
+     expect(goalsResponse(yield* Effect.promise(() => listed.json())).data).toEqual([])
+     expect(yield* fixture.llm.requests()).toHaveLength(0)
++    return undefined
+   }),
+ )
+diff --git a/packages/server/test/session-task.test.ts b/packages/server/test/session-task.test.ts
+index 85af8451b7..6b5133b726 100644
+--- a/packages/server/test/session-task.test.ts
++++ b/packages/server/test/session-task.test.ts
+@@ -770,9 +770,9 @@ it.live("MP04 artifact HTTP apply records the exact producer after the Location
+     })
+     const unsubscribe = yield* bus.listen((event) =>
+       Effect.gen(function* () {
+-        if (event.type !== WorkArtifact.Event.ArtifactApplied.type) return
++        if (event.type !== WorkArtifact.Event.ArtifactApplied.type) return undefined
+         const applied = Schema.decodeUnknownSync(WorkArtifact.Event.ArtifactApplied.data)(event.data)
+-        if (applied.sessionID !== root.id) return
++        if (applied.sessionID !== root.id) return undefined
+         // apply allocates the Artifact ID before updating its snapshot; bind the existing Goal to that actual ID.
+         const goal = yield* goals.edit({
+           sessionID: root.id,
+@@ -784,6 +784,7 @@ it.live("MP04 artifact HTTP apply records the exact producer after the Location
+         if (!round) return yield* Effect.die(new Error("missing Goal round"))
+         expect(round).toMatchObject({ goalID: originalGoal.id, sessionID: root.id, revision: goal.revision })
+         yield* SessionInbox.promote(db, bus, root.id, "input", undefined, { anchorInputID: round.inputID })
++        return undefined
+       }).pipe(Effect.orDie),
+     )
+     yield* Effect.addFinalizer(() => unsubscribe)
+diff --git a/packages/theme/src/tui/resolve.ts b/packages/theme/src/tui/resolve.ts
+index a2c50c8977..0a00b65ca5 100644
+--- a/packages/theme/src/tui/resolve.ts
++++ b/packages/theme/src/tui/resolve.ts
+@@ -149,10 +149,14 @@ function resolveView(
+   }
+ }
+ 
+-function statefulActions(actions: Readonly<Record<ActionVariant, StatefulColor>>) {
+-  return Object.fromEntries(
+-    ActionVariant.literals.map((variant) => [variant, statefulColor(actions[variant])]),
+-  ) as Readonly<Record<ActionVariant, StatefulColor>>
++function statefulActions(
++  actions: Readonly<Record<ActionVariant, StatefulColor>>,
++): Readonly<Record<ActionVariant, StatefulColor>> {
++  return {
++    primary: statefulColor(actions.primary),
++    secondary: statefulColor(actions.secondary),
++    destructive: statefulColor(actions.destructive),
++  }
+ }
+ 
+ function statefulColor(color: StatefulColor): StatefulColor {
+diff --git a/packages/tui/src/context/local.tsx b/packages/tui/src/context/local.tsx
+index 18c4df8c30..fb5749bce4 100644
+--- a/packages/tui/src/context/local.tsx
++++ b/packages/tui/src/context/local.tsx
+@@ -217,7 +217,7 @@ const context = createSimpleContext({
+           .list(location.ref)
+           ?.findLast((entry) => entry.type === "document" && entry.info.model !== undefined)
+         const configured = entry?.type === "document" ? entry.info.model : undefined
+-        if (!configured) return
++        if (!configured) return undefined
+         if (typeof configured === "string") return parse(configured)
+         if ("type" in configured) return { type: "group" as const, groupID: configured.groupID }
+         return { providerID: configured.providerID, modelID: configured.model, variant: configured.variant }
+diff --git a/packages/tui/src/routes/session/index.tsx b/packages/tui/src/routes/session/index.tsx
+index 54badec946..5d20b0d87b 100644
+--- a/packages/tui/src/routes/session/index.tsx
++++ b/packages/tui/src/routes/session/index.tsx
+@@ -1515,7 +1515,7 @@ export function Session(props: {
+                     }}
+                   </Show>
+                 </Match>
+-                <Match when={session() && currentLocation.error?.location.directory === session()!.location.directory}>
++                <Match when={session() && currentLocation.error?.location.directory === session().location.directory}>
+                   <SessionLocationMissing
+                     directory={session()!.location.directory}
+                     projectID={session()!.projectID}
+diff --git a/packages/tui/test/meta-management.test.tsx b/packages/tui/test/meta-management.test.tsx
+index 4362762077..da9a1cd06c 100644
+--- a/packages/tui/test/meta-management.test.tsx
++++ b/packages/tui/test/meta-management.test.tsx
+@@ -314,6 +314,7 @@ test("operation permissions read durable Goal origin and complete delegated inpu
+         return json(operation)
+       }
+       if (/^\/api\/session\/[^/]+\/(message|inbox)$/.test(url.pathname)) return json({ data: [], cursor: {} })
++      return undefined
+     },
+   })
+   await setup.ready
+diff --git a/packages/tui/test/mini/stream-v2.transport.test.ts b/packages/tui/test/mini/stream-v2.transport.test.ts
+index f00d272b56..2e2ac0a51b 100644
+--- a/packages/tui/test/mini/stream-v2.transport.test.ts
++++ b/packages/tui/test/mini/stream-v2.transport.test.ts
+@@ -86,8 +86,8 @@ function promptAdmission(input: Parameters<AigcForgeClient["session"]["prompt"]>
+     type: "user" as const,
+     payload: {
+       text: input.text,
+-      files: input.files,
+-      agents: input.agents,
++      files: input.files?.slice(),
++      agents: input.agents?.slice(),
+       metadata: input.metadata,
+     },
+     delivery: input.delivery ?? ("steer" as const),
+@@ -238,9 +238,7 @@ describe("V2 mini transport", () => {
+     const client = sdk({ streams: [events] })
+     const ui = footer()
+     const transport = await createSessionTransport({ sdk: client, sessionID: "ses_1", thinking: false, footer: ui.api })
+-    const prompt = spyOn(client.session, "prompt").mockImplementation(
+-      (request) => ok(promptAdmission(request)) as never,
+-    )
++    const prompt = spyOn(client.session, "prompt").mockImplementation((request) => ok(promptAdmission(request)))
+     const group = { type: "group" as const, groupID: "fallback" }
+     await transport.admitPromptTurn(
+       {
+diff --git a/packages/tui/test/theme/v2/resolve.test.ts b/packages/tui/test/theme/v2/resolve.test.ts
+index 393b1d56c4..c7355f7a69 100644
+--- a/packages/tui/test/theme/v2/resolve.test.ts
++++ b/packages/tui/test/theme/v2/resolve.test.ts
+@@ -72,9 +72,7 @@ test("validates and resolves categorical hues in configured order", () => {
+   expect(theme.categorical[2]).toBe(theme.hue.interactive)
+   expect(theme.surface("dialog").categorical).toBe(theme.categorical)
+   expect(() => resolveSource(complete("light", { categorical: [] }), "light")).toThrow("Invalid theme")
+-  expect(() => resolveSource(complete("light", { categorical: ["magenta"] as never }), "light")).toThrow(
+-    "Invalid theme",
+-  )
++  expect(() => resolveSource(complete("light", { categorical: ["magenta"] }), "light")).toThrow("Invalid theme")
+ })
+ 
+ test("resolves arbitrary hue names across aliases, categorical colors, and token references", () => {
+@@ -285,7 +283,7 @@ test("resolves transparent colors", () => {
+ 
+ test("reports theme decoding failures as native errors", () => {
+   expect(() =>
+-    resolveSource(complete("light", { text: { ...light.text, base: "opaque" } }) as never, "light", "custom"),
++    resolveSource(complete("light", { text: { ...light.text, base: "opaque" } }), "light", "custom"),
+   ).toThrow('Invalid theme: custom "opaque" is an invalid value')
+ })
+ 
+@@ -328,13 +326,13 @@ test("validates complete hues, resolved groups, and hue-only syntax", () => {
+     resolveTheme({
+       ...light,
+       hue: { ...light.hue, accent: "$hue.missing" },
+-    } as unknown as ThemeDefinition),
++    }),
+   ).toThrow("$hue.missing")
+   expect(() =>
+     resolveTheme({
+       ...light,
+       syntax: { ...light.syntax, keyword: "$text.base" },
+-    } as unknown as ThemeDefinition),
++    }),
+   ).toThrow("$text.base")
+ })
  
