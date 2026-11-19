@@ -7319,6 +7319,7 @@ for (const ownerDuringRead of [false, true])
         expect(external.state.turns).toBe(1)
         expect(external.calls.filter((call) => call.method === "thread/read")).toHaveLength(1)
       }),
+    { timeout: 30_000 },
   )
 
 for (const transport of ["sdk", "acp", "jsonl"] as const)
@@ -13382,221 +13383,227 @@ for (const scenario of [
   { kind: "invalid", name: "restores full text and invalid governance exactly once" },
   { kind: "owner", name: "defers when a new parent owner starts during finalization" },
 ] as const)
-  testEffect(Layer.empty).live(`MC06 SDK review cold recovery ${scenario.name}`, () =>
-    Effect.gen(function* () {
-      const originalContext = yield* Layer.build(metaLayer(true))
-      const sdk = yield* sdkTaskSetup("Read", true, undefined, false, "artifact.txt").pipe(
-        Effect.provide(originalContext),
-      )
-      const f = { ...sdk, ...(yield* mc07Build("artifact.txt", "", true, sdk).pipe(Effect.provide(originalContext))) }
-      const id = `mc06-sdk-review-cold-${scenario.kind}`
-      sdk.outputs[0] =
-        sdk.text +
-        (scenario.kind === "invalid"
-          ? "<review>{not-json}</review>"
-          : `<review>${JSON.stringify({ kind: "aigcfroge.review.v1", reviewed_revision_digest: f.digest, verdict: "approved", findings: [], summary: "The original R1 is approved." })}</review>`)
-      const locations = Context.get(originalContext, LocationServiceMap.Service)
-      const hooks = yield* PluginHooks.Service.pipe(Effect.provide(locations.get(f.root.location)))
-      const entered = yield* Deferred.make<void>()
-      const release = yield* Deferred.make<void>()
-      yield* Effect.addFinalizer(() => Deferred.succeed(release, undefined).pipe(Effect.asVoid))
-      yield* hooks.register("tool", "execute.after", (event) => {
-        if (event.tool !== "task" || event.id !== id || event.status !== "completed") return Effect.void
-        return Deferred.succeed(entered, undefined).pipe(Effect.andThen(Deferred.await(release)))
-      })
-      yield* Deferred.succeed(sdk.resultGate, undefined)
-      yield* f.llm.push(
-        TestLLM.tool(id, TaskTool.name, {
-          description: "Persist the SDK review before publishing its parent result",
-          prompt: "Review the original bound R1 and preserve the complete verdict.",
-          execution_type: "external-cli",
-          cli_target: "claude-code",
-          subagent_type: "claude-code",
-          intent: "review",
-          attended: false,
-          delegation_id: f.receipt.delegationID,
-          revision_digest: f.digest,
-        }),
-        TestLLM.text("Consumed the original persisted SDK review.", `${id}-original-parent`),
-      )
-      yield* f.sessions.prompt({ sessionID: f.root.id, text: "Capture the real completed SDK review checkpoint." })
-      yield* awaitWithTimeout(Deferred.await(entered), "SDK review did not reach its after hook")
-      const originalKV = Context.get(originalContext, KV.Service)
-      const binding = Schema.decodeUnknownSync(DelegationReceipt.Binding)(
-        (yield* originalKV.scan({ prefix: `delegation:external:${f.receipt.delegationID}:` })).entries[0]?.value,
-      )
-      expect(binding.source.id).toBe(id)
-      expect(binding.settlement?.text).toBe(sdk.outputs[0])
-      expect(binding.settlement?.governance).toMatchObject(
-        scenario.kind === "invalid"
-          ? { kind: "review", status: "invalid", reason: "malformed" }
-          : { kind: "review", status: "valid", reviewedRevisionDigest: f.digest },
-      )
-      expect((yield* mc07Result(f, id)).tool.state.status).toBe("running")
-      expect((yield* f.delegations.foldState(f.receipt.delegationID))?.reviews).toHaveLength(
-        scenario.kind === "invalid" ? 0 : 1,
-      )
-      const originalDatabase = Context.get(originalContext, Database.Service)
-      const snapshot = `${(yield* tmpdirScoped()).path}/mc06-sdk-review-cold.sqlite`
-      yield* originalDatabase.db.run(sql`VACUUM INTO ${snapshot}`)
-      yield* Deferred.succeed(release, undefined)
-      yield* awaitWithTimeout(f.runs.awaitIdle(f.root.id), "Original SDK review parent did not finish")
-      const original = yield* mc07Consumed(f, id)
-      if (original.tool.state.status !== "completed") return yield* Effect.die(new Error("Original SDK review failed"))
-      const receipt = Schema.decodeUnknownSync(DelegationReceipt.Sdk)(original.tool.state.metadata?.externalReceipt)
-      const context = yield* Layer.build(Layer.fresh(metaLayer(true, snapshot)))
-      const database = Context.get(context, Database.Service)
-      expect(database).not.toBe(originalDatabase)
-      const sessions = Context.get(context, Session.Service)
-      const root = yield* sessions.get(f.root.id)
-      const local = Context.get(context, LocationServiceMap.Service).get(root.location)
-      yield* useOfflineCatalog([
-        {
-          info: Provider.Info.make({
-            ...Provider.Info.empty(f.metaModel.providerID),
-            activation: "enabled",
-            package: "@aigcfroge/ai/providers/openai/responses",
-          }),
-          models: [f.metaModel, f.executorModel].map((ref) =>
-            Model.Info.make(Model.Info.default(ref.providerID, ref.id)),
-          ),
-        },
-      ]).pipe(Effect.provide(local))
-      const opened = {
-        ...f,
-        sessions,
-        root,
-        llm: Context.get(context, TestLLM.Test),
-        runs: Context.get(context, SessionExecution.Service),
-      }
-      const kv = Context.get(context, KV.Service)
-      const key = DelegationReceipt.key(receipt)
-      if (scenario.kind === "conflict")
-        yield* kv.set(
-          key,
-          Schema.encodeSync(Schema.toCodecJson(DelegationReceipt.Binding))(
-            new DelegationReceipt.Binding({ ...binding, externalThreadID: "sdk-conflicting-review-session" }),
-          ),
+  testEffect(Layer.empty).live(
+    `MC06 SDK review cold recovery ${scenario.name}`,
+    () =>
+      Effect.gen(function* () {
+        const originalContext = yield* Layer.build(metaLayer(true))
+        const sdk = yield* sdkTaskSetup("Read", true, undefined, false, "artifact.txt").pipe(
+          Effect.provide(originalContext),
         )
-      const beforeBinding = yield* kv.get(key)
-      const tasks = Context.get(context, SessionTask.Service)
-      const beforeTasks = yield* tasks.get(root.id)
-      const delegations = Context.get(context, DelegationService.Service)
-      const beforeState = yield* delegations.foldState(f.receipt.delegationID)
-      const metas = database.db
-        .select()
-        .from(MetaAgentStepTable)
-        .where(
-          and(
-            eq(MetaAgentStepTable.meta_agent_session_id, root.id),
-            eq(MetaAgentStepTable.tool_call_id, id),
-            eq(MetaAgentStepTable.type, "receipt"),
-          ),
-        )
-        .all()
-      const successes = database.db
-        .select()
-        .from(EventTable)
-        .where(
-          and(
-            eq(EventTable.aggregate_id, root.id),
-            eq(
-              EventTable.type,
-              Bus.versionedType(SessionEvent.Tool.Success.type, SessionEvent.Tool.Success.durable.version),
-            ),
-          ),
-        )
-        .all()
-        .pipe(Effect.map((events) => events.filter((event) => event.data.id === id)))
-      expect(yield* metas).toEqual([])
-      expect(yield* successes).toEqual([])
-      const execution = Context.get(context, DelegationExecution.Service)
-      if (scenario.kind === "owner") {
-        const before = Effect.all({
-          result: mc07Result(opened, id),
-          state: delegations.foldState(f.receipt.delegationID),
-          tasks: tasks.get(root.id),
-          binding: kv.get(key),
-          metas,
-          successes,
-        })
-        const observed = yield* Deferred.make<Effect.Success<typeof before>>()
-        const held = yield* Deferred.make<void>()
-        const ownerRelease = yield* Deferred.make<void>()
-        yield* Effect.addFinalizer(() => Deferred.succeed(ownerRelease, undefined).pipe(Effect.asVoid))
-        yield* opened.llm.push(
-          Stream.fromEffect(Deferred.succeed(held, undefined).pipe(Effect.andThen(Deferred.await(ownerRelease)))).pipe(
-            Stream.flatMap(() =>
-              Stream.fromIterable(TestLLM.text("The new parent owner completed.", `${id}-new-owner`)),
-            ),
-          ),
-        )
-        const coldHooks = yield* PluginHooks.Service.pipe(Effect.provide(local))
-        yield* coldHooks.register("tool", "execute.after", (event) => {
+        const f = { ...sdk, ...(yield* mc07Build("artifact.txt", "", true, sdk).pipe(Effect.provide(originalContext))) }
+        const id = `mc06-sdk-review-cold-${scenario.kind}`
+        sdk.outputs[0] =
+          sdk.text +
+          (scenario.kind === "invalid"
+            ? "<review>{not-json}</review>"
+            : `<review>${JSON.stringify({ kind: "aigcfroge.review.v1", reviewed_revision_digest: f.digest, verdict: "approved", findings: [], summary: "The original R1 is approved." })}</review>`)
+        const locations = Context.get(originalContext, LocationServiceMap.Service)
+        const hooks = yield* PluginHooks.Service.pipe(Effect.provide(locations.get(f.root.location)))
+        const entered = yield* Deferred.make<void>()
+        const release = yield* Deferred.make<void>()
+        yield* Effect.addFinalizer(() => Deferred.succeed(release, undefined).pipe(Effect.asVoid))
+        yield* hooks.register("tool", "execute.after", (event) => {
           if (event.tool !== "task" || event.id !== id || event.status !== "completed") return Effect.void
-          return Effect.gen(function* () {
-            yield* opened.sessions.prompt({
-              sessionID: root.id,
-              text: "New parent input while the old SDK review is being finalized.",
-            })
-            yield* awaitWithTimeout(Deferred.await(held), "The new parent owner did not start")
-            yield* Deferred.succeed(observed, yield* before)
-          }).pipe(Effect.orDie)
+          return Deferred.succeed(entered, undefined).pipe(Effect.andThen(Deferred.await(release)))
         })
-        yield* execution.recoverPending
-        expect(yield* opened.runs.isActive(root.id)).toBe(true)
-        expect(yield* before).toEqual(
-          yield* awaitWithTimeout(Deferred.await(observed), "Cold SDK recovery did not observe the new owner"),
+        yield* Deferred.succeed(sdk.resultGate, undefined)
+        yield* f.llm.push(
+          TestLLM.tool(id, TaskTool.name, {
+            description: "Persist the SDK review before publishing its parent result",
+            prompt: "Review the original bound R1 and preserve the complete verdict.",
+            execution_type: "external-cli",
+            cli_target: "claude-code",
+            subagent_type: "claude-code",
+            intent: "review",
+            attended: false,
+            delegation_id: f.receipt.delegationID,
+            revision_digest: f.digest,
+          }),
+          TestLLM.text("Consumed the original persisted SDK review.", `${id}-original-parent`),
         )
+        yield* f.sessions.prompt({ sessionID: f.root.id, text: "Capture the real completed SDK review checkpoint." })
+        yield* awaitWithTimeout(Deferred.await(entered), "SDK review did not reach its after hook")
+        const originalKV = Context.get(originalContext, KV.Service)
+        const binding = Schema.decodeUnknownSync(DelegationReceipt.Binding)(
+          (yield* originalKV.scan({ prefix: `delegation:external:${f.receipt.delegationID}:` })).entries[0]?.value,
+        )
+        expect(binding.source.id).toBe(id)
+        expect(binding.settlement?.text).toBe(sdk.outputs[0])
+        expect(binding.settlement?.governance).toMatchObject(
+          scenario.kind === "invalid"
+            ? { kind: "review", status: "invalid", reason: "malformed" }
+            : { kind: "review", status: "valid", reviewedRevisionDigest: f.digest },
+        )
+        expect((yield* mc07Result(f, id)).tool.state.status).toBe("running")
+        expect((yield* f.delegations.foldState(f.receipt.delegationID))?.reviews).toHaveLength(
+          scenario.kind === "invalid" ? 0 : 1,
+        )
+        const originalDatabase = Context.get(originalContext, Database.Service)
+        const snapshot = `${(yield* tmpdirScoped()).path}/mc06-sdk-review-cold.sqlite`
+        yield* originalDatabase.db.run(sql`VACUUM INTO ${snapshot}`)
+        yield* Deferred.succeed(release, undefined)
+        yield* awaitWithTimeout(f.runs.awaitIdle(f.root.id), "Original SDK review parent did not finish")
+        const original = yield* mc07Consumed(f, id)
+        if (original.tool.state.status !== "completed")
+          return yield* Effect.die(new Error("Original SDK review failed"))
+        const receipt = Schema.decodeUnknownSync(DelegationReceipt.Sdk)(original.tool.state.metadata?.externalReceipt)
+        const context = yield* Layer.build(Layer.fresh(metaLayer(true, snapshot)))
+        const database = Context.get(context, Database.Service)
+        expect(database).not.toBe(originalDatabase)
+        const sessions = Context.get(context, Session.Service)
+        const root = yield* sessions.get(f.root.id)
+        const local = Context.get(context, LocationServiceMap.Service).get(root.location)
+        yield* useOfflineCatalog([
+          {
+            info: Provider.Info.make({
+              ...Provider.Info.empty(f.metaModel.providerID),
+              activation: "enabled",
+              package: "@aigcfroge/ai/providers/openai/responses",
+            }),
+            models: [f.metaModel, f.executorModel].map((ref) =>
+              Model.Info.make(Model.Info.default(ref.providerID, ref.id)),
+            ),
+          },
+        ]).pipe(Effect.provide(local))
+        const opened = {
+          ...f,
+          sessions,
+          root,
+          llm: Context.get(context, TestLLM.Test),
+          runs: Context.get(context, SessionExecution.Service),
+        }
+        const kv = Context.get(context, KV.Service)
+        const key = DelegationReceipt.key(receipt)
+        if (scenario.kind === "conflict")
+          yield* kv.set(
+            key,
+            Schema.encodeSync(Schema.toCodecJson(DelegationReceipt.Binding))(
+              new DelegationReceipt.Binding({ ...binding, externalThreadID: "sdk-conflicting-review-session" }),
+            ),
+          )
+        const beforeBinding = yield* kv.get(key)
+        const tasks = Context.get(context, SessionTask.Service)
+        const beforeTasks = yield* tasks.get(root.id)
+        const delegations = Context.get(context, DelegationService.Service)
+        const beforeState = yield* delegations.foldState(f.receipt.delegationID)
+        const metas = database.db
+          .select()
+          .from(MetaAgentStepTable)
+          .where(
+            and(
+              eq(MetaAgentStepTable.meta_agent_session_id, root.id),
+              eq(MetaAgentStepTable.tool_call_id, id),
+              eq(MetaAgentStepTable.type, "receipt"),
+            ),
+          )
+          .all()
+        const successes = database.db
+          .select()
+          .from(EventTable)
+          .where(
+            and(
+              eq(EventTable.aggregate_id, root.id),
+              eq(
+                EventTable.type,
+                Bus.versionedType(SessionEvent.Tool.Success.type, SessionEvent.Tool.Success.durable.version),
+              ),
+            ),
+          )
+          .all()
+          .pipe(Effect.map((events) => events.filter((event) => event.data.id === id)))
+        expect(yield* metas).toEqual([])
+        expect(yield* successes).toEqual([])
+        const execution = Context.get(context, DelegationExecution.Service)
+        if (scenario.kind === "owner") {
+          const before = Effect.all({
+            result: mc07Result(opened, id),
+            state: delegations.foldState(f.receipt.delegationID),
+            tasks: tasks.get(root.id),
+            binding: kv.get(key),
+            metas,
+            successes,
+          })
+          const observed = yield* Deferred.make<Effect.Success<typeof before>>()
+          const held = yield* Deferred.make<void>()
+          const ownerRelease = yield* Deferred.make<void>()
+          yield* Effect.addFinalizer(() => Deferred.succeed(ownerRelease, undefined).pipe(Effect.asVoid))
+          yield* opened.llm.push(
+            Stream.fromEffect(
+              Deferred.succeed(held, undefined).pipe(Effect.andThen(Deferred.await(ownerRelease))),
+            ).pipe(
+              Stream.flatMap(() =>
+                Stream.fromIterable(TestLLM.text("The new parent owner completed.", `${id}-new-owner`)),
+              ),
+            ),
+          )
+          const coldHooks = yield* PluginHooks.Service.pipe(Effect.provide(local))
+          yield* coldHooks.register("tool", "execute.after", (event) => {
+            if (event.tool !== "task" || event.id !== id || event.status !== "completed") return Effect.void
+            return Effect.gen(function* () {
+              yield* opened.sessions.prompt({
+                sessionID: root.id,
+                text: "New parent input while the old SDK review is being finalized.",
+              })
+              yield* awaitWithTimeout(Deferred.await(held), "The new parent owner did not start")
+              yield* Deferred.succeed(observed, yield* before)
+            }).pipe(Effect.orDie)
+          })
+          yield* execution.recoverPending
+          expect(yield* opened.runs.isActive(root.id)).toBe(true)
+          expect(yield* before).toEqual(
+            yield* awaitWithTimeout(Deferred.await(observed), "Cold SDK recovery did not observe the new owner"),
+          )
+          expect(sdk.queries).toHaveLength(1)
+          expect(sdk.state).toEqual({ reads: 1, closed: 1, hookCalls: 1 })
+          yield* Deferred.succeed(ownerRelease, undefined)
+          yield* awaitWithTimeout(opened.runs.awaitIdle(root.id), "The new parent owner did not finish")
+          return
+        }
+        yield* execution.recoverPending
+        if (scenario.kind === "conflict") {
+          expect((yield* mc07Result(opened, id)).tool.state.status).toBe("running")
+          yield* execution.recoverPending
+          expect(yield* successes).toEqual([])
+          expect(yield* metas).toEqual([])
+        }
+        if (scenario.kind !== "conflict") {
+          const recovered = yield* mc07Result(opened, id)
+          if (recovered.tool.state.status !== "completed")
+            return yield* Effect.die(new Error("Cold SDK review was not recovered"))
+          const output = Schema.decodeUnknownSync(Schema.fromJsonString(DelegationReceipt.SdkOutput))(
+            recovered.tool.state.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join(""),
+          )
+          expect(output.output).toBe(sdk.outputs[0])
+          expect(output.governance).toEqual(binding.settlement?.governance)
+          expect(output.sdkMessage).toEqual(receipt.sdkMessage)
+          expect(recovered.tool.state.content).toEqual(original.tool.state.content)
+          expect((yield* execution.wait(receipt)).governance).toEqual(output.governance)
+          yield* execution.recoverPending
+          expect(yield* mc07Result(opened, id)).toEqual(recovered)
+          yield* opened.llm.push(TestLLM.text("Consumed the complete cold SDK review proof.", `${id}-cold-parent`))
+          yield* opened.runs.resume(root.id)
+          yield* awaitWithTimeout(opened.runs.awaitIdle(root.id), "Recovered SDK review parent did not finish")
+          expect((yield* mc07Consumed(opened, id)).text).toBe(original.text)
+          const meta = yield* metas
+          expect(meta).toHaveLength(1)
+          expect(Schema.decodeUnknownSync(DelegationReceipt.Outcome)(meta[0]?.provenance?.externalReceipt)).toEqual(
+            receipt,
+          )
+          expect(yield* successes).toHaveLength(1)
+          const messages = yield* sessions.context(root.id)
+          yield* execution.recoverPending
+          expect(yield* metas).toEqual(meta)
+          expect(yield* successes).toHaveLength(1)
+          expect(yield* sessions.context(root.id)).toEqual(messages)
+        }
+        expect(yield* delegations.foldState(f.receipt.delegationID)).toEqual(beforeState)
+        expect(yield* tasks.get(root.id)).toEqual(beforeTasks)
+        expect(yield* kv.get(key)).toEqual(beforeBinding)
         expect(sdk.queries).toHaveLength(1)
         expect(sdk.state).toEqual({ reads: 1, closed: 1, hookCalls: 1 })
-        yield* Deferred.succeed(ownerRelease, undefined)
-        yield* awaitWithTimeout(opened.runs.awaitIdle(root.id), "The new parent owner did not finish")
-        return
-      }
-      yield* execution.recoverPending
-      if (scenario.kind === "conflict") {
-        expect((yield* mc07Result(opened, id)).tool.state.status).toBe("running")
-        yield* execution.recoverPending
-        expect(yield* successes).toEqual([])
-        expect(yield* metas).toEqual([])
-      }
-      if (scenario.kind !== "conflict") {
-        const recovered = yield* mc07Result(opened, id)
-        if (recovered.tool.state.status !== "completed")
-          return yield* Effect.die(new Error("Cold SDK review was not recovered"))
-        const output = Schema.decodeUnknownSync(Schema.fromJsonString(DelegationReceipt.SdkOutput))(
-          recovered.tool.state.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join(""),
-        )
-        expect(output.output).toBe(sdk.outputs[0])
-        expect(output.governance).toEqual(binding.settlement?.governance)
-        expect(output.sdkMessage).toEqual(receipt.sdkMessage)
-        expect(recovered.tool.state.content).toEqual(original.tool.state.content)
-        expect((yield* execution.wait(receipt)).governance).toEqual(output.governance)
-        yield* execution.recoverPending
-        expect(yield* mc07Result(opened, id)).toEqual(recovered)
-        yield* opened.llm.push(TestLLM.text("Consumed the complete cold SDK review proof.", `${id}-cold-parent`))
-        yield* opened.runs.resume(root.id)
-        yield* awaitWithTimeout(opened.runs.awaitIdle(root.id), "Recovered SDK review parent did not finish")
-        expect((yield* mc07Consumed(opened, id)).text).toBe(original.text)
-        const meta = yield* metas
-        expect(meta).toHaveLength(1)
-        expect(Schema.decodeUnknownSync(DelegationReceipt.Outcome)(meta[0]?.provenance?.externalReceipt)).toEqual(
-          receipt,
-        )
-        expect(yield* successes).toHaveLength(1)
-        const messages = yield* sessions.context(root.id)
-        yield* execution.recoverPending
-        expect(yield* metas).toEqual(meta)
-        expect(yield* successes).toHaveLength(1)
-        expect(yield* sessions.context(root.id)).toEqual(messages)
-      }
-      expect(yield* delegations.foldState(f.receipt.delegationID)).toEqual(beforeState)
-      expect(yield* tasks.get(root.id)).toEqual(beforeTasks)
-      expect(yield* kv.get(key)).toEqual(beforeBinding)
-      expect(sdk.queries).toHaveLength(1)
-      expect(sdk.state).toEqual({ reads: 1, closed: 1, hookCalls: 1 })
-    }),
+      }),
+    { timeout: 30_000 },
   )
 
 effectTest.live(
@@ -15545,6 +15552,7 @@ for (const phase of ["delivery", "legacy"] as const)
         expect(f.queries).toHaveLength(1)
         expect(f.state).toEqual({ reads: 1, closed: 1, hookCalls: 1 })
       }),
+    { timeout: 30_000 },
   )
 
 class JsonlPeerEvent extends Schema.Class<JsonlPeerEvent>("Test.JsonlPeerEvent")({

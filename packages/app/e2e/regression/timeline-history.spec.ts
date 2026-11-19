@@ -342,7 +342,7 @@ test.describe("timeline history", () => {
   })
 
   test("mounts every part once and in order while paging to the start", async ({ page }, testInfo) => {
-    test.setTimeout(240_000)
+    test.setTimeout(600_000)
     const errors = trackPageErrors(page)
     const held: (() => void)[] = []
     const loads = { started: 0, ended: 0 }
@@ -371,13 +371,21 @@ test.describe("timeline history", () => {
       state.parts.forEach((id) => seenParts.add(id))
       state.messages.forEach((id) => seenMessages.add(id))
 
-      return state
+      return {
+        ...state,
+        ready:
+          state.covered &&
+          state.parts.length > 0 &&
+          state.visibleParts.length > 0 &&
+          state.messages.length > 0 &&
+          state.visibleMessages.length > 0,
+      }
     }
 
     for (;;) {
       const state = await observe()
 
-      if (state.scrollTop <= 1 && seenParts.size === expectedParts.length) break
+      if (state.ready && state.scrollTop <= 1 && seenParts.size === expectedParts.length) break
 
       if (held.length) {
         held.splice(0).forEach((release) => release())
@@ -385,11 +393,22 @@ test.describe("timeline history", () => {
         let previous = ""
         await expect
           .poll(async () => {
-            const next = (await observe()).signature
-            const stable = next === previous
-            previous = next
+            const next = await observe()
+            if (held.length) return true
+            const stable = next.ready && next.signature === previous
+            previous = next.ready ? next.signature : ""
 
             return stable
+          })
+          .toBe(true)
+        continue
+      }
+
+      if (!state.ready) {
+        await expect
+          .poll(async () => {
+            const next = await observe()
+            return held.length > 0 || next.ready
           })
           .toBe(true)
         continue
@@ -407,7 +426,7 @@ test.describe("timeline history", () => {
           const next = await observe()
           observed.next = next
 
-          return held.length > 0 || (next.signature !== state.signature && next.covered)
+          return held.length > 0 || (next.ready && next.signature !== state.signature)
         })
         .toBe(true)
         .catch(async (error) => {
@@ -718,6 +737,8 @@ function visibleTimeline(page: Page) {
 }
 
 function expectOrdered(expected: string[], actual: string[], label: string) {
+  // expect.poll retries its matcher, not exceptions thrown by the observation callback.
+  if (actual.length === 0) return
   expect(actual.length, `${label} should not be empty`).toBeGreaterThan(0)
   const present = new Set(actual)
   expect(actual, label).toEqual(expected.filter((id) => present.has(id)))

@@ -1582,7 +1582,7 @@ test("MP03 Communications retain exact replies across SSE, failed acknowledgemen
   await page.reload()
   await expectSessionTitle(page, "Meta B")
   await transport.waitForConnection()
-  await openAdvanced(page)
+  await expect(panel).toBeVisible()
   await expect(form.getByText("Saved request for exact retry", { exact: true })).toBeVisible()
   await expect(form.locator("pre")).toHaveText(text)
   await expect(form.locator('[data-slot="meta-request"]').getByText(saved.id, { exact: true })).toBeVisible()

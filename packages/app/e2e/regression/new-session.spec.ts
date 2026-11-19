@@ -1122,11 +1122,20 @@ for (const row of [
     await openSession(page, {
       name: "SourceMode",
       provider: provider({ id: "source-model", name: "Source Model" }),
-      sessions: [{ id: "ses_source_mode", title: "Source mode session", mode: row.mode, agent: "plan" }],
+      sessions: [
+        {
+          id: "ses_source_mode",
+          title: "Source mode session",
+          mode: row.mode,
+          agent: "plan",
+          model: { id: "source-model", providerID: "aigcfroge" },
+        },
+      ],
       onSessionCreate: (body) => {
         creates.push(body)
       },
     })
+    await expect(page.locator('[data-action="composer-model"]')).toHaveText(/^Source Model$/)
     await page.getByRole("button", { name: "New session", exact: true }).click()
     await expect(editor(page)).toBeEditable()
     await expect(mode(page)).toHaveText(row.label)

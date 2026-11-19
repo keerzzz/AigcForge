@@ -15,7 +15,7 @@ export function componentConfig(directory: string) {
     workers: process.env.CI ? 2 : undefined,
     reporter: [["html", { outputFolder: `${directory}/component-tests/playwright-report`, open: "never" }], ["line"]],
     webServer: {
-      command: `bun --bun run --cwd ${directory}/../storybook storybook -- --port ${port} --ci --no-open`,
+      command: `bun run --cwd ${directory}/../storybook storybook -- --port ${port} --ci --no-open`,
       url: baseURL,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
