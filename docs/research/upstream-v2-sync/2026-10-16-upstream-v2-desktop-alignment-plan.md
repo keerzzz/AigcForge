@@ -1,13 +1,15 @@
 # AigcForge 对齐上游 OpenCode v2 完整桌面端架构调研与实施方案
 
-> **状态**：R0 已闭环（`9c29234af`）/ R1a 已闭环（`fc1714de4`）/ **R1b 合同面全量达成**（batch 1-12 + 压轴 `a9e526e5c` = `session` 45 端点端到端注册；累计 **33 个组条目 / ≈245 端点合同**，含生成客户端与 fail-closed stub，全仓 **19/19** 恒绿；裁定跳过 tui/event/experimental；`global` 组归 R2/R4 control-plane 伴随切片——见 §9.3 Ledger）/ R2~R5 待窗口推进  
-> **R0 交付记录**：裁剪 35→20 目录（`ae30e473c`）· 改名桥 `script/rename-bridge.ts` 全量落地（`9c29234af`，含 6 段大小写映射与 5 类哨兵豁免）· 遗留债务 R0.1 见 §9.1 与审批记录 F5/F6  
-> **R1a 交付记录**（2026-10-16）：58 个 A 文件 + `session-input`/`session-delivery`/`session-message-id` 回植 · 双演化合同（session/session-message/provider）驻 `src/v2/` 过渡位（R2/R3 就位后原子正名切换，见 §5.3 与债务台账）· Effect beta.83→4.0.1 适配六项（`TaggedErrorClass→TaggedError`、`optionalOmitUndefined→optional`、`withStatics 柯里→statics`、`isStartsWith→isStartingWith`、`InvalidValue` 签名、`declareConstructor`+`toCodecJson` 的 codec 预剥离需严格选项随行）· 4.0.1 Record 键细化静默丢条目的 fail-closed 修复（`Composition.strictBindings`）· `agent-asset` 的 `Schema.mutable` 过渡豁免  
+> **2026-10-25 状态修订：本文件已被替代，仅作历史记录。** 唯一现行工作令是 [V2 对齐与自研功能迁移实施计划](2026-10-25-v2-alignment-execution-plan.md)，依据 [完整报告复审](../../review/v2-alignment-report-approval-2026-10-25.md)。下文 R0/R1/后续批次历史成绩不表示当前实现或产品全绿。旧文件数量回植、旧 runner/TaskDriver、旧 sidecar 默认替换、AppInterface 插槽和 migration 重编号安排均不再执行。新会话从现行计划 P0.1 开始。
+
+> **状态**：R0 已闭环（`9c29234af`）/ R1a 已闭环（`fc1714de4`）/ **R1b 合同面全量达成**（batch 1-12 + 压轴 `a9e526e5c` = `session` 45 端点端到端注册；累计 **33 个组条目 / ≈245 端点合同**，含生成客户端与 fail-closed stub，全仓 **19/19** 恒绿；裁定跳过 tui/event/experimental；`global` 组归 R2/R4 control-plane 伴随切片——见 §9.3 Ledger）/ R2~R5 待窗口推进\
+> **R0 交付记录**：裁剪 35→20 目录（`ae30e473c`）· 改名桥 `script/rename-bridge.ts` 全量落地（`9c29234af`，含 6 段大小写映射与 5 类哨兵豁免）· 遗留债务 R0.1 见 §9.1 与审批记录 F5/F6\
+> **R1a 交付记录**（2026-10-16）：58 个 A 文件 + `session-input`/`session-delivery`/`session-message-id` 回植 · 双演化合同（session/session-message/provider）驻 `src/v2/` 过渡位（R2/R3 就位后原子正名切换，见 §5.3 与债务台账）· Effect beta.83→4.0.1 适配六项（`TaggedErrorClass→TaggedError`、`optionalOmitUndefined→optional`、`withStatics 柯里→statics`、`isStartsWith→isStartingWith`、`InvalidValue` 签名、`declareConstructor`+`toCodecJson` 的 codec 预剥离需严格选项随行）· 4.0.1 Record 键细化静默丢条目的 fail-closed 修复（`Composition.strictBindings`）· `agent-asset` 的 `Schema.mutable` 过渡豁免\
 > **R1b 交付记录**（2026-10-16）：端到端打通「fork 端点 → protocol → client 生成 → server stub」管线并固化配方——① fork instance 级 API 的中间件契约/运行时分离：`WorkspaceRouting`/`InstanceContext` 标签+`WorkspaceRouteContext` 入 protocol，270 行路由实现归 server（R2）；② `ApiNotFoundError`（fork 线形态）入 errors；③ prompt-asset 四端点注册 + api.ts 装配；④ codegen 可移植性配方（经 Batch 2/3 淬炼成型）：品牌标量需 `identifier`、字符串长度界 filter 一律换内建 `isMinLength/isMaxLength/isPattern`、数组界用 `isMaxLength`、无法内建的自定义 filter 需 `representation`+`arbitraryConstraint`+`toCode`（运行时表达式自包含）；⑤ client `namespaceTypes` 注册对应 schema 命名空间（codec 类导出不得从 schema 模块导出——会与本体撞 identifier）；⑥ server fail-closed stub（die / `kind:"not_implemented"`，集中于 `asset-stubs.ts`/`composition-stubs.ts`，R2 实装时整文件删除）；⑦ **McpBinding 深水裁定**：声明式严格绑定（declareConstructor + 运行时秘密扫描）无法被 4.0.1 representation 发射器表达 → 加 `representation: { id: "effect/schema/Json", payload: null }` 令客户端按 Json 处理该字段（服务端严格性完整保留；客户端精确类型待上游 reviver 插桩后精化，登记 R2 债）；⑧ 4.0.1 `parseOptions` 注解机制查明（`StrictMcpServerBinding` 即此法）——后续边界严格化可优先用 schema 级注解替代调用点选项。**累计 9 组**：prompt/skill/mcp/command/agent/plugin/workflow-asset + custom-profile + custom-composition。门禁恒定：schema 319/319 + 全仓 19/19 + generate 二次零漂移 + server 预存 6 环境败与改动无关（净土对照验证）。
-> **制定日期**：2026-10-16  
-> **制定者**：AigcForge 高级全栈开发顾问  
-> **最高约束**：[CLAUDE.md](../../CLAUDE.md)（AigcForge 执行宪法）· [AGENTS.md](../../AGENTS.md)（代码与架构规范）· [ARCHITECTURE.md](../../ARCHITECTURE.md) · [docs/technical-debt.md](../../docs/technical-debt.md) §15  
-> **数据快照**：本仓 `main` @ `d5376379f`（1,184 commits）vs 上游 `anomalyco/opencode` `v2` @ `461721082`（2.0.26 / 18,887 commits）  
+> **制定日期**：2026-10-16\
+> **制定者**：AigcForge 高级全栈开发顾问\
+> **最高约束**：[CLAUDE.md](../../CLAUDE.md)（AigcForge 执行宪法）· [AGENTS.md](../../AGENTS.md)（代码与架构规范）· [ARCHITECTURE.md](../../ARCHITECTURE.md) · [docs/technical-debt.md](../../docs/technical-debt.md) §15\
+> **数据快照**：本仓 `main` @ `d5376379f`（1,184 commits）vs 上游 `anomalyco/opencode` `v2` @ `461721082`（2.0.26 / 18,887 commits）\
 > **新基座工作区**：`/home/keer/workspace/aigcfroge-v2`（分支 `v2-dev`，基线跟踪 `upstream/v2`）
 
 ---

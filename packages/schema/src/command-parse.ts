@@ -1,4 +1,4 @@
-export * as CommandParse from "./command-parse"
+export * as CommandParse from "./command-parse.js"
 
 import { Schema } from "effect"
 
@@ -91,19 +91,19 @@ const maxPositional = (template: string): number => {
   return max
 }
 
-export class MissingArgsError extends Schema.TaggedErrorClass<MissingArgsError>()("CommandParse.MissingArgsError", {
+export class MissingArgsError extends Schema.TaggedError<MissingArgsError>()("CommandParse.MissingArgsError", {
   required: Schema.Int,
   provided: Schema.Int,
   message: Schema.String,
 }) {}
 
-export class ExtraArgsError extends Schema.TaggedErrorClass<ExtraArgsError>()("CommandParse.ExtraArgsError", {
+export class ExtraArgsError extends Schema.TaggedError<ExtraArgsError>()("CommandParse.ExtraArgsError", {
   maximum: Schema.Int,
   provided: Schema.Int,
   message: Schema.String,
 }) {}
 
-export class ArgsSchemaMismatchError extends Schema.TaggedErrorClass<ArgsSchemaMismatchError>()(
+export class ArgsSchemaMismatchError extends Schema.TaggedError<ArgsSchemaMismatchError>()(
   "CommandParse.ArgsSchemaMismatchError",
   {
     templateMax: Schema.Int,

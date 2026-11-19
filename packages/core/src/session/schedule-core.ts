@@ -1,18 +1,15 @@
 export * as SchedulerCore from "./schedule-core"
 
-import { Effect, Schedule, Stream } from "effect"
-import type * as Scope from "effect/Scope"
+import { DateTime, Effect, Schedule, Stream } from "effect"
+import type { Scope } from "effect"
 import { nextRun } from "./schedule"
 
 /**
- * Table-agnostic scheduled-runner core extracted from `scheduled-job.ts`
- * (Assistant M0, plan §3.1): the scan + claim + recovery loop is shared by
- * the Work TaskTable scheduler and the Assistant ScheduleTable scheduler so
- * the two never diverge into parallel scheduling implementations.
+ * The shared scan, deadline and tick mechanism. Schedule owns rules and
+ * occurrences; adapters own durable claims, admission and settlement.
  *
- * `arm` rescans the table and rebuilds the next-run queue (startup re-arm
- * survives a process restart because the queue is always derived from the
- * table, never carried in memory); `tick` triggers every queued row whose run
+ * `arm` rescans eligible rows and retains the deadline of an unchanged schedule.
+ * A fresh process derives its queue from the table; `tick` triggers every queued row whose run
  * has arrived. The row shape and the claim/settle mechanics stay with the
  * owning table through the adapters.
  */
@@ -22,7 +19,9 @@ export interface ScheduleRowLike {
   readonly id: string
   readonly status: string
   readonly scheduledAt?: number | null
-  readonly recurrence?: { enabled: boolean; cron: string } | null
+  readonly recurrence?: { enabled: boolean; cron: string; timezone?: string } | null
+  /** Authoritative persisted due time; recurrence search is only a legacy fallback. */
+  readonly nextDueAt?: number | null
 }
 
 export interface Adapters<Row extends ScheduleRowLike> {
@@ -54,12 +53,12 @@ export interface Interface {
 
 export const make = <Row extends ScheduleRowLike>(adapters: Adapters<Row>): Effect.Effect<Interface> =>
   Effect.gen(function* () {
-    let queue = new Map<Row["id"], number>()
+    let queue = new Map<Row["id"], { run: number; schedule: string }>()
 
     const arm = Effect.fn("SchedulerCore.arm")((now: number, options?: { recover?: boolean }) =>
       Effect.gen(function* () {
         const rows = yield* adapters.scan()
-        const next = new Map<Row["id"], number>()
+        const next = new Map<Row["id"], { run: number; schedule: string }>()
         for (const row of rows) {
           let status = row.status
           if (options?.recover && status === "in_progress") {
@@ -67,8 +66,25 @@ export const make = <Row extends ScheduleRowLike>(adapters: Adapters<Row>): Effe
             status = "pending"
           }
           if (status !== "scheduled" && status !== "pending") continue
-          const run = row.recurrence?.enabled ? nextRun(row.recurrence.cron, now) : (row.scheduledAt ?? undefined)
-          if (run !== undefined && run !== null) next.set(row.id, run)
+          const schedule = JSON.stringify(
+            row.recurrence?.enabled
+              ? ["recurrence", row.recurrence.cron, row.recurrence.timezone, row.nextDueAt]
+              : ["once", row.scheduledAt, row.nextDueAt],
+          )
+          const previous = queue.get(row.id)
+
+          // A scan must not move an unchanged due job into its following recurrence.
+          if (previous?.schedule === schedule) {
+            next.set(row.id, previous)
+            continue
+          }
+
+          const run =
+            row.nextDueAt ??
+            (row.recurrence?.enabled
+              ? nextRun(row.recurrence.cron, now, row.recurrence.timezone)
+              : (row.scheduledAt ?? undefined))
+          if (run !== undefined && run !== null) next.set(row.id, { run, schedule })
         }
         queue = next
       }),
@@ -76,11 +92,13 @@ export const make = <Row extends ScheduleRowLike>(adapters: Adapters<Row>): Effe
 
     const tick = Effect.fn("SchedulerCore.tick")((now: number) =>
       Effect.gen(function* () {
-        const due = [...queue.entries()].filter(([, run]) => run <= now)
-        for (const [id] of due) {
+        const due = [...queue.entries()].filter(([, entry]) => entry.run <= now)
+        for (const [id, entry] of due) {
+          if (queue.get(id) !== entry) continue
+
           queue.delete(id)
           yield* adapters.trigger(id, now, (run) => {
-            queue.set(id, run)
+            queue.set(id, { run, schedule: entry.schedule })
           })
         }
       }),
@@ -90,13 +108,12 @@ export const make = <Row extends ScheduleRowLike>(adapters: Adapters<Row>): Effe
   })
 
 /**
- * Production daemon pattern (extracted from `scheduled-job.ts:246-261`):
- * arms the core from the table at startup (survives restarts), ticks every
+ * The host daemon arms the core from persisted rules at startup, ticks every
  * minute, and re-arms on every rearm signal so a new schedule takes effect
  * immediately instead of at the next process start. A failing tick or re-arm
  * is contained per iteration so it cannot kill the daemon fibers.
  */
-export const daemon = <R>(input: {
+export const daemon = <R = never>(input: {
   readonly core: Interface
   /** Stream of re-arm signals (e.g. the table's update event). */
   readonly rearmSignals: Stream.Stream<unknown>
@@ -105,15 +122,16 @@ export const daemon = <R>(input: {
 }): Effect.Effect<void, never, Scope.Scope | R> =>
   Effect.gen(function* () {
     if (input.startupSweep) yield* input.startupSweep
-    yield* input.core.arm(Date.now(), { recover: true }).pipe(Effect.ignore)
+    yield* input.core.arm((yield* DateTime.nowAsDate).getTime(), { recover: true }).pipe(Effect.ignore)
     // Each minute cycle re-derives the queue from the table (arm) BEFORE
     // triggering (tick), so a due row can never be stranded by a missed
     // re-arm event — e.g. tool-path writes publishing on a different EventV2
     // instance than this daemon subscribes to (review MAJOR #3). The event
     // re-arm below stays as a fast-path optimization, never as the only path.
-    yield* Effect.forkScoped(
+    const scope = yield* Effect.scope
+    yield* Effect.forkIn(scope)(
       Effect.gen(function* () {
-        yield* input.core.arm(Date.now()).pipe(
+        yield* input.core.arm((yield* DateTime.nowAsDate).getTime()).pipe(
           // Defect-containment (review MAJOR): arm/tick have error channel
           // `never`, so Effect.ignore would swallow the whole cause INCLUDING
           // defects. catchDefect is kept so a fault is logged (contained), not
@@ -122,16 +140,18 @@ export const daemon = <R>(input: {
           Effect.catchDefect((defect) => Effect.logError("Scheduler arm defect contained", defect)),
         )
         yield* input.core
-          .tick(Date.now())
+          .tick((yield* DateTime.nowAsDate).getTime())
           .pipe(Effect.catchDefect((defect) => Effect.logError("Scheduler tick defect contained", defect)))
       }).pipe(Effect.repeat(Schedule.spaced("1 minute"))),
     )
     yield* input.rearmSignals.pipe(
       Stream.runForEach(() =>
-        input.core
-          .arm(Date.now())
-          .pipe(Effect.catchDefect((defect) => Effect.logError("Scheduler re-arm defect contained", defect))),
+        Effect.gen(function* () {
+          yield* input.core
+            .arm((yield* DateTime.nowAsDate).getTime())
+            .pipe(Effect.catchDefect((defect) => Effect.logError("Scheduler re-arm defect contained", defect)))
+        }),
       ),
-      Effect.forkScoped({ startImmediately: true }),
+      Effect.forkIn(scope, { startImmediately: true }),
     )
   })

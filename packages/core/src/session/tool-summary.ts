@@ -44,7 +44,7 @@ function getDuration(tool: {
  * Extract tool summaries from session assistant messages.
  * Pure function — no Effect dependencies.
  */
-export function fromMessages(messages: SessionMessage.Message[]): Summary[] {
+export function fromMessages(messages: SessionMessage.Info[]): Summary[] {
   const assistantMessages = messages.filter((m): m is SessionMessage.Assistant => m.type === "assistant")
   if (assistantMessages.length === 0) return []
 

@@ -1,29 +1,19 @@
-export * as MCPAsset from "./mcp-asset"
+export * as MCPAsset from "./mcp-asset.js"
 
 import { Effect, Schema } from "effect"
 
 export const Name = Schema.String.pipe(
-  Schema.check(
-    Schema.makeFilter<string>((input) => Array.from(input).length >= 1, {
-      message: "Name must be at least 1 code point",
-    }),
-  ),
-  Schema.check(
-    Schema.makeFilter<string>((input) => Array.from(input).length <= 80, {
-      message: "Name must be at most 80 code points",
-    }),
-  ),
+  Schema.check(Schema.isMinLength(1)),
+  Schema.check(Schema.isMaxLength(80)),
   Schema.brand("MCPAsset.Name"),
+  Schema.annotate({ identifier: "MCPAsset.Name" }),
 )
 export type Name = typeof Name.Type
 
 export const Description = Schema.String.pipe(
-  Schema.check(
-    Schema.makeFilter<string>((input) => Array.from(input).length <= 300, {
-      message: "Description must be at most 300 code points",
-    }),
-  ),
+  Schema.check(Schema.isMaxLength(300)),
   Schema.brand("MCPAsset.Description"),
+  Schema.annotate({ identifier: "MCPAsset.Description" }),
 )
 export type Description = typeof Description.Type
 
@@ -32,26 +22,21 @@ export const Revision = Schema.String.pipe(
   Schema.check(Schema.isMaxLength(64)),
   Schema.check(Schema.isPattern(/^[0-9a-f]{64}$/)),
   Schema.brand("MCPAsset.Revision"),
+  Schema.annotate({ identifier: "MCPAsset.Revision" }),
 )
 export type Revision = typeof Revision.Type
 
 export const Command = Schema.String.pipe(
-  Schema.check(
-    Schema.makeFilter<string>((input) => Array.from(input).length >= 1, {
-      message: "Command must be at least 1 code point",
-    }),
-  ),
+  Schema.check(Schema.isMinLength(1)),
   Schema.brand("MCPAsset.Command"),
+  Schema.annotate({ identifier: "MCPAsset.Command" }),
 )
 export type Command = typeof Command.Type
 
 export const ConfigJson = Schema.String.pipe(
-  Schema.check(
-    Schema.makeFilter<string>((input) => new TextEncoder().encode(input).length <= 100_000, {
-      message: "Config JSON must be at most 100,000 UTF-8 bytes",
-    }),
-  ),
+  Schema.check(Schema.isMaxLength(100_000)),
   Schema.brand("MCPAsset.ConfigJson"),
+  Schema.annotate({ identifier: "MCPAsset.ConfigJson" }),
 )
 export type ConfigJson = typeof ConfigJson.Type
 
@@ -111,33 +96,31 @@ export class Candidate extends Schema.Class<Candidate>("MCPAsset.Candidate")({
 export const BaseRevision = Schema.Union([Schema.Null, Revision])
 export type BaseRevision = typeof BaseRevision.Type
 
-export class AssetNotFoundError extends Schema.TaggedErrorClass<AssetNotFoundError>()("MCPAsset.NotFound", {
+export class AssetNotFoundError extends Schema.TaggedError<AssetNotFoundError>()("MCPAsset.NotFound", {
   relativePath: Schema.String,
 }) {}
 
-export class NameConflictError extends Schema.TaggedErrorClass<NameConflictError>()("MCPAsset.NameConflict", {
+export class NameConflictError extends Schema.TaggedError<NameConflictError>()("MCPAsset.NameConflict", {
   name: Name,
 }) {}
 
-export class PathConflictError extends Schema.TaggedErrorClass<PathConflictError>()("MCPAsset.PathConflict", {
+export class PathConflictError extends Schema.TaggedError<PathConflictError>()("MCPAsset.PathConflict", {
   relativePath: Schema.String,
 }) {}
 
-export class StaleRevisionError extends Schema.TaggedErrorClass<StaleRevisionError>()("MCPAsset.StaleRevision", {
+export class StaleRevisionError extends Schema.TaggedError<StaleRevisionError>()("MCPAsset.StaleRevision", {
   relativePath: Schema.String,
 }) {}
 
-export class OverwriteRequiredError extends Schema.TaggedErrorClass<OverwriteRequiredError>()(
-  "MCPAsset.OverwriteRequired",
-  { relativePath: Schema.String },
-) {}
+export class OverwriteRequiredError extends Schema.TaggedError<OverwriteRequiredError>()("MCPAsset.OverwriteRequired", {
+  relativePath: Schema.String,
+}) {}
 
-export class InvalidCandidateError extends Schema.TaggedErrorClass<InvalidCandidateError>()(
-  "MCPAsset.InvalidCandidate",
-  { reason: Schema.String },
-) {}
+export class InvalidCandidateError extends Schema.TaggedError<InvalidCandidateError>()("MCPAsset.InvalidCandidate", {
+  reason: Schema.String,
+}) {}
 
-export class WriteFailedError extends Schema.TaggedErrorClass<WriteFailedError>()("MCPAsset.WriteFailed", {
+export class WriteFailedError extends Schema.TaggedError<WriteFailedError>()("MCPAsset.WriteFailed", {
   relativePath: Schema.String,
   reason: Schema.String,
 }) {}

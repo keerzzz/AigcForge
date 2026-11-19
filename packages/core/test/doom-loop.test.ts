@@ -1,37 +1,39 @@
 import { describe, expect } from "bun:test"
-import { Cause, Effect, Exit, Layer, Option } from "effect"
+import { Cause, Effect, Exit, Layer, Result, Stream } from "effect"
 import { Config } from "../src/config"
+import { Document, Info } from "@aigcfroge/schema/config"
 import { ConfigMeta } from "../src/config/meta"
 import { DoomLoop } from "../src/session/doom-loop"
-import { SessionV2 } from "../src/session"
+import { Session } from "../src/session"
 import { SessionMessage } from "../src/session/message"
-import { PermissionV2 } from "../src/permission"
+import { Permission } from "../src/permission"
 import { testEffect } from "./lib/effect"
 
-const sessionID = SessionV2.ID.make("ses_doom_loop")
+const sessionID = Session.ID.make("ses_doom_loop")
 const assistantMessageID = SessionMessage.ID.make("msg_doom_loop")
-const source: PermissionV2.Source = { type: "tool", messageID: assistantMessageID, callID: "call_doom_loop" }
+const source: Permission.Source = { type: "tool", messageID: assistantMessageID, id: "call_doom_loop" }
 
 const configLayer = (meta: { enabled?: boolean; threshold?: number }) =>
   Layer.succeed(
     Config.Service,
     Config.Service.of({
+      changes: () => Stream.empty,
       entries: () =>
         Effect.succeed([
-          new Config.Document({
+          new Document({
             type: "document",
-            info: Config.Info.make({ meta: ConfigMeta.Info.make({ doom_loop: ConfigMeta.DoomLoop.make(meta) }) }),
+            info: Info.make({ meta: ConfigMeta.Info.make({ doom_loop: ConfigMeta.DoomLoop.make(meta) }) }),
           }),
         ]),
     }),
   )
 
-const layerFor = (permission: Layer.Layer<PermissionV2.Service>) =>
+const layerFor = (permission: Layer.Layer<Permission.Service>) =>
   DoomLoop.layer.pipe(Layer.provide(permission), Layer.provide(configLayer({})))
 
 describe("DoomLoop", () => {
-  const asserts: PermissionV2.AssertInput[] = []
-  const permission = Layer.mock(PermissionV2.Service, {
+  const asserts: Permission.AssertInput[] = []
+  const permission = Layer.mock(Permission.Service, {
     assert: (input) =>
       Effect.sync(() => {
         asserts.push(input)
@@ -101,6 +103,23 @@ describe("DoomLoop", () => {
     }),
   )
 
+  it.effect("counts semantically equal nested inputs with different key order", () =>
+    Effect.gen(function* () {
+      asserts.length = 0
+      const doomLoop = yield* DoomLoop.Service
+      yield* Effect.forEach(
+        [
+          { path: "a.ts", options: { first: 1, second: 2 } },
+          { options: { second: 2, first: 1 }, path: "a.ts" },
+          { path: "a.ts", options: { second: 2, first: 1 } },
+        ],
+        (toolInput) => doomLoop.check({ sessionID, toolName: "edit", toolInput, providerExecuted: false, source }),
+      )
+      expect(asserts).toHaveLength(1)
+      expect(asserts[0]?.source).toEqual(source)
+    }),
+  )
+
   it.effect("does not trigger when the tool name differs", () =>
     Effect.gen(function* () {
       asserts.length = 0
@@ -139,7 +158,7 @@ describe("DoomLoop", () => {
     Effect.gen(function* () {
       asserts.length = 0
       const doomLoop = yield* DoomLoop.Service
-      const other = SessionV2.ID.make("ses_other")
+      const other = Session.ID.make("ses_other")
       yield* doomLoop.check({
         sessionID,
         toolName: "edit",
@@ -169,7 +188,7 @@ describe("DoomLoop", () => {
     Effect.gen(function* () {
       asserts.length = 0
       const doomLoop = yield* DoomLoop.Service
-      const sessions = Array.from({ length: 40 }, (_, i) => SessionV2.ID.make(`ses_cap_${i}`))
+      const sessions = Array.from({ length: 40 }, (_, i) => Session.ID.make(`ses_cap_${i}`))
       for (const sid of sessions) {
         yield* doomLoop.check({
           sessionID: sid,
@@ -240,8 +259,8 @@ describe("DoomLoop", () => {
 })
 
 describe("DoomLoop threshold", () => {
-  const asserts: PermissionV2.AssertInput[] = []
-  const permission = Layer.mock(PermissionV2.Service, {
+  const asserts: Permission.AssertInput[] = []
+  const permission = Layer.mock(Permission.Service, {
     assert: (input) =>
       Effect.sync(() => {
         asserts.push(input)
@@ -274,8 +293,8 @@ describe("DoomLoop threshold", () => {
 })
 
 describe("DoomLoop disabled", () => {
-  const asserts: PermissionV2.AssertInput[] = []
-  const permission = Layer.mock(PermissionV2.Service, {
+  const asserts: Permission.AssertInput[] = []
+  const permission = Layer.mock(Permission.Service, {
     assert: (input) =>
       Effect.sync(() => {
         asserts.push(input)
@@ -302,9 +321,13 @@ describe("DoomLoop disabled", () => {
 })
 
 describe("DoomLoop deny", () => {
-  const denied = Layer.mock(PermissionV2.Service, {
-    assert: () =>
-      Effect.fail(new PermissionV2.DeniedError({ rules: [{ action: "doom_loop", resource: "*", effect: "deny" }] })),
+  const denied = Layer.mock(Permission.Service, {
+    // Base semantics: a user decline travels as a defect (tool/AGENTS.md), so the
+    // mock dies with DeclinedError instead of failing with a typed error.
+    assert: (input: Permission.AssertInput) => {
+      void input
+      return Effect.die(new Permission.DeclinedError({}))
+    },
   })
   const it = testEffect(layerFor(denied))
 
@@ -316,9 +339,12 @@ describe("DoomLoop deny", () => {
         const exit = yield* doomLoop
           .check({ sessionID, toolName: "edit", toolInput: { path: "a.ts" }, providerExecuted: false, source })
           .pipe(Effect.exit)
-        if (Exit.isFailure(exit)) failed = Cause.findErrorOption(exit.cause).pipe(Option.getOrUndefined)
+        if (Exit.isFailure(exit)) {
+          const defect = Cause.findDefect(exit.cause)
+          if (Result.isSuccess(defect)) failed = defect.success
+        }
       }
-      expect(failed).toBeInstanceOf(PermissionV2.DeniedError)
+      expect(failed).toBeInstanceOf(Permission.DeclinedError)
     }),
   )
 })

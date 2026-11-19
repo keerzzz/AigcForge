@@ -3,11 +3,11 @@ export * as CodexAdapter from "./codex"
 import { Effect } from "effect"
 import { which } from "../util/which"
 import { DelegationParser } from "./delegation-parser"
-import type { CliAdapter } from "./cli-adapter"
+import type { CliAdapterValue } from "./cli-adapter"
 
 const COMMAND = "codex"
 
-export const adapter: CliAdapter = {
+export const adapter: CliAdapterValue = {
   name: "codex",
   command: COMMAND,
   description: "Codex CLI — OpenAI's coding agent in the terminal",

@@ -1,11 +1,10 @@
-export * as WorkPresetTool from "./work-preset"
+export * as WorkPresetTool from "./work-preset.js"
 
-import { ToolFailure } from "@aigcfroge/llm"
-import { Effect, Layer, Schema } from "effect"
+import type { Context } from "@aigcfroge/plugin/effect/plugin"
+import { ToolFailure } from "@aigcfroge/ai"
+import { Effect, Schema } from "effect"
 import { WorkPreset } from "@aigcfroge/schema/work-preset"
-import { WorkPresetRegistry } from "../session/work-preset"
-import { Tool } from "./tool"
-import { Tools } from "./tools"
+import { WorkPresetRegistry } from "../session/work-preset.js"
 
 export const name = "work-preset"
 
@@ -24,44 +23,36 @@ export const Output = Schema.Struct({
   preset: WorkPreset.Preset,
 })
 
-type EncodedOutput = {
-  preset: Omit<WorkPreset.Preset, "revision"> & { revision: string }
-}
-
-export const toModelOutput = ({ output }: { output: EncodedOutput }) => {
-  const questions = output.preset.questions
+const toModelContent = (preset: WorkPreset.Preset) => {
+  const questions = preset.questions
     .map(
       (q) =>
         `- ${q.prompt}${q.options?.length ? ` (options: ${q.options.join(", ")})` : ""}${q.required ? " [required]" : ""}`,
     )
     .join("\n")
-  return [
-    {
-      type: "text" as const,
-      text: `Preset "${output.preset.title}" loaded.\n\nGuidance:\n${output.preset.guidance}\n\nClarifying questions:\n${questions}\n\nAsk the user these questions one batch at a time (max 5), then produce the document as your message.`,
-    },
-  ]
+  return `Preset "${preset.title}" loaded.\n\nGuidance:\n${preset.guidance}\n\nClarifying questions:\n${questions}\n\nAsk the user these questions one batch at a time (max 5), then produce the document as your message.`
 }
 
-export const layer = Layer.effectDiscard(
-  Effect.gen(function* () {
-    const tools = yield* Tools.Service
-
-    yield* tools
-      .register({
-        [name]: Tool.make({
+export const Plugin = {
+  id: "aigcfroge.tool.work-preset",
+  effect: Effect.fn("WorkPresetTool.Plugin")(function* (ctx: Context) {
+    yield* ctx.tool
+      .transform((editor) =>
+        editor.add({
+          name,
+          options: { codemode: false },
           description,
           input: Input,
           output: Output,
-          toModelOutput,
           execute: (input) =>
             Effect.gen(function* () {
               const preset = WorkPresetRegistry.byId(input.presetID)
-              if (!preset) return yield* new ToolFailure({ message: `Unknown work preset: ${input.presetID}` })
-              return { preset }
+              if (!preset)
+                return yield* Effect.fail(new ToolFailure({ message: `Unknown work preset: ${input.presetID}` }))
+              return { output: { preset }, content: toModelContent(preset) }
             }),
         }),
-      })
+      )
       .pipe(Effect.orDie)
   }),
-)
+}

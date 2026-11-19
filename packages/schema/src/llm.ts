@@ -1,10 +1,15 @@
-export * as LLM from "./llm"
+export * as LLM from "./llm.js"
 
 import { Schema } from "effect"
 
+export const FinishReason = Schema.Literals(["stop", "length", "tool-calls", "content-filter", "error", "unknown"])
+export type FinishReason = typeof FinishReason.Type
+
+/** Fork-retained wire type (ADR-25 era): provider metadata map carried on messages. */
 export const ProviderMetadata = Schema.Record(Schema.String, Schema.Record(Schema.String, Schema.Unknown))
 export type ProviderMetadata = Schema.Schema.Type<typeof ProviderMetadata>
 
+/** Fork-retained tool content union (ADR-25 era), consumed by the v2 message contracts. */
 export interface ToolTextContent extends Schema.Schema.Type<typeof ToolTextContent> {}
 export const ToolTextContent = Schema.Struct({
   type: Schema.Literal("text"),

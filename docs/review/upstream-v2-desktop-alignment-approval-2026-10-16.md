@@ -1,16 +1,16 @@
 # AigcForge 对齐上游 v2 桌面端实施方案技术审批记录
 
-> **审批日期**：2026-10-16  
-> **审批对象**：[docs/research/upstream-v2-sync/2026-10-16-upstream-v2-desktop-alignment-plan.md](../research/upstream-v2-sync/2026-10-16-upstream-v2-desktop-alignment-plan.md)  
-> **审批状态**：**APPROVED_WITH_CAVEATS_FOR_R0**（限定技术审批通过：放行 R0 基座搭建与裁剪；R1~R5 须满足切片门禁方可开工）  
-> **主审角色**：AigcForge 高级全栈开发顾问 / 架构质量委员会  
+> **审批日期**：2026-10-16\
+> **审批对象**：[docs/research/upstream-v2-sync/2026-10-16-upstream-v2-desktop-alignment-plan.md](../research/upstream-v2-sync/2026-10-16-upstream-v2-desktop-alignment-plan.md)\
+> **审批状态**：**APPROVED_WITH_CAVEATS_FOR_R0**（限定技术审批通过：放行 R0 基座搭建与裁剪；R1~R5 须满足切片门禁方可开工）\
+> **主审角色**：AigcForge 高级全栈开发顾问 / 架构质量委员会\
 > **最高约束**：[CLAUDE.md](../../CLAUDE.md) · [AGENTS.md](../../AGENTS.md) · [ARCHITECTURE.md](../../ARCHITECTURE.md) · [docs/technical-debt.md](../../docs/technical-debt.md) §15
 
 ---
 
 ## 1. 审批范围与前置裁定
 
-本次是对《AigcForge 对齐上游 OpenCode v2 完整桌面端架构调研与实施方案》（2026-10-16 定稿）的**正式技术审批与工程可行性裁决**。
+本次是对《AigcForge 对齐上游 AigcForge v2 完整桌面端架构调研与实施方案》（2026-10-16 定稿）的**正式技术审批与工程可行性裁决**。
 
 ### 1.1 明确批准的范围
 
@@ -64,7 +64,7 @@
 
 ### A03 · [P1] 桌面主进程与 Sidecar 认证握手协议分歧
 
-- **风险分析**：上游桌面采用 `@opencode/client` 的 `service.json` 自动探测机制，本仓采用环境变量固定 Token 模式。若协议未收敛，渲染层将直接报 401 鉴权失败白屏。
+- **风险分析**：上游桌面采用 `@aigcfroge/client` 的 `service.json` 自动探测机制，本仓采用环境变量固定 Token 模式。若协议未收敛，渲染层将直接报 401 鉴权失败白屏。
 - **强制修订**：
   在 R0 结束前，必须固定统一的 `SidecarCredentials` 契约，统一握手标准，并在 `packages/desktop/src/main/service/background-service.ts` 补齐模拟启动集成测试。
 
@@ -99,7 +99,7 @@
 | **R0 基座构建**      | **【立即放行】** | 裁剪至 19 个基座包，执行改名桥，全仓 `bun turbo typecheck` 绿灯。                    |
 | **R1 Schema 契约**   |  **待 R0 验收**  | 66 个 Schema 契约移植，自研 API 端点入 `protocol`，生成 `client` 零漂移。            |
 | **R2 Core 切片移植** |  **待 R1 验收**  | 拆分为 Slice 2.1 ~ 2.7 逐片落地；沙箱 DB 升级演练通过；Session V2 8 不变量测试全绿。 |
-| **R3 UI 渲染回放**   |  **待 R2 验收**  | 接驳 `@opencode/app/desktop`；5 模式界面渲染与状态恢复正常。                         |
+| **R3 UI 渲染回放**   |  **待 R2 验收**  | 接驳 `@aigcfroge/app/desktop`；5 模式界面渲染与状态恢复正常。                        |
 | **R4 桌面组装**      |  **待 R3 验收**  | Sidecar 握手打通；`ghostty-web` WASM 打包无误；桌面端实机冷启动成功。                |
 | **R5 Cutover 合并**  |  **待 R4 验收**  | 全量 E2E 绿灯；存量数据库迁移 100% 成功；终审签字后方可切回 `main`。                 |
 
@@ -130,8 +130,8 @@
 | F4   |  P2  | 正文引用 `data/desktop-closure-porting.txt` 路径悬空（实际位于 `docs/research/upstream-v2-sync/data/`，仓库根无 `data/`）                                                                                                                         | 已修正引用                                                   |
 | F5   |  P2  | v2 基座为 depth=1 浅克隆，`116ac93` 不可本地复核；扫描快照对标 upstream @ `55dde88`（2026-10-10），与基线 `461721082` 存在 6 天漂移                                                                                                               | 已在 §9.1 披露；R1 前重跑 `scan-divergence.sh`               |
 | F6   |  P2  | R0 工作项未列明 root `package.json` 8 个失效脚本与 `turbo.json` 8 处退役包 task 条目的清理                                                                                                                                                        | 已并入 §5.2 与 §8 R0 行                                      |
-| F7   |  P2  | `.opencode/` → `.aigcfroge/` 目录级与文件名级 codemod 未入规格（fork `83e3651f6` 已有先例：`.opencode/` → `.aigcfroge/`、`opencode.jsonc` → `aigcfroge.jsonc`、`provider/opencode.ts` → `provider/aigcfroge.ts`）                                 | 已扩充 §7 第 4 条                                            |
+| F7   |  P2  | `.aigcfroge/` → `.aigcfroge/` 目录级与文件名级 codemod 未入规格（fork `83e3651f6` 已有先例：`.aigcfroge/` → `.aigcfroge/`、`aigcfroge.jsonc` → `aigcfroge.jsonc`、`provider/aigcfroge.ts` → `provider/aigcfroge.ts`）                             | 已扩充 §7 第 4 条                                            |
 
-**复核成立项**：1,707 闭包统计及 R1~R3 分包数字与权威文件逐项吻合（SUM=1707 ✓）；双 HEAD 快照准确 ✓；19 包闭包在 package.json 与源码 import 两层均不依赖 15 个剔除包（`@opencode/cli` 命中为 `@opencode/client` 前缀误报，已排除）✓；`script/sdk-docs.ts` 实为 gui-extensions SDK 文档检查器，裁剪后 root `lint` 脚本仍有效 ✓；`patches/` 无 opencode 外部包补丁 ✓。
+**复核成立项**：1,707 闭包统计及 R1~R3 分包数字与权威文件逐项吻合（SUM=1707 ✓）；双 HEAD 快照准确 ✓；19 包闭包在 package.json 与源码 import 两层均不依赖 15 个剔除包（`@aigcfroge/cli` 命中为 `@aigcfroge/client` 前缀误报，已排除）✓；`script/sdk-docs.ts` 实为 gui-extensions SDK 文档检查器，裁剪后 root `lint` 脚本仍有效 ✓；`patches/` 无 aigcfroge 外部包补丁 ✓。
 
 **复审终裁：F1~F7 修复闭环，R0 维持放行，即刻在 `/home/keer/workspace/aigcfroge-v2` 开工。**

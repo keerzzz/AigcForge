@@ -1,0 +1,21 @@
+{
+  "at": "2026-10-29T09:09:09.508862+00:00",
+  "source": "User async answer in root chat",
+  "question": "Mode workspace inventory and new sessions location owner",
+  "answer": "共用明确的位置选择（推荐）",
+  "requirements": [
+    "All modes share explicit server plus project selection",
+    "Viewing or switching an existing Session does not change mode workspace location",
+    "Home unfiltered project scope remains all sessions of current server"
+  ],
+  "unresolvedImplementation": [
+    "Keep Home query filtering distinct from active workspace location when their semantics differ; reuse existing owner and do not infer location from last Session",
+    "Define no-selected-project readiness using concrete location choice; do not silently borrow server cwd"
+  ],
+  "implementationAuthorized": false,
+  "additionalAnswers": {
+    "homeProjectClick": "Select shared working project and filter sessions together; repeat click clears only the filter, retaining work location; show working project at new-session entry",
+    "titlebarSessionDraftOrigin": "Use current Session/Draft own project B; Home/Mode origin uses shared working location A"
+  },
+  "updatedAt": "2026-10-29T09:26:02.407506+00:00"
+}

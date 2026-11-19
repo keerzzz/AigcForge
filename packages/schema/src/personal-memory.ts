@@ -1,8 +1,8 @@
-export * as PersonalMemory from "./personal-memory"
+export * as PersonalMemory from "./personal-memory.js"
 
 import { Schema } from "effect"
-import { descending } from "./identifier"
-import { withStatics } from "./schema"
+import { descending } from "./identifier.js"
+import { statics } from "./schema.js"
 
 /**
  * Personal memory contract (Assistant PRD §9, M2): user-level memory that
@@ -11,9 +11,10 @@ import { withStatics } from "./schema"
  * pending (never injected) until confirmed.
  */
 
-export const ID = Schema.String.check(Schema.isStartsWith("pm_")).pipe(
+export const ID = Schema.String.check(Schema.isStartingWith("pm_")).pipe(
   Schema.brand("PersonalMemoryID"),
-  withStatics((schema) => ({
+  Schema.annotate({ identifier: "PersonalMemory.ID" }),
+  statics((schema) => ({
     create: () => schema.make("pm_" + descending()),
   })),
 )

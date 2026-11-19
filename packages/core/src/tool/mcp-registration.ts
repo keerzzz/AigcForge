@@ -1,18 +1,17 @@
-export * as McpRegistration from "./mcp-registration"
+export * as McpRegistration from "./mcp-registration.js"
 
-import { Context, Effect, Layer, Schema, Scope } from "effect"
-import { SessionSchema } from "../session/schema"
-import { RegistrationError, validateName, type AnyTool } from "./tool"
-import { ToolRegistry } from "./registry"
-import { Hash } from "../util/hash"
+import type { Info } from "@aigcfroge/schema/tool"
+import { Effect, Schema, Scope } from "effect"
+import { Hash } from "@aigcfroge/util/hash"
+import { Tool } from "../tool.js"
 
 /**
- * Owner for canonical MCP tool registration (ADR-19 §2.4/§2.5): namespaces
- * every external tool under `mcp_<server>_<tool>`, validates the server name,
- * and fails closed on any name collision so an external server can never
- * shadow built-ins through the generic last-wins mechanism.
+ * Owner for canonical MCP tool registration: namespaces every external tool
+ * under `mcp_<server>_<tool>`, validates the server name, and fails closed on
+ * any name collision so an external server can never shadow built-ins through
+ * the tool service's generic last-wins mechanism.
  */
-export class InvalidServerNameError extends Schema.TaggedErrorClass<InvalidServerNameError>()(
+export class InvalidServerNameError extends Schema.TaggedError<InvalidServerNameError>()(
   "McpRegistration.InvalidServerNameError",
   { serverName: Schema.String },
 ) {
@@ -21,7 +20,7 @@ export class InvalidServerNameError extends Schema.TaggedErrorClass<InvalidServe
   }
 }
 
-export class McpNameCollisionError extends Schema.TaggedErrorClass<McpNameCollisionError>()(
+export class McpNameCollisionError extends Schema.TaggedError<McpNameCollisionError>()(
   "McpRegistration.McpNameCollisionError",
   { serverName: Schema.String, name: Schema.String },
 ) {
@@ -33,13 +32,13 @@ export class McpNameCollisionError extends Schema.TaggedErrorClass<McpNameCollis
 // Conservative provider-neutral grammar for the variable middle segment. The
 // binding constraint is not this bound but MAX_TOOL_NAME below, which the
 // prefix, server and tool segments share — a server name near 64 characters is
-// only registrable with a very short tool name (ADR-19 §2.5).
+// only registrable with a very short tool name.
 const SERVER_NAME = /^[a-z0-9_-]{1,64}$/
 
 /** Shared grammar so connection-time validation matches registration-time exactly. */
 export const SERVER_NAME_PATTERN = SERVER_NAME
 
-/** `Tool.validateName` bound (`tool.ts:116`); the whole prefixed name must fit. */
+/** Provider-neutral tool name ceiling; the whole prefixed name must fit. */
 export const MAX_TOOL_NAME = 64
 
 const HASH_LENGTH = 16
@@ -63,51 +62,48 @@ export const canonicalToolName = (serverName: string, toolName: string) => {
 
 export type RegisterServerInput = {
   readonly serverName: string
-  readonly tools: Readonly<Record<string, AnyTool>>
-  /** Omit for Location placement; provide to scope the server to one Session. */
-  readonly sessionID?: SessionSchema.ID
+  readonly tools: Readonly<Record<string, Info>>
 }
 
-export interface Interface {
-  readonly registerServer: (
-    input: RegisterServerInput,
-  ) => Effect.Effect<void, RegistrationError | InvalidServerNameError | McpNameCollisionError, Scope.Scope>
-}
+const nameError = (name: string) =>
+  /^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(name)
+    ? undefined
+    : new Tool.RegistrationError({ name, message: `Invalid tool name: ${name}` })
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/McpRegistration") {}
-
-export const layer = Layer.effect(
-  Service,
+/**
+ * Register one server's tools under their canonical names on the caller's
+ * Scope. All-or-nothing: every prefixed name is validated and checked against
+ * the currently registered catalog before anything is added, so a failed
+ * registration leaves the previous catalog untouched instead of exercising
+ * last-wins.
+ */
+export const registerServer = (
+  tools: Tool.Interface,
+  input: RegisterServerInput,
+): Effect.Effect<void, InvalidServerNameError | McpNameCollisionError | Tool.RegistrationError, Scope.Scope> =>
   Effect.gen(function* () {
-    const registry = yield* ToolRegistry.Service
-    return Service.of({
-      registerServer: Effect.fn("McpRegistration.registerServer")(function* (input: RegisterServerInput) {
-        if (!SERVER_NAME.test(input.serverName)) {
-          yield* new InvalidServerNameError({ serverName: input.serverName })
-          return
-        }
-        // All-or-nothing: validate every prefixed name before touching state.
-        const mangled: Record<string, AnyTool> = {}
-        for (const [toolName, tool] of Object.entries(input.tools)) {
-          const name = canonicalToolName(input.serverName, toolName)
-          yield* validateName(name)
-          mangled[name] = tool
-        }
-        // Occupancy check at this registration's own placement (ADR-19 §2.2 +
-        // §2.4): a failed registration must leave the previous winner
-        // untouched, so last-wins is never exercised. A sibling Session's
-        // registration is invisible here and is not a conflict — otherwise two
-        // child Sessions of one composition could not bind the same server.
-        const taken = registry.registeredNames(input.sessionID)
-        for (const name of Object.keys(mangled)) {
-          if (taken.has(name)) {
-            yield* new McpNameCollisionError({ serverName: input.serverName, name })
-            return
-          }
-        }
-        if (input.sessionID !== undefined) yield* registry.registerSession(input.sessionID, mangled)
-        else yield* registry.register(mangled)
-      }),
+    if (!SERVER_NAME.test(input.serverName)) {
+      yield* new InvalidServerNameError({ serverName: input.serverName })
+      return
+    }
+    const mangled: Array<[string, Info]> = []
+    for (const [toolName, tool] of Object.entries(input.tools)) {
+      const name = canonicalToolName(input.serverName, toolName)
+      const error = nameError(name)
+      if (error !== undefined) {
+        yield* error
+        return
+      }
+      mangled.push([name, { ...tool, name }])
+    }
+    const occupied = new Set((yield* tools.list()).map((tool) => tool.id))
+    for (const [name] of mangled) {
+      if (occupied.has(name)) {
+        yield* new McpNameCollisionError({ serverName: input.serverName, name })
+        return
+      }
+    }
+    yield* tools.transform((editor) => {
+      for (const [name, tool] of mangled) editor.add({ ...tool, name })
     })
-  }),
-).pipe(Layer.provideMerge(ToolRegistry.layer))
+  })

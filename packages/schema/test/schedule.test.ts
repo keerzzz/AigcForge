@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { Schedule } from "../src/index"
+import { Schedule } from "../src/index.js"
+import { SessionID } from "../src/session-id.js"
+import { SessionMessage } from "../src/session-message.js"
+import { SessionTask } from "../src/session-task.js"
 
 const valid = {
   id: "sch_abc123",
@@ -15,6 +18,83 @@ const valid = {
   createdAt: 1,
   updatedAt: 2,
 }
+
+describe("Schedule current rules", () => {
+  test("public targets reject the retained internal child route", () => {
+    expect(() =>
+      Schema.decodeUnknownSync(Schedule.Create)({
+        sessionID: "ses_rules",
+        kind: "prompt",
+        content: "scheduled work",
+        dueAt: 60_000,
+        timezone: "UTC",
+        target: { policy: "legacy_child", agentID: "build" },
+      }),
+    ).toThrow()
+  })
+
+  test("creation does not encode caller-supplied source or claim fields", () => {
+    const input = Schema.decodeUnknownSync(Schedule.Create)({
+      sessionID: "ses_rules",
+      kind: "reminder",
+      content: "reminder",
+      dueAt: 60_000,
+      timezone: "UTC",
+      sourceAgent: "meta",
+      revision: 99,
+      activeOccurrenceID: "sco_fake",
+    })
+    const encoded = Schema.encodeSync(Schedule.Create)(input)
+    expect(Object.hasOwn(encoded, "sourceAgent")).toBe(false)
+    expect(Object.hasOwn(encoded, "revision")).toBe(false)
+    expect(Object.hasOwn(encoded, "activeOccurrenceID")).toBe(false)
+  })
+
+  test("current rule status separates an unresolved occurrence from legacy running", () => {
+    expect(() => Schema.decodeUnknownSync(Schedule.RuleStatus)("running")).toThrow()
+    expect(Schema.decodeUnknownSync(Schedule.OccurrenceStatus)("recovery_required")).toBe("recovery_required")
+    expect(Schema.decodeUnknownSync(Schedule.ScheduleStatus)("running")).toBe("running")
+  })
+
+  test("occurrence optional provenance fields omit undefined on the wire", () => {
+    const snapshot = new Schedule.Rule({
+      id: Schedule.ID.make("sch_rules"),
+      sessionID: SessionID.make("ses_rules"),
+      kind: "reminder",
+      content: "reminder",
+      dueAt: 60_000,
+      timezone: "UTC",
+      revision: 1,
+      status: "pending",
+      executionPolicy: new Schedule.ExecutionPolicy({ delivery: "queue", missed: "catch_up" }),
+      createdAt: 0,
+      updatedAt: 0,
+    })
+    const run = new Schedule.Occurrence({
+      id: Schedule.OccurrenceID.make("sco_rules"),
+      scheduleID: snapshot.id,
+      sessionID: snapshot.sessionID,
+      ruleRevision: 1,
+      snapshot,
+      scheduledAt: 60_000,
+      claimedAt: 60_000,
+      claimOwner: "schedule-host",
+      caughtUp: false,
+      status: "claimed",
+      inputID: SessionMessage.ID.make("msg_rules"),
+      operationID: SessionTask.OperationID.make("top_rules"),
+      createdAt: 60_000,
+      updatedAt: 60_000,
+      admission: undefined,
+      actorAgent: undefined,
+      receipt: undefined,
+      goalInputID: undefined,
+    })
+    const encoded = Schema.encodeSync(Schedule.Occurrence)(run)
+    for (const key of ["admission", "actorAgent", "receipt", "goalInputID"])
+      expect(Object.hasOwn(encoded, key)).toBe(false)
+  })
+})
 
 describe("Schedule.Info", () => {
   test("decodes a valid reminder schedule", () => {

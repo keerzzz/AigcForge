@@ -8,10 +8,11 @@
   makeBinaryWrapper,
   models-dev,
   ripgrep,
+  wayland,
   installShellFiles,
   versionCheckHook,
   writableTmpDirAsHomeHook,
-  node_modules ? callPackage ./node-modules.nix { },
+  node_modules ? callPackage ./node_modules.nix { },
 }:
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "aigcfroge";
@@ -48,13 +49,13 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   env.AIGCFROGE_DISABLE_MODELS_FETCH = true;
   env.AIGCFROGE_VERSION = finalAttrs.version;
   env.AIGCFROGE_CHANNEL = "prod";
+  env.NODE_OPTIONS = "--max-old-space-size=4096";
 
   buildPhase = ''
     runHook preBuild
 
-    cd ./packages/aigcfroge
+    cd ./packages/cli
     bun --bun ./script/build.ts --single --skip-install
-    bun --bun ./script/schema.ts schema.json
 
     runHook postBuild
   '';
@@ -62,9 +63,9 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   installPhase = ''
     runHook preInstall
 
-    install -Dm755 dist/aigcfroge-*/bin/aigcfroge $out/bin/aigcfroge
-    install -Dm644 schema.json $out/share/aigcfroge/schema.json
+    install -Dm755 dist/cli-*/bin/aigcfroge $out/bin/aigcfroge
 
+    # OpenTUI dlopens Wayland for clipboard images.
     wrapProgram $out/bin/aigcfroge \
       --prefix PATH : ${
         lib.makeBinPath (
@@ -74,16 +75,40 @@ stdenvNoCC.mkDerivation (finalAttrs: {
           # bun runs sysctl to detect if running on rosetta2
           ++ lib.optional stdenvNoCC.hostPlatform.isDarwin sysctl
         )
-      }
+      } ${lib.optionalString stdenvNoCC.hostPlatform.isLinux ''
+        --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath [ wayland ]}
+      ''}
+
+    ln -s aigcfroge $out/bin/aigcfroge2
 
     runHook postInstall
   '';
 
   postInstall = lib.optionalString (stdenvNoCC.buildPlatform.canExecute stdenvNoCC.hostPlatform) ''
-    # trick yargs into also generating zsh completions
+    # v2 dropped the `completion` subcommand; --completions is the global flag.
+    # --completions also accepts sh, which emits the same script as bash.
+    # staged to files, substitute below rejects anything that is not a regular file
+    $out/bin/aigcfroge --completions bash > aigcfroge.bash
+    $out/bin/aigcfroge --completions zsh > _aigcfroge
+    $out/bin/aigcfroge --completions fish > aigcfroge.fish
+
     installShellCompletion --cmd aigcfroge \
-      --bash <($out/bin/aigcfroge completion) \
-      --zsh <(SHELL=/bin/zsh $out/bin/aigcfroge completion)
+      --bash aigcfroge.bash \
+      --fish aigcfroge.fish \
+      --zsh _aigcfroge
+
+    # AIGCFROGE_CLI_NAME is a build-time define, so the aigcfroge2 copies are
+    # renamed rather than regenerated. --replace-fail is a global literal
+    # substitution, so any lowercase aigcfroge that later appears in a
+    # description or help text ships as aigcfroge2 in the aigcfroge2 copy.
+    substitute aigcfroge.bash aigcfroge2.bash --replace-fail aigcfroge aigcfroge2
+    substitute _aigcfroge _aigcfroge2 --replace-fail aigcfroge aigcfroge2
+    substitute aigcfroge.fish aigcfroge2.fish --replace-fail aigcfroge aigcfroge2
+
+    installShellCompletion --cmd aigcfroge2 \
+      --bash aigcfroge2.bash \
+      --fish aigcfroge2.fish \
+      --zsh _aigcfroge2
   '';
 
   nativeInstallCheckInputs = [
@@ -95,7 +120,6 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   versionCheckProgramArg = "--version";
 
   passthru = {
-    jsonschema = "${placeholder "out"}/share/aigcfroge/schema.json";
     env = finalAttrs.env;
   };
 

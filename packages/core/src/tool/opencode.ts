@@ -3,11 +3,11 @@ export * as OpenCodeAdapter from "./opencode"
 import { Effect } from "effect"
 import { which } from "../util/which"
 import { DelegationParser } from "./delegation-parser"
-import type { CliAdapter } from "./cli-adapter"
+import type { CliAdapterValue } from "./cli-adapter"
 
 const COMMAND = "opencode"
 
-export const adapter: CliAdapter = {
+export const adapter: CliAdapterValue = {
   name: "opencode",
   command: COMMAND,
   description: "OpenCode — open-source AI coding assistant in the terminal",

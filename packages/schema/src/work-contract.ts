@@ -1,8 +1,8 @@
-export * as WorkContract from "./work-contract"
+export * as WorkContract from "./work-contract.js"
 
 import { Schema } from "effect"
-import { WorkflowAsset } from "./workflow-asset"
-import { WorkPreset } from "./work-preset"
+import { WorkflowAsset } from "./workflow-asset.js"
+import { WorkPreset } from "./work-preset.js"
 
 /** Version of the durable Work execution contract, not the prompt or UI revision. */
 export const ContractVersion = Schema.Literal(1).annotate({ identifier: "WorkContract.Version" })

@@ -1,4 +1,4 @@
-export * as ProductMode from "./product-mode"
+export * as ProductMode from "./product-mode.js"
 
 import { Schema } from "effect"
 

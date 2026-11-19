@@ -15,7 +15,7 @@ export const requiredChecks = [
   "check-compliance",
 ] as const
 
-export class Failure extends Schema.TaggedErrorClass<Failure>()("DesktopReleaseError", {
+export class Failure extends Schema.TaggedError<Failure>()("DesktopReleaseError", {
   reason: Schema.String,
 }) {
   override get message() {
@@ -113,7 +113,7 @@ export function decode<T>(schema: Schema.Decoder<T>, value: unknown, context: st
 }
 
 export function json<T>(schema: Schema.Decoder<T>, text: string, context: string): T {
-  return decode(schema, decode(Schema.UnknownFromJsonString, text, `${context} JSON`), context)
+  return decode(schema, decode(Schema.fromJsonString(Schema.Unknown), text, `${context} JSON`), context)
 }
 
 export function version(value: string) {

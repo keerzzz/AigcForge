@@ -37,12 +37,6 @@ jobs:
 
       - uses: ./.github/actions/setup-bun
 
-      - name: Install dependencies
-        run: bun install
-
-      - name: Link aigcfroge CLI
-        run: cd packages/aigcfroge && bun link
-
       - name: Get PR details
         id: pr-details
         run: |
@@ -64,35 +58,38 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AI_MODEL: ${{ vars.AI_ROBOT_MODEL || vars.AI_MODEL }}
-          AIGCFROGE_PERMISSION: |
+          AIGCFROGE_DISABLE_PROJECT_CONFIG: "true"
+          AIGCFROGE_CONFIG_CONTENT: |
             {
-              "*": "deny",
-              "read": {
-                "*": "allow",
-                "*.env": "deny",
-                "*.env.*": "deny",
-                "*.env.example": "allow"
-              },
-              "glob": "allow",
-              "bash": {
+              "permission": {
                 "*": "deny",
-                "gh api*--method POST*/repos/*/pulls/*/comments*": "allow",
-                "gh api*/repos/*/issues/*/comments*--method POST*-f body=lgtm": "allow",
-                "*$*": "deny",
-                "*--hostname*": "deny",
-                "*--input*": "deny",
-                "*--verbose*": "deny",
-                "*--jq*": "deny",
-                "*--template*": "deny",
-                "* -q*": "deny",
-                "*\t-q*": "deny",
-                "*\n-q*": "deny",
-                "* -t*": "deny",
-                "*--body-file*": "deny",
-                "*-F*@*": "deny",
-                "*--field*@*": "deny",
-                "*@/*": "deny",
-                "* /proc/*": "deny"
+                "read": {
+                  "*": "allow",
+                  "*.env": "deny",
+                  "*.env.*": "deny",
+                  "*.env.example": "allow"
+                },
+                "glob": "allow",
+                "bash": {
+                  "*": "deny",
+                  "gh api*--method POST*/repos/*/pulls/*/comments*": "allow",
+                  "gh api*/repos/*/issues/*/comments*--method POST*-f body=lgtm": "allow",
+                  "*$*": "deny",
+                  "*--hostname*": "deny",
+                  "*--input*": "deny",
+                  "*--verbose*": "deny",
+                  "*--jq*": "deny",
+                  "*--template*": "deny",
+                  "* -q*": "deny",
+                  "*\t-q*": "deny",
+                  "*\n-q*": "deny",
+                  "* -t*": "deny",
+                  "*--body-file*": "deny",
+                  "*-F*@*": "deny",
+                  "*--field*@*": "deny",
+                  "*@/*": "deny",
+                  "* /proc/*": "deny"
+                }
               }
             }
           PR_TITLE: ${{ steps.pr-details.outputs.title }}
@@ -134,12 +131,13 @@ jobs:
               MODEL="openrouter/anthropic/claude-3.5-sonnet"
             fi
           elif [ -n "$AIGCFROGE_API_KEY" ]; then
-            MODEL="${AI_MODEL:-aigcfroge/gpt-5.5}"
+            echo "::error::Configure a supported provider API key and AI_MODEL for V2 review. AIGCFROGE_API_KEY alone has no V2 provider mapping."
+            exit 1
           fi
 
           echo "Using model: $MODEL"
           PR_BODY=$(jq -r .body pr_data.json)
-          bun ./packages/aigcfroge/src/index.ts run --agent build -m "$MODEL" "A new pull request has been created: '${PR_TITLE}'
+          bun ./packages/cli/src/index.ts run --standalone --agent build -m "$MODEL" "A new pull request has been created: '${PR_TITLE}'
 
           <pr-number>
           ${{ steps.pr-number.outputs.number }}

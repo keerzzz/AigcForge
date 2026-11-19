@@ -3,11 +3,11 @@ export * as GeminiAdapter from "./gemini"
 import { Effect } from "effect"
 import { which } from "../util/which"
 import { DelegationParser } from "./delegation-parser"
-import type { CliAdapter } from "./cli-adapter"
+import type { CliAdapterValue } from "./cli-adapter"
 
 const COMMAND = "gemini"
 
-export const adapter: CliAdapter = {
+export const adapter: CliAdapterValue = {
   name: "gemini",
   command: COMMAND,
   description: "Gemini CLI — Google's AI-powered command-line assistant",

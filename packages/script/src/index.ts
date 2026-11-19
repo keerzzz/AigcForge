@@ -27,17 +27,17 @@ const CHANNEL = await (async () => {
   if (env.AIGCFROGE_CHANNEL) return env.AIGCFROGE_CHANNEL
   if (env.AIGCFROGE_BUMP) return "latest"
   if (env.AIGCFROGE_VERSION && !env.AIGCFROGE_VERSION.startsWith("0.0.0-")) return "latest"
-  return await $`git branch --show-current`.text().then((x) => x.trim())
+  const branch = await $`git branch --show-current`.text().then((x) => x.trim())
+  if (!branch) return "detached"
+  const channel = branch.replace(/[^a-zA-Z0-9._-]/g, "-")
+  if (/^[a-zA-Z0-9]/.test(channel)) return channel
+  return `branch-${channel}`
 })()
 const IS_PREVIEW = CHANNEL !== "latest"
 
 const VERSION = await (async () => {
   if (env.AIGCFROGE_VERSION) return env.AIGCFROGE_VERSION
-  if (IS_PREVIEW) return `0.0.0-${CHANNEL}-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "")}`
-  // Version base comes from the latest GitHub release tag: this fork publishes
-  // @aigcfroge/* packages, and the upstream `aigcfroge` npm lookup 404s (that
-  // package was never published). Fall back to the root package.json version
-  // when no release exists yet.
+  if (IS_PREVIEW) return `0.0.0-${CHANNEL}-${previewBuildNumber()}`
   const repo = process.env.GH_REPO || "keerzzz/AigcForge"
   const version = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
     headers: { "User-Agent": "aigcfroge", "X-GitHub-Api-Version": "2022-11-28" },
@@ -51,6 +51,14 @@ const VERSION = await (async () => {
   if (t === "minor") return `${major}.${minor + 1}.0`
   return `${major}.${minor}.${patch + 1}`
 })()
+
+function previewBuildNumber() {
+  const runNumber = process.env["GITHUB_RUN_NUMBER"]
+  if (!runNumber) return new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "")
+  const runAttempt = process.env["GITHUB_RUN_ATTEMPT"]
+  if (runAttempt && runAttempt !== "1") return `${runNumber}.${runAttempt}`
+  return runNumber
+}
 
 const bot = ["actions-user", "aigcfroge", "aigcfroge-agent[bot]"]
 const teamPath = path.resolve(import.meta.dir, "../../../.github/TEAM_MEMBERS")

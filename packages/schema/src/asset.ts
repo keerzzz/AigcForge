@@ -1,4 +1,4 @@
-export * as Asset from "./asset"
+export * as Asset from "./asset.js"
 
 import { Schema } from "effect"
 
@@ -43,7 +43,7 @@ export class AssetSummary extends Schema.Class<AssetSummary>("Asset.Summary")({
   revision: Schema.String,
 }) {}
 
-export class AssetError extends Schema.TaggedErrorClass<AssetError>()("AssetError", {
+export class AssetError extends Schema.TaggedError<AssetError>()("AssetError", {
   kind: Schema.String,
   reason: Schema.Literals([
     "unknown_kind",

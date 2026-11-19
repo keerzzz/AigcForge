@@ -2,7 +2,7 @@ import { createEffect, onCleanup, Show, type ValidComponent } from "solid-js"
 import { createStore } from "solid-js/store"
 import { Dynamic } from "solid-js/web"
 
-export const Typewriter = (props: { text?: string; class?: string; as?: ValidComponent }) => {
+export const Typewriter = <T extends ValidComponent = "p">(props: { text?: string; class?: string; as?: T }) => {
   const [store, setStore] = createStore({
     typing: false,
     displayed: "",
@@ -11,6 +11,7 @@ export const Typewriter = (props: { text?: string; class?: string; as?: ValidCom
 
   createEffect(() => {
     const text = props.text
+
     if (!text) return
 
     let i = 0
@@ -21,8 +22,11 @@ export const Typewriter = (props: { text?: string; class?: string; as?: ValidCom
 
     const getTypingDelay = () => {
       const random = Math.random()
+
       if (random < 0.05) return 150 + Math.random() * 100
+
       if (random < 0.15) return 80 + Math.random() * 60
+
       return 30 + Math.random() * 50
     }
 

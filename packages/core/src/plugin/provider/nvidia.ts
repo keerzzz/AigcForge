@@ -1,22 +1,22 @@
 import { Effect } from "effect"
-import { define } from "../internal"
+import { define } from "@aigcfroge/plugin/effect/plugin"
 
 export const NvidiaPlugin = define({
-  id: "nvidia",
+  id: "aigcfroge.provider.nvidia",
   effect: Effect.fn(function* (ctx) {
-    yield* ctx.catalog.transform(
-      Effect.fn(function* (evt) {
-        for (const item of evt.provider.list()) {
-          if (item.provider.api.type !== "aisdk") continue
-          if (item.provider.api.package !== "@ai-sdk/openai-compatible") continue
-          if (item.provider.api.url !== "https://integrate.api.nvidia.com/v1") continue
-          evt.provider.update(item.provider.id, (provider) => {
-            provider.request.headers["HTTP-Referer"] = "https://aigcfroge.ai/"
-            provider.request.headers["X-Title"] = "aigcfroge"
-            provider.request.headers["X-BILLING-INVOKE-ORIGIN"] ??= "Aigcfroge"
-          })
-        }
-      }),
-    )
+    yield* ctx.provider.transform((evt) => {
+      for (const item of evt.list()) {
+        if (item.provider.package !== "@aigcfroge/ai/providers/openai-compatible") continue
+        if (item.provider.settings?.baseURL !== "https://integrate.api.nvidia.com/v1") continue
+        evt.update(item.provider.id, (provider) => {
+          provider.headers = {
+            ...provider.headers,
+            "HTTP-Referer": "https://aigcfroge.ai/",
+            "X-Title": "aigcfroge",
+            "X-BILLING-INVOKE-ORIGIN": provider.headers?.["X-BILLING-INVOKE-ORIGIN"] ?? "AigcForge",
+          }
+        })
+      }
+    })
   }),
 })

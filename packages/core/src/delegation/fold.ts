@@ -1,11 +1,11 @@
 export * as DelegationFold from "./fold"
 
 import { Option, Schema } from "effect"
-import { EventV2 } from "../event"
+import { createHash } from "node:crypto"
+import { SessionMessage } from "@aigcfroge/schema/session-message"
 import { DelegationEvent } from "./event"
 import {
   Delegation,
-  type Info as DelegationInfo,
   type ParticipantInfo,
   type TurnInfo,
   type DeliveryStatus,
@@ -16,9 +16,34 @@ import {
   DelegationAggregateMismatchError,
   DelegationSequenceError,
 } from "@aigcfroge/schema/delegation"
+import { Event } from "@aigcfroge/schema/event"
 import { DelegationID, type ParticipantID, type TurnID } from "@aigcfroge/schema/delegation-id"
 import { canComplete, type RevisionRecord } from "./review"
 import { canAdvancePhase, canTransition } from "./state"
+
+/** The full delivery identity and admitted attempt determine one durable Session input. */
+export function inputID(
+  delegationID: DelegationID.ID,
+  delivery: {
+    turnID: TurnID
+    participantID: ParticipantID
+    deliveryOrigin: string
+    senderParticipantID: ParticipantID
+    attempt: number
+  },
+) {
+  return SessionMessage.ID.make(
+    `msg_delegation_${createHash("sha256")
+      .update(
+        JSON.stringify([
+          delegationID,
+          deliveryKey(delivery.turnID, delivery.participantID, delivery.deliveryOrigin, delivery.senderParticipantID),
+          delivery.attempt,
+        ]),
+      )
+      .digest("hex")}`,
+  )
+}
 
 export interface DeliveryState {
   turnID: TurnID
@@ -42,7 +67,8 @@ export interface FoldedReviewRecord {
 }
 
 export interface DelegationFoldState {
-  delegation: DelegationInfo
+  delegation: Delegation.Info
+  archivedFrom?: "completed" | "cancelled"
   participants: Map<ParticipantID, ParticipantInfo>
   turns: Map<TurnID, TurnInfo>
   deliveries: Map<string, DeliveryState>
@@ -72,10 +98,10 @@ function corrupted(delegationID: DelegationID.ID | undefined, eventType: string,
 }
 
 function requireDelegation(
-  delegation: DelegationInfo | undefined,
+  delegation: Delegation.Info | undefined,
   delegationID: DelegationID.ID,
   eventType: string,
-): DelegationInfo {
+): Delegation.Info {
   if (delegation === undefined) corrupted(delegationID, eventType, "Delegation event precedes delegation.created")
   return delegation
 }
@@ -102,7 +128,7 @@ function requireTurn(
   return turn
 }
 
-function requireTransition(delegation: DelegationInfo, to: DelegationInfo["status"], eventType: string): void {
+function requireTransition(delegation: Delegation.Info, to: Delegation.Info["status"], eventType: string): void {
   if (!canTransition(delegation.status, to)) {
     corrupted(delegation.id, eventType, `Invalid delegation transition from ${delegation.status} to ${to}`)
   }
@@ -180,7 +206,12 @@ function checkDataDelegationID(
   return currentExpected
 }
 
-function deliveryKey(turnID: TurnID, participantID: ParticipantID, origin: string, senderParticipantID: ParticipantID) {
+export function deliveryKey(
+  turnID: TurnID,
+  participantID: ParticipantID,
+  origin: string,
+  senderParticipantID: ParticipantID,
+) {
   return JSON.stringify([turnID, participantID, origin, senderParticipantID])
 }
 
@@ -219,13 +250,13 @@ function refreshTurnStatus(turn: TurnInfo, deliveries: Iterable<DeliveryState>):
 }
 
 function deriveApprovalStatus(
-  delegation: DelegationInfo,
+  delegation: Delegation.Info,
   participants: Map<ParticipantID, ParticipantInfo>,
   turns: Map<TurnID, TurnInfo>,
   deliveries: Map<string, DeliveryState>,
   reviews: readonly FoldedReviewRecord[],
   revisions: readonly RevisionRecord[],
-): DelegationInfo {
+): Delegation.Info {
   if (["closing", "completed", "cancelled", "archived"].includes(delegation.status)) return delegation
 
   const barrier = canComplete({
@@ -257,13 +288,14 @@ function deriveApprovalStatus(
  * Replay is fully deterministic: event timestamps are used; no Date.now() calls.
  * Fails closed on aggregate mismatch, non-monotonic sequence, or malformed known events.
  */
-export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFoldState | undefined {
+export function foldDelegation(events: readonly Event.Payload[]): DelegationFoldState | undefined {
   if (!events || events.length === 0) return undefined
 
   let expectedDelegationID: DelegationID.ID | undefined
   let lastSeq = -1
 
-  let delegation: DelegationInfo | undefined
+  let delegation: Delegation.Info | undefined
+  let archivedFrom: "completed" | "cancelled" | undefined
   const participants = new Map<ParticipantID, ParticipantInfo>()
   const turns = new Map<TurnID, TurnInfo>()
   const deliveries = new Map<string, DeliveryState>()
@@ -326,7 +358,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
 
     if (type === DelegationEvent.Created.type) {
       const data = parseEvent(
-        Schema.decodeUnknownOption(DelegationEvent.CreatedData),
+        Schema.decodeUnknownOption(Schema.toType(DelegationEvent.CreatedData)),
         event.data,
         type,
         expectedDelegationID,
@@ -348,7 +380,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
       })
     } else if (type === DelegationEvent.ParticipantAdded.type) {
       const data = parseEvent(
-        Schema.decodeUnknownOption(DelegationEvent.ParticipantAddedData),
+        Schema.decodeUnknownOption(Schema.toType(DelegationEvent.ParticipantAddedData)),
         event.data,
         type,
         expectedDelegationID,
@@ -380,6 +412,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
           phase: data.phase,
           runtimeStatus: undefined,
           childSessionID: data.childSessionID,
+          executor: data.executor,
           externalThreadID: data.externalThreadID,
           lastActivityAt: data.timestamp,
           createdAt: data.timestamp,
@@ -395,7 +428,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
       }
     } else if (type === DelegationEvent.ParticipantBound.type) {
       const data = parseEvent(
-        Schema.decodeUnknownOption(DelegationEvent.ParticipantBoundData),
+        Schema.decodeUnknownOption(Schema.toType(DelegationEvent.ParticipantBoundData)),
         event.data,
         type,
         expectedDelegationID,
@@ -436,7 +469,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
       }
     } else if (type === DelegationEvent.ParticipantInterrupted.type) {
       const data = parseEvent(
-        Schema.decodeUnknownOption(DelegationEvent.ParticipantInterruptedData),
+        Schema.decodeUnknownOption(Schema.toType(DelegationEvent.ParticipantInterruptedData)),
         event.data,
         type,
         expectedDelegationID,
@@ -461,7 +494,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
       }
     } else if (type === DelegationEvent.ParticipantClosed.type) {
       const data = parseEvent(
-        Schema.decodeUnknownOption(DelegationEvent.ParticipantClosedData),
+        Schema.decodeUnknownOption(Schema.toType(DelegationEvent.ParticipantClosedData)),
         event.data,
         type,
         expectedDelegationID,
@@ -492,8 +525,8 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
     } else if (type === DelegationEvent.TurnAdmitted.type || type === DelegationEvent.TurnAppended.type) {
       const decoder =
         type === DelegationEvent.TurnAdmitted.type
-          ? Schema.decodeUnknownOption(DelegationEvent.TurnAdmittedData)
-          : Schema.decodeUnknownOption(DelegationEvent.TurnAppendedData)
+          ? Schema.decodeUnknownOption(Schema.toType(DelegationEvent.TurnAdmittedData))
+          : Schema.decodeUnknownOption(Schema.toType(DelegationEvent.TurnAppendedData))
       const data = parseEvent(decoder, event.data, type, expectedDelegationID)
       expectedDelegationID = checkDataDelegationID(data.delegationID, expectedDelegationID)
       const currentDelegation = requireDelegation(delegation, expectedDelegationID, type)
@@ -538,7 +571,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
       }
     } else if (type === DelegationEvent.DeliveryAdmitted.type) {
       const data = parseEvent(
-        Schema.decodeUnknownOption(DelegationEvent.DeliveryAdmittedData),
+        Schema.decodeUnknownOption(Schema.toType(DelegationEvent.DeliveryAdmittedData)),
         event.data,
         type,
         expectedDelegationID,
@@ -568,7 +601,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
       }
     } else if (type === DelegationEvent.DeliveryStarted.type) {
       const data = parseEvent(
-        Schema.decodeUnknownOption(DelegationEvent.DeliveryStartedData),
+        Schema.decodeUnknownOption(Schema.toType(DelegationEvent.DeliveryStartedData)),
         event.data,
         type,
         expectedDelegationID,
@@ -602,17 +635,22 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
         )
       }
       if (delegation) {
-        if (delegation.status === "failed" && data.attempt > 1) requireTransition(delegation, "running", type)
+        const resumed =
+          data.attempt > 1 &&
+          (delegation.status === "failed" ||
+            (delegation.status === "recovery_required" &&
+              ![...deliveries.values()].some((delivery) => delivery.status === "recovery_required")))
+        if (resumed) requireTransition(delegation, "running", type)
         delegation = new Delegation.Info({
           ...delegation,
-          status: delegation.status === "failed" && data.attempt > 1 ? "running" : delegation.status,
+          status: resumed ? "running" : delegation.status,
           lastActivityAt: Math.max(delegation.lastActivityAt, data.timestamp),
           updatedAt: data.timestamp,
         })
       }
     } else if (type === DelegationEvent.DeliveryCompleted.type) {
       const data = parseEvent(
-        Schema.decodeUnknownOption(DelegationEvent.DeliveryCompletedData),
+        Schema.decodeUnknownOption(Schema.toType(DelegationEvent.DeliveryCompletedData)),
         event.data,
         type,
         expectedDelegationID,
@@ -647,7 +685,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
       const data = cancelled
         ? {
             ...parseEvent(
-              Schema.decodeUnknownOption(DelegationEvent.DeliveryCancelledData),
+              Schema.decodeUnknownOption(Schema.toType(DelegationEvent.DeliveryCancelledData)),
               event.data,
               type,
               expectedDelegationID,
@@ -655,7 +693,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
             errorCode: undefined,
           }
         : parseEvent(
-            Schema.decodeUnknownOption(DelegationEvent.DeliveryFailedData),
+            Schema.decodeUnknownOption(Schema.toType(DelegationEvent.DeliveryFailedData)),
             event.data,
             type,
             expectedDelegationID,
@@ -703,7 +741,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
           corrupted(expectedDelegationID, type, `Cannot fail a delegation while it is ${delegation.status}`)
         }
         const turnStatus = turns.get(data.turnID)?.status
-        if (turnStatus === "failed") {
+        if (turnStatus === "failed" && delegation.status !== "closing") {
           if (delegation.status !== "failed") requireTransition(delegation, "failed", type)
           delegation = new Delegation.Info({
             ...delegation,
@@ -721,7 +759,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
       }
     } else if (type === DelegationEvent.DeliveryRecoveryRequired.type) {
       const data = parseEvent(
-        Schema.decodeUnknownOption(DelegationEvent.DeliveryRecoveryRequiredData),
+        Schema.decodeUnknownOption(Schema.toType(DelegationEvent.DeliveryRecoveryRequiredData)),
         event.data,
         type,
         expectedDelegationID,
@@ -747,14 +785,16 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
       if (delegation && delegation.status !== "archived") {
         delegation = new Delegation.Info({
           ...delegation,
-          status: "recovery_required",
+          status: ["closing", "completed", "cancelled"].includes(delegation.status)
+            ? delegation.status
+            : "recovery_required",
           lastActivityAt: Math.max(delegation.lastActivityAt, data.timestamp),
           updatedAt: data.timestamp,
         })
       }
     } else if (type === DelegationEvent.RevisionRecorded.type) {
       const data = parseEvent(
-        Schema.decodeUnknownOption(DelegationEvent.RevisionRecordedData),
+        Schema.decodeUnknownOption(Schema.toType(DelegationEvent.RevisionRecordedData)),
         event.data,
         type,
         expectedDelegationID,
@@ -804,7 +844,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
       )
     } else if (type === DelegationEvent.ReviewApproved.type) {
       const data = parseEvent(
-        Schema.decodeUnknownOption(DelegationEvent.ReviewApprovedData),
+        Schema.decodeUnknownOption(Schema.toType(DelegationEvent.ReviewApprovedData)),
         event.data,
         type,
         expectedDelegationID,
@@ -832,7 +872,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
       }
     } else if (type === DelegationEvent.ReviewChangesRequested.type) {
       const data = parseEvent(
-        Schema.decodeUnknownOption(DelegationEvent.ReviewChangesRequestedData),
+        Schema.decodeUnknownOption(Schema.toType(DelegationEvent.ReviewChangesRequestedData)),
         event.data,
         type,
         expectedDelegationID,
@@ -861,7 +901,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
       }
     } else if (type === DelegationEvent.ReviewRejected.type) {
       const data = parseEvent(
-        Schema.decodeUnknownOption(DelegationEvent.ReviewRejectedData),
+        Schema.decodeUnknownOption(Schema.toType(DelegationEvent.ReviewRejectedData)),
         event.data,
         type,
         expectedDelegationID,
@@ -892,7 +932,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
       }
     } else if (type === DelegationEvent.RejectionRetracted.type) {
       const data = parseEvent(
-        Schema.decodeUnknownOption(DelegationEvent.RejectionRetractedData),
+        Schema.decodeUnknownOption(Schema.toType(DelegationEvent.RejectionRetractedData)),
         event.data,
         type,
         expectedDelegationID,
@@ -916,7 +956,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
       })
     } else if (type === DelegationEvent.Closing.type) {
       const data = parseEvent(
-        Schema.decodeUnknownOption(DelegationEvent.ClosingData),
+        Schema.decodeUnknownOption(Schema.toType(DelegationEvent.ClosingData)),
         event.data,
         type,
         expectedDelegationID,
@@ -932,7 +972,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
       })
     } else if (type === DelegationEvent.Completed.type) {
       const data = parseEvent(
-        Schema.decodeUnknownOption(DelegationEvent.CompletedData),
+        Schema.decodeUnknownOption(Schema.toType(DelegationEvent.CompletedData)),
         event.data,
         type,
         expectedDelegationID,
@@ -961,15 +1001,19 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
         lastActivityAt: Math.max(currentDelegation.lastActivityAt, data.timestamp),
         updatedAt: data.timestamp,
       })
+      archivedFrom = undefined
     } else if (type === DelegationEvent.Cancelled.type) {
       const data = parseEvent(
-        Schema.decodeUnknownOption(DelegationEvent.CancelledData),
+        Schema.decodeUnknownOption(Schema.toType(DelegationEvent.CancelledData)),
         event.data,
         type,
         expectedDelegationID,
       )
       expectedDelegationID = checkDataDelegationID(data.delegationID, expectedDelegationID)
       const currentDelegation = requireDelegation(delegation, expectedDelegationID, type)
+      if (currentDelegation.status === "archived") {
+        corrupted(expectedDelegationID, type, "Archived delegations must restore their original terminal status")
+      }
       requireTransition(currentDelegation, "cancelled", type)
       delegation = new Delegation.Info({
         ...currentDelegation,
@@ -980,7 +1024,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
       })
     } else if (type === DelegationEvent.Archived.type) {
       const data = parseEvent(
-        Schema.decodeUnknownOption(DelegationEvent.ArchivedData),
+        Schema.decodeUnknownOption(Schema.toType(DelegationEvent.ArchivedData)),
         event.data,
         type,
         expectedDelegationID,
@@ -988,6 +1032,10 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
       expectedDelegationID = checkDataDelegationID(data.delegationID, expectedDelegationID)
       const currentDelegation = requireDelegation(delegation, expectedDelegationID, type)
       requireTransition(currentDelegation, "archived", type)
+      if (currentDelegation.status !== "completed" && currentDelegation.status !== "cancelled") {
+        corrupted(expectedDelegationID, type, "Only completed or cancelled delegations can be archived")
+      }
+      archivedFrom = currentDelegation.status
       delegation = new Delegation.Info({
         ...currentDelegation,
         status: "archived",
@@ -995,9 +1043,44 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
         lastActivityAt: Math.max(currentDelegation.lastActivityAt, data.timestamp),
         updatedAt: data.timestamp,
       })
+    } else if (type === DelegationEvent.Unarchived.type) {
+      const data = parseEvent(
+        Schema.decodeUnknownOption(Schema.toType(DelegationEvent.UnarchivedData)),
+        event.data,
+        type,
+        expectedDelegationID,
+      )
+      expectedDelegationID = checkDataDelegationID(data.delegationID, expectedDelegationID)
+      const currentDelegation = requireDelegation(delegation, expectedDelegationID, type)
+      if (currentDelegation.status !== "archived" || archivedFrom === undefined) {
+        corrupted(expectedDelegationID, type, "Only an archived delegation can restore its terminal status")
+      }
+      requireTransition(currentDelegation, archivedFrom, type)
+      if (
+        archivedFrom === "completed" &&
+        !canComplete({
+          participants: [...participants.values()],
+          reviews,
+          latestRevisionDigest: currentDelegation.latestRevisionDigest,
+          revisions,
+          rejectionBlocked: currentDelegation.rejectionBlocked,
+          deliveries: [...deliveries.values()],
+          turns: [...turns.values()],
+        })
+      ) {
+        corrupted(expectedDelegationID, type, "Delegation completion barrier is not satisfied")
+      }
+      delegation = new Delegation.Info({
+        ...currentDelegation,
+        status: archivedFrom,
+        archivedAt: undefined,
+        lastActivityAt: Math.max(currentDelegation.lastActivityAt, data.timestamp),
+        updatedAt: data.timestamp,
+      })
+      archivedFrom = undefined
     } else if (type === DelegationEvent.Forked.type) {
       const data = parseEvent(
-        Schema.decodeUnknownOption(DelegationEvent.ForkedData),
+        Schema.decodeUnknownOption(Schema.toType(DelegationEvent.ForkedData)),
         event.data,
         type,
         expectedDelegationID,
@@ -1029,6 +1112,7 @@ export function foldDelegation(events: readonly EventV2.Payload[]): DelegationFo
 
   return {
     delegation,
+    ...(archivedFrom === undefined ? {} : { archivedFrom }),
     participants,
     turns,
     deliveries,

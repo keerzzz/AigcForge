@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { AbsolutePath } from "../src/schema"
-import { McpScope } from "../src/mcp-scope"
+import { AbsolutePath } from "../src/schema.js"
+import { McpScope } from "../src/mcp-scope.js"
 
 const revision = "a".repeat(64)
 

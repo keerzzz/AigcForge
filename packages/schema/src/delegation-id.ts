@@ -1,15 +1,16 @@
-export * as DelegationID from "./delegation-id"
+export * as DelegationID from "./delegation-id.js"
 
 import { Schema } from "effect"
-import { descending } from "./identifier"
-import { withStatics } from "./schema"
+import { descending } from "./identifier.js"
+import { statics } from "./schema.js"
 
 export const ID = Schema.String.check(
   Schema.isPattern(/^dlg_[A-Za-z0-9][A-Za-z0-9_-]*$/),
   Schema.isMaxLength(128),
 ).pipe(
   Schema.brand("DelegationID"),
-  withStatics((schema) => {
+  Schema.annotate({ identifier: "Delegation.ID" }),
+  statics((schema) => {
     const create = () => schema.make("dlg_" + descending())
     return {
       create,
@@ -24,7 +25,8 @@ export const ParticipantID = Schema.String.check(
   Schema.isMaxLength(128),
 ).pipe(
   Schema.brand("ParticipantID"),
-  withStatics((schema) => {
+  Schema.annotate({ identifier: "Delegation.ParticipantID" }),
+  statics((schema) => {
     const create = () => schema.make("par_" + descending())
     return {
       create,
@@ -39,7 +41,8 @@ export const TurnID = Schema.String.check(
   Schema.isMaxLength(128),
 ).pipe(
   Schema.brand("TurnID"),
-  withStatics((schema) => {
+  Schema.annotate({ identifier: "Delegation.TurnID" }),
+  statics((schema) => {
     const create = () => schema.make("trn_" + descending())
     return {
       create,

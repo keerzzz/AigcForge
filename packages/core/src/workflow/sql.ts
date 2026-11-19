@@ -16,6 +16,8 @@ export const WorkflowRunTable = sqliteTable(
     workflow_revision: text().notNull(),
     request_id: text(),
     request_digest: text(),
+    frozen_snapshot: text(),
+    task_binding: text(),
     parent_run_id: text().$type<WorkflowAsset.WorkflowRunID>(),
     root_run_id: text().$type<WorkflowAsset.WorkflowRunID>(),
     retry_of_step_run_id: text().$type<WorkflowAsset.StepRunID>(),

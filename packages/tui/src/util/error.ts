@@ -68,10 +68,6 @@ export function cliErrorMessage(input: unknown): string | undefined {
   }
 
   if (tagged(input, "UICancelledError") || named(input, "UICancelledError")) return ""
-  if (isRecord(input) && named(input, "MCPFailed")) {
-    const name = isRecord(input.data) ? field(input.data, "name") : undefined
-    return `MCP server "${name}" failed. Note, aigcfroge does not support MCP authentication yet.`
-  }
   return undefined
 }
 
@@ -106,7 +102,6 @@ export function errorFormat(error: unknown): string {
       // serialize to "{}", which prints as a useless bare `{}` on stderr.
       // Fall back to a custom toString first, then to ctor name + own prop names.
       if (json === "{}") {
-        // eslint-disable-next-line no-base-to-string -- intentional: result is checked against "[object Object]" on the next line and falls back to ctor + own props
         const str = String(error)
         if (str && str !== "[object Object]") return str
         const ctor = error.constructor?.name
@@ -143,41 +138,4 @@ export function errorMessage(error: unknown): string {
   const formatted = errorFormat(error)
   if (formatted) return formatted
   return "unknown error"
-}
-
-export function errorData(error: unknown) {
-  if (error instanceof Error) {
-    return {
-      type: error.name,
-      message: errorMessage(error),
-      stack: error.stack,
-      cause: error.cause === undefined ? undefined : errorFormat(error.cause),
-      formatted: errorFormat(error),
-    }
-  }
-
-  if (!isRecord(error)) {
-    return {
-      type: typeof error,
-      message: errorMessage(error),
-      formatted: errorFormat(error),
-    }
-  }
-
-  const data = Object.getOwnPropertyNames(error).reduce<Record<string, unknown>>((acc, key) => {
-    const value = error[key]
-    if (value === undefined) return acc
-    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-      acc[key] = value
-      return acc
-    }
-    // oxlint-disable-next-line no-base-to-string -- intentional coercion of arbitrary error properties
-    acc[key] = value instanceof Error ? value.message : String(value)
-    return acc
-  }, {})
-
-  if (typeof data.message !== "string") data.message = errorMessage(error)
-  if (typeof data.type !== "string") data.type = error.constructor?.name
-  data.formatted = errorFormat(error)
-  return data
 }

@@ -7,11 +7,13 @@ import { Location } from "@aigcfroge/core/location"
 import { Project } from "@aigcfroge/core/project"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { EventTable } from "@aigcfroge/core/event/sql"
-import { EventV2 } from "@aigcfroge/core/event"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Bus } from "@aigcfroge/core/bus"
 import { GrantEvent } from "@aigcfroge/core/grant/event"
 import { ScopedGrantStore } from "@aigcfroge/core/grant/store"
 import { ScopedGrantTable } from "@aigcfroge/core/grant/sql"
-import { SessionV2 } from "@aigcfroge/core/session"
+import { Session } from "@aigcfroge/core/session"
 import { Composition } from "@aigcfroge/schema/composition"
 import { testEffect } from "./lib/effect"
 
@@ -19,15 +21,22 @@ const current = Layer.succeed(
   Location.Service,
   Location.Service.of({
     directory: AbsolutePath.make("/project"),
-    project: { id: Project.ID.global, directory: AbsolutePath.make("/project") },
+    project: {
+      id: Project.ID.global,
+      directory: AbsolutePath.make("/project"),
+      canonical: AbsolutePath.make("/project"),
+    },
   }),
 )
-const dependencies = Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer)
-const grants = ScopedGrantStore.locationLayer.pipe(Layer.provide(Layer.mergeAll(dependencies, current)))
-const it = testEffect(Layer.mergeAll(dependencies, current, grants))
+const it = testEffect(
+  AppNodeBuilder.build(LayerNode.group([Database.node, Bus.node, Location.node, ScopedGrantStore.node]), [
+    Location.node.replace(current),
+    Bus.node.replace(Bus.configured({ persist: true })),
+  ]),
+)
 
-const sessionA = SessionV2.ID.make("ses_grant_a")
-const sessionB = SessionV2.ID.make("ses_grant_b")
+const sessionA = Session.ID.make("ses_grant_a")
+const sessionB = Session.ID.make("ses_grant_b")
 const revision = Schema.decodeUnknownSync(Composition.Revision)("c".repeat(64))
 
 /**
@@ -38,9 +47,9 @@ const revision = Schema.decodeUnknownSync(Composition.Revision)("c".repeat(64))
  * `Exit.isFailure`, and the typed path underneath it was dead.
  *
  * Reasons are what the caller branches on: `consultGrant` swallows
- * `already_consumed` to fall back to the ask flow (`permission.ts:192-196`),
- * while `revision_mismatch` means a lost CAS race that must not be retried
- * blindly. Swapping two of them is a live behaviour change that stayed green.
+ * `already_consumed` to fall back to the ask flow, while `revision_mismatch`
+ * means a lost CAS race that must not be retried blindly. Swapping two of them
+ * is a live behaviour change that stayed green.
  *
  * Throwing rather than skipping on a wrong tag is deliberate: a nested
  * `if (error instanceof ...)` would silently pass once the tag changed.
@@ -61,7 +70,7 @@ const expectStateError = (exit: Exit.Exit<unknown, unknown>, expectedReason: Sco
  * A concurrent loser has two legitimate typed causes and which one it gets is
  * scheduling, not contract: it either re-read a row already marked consumed
  * (`StateError{already_consumed}`) or passed that pre-check and then lost the
- * `grant_revision` CAS (`GrantEvent.CommitRejected`, `grant/event.ts:38`).
+ * `grant_revision` CAS (`GrantEvent.CommitRejected`).
  *
  * Today's SQLite driver is synchronous, so each `consume` tends to run to
  * completion inside one fiber slice and every loser takes the first path — but
@@ -99,7 +108,7 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
   /**
    * `expectLostConsume` accepts `CommitRejected` as one of two legal concurrent
    * losers, but under today's synchronous SQLite driver every `consume` loser
-   * takes the `already_consumed` path — so the conversion at `grant/event.ts:49`
+   * takes the `already_consumed` path — so the conversion at the `publish` seam
    * (defect -> typed failure) was reachable only in theory and asserted nowhere.
    *
    * Both `CommitRejected` branches are deterministic at the `publish` seam, with
@@ -111,22 +120,22 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
    */
   it.effect("converts both CommitRejected branches into typed failures, not defects", () =>
     Effect.gen(function* () {
-      const events = yield* EventV2.Service
+      const bus = yield* Bus.Service
       const update = { grantID: "grt_commit_seam", status: "active" as const, timeUpdated: 1 }
 
-      const staleRevision = yield* GrantEvent.publish(events, { ...update, revision: 7 }, () =>
-        Effect.succeed(true),
-      ).pipe(Effect.exit)
+      const staleRevision = yield* GrantEvent.publish(bus, { ...update, revision: 7 }, () => Effect.succeed(true)).pipe(
+        Effect.exit,
+      )
       expectCommitRejected(staleRevision, 7)
 
-      const rejectedRow = yield* GrantEvent.publish(events, { ...update, revision: 1 }, () =>
-        Effect.succeed(false),
-      ).pipe(Effect.exit)
+      const rejectedRow = yield* GrantEvent.publish(bus, { ...update, revision: 1 }, () => Effect.succeed(false)).pipe(
+        Effect.exit,
+      )
       expectCommitRejected(rejectedRow, 1)
 
       // Positive control: the same call with a matching revision and an accepted
       // row must succeed, otherwise the two assertions above prove nothing.
-      const accepted = yield* GrantEvent.publish(events, { ...update, revision: 1 }, () => Effect.succeed(true))
+      const accepted = yield* GrantEvent.publish(bus, { ...update, revision: 1 }, () => Effect.succeed(true))
       expect(accepted.data.grantID).toBe("grt_commit_seam")
     }),
   )
@@ -280,11 +289,10 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
   )
 
   /**
-   * `reason: "expired"` (`store.ts:381`) was the one branch no test could reach:
-   * expiry was only ever observed through `findValid` returning `undefined`,
-   * which is the consultation path and never enters `consume`. So a grant that
-   * outlived its window could be settled as if it were live and the suite would
-   * not notice.
+   * `reason: "expired"` was the one branch no test could reach: expiry was only
+   * ever observed through `findValid` returning `undefined`, which is the
+   * consultation path and never enters `consume`. So a grant that outlived its
+   * window could be settled as if it were live and the suite would not notice.
    *
    * Order matters here too — the guard runs after the revoked and consumed
    * checks, so an expired-and-revoked grant must still report `already_revoked`.
@@ -397,10 +405,9 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
   )
 
   // Retention makes "read a settled row" an ordinary path, so `toInfoSafe`'s
-  // corrupt-revision branch is load-bearing (Phase D review fixed a defect
-  // there). The discriminating assertion is that a healthy row in the *same*
-  // table still comes back — asserting only `[]` would also pass if `list`
-  // returned nothing at all.
+  // corrupt-revision branch is load-bearing. The discriminating assertion is
+  // that a healthy row in the *same* table still comes back — asserting only
+  // `[]` would also pass if `list` returned nothing at all.
   it.effect("skips a corrupt historical row while still returning its healthy siblings", () =>
     Effect.gen(function* () {
       const store = yield* ScopedGrantStore.Service
@@ -449,7 +456,7 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
     Effect.gen(function* () {
       const scope = yield* Scope.make()
       const database = yield* Database.Service
-      const events = yield* EventV2.Service
+      const bus = yield* Bus.Service
       const storeFor = (directory: string) =>
         Layer.fresh(
           ScopedGrantStore.locationLayer.pipe(
@@ -459,11 +466,15 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
                   Location.Service,
                   Location.Service.of({
                     directory: AbsolutePath.make(directory),
-                    project: { id: Project.ID.global, directory: AbsolutePath.make(directory) },
+                    project: {
+                      id: Project.ID.global,
+                      directory: AbsolutePath.make(directory),
+                      canonical: AbsolutePath.make(directory),
+                    },
                   }),
                 ),
                 Layer.succeed(Database.Service, database),
-                Layer.succeed(EventV2.Service, events),
+                Layer.succeed(Bus.Service, bus),
               ),
             ),
           ),
@@ -485,7 +496,7 @@ describe("ScopedGrantStore (ADR-20 §2.3/§2.4)", () => {
     }),
   )
 
-  it.effect("uses the Location-provided Database and EventV2 instances", () =>
+  it.effect("uses the Location-provided Database and Event bus instances", () =>
     Effect.gen(function* () {
       const scope = yield* Scope.make()
       const context = yield* Layer.buildWithScope(Layer.fresh(ScopedGrantStore.locationLayer), scope)

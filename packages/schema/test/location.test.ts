@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { Equal, Hash, Schema } from "effect"
-import { Location } from "../src/location"
-import { AbsolutePath } from "../src/schema"
-import { Workspace } from "../src/workspace"
+import { Location } from "../src/location.js"
+import { AbsolutePath } from "../src/schema.js"
+import { Workspace } from "../src/workspace.js"
 
 const directory = AbsolutePath.make("/tmp/location-cache")
 const implicit = () => [

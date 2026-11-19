@@ -3,13 +3,14 @@ export * as McpCredentialBindingStore from "./store"
 import { Context, Effect, Layer, Schema } from "effect"
 import { and, eq, isNotNull, isNull } from "drizzle-orm"
 import { McpScope } from "@aigcfroge/schema/mcp-scope"
-import { Database } from "../../database/database"
-import { EventV2 } from "../../event"
-import { Location } from "../../location"
-import { BindingEvent } from "./event"
-import { McpCredentialBindingTable } from "./sql"
+import { Database } from "../../database/database.js"
+import { Bus } from "../../bus.js"
+import { Location } from "../../location.js"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { BindingEvent } from "./event.js"
+import { McpCredentialBindingTable } from "./sql.js"
 
-export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("McpBinding.NotFoundError", {
+export class NotFoundError extends Schema.TaggedError<NotFoundError>()("McpBinding.NotFoundError", {
   id: Schema.String,
 }) {
   override get message() {
@@ -17,7 +18,7 @@ export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("Mcp
   }
 }
 
-export class StateError extends Schema.TaggedErrorClass<StateError>()("McpBinding.StateError", {
+export class StateError extends Schema.TaggedError<StateError>()("McpBinding.StateError", {
   id: Schema.String,
   reason: Schema.Literals(["already_revoked", "revision_mismatch", "duplicate", "not_revoked", "invalid_input"]),
 }) {
@@ -26,7 +27,7 @@ export class StateError extends Schema.TaggedErrorClass<StateError>()("McpBindin
   }
 }
 
-export class CrossLocationRefError extends Schema.TaggedErrorClass<CrossLocationRefError>()(
+export class CrossLocationRefError extends Schema.TaggedError<CrossLocationRefError>()(
   "McpBinding.CrossLocationRefError",
   { directory: Schema.String, serverName: Schema.String, credentialRef: Schema.String },
 ) {
@@ -35,7 +36,7 @@ export class CrossLocationRefError extends Schema.TaggedErrorClass<CrossLocation
   }
 }
 
-export class DanglingRefError extends Schema.TaggedErrorClass<DanglingRefError>()("McpBinding.DanglingRefError", {
+export class DanglingRefError extends Schema.TaggedError<DanglingRefError>()("McpBinding.DanglingRefError", {
   serverName: Schema.String,
   credentialRef: Schema.String,
 }) {
@@ -44,7 +45,7 @@ export class DanglingRefError extends Schema.TaggedErrorClass<DanglingRefError>(
   }
 }
 
-export class RevokedRefError extends Schema.TaggedErrorClass<RevokedRefError>()("McpBinding.RevokedRefError", {
+export class RevokedRefError extends Schema.TaggedError<RevokedRefError>()("McpBinding.RevokedRefError", {
   serverName: Schema.String,
   credentialRef: Schema.String,
 }) {
@@ -193,7 +194,7 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const { db } = yield* Database.Service
-    const events = yield* EventV2.Service
+    const events = yield* Bus.Service
     const location = yield* Location.Service
 
     const currentLocation = () => ({
@@ -209,28 +210,25 @@ export const layer = Layer.effect(
         const ws = normalizeWorkspaceId(workspaceID)
         const valid = yield* validateWriteInput(id, input)
         return yield* Effect.gen(function* () {
-          yield* BindingEvent.publish(
-            events,
-            { bindingID: id, status: "active", revision: 1, timeUpdated: now },
-            (tx) =>
-              Effect.gen(function* () {
-                const inserted = yield* tx
-                  .insert(McpCredentialBindingTable)
-                  .values({
-                    id,
-                    directory,
-                    workspace_id: ws,
-                    server_name: valid.serverName,
-                    credential_ref: valid.credentialRef,
-                    binding_revision: 1,
-                    revoked_at: null,
-                  })
-                  .onConflictDoNothing()
-                  .returning()
-                  .get()
-                  .pipe(Effect.orDie)
-                return inserted !== undefined
-              }),
+          yield* BindingEvent.publish(events, { bindingID: id, status: "active", revision: 1, timeUpdated: now }, () =>
+            Effect.gen(function* () {
+              const inserted = yield* db
+                .insert(McpCredentialBindingTable)
+                .values({
+                  id,
+                  directory,
+                  workspace_id: ws,
+                  server_name: valid.serverName,
+                  credential_ref: valid.credentialRef,
+                  binding_revision: 1,
+                  revoked_at: null,
+                })
+                .onConflictDoNothing()
+                .returning()
+                .get()
+                .pipe(Effect.orDie)
+              return inserted !== undefined
+            }),
           )
           const row = (yield* db
             .select()
@@ -269,9 +267,9 @@ export const layer = Layer.effect(
         yield* BindingEvent.publish(
           events,
           { bindingID: id, status: "active", revision: nextRevision, timeUpdated: now },
-          (tx) =>
+          () =>
             Effect.gen(function* () {
-              const updated = yield* tx
+              const updated = yield* db
                 .update(McpCredentialBindingTable)
                 .set({ credential_ref: valid.credentialRef, revoked_at: null, binding_revision: nextRevision })
                 .where(rebindFilter({ id, expectedRevision }))
@@ -342,9 +340,9 @@ export const layer = Layer.effect(
         yield* BindingEvent.publish(
           events,
           { bindingID: id, status: "revoked", revision: nextRevision, timeUpdated: now },
-          (tx) =>
+          () =>
             Effect.gen(function* () {
-              const updated = yield* tx
+              const updated = yield* db
                 .update(McpCredentialBindingTable)
                 .set({ revoked_at: now, binding_revision: nextRevision })
                 .where(
@@ -449,3 +447,9 @@ export const layer = Layer.effect(
  * instance (Phase D regression).
  */
 export const locationLayer = layer
+
+export const node = makeLocationNode({
+  service: Service,
+  layer: locationLayer,
+  deps: [Database.node, Bus.node, Location.node],
+})

@@ -1,11 +1,37 @@
-/// <reference types="vite/client" />
+interface ImportMetaEnv {
+  readonly VITE_AIGCFROGE_SERVER_MODE?: "none" | "origin"
+  readonly VITE_AIGCFROGE_SERVER_HOST: string
+  readonly VITE_AIGCFROGE_SERVER_PORT: string
+  readonly VITE_AIGCFROGE_CHANNEL?: "local" | "dev" | "beta" | "prod"
 
-declare module "solid-js" {
+  readonly VITE_SENTRY_DSN?: string
+  readonly VITE_SENTRY_ENVIRONMENT?: string
+  readonly VITE_SENTRY_RELEASE?: string
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
+}
+
+declare module "*.png" {
+  const src: string
+  export default src
+}
+
+declare module "*.mp4" {
+  const src: string
+  export default src
+}
+
+export declare module "solid-js" {
   namespace JSX {
     interface Directives {
-      sortable: any
+      sortable: true
+    }
+
+    // The Element Timing attribute, which Solid's DOM types do not list.
+    interface ImgHTMLAttributes<T> {
+      elementtiming?: string
     }
   }
 }
-
-export {}

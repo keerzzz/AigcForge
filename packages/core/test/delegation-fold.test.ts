@@ -4,7 +4,7 @@ import { DelegationID, ParticipantID, TurnID } from "@aigcfroge/schema/delegatio
 import { SessionID } from "@aigcfroge/schema/session-id"
 import { foldDelegation } from "../src/delegation/fold"
 import { DelegationEvent } from "../src/delegation/event"
-import { EventV2 } from "../src/event"
+import { Event } from "@aigcfroge/schema/event"
 import {
   DelegationAggregateMismatchError,
   DelegationCorruptedEventError,
@@ -12,32 +12,33 @@ import {
   RevisionDigest,
 } from "@aigcfroge/schema/delegation"
 
-function makeEvent<D extends EventV2.Definition>(
+function makeEvent<D extends Event.Definition>(
   def: D,
-  data: EventV2.Data<D>,
+  data: Event.Data<D>,
   seq = 0,
   overrideAggregateID?: string,
-): EventV2.Payload<D> {
+): Event.Payload<D> {
   const aggId =
     overrideAggregateID ??
     (typeof data === "object" && data !== null && "delegationID" in data
       ? String((data as { delegationID: unknown }).delegationID)
       : "")
   return {
-    id: EventV2.ID.create(),
+    id: Event.ID.create(),
+    created: 0,
     type: def.type,
     data,
     durable: {
       aggregateID: aggId,
-      seq,
-      version: 1,
+      seq: Event.Seq.make(seq),
+      version: Event.Version.make(1),
     },
-  }
+  } as Event.Payload<D>
 }
 
 describe("Delegation Event Fold (Phase 1 Remediation)", () => {
   const dlgId = DelegationID.ID.make("dlg_fold_01")
-  const parentSesId = SessionID.ID.make("ses_parent_01")
+  const parentSesId = SessionID.make("ses_parent_01")
   const partBuildId = ParticipantID.make("par_build_01")
   const partCodexId = ParticipantID.make("par_codex_01")
   const turn1Id = TurnID.make("trn_01")
@@ -46,7 +47,7 @@ describe("Delegation Event Fold (Phase 1 Remediation)", () => {
 
   test("folds creation, participants, turn admission, and deliveries into aggregated state", () => {
     const baseTime = 1700000000000
-    const events: EventV2.Payload[] = [
+    const events: Event.Payload[] = [
       makeEvent(
         DelegationEvent.Created,
         {
@@ -142,10 +143,77 @@ describe("Delegation Event Fold (Phase 1 Remediation)", () => {
     expect(state!.turns.get(turn1Id)?.seq).toBe(1)
     expect(state!.turns.get(turn1Id)?.status).toBe("partially_completed")
   })
+  const outcomes = [DelegationEvent.DeliveryRecoveryRequired, DelegationEvent.DeliveryFailed]
+  outcomes.forEach((outcome) => {
+    test(`preserves closing admission while settling ${outcome.type}`, () => {
+      const events: Event.Payload[] = [
+        makeEvent(DelegationEvent.Created, {
+          delegationID: dlgId,
+          parentSessionID: parentSesId,
+          title: "Close before reconciliation",
+          status: "draft",
+          timestamp: 1,
+        }),
+        makeEvent(
+          DelegationEvent.ParticipantAdded,
+          {
+            delegationID: dlgId,
+            participantID: partBuildId,
+            provider: "internal",
+            target: "general",
+            role: "implementer",
+            context: "fresh",
+            phase: "active",
+            timestamp: 2,
+          },
+          1,
+        ),
+        makeEvent(
+          DelegationEvent.TurnAdmitted,
+          {
+            delegationID: dlgId,
+            turnID: turn1Id,
+            seq: 1,
+            kind: "task",
+            participantIDs: [partBuildId],
+            delivery: "queue",
+            timestamp: 3,
+          },
+          2,
+        ),
+        makeEvent(DelegationEvent.Closing, { delegationID: dlgId, timestamp: 4 }, 3),
+        makeEvent(
+          DelegationEvent.ParticipantClosed,
+          { delegationID: dlgId, participantID: partBuildId, timestamp: 5 },
+          4,
+        ),
+        makeEvent(
+          outcome,
+          {
+            delegationID: dlgId,
+            turnID: turn1Id,
+            participantID: partBuildId,
+            deliveryOrigin: "parent-task",
+            senderParticipantID: partBuildId,
+            attempt: 1,
+            timestamp: 6,
+          },
+          5,
+        ),
+      ]
+      const state = foldDelegation(events)
+      expect(state?.delegation.status).toBe("closing")
+      expect(state?.delegation.updatedAt).toBe(6)
+      expect(state?.participants.get(partBuildId)?.phase).toBe("closed")
+      expect([...(state?.deliveries.values() ?? [])].map((delivery) => delivery.status)).toEqual([
+        outcome === DelegationEvent.DeliveryFailed ? "failed" : "recovery_required",
+      ])
+    })
+  })
 
   test("deterministic replay produces identical output (no Date.now)", () => {
     const baseTime = 1700000000000
-    const events: EventV2.Payload[] = [
+    const events: Event.Payload[] = [
       makeEvent(
         DelegationEvent.Created,
         {
@@ -183,7 +251,7 @@ describe("Delegation Event Fold (Phase 1 Remediation)", () => {
   })
 
   test("fails closed when aggregate ID does not match expected delegation ID", () => {
-    const events: EventV2.Payload[] = [
+    const events: Event.Payload[] = [
       makeEvent(
         DelegationEvent.Created,
         {
@@ -215,7 +283,7 @@ describe("Delegation Event Fold (Phase 1 Remediation)", () => {
   })
 
   test("fails closed when durable aggregate header does not match delegation ID", () => {
-    const events: EventV2.Payload[] = [
+    const events: Event.Payload[] = [
       makeEvent(
         DelegationEvent.Created,
         {
@@ -274,19 +342,23 @@ describe("Delegation Event Fold (Phase 1 Remediation)", () => {
       1,
     )
 
-    expect(() => foldDelegation([created, { ...participant, durable: { ...participant.durable!, seq: 2 } }])).toThrow(
-      DelegationSequenceError,
-    )
     expect(() =>
-      foldDelegation([created, { ...participant, durable: { ...participant.durable!, seq: 1 } }]),
+      foldDelegation([created, { ...participant, durable: { ...participant.durable!, seq: Event.Seq.make(2) } }]),
+    ).toThrow(DelegationSequenceError)
+    expect(() =>
+      foldDelegation([created, { ...participant, durable: { ...participant.durable!, seq: Event.Seq.make(1) } }]),
     ).not.toThrow()
     expect(() =>
-      foldDelegation([created, { ...participant, durable: { ...participant.durable!, seq: 1 } }, participant]),
+      foldDelegation([
+        created,
+        { ...participant, durable: { ...participant.durable!, seq: Event.Seq.make(1) } },
+        participant,
+      ]),
     ).toThrow(DelegationSequenceError)
   })
 
   test("fails closed on malformed known delegation event", () => {
-    const events: EventV2.Payload[] = [
+    const events: Event.Payload[] = [
       makeEvent(
         DelegationEvent.Created,
         {
@@ -299,7 +371,8 @@ describe("Delegation Event Fold (Phase 1 Remediation)", () => {
         0,
       ),
       {
-        id: EventV2.ID.create(),
+        id: Event.ID.create(),
+        created: 0,
         type: DelegationEvent.ParticipantAdded.type,
         data: {
           delegationID: dlgId,
@@ -307,8 +380,8 @@ describe("Delegation Event Fold (Phase 1 Remediation)", () => {
         },
         durable: {
           aggregateID: dlgId,
-          seq: 1,
-          version: 1,
+          seq: Event.Seq.make(1),
+          version: Event.Version.make(1),
         },
       },
     ]
@@ -318,7 +391,7 @@ describe("Delegation Event Fold (Phase 1 Remediation)", () => {
 
   test("rejected verdict establishes sticky blocker that survives subsequent revisions until retracted (G4)", () => {
     const baseTime = 1700000000000
-    const events: EventV2.Payload[] = [
+    const events: Event.Payload[] = [
       makeEvent(
         DelegationEvent.Created,
         {
@@ -475,8 +548,11 @@ describe("Delegation Event Fold (Phase 1 Remediation)", () => {
   })
 
   test("rejects a known delegation event without its durable envelope", () => {
-    const event: EventV2.Payload<typeof DelegationEvent.Created> = {
-      id: EventV2.ID.create(),
+    // Deliberately missing the durable envelope; cast past the envelope type to
+    // exercise the fail-closed runtime guard.
+    const event = {
+      id: Event.ID.create(),
+      created: 0,
       type: DelegationEvent.Created.type,
       data: {
         delegationID: dlgId,
@@ -485,7 +561,7 @@ describe("Delegation Event Fold (Phase 1 Remediation)", () => {
         status: "draft",
         timestamp: 1000,
       },
-    }
+    } as unknown as Event.Payload<typeof DelegationEvent.Created>
 
     expect(() => foldDelegation([event])).toThrow(DelegationCorruptedEventError)
   })
@@ -532,7 +608,7 @@ describe("Delegation Event Fold (Phase 1 Remediation)", () => {
   test("preserves senderParticipantID in delivery identity", () => {
     const senderA = ParticipantID.make("par_sender_a")
     const senderB = ParticipantID.make("par_sender_b")
-    const events: EventV2.Payload[] = [
+    const events: Event.Payload[] = [
       makeEvent(
         DelegationEvent.Created,
         {
@@ -633,7 +709,7 @@ describe("Delegation Event Fold (Phase 1 Remediation)", () => {
   })
 
   test("does not complete a turn while one of its participant deliveries is pending", () => {
-    const events: EventV2.Payload[] = [
+    const events: Event.Payload[] = [
       makeEvent(
         DelegationEvent.Created,
         {
@@ -706,7 +782,7 @@ describe("Delegation Event Fold (Phase 1 Remediation)", () => {
   })
 
   test("persists participant failure without allowing a late runtime event to revive the phase", () => {
-    const events: EventV2.Payload[] = [
+    const events: Event.Payload[] = [
       makeEvent(
         DelegationEvent.Created,
         {
@@ -778,7 +854,7 @@ describe("Delegation Event Fold (Phase 1 Remediation)", () => {
     const digestA = RevisionDigest.make(`rev_${"a".repeat(64)}`)
     const digestB = RevisionDigest.make(`rev_${"b".repeat(64)}`)
     const reviewerTwo = ParticipantID.make("par_reviewer_2")
-    const events: EventV2.Payload[] = [
+    const events: Event.Payload[] = [
       makeEvent(
         DelegationEvent.Created,
         {
@@ -892,7 +968,7 @@ describe("Delegation Event Fold (Phase 1 Remediation)", () => {
   test("a substantive revision invalidates a previously approved aggregate", () => {
     const digestA = RevisionDigest.make(`rev_${"a".repeat(64)}`)
     const digestB = RevisionDigest.make(`rev_${"b".repeat(64)}`)
-    const events: EventV2.Payload[] = [
+    const events: Event.Payload[] = [
       makeEvent(
         DelegationEvent.Created,
         {
@@ -1015,9 +1091,44 @@ describe("Delegation Event Fold (Phase 1 Remediation)", () => {
     expect(state?.delegation.status).toBe("waiting_review")
   })
 
-  test("folds full lifecycle transitions: draft -> running -> approved -> closing -> completed -> archived", () => {
+  test("restores a cancelled archive from history without completing or reopening the delegation", () => {
+    const events: Event.Payload[] = [
+      makeEvent(DelegationEvent.Created, {
+        delegationID: dlgId,
+        parentSessionID: parentSesId,
+        title: "Cancelled archive",
+        status: "draft",
+        timestamp: 10,
+      }),
+      makeEvent(DelegationEvent.Cancelled, { delegationID: dlgId, reason: "Owner cancelled", timestamp: 20 }, 1),
+      makeEvent(DelegationEvent.Archived, { delegationID: dlgId, timestamp: 30 }, 2),
+    ]
+    const archived = foldDelegation(events)
+    expect(archived?.archivedFrom).toBe("cancelled")
+    const restored = foldDelegation([
+      ...events,
+      makeEvent(DelegationEvent.Unarchived, { delegationID: dlgId, timestamp: 40 }, 3),
+    ])
+    expect(restored?.delegation).toMatchObject({ status: "cancelled", closedAt: 20, updatedAt: 40, lastActivityAt: 40 })
+    expect(restored?.delegation.completedAt).toBeUndefined()
+    expect(restored?.delegation.archivedAt).toBeUndefined()
+    expect(restored?.archivedFrom).toBeUndefined()
+    expect(restored?.turns).toEqual(archived?.turns)
+    expect(restored?.deliveries).toEqual(archived?.deliveries)
+    expect(() =>
+      foldDelegation([
+        ...events.slice(0, 1),
+        makeEvent(DelegationEvent.Unarchived, { delegationID: dlgId, timestamp: 20 }, 1),
+      ]),
+    ).toThrow(DelegationCorruptedEventError)
+    expect(() =>
+      foldDelegation([...events, makeEvent(DelegationEvent.Cancelled, { delegationID: dlgId, timestamp: 40 }, 3)]),
+    ).toThrow(DelegationCorruptedEventError)
+  })
+
+  test("folds full lifecycle transitions and preserves completed unarchive barriers and legacy history", () => {
     const baseTime = 1700000000000
-    const events: EventV2.Payload[] = [
+    const events: Event.Payload[] = [
       makeEvent(
         DelegationEvent.Created,
         {
@@ -1155,5 +1266,55 @@ describe("Delegation Event Fold (Phase 1 Remediation)", () => {
     expect(state!.delegation.completedAt).toBe(baseTime + 40)
     expect(state!.delegation.closedAt).toBe(baseTime + 40)
     expect(state!.delegation.archivedAt).toBe(baseTime + 50)
+    expect(state?.archivedFrom).toBe("completed")
+
+    const restored = foldDelegation([
+      ...events,
+      makeEvent(DelegationEvent.Unarchived, { delegationID: dlgId, timestamp: baseTime + 60 }, 11),
+    ])
+    expect(restored?.delegation).toMatchObject({
+      status: "completed",
+      completedAt: baseTime + 40,
+      closedAt: baseTime + 40,
+      updatedAt: baseTime + 60,
+    })
+    expect(restored?.delegation.archivedAt).toBeUndefined()
+    expect(restored?.turns).toEqual(state?.turns)
+    expect(restored?.deliveries).toEqual(state?.deliveries)
+    expect(restored?.reviews).toEqual(state?.reviews)
+
+    const legacy = foldDelegation([
+      ...events,
+      makeEvent(
+        DelegationEvent.Completed,
+        { delegationID: dlgId, summary: "Delegation unarchived", timestamp: baseTime + 60 },
+        11,
+      ),
+    ])
+    expect(legacy?.delegation).toMatchObject({
+      status: "completed",
+      completedAt: baseTime + 60,
+      closedAt: baseTime + 60,
+    })
+
+    expect(() =>
+      foldDelegation([
+        ...events,
+        makeEvent(
+          DelegationEvent.ReviewRejected,
+          {
+            delegationID: dlgId,
+            turnID: turn1Id,
+            participantID: partCodexId,
+            reviewedRevisionDigest: validDigest,
+            findings: [],
+            summary: "Completed restoration must retain review barrier",
+            timestamp: baseTime + 55,
+          },
+          11,
+        ),
+        makeEvent(DelegationEvent.Unarchived, { delegationID: dlgId, timestamp: baseTime + 60 }, 12),
+      ]),
+    ).toThrow(DelegationCorruptedEventError)
   })
 })

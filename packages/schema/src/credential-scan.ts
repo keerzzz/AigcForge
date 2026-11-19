@@ -77,4 +77,4 @@ export class ScanResult extends Schema.Class<ScanResult>("CredentialScan.ScanRes
   stripped: Schema.String,
 }) {}
 
-export * as CredentialScan from "./credential-scan"
+export * as CredentialScan from "./credential-scan.js"

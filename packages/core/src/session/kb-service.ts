@@ -5,26 +5,29 @@ import { and, asc, desc, eq, like, or, sql } from "drizzle-orm"
 import { Cause, Context, Effect, Layer, Schema } from "effect"
 import { KBNote } from "@aigcfroge/schema/kb-note"
 import { Database } from "../database/database"
-import { LayerNode } from "../effect/layer-node"
-import { FSUtil } from "../fs-util"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { FileMutation } from "../file-mutation"
 import { KeyedMutex } from "../effect/keyed-mutex"
-import { EventV2 } from "../event"
-import { Global } from "../global"
+import { Bus } from "../bus"
+import { AbsolutePath } from "../schema"
+import { Location } from "../location"
+import { Environment } from "../environment/index"
+import { Global } from "@aigcfroge/util/global"
 import { KBLink } from "../kb/link"
 import { KBLinkTable, KBNoteTable } from "./kb.sql"
 
 // Telemetry (plan §3.8.4): lifecycle markers WITHOUT content.
 export const Event = {
-  NoteCreated: EventV2.define({
+  NoteCreated: Bus.ephemeral({
     type: "assistant_note_created",
     schema: { noteID: KBNote.NoteID },
   }),
-  NoteRemoved: EventV2.define({
+  NoteRemoved: Bus.ephemeral({
     type: "assistant_note_removed",
     schema: { noteID: KBNote.NoteID },
   }),
-  KBSearched: EventV2.define({
+  KBSearched: Bus.ephemeral({
     type: "assistant_kb_searched",
     schema: {},
   }),
@@ -63,7 +66,7 @@ const toLink = (row: typeof KBLinkTable.$inferSelect): KBNote.Link =>
     dangling: row.dangling,
   })
 
-export class SyncDirectoryError extends Schema.TaggedErrorClass<SyncDirectoryError>()("KBService.SyncDirectoryError", {
+export class SyncDirectoryError extends Schema.TaggedError<SyncDirectoryError>()("KBService.SyncDirectoryError", {
   message: Schema.String,
 }) {}
 
@@ -121,7 +124,7 @@ export const layer = Layer.effect(
     const { db } = yield* Database.Service
     const fs = yield* FSUtil.Service
     const fileMutation = yield* FileMutation.Service
-    const events = yield* EventV2.Service
+    const events = yield* Bus.Service
     // FileMutation 的锁没有暴露在 Service 上（file-mutation.ts:92 的 locks 是内部的），
     // 而「查重 + 写」必须在同一个临界区里，所以这里只能自带一把。后果要说清：
     // 它序列化的是 KB 自己的写，**不覆盖** write/edit/apply-patch 工具对同一个
@@ -292,7 +295,7 @@ export const layer = Layer.effect(
             if (!FSUtil.contains(dir, absolute)) {
               return yield* Effect.die(new Error("Note title escapes the knowledge-base directory"))
             }
-            const target: FileMutation.Target = { canonical: absolute, resource: `${input.title}.md` }
+            const target: FileMutation.Target = { absolute: AbsolutePath.make(absolute), resource: `${input.title}.md` }
             // Serialize per-target: check DB duplicate and file existence inside the lock
             // BEFORE the file write so a duplicate DB row does not clobber the existing .md.
             yield* kbLocks.withLock(absolute)(
@@ -417,8 +420,14 @@ export const layer = Layer.effect(
               if (!FSUtil.contains(dir, oldAbsolute)) {
                 return yield* Effect.die(new Error("Note title escapes the knowledge-base directory"))
               }
-              const newTarget: FileMutation.Target = { canonical: newAbsolute, resource: `${title}.md` }
-              const oldTarget: FileMutation.Target = { canonical: oldAbsolute, resource: `${prior.title}.md` }
+              const newTarget: FileMutation.Target = {
+                absolute: AbsolutePath.make(newAbsolute),
+                resource: `${title}.md`,
+              }
+              const oldTarget: FileMutation.Target = {
+                absolute: AbsolutePath.make(oldAbsolute),
+                resource: `${prior.title}.md`,
+              }
               // Rename: write new mirror first, then remove old, both inside locks.
               // Lock both paths in sorted order to avoid deadlock; check duplicate/title
               // inside the lock so a concurrent create/rename cannot slip between check and write.
@@ -472,7 +481,7 @@ export const layer = Layer.effect(
               }
             } else {
               // Content update or metadata update without rename
-              const target: FileMutation.Target = { canonical: newAbsolute, resource: `${title}.md` }
+              const target: FileMutation.Target = { absolute: AbsolutePath.make(newAbsolute), resource: `${title}.md` }
               yield* kbLocks.withLock(newAbsolute)(
                 Effect.uninterruptible(
                   Effect.gen(function* () {
@@ -543,7 +552,7 @@ export const layer = Layer.effect(
           // lock. A missing/unwritable mirror downgrades to a warning instead of
           // failing the delete — the DB row is already gone and
           // syncFromDirectory reconciles leftovers.
-          const target: FileMutation.Target = { canonical: absolute, resource: `${prior.title}.md` }
+          const target: FileMutation.Target = { absolute: AbsolutePath.make(absolute), resource: `${prior.title}.md` }
           yield* kbLocks.withLock(absolute)(
             fileMutation
               .remove({ target })
@@ -783,17 +792,12 @@ export const layer = Layer.effect(
   }),
 )
 
-export const defaultLayer = layer.pipe(
-  Layer.provide(Database.defaultLayer),
-  Layer.provide(EventV2.defaultLayer),
-  Layer.provide(FSUtil.defaultLayer),
-  Layer.provide(FileMutation.layer.pipe(Layer.provide(FSUtil.defaultLayer))),
-)
-export const node = LayerNode.make(layer.pipe(Layer.provide(FileMutation.layer)), [
-  Database.node,
-  FSUtil.node,
-  EventV2.node,
-])
+export const defaultLayer = layer
+export const node = LayerNode.make({
+  name: "KnowledgeBase",
+  layer: layer.pipe(Layer.provide(FileMutation.layer)),
+  deps: [Database.node, FSUtil.node, Bus.node, Global.node, Location.node, Environment.node],
+})
 
 // 收敛兜底（不是正确性依赖）：把磁盘上的 .md 重新导入索引，弥补历史遗留的半状态。
 // 必须 forkIn(scope) —— Layer.effectDiscard 的 effect 跑在 layer 构建期，直接 await
@@ -808,7 +812,7 @@ export const startupLayer = Layer.effectDiscard(
     const scope = yield* Effect.scope
     const globalDir = `${Global.Path.config}/knowledge-base`
     yield* Effect.gen(function* () {
-      const exists = yield* fs.exists(globalDir).pipe(Effect.catch(() => Effect.succeed(false)))
+      const exists = yield* fs.exists(globalDir).pipe(Effect.orElseSucceed(() => false))
       if (!exists) return
       yield* kb.syncFromDirectory(globalDir, "global")
     }).pipe(
@@ -817,4 +821,8 @@ export const startupLayer = Layer.effectDiscard(
     )
   }),
 )
-export const startupNode = LayerNode.make(startupLayer, [node, FSUtil.node])
+export const startupNode = LayerNode.make({
+  name: "KnowledgeBaseStartup",
+  layer: startupLayer,
+  deps: [node, FSUtil.node],
+})

@@ -3,9 +3,10 @@ export * as DelegationProjector from "./projector"
 import { asc, eq, inArray } from "drizzle-orm"
 import { Effect, Layer, Option, Schema } from "effect"
 import { Database } from "../database/database"
-import { EventV2 } from "../event"
+import { Bus, decodeSerializedEvent } from "../bus"
+import { Event } from "@aigcfroge/schema/event"
 import { EventTable } from "../event/sql"
-import { LayerNode } from "../effect/layer-node"
+import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
 import { DelegationEvent } from "./event"
 import { foldDelegation, type DelegationFoldState } from "./fold"
 import { DelegationID } from "@aigcfroge/schema/delegation-id"
@@ -13,11 +14,13 @@ import { DelegationCorruptedEventError } from "@aigcfroge/schema/delegation"
 import { DelegationParticipantTable, DelegationTable, DelegationTurnTable } from "./sql"
 
 type DatabaseService = Database.Interface["db"]
-type ProjectionStore = DatabaseService | EventV2.Transaction
+/** The drizzle-effect transaction handle, derived from the database client's own signature. */
+type Transaction = Parameters<Parameters<DatabaseService["transaction"]>[0]>[0]
+type ProjectionStore = DatabaseService | Transaction
 
 /**
  * Rebuilds the query projection from the durable event stream. The projection
- * is deliberately replaceable: EventV2 remains the source of truth.
+ * is deliberately replaceable: retained Bus events remain the source of truth.
  */
 export const rebuild = Effect.fn("DelegationProjector.rebuild")(function* (
   db: DatabaseService,
@@ -43,16 +46,16 @@ export const rebuild = Effect.fn("DelegationProjector.rebuild")(function* (
     .pipe(Effect.orDie)
 })
 
-function projectEvent(tx: EventV2.Transaction, event: EventV2.Payload) {
+function projectEvent(store: ProjectionStore, event: Event.Payload) {
   return Effect.gen(function* () {
     const delegationID = requireDelegationID(event)
-    const previous = yield* readEvents(tx, delegationID)
+    const previous = yield* readEvents(store, delegationID)
     const state = requireFoldState([...previous, event], delegationID, event.type)
-    yield* replaceProjection(tx, delegationID, state)
+    yield* replaceProjection(store, delegationID, state)
   })
 }
 
-function requireDelegationID(event: EventV2.Payload): DelegationID.ID {
+function requireDelegationID(event: Event.Payload): DelegationID.ID {
   const aggregateID = event.durable?.aggregateID
   if (aggregateID === undefined) {
     throw new DelegationCorruptedEventError({
@@ -71,7 +74,7 @@ function requireDelegationID(event: EventV2.Payload): DelegationID.ID {
 }
 
 function requireFoldState(
-  events: readonly EventV2.Payload[],
+  events: readonly Event.Payload[],
   delegationID: DelegationID.ID,
   eventType: string,
 ): DelegationFoldState {
@@ -97,7 +100,7 @@ export function readEvents(db: ProjectionStore, delegationID: DelegationID.ID) {
       Effect.orDie,
       Effect.map((rows) =>
         rows.map((row) =>
-          EventV2.decodeSerialized({
+          decodeSerializedEvent({
             id: row.id,
             type: row.type,
             aggregateID: row.aggregate_id,
@@ -110,7 +113,7 @@ export function readEvents(db: ProjectionStore, delegationID: DelegationID.ID) {
 }
 
 export function readEventsBatch(db: ProjectionStore, delegationIDs: readonly DelegationID.ID[]) {
-  if (delegationIDs.length === 0) return Effect.succeed(new Map<string, EventV2.Payload[]>())
+  if (delegationIDs.length === 0) return Effect.succeed(new Map<string, Event.Payload[]>())
   return db
     .select()
     .from(EventTable)
@@ -120,11 +123,11 @@ export function readEventsBatch(db: ProjectionStore, delegationIDs: readonly Del
     .pipe(
       Effect.orDie,
       Effect.map((rows) => {
-        const grouped = new Map<string, EventV2.Payload[]>()
+        const grouped = new Map<string, Event.Payload[]>()
         for (const row of rows) {
           const events = grouped.get(row.aggregate_id) ?? []
           events.push(
-            EventV2.decodeSerialized({
+            decodeSerializedEvent({
               id: row.id,
               type: row.type,
               aggregateID: row.aggregate_id,
@@ -186,6 +189,7 @@ function replaceProjection(db: ProjectionStore, delegationID: DelegationID.ID, s
       role: participant.role,
       context: participant.context,
       phase: participant.phase,
+      executor: participant.executor,
       child_session_id: participant.childSessionID,
       external_thread_id: participant.externalThreadID,
       last_activity_at: participant.lastActivityAt,
@@ -221,33 +225,34 @@ function replaceProjection(db: ProjectionStore, delegationID: DelegationID.ID, s
 
 export const layer = Layer.effectDiscard(
   Effect.gen(function* () {
-    const events = yield* EventV2.Service
+    const events = yield* Bus.Service
+    const database = yield* Database.Service
 
-    yield* events.project(DelegationEvent.Created, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.ParticipantAdded, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.ParticipantBound, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.ParticipantInterrupted, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.ParticipantClosed, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.TurnAdmitted, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.TurnAppended, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.DeliveryAdmitted, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.DeliveryStarted, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.DeliveryCompleted, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.DeliveryFailed, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.DeliveryCancelled, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.DeliveryRecoveryRequired, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.RevisionRecorded, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.ReviewApproved, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.ReviewChangesRequested, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.ReviewRejected, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.RejectionRetracted, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.Closing, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.Completed, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.Cancelled, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.Archived, (event, tx) => projectEvent(tx, event))
-    yield* events.project(DelegationEvent.Forked, (event, tx) => projectEvent(tx, event))
+    yield* events.project(DelegationEvent.Created, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.ParticipantAdded, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.ParticipantBound, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.ParticipantInterrupted, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.ParticipantClosed, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.TurnAdmitted, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.TurnAppended, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.DeliveryAdmitted, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.DeliveryStarted, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.DeliveryCompleted, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.DeliveryFailed, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.DeliveryCancelled, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.DeliveryRecoveryRequired, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.RevisionRecorded, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.ReviewApproved, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.ReviewChangesRequested, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.ReviewRejected, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.RejectionRetracted, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.Closing, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.Completed, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.Cancelled, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.Archived, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.Unarchived, (event) => projectEvent(database.db, event))
+    yield* events.project(DelegationEvent.Forked, (event) => projectEvent(database.db, event))
   }),
 )
 
-export const defaultLayer = layer.pipe(Layer.provide(EventV2.defaultLayer))
-export const node = LayerNode.make(layer, [EventV2.node])
+export const node = makeGlobalNode({ name: "delegation-projector", layer, deps: [Bus.node, Database.node] })

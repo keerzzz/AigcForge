@@ -93,7 +93,7 @@ export function parseDelegationResult(text: string): DelegationResult | undefine
   const reviewMatch = text.match(/<review>([\s\S]*?)<\/review>/)
   const review: DelegationResult["review"] = (() => {
     if (!reviewMatch?.[1]) return { status: "invalid" as const, reason: "missing" as const }
-    const decodedJson = Schema.decodeUnknownOption(Schema.UnknownFromJsonString)(reviewMatch[1].trim())
+    const decodedJson = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Unknown))(reviewMatch[1].trim())
     if (Option.isNone(decodedJson)) return { status: "invalid" as const, reason: "malformed" as const }
     const envelope = Schema.decodeUnknownOption(Delegation.ReviewEnvelope)(decodedJson.value)
     return Option.isSome(envelope)

@@ -4,21 +4,21 @@ import { and, desc, eq, or } from "drizzle-orm"
 import { Context, Effect, Layer } from "effect"
 import { PersonalMemory as PersonalMemorySchema } from "@aigcfroge/schema/personal-memory"
 import { Database } from "../database/database"
-import { LayerNode } from "../effect/layer-node"
-import { EventV2 } from "../event"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Bus } from "../bus"
 import { PersonalMemoryTable } from "./personal-memory.sql"
 
 // Telemetry (plan §3.8.4): lifecycle markers WITHOUT content.
 export const Event = {
-  Proposed: EventV2.define({
+  Proposed: Bus.ephemeral({
     type: "assistant_memory_proposed",
     schema: { memoryID: PersonalMemorySchema.ID },
   }),
-  Confirmed: EventV2.define({
+  Confirmed: Bus.ephemeral({
     type: "assistant_memory_confirmed",
     schema: { memoryID: PersonalMemorySchema.ID },
   }),
-  Rejected: EventV2.define({
+  Rejected: Bus.ephemeral({
     type: "assistant_memory_rejected",
     schema: { memoryID: PersonalMemorySchema.ID },
   }),
@@ -85,7 +85,7 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const { db } = yield* Database.Service
-    const events = yield* EventV2.Service
+    const events = yield* Bus.Service
 
     const propose = Effect.fn("PersonalMemory.propose")(
       (input: {
@@ -240,5 +240,5 @@ export const layer = Layer.effect(
   }),
 )
 
-export const defaultLayer = layer.pipe(Layer.provide(Database.defaultLayer))
-export const node = LayerNode.make(layer, [Database.node, EventV2.node])
+export const defaultLayer = layer
+export const node = LayerNode.make({ name: "PersonalMemory", layer, deps: [Database.node, Bus.node] })

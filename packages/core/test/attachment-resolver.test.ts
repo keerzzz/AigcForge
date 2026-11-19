@@ -3,9 +3,9 @@ import { DateTime, Effect } from "effect"
 import fs from "fs/promises"
 import path from "path"
 import { AttachmentResolver } from "@aigcfroge/core/session/runner/attachment-resolver"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { SessionV2 } from "@aigcfroge/core/session"
-import { FileAttachment } from "@aigcfroge/core/session/prompt"
+import { SessionMessage } from "@aigcfroge/schema/v2/session-message"
+import { Session } from "@aigcfroge/schema/v2/session"
+import { FileAttachment } from "@aigcfroge/schema/v2/prompt"
 import { NodeFileSystem } from "@effect/platform-node"
 import { testEffect } from "./lib/effect"
 
@@ -121,7 +121,7 @@ describe("AttachmentResolver.resolveDeferred", () => {
       const inline = userMessage("data:image/png;base64,AAAA")
       const plain = SessionMessage.Synthetic.make({
         id: SessionMessage.ID.make("msg_plain"),
-        sessionID: SessionV2.ID.make("ses_attach"),
+        sessionID: Session.ID.make("ses_attach"),
         type: "synthetic",
         text: "no files here",
         time: { created: DateTime.makeUnsafe(2) },

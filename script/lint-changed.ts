@@ -24,7 +24,10 @@ const guardedRuleIDs = new Set(
 const sourcePattern = /\.(?:[cm]?[jt]s|[jt]sx)$/
 const markdownPattern = /\.mdx?$/
 
-const target = await resolveBaseline(process.env)
+const target = await resolveBaseline({
+  LINT_BASE_REF: process.argv[2] ?? process.env.LINT_BASE_REF ?? process.env.LINT_BASE,
+  GITHUB_BASE_REF: process.env.GITHUB_BASE_REF,
+})
 const base = (await git(["merge-base", "HEAD", target])).trim()
 const diff = await git(["diff", "--unified=0", "--no-color", base, "--"])
 const added = parseAddedLines(diff)

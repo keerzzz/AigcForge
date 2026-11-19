@@ -1,6 +1,5 @@
 {
   "$schema": "https://aigcfroge.ai/config.json",
-  "provider": {},
   "permission": {},
   "references": {
     "effect": {
@@ -17,4 +16,5 @@
     "github-triage": false,
     "github-pr-search": false,
   },
+  "provider": {},
 }

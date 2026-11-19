@@ -1,287 +1,104 @@
-# AigcForge Architecture Protocol
-
-> **Role**: Senior architecture
-> **Scope**: System structure, package topology, subsystem boundaries, cross-layer data flow
-> **Nature**: Single source of truth for architecture. Aggregates dispersed architecture docs and points to authoritative sources instead of duplicating them. Code style lives in `AGENTS.md`; UI design in `DESIGN.md`.
-
-## 1. Document Routing
-
-| To understand                                      | Read                                                                                                                                                        |
-| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| First principles, gates, review flow               | `CLAUDE.md`                                                                                                                                                 |
-| Code style, branching, Effect/Schema/testing       | `AGENTS.md`                                                                                                                                                 |
-| UI design, tokens, components, i18n, a11y          | `DESIGN.md`                                                                                                                                                 |
-| Session V2 terminology & invariants                | `CONTEXT.md`                                                                                                                                                |
-| Desktop UI architecture (pages, providers, layout) | `docs/architecture/system-blueprint.md`                                                                                                                     |
-| Per-page UI architecture                           | `docs/architecture/pages/*.md`                                                                                                                              |
-| V2 subsystem API design                            | `specs/v2/*.md`                                                                                                                                             |
-| Product Mode state and Session classification      | `docs/architecture/adr/ADR-11-product-mode-session-classification.md`                                                                                       |
-| Proposed Custom Mode composition contract          | `docs/architecture/adr/ADR-17-custom-mode-composition-platform.md` · `docs/prd/custom-mode-composition-platform.md` · `docs/roadmap/custom-mode-roadmap.md` |
-| Product PRDs & requirements                        | `docs/prd/`                                                                                                                                                 |
-| Skills navigation & protocol topology              | `.aigcfroge/skills/protocols/SKILL.md`                                                                                                                      |
-| Enterprise code standard & refactoring             | `.aigcfroge/skills/enterprise-code-standard/SKILL.md` · `.aigcfroge/skills/reuse-first-refactor/SKILL.md`                                                   |
-| Quality to PR delivery gates                       | `.aigcfroge/skills/quality-to-pr/SKILL.md`                                                                                                                  |
-| Effect coding detail                               | `.aigcfroge/skills/effect/SKILL.md`                                                                                                                         |
-| Database schema & migrations                       | `.aigcfroge/skills/database/SKILL.md`                                                                                                                       |
-| Theme engine internals                             | `.aigcfroge/skills/frontend-theming/SKILL.md`                                                                                                               |
-| Implementation plans & status                      | `docs/plan/`, `specs/v2/todo.md`                                                                                                                            |
-| Roadmaps (milestone plans)                         | `docs/roadmap/`                                                                                                                                             |
-| Research & industry surveys                        | `docs/research/industry/` · `docs/research/competitors/` · `docs/research/agent/`                                                                           |
-| Architecture decisions                             | `docs/architecture/adr/`                                                                                                                                    |
-
-> **`CONTEXT.md` caveat**: despite its name, it is the Session Runtime terminology and relationship-invariant dictionary, **not** a project-wide context file. Read it when working on Session V2 internals.
->
-> **`packages/llm/DESIGN.md` caveat**: it is a Discussion draft for a future `@aigcfroge/ai` package, **not** a sub-protocol of the root `DESIGN.md`. The naming is coincidental.
-
-## 2. System Overview
-
-```
-User
- │
-desktop (Electron shell) ────────┐
- │                               │
-tui (terminal)                   │
- │                               ▼
- └──► aigcfroge (sidecar server, command tree, orchestration)
-        │
-        ├─► server (HTTP API, Effect HttpApi + OpenAPI)
-        │      │
-        │      └─► core (domain: Session, Event, Tool, Permission, Plugin, Catalog)
-        │             │
-        │             ├─► llm (Effect Schema-first provider abstraction)
-        │             ├─► schema (pure Schema contracts)
-        │             ├─► effect-drizzle-sqlite + effect-sqlite-node (SQLite via Drizzle+Effect)
-        │             └─► system-context (Context Source algebra)
-        │
-        ├─► app (SolidJS frontend) ─► ui + session-ui (design system + session rendering)
-        │                                  │
-        │                                  └─► sdk/js (generated OpenAPI client) ─► server
-        │
-        ├─► tui (OpenTUI/Solid terminal UI)
-        └─► plugin (plugin SDK, v1+v2 hybrid)
-```
-
-Each `►` is an Effect Layer boundary where services are provided and consumed.
-
-## 3. Package Topology
-
-17 workspace packages (per `packages/*/package.json`) plus `packages/sdk/js` (generated SDK), grouped by layer:
-
-```
-Entry layer
-  desktop     — Electron shell (renderer embeds app + ui; sidecar forks aigcfroge node)
-  aigcfroge   — sidecar server + command tree + orchestration (core engine)
-  tui         — terminal UI (OpenTUI/Solid)
-
-Application layer
-  app         — SolidJS frontend (routes, layout, session UI)
-  server      — HTTP API server (Effect HttpApi + OpenAPI groups)
-  script      — release version computation
-
-Domain layer
-  core        — domain core (Session, Event, Tool, Permission, Plugin, Catalog, System Context)
-  llm         — LLM abstraction (provider facades, routes, protocols)
-  schema      — pure Schema contracts (consumed by core + llm)
-  sdk/js      — OpenAPI-generated JS SDK (v1 + v2)
-
-UI layer
-  ui          — design system (v2 components, theme, i18n, icons)
-  session-ui  — session rendering components (markdown stream, diff, pierre)
-  storybook   — component showcase
-
-Extension layer
-  plugin      — plugin SDK (v1 frozen + v2 hybrid)
-
-Infrastructure layer
-  effect-drizzle-sqlite — vendored Drizzle + Effect SQLite adapter (oxlint-disabled vendor code)
-  effect-sqlite-node     — Node SQLite driver Effect binding
-  http-recorder          — HTTP record/replay cassettes (test infrastructure)
-```
+# AigcForge V2 架构入口
 
-### Dependency directions
+本文件按职责导航，不替代源码合同、[V2 规格](specs/v2/README.md)或[共享底座决定](docs/research/upstream-v2-sync/2026-10-29-shared-foundation-decision.md)。执行首读见 [CLAUDE.md](CLAUDE.md)，工程边界见 [AGENTS.md](AGENTS.md)，产品职责见 [DESIGN.md](DESIGN.md)，验证见 [docs/testing.md](docs/testing.md)。
 
-```
-aigcfroge → {llm, plugin, sdk, server, tui, script}            (runtime deps)
-aigcfroge → {core, http-recorder, script}                       (dev/build deps)
-desktop → app → {ui, session-ui, sdk, core}
-tui → llm → core
-app → sdk → server → core
-server → core (Drizzle schema, migrations)
-plugin → core
-app → llm (only when AIGCFROGE_EXPERIMENTAL_NATIVE_LLM=true)
-core → {schema, effect-drizzle-sqlite, effect-sqlite-node, llm}
-```
+## 当前事实与目标分开
 
-Dependency arrows flow downward through layers; a lower layer never imports a higher one. `effect-drizzle-sqlite` is vendored and `oxlint-disable`d; it is exempt from the project's `as any` / lint gates (see §4.8).
+2026-10-29 文档核验：根 [package.json](package.json) 使用 `packages/*`，当前工作树有25个包，Bun 1.4.2、Effect 4.0.1。清单包含未提交/未跟踪的恢复内容；包存在、类型通过与干净检出可构建不是同一事实。精确运行身份由批次冻结记录决定，不把本页版本当作长期钉住的依赖。
 
-## 4. Core Subsystems
+当前已存在共同 Session 执行、Client 数据层、App Shell 和 GUI 扩展宿主；完整模式工作台、全模式行为版本冻结和产品生命周期仍未闭环。具体未交付状态只维护在[唯一账本](docs/technical-debt.md)。
 
-Each subsystem is summarized here; follow the pointer for authoritative detail.
+## 包职责清单
 
-### 4.1 Session V2
+下表为当前 manifest 与入口的职责索引，不代表全部实现已审计或发布形态已批准。
 
-The business backbone: user input → durable admission → provider turn → event stream → UI timeline.
+| 包                                          | 职责                                                               |
+| ------------------------------------------- | ------------------------------------------------------------------ |
+| [schema](packages/schema)                   | browser-safe 公共 wire/storage 合同、ID 与事件                     |
+| [protocol](packages/protocol)               | 公共 HTTP 操作和传输合同                                           |
+| [ai](packages/ai)                           | 模型请求、provider 路由、传输与规范化输出                          |
+| [core](packages/core)                       | Session、权限、工具、资产、组合、Task/Delegation/Workflow 与持久化 |
+| [server](packages/server)                   | 将 Protocol 操作连接 Core 和主机服务                               |
+| [client](packages/client)                   | 生成 Promise/Effect API、服务连接及 Solid 数据消费                 |
+| [cli](packages/cli)                         | 命令入口、服务进程与桌面内置 CLI 闭包                              |
+| [desktop](packages/desktop)                 | Electron 窗口、IPC、存储、内置服务和打包/更新                      |
+| [app](packages/app)                         | Shell、Home、Draft、Session、路由、数据与窗口扩展宿主              |
+| [gui-extensions](packages/gui-extensions)   | 通过 SDK 贡献桌面/Web 功能和主进程能力                             |
+| [session-ui](packages/session-ui)           | 会话内容与共享渲染                                                 |
+| [ui](packages/ui)                           | 组件、样式、字体、图标、i18n 等共享 UI 原语                        |
+| [theme](packages/theme)                     | 主题定义与相关合同                                                 |
+| [tui](packages/tui)                         | OpenTUI 交互与终端功能宿主                                         |
+| [plugin](packages/plugin)                   | 插件合同与接入能力                                                 |
+| [plugin-browser](packages/plugin-browser)   | 浏览器侧插件接缝                                                   |
+| [codemode](packages/codemode)               | CodeMode 执行能力                                                  |
+| [latex](packages/latex)                     | LaTeX 渲染/插件能力                                                |
+| [merman](packages/merman)                   | 图形渲染/插件能力                                                  |
+| [simulation](packages/simulation)           | 接入现有领域的受控模拟能力                                         |
+| [httpapi-codegen](packages/httpapi-codegen) | 从 HttpApi 编译客户端合同与代码                                    |
+| [http-recorder](packages/http-recorder)     | HTTP 记录/回放测试基础设施                                         |
+| [script](packages/script)                   | 构建、发布等共用脚本                                               |
+| [storybook](packages/storybook)             | 组件/宿主展示与相应验证入口                                        |
+| [util](packages/util)                       | 通用与主机基础设施                                                 |
 
-- Implementation: `packages/core/src/session/` (`SessionV2`, `SessionExecution`, `SessionRunner`, `SessionRunCoordinator`, `SessionStore`, `SessionProjector`).
-- Consumer: `packages/aigcfroge/src/session/`.
-- Full architecture (prompt lifecycle, EventV2 model, data tables): `docs/architecture/system-blueprint.md` §11.
-- Terminology & invariants: `CONTEXT.md`.
-- API design: `specs/v2/session.md`.
-- Architectural constraints: `AGENTS.md` → V2 Session Core (8 invariants). Note symbol ownership: `SessionRunner` / `SessionRunCoordinator` / `SessionExecution` live in `core`, not `aigcfroge`.
+当前 workspace 清单没有旧 `packages/sdk/js` 包；这不证明没有嵌入式 SDK 消费者，也不授权删除 `sdks/` 或其它入口。Desktop 的工作区依赖列在 devDependencies，仍可成为打包运行闭包的一部分。
 
-### 4.2 System Context & Context Epoch
+## 三类关系不能混写
 
-Typed context sources (file tree, git status, workspace info) refreshed independently and snapshotted per provider turn.
+- **模块依赖**：以各包 manifest 和实际 imports 分别核对。Core 声明依赖 AI/Schema/Plugin/PluginBrowser/CodeMode/Util；Protocol 依赖 Schema；Server 依赖 Core/Protocol/Schema/Simulation/Util；Client runtime 依赖 Schema/Protocol；App 依赖 Client/Schema/GUI extensions/Session UI/UI/Util。TUI 的直接 Core 依赖不能用 Client 的边界规则误删。
+- **HTTP 消费**：App/GUI → Client 请求 → Server handler → Core owner。客户端不因调用后端而运行时导入 Server/Core。
+- **生成依赖**：[Client build](packages/client/script/build.ts) 编译 `ClientApi`，经 httpapi-codegen 生成 Promise/Effect API；不是 SDK runtime 反向导入服务器。Schema/Protocol 改动沿正式生成边界传播。
 
-- Implementation: `packages/core/src/system-context/` (`index.ts`, `registry.ts`, `builtins.ts`).
-- Epoch persistence: `packages/core/src/session/context-epoch.ts`.
-- Terminology: `CONTEXT.md` → System Context, Context Epoch.
-- The path is `packages/core/src/system-context`, **not** `src/system-context` under `aigcfroge`.
+不把上述关系画成覆盖全部包的理想无环分层图。源码隐式构建、manifest runtime、dev/build、动态加载和通信分别记录。
 
-### 4.3 EventV2
+## 状态与执行权威
 
-Event source with PubSub + durable persistence, projected into Session views.
+- Session identity、Location、inbox、消息投影、Instructions 状态、claim/结果属于现有 Core Session owner；Window/GUI 不持有第二真源。
+- SessionExecution 进程级按 Session ID 协调，runner、模型、权限、工具与文件服务按保存的 Location 解析。领域任务复用 child Session/Job，不自行循环调用模型。
+- Judge Task复用现Delegation/child与SessionTask：每个实际模型独立fresh Delegation、participant和worker Task，worker通过原parentID指向aggregate Task；各自receipt结算后再对aggregate执行原revision CAS，完整结果仅经父Tool正文交付。模型意见不承担治理批准权。
+- Judge的可选仲裁/摘要复用同一child与receipt执行链，Task负责产出实际结果和一次aggregate结算。原share Tool负责确切保存结果的引用、一次权限叶判定和边界解码，将收窄后的正文交给Session share owner；后者复用Notification的准入与唤醒。增强输入沿receipt读取保存User，目标消费以实际请求为据。完整合同见[Tools规格](specs/v2/tools.md)。
+- 资产定义、候选审阅、Plan、Session snapshot、Workflow run 的冻结值与 Task/source 绑定、活资源与事件事实各自归属。WorkflowRun 的冻结消费与正式 Task 交付合同见 Session/Tools 规格。冻结声明/目录不等于授权或完整实现身份固定。
+- Home 查询筛选、共享工作位置、Draft 保存的来源与已有 Session 的 Location 分开。查看已有 Session 不改变共享工作位置。
+- GUI SDK 的 MountedSession 与 Session screen 生命周期不同；使用 live getter，不复制进更长生命周期的缓存。桌面 storage 必须等待 IPC 加载。
 
-- Implementation: `packages/core/src/event.ts` + `packages/core/src/event/` (SQL, projector).
-- Bridge into app: `packages/aigcfroge/src/event-v2-bridge.ts`.
+### 会话内容挂载与咨询归属（目标合同）
 
-### 4.4 Tool Registry
+2026-11-10的[SC00任务单](/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/2026-11-10-session-surfaces-task-sheet.md)固定拟新增SDK接缝与咨询操作；当前实现由各片源码及工件接受。
 
-Single local-tool representation, registration, lookup, settlement. Location-scoped.
+- 拟新增`SessionTargetRef`只描述已注册live ServerRef上的稳定Session及其实际Location，不要求Shell tab。真实`MountedSession`和`SessionScreen`继续持有source布局；target内容从该server现有Data与参数化会话解析读取。跨server key沿`${server.id}\n${session.id}`；挂载不写parentID、controller、fork或执行claim。
+- 同server所有目标共享现ServerRuntime、SharedEvents与Data。可见/持有目标各自水合及重连重读；旧API响应在原Data owner弃读。草稿寿命在原Composer/Tab memory owner补多视图持有，存储沿既有target键，视图不复制第二份历史或草稿。
+- 拟新增`Session.createConsultation`采用明确两阶段：Created与不可编辑咨询归属在同目标aggregate事务提交，普通prompt hook可读取该Session；prepare结束后附服务参考/provenance，再以原InboxEnqueued事务准入首问并更新归属。参考在咨询row或实际pending/User.files中保存，取消carrier时同事务转回row；取消首问后新输入ID重新携带保存参考，首问终态保持。重试先核target及咨询owner，匹配时不加载活源；阶段B使用target实际Location。提交后仅pending首问可以补advisory wake，HTTP重试不重启已promoted/cancelled首问，唯一准入owner拒绝咨询已取消firstID复活。
 
-- Implementation: `packages/core/src/tool/` (see `packages/core/src/tool/AGENTS.md`).
-- `ToolRegistry.Service` is Location-scoped; `ApplicationTools.Service` is process-scoped — never confuse them.
-- Tool leaves express expected failures via `ToolFailure`; never `catchCause` (interruption / defects must survive).
-- Permission source is constructed from the canonical invocation context.
-- Design: `specs/v2/tools.md`.
+## 按任务读取
 
-### 4.5 Provider & Model Catalog
+| 改动                      | 必读入口/决定边界                                                                                        |
+| ------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Session/Instructions/恢复 | [Session contract](specs/v2/session.md)、`core/src/session/`、根 AGENTS                                  |
+| 工具/权限/插件            | [Tools contract](specs/v2/tools.md)、[Tool guide](packages/core/src/tool/AGENTS.md)、Core owning modules |
+| AI/provider               | [AI guide](packages/ai/AGENTS.md)、Core model-request/model-transport；不把 Session 责任搬到 AI          |
+| 公共 API/生成             | [Schema guide](packages/schema/AGENTS.md)、Protocol/Server handlers、Client build、httpapi-codegen       |
+| Home/模式/Draft/Session   | App shell/routes、shell/state、new-session、session resolution、Client Solid data                        |
+| Panel/扩展/状态栏         | [GUI guide](packages/gui-extensions/AGENTS.md)、App runtime/extension、Desktop main extension            |
+| 桌面/存储/服务            | [Desktop guide](packages/desktop/AGENTS.md)、[CLI guide](packages/cli/AGENTS.md)、Client service         |
+| 产品范围与迁移差异        | [代码族调查](docs/research/upstream-v2-sync/2026-10-29-code-family-review.md)、总计划 B01、唯一账本      |
 
-Provider/model catalog with selection policy.
+页面/包架构按批次调查并记录其完整消费者链；不因更新本入口就宣称25包全部架构已经审批。规格不放待办；批次计划与任务提示词是唯一总计划的执行附件，不能另设领域权威。
 
-- Implementation: `packages/core/src/{provider, model, catalog, model-request, models-dev}.ts`.
-- Design: `specs/v2/provider-model.md`, `specs/v2/provider-policy.md`.
+## DeepSeek Harness 研究接入
 
-### 4.6 Permission & Policy
+[研究对齐附件](docs/research/upstream-v2-sync/2026-10-29-deepseek-harness-alignment.md)区分用户原文、官方文档与待实现目标。采纳能力定义/提供者/消费者配套、声明依赖/来源版本、受控生命周期、事实与live事件分开及可观察诊断的检查方法；全部映射V2现有owner，不引入Cordis、SAP、AgentNode、独立轨迹库或每能力一个模型循环。
 
-Location-scoped permission source, constructed from the canonical invocation context.
+用户确认的最终模型为V2电路板＋Chat资产元件＋Custom装配，形成智能体/脚手架。治理身份/版本/typed接缝/生命周期，但不把每个工具或UI面板都套新Agent类。保留五模式、审阅后显式采用；空用户库存Chat/Custom均有底座入口，失效必需依赖不fallback。
 
-- Implementation: `packages/core/src/{permission, policy}.ts` + `packages/core/src/permission/`.
-- Tool permission: `packages/core/src/tool/AGENTS.md`.
+2026-11-08 用户补充：可插拔、可替换、可启停、可组合逻辑覆盖全部底座能力与工作界面，包括项目树、会话列表、SSE 数据通道和侧边栏，共同支撑 Custom 装配自定义智能体或脚手架。完整目标与讨论顺序见[全平台装配方向](docs/research/upstream-v2-sync/2026-10-29-shared-foundation-decision.md#platform-assembly-direction)：先完成当前元智能体实施任务，再讨论具体架构与布局。
 
-### 4.7 Plugin System
+2026-11-09 用户要求以会话详情页已有右侧栏作为统一模块底座。[右侧栏实施附件](/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/2026-11-09-unified-right-sidebar-implementation-plan.md)已按[第一性审批](/home/keer/workspace/aigcfroge-v2/docs/review/v2-implementation-approval-2026-11-09-unified-right-sidebar.md)完成减法修订并批准：复用 Extension Host/Panel/createRegion/SideRegion，一个管理扩展贡献任务、协作、Meta、工作流和产物五个独立 Panel；文件树保留辅助 Slot，终端保留 DockRegion。显示、标签布局、扩展启禁和业务执行分别归原 owner；Custom 的明确实际输出可直接复用同宿主，不设置两输出前置。具体功能接受与后继项见原账本。
 
-Plugin SDK with v1 (frozen) + v2 hybrid API. V1 is frozen; plugins may import both V1 and V2 types but they are not interchangeable.
+新Custom从V2通用owner与电路板目标重新设计，默认旧Custom不作参考；现有目标仓Custom专属规则是待重构源码事实，不定义目标。基础组合/内置与用户引用/装配绑定/采用快照合同先由B04.0设计，旧会话数据保护另列，不以旧格式绑架新模式。
 
-- SDK: `packages/plugin/` (exports `./v2/effect`, `./v2/promise`, `./tool`, `./tui`).
-- TUI plugins: `packages/aigcfroge/specs/tui-plugins.md`.
+2026-11-08 已验证接缝：显式 builtin root/source/revision、Location Profile 保存/CAS/完整读回、Plan digest 确认与原子 Session/快照采用，以及同一 Session 执行与结果消费，见 [Profile 接受](/home/keer/.codex/outputs/2026-11-08/b06-profile-runtime-root-v1/root-final-acceptance.json)。后续按用户当前优先级完善底层统一来源/consumer 绑定/行为冻结与显式升级；完整装配界面留待后继。
 
-### 4.8 Database
+### 2026-10-31 Agent选择合同
 
-Drizzle + Effect SQLite. Schema lives in `packages/core/src/session/sql.ts` and `packages/core/src/event/sql.ts`.
+普通根按显式Agent/default_agent，Build/Plan/Meta并列；选中Meta时启用其统筹能力。注册Agent/Model/Tool独立，执行共用Session/Runner。当前修正未验收，见[专项§13](docs/research/upstream-v2-sync/2026-10-29-meta-cpu-closure-plan.md#13-2026-10-31-agent选择裁决与当前修正)。注册公共化仅为后续Custom调查，不另建注册表。
 
-- Adapter: `packages/effect-drizzle-sqlite` — vendored, `/* oxlint-disable */`, exempt from the project's `as any` / lint gates.
-- Driver: `packages/effect-sqlite-node`.
-- Conventions: `.aigcfroge/skills/database/SKILL.md` (snake_case columns, migrations, custom column types).
-- Runtime imports the generic `effect/unstable/sql/SqlClient`, never a concrete driver.
-
-### 4.9 LLM Layer
-
-Effect Schema-first provider abstraction. Default path is the AI SDK; native path is opt-in via `AIGCFROGE_EXPERIMENTAL_NATIVE_LLM=true` (or `AIGCFROGE_EXPERIMENTAL=true`). Both runtimes converge on the same `LLMEvent` stream.
-
-- Implementation: `packages/llm/` (see `packages/llm/AGENTS.md` for Route four-axis — Protocol / Endpoint / Auth / Framing — provider facades, folder layout, recording tests).
-- Adapter in aigcfroge: `packages/aigcfroge/src/session/llm/` (see its `AGENTS.md` for the strict cross-file import boundary; only `native-request.ts` may construct `LLM.request` / `Message.*`).
-- Future proposal (not implemented): `packages/llm/DESIGN.md` — `@aigcfroge/ai` clean-break draft.
-
-### 4.10 Product Mode
-
-Product Mode (`chat | coding | work | assistant | custom`) is a persisted App filtering context and a durable Session classification. It is separate from Agent execution mode (`primary | subagent | all`).
-
-All five values are shipped in `packages/schema/src/product-mode.ts` (`ProductMode.ID` is a five-literal union; `Default = "coding"`). ADR-17's `custom` milestones M0–M3 are implemented and merged to `main`, with the `Platform Foundation -> Composition Profile (.aigcfroge/custom-profiles/*.yaml) -> Asset Blocks -> Session Composition Snapshot (independent session_composition_snapshot DB table)` lifecycle in place. Runtime activation is **opt-in and default-off**: `Flag.AIGCFROGE_CUSTOM_MODE` gates it (`packages/core/src/product-mode-policy.ts:40`), and `isModeSupported` / `assertRuntimeSupported` fail closed with `CUSTOM_MODE_DISABLED_MESSAGE` when the flag is unset. Client capability negotiation uses the `x-aigcfroge-capabilities: product-mode-custom-v1` header, declared in `packages/schema/src/product-mode.ts` (not in `core`, because the browser app must send it and `core/product-mode-policy` transitively imports `core/flag/flag`, which reads `process.env` at module evaluation). A request that touches a `custom` session without that capability is refused with a typed `UnsupportedProductModeError` (HTTP 400) on **both** the canonical (`packages/server` `requireSessionAndCapability`) and the legacy (`packages/aigcfroge` `requireSession`) surface — not with a 404. The header is compatibility negotiation, not authorization, so 404 stays reserved for sessions that do not exist. Treat `custom` as a real value everywhere; never decode it as Coding.
-
-- Home cards and the global icon rail navigate to `/mode/:mode`; that module-entry navigation never creates/restores a Draft or Session, selects a Tab, reclassifies work, or changes the Agent.
-- Session routes remain keyed only by server and Session identity.
-- Draft routes remain keyed by draft identity; Product Mode comes from `DraftTab.mode`.
-- `/mode/:mode` renders one shared `ModeRoute`/`ModeWorkspace` for all Product Modes; Mode-specific capability enters through typed slots/adapters instead of copied routes.
-- Root Sessions inherit the Mode frozen on their Draft; child Sessions and forks inherit their parent/source Mode.
-- Projects and Workspaces are shared across Modes; their Session descendants are filtered.
-- Existing rows and historical events without Product Mode decode as Coding.
-- Target implementation: `docs/plan/mode-module-switching-completion.md`.
-- Decisions: `docs/architecture/adr/ADR-11-product-mode-session-classification.md`, `docs/architecture/adr/ADR-12-product-mode-entry-routing.md`, `docs/architecture/adr/ADR-13-chat-work-mode-boundary.md`, `docs/architecture/adr/ADR-14-persistence-and-scope-strategy.md`, `docs/architecture/adr/ADR-15-mode-workspace-main-area-slot.md` (Accepted; main-area typed slot, Chat asset-centric; ADR-13 Amendment-1 assigns workflow definition→Chat, execution→Work), `docs/architecture/adr/ADR-16-global-home-overview.md` (Accepted; `/` renders the global aggregate home page, titlebar left gains a global home entry).
-- Accepted extension under implementation: `docs/architecture/adr/ADR-17-custom-mode-composition-platform.md` (Accepted for M0/M1 implementation v1.2; `.aigcfroge/custom-profiles/*.yaml`, independent `session_composition_snapshot` table, `x-aigcfroge-capabilities: product-mode-custom-v1` header negotiation, V2-native runtime policy, task + child create dual gate, and M1 single-agent scope; production activation remains gated by M0/M1 exits).
-
-### 4.11 External CLI Dispatch and Persistent Delegation
-
-Delegates `task` tool executions to external coding CLIs (claude-code, codex, gemini, opencode) over three transports sharing one adapter seam. The `task` built-in writes a child Session per delegation; the child's messages surface the CLI result.
-
-- Single adapter store: module-level registry cell in `packages/core/src/tool/cli-adapter.ts` (`registerCliAdapter`/`getCliAdapter`/`listCliAdapters`). `packages/aigcfroge/src/agent/meta/adapters/registry.ts` is a thin Effect wrapper over the same cell (no second registry). Config-defined `cli_agents` (config > built-in) register via `registerConfigCliAdapters`; `transport: "sdk"|"acp"` for non-claude/codex names fails loudly.
-- Transports: `jsonl` (spawn + parse, default), `sdk` (official `@anthropic-ai/claude-agent-sdk` / `@openai/codex-sdk`), `acp` (Agent Client Protocol via `@agentclientprotocol/sdk`). Built-in order per name: ACP (when bridge binary on PATH) > SDK > jsonl. Resume persists the external session id in `external_cli_session` keyed by parent session (`DelegationResult.sessionId ?? parseResumeHint`).
-- SDK adapters accept injected clients or lazy factories. Production Codex/Claude factories resolve the user-installed executable and import the SDK only during `execute`; importing the adapters never initializes a CLI. SDK failure/timeout results retain any external session ID observed after execution starts. ACP remains factory-injected (`makeAcpAdapter(factory)`); its client lifecycle lives in `packages/core/src/acp-client/` (`connection.ts` wraps `ClientSideConnection`, `update.ts` parses `session/update` tool-call progress + `_meta.parentToolUseId`, `process.ts` spawns the bridge).
-- `CliDiscovery.list` reads the existing adapter registry and resolves each command once through `util/which`. `GET /api/agent/cli` exposes this read-only inventory to Settings: it describes the current server environment, does not execute adapter probes or initialize SDKs, and does not install CLIs or verify login.
-- Permission bridge: the fill's `executeCLI` resolves `PermissionV2.Service` from the caller's (session-drain) context and builds a `canUseTool` handler asserted against the **parent** session (the child is unattended, so asserting against it would deny everything). Two of the three transports consume it, and the fail-closed behaviour is **not** uniform — 2026-09-03 re-read of the code:
-  - `acp` — `permissionHandler(canUseTool)` (`tool/acp.ts:31`) rejects the request outright when the handler is absent, so no PermissionV2 → auto-deny.
-  - `claude-code-sdk` — passes `canUseTool: undefined` into `sdk.query` when the handler is absent (`tool/claude-code-sdk.ts:57`), which leaves the SDK's own default policy in charge. **Not** an auto-deny.
-  - `codex-sdk` — never takes `canUseTool` at all; it is unattended-safe only because it sets `approvalPolicy: "never"`, which is the SDK denying its own prompts rather than PermissionV2 deciding anything.
-    So "absent PermissionV2 → auto-deny" is true for ACP, incidental for Codex, and false for the Claude SDK path. Unifying it means routing the Claude SDK through the same reject-by-default seam as ACP.
-- Implementation: `packages/core/src/session/task-driver-fill.ts`, `packages/core/src/tool/{cli-adapter, cli-timeout, claude-code, codex, gemini, opencode, claude-code-sdk, codex-sdk, claude-code-acp, codex-acp, acp}.ts`. Plan: `docs/plan/external-cli-dispatch-implementation.md`.
-- Compatibility limitation: `task_id` and `external_cli_session` are continuation keys, not a unified multi-participant delegation aggregate. They do not by themselves provide durable multi-turn fan-out, revision-bound review, restart reconciliation, or close/archive semantics.
-- Target architecture: [ADR-22 — Meta-Agent persistent delegation](docs/architecture/adr/ADR-22-meta-agent-persistent-delegation.md) and [the canonical implementation plan](docs/plan/meta-agent-persistent-delegation-closed-loop.md).
-
-The target model keeps EventV2 as the durable event source and introduces a core-owned `Delegation → Participant → Turn` relation. Internal Build participants bind to child Sessions; external Codex/Claude participants bind to external thread IDs. In the first implementation slice, delivery facts remain `delegation.delivery_*` events rather than a separate projection table; the aggregate fold is the source for barrier decisions, and Codex app-server `thread/*` and `turn/*` capabilities remain optional transport controls. Participant capability is discovered from optional-method presence, and a reviewer's approval is scoped to the code revision and change kind it reviewed (ADR-22 §2.3, §2.5, §2.6).
-
-## 5. src/ Directory Index
-
-A directory-to-responsibility map for the two largest packages.
-
-### `packages/aigcfroge/src/` — application / CLI / server layer
-
-| Group             | Directories                                                                                                       |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------- |
-| CLI & commands    | `cli/`, `command/`, `index.ts`, `node.ts`                                                                         |
-| Server & API      | `server/`, `control-plane/`, `share/`, `sync/`                                                                    |
-| Session runtime   | `session/`, `event-v2-bridge.ts`, `background/`, `bus/`                                                           |
-| Provider & LLM    | `provider/`, `session/llm/`                                                                                       |
-| Tools & MCP       | `tool/`, `mcp/`, `lsp/`, `acp/`                                                                                   |
-| Project & FS      | `project/`, `patch/`, `worktree/`, `git/`, `ide/`, `image/`                                                       |
-| Permission & auth | `permission/`, `auth/`, `account/`                                                                                |
-| Plugin & skill    | `plugin/`, `skill/`, `agent/`, `question/`                                                                        |
-| Infra             | `config/`, `env/`, `effect/`, `storage/`, `util/`, `format/`, `id/`, `snapshot/`, `installation/`, `temporary.ts` |
-
-### `packages/core/src/` — domain layer
-
-| Group                     | Files / directories                                                                                                                                                                                                                                                                                                |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Session V2                | `session.ts`, `session/`, `system-context/`                                                                                                                                                                                                                                                                        |
-| Event                     | `event.ts`, `event/`                                                                                                                                                                                                                                                                                               |
-| Tool                      | `tool/`, `tool-output-store.ts`                                                                                                                                                                                                                                                                                    |
-| External CLI (ACP client) | `acp-client/`                                                                                                                                                                                                                                                                                                      |
-| Provider & model          | `provider.ts`, `model.ts`, `catalog.ts`, `model-request.ts`, `models-dev.ts`, `aisdk.ts`                                                                                                                                                                                                                           |
-| Permission & policy       | `permission.ts`, `permission/`, `policy.ts`                                                                                                                                                                                                                                                                        |
-| Plugin                    | `plugin.ts`, `plugin/`                                                                                                                                                                                                                                                                                             |
-| Domain primitives         | `account.ts`, `agent.ts`, `command.ts`, `config.ts`, `credential.ts`, `project.ts`, `question.ts`, `skill.ts`, `snapshot.ts`, `workspace.ts`                                                                                                                                                                       |
-| Location & filesystem     | `location.ts`, `location-layer.ts`, `location-mutation.ts`, `filesystem.ts`, `filesystem/`, `fs-util.ts`, `file-mutation.ts`, `patch.ts`, `ripgrep.ts`, `repository.ts`, `repository-cache.ts`                                                                                                                     |
-| Process & shell           | `process.ts`, `shell.ts`, `pty.ts`, `pty/`, `cross-spawn-spawner.ts`                                                                                                                                                                                                                                               |
-| Integration               | `integration.ts`, `integration/`, `github-copilot/`, `npm.ts`, `npm-config.ts`                                                                                                                                                                                                                                     |
-| Infra                     | `cache/`, `config/`, `control-plane/`, `database/`, `effect/`, `flag/`, `id/`, `image/`, `installation/`, `meta-agent/`, `observability.ts`, `observability/`, `public/`, `reference.ts`, `reference/`, `state.ts`, `util/`, `v1/`, `v2-schema.ts`, `data-migration.sql.ts`, `instruction-context.ts`, `global.ts` |
-
-## 6. Cross-Layer Effect Boundaries
-
-- Effect Layers are provided once at the app/server boundary (`packages/aigcfroge/src/server/`, `packages/app/`); handlers consume services via `yield*` and never call `Effect.provide(SomeLayer)` inside a handler or raw callback.
-- Request-derived context (`WorkspaceRouteContext`, `InstanceRef`, `WorkspaceRef`) is provided via `Effect.provideService(...)` middleware, not `HttpRouter.provideRequest(...)`.
-- Endpoint styles: `HttpApiBuilder.group(...)` for normal endpoints (including SSE); `handleRaw(...)` for raw request/response (WebSocket upgrade); raw `HttpRouter.use(...)` only for catch-all outside the declared API. See `packages/aigcfroge/src/server/routes/instance/httpapi/AGENTS.md`.
-- Process boundaries: Electron main (`packages/desktop/src/main/`) ↔ renderer via `window.api` (preload-exposed IPC, registered in `src/main/ipc.ts`); server is a Node process; `cli` reuses `aigcfroge`'s command tree.
-
-## 7. Design State
-
-| Status             | Items                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Implemented        | Session V2, EventV2, Tool Registry, Provider/Model Catalog, System Context, Database layer, v2 UI design system, MetaAgent service, MetaHooks/ToolHooks SDK, MCP V2 (stdio+remote+OAuth), SessionShare V2 (internal), SessionRevert V2, SessionSummary V2, INTENT_TOOL_FILTERS, PreToolUse/PostToolUse hooks, Product Mode skeleton (mode classification + `/mode/:mode` entry routing), Prompt Asset M1 (prompt-asset schema/registry/transaction service + V1/V2 propose tool + chat-orchestrator + HTTP API + Chat surface)                                                                                                                         |
-| Design in progress | Chat PRD v4.6（资产工作室，已批准 2026-07-18；M1-M7 全部完成 — 7 类资产新建/导入/创建/apply/delete 全闭环）与 Work PRD v4.1（非编程执行层，已批准 2026-07-31，实施计划见 [`docs/roadmap/work-mode-roadmap.md`](docs/roadmap/work-mode-roadmap.md) + [`docs/plan/work-mode-execution-layer-m1.md`](docs/plan/work-mode-execution-layer-m1.md)）；Assistant/My Agents PRDs remain drafts                                                                                                                                                                                                                                                                 |
-| Implemented        | Custom 第五 Product Mode（[`ADR-17`](docs/architecture/adr/ADR-17-custom-mode-composition-platform.md)）：`ProductMode.ID` 与 `MODE_DEFINITIONS` 均为含 `custom` 的五值，`/mode/custom` 为切换器常规入口，Snapshot 冻结运行时与 Builder 已落地；M2/M3 遗留项与 kill switch 见 [`docs/technical-debt.md`](docs/technical-debt.md) §3                                                                                                                                                                                                                                                                                                                    |
-| In progress        | V2 config (`specs/v2/config.md`), TUI package extraction (`specs/tui-package.md`), legacy storage removal (`specs/storage/remove-opencode-db.md`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| Implemented        | Session permission tier（`propose`/`full` 档位 + `PermissionEffective` 唯一有效权限 owner + Session 级 break-glass override，实施计划 [`docs/plan/mode-scoped-permission-overlay.md`](docs/plan/mode-scoped-permission-overlay.md)，2026-08-16 全量落地）                                                                                                                                                                                                                                                                                                                                                                                              |
-| Phase 6 complete   | Structured Handoffs (summary compression), Judge multi-model arbitration, external CLI session recovery, symlink-aware path containment, Fork CLI endpoint                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| Accepted decisions | `docs/architecture/adr/ADR-09-mode-route-decoupling.md`, `docs/architecture/adr/ADR-10-schema-versioning.md`, `docs/architecture/adr/ADR-11-product-mode-session-classification.md`, `docs/architecture/adr/ADR-12-product-mode-entry-routing.md`, `docs/architecture/adr/ADR-13-chat-work-mode-boundary.md`, `docs/architecture/adr/ADR-13-amendment-1-workflow-asset.md`（工作流定义→Chat，执行→Work）, `docs/architecture/adr/ADR-13-amendment-2-meta-agent-dispatch.md`（元智能体统一调度与 Chat 权限信封收敛）, `docs/architecture/adr/ADR-14-persistence-and-scope-strategy.md`, `docs/architecture/adr/ADR-15-mode-workspace-main-area-slot.md` |
-| Accepted decisions | [`ADR-17`](docs/architecture/adr/ADR-17-custom-mode-composition-platform.md)（Accepted for M0/M1 implementation v1.2; Custom 第五 Product Mode、Composition Profile/Plan/Snapshot 与分阶段扩展平台；生产激活仍受 M0/M1 Gate 约束）                                                                                                                                                                                                                                                                                                                                                                                                                     |
-
-V2 migration status is tracked in `specs/v2/todo.md` and `packages/aigcfroge/specs/effect/todo.md`. The schema changelog lives in `specs/v2/schema-changelog.md`.
+2026-10-31补充澄清：“CPU”仅为说明Meta统筹职责的架构比喻，不是产品术语或实现类别。UI只显示智能体/模型/Meta，代码与注释使用Agent、Meta、Session、Delegation等真实领域名称；不得据比喻新增CPU类型、字段、执行规则或模型入口。文中历史CPU用语仅解释旧讨论，不构成当前命名指令。

@@ -1,11 +1,12 @@
 import { describe, test, expect } from "bun:test"
-import { Effect, Layer, FileSystem } from "effect"
-import { NodeFileSystem } from "@effect/platform-node"
-import { FSUtil } from "@aigcfroge/core/fs-util"
+import { Effect, FileSystem, Layer } from "effect"
+import { LayerNodePlatform } from "@aigcfroge/util/effect/app-node-platform"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { testEffect } from "../lib/effect"
 import path from "path"
 
-const live = Layer.merge(FSUtil.defaultLayer, NodeFileSystem.layer)
+const live = LayerNode.compile(LayerNode.group([FSUtil.node, LayerNodePlatform.filesystem]))
 const { effect: it } = testEffect(live)
 
 describe("FSUtil", () => {
@@ -266,6 +267,33 @@ describe("FSUtil", () => {
         expect(result).toContain(path.join(tmp, "b.txt"))
       }),
     )
+
+    it(
+      "stops at the first match when requested",
+      Effect.gen(function* () {
+        const filesys = yield* FileSystem.FileSystem
+        const tmp = yield* filesys.makeTempDirectoryScoped()
+        yield* filesys.writeFileString(path.join(tmp, "marker"), "root")
+        const child = path.join(tmp, "sub")
+        yield* filesys.makeDirectory(child)
+        yield* filesys.writeFileString(path.join(child, "marker"), "child")
+        const checked: string[] = []
+        const instrumented = FileSystem.FileSystem.of({
+          ...filesys,
+          exists: (target) => Effect.sync(() => checked.push(target)).pipe(Effect.andThen(filesys.exists(target))),
+        })
+        const search = yield* FSUtil.Service.pipe(
+          Effect.provide(
+            FSUtil.layer.pipe(Layer.fresh, Layer.provide(Layer.succeed(FileSystem.FileSystem, instrumented))),
+          ),
+        )
+
+        expect(yield* search.up({ targets: ["marker", "other"], start: child, mode: "first" })).toEqual([
+          path.join(child, "marker"),
+        ])
+        expect(checked).toEqual([path.join(child, "marker")])
+      }),
+    )
   })
 
   describe("glob", () => {
@@ -279,7 +307,7 @@ describe("FSUtil", () => {
         yield* filesys.writeFileString(path.join(tmp, "b.ts"), "b")
         yield* filesys.writeFileString(path.join(tmp, "c.json"), "c")
 
-        const result = yield* fs.glob("*.ts", { cwd: tmp })
+        const result = yield* fs.scan("*.ts", { cwd: tmp })
         expect(result.sort()).toEqual(["a.ts", "b.ts"])
       }),
     )
@@ -292,7 +320,7 @@ describe("FSUtil", () => {
         const tmp = yield* filesys.makeTempDirectoryScoped()
         yield* filesys.writeFileString(path.join(tmp, "file.txt"), "hello")
 
-        const result = yield* fs.glob("*.txt", { cwd: tmp, absolute: true })
+        const result = yield* fs.scan("*.txt", { cwd: tmp, absolute: true })
         expect(result).toEqual([path.join(tmp, "file.txt")])
       }),
     )
@@ -333,29 +361,29 @@ describe("FSUtil", () => {
     it(
       "exists works",
       Effect.gen(function* () {
-        yield* FSUtil.Service
+        const fs = yield* FSUtil.Service
         const filesys = yield* FileSystem.FileSystem
         const tmp = yield* filesys.makeTempDirectoryScoped()
         const file = path.join(tmp, "exists.txt")
         yield* filesys.writeFileString(file, "yes")
 
-        expect(yield* filesys.exists(file)).toBe(true)
-        expect(yield* filesys.exists(file + ".nope")).toBe(false)
+        expect(yield* fs.exists(file)).toBe(true)
+        expect(yield* fs.exists(file + ".nope")).toBe(false)
       }),
     )
 
     it(
       "remove works",
       Effect.gen(function* () {
-        yield* FSUtil.Service
+        const fs = yield* FSUtil.Service
         const filesys = yield* FileSystem.FileSystem
         const tmp = yield* filesys.makeTempDirectoryScoped()
         const file = path.join(tmp, "delete-me.txt")
         yield* filesys.writeFileString(file, "bye")
 
-        yield* filesys.remove(file)
+        yield* fs.remove(file)
 
-        expect(yield* filesys.exists(file)).toBe(false)
+        expect(yield* fs.exists(file)).toBe(false)
       }),
     )
   })

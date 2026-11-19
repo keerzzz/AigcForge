@@ -1,9 +1,9 @@
 export * as SkillGuidance from "./guidance"
 
 import { Context, Effect, Layer, Schema } from "effect"
-import { AgentV2 } from "../agent"
-import { PermissionV2 } from "../permission"
-import { SkillV2 } from "../skill"
+import { Agent } from "../agent"
+import { Permission } from "../permission"
+import { Skill } from "../skill"
 import { SystemContext } from "../system-context/index"
 
 import { Composition } from "@aigcfroge/schema/composition"
@@ -44,7 +44,7 @@ export type GuidanceOptions = {
 }
 
 export interface Interface {
-  readonly load: (agent: AgentV2.Selection, options?: GuidanceOptions) => Effect.Effect<SystemContext.SystemContext>
+  readonly load: (agent: Agent.Selection, options?: GuidanceOptions) => Effect.Effect<SystemContext.SystemContextValue>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SkillGuidance") {}
@@ -52,7 +52,7 @@ export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
-    const skills = yield* SkillV2.Service
+    const skills = yield* Skill.Service
 
     return Service.of({
       load: Effect.fn("SkillGuidance.load")(function* (selection, options?: GuidanceOptions) {
@@ -77,8 +77,8 @@ export const layer = Layer.effect(
             removed: () => "Skill guidance is no longer available. Do not use any previously listed skill.",
           })
         }
-        const permitted = SkillV2.available(yield* skills.list(), agent)
-        if (permitted.length === 0 && PermissionV2.evaluate("skill", "*", agent.permissions).effect === "deny")
+        const permitted = Skill.available(yield* skills.list(), agent.permissions)
+        if (permitted.length === 0 && Permission.evaluate("skill", "*", agent.permissions).effect === "deny")
           return SystemContext.empty
         const available = permitted
           .flatMap((skill) =>

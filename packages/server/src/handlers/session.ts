@@ -1,123 +1,86 @@
-import { SessionV2 } from "@aigcfroge/core/session"
-import { SessionStore } from "@aigcfroge/core/session/store"
-import { SessionShareV2 } from "@aigcfroge/core/session/share-v2"
-import { WorkReviewService } from "@aigcfroge/core/session/work-review-service"
-import { absurd, Cause, DateTime, Effect, Layer, Option, Schema } from "effect"
-import { HttpServerRequest } from "effect/unstable/http"
-import { HttpApiBuilder, HttpApiSchema } from "effect/unstable/httpapi"
-import { SqlError } from "effect/unstable/sql/SqlError"
-import { EffectDrizzleQueryError } from "drizzle-orm/effect-core/errors"
-import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
+import { Session } from "@aigcfroge/core/session"
+import { SessionStats } from "@aigcfroge/core/session/stats"
+import { SessionTitle } from "@aigcfroge/core/session/title"
+import { SessionTransfer } from "@aigcfroge/core/session/transfer"
+import { InstructionEntry } from "@aigcfroge/core/session/instruction-entry"
+import { Form } from "@aigcfroge/core/form"
+import { DateTime, Effect, Stream } from "effect"
+import { HttpApiBuilder, HttpApiSchema } from "effect/http-api"
 import { Api } from "../api"
-import { SessionsCursor } from "../groups/session"
+import { SessionsCursor } from "@aigcfroge/protocol/groups/session"
 import {
   ConflictError,
-  ForbiddenError,
-  InvalidCursorError,
+  CommandExecutionError,
+  CommandNotFoundError,
+  FormAlreadySettledError,
+  FormInvalidAnswerError,
+  FormNotFoundError,
   InvalidRequestError,
+  InvalidCursorError,
+  MessageNotFoundError,
   ServiceUnavailableError,
-  SessionNotFoundError,
+  SessionBusyError,
+  SkillNotFoundError,
   UnsupportedProductModeError,
-  UnknownError,
-  WorkReviewUnavailableError,
-  CompositionResolveError,
-} from "../errors"
+} from "@aigcfroge/protocol/errors"
 import { AbsolutePath } from "@aigcfroge/core/schema"
+import { locationErrors } from "../location"
+import {
+  failedMessageDecode,
+  failedSnapshot,
+  invalidComposition,
+  missingMessage,
+  missingSession,
+} from "./session-error"
 
 const DefaultSessionsLimit = 50
+const invalidController = (error: { message: string; field: string; kind: string }) =>
+  new InvalidRequestError({ message: error.message, field: error.field, kind: error.kind })
+
+function missingForm(id: Form.ID) {
+  return new FormNotFoundError({ id, message: `Form not found: ${id}` })
+}
 
 export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handlers) =>
   Effect.gen(function* () {
-    const session = yield* SessionV2.Service
-    const share = yield* SessionShareV2.Service
-    const store = yield* SessionStore.Service
-
-    const requireSessionAndCapability = (
-      sessionID: string,
-      capabilitiesHeader?: string | null,
-      recorded?: SessionV2.Info,
-    ) =>
-      Effect.gen(function* () {
-        const idOpt = Schema.decodeUnknownOption(SessionV2.SessionSchema.ID)(sessionID)
-        if (Option.isNone(idOpt)) {
-          return yield* Effect.fail(
-            new SessionNotFoundError({
-              sessionID,
-              message: `Session not found: ${sessionID}`,
-            }),
-          )
-        }
-        const info =
-          recorded ??
-          (yield* session.get(idOpt.value).pipe(
-            Effect.catchTag("Session.NotFoundError", (error) =>
-              Effect.fail(
-                new SessionNotFoundError({
-                  sessionID: error.sessionID,
-                  message: `Session not found: ${error.sessionID}`,
-                }),
-              ),
-            ),
-          ))
-        if (!ProductModePolicy.isSessionSupported(info, capabilitiesHeader)) {
-          // S7: capability missing is a typed unsupported-mode error, not 404.
-          // 404 is reserved for sessions that do not exist. A client without
-          // the custom capability learns the session exists but that its mode
-          // is outside the client's declared capabilities.
-          return yield* Effect.fail(
-            new UnsupportedProductModeError({
-              mode: info.mode,
-              message: `Mode "${info.mode}" is not supported by this client's declared capabilities.`,
-            }),
-          )
-        }
-        return info
+    const session = yield* Session.Service
+    const transfer = yield* SessionTransfer.Service
+    const requireOwnedForm = Effect.fnUntraced(function* (sessionID: Form.Info["sessionID"], formID: Form.ID) {
+      const form = yield* Form.Service
+      const info = yield* form.get(formID).pipe(Effect.catchTag("Form.NotFoundError", () => missingForm(formID)))
+      if (info.sessionID !== sessionID) return yield* missingForm(formID)
+      return { form, info }
+    })
+    const busySession = (error: Session.BusyError) =>
+      new SessionBusyError({
+        sessionID: error.sessionID,
+        message: `Session is busy: ${error.sessionID}`,
       })
-
-    const requireRuntimeSession = (sessionID: string, capabilitiesHeader?: string | null) =>
-      requireSessionAndCapability(sessionID, capabilitiesHeader).pipe(
-        Effect.flatMap((info) =>
-          ProductModePolicy.assertRuntimeSupported(info.mode).pipe(
-            Effect.map(() => info),
-            Effect.mapError((error) => new UnsupportedProductModeError({ mode: error.mode, message: error.message })),
-          ),
+    const pendingMutation = (effect: ReturnType<typeof session.cancelInbox>, conflict: string) =>
+      effect.pipe(
+        Effect.catchTag("Session.NotFoundError", missingSession),
+        Effect.catchTag(
+          "Session.InboxConflictError",
+          (error) => new ConflictError({ resource: error.inboxID, message: `${conflict}: ${error.inboxID}` }),
         ),
-      )
-
-    const requireReadableSession = (sessionID: string, capabilitiesHeader?: string | null) =>
-      requireSessionAndCapability(sessionID, capabilitiesHeader)
-
-    // The generic reader can defect while decoding stored JSON, before the Review owner runs.
-    // Translate only storage/decoding faults; programming defects keep their original cause.
-    const requireReviewSession = (sessionID: string, capabilitiesHeader?: string | null) =>
-      requireReadableSession(sessionID, capabilitiesHeader).pipe(
-        Effect.catchDefect((error) => {
-          if (isReviewReadFailure(error)) {
-            return new WorkReviewUnavailableError({ message: "Work review storage is unavailable", code: "storage" })
-          }
-          return Effect.die(error)
-        }),
+        Effect.as(HttpApiSchema.NoContent.make()),
       )
 
     return handlers
       .handle(
         "session.list",
         Effect.fn(function* (ctx) {
-          const req = yield* HttpServerRequest.HttpServerRequest
-          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
           const query =
             ctx.query.cursor !== undefined
               ? yield* SessionsCursor.parse(ctx.query.cursor).pipe(
                   Effect.mapError(() => new InvalidCursorError({ message: "Invalid cursor" })),
                 )
               : ctx.query
-          const rawSessions = yield* session.list({
+          const page = yield* session.list({
             ...query,
-            workspaceID: query.workspace,
-            mode: query.mode,
             limit: ctx.query.limit ?? DefaultSessionsLimit,
           })
-          const sessions = ProductModePolicy.filterSupportedSessions(rawSessions, capabilitiesHeader)
+          const sessions = page.data
           const first = sessions[0]
           const last = sessions.at(-1)
           return {
@@ -128,7 +91,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                     ...query,
                     anchor: {
                       id: first.id,
-                      time: DateTime.toEpochMillis(first.time.created),
+                      time: DateTime.toEpochMillis(first.time.updated),
                       direction: "previous",
                     },
                   })
@@ -138,7 +101,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                     ...query,
                     anchor: {
                       id: last.id,
-                      time: DateTime.toEpochMillis(last.time.created),
+                      time: DateTime.toEpochMillis(last.time.updated),
                       direction: "next",
                     },
                   })
@@ -148,268 +111,374 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         }),
       )
       .handle(
+        "session.stats",
+        Effect.fn(function* (ctx) {
+          const timezone = ctx.query.timezone ?? "UTC"
+          yield* Effect.try({
+            try: () => new Intl.DateTimeFormat("en-US", { timeZone: timezone }),
+            catch: () => new InvalidRequestError({ message: `Invalid time zone: ${timezone}` }),
+          })
+          return {
+            data: yield* SessionStats.get({
+              from: ctx.query.from,
+              to: ctx.query.to,
+              projectID: ctx.query.project,
+              timezone,
+              tools: ctx.query.tools,
+            }).pipe(
+              Effect.mapError(() => new InvalidRequestError({ message: "Stats range must end after it starts" })),
+            ),
+          }
+        }),
+      )
+      .handle(
         "session.create",
         Effect.fn(function* (ctx) {
-          const request = yield* HttpServerRequest.HttpServerRequest
-          const capabilities = request.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          // Identity lookup must not adopt legacy history as canonical reads do.
-          const recorded = ctx.payload.id ? yield* store.get(ctx.payload.id) : undefined
-          const source = recorded ?? (ctx.payload.parentID ? yield* store.get(ctx.payload.parentID) : undefined)
-          // Existing identity wins over create arguments. Otherwise a child
-          // inherits its parent's mode, which must be checked before any write.
-          if (source)
-            yield* requireSessionAndCapability(source.id, capabilities, source).pipe(
-              Effect.catchTag("SessionNotFoundError", (error) => new InvalidRequestError({ message: error.message })),
-            )
-          if (!recorded) yield* ProductModePolicy.assertCreationSupported(ctx.payload.mode)
           return {
             data: yield* session
               .create({
                 id: ctx.payload.id,
-                parentID: ctx.payload.parentID,
+                title: ctx.payload.title,
                 mode: ctx.payload.mode,
                 agent: ctx.payload.agent,
                 model: ctx.payload.model,
+                metadata: ctx.payload.metadata,
+                permissions: ctx.payload.permissions,
+                control: ctx.payload.control,
+                executorPreference: ctx.payload.executorPreference,
+                ...(ctx.payload.parentID === undefined
+                  ? { location: ctx.payload.location ?? { directory: AbsolutePath.make(process.cwd()) } }
+                  : { parentID: ctx.payload.parentID }),
+              })
+              .pipe(
+                Effect.catchTag("Session.NotFoundError", missingSession),
+                Effect.catchTag("Session.ControllerConflictError", invalidController),
+                locationErrors,
+                Effect.catchTag("Session.CompositionConflictError", invalidComposition),
+                Effect.catchTag("SessionComposition.SnapshotNotFoundError", invalidComposition),
+                Effect.catchTag("SessionComposition.SnapshotDecodeError", invalidComposition),
+                Effect.catchTag("SessionComposition.DependencyMissingError", invalidComposition),
+                Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", invalidComposition),
+                Effect.catchTag(
+                  "AgentNotAllowedError",
+                  (error) =>
+                    new InvalidRequestError({ message: error.message, field: "agent", kind: "agent_mode_unavailable" }),
+                ),
+                Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
+              ),
+          }
+        }),
+      )
+      .handle(
+        "session.getConsultation",
+        Effect.fn(function* (ctx) {
+          return {
+            data: yield* session.getConsultation(ctx.params.sessionID).pipe(
+              Effect.catchTag("Session.NotFoundError", missingSession),
+              Effect.catchTag(
+                "Session.ConsultationConflictError",
+                (error) => new ConflictError({ resource: error.sessionID, message: error.message }),
+              ),
+            ),
+          }
+        }),
+      )
+      .handle(
+        "session.createConsultation",
+        Effect.fn(function* (ctx) {
+          return {
+            data: yield* session
+              .createConsultation({ sourceSessionID: ctx.params.sourceSessionID, ...ctx.payload })
+              .pipe(
+                Effect.catchTag("Session.NotFoundError", missingSession),
+                Effect.catchTag("Session.MessageNotFoundError", missingMessage),
+                Effect.catchTag("Session.MessageDecodeError", failedMessageDecode),
+                Effect.catchTag(
+                  "Session.ConsultationConflictError",
+                  (error) => new ConflictError({ resource: error.sessionID, message: error.message }),
+                ),
+                Effect.catchTag(
+                  "Session.InvalidConsultationError",
+                  (error) => new InvalidRequestError({ field: error.field, message: error.message }),
+                ),
+                Effect.catchTag(
+                  "Session.BusyError",
+                  (error) =>
+                    new ConflictError({ resource: error.sessionID, message: `Session is busy: ${error.sessionID}` }),
+                ),
+                Effect.catchTag("Session.ControllerConflictError", invalidController),
+                Effect.catchTag(
+                  "Session.AttachmentError",
+                  (error) => new InvalidRequestError({ message: error.message, field: "files" }),
+                ),
+                Effect.catchTag(
+                  "Session.SkillNotFoundError",
+                  (error) => new InvalidRequestError({ message: `Skill not found: ${error.skill}`, field: "skills" }),
+                ),
+                Effect.catchTag("Session.CompositionConflictError", invalidComposition),
+                Effect.catchTag("SessionComposition.SnapshotNotFoundError", invalidComposition),
+                Effect.catchTag("SessionComposition.SnapshotDecodeError", invalidComposition),
+                Effect.catchTag("SessionComposition.DependencyMissingError", invalidComposition),
+                Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", invalidComposition),
+                Effect.catchTag(
+                  "Composition.ResolveError",
+                  (error) => new InvalidRequestError({ message: error.message, field: "skills", kind: error.code }),
+                ),
+                Effect.catchTag(
+                  "AgentNotAllowedError",
+                  (error) =>
+                    new InvalidRequestError({ message: error.message, field: "agent", kind: "agent_mode_unavailable" }),
+                ),
+                Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
+                locationErrors,
+              ),
+          }
+        }),
+      )
+      .handle(
+        "session.import",
+        Effect.fn(function* (ctx) {
+          if (ctx.payload.info.controller !== undefined)
+            return yield* new InvalidRequestError({
+              field: "info.controller",
+              kind: "meta_import_unsupported",
+              message: "Meta session import is unsupported",
+            })
+          return {
+            data: yield* transfer
+              .import({
+                data: { info: ctx.payload.info, messages: ctx.payload.messages },
                 location: ctx.payload.location ?? { directory: AbsolutePath.make(process.cwd()) },
               })
               .pipe(
-                Effect.catchTag("Session.PromptConflictError", (err) =>
-                  Effect.fail(
+                Effect.catchTag("Session.NotFoundError", missingSession),
+                Effect.catchTag(
+                  "SessionTransfer.ImportConflictError",
+                  (error) =>
                     new ConflictError({
-                      message: `Conflicting session or composition snapshot for session ${err.sessionID}`,
+                      message: `Session already exists: ${error.sessionID}`,
+                      resource: error.sessionID,
                     }),
-                  ),
-                ),
-                Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", (err) =>
-                  Effect.fail(
-                    new InvalidRequestError({
-                      message: `Agent ${err.agentID} is not allowed in session ${err.sessionID} (allowed: ${err.allowedAgentID ?? "none"})`,
-                    }),
-                  ),
-                ),
-                Effect.catchTag("AgentNotAllowedError", (err) =>
-                  Effect.fail(
-                    new InvalidRequestError({
-                      message: err.message,
-                    }),
-                  ),
-                ),
-                Effect.catchTag("SessionComposition.SnapshotNotFoundError", (err) =>
-                  Effect.fail(
-                    new InvalidRequestError({
-                      message: `Missing composition snapshot for custom parent session ${err.sessionID}`,
-                    }),
-                  ),
-                ),
-                Effect.catchTag("SessionComposition.SnapshotDecodeError", (err) =>
-                  Effect.fail(
-                    new InvalidRequestError({
-                      message: `Failed to decode composition snapshot for session ${err.sessionID}: ${err.details}`,
-                    }),
-                  ),
                 ),
               ),
           }
         }),
       )
       .handle(
-        "session.custom",
+        "session.export",
         Effect.fn(function* (ctx) {
-          if (!ProductModePolicy.isCustomModeEnabled()) {
-            // S7: runtime disabled is a typed disabled error (stable message),
-            // matching the admission/control surfaces. Not a generic 400.
-            return yield* new UnsupportedProductModeError({
-              mode: "custom",
-              message: ProductModePolicy.CUSTOM_MODE_DISABLED_MESSAGE,
-            })
-          }
-          // Symmetric with the instance custom-composition/start gate —
-          // creating custom sessions requires the custom capability header.
-          const req = yield* HttpServerRequest.HttpServerRequest
-          if (!ProductModePolicy.isCustomCapable(req.headers[ProductModePolicy.CAPABILITIES_HEADER])) {
-            // S7: capability missing is a typed unsupported-mode error, mirroring
-            // the per-session capability gate in requireSessionAndCapability.
-            return yield* new UnsupportedProductModeError({
-              mode: "custom",
-              message: `Custom mode requires capability header '${ProductModePolicy.CAPABILITIES_HEADER}: ${ProductModePolicy.CAPABILITY_CUSTOM_V1}'`,
-            })
-          }
-          const result = yield* session
-            .createCustom({
-              id: ctx.payload.id,
-              composition: ctx.payload.composition,
-              expectedPlanDigest: ctx.payload.expectedPlanDigest,
-              location: ctx.payload.location ?? { directory: AbsolutePath.make(process.cwd()) },
-              title: ctx.payload.title,
-            })
-            .pipe(
-              Effect.catchTag("Composition.ResolveError", (err) =>
-                Effect.fail(
-                  new CompositionResolveError({
-                    code: err.code,
-                    message: err.message,
-                    diagnostics: err.diagnostics,
-                  }),
-                ),
-              ),
-              Effect.catchTag("Session.PromptConflictError", (err) =>
-                Effect.fail(
-                  new ConflictError({
-                    message: `Prompt conflict in session ${err.sessionID}`,
-                  }),
-                ),
-              ),
-              Effect.catchTag("SessionComposition.SnapshotAlreadyExistsError", (err) =>
-                Effect.fail(
-                  new ConflictError({
-                    message: `Snapshot already exists for session ${err.sessionID}`,
-                  }),
-                ),
-              ),
-              Effect.catchTag("SessionComposition.SnapshotDecodeError", (err) =>
-                Effect.fail(
-                  new InvalidRequestError({
-                    message: `Failed to decode snapshot for session ${err.sessionID}: ${err.details}`,
-                  }),
-                ),
-              ),
-            )
           return {
-            data: result.session,
-            snapshot: result.snapshot,
+            data: yield* transfer
+              .export({ sessionID: ctx.params.sessionID, sanitize: ctx.query.sanitize })
+              .pipe(
+                Effect.catchTag("Session.NotFoundError", missingSession),
+                Effect.catchTag("Session.MessageDecodeError", failedMessageDecode),
+              ),
+          }
+        }),
+      )
+      .handle(
+        "session.active",
+        Effect.fn(function* () {
+          const active = yield* session.active
+          return {
+            data: Object.fromEntries(Array.from(active, (sessionID) => [sessionID, { type: "running" as const }])),
           }
         }),
       )
       .handle(
         "session.get",
         Effect.fn(function* (ctx) {
-          const req = yield* HttpServerRequest.HttpServerRequest
-          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          const info = yield* requireSessionAndCapability(ctx.params.sessionID, capabilitiesHeader)
           return {
-            data: info,
-          }
-        }),
-      )
-      .handle(
-        "session.workReview.get",
-        Effect.fn("SessionHttpApi.workReview.get")(function* (ctx) {
-          const request = yield* HttpServerRequest.HttpServerRequest
-          yield* requireReviewSession(ctx.params.sessionID, request.headers[ProductModePolicy.CAPABILITIES_HEADER])
-          // SessionLocationMiddleware supplies this Session's owner, not a reviewer role.
-          const reviews = yield* WorkReviewService.Service
-          return {
-            data: yield* reviews
+            data: yield* session
               .get(ctx.params.sessionID)
-              .pipe(Effect.mapError((error) => workReviewError(error, ctx.params.sessionID))),
+              .pipe(Effect.catchTag("Session.NotFoundError", missingSession)),
           }
         }),
       )
       .handle(
-        "session.workReview.transition",
-        Effect.fn("SessionHttpApi.workReview.transition")(function* (ctx) {
-          const request = yield* HttpServerRequest.HttpServerRequest
-          yield* requireReviewSession(ctx.params.sessionID, request.headers[ProductModePolicy.CAPABILITIES_HEADER])
-          const reviews = yield* WorkReviewService.Service
+        "session.view",
+        Effect.fn(function* (ctx) {
+          yield* session
+            .view({ sessionID: ctx.params.sessionID, idle: DateTime.toEpochMillis(ctx.payload.idle) })
+            .pipe(Effect.catchTag("Session.NotFoundError", missingSession))
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.remove",
+        Effect.fn(function* (ctx) {
+          yield* session.remove(ctx.params.sessionID).pipe(Effect.catchTag("Session.NotFoundError", missingSession))
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.environment",
+        Effect.fn(function* (ctx) {
+          yield* session
+            .environment({ sessionID: ctx.params.sessionID, variables: ctx.payload.variables })
+            .pipe(Effect.catchTag("Session.NotFoundError", missingSession))
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.fork",
+        Effect.fn(function* (ctx) {
           return {
-            data: yield* reviews
-              .transition(ctx.params.sessionID, ctx.payload)
-              .pipe(Effect.mapError((error) => workReviewError(error, ctx.params.sessionID))),
+            data: yield* session.fork({ sessionID: ctx.params.sessionID, ...ctx.payload }).pipe(
+              Effect.catchTag("Session.NotFoundError", missingSession),
+              Effect.catchTag("Session.ControllerConflictError", invalidController),
+              locationErrors,
+              Effect.catchTag("Session.MessageNotFoundError", missingMessage),
+              Effect.catchTag("Session.CompositionConflictError", invalidComposition),
+              Effect.catchTag("SessionComposition.SnapshotNotFoundError", invalidComposition),
+              Effect.catchTag("SessionComposition.SnapshotDecodeError", invalidComposition),
+              Effect.catchTag("SessionComposition.DependencyMissingError", invalidComposition),
+              Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", invalidComposition),
+              Effect.catchTag(
+                "AgentNotAllowedError",
+                (error) =>
+                  new InvalidRequestError({ message: error.message, field: "agent", kind: "agent_mode_unavailable" }),
+              ),
+              Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
+              Effect.catchTag(
+                "Session.ForkConflictError",
+                (error) => new InvalidRequestError({ message: error.message, kind: "fork_conflict" }),
+              ),
+              Effect.catchTag(
+                "Session.ForkEmptyError",
+                (error) => new InvalidRequestError({ message: error.message, kind: "empty_session" }),
+              ),
+            ),
           }
         }),
       )
       .handle(
         "session.switchAgent",
         Effect.fn(function* (ctx) {
-          const req = yield* HttpServerRequest.HttpServerRequest
-          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
-          yield* session.switchAgent({ sessionID: ctx.params.sessionID, agent: ctx.payload.agent }).pipe(
-            Effect.catchTag("Session.NotFoundError", (error) =>
-              Effect.fail(
-                new SessionNotFoundError({
-                  sessionID: error.sessionID,
-                  message: `Session not found: ${error.sessionID}`,
-                }),
+          yield* session
+            .switchAgent({
+              sessionID: ctx.params.sessionID,
+              agent: ctx.payload.agent,
+              model: ctx.payload.model,
+            })
+            .pipe(
+              locationErrors,
+              Effect.catchTag("Session.NotFoundError", missingSession),
+              Effect.catchTag("Session.ControllerConflictError", invalidController),
+              Effect.catchTag("SessionComposition.SnapshotNotFoundError", invalidComposition),
+              Effect.catchTag("SessionComposition.SnapshotDecodeError", invalidComposition),
+              Effect.catchTag("SessionComposition.DependencyMissingError", invalidComposition),
+              Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", invalidComposition),
+              Effect.catchTag(
+                "AgentNotAllowedError",
+                (error) =>
+                  new InvalidRequestError({ message: error.message, field: "agent", kind: "agent_mode_unavailable" }),
               ),
-            ),
-            Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", (error) =>
-              Effect.fail(
-                new InvalidRequestError({
-                  message: `Agent ${error.agentID} is not allowed in session ${error.sessionID} (allowed: ${error.allowedAgentID ?? "none"})`,
-                }),
-              ),
-            ),
-            Effect.catchTag("AgentNotAllowedError", (error) =>
-              Effect.fail(
-                new InvalidRequestError({
-                  message: error.message,
-                }),
-              ),
-            ),
-            Effect.catchTag("SessionComposition.SnapshotNotFoundError", (error) =>
-              Effect.fail(
-                new InvalidRequestError({
-                  message: `Conflicting composition snapshot for session ${error.sessionID}`,
-                }),
-              ),
-            ),
-            Effect.catchTag("SessionComposition.SnapshotDecodeError", () =>
-              Effect.fail(
-                new InvalidRequestError({
-                  message: `Conflicting composition snapshot for session ${ctx.params.sessionID}`,
-                }),
-              ),
-            ),
-          )
+              Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
+            )
           return HttpApiSchema.NoContent.make()
         }),
       )
       .handle(
         "session.switchModel",
         Effect.fn(function* (ctx) {
-          const req = yield* HttpServerRequest.HttpServerRequest
-          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
           yield* session.switchModel({ sessionID: ctx.params.sessionID, model: ctx.payload.model }).pipe(
-            Effect.catchTag("Session.NotFoundError", (error) =>
-              Effect.fail(
-                new SessionNotFoundError({
-                  sessionID: error.sessionID,
-                  message: `Session not found: ${error.sessionID}`,
-                }),
-              ),
-            ),
+            locationErrors,
+            Effect.catchTag("Session.NotFoundError", missingSession),
+            Effect.catchTag("Session.ControllerConflictError", invalidController),
+            Effect.catchTag("SessionComposition.SnapshotNotFoundError", invalidComposition),
+            Effect.catchTag("SessionComposition.SnapshotDecodeError", invalidComposition),
+            Effect.catchTag("SessionComposition.DependencyMissingError", invalidComposition),
+            Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", invalidComposition),
+            Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
           )
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.selectExecutor",
+        Effect.fn(function* (ctx) {
+          return {
+            data: yield* session
+              .selectExecutor({ sessionID: ctx.params.sessionID, executorPreference: ctx.payload })
+              .pipe(
+                Effect.catchTag("Session.NotFoundError", missingSession),
+                Effect.catchTag("Session.ControllerConflictError", invalidController),
+                locationErrors,
+              ),
+          }
+        }),
+      )
+      .handle(
+        "session.update",
+        Effect.fn(function* (ctx) {
+          yield* session.get(ctx.params.sessionID).pipe(Effect.catchTag("Session.NotFoundError", missingSession))
+          if (ctx.payload.title !== undefined) {
+            if (ctx.payload.title) {
+              yield* session
+                .rename({ sessionID: ctx.params.sessionID, title: ctx.payload.title })
+                .pipe(Effect.catchTag("Session.NotFoundError", missingSession))
+            } else {
+              const title = yield* SessionTitle.Service
+              yield* title.generate(ctx.params.sessionID)
+            }
+          }
+          if (ctx.payload.metadata !== undefined)
+            yield* session
+              .setMetadata({ sessionID: ctx.params.sessionID, metadata: ctx.payload.metadata })
+              .pipe(Effect.catchTag("Session.NotFoundError", missingSession))
+          if (ctx.payload.permissions !== undefined)
+            yield* session
+              .setPermissions({ sessionID: ctx.params.sessionID, permissions: ctx.payload.permissions })
+              .pipe(Effect.catchTag("Session.NotFoundError", missingSession))
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.move",
+        Effect.fn(function* (ctx) {
+          yield* session
+            .move({
+              sessionID: ctx.params.sessionID,
+              directory: ctx.payload.directory,
+              delivery: ctx.payload.delivery,
+            })
+            .pipe(
+              Effect.catchTag("Session.NotFoundError", missingSession),
+              Effect.catchTag("Session.DestinationNotFoundError", (error) =>
+                Effect.fail(new InvalidRequestError({ message: `Directory does not exist: ${error.directory}` })),
+              ),
+              Effect.catchTag("Session.DestinationNotDirectoryError", (error) =>
+                Effect.fail(new InvalidRequestError({ message: `Not a directory: ${error.directory}` })),
+              ),
+              Effect.catchTag("Session.DestinationUnavailableError", (error) =>
+                Effect.fail(new InvalidRequestError({ message: `Directory is unavailable: ${error.directory}` })),
+              ),
+              Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
+            )
           return HttpApiSchema.NoContent.make()
         }),
       )
       .handle(
         "session.prompt",
         Effect.fn(function* (ctx) {
-          const req = yield* HttpServerRequest.HttpServerRequest
-          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
           return {
             data: yield* session
-              .admitWithSelection({
+              .prompt({
                 sessionID: ctx.params.sessionID,
                 id: ctx.payload.id,
-                prompt: ctx.payload.prompt,
+                text: ctx.payload.text,
+                files: ctx.payload.files,
+                agents: ctx.payload.agents,
+                skills: ctx.payload.skills,
+                metadata: ctx.payload.metadata,
                 delivery: ctx.payload.delivery,
                 resume: ctx.payload.resume,
-                agent: ctx.payload.agent,
-                model: ctx.payload.model,
               })
               .pipe(
-                Effect.catchTag("Session.NotFoundError", (error) =>
-                  Effect.fail(
-                    new SessionNotFoundError({
-                      sessionID: error.sessionID,
-                      message: `Session not found: ${error.sessionID}`,
-                    }),
-                  ),
-                ),
+                Effect.catchTag("Session.NotFoundError", missingSession),
+                Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
                 Effect.catchTag("Session.PromptConflictError", (error) =>
                   Effect.fail(
                     new ConflictError({
@@ -418,209 +487,21 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                     }),
                   ),
                 ),
-                Effect.catchTag("SessionComposition.SnapshotNotFoundError", (error) =>
-                  Effect.fail(
-                    new SessionNotFoundError({
-                      sessionID: error.sessionID,
-                      message: `Snapshot not found for custom session: ${error.sessionID}`,
-                    }),
-                  ),
+                Effect.catchTag("Session.AttachmentError", (error) =>
+                  Effect.fail(new InvalidRequestError({ message: error.message, field: "files" })),
                 ),
-                Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
-                  Effect.fail(
-                    new InvalidRequestError({
-                      message: `Invalid custom session snapshot: ${error.sessionID}`,
-                    }),
-                  ),
+                Effect.catchTag("Session.SkillNotFoundError", (error) =>
+                  Effect.fail(new InvalidRequestError({ message: `Skill not found: ${error.skill}`, field: "skills" })),
                 ),
-                // Selection rejected by the mode x agent policy, or by the frozen
-                // custom pool. The caller asked for it, so say what was wrong
-                // rather than collapsing it into a generic failure.
-                Effect.catchTag("AgentNotAllowedError", (error) =>
-                  Effect.fail(new InvalidRequestError({ message: error.message })),
+                Effect.catchTag("SessionComposition.SnapshotNotFoundError", invalidComposition),
+                Effect.catchTag("SessionComposition.SnapshotDecodeError", invalidComposition),
+                Effect.catchTag("SessionComposition.DependencyMissingError", invalidComposition),
+                Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", invalidComposition),
+                Effect.catchTag(
+                  "Composition.ResolveError",
+                  (error) => new InvalidRequestError({ message: error.message, field: "skills", kind: error.code }),
                 ),
-                Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", (error) =>
-                  Effect.fail(
-                    new InvalidRequestError({
-                      message: `Agent '${error.agentID}' is not part of the frozen composition pool`,
-                    }),
-                  ),
-                ),
-              ),
-          }
-        }),
-      )
-      .handle(
-        "session.compact",
-        Effect.fn(function* (ctx) {
-          const req = yield* HttpServerRequest.HttpServerRequest
-          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
-          yield* session.compact({ sessionID: ctx.params.sessionID }).pipe(
-            Effect.catchTag("Session.NotFoundError", (error) =>
-              Effect.fail(
-                new SessionNotFoundError({
-                  sessionID: error.sessionID,
-                  message: `Session not found: ${error.sessionID}`,
-                }),
-              ),
-            ),
-            Effect.catchTag("Session.OperationUnavailableError", (error) =>
-              Effect.fail(
-                new ServiceUnavailableError({
-                  message: `Session ${error.operation} is not available yet`,
-                  service: `session.${error.operation}`,
-                }),
-              ),
-            ),
-          )
-          return HttpApiSchema.NoContent.make()
-        }),
-      )
-      .handle(
-        "session.wait",
-        Effect.fn(function* (ctx) {
-          const req = yield* HttpServerRequest.HttpServerRequest
-          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
-          yield* session.wait(ctx.params.sessionID).pipe(
-            Effect.catchTag("Session.NotFoundError", (error) =>
-              Effect.fail(
-                new SessionNotFoundError({
-                  sessionID: error.sessionID,
-                  message: `Session not found: ${error.sessionID}`,
-                }),
-              ),
-            ),
-            Effect.catchTag("Session.OperationUnavailableError", (error) =>
-              Effect.fail(
-                new ServiceUnavailableError({
-                  message: `Session ${error.operation} is not available yet`,
-                  service: `session.${error.operation}`,
-                }),
-              ),
-            ),
-          )
-          return HttpApiSchema.NoContent.make()
-        }),
-      )
-      .handle(
-        "session.context",
-        Effect.fn(function* (ctx) {
-          const req = yield* HttpServerRequest.HttpServerRequest
-          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireReadableSession(ctx.params.sessionID, capabilitiesHeader)
-          return {
-            data: yield* session.context(ctx.params.sessionID).pipe(
-              Effect.catchTag("Session.NotFoundError", (error) =>
-                Effect.fail(
-                  new SessionNotFoundError({
-                    sessionID: error.sessionID,
-                    message: `Session not found: ${error.sessionID}`,
-                  }),
-                ),
-              ),
-              Effect.catchTag("Session.MessageDecodeError", (error) => {
-                const ref = `err_${crypto.randomUUID().slice(0, 8)}`
-                return Effect.logError("failed to decode session message").pipe(
-                  Effect.annotateLogs({ ref, sessionID: error.sessionID, messageID: error.messageID }),
-                  Effect.andThen(
-                    Effect.fail(
-                      new UnknownError({
-                        message: "Unexpected server error. Check server logs for details.",
-                        ref,
-                      }),
-                    ),
-                  ),
-                )
-              }),
-            ),
-          }
-        }),
-      )
-      .handle(
-        "session.children",
-        Effect.fn(function* (ctx) {
-          const req = yield* HttpServerRequest.HttpServerRequest
-          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireReadableSession(ctx.params.sessionID, capabilitiesHeader)
-          return {
-            data: yield* session.children(ctx.params.sessionID).pipe(
-              Effect.catchTag("Session.NotFoundError", (error) =>
-                Effect.fail(
-                  new SessionNotFoundError({
-                    sessionID: error.sessionID,
-                    message: `Session not found: ${error.sessionID}`,
-                  }),
-                ),
-              ),
-            ),
-          }
-        }),
-      )
-      .handle(
-        "session.interrupt",
-        Effect.fn(function* (ctx) {
-          const req = yield* HttpServerRequest.HttpServerRequest
-          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
-          yield* session.interrupt(ctx.params.sessionID)
-          return HttpApiSchema.NoContent.make()
-        }),
-      )
-      .handle(
-        "session.shell",
-        Effect.fn(function* (ctx) {
-          const req = yield* HttpServerRequest.HttpServerRequest
-          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
-          return {
-            data: yield* session
-              .shell({
-                sessionID: ctx.params.sessionID,
-                id: ctx.payload.id,
-                command: ctx.payload.command,
-                resume: ctx.payload.resume,
-              })
-              .pipe(
-                Effect.catchTag("Session.NotFoundError", (error) =>
-                  Effect.fail(
-                    new SessionNotFoundError({
-                      sessionID: error.sessionID,
-                      message: `Session not found: ${error.sessionID}`,
-                    }),
-                  ),
-                ),
-                Effect.catchTag("Session.PromptConflictError", (error) =>
-                  Effect.fail(
-                    new ConflictError({
-                      message: `Shell message ID conflicts with an existing durable record: ${error.messageID}`,
-                      resource: error.messageID,
-                    }),
-                  ),
-                ),
-                Effect.catchTag("CommandDeniedError", (error) =>
-                  Effect.fail(
-                    new InvalidRequestError({
-                      message: error.message,
-                    }),
-                  ),
-                ),
-                Effect.catchTag("SessionComposition.SnapshotNotFoundError", (error) =>
-                  Effect.fail(
-                    new SessionNotFoundError({
-                      sessionID: error.sessionID,
-                      message: `Snapshot not found for custom session: ${error.sessionID}`,
-                    }),
-                  ),
-                ),
-                Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
-                  Effect.fail(
-                    new InvalidRequestError({
-                      message: `Invalid custom session snapshot: ${error.sessionID}`,
-                    }),
-                  ),
-                ),
+                locationErrors,
               ),
           }
         }),
@@ -628,101 +509,121 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
       .handle(
         "session.command",
         Effect.fn(function* (ctx) {
-          const req = yield* HttpServerRequest.HttpServerRequest
-          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
-          return {
-            data: yield* session
-              .command({
-                sessionID: ctx.params.sessionID,
-                id: ctx.payload.id,
-                command: ctx.payload.command,
-                arguments: ctx.payload.arguments,
-                context: ctx.payload.context,
-                resume: ctx.payload.resume,
-              })
-              .pipe(
-                Effect.catchTag("Session.NotFoundError", (error) =>
-                  Effect.fail(
-                    new SessionNotFoundError({
-                      sessionID: error.sessionID,
-                      message: `Session not found: ${error.sessionID}`,
-                    }),
-                  ),
-                ),
-                Effect.catchTag("Session.PromptConflictError", (error) =>
-                  Effect.fail(
-                    new ConflictError({
-                      message: `Command message ID conflicts with an existing durable record: ${error.messageID}`,
-                      resource: error.messageID,
-                    }),
-                  ),
-                ),
-                Effect.catchTag("Session.CommandUnavailableError", (error) =>
-                  Effect.fail(new InvalidRequestError({ message: error.message })),
-                ),
-                Effect.catchTag("SessionComposition.SnapshotNotFoundError", (error) =>
-                  Effect.fail(
-                    new SessionNotFoundError({
-                      sessionID: error.sessionID,
-                      message: `Snapshot not found for custom session: ${error.sessionID}`,
-                    }),
-                  ),
-                ),
-                Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
-                  Effect.fail(
-                    new InvalidRequestError({
-                      message: `Invalid custom session snapshot: ${error.sessionID}`,
-                    }),
-                  ),
+          yield* session
+            .command({
+              sessionID: ctx.params.sessionID,
+              command: ctx.payload.name,
+              text: ctx.payload.text,
+              files: ctx.payload.files,
+              agents: ctx.payload.agents,
+              skills: ctx.payload.skills,
+              delivery: ctx.payload.delivery,
+            })
+            .pipe(
+              Effect.catchTag("Session.NotFoundError", missingSession),
+              Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
+              Effect.catchTag("Command.NotFoundError", (error) =>
+                Effect.fail(
+                  new CommandNotFoundError({
+                    command: error.command,
+                    message: error.message,
+                  }),
                 ),
               ),
-          }
+              Effect.catchTag("Command.ExecutionError", (error) =>
+                Effect.fail(
+                  new CommandExecutionError({
+                    command: error.command,
+                    message: error.message,
+                  }),
+                ),
+              ),
+              locationErrors,
+            )
+          return HttpApiSchema.NoContent.make()
         }),
       )
       .handle(
         "session.skill",
         Effect.fn(function* (ctx) {
-          const req = yield* HttpServerRequest.HttpServerRequest
-          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
+          yield* session
+            .skill({
+              sessionID: ctx.params.sessionID,
+              skill: ctx.payload.id,
+              resume: ctx.payload.resume,
+            })
+            .pipe(
+              Effect.catchTag("Session.NotFoundError", missingSession),
+              Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
+              Effect.catchTag("Session.SkillNotFoundError", (error) =>
+                Effect.fail(new SkillNotFoundError({ skill: error.skill, message: `Skill not found: ${error.skill}` })),
+              ),
+              Effect.catchTag("SessionComposition.SnapshotNotFoundError", invalidComposition),
+              Effect.catchTag("SessionComposition.SnapshotDecodeError", invalidComposition),
+              Effect.catchTag("SessionComposition.DependencyMissingError", invalidComposition),
+              Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", invalidComposition),
+              Effect.catchTag(
+                "Composition.ResolveError",
+                (error) => new InvalidRequestError({ message: error.message, field: "skills", kind: error.code }),
+              ),
+              locationErrors,
+            )
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.synthetic",
+        Effect.fn(function* (ctx) {
+          const data = yield* session
+            .synthetic({
+              id: ctx.payload.id,
+              sessionID: ctx.params.sessionID,
+              text: ctx.payload.text,
+              description: ctx.payload.description,
+              metadata: ctx.payload.metadata,
+              delivery: ctx.payload.delivery,
+              resume: ctx.payload.resume,
+            })
+            .pipe(
+              Effect.catchTag("Session.NotFoundError", missingSession),
+              Effect.catchTag("Session.SyntheticConflictError", (error) =>
+                Effect.fail(
+                  new ConflictError({
+                    message: `Synthetic input ID conflicts with an existing durable record: ${error.inputID}`,
+                    resource: error.inputID,
+                  }),
+                ),
+              ),
+            )
+          return { data }
+        }),
+      )
+      .handle(
+        "session.shell",
+        Effect.fn(function* (ctx) {
+          yield* session
+            .shell({ sessionID: ctx.params.sessionID, id: ctx.payload.id, command: ctx.payload.command })
+            .pipe(
+              Effect.catchTag("Session.NotFoundError", missingSession),
+              Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
+            )
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.compact",
+        Effect.fn(function* (ctx) {
           return {
             data: yield* session
-              .skill({
-                sessionID: ctx.params.sessionID,
-                id: ctx.payload.id,
-                skill: ctx.payload.skill,
-                resume: ctx.payload.resume,
-              })
+              .compact({ sessionID: ctx.params.sessionID, id: ctx.payload.id, delivery: ctx.payload.delivery })
               .pipe(
-                Effect.catchTag("Session.NotFoundError", (error) =>
-                  Effect.fail(
-                    new SessionNotFoundError({
-                      sessionID: error.sessionID,
-                      message: `Session not found: ${error.sessionID}`,
-                    }),
-                  ),
-                ),
-                Effect.catchTag("Session.PromptConflictError", (error) =>
+                Effect.catchTag("Session.NotFoundError", missingSession),
+                Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
+                Effect.catchTag("Session.CompactionConflictError", (error) =>
                   Effect.fail(
                     new ConflictError({
-                      message: `Skill message ID conflicts with an existing durable record: ${error.messageID}`,
-                      resource: error.messageID,
-                    }),
-                  ),
-                ),
-                Effect.catchTag("SessionComposition.SnapshotNotFoundError", (error) =>
-                  Effect.fail(
-                    new SessionNotFoundError({
-                      sessionID: error.sessionID,
-                      message: `Snapshot not found for custom session: ${error.sessionID}`,
-                    }),
-                  ),
-                ),
-                Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
-                  Effect.fail(
-                    new InvalidRequestError({
-                      message: `Invalid custom session snapshot: ${error.sessionID}`,
+                      message: `Compaction input ID conflicts with an existing durable record: ${error.inputID}`,
+                      resource: error.inputID,
                     }),
                   ),
                 ),
@@ -731,165 +632,264 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
         }),
       )
       .handle(
-        "session.share",
+        "session.wait",
         Effect.fn(function* (ctx) {
-          const req = yield* HttpServerRequest.HttpServerRequest
-          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          yield* requireRuntimeSession(ctx.params.sessionID, capabilitiesHeader)
-          yield* share
-            .share({
-              sourceSessionID: ctx.params.sessionID,
-              targetSessionID: ctx.payload.targetSessionID,
-              scope: ctx.payload.scope,
-              trigger: ctx.payload.trigger,
-            })
-            .pipe(
-              Effect.catchTag("Session.NotFoundError", (error) =>
-                Effect.fail(
-                  new SessionNotFoundError({
-                    sessionID: error.sessionID,
-                    message: `Session not found: ${error.sessionID}`,
-                  }),
-                ),
+          yield* session.wait(ctx.params.sessionID).pipe(Effect.catchTag("Session.NotFoundError", missingSession))
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.revert.stage",
+        Effect.fn(function* (ctx) {
+          yield* Effect.log("session.revert.stage", {
+            sessionID: ctx.params.sessionID,
+            messageID: ctx.payload.messageID,
+            files: ctx.payload.files,
+          })
+          return {
+            data: yield* session.revert
+              .stage({ ...ctx.params, ...ctx.payload })
+              .pipe(
+                Effect.catchTag("Session.NotFoundError", missingSession),
+                Effect.catchTag("Session.MessageNotFoundError", missingMessage),
+                Effect.catchTag("Session.BusyError", busySession),
+                Effect.catchTag("Snapshot.Error", failedSnapshot("stage session revert", ctx.params.sessionID)),
+                locationErrors,
               ),
+          }
+        }),
+      )
+      .handle(
+        "session.revert.clear",
+        Effect.fn(function* (ctx) {
+          yield* Effect.log("session.revert.clear", { sessionID: ctx.params.sessionID })
+          yield* session.revert
+            .clear(ctx.params.sessionID)
+            .pipe(
+              Effect.catchTag("Session.NotFoundError", missingSession),
+              Effect.catchTag("Session.BusyError", busySession),
+              Effect.catchTag("Snapshot.Error", failedSnapshot("clear session revert", ctx.params.sessionID)),
+              locationErrors,
             )
           return HttpApiSchema.NoContent.make()
         }),
       )
-      .handle("session.fork", function (ctx) {
-        return Effect.gen(function* () {
-          const req = yield* HttpServerRequest.HttpServerRequest
-          const capabilitiesHeader = req.headers[ProductModePolicy.CAPABILITIES_HEADER]
-          const parent = yield* requireSessionAndCapability(ctx.params.sessionID, capabilitiesHeader)
-          // The creation gate exists to block generic ROOT creation of
-          // custom sessions; fork is not root creation. A custom parent routes to
-          // V2 create({parentID}), which copies the frozen snapshot (orphan custom
-          // parents fail typed below: SnapshotNotFound -> InvalidRequestError).
-          if (parent.mode !== "custom") {
-            yield* ProductModePolicy.assertCreationSupported(parent.mode)
+      .handle(
+        "session.revert.commit",
+        Effect.fn(function* (ctx) {
+          yield* Effect.log("session.revert.commit", { sessionID: ctx.params.sessionID })
+          yield* session.revert
+            .commit(ctx.params.sessionID)
+            .pipe(
+              Effect.catchTag("Session.NotFoundError", missingSession),
+              Effect.catchTag("Session.BusyError", busySession),
+            )
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.context",
+        Effect.fn(function* (ctx) {
+          return {
+            data: yield* session
+              .context(ctx.params.sessionID)
+              .pipe(
+                Effect.catchTag("Session.NotFoundError", missingSession),
+                Effect.catchTag("Session.MessageDecodeError", failedMessageDecode),
+              ),
           }
-          const child = yield* session
+        }),
+      )
+      .handle(
+        "session.diff",
+        Effect.fn(function* (ctx) {
+          return {
+            data: yield* session.diff({ sessionID: ctx.params.sessionID, ...ctx.query }).pipe(
+              Effect.catchTag("Session.NotFoundError", missingSession),
+              Effect.catchTag("Session.MessageNotFoundError", missingMessage),
+              Effect.catchTag(
+                "Session.TurnRangeError",
+                (error) => new InvalidRequestError({ message: error.message, field: error.field }),
+              ),
+              Effect.catchTag("Snapshot.Error", failedSnapshot("diff session turn", ctx.params.sessionID)),
+              locationErrors,
+            ),
+          }
+        }),
+      )
+      .handle(
+        "session.inbox.list",
+        Effect.fn(function* (ctx) {
+          return {
+            data: yield* session
+              .inbox(ctx.params.sessionID)
+              .pipe(Effect.catchTag("Session.NotFoundError", missingSession)),
+          }
+        }),
+      )
+      .handle(
+        "session.inbox.cancel",
+        Effect.fn(function* (ctx) {
+          yield* session.cancelInbox({ sessionID: ctx.params.sessionID, inboxID: ctx.params.inboxID }).pipe(
+            Effect.catchTag("Session.NotFoundError", missingSession),
+            Effect.catchTag("Session.InboxConflictError", () => Effect.void),
+          )
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.inbox.update",
+        Effect.fn(function* (ctx) {
+          return yield* pendingMutation(
+            ctx.payload.delivery === "steer"
+              ? session.steerInbox({ sessionID: ctx.params.sessionID, inboxID: ctx.params.inboxID })
+              : session.queueInbox({ sessionID: ctx.params.sessionID, inboxID: ctx.params.inboxID }),
+            `Pending input cannot change to ${ctx.payload.delivery}`,
+          )
+        }),
+      )
+      .handle(
+        "session.instructions.entry.list",
+        Effect.fn(function* (ctx) {
+          const instructions = yield* InstructionEntry.Service
+          return { data: yield* instructions.list(ctx.params.sessionID) }
+        }),
+      )
+      .handle(
+        "session.instructions.entry.put",
+        Effect.fn(function* (ctx) {
+          const instructions = yield* InstructionEntry.Service
+          yield* instructions.put({ sessionID: ctx.params.sessionID, key: ctx.params.key, value: ctx.payload.value })
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.instructions.entry.remove",
+        Effect.fn(function* (ctx) {
+          const instructions = yield* InstructionEntry.Service
+          yield* instructions.remove({ sessionID: ctx.params.sessionID, key: ctx.params.key })
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.generate",
+        Effect.fn(function* (ctx) {
+          const text = yield* session.generate({ sessionID: ctx.params.sessionID, prompt: ctx.payload.prompt }).pipe(
+            Effect.catchTag("UnsupportedProductModeError", (error) => new UnsupportedProductModeError(error)),
+            Effect.mapError((error) =>
+              error._tag === "UnsupportedProductModeError"
+                ? error
+                : error._tag === "Session.NotFoundError"
+                  ? missingSession(error)
+                  : new ServiceUnavailableError({ message: error.message, service: "session generation" }),
+            ),
+          )
+          return { data: { text } }
+        }),
+      )
+      .handle(
+        "session.log",
+        Effect.fn(function* (ctx) {
+          yield* session.get(ctx.params.sessionID).pipe(Effect.catchTag("Session.NotFoundError", missingSession))
+          return session
+            .log({ sessionID: ctx.params.sessionID, after: ctx.query.after, follow: ctx.query.follow })
+            .pipe(Stream.orDie)
+        }),
+      )
+      .handle(
+        "session.interrupt",
+        Effect.fn(function* (ctx) {
+          return { interrupted: yield* session.interrupt(ctx.params.sessionID, { resume: ctx.query.resume }) }
+        }),
+      )
+      .handle(
+        "session.background",
+        Effect.fn(function* (ctx) {
+          yield* session.background(ctx.params.sessionID).pipe(Effect.catchTag("Session.NotFoundError", missingSession))
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.message",
+        Effect.fn(function* (ctx) {
+          yield* session.get(ctx.params.sessionID).pipe(Effect.catchTag("Session.NotFoundError", missingSession))
+          const message = yield* session.message(ctx.params)
+          if (message) return { data: message }
+          return yield* new MessageNotFoundError({
+            sessionID: ctx.params.sessionID,
+            messageID: ctx.params.messageID,
+            message: `Message not found: ${ctx.params.messageID}`,
+          })
+        }),
+      )
+      .handle(
+        "session.form.list",
+        Effect.fn(function* (ctx) {
+          const form = yield* Form.Service
+          return { data: yield* form.list({ sessionID: ctx.params.sessionID }) }
+        }),
+      )
+      .handle(
+        "session.form.create",
+        Effect.fn(function* (ctx) {
+          const form = yield* Form.Service
+          const created = yield* form
             .create({
-              location: parent.location,
-              parentID: parent.id,
-              mode: parent.mode,
+              id: ctx.payload.id,
+              sessionID: ctx.params.sessionID,
+              title: ctx.payload.title,
+              metadata: ctx.payload.metadata,
+              fields: ctx.payload.fields,
             })
             .pipe(
-              Effect.catchTag("Session.PromptConflictError", (error) =>
-                Effect.fail(
-                  new InvalidRequestError({
-                    message: `Conflicting composition snapshot for session ${error.sessionID}`,
-                  }),
-                ),
-              ),
-              Effect.catchTag("SessionComposition.AgentDelegationForbiddenError", (error) =>
-                Effect.fail(
-                  new InvalidRequestError({
-                    message: `Agent ${error.agentID} is not allowed in session ${error.sessionID} (allowed: ${error.allowedAgentID ?? "none"})`,
-                  }),
-                ),
-              ),
-              Effect.catchTag("AgentNotAllowedError", (error) =>
-                Effect.fail(new InvalidRequestError({ message: error.message })),
-              ),
-              Effect.catchTag("SessionComposition.SnapshotNotFoundError", (error) =>
-                Effect.fail(
-                  new InvalidRequestError({
-                    message: `Missing composition snapshot for custom parent session ${error.sessionID}`,
-                  }),
-                ),
-              ),
-              Effect.catchTag("SessionComposition.SnapshotDecodeError", (error) =>
-                Effect.fail(
-                  new InvalidRequestError({
-                    message: `Failed to decode composition snapshot for session ${error.sessionID}: ${error.details}`,
-                  }),
-                ),
-              ),
+              Effect.catchTags({
+                "Form.AlreadyExistsError": (error) => new ConflictError({ resource: error.id, message: error.message }),
+                "Form.InvalidFormError": (error) =>
+                  new InvalidRequestError({ message: error.message, field: "fields" }),
+              }),
             )
-          yield* share.share({
-            sourceSessionID: ctx.params.sessionID,
-            targetSessionID: child.id,
-            scope: "full",
-            trigger: false,
-          })
-          return { sessionID: child.id }
-        }).pipe(
-          Effect.catchTag("Session.NotFoundError", (error) =>
-            Effect.fail(
-              new SessionNotFoundError({
-                sessionID: error.sessionID,
-                message: `Session not found: ${error.sessionID}`,
-              }),
-            ),
-          ),
-          Effect.catchTag("UnsupportedProductModeError", (error) =>
-            Effect.fail(
-              new UnsupportedProductModeError({
-                mode: error.mode,
-                message: error.message,
-              }),
-            ),
-          ),
-        )
-      })
+          return { data: created }
+        }),
+      )
+      .handle(
+        "session.form.get",
+        Effect.fn(function* (ctx) {
+          const owned = yield* requireOwnedForm(ctx.params.sessionID, ctx.params.formID)
+          const state = yield* owned.form
+            .state(ctx.params.formID)
+            .pipe(Effect.catchTag("Form.NotFoundError", () => missingForm(ctx.params.formID)))
+          return { data: { ...owned.info, state } }
+        }),
+      )
+      .handle(
+        "session.form.reply",
+        Effect.fn(function* (ctx) {
+          const owned = yield* requireOwnedForm(ctx.params.sessionID, ctx.params.formID)
+          yield* owned.form.reply({ id: ctx.params.formID, answer: ctx.payload.answer }).pipe(
+            Effect.catchTags({
+              "Form.AlreadySettledError": (error) =>
+                new FormAlreadySettledError({ id: error.id, message: error.message }),
+              "Form.InvalidAnswerError": (error) =>
+                new FormInvalidAnswerError({ id: error.id, message: error.message }),
+              "Form.NotFoundError": () => missingForm(ctx.params.formID),
+            }),
+          )
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
+      .handle(
+        "session.form.cancel",
+        Effect.fn(function* (ctx) {
+          const owned = yield* requireOwnedForm(ctx.params.sessionID, ctx.params.formID)
+          yield* owned.form.cancel(ctx.params.formID, { message: ctx.query.message }).pipe(
+            Effect.catchTags({
+              "Form.AlreadySettledError": (error) =>
+                new FormAlreadySettledError({ id: error.id, message: error.message }),
+              "Form.NotFoundError": () => missingForm(ctx.params.formID),
+            }),
+          )
+          return HttpApiSchema.NoContent.make()
+        }),
+      )
   }),
-).pipe(Layer.provide(SessionStore.defaultLayer))
-
-function workReviewError(error: WorkReviewService.ReviewError, sessionID: SessionV2.ID) {
-  // Public errors must never include storage paths, file contents, or raw causes.
-  switch (error.code) {
-    case "not_found":
-      return new SessionNotFoundError({ sessionID, message: "Session not found" })
-    case "wrong_scope":
-      return new ForbiddenError({ message: "Work review artifact belongs to a different Session or Location" })
-    case "wrong_mode":
-      return new ForbiddenError({ message: "Work review requires a Work Session" })
-    case "invalid_action":
-      return new InvalidRequestError({ message: "Invalid work review action", kind: error.code })
-    case "illegal_transition":
-      return new InvalidRequestError({
-        message: "Work review action is not allowed in its current state",
-        kind: error.code,
-      })
-    case "corrupt_review":
-      return new InvalidRequestError({ message: "Work review record is corrupt", kind: error.code })
-    case "conflict":
-      return new ConflictError({
-        message: "Work review revision changed; reload before retrying",
-        resource: "work-review",
-      })
-    case "stale_artifact":
-      return new ConflictError({
-        message: "Work artifact binding changed; reload before retrying",
-        resource: "work-artifact",
-      })
-    case "artifact_unavailable":
-      return new ConflictError({ message: "Work artifact is unavailable", resource: "work-artifact" })
-    case "storage":
-      return new WorkReviewUnavailableError({
-        message:
-          error.committedRevision === undefined
-            ? "Work review storage is unavailable"
-            : "Work review was saved but its artifact could not be revalidated; reload before retrying",
-        code: "storage",
-        committedRevision: error.committedRevision,
-      })
-    case "notification":
-      return new WorkReviewUnavailableError({
-        message: "Work review notification failed; reload before retrying",
-        code: "notification",
-        committedRevision: error.committedRevision,
-      })
-  }
-  return absurd<never>(error.code)
-}
-
-function isReviewReadFailure(error: unknown): boolean {
-  if (error instanceof SyntaxError || Schema.isSchemaError(error) || error instanceof SqlError) return true
-  if (!(error instanceof EffectDrizzleQueryError) || !Cause.isCause(error.cause)) return false
-  return (
-    error.cause.reasons.length > 0 &&
-    error.cause.reasons.every((reason) => Cause.isFailReason(reason) && isReviewReadFailure(reason.error))
-  )
-}
+)

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { executeHandoff, handoffAuthorizationKey, handoffRequiresApproval, planHandoff } from "../src/handoff"
+import { executeHandoff, handoffAuthorizationKey, handoffRequiresApproval, planHandoff } from "../src/handoff.js"
 
 const denyEdit = [{ permission: "edit", pattern: "*", action: "deny" as const }]
 const allowEdit = [{ permission: "edit", pattern: "*", action: "allow" as const }]

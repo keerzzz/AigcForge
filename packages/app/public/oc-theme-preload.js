@@ -2,13 +2,6 @@
   var key = "aigcfroge-theme-id"
   var themeId = localStorage.getItem(key) || "oc-2"
 
-  if (themeId === "oc-1") {
-    themeId = "oc-2"
-    localStorage.setItem(key, themeId)
-    localStorage.removeItem("aigcfroge-theme-css-light")
-    localStorage.removeItem("aigcfroge-theme-css-dark")
-  }
-
   var scheme = localStorage.getItem("aigcfroge-color-scheme") || "system"
   var isDark = scheme === "dark" || (scheme === "system" && matchMedia("(prefers-color-scheme: dark)").matches)
   var mode = isDark ? "dark" : "light"

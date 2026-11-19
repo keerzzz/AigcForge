@@ -1,6 +1,6 @@
-export * as CompositionConsumerView from "./composition-consumer-view"
+export * as CompositionConsumerView from "./composition-consumer-view.js"
 
-import { Composition } from "./composition"
+import { Composition } from "./composition.js"
 
 /**
  * Which asset set a Session may see inside a frozen Composition Snapshot.
@@ -34,26 +34,26 @@ export function isScopedGraph(snapshot: Composition.Snapshot): boolean {
 
 export function resolveScope(snapshot: Composition.Snapshot, session: SessionLike): Scope {
   if (!isScopedGraph(snapshot)) return { _tag: "unscoped" }
-  // Root sessions are always the orchestrator; Custom root is pinned to `meta` by policy, and the
-  // orchestrator consumer always exists in a new graph (the resolver emits it even when empty).
-  if (!session.parentID) return { _tag: "scoped", key: ORCHESTRATOR }
-  const agent = session.agent ?? ""
-  if (snapshot.version !== 2) return { _tag: "unresolved", agent }
-  const info = snapshot.data.agents.find((a) => a.id === agent || a.name === agent)
-  if (!info) return { _tag: "unresolved", agent }
-  return { _tag: "scoped", key: info.consumerKey ?? `agents/${info.name}` }
+  const agent = session.agent ?? (!session.parentID && snapshot.version === 2 ? (snapshot.data.root?.id ?? "meta") : "")
+  const scope = resolveScopeForAgent(snapshot, agent)
+  if (scope._tag !== "scoped") return scope
+  // The same identity mapping serves both entry points; the Session row also fixes its role.
+  if (Boolean(session.parentID) === (scope.key === ORCHESTRATOR)) return { _tag: "unresolved", agent }
+  return scope
 }
 
 /**
  * Same mapping as {@link resolveScope} but from an agent identity alone, for call sites that run
- * inside a provider turn and have the selected agent rather than the Session row (tool leaves).
- * Custom root is pinned to `meta` by ProductModeAgentPolicy, so `meta` maps to the orchestrator.
+ * inside a model step and have the selected agent rather than the Session row (tool leaves).
+ * Explicit roots use their adopted identity; historical graphs keep the original Meta identity.
  */
 export function resolveScopeForAgent(snapshot: Composition.Snapshot, agent: string | null | undefined): Scope {
   if (!isScopedGraph(snapshot)) return { _tag: "unscoped" }
   const id = agent ?? ""
-  if (id === "meta") return { _tag: "scoped", key: ORCHESTRATOR }
   if (snapshot.version !== 2) return { _tag: "unresolved", agent: id }
+  if (snapshot.data.root && snapshot.data.orchestrator?.id !== snapshot.data.root.id)
+    return { _tag: "unresolved", agent: id }
+  if (id === (snapshot.data.root?.id ?? "meta")) return { _tag: "scoped", key: ORCHESTRATOR }
   const info = snapshot.data.agents.find((a) => a.id === id || a.name === id)
   if (!info) return { _tag: "unresolved", agent: id }
   return { _tag: "scoped", key: info.consumerKey ?? `agents/${info.name}` }

@@ -1,11 +1,11 @@
-export * as AcpProcessConnection from "./process"
+export * as AcpProcessConnection from "./process.js"
 
 import { Effect, Stream } from "effect"
-import { ChildProcess } from "effect/unstable/process"
-import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
+import { ChildProcess } from "effect/process"
+import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner"
 import { ndJsonStream } from "@agentclientprotocol/sdk"
 import type { AcpConnectionFactory } from "../tool/acp"
-import { makeClientConnection } from "./connection"
+import { makeClientConnection } from "./connection.js"
 
 /**
  * Spawn a long-lived ACP bridge process (`claude-code-acp`/`codex-acp`) over
@@ -16,7 +16,7 @@ import { makeClientConnection } from "./connection"
  * killed when the scope closes (success, failure, timeout, or interrupt).
  */
 export function makeBridgeConnectionFactory(input: { command: string; args: readonly string[] }): AcpConnectionFactory {
-  return ({ cwd, onUpdate, requestPermission }) =>
+  return ({ cwd, onUpdate, requestPermission, readTextFile }) =>
     Effect.gen(function* () {
       const spawner = yield* Effect.serviceOption(ChildProcessSpawner)
       if (spawner._tag === "None") {
@@ -54,6 +54,6 @@ export function makeBridgeConnectionFactory(input: { command: string; args: read
           )
         },
       })
-      return makeClientConnection(ndJsonStream(output, inputStream), { onUpdate, requestPermission })
+      return makeClientConnection(ndJsonStream(output, inputStream), { onUpdate, requestPermission, readTextFile })
     })
 }

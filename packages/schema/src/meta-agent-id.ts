@@ -1,12 +1,12 @@
-export * as MetaAgentID from "./meta-agent-id"
+export * as MetaAgentID from "./meta-agent-id.js"
 
 import { Schema } from "effect"
-import { descending } from "./identifier"
-import { withStatics } from "./schema"
+import { descending } from "./identifier.js"
+import { statics } from "./schema.js"
 
-export const ID = Schema.String.check(Schema.isStartsWith("mag")).pipe(
+export const ID = Schema.String.check(Schema.isStartingWith("mag")).pipe(
   Schema.brand("MetaAgentID"),
-  withStatics((schema) => {
+  statics((schema) => {
     const create = () => schema.make("mag_" + descending())
     return {
       create,

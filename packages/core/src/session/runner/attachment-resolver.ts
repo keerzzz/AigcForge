@@ -3,8 +3,8 @@ export * as AttachmentResolver from "./attachment-resolver"
 import path from "path"
 import { fileURLToPath } from "url"
 import { Effect, FileSystem } from "effect"
-import { SessionMessage } from "../message"
-import type { FileAttachment } from "../prompt"
+import { SessionMessage } from "@aigcfroge/schema/v2/session-message"
+import type { FileAttachment } from "@aigcfroge/schema/v2/prompt"
 
 /**
  * Resolves deferred attachment URIs into provider-lowerable data URIs, at the
@@ -42,7 +42,7 @@ const confine = (fs: FileSystem.FileSystem, root: string, uri: string) =>
     const info = yield* fs.stat(realTarget)
     if (info.type === "Directory") return undefined
     return realTarget
-  }).pipe(Effect.catch(() => Effect.succeed(undefined)))
+  }).pipe(Effect.orElseSucceed(() => undefined))
 
 const resolveOne = (fs: FileSystem.FileSystem, root: string, file: FileAttachment) =>
   Effect.gen(function* () {
@@ -56,7 +56,7 @@ const resolveOne = (fs: FileSystem.FileSystem, root: string, file: FileAttachmen
     if (absolute === undefined) {
       return { note: marker("outside this session's project, or not a readable file", file.name ?? file.uri) }
     }
-    const bytes = yield* fs.readFile(absolute).pipe(Effect.catch(() => Effect.succeed(undefined)))
+    const bytes = yield* fs.readFile(absolute).pipe(Effect.orElseSucceed(() => undefined))
     if (bytes === undefined) return { note: marker("could not be read", file.name ?? file.uri) }
     return {
       file: { ...file, uri: `${DATA_PREFIX}${file.mime};base64,${Buffer.from(bytes).toString("base64")}` },

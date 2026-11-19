@@ -1,16 +1,15 @@
 import { expect, test } from "bun:test"
 import { Schema } from "effect"
-import { AgentV2 } from "@aigcfroge/core/agent"
-import { ModelV2 } from "@aigcfroge/core/model"
-import { SessionV2 } from "@aigcfroge/core/session"
-import { Agent } from "@aigcfroge/schema/agent"
+import { Agent } from "@aigcfroge/core/agent"
+import { Session } from "@aigcfroge/core/session"
+import { SessionStore } from "@aigcfroge/core/session/store"
 import { Location } from "@aigcfroge/schema/location"
 import { Model } from "@aigcfroge/schema/model"
-import { AgentAttachment, FileAttachment, Prompt, Source } from "@aigcfroge/schema/prompt"
 import { Provider } from "@aigcfroge/schema/provider"
 import { Project } from "@aigcfroge/schema/project"
-import { Session } from "@aigcfroge/schema/session"
-import { SessionInput } from "@aigcfroge/schema/session-input"
+import { Worktree } from "@aigcfroge/schema/worktree"
+import { Prompt } from "@aigcfroge/schema/prompt"
+import { SessionInbox } from "@aigcfroge/schema/session-inbox"
 import { SessionMessage } from "@aigcfroge/schema/session-message"
 import { Workspace } from "@aigcfroge/schema/workspace"
 import { Command } from "@aigcfroge/schema/command"
@@ -19,14 +18,15 @@ import { Credential } from "@aigcfroge/schema/credential"
 import { FileSystem } from "@aigcfroge/schema/filesystem"
 import { Integration } from "@aigcfroge/schema/integration"
 import { LLM } from "@aigcfroge/schema/llm"
-import { ModelRequest } from "@aigcfroge/schema/model-request"
 import { Permission } from "@aigcfroge/schema/permission"
+import { Pty } from "@aigcfroge/schema/pty"
 import { Reference } from "@aigcfroge/schema/reference"
 import { Skill } from "@aigcfroge/schema/skill"
-import { AbsolutePath, DateTimeUtcFromMillis } from "@aigcfroge/schema/schema"
-import { ProviderV2 } from "@aigcfroge/core/provider"
+import { AbsolutePath, optional, statics } from "@aigcfroge/schema/schema"
 
 test("Core reuses the canonical shared schemas", async () => {
+  const schemaAgent = await import("@aigcfroge/schema/agent")
+  const schemaSession = await import("@aigcfroge/schema/session")
   const [
     coreCommand,
     coreConnection,
@@ -34,16 +34,18 @@ test("Core reuses the canonical shared schemas", async () => {
     coreFileSystem,
     coreIntegration,
     coreLocation,
-    coreLLM,
-    coreModelRequest,
+    coreAI,
+    coreModel,
     corePermission,
+    coreWorktree,
+    corePty,
     coreProject,
+    coreProvider,
     coreReference,
-    coreSessionInput,
+    coreSessionInbox,
     coreSessionMessage,
-    corePrompt,
     coreSkill,
-    coreV2Schema,
+    coreSchema,
     coreWorkspace,
   ] = await Promise.all([
     import("@aigcfroge/core/command"),
@@ -52,23 +54,26 @@ test("Core reuses the canonical shared schemas", async () => {
     import("@aigcfroge/core/filesystem"),
     import("@aigcfroge/core/integration"),
     import("@aigcfroge/core/location"),
-    import("@aigcfroge/llm"),
-    import("@aigcfroge/core/model-request"),
+    import("@aigcfroge/ai"),
+    import("@aigcfroge/core/model"),
     import("@aigcfroge/core/permission"),
+    import("@aigcfroge/core/worktree"),
+    import("@aigcfroge/core/pty"),
     import("@aigcfroge/core/project/schema"),
+    import("@aigcfroge/core/provider"),
     import("@aigcfroge/core/reference"),
-    import("@aigcfroge/core/session/input"),
+    import("@aigcfroge/core/session/inbox"),
     import("@aigcfroge/core/session/message"),
-    import("@aigcfroge/core/session/prompt"),
     import("@aigcfroge/core/skill"),
-    import("@aigcfroge/core/v2-schema"),
+    import("@aigcfroge/core/schema"),
     import("@aigcfroge/core/workspace"),
   ])
 
   const schemas = [
-    [AgentV2.ID, Agent.ID],
-    [AgentV2.Color, Agent.Color],
-    [AgentV2.Info, Agent.Info],
+    [Agent.ID, schemaAgent.Agent.ID],
+    [Agent.Name, schemaAgent.Agent.Name],
+    [Agent.Color, schemaAgent.Agent.Color],
+    [Agent.Info, schemaAgent.Agent.Info],
     [coreCommand.Info, Command.Info],
     [coreConnection.CredentialInfo, Connection.CredentialInfo],
     [coreConnection.EnvInfo, Connection.EnvInfo],
@@ -82,58 +87,59 @@ test("Core reuses the canonical shared schemas", async () => {
     [coreFileSystem.Match, FileSystem.Match],
     [coreIntegration.ID, Integration.ID],
     [coreIntegration.MethodID, Integration.MethodID],
-    [coreIntegration.When, Integration.When],
-    [coreIntegration.TextPrompt, Integration.TextPrompt],
-    [coreIntegration.SelectPrompt, Integration.SelectPrompt],
-    [coreIntegration.Prompt, Integration.Prompt],
     [coreIntegration.OAuthMethod, Integration.OAuthMethod],
     [coreIntegration.KeyMethod, Integration.KeyMethod],
     [coreIntegration.EnvMethod, Integration.EnvMethod],
     [coreIntegration.Method, Integration.Method],
-    [coreIntegration.Inputs, Integration.Inputs],
     [coreIntegration.Ref, Integration.Ref],
     [coreLocation.Ref, Location.Ref],
-    [coreLLM.ProviderMetadata, LLM.ProviderMetadata],
-    [coreLLM.ToolTextContent, LLM.ToolTextContent],
-    [coreLLM.ToolFileContent, LLM.ToolFileContent],
-    [coreLLM.ToolContent, LLM.ToolContent],
-    [ModelV2.ID, Model.ID],
-    [ModelV2.VariantID, Model.VariantID],
-    [ModelV2.Ref, Model.Ref],
-    [ModelV2.Family, Model.Family],
-    [ModelV2.Capabilities, Model.Capabilities],
-    [ModelV2.Cost, Model.Cost],
-    [ModelV2.Api, Model.Api],
-    [ModelV2.Info, Model.Info],
-    [ProviderV2.ID, Provider.ID],
-    [ProviderV2.AISDK, Provider.AISDK],
-    [ProviderV2.Native, Provider.Native],
-    [ProviderV2.Api, Provider.Api],
-    [ProviderV2.Request, Provider.Request],
-    [ProviderV2.Info, Provider.Info],
-    [coreModelRequest.Generation, ModelRequest.Generation],
-    [coreModelRequest.Request, ModelRequest.Request],
+    [coreAI.FinishReason, LLM.FinishReason],
+    [coreModel.ID, Model.ID],
+    [coreModel.VariantID, Model.VariantID],
+    [coreModel.Ref, Model.Ref],
+    [coreModel.Family, Model.Family],
+    [coreModel.Capabilities, Model.Capabilities],
+    [coreModel.Cost, Model.Cost],
+    [coreModel.Info, Model.Info],
+    [coreProvider.ID, Provider.ID],
+    [coreProvider.Request, Provider.Request],
+    [coreProvider.Compaction, Provider.Compaction],
+    [coreProvider.Transport, Provider.Transport],
+    [coreProvider.Settings, Provider.Settings],
+    [coreProvider.Info, Provider.Info],
     [corePermission.Effect, Permission.Effect],
     [corePermission.Rule, Permission.Rule],
     [corePermission.Ruleset, Permission.Ruleset],
+    [coreWorktree.CreateInput, Worktree.CreateInput],
+    [coreWorktree.RemoveInput, Worktree.RemoveInput],
+    [coreWorktree.Info, Worktree.Info],
+    [coreWorktree.List, Worktree.List],
+    [coreWorktree.Event, Worktree.Event],
+    [corePty.Info, Pty.Info],
+    [corePty.Event, Pty.Event],
     [coreProject.ID, Project.ID],
+    [coreProject.Current, Project.Current],
     [coreReference.LocalSource, Reference.LocalSource],
     [coreReference.GitSource, Reference.GitSource],
     [coreReference.Source, Reference.Source],
-    [SessionV2.ID, Session.ID],
-    [SessionV2.Info, Session.Info],
-    [SessionV2.ListAnchor, Session.ListAnchor],
-    [coreSessionInput.Delivery, SessionInput.Delivery],
-    [coreSessionInput.Admitted, SessionInput.Admitted],
+    [Session.ID, schemaSession.Session.ID],
+    [Session.Info, schemaSession.Session.Info],
+    [Session.ListAnchor, schemaSession.Session.ListAnchor],
+    [Session.ListInput, SessionStore.ListInput],
+    [coreSessionInbox.Delivery, SessionInbox.Delivery],
+    [coreSessionInbox.Item, SessionInbox.Item],
+    [coreSessionInbox.User, SessionInbox.User],
+    [coreSessionInbox.Synthetic, SessionInbox.Synthetic],
     [coreSessionMessage.ID, SessionMessage.ID],
-    [coreSessionMessage.UnknownError, SessionMessage.UnknownError],
-    [coreSessionMessage.AgentSwitched, SessionMessage.AgentSwitched],
-    [coreSessionMessage.ModelSwitched, SessionMessage.ModelSwitched],
+    [coreSessionMessage.AssistantRetry, SessionMessage.AssistantRetry],
+    [coreSessionMessage.AgentSelected, SessionMessage.AgentSelected],
+    [coreSessionMessage.ModelSelected, SessionMessage.ModelSelected],
+    [coreSessionMessage.LocationSwitched, SessionMessage.LocationSwitched],
     [coreSessionMessage.User, SessionMessage.User],
     [coreSessionMessage.Synthetic, SessionMessage.Synthetic],
     [coreSessionMessage.System, SessionMessage.System],
     [coreSessionMessage.Shell, SessionMessage.Shell],
-    [coreSessionMessage.ToolStatePending, SessionMessage.ToolStatePending],
+    [coreSessionMessage.ToolStateStreaming, SessionMessage.ToolStateStreaming],
     [coreSessionMessage.ToolStateRunning, SessionMessage.ToolStateRunning],
     [coreSessionMessage.ToolStateCompleted, SessionMessage.ToolStateCompleted],
     [coreSessionMessage.ToolStateError, SessionMessage.ToolStateError],
@@ -144,26 +150,22 @@ test("Core reuses the canonical shared schemas", async () => {
     [coreSessionMessage.AssistantContent, SessionMessage.AssistantContent],
     [coreSessionMessage.Assistant, SessionMessage.Assistant],
     [coreSessionMessage.Compaction, SessionMessage.Compaction],
-    [coreSessionMessage.Message, SessionMessage.Message],
-    [corePrompt.Source, Source],
-    [corePrompt.FileAttachment, FileAttachment],
-    [corePrompt.AgentAttachment, AgentAttachment],
-    [corePrompt.Prompt, Prompt],
+    [coreSessionMessage.Info, SessionMessage.Info],
     [coreSkill.DirectorySource, Skill.DirectorySource],
     [coreSkill.UrlSource, Skill.UrlSource],
     [coreSkill.EmbeddedSource, Skill.EmbeddedSource],
     [coreSkill.Source, Skill.Source],
     [coreSkill.Info, Skill.Info],
-    [coreV2Schema.DateTimeUtcFromMillis, DateTimeUtcFromMillis],
+    [coreSchema.optional, optional],
+    [coreSchema.statics, statics],
     [coreWorkspace.ID, Workspace.ID],
   ]
   for (const [core, shared] of schemas) expect(core).toBe(shared)
 
-  expect(Agent.Info.empty(Agent.ID.make("test"))).toEqual(AgentV2.Info.empty(AgentV2.ID.make("test")))
-  expect(Model.Info.empty(Provider.ID.make("test"), Model.ID.make("model"))).toEqual(
-    ModelV2.Info.empty(ProviderV2.ID.make("test"), ModelV2.ID.make("model")),
+  expect(coreModel.Info.default(coreProvider.ID.make("test"), coreModel.ID.make("model"))).toEqual(
+    Model.Info.default(Provider.ID.make("test"), Model.ID.make("model")),
   )
-  expect(Provider.Info.empty(Provider.ID.make("test"))).toEqual(ProviderV2.Info.empty(ProviderV2.ID.make("test")))
+  expect(coreProvider.Info.empty(coreProvider.ID.make("test"))).toEqual(Provider.Info.empty(Provider.ID.make("test")))
   expect(Skill.Source.key(Skill.DirectorySource.make({ type: "directory", path: AbsolutePath.make("/tmp") }))).toBe(
     "directory:/tmp",
   )
@@ -172,7 +174,7 @@ test("Core reuses the canonical shared schemas", async () => {
 test("shared record schemas construct and decode plain objects", () => {
   const made = Prompt.make({ text: "hello" })
   const decoded = Schema.decodeUnknownSync(Prompt)({ text: "hello" })
-  const content = Schema.decodeUnknownSync(SessionMessage.AssistantText)({ type: "text", id: "part_1", text: "hi" })
+  const content = Schema.decodeUnknownSync(SessionMessage.AssistantText)({ type: "text", text: "hi" })
 
   expect(Object.getPrototypeOf(made)).toBe(Object.prototype)
   expect(Object.getPrototypeOf(decoded)).toBe(Object.prototype)

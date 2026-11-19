@@ -3,8 +3,6 @@
 import { generateNeutralScale, hexToOklch, oklchToHex, shift } from "../color"
 import { mapV2Foreground } from "./foreground"
 import { mapV2Semantics, mergeV2Tokens } from "./mapping"
-import { mapV2Syntax, mapV2Markdown } from "./syntax-markdown"
-import { mapV2Diff } from "./diff"
 import type { DesktopTheme, HexColor, ResolvedV2Theme, ThemeVariant, V2ColorValue } from "../types"
 import { V2_PRIMITIVES_DEFAULT } from "./default-primitives"
 
@@ -32,6 +30,7 @@ function clamp(v: number, min: number, max: number) {
 function generateV2HueScale(seed: HexColor, isDark: boolean): HexColor[] {
   const base = hexToOklch(seed)
   const chromaBoost = isDark ? 1 : 1.05
+
   const lightSteps = [
     0.99,
     0.965,
@@ -46,12 +45,13 @@ function generateV2HueScale(seed: HexColor, isDark: boolean): HexColor[] {
     clamp(base.l - 0.34, 0.12, 0.3),
     clamp(base.l - 0.4, 0.08, 0.22),
   ]
+
   const chromaMultipliers = [0.28, 0.48, 0.68, 0.86, 1.02, 1.28, 1.34, 1.28, 1.18, 1.08, 0.98, 0.88]
 
   return lightSteps.map((l, i) =>
     oklchToHex({
       l,
-      c: base.c * chromaMultipliers[i] * chromaBoost,
+      c: base.c * chromaMultipliers[i]! * chromaBoost,
       h: base.h,
     }),
   )
@@ -60,20 +60,24 @@ function generateV2HueScale(seed: HexColor, isDark: boolean): HexColor[] {
 /** Grey ramp: 100 = lightest, 1200 = darkest. Derived from palette neutral → ink like v1. */
 function generateV2NeutralScale(neutral: HexColor, ink: HexColor, isDark: boolean): HexColor[] {
   const scale = generateNeutralScale(neutral, isDark, ink)
+
   return isDark ? scale.toReversed() : scale
 }
 
 function assignHueRamp(prefix: string, scale: HexColor[]): Record<string, V2ColorValue> {
   const tokens: Record<string, V2ColorValue> = {}
+
   for (let i = 0; i < V2_STEPS.length; i++) {
     tokens[`v2-${prefix}-${V2_STEPS[i]}`] = scale[i]!
   }
+
   return tokens
 }
 
 function readPalette(variant: ThemeVariant): PaletteInput {
   if ("palette" in variant && variant.palette) {
     const palette = variant.palette
+
     return {
       neutral: palette.neutral,
       ink: palette.ink,
@@ -88,8 +92,10 @@ function readPalette(variant: ThemeVariant): PaletteInput {
       diffDelete: palette.diffDelete ?? palette.error,
     }
   }
+
   if ("seeds" in variant && variant.seeds) {
     const seeds = variant.seeds
+
     return {
       neutral: seeds.neutral,
       ink: seeds.neutral,
@@ -104,6 +110,7 @@ function readPalette(variant: ThemeVariant): PaletteInput {
       diffDelete: seeds.diffDelete,
     }
   }
+
   throw new Error("Theme variant requires `palette` or `seeds`")
 }
 
@@ -138,10 +145,8 @@ export function resolveThemeVariantV2(variant: ThemeVariant, isDark: boolean): R
   const primitives = generateV2Primitives(variant, isDark)
   const semantics = mapV2Semantics(isDark)
   const foreground = mapV2Foreground(readPalette(variant).ink, isDark, primitives, variant.overrides)
-  const syntax = mapV2Syntax(isDark)
-  const markdown = mapV2Markdown(isDark)
-  const diff = mapV2Diff(isDark)
-  return mergeV2Tokens(primitives, semantics, foreground, syntax, markdown, diff, variant.v2Overrides ?? {})
+
+  return mergeV2Tokens(primitives, semantics, foreground, variant.v2Overrides ?? {})
 }
 
 export function resolveThemeV2(theme: DesktopTheme): { light: ResolvedV2Theme; dark: ResolvedV2Theme } {

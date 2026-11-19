@@ -15,7 +15,7 @@ const codexClient: CodexSdk = {
 const claudeClient: ClaudeSdk = {
   query: () =>
     (async function* () {
-      yield { type: "result", result: "claude done", session_id: "session_default" }
+      yield { type: "result", result: "claude done", session_id: "session_default", uuid: "sdk-result-default" }
     })(),
 }
 

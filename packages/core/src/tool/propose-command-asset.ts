@@ -1,26 +1,28 @@
-export * as ProposeCommandAssetTool from "./propose-command-asset"
+export * as ProposeCommandAssetTool from "./propose-command-asset.js"
 
-import { ToolFailure } from "@aigcfroge/llm"
-import { Effect, Layer, Schema } from "effect"
-import { Flag } from "../flag/flag"
+import type { Context } from "@aigcfroge/plugin/effect/plugin"
+import { ToolFailure } from "@aigcfroge/ai"
+import { Effect, Schema } from "effect"
 import { CommandAsset } from "@aigcfroge/schema/command-asset"
-import { CommandAssetService } from "../command-asset-service"
-import { Tool } from "./tool"
-import { Tools } from "./tools"
+import path from "node:path"
+import { CommandAssetService } from "../command-asset-service.js"
+import { CommandAssetPath } from "../command-asset/path.js"
+import { Flag } from "../flag/flag.js"
 
 export const name = "propose_command_asset"
 
 export const description = `Propose a new command asset to be saved as a reusable slash command.
 
 Call this tool after discussing the command requirements with the user. It validates the
-candidate and checks for conflicts with existing command assets.
+candidate, checks for conflicts in the current Project, and returns the target and proposal
+facts. The user can then choose a target, review and apply the asset in the Chat right panel.
 
 Usage:
 - name: Short descriptive name (1-80 chars)
 - description: What this command does (max 300 chars)
 - invocation: The slash command invocation string (1-200 chars)
 - args: Optional argument description
-- source: Optional source documentation (max 5000 chars)`
+- source: Full command source text, including any $ARGUMENTS placeholders`
 
 export const Input = Schema.Struct({
   name: CommandAsset.Name,
@@ -30,55 +32,57 @@ export const Input = Schema.Struct({
   source: CommandAsset.Source,
 })
 
-export const Output = Schema.Struct({
-  relativePath: Schema.String,
-  exists: Schema.Boolean,
-  revision: Schema.optional(Schema.String),
-  nameConflict: Schema.Boolean,
-  pathConflict: Schema.Boolean,
-})
+export const Output = CommandAsset.Inspection
 
-export const layer = Layer.effectDiscard(
-  Effect.gen(function* () {
+export const Plugin = {
+  id: "aigcfroge.tool.propose_command_asset",
+  effect: Effect.fn("ProposeCommandAssetTool.Plugin")(function* (ctx: Context) {
     if (!Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET) return
 
-    const tools = yield* Tools.Service
     const service = yield* CommandAssetService.Service
 
-    const tool = Tool.make({
-      description,
-      input: Input,
-      output: Output,
-      execute: (input) =>
-        Effect.gen(function* () {
-          const candidate = CommandAsset.Candidate.make({ ...input, relativePath: "" })
-          const result = yield* service.propose(candidate)
-          return {
-            relativePath: result.relativePath,
-            exists: result.exists,
-            revision: result.revision ?? undefined,
-            nameConflict: result.nameConflict,
-            pathConflict: result.pathConflict,
-          }
-        }).pipe(
-          Effect.catch((err) =>
-            Effect.fail(new ToolFailure({ message: `Proposal failed: ${(err as Error).message}` })),
-          ),
-        ),
-      toModelOutput: ({ output }) => [
-        {
-          type: "text" as const,
-          text: output.nameConflict
-            ? `Name conflicts with an existing command. Choose a different name.`
-            : output.pathConflict
-              ? `Path conflict. Choose a different name.`
-              : output.exists
-                ? `Command exists at "${output.relativePath}". Ask user to review before overwriting.`
-                : `Candidate is valid at "${output.relativePath}". Ask user to apply.`,
-        },
-      ],
-    })
-
-    yield* tools.register({ [name]: tool }).pipe(Effect.catch((err) => Effect.die(err)))
+    yield* ctx.tool
+      .transform((editor) =>
+        editor.add({
+          name,
+          options: { codemode: false },
+          description,
+          input: Input,
+          output: Output,
+          execute: (input) =>
+            Effect.gen(function* () {
+              const candidate = yield* Effect.try({
+                try: () =>
+                  CommandAsset.Candidate.make({
+                    ...input,
+                    relativePath: path.basename(CommandAssetPath.nameToRelativePath(input.name)),
+                  }),
+                catch: (error) =>
+                  new CommandAssetService.InvalidCandidateError({
+                    reason: error instanceof Error ? error.message : String(error),
+                  }),
+              })
+              const output = yield* service.inspect({ candidate, scope: "project" })
+              return {
+                output,
+                // Encode the nested Target instance for durable JSON metadata.
+                metadata: yield* Schema.encodeEffect(Output)(output),
+                content: output.nameConflict
+                  ? `Name conflicts with an existing command. Choose a different name.`
+                  : output.pathConflict
+                    ? `Path conflict. Choose a different name.`
+                    : output.exists
+                      ? `Command exists at "${output.relativePath}". Ask user to review before overwriting.`
+                      : `Candidate is valid at "${output.relativePath}". Ask user to apply.`,
+              }
+            }).pipe(
+              Effect.mapError(
+                (err) =>
+                  new ToolFailure({ message: `Proposal failed: ${err instanceof Error ? err.message : String(err)}` }),
+              ),
+            ),
+        }),
+      )
+      .pipe(Effect.orDie)
   }),
-)
+}

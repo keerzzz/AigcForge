@@ -1,10 +1,16 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@aigcfroge/script",
+  "version": "2.0.26",
+  "type": "module",
   "license": "MIT",
+  "scripts": {
+    "typecheck": "tsgo --noEmit",
+    "test": "bun test --timeout 30000"
+  },
   "dependencies": {
-    "semver": "^7.6.3",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "semver": "^7.6.3"
   },
   "devDependencies": {
     "@types/bun": "catalog:",
@@ -12,14 +18,8 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./openapi": "./src/openapi.ts",
-    "./changed-lines": "./src/changed-lines.ts",
     "./release": "./src/release.ts",
-    "./release-metadata": "./src/release-metadata.ts"
-  },
-  "scripts": {
-    "test": "bun test --timeout 30000",
-    "typecheck": "tsgo --noEmit"
-  },
-  "version": "0.0.8"
+    "./release-metadata": "./src/release-metadata.ts",
+    "./changed-lines": "./src/changed-lines.ts"
+  }
 }

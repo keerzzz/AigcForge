@@ -14,13 +14,17 @@ afterAll(() => {
 })
 import { SkillAsset } from "@aigcfroge/core/skill-asset"
 import { AgentAsset } from "@aigcfroge/core/agent-asset"
-import { FSUtil } from "@aigcfroge/core/fs-util"
+import { FSUtil } from "@aigcfroge/util/fs-util"
+import { NodeFileSystem } from "@effect/platform-node"
 import { Location } from "@aigcfroge/core/location"
-import { EventV2 } from "@aigcfroge/core/event"
+import { LocationMutation } from "@aigcfroge/core/location-mutation"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { tmpdir } from "./fixture/tmpdir"
 import { location } from "./fixture/location"
+import { tempGlobalLayer } from "./fixture/global"
 import fs from "fs/promises"
+
+const fsLayer = FSUtil.layer.pipe(Layer.provide(NodeFileSystem.layer))
 
 function locationLayer(dir: string) {
   return Layer.succeed(Location.Service, Location.Service.of(location({ directory: AbsolutePath.make(dir) })))
@@ -28,18 +32,15 @@ function locationLayer(dir: string) {
 
 function skillLayer(dir: string) {
   return SkillAsset.locationLayer.pipe(
-    Layer.provide(EventV2.defaultLayer),
+    Layer.provide(LocationMutation.layer),
     Layer.provide(locationLayer(dir)),
-    Layer.provide(FSUtil.defaultLayer),
+    Layer.provide(fsLayer),
+    Layer.provide(tempGlobalLayer),
   )
 }
 
 function agentLayer(dir: string) {
-  return AgentAsset.locationLayer.pipe(
-    Layer.provide(EventV2.defaultLayer),
-    Layer.provide(locationLayer(dir)),
-    Layer.provide(FSUtil.defaultLayer),
-  )
+  return AgentAsset.locationLayer.pipe(Layer.provide(locationLayer(dir)), Layer.provide(fsLayer))
 }
 
 function runNow<A>(effect: Effect.Effect<A, unknown, unknown>): Promise<A> {

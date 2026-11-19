@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { AccordionV2 } from "../v2/components/accordion-v2"
+import { Accordion } from "@aigcfroge/ui/accordion"
 import * as mod from "./sticky-accordion-header"
 
 const docs = `### Overview
@@ -40,15 +40,15 @@ export default {
 
 export const Basic = {
   render: () => (
-    <AccordionV2 value="first">
-      <AccordionV2.Item value="first">
+    <Accordion value="first">
+      <Accordion.Item value="first">
         <mod.StickyAccordionHeader>
-          <AccordionV2.Trigger>Sticky header</AccordionV2.Trigger>
+          <Accordion.Trigger>Sticky header</Accordion.Trigger>
         </mod.StickyAccordionHeader>
-        <AccordionV2.Content>
+        <Accordion.Content>
           <div style={{ color: "var(--text-weak)", padding: "8px 0" }}>Accordion content.</div>
-        </AccordionV2.Content>
-      </AccordionV2.Item>
-    </AccordionV2>
+        </Accordion.Content>
+      </Accordion.Item>
+    </Accordion>
   ),
 }

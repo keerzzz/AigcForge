@@ -1,5 +1,5 @@
 import { Schema } from "effect"
-import { Wildcard } from "./wildcard"
+import { Wildcard } from "./wildcard.js"
 
 export const Handoff = Schema.Struct({
   label: Schema.String,

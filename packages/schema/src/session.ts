@@ -1,82 +1,111 @@
-export * as Session from "./session"
+export * as Session from "./session.js"
 
 import { Effect, Schema } from "effect"
-import { Agent } from "./agent"
-import { Location } from "./location"
-import { Model } from "./model"
-import { PermissionTier } from "./permission-tier"
-import { ProductMode } from "./product-mode"
-import { Project } from "./project"
-import { DateTimeUtcFromMillis, optionalOmitUndefined, RelativePath } from "./schema"
-import { SessionID } from "./session-id"
-import { SessionMessageID } from "./session-message-id"
-import { WorkContract } from "./work-contract"
-import { WorkReview } from "./work-review"
-import { WorkPreset } from "./work-preset"
+import { Agent } from "./agent.js"
+import { Location } from "./location.js"
+import { Model } from "./model.js"
+import { PermissionTier } from "./permission-tier.js"
+import { ProductMode } from "./product-mode.js"
+import { WorkContract } from "./work-contract.js"
+import { WorkPreset } from "./work-preset.js"
+import { Project } from "./project.js"
+import { DateTimeUtcFromMillis, optional, RelativePath } from "./schema.js"
+import { SessionEvent } from "./session-event.js"
+import { SessionID } from "./session-id.js"
+import { SessionMetadata } from "./session-metadata.js"
+import { Money } from "./money.js"
+import { Permission } from "./permission.js"
+import { TokenUsage } from "./token-usage.js"
+import { Revert } from "./session-revert.js"
+import { SessionFork } from "./session-fork.js"
+import { MetaAgent } from "./meta-agent.js"
+import { SessionAttempt } from "./session-attempt.js"
 
-export const ID = SessionID.ID
-export type ID = SessionID.ID
+export {
+  ExecutorPreference,
+  ExecutorBinding,
+  TaskControllerSource,
+  SubagentControllerSource,
+  WorkflowControllerSource,
+  ControllerSource,
+  RootController,
+  ChildController,
+  Controller,
+} from "./meta-agent.js"
 
-export const Revert = Schema.Struct({
-  messageID: SessionMessageID.ID,
-  snapshot: Schema.String.pipe(optionalOmitUndefined),
-  diff: Schema.String.pipe(optionalOmitUndefined),
-}).annotate({ identifier: "SessionV2.Revert" })
-export type Revert = typeof Revert.Type
+export const ID = SessionID
+export type ID = SessionID
 
-export const Summary = Schema.Struct({
-  additions: Schema.Finite,
-  deletions: Schema.Finite,
-  files: Schema.Finite,
-}).annotate({ identifier: "SessionV2.Summary" })
-export type Summary = typeof Summary.Type
+export const Metadata = SessionMetadata
+export type Metadata = SessionMetadata
+
+export const Event = SessionEvent
+
+export { Revert }
+export const ForkBoundary = SessionFork.Boundary
+export type ForkBoundary = SessionFork.Boundary
+
+export class ForkExpectedSource extends Schema.Class<ForkExpectedSource>("Session.ForkExpectedSource")(
+  Schema.Struct({
+    sourceSessionID: ID,
+    mode: ProductMode.ID,
+    agent: Agent.ID.pipe(optional),
+    controller: MetaAgent.Controller.pipe(optional),
+    model: Model.Selection.pipe(optional),
+    compositionDigest: Schema.String.pipe(optional),
+  }).annotate({ identifier: "Session.ForkExpectedSource" }),
+) {}
 
 export interface Info extends Schema.Schema.Type<typeof Info> {}
 export const Info = Schema.Struct({
   id: ID,
+  parentID: ID.pipe(optional),
+  fork: Schema.Struct({
+    sessionID: ID,
+    boundary: ForkBoundary,
+  }).pipe(optional),
+  projectID: Project.ID,
   mode: ProductMode.ID.pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(ProductMode.Default as ProductMode.ID)),
     Schema.withConstructorDefault(Effect.succeed(ProductMode.Default as ProductMode.ID)),
   ),
-  presetCategoryId: WorkPreset.Category.pipe(optionalOmitUndefined),
-  workContract: WorkContract.Snapshot.pipe(optionalOmitUndefined),
-  workReview: WorkReview.Review.pipe(optionalOmitUndefined),
-  slug: Schema.String,
-  version: Schema.String,
-  parentID: ID.pipe(optionalOmitUndefined),
-  projectID: Project.ID,
-  agent: Agent.ID.pipe(optionalOmitUndefined),
-  model: Model.Ref.pipe(optionalOmitUndefined),
-  cost: Schema.Finite,
-  tokens: Schema.Struct({
-    input: Schema.Finite,
-    output: Schema.Finite,
-    reasoning: Schema.Finite,
-    cache: Schema.Struct({
-      read: Schema.Finite,
-      write: Schema.Finite,
-    }),
-  }),
-  time: Schema.Struct({
-    created: DateTimeUtcFromMillis,
-    updated: DateTimeUtcFromMillis,
-    archived: DateTimeUtcFromMillis.pipe(optionalOmitUndefined),
-  }),
-  title: Schema.String,
-  location: Location.Ref,
-  subpath: RelativePath.pipe(optionalOmitUndefined),
-  attended: Schema.Boolean.pipe(optionalOmitUndefined),
+  attended: Schema.Boolean.pipe(optional),
   permissionTier: PermissionTier.ID.pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(PermissionTier.Default as PermissionTier.ID)),
     Schema.withConstructorDefault(Effect.succeed(PermissionTier.Default as PermissionTier.ID)),
   ),
-  revert: Revert.pipe(optionalOmitUndefined),
-  summary: Summary.pipe(optionalOmitUndefined),
-}).annotate({ identifier: "SessionV2.Info" })
+  presetCategoryId: WorkPreset.Category.pipe(optional),
+  workContract: WorkContract.Snapshot.pipe(optional),
+  agent: Agent.ID.pipe(optional),
+  model: Model.Selection.pipe(optional),
+  controller: MetaAgent.Controller.pipe(optional),
+  executorPreference: MetaAgent.ExecutorPreference.pipe(optional),
+  cost: Money.USD,
+  tokens: TokenUsage.Info,
+  ...SessionAttempt.Accounting.fields,
+  /** Outcome of the last completed execution, recorded at `time.idle`. Absent until a run reaches a terminal transition. */
+  outcome: Schema.Literals(["succeeded", "failed", "interrupted"]).pipe(optional),
+  time: Schema.Struct({
+    created: DateTimeUtcFromMillis,
+    updated: DateTimeUtcFromMillis,
+    /** Latest projected user or assistant message creation time, or session creation time when empty. */
+    message: DateTimeUtcFromMillis.pipe(optional),
+    idle: DateTimeUtcFromMillis.pipe(optional),
+    viewed: DateTimeUtcFromMillis.pipe(optional),
+    archived: DateTimeUtcFromMillis.pipe(optional),
+  }),
+  title: Schema.String.pipe(optional),
+  location: Location.Ref,
+  subpath: RelativePath.pipe(optional),
+  metadata: Metadata.pipe(optional),
+  /** Evaluated after the agent's rules; the last matching rule wins. */
+  permissions: Permission.Ruleset.pipe(optional),
+  revert: Revert.pipe(optional),
+}).annotate({ identifier: "Session.Info" })
 
 export const ListAnchor = Schema.Struct({
   id: ID,
   time: Schema.Finite,
   direction: Schema.Literals(["previous", "next"]),
-})
-export type ListAnchor = typeof ListAnchor.Type
+}).annotate({ identifier: "Session.ListAnchor" })
+export interface ListAnchor extends Schema.Schema.Type<typeof ListAnchor> {}

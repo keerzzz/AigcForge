@@ -1,10 +1,14 @@
 export * as CliAdapter from "./cli-adapter"
 
-import { Effect } from "effect"
+import { Effect, Schema } from "effect"
 import { Config } from "../config"
+import type { Entry } from "@aigcfroge/schema/config"
 import type { ToolCallProgress } from "../acp-client/update"
 import { fromConfig } from "./cli-config-adapter"
 import type { ReviewEnvelope } from "@aigcfroge/schema/delegation"
+import type { ReadTextFileRequest, ReadTextFileResponse } from "@agentclientprotocol/sdk"
+import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk"
+import type { DelegationReceipt } from "../delegation/receipt"
 
 export type DelegationStatus = "success" | "partial" | "failed"
 
@@ -24,12 +28,22 @@ export interface DelegationResult {
   /** Raw stdout from the CLI process, preserved for parseResumeHint. */
   rawStdout?: string
   /**
-   * External CLI session/thread id captured by SDK/ACP transports (jsonl
-   * transports surface theirs through parseResumeHint instead). Persisted by
-   * the task driver so the next same-parent delegation resumes it.
+   * External CLI session/thread id captured by an execution transport.
+   * Persisted by the task driver so the next same-parent delegation resumes it.
    */
   sessionId?: string
-  /** Active app-server/ACP turn identifier. Never substitute the thread/session id. */
+  /** Identity of the native SDK result message, captured from one result frame. */
+  sdkMessage?: { sessionID: string; messageID: string }
+  /** Claude stream-json terminal identity, captured from one accepted result frame. */
+  jsonlMessage?: { sessionID: string; messageID: string }
+  /** ACP association is scoped to one connection's session/prompt request and response. */
+  acpPrompt?: {
+    sessionID: string
+    requestID: string | number
+    userMessageID?: string | null
+    agentMessageIDs?: readonly (string | null)[]
+  }
+  /** Active app-server turn identifier. Never substitute the thread/session id. */
   turnId?: string
   review?: DelegationReview
   /** Stable error classification for delivery events and recovery decisions. */
@@ -40,7 +54,7 @@ export interface DelegationResult {
   errors?: string[]
 }
 
-export interface CliAdapter {
+export interface CliAdapterValue<E = never> {
   readonly name: string
   readonly command: string
   readonly description: string
@@ -49,6 +63,8 @@ export interface CliAdapter {
   readonly parseOutput: (stdout: string, stderr: string) => Effect.Effect<DelegationResult>
   /** Optional execution timeout in milliseconds; wins over the caller's default. */
   readonly timeout?: number
+  /** Build invocation-owned state from a static descriptor. */
+  readonly forCommand?: (command: string) => CliAdapterValue<E>
   /**
    * Execution transport. "jsonl" (default) spawns the CLI and parses its JSONL
    * stdout; "sdk" drives the official SDK; "acp" uses the Agent Client Protocol;
@@ -57,7 +73,7 @@ export interface CliAdapter {
    */
   readonly transport?: "jsonl" | "sdk" | "acp" | "app-server"
   /**
-   * SDK/ACP transports execute through this instead of buildArgs+parseOutput.
+   * Formal transports execute through this instead of buildArgs+parseOutput.
    * `canUseTool` is a plain async bridge (not Effect) so the SDK's permission
    * callback can drive it from its own runtime; the caller maps PermissionV2
    * decisions into it. `onProgress` receives live external-CLI tool calls as
@@ -69,10 +85,26 @@ export interface CliAdapter {
     cwd: string
     resumeId?: string
     timeoutMs?: number
+    readOnly?: boolean
     canUseTool?: SdkPermissionHandler
+    sdkInput?: AsyncIterable<SDKUserMessage>
+    onSdkObservation?: (observation: DelegationReceipt.SdkObservation) => Effect.Effect<void, Error>
+    readTextFile?: AcpReadTextFileHandler
     onProgress?: (progress: ToolCallProgress) => void
-  }) => Effect.Effect<DelegationResult>
+    onPermission?: (request: PermissionRequest) => Effect.Effect<"allow" | "deny", Error>
+    onThread?: (binding: ThreadBinding) => Effect.Effect<void, Error>
+    onTurn?: (turnID: string) => Effect.Effect<void, Error>
+    onText?: (text: string) => Effect.Effect<void, Error>
+  }) => Effect.Effect<DelegationResult, E>
   readonly cancel?: (cwd: string, sessionId?: string) => Effect.Effect<void>
+  /** Read an already completed external result without resuming or executing a turn. */
+  readonly readResult?: (input: {
+    cwd: string
+    threadID: string
+    turnID: string
+    modelProvider: string
+    cliVersion: string
+  }) => Effect.Effect<DelegationResult, E>
   /**
    * Parse a session.resume_hint JSON frame from the CLI's stdout stream.
    * Return the external session ID if found, undefined otherwise.
@@ -95,7 +127,7 @@ export interface CliAdapter {
     threadId: string,
     options?: { lastTurnId?: string | null; workingDirectory?: string; model?: string },
   ) => Effect.Effect<{ threadId: string }, unknown>
-  readonly archiveThread?: (threadId: string) => Effect.Effect<void, unknown>
+  readonly archiveThread?: (threadId: string, options?: { workingDirectory?: string }) => Effect.Effect<void, unknown>
   readonly deleteThread?: (threadId: string) => Effect.Effect<void, unknown>
   readonly startTurn?: (options: {
     threadId: string
@@ -110,23 +142,95 @@ export interface CliAdapter {
   readonly interruptTurn?: (options: { threadId: string; turnId: string }) => Effect.Effect<void, unknown>
 }
 
-/** A permission decision surfaced by an SDK transport's canUseTool callback. */
-export type SdkPermissionRequest = { toolName: string; input: Record<string, unknown> }
+/** Parent permission facts surfaced by an SDK or JSONL tool callback. */
+export type SdkPermissionRequest = {
+  toolName: string
+  input: Record<string, unknown>
+  externalSessionID?: string
+  toolUseID?: string
+  requestId?: string
+  signal?: AbortSignal
+}
 export type SdkPermissionHandler = (request: SdkPermissionRequest) => Promise<"allow" | "deny">
 
-// Module-level adapter registry cell — same seam pattern as TaskDriver.
-// Composition roots call `registerCliAdapter` before `TaskDriver.install`.
-const adapters = new Map<string, CliAdapter>()
+export type AcpReadTextFileHandler = (
+  request: ReadTextFileRequest & { readonly signal: AbortSignal },
+) => Promise<ReadTextFileResponse>
 
-export const registerCliAdapter = (name: string, adapter: CliAdapter): void => {
+export type ThreadBinding = {
+  threadID: string
+  cwd: string
+  model: string
+  modelProvider: string
+  cliVersion: string
+}
+
+export type PermissionRequest = {
+  threadID: string
+  turnID: string
+  itemID: string
+  requestID: string | number
+} & ({ kind: "command"; command: string; cwd: string } | { kind: "file"; paths: readonly string[] })
+
+export class UnavailableError extends Schema.TaggedError<UnavailableError>()("CliAdapter.Unavailable", {
+  target: Schema.String,
+  reason: Schema.String,
+}) {
+  override get message() {
+    return `CLI ${this.target} is unavailable: ${this.reason}`
+  }
+}
+
+// Static descriptors only. Location configuration and live callbacks never enter this cell.
+const adapters = new Map<string, CliAdapterValue<Error>>()
+
+export const registerCliAdapter = (name: string, adapter: CliAdapterValue<Error>): void => {
   adapters.set(name, adapter)
 }
 
-export const getCliAdapter = (name: string): CliAdapter | undefined => adapters.get(name)
+export const getCliAdapter = (name: string): CliAdapterValue<Error> | undefined => adapters.get(name)
 
-export const listCliAdapters = (): CliAdapter[] => Array.from(adapters.values())
+export const listCliAdapters = (): CliAdapterValue<Error>[] => Array.from(adapters.values())
 
-export type BuiltInCliTransports = Readonly<Record<string, Partial<Record<"sdk" | "acp" | "app-server", CliAdapter>>>>
+/** Resolve one configured transport without installing Location state globally. */
+export const resolve = (entries: readonly Entry[], target: string, builtInTransports: BuiltInCliTransports = {}) =>
+  Effect.gen(function* () {
+    const info = Config.latest(entries, "cli_agents")?.[target]
+    if (
+      !info ||
+      !(
+        (target === "codex" && info.transport === "app-server") ||
+        (target === "claude-code" &&
+          (info.transport === "sdk" || info.transport === "acp" || info.transport === "jsonl"))
+      )
+    )
+      return yield* new UnavailableError({
+        target,
+        reason:
+          target === "claude-code"
+            ? "this slice requires configured claude-code/sdk, claude-code/acp or claude-code/jsonl"
+            : "this slice requires configured codex/app-server",
+      })
+    const registered = adapters.get(target)
+    const descriptor =
+      registered?.transport === info.transport ? registered : builtInTransports[target]?.[info.transport]
+    if (!descriptor || descriptor.transport !== info.transport)
+      return yield* new UnavailableError({ target, reason: `configured ${info.transport} transport is unavailable` })
+    if (info.args?.length)
+      return yield* new UnavailableError({
+        target,
+        reason: `${info.transport} does not accept JSONL argv templates`,
+      })
+    if (!descriptor.forCommand)
+      return yield* new UnavailableError({ target, reason: "an invocation-scoped transport factory is required" })
+    const adapter = descriptor.forCommand(info.command)
+    if (!adapter.execute) return yield* new UnavailableError({ target, reason: "execute is unavailable" })
+    return { ...adapter, timeout: info.timeout ?? adapter.timeout }
+  })
+
+export type BuiltInCliTransports = Readonly<
+  Record<string, Partial<Record<"sdk" | "acp" | "jsonl" | "app-server", CliAdapterValue<Error>>>>
+>
 
 /**
  * Register config-defined `cli_agents` as adapters. Later entries win, so a
@@ -136,7 +240,7 @@ export type BuiltInCliTransports = Readonly<Record<string, Partial<Record<"sdk" 
  * loudly instead of silently downgrading to a jsonl adapter.
  */
 export const registerConfigCliAdapters = (
-  entries: readonly Config.Entry[],
+  entries: readonly Entry[],
   builtInTransports: BuiltInCliTransports = {},
 ): void => {
   const cliAgents = Config.latest(entries, "cli_agents")

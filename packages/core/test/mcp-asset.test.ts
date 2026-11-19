@@ -2,16 +2,20 @@ import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
 import os from "os"
 import path from "path"
-import { FSUtil } from "../src/fs-util"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { Location } from "../src/location"
 import { LocationMutation } from "../src/location-mutation"
-import { Project } from "../src/project"
 import { PromptAsset } from "../src/prompt-asset"
 import { SkillAsset } from "../src/skill-asset"
 import { MCPAsset } from "../src/mcp-asset"
 import { AssetKind } from "../src/asset-kind"
 import { AbsolutePath } from "../src/schema"
+import { NodeFileSystem } from "@effect/platform-node"
+import { location } from "./fixture/location"
+import { tempGlobalLayer } from "./fixture/global"
 import { it } from "./lib/effect"
+
+const fsLayer = FSUtil.layer.pipe(Layer.provide(NodeFileSystem.layer))
 
 describe("MCPAsset", () => {
   it.live("loads mcp assets and isolates from skill and prompt with same filename", () =>
@@ -20,29 +24,21 @@ describe("MCPAsset", () => {
       const tmpDir = yield* fs.makeTempDirectory({ directory: os.tmpdir(), prefix: "aigcfroge-mcp-test-" })
       const locationDir = AbsolutePath.make(tmpDir)
 
-      const ref = { directory: locationDir }
-      const projectLayer = Layer.succeed(
-        Project.Service,
-        Project.Service.of({
-          directories: () => Effect.succeed([]),
-          resolve: () =>
-            Effect.succeed({
-              id: Project.ID.make("project"),
-              directory: locationDir,
-              vcs: { type: "git", store: AbsolutePath.make(path.join(tmpDir, ".git")) },
-            }),
-          commit: () => Effect.void,
-        }),
+      const locationLayer = Layer.succeed(
+        Location.Service,
+        Location.Service.of(
+          location(
+            { directory: locationDir },
+            { vcs: { type: "git", store: AbsolutePath.make(path.join(tmpDir, ".git")) } },
+          ),
+        ),
       )
-      const locationLayer = Location.layer(ref).pipe(Layer.provide(projectLayer))
 
-      const baseLayer = Layer.mergeAll(locationLayer, FSUtil.defaultLayer, AssetKind.layer)
-      const testAppLayer = Layer.mergeAll(
-        MCPAsset.layer,
-        SkillAsset.layer,
-        PromptAsset.layer,
-        LocationMutation.layer,
-      ).pipe(Layer.provide(baseLayer))
+      const baseLayer = Layer.mergeAll(locationLayer, fsLayer, AssetKind.layer, tempGlobalLayer)
+      const testAppLayer = Layer.mergeAll(MCPAsset.layer, SkillAsset.layer, PromptAsset.layer).pipe(
+        Layer.provide(LocationMutation.layer),
+        Layer.provide(baseLayer),
+      )
 
       return yield* Effect.gen(function* () {
         const mcpService = yield* MCPAsset.Service
@@ -96,6 +92,6 @@ describe("MCPAsset", () => {
         expect(prompts[0].name).toBe("my-tool")
         expect(prompts[0].kind).toBe("prompt")
       }).pipe(Effect.provide(testAppLayer))
-    }).pipe(Effect.provide(FSUtil.defaultLayer)),
+    }).pipe(Effect.provide(fsLayer)),
   )
 })

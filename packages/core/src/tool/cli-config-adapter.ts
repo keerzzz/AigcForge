@@ -6,17 +6,17 @@ import { which } from "../util/which"
 import { DelegationParser } from "./delegation-parser"
 import { adapter as claudeCodeAdapter } from "./claude-code"
 import { adapter as codexAdapter } from "./codex"
-import type { CliAdapter } from "./cli-adapter"
+import type { CliAdapterValue } from "./cli-adapter"
 
 const interpolate = (args: readonly string[], prompt: string, resumeId?: string) =>
   args.map((arg) => arg.replaceAll("{prompt}", prompt).replaceAll("{resumeId}", resumeId ?? ""))
 
 /**
- * Materialize a config-defined `cli_agents` entry as a standard `CliAdapter`.
+ * Materialize a config-defined `cli_agents` entry as a standard `CliAdapterValue`.
  * `output` selects the existing parsing strategy (claude-jsonl / codex-jsonl /
  * plain); `args` support `{prompt}` and `{resumeId}` placeholders.
  */
-export function fromConfig(name: string, info: ConfigCliAgent.Info): CliAdapter {
+export function fromConfig(name: string, info: ConfigCliAgent.Info): CliAdapterValue {
   return {
     name,
     command: info.command,

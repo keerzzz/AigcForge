@@ -1,14 +1,32 @@
-import type { FilePart } from "@aigcfroge/sdk/v2"
+import { bundledLanguagesInfo } from "shiki"
+import { getFilename } from "@aigcfroge/util/path"
+import type { PromptFileAttachment } from "@aigcfroge/client/promise"
 
-export function attached(part: FilePart) {
-  return part.url.startsWith("data:")
+export function attached(file: PromptFileAttachment) {
+  if (file.mention) return false
+
+  if (file.source.type === "inline") return true
+
+  return file.source.uri.startsWith("data:")
 }
 
-export function inline(part: FilePart) {
-  if (attached(part)) return false
-  return part.source?.text?.start !== undefined && part.source?.text?.end !== undefined
-}
+// language metadata only; grammars stay behind shiki's lazy imports
+const LANGUAGE_NAMES = new Map<string, string>(
+  bundledLanguagesInfo.flatMap((info) =>
+    [info.id, ...(info.aliases ?? [])].map((alias) => [alias, info.name] as [string, string]),
+  ),
+)
 
-export function kind(part: FilePart) {
-  return part.mime.startsWith("image/") ? "image" : "file"
+// attachments carry text/plain for all text files, so the label comes from the extension;
+// filename may be an absolute path, so extract the basename before looking for one
+export function typeLabel(filename: string, mime: string, fallback: string) {
+  if (mime === "application/pdf") return "PDF"
+  const base = getFilename(filename)
+  // idx 0 is a dotfile like .gitignore, not an extension
+  const idx = base.lastIndexOf(".")
+  const suffix = idx <= 0 ? "" : base.slice(idx + 1).toLowerCase()
+
+  if (!suffix) return fallback
+
+  return LANGUAGE_NAMES.get(suffix) ?? suffix.toUpperCase()
 }

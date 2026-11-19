@@ -1,21 +1,59 @@
 import { describe, expect, test } from "bun:test"
-import { asc, eq, type EmptyRelations } from "drizzle-orm"
+import { and, asc, eq, sql } from "drizzle-orm"
 import type { SQLiteTransactionConfig } from "drizzle-orm/sqlite-core/session"
-import { Context, Deferred, Effect, Fiber, Layer, Result, Schema } from "effect"
-import type { SqlError } from "effect/unstable/sql/SqlError"
-import type { EffectSQLiteTransaction } from "@aigcfroge/effect-drizzle-sqlite"
+import { Cause, Context, DateTime, Deferred, Effect, Exit, Fiber, Layer, Result, Schema } from "effect"
+import { TestClock } from "effect/testing"
+import type { SqlError } from "effect/sql/SqlError"
 import { Database } from "@aigcfroge/core/database/database"
-import { EventV2 } from "@aigcfroge/core/event"
+import { Bus } from "@aigcfroge/core/bus"
 import { Project } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
 import { AbsolutePath } from "@aigcfroge/core/schema"
-import { SessionV2 } from "@aigcfroge/core/session"
-import { SessionTable, TaskTable } from "@aigcfroge/core/session/sql"
+import { Session } from "@aigcfroge/core/session"
+import {
+  SessionInboxTable,
+  SessionMessageTable,
+  SessionTable,
+  TaskOperationTable,
+  TaskTable,
+} from "@aigcfroge/core/session/sql"
 import { SessionTask } from "@aigcfroge/core/session/task"
+import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
+import { ScheduleTask } from "@aigcfroge/core/session/schedule-task"
+import { ScheduleTable } from "@aigcfroge/core/session/schedule.sql"
+import { KVTable } from "@aigcfroge/core/kv/sql"
+import { SessionTodo } from "@aigcfroge/core/session/todo"
+import { Event } from "@aigcfroge/schema/event"
+import { SessionMessage } from "@aigcfroge/schema/session-message"
+import { Agent } from "@aigcfroge/schema/agent"
+import { Location } from "@aigcfroge/schema/location"
+import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { testEffect, awaitWithTimeout } from "./lib/effect"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Global } from "@aigcfroge/util/global"
 
-const it = testEffect(Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer, SessionTask.defaultLayer))
-const sessionID = SessionV2.ID.make("ses_task_test")
+/** The drizzle-effect transaction handle, derived from the database client's own signature. */
+type SQLiteTx = Parameters<Parameters<Database.Interface["db"]["transaction"]>[0]>[0]
+
+const globalLayer = Layer.succeed(
+  Global.Service,
+  Global.Service.of(Global.make({ data: "/data", config: "/config", tmp: "/tmp/aigcfroge" })),
+)
+const databaseLayer = Database.layer().pipe(Layer.provide(globalLayer))
+const busNodeLayer = AppNodeBuilder.build(LayerNode.group([Database.node, Bus.node]), [
+  Bus.node.replace(Bus.configured()),
+])
+
+const taskLayer = SessionTodo.defaultLayer.pipe(
+  Layer.provideMerge(SessionTask.defaultLayer),
+  Layer.provideMerge(busNodeLayer),
+  Layer.provideMerge(databaseLayer),
+  Layer.provideMerge(globalLayer),
+)
+const it = testEffect(taskLayer)
+const scheduleIt = testEffect(ScheduleService.layer.pipe(Layer.provideMerge(taskLayer)))
+const sessionID = Session.ID.make("ses_task_test")
 
 const setup = Effect.gen(function* () {
   const { db } = yield* Database.Service
@@ -38,14 +76,633 @@ const setup = Effect.gen(function* () {
     .pipe(Effect.orDie)
 })
 
+const listenUpdates = Effect.gen(function* () {
+  const events = yield* Bus.Service
+  const published = new Array<Event.Payload>()
+  const unsubscribe = yield* events.listen((event) =>
+    Effect.sync(() => {
+      if (event.type === SessionTask.Event.Updated.type || event.type === SessionTask.Event.TodoUpdated.type)
+        published.push(event)
+    }),
+  )
+  yield* Effect.addFinalizer(() => unsubscribe)
+  return published
+})
+
 describe("SessionTask", () => {
+  describe("execution claims", () => {
+    const source = { type: "tool" as const, messageID: "msg_task_owner", id: "call-task-owner" }
+    const management = { type: "tool" as const, messageID: "msg_task_manager", id: "call-task-manager" }
+
+    it.effect("MP05 anchors an append claim before its commit hook and rolls all writes back on failure", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const database = yield* Database.Service
+        const published = yield* listenUpdates
+        const failed = yield* tasks
+          .append(
+            {
+              sessionID,
+              tasks: [
+                {
+                  id: "tsk_claim_rollback",
+                  content: "start worker",
+                  status: "in_progress",
+                  priority: "medium",
+                  scheduledAt: 60_000,
+                },
+              ],
+            },
+            {
+              claim: source,
+              commit: (task) =>
+                Effect.gen(function* () {
+                  const claim = yield* database.db
+                    .select()
+                    .from(KVTable)
+                    .where(eq(KVTable.key, `task:claim:${sessionID}:${task.id}`))
+                    .get()
+                    .pipe(Effect.orDie)
+                  expect(claim?.value).toEqual({
+                    parentTaskID: task.id,
+                    parentTaskRevision: task.revision,
+                    source,
+                  })
+                  expect(
+                    yield* database.db
+                      .select()
+                      .from(ScheduleTable)
+                      .where(eq(ScheduleTable.task_id, task.id))
+                      .get()
+                      .pipe(Effect.orDie),
+                  ).toMatchObject({
+                    task_id: task.id,
+                    status: "paused",
+                  })
+                  return yield* Effect.die(new Error("Task admission failed"))
+                }),
+            },
+          )
+          .pipe(Effect.exit)
+        expect(Exit.isFailure(failed)).toBe(true)
+        expect(yield* tasks.get(sessionID)).toEqual([])
+        expect(yield* database.db.select().from(KVTable).all().pipe(Effect.orDie)).toEqual([])
+        expect(yield* database.db.select().from(ScheduleTable).all().pipe(Effect.orDie)).toEqual([])
+        expect(published).toEqual([])
+
+        const [task] = yield* tasks.append(
+          {
+            sessionID,
+            tasks: [{ content: "start worker", status: "in_progress", priority: "medium" }],
+          },
+          { claim: source },
+        )
+        expect((yield* database.db.select().from(KVTable).all().pipe(Effect.orDie))[0]?.value).toEqual({
+          parentTaskID: task.id,
+          parentTaskRevision: task.revision,
+          source,
+        })
+        expect(published.map((event) => event.type)).toEqual([
+          SessionTask.Event.Updated.type,
+          SessionTask.Event.TodoUpdated.type,
+        ])
+      }),
+    )
+
+    it.effect("MP05 a restored nullable operation key keeps the original Tool claim owned", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const database = yield* Database.Service
+        const [task] = yield* tasks.append(
+          { sessionID, tasks: [{ content: "restored Tool worker", status: "in_progress", priority: "medium" }] },
+          { claim: source },
+        )
+        yield* database.db
+          .update(KVTable)
+          .set({
+            value: {
+              parentTaskID: task.id,
+              parentTaskRevision: task.revision,
+              source,
+              operationID: null,
+            },
+          })
+          .where(eq(KVTable.key, `task:claim:${sessionID}:${task.id}`))
+          .run()
+          .pipe(Effect.orDie)
+        const rejected = yield* tasks
+          .updateTask({ sessionID, id: task.id, content: "management overwrite" }, { management })
+          .pipe(Effect.result)
+        expect(Result.isFailure(rejected)).toBe(true)
+        if (Result.isFailure(rejected)) expect(rejected.failure.reason).toBe("execution_owned")
+        expect((yield* tasks.get(sessionID))[0]).toEqual(task)
+        yield* tasks.releaseClaim({ sessionID, id: task.id, revision: task.revision, source })
+        expect(
+          yield* database.db
+            .select()
+            .from(KVTable)
+            .where(eq(KVTable.key, `task:claim:${sessionID}:${task.id}`))
+            .get()
+            .pipe(Effect.orDie),
+        ).toBeUndefined()
+      }),
+    )
+
+    it.effect("one competing source claims a Task and an exact owner retry keeps its revision and events", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const [seed] = yield* tasks.append({
+          sessionID,
+          tasks: [{ content: "one worker", status: "pending", priority: "medium" }],
+        })
+        const contenders = [source, management]
+        const claims = yield* Effect.forEach(
+          contenders,
+          (claim) =>
+            tasks
+              .patch(
+                {
+                  sessionID,
+                  id: seed.id,
+                  status: "in_progress",
+                  expectedRevision: seed.revision,
+                },
+                { claim },
+              )
+              .pipe(Effect.result),
+          { concurrency: "unbounded" },
+        )
+        expect(claims.filter(Result.isSuccess)).toHaveLength(1)
+        const failures = claims.filter(Result.isFailure)
+        expect(failures).toHaveLength(1)
+        expect(failures[0]?.failure.reason).toBe("execution_owned")
+        const winner = contenders[claims.findIndex(Result.isSuccess)]
+        const [claimed] = yield* tasks.get(sessionID)
+        const published = yield* listenUpdates
+        const replayed = yield* tasks.patch(
+          {
+            sessionID,
+            id: seed.id,
+            status: "in_progress",
+            expectedRevision: seed.revision,
+          },
+          { claim: winner },
+        )
+        expect(replayed).toEqual(claimed)
+        expect(replayed?.revision).toBe(seed.revision + 1)
+        expect(published).toEqual([])
+      }),
+    )
+
+    it.effect("hands off a current execution claim without letting the previous source settle its successor", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const [owned] = yield* tasks.append(
+          { sessionID, tasks: [{ content: "running A", status: "in_progress", priority: "medium" }] },
+          { claim: source },
+        )
+        yield* Effect.forEach(
+          [
+            { source: management, revision: owned.revision },
+            { source, revision: owned.revision + 1 },
+          ],
+          (handoff) =>
+            Effect.gen(function* () {
+              const result = yield* tasks
+                .patch(
+                  { sessionID, id: owned.id, status: "in_progress", expectedRevision: owned.revision },
+                  { claim: management, handoff },
+                )
+                .pipe(Effect.result)
+              expect(Result.isFailure(result) && result.failure.reason).toBe("execution_owned")
+            }),
+        )
+        expect(yield* tasks.get(sessionID)).toEqual([owned])
+        const handed = yield* tasks.patch(
+          { sessionID, id: owned.id, status: "in_progress", expectedRevision: owned.revision },
+          { claim: management, handoff: { source, revision: owned.revision } },
+        )
+        if (!handed) return yield* Effect.die(new Error("Execution claim handoff is missing"))
+        expect(handed.revision).toBe(owned.revision + 1)
+        expect(
+          yield* tasks.patch(
+            { sessionID, id: owned.id, status: "in_progress", expectedRevision: owned.revision },
+            { claim: management },
+          ),
+        ).toEqual(handed)
+        expect(
+          yield* tasks.patch(
+            { sessionID, id: owned.id, status: "cancelled", expectedRevision: owned.revision },
+            { settle: { source, revision: owned.revision } },
+          ),
+        ).toBeUndefined()
+        yield* tasks.releaseClaim({ sessionID, id: owned.id, source, revision: owned.revision })
+        const protectedEdit = yield* tasks
+          .updateTask({ sessionID, id: owned.id, content: "old A must not release B" }, { management })
+          .pipe(Effect.result)
+        expect(Result.isFailure(protectedEdit) && protectedEdit.failure.reason).toBe("execution_owned")
+        expect(yield* tasks.get(sessionID)).toEqual([handed])
+        expect(
+          yield* tasks.patch(
+            { sessionID, id: owned.id, status: "completed", expectedRevision: handed.revision },
+            { settle: { source: management, revision: handed.revision } },
+          ),
+        ).toMatchObject({ status: "completed", revision: handed.revision + 1 })
+      }),
+    )
+
+    it.effect("automatic update delete full write reorder and legacy write cannot change owned execution", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const todos = yield* SessionTodo.Service
+        const database = yield* Database.Service
+        const [owned] = yield* tasks.append(
+          {
+            sessionID,
+            tasks: [{ content: "worker", status: "in_progress", priority: "medium" }],
+          },
+          { claim: source },
+        )
+        yield* tasks.append({
+          sessionID,
+          tasks: [
+            { content: "other plan", status: "pending", priority: "medium" },
+            { content: "unbound active plan", status: "in_progress", priority: "medium" },
+          ],
+        })
+        const before = yield* tasks.get(sessionID)
+        const rows = yield* database.db.select().from(TaskTable).all().pipe(Effect.orDie)
+        const claims = yield* database.db.select().from(KVTable).all().pipe(Effect.orDie)
+        const published = yield* listenUpdates
+        const attempts = yield* Effect.forEach(
+          [
+            tasks
+              .updateTask({ sessionID, id: owned.id, content: "overwrite worker" }, { management })
+              .pipe(Effect.asVoid),
+            tasks.removeTask({ sessionID, id: owned.id }, { management }).pipe(Effect.asVoid),
+            tasks
+              .update({ sessionID, tasks: before.filter((task) => task.id !== owned.id) }, { management })
+              .pipe(Effect.asVoid),
+            tasks
+              .reorder({ sessionID, ids: before.map((task) => task.id).reverse() }, { management })
+              .pipe(Effect.asVoid),
+            todos.update({ sessionID, todos: [] }, { management }).pipe(Effect.asVoid),
+          ],
+          (attempt) => attempt.pipe(Effect.result),
+        )
+        expect(attempts.every(Result.isFailure)).toBe(true)
+        expect(attempts.filter(Result.isFailure).map((result) => result.failure.reason)).toEqual(
+          Array(5).fill("execution_owned"),
+        )
+        expect(yield* tasks.get(sessionID)).toEqual(before)
+        expect(yield* database.db.select().from(TaskTable).all().pipe(Effect.orDie)).toEqual(rows)
+        expect(yield* database.db.select().from(KVTable).all().pipe(Effect.orDie)).toEqual(claims)
+        expect(published).toEqual([])
+
+        const free = before[2]
+        const updated = yield* tasks.updateTask(
+          {
+            sessionID,
+            id: free.id,
+            status: "completed",
+            content: "ordinary plan completed",
+          },
+          { management },
+        )
+        expect(updated).toMatchObject({ id: free.id, status: "completed", revision: free.revision + 1 })
+        expect((yield* tasks.get(sessionID))[0]).toEqual(owned)
+      }),
+    )
+
+    it.effect("only the captured source and revision release a claim", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const database = yield* Database.Service
+        const [owned] = yield* tasks.append(
+          {
+            sessionID,
+            tasks: [{ content: "worker", status: "in_progress", priority: "medium" }],
+          },
+          { claim: source },
+        )
+        yield* tasks.releaseClaim({ sessionID, id: owned.id, source: management, revision: owned.revision })
+        yield* tasks.releaseClaim({ sessionID, id: owned.id, source, revision: owned.revision + 1 })
+        const blocked = yield* tasks
+          .updateTask({ sessionID, id: owned.id, content: "blocked" }, { management })
+          .pipe(Effect.result)
+        expect(Result.isFailure(blocked) && blocked.failure.reason).toBe("execution_owned")
+        expect(yield* tasks.get(sessionID)).toEqual([owned])
+        yield* tasks.releaseClaim({ sessionID, id: owned.id, source, revision: owned.revision })
+        expect(yield* database.db.select().from(KVTable).all().pipe(Effect.orDie)).toEqual([])
+        const editable = yield* tasks.updateTask({ sessionID, id: owned.id, content: "released plan" }, { management })
+        expect(editable?.content).toBe("released plan")
+      }),
+    )
+
+    it.effect("HTTP style editing keeps its revision while the old owner settles and releases its claim", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const database = yield* Database.Service
+        const [owned] = yield* tasks.append(
+          {
+            sessionID,
+            tasks: [{ content: "worker", status: "in_progress", priority: "medium" }],
+          },
+          { claim: source },
+        )
+        const edited = yield* tasks.updateTask({
+          sessionID,
+          id: owned.id,
+          content: "user revised plan",
+          status: "pending",
+        })
+        if (!edited) return yield* Effect.die(new Error("Expected the explicit Task edit to land"))
+        expect(edited?.revision).toBe(owned.revision + 1)
+        const protectedEdit = yield* tasks.removeTask({ sessionID, id: owned.id }, { management }).pipe(Effect.result)
+        expect(Result.isFailure(protectedEdit) && protectedEdit.failure.reason).toBe("execution_owned")
+        const published = yield* listenUpdates
+        const settled = yield* tasks.patch(
+          {
+            sessionID,
+            id: owned.id,
+            expectedRevision: owned.revision,
+            expect: ["in_progress"],
+            status: "completed",
+          },
+          { settle: { source, revision: owned.revision } },
+        )
+        expect(settled).toBeUndefined()
+        expect(yield* tasks.get(sessionID)).toEqual([edited])
+        expect(yield* database.db.select().from(KVTable).all().pipe(Effect.orDie)).toEqual([])
+        expect(published).toEqual([])
+        const removed = yield* tasks.removeTask({ sessionID, id: owned.id }, { management })
+        expect(removed).toEqual(edited)
+      }),
+    )
+
+    it.effect("an explicit owner retry replaces its old claim without releasing the new revision", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const database = yield* Database.Service
+        const [owned] = yield* tasks.append(
+          {
+            sessionID,
+            tasks: [{ content: "recover worker", status: "in_progress", priority: "medium" }],
+          },
+          { claim: source },
+        )
+        const unknown = yield* tasks.patch({
+          sessionID,
+          id: owned.id,
+          status: "failed",
+          expectedRevision: owned.revision,
+        })
+        const retried = yield* tasks.patch(
+          {
+            sessionID,
+            id: owned.id,
+            status: "in_progress",
+            expectedRevision: unknown?.revision,
+          },
+          { claim: source, settle: { source, revision: owned.revision } },
+        )
+        expect(retried?.revision).toBe(owned.revision + 2)
+        expect((yield* database.db.select().from(KVTable).all().pipe(Effect.orDie))[0]?.value).toMatchObject({
+          parentTaskRevision: retried?.revision,
+          source,
+        })
+        yield* tasks.releaseClaim({ sessionID, id: owned.id, source, revision: owned.revision })
+        const blocked = yield* tasks.removeTask({ sessionID, id: owned.id }, { management }).pipe(Effect.result)
+        expect(Result.isFailure(blocked) && blocked.failure.reason).toBe("execution_owned")
+      }),
+    )
+
+    it.effect("an aggregate remains protected by its genuine worker claim", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const [aggregate] = yield* tasks.append({
+          sessionID,
+          tasks: [{ content: "Judge aggregate", status: "in_progress", priority: "medium" }],
+        })
+        const rows = yield* tasks.append(
+          {
+            sessionID,
+            tasks: [{ content: "Judge worker", status: "in_progress", priority: "medium", parentID: aggregate.id }],
+          },
+          { claim: source },
+        )
+        const worker = rows[1]
+        const blocked = yield* tasks.removeTask({ sessionID, id: aggregate.id }, { management }).pipe(Effect.result)
+        expect(Result.isFailure(blocked) && blocked.failure.reason).toBe("execution_owned")
+        yield* tasks.patch(
+          {
+            sessionID,
+            id: worker.id,
+            status: "completed",
+            expectedRevision: worker.revision,
+          },
+          { settle: { source, revision: worker.revision } },
+        )
+        const released = yield* tasks.updateTask({ sessionID, id: aggregate.id, status: "completed" }, { management })
+        expect(released?.status).toBe("completed")
+      }),
+    )
+
+    for (const placement of ["pending", "promoted"] as const) {
+      it.effect(`protects a legacy ${placement} TaskLink until its child input settles`, () =>
+        Effect.gen(function* () {
+          yield* setup
+          const tasks = yield* SessionTask.Service
+          const database = yield* Database.Service
+          const [task] = yield* tasks.append({
+            sessionID,
+            tasks: [{ content: "historical worker", status: "in_progress", priority: "medium" }],
+          })
+          const childID = Session.ID.make("ses_legacy_task_worker")
+          const inputID = SessionMessage.ID.make("msg_legacy_task_input")
+          yield* database.db
+            .insert(SessionTable)
+            .values({
+              id: childID,
+              project_id: Project.ID.global,
+              parent_id: sessionID,
+              slug: "legacy-worker",
+              directory: "/project",
+              version: "test",
+            })
+            .run()
+            .pipe(Effect.orDie)
+          const payload = {
+            text: "historical worker input",
+            metadata: {
+              task: {
+                parentTaskID: task.id,
+                parentTaskRevision: task.revision,
+                description: task.content,
+                background: false,
+              },
+            },
+          }
+          if (placement === "pending")
+            yield* database.db
+              .insert(SessionInboxTable)
+              .values({
+                id: inputID,
+                session_id: childID,
+                type: "synthetic",
+                payload,
+                delivery: "steer",
+                enqueued_seq: 1,
+              })
+              .run()
+              .pipe(Effect.orDie)
+          if (placement === "promoted")
+            yield* database.db
+              .insert(SessionMessageTable)
+              .values({
+                id: inputID,
+                session_id: childID,
+                type: "synthetic",
+                seq: 1,
+                data: { ...payload, time: { created: 1 } },
+              })
+              .run()
+              .pipe(Effect.orDie)
+          const blocked = yield* tasks
+            .updateTask({ sessionID, id: task.id, status: "completed" }, { management })
+            .pipe(Effect.result)
+          expect(Result.isFailure(blocked) && blocked.failure.reason).toBe("execution_owned")
+          expect(yield* tasks.get(sessionID)).toEqual([task])
+          if (placement === "pending")
+            yield* database.db
+              .delete(SessionInboxTable)
+              .where(eq(SessionInboxTable.id, inputID))
+              .run()
+              .pipe(Effect.orDie)
+          if (placement === "promoted")
+            yield* database.db
+              .insert(SessionMessageTable)
+              .values({
+                id: SessionMessage.ID.make("msg_legacy_task_cancelled"),
+                session_id: childID,
+                type: "idle",
+                seq: 2,
+                data: { outcome: "interrupted", time: { created: 2 } },
+              })
+              .run()
+              .pipe(Effect.orDie)
+          const released = yield* tasks.updateTask({ sessionID, id: task.id, status: "cancelled" }, { management })
+          expect(released?.status).toBe("cancelled")
+        }),
+      )
+    }
+  })
+
+  it.effect("can cancel an existing invalid-timezone Task and correct its stored recurrence", () =>
+    Effect.gen(function* () {
+      yield* setup
+      yield* TestClock.setTime(Date.parse("2026-08-01T23:59:00.000Z"))
+      const database = yield* Database.Service
+      const tasks = yield* SessionTask.Service
+      const seeded = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "historical task", status: "pending", priority: "medium" }],
+      })
+      const task = seeded[0]
+      if (!task) throw new Error("Expected a historical Task fixture")
+      yield* database.db
+        .update(TaskTable)
+        .set({
+          status: "scheduled",
+          recurrence: { cron: "0 9 * * *", timezone: "Not/A_TimeZone", enabled: true },
+        })
+        .where(eq(TaskTable.id, task.id))
+        .run()
+        .pipe(Effect.orDie)
+
+      const cancelled = yield* tasks.patch({
+        sessionID,
+        id: task.id,
+        status: "cancelled",
+        expectedRevision: task.revision,
+      })
+      expect(cancelled?.status).toBe("cancelled")
+      if (!cancelled) throw new Error("Expected cancellation of the historical Task")
+      const corrected = yield* tasks.update({
+        sessionID,
+        expectedRevision: cancelled.revision,
+        tasks: [
+          {
+            id: task.id,
+            content: "corrected task",
+            status: "scheduled",
+            priority: "medium",
+            recurrence: { cron: "0 9 * * *", timezone: "Asia/Tokyo", enabled: true },
+          },
+        ],
+      })
+      expect(corrected[0]?.recurrence?.timezone).toBe("Asia/Tokyo")
+      expect(corrected[0]?.nextRun).toBe(Date.parse("2026-08-02T00:00:00.000Z"))
+      expect((yield* tasks.get(sessionID))[0]?.recurrence?.timezone).toBe("Asia/Tokyo")
+    }),
+  )
+
+  it.effect("persists fixed recurrence timezones and derives nextRun in each stored zone", () =>
+    Effect.gen(function* () {
+      yield* setup
+      yield* TestClock.setTime(Date.parse("2026-08-01T23:59:00.000Z"))
+      const database = yield* Database.Service
+      const tasks = yield* SessionTask.Service
+      yield* tasks.append({
+        sessionID,
+        tasks: [
+          {
+            content: "Tokyo morning",
+            status: "scheduled",
+            priority: "medium",
+            recurrence: { cron: "0 9 * * *", timezone: "Asia/Tokyo", enabled: true },
+          },
+          {
+            content: "London morning",
+            status: "scheduled",
+            priority: "medium",
+            recurrence: { cron: "0 9 * * *", timezone: "Europe/London", enabled: true },
+          },
+        ],
+      })
+
+      const rows = yield* database.db
+        .select()
+        .from(TaskTable)
+        .where(eq(TaskTable.session_id, sessionID))
+        .orderBy(asc(TaskTable.position))
+        .all()
+        .pipe(Effect.orDie)
+      expect(rows.map((row) => row.recurrence?.timezone)).toEqual(["Asia/Tokyo", "Europe/London"])
+      const restored = yield* tasks.get(sessionID)
+      expect(restored.map((task) => task.nextRun)).toEqual([
+        Date.parse("2026-08-02T00:00:00.000Z"),
+        Date.parse("2026-08-02T08:00:00.000Z"),
+      ])
+    }),
+  )
+
   it.effect("inserts in order, patches by id keeping position, deletes, and publishes task.updated", () =>
     Effect.gen(function* () {
       yield* setup
       const { db } = yield* Database.Service
-      const events = yield* EventV2.Service
+      const events = yield* Bus.Service
       const tasks = yield* SessionTask.Service
-      const published = new Array<EventV2.Payload>()
+      const published = new Array<Event.Payload>()
       const unsubscribe = yield* events.listen((event) =>
         Effect.sync(() => {
           if (event.type === SessionTask.Event.Updated.type) published.push(event)
@@ -183,7 +840,7 @@ describe("SessionTask", () => {
     Effect.gen(function* () {
       yield* setup
       const { db } = yield* Database.Service
-      const otherSession = SessionV2.ID.make("ses_task_other")
+      const otherSession = Session.ID.make("ses_task_other")
       yield* db
         .insert(SessionTable)
         .values({
@@ -228,20 +885,15 @@ describe("SessionTask", () => {
     }),
   )
 
-  // AI-TDD-S01-R04: the canonical Task write path emits ONLY task.updated —
-  // no legacy todo.updated echo, no TodoProjection compatibility shape. This
-  // is the RED for the S01 single-contract cutover: SessionTask.Event must not
-  // expose a TodoUpdated member, and no `todo.updated` type must ever cross
-  // the EventV2 bus from a task write.
-  it.effect("task writes publish ONLY task.updated — no legacy todo.updated echo (AI-TDD-S01-R04)", () =>
+  it.effect("task writes emit a compatible todo.updated projection", () =>
     Effect.gen(function* () {
       yield* setup
-      const events = yield* EventV2.Service
+      const events = yield* Bus.Service
       const tasks = yield* SessionTask.Service
-      const published = new Array<EventV2.Payload>()
+      const published = new Array<Event.Payload>()
       const unsubscribe = yield* events.listen((event) =>
         Effect.sync(() => {
-          published.push(event)
+          if (event.type === SessionTask.Event.TodoUpdated.type) published.push(event)
         }),
       )
       yield* Effect.addFinalizer(() => unsubscribe)
@@ -250,11 +902,41 @@ describe("SessionTask", () => {
         sessionID,
         tasks: [{ content: "x", status: "in_progress", priority: "high" }],
       })
-      const types = published.map((event) => event.type)
-      expect(types).toContain("task.updated")
-      expect(types).not.toContain("todo.updated")
-      // The compatibility projection type must not exist on the Event namespace.
-      expect((SessionTask.Event as Record<string, unknown>).TodoUpdated).toBeUndefined()
+      const data = Schema.decodeUnknownSync(SessionTask.Event.TodoUpdated.data)(published[0]?.data)
+      expect(data.todos).toEqual([{ content: "x", status: "in_progress", priority: "high" }])
+    }),
+  )
+
+  it.effect("legacy todowrite replace preserves the id a background delegation settled", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const todos = yield* SessionTodo.Service
+
+      // A background delegation creates a linked task (tsk_A).
+      const [linked] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "audit", status: "in_progress", priority: "medium" }],
+      })
+
+      // Legacy todowrite replaces the whole list — the linked id must survive,
+      // otherwise the delegation's settle patch would no-op on a rebuilt id.
+      yield* todos.update({
+        sessionID,
+        todos: [{ content: "audit", status: "in_progress", priority: "medium" }],
+      })
+      const afterReplace = yield* tasks.get(sessionID)
+      expect(afterReplace.map((task) => task.id)).toEqual([linked.id])
+
+      // The delegation settle writeback still lands on the linked task.
+      const patched = yield* tasks.patch({
+        sessionID,
+        id: linked.id,
+        status: "completed",
+        outputDigest: "ses_child",
+      })
+      expect(patched?.id).toBe(linked.id)
+      expect((yield* tasks.get(sessionID))[0]?.status).toBe("completed")
     }),
   )
 
@@ -366,9 +1048,9 @@ describe("SessionTask", () => {
   it.effect("update reconcile preserves outputDigest in the resolved payload and the event", () =>
     Effect.gen(function* () {
       yield* setup
-      const events = yield* EventV2.Service
+      const events = yield* Bus.Service
       const tasks = yield* SessionTask.Service
-      const published = new Array<EventV2.Payload>()
+      const published = new Array<Event.Payload>()
       const unsubscribe = yield* events.listen((event) =>
         Effect.sync(() => {
           if (event.type === SessionTask.Event.Updated.type) published.push(event)
@@ -401,7 +1083,7 @@ describe("SessionTask", () => {
       yield* setup
       const { db } = yield* Database.Service
       const tasks = yield* SessionTask.Service
-      const otherSession = SessionV2.ID.make("ses_task_list_other")
+      const otherSession = Session.ID.make("ses_task_list_other")
       yield* db
         .insert(SessionTable)
         .values({
@@ -517,6 +1199,23 @@ describe("SessionTask", () => {
         })
         .pipe(Effect.flip)
       expect(appended.reason).toBe("invalid_schedule")
+
+      const invalidZone = yield* tasks
+        .append({
+          sessionID,
+          tasks: [
+            {
+              content: "unknown timezone",
+              status: "scheduled",
+              priority: "medium",
+              recurrence: { cron: "0 9 * * *", timezone: "Not/A_TimeZone", enabled: true },
+            },
+          ],
+        })
+        .pipe(Effect.flip)
+      expect(invalidZone.reason).toBe("invalid_schedule")
+      expect(invalidZone.schedule).toBe("cron")
+      expect((yield* tasks.get(sessionID)).map((task) => task.content)).toEqual(["nightly"])
     }),
   )
 
@@ -742,7 +1441,7 @@ describe("SessionTask", () => {
       yield* setup
       const { db } = yield* Database.Service
       const tasks = yield* SessionTask.Service
-      const otherSession = SessionV2.ID.make("ses_task_other")
+      const otherSession = Session.ID.make("ses_task_other")
       // The task table has a session FK; the second session must exist too.
       yield* db
         .insert(SessionTable)
@@ -794,7 +1493,7 @@ describe("SessionTask", () => {
       yield* setup
       const { db } = yield* Database.Service
       const tasks = yield* SessionTask.Service
-      const otherSession = SessionV2.ID.make("ses_task_concurrent_other")
+      const otherSession = Session.ID.make("ses_task_concurrent_other")
       yield* db
         .insert(SessionTable)
         .values({
@@ -854,7 +1553,7 @@ describe("SessionTask", () => {
       yield* setup
       const { db } = yield* Database.Service
       const tasks = yield* SessionTask.Service
-      const otherSession = SessionV2.ID.make("ses_task_other2")
+      const otherSession = Session.ID.make("ses_task_other2")
       yield* db
         .insert(SessionTable)
         .values({
@@ -933,7 +1632,7 @@ describe("SessionTask", () => {
       let calls = 0
       const wrappedDb: typeof real.db = Object.create(real.db)
       wrappedDb.transaction = <A, E, R>(
-        transaction: (tx: EffectSQLiteTransaction<EmptyRelations>) => Effect.Effect<A, E, R>,
+        transaction: (tx: SQLiteTx) => Effect.Effect<A, E, R>,
         config?: SQLiteTransactionConfig,
       ): Effect.Effect<A, E | SqlError, R> =>
         Effect.gen(function* () {
@@ -949,13 +1648,13 @@ describe("SessionTask", () => {
       const dbLayer = Layer.succeed(Database.Service, { db: wrappedDb })
 
       const tasksA = yield* Layer.build(
-        Layer.provide(Layer.fresh(SessionTask.layer), Layer.mergeAll(EventV2.defaultLayer, dbLayer)),
+        Layer.provide(Layer.fresh(SessionTask.layer), Layer.mergeAll(busNodeLayer, dbLayer)),
       ).pipe(Effect.map((ctx) => Context.get(ctx, SessionTask.Service)))
       const tasksB = yield* Layer.build(
-        Layer.provide(Layer.fresh(SessionTask.layer), Layer.mergeAll(EventV2.defaultLayer, dbLayer)),
+        Layer.provide(Layer.fresh(SessionTask.layer), Layer.mergeAll(busNodeLayer, dbLayer)),
       ).pipe(Effect.map((ctx) => Context.get(ctx, SessionTask.Service)))
 
-      const otherSession = SessionV2.ID.make("ses_task_blocker1_b")
+      const otherSession = Session.ID.make("ses_task_blocker1_b")
       yield* real.db
         .insert(SessionTable)
         .values({
@@ -1064,6 +1763,19 @@ describe("SessionTask", () => {
     }),
   )
 
+  it.effect("replaceLegacy rejects a dead scheduled task via the legacy TodoWrite bridge (M-1)", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      // SessionTodo's strict WriteItem can no longer carry "scheduled", so the
+      // guard is exercised through replaceLegacy directly.
+      const error = yield* tasks
+        .replaceLegacy({ sessionID, tasks: [{ content: "legacy sched", status: "scheduled", priority: "medium" }] })
+        .pipe(Effect.flip)
+      expect(error.reason).toBe("invalid_schedule")
+    }),
+  )
+
   // P3-a: revision tracking + expectedRevision optimistic concurrency. Revision is
   // server-managed (never client-supplied): new tasks start at 1, every write
   // increments, and patch accepts expectedRevision to reject stale writes the
@@ -1125,23 +1837,23 @@ describe("SessionTask", () => {
       }),
     )
 
-    it.effect("increments on update (full-list reconcile of an existing task)", () =>
+    it.effect("increments on replaceLegacy", () =>
       Effect.gen(function* () {
         yield* setup
         const tasks = yield* SessionTask.Service
-        const [seed] = yield* tasks.append({
+        yield* tasks.append({
           sessionID,
           tasks: [{ content: "seed", status: "pending", priority: "medium" }],
         })
-        const after = yield* tasks.update({
+        const after = yield* tasks.replaceLegacy({
           sessionID,
-          tasks: [{ id: seed.id, content: "seed", status: "in_progress", priority: "medium" }],
+          tasks: [{ content: "seed", status: "in_progress", priority: "medium" }],
         })
         expect(after[0]?.revision).toBe(2)
       }),
     )
 
-    it.effect("update with stale expectedRevision (full-list reconcile) fails and does not write", () =>
+    it.effect("replaceLegacy with stale expectedRevision fails and does not write", () =>
       Effect.gen(function* () {
         yield* setup
         const tasks = yield* SessionTask.Service
@@ -1156,9 +1868,9 @@ describe("SessionTask", () => {
         // A concurrent write bumped the max revision to 2.
         yield* tasks.patch({ sessionID, id: seed.id, status: "in_progress" })
         const error = yield* tasks
-          .update({
+          .replaceLegacy({
             sessionID,
-            tasks: [{ id: seed.id, content: "seed", status: "completed", priority: "medium" }],
+            tasks: [{ content: "seed", status: "completed", priority: "medium" }],
             expectedRevision: 1,
           })
           .pipe(Effect.flip)
@@ -1256,9 +1968,9 @@ describe("SessionTask", () => {
     it.effect("revision is carried in the task.updated event payload", () =>
       Effect.gen(function* () {
         yield* setup
-        const events = yield* EventV2.Service
+        const events = yield* Bus.Service
         const tasks = yield* SessionTask.Service
-        const published = new Array<EventV2.Payload>()
+        const published = new Array<Event.Payload>()
         const unsubscribe = yield* events.listen((event) =>
           Effect.sync(() => {
             if (event.type === SessionTask.Event.Updated.type) published.push(event)
@@ -1283,10 +1995,206 @@ describe("SessionTask", () => {
   })
 
   // P3-b: incremental single-task commands so the LLM never needs a full-list
-  // replace to edit one task's content/priority or to reorder. updateTask is the
-  // per-task analogue of patch (fields, not status); reorder is the structural
-  // analogue. Both carry expectedRevision to reject stale writes.
+  // replace to edit one task or to reorder. updateTask edits status and fields
+  // in one write; patch retains execution claim guards. Both updateTask and
+  // reorder carry expectedRevision to reject stale writes.
   describe("incremental commands (P3-b)", () => {
+    it.effect("updateTask writes status and fields with one revision and one pair of events", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const database = yield* Database.Service
+        const [task, other] = yield* tasks.update({
+          sessionID,
+          tasks: [
+            { content: "seed", status: "in_progress", priority: "medium" },
+            { content: "other", status: "pending", priority: "low" },
+          ],
+        })
+        const before = yield* database.db
+          .select()
+          .from(TaskTable)
+          .orderBy(asc(TaskTable.position))
+          .all()
+          .pipe(Effect.orDie)
+        const published = yield* listenUpdates
+
+        const updated = yield* tasks.updateTask({
+          sessionID,
+          id: task.id,
+          status: "completed",
+          content: "reviewed",
+          priority: "high",
+          outputDigest: "audit passed",
+          expectedRevision: task.revision,
+        })
+        if (!updated) throw new Error("combined update returned no task")
+        expect(updated).toMatchObject({
+          id: task.id,
+          status: "completed",
+          content: "reviewed",
+          priority: "high",
+          outputDigest: "audit passed",
+          revision: task.revision + 1,
+          createdAt: task.createdAt,
+        })
+        expect(yield* tasks.get(sessionID)).toEqual([updated, other])
+        const rows = yield* database.db
+          .select()
+          .from(TaskTable)
+          .orderBy(asc(TaskTable.position))
+          .all()
+          .pipe(Effect.orDie)
+        expect(rows[0]).toMatchObject({
+          id: task.id,
+          status: "completed",
+          content: "reviewed",
+          priority: "high",
+          output_digest: "audit passed",
+          revision: task.revision + 1,
+          position: before[0]?.position,
+          time_created: before[0]?.time_created,
+        })
+        expect(rows[1]).toEqual(before[1])
+        expect(published.map((event) => event.type)).toEqual([
+          SessionTask.Event.Updated.type,
+          SessionTask.Event.TodoUpdated.type,
+        ])
+        expect(Schema.decodeUnknownSync(SessionTask.Event.Updated.data)(published[0]?.data)).toEqual({
+          sessionID,
+          tasks: [updated, other],
+        })
+        expect(Schema.decodeUnknownSync(SessionTask.Event.TodoUpdated.data)(published[1]?.data)).toEqual({
+          sessionID,
+          todos: [
+            { content: "reviewed", status: "completed", priority: "high" },
+            { content: "other", status: "pending", priority: "low" },
+          ],
+        })
+      }),
+    )
+
+    it.effect("updateTask rejects an invalid scheduled combination before any field or event changes", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const database = yield* Database.Service
+        const [seed] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "seed", status: "in_progress", priority: "medium" }],
+        })
+        yield* tasks.patch({ sessionID, id: seed.id, status: "in_progress", outputDigest: "saved audit" })
+        const before = yield* tasks.get(sessionID)
+        const rows = yield* database.db.select().from(TaskTable).all().pipe(Effect.orDie)
+        const published = yield* listenUpdates
+
+        const error = yield* tasks
+          .updateTask({
+            sessionID,
+            id: seed.id,
+            status: "scheduled",
+            content: "must not land",
+            priority: "high",
+            outputDigest: "must not replace saved audit",
+            expectedRevision: before[0]?.revision,
+          })
+          .pipe(Effect.flip)
+        expect(error).toBeInstanceOf(SessionTask.TaskWriteError)
+        expect(error.reason).toBe("invalid_schedule")
+        expect(error.schedule).toBe("trigger")
+        expect(yield* tasks.get(sessionID)).toEqual(before)
+        expect(yield* database.db.select().from(TaskTable).all().pipe(Effect.orDie)).toEqual(rows)
+        expect(published).toEqual([])
+      }),
+    )
+
+    it.effect("updateTask rejects a stale status and fields combination without writes or events", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const database = yield* Database.Service
+        const [seed] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "seed", status: "pending", priority: "medium" }],
+        })
+        yield* tasks.patch({ sessionID, id: seed.id, status: "in_progress", outputDigest: "current audit" })
+        const before = yield* tasks.get(sessionID)
+        const rows = yield* database.db.select().from(TaskTable).all().pipe(Effect.orDie)
+        const published = yield* listenUpdates
+
+        const lost = yield* tasks.updateTask({
+          sessionID,
+          id: seed.id,
+          status: "completed",
+          content: "stale rename",
+          priority: "high",
+          outputDigest: "stale audit",
+          expectedRevision: seed.revision,
+        })
+        expect(lost).toBeUndefined()
+        expect(yield* tasks.get(sessionID)).toEqual(before)
+        expect(yield* database.db.select().from(TaskTable).all().pipe(Effect.orDie)).toEqual(rows)
+        expect(published).toEqual([])
+      }),
+    )
+
+    it.effect("patch requires both the status claim and revision after a field edit", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const database = yield* Database.Service
+        const [seed] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "seed", status: "pending", priority: "medium" }],
+        })
+        yield* tasks.updateTask({ sessionID, id: seed.id, content: "current rename", outputDigest: "current audit" })
+        const [current] = yield* tasks.get(sessionID)
+        const rows = yield* database.db.select().from(TaskTable).all().pipe(Effect.orDie)
+        const published = yield* listenUpdates
+
+        const stale = yield* tasks.patch({
+          sessionID,
+          id: seed.id,
+          status: "completed",
+          outputDigest: "stale audit",
+          expect: ["pending"],
+          expectedRevision: seed.revision,
+        })
+        expect(stale).toBeUndefined()
+        const wrongStatus = yield* tasks.patch({
+          sessionID,
+          id: seed.id,
+          status: "completed",
+          outputDigest: "wrong claim",
+          expect: ["in_progress"],
+          expectedRevision: current.revision,
+        })
+        expect(wrongStatus).toBeUndefined()
+        expect(yield* tasks.get(sessionID)).toEqual([current])
+        expect(yield* database.db.select().from(TaskTable).all().pipe(Effect.orDie)).toEqual(rows)
+        expect(published).toEqual([])
+
+        const won = yield* tasks.patch({
+          sessionID,
+          id: seed.id,
+          status: "completed",
+          outputDigest: "claimed audit",
+          expect: ["pending"],
+          expectedRevision: current.revision,
+        })
+        expect(won).toMatchObject({
+          content: "current rename",
+          status: "completed",
+          outputDigest: "claimed audit",
+          revision: current.revision + 1,
+        })
+        expect(published.map((event) => event.type)).toEqual([
+          SessionTask.Event.Updated.type,
+          SessionTask.Event.TodoUpdated.type,
+        ])
+      }),
+    )
+
     it.effect("updateTask updates content with matching expectedRevision and increments", () =>
       Effect.gen(function* () {
         yield* setup
@@ -1306,6 +2214,86 @@ describe("SessionTask", () => {
         // Unspecified fields are preserved.
         expect(updated?.status).toBe("pending")
         expect(updated?.priority).toBe("medium")
+      }),
+    )
+
+    it.effect("updateTask without fields keeps the task data and still increments revision", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const [task] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "seed", status: "pending", priority: "medium" }],
+        })
+        const published = yield* listenUpdates
+
+        const updated = yield* tasks.updateTask({ sessionID, id: task.id, expectedRevision: task.revision })
+        expect(updated).toMatchObject({
+          id: task.id,
+          content: task.content,
+          status: task.status,
+          priority: task.priority,
+          revision: task.revision + 1,
+          createdAt: task.createdAt,
+        })
+        expect(published.map((event) => event.type)).toEqual([
+          SessionTask.Event.Updated.type,
+          SessionTask.Event.TodoUpdated.type,
+        ])
+      }),
+    )
+
+    it.effect("updateTask can edit a legacy invalid cron row without revalidating its unchanged status", () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const database = yield* Database.Service
+        const [task] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "seed", status: "pending", priority: "medium" }],
+        })
+        // Historical rows can predate schedule validation; a field edit retains their status.
+        yield* database.db
+          .update(TaskTable)
+          .set({ status: "scheduled", recurrence: { cron: "invalid cron", enabled: true } })
+          .where(eq(TaskTable.id, task.id))
+          .run()
+          .pipe(Effect.orDie)
+        const published = yield* listenUpdates
+
+        const updated = yield* tasks.updateTask({
+          sessionID,
+          id: task.id,
+          content: "renamed legacy task",
+          expectedRevision: task.revision,
+        })
+        expect(updated).toMatchObject({
+          content: "renamed legacy task",
+          status: "scheduled",
+          recurrence: { cron: "invalid cron", enabled: true },
+          revision: task.revision + 1,
+        })
+        expect(published.map((event) => event.type)).toEqual([
+          SessionTask.Event.Updated.type,
+          SessionTask.Event.TodoUpdated.type,
+        ])
+        const before = yield* tasks.get(sessionID)
+        const rows = yield* database.db.select().from(TaskTable).all().pipe(Effect.orDie)
+
+        const error = yield* tasks
+          .updateTask({
+            sessionID,
+            id: task.id,
+            status: "completed",
+            content: "must not land",
+            expectedRevision: updated?.revision,
+          })
+          .pipe(Effect.flip)
+        expect(error.reason).toBe("invalid_schedule")
+        expect(error.schedule).toBe("cron")
+        expect(yield* tasks.get(sessionID)).toEqual(before)
+        expect(yield* database.db.select().from(TaskTable).all().pipe(Effect.orDie)).toEqual(rows)
+        expect(published).toHaveLength(2)
       }),
     )
 
@@ -1368,8 +2356,8 @@ describe("SessionTask", () => {
       Effect.gen(function* () {
         yield* setup
         const tasks = yield* SessionTask.Service
-        const events = yield* EventV2.Service
-        const published = new Array<EventV2.Payload>()
+        const events = yield* Bus.Service
+        const published = new Array<Event.Payload>()
         const unsubscribe = yield* events.listen((event) =>
           Effect.sync(() => {
             if (event.type === SessionTask.Event.Updated.type) published.push(event)
@@ -1513,9 +2501,9 @@ describe("SessionTask", () => {
     it.effect("recordProgress publishes a task.progress event with the given fields", () =>
       Effect.gen(function* () {
         yield* setup
-        const events = yield* EventV2.Service
+        const events = yield* Bus.Service
         const tasks = yield* SessionTask.Service
-        const published = new Array<EventV2.Payload>()
+        const published = new Array<Event.Payload>()
         const unsubscribe = yield* events.listen((event) =>
           Effect.sync(() => {
             if (event.type === SessionTask.Event.Progress.type) published.push(event)
@@ -1572,9 +2560,9 @@ describe("SessionTask", () => {
     it.effect("recordProgress works without optional progress fields (phase-only)", () =>
       Effect.gen(function* () {
         yield* setup
-        const events = yield* EventV2.Service
+        const events = yield* Bus.Service
         const tasks = yield* SessionTask.Service
-        const published = new Array<EventV2.Payload>()
+        const published = new Array<Event.Payload>()
         const unsubscribe = yield* events.listen((event) =>
           Effect.sync(() => {
             if (event.type === SessionTask.Event.Progress.type) published.push(event)
@@ -1605,9 +2593,760 @@ describe("SessionTask", () => {
 describe("SessionTask.Event.StepResumed (M1.5 work resume telemetry)", () => {
   test("defines the work.step_resumed event with a sessionID payload", () => {
     const payload = Schema.decodeUnknownSync(SessionTask.Event.StepResumed.data)({
-      sessionID: SessionV2.ID.make("ses_123"),
+      sessionID: Session.ID.make("ses_123"),
     })
-    expect(payload.sessionID).toBe(SessionV2.ID.make("ses_123"))
+    expect(payload.sessionID).toBe(Session.ID.make("ses_123"))
     expect(SessionTask.Event.StepResumed.type).toBe("work.step_resumed")
   })
+})
+
+for (const operation of ["update", "replaceLegacy"] as const) {
+  it.effect(`${operation} retains a fixed timezone through cancellation and rescheduling`, () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const database = yield* Database.Service
+      const [task] = yield* tasks.append({
+        sessionID,
+        tasks: [
+          {
+            content: "fixed timezone",
+            status: "scheduled",
+            priority: "medium",
+            recurrence: { cron: "0 9 * * *", timezone: "America/New_York", enabled: true },
+          },
+        ],
+      })
+      if (!task) throw new Error("Expected fixed timezone Task")
+      const cancelled = yield* tasks[operation]({
+        sessionID,
+        tasks: [
+          {
+            id: task.id,
+            content: task.content,
+            status: "cancelled",
+            priority: task.priority,
+            recurrence: { cron: "0 10 * * *", enabled: false },
+          },
+        ],
+      })
+      expect(cancelled[0]?.recurrence).toEqual({ cron: "0 10 * * *", timezone: "America/New_York", enabled: false })
+      const resumed = yield* tasks[operation]({
+        sessionID,
+        tasks: [
+          {
+            id: task.id,
+            content: task.content,
+            status: "scheduled",
+            priority: task.priority,
+            recurrence: { cron: "0 10 * * *", enabled: true },
+          },
+        ],
+      })
+      const recurrence = resumed[0]?.recurrence
+      if (!recurrence) throw new Error("Expected persisted recurrence")
+      expect(recurrence).toEqual({ cron: "0 10 * * *", timezone: "America/New_York", enabled: true })
+      expect((yield* tasks.get(sessionID))[0]?.recurrence).toEqual(recurrence)
+      const rows = yield* database.db.select().from(TaskTable).where(eq(TaskTable.id, task.id)).all().pipe(Effect.orDie)
+      expect(rows[0]?.recurrence).toEqual(recurrence)
+    }),
+  )
+}
+
+describe("Task schedule write boundaries", () => {
+  scheduleIt.effect("MP05 ordinary updateTask rolls back its Task write when the linked Schedule write fails", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const schedules = yield* ScheduleService.Service
+      const database = yield* Database.Service
+      const now = (yield* DateTime.nowAsDate).getTime()
+      const dueAt = now + 60_000
+      const [task] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "original task", status: "scheduled", priority: "medium", scheduledAt: dueAt }],
+      })
+      yield* database.db
+        .transaction(() => ScheduleTask.sync(database.db, { sessionID, now, previous: [] }))
+        .pipe(Effect.orDie)
+      const rule = yield* schedules.getRule(ScheduleTask.idFor(task.id))
+      if (!rule) return yield* Effect.die(new Error("Expected the existing Task schedule"))
+      const before = yield* tasks.get(sessionID)
+      const scheduleBefore = yield* schedules.getRule(rule.id)
+      const published = yield* listenUpdates
+      yield* database.db
+        .run(
+          sql`
+      CREATE TEMP TRIGGER reject_task_schedule_update BEFORE UPDATE OF content ON schedule
+      WHEN NEW.content = 'reject linked schedule'
+      BEGIN SELECT RAISE(ABORT, 'Schedule sync rejected'); END
+    `,
+        )
+        .pipe(Effect.orDie)
+      yield* Effect.addFinalizer(() =>
+        database.db.run(sql`DROP TRIGGER IF EXISTS reject_task_schedule_update`).pipe(Effect.orDie),
+      )
+      const failed = yield* tasks
+        .updateTask({ sessionID, id: task.id, content: "reject linked schedule" })
+        .pipe(Effect.exit)
+      expect(Exit.isFailure(failed)).toBe(true)
+      if (Exit.isFailure(failed)) expect(Cause.pretty(failed.cause)).toContain("Schedule sync rejected")
+      expect(yield* tasks.get(sessionID)).toEqual(before)
+      expect(yield* schedules.getRule(rule.id)).toEqual(scheduleBefore)
+      expect(published).toEqual([])
+      return undefined
+    }),
+  )
+
+  scheduleIt.effect(
+    "MP05 full write append legacy replacement reorder and deletion keep one Schedule per Task and retain run history",
+    () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const schedules = yield* ScheduleService.Service
+        const now = (yield* DateTime.nowAsDate).getTime()
+        const [first] = yield* tasks.update({
+          sessionID,
+          tasks: [{ content: "first payload", status: "scheduled", priority: "medium", scheduledAt: now + 60_000 }],
+        })
+        const firstRule = yield* schedules.getRule(ScheduleTask.idFor(first.id))
+        expect(firstRule?.nextDueAt).toBe(now + 60_000)
+        yield* tasks.update({
+          sessionID,
+          tasks: [
+            {
+              id: first.id,
+              content: "edited payload",
+              status: "scheduled",
+              priority: "high",
+              scheduledAt: now + 120_000,
+            },
+          ],
+        })
+        expect(yield* schedules.getRule(ScheduleTask.idFor(first.id))).toMatchObject({
+          content: "edited payload",
+          nextDueAt: now + 120_000,
+        })
+        const appended = yield* tasks.append({
+          sessionID,
+          tasks: [
+            {
+              id: "tsk_schedule_second",
+              content: "second payload",
+              status: "scheduled",
+              priority: "low",
+              scheduledAt: now + 180_000,
+            },
+          ],
+        })
+        const second = appended.find((task) => task.id !== first.id)
+        if (!second) return yield* Effect.die(new Error("Expected the appended Task"))
+        const replaced = yield* tasks.replaceLegacy({
+          sessionID,
+          tasks: [
+            { content: "legacy first", status: "scheduled", priority: "high" },
+            { content: "legacy second", status: "scheduled", priority: "low" },
+          ],
+        })
+        expect(replaced.map((task) => task.id)).toEqual([first.id, second.id])
+        const rules = yield* schedules.listRules(sessionID)
+        expect(rules.map((rule) => rule.taskID).sort()).toEqual([first.id, second.id].sort())
+        expect(rules.find((rule) => rule.taskID === first.id)).toMatchObject({
+          content: "legacy first",
+          nextDueAt: now + 120_000,
+        })
+        const reordered = yield* tasks.reorder({ sessionID, ids: [second.id, first.id] })
+        expect(reordered.map((task) => [task.id, task.nextRun])).toEqual([
+          [second.id, now + 180_000],
+          [first.id, now + 120_000],
+        ])
+        expect(yield* schedules.listRules(sessionID)).toEqual(rules)
+        const current = yield* schedules.getRule(ScheduleTask.idFor(first.id))
+        if (!current?.nextDueAt) return yield* Effect.die(new Error("Expected the linked Task schedule"))
+        yield* TestClock.setTime(current.nextDueAt)
+        const run = yield* schedules.claimOccurrence(current.id, current.nextDueAt, "task-history")
+        if (!run) return yield* Effect.die(new Error("Expected one recorded run"))
+        yield* tasks.removeTask({ sessionID, id: first.id })
+        expect((yield* schedules.getRule(current.id))?.status).toBe("cancelled")
+        expect(yield* schedules.runs(current.id)).toEqual([run])
+        expect((yield* tasks.get(sessionID)).map((task) => task.id)).toEqual([second.id])
+        yield* tasks.delete(sessionID)
+        expect(yield* tasks.get(sessionID)).toEqual([])
+        expect((yield* schedules.getRule(ScheduleTask.idFor(second.id)))?.status).toBe("cancelled")
+        expect(yield* schedules.runs(current.id)).toEqual([run])
+        return undefined
+      }),
+  )
+
+  scheduleIt.effect(
+    "MP05 get and listAll read canonical nextDue for terminal anchors and suppress the Task fallback for a paused rule",
+    () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const schedules = yield* ScheduleService.Service
+        const database = yield* Database.Service
+        const [task] = yield* tasks.append({
+          sessionID,
+          tasks: [
+            {
+              content: "recurring anchor",
+              status: "scheduled",
+              priority: "medium",
+              recurrence: { cron: "* * * * *", enabled: true, timezone: "UTC" },
+            },
+          ],
+        })
+        yield* tasks.patch({ sessionID, id: task.id, status: "completed" })
+        const canonicalNext = (yield* DateTime.nowAsDate).getTime() + 420_123
+        yield* database.db
+          .update(ScheduleTable)
+          .set({ next_due_at: canonicalNext })
+          .where(eq(ScheduleTable.task_id, task.id))
+          .run()
+          .pipe(Effect.orDie)
+        expect((yield* tasks.get(sessionID))[0]).toMatchObject({ status: "completed", nextRun: canonicalNext })
+        expect((yield* tasks.listAll()).find((row) => row.id === task.id)?.nextRun).toBe(canonicalNext)
+        expect((yield* tasks.patch({ sessionID, id: task.id, status: "failed" }))?.nextRun).toBe(canonicalNext)
+        yield* tasks.patch({ sessionID, id: task.id, status: "scheduled" })
+        const rule = yield* schedules.getRule(ScheduleTask.idFor(task.id))
+        if (!rule) return yield* Effect.die(new Error("Expected the canonical rule"))
+        yield* schedules.pauseRule(rule.id, rule.revision)
+        expect((yield* tasks.get(sessionID))[0]?.status).toBe("scheduled")
+        expect((yield* tasks.get(sessionID))[0]?.nextRun).toBeUndefined()
+        expect((yield* tasks.listAll()).find((row) => row.id === task.id)?.nextRun).toBeUndefined()
+        return undefined
+      }),
+  )
+})
+
+describe("Task operation reservations", () => {
+  const request = (id: string, change: Partial<SessionTask.OperationRequest> = {}) =>
+    new SessionTask.OperationRequest({
+      operationID: SessionTask.OperationID.make(`top_${id}`),
+      inputID: SessionMessage.ID.make(`msg_operation_${id}`),
+      target: new SessionTask.OperationNewRootTarget({ type: "new_root", mode: ProductMode.ID.make("chat") }),
+      prompt: "complete this fixed request",
+      delivery: "queue",
+      resume: false,
+      ...change,
+    })
+  const source = new SessionTask.OperationUserSource({
+    type: "user_coordination",
+    sessionID,
+    agent: Agent.ID.make("meta"),
+  })
+  const reservation = (input: SessionTask.OperationRequest) => ({
+    sessionID,
+    request: input,
+    source,
+    selection: new SessionTask.OperationSelection({ agent: source.agent, seq: Event.Seq.make(0) }),
+    sourceLocation: Location.Ref.make({ directory: AbsolutePath.make("/project") }),
+    sourceMode: ProductMode.ID.make("coding"),
+  })
+
+  it.effect("reserves without a Task and returns the saved blocked operation to a later exact retry", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const input = request("before_permission")
+      const first = yield* tasks.reserveOperation(reservation(input))
+      expect(first.created).toBe(true)
+      expect(first.operation.phase).toBe("reserved")
+      expect(first.operation.taskID).toBeUndefined()
+      expect(first.operation.targetSessionID).toBeDefined()
+      expect(yield* tasks.get(sessionID)).toEqual([])
+      const blocked = yield* tasks.advanceOperation({
+        sessionID,
+        operationID: input.operationID,
+        change: new SessionTask.OperationChange({
+          phase: "blocked",
+          error: new SessionTask.OperationError({
+            code: "permission_denied",
+            message: "denied before creating a target",
+          }),
+        }),
+      })
+      const retry = yield* tasks.reserveOperation({
+        ...reservation(input),
+        source: new SessionTask.OperationUserSource({
+          type: "user_coordination",
+          sessionID,
+          agent: Agent.ID.make("build"),
+        }),
+      })
+      expect(retry.created).toBe(false)
+      expect(retry.operation).toEqual(blocked)
+      expect(yield* tasks.get(sessionID)).toEqual([])
+      const conflict = yield* tasks
+        .reserveOperation(reservation(request("before_permission", { prompt: "changed request" })))
+        .pipe(Effect.result)
+      expect(Result.isFailure(conflict)).toBe(true)
+      if (Result.isFailure(conflict)) expect(conflict.failure).toMatchObject({ reason: "request_changed" })
+      expect((yield* tasks.operations({ sessionID })).length).toBe(1)
+    }),
+  )
+
+  it.effect("matches immutable request before a Task revision check and retains history after Task deletion", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const [seed] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "task anchor", status: "pending", priority: "medium" }],
+      })
+      const input = request("task_history", { taskID: seed.id, expectedRevision: seed.revision })
+      const admitted = yield* tasks.reserveOperation(reservation(input))
+      expect(admitted.operation.taskRevision).toBe(seed.revision + 1)
+      expect((yield* tasks.get(sessionID))[0]?.operationRef?.operationID).toBe(input.operationID)
+      const edited = yield* tasks.updateTask({
+        sessionID,
+        id: seed.id,
+        content: "a user edit while the result is held",
+      })
+      if (!edited) return yield* Effect.die(new Error("The source Task edit was not saved"))
+      const failed = yield* tasks.advanceOperation({
+        sessionID,
+        operationID: input.operationID,
+        change: new SessionTask.OperationChange({
+          phase: "failed",
+          error: new SessionTask.OperationError({ code: "prepare_failed", message: "no provider work" }),
+        }),
+      })
+      expect(failed.sourceSettlement).toBe("conflict")
+      expect((yield* tasks.get(sessionID))[0]).toEqual(edited)
+      expect((yield* tasks.reserveOperation(reservation(input))).operation).toEqual(failed)
+      yield* tasks.removeTask({ sessionID, id: seed.id })
+      expect(yield* tasks.get(sessionID)).toEqual([])
+      expect(yield* tasks.operations({ sessionID, taskID: seed.id })).toEqual([failed])
+      return undefined
+    }),
+  )
+
+  it.effect(
+    "keeps a followup waiting under the original claim and cancelling it leaves its predecessor unchanged",
+    () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const database = yield* Database.Service
+        const [seed] = yield* tasks.append({
+          sessionID,
+          tasks: [{ content: "one task with two operations", status: "pending", priority: "medium" }],
+        })
+        const a = yield* tasks.reserveOperation(
+          reservation(request("followup_a", { taskID: seed.id, expectedRevision: seed.revision })),
+        )
+        const b = yield* tasks.reserveOperation(
+          reservation(request("followup_b", { taskID: seed.id, expectedRevision: a.operation.taskRevision })),
+        )
+        expect(b.operation.phase).toBe("waiting")
+        expect(b.operation.predecessorID).toBe(a.operation.operationID)
+        expect(b.operation.taskRevision).toBeUndefined()
+        const claim = yield* database.db
+          .select()
+          .from(KVTable)
+          .where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`))
+          .get()
+          .pipe(Effect.orDie)
+        expect(claim?.value).toMatchObject({ operationID: a.operation.operationID })
+        const cancelled = yield* tasks.advanceOperation({
+          sessionID,
+          operationID: b.operation.operationID,
+          change: new SessionTask.OperationChange({ cancelIntent: true, phase: "cancelled" }),
+        })
+        expect(cancelled.phase).toBe("cancelled")
+        expect(yield* tasks.operation({ sessionID, operationID: a.operation.operationID })).toEqual(a.operation)
+        const remaining = yield* database.db
+          .select()
+          .from(KVTable)
+          .where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`))
+          .get()
+          .pipe(Effect.orDie)
+        expect(remaining?.value).toEqual(claim?.value)
+      }),
+  )
+
+  it.effect("protects operation claims from management and creates an optional Task only once", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const created = yield* tasks.append({
+        sessionID,
+        tasks: [
+          { content: "a", status: "pending", priority: "medium" },
+          { content: "b", status: "pending", priority: "medium" },
+          { content: "c", status: "pending", priority: "medium" },
+          { content: "d", status: "pending", priority: "medium" },
+        ],
+      })
+      yield* tasks.removeTask({ sessionID, id: created[0].id })
+      yield* tasks.removeTask({ sessionID, id: created[1].id })
+      expect((yield* tasks.get(sessionID)).map((task) => task.id)).toEqual([created[2].id, created[3].id])
+      const input = request("attach_once")
+      yield* tasks.reserveOperation(reservation(input))
+      yield* tasks.advanceOperation({
+        sessionID,
+        operationID: input.operationID,
+        change: new SessionTask.OperationChange({ phase: "permission_pending" }),
+      })
+      const attached = yield* tasks.attachOperationTask({ sessionID, operationID: input.operationID })
+      expect(attached.taskID).toBeDefined()
+      expect((yield* tasks.attachOperationTask({ sessionID, operationID: input.operationID })).taskID).toBe(
+        attached.taskID,
+      )
+      if (!attached.taskID) throw new Error("Expected the permitted operation's Task")
+      const visible = yield* tasks.get(sessionID)
+      expect(visible.length).toBe(3)
+      expect(visible.map((task) => task.id)).toEqual([created[2].id, created[3].id, attached.taskID])
+      const removal = yield* tasks
+        .removeTask(
+          { sessionID, id: attached.taskID },
+          { management: { type: "tool", messageID: "msg_management", id: "call-management" } },
+        )
+        .pipe(Effect.result)
+      expect(Result.isFailure(removal)).toBe(true)
+      if (Result.isFailure(removal)) expect(removal.failure.reason).toBe("execution_owned")
+    }),
+  )
+
+  it.effect("rejects input reuse and a different trusted origin before reserving another operation", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const first = request("input_owner")
+      yield* tasks.reserveOperation(reservation(first))
+      const second = request("different_owner", { inputID: first.inputID })
+      const inputConflict = yield* tasks.reserveOperation(reservation(second)).pipe(Effect.result)
+      expect(Result.isFailure(inputConflict)).toBe(true)
+      if (Result.isFailure(inputConflict)) expect(inputConflict.failure).toMatchObject({ reason: "input_owned" })
+      const sourceConflict = yield* tasks
+        .reserveOperation({
+          ...reservation(first),
+          source: new SessionTask.OperationToolSource({
+            type: "model_tool",
+            sessionID,
+            agent: Agent.ID.make("meta"),
+            messageID: SessionMessage.ID.make("msg_other_source"),
+            id: "call-other-source",
+          }),
+        })
+        .pipe(Effect.result)
+      expect(Result.isFailure(sourceConflict)).toBe(true)
+      if (Result.isFailure(sourceConflict)) expect(sourceConflict.failure).toMatchObject({ reason: "source_changed" })
+      expect((yield* tasks.operations({ sessionID })).length).toBe(1)
+    }),
+  )
+
+  it.effect("MP05 preserves a trusted new target and always retains an existing target from the original request", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const targetSessionID = Session.ID.make("ses_preallocated_operation")
+      const created = yield* tasks.reserveOperation({ ...reservation(request("preallocated_target")), targetSessionID })
+      expect(created.operation.targetSessionID).toBe(targetSessionID)
+      const existingID = Session.ID.make("ses_existing_operation")
+      const existing = yield* tasks.reserveOperation({
+        ...reservation(
+          request("existing_target", {
+            target: new SessionTask.OperationExistingRootTarget({ type: "existing_root", sessionID: existingID }),
+          }),
+        ),
+        targetSessionID,
+      })
+      expect(existing.operation.targetSessionID).toBe(existingID)
+    }),
+  )
+
+  it.effect(
+    "MP05 an exact Task CAS settles a restored pending source marker and a later user edit cannot change that first settlement",
+    () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const database = yield* Database.Service
+        const [seed] = yield* tasks.append({
+          sessionID,
+          tasks: [{ content: "source anchor", status: "pending", priority: "medium" }],
+        })
+        const reserved = yield* tasks.reserveOperation(
+          reservation(request("source_marker", { taskID: seed.id, expectedRevision: seed.revision })),
+        )
+        yield* database.db
+          .update(TaskOperationTable)
+          .set({
+            data: {
+              ...Schema.encodeSync(SessionTask.OperationInfo)(reserved.operation),
+              sourceSettlement: "pending",
+            },
+          })
+          .where(
+            and(
+              eq(TaskOperationTable.source_session_id, sessionID),
+              eq(TaskOperationTable.operation_id, reserved.operation.operationID),
+            ),
+          )
+          .run()
+          .pipe(Effect.orDie)
+        const change = new SessionTask.OperationChange({
+          phase: "failed",
+          error: new SessionTask.OperationError({ code: "worker_failed", message: "original result" }),
+        })
+        const settled = yield* tasks.advanceOperation({
+          sessionID,
+          operationID: reserved.operation.operationID,
+          change,
+        })
+        expect(settled.sourceSettlement).toBe("settled")
+        expect((yield* tasks.get(sessionID))[0]).toMatchObject({
+          status: "failed",
+          revision: seed.revision + 2,
+          outputDigest: "original result",
+        })
+        expect(
+          yield* database.db
+            .select()
+            .from(KVTable)
+            .where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`))
+            .get()
+            .pipe(Effect.orDie),
+        ).toBeUndefined()
+        const edited = yield* tasks.updateTask({ sessionID, id: seed.id, content: "later user edit" })
+        if (!edited) return yield* Effect.die(new Error("The later source Task edit was not saved"))
+        const retried = yield* tasks.advanceOperation({
+          sessionID,
+          operationID: reserved.operation.operationID,
+          change,
+        })
+        expect(retried.sourceSettlement).toBe("settled")
+        expect((yield* tasks.get(sessionID))[0]).toEqual(edited)
+        return undefined
+      }),
+  )
+
+  it.effect("MP05 an old operation cannot settle or release another operation's current claim", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const database = yield* Database.Service
+      const [seed] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "shared source", status: "pending", priority: "medium" }],
+      })
+      const first = yield* tasks.reserveOperation(
+        reservation(request("old_claim", { taskID: seed.id, expectedRevision: seed.revision })),
+      )
+      const oldClaim = yield* database.db
+        .select()
+        .from(KVTable)
+        .where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`))
+        .get()
+        .pipe(Effect.orDie)
+      if (!oldClaim || first.operation.taskRevision === undefined)
+        return yield* Effect.die(new Error("Expected the first operation claim"))
+      const permission = { type: "operation" as const, sessionID, operationID: first.operation.operationID }
+      yield* tasks.releaseClaim({ sessionID, id: seed.id, revision: first.operation.taskRevision, source: permission })
+      const [released] = yield* tasks.get(sessionID)
+      const next = yield* tasks.reserveOperation(
+        reservation(request("new_claim", { taskID: seed.id, expectedRevision: released.revision })),
+      )
+      const before = yield* tasks.get(sessionID)
+      const currentClaim = yield* database.db
+        .select()
+        .from(KVTable)
+        .where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`))
+        .get()
+        .pipe(Effect.orDie)
+      const failed = yield* tasks.advanceOperation({
+        sessionID,
+        operationID: first.operation.operationID,
+        change: new SessionTask.OperationChange({
+          phase: "failed",
+          error: new SessionTask.OperationError({ code: "late_result", message: "late old result" }),
+        }),
+      })
+      expect(failed.sourceSettlement).toBe("conflict")
+      expect(yield* tasks.get(sessionID)).toEqual(before)
+      expect(yield* tasks.operation({ sessionID, operationID: next.operation.operationID })).toEqual(next.operation)
+      expect(
+        yield* database.db
+          .select()
+          .from(KVTable)
+          .where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`))
+          .get()
+          .pipe(Effect.orDie),
+      ).toEqual(currentClaim)
+      return undefined
+    }),
+  )
+
+  it.effect("MP05 waiting operations retain reservation order when the predecessor releases its claim", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const tasks = yield* SessionTask.Service
+      const database = yield* Database.Service
+      const [seed] = yield* tasks.append({
+        sessionID,
+        tasks: [{ content: "ordered source", status: "pending", priority: "medium" }],
+      })
+      const first = yield* tasks.reserveOperation(
+        reservation(request("ordered_a", { taskID: seed.id, expectedRevision: seed.revision })),
+      )
+      const second = yield* tasks.reserveOperation(
+        reservation(request("ordered_b", { taskID: seed.id, expectedRevision: first.operation.taskRevision })),
+      )
+      const third = yield* tasks.reserveOperation(
+        reservation(request("ordered_c", { taskID: seed.id, expectedRevision: first.operation.taskRevision })),
+      )
+      expect(second.operation.predecessorID).toBe(first.operation.operationID)
+      expect(third.operation.predecessorID).toBe(second.operation.operationID)
+      expect((yield* tasks.claimWaitingOperation({ sessionID, operationID: third.operation.operationID })).phase).toBe(
+        "waiting",
+      )
+      yield* tasks.advanceOperation({
+        sessionID,
+        operationID: first.operation.operationID,
+        change: new SessionTask.OperationChange({
+          phase: "failed",
+          error: new SessionTask.OperationError({ code: "first_done", message: "first finished" }),
+        }),
+      })
+      const [afterFirst] = yield* tasks.get(sessionID)
+      const fourth = yield* tasks.reserveOperation(
+        reservation(request("ordered_d", { taskID: seed.id, expectedRevision: afterFirst.revision })),
+      )
+      expect(fourth.operation.phase).toBe("waiting")
+      expect(fourth.operation.predecessorID).toBe(third.operation.operationID)
+      const claimedSecond = yield* tasks.claimWaitingOperation({ sessionID, operationID: second.operation.operationID })
+      expect(claimedSecond.phase).toBe("reserved")
+      expect(claimedSecond.taskRevision).toBe(afterFirst.revision + 1)
+      expect((yield* tasks.claimWaitingOperation({ sessionID, operationID: third.operation.operationID })).phase).toBe(
+        "waiting",
+      )
+      yield* tasks.advanceOperation({
+        sessionID,
+        operationID: second.operation.operationID,
+        change: new SessionTask.OperationChange({
+          phase: "failed",
+          error: new SessionTask.OperationError({ code: "second_done", message: "second finished" }),
+        }),
+      })
+      const claimedThird = yield* tasks.claimWaitingOperation({ sessionID, operationID: third.operation.operationID })
+      expect(claimedThird.phase).toBe("reserved")
+      const claim = yield* database.db
+        .select()
+        .from(KVTable)
+        .where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`))
+        .get()
+        .pipe(Effect.orDie)
+      expect(claim?.value).toMatchObject({
+        operationID: third.operation.operationID,
+        parentTaskRevision: claimedThird.taskRevision,
+      })
+      yield* tasks.advanceOperation({
+        sessionID,
+        operationID: third.operation.operationID,
+        change: new SessionTask.OperationChange({
+          phase: "failed",
+          error: new SessionTask.OperationError({ code: "third_done", message: "third finished" }),
+        }),
+      })
+      expect((yield* tasks.claimWaitingOperation({ sessionID, operationID: fourth.operation.operationID })).phase).toBe(
+        "reserved",
+      )
+    }),
+  )
+
+  it.effect(
+    "MP05 a waiting operation claims the current revision and its later result preserves a newer user edit",
+    () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const database = yield* Database.Service
+        const [seed] = yield* tasks.append({
+          sessionID,
+          tasks: [{ content: "editable source", status: "pending", priority: "medium" }],
+        })
+        const first = yield* tasks.reserveOperation(
+          reservation(request("edit_a", { taskID: seed.id, expectedRevision: seed.revision })),
+        )
+        const waiting = yield* tasks.reserveOperation(
+          reservation(request("edit_b", { taskID: seed.id, expectedRevision: first.operation.taskRevision })),
+        )
+        yield* tasks.advanceOperation({
+          sessionID,
+          operationID: first.operation.operationID,
+          change: new SessionTask.OperationChange({
+            phase: "failed",
+            error: new SessionTask.OperationError({ code: "source_done", message: "source finished" }),
+          }),
+        })
+        const edited = yield* tasks.updateTask({ sessionID, id: seed.id, content: "authoritative user revision" })
+        if (!edited) return yield* Effect.die(new Error("Expected the user field edit"))
+        const claimed = yield* tasks.claimWaitingOperation({ sessionID, operationID: waiting.operation.operationID })
+        expect(claimed.phase).toBe("reserved")
+        expect(claimed.taskRevision).toBe(edited.revision + 1)
+        expect((yield* tasks.get(sessionID))[0]?.content).toBe(edited.content)
+        const later = yield* tasks.updateTask({ sessionID, id: seed.id, content: "newer user revision" })
+        if (!later) return yield* Effect.die(new Error("The newer source Task revision was not saved"))
+        const failed = yield* tasks.advanceOperation({
+          sessionID,
+          operationID: waiting.operation.operationID,
+          change: new SessionTask.OperationChange({
+            phase: "failed",
+            error: new SessionTask.OperationError({ code: "late_result", message: "late waiting result" }),
+          }),
+        })
+        expect(failed.sourceSettlement).toBe("conflict")
+        expect((yield* tasks.get(sessionID))[0]).toEqual(later)
+        expect(
+          yield* database.db
+            .select()
+            .from(KVTable)
+            .where(eq(KVTable.key, `task:claim:${sessionID}:${seed.id}`))
+            .get()
+            .pipe(Effect.orDie),
+        ).toBeUndefined()
+        return undefined
+      }),
+  )
+
+  scheduleIt.effect(
+    "MP05 execution cancellation retains recurrence while an explicit Task pause disables future admission",
+    () =>
+      Effect.gen(function* () {
+        yield* setup
+        const tasks = yield* SessionTask.Service
+        const schedules = yield* ScheduleService.Service
+        const [seed] = yield* tasks.append({
+          sessionID,
+          tasks: [
+            {
+              content: "recurring worker",
+              status: "scheduled",
+              priority: "medium",
+              recurrence: { cron: "* * * * *", enabled: true, timezone: "UTC" },
+            },
+          ],
+        })
+        const reserved = yield* tasks.reserveOperation(
+          reservation(request("cancel_execution", { taskID: seed.id, expectedRevision: seed.revision })),
+        )
+        const cancelled = yield* tasks.advanceOperation({
+          sessionID,
+          operationID: reserved.operation.operationID,
+          change: new SessionTask.OperationChange({ phase: "cancelled", cancelIntent: true }),
+        })
+        expect(cancelled.sourceSettlement).toBe("settled")
+        const rule = yield* schedules.getRule(ScheduleTask.idFor(seed.id))
+        expect(rule).toMatchObject({ status: "pending", recurrence: { enabled: true } })
+        expect((yield* tasks.get(sessionID))[0]).toMatchObject({ status: "cancelled", nextRun: rule?.nextDueAt })
+        yield* tasks.patch({ sessionID, id: seed.id, status: "scheduled" })
+        yield* tasks.patch({ sessionID, id: seed.id, status: "cancelled" })
+        expect((yield* schedules.getRule(ScheduleTask.idFor(seed.id)))?.status).toBe("paused")
+        expect((yield* tasks.get(sessionID))[0]?.nextRun).toBeUndefined()
+      }),
+  )
 })

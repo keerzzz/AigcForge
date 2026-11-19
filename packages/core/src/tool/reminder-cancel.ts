@@ -1,12 +1,11 @@
-export * as ReminderCancelTool from "./reminder-cancel"
+export * as ReminderCancelTool from "./reminder-cancel.js"
 
-import { ToolFailure } from "@aigcfroge/llm"
-import { Cause, Effect, Layer, Schema } from "effect"
+import type { Context } from "@aigcfroge/plugin/effect/plugin"
+import { ToolFailure } from "@aigcfroge/ai"
+import { Effect, Schema } from "effect"
 import { Schedule } from "@aigcfroge/schema/schedule"
-import { PermissionV2 } from "../permission"
-import { ScheduleService } from "../session/schedule-service"
-import { Tool } from "./tool"
-import { Tools } from "./tools"
+import { Permission } from "../permission.js"
+import { ScheduleService } from "../session/schedule-service.js"
 
 export const name = "reminder_cancel"
 
@@ -27,58 +26,56 @@ export const Output = Schema.Struct({
   status: Schema.optional(Schema.String),
 })
 
-export const layer = Layer.effectDiscard(
-  Effect.gen(function* () {
-    const tools = yield* Tools.Service
+export const Plugin = {
+  id: "aigcfroge.tool.reminder_cancel",
+  effect: Effect.fn("ReminderCancelTool.Plugin")(function* (ctx: Context) {
     const schedules = yield* ScheduleService.Service
-    const permission = yield* PermissionV2.Service
+    const permission = yield* Permission.Service
 
-    const tool = Tool.make({
-      description,
-      input: Input,
-      output: Output,
-      execute: (input, context) =>
-        permission
-          .assert({
-            action: name,
-            resources: ["*"],
-            sessionID: context.sessionID,
-            agent: context.agent,
-            source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
-          })
-          .pipe(
-            Effect.mapError(() => new ToolFailure({ message: "Permission denied: reminder_cancel" })),
-            Effect.andThen(
-              Effect.gen(function* () {
-                const prior = yield* schedules.list(context.sessionID)
-                if (!prior.some((item) => item.id === input.id)) {
-                  return yield* Effect.fail(
-                    new ToolFailure({ message: `Reminder ${input.id} does not belong to this session` }),
-                  )
-                }
-                const cancelled = yield* schedules.cancel(input.id)
-                return {
-                  id: input.id,
-                  cancelled: cancelled?.status === "cancelled",
-                  ...(cancelled ? { status: cancelled.status } : {}),
-                }
-              }).pipe(
-                Effect.catchCause((cause) =>
-                  Effect.fail(new ToolFailure({ message: `Reminder cancel failed: ${Cause.pretty(cause)}` })),
+    yield* ctx.tool
+      .transform((editor) =>
+        editor.add({
+          name,
+          options: { codemode: false },
+          description,
+          input: Input,
+          output: Output,
+          execute: (input, context) =>
+            permission
+              .assert({
+                action: name,
+                resources: ["*"],
+                sessionID: context.sessionID,
+                agent: context.agent,
+                source: { type: "tool" as const, messageID: context.messageID, id: context.id },
+              })
+              .pipe(
+                Effect.mapError(() => new ToolFailure({ message: "Permission denied: reminder_cancel" })),
+                Effect.andThen(
+                  Effect.gen(function* () {
+                    const prior = yield* schedules.list(context.sessionID)
+                    if (!prior.some((item) => item.id === input.id)) {
+                      return yield* Effect.fail(
+                        new ToolFailure({ message: `Reminder ${input.id} does not belong to this session` }),
+                      )
+                    }
+                    const cancelled = yield* schedules.cancel(input.id)
+                    const wasCancelled = cancelled?.status === "cancelled"
+                    return {
+                      output: {
+                        id: input.id,
+                        cancelled: wasCancelled,
+                        ...(cancelled ? { status: cancelled.status } : {}),
+                      },
+                      content: wasCancelled
+                        ? `Reminder ${input.id} cancelled — it will never be delivered.`
+                        : `Reminder ${input.id} could not be cancelled (already terminal: ${cancelled?.status ?? "unknown"}).`,
+                    }
+                  }),
                 ),
               ),
-            ),
-          ),
-      toModelOutput: ({ output }) => [
-        {
-          type: "text" as const,
-          text: output.cancelled
-            ? `Reminder ${output.id} cancelled — it will never be delivered.`
-            : `Reminder ${output.id} could not be cancelled (already terminal: ${output.status ?? "unknown"}).`,
-        },
-      ],
-    })
-
-    yield* tools.register({ [name]: tool }).pipe(Effect.catch((err) => Effect.die(err)))
+        }),
+      )
+      .pipe(Effect.orDie)
   }),
-)
+}

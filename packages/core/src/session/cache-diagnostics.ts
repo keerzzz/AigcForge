@@ -2,7 +2,7 @@ import { Effect, Schema } from "effect"
 import { Database } from "../database/database"
 import { EventTable } from "../event/sql"
 import { and, asc, eq, inArray } from "drizzle-orm"
-import { EventV2 } from "../event"
+import { Bus } from "../bus"
 import { SessionEvent } from "./event"
 import { SessionV1 } from "../v1/session"
 import { SessionSchema } from "./schema"
@@ -70,12 +70,9 @@ const classifyConfidence = (cacheRead: number, cacheWrite: number): ConfidenceLe
   return "unavailable"
 }
 
-const v2StepEndedType = EventV2.versionedType(
-  SessionEvent.Step.Ended.type,
-  SessionEvent.Step.Ended.durable?.version ?? 2,
-)
+const v2StepEndedType = Bus.versionedType(SessionEvent.Step.Ended.type, SessionEvent.Step.Ended.durable?.version ?? 2)
 
-const v1PartUpdatedType = EventV2.versionedType(
+const v1PartUpdatedType = Bus.versionedType(
   SessionV1.Event.PartUpdated.type,
   SessionV1.Event.PartUpdated.durable?.version ?? 1,
 )

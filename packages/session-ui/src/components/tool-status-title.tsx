@@ -1,12 +1,14 @@
 import { Show, createEffect, createMemo, on, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
-import { TextShimmerV2 } from "@aigcfroge/ui/v2/text-shimmer-v2"
+import { TextShimmer } from "@aigcfroge/ui/text-shimmer"
 
 function common(active: string, done: string) {
   const a = Array.from(active)
   const b = Array.from(done)
   let i = 0
+
   while (i < a.length && i < b.length && a[i] === b[i]) i++
+
   return {
     prefix: a.slice(0, i).join(""),
     active: a.slice(i).join(""),
@@ -16,6 +18,7 @@ function common(active: string, done: string) {
 
 function contentWidth(el: HTMLSpanElement | undefined) {
   if (!el) return
+
   return `${Math.ceil(el.getBoundingClientRect().width)}px`
 }
 
@@ -27,9 +30,11 @@ export function ToolStatusTitle(props: {
   split?: boolean
 }) {
   const split = createMemo(() => common(props.activeText, props.doneText))
+
   const suffix = createMemo(
     () => (props.split ?? true) && split().prefix.length >= 2 && split().active.length > 0 && split().done.length > 0,
   )
+
   const prefixLen = createMemo(() => Array.from(split().prefix).length)
   const activeTail = createMemo(() => (suffix() ? split().active : props.activeText))
   const doneTail = createMemo(() => (suffix() ? split().done : props.doneText))
@@ -39,6 +44,7 @@ export function ToolStatusTitle(props: {
     animating: false,
     width: undefined as string | undefined,
   })
+
   const width = () => state.width
   const active = () => state.active
   const animating = () => state.animating
@@ -50,6 +56,7 @@ export function ToolStatusTitle(props: {
 
   const finish = () => {
     if (frame !== undefined) cancelAnimationFrame(frame)
+
     if (finishTimer !== undefined) clearTimeout(finishTimer)
     frame = undefined
     finishTimer = undefined
@@ -59,24 +66,25 @@ export function ToolStatusTitle(props: {
 
   const animate = () => {
     const first = contentWidth(widthRef)
+    const next = props.active
     finish()
+    setState("active", next)
+
+    if (!first) return
+
     setState("animating", true)
-    setState("active", props.active)
-    const last = contentWidth(props.active ? activeRef : doneRef)
-    if (!first || !last) {
-      finish()
-      return
-    }
-
     setState("width", first)
-    if (first === last) {
-      finishTimer = setTimeout(finish, 600)
-      return
-    }
-
     frame = requestAnimationFrame(() => {
       frame = undefined
-      setState("width", last)
+      const last = contentWidth(next ? activeRef : doneRef)
+
+      if (!last) {
+        finish()
+
+        return
+      }
+
+      if (first !== last) setState("width", last)
       finishTimer = setTimeout(finish, 600)
     })
   }
@@ -102,12 +110,12 @@ export function ToolStatusTitle(props: {
           <span data-slot="tool-status-swap" ref={widthRef} style={{ width: width() }}>
             <Show when={animating() || active()}>
               <span data-slot="tool-status-active" ref={activeRef}>
-                <TextShimmerV2 text={activeTail()} active={active()} offset={0} />
+                <TextShimmer text={activeTail()} active={active()} offset={0} />
               </span>
             </Show>
             <Show when={animating() || !active()}>
               <span data-slot="tool-status-done" ref={doneRef}>
-                <TextShimmerV2 text={doneTail()} active={false} offset={0} />
+                <TextShimmer text={doneTail()} active={false} offset={0} />
               </span>
             </Show>
           </span>
@@ -115,17 +123,17 @@ export function ToolStatusTitle(props: {
       >
         <span data-slot="tool-status-suffix">
           <span data-slot="tool-status-prefix">
-            <TextShimmerV2 text={split().prefix} active={active()} offset={0} />
+            <TextShimmer text={split().prefix} active={active()} offset={0} />
           </span>
           <span data-slot="tool-status-tail" ref={widthRef} style={{ width: width() }}>
             <Show when={animating() || active()}>
               <span data-slot="tool-status-active" ref={activeRef}>
-                <TextShimmerV2 text={activeTail()} active={active()} offset={prefixLen()} />
+                <TextShimmer text={activeTail()} active={active()} offset={prefixLen()} />
               </span>
             </Show>
             <Show when={animating() || !active()}>
               <span data-slot="tool-status-done" ref={doneRef}>
-                <TextShimmerV2 text={doneTail()} active={false} offset={prefixLen()} />
+                <TextShimmer text={doneTail()} active={false} offset={prefixLen()} />
               </span>
             </Show>
           </span>

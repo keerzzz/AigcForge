@@ -2,24 +2,31 @@ import { afterAll, describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
 import fs from "fs/promises"
 import { Database } from "@aigcfroge/core/database/database"
-import { EventV2 } from "@aigcfroge/core/event"
+import { Bus } from "@aigcfroge/core/bus"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Environment } from "@aigcfroge/core/environment/index"
+import { Location } from "@aigcfroge/core/location"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { location } from "./fixture/location"
 import { FileMutation } from "@aigcfroge/core/file-mutation"
-import { FSUtil } from "@aigcfroge/core/fs-util"
-import { Global } from "@aigcfroge/core/global"
+import { FSUtil } from "@aigcfroge/util/fs-util"
+import { Global } from "@aigcfroge/util/global"
 import { KBService } from "@aigcfroge/core/session/kb-service"
-import { KBNote } from "@aigcfroge/schema/kb-note"
 import { pollWithTimeout, testEffect } from "./lib/effect"
 
-const it = testEffect(
-  KBService.layer.pipe(
-    Layer.provideMerge(FileMutation.layer),
-    Layer.provideMerge(Database.defaultLayer),
-    Layer.provideMerge(FSUtil.defaultLayer),
-    Layer.provideMerge(EventV2.defaultLayer),
-  ),
+const core = AppNodeBuilder.build(
+  LayerNode.group([Database.node, Bus.node, FSUtil.node, Environment.node, Location.node]),
+  [
+    Bus.node.replace(Bus.configured()),
+    Location.node.replace(
+      Layer.succeed(Location.Service, Location.Service.of(location({ directory: AbsolutePath.make("/") }))),
+    ),
+  ],
 )
+const it = testEffect(KBService.layer.pipe(Layer.provideMerge(FileMutation.layer), Layer.provideMerge(core)))
 
-// Real temp dirs exercise the file mirror; FSUtil.defaultLayer backs onto the
+// Real temp dirs exercise the file mirror; fsLayer backs onto the
 // node filesystem. Track created dirs so afterAll can remove them — the tests
 // run inside testEffect where `await using` is not available.
 const createdDirs: string[] = []

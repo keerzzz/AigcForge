@@ -2,23 +2,27 @@ export * as CommandAsset from "./command-asset"
 
 import { Context, Effect, Layer, Option, Schema, Scope, Stream } from "effect"
 import path from "path"
-import { CommandAsset as SchemaCommandAsset } from "@aigcfroge/schema/command-asset"
+import { Frontmatter } from "@aigcfroge/schema/command-asset"
 import { AssetMigration } from "./asset-migration"
 import { Config } from "./config"
 import { ConfigMarkdown } from "./config/markdown"
-import { EventV2 } from "./event"
-import { FSUtil } from "./fs-util"
+import { Bus } from "./bus"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { Flag } from "./flag/flag"
 import { KeyedMutex } from "./effect/keyed-mutex"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
 import { Location } from "./location"
 import { CommandAssetPath } from "./command-asset/path"
-import { Hash } from "./util/hash"
+import { Hash } from "@aigcfroge/util/hash"
 import { Watcher } from "./filesystem/watcher"
 import { COMMANDS_DIR } from "./constants"
+import { AssetPlacement } from "./asset-placement"
+import { LocationMutation } from "./location-mutation"
+import { Global } from "@aigcfroge/util/global"
 
 export { COMMANDS_DIR }
 
-export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("CommandAsset.NotFound", {
+export class NotFoundError extends Schema.TaggedError<NotFoundError>()("CommandAsset.NotFound", {
   relativePath: Schema.String,
 }) {}
 
@@ -31,6 +35,7 @@ export interface Info {
   readonly args?: string
   readonly source: string
   readonly revision: string
+  readonly target?: AssetPlacement.Target
 }
 
 export interface InvalidEntry {
@@ -45,25 +50,44 @@ export interface Interface {
   readonly listInvalid: () => Effect.Effect<ReadonlyArray<InvalidEntry>>
   readonly getInvalid: (relativePath: string) => Effect.Effect<InvalidEntry | undefined>
   readonly reload: () => Effect.Effect<void, FSUtil.Error>
+  readonly select: (scope: AssetPlacement.Scope) => Effect.Effect<Selected, SelectError>
+}
+
+export type SelectError = AssetPlacement.Error
+export type ReadError = SelectError | NotFoundError
+
+export interface Selected {
+  readonly target: AssetPlacement.Target
+  readonly list: () => Effect.Effect<ReadonlyArray<Info>, SelectError>
+  readonly getByPath: (relativePath: string) => Effect.Effect<Info, ReadError>
+  readonly findByName: (name: string) => Effect.Effect<Info | undefined, SelectError>
+  readonly listInvalid: () => Effect.Effect<ReadonlyArray<InvalidEntry>, SelectError>
+  readonly getInvalid: (relativePath: string) => Effect.Effect<InvalidEntry | undefined, SelectError>
+  readonly reload: () => Effect.Effect<void, SelectError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/CommandAsset") {}
 
-const decodeFrontmatter = Schema.decodeUnknownOption(SchemaCommandAsset.Frontmatter)
+const decodeFrontmatter = Schema.decodeUnknownOption(Frontmatter)
 
-function loadDir(
+export function loadDir<E = never>(
   fs: FSUtil.Interface,
   ownerRoot: string,
-): Effect.Effect<{ assets: Map<string, Info>; invalid: Map<string, InvalidEntry> }, FSUtil.Error> {
+  selected?: {
+    readonly target: AssetPlacement.Target
+    readonly validate: (relativePath: string, file: string) => Effect.Effect<unknown, E>
+  },
+): Effect.Effect<{ assets: Map<string, Info>; invalid: Map<string, InvalidEntry> }, FSUtil.Error | E> {
   return Effect.gen(function* () {
     const assets = new Map<string, Info>()
     const invalid = new Map<string, InvalidEntry>()
     const byName = new Map<string, string[]>()
 
-    const files = yield* fs.glob("**/*.md", { cwd: ownerRoot, absolute: true, include: "file", dot: true })
+    const files = yield* fs.scan("**/*.md", { cwd: ownerRoot, absolute: true, include: "file", dot: true })
 
     for (const file of files) {
       const relativePath = path.relative(ownerRoot, file).replaceAll("\\", "/")
+      if (selected) yield* selected.validate(relativePath, file)
       const raw = yield* fs
         .readFile(file)
         .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
@@ -78,7 +102,7 @@ function loadDir(
       }
 
       const decoded = decodeFrontmatter(parsed.data)
-      let frontmatter: SchemaCommandAsset.Frontmatter
+      let frontmatter: Frontmatter
       let source = parsed.content
       if (Option.isSome(decoded)) {
         frontmatter = decoded.value
@@ -127,9 +151,10 @@ function loadDir(
         description: frontmatter.description,
         relativePath,
         invocation: frontmatter.invocation,
-        args: frontmatter.args,
+        ...(frontmatter.args === undefined ? {} : { args: frontmatter.args }),
         source: frontmatter.source || source,
         revision,
+        ...(selected ? { target: selected.target } : {}),
       })
     }
 
@@ -143,67 +168,17 @@ export const layer = Layer.effect(
     const fs = yield* FSUtil.Service
     const config = yield* Effect.serviceOption(Config.Service)
     const location = yield* Location.Service
+    const mutation = yield* LocationMutation.Service
+    const global = yield* Global.Service
 
     const ownerRoot = path.resolve(location.directory, COMMANDS_DIR)
     let assets = new Map<string, Info>()
     let invalid = new Map<string, InvalidEntry>()
+    let initialized = false
     const reloadLock = KeyedMutex.makeUnsafe<string>()
-
-    const reload = Effect.fn("CommandAsset.reload")(function* () {
-      yield* reloadLock.withLock("reload")(
-        Effect.gen(function* () {
-          const result = yield* loadDir(fs, ownerRoot)
-          assets = result.assets
-          invalid = result.invalid
-        }),
-      )
-    })
-
-    const list = Effect.fn("CommandAsset.list")(function* () {
-      return Array.from(assets.values())
-    })
-
-    const getByPath = Effect.fn("CommandAsset.getByPath")(function* (relativePath: string) {
-      const entry = assets.get(relativePath)
-      if (!entry) return yield* new NotFoundError({ relativePath })
-      return entry
-    })
-
-    const findByName = Effect.fn("CommandAsset.findByName")(function* (name: string) {
-      for (const entry of assets.values()) {
-        if (entry.name === name) return entry
-      }
-      return undefined
-    })
-
-    const listInvalid = Effect.fn("CommandAsset.listInvalid")(function* () {
-      return Array.from(invalid.values())
-    })
-
-    const getInvalid = Effect.fn("CommandAsset.getInvalid")(function* (relativePath: string) {
-      return invalid.get(relativePath)
-    })
-
-    const scope = yield* Scope.Scope
-    const eventsOpt = yield* Effect.serviceOption(EventV2.Service)
-    if (Option.isSome(eventsOpt)) {
-      yield* eventsOpt.value.subscribe(Watcher.Event.Updated).pipe(
-        Stream.filter((e) => FSUtil.contains(ownerRoot, e.data.file) && e.data.file.endsWith(".md")),
-        Stream.runForEach(() =>
-          reload().pipe(
-            Effect.catch((error) =>
-              Effect.logWarning("Failed to reload command assets", {
-                errorTag: "_tag" in error ? error._tag : "filesystem_error",
-              }),
-            ),
-          ),
-        ),
-        Effect.forkIn(scope),
-      )
-    }
-
-    if (Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET && Option.isSome(config)) {
-      yield* Effect.gen(function* () {
+    const migration = yield* Effect.cached(
+      Effect.gen(function* () {
+        if (!Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET || Option.isNone(config)) return
         const files = yield* AssetMigration.legacyCommandFiles(fs, location.directory)
         yield* AssetMigration.importEntriesOnce(fs, {
           ownerRoot,
@@ -214,12 +189,108 @@ export const layer = Layer.effect(
           ],
           isValidName: (name) => name.split("/").every(CommandAssetPath.isValidSegment),
         })
-      }).pipe(Effect.catch((error) => Effect.logWarning("legacy command migration failed", { error })))
-    }
-    yield* reload().pipe(Effect.orDie)
+      }).pipe(Effect.catch((error) => Effect.logWarning("legacy command migration failed", { error }))),
+    )
 
-    return Service.of({ list, getByPath, findByName, listInvalid, getInvalid, reload })
+    const reload = Effect.fn("CommandAsset.reload")(function* () {
+      yield* reloadLock.withLock("reload")(
+        Effect.gen(function* () {
+          yield* migration
+          const result = yield* loadDir(fs, ownerRoot)
+          assets = result.assets
+          invalid = result.invalid
+          initialized = true
+        }),
+      )
+    })
+
+    const list = Effect.fn("CommandAsset.list")(function* () {
+      if (!initialized) yield* reload().pipe(Effect.orDie)
+      return Array.from(assets.values())
+    })
+
+    const getByPath = Effect.fn("CommandAsset.getByPath")(function* (relativePath: string) {
+      if (!initialized) yield* reload().pipe(Effect.orDie)
+      const entry = assets.get(relativePath)
+      if (!entry) return yield* new NotFoundError({ relativePath })
+      return entry
+    })
+
+    const findByName = Effect.fn("CommandAsset.findByName")(function* (name: string) {
+      if (!initialized) yield* reload().pipe(Effect.orDie)
+      return Array.from(assets.values()).find((entry) => entry.name === name)
+    })
+
+    const listInvalid = Effect.fn("CommandAsset.listInvalid")(function* () {
+      if (!initialized) yield* reload().pipe(Effect.orDie)
+      return Array.from(invalid.values())
+    })
+
+    const getInvalid = Effect.fn("CommandAsset.getInvalid")(function* (relativePath: string) {
+      if (!initialized) yield* reload().pipe(Effect.orDie)
+      return invalid.get(relativePath)
+    })
+
+    const select = Effect.fn("CommandAsset.select")(function* (scope: AssetPlacement.Scope) {
+      const target = yield* AssetPlacement.resolve(scope, { fs, mutation, location, global }, undefined, "command")
+      const read = Effect.fnUntraced(function* () {
+        yield* AssetPlacement.resolve(scope, { fs, mutation, location, global }, target, "command")
+        return yield* loadDir(fs, target.root, {
+          target,
+          validate: (relativePath) => CommandAssetPath.resolveSelectedTarget(relativePath, target, mutation, fs),
+        })
+      })
+      return {
+        target,
+        list: () => read().pipe(Effect.map((result) => Array.from(result.assets.values()))),
+        getByPath: (relativePath) =>
+          Effect.gen(function* () {
+            yield* CommandAssetPath.resolveSelectedTarget(relativePath, target, mutation, fs)
+            const entry = (yield* read()).assets.get(relativePath)
+            if (!entry) return yield* new NotFoundError({ relativePath })
+            return entry
+          }),
+        findByName: (name) =>
+          read().pipe(Effect.map((result) => Array.from(result.assets.values()).find((entry) => entry.name === name))),
+        listInvalid: () => read().pipe(Effect.map((result) => Array.from(result.invalid.values()))),
+        getInvalid: (relativePath) =>
+          Effect.gen(function* () {
+            yield* CommandAssetPath.resolveSelectedTarget(relativePath, target, mutation, fs)
+            return (yield* read()).invalid.get(relativePath)
+          }),
+        reload: () => read().pipe(Effect.asVoid),
+      } satisfies Selected
+    })
+
+    const scope = yield* Scope.Scope
+    const eventsOpt = yield* Effect.serviceOption(Bus.Service)
+    if (Option.isSome(eventsOpt)) {
+      yield* eventsOpt.value.subscribe(Watcher.Event.Updated).pipe(
+        Stream.filter((e) => FSUtil.contains(ownerRoot, e.data.file) && e.data.file.endsWith(".md")),
+        Stream.runForEach(() =>
+          initialized
+            ? reload().pipe(
+                Effect.catch((error) =>
+                  Effect.logWarning("Failed to reload command assets", {
+                    errorTag: "_tag" in error ? error._tag : "filesystem_error",
+                  }),
+                ),
+              )
+            : Effect.void,
+        ),
+        Effect.forkIn(scope),
+      )
+    }
+
+    // Selected activation stays read-only; the first legacy consumer performs the existing import.
+    return Service.of({ list, getByPath, findByName, listInvalid, getInvalid, reload, select })
   }),
 )
 
 export const locationLayer = layer
+
+export const node = makeLocationNode({
+  service: Service,
+  layer,
+  deps: [FSUtil.node, Location.node, LocationMutation.node, Global.node],
+})

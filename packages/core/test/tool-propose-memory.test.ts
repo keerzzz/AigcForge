@@ -1,44 +1,34 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
-import { Database } from "@aigcfroge/core/database/database"
-import { EventV2 } from "@aigcfroge/core/event"
-import { PermissionV2 } from "@aigcfroge/core/permission"
-import { SessionV2 } from "@aigcfroge/core/session"
+import { Session } from "@aigcfroge/core/session"
 import { PersonalMemory } from "@aigcfroge/core/session/personal-memory"
+import { Tool } from "@aigcfroge/core/tool"
 import { ProposeMemoryTool } from "@aigcfroge/core/tool/propose-memory"
-import { ToolRegistry } from "@aigcfroge/core/tool/registry"
 import { testEffect } from "./lib/effect"
-import { toolIdentity, settleTool, toolDefinitions } from "./lib/tool"
+import { executeTool, registerToolPlugin, toolDefinitions, toolIdentity, type ToolExecution } from "./lib/tool"
+import { PluginTestLayer } from "./plugin/fixture"
 
-const sessionID = SessionV2.ID.make("ses_memory_tool_test")
+const sessionID = Session.ID.make("ses_memory_tool_test")
 
-const mockPermission = Layer.mock(PermissionV2.Service, {
-  assert: () => Effect.void,
-})
+const it = testEffect(PersonalMemory.layer.pipe(Layer.provideMerge(PluginTestLayer)))
 
-const it = testEffect(
-  ProposeMemoryTool.layer.pipe(
-    Layer.provideMerge(PersonalMemory.layer),
-    Layer.provideMerge(Database.defaultLayer),
-    Layer.provideMerge(EventV2.defaultLayer),
-    Layer.provideMerge(ToolRegistry.defaultLayer),
-    Layer.provideMerge(mockPermission),
-  ),
-)
+const textOf = (result: ToolExecution) =>
+  result.content?.map((item) => (item.type === "text" ? item.text : "")).join("") ?? ""
 
 describe("propose_memory tool", () => {
   it.effect("registers memory_propose", () =>
     Effect.gen(function* () {
-      const registry = yield* ToolRegistry.Service
-      const names = (yield* toolDefinitions(registry)).map((definition) => definition.name)
+      yield* registerToolPlugin(ProposeMemoryTool.Plugin)
+      const names = (yield* toolDefinitions(yield* Tool.Service)).map((definition) => definition.name)
       expect(names).toContain("memory_propose")
     }),
   )
 
   it.effect("rejects high-sensitivity content (never stored, PRD §9)", () =>
     Effect.gen(function* () {
-      const registry = yield* ToolRegistry.Service
-      const result = yield* settleTool(registry, {
+      yield* registerToolPlugin(ProposeMemoryTool.Plugin)
+      const registry = yield* Tool.Service
+      const result = yield* executeTool(registry, {
         sessionID,
         ...toolIdentity,
         call: {
@@ -53,8 +43,8 @@ describe("propose_memory tool", () => {
           },
         },
       })
-      expect(result.result.type).toBe("error")
-      expect(result.result.value).toContain("Sensitive information is never stored")
+      expect(result.status).toBe("error")
+      expect(result.error?.message).toContain("Sensitive information is never stored")
       // Nothing landed in the pending queue.
       const memories = yield* PersonalMemory.Service
       expect(yield* memories.listPending()).toHaveLength(0)
@@ -63,8 +53,9 @@ describe("propose_memory tool", () => {
 
   it.effect("proposes low-sensitivity content as a pending entry awaiting user confirmation", () =>
     Effect.gen(function* () {
-      const registry = yield* ToolRegistry.Service
-      const result = yield* settleTool(registry, {
+      yield* registerToolPlugin(ProposeMemoryTool.Plugin)
+      const registry = yield* Tool.Service
+      const result = yield* executeTool(registry, {
         sessionID,
         ...toolIdentity,
         call: {
@@ -79,8 +70,8 @@ describe("propose_memory tool", () => {
           },
         },
       })
-      expect(result.result.type).toBe("text")
-      expect(result.result.value).toContain("Memory proposed")
+      expect(result.status).toBe("completed")
+      expect(textOf(result)).toContain("Memory proposed")
 
       const memories = yield* PersonalMemory.Service
       const pending = yield* memories.listPending()

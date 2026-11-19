@@ -4,7 +4,8 @@ import { sqliteTable, text, integer, index, uniqueIndex } from "drizzle-orm/sqli
 import { Timestamps } from "../database/schema.sql"
 import { SessionTable } from "../session/sql"
 import type { ID as DelegationID, ParticipantID, TurnID } from "@aigcfroge/schema/delegation-id"
-import type { ID as SessionID } from "@aigcfroge/schema/session-id"
+import type { SessionID } from "@aigcfroge/schema/session-id"
+import type { Session } from "@aigcfroge/schema/session"
 import type {
   DelegationStatus,
   ParticipantRole,
@@ -57,6 +58,7 @@ export const DelegationParticipantTable = sqliteTable(
     context: text().$type<ParticipantContext>().notNull(),
     phase: text().$type<ParticipantPhase>().notNull(),
     child_session_id: text().$type<SessionID>(),
+    executor: text({ mode: "json" }).$type<Session.ExecutorBinding>(),
     external_thread_id: text(),
     last_activity_at: integer().notNull(),
     time_closed: integer(),

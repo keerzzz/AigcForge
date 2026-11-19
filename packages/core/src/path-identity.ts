@@ -9,8 +9,9 @@ import {
   Unknown,
 } from "@aigcfroge/schema/path-identity"
 import { Context, Effect, Layer, Option } from "effect"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
 import { AbsolutePath } from "./schema"
-import { FSUtil } from "./fs-util"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 
 export {
   CompareInput,
@@ -82,3 +83,5 @@ export const layer = Layer.effect(
 )
 
 export const locationLayer = layer
+
+export const node = makeLocationNode({ service: Service, layer, deps: [FSUtil.node] })

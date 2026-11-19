@@ -1,30 +1,36 @@
 import { describe, expect, test } from "bun:test"
-import { Schema } from "effect"
+import path from "node:path"
+import { Result, Schema } from "effect"
 import { Composition } from "@aigcfroge/schema/composition"
-import { SkillV2 } from "../src/skill"
-import { createCompositionSkillCatalog } from "../src/skill/composition-catalog"
+import { AssetPlacement } from "@aigcfroge/schema/asset-placement"
+import { SkillFile } from "../src/config/plugin/skill-file"
+import { Skill } from "../src/skill"
+import { CompositionCatalog, createCompositionSkillCatalog } from "../src/skill/composition-catalog"
 import { AbsolutePath } from "../src/schema"
 
 describe("createCompositionSkillCatalog", () => {
-  const allSkills: SkillV2.Info[] = [
-    {
-      name: "git-tools",
+  const allSkills: Skill.Info[] = [
+    Skill.Info.make({
+      id: Skill.ID.make("git-tools"),
+      name: Skill.Name.make("git-tools"),
       description: "Git commands",
-      location: AbsolutePath.make("/project/.aigcfroge/skills/git-tools/SKILL.md"),
+      path: AbsolutePath.make("/project/.aigcfroge/skills/git-tools/SKILL.md"),
       content: "git skill content",
-    },
-    {
-      name: "global-unbound",
+    }),
+    Skill.Info.make({
+      id: Skill.ID.make("global-unbound"),
+      name: Skill.Name.make("global-unbound"),
       description: "Global skill not in binding",
-      location: AbsolutePath.make("/project/.aigcfroge/skills/global-unbound/SKILL.md"),
+      path: AbsolutePath.make("/project/.aigcfroge/skills/global-unbound/SKILL.md"),
       content: "unbound content",
-    },
-    {
-      name: "linter",
+    }),
+    Skill.Info.make({
+      id: Skill.ID.make("linter"),
+      name: Skill.Name.make("linter"),
       description: "Code linting",
-      location: AbsolutePath.make("/project/.aigcfroge/skills/linter/SKILL.md"),
+      path: AbsolutePath.make("/project/.aigcfroge/skills/linter/SKILL.md"),
       content: "linter content",
-    },
+    }),
   ]
 
   const boundRefs = [
@@ -38,7 +44,7 @@ describe("createCompositionSkillCatalog", () => {
   test("isolates skills to only explicitly bound references", () => {
     const catalog = createCompositionSkillCatalog(boundRefs, allSkills)
     expect(catalog).toHaveLength(1)
-    expect(catalog[0].name).toBe("git-tools")
+    expect(catalog[0].name).toBe(Skill.Name.make("git-tools"))
   })
 
   test("returns empty catalog when no skills bound", () => {
@@ -61,6 +67,153 @@ describe("createCompositionSkillCatalog", () => {
     ]
     const catalog = createCompositionSkillCatalog(twoBound, allSkills)
     expect(catalog).toHaveLength(2)
-    expect(catalog.map((s) => s.name)).toEqual(["git-tools", "linter"])
+    expect(catalog.map((s) => s.name)).toEqual([Skill.Name.make("git-tools"), Skill.Name.make("linter")])
+  })
+})
+
+describe("CompositionCatalog.frozenSkills", () => {
+  const revision = Composition.Revision.make("a".repeat(64))
+  const frozen = (relativePath: string, content = "Frozen instructions", target?: AssetPlacement.Target) =>
+    new Composition.SnapshotSkillData({
+      name: "Display name",
+      description: "Frozen description",
+      relativePath,
+      revision,
+      content,
+      ...(target === undefined ? {} : { target }),
+    })
+
+  test("reuses file parsing IDs and preserves frozen bodies for flat and nested assets", () => {
+    const directory = path.resolve("/project")
+    const ownerRoot = path.join(directory, ".aigcfroge/skills")
+    const assets = [frozen("review.md"), frozen("tools/lint/SKILL.md", "Frozen nested instructions")]
+    const result = CompositionCatalog.frozenSkills(directory, assets)
+    expect(Result.isSuccess(result)).toBe(true)
+    if (Result.isFailure(result)) throw result.failure
+    expect(result.success).toEqual([
+      {
+        id: SkillFile.id(ownerRoot, path.join(ownerRoot, "review.md")),
+        name: Skill.Name.make("Display name"),
+        description: "Frozen description",
+        path: AbsolutePath.make(path.join(ownerRoot, "review.md")),
+        content: "Frozen instructions",
+      },
+      {
+        id: SkillFile.id(ownerRoot, path.join(ownerRoot, "tools/lint/SKILL.md")),
+        name: Skill.Name.make("Display name"),
+        description: "Frozen description",
+        path: AbsolutePath.make(path.join(ownerRoot, "tools/lint/SKILL.md")),
+        content: "Frozen nested instructions",
+      },
+    ])
+    assets.forEach((asset, index) => {
+      const parsed = SkillFile.parse(
+        ownerRoot,
+        result.success[index].path,
+        `---\nname: Display name\n---\n${asset.content}`,
+      )
+      expect(parsed).toMatchObject({ _tag: "Parsed", skill: { id: result.success[index].id } })
+    })
+    expect(assets[0].content).toBe("Frozen instructions")
+  })
+
+  test("keeps an explicitly empty frozen catalog and frozen empty body", () => {
+    expect(CompositionCatalog.frozenSkills("/project", [])).toEqual(Result.succeed([]))
+    const result = CompositionCatalog.frozenSkills("/project", [frozen("empty.md", "")])
+    expect(Result.isSuccess(result)).toBe(true)
+    if (Result.isFailure(result)) throw result.failure
+    expect(result.success[0].content).toBe("")
+  })
+
+  test("uses each frozen source root after adoption into another Location", () => {
+    const targets = [
+      new AssetPlacement.Target({
+        scope: "global",
+        root: AbsolutePath.make(path.resolve("/global/skills") + path.sep),
+      }),
+      new AssetPlacement.Target({
+        scope: "project",
+        root: AbsolutePath.make(path.resolve("/original/.aigcfroge/skills")),
+      }),
+      new AssetPlacement.Target({
+        scope: "location",
+        root: AbsolutePath.make(path.resolve("/original/child/.aigcfroge/skills")),
+      }),
+    ]
+    targets.forEach((target) => {
+      const ownerRoot = path.resolve(target.root)
+      const asset = frozen("review.md", `Frozen ${target.scope} body`, target)
+      const result = CompositionCatalog.frozenSkills("/adopted", [asset])
+      if (Result.isFailure(result)) throw result.failure
+      expect(result.success[0]).toEqual({
+        id: SkillFile.id(ownerRoot, path.join(ownerRoot, "review.md")),
+        name: Skill.Name.make("Display name"),
+        description: "Frozen description",
+        path: AbsolutePath.make(path.join(target.root, "review.md")),
+        content: `Frozen ${target.scope} body`,
+      })
+      expect(
+        SkillFile.parse(ownerRoot, result.success[0].path, `---\nname: Display name\n---\n${asset.content}`),
+      ).toMatchObject({ _tag: "Parsed", skill: { id: result.success[0].id } })
+    })
+    const result = CompositionCatalog.frozenSkills("/adopted", [
+      frozen("review.md", "", targets[0]),
+      frozen("lint/SKILL.md", "Frozen project body", targets[1]),
+    ])
+    if (Result.isFailure(result)) throw result.failure
+    expect(result.success.map((skill) => skill.path)).toEqual([
+      AbsolutePath.make(path.join(targets[0].root, "review.md")),
+      AbsolutePath.make(path.join(targets[1].root, "lint/SKILL.md")),
+    ])
+    expect(result.success[0].content).toBe("")
+  })
+
+  test("retains same-consumer Skill ID conflicts across distinct frozen owners", () => {
+    expect(
+      CompositionCatalog.frozenSkills("/adopted", [
+        frozen(
+          "review.md",
+          "Frozen global body",
+          new AssetPlacement.Target({
+            scope: "global",
+            root: AbsolutePath.make("/global/skills"),
+          }),
+        ),
+        frozen(
+          "review.md",
+          "Frozen project body",
+          new AssetPlacement.Target({
+            scope: "project",
+            root: AbsolutePath.make("/original/.aigcfroge/skills"),
+          }),
+        ),
+      ]),
+    ).toMatchObject({ _tag: "Failure", failure: { code: "skill_id_conflict" } })
+  })
+
+  test("fails closed when a historical skill lacks frozen content", () => {
+    const result = CompositionCatalog.frozenSkills("/project", [
+      new Composition.SkillInfo({
+        name: "Historical",
+        description: "Only a summary",
+        relativePath: "review.md",
+        revision,
+      }),
+    ])
+    expect(result).toMatchObject({ _tag: "Failure", failure: { code: "missing_skill_content" } })
+  })
+
+  test("rejects paths outside the owner root and ambiguous Skill IDs", () => {
+    for (const relativePath of ["../private.md", "/private.md", "review/../../private.md"])
+      expect(CompositionCatalog.frozenSkills("/project", [frozen(relativePath)])).toMatchObject({
+        _tag: "Failure",
+        failure: { code: "invalid_skill_path" },
+      })
+    expect(
+      CompositionCatalog.frozenSkills("/project", [frozen("one/review/SKILL.md"), frozen("two/review/SKILL.md")]),
+    ).toMatchObject({
+      _tag: "Failure",
+      failure: { code: "skill_id_conflict" },
+    })
   })
 })

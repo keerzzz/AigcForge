@@ -2,13 +2,13 @@ export * as CliTimeout from "./cli-timeout"
 
 import { collectStream } from "../process"
 import { Duration, Effect } from "effect"
-import { ChildProcess } from "effect/unstable/process"
-import type { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
-import type { CliAdapter, DelegationResult } from "./cli-adapter"
+import { ChildProcess } from "effect/process"
+import type { ChildProcessSpawner } from "effect/process/ChildProcessSpawner"
+import type { CliAdapterValue, DelegationResult } from "./cli-adapter"
 
 export function executeWithTimeout(
   spawner: ChildProcessSpawner["Service"],
-  adapter: CliAdapter,
+  adapter: CliAdapterValue,
   input: { prompt: string; cwd: string; resumeId?: string },
   timeoutMs: number = 300_000,
 ): Effect.Effect<DelegationResult> {

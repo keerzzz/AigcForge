@@ -1,11 +1,11 @@
 import { Context, Duration, Effect, Fiber, Layer, Schema, Stream } from "effect"
 import type { PlatformError } from "effect/PlatformError"
-import { ChildProcess } from "effect/unstable/process"
-import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
-import { CrossSpawnSpawner } from "./cross-spawn-spawner"
-import { LayerNode } from "./effect/layer-node"
+import { ChildProcess } from "effect/process"
+import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner"
+import { CrossSpawnSpawner } from "@aigcfroge/util/cross-spawn-spawner"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
 
-export class AppProcessError extends Schema.TaggedErrorClass<AppProcessError>()("AppProcessError", {
+export class AppProcessError extends Schema.TaggedError<AppProcessError>()("AppProcessError", {
   command: Schema.String,
   exitCode: Schema.optional(Schema.Number),
   stderr: Schema.optional(Schema.String),
@@ -173,7 +173,7 @@ export const layer = Layer.effect(
             ),
           )
         : timed
-      return aborted.pipe(Effect.catch((cause) => Effect.fail(wrapError(description, cause))))
+      return aborted.pipe(Effect.mapError((cause) => wrapError(description, cause)))
     }
 
     const run = Effect.fn("AppProcess.run")(function* (command: ChildProcess.Command, options?: RunOptions) {
@@ -222,9 +222,7 @@ export const layer = Layer.effect(
           return Stream.concat(lines, tail)
         }),
       )
-      const mapped = built.pipe(
-        Stream.catch((cause): Stream.Stream<string, AppProcessError> => Stream.fail(wrapError(description, cause))),
-      )
+      const mapped = built.pipe(Stream.mapError((cause): AppProcessError => wrapError(description, cause)))
       if (!options?.signal) return mapped
       const signal = options.signal
       return mapped.pipe(
@@ -236,7 +234,7 @@ export const layer = Layer.effect(
   }),
 )
 
-export const defaultLayer = layer.pipe(Layer.provide(CrossSpawnSpawner.defaultLayer))
-export const node = LayerNode.make(layer, [CrossSpawnSpawner.node])
+export const defaultLayer = layer
+export const node = LayerNode.make({ name: "AppProcess", layer, deps: [CrossSpawnSpawner.node] })
 
 export * as AppProcess from "./process"

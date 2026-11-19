@@ -33,11 +33,11 @@ Prefer guidance that is:
 
 ## Sources
 
-- PR #12345: https://github.com/keerzzz/AigcForge/pull/12345
+- PR #12345: https://github.com/anomalyco/aigcfroge/pull/12345
 
 ## Do Not Translate (Locale Additions)
 
-- `Aigcfroge` (preserve casing)
+- `AigcForge` (preserve casing)
 
 ## Preferred Terms
 

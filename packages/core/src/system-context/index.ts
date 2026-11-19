@@ -6,7 +6,7 @@ import { Effect, Option, Schema } from "effect"
  * Models privileged system context as independently refreshable typed sources.
  *
  * `Source<A>` describes how to observe, compare, and render one value. `make`
- * closes over `A`, producing an opaque `SystemContext` that composes uniformly
+ * closes over `A`, producing an opaque `SystemContextValue` that composes uniformly
  * with contexts built from other value types. Interpreters observe the composed
  * context once, then produce a durable structured
  * `Snapshot` alongside the exact model-visible baseline or update text.
@@ -38,10 +38,10 @@ export interface Source<A> {
   readonly removed?: (previous: A) => string
 }
 
-const ContextTypeId: unique symbol = Symbol.for("@aigcfroge/SystemContext")
+export const ContextTypeId: unique symbol = Symbol.for("@aigcfroge/SystemContextValue")
 
 /** Opaque carrier for composable system context sources. */
-export interface SystemContext {
+export interface SystemContextValue {
   readonly [ContextTypeId]: ReadonlyArray<PackedSource>
 }
 
@@ -79,7 +79,7 @@ export interface ReplacementBlocked {
 export type ReplacementResult = ReplacementReady | ReplacementBlocked
 export type ReconcileResult = { readonly _tag: "Unchanged" } | Updated | ReplacementResult
 
-export class InitializationBlocked extends Schema.TaggedErrorClass<InitializationBlocked>()(
+export class InitializationBlocked extends Schema.TaggedError<InitializationBlocked>()(
   "SystemContext.InitializationBlocked",
   { keys: Schema.Array(Key) },
 ) {
@@ -88,7 +88,7 @@ export class InitializationBlocked extends Schema.TaggedErrorClass<Initializatio
   }
 }
 
-export class DuplicateKeyError extends Schema.TaggedErrorClass<DuplicateKeyError>()("SystemContext.DuplicateKeyError", {
+export class DuplicateKeyError extends Schema.TaggedError<DuplicateKeyError>()("SystemContext.DuplicateKeyError", {
   key: Key,
 }) {
   override get message() {
@@ -132,7 +132,7 @@ type Entry = AvailableEntry | UnavailableEntry
 export const empty = context([])
 
 /** Closes a typed source into a context that composes with differently typed sources. */
-export function make<A>(source: Source<A>): SystemContext {
+export function make<A>(source: Source<A>): SystemContextValue {
   const decode = Schema.decodeUnknownOption(source.codec)
   const encode = Schema.encodeSync(source.codec)
   const equivalent = Schema.toEquivalence(source.codec)
@@ -173,13 +173,13 @@ export function make<A>(source: Source<A>): SystemContext {
 }
 
 /** Combines contexts in order and rejects duplicate source keys immediately. */
-export function combine(values: ReadonlyArray<SystemContext>): SystemContext {
+export function combine(values: ReadonlyArray<SystemContextValue>): SystemContextValue {
   const sources = values.flatMap((value) => value[ContextTypeId])
   assertUniqueKeys(sources)
   return context(sources)
 }
 
-const observe = (value: SystemContext) =>
+const observe = (value: SystemContextValue) =>
   Effect.forEach(
     value[ContextTypeId],
     (source) =>
@@ -195,7 +195,7 @@ const observe = (value: SystemContext) =>
   )
 
 /** Creates the immutable baseline and durable snapshot for a new generation. */
-export function initialize(value: SystemContext): Effect.Effect<Generation, InitializationBlocked> {
+export function initialize(value: SystemContextValue): Effect.Effect<Generation, InitializationBlocked> {
   return observe(value).pipe(
     Effect.flatMap((entries) => {
       const unavailable = entries.flatMap((entry) => (entry._tag === "Unavailable" ? [entry.key] : []))
@@ -215,7 +215,7 @@ function initializeObservation(entries: ReadonlyArray<Entry>): Generation {
 }
 
 /** Reconciles current source values with one active generation. */
-export function reconcile(value: SystemContext, previous: Snapshot): Effect.Effect<ReconcileResult> {
+export function reconcile(value: SystemContextValue, previous: Snapshot): Effect.Effect<ReconcileResult> {
   return observe(value).pipe(
     Effect.map((entries): ReconcileResult => {
       const result = reconcileObservation(entries, previous)
@@ -280,7 +280,7 @@ function reconcileObservation(
 }
 
 /** Creates a complete replacement generation or blocks while admitted context is unavailable. */
-export function replace(value: SystemContext, previous: Snapshot): Effect.Effect<ReplacementResult> {
+export function replace(value: SystemContextValue, previous: Snapshot): Effect.Effect<ReplacementResult> {
   return observe(value).pipe(Effect.map((entries) => replaceObservation(entries, previous)))
 }
 
@@ -290,7 +290,7 @@ function replaceObservation(entries: ReadonlyArray<Entry>, previous: Snapshot): 
   return { _tag: "ReplacementReady", generation: initializeObservation(entries) }
 }
 
-function context(sources: ReadonlyArray<PackedSource>): SystemContext {
+function context(sources: ReadonlyArray<PackedSource>): SystemContextValue {
   return { [ContextTypeId]: sources }
 }
 

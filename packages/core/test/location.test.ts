@@ -1,27 +1,30 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
 import { Location } from "@aigcfroge/core/location"
 import { Project } from "@aigcfroge/core/project"
 import { AbsolutePath } from "@aigcfroge/core/schema"
-import { WorkspaceV2 } from "@aigcfroge/core/workspace"
+import { Workspace } from "@aigcfroge/core/workspace"
 import { testEffect } from "./lib/effect"
 
-const workspaceID = WorkspaceV2.ID.make("wrk_test")
+const workspaceID = Workspace.ID.make("wrk_test")
 const ref = { directory: AbsolutePath.make("/repo/packages/app"), workspaceID }
 const projectLayer = Layer.succeed(
   Project.Service,
   Project.Service.of({
-    directories: () => Effect.succeed([]),
+    list: () => Effect.succeed([]),
+    update: () => Effect.die("not implemented"),
+    activate: () => Effect.void,
     resolve: () =>
       Effect.succeed({
         id: Project.ID.make("project"),
         directory: AbsolutePath.make("/repo"),
+        canonical: AbsolutePath.make("/main/repo"),
         vcs: { type: "git", store: AbsolutePath.make("/repo/.git") },
       }),
-    commit: () => Effect.void,
   }),
 )
-const it = testEffect(Location.layer(ref).pipe(Layer.provide(projectLayer)))
+const it = testEffect(AppNodeBuilder.build(Location.boundNode(ref), [Project.node.replace(projectLayer)]))
 
 describe("Location", () => {
   it.effect("resolves the current project and vcs information", () =>
@@ -32,6 +35,7 @@ describe("Location", () => {
       expect(location.workspaceID).toBe(workspaceID)
       expect(location.project.id).toBe(Project.ID.make("project"))
       expect(location.project.directory).toBe(AbsolutePath.make("/repo"))
+      expect(location.project.canonical).toBe(AbsolutePath.make("/main/repo"))
       expect(location.vcs).toEqual({
         type: "git",
         store: AbsolutePath.make("/repo/.git"),

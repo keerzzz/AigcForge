@@ -2,7 +2,9 @@ export * as LocationMutation from "./location-mutation"
 
 import path from "path"
 import { Context, Effect, Layer, Schema } from "effect"
-import { FSUtil } from "./fs-util"
+import { FSUtil } from "@aigcfroge/util/fs-util"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { AbsolutePath } from "./schema"
 import { Location } from "./location"
 
 export const Kind = Schema.Literals(["file", "directory"])
@@ -20,7 +22,7 @@ export const ResolveInput = Schema.Struct({
 })
 export type ResolveInput = typeof ResolveInput.Type
 
-export class PathError extends Schema.TaggedErrorClass<PathError>()("LocationMutation.PathError", {
+export class PathError extends Schema.TaggedError<PathError>()("LocationMutation.PathError", {
   path: Schema.String,
   reason: Schema.Literals(["relative_escape", "location_escape", "non_directory_ancestor"]),
 }) {}
@@ -42,7 +44,7 @@ export const externalDirectoryPermission = (input: ExternalDirectoryAuthorizatio
 
 export interface Target {
   /** Canonical existing path, or missing path below a canonical directory. */
-  readonly canonical: string
+  readonly absolute: AbsolutePath
   /** Permission resource: Location-relative for internal paths, canonical for external paths. */
   readonly resource: string
   readonly externalDirectory?: ExternalDirectoryAuthorization
@@ -141,7 +143,7 @@ export const layer = Layer.effect(
         input.kind === "directory" && resolved.type === "Directory" ? resolved.canonical : resolved.directory
       const externalResource = slash(path.join(externalDirectory, "*"))
       return {
-        canonical: resolved.canonical,
+        absolute: AbsolutePath.make(resolved.canonical),
         resource,
         externalDirectory: external
           ? {
@@ -159,3 +161,5 @@ export const layer = Layer.effect(
 )
 
 export const locationLayer = layer
+
+export const node = makeLocationNode({ service: Service, layer, deps: [FSUtil.node, Location.node] })

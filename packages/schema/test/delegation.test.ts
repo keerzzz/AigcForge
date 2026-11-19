@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { Delegation, DelegationID, ParticipantID, TurnID } from "../src"
+import { Delegation, DelegationID, ParticipantID, TurnID } from "../src/index.js"
 
 describe("Delegation Schema and Branded IDs", () => {
   test("branded IDs validate prefix and create unique identifiers", () => {

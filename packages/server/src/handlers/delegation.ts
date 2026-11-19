@@ -1,239 +1,222 @@
-import { Delegation } from "@aigcfroge/schema/delegation"
-import { DelegationID } from "@aigcfroge/schema/delegation-id"
-import { SessionID } from "@aigcfroge/schema/session-id"
-import { DelegationExecution } from "@aigcfroge/core/delegation/execution"
+import { Bus } from "@aigcfroge/core/bus"
 import { DelegationPresentation } from "@aigcfroge/core/delegation/presentation"
-import { DelegationService, type ServiceError } from "@aigcfroge/core/delegation/service"
-import { Location } from "@aigcfroge/core/location"
-import { SessionTable } from "@aigcfroge/core/session/sql"
-import { Database } from "@aigcfroge/core/database/database"
+import { DelegationService } from "@aigcfroge/core/delegation/service"
+import { DelegationExecution } from "@aigcfroge/core/delegation/execution"
 import { Flag } from "@aigcfroge/core/flag/flag"
-import { eq } from "drizzle-orm"
-import { Effect } from "effect"
-import { HttpApiBuilder, HttpApiSchema } from "effect/unstable/httpapi"
+import { Session } from "@aigcfroge/core/session"
+import { InvalidRequestError } from "@aigcfroge/protocol/errors"
+import { WorkspaceRouteContext } from "@aigcfroge/protocol/middleware/workspace-routing"
+import { DateTime, Effect } from "effect"
+import { HttpApiBuilder } from "effect/http-api"
 import { Api } from "../api"
-import { ConflictError, ForbiddenError, InvalidRequestError, SessionNotFoundError } from "../errors"
+import { locationRefForRoute } from "../middleware/workspace-routing"
 
-const view = DelegationPresentation.view
-
-function domainError(error: ServiceError) {
-  if (error instanceof Delegation.DelegationParentSessionNotFoundError) {
-    return new SessionNotFoundError({ sessionID: error.parentSessionID, message: error.message })
-  }
-  if (error instanceof Delegation.DelegationNotFoundError) {
-    return new InvalidRequestError({ message: error.message, field: "delegationID" })
-  }
-  return new ConflictError({
-    resource: "delegationID" in error ? error.delegationID : undefined,
-    message: error instanceof Error ? error.message : String(error),
-  })
-}
-
-export const DelegationHandler = HttpApiBuilder.group(Api, "server.delegation", (handlers) =>
+export const DelegationHandler = HttpApiBuilder.group(Api, "delegation", (handlers) =>
   Effect.gen(function* () {
     const service = yield* DelegationService.Service
     const execution = yield* DelegationExecution.Service
-    const { db } = yield* Database.Service
-    const enabled = () =>
-      Flag.AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS
-        ? Effect.void
-        : Effect.fail(new ForbiddenError({ message: "Persistent delegations are disabled" }))
-
-    const requireParentOwned = Effect.fn("DelegationHttp.requireParentOwned")(function* (
-      parentSessionID: SessionID.ID,
-    ) {
-      const location = yield* Location.Service
-      const session = yield* db
-        .select({ directory: SessionTable.directory, workspaceID: SessionTable.workspace_id })
-        .from(SessionTable)
-        .where(eq(SessionTable.id, parentSessionID))
-        .get()
-        .pipe(Effect.orDie)
-      if (!session) {
-        return yield* new SessionNotFoundError({ sessionID: parentSessionID, message: "Parent Session not found" })
+    const sessions = yield* Session.Service
+    const bus = yield* Bus.Service
+    const enabled = Effect.suspend(() => {
+      if (!Flag.AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS)
+        return new InvalidRequestError({ message: "Persistent delegations are disabled", kind: "disabled" })
+      if (!bus.retainsEvents)
+        return new InvalidRequestError({
+          message: "Persistent delegations require retained Bus events",
+          kind: "persistence_required",
+        })
+      return Effect.void
+    })
+    const parentVisible = Effect.fn("DelegationHttp.parentVisible")(function* (parentSessionID: Session.ID) {
+      const route = locationRefForRoute(yield* WorkspaceRouteContext)
+      const session = yield* sessions
+        .get(parentSessionID)
+        .pipe(Effect.mapError(() => new InvalidRequestError({ message: "Parent Session not found" })))
+      const owner = locationRefForRoute(session.location)
+      return owner.directory === route.directory && owner.workspaceID === route.workspaceID
+    })
+    const requireParentOwned = Effect.fn("DelegationHttp.requireParentOwned")(function* (parentSessionID: Session.ID) {
+      if (!(yield* parentVisible(parentSessionID)))
+        return yield* new InvalidRequestError({ message: "Delegation does not belong to this Location" })
+    })
+    const state = Effect.fn("DelegationHttp.state")(function* (id: Parameters<typeof service.foldState>[0]) {
+      yield* enabled
+      const value = yield* service.foldState(id).pipe(Effect.mapError(apiError))
+      if (!value) return yield* new InvalidRequestError({ message: `Delegation not found: ${id}` })
+      yield* requireParentOwned(value.delegation.parentSessionID)
+      return {
+        ...DelegationPresentation.view(value, (yield* DateTime.nowAsDate).getTime()),
+        deliveries: yield* execution.readSources(id).pipe(Effect.mapError(apiError)),
       }
-      if (session.directory !== location.directory || session.workspaceID !== (location.workspaceID ?? null)) {
-        return yield* new ForbiddenError({ message: "Delegation does not belong to this Location" })
-      }
-      return session
     })
-
-    const owned = Effect.fn("DelegationHttp.owned")(function* (delegationID: DelegationID.ID) {
-      yield* enabled()
-      const state = yield* service.foldState(delegationID).pipe(Effect.mapError(domainError))
-      if (!state) return yield* new InvalidRequestError({ message: "Delegation not found", field: "delegationID" })
-      yield* requireParentOwned(state.delegation.parentSessionID)
-      return state
-    })
-
-    const stateAfter = Effect.fn("DelegationHttp.stateAfter")(function* (delegationID: DelegationID.ID) {
-      return view(yield* owned(delegationID))
-    })
-
-    const mutate = <A>(delegationID: DelegationID.ID, command: Effect.Effect<A, ServiceError>) =>
-      Effect.gen(function* () {
-        yield* owned(delegationID)
-        return yield* command.pipe(Effect.mapError(domainError))
-      })
+    const owned = <A, E extends { readonly message: string }, R>(
+      delegationID: Parameters<typeof service.foldState>[0],
+      effect: Effect.Effect<A, E, R>,
+    ) => state(delegationID).pipe(Effect.andThen(effect), Effect.mapError(apiError))
 
     return handlers
-      .handle("delegation.list", (ctx) =>
+      .handle("delegation.list", ({ query }) =>
         Effect.gen(function* () {
-          yield* enabled()
-          const states = yield* service.list(ctx.query).pipe(Effect.mapError(domainError))
-          const visible = []
-          for (const state of states) {
-            yield* owned(state.delegation.id)
-            const item = view(state)
-            if (ctx.query.includeArchived || !item.softExpired) visible.push(item)
-          }
-          return visible
+          yield* enabled
+          if (query.parentSessionID) yield* requireParentOwned(query.parentSessionID)
+          const items = yield* service.list(query).pipe(Effect.mapError(apiError))
+          const visible = yield* Effect.filter(items, (item) => parentVisible(item.delegation.parentSessionID))
+          const now = (yield* DateTime.nowAsDate).getTime()
+          const views = visible
+            .map((item) => DelegationPresentation.view(item, now))
+            .filter((item) => query.includeArchived || !item.softExpired)
+          return yield* Effect.forEach(views, (view) =>
+            Effect.gen(function* () {
+              return {
+                ...view,
+                deliveries: yield* execution.readSources(view.delegation.id).pipe(Effect.mapError(apiError)),
+              }
+            }),
+          )
         }),
       )
-      .handle("delegation.create", (ctx) =>
+      .handle("delegation.create", ({ payload }) =>
         Effect.gen(function* () {
-          yield* enabled()
-          yield* requireParentOwned(ctx.payload.parentSessionID)
-          const item = yield* service.create(ctx.payload).pipe(Effect.mapError(domainError))
-          return yield* stateAfter(item.id)
+          yield* enabled
+          yield* requireParentOwned(payload.parentSessionID)
+          return yield* service.create(payload).pipe(
+            Effect.mapError(apiError),
+            Effect.flatMap((item) => state(item.id)),
+          )
         }),
       )
-      .handle("delegation.get", (ctx) => stateAfter(ctx.params.delegationID))
-      .handle("delegation.addParticipant", (ctx) =>
-        mutate(
-          ctx.params.delegationID,
-          service.addParticipant({ delegationID: ctx.params.delegationID, ...ctx.payload }),
-        ),
-      )
-      .handle("delegation.listTurns", (ctx) =>
-        mutate(ctx.params.delegationID, service.listTurns(ctx.params.delegationID)),
-      )
-      .handle("delegation.appendTurn", (ctx) =>
-        mutate(
-          ctx.params.delegationID,
-          service.appendTurn({
-            delegationID: ctx.params.delegationID,
-            ...ctx.payload,
-            origin: {
-              deliveryOrigin: ctx.payload.deliveryOrigin,
-              senderParticipantID: ctx.payload.senderParticipantID,
-            },
+      .handle("delegation.get", ({ params }) => state(params.delegationID))
+      .handle("delegation.result", ({ params, query }) =>
+        owned(
+          params.delegationID,
+          execution.readResult({
+            ...params,
+            attempt: query.attempt,
+            deliveryOrigin: query.deliveryOrigin,
+            senderParticipantID: query.senderParticipantID,
           }),
         ),
       )
-      .handle("delegation.retry", (ctx) =>
-        Effect.gen(function* () {
-          yield* mutate(
-            ctx.params.delegationID,
-            service.retry({ ...ctx.params, participantID: ctx.payload.participantID }),
-          )
-          yield* execution.wake(ctx.params.delegationID)
-          return yield* stateAfter(ctx.params.delegationID)
-        }),
+      .handle("delegation.addParticipant", ({ params, payload }) =>
+        owned(params.delegationID, service.addParticipant({ delegationID: params.delegationID, ...payload })),
       )
-      .handle("delegation.reconcile", (ctx) =>
-        Effect.gen(function* () {
-          yield* owned(ctx.params.delegationID)
-          if (ctx.payload.decision === "close") {
-            yield* execution
-              .close({ delegationID: ctx.params.delegationID, reason: "Reconciliation decision" })
-              .pipe(Effect.mapError((error) => new ConflictError({ message: String(error) })))
-          } else if (ctx.payload.decision === "fork") {
-            const forked = yield* mutate(
-              ctx.params.delegationID,
-              service.fork({ delegationID: ctx.params.delegationID }),
-            )
-            return view(forked)
-          } else if (ctx.payload.decision === "retry") {
-            if (!ctx.payload.turnID || !ctx.payload.participantID) {
-              return yield* new InvalidRequestError({
-                message: "Retry reconciliation requires turnID and participantID",
+      .handle("delegation.listTurns", ({ params }) =>
+        owned(params.delegationID, service.listTurns(params.delegationID)),
+      )
+      .handle("delegation.appendTurn", ({ params, payload }) =>
+        owned(
+          params.delegationID,
+          service
+            .appendTurn({
+              delegationID: params.delegationID,
+              ...payload,
+              origin: { deliveryOrigin: payload.deliveryOrigin, senderParticipantID: payload.senderParticipantID },
+            })
+            .pipe(
+              Effect.tap((turn) =>
+                payload.prompt === undefined
+                  ? Effect.void
+                  : execution.dispatch({
+                      delegationID: params.delegationID,
+                      turnID: turn.id,
+                      prompt: payload.prompt,
+                    }),
+              ),
+            ),
+        ),
+      )
+      .handle("delegation.retry", ({ params, payload }) =>
+        owned(
+          params.delegationID,
+          execution.retry({ ...params, ...payload }).pipe(Effect.andThen(state(params.delegationID))),
+        ),
+      )
+      .handle("delegation.reconcile", ({ params, payload }) =>
+        owned(
+          params.delegationID,
+          Effect.gen(function* () {
+            if (payload.decision === "retry") {
+              if (payload.turnID === undefined || payload.participantID === undefined)
+                return yield* new InvalidRequestError({ message: "Retry requires turnID and participantID" })
+              yield* execution.retry({
+                delegationID: params.delegationID,
+                turnID: payload.turnID,
+                participantID: payload.participantID,
               })
+              return yield* state(params.delegationID)
             }
-            yield* mutate(
-              ctx.params.delegationID,
-              service.retry({
-                delegationID: ctx.params.delegationID,
-                turnID: ctx.payload.turnID,
-                participantID: ctx.payload.participantID,
-              }),
-            )
-            yield* execution.wake(ctx.params.delegationID)
-          } else {
-            const resumed = yield* mutate(
-              ctx.params.delegationID,
-              service.reconcileResume({ delegationID: ctx.params.delegationID }),
-            )
-            if (resumed > 0) yield* execution.wake(ctx.params.delegationID)
-            // Deliveries without a provable idempotent-resume contract are left
-            // recovery_required; settle them only when the operator explicitly
-            // asks to give up (decision "close") rather than silently failing
-            // them on a "resume" request.
-          }
-          return yield* stateAfter(ctx.params.delegationID)
-        }),
-      )
-      .handle("delegation.retractRejection", (ctx) =>
-        mutate(
-          ctx.params.delegationID,
-          service.retractRejection({ delegationID: ctx.params.delegationID, ...ctx.payload }),
-        ).pipe(Effect.andThen(stateAfter(ctx.params.delegationID))),
-      )
-      .handle("delegation.steer", (ctx) =>
-        Effect.gen(function* () {
-          const current = yield* owned(ctx.params.delegationID)
-          const turn = current.turns.get(ctx.payload.turnID)
-          if (!turn?.participantIDs.includes(ctx.payload.participantID)) {
-            return yield* new InvalidRequestError({ message: "Turn participant is not admitted" })
-          }
-          yield* execution.wake(ctx.params.delegationID)
-          return yield* stateAfter(ctx.params.delegationID)
-        }),
-      )
-      .handle("delegation.interrupt", (ctx) =>
-        Effect.gen(function* () {
-          yield* owned(ctx.params.delegationID)
-          yield* execution
-            .interrupt(ctx.params.delegationID, ctx.payload.participantID)
-            .pipe(Effect.mapError((error) => new ConflictError({ message: String(error) })))
-          return yield* stateAfter(ctx.params.delegationID)
-        }),
-      )
-      .handle("delegation.complete", (ctx) =>
-        mutate(
-          ctx.params.delegationID,
-          service.complete({ delegationID: ctx.params.delegationID, ...ctx.payload }),
-        ).pipe(Effect.andThen(stateAfter(ctx.params.delegationID))),
-      )
-      .handle("delegation.close", (ctx) =>
-        Effect.gen(function* () {
-          yield* owned(ctx.params.delegationID)
-          yield* execution
-            .close({ delegationID: ctx.params.delegationID, ...ctx.payload })
-            .pipe(Effect.mapError((error) => new ConflictError({ message: String(error) })))
-          return yield* stateAfter(ctx.params.delegationID)
-        }),
-      )
-      .handle("delegation.archive", (ctx) =>
-        mutate(ctx.params.delegationID, service.archive(ctx.params)).pipe(
-          Effect.andThen(stateAfter(ctx.params.delegationID)),
+            if (payload.decision === "close") {
+              yield* execution.close({ delegationID: params.delegationID })
+              return yield* state(params.delegationID)
+            }
+            if (payload.decision === "fork") {
+              const forked = yield* service.fork({ delegationID: params.delegationID })
+              return yield* state(forked.delegation.id)
+            }
+            yield* service.reconcileResume({ delegationID: params.delegationID })
+            return yield* state(params.delegationID)
+          }),
         ),
       )
-      .handle("delegation.unarchive", (ctx) =>
-        mutate(ctx.params.delegationID, service.unarchive(ctx.params)).pipe(
-          Effect.andThen(stateAfter(ctx.params.delegationID)),
+      .handle("delegation.retractRejection", ({ params, payload }) =>
+        owned(
+          params.delegationID,
+          service.retractRejection({ ...params, ...payload }).pipe(Effect.andThen(state(params.delegationID))),
         ),
       )
-      .handle("delegation.fork", (ctx) =>
-        mutate(ctx.params.delegationID, service.fork({ delegationID: ctx.params.delegationID, ...ctx.payload })).pipe(
-          Effect.map(view),
+      .handle("delegation.steer", ({ params, payload }) =>
+        owned(
+          params.delegationID,
+          execution.steer({ ...params, ...payload }).pipe(Effect.andThen(state(params.delegationID))),
         ),
       )
-      .handle("delegation.delete", (ctx) =>
-        mutate(
-          ctx.params.delegationID,
-          service.delete({ delegationID: ctx.params.delegationID, purge: ctx.query.purge }),
-        ).pipe(Effect.as(HttpApiSchema.NoContent.make())),
+      .handle("delegation.interrupt", ({ params, payload }) =>
+        owned(
+          params.delegationID,
+          execution
+            .interrupt({ delegationID: params.delegationID, ...payload })
+            .pipe(Effect.andThen(state(params.delegationID))),
+        ),
+      )
+      .handle("delegation.complete", ({ params, payload }) =>
+        owned(
+          params.delegationID,
+          service.complete({ ...params, ...payload }).pipe(Effect.andThen(state(params.delegationID))),
+        ),
+      )
+      .handle("delegation.close", ({ params, payload }) =>
+        owned(
+          params.delegationID,
+          execution.close({ ...params, ...payload }).pipe(Effect.andThen(state(params.delegationID))),
+        ),
+      )
+      .handle("delegation.archive", ({ params }) =>
+        owned(params.delegationID, service.archive(params).pipe(Effect.andThen(state(params.delegationID)))),
+      )
+      .handle("delegation.unarchive", ({ params }) =>
+        owned(params.delegationID, service.unarchive(params).pipe(Effect.andThen(state(params.delegationID)))),
+      )
+      .handle("delegation.fork", ({ params, payload }) =>
+        owned(
+          params.delegationID,
+          service.fork({ ...params, ...payload }).pipe(Effect.flatMap((forked) => state(forked.delegation.id))),
+        ),
+      )
+      .handle("delegation.delete", ({ params, query }) =>
+        owned(
+          params.delegationID,
+          Effect.gen(function* () {
+            if (!query.purge)
+              return yield* new InvalidRequestError({ message: "Explicit purge is required to delete delegation" })
+            yield* execution.close(params)
+            yield* service.delete({ ...params, purge: true })
+          }),
+        ),
       )
   }),
 )
+
+function apiError(error: { readonly message: string }) {
+  if (error instanceof InvalidRequestError) return error
+  return new InvalidRequestError({ message: error.message })
+}

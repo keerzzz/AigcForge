@@ -1,15 +1,19 @@
-export * as SessionIdentity from "./session-identity"
+export * as SessionIdentity from "./session-identity.js"
 
 import { Schema } from "effect"
-import { Composition } from "./composition"
-import { Location } from "./location"
-import { Permission } from "./permission"
-import { PermissionTier } from "./permission-tier"
-import { ProductMode } from "./product-mode"
-import { Project } from "./project"
-import { SessionID } from "./session-id"
-import { WorkPreset } from "./work-preset"
-import { WorkflowAsset } from "./workflow-asset"
+import { Model } from "./model.js"
+import { Agent } from "./agent.js"
+import { Composition } from "./composition.js"
+import { Event } from "./event.js"
+import { Location } from "./location.js"
+import { Permission } from "./permission.js"
+import { PermissionTier } from "./permission-tier.js"
+import { ProductMode } from "./product-mode.js"
+import { Project } from "./project.js"
+import { optional } from "./schema.js"
+import { SessionID } from "./session-id.js"
+import { WorkPreset } from "./work-preset.js"
+import { WorkflowAsset } from "./workflow-asset.js"
 
 // ── §2 status vocabulary (ADR-23) ────────────────────────────────────────────
 // Two layers, one rule: a datum that is not `ready` degrades the capability it
@@ -73,6 +77,13 @@ export const ReasonCodes = {
   assistantMemoryM2Pending: code("assistant-memory-m2-pending"),
   assistantKbM2Pending: code("assistant-kb-m2-pending"),
   customModeDisabled: code("custom-mode-disabled"),
+  metaNotSelected: code("meta-not-selected"),
+  metaExecutionMismatch: code("meta-execution-mismatch"),
+  coordinationRootRequired: code("coordination-root-required"),
+  metaOwnerInvalid: code("meta-owner-invalid"),
+  coordinationSnapshotUnavailable: code("coordination-snapshot-unavailable"),
+  coordinationToolUnavailable: code("coordination-tool-unavailable"),
+  coordinationAgentChanged: code("coordination-agent-changed"),
 } as const
 
 export const Capability = Schema.Struct({
@@ -80,6 +91,22 @@ export const Capability = Schema.Struct({
   reasons: Schema.Array(Reason),
 }).annotate({ identifier: "SessionIdentity.Capability" })
 export type Capability = typeof Capability.Type
+
+/** The saved choice whose coordination availability was observed. Historical logs may be absent. */
+export interface CoordinationSelection extends Schema.Schema.Type<typeof CoordinationSelection> {}
+export const CoordinationSelection = Schema.Struct({
+  agent: Agent.ID.pipe(optional),
+  event: Schema.Struct({ id: Event.ID, seq: Event.Seq }).pipe(optional),
+  compositionDigest: Composition.Digest.pipe(optional),
+}).annotate({ identifier: "SessionIdentity.CoordinationSelection" })
+
+/** Meta coordination availability is independent of mode health and grants no execution permission. */
+export interface Coordination extends Schema.Schema.Type<typeof Coordination> {}
+export const Coordination = Schema.Struct({
+  available: Schema.Boolean,
+  reasons: Schema.Array(Reason),
+  selection: CoordinationSelection,
+}).annotate({ identifier: "SessionIdentity.Coordination" })
 
 /**
  * Wraps a value schema in the datum availability union. The `ready` branch is
@@ -201,7 +228,7 @@ export type ModeDetailAvailability = typeof ModeDetailAvailability.Type
 // ── §4.3 identity projection ─────────────────────────────────────────────────
 
 const IdentityStruct = Schema.Struct({
-  sessionID: SessionID.ID,
+  sessionID: SessionID,
   mode: ProductMode.ID,
   location: Location.Ref,
   projectID: Project.ID,
@@ -215,10 +242,13 @@ const IdentityStruct = Schema.Struct({
    * agent is corrupt data, not a normal state.
    */
   model: datum(
-    Schema.Struct({
-      providerID: Schema.String,
-      modelID: Schema.String,
-    }).annotate({ identifier: "SessionIdentity.Model" }),
+    Schema.Union([
+      Schema.Struct({
+        providerID: Schema.String,
+        modelID: Schema.String,
+      }).annotate({ identifier: "SessionIdentity.Model" }),
+      Model.GroupRef,
+    ]),
     "SessionIdentity.ModelRef",
   ),
   permission: Schema.Struct({
@@ -227,6 +257,7 @@ const IdentityStruct = Schema.Struct({
     effect: Permission.Effect,
   }).annotate({ identifier: "SessionIdentity.Permission" }),
   capability: Capability,
+  coordination: Coordination.pipe(optional),
   detail: ModeDetailAvailability,
 })
 export type IdentityStruct = typeof IdentityStruct.Type
@@ -284,7 +315,14 @@ export const Identity = IdentityStruct.pipe(
         if (identity.detail.status !== "ready") return true
         return identity.detail.detail.source === identity.mode
       },
-      { message: "Mode detail source must match the identity mode" },
+      {
+        message: "Mode detail source must match the identity mode",
+        representation: { id: "aigcfroge/identityModeSource", payload: {} },
+        arbitraryConstraint: {} as Record<string, unknown>,
+        // Server-side + tests enforce the invariant; the generated client is a
+        // display-side consumer and re-runs nothing (pass-through check).
+        toCode: () => ({ runtime: "Schema.makeFilter(() => true)" }),
+      },
     ),
   ),
   Schema.check(
@@ -300,6 +338,9 @@ export const Identity = IdentityStruct.pipe(
       {
         message:
           "Capability must fold non-ready contributors: health at the contributor floor (degraded, or blocked when a contributor is blocked) with every contributor reason code folded into reasons",
+        representation: { id: "aigcfroge/identityCapabilityFold", payload: {} },
+        arbitraryConstraint: {} as Record<string, unknown>,
+        toCode: () => ({ runtime: "Schema.makeFilter(() => true)" }),
       },
     ),
   ),

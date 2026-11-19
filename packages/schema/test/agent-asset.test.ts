@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { AgentAsset } from "../src/agent-asset"
+import { AgentAsset } from "../src/agent-asset.js"
 
 describe("AgentAsset.Warning", () => {
   test("decodes stable import warning codes", () => {

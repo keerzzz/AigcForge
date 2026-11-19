@@ -1,11 +1,13 @@
 export * as DoomLoop from "./doom-loop"
 
-import { createHash } from "crypto"
-import { Context, Effect, Layer, Ref } from "effect"
+import { Context, Effect, Layer, Option, Ref, Schema } from "effect"
 import { Config } from "../config"
-import { PermissionV2 } from "../permission"
-import { SessionV2 } from "../session"
+import { Document, type Entry } from "@aigcfroge/schema/config"
+import { Permission } from "../permission"
+import { Session } from "../session"
 import { SessionSchema } from "./schema"
+import { Instructions } from "../instructions"
+import type { Agent } from "../agent"
 
 const DEFAULT_THRESHOLD = 3
 
@@ -26,30 +28,24 @@ type CheckInput = {
   readonly toolName: string
   readonly toolInput: unknown
   readonly providerExecuted: boolean
-  readonly source?: PermissionV2.Source
+  readonly source?: Permission.Source
+  readonly agent?: Agent.ID
 }
 
 export interface Interface {
-  readonly check: (input: CheckInput) => Effect.Effect<void, PermissionV2.Error | SessionV2.NotFoundError>
+  readonly check: (input: CheckInput) => Effect.Effect<void, Permission.Error | Session.NotFoundError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/DoomLoop") {}
 
-// Self-contained sha256 fingerprint so the detector does not depend on the
-// private CacheShape.shortHash helper. Input = tool name + stable JSON.
-// Note: JSON.stringify is sensitive to object key order, so two calls with
-// semantically equal but differently-ordered tool inputs produce different
-// fingerprints (inherited V1 limitation) - acceptable, since providers emit
-// tool arguments with a stable serialization.
-const fingerprintOf = (toolName: string, toolInput: unknown) =>
-  createHash("sha256")
-    .update(`${toolName}${JSON.stringify(toolInput)}`)
-    .digest("hex")
-    .slice(0, 16)
+const fingerprintOf = (toolName: string, toolInput: unknown) => {
+  const input = Schema.decodeUnknownOption(Schema.Json)(toolInput)
+  return Option.isSome(input) ? Instructions.hash([toolName, input.value]) : undefined
+}
 
-const settings = (documents: readonly Config.Entry[]) => {
+const settings = (documents: readonly Entry[]) => {
   const configured = documents
-    .filter((entry): entry is Config.Document => entry.type === "document")
+    .filter((entry): entry is Document => entry.type === "document")
     .flatMap((entry) => (entry.info.meta?.doom_loop ? [entry.info.meta.doom_loop] : []))
   return configured.reduce<Settings>(
     (result, current) => ({
@@ -63,7 +59,7 @@ const settings = (documents: readonly Config.Entry[]) => {
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
-    const permission = yield* PermissionV2.Service
+    const permission = yield* Permission.Service
     const config = yield* Config.Service
     // Config is a process-lifetime snapshot (Config.entries reads the configs
     // captured when its layer was built); hot reload is achieved by session
@@ -74,6 +70,7 @@ export const layer = Layer.effect(
     const check = Effect.fn("DoomLoop.check")(function* (input: CheckInput) {
       if (!configured.enabled || input.providerExecuted) return
       const fingerprint = fingerprintOf(input.toolName, input.toolInput)
+      if (fingerprint === undefined) return
       const recent = yield* Ref.modify(buffer, (map) => {
         // Evicting the oldest session also cools it down: a session that was
         // evicted and later returns restarts its fingerprint count from zero,
@@ -92,6 +89,7 @@ export const layer = Layer.effect(
         save: [input.toolName],
         sessionID: input.sessionID,
         source: input.source,
+        agent: input.agent,
         metadata: { tool: input.toolName },
       })
     })

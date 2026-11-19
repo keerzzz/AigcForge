@@ -2,9 +2,10 @@ export * as PromptAssetPath from "./path"
 
 import { Effect, Schema } from "effect"
 import path from "path"
-import { FSUtil } from "../fs-util"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { LocationMutation } from "../location-mutation"
 import { PROMPTS_DIR } from "../constants"
+import { AssetPlacement } from "../asset-placement"
 
 export { PROMPTS_DIR }
 
@@ -16,7 +17,7 @@ export const SEGMENT_MIN_BYTES = 1
 export const SEGMENT_MAX_BYTES = 240
 export const PATH_MAX_BYTES = 500
 
-export class PathValidationError extends Schema.TaggedErrorClass<PathValidationError>()("PromptAsset.PathValidation", {
+export class PathValidationError extends Schema.TaggedError<PathValidationError>()("PromptAsset.PathValidation", {
   reason: Schema.String,
   path: Schema.String,
 }) {
@@ -81,6 +82,7 @@ export function resolveOwnerRoot(locationDirectory: string): string {
 export function resolveSafeTarget(
   relativePath: string,
   mutation: LocationMutation.Interface,
+  fs?: FSUtil.Interface,
 ): Effect.Effect<LocationMutation.Target, PathValidationError | LocationMutation.PathError | FSUtil.Error> {
   return Effect.gen(function* () {
     const validated = yield* Effect.try({
@@ -91,6 +93,16 @@ export function resolveSafeTarget(
           : new PathValidationError({ reason: String(error), path: relativePath }),
     })
     const resource = path.posix.join(PROMPTS_DIR, validated)
+    if (fs) {
+      const location = yield* mutation.resolve({ path: ".", kind: "directory" })
+      return yield* AssetPlacement.resolveWithin(location.absolute, resource, { fs, mutation }).pipe(
+        Effect.mapError((error) =>
+          error instanceof AssetPlacement.PathError
+            ? new PathValidationError({ reason: error.reason, path: relativePath })
+            : error,
+        ),
+      )
+    }
     const target = yield* mutation.resolve({ path: resource })
     const canonicalResource = target.resource.replaceAll("\\", "/")
     if (target.externalDirectory || canonicalResource !== resource) {
@@ -99,3 +111,16 @@ export function resolveSafeTarget(
     return target
   })
 }
+
+export const resolveSelectedTarget = Effect.fn("PromptAssetPath.resolveSelectedTarget")(function* (
+  relativePath: string,
+  owner: AssetPlacement.Target,
+  mutation: LocationMutation.Interface,
+  fs: FSUtil.Interface,
+) {
+  const validated = yield* Effect.try({
+    try: () => validateRelativePath(relativePath),
+    catch: () => new AssetPlacement.PathError({ path: relativePath, reason: "Invalid prompt asset path" }),
+  })
+  return yield* AssetPlacement.resolveWithin(owner.root, validated, { fs, mutation })
+})

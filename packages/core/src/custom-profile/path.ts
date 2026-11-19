@@ -2,7 +2,7 @@ export * as CustomProfilePath from "./path"
 
 import { Effect, Schema } from "effect"
 import path from "path"
-import { FSUtil } from "../fs-util"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { LocationMutation } from "../location-mutation"
 import { CUSTOM_PROFILES_DIR } from "../constants"
 
@@ -16,10 +16,10 @@ export const SEGMENT_MIN_BYTES = 1
 export const SEGMENT_MAX_BYTES = 240
 export const PATH_MAX_BYTES = 500
 
-export class PathValidationError extends Schema.TaggedErrorClass<PathValidationError>()(
-  "CustomProfile.PathValidation",
-  { reason: Schema.String, path: Schema.String },
-) {
+export class PathValidationError extends Schema.TaggedError<PathValidationError>()("CustomProfile.PathValidation", {
+  reason: Schema.String,
+  path: Schema.String,
+}) {
   override get message() {
     return this.reason
   }

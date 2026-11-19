@@ -1,28 +1,9 @@
 import { Effect } from "effect"
-import type { DatabaseMigration } from "./migration"
+import type { DatabaseMigration } from "./migration.js"
 
-export default {
+const schema: Omit<DatabaseMigration.Migration, "id"> = {
   up(tx) {
     return Effect.gen(function* () {
-      yield* tx.run(`
-        CREATE TABLE \`workspace\` (
-          \`id\` text PRIMARY KEY,
-          \`type\` text NOT NULL,
-          \`name\` text DEFAULT '' NOT NULL,
-          \`branch\` text,
-          \`directory\` text,
-          \`extra\` text,
-          \`project_id\` text NOT NULL,
-          \`time_used\` integer NOT NULL,
-          CONSTRAINT \`fk_workspace_project_id_project_id_fk\` FOREIGN KEY (\`project_id\`) REFERENCES \`project\`(\`id\`) ON DELETE CASCADE
-        );
-      `)
-      yield* tx.run(`
-        CREATE TABLE \`data_migration\` (
-          \`name\` text PRIMARY KEY,
-          \`time_completed\` integer NOT NULL
-        );
-      `)
       yield* tx.run(`
         CREATE TABLE \`kb_link\` (
           \`id\` integer PRIMARY KEY AUTOINCREMENT,
@@ -76,7 +57,23 @@ export default {
           \`is_read\` integer DEFAULT false NOT NULL,
           \`time_created\` integer NOT NULL,
           CONSTRAINT \`fk_delivery_schedule_id_schedule_id_fk\` FOREIGN KEY (\`schedule_id\`) REFERENCES \`schedule\`(\`id\`) ON DELETE CASCADE,
-          CONSTRAINT \`fk_delivery_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
+          CONSTRAINT \`fk_delivery_session_id_session_v2_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session_v2\`(\`id\`) ON DELETE CASCADE
+        );
+      `)
+      yield* tx.run(`
+        CREATE TABLE \`schedule_occurrence\` (
+          \`id\` text PRIMARY KEY,
+          \`schedule_id\` text NOT NULL,
+          \`rule_revision\` integer NOT NULL,
+          \`scheduled_at\` integer NOT NULL,
+          \`status\` text NOT NULL,
+          \`target_session_id\` text,
+          \`input_id\` text NOT NULL,
+          \`operation_id\` text NOT NULL,
+          \`data\` text NOT NULL,
+          \`time_created\` integer NOT NULL,
+          \`time_updated\` integer NOT NULL,
+          CONSTRAINT \`fk_schedule_occurrence_schedule_id_schedule_id_fk\` FOREIGN KEY (\`schedule_id\`) REFERENCES \`schedule\`(\`id\`) ON DELETE CASCADE
         );
       `)
       yield* tx.run(`
@@ -88,6 +85,16 @@ export default {
           \`due_at\` integer NOT NULL,
           \`timezone\` text NOT NULL,
           \`status\` text NOT NULL,
+          \`revision\` integer DEFAULT 1 NOT NULL,
+          \`recurrence\` text,
+          \`target\` text,
+          \`execution_policy\` text,
+          \`source_agent\` text,
+          \`task_id\` text,
+          \`next_due_at\` integer,
+          \`active_occurrence_id\` text,
+          \`bound_target_session_id\` text,
+          \`last_error\` text,
           \`attempts\` integer DEFAULT 0 NOT NULL,
           \`next_attempt_at\` integer,
           \`lease_owner\` text,
@@ -95,7 +102,7 @@ export default {
           \`delivery_key\` text NOT NULL,
           \`time_created\` integer NOT NULL,
           \`time_updated\` integer NOT NULL,
-          CONSTRAINT \`fk_schedule_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
+          CONSTRAINT \`fk_schedule_session_id_session_v2_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session_v2\`(\`id\`) ON DELETE CASCADE
         );
       `)
       yield* tx.run(`
@@ -108,7 +115,7 @@ export default {
           \`status\` text DEFAULT 'active' NOT NULL,
           \`time_created\` integer NOT NULL,
           \`time_updated\` integer NOT NULL,
-          CONSTRAINT \`fk_external_cli_session_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
+          CONSTRAINT \`fk_external_cli_session_session_id_session_v2_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session_v2\`(\`id\`) ON DELETE CASCADE
         );
       `)
       yield* tx.run(`
@@ -167,6 +174,7 @@ export default {
           \`context\` text NOT NULL,
           \`phase\` text NOT NULL,
           \`child_session_id\` text,
+          \`executor\` text,
           \`external_thread_id\` text,
           \`last_activity_at\` integer NOT NULL,
           \`time_closed\` integer,
@@ -192,7 +200,7 @@ export default {
           \`time_archived\` integer,
           \`time_created\` integer NOT NULL,
           \`time_updated\` integer NOT NULL,
-          CONSTRAINT \`fk_delegation_parent_session_id_session_id_fk\` FOREIGN KEY (\`parent_session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
+          CONSTRAINT \`fk_delegation_parent_session_id_session_v2_id_fk\` FOREIGN KEY (\`parent_session_id\`) REFERENCES \`session_v2\`(\`id\`) ON DELETE CASCADE
         );
       `)
       yield* tx.run(`
@@ -224,6 +232,7 @@ export default {
           \`id\` text PRIMARY KEY,
           \`aggregate_id\` text NOT NULL,
           \`seq\` integer NOT NULL,
+          \`created\` integer DEFAULT 0 NOT NULL,
           \`type\` text NOT NULL,
           \`data\` text NOT NULL,
           CONSTRAINT \`fk_event_aggregate_id_event_sequence_aggregate_id_fk\` FOREIGN KEY (\`aggregate_id\`) REFERENCES \`event_sequence\`(\`aggregate_id\`) ON DELETE CASCADE
@@ -245,6 +254,14 @@ export default {
           \`revoked_at\` integer,
           \`consumed_at\` integer,
           \`grant_revision\` integer DEFAULT 1 NOT NULL,
+          \`time_created\` integer NOT NULL,
+          \`time_updated\` integer NOT NULL
+        );
+      `)
+      yield* tx.run(`
+        CREATE TABLE \`kv\` (
+          \`key\` text PRIMARY KEY,
+          \`value\` text NOT NULL,
           \`time_created\` integer NOT NULL,
           \`time_updated\` integer NOT NULL
         );
@@ -289,13 +306,21 @@ export default {
           \`time_updated\` integer NOT NULL,
           CONSTRAINT \`meta_agent_session_pk\` PRIMARY KEY(\`meta_agent_id\`, \`session_id\`),
           CONSTRAINT \`fk_meta_agent_session_meta_agent_id_meta_agent_id_fk\` FOREIGN KEY (\`meta_agent_id\`) REFERENCES \`meta_agent\`(\`id\`) ON DELETE CASCADE,
-          CONSTRAINT \`fk_meta_agent_session_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
+          CONSTRAINT \`fk_meta_agent_session_session_id_session_v2_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session_v2\`(\`id\`) ON DELETE CASCADE
         );
       `)
       yield* tx.run(`
         CREATE TABLE \`meta_agent_step\` (
           \`id\` text PRIMARY KEY,
           \`meta_agent_session_id\` text NOT NULL,
+          \`meta_agent_id\` text,
+          \`root_session_id\` text,
+          \`event_id\` text,
+          \`event_seq\` integer,
+          \`event_type\` text,
+          \`assistant_message_id\` text,
+          \`tool_call_id\` text,
+          \`provenance\` text,
           \`seq\` integer NOT NULL,
           \`type\` text NOT NULL,
           \`engine\` text NOT NULL,
@@ -313,6 +338,7 @@ export default {
           \`title\` text NOT NULL,
           \`agent\` text NOT NULL,
           \`model\` text NOT NULL,
+          \`group_behavior\` text,
           \`time_created\` integer NOT NULL,
           \`time_updated\` integer NOT NULL,
           \`time_archived\` integer
@@ -352,29 +378,37 @@ export default {
           \`time_created\` integer NOT NULL,
           \`time_updated\` integer NOT NULL,
           \`time_initialized\` integer,
+          \`time_active\` integer DEFAULT 0 NOT NULL,
           \`sandboxes\` text NOT NULL,
           \`commands\` text
         );
       `)
       yield* tx.run(`
-        CREATE TABLE \`message\` (
-          \`id\` text PRIMARY KEY,
-          \`session_id\` text NOT NULL,
-          \`time_created\` integer NOT NULL,
-          \`time_updated\` integer NOT NULL,
-          \`data\` text NOT NULL,
-          CONSTRAINT \`fk_message_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
+        CREATE TABLE \`instruction_blob\` (
+          \`hash\` text PRIMARY KEY,
+          \`value\` text
         );
       `)
       yield* tx.run(`
-        CREATE TABLE \`part\` (
-          \`id\` text PRIMARY KEY,
-          \`message_id\` text NOT NULL,
+        CREATE TABLE \`instruction_entry\` (
           \`session_id\` text NOT NULL,
+          \`key\` text NOT NULL,
+          \`value\` text,
+          \`removed\` integer DEFAULT false NOT NULL,
           \`time_created\` integer NOT NULL,
           \`time_updated\` integer NOT NULL,
-          \`data\` text NOT NULL,
-          CONSTRAINT \`fk_part_message_id_message_id_fk\` FOREIGN KEY (\`message_id\`) REFERENCES \`message\`(\`id\`) ON DELETE CASCADE
+          CONSTRAINT \`instruction_entry_pk\` PRIMARY KEY(\`session_id\`, \`key\`),
+          CONSTRAINT \`fk_instruction_entry_session_id_session_v2_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session_v2\`(\`id\`) ON DELETE CASCADE
+        );
+      `)
+      yield* tx.run(`
+        CREATE TABLE \`instruction_state\` (
+          \`session_id\` text PRIMARY KEY,
+          \`epoch_start\` integer NOT NULL,
+          \`through_seq\` integer NOT NULL,
+          \`initial_values\` text NOT NULL,
+          \`current_values\` text NOT NULL,
+          CONSTRAINT \`fk_instruction_state_session_id_session_v2_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session_v2\`(\`id\`) ON DELETE CASCADE
         );
       `)
       yield* tx.run(`
@@ -386,7 +420,24 @@ export default {
           \`profile_revision\` text,
           \`data\` text NOT NULL,
           \`time_created\` integer NOT NULL,
-          CONSTRAINT \`fk_session_composition_snapshot_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
+          CONSTRAINT \`fk_session_composition_snapshot_session_id_session_v2_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session_v2\`(\`id\`) ON DELETE CASCADE
+        );
+      `)
+      yield* tx.run(`
+        CREATE TABLE \`session_consultation\` (
+          \`session_id\` text PRIMARY KEY,
+          \`source_session_id\` text NOT NULL,
+          \`first_message_id\` text NOT NULL UNIQUE,
+          \`boundary\` text NOT NULL,
+          \`boundary_seq\` integer NOT NULL,
+          \`source_message_ids\` text NOT NULL,
+          \`digest\` text NOT NULL,
+          \`omissions\` text NOT NULL,
+          \`phase\` text NOT NULL,
+          \`reference_promoted\` integer DEFAULT false NOT NULL,
+          \`reference_carrier_id\` text,
+          \`reference_file\` text,
+          CONSTRAINT \`fk_session_consultation_session_id_session_v2_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session_v2\`(\`id\`) ON DELETE CASCADE
         );
       `)
       yield* tx.run(`
@@ -395,24 +446,49 @@ export default {
           \`baseline\` text NOT NULL,
           \`snapshot\` text NOT NULL,
           \`baseline_seq\` integer NOT NULL,
-          CONSTRAINT \`fk_session_context_epoch_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
+          CONSTRAINT \`fk_session_context_epoch_session_id_session_v2_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session_v2\`(\`id\`) ON DELETE CASCADE
         );
       `)
       yield* tx.run(`
-        CREATE TABLE \`session_input\` (
+        CREATE TABLE \`session_goal\` (
           \`id\` text PRIMARY KEY,
           \`session_id\` text NOT NULL,
-          \`kind\` text DEFAULT 'prompt' NOT NULL,
-          \`prompt\` text,
-          \`command\` text,
-          \`skill\` text,
-          \`command_payload\` text,
-          \`delegation_origin\` text,
-          \`delivery\` text NOT NULL,
-          \`admitted_seq\` integer NOT NULL,
-          \`promoted_seq\` integer,
+          \`revision\` integer NOT NULL,
+          \`status\` text NOT NULL,
+          \`last_round_input_id\` text,
+          \`data\` text NOT NULL,
           \`time_created\` integer NOT NULL,
-          CONSTRAINT \`fk_session_input_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
+          \`time_updated\` integer NOT NULL,
+          CONSTRAINT \`fk_session_goal_session_id_session_v2_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session_v2\`(\`id\`) ON DELETE CASCADE
+        );
+      `)
+      yield* tx.run(`
+        CREATE TABLE \`session_inbox\` (
+          \`id\` text PRIMARY KEY,
+          \`session_id\` text NOT NULL,
+          \`type\` text NOT NULL,
+          \`payload\` text NOT NULL,
+          \`delivery\` text NOT NULL,
+          \`enqueued_seq\` integer NOT NULL,
+          \`time_created\` integer NOT NULL,
+          CONSTRAINT \`fk_session_inbox_session_id_session_v2_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session_v2\`(\`id\`) ON DELETE CASCADE
+        );
+      `)
+      yield* tx.run(`
+        CREATE TABLE \`session_input_result\` (
+          \`input_id\` text PRIMARY KEY,
+          \`session_id\` text NOT NULL,
+          \`anchor_input_id\` text NOT NULL,
+          \`operation_ref\` text,
+          \`joined_event_id\` text NOT NULL,
+          \`joined_event_seq\` integer NOT NULL,
+          \`status\` text NOT NULL,
+          \`assistant_message_id\` text,
+          \`terminal_event_id\` text,
+          \`terminal_event_seq\` integer,
+          \`error\` text,
+          CONSTRAINT \`fk_session_input_result_input_id_session_message_id_fk\` FOREIGN KEY (\`input_id\`) REFERENCES \`session_message\`(\`id\`) ON DELETE CASCADE,
+          CONSTRAINT \`fk_session_input_result_session_id_session_v2_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session_v2\`(\`id\`) ON DELETE CASCADE
         );
       `)
       yield* tx.run(`
@@ -424,20 +500,34 @@ export default {
           \`time_created\` integer NOT NULL,
           \`time_updated\` integer NOT NULL,
           \`data\` text NOT NULL,
-          CONSTRAINT \`fk_session_message_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
+          CONSTRAINT \`fk_session_message_session_id_session_v2_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session_v2\`(\`id\`) ON DELETE CASCADE
         );
       `)
       yield* tx.run(`
-        CREATE TABLE \`session\` (
+        CREATE TABLE \`session_pending\` (
+          \`id\` text PRIMARY KEY,
+          \`session_id\` text NOT NULL,
+          \`type\` text NOT NULL,
+          \`data\` text NOT NULL,
+          \`delivery\` text,
+          \`admitted_seq\` integer NOT NULL,
+          \`time_created\` integer NOT NULL,
+          CONSTRAINT \`fk_session_pending_session_id_session_v2_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session_v2\`(\`id\`) ON DELETE CASCADE
+        );
+      `)
+      yield* tx.run(`
+        CREATE TABLE \`session_v2\` (
           \`id\` text PRIMARY KEY,
           \`project_id\` text NOT NULL,
           \`workspace_id\` text,
           \`parent_id\` text,
+          \`fork_session_id\` text,
+          \`fork_boundary\` text,
           \`mode\` text DEFAULT 'coding' NOT NULL,
           \`slug\` text NOT NULL,
           \`directory\` text NOT NULL,
           \`path\` text,
-          \`title\` text NOT NULL,
+          \`title\` text,
           \`version\` text NOT NULL,
           \`share_url\` text,
           \`summary_additions\` integer,
@@ -451,17 +541,42 @@ export default {
           \`tokens_reasoning\` integer DEFAULT 0 NOT NULL,
           \`tokens_cache_read\` integer DEFAULT 0 NOT NULL,
           \`tokens_cache_write\` integer DEFAULT 0 NOT NULL,
+          \`unknown_price_attempts\` integer,
+          \`missing_usage_attempts\` integer,
           \`revert\` text,
           \`permission\` text,
           \`permission_tier\` text DEFAULT 'propose' NOT NULL,
           \`attended\` integer DEFAULT 0,
           \`agent\` text,
+          \`controller\` text,
+          \`executor_preference\` text,
           \`model\` text,
           \`time_created\` integer NOT NULL,
           \`time_updated\` integer NOT NULL,
+          \`time_idle\` integer,
+          \`time_viewed\` integer,
+          \`idle_outcome\` text,
           \`time_compacting\` integer,
           \`time_archived\` integer,
-          CONSTRAINT \`fk_session_project_id_project_id_fk\` FOREIGN KEY (\`project_id\`) REFERENCES \`project\`(\`id\`) ON DELETE CASCADE
+          \`time_suspended\` integer,
+          \`resume_attempts\` integer DEFAULT 0 NOT NULL,
+          CONSTRAINT \`fk_session_v2_project_id_project_id_fk\` FOREIGN KEY (\`project_id\`) REFERENCES \`project\`(\`id\`) ON DELETE CASCADE
+        );
+      `)
+      yield* tx.run(`
+        CREATE TABLE \`task_operation\` (
+          \`source_session_id\` text NOT NULL,
+          \`operation_id\` text NOT NULL,
+          \`task_id\` text,
+          \`input_id\` text NOT NULL UNIQUE,
+          \`target_session_id\` text,
+          \`phase\` text NOT NULL,
+          \`data\` text NOT NULL,
+          \`event_seq\` integer DEFAULT -1 NOT NULL,
+          \`time_created\` integer NOT NULL,
+          \`time_updated\` integer NOT NULL,
+          CONSTRAINT \`task_operation_pk\` PRIMARY KEY(\`source_session_id\`, \`operation_id\`),
+          CONSTRAINT \`fk_task_operation_source_session_id_session_v2_id_fk\` FOREIGN KEY (\`source_session_id\`) REFERENCES \`session_v2\`(\`id\`) ON DELETE CASCADE
         );
       `)
       yield* tx.run(`
@@ -479,34 +594,11 @@ export default {
           \`spawned_from\` text,
           \`depends_on\` text,
           \`revision\` integer DEFAULT 1 NOT NULL,
+          \`operation_id\` text,
           \`position\` integer NOT NULL,
           \`time_created\` integer NOT NULL,
           \`time_updated\` integer NOT NULL,
-          CONSTRAINT \`fk_task_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
-        );
-      `)
-      yield* tx.run(`
-        CREATE TABLE \`todo\` (
-          \`session_id\` text NOT NULL,
-          \`content\` text NOT NULL,
-          \`status\` text NOT NULL,
-          \`priority\` text NOT NULL,
-          \`position\` integer NOT NULL,
-          \`time_created\` integer NOT NULL,
-          \`time_updated\` integer NOT NULL,
-          CONSTRAINT \`todo_pk\` PRIMARY KEY(\`session_id\`, \`position\`),
-          CONSTRAINT \`fk_todo_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
-        );
-      `)
-      yield* tx.run(`
-        CREATE TABLE \`session_share\` (
-          \`session_id\` text PRIMARY KEY,
-          \`id\` text NOT NULL,
-          \`secret\` text NOT NULL,
-          \`url\` text NOT NULL,
-          \`time_created\` integer NOT NULL,
-          \`time_updated\` integer NOT NULL,
-          CONSTRAINT \`fk_session_share_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
+          CONSTRAINT \`fk_task_session_id_session_v2_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session_v2\`(\`id\`) ON DELETE CASCADE
         );
       `)
       yield* tx.run(`
@@ -518,6 +610,8 @@ export default {
           \`workflow_revision\` text NOT NULL,
           \`request_id\` text,
           \`request_digest\` text,
+          \`frozen_snapshot\` text,
+          \`task_binding\` text,
           \`parent_run_id\` text,
           \`root_run_id\` text,
           \`retry_of_step_run_id\` text,
@@ -528,7 +622,7 @@ export default {
           \`time_created\` integer NOT NULL,
           \`time_updated\` integer NOT NULL,
           \`time_completed\` integer,
-          CONSTRAINT \`fk_workflow_run_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
+          CONSTRAINT \`fk_workflow_run_session_id_session_v2_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session_v2\`(\`id\`) ON DELETE CASCADE
         );
       `)
       yield* tx.run(`
@@ -552,6 +646,25 @@ export default {
           CONSTRAINT \`fk_workflow_step_run_run_id_workflow_run_id_fk\` FOREIGN KEY (\`run_id\`) REFERENCES \`workflow_run\`(\`id\`) ON DELETE CASCADE
         );
       `)
+      yield* tx.run(`
+        CREATE TABLE \`workspace\` (
+          \`id\` text PRIMARY KEY,
+          \`provider\` text NOT NULL,
+          \`binding\` text,
+          \`created_at\` integer NOT NULL,
+          \`last_used_at\` integer NOT NULL
+        );
+      `)
+      yield* tx.run(`
+        CREATE TABLE \`worktree\` (
+          \`project_id\` text NOT NULL,
+          \`directory\` text NOT NULL,
+          \`strategy\` text,
+          \`time_created\` integer NOT NULL,
+          CONSTRAINT \`worktree_pk\` PRIMARY KEY(\`project_id\`, \`directory\`),
+          CONSTRAINT \`fk_worktree_project_id_project_id_fk\` FOREIGN KEY (\`project_id\`) REFERENCES \`project\`(\`id\`) ON DELETE CASCADE
+        );
+      `)
       yield* tx.run(`CREATE INDEX \`kb_link_source_idx\` ON \`kb_link\` (\`source_note_id\`);`)
       yield* tx.run(`CREATE INDEX \`kb_link_target_idx\` ON \`kb_link\` (\`target_note_id\`);`)
       yield* tx.run(`CREATE INDEX \`kb_link_dangling_idx\` ON \`kb_link\` (\`dangling\`);`)
@@ -564,9 +677,27 @@ export default {
       )
       yield* tx.run(`CREATE INDEX \`delivery_session_idx\` ON \`delivery\` (\`session_id\`);`)
       yield* tx.run(`CREATE INDEX \`delivery_schedule_idx\` ON \`delivery\` (\`schedule_id\`);`)
+      yield* tx.run(
+        `CREATE UNIQUE INDEX \`schedule_occurrence_due_unique\` ON \`schedule_occurrence\` (\`schedule_id\`,\`rule_revision\`,\`scheduled_at\`);`,
+      )
+      yield* tx.run(
+        `CREATE UNIQUE INDEX \`schedule_occurrence_input_unique\` ON \`schedule_occurrence\` (\`input_id\`);`,
+      )
+      yield* tx.run(
+        `CREATE UNIQUE INDEX \`schedule_occurrence_operation_unique\` ON \`schedule_occurrence\` (\`operation_id\`);`,
+      )
+      yield* tx.run(
+        `CREATE INDEX \`schedule_occurrence_schedule_idx\` ON \`schedule_occurrence\` (\`schedule_id\`,\`time_created\`);`,
+      )
+      yield* tx.run(`CREATE INDEX \`schedule_occurrence_status_idx\` ON \`schedule_occurrence\` (\`status\`);`)
+      yield* tx.run(
+        `CREATE INDEX \`schedule_occurrence_target_idx\` ON \`schedule_occurrence\` (\`target_session_id\`);`,
+      )
       yield* tx.run(`CREATE UNIQUE INDEX \`schedule_delivery_key_unique\` ON \`schedule\` (\`delivery_key\`);`)
       yield* tx.run(`CREATE INDEX \`schedule_status_due_at_idx\` ON \`schedule\` (\`status\`,\`due_at\`);`)
       yield* tx.run(`CREATE INDEX \`schedule_session_idx\` ON \`schedule\` (\`session_id\`);`)
+      yield* tx.run(`CREATE UNIQUE INDEX \`schedule_task_unique\` ON \`schedule\` (\`task_id\`);`)
+      yield* tx.run(`CREATE INDEX \`schedule_next_due_idx\` ON \`schedule\` (\`status\`,\`next_due_at\`);`)
       yield* tx.run(`CREATE INDEX \`external_cli_session_session_idx\` ON \`external_cli_session\` (\`session_id\`);`)
       yield* tx.run(
         `CREATE INDEX \`external_cli_session_external_idx\` ON \`external_cli_session\` (\`external_session_id\`);`,
@@ -607,21 +738,29 @@ export default {
       yield* tx.run(`CREATE INDEX \`meta_agent_session_session_idx\` ON \`meta_agent_session\` (\`session_id\`);`)
       yield* tx.run(`CREATE INDEX \`meta_agent_step_session_idx\` ON \`meta_agent_step\` (\`meta_agent_session_id\`);`)
       yield* tx.run(
+        `CREATE UNIQUE INDEX \`meta_agent_step_event_idx\` ON \`meta_agent_step\` (\`meta_agent_id\`,\`event_id\`);`,
+      )
+      yield* tx.run(
+        `CREATE UNIQUE INDEX \`meta_agent_step_owner_seq_idx\` ON \`meta_agent_step\` (\`meta_agent_id\`,\`meta_agent_session_id\`,\`seq\`);`,
+      )
+      yield* tx.run(
         `CREATE UNIQUE INDEX \`permission_project_action_resource_idx\` ON \`permission\` (\`project_id\`,\`action\`,\`resource\`);`,
       )
+      yield* tx.run(`CREATE INDEX \`session_goal_session_status\` ON \`session_goal\` (\`session_id\`,\`status\`);`)
       yield* tx.run(
-        `CREATE INDEX \`message_session_time_created_id_idx\` ON \`message\` (\`session_id\`,\`time_created\`,\`id\`);`,
-      )
-      yield* tx.run(`CREATE INDEX \`part_message_id_id_idx\` ON \`part\` (\`message_id\`,\`id\`);`)
-      yield* tx.run(`CREATE INDEX \`part_session_idx\` ON \`part\` (\`session_id\`);`)
-      yield* tx.run(
-        `CREATE INDEX \`session_input_session_pending_delivery_seq_idx\` ON \`session_input\` (\`session_id\`,\`promoted_seq\`,\`delivery\`,\`admitted_seq\`);`,
+        `CREATE UNIQUE INDEX \`session_goal_active\` ON \`session_goal\` (\`session_id\`) WHERE "session_goal"."status" = 'active';`,
       )
       yield* tx.run(
-        `CREATE UNIQUE INDEX \`session_input_session_admitted_seq_idx\` ON \`session_input\` (\`session_id\`,\`admitted_seq\`);`,
+        `CREATE INDEX \`session_inbox_session_delivery_seq_idx\` ON \`session_inbox\` (\`session_id\`,\`delivery\`,\`enqueued_seq\`);`,
       )
       yield* tx.run(
-        `CREATE UNIQUE INDEX \`session_input_session_promoted_seq_idx\` ON \`session_input\` (\`session_id\`,\`promoted_seq\`);`,
+        `CREATE UNIQUE INDEX \`session_inbox_session_enqueued_seq_idx\` ON \`session_inbox\` (\`session_id\`,\`enqueued_seq\`);`,
+      )
+      yield* tx.run(
+        `CREATE INDEX \`session_input_result_anchor_idx\` ON \`session_input_result\` (\`session_id\`,\`anchor_input_id\`);`,
+      )
+      yield* tx.run(
+        `CREATE INDEX \`session_input_result_status_idx\` ON \`session_input_result\` (\`session_id\`,\`status\`);`,
       )
       yield* tx.run(
         `CREATE UNIQUE INDEX \`session_message_session_seq_idx\` ON \`session_message\` (\`session_id\`,\`seq\`);`,
@@ -633,17 +772,37 @@ export default {
         `CREATE INDEX \`session_message_session_time_created_id_idx\` ON \`session_message\` (\`session_id\`,\`time_created\`,\`id\`);`,
       )
       yield* tx.run(`CREATE INDEX \`session_message_time_created_idx\` ON \`session_message\` (\`time_created\`);`)
-      yield* tx.run(`CREATE INDEX \`session_project_idx\` ON \`session\` (\`project_id\`);`)
-      yield* tx.run(`CREATE INDEX \`session_workspace_idx\` ON \`session\` (\`workspace_id\`);`)
-      yield* tx.run(`CREATE INDEX \`session_parent_idx\` ON \`session\` (\`parent_id\`);`)
       yield* tx.run(
-        `CREATE INDEX \`session_project_mode_time_updated_idx\` ON \`session\` (\`project_id\`,\`mode\`,\`time_updated\`);`,
+        `CREATE INDEX \`session_pending_session_delivery_seq_idx\` ON \`session_pending\` (\`session_id\`,\`delivery\`,\`admitted_seq\`);`,
       )
       yield* tx.run(
-        `CREATE INDEX \`session_directory_mode_time_updated_idx\` ON \`session\` (\`directory\`,\`mode\`,\`time_updated\`);`,
+        `CREATE UNIQUE INDEX \`session_pending_session_compaction_idx\` ON \`session_pending\` (\`session_id\`) WHERE "session_pending"."type" = 'compaction';`,
+      )
+      yield* tx.run(
+        `CREATE UNIQUE INDEX \`session_pending_session_admitted_seq_idx\` ON \`session_pending\` (\`session_id\`,\`admitted_seq\`);`,
+      )
+      yield* tx.run(`CREATE INDEX \`session_v2_project_idx\` ON \`session_v2\` (\`project_id\`);`)
+      yield* tx.run(`CREATE INDEX \`session_v2_workspace_idx\` ON \`session_v2\` (\`workspace_id\`);`)
+      yield* tx.run(`CREATE INDEX \`session_v2_parent_idx\` ON \`session_v2\` (\`parent_id\`);`)
+      yield* tx.run(
+        `CREATE INDEX \`session_v2_project_mode_time_updated_idx\` ON \`session_v2\` (\`project_id\`,\`mode\`,\`time_updated\`);`,
+      )
+      yield* tx.run(
+        `CREATE INDEX \`session_v2_directory_mode_time_updated_idx\` ON \`session_v2\` (\`directory\`,\`mode\`,\`time_updated\`);`,
+      )
+      yield* tx.run(
+        `CREATE INDEX \`session_v2_time_suspended_idx\` ON \`session_v2\` (\`time_suspended\`) WHERE "session_v2"."time_suspended" is not null;`,
+      )
+      yield* tx.run(
+        `CREATE INDEX \`task_operation_task_idx\` ON \`task_operation\` (\`source_session_id\`,\`task_id\`,\`time_created\`);`,
+      )
+      yield* tx.run(
+        `CREATE INDEX \`task_operation_target_idx\` ON \`task_operation\` (\`target_session_id\`,\`phase\`);`,
+      )
+      yield* tx.run(
+        `CREATE INDEX \`task_operation_source_phase_idx\` ON \`task_operation\` (\`source_session_id\`,\`phase\`,\`time_created\`);`,
       )
       yield* tx.run(`CREATE INDEX \`task_session_idx\` ON \`task\` (\`session_id\`);`)
-      yield* tx.run(`CREATE INDEX \`todo_session_idx\` ON \`todo\` (\`session_id\`);`)
       yield* tx.run(`CREATE INDEX \`workflow_run_session_idx\` ON \`workflow_run\` (\`session_id\`);`)
       yield* tx.run(`CREATE INDEX \`workflow_run_status_idx\` ON \`workflow_run\` (\`status\`);`)
       yield* tx.run(
@@ -656,4 +815,6 @@ export default {
       )
     })
   },
-} satisfies Omit<DatabaseMigration.Migration, "id">
+}
+
+export default schema

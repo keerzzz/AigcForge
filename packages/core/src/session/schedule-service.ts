@@ -1,13 +1,14 @@
 export * as ScheduleService from "./schedule-service"
 
 import { and, desc, eq, lt, or } from "drizzle-orm"
-import { Context, Effect, Layer, Ref, Schema } from "effect"
+import { Context, DateTime, Effect, Layer, Ref } from "effect"
 import { Database } from "../database/database"
 import { Schedule } from "@aigcfroge/schema/schedule"
-import { LayerNode } from "../effect/layer-node"
-import { EventV2 } from "../event"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Bus } from "../bus"
 import { SessionSchema } from "./schema"
 import { SchedulerCore } from "./schedule-core"
+import { ScheduleRule } from "./schedule-rule"
 import { DeliveryTable, ScheduleTable } from "./schedule.sql"
 
 /**
@@ -35,11 +36,16 @@ const toInfo = (row: typeof ScheduleTable.$inferSelect): Schedule.Info =>
   new Schedule.Info({
     id: row.id,
     sessionID: row.session_id,
-    kind: row.kind,
+    kind: "reminder",
     content: row.content,
     dueAt: row.due_at,
     timezone: row.timezone,
-    status: row.status,
+    status:
+      row.status === "paused"
+        ? "cancelled"
+        : row.status === "pending" && row.active_occurrence_id
+          ? "running"
+          : row.status,
     attempts: row.attempts,
     ...(row.next_attempt_at !== null && row.next_attempt_at !== undefined
       ? { nextAttemptAt: row.next_attempt_at }
@@ -66,44 +72,32 @@ const toDelivery = (row: typeof DeliveryTable.$inferSelect): Schedule.Delivery =
   })
 
 export const Event = {
-  Updated: EventV2.define({
-    type: "schedule.updated",
-    schema: {
-      sessionID: SessionSchema.ID,
-      schedules: Schema.Array(Schedule.Info),
-    },
-  }),
-  Delivered: EventV2.define({
-    type: "schedule.delivered",
-    schema: {
-      sessionID: SessionSchema.ID,
-      delivery: Schedule.Delivery,
-    },
-  }),
+  Updated: Schedule.Updated,
+  Delivered: Schedule.Delivered,
   // Telemetry (PRD §11 / plan §3.8.4): lifecycle markers WITHOUT content —
   // reminder text never rides these events.
-  Created: EventV2.define({
+  Created: Bus.ephemeral({
     type: "assistant_reminder_created",
     schema: {
       sessionID: SessionSchema.ID,
       scheduleID: Schedule.ID,
     },
   }),
-  Cancelled: EventV2.define({
+  Cancelled: Bus.ephemeral({
     type: "assistant_reminder_cancelled",
     schema: {
       sessionID: SessionSchema.ID,
       scheduleID: Schedule.ID,
     },
   }),
-  Failed: EventV2.define({
+  Failed: Bus.ephemeral({
     type: "assistant_reminder_failed",
     schema: {
       sessionID: SessionSchema.ID,
       scheduleID: Schedule.ID,
     },
   }),
-  CaughtUp: EventV2.define({
+  CaughtUp: Bus.ephemeral({
     type: "assistant_reminder_caught_up",
     schema: {
       sessionID: SessionSchema.ID,
@@ -113,6 +107,20 @@ export const Event = {
 }
 
 export interface Interface {
+  readonly createRule: ScheduleRule.Interface["create"]
+  readonly getRule: ScheduleRule.Interface["get"]
+  readonly listRules: ScheduleRule.Interface["list"]
+  readonly editRule: ScheduleRule.Interface["edit"]
+  readonly pauseRule: ScheduleRule.Interface["pause"]
+  readonly resumeRule: ScheduleRule.Interface["resume"]
+  readonly cancelRule: ScheduleRule.Interface["cancel"]
+  readonly claimOccurrence: ScheduleRule.Interface["claim"]
+  readonly occurrence: ScheduleRule.Interface["occurrence"]
+  readonly runs: ScheduleRule.Interface["runs"]
+  readonly unsettledOccurrences: ScheduleRule.Interface["unsettled"]
+  readonly advanceOccurrence: ScheduleRule.Interface["advance"]
+  readonly bindTask: ScheduleRule.Interface["bindTask"]
+  readonly deliverOccurrence: ScheduleRule.Interface["deliver"]
   readonly create: (input: {
     readonly sessionID: SessionSchema.ID
     readonly kind: Schedule.ScheduleKind
@@ -162,7 +170,8 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const { db } = yield* Database.Service
-    const events = yield* EventV2.Service
+    const events = yield* Bus.Service
+    const rules = yield* ScheduleRule.make(db, events)
 
     const create = Effect.fn("ScheduleService.create")(
       (input: {
@@ -175,7 +184,7 @@ export const layer = Layer.effect(
       }) =>
         Effect.gen(function* () {
           const id = Schedule.ID.create()
-          const now = Date.now()
+          const now = (yield* DateTime.nowAsDate).getTime()
           yield* db
             .insert(ScheduleTable)
             .values({
@@ -186,6 +195,7 @@ export const layer = Layer.effect(
               due_at: input.dueAt,
               timezone: input.timezone,
               status: "pending",
+              next_due_at: input.dueAt,
               attempts: 0,
               delivery_key: input.deliveryKey,
               time_created: now,
@@ -206,7 +216,7 @@ export const layer = Layer.effect(
         const rows = yield* db
           .select()
           .from(ScheduleTable)
-          .where(eq(ScheduleTable.session_id, sessionID))
+          .where(and(eq(ScheduleTable.session_id, sessionID), eq(ScheduleTable.kind, "reminder")))
           .orderBy(ScheduleTable.due_at)
           .all()
           .pipe(Effect.orDie)
@@ -219,7 +229,12 @@ export const layer = Layer.effect(
         const rows = yield* db
           .select()
           .from(ScheduleTable)
-          .where(or(eq(ScheduleTable.status, "pending"), eq(ScheduleTable.status, "running")))
+          .where(
+            and(
+              eq(ScheduleTable.kind, "reminder"),
+              or(eq(ScheduleTable.status, "pending"), eq(ScheduleTable.status, "running")),
+            ),
+          )
           .orderBy(ScheduleTable.due_at)
           .all()
           .pipe(Effect.orDie)
@@ -232,7 +247,7 @@ export const layer = Layer.effect(
         const rows = yield* db
           .select({ id: ScheduleTable.id })
           .from(ScheduleTable)
-          .where(eq(ScheduleTable.status, "pending"))
+          .where(and(eq(ScheduleTable.kind, "reminder"), eq(ScheduleTable.status, "pending")))
           .all()
           .pipe(Effect.orDie)
         return rows.length
@@ -242,11 +257,16 @@ export const layer = Layer.effect(
     const cancel = Effect.fn("ScheduleService.cancel")((id: Schedule.ID) =>
       Effect.gen(function* () {
         const row = yield* db.select().from(ScheduleTable).where(eq(ScheduleTable.id, id)).get().pipe(Effect.orDie)
-        if (!row) return undefined
+        if (!row || row.kind !== "reminder") return undefined
         if (row.status !== "pending" && row.status !== "running") return toInfo(row)
         const updated = yield* db
           .update(ScheduleTable)
-          .set({ status: "cancelled", time_updated: Date.now() })
+          .set({
+            status: "cancelled",
+            next_due_at: null,
+            revision: row.revision + 1,
+            time_updated: (yield* DateTime.nowAsDate).getTime(),
+          })
           .where(
             and(eq(ScheduleTable.id, id), or(eq(ScheduleTable.status, "pending"), eq(ScheduleTable.status, "running"))),
           )
@@ -274,14 +294,14 @@ export const layer = Layer.effect(
             .where(eq(ScheduleTable.id, input.id))
             .get()
             .pipe(Effect.orDie)
-          if (!row) return undefined
+          if (!row || row.kind !== "reminder") return undefined
           if (row.status !== "pending" && row.status !== "running") return undefined
           const rescheduled = input.dueAt !== undefined && input.dueAt !== row.due_at
           const updated = yield* db
             .update(ScheduleTable)
             .set({
               ...(input.content !== undefined ? { content: input.content } : {}),
-              ...(input.dueAt !== undefined ? { due_at: input.dueAt } : {}),
+              ...(input.dueAt !== undefined ? { due_at: input.dueAt, next_due_at: input.dueAt } : {}),
               ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
               // A changed content/due time must regenerate the idempotency key
               // (deliveryKey) or the stale key blocks re-creating the original
@@ -290,7 +310,8 @@ export const layer = Layer.effect(
               // Re-scheduling resets the retry timeline: a fresh due time means a
               // fresh delivery attempt budget.
               ...(rescheduled ? { attempts: 0, next_attempt_at: null } : {}),
-              time_updated: Date.now(),
+              revision: row.revision + 1,
+              time_updated: (yield* DateTime.nowAsDate).getTime(),
             })
             .where(
               and(
@@ -312,7 +333,7 @@ export const layer = Layer.effect(
         const row = yield* db
           .update(ScheduleTable)
           .set({ status: "running", lease_owner: owner, lease_expires_at: now + 5 * 60_000, time_updated: now })
-          .where(and(eq(ScheduleTable.id, id), eq(ScheduleTable.status, "pending")))
+          .where(and(eq(ScheduleTable.id, id), eq(ScheduleTable.kind, "reminder"), eq(ScheduleTable.status, "pending")))
           .returning()
           .get()
           .pipe(Effect.orDie)
@@ -326,8 +347,14 @@ export const layer = Layer.effect(
       Effect.gen(function* () {
         const row = yield* db
           .update(ScheduleTable)
-          .set({ status, lease_owner: null, lease_expires_at: null, time_updated: Date.now() })
-          .where(and(eq(ScheduleTable.id, id), eq(ScheduleTable.status, "running")))
+          .set({
+            status,
+            next_due_at: null,
+            lease_owner: null,
+            lease_expires_at: null,
+            time_updated: (yield* DateTime.nowAsDate).getTime(),
+          })
+          .where(and(eq(ScheduleTable.id, id), eq(ScheduleTable.kind, "reminder"), eq(ScheduleTable.status, "running")))
           .returning()
           .get()
           .pipe(Effect.orDie)
@@ -341,8 +368,13 @@ export const layer = Layer.effect(
       Effect.gen(function* () {
         const row = yield* db
           .update(ScheduleTable)
-          .set({ status: "pending", lease_owner: null, lease_expires_at: null, time_updated: Date.now() })
-          .where(eq(ScheduleTable.id, id))
+          .set({
+            status: "pending",
+            lease_owner: null,
+            lease_expires_at: null,
+            time_updated: (yield* DateTime.nowAsDate).getTime(),
+          })
+          .where(and(eq(ScheduleTable.id, id), eq(ScheduleTable.kind, "reminder"), eq(ScheduleTable.status, "running")))
           .returning()
           .get()
           .pipe(Effect.orDie)
@@ -352,12 +384,36 @@ export const layer = Layer.effect(
       }),
     )
 
-    return Service.of({ create, list, listPending, countPending, cancel, update, claim, settle, recoverClaim })
+    return Service.of({
+      create,
+      list,
+      listPending,
+      countPending,
+      cancel,
+      update,
+      claim,
+      settle,
+      recoverClaim,
+      createRule: rules.create,
+      getRule: rules.get,
+      listRules: rules.list,
+      editRule: rules.edit,
+      pauseRule: rules.pause,
+      resumeRule: rules.resume,
+      cancelRule: rules.cancel,
+      claimOccurrence: rules.claim,
+      occurrence: rules.occurrence,
+      runs: rules.runs,
+      unsettledOccurrences: rules.unsettled,
+      advanceOccurrence: rules.advance,
+      bindTask: rules.bindTask,
+      deliverOccurrence: rules.deliver,
+    })
   }),
 )
 
-export const defaultLayer = layer.pipe(Layer.provide(Database.defaultLayer), Layer.provide(EventV2.defaultLayer))
-export const node = LayerNode.make(layer, [Database.node, EventV2.node])
+export const defaultLayer = layer
+export const node = LayerNode.make({ name: "ScheduleService", layer, deps: [Database.node, Bus.node] })
 
 export interface DeliveryInterface {
   /**
@@ -476,16 +532,16 @@ export const deliveryLayer = Layer.effect(
   }),
 )
 
-export const deliveryDefaultLayer = deliveryLayer.pipe(Layer.provide(Database.defaultLayer))
-export const deliveryNode = LayerNode.make(deliveryLayer, [Database.node])
+export const deliveryDefaultLayer = deliveryLayer
+export const deliveryNode = LayerNode.make({ name: "ScheduleDelivery", layer: deliveryLayer, deps: [Database.node] })
 
 const publishSchedules = Effect.fn("ScheduleService.publishSchedules")(
-  (input: { db: Database.Interface["db"]; events: EventV2.Interface; sessionID: SessionSchema.ID }) =>
+  (input: { db: Database.Interface["db"]; events: Bus.Interface; sessionID: SessionSchema.ID }) =>
     Effect.gen(function* () {
       const rows = yield* input.db
         .select()
         .from(ScheduleTable)
-        .where(eq(ScheduleTable.session_id, input.sessionID))
+        .where(and(eq(ScheduleTable.session_id, input.sessionID), eq(ScheduleTable.kind, "reminder")))
         .all()
         .pipe(Effect.orDie)
       yield* input.events.publish(Event.Updated, { sessionID: input.sessionID, schedules: rows.map(toInfo) })
@@ -500,7 +556,7 @@ const publishSchedules = Effect.fn("ScheduleService.publishSchedules")(
 export const makeAssistantCore = (input: {
   db: Database.Interface["db"]
   schedules: Interface
-  events: EventV2.Interface
+  events: Bus.Interface
   recovered: Ref.Ref<Set<string>>
 }) =>
   SchedulerCore.make({
@@ -508,7 +564,12 @@ export const makeAssistantCore = (input: {
       input.db
         .select()
         .from(ScheduleTable)
-        .where(or(eq(ScheduleTable.status, "pending"), eq(ScheduleTable.status, "running")))
+        .where(
+          and(
+            eq(ScheduleTable.kind, "reminder"),
+            or(eq(ScheduleTable.status, "pending"), eq(ScheduleTable.status, "running")),
+          ),
+        )
         .all()
         .pipe(
           Effect.orDie,
@@ -540,7 +601,7 @@ export const makeAssistantCore = (input: {
               // stay typed so the transaction catch below can run the
               // bounded-backoff retry (PRD §7.2). orDie would turn it into a
               // defect and make the retry branch dead code.
-              if (!row) return { skipped: true as const, sessionID: "" }
+              if (!row || row.kind !== "reminder") return { skipped: true as const, sessionID: "" }
               if (row.status !== "pending") return { skipped: true as const, sessionID: "" }
               yield* tx
                 .update(ScheduleTable)
@@ -566,7 +627,7 @@ export const makeAssistantCore = (input: {
                   delivery_key: row.delivery_key,
                   schedule_id: row.id,
                   session_id: row.session_id,
-                  kind: row.kind,
+                  kind: "reminder",
                   content: row.content,
                   delivered_at: now,
                   caught_up: wasRecovered,
@@ -578,7 +639,13 @@ export const makeAssistantCore = (input: {
               const delivered = inserted.length > 0
               yield* tx
                 .update(ScheduleTable)
-                .set({ status: "completed", lease_owner: null, lease_expires_at: null, time_updated: now })
+                .set({
+                  status: "completed",
+                  next_due_at: null,
+                  lease_owner: null,
+                  lease_expires_at: null,
+                  time_updated: now,
+                })
                 .where(eq(ScheduleTable.id, id))
                 .run()
               return {
@@ -586,7 +653,7 @@ export const makeAssistantCore = (input: {
                 delivered,
                 wasRecovered,
                 sessionID: row.session_id,
-                kind: row.kind,
+                kind: "reminder" as const,
                 content: row.content,
                 deliveryKey: row.delivery_key,
               }
@@ -698,7 +765,7 @@ export const daemonLayer = Layer.effectDiscard(
   Effect.gen(function* () {
     const { db } = yield* Database.Service
     const schedules = yield* Service
-    const events = yield* EventV2.Service
+    const events = yield* Bus.Service
     const recovered = yield* Ref.make(new Set<string>())
 
     const core = yield* makeAssistantCore({ db, schedules, events, recovered })
@@ -711,4 +778,8 @@ export const daemonLayer = Layer.effectDiscard(
   }),
 )
 
-export const daemonNode = LayerNode.make(daemonLayer, [node, deliveryNode, Database.node, EventV2.node])
+export const daemonNode = LayerNode.make({
+  name: "ScheduleDaemon",
+  layer: daemonLayer,
+  deps: [node, deliveryNode, Database.node, Bus.node],
+})

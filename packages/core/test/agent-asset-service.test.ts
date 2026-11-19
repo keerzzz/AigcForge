@@ -7,15 +7,18 @@ import { AgentAsset } from "@aigcfroge/core/agent-asset"
 import { FileMutation } from "@aigcfroge/core/file-mutation"
 import { LocationMutation } from "@aigcfroge/core/location-mutation"
 import { ConfigMarkdown } from "@aigcfroge/core/config/markdown"
-import { FSUtil } from "@aigcfroge/core/fs-util"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { Location } from "@aigcfroge/core/location"
-import { EventV2 } from "@aigcfroge/core/event"
 import { tempLocationLayer } from "./fixture/location"
+import { hostEnvironmentLayer } from "./fixture/environment"
+import { NodeFileSystem } from "@effect/platform-node"
 import { testEffect } from "./lib/effect"
 
-const dependencies = Layer.mergeAll(FSUtil.defaultLayer, tempLocationLayer, EventV2.defaultLayer)
+const fsLayer = FSUtil.layer.pipe(Layer.provide(NodeFileSystem.layer))
+
+const dependencies = Layer.mergeAll(fsLayer, tempLocationLayer, hostEnvironmentLayer)
 const serviceLayer = AgentAssetService.locationLayer.pipe(
-  Layer.provide(FileMutation.locationLayer),
+  Layer.provide(FileMutation.layer),
   Layer.provide(LocationMutation.locationLayer),
   Layer.provide(AgentAsset.locationLayer),
   Layer.provide(dependencies),

@@ -1,23 +1,35 @@
 import { describe, expect } from "bun:test"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Stream } from "effect"
 import { Config } from "../src/config"
+import { Document, Info } from "@aigcfroge/schema/config"
 import { ConfigMeta } from "../src/config/meta"
 import { CorrectionExtractor } from "../src/session/correction-extractor"
 import { CorrectionStore } from "../src/session/correction-store"
-import { SessionV2 } from "../src/session"
+import { Session } from "../src/session"
+import { Bus } from "../src/bus"
+import { Database } from "../src/database/database"
+import { ProjectTable } from "../src/project/sql"
+import { SessionEvent } from "../src/session/event"
+import { SessionProjector } from "../src/session/projector"
+import { SessionStore } from "../src/session/store"
+import { Project } from "@aigcfroge/schema/project"
+import { AppNodeBuilder } from "../src/effect/app-node-builder"
+import { AbsolutePath } from "@aigcfroge/schema/schema"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
 import { testEffect } from "./lib/effect"
 
-const sessionID = SessionV2.ID.make("ses_correction_extractor")
+const sessionID = Session.ID.make("ses_correction_extractor")
 
 const configLayer = (meta: { enabled?: boolean; max_entries?: number } = {}) =>
   Layer.succeed(
     Config.Service,
     Config.Service.of({
+      changes: () => Stream.empty,
       entries: () =>
         Effect.succeed([
-          new Config.Document({
+          new Document({
             type: "document",
-            info: Config.Info.make({
+            info: Info.make({
               meta: ConfigMeta.Info.make({ correction_store: ConfigMeta.CorrectionStore.make(meta) }),
             }),
           }),
@@ -25,8 +37,36 @@ const configLayer = (meta: { enabled?: boolean; max_entries?: number } = {}) =>
     }),
   )
 
+const sessionLayer = Layer.effectDiscard(
+  Effect.gen(function* () {
+    const database = yield* Database.Service
+    const bus = yield* Bus.Service
+    const directory = AbsolutePath.make("/project")
+    yield* database.db
+      .insert(ProjectTable)
+      .values({ id: Project.ID.global, worktree: directory, sandboxes: [] })
+      .run()
+      .pipe(Effect.orDie)
+    yield* bus.publish(SessionEvent.Created, {
+      sessionID,
+      projectID: Project.ID.global,
+      location: { directory },
+      slug: "correction-extractor",
+      version: "test",
+    })
+  }),
+).pipe(
+  Layer.provideMerge(
+    AppNodeBuilder.build(LayerNode.group([Database.node, Bus.node, SessionProjector.node, SessionStore.node]), [
+      Bus.node.replace(Bus.configured({ persist: true })),
+    ]),
+  ),
+)
+
 const layerFor = (meta = {}) =>
-  CorrectionExtractor.layer.pipe(Layer.provideMerge(CorrectionStore.layer.pipe(Layer.provide(configLayer(meta)))))
+  CorrectionExtractor.layer.pipe(
+    Layer.provideMerge(CorrectionStore.layer.pipe(Layer.provide(Layer.mergeAll(configLayer(meta), sessionLayer)))),
+  )
 
 const extract = (text: string) =>
   Effect.gen(function* () {

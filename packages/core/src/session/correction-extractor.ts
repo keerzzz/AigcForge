@@ -29,8 +29,8 @@ const WHITELIST_PATTERNS: RegExp[] = [
   /\b[a-z_][a-zA-Z0-9_]*\b/g,
 ]
 
-// Sensitive content blacklist (DA9): anything matching is never stored.
-const SENSITIVE_PATTERNS: RegExp[] = [
+// Shared credential rules are independent of Correction source-path restrictions.
+const CREDENTIAL_PATTERNS = [
   /sk-[a-zA-Z0-9]{20,}/,
   /AKIA[A-Z0-9]{16}/,
   /Bearer\s+[a-zA-Z0-9._-]+/,
@@ -39,13 +39,16 @@ const SENSITIVE_PATTERNS: RegExp[] = [
   /secret\s*[=:]/,
   /token\s*[=:]/,
   /api[_-]?key\s*[=:]/,
-  /\.env/,
-  /auth\.json/,
 ]
 
-const hasSensitiveContent = (text: string) => SENSITIVE_PATTERNS.some((pattern) => pattern.test(text))
+const SENSITIVE_PATH_PATTERNS = [/\.env/, /auth\.json/]
 
-export class ExtractionError extends Schema.TaggedErrorClass<ExtractionError>()("CorrectionExtractor.ExtractionError", {
+export const hasCredentialContent = (text: string) => CREDENTIAL_PATTERNS.some((pattern) => pattern.test(text))
+
+const hasSensitiveContent = (text: string) =>
+  hasCredentialContent(text) || SENSITIVE_PATH_PATTERNS.some((pattern) => pattern.test(text))
+
+export class ExtractionError extends Schema.TaggedError<ExtractionError>()("CorrectionExtractor.ExtractionError", {
   reason: Schema.String,
 }) {
   override get message() {

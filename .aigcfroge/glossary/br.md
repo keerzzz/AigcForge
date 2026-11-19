@@ -2,12 +2,12 @@
 
 ## Sources
 
-- PR #10086: https://github.com/keerzzz/AigcForge/pull/10086
+- PR #10086: https://github.com/anomalyco/aigcfroge/pull/10086
 
 ## Do Not Translate (Locale Additions)
 
-- `Aigcfroge` (preserve casing in prose; keep `aigcfroge` only in commands, package names, paths, or code)
-- `Aigcfroge CLI`
+- `AigcForge` (preserve casing in prose; keep `aigcfroge` only in commands, package names, paths, or code)
+- `AigcForge CLI`
 - `CLI`, `TUI`, `MCP`, `OAuth`
 - Locale code `br` in repo config, code, and paths (repo alias for Brazilian Portuguese)
 

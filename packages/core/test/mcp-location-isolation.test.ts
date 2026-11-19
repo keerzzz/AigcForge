@@ -6,13 +6,19 @@ import { randomUUID } from "node:crypto"
 import * as os from "node:os"
 import * as path from "node:path"
 import { AbsolutePath } from "@aigcfroge/core/schema"
-import { LocationServiceMap } from "@aigcfroge/core/location-layer"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { Bus } from "@aigcfroge/core/bus"
+import { Database } from "@aigcfroge/core/database/database"
+import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
 import { McpConnection } from "@aigcfroge/core/mcp/connection"
-import { ToolRegistry } from "@aigcfroge/core/tool/registry"
+import { Tool } from "@aigcfroge/core/tool"
 import { Composition } from "@aigcfroge/schema/composition"
 import { McpServerBinding } from "@aigcfroge/schema/mcp-scope"
 import { withCustomModeEnabled } from "./lib/product-mode"
+import { offlineModels } from "./fixture/models"
 import { pollWithTimeout, testEffect } from "./lib/effect"
+import { codeModeListings } from "./lib/tool"
 
 /**
  * M3 exit condition, at the layer that actually decides it: "Location A's MCP
@@ -23,7 +29,7 @@ import { pollWithTimeout, testEffect } from "./lib/effect"
  * store layer in `mcp-credential-binding.test.ts`. Those prove the store and
  * connection owners honour a Location ref, but the separation itself is supplied
  * by the test, so they cannot fail if production stopped isolating. This one
- * goes through the real `LocationServiceMap` (`location-layer.ts:96`) and asks
+ * goes through the real `LocationServiceMap` (`location-services.ts`) and asks
  * it for two Locations, the same call the HTTP handlers make.
  *
  * Note what this does NOT cover: the *occupancy* domain is still process-global
@@ -36,7 +42,9 @@ withCustomModeEnabled()
 
 const FIXTURE = path.join(import.meta.dir, "fixture", "mcp", "fake-mcp-server.mjs")
 const REVISION = Schema.decodeUnknownSync(Composition.Revision)("a".repeat(64))
-const it = testEffect(LocationServiceMap.layer)
+const it = testEffect(
+  AppNodeBuilder.build(LayerNode.group([Database.node, Bus.node, LocationServiceMap.node]), [offlineModels]),
+)
 
 const bindingFor = (serverName: string) =>
   Schema.decodeUnknownSync(McpServerBinding)({
@@ -85,15 +93,20 @@ const reaped = (pid: number) =>
     }
   })
 
-/** Both halves: the registry set and the definitions the model is handed. */
+/** The registry, captured Code Mode tools, discovery, and provider definitions. */
 const view = (server: string) =>
   Effect.gen(function* () {
-    const registry = yield* ToolRegistry.Service
-    const { definitions } = yield* registry.materialize()
+    const tools = yield* Tool.Service
+    const registered = yield* tools.list().pipe(Effect.map((list) => new Set(list.map((tool) => tool.id))))
+    const snapshot = yield* tools.snapshot()
     const name = `mcp_${server}_echo`
     return {
-      registered: registry.registeredNames().has(name),
-      materialized: definitions.some((definition) => definition.name === name),
+      registered: registered.has(name),
+      captured: snapshot.catalog.some((tool) => tool.name === name && tool.placement === "codemode"),
+      discoverable:
+        snapshot.codeModeCatalog !== undefined &&
+        codeModeListings(snapshot.codeModeCatalog).some((tool) => tool.path === name),
+      execute: snapshot.definitions.some((definition) => definition.name === "execute"),
     }
   })
 
@@ -107,7 +120,7 @@ describe("MCP Location isolation through the real LayerMap (M3 exit condition)",
       mkdirSync(dirB, { recursive: true })
       yield* Effect.addFinalizer(() => Effect.promise(() => removeDir(root)))
 
-      const locations = yield* LocationServiceMap
+      const locations = yield* LocationServiceMap.Service
       const scope = yield* Scope.make()
       yield* Effect.addFinalizer(() => Scope.close(scope, Exit.void).pipe(Effect.ignore))
       const a = yield* Layer.buildWithScope(locations.get({ directory: AbsolutePath.make(dirA) }), scope)
@@ -124,10 +137,30 @@ describe("MCP Location isolation through the real LayerMap (M3 exit condition)",
 
       // Bidirectional, and each Location does see its own — without that half,
       // a registry that returned nothing at all would pass every absence check.
-      expect(yield* view("only-in-a").pipe(Effect.provide(a))).toEqual({ registered: true, materialized: true })
-      expect(yield* view("only-in-b").pipe(Effect.provide(a))).toEqual({ registered: false, materialized: false })
-      expect(yield* view("only-in-b").pipe(Effect.provide(b))).toEqual({ registered: true, materialized: true })
-      expect(yield* view("only-in-a").pipe(Effect.provide(b))).toEqual({ registered: false, materialized: false })
+      expect(yield* view("only-in-a").pipe(Effect.provide(a))).toEqual({
+        registered: true,
+        captured: true,
+        discoverable: true,
+        execute: true,
+      })
+      expect(yield* view("only-in-b").pipe(Effect.provide(a))).toEqual({
+        registered: false,
+        captured: false,
+        discoverable: false,
+        execute: true,
+      })
+      expect(yield* view("only-in-b").pipe(Effect.provide(b))).toEqual({
+        registered: true,
+        captured: true,
+        discoverable: true,
+        execute: true,
+      })
+      expect(yield* view("only-in-a").pipe(Effect.provide(b))).toEqual({
+        registered: false,
+        captured: false,
+        discoverable: false,
+        execute: true,
+      })
 
       const namesIn = (context: typeof a) =>
         McpConnection.Service.use((conn) => conn.connections()).pipe(
@@ -156,7 +189,7 @@ describe("MCP Location isolation through the real LayerMap (M3 exit condition)",
       mkdirSync(root, { recursive: true })
       yield* Effect.addFinalizer(() => Effect.promise(() => removeDir(root)))
 
-      const locations = yield* LocationServiceMap
+      const locations = yield* LocationServiceMap.Service
       const ref = { directory: AbsolutePath.make(root) }
       // The borrow lives in its own scope: `LayerMap` reference-counts, so an
       // `invalidate` while this test still holds the layer only marks it — the
@@ -175,7 +208,9 @@ describe("MCP Location isolation through the real LayerMap (M3 exit condition)",
       if (pid === undefined) throw new Error("stdio connection did not expose a pid")
       expect(yield* view("unload-me").pipe(Effect.provide(context))).toEqual({
         registered: true,
-        materialized: true,
+        captured: true,
+        discoverable: true,
+        execute: true,
       })
       // Control: the child is running and unreaped before the unload, so the
       // assertions below cannot hold vacuously.
@@ -196,7 +231,9 @@ describe("MCP Location isolation through the real LayerMap (M3 exit condition)",
       expect(yield* McpConnection.Service.use((conn) => conn.connections()).pipe(Effect.provide(rebuilt))).toEqual([])
       expect(yield* view("unload-me").pipe(Effect.provide(rebuilt))).toEqual({
         registered: false,
-        materialized: false,
+        captured: false,
+        discoverable: false,
+        execute: true,
       })
     }),
   )

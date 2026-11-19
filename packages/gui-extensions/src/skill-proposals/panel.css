@@ -1,0 +1,115 @@
+:is(
+  [data-component="skill-proposals-panel"],
+  [data-component="command-proposals-panel"],
+  [data-component="prompt-proposals-panel"],
+  [data-component="agent-proposals-panel"],
+  [data-component="mcp-proposals-panel"],
+  [data-component="plugin-proposals-panel"],
+  [data-component="workflow-proposals-panel"]
+) {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+  padding: 16px;
+  overflow: auto;
+  color: var(--v2-text-text-base);
+  font-size: 13px;
+  line-height: var(--line-height-base);
+}
+
+:is(
+    [data-component="skill-proposals-panel"],
+    [data-component="command-proposals-panel"],
+    [data-component="prompt-proposals-panel"],
+    [data-component="agent-proposals-panel"],
+    [data-component="mcp-proposals-panel"],
+    [data-component="plugin-proposals-panel"],
+    [data-component="workflow-proposals-panel"]
+  )
+  :is(h2, h3, p) {
+  margin: 0;
+}
+
+:is(
+    [data-component="skill-proposals-panel"],
+    [data-component="command-proposals-panel"],
+    [data-component="prompt-proposals-panel"],
+    [data-component="agent-proposals-panel"],
+    [data-component="mcp-proposals-panel"],
+    [data-component="plugin-proposals-panel"],
+    [data-component="workflow-proposals-panel"]
+  )
+  h2 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+:is(
+    [data-component="skill-proposals-panel"],
+    [data-component="command-proposals-panel"],
+    [data-component="prompt-proposals-panel"],
+    [data-component="agent-proposals-panel"],
+    [data-component="mcp-proposals-panel"],
+    [data-component="plugin-proposals-panel"],
+    [data-component="workflow-proposals-panel"]
+  )
+  h3 {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+:is(
+    [data-component="skill-proposals-panel"],
+    [data-component="command-proposals-panel"],
+    [data-component="prompt-proposals-panel"],
+    [data-component="agent-proposals-panel"],
+    [data-component="mcp-proposals-panel"],
+    [data-component="plugin-proposals-panel"],
+    [data-component="workflow-proposals-panel"]
+  )
+  nav,
+[data-slot="skill-actions"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+[data-component="skill-proposal"],
+[data-component="skill-target-review"],
+[data-component="skill-candidate"],
+[data-component="skill-save-confirm"],
+[data-component="skill-overwrite-confirm"],
+[data-component="skill-save-result"] {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+[data-component="skill-candidate"] dl {
+  display: grid;
+  grid-template-columns: minmax(80px, auto) minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0;
+}
+
+[data-component="skill-candidate"] :is(dt, dd) {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+[data-component="skill-candidate"] dt {
+  color: var(--v2-text-text-weak);
+}
+
+[data-component="skill-candidate"] pre {
+  margin: 0;
+  padding: 12px;
+  border-radius: 6px;
+  background: var(--v2-background-bg-layer-01);
+  font: 13px / var(--line-height-base) var(--font-family-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

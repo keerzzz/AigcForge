@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { Provider } from "../src/provider"
+import { Provider } from "../src/v2/provider.js"
 
 /**
  * S3b RED — the provider transport deadlines have no typed owner.

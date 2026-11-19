@@ -18,6 +18,21 @@ const pendingMarker = process.argv[3]
 
 const send = (msg) => process.stdout.write(JSON.stringify(msg) + "\n")
 
+const results = {
+  json: { content: [{ type: "text", text: '{"count":1}' }] },
+  literal: { content: [{ type: "text", text: '{"count":1}' }] },
+  structured: { content: [], structuredContent: { count: 1 } },
+  raw: { content: [], structuredContent: { count: "raw" } },
+  empty: { content: [] },
+  mixed: {
+    content: [
+      { type: "text", text: "image" },
+      { type: "image", data: "aGVsbG8=", mimeType: "image/png" },
+    ],
+  },
+  error: { isError: true, content: [{ type: "text", text: "remote failure" }] },
+}
+
 if (mode === "crash") {
   process.exit(3)
 }
@@ -84,8 +99,26 @@ if (mode === "garbage") {
               },
               { name: "desc", description: "Second tool", inputSchema: { type: "object" } },
             ]
+      if (mode === "results")
+        tools.push(
+          ...Object.keys(results).map((name) => ({
+            name,
+            inputSchema: { type: "object" },
+            ...(name === "literal" ? { outputSchema: { type: "string" } } : {}),
+            ...(["structured", "raw"].includes(name)
+              ? { outputSchema: { type: "object", properties: { count: { type: "number" } }, required: ["count"] } }
+              : {}),
+          })),
+        )
       send({ jsonrpc: "2.0", id: msg.id, result: { tools } })
     } else if (msg.method === "tools/call") {
+      if (mode === "results") {
+        if (pendingMarker) writeFileSync(pendingMarker, msg.params.name)
+        if (Object.hasOwn(results, msg.params.name)) {
+          send({ jsonrpc: "2.0", id: msg.id, result: results[msg.params.name] })
+          return
+        }
+      }
       if (mode === "pendingcall") {
         if (pendingMarker) writeFileSync(pendingMarker, "pending")
         return

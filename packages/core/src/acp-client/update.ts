@@ -54,14 +54,12 @@ export function toolCallProgress(update: SessionUpdate): ToolCallProgress | unde
 }
 
 /**
- * Accumulate the text of an assistant/user message chunk. Returns the chunk text
- * for `agent_message_chunk`/`user_message_chunk` updates whose content is a text
- * block, undefined otherwise.
+ * Read agent text from the owning prompt. User message chunks are not agent output.
  */
 export function textChunk(update: SessionUpdate): string | undefined {
-  if (update.sessionUpdate !== "agent_message_chunk" && update.sessionUpdate !== "user_message_chunk") return undefined
+  if (update.sessionUpdate !== "agent_message_chunk") return undefined
   const content = update.content
-  if (!content || typeof content !== "object" || content.type !== "text") return undefined
+  if (content.type !== "text") return undefined
   return content.text
 }
 

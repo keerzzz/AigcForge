@@ -1,7 +1,12 @@
 import { Effect, Schema } from "effect"
-import { Session } from "./session"
-import { optionalOmitUndefined } from "./schema"
-import { WorkflowAsset } from "./workflow-asset"
+import { Agent } from "./agent.js"
+import { Session } from "./session.js"
+import { optional } from "./schema.js"
+import { WorkflowAsset } from "./workflow-asset.js"
+import { Location } from "./location.js"
+import { Model } from "./model.js"
+import { ModelGroup } from "./model-group.js"
+import { AssetPlacement } from "./asset-placement.js"
 
 // Branded types
 export const Digest = Schema.String.pipe(
@@ -9,6 +14,7 @@ export const Digest = Schema.String.pipe(
   Schema.check(Schema.isMaxLength(64)),
   Schema.check(Schema.isPattern(/^[0-9a-f]{64}$/)),
   Schema.brand("Composition.Digest"),
+  Schema.annotate({ identifier: "Composition.Digest" }),
 )
 export type Digest = typeof Digest.Type
 
@@ -23,55 +29,97 @@ export type Revision = typeof Revision.Type
 export const AllowedKind = Schema.Literals(["agent", "prompt", "skill", "workflow", "command", "mcp"])
 export type AllowedKind = typeof AllowedKind.Type
 
+export class BuiltinRoot extends Schema.Class<BuiltinRoot>("Composition.BuiltinRoot")({
+  source: Schema.Literal("builtin"),
+  id: Schema.Literals(["build", "plan", "meta"]),
+  // Previews select an identity; the adopted input carries its captured revision.
+  revision: Revision.pipe(optional),
+}) {}
+
 export class AgentRef extends Schema.Class<AgentRef>("Composition.AgentRef")({
   kind: Schema.Literal("agent"),
   relativePath: Schema.String,
   revision: Revision,
+  target: Schema.Never.pipe(optional),
 }) {}
+
+export class AssetRoot extends Schema.Class<AssetRoot>("Composition.AssetRoot")({
+  ...AgentRef.fields,
+  source: Schema.Literal("asset"),
+  id: Agent.ID,
+}) {}
+
+export const Root = Schema.Union([BuiltinRoot, AssetRoot])
+export type Root = typeof Root.Type
 
 export class PromptRef extends Schema.Class<PromptRef>("Composition.PromptRef")({
   kind: Schema.Literal("prompt"),
   relativePath: Schema.String,
   revision: Revision,
+  target: AssetPlacement.Target.pipe(optional),
 }) {}
 
 export class SkillRef extends Schema.Class<SkillRef>("Composition.SkillRef")({
   kind: Schema.Literal("skill"),
   relativePath: Schema.String,
   revision: Revision,
+  target: AssetPlacement.Target.pipe(optional),
 }) {}
 
 export class WorkflowRef extends Schema.Class<WorkflowRef>("Composition.WorkflowRef")({
   kind: Schema.Literal("workflow"),
   relativePath: Schema.String,
   revision: Revision,
+  target: Schema.Never.pipe(optional),
 }) {}
 
 export class CommandRef extends Schema.Class<CommandRef>("Composition.CommandRef")({
   kind: Schema.Literal("command"),
   relativePath: Schema.String,
   revision: Revision,
+  target: AssetPlacement.Target.pipe(optional),
 }) {}
 
 export class McpRef extends Schema.Class<McpRef>("Composition.McpRef")({
   kind: Schema.Literal("mcp"),
   relativePath: Schema.String,
   revision: Revision,
+  target: Schema.Never.pipe(optional),
 }) {}
 
 export const AssetRef = Schema.Union([AgentRef, PromptRef, SkillRef, WorkflowRef, CommandRef, McpRef])
 export type AssetRef = typeof AssetRef.Type
 
-export const ConsumerKey = Schema.String.pipe(
-  Schema.check(
-    Schema.makeFilter<string>((input) => /^(orchestrator|agents\/[a-zA-Z0-9_-]+)$/.test(input), {
-      message: "Consumer must be 'orchestrator' or 'agents/<agentId>'",
-    }),
-  ),
-)
+export const ConsumerKey = Schema.String.pipe(Schema.check(Schema.isPattern(/^(orchestrator|agents\/[a-zA-Z0-9_-]+)$/)))
 
 export const Consumer = ConsumerKey.pipe(Schema.brand("Composition.Consumer"))
 export type Consumer = typeof Consumer.Type
+
+/**
+ * Effect 4.0.1 Record semantics silently drop entries whose key fails the key schema's
+ * refinement (beta.83 failed the decode instead). Composition bindings must fail
+ * closed: an unknown consumer is smuggled input, so the decoded key set is
+ * re-validated explicitly after decoding with plain string keys.
+ */
+export const strictBindings = <B extends Schema.Top>(value: B) =>
+  Schema.Record(Schema.String, value).pipe(
+    Schema.check(
+      Schema.makeFilter<Readonly<Record<string, unknown>>>(
+        (input) => Object.keys(input).every((key) => /^(orchestrator|agents\/[a-zA-Z0-9_-]+)$/.test(key)),
+        {
+          message: "Consumer must be 'orchestrator' or 'agents/<agentId>'",
+          representation: { id: "aigcfroge/strictConsumerKeys", payload: {} },
+          arbitraryConstraint: {} as Record<string, unknown>,
+          // Effect 4.0.1 promise-client codegen inlines custom filters; the runtime
+          // expression must be self-contained in the generated file's scope.
+          toCode: () => ({
+            runtime:
+              "Schema.makeFilter((input) => Object.keys(input).every((key) => /^(orchestrator|agents\\/[a-zA-Z0-9_-]+)$/.test(key)), { message: \"Consumer must be 'orchestrator' or 'agents/<agentId>'\" })",
+          }),
+        },
+      ),
+    ),
+  )
 
 export class Binding extends Schema.Class<Binding>("Composition.Binding")({
   prompts: Schema.Array(PromptRef),
@@ -101,6 +149,7 @@ export class StaleRevision extends Schema.Class<StaleRevision>("Composition.Stal
   relativePath: Schema.String,
   expectedRevision: Revision,
   currentRevision: Revision,
+  target: AssetPlacement.Target.pipe(optional),
 }) {}
 
 export class Health extends Schema.Class<Health>("Composition.Health")({
@@ -119,9 +168,11 @@ export class TemporaryInput extends Schema.Class<TemporaryInput>("Composition.Te
   source: Schema.Literal("temporary"),
   profilePath: Schema.optional(Schema.String),
   profileRevision: Schema.optional(Revision),
+  // No default: adding a root while decoding would change historical input digests.
+  root: Root.pipe(optional),
   agents: Schema.Array(AgentRef),
   workflow: Schema.optional(WorkflowRef),
-  bindings: Schema.Record(Consumer, Binding),
+  bindings: strictBindings(Binding),
   presentation: Presentation,
   requestedCapabilities: Schema.Array(Schema.String),
 }) {}
@@ -137,7 +188,7 @@ export type CompositionInput = typeof CompositionInput.Type
 
 export class FreezeInput extends Schema.Class<FreezeInput>("Composition.FreezeInput")({
   input: CompositionInput,
-  sessionID: Schema.optional(Schema.String),
+  sessionID: Schema.String.pipe(optional),
 }) {}
 
 export class AgentInfo extends Schema.Class<AgentInfo>("Composition.AgentInfo")({
@@ -162,6 +213,7 @@ export class CommandInfo extends Schema.Class<CommandInfo>("Composition.CommandI
   description: Schema.String,
   relativePath: Schema.String,
   revision: Revision,
+  target: AssetPlacement.Target.pipe(optional),
   // S5 snapshot fidelity: freeze the CommandAsset identity under the asset's own
   // field names, so nothing has to translate on the way in or out. `source` is
   // the command body — it used to be frozen as `template`, which had no reader
@@ -190,6 +242,7 @@ export class SkillInfo extends Schema.Class<SkillInfo>("Composition.SkillInfo")(
   description: Schema.String,
   relativePath: Schema.String,
   revision: Revision,
+  target: AssetPlacement.Target.pipe(optional),
 }) {}
 
 export const CapabilityStatus = Schema.Literals(["effective", "denied", "unsupported"])
@@ -261,6 +314,7 @@ export class Plan extends Schema.Class<Plan>("Composition.Plan")({
   valid: Schema.Boolean,
   input: CompositionInput,
   agent: Schema.optional(AgentInfo),
+  orchestrator: Agent.Info.pipe(optional),
   agents: Schema.optional(Schema.Array(AgentInfo)).pipe(
     Schema.withDecodingDefaultKey(Effect.succeed([])),
     Schema.withConstructorDefault(Effect.succeed([])),
@@ -292,12 +346,31 @@ export class SnapshotToolInfo extends Schema.Class<SnapshotToolInfo>("Compositio
   ),
   catalogDigest: Digest,
   catalog: Schema.Array(Schema.String),
+  // Historical snapshots omitted the captured definitions. A new freeze must
+  // supply them; missing capture cannot authorize future execution.
+  capture: Schema.Array(Schema.Json).pipe(optional),
+}) {}
+
+export class SnapshotExecutorData extends Schema.Class<SnapshotExecutorData>("Composition.SnapshotExecutorData")({
+  id: Agent.ID,
+  relativePath: Schema.String,
+  revision: Revision,
+  info: Agent.Info,
+  groupBehavior: ModelGroup.BehaviorSnapshot.pipe(optional),
+}) {}
+
+export class SnapshotSkillData extends Schema.Class<SnapshotSkillData>("Composition.SnapshotSkillData")({
+  ...SkillInfo.fields,
+  // Optional only for historical reads. Missing content differs from a frozen
+  // empty body and must block execution rather than reread the current asset.
+  content: Schema.String.pipe(optional),
 }) {}
 
 export class SnapshotPromptData extends Schema.Class<SnapshotPromptData>("Composition.SnapshotPromptData")({
   relativePath: Schema.String,
   revision: Revision,
   content: Schema.String,
+  target: AssetPlacement.Target.pipe(optional),
 }) {}
 
 export class SnapshotBindingData extends Schema.Class<SnapshotBindingData>("Composition.SnapshotBindingData")({
@@ -306,7 +379,7 @@ export class SnapshotBindingData extends Schema.Class<SnapshotBindingData>("Comp
     Schema.withConstructorDefault(Effect.succeed([])),
   ),
   prompts: Schema.Array(SnapshotPromptData),
-  skills: Schema.Array(SkillInfo),
+  skills: Schema.Array(SnapshotSkillData),
   commands: Schema.Array(CommandInfo),
 }) {}
 
@@ -314,6 +387,9 @@ export class SnapshotMcpBinding extends Schema.Class<SnapshotMcpBinding>("Compos
   serverName: Schema.String,
   ref: McpRef,
   credentialRef: Schema.optional(Schema.String),
+  // Historical snapshots lack connection identity. New freezes supply it;
+  // execution must reject absence rather than adopt the current transport.
+  transportFingerprint: Schema.String.pipe(optional),
 }) {}
 
 export class SnapshotMcpTool extends Schema.Class<SnapshotMcpTool>("Composition.SnapshotMcpTool")({
@@ -328,17 +404,29 @@ export class SnapshotMcpInfo extends Schema.Class<SnapshotMcpInfo>("Composition.
 }) {}
 
 export class SnapshotDataV1 extends Schema.Class<SnapshotDataV1>("Composition.SnapshotDataV1")({
+  // Optional for historical snapshots whose source must be recovered from durable lifecycle facts.
+  sourceLocation: Location.Ref.pipe(optional),
   agentID: Schema.String,
   instructions: Schema.Array(Instruction),
   prompts: Schema.Array(SnapshotPromptData),
-  skills: Schema.Array(SkillInfo),
+  skills: Schema.Array(SnapshotSkillData),
   tools: SnapshotToolInfo,
 }) {}
 
 export class SnapshotDataV2 extends Schema.Class<SnapshotDataV2>("Composition.SnapshotDataV2")({
+  // Copied unchanged when a Session moves or forks; asset paths remain relative to this source.
+  sourceLocation: Location.Ref.pipe(optional),
+  root: Root.pipe(optional),
   agents: Schema.Array(AgentInfo),
+  // Root configuration is independent of the user Agent pool. Historical
+  // snapshots without an explicit root retain their original Meta contract.
+  orchestrator: Agent.Info.pipe(optional),
+  groupBehavior: ModelGroup.BehaviorSnapshot.pipe(optional),
+  // Old snapshots remain readable without frozen executor configurations.
+  // New freezes supply one per agent; execution must reject missing entries.
+  executors: Schema.Array(SnapshotExecutorData).pipe(optional),
   workflow: Schema.optional(Schema.NullOr(WorkflowInfo)),
-  bindings: Schema.optional(Schema.Record(ConsumerKey, SnapshotBindingData)),
+  bindings: Schema.optional(strictBindings(SnapshotBindingData)),
   maxConcurrency: Schema.Int.check(
     Schema.isGreaterThanOrEqualTo(1),
     Schema.isLessThanOrEqualTo(WorkflowAsset.MAX_PARALLEL),
@@ -349,7 +437,7 @@ export class SnapshotDataV2 extends Schema.Class<SnapshotDataV2>("Composition.Sn
   ),
   instructions: Schema.Array(Instruction),
   prompts: Schema.Array(SnapshotPromptData),
-  skills: Schema.Array(SkillInfo),
+  skills: Schema.Array(SnapshotSkillData),
   tools: SnapshotToolInfo,
   mcp: SnapshotMcpInfo.pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(new SnapshotMcpInfo({ bindings: [], tools: [] }))),
@@ -363,9 +451,9 @@ export type SnapshotData = typeof SnapshotData.Type
 export class SnapshotV1 extends Schema.Class<SnapshotV1>("Composition.SnapshotV1")({
   version: Schema.Literal(1),
   digest: Digest,
-  sessionID: Schema.String.pipe(optionalOmitUndefined),
-  profilePath: Schema.String.pipe(optionalOmitUndefined),
-  profileRevision: Revision.pipe(optionalOmitUndefined),
+  sessionID: Schema.String.pipe(optional),
+  profilePath: Schema.String.pipe(optional),
+  profileRevision: Revision.pipe(optional),
   createdAt: Schema.Finite,
   data: SnapshotDataV1,
 }) {}
@@ -373,9 +461,9 @@ export class SnapshotV1 extends Schema.Class<SnapshotV1>("Composition.SnapshotV1
 export class SnapshotV2 extends Schema.Class<SnapshotV2>("Composition.SnapshotV2")({
   version: Schema.Literal(2),
   digest: Digest,
-  sessionID: Schema.String.pipe(optionalOmitUndefined),
-  profilePath: Schema.String.pipe(optionalOmitUndefined),
-  profileRevision: Revision.pipe(optionalOmitUndefined),
+  sessionID: Schema.String.pipe(optional),
+  profilePath: Schema.String.pipe(optional),
+  profileRevision: Revision.pipe(optional),
   createdAt: Schema.Finite,
   data: SnapshotDataV2,
 }) {}
@@ -383,11 +471,21 @@ export class SnapshotV2 extends Schema.Class<SnapshotV2>("Composition.SnapshotV2
 export const Snapshot = Schema.Union([SnapshotV1, SnapshotV2])
 export type Snapshot = typeof Snapshot.Type
 
+export class SnapshotReference extends Schema.Class<SnapshotReference>("Composition.SnapshotReference")({
+  sessionID: Session.ID,
+  digest: Digest,
+  profilePath: Schema.String.pipe(optional),
+  title: Schema.String.pipe(optional),
+  createdAt: Schema.Finite,
+}) {}
+
 export class StartInput extends Schema.Class<StartInput>("Composition.StartInput")({
   sessionID: Schema.optional(Schema.String),
   composition: CompositionInput,
   expectedPlanDigest: Schema.optional(Digest),
   title: Schema.optional(Schema.String),
+  model: Model.Selection.pipe(optional),
+  executorPreference: Schema.optional(Session.ExecutorPreference),
 }) {}
 
 export class UpgradeInput extends Schema.Class<UpgradeInput>("Composition.UpgradeInput")({
@@ -395,6 +493,8 @@ export class UpgradeInput extends Schema.Class<UpgradeInput>("Composition.Upgrad
   composition: CompositionInput,
   expectedPlanDigest: Schema.optional(Digest),
   title: Schema.optional(Schema.String),
+  model: Model.Selection.pipe(optional),
+  executorPreference: Schema.optional(Session.ExecutorPreference),
 }) {}
 
 export class StartResponse extends Schema.Class<StartResponse>("Composition.StartResponse")({
@@ -402,7 +502,7 @@ export class StartResponse extends Schema.Class<StartResponse>("Composition.Star
   snapshot: Snapshot,
 }) {}
 
-export class ResolveError extends Schema.TaggedErrorClass<ResolveError>()("Composition.ResolveError", {
+export class ResolveError extends Schema.TaggedError<ResolveError>()("Composition.ResolveError", {
   code: Schema.String,
   message: Schema.String,
   diagnostics: Schema.optional(Schema.Array(Diagnostic)),
@@ -434,4 +534,4 @@ export const mcpAuditMatchesCatalog = (input: {
   }
 }
 
-export * as Composition from "./composition"
+export * as Composition from "./composition.js"

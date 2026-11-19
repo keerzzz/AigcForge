@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { CustomProfile } from "../src/custom-profile"
+import { Composition } from "../src/composition.js"
+import { CustomProfile } from "../src/custom-profile.js"
 
 describe("CustomProfile Schema", () => {
   const validProfile = {
@@ -47,6 +48,163 @@ describe("CustomProfile Schema", () => {
     expect(decoded.agents.length).toBe(1)
     expect(decoded.presentation).toBe("native")
     expect(decoded.mcpBindings).toEqual([])
+    expect(decoded.root).toBeUndefined()
+    expect(Object.hasOwn(Schema.encodeSync(CustomProfile.Profile)(decoded), "root")).toBe(false)
+    const encoded = Schema.encodeSync(Schema.toCodecJson(CustomProfile.Profile))(decoded)
+    if (encoded === null || typeof encoded !== "object" || Array.isArray(encoded))
+      throw new Error("Expected an encoded Profile JSON object")
+    expect(Object.hasOwn(encoded, "root")).toBe(false)
+    expect(Schema.encodeSync(CustomProfile.Profile)(decoded).bindings["agents/reviewer"].prompts[0]).not.toHaveProperty(
+      "target",
+    )
+    expect(Schema.encodeSync(CustomProfile.Profile)(decoded).bindings["agents/reviewer"].skills[0]).not.toHaveProperty(
+      "target",
+    )
+  })
+
+  test("Profile and Candidate preserve all three asset sources over runtime and JSON codecs", () => {
+    const binding = {
+      prompts: [
+        {
+          ...validProfile.bindings["agents/reviewer"].prompts[0],
+          kind: "prompt" as const,
+          target: { scope: "project" as const, root: "/project/.aigcfroge/prompts" },
+        },
+      ],
+      skills: [
+        {
+          ...validProfile.bindings["agents/reviewer"].skills[0],
+          kind: "skill" as const,
+          target: { scope: "global" as const, root: "/global/skills" },
+        },
+      ],
+      commands: [
+        {
+          kind: "command" as const,
+          relativePath: "release.md",
+          revision: "d".repeat(64),
+          target: { scope: "location" as const, root: "/project/child/.aigcfroge/commands" },
+        },
+      ],
+    }
+    const profile = CustomProfile.decodeProfile({ ...validProfile, bindings: { "agents/reviewer": binding } })
+    const encoded = Schema.encodeSync(CustomProfile.Profile)(profile)
+    expect(encoded.bindings["agents/reviewer"]).toEqual(binding)
+    expect(CustomProfile.decodeProfileJson(encoded)).toEqual(profile)
+    const candidate = new CustomProfile.Candidate({
+      name: profile.name,
+      description: profile.description,
+      relativePath: "selected-sources.yaml",
+      profile,
+    })
+    const codec = Schema.toCodecJson(CustomProfile.Candidate)
+    expect(Schema.decodeUnknownSync(codec)(Schema.encodeSync(codec)(candidate)).profile).toEqual(profile)
+  })
+
+  test("Profile rejects unsupported Agent, Workflow and MCP targets over both decoding boundaries", () => {
+    const target = { scope: "project", root: "/project/.aigcfroge/assets" }
+    const profiles = [
+      { ...validProfile, agents: [{ ...validProfile.agents[0], target }] },
+      {
+        ...validProfile,
+        workflow: { kind: "workflow", relativePath: "review.yaml", revision: "d".repeat(64), target },
+      },
+      {
+        ...validProfile,
+        mcpBindings: [
+          {
+            serverName: "search",
+            ref: { relativePath: "search.md", revision: "f".repeat(64), target },
+            transport: "stdio",
+            command: ["bun", "server.ts"],
+          },
+        ],
+      },
+    ]
+    profiles.forEach((profile) => {
+      expect(() => CustomProfile.decodeProfile(profile)).toThrow()
+      expect(() => CustomProfile.decodeProfileJson(profile)).toThrow()
+    })
+  })
+
+  test("Profile and Candidate codecs preserve each captured builtin root with an empty agent pool", () => {
+    ;(["build", "plan", "meta"] as const).forEach((id) => {
+      const root = new Composition.BuiltinRoot({
+        source: "builtin",
+        id,
+        revision: Composition.Revision.make("d".repeat(64)),
+      })
+      const profile = CustomProfile.decodeProfile({ ...validProfile, root, agents: [], bindings: {} })
+      expect(profile.root).toBeInstanceOf(Composition.BuiltinRoot)
+      expect(profile.root).toEqual(root)
+      expect(profile.agents).toEqual([])
+      const encoded = Schema.encodeSync(CustomProfile.Profile)(profile)
+      expect(encoded.root).toEqual(Schema.encodeSync(Composition.BuiltinRoot)(root))
+      expect(CustomProfile.decodeProfileJson(encoded).root).toEqual(root)
+      const candidate = new CustomProfile.Candidate({
+        name: profile.name,
+        description: profile.description,
+        relativePath: "captured-root.yaml",
+        profile,
+      })
+      const codec = Schema.toCodecJson(CustomProfile.Candidate)
+      const decoded = Schema.decodeUnknownSync(codec)(Schema.encodeSync(codec)(candidate))
+      expect(decoded.profile.root).toBeInstanceOf(Composition.BuiltinRoot)
+      expect(decoded.profile.root).toEqual(root)
+      expect(decoded.profile.agents).toEqual([])
+    })
+  })
+
+  test("Profile requires a captured revision for an explicit root over runtime and JSON codecs", () => {
+    ;[[], validProfile.agents].forEach((agents) => {
+      const profile = { ...validProfile, root: { source: "builtin", id: "build" }, agents }
+      expect(() => CustomProfile.decodeProfile(profile)).toThrow("captured revision")
+      expect(() => CustomProfile.decodeProfileJson(profile)).toThrow("captured revision")
+      expect(() =>
+        Schema.decodeUnknownSync(Schema.toCodecJson(CustomProfile.Candidate))({
+          name: profile.name,
+          description: profile.description,
+          relativePath: "uncaptured-root.yaml",
+          profile,
+        }),
+      ).toThrow("captured revision")
+    })
+  })
+
+  test("Profile and Candidate preserve an asset root with an empty user pool", () => {
+    const root = Schema.decodeUnknownSync(Composition.AssetRoot)({
+      source: "asset",
+      id: "release-root",
+      kind: "agent",
+      relativePath: "release-root.md",
+      revision: "e".repeat(64),
+    })
+    const profile = CustomProfile.decodeProfile({ ...validProfile, root, agents: [], bindings: {} })
+    expect(profile.root).toBeInstanceOf(Composition.AssetRoot)
+    expect(profile.root).toEqual(root)
+    expect(CustomProfile.decodeProfileJson(Schema.encodeSync(CustomProfile.Profile)(profile)).root).toEqual(root)
+    const candidate = new CustomProfile.Candidate({
+      name: profile.name,
+      description: profile.description,
+      relativePath: "asset-root.yaml",
+      profile,
+    })
+    const codec = Schema.toCodecJson(CustomProfile.Candidate)
+    const decoded = Schema.decodeUnknownSync(codec)(Schema.encodeSync(codec)(candidate))
+    expect(decoded.profile.root).toEqual(root)
+    expect(decoded.profile.agents).toEqual([])
+    expect(decoded.profile.root).not.toHaveProperty("ref")
+  })
+
+  test("Profile root uses the builtin identity and revision contract", () => {
+    ;[
+      { source: "profile", id: "build", revision: "d".repeat(64) },
+      { source: "builtin", id: "other", revision: "d".repeat(64) },
+      { source: "builtin", id: "build", revision: "invalid" },
+    ].forEach((root) => {
+      expect(() => CustomProfile.decodeProfile({ ...validProfile, root })).toThrow()
+      expect(() => CustomProfile.decodeProfileJson({ ...validProfile, root })).toThrow()
+    })
   })
 
   test("Profile decoding routes MCP bindings through the strict canonical decoder", () => {
@@ -126,13 +284,14 @@ describe("CustomProfile Schema", () => {
     expect(decoded.workflow?.relativePath).toBe("review-flow.yaml")
   })
 
-  test("Profile rejects zero agents", () => {
+  test("Root-less Profile rejects zero agents over runtime and JSON codecs", () => {
     expect(() =>
       Schema.decodeUnknownSync(CustomProfile.Profile)({
         ...validProfile,
         agents: [],
       }),
     ).toThrow()
+    expect(() => CustomProfile.decodeProfileJson({ ...validProfile, agents: [] })).toThrow()
   })
 
   test("Profile rejects more than 16 agents (M2 limit)", () => {
@@ -144,6 +303,13 @@ describe("CustomProfile Schema", () => {
     expect(() =>
       Schema.decodeUnknownSync(CustomProfile.Profile)({
         ...validProfile,
+        agents: tooManyAgents,
+      }),
+    ).toThrow()
+    expect(() =>
+      CustomProfile.decodeProfile({
+        ...validProfile,
+        root: { source: "builtin", id: "build", revision: "d".repeat(64) },
         agents: tooManyAgents,
       }),
     ).toThrow()
@@ -203,7 +369,7 @@ describe("CustomProfile Schema", () => {
   // link's getter does not fix it (the target decodes first) and removing the
   // link breaks every decode with `Expected null`, so the target itself is strict.
   describe("JSON codec path", () => {
-    const json = Schema.decodeUnknownSync(Schema.toCodecJson(CustomProfile.Profile))
+    const json = CustomProfile.decodeProfileJson
     const binding = {
       serverName: "probe",
       ref: { relativePath: "probe.yaml", revision: "a".repeat(64) },

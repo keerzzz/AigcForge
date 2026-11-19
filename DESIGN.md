@@ -1,107 +1,94 @@
-# AigcForge Design Protocol
+# AigcForge V2 产品与设计入口
 
-> **Role**: Senior UX design
-> **Scope**: Product UI in `packages/app/`, shared components in `packages/ui/`, desktop shell surfaces in `packages/desktop/`, terminal-facing UX in `packages/tui/`, and session rendering in `packages/session-ui/`. `packages/storybook/` is a component showcase and follows the same token and story conventions. `packages/enterprise/` is **not** a workspace package (no `package.json`); the single tracked file under it is unreferenced legacy outside every `tsconfig`/`turbo` graph and is therefore out of scope until it is either revived as a package or deleted. There is no `packages/web/`.
-> **Nature**: UI design entry point. Theming engine detail lives in `.aigcfroge/skills/frontend-theming/SKILL.md`.
+执行见 [CLAUDE.md](CLAUDE.md)，架构归属见 [ARCHITECTURE.md](ARCHITECTURE.md)，工程/生命周期以 [AGENTS.md](AGENTS.md) 和目标包指南为准。本页定义迁移的产品边界，不把默认工作区组件树或 Token 路径复制为 V2 标准。
 
-## Tech Stack
+## 现有宿主与待交付目标
 
-- SolidJS (`solid-js`), `@kobalte/core` for accessible primitives, `@solidjs/router`, `vite-plugin-solid`.
-- Tailwind v4 (`@tailwindcss/vite`): `@theme`, `@layer theme, base, components, utilities`. Breakpoints `sm…5xl` (40rem–144rem). Spacing scale 0.25rem.
-- Build via Vite; desktop wraps with Electron.
+当前 V2 App 已有 Home、Settings、Draft、canonical Session 路由、共享 Shell 与 GUI 扩展。完整 `/mode/:mode` 工作台、全局模式入口、产品状态栏和完整资产管理仍待迁移；不是本次文档完成的功能。
 
-## Product Character
+| 工作面             | 产品职责与边界                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------- |
+| Home               | 当前服务器会话聚合，保留模式/项目筛选；未筛选项目时包含未打开项目                     |
+| 模式工作台（目标） | 五模式领域入口；浏览/选择模式不隐式创建工作或修改已有 Session                         |
+| Draft              | 新建时捕获来源工作面的 mode、server/project；创建后拥有自己的选择，不随 Home 筛选变化 |
+| Session            | 按 server + Session identity 读取持久 mode/Location 与真实执行结果                    |
+| 资产管理（目标）   | 库存、新建、编辑、导入、目标选择、引用删除及消费者关系                                |
+| Session 候选审阅   | 当前会话产生的候选、确认/取消/冲突/保存/插入；不是库存管理中心                        |
+| 全局状态栏（目标） | 按当前工作面来源显示真实连接、执行与指标；不镜像第二统计缓存                          |
 
-AigcForge is a developer tool. Prefer quiet, dense, operational interfaces over marketing-style pages. Optimize for repeated use, scanning, comparison, and fast recovery from errors.
+所有模式共用明确的服务器＋项目工作位置。查看 Session 不改变该位置。已记录的人类决定：Home 点击项目可同时选择工作项目并筛选，重复点击仅清筛选、保留工作位置；Home/模式页新建采用工作位置，Session/Draft 上新建采用其自身来源。完整无选定位置状态仍须按批次核对，不借服务器 cwd 或 lastSession 兜底。依据：[共享位置决定](docs/research/upstream-v2-sync/p1-shared-location-decision-2026-10-29.json)、[Home 范围](docs/research/upstream-v2-sync/p1-home-scope-decision-2026-10-29.json)。
 
-Do not build landing-page hero patterns inside the app shell. Avoid decorative section cards, nested cards, gradient/orb backgrounds, and oversized editorial typography in tool surfaces.
+## UI 接入与状态归属
 
-## Layout
+- 优先 V2 现有 Shell、路由、Panel、MenuItem、Command、Slot、SettingsPage 与 session-ui；不新增模式专属 Shell、第二侧栏或万能 AppInterface 注册表。
+- 2026-11-09 会话 UI 新要求：以现有右侧工作区统一承载可插拔模块。协作历史、Meta 检查、工作流运行和产物从主对话列迁到独立右侧 Panel；文件、Git 审阅、浏览器、上下文和候选面板继续复用，文件树保留辅助区，终端按现设置在右侧下部或底部。智能体任务沿后续用户决定，在输入框上方自动只读展示。询问、权限、联网选择和待发送输入属于实际交互会话的 Composer；主会话及其真实子树沿主 Composer，独立侧聊沿自己的 Composer。[实施附件](/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/2026-11-09-unified-right-sidebar-implementation-plan.md)已按第一性原理修订批准；生产布局按实际改动验收。
+- Session 详情标题栏不放任何资产按钮，包括单一入口或溢出入口。候选按当前侧面板宿主归位，资产库存留在自己的管理工作面。
+- 不是所有页面都必须插件化。App owning data/路由责任保留；跨扩展只使用 typed contract。SDK 缺接缝时先证明消费者与生命周期，再做最小、通用且有文档的扩展。
+- 2026-11-17 用户明确左侧导航边界：可插拔的项目／会话底座属于 Session 详情工作区，与会话正文和右侧模块同层；桌面可展开常驻，移动端复用标题栏的 MobileDrawer 按需打开。首页保持原项目与会话列表。项目展开复用服务器项目状态，仅列出当前 Session 模式的会话；当前模式读取持久 Session 身份，不由首页筛选或 Agent 名称推测。默认内容复用 HomeProjects、HomeSessionRow 及原会话索引和菜单，扩展通过现有 Slot 的 `window.sidebar` 替换；右侧文件树与会话面板保留各自原状态。
+- 每项目默认显示 5 条，可展开更多并收起。当前会话位于第 5 条之后时，提高可见水位至该会话，保持原排序；切换模式恢复收起状态。项目未读计数与清除未读均仅作用于当前模式；未载入的通知会话沿原 Session 数据读取，加载期间显示状态。
+- 详情页项目行使用统一的关闭／打开文件夹图标表达折叠状态，移除常驻和选中底色；会话行从标题开始，进行中、错误和未读消息状态位于标题右侧。项目底座复用 SessionPanelFrame 的面板背景，与右侧面板统一，并区别于全局模式导航的深层背景；沿详情工作区的上下边界与 8px 间距布局。移动端选择会话后关闭项目抽屉。首页继续使用原项目头像和会话布局。
+- Panel 约束跟随实际显示的内容；隐藏 Panel 不应决定当前面板宽度。当前 S1 宽度修复/验收由原任务和 owner 记录负责，本条不证明源码或验收已经完成。
+- 隐藏工作面不产生新网络、持久化或执行副作用。复用 activity/lifecycle gate，保留已有状态，不为每个模式复制资源或缓存。
+- 导航、新建、恢复和执行是不同动作。失败、空、加载、禁用与冲突必须能被用户理解和恢复；不静默成功、自动提交或自动发送。
 
-- Navigation, sidebars, status bars, and work surfaces must keep stable dimensions. Hover states, counters, labels, loading text, and dynamic content must not shift the layout.
-- Use page-level structure as full-width bands or unframed layouts. Use cards only for repeated items, modals, or genuinely framed tools.
-- Keep app controls compact but readable. Reserve large display text for true first-screen marketing or documentation pages, not dashboards, panels, or toolbars.
-- Verify desktop and narrow viewports for text overflow, overlapping elements, clipped controls, and unusable scroll regions.
+### 会话内容与回答操作合同
 
-## Product Mode Switching
+2026-11-10按[已批准计划](/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/2026-11-10-side-chat-subagent-implementation-plan.md)固定以下目标；具体接缝、文件和验收由[SC00任务单](/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/2026-11-10-session-surfaces-task-sheet.md)安排，功能接受沿原账本。
 
-- Chat, Coding, Work, Assistant, and Custom have first-class module entry routes at `/mode/:mode`. The global icon rail navigates to those routes, but selection alone must not create a Draft/Session, restore recent work, select a Tab, reclassify work, or change the Agent.
-- Custom (ADR-17) is implemented: it is the fifth entry in the shared definition registry and renders in the shared `ModeWorkspace` (`render-all + display:none` plus resource elevation, so switching neither remounts nor flashes). It must not introduce a parallel shell, Session route, navigation rail, or ad hoc styling system. Hidden slots must not issue network/SDK/persist effects — gate their resource sources on `whenActive` (`pages/mode-slot-active.ts`).
-- Home (`/`) is not a Mode surface: `pages/layout.tsx` gates the rail behind `pathname !== "/"`, so no switcher mounts there. Home lists sessions of every Mode with its own filter chips, and the Mode a session opens in comes from the canonical Session route reading `Session.mode`, never from Home.
-- Projects and Workspaces remain visible across Mode changes. Session lists, search results, load-more state, empty states, and unread summaries reflect the selected Mode.
-- When the routed Session or current Draft belongs to a different Mode, show a compact contextual indicator. Do not silently reclassify it or interrupt the Composer.
-- An empty Mode provides an explicit, Mode-labelled new-session action; selection alone never creates work.
-- ModeSwitcher and ModeRoute share one definition registry for hrefs, icons, slots, and i18n keys so labels, ordering, and navigation cannot drift.
-- Mode entry navigation must preserve stable rail/sidebar dimensions, predictable keyboard focus, and scroll position where the routed surface remains mounted.
+- Panel布局、标签和关闭动作属于source工作区；正文、附件、模型选择、草稿、队列、请求及停止属于target会话。主会话、独立普通root和真实child复用同一内容实现；child侧栏先只读，执行控制沿原Subagent/Delegation owner。挂载和恢复保留稳定会话ID，只有显式导航才将target打开为主会话。
+- 同一target的草稿沿原server scope、Location和Session持久键共享，光标和焦点沿各视图。B同时在主Shell和A侧栏显示时，关闭B的Shell仍保留侧栏B的草稿与请求；最后视图释放内存后，已保存草稿和附件可以恢复。关闭Panel只释放该视图，停止操作命中target原API。
+- 同一窗口的请求响应面按确切server/session选择：target已是当前主会话时由主Composer处理；否则由当前选中且可见的target侧聊处理。其他视图显示等待和拥有者入口；没有可见响应面时，请求和blocked状态继续保留。只读child显示等待并导航到原响应owner；Question/WebSearch互斥，Permission可以同时存在，最小化不解除blocked。
+- 回答下方沿原Slot宿主增加轻量操作，复制反馈保持。Fork包含所选已完成回答整轮至真实末消息的历史；旧问题Fork仍排除该问题并恢复草稿。正文捕获默认只出现在非Chat最新已完成回答：精确正文进入同目标来源的Chat草稿，用户发送后走原七类提案与确认保存。回答操作的目标必须在点击时捕获，不能随后改用主路由。
+- 侧聊首次明确发送创建持久普通Chat root；参考范围在该次发送冻结。打开、关闭和恢复已存在会话不发模型请求。旧BTW问答保留阅读，显式继续时才创建新会话；失败旧记录展示其实际状态。侧聊复用`bubble-5`，其他动作从现primary/additional图标目录选择。
 
-## Router Transitions And Resources
+2026-11-11补充：自动任务dock从实际Task Tool的`parentTaskID`关联原消息和调用，多个执行来源分别显示；点击在当前主／侧会话正文中展开准确工具结果，沿现协作／Meta查看委派、child和完整结果。没有绑定来源的计划项保持普通只读任务显示。
 
-Route navigation runs inside a Solid transition, and `@solidjs/router` only writes history once that transition resolves. A transition resolves when `Transition.promises` empties, so one stray entry silently freezes navigation: no error, no pending request, the old screen simply stays.
+Custom首页显示已保存的智能体定义、角色、来源和版本，以及Config待导入项。用户可查看定义、选择asset根或执行成员，再沿原组合预览／保存／启动采用；零库存保留内置根启动路径。真实会话里的资产提案承载创建／Config导入／编辑与审查保存，会话详情只读取已采用Snapshot中的成员。用户定义的普通列表、直接选择和Meta直接委派限Custom；Work显式已发布工作流沿其冻结引用执行。
 
-- Inside a route subtree, do not write `createResource(() => cond ? source : undefined, …)`. Solid's `load()` returns early for a null source _before_ it removes the in-flight promise from `Transition.promises`, and `loadEnd`'s removal is gated on a flag the same call has already cleared. Keep the source truthy and let the fetcher decline: `createResource(() => ({ id: maybeID() }), async ({ id }) => (id ? fetch(id) : undefined))` issues no request either.
-- The one sanctioned exception is slot gating via `whenActive`, which needs the null source to keep hidden Mode slots from fetching and to preserve their loaded values through `latest`. Those sites are known and tracked in `docs/technical-debt.md`; do not add new ones.
-- Route-level navigation belongs in an e2e assertion on the URL and the rendered surface. A tab-store or handler assertion passes while the navigation is wedged — that is exactly how this defect survived.
+### 2026-11-14 首页、任务委派与目标交互
 
-## Tokens And Styling
+- 首页保留项目导航、会话列表与模式选择，右侧汇总待处理、正在进行和最近完成的工作；窄屏顺序排列。新建区域显示实际工作区及已读取的分支。首页选择的模式同时用于列表、项目行、标题栏与快捷键新建；Custom 进入原组合流程。
+- 2026-11-16 用户修订：首页未选模式时显示“选择会话模式”，仍可浏览已有会话；模式选项只列真实模式。选定模式后才显示首页及项目行的新建入口，创建沿该模式；未选时使用全局新建入口仅提示选择模式，不默认创建编程会话。
+- 选择 Meta 使用普通智能体选择器和发送动作。输入框旁不再增加同名面板按钮或独立启用按钮。用户从右侧标签入口打开“任务委派”。
+- “任务委派”按实际任务与执行状态展示流程、参与者、结果和会话。动画只表达真实运行状态，并遵循减少动态效果偏好。ID、摘要指纹及管理表单收进详情或显式高级管理。
+- 2026-11-19 用户修订：沿用“任务委派”和“子智能体（Subagents）”两个标签。“任务委派”展示正式 Task／Delegation；真实子会话在“子智能体”内查看、返回列表与切换。Meta 的 Subagent、Task、Workflow 来源分别打开“子智能体”、“任务委派”和“Workflow run”，保留确切服务器、父会话与原始消息／工具、委派／参与者或运行／步骤／输入身份；清除来源回到所属标签的列表。独立 root 侧聊保留各自标签、草稿、请求响应和关闭行为。子会话顶部仅保留标题、状态、导航及必要操作；补充输入发送到该确切子会话。
+- 旧 `meta` 面板键迁到 `collaborations` 并去重；显式高级管理使用 `advanced` 面板键。原 `meta` 草稿和显示偏好继续使用原存储，不因界面入口迁移丢失。
+- Goal 在所属会话的输入框上方显示目标、状态、验收进度和编辑、暂停／继续、取消操作。编辑只修改目标正文；条件与预算沿原 Goal 数据。需要人工验收时提供精确确认。取消目标停止该目标的自动续行，正在执行的工作仍沿原停止操作处理。
+- Meta 与受控子会话通过现有持久通信和收件箱传递补充输入、提问、答复与结果；同一已核实 Meta 树内的参与者可以互相发送。界面区分已发送、已投递与实际执行结果，不把投递回执显示为任务完成。
 
-- Use CSS variables for colors, spacing, radius, shadows, and surfaces. Do not hardcode visual constants unless documenting a third-party constraint.
-- New UI should prefer v2 tokens (`--v2-*`). v2 naming is `--v2-<group>-<semantic>-<variant>` (e.g. `--v2-background-bg-base`, `--v2-text-text-muted`, `--v2-state-bg-success`). Lightness runs `100` = brightest to `1200` = darkest, the **opposite** direction from v1. Definitions live in `packages/ui/src/v2/styles/{colors,theme,tailwind}.css`.
-- Use v1 tokens only to match existing components or migration boundaries.
-- Avoid one-hue palettes. Product surfaces should preserve semantic contrast between background, text, border, selection, success, warning, error, and info states.
-- Theme changes must work in light and dark variants.
-- Theming engine internals (DesktopTheme JSON, Oklch engine, 37 built-in themes, ThemeProvider) are documented in `.aigcfroge/skills/frontend-theming/SKILL.md`.
+## 原语、视觉与文案
 
-## Theme Switching
+- 优先 [UI 包](packages/ui) 和目标现有组件。样式沿 [theme.css](packages/ui/src/styles/theme.css) 及实际主题 owner 使用语义 Token，不引入默认工作区的 `--v2-*` 平行系统。
+- 图标沿 [catalog](packages/ui/src/icons/catalog.ts) 的现有渲染链扩展，保留正确 viewBox 与小尺寸对齐；不复制旧 Icon 组件或新增第三方图标库。
+- 稳定导航/标题/侧栏/状态区域尺寸；长标题、计数、加载与 hover 不挤占内容或造成跳动。布局常量由现有 owner 管理，不为单一资产写例外。
+- 字体、行高、截断遵循 [UI guide](packages/ui/AGENTS.md) 和 [App guide](packages/app/AGENTS.md)；不靠 transform/负间距掩盖裁切。
+- 新功能添加英文源键，缺其它语言时使用现有运行时 fallback；已有文案迁移保留原英文及已有翻译。计数用现有 plural API，不能分散 locale/语法分支。
+- 保持紧凑、可操作的工具界面，避免营销式 hero、装饰卡片和解释显然操作的填充文案。
 
-- `ThemeProvider` (`packages/ui/src/theme/context.tsx`) is the entry. `applyThemeCss(theme, themeId, mode)` writes resolved CSS to `document.documentElement` and persists via `STORAGE_KEYS`.
-- Light/dark variant is selected via the `data-color-scheme` attribute and the `settings-color-scheme` action in settings.
-- New surfaces must declare both light and dark token bindings; never assume a single theme.
+## DeepSeek Harness 对产品设计的补充
 
-## CSS Conventions
+依据[研究对齐与本轮用户决定](docs/research/upstream-v2-sync/2026-10-29-deepseek-harness-alignment.md)，保留Home与五模式的领域工作面，不新增EiaA第六模式；不把原文64px、固定三栏、顶部调试栏或营销式启动大卡直接定为V2规范。先核真实入口、任务与数据owner，再确定布局。
 
-- Each component lives next to a same-named `.css` file and imports it: `import "./button-v2.css"`.
-- Style via `data-component`, `data-variant`, `data-state` attribute selectors — **not** BEM, **not** CSS Modules.
-- Reference tokens (`var(--v2-...)`); never hardcode hex/rgb/px in component CSS.
+Creator复用Chat资产生产/审阅：生成/校验/预览/确认/CAS保存/显式采用分别显示状态，保存不自动安装、授权、挂载或执行。Custom作为新装配空间重新设计，不参考默认旧Custom页面/PRD/固定meta或必须用户Agent规则；显示电路板内置基础能力与可选Chat元件，零用户库存仍可确认启动基础智能体，损坏已选引用则定位错误，不静默换组合。入口/绑定/预览/采用/运行结果需完整闭环，不仅提供画布。
 
-## Components
+轨迹/运行检查采用已有Session/Job/Task/Workflow/Delegation与可选trace读模型，脱敏并区分live与持久事实，不另造Agent树真源；Assistant仍包含个人记忆/Notes/KB/提醒，不替换为剪贴板快捕页。
 
-- Reuse `packages/ui` primitives before creating app-local controls. v1 primitives live in `packages/ui/src/components/`; v2 primitives in `packages/ui/src/v2/components/` (named `*-v2.tsx`).
-- New components default to v2. Use v1 only to match existing surfaces or migration boundaries.
-- Promote app-local compositions to `packages/ui` only when a component is reusable across multiple product surfaces.
-- New shared components should include expected states: default, hover, focus, disabled, loading, empty, and error when applicable.
-- Every new shared component must ship a `*.stories.tsx` in `packages/storybook`. v2 primitives are all covered.
-- Use established icon components for icon buttons. Icon-only controls need accessible labels (`aria-label`) and, when meaning is not obvious, tooltips.
+2026-11-08 当前实施优先级：Custom 先完成底层统一架构；现有内置根与 Profile 用户链保留已接受状态，后继单 Prompt 装配界面尚未派发。 用户补充需讨论 Custom 首页和会话详情页的新布局。布局讨论以真实定义来源、组合采用与运行状态为依据，安排在底层合同验证之后；确认两页信息结构和交互后进入实现。
 
-## Icon System
+2026-11-08 底层本片[工程接受](/home/keer/.codex/outputs/2026-11-08/custom-foundation-v1/root-engineering-acceptance.json)已验证资产根、三类引用的明确目标、来源重试与本地producer身份；同源私有构建核对通过。用户已确认两页主次：首页以选择已有组合并启动会话为主；会话详情以对话为主，任务和产物放侧栏。首页继续承接装配、预览、保存与显式启动；会话详情基于已采用快照显示真实执行，来源/版本漂移沿原owner读取。下一步围绕组合选择到启动的路径、侧栏中的任务/产物组织及窄窗行为讨论具体布局。
 
-- v2 icons: inline SVG dictionary in `packages/ui/src/v2/components/icon.tsx`, `stroke="currentColor"`, no external icon library.
-- v1 icons: `packages/ui/src/components/app-icons/sprite.svg`, plus `file-icons/` and `provider-icons/`.
-- Do not import icon libraries from npm; extend the dictionaries.
+## 生命周期与验证
 
-## Text And I18n
+[GUI guide](packages/gui-extensions/AGENTS.md) 拥有 extension setup/撤销、async cancellation、live ServerRef、MountedSession/screen、stored state 与 Suspense 的具体合同；本页不复制或改写这些 API。
 
-- User-facing product text must go through the i18n system. The implementation is self-built (`useI18n()` in `packages/ui/src/context/i18n.tsx`); there is no third-party i18n dependency.
-- Dictionaries live in `packages/ui/src/i18n/` (shared) and `packages/app/src/i18n/` (app-local), each covering 18 languages. A parity test (`packages/app/src/i18n/parity.test.ts`) guards completeness.
-- Keys use dot-namespaced paths (`ui.sessionReview.title`, `command.session.new`). Templates use `{{param}}` placeholders.
-- Do not add visible instructional filler that explains obvious UI mechanics. Empty/error states may explain what happened and what action is available.
-- Keep labels short and domain-specific. Prefer commands over vague verbs.
+适用小节检查原生 Electron 窗口与窄屏、明暗、键盘与可见焦点、长英文/中文、空/加载/错误、切换/刷新/恢复。模拟浏览器视口只证明相应浏览器场景，不能冒充原生窗口几何。Session/Timeline 修改前后做同条件 production benchmark，性能证据不替代功能证明。
 
-## Accessibility
+每个产品小节按 [测试入口](docs/testing.md) 冻结源码与产物后做真实 Electron + Flash 链；文档-only 不启动桌面。具体未完成项与阻断见[唯一账本](docs/technical-debt.md)。默认产品 PRD/ADR 是需求参考，生产是否完成仍需当前 V2 决定函数和行为证据。
 
-- Interactive controls must be reachable and operable by keyboard. `IconButtonV2` relies on the caller to pass `aria-label`; do not omit it for icon-only buttons.
-- Preserve visible focus states.
-- Custom controls need correct ARIA roles, labels, and state attributes. Base on `@kobalte/core` for native semantics where possible.
-- Color contrast targets: 4.5:1 for body text and 3:1 for large text or non-text UI indicators. There is no automated contrast audit in the repo; verify with the browser DevTools Contrast Checker or the Storybook a11y addon.
-- Accessibility verification is manual until a `accessibility-check` tooling is added.
+### 2026-10-31 Agent与模型入口
 
-## Verification
+Build/Plan/Meta在正常Agent入口并列，模型入口只显示模型/variant。当前Agent、模型、提交与readback一致；Agent入口选择实际智能体，Meta委派偏好属于委派配置。选Meta统筹，Plan保留只读；见[专项§13](docs/research/upstream-v2-sync/2026-10-29-meta-cpu-closure-plan.md#13-2026-10-31-agent选择裁决与当前修正)。
 
-For UI changes, verify:
+2026-10-31补充澄清：“CPU”仅为说明Meta统筹职责的架构比喻，不是产品术语或实现类别。UI只显示智能体/模型/Meta，代码与注释使用Agent、Meta、Session、Delegation等真实领域名称；不得据比喻新增CPU类型、字段、执行规则或模型入口。文中历史CPU用语仅解释旧讨论，不构成当前命名指令。
 
-- Desktop and narrow viewport layout.
-- Light and dark themes when the change touches color or surface styling.
-- Keyboard focus path for new or changed interactive controls.
-- Empty, loading, disabled, and error states affected by the change.
-- Text overflow in English and Chinese strings.
-
-Document-only design changes may be verified with `git diff`, link checks, and consistency checks against `CLAUDE.md`, `AGENTS.md`, `ARCHITECTURE.md`, and relevant package guides.
+- 2026-11-17 用户纠正重复导航：删除桌面旧竖排标签底座与横向／纵向卡片入口。桌面已打开会话沿原顶部标签栏，详情页只保留项目／当前模式会话底座；首页保持原项目选择及会话列表。项目下会话按实际用户／助手新消息时间倒序，查看不改变顺序，重命名／模型选择不参与排序；空会话使用创建时间，同时间沿稳定 ID 顺序。

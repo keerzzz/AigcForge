@@ -2,46 +2,55 @@ import { beforeEach, describe, expect, test } from "bun:test"
 
 const src = await Bun.file(new URL("../public/oc-theme-preload.js", import.meta.url)).text()
 
-// eslint-disable-next-line no-implied-eval -- executes the checked-in preload script inside the test DOM global
 const run = () => Function(src)()
+
+const setSystemDark = (matches: boolean) =>
+  Object.defineProperty(window, "matchMedia", {
+    value: () => ({ matches }) as MediaQueryList,
+    configurable: true,
+  })
 
 beforeEach(() => {
   document.head.innerHTML = ""
   document.documentElement.removeAttribute("data-theme")
   document.documentElement.removeAttribute("data-color-scheme")
+  document.documentElement.style.removeProperty("background-color")
   localStorage.clear()
-  Object.defineProperty(window, "matchMedia", {
-    value: () =>
-      ({
-        matches: false,
-      }) as MediaQueryList,
-    configurable: true,
-  })
+  setSystemDark(false)
 })
 
 describe("theme preload", () => {
-  test("migrates legacy oc-1 to oc-2 before mount", () => {
-    localStorage.setItem("aigcfroge-theme-id", "oc-1")
-    localStorage.setItem("aigcfroge-theme-css-light", "--background-base:#fff;")
-    localStorage.setItem("aigcfroge-theme-css-dark", "--background-base:#000;")
+  test.each([
+    { stored: undefined, systemDark: false, scheme: "light", background: "#fafafa" },
+    { stored: "dark", systemDark: false, scheme: "dark", background: "#080808" },
+    { stored: "light", systemDark: true, scheme: "light", background: "#fafafa" },
+    { stored: "system", systemDark: true, scheme: "dark", background: "#080808" },
+  ])(
+    "paints the default theme in $scheme for stored scheme $stored (system dark: $systemDark)",
+    ({ stored, systemDark, scheme, background }) => {
+      setSystemDark(systemDark)
 
-    run()
+      if (stored) localStorage.setItem("aigcfroge-color-scheme", stored)
+      run()
 
-    expect(document.documentElement.dataset.theme).toBe("oc-2")
-    expect(document.documentElement.dataset.colorScheme).toBe("light")
-    expect(localStorage.getItem("aigcfroge-theme-id")).toBe("oc-2")
-    expect(localStorage.getItem("aigcfroge-theme-css-light")).toBeNull()
-    expect(localStorage.getItem("aigcfroge-theme-css-dark")).toBeNull()
-    expect(document.getElementById("oc-theme-preload")).toBeNull()
-  })
+      expect(document.documentElement.dataset.theme).toBe("oc-2")
+      expect(document.documentElement.dataset.colorScheme).toBe(scheme)
+      expect(document.documentElement.style.backgroundColor).toBe(background)
+    },
+  )
 
-  test("keeps cached css for non-default themes", () => {
+  test.each([
+    { scheme: undefined, key: "aigcfroge-theme-css-light", css: "--background-base:#fff;", expected: "light" },
+    { scheme: "dark", key: "aigcfroge-theme-css-dark", css: "--background-base:#010203;", expected: "dark" },
+  ])("restores the cached $expected css of a custom theme", ({ scheme, key, css, expected }) => {
     localStorage.setItem("aigcfroge-theme-id", "nightowl")
-    localStorage.setItem("aigcfroge-theme-css-light", "--background-base:#fff;")
 
+    if (scheme) localStorage.setItem("aigcfroge-color-scheme", scheme)
+    localStorage.setItem(key, css)
     run()
 
     expect(document.documentElement.dataset.theme).toBe("nightowl")
-    expect(document.getElementById("oc-theme-preload")?.textContent).toContain("--background-base:#fff;")
+    expect(document.documentElement.dataset.colorScheme).toBe(expected)
+    expect(document.getElementById("oc-theme-preload")?.textContent).toContain(css)
   })
 })

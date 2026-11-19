@@ -9,7 +9,11 @@
  */
 
 import { describe, expect, test } from "bun:test"
-import { Effect } from "effect"
+import { Effect, Layer } from "effect"
+import { Config } from "@aigcfroge/schema/config"
+import { CliAdapter } from "@aigcfroge/core/tool/cli-adapter"
+import { CodexAppServer } from "@aigcfroge/core/tool/codex-app-server"
+import { testEffect } from "./lib/effect"
 import { fromConfig } from "@aigcfroge/core/tool/cli-config-adapter"
 
 describe("ConfigCliAdapter factory", () => {
@@ -82,3 +86,45 @@ describe("ConfigCliAdapter factory", () => {
     expect(Effect.runSync(adapter.detect())).toBe(false)
   })
 })
+
+const configTest = testEffect(Layer.empty)
+configTest.effect("MC06 resolves two Location configurations without changing the static registry", () =>
+  Effect.gen(function* () {
+    const previous = CliAdapter.getCliAdapter("codex")
+    const descriptor = CodexAppServer.adapter
+    CliAdapter.registerCliAdapter("codex", descriptor)
+    yield* Effect.addFinalizer(() => Effect.sync(() => CliAdapter.registerCliAdapter("codex", previous ?? descriptor)))
+    const first = new Config.Document({
+      type: "document",
+      info: { cli_agents: { codex: { command: "/one/codex", transport: "app-server", timeout: 1234 } } },
+    })
+    const second = new Config.Document({
+      type: "document",
+      info: { cli_agents: { codex: { command: "/two/codex", transport: "app-server", timeout: 5678 } } },
+    })
+    const one = yield* CliAdapter.resolve([first], "codex")
+    const two = yield* CliAdapter.resolve([first, second], "codex")
+    expect(one.command).toBe("/one/codex")
+    expect(one.timeout).toBe(1234)
+    expect(two.command).toBe("/two/codex")
+    expect(two.timeout).toBe(5678)
+    expect(one.execute).not.toBe(two.execute)
+    expect(CliAdapter.getCliAdapter("codex")).toBe(descriptor)
+    expect(CliAdapter.listCliAdapters().find((value) => value.name === descriptor.name)).toBe(descriptor)
+    for (const info of [
+      { transport: "sdk" as const, command: "codex" },
+      { transport: "app-server" as const, command: "codex", args: ["--danger"] },
+    ]) {
+      expect(
+        yield* CliAdapter.resolve(
+          [new Config.Document({ type: "document", info: { cli_agents: { codex: info } } })],
+          "codex",
+        ).pipe(Effect.flip),
+      ).toBeInstanceOf(CliAdapter.UnavailableError)
+    }
+    CliAdapter.registerCliAdapter("codex", { ...descriptor, forCommand: undefined })
+    expect(yield* CliAdapter.resolve([first], "codex").pipe(Effect.flip)).toBeInstanceOf(CliAdapter.UnavailableError)
+    CliAdapter.registerCliAdapter("codex", { ...descriptor, forCommand: () => ({ ...descriptor, execute: undefined }) })
+    expect(yield* CliAdapter.resolve([first], "codex").pipe(Effect.flip)).toBeInstanceOf(CliAdapter.UnavailableError)
+  }),
+)

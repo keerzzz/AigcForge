@@ -1,29 +1,17 @@
-export type FileSelection = {
-  startLine: number
-  startChar: number
-  endLine: number
-  endChar: number
-}
+import { createComponent, createContext, useContext, type ParentProps } from "solid-js"
+import { createPathHelpers } from "../../../../../app/src/workspaces/files/path"
 
-export type SelectedLineRange = {
-  start: number
-  end: number
-}
+export type { FileSelection, SelectedLineRange } from "../../../../../app/src/workspaces/files/types"
+export { selectionFromLines } from "../../../../../app/src/workspaces/files/types"
 
-export function selectionFromLines(selection?: SelectedLineRange): FileSelection | undefined {
-  if (!selection) return undefined
+const pool = ["src/session/timeline.tsx", "src/session/composer.tsx", "src/composer/composer.tsx", "README.md"]
+
+function createFile() {
+  const paths = createPathHelpers(() => "/tmp/story")
   return {
-    startLine: selection.start,
-    startChar: 0,
-    endLine: selection.end,
-    endChar: 0,
-  }
-}
-
-const pool = ["src/session/timeline.tsx", "src/session/composer.tsx", "src/components/prompt-input.tsx", "README.md"]
-
-export function useFile() {
-  return {
+    ready: () => true,
+    normalize: paths.normalize,
+    absolute: paths.absolute,
     tab(path: string) {
       return `file:${path}`
     },
@@ -38,4 +26,19 @@ export function useFile() {
       return pool.filter((path) => path.toLowerCase().includes(text))
     },
   }
+}
+
+const FileContext = createContext(createFile())
+
+export function FileProvider(props: ParentProps) {
+  return createComponent(FileContext.Provider, {
+    value: createFile(),
+    get children() {
+      return props.children
+    },
+  })
+}
+
+export function useFile() {
+  return useContext(FileContext)
 }

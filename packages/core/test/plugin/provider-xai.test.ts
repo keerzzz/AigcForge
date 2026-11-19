@@ -1,125 +1,92 @@
-import { AISDK } from "@aigcfroge/core/aisdk"
-import type { LanguageModelV3 } from "@ai-sdk/provider"
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
-import { ModelV2 } from "@aigcfroge/core/model"
-import { PluginV2 } from "@aigcfroge/core/plugin"
+import { Credential } from "@aigcfroge/core/credential"
+import { Integration } from "@aigcfroge/core/integration"
+import { Plugin } from "@aigcfroge/core/plugin"
 import { PluginHost } from "@aigcfroge/core/plugin/host"
 import { XAIPlugin } from "@aigcfroge/core/plugin/provider/xai"
-import { ProviderV2 } from "@aigcfroge/core/provider"
+import { Model } from "@aigcfroge/core/model"
+import { Provider } from "@aigcfroge/core/provider"
 import { testEffect } from "../lib/effect"
 import { PluginTestLayer } from "./fixture"
 
 const it = testEffect(PluginTestLayer)
 
 const addPlugin = Effect.fn(function* () {
-  const plugin = yield* PluginV2.Service
-  yield* AISDK.Service
+  const plugin = yield* Plugin.Service
   const host = yield* PluginHost.make(plugin)
   yield* XAIPlugin.effect(host)
 })
 
-function fakeSelectorSdk(calls: string[]) {
-  const make = (method: string) => (id: string) => {
-    calls.push(`${method}:${id}`)
-    return { modelId: id, provider: method, specificationVersion: "v3" } as unknown as LanguageModelV3
-  }
-  return {
-    responses: make("responses"),
-    messages: make("messages"),
-    chat: make("chat"),
-    languageModel: make("languageModel"),
-  }
-}
-
 describe("XAIPlugin", () => {
-  it.effect("creates an xAI SDK only for @ai-sdk/xai", () =>
+  it.effect("registers device OAuth and API key methods", () =>
     Effect.gen(function* () {
-      yield* PluginV2.Service
-      const aisdk = yield* AISDK.Service
       yield* addPlugin()
-
-      const ignored = yield* aisdk.runSDK({
-        model: ModelV2.Info.make({
-          ...ModelV2.Info.empty(ProviderV2.ID.make("xai"), ModelV2.ID.make("grok-4")),
-          api: { id: ModelV2.ID.make("grok-4"), type: "aisdk", package: "@ai-sdk/xai" },
-        }),
-        package: "@ai-sdk/openai-compatible",
-        options: {},
-      })
-
-      const result = yield* aisdk.runSDK({
-        model: ModelV2.Info.make({
-          ...ModelV2.Info.empty(ProviderV2.ID.make("xai"), ModelV2.ID.make("grok-4")),
-          api: { id: ModelV2.ID.make("grok-4"), type: "aisdk", package: "@ai-sdk/xai" },
-        }),
-        package: "@ai-sdk/xai",
-        options: {},
-      })
-
-      expect(ignored.sdk).toBeUndefined()
-      expect(typeof result.sdk?.responses).toBe("function")
+      const integrations = yield* Integration.Service
+      const integration = yield* integrations.get(Integration.ID.make("xai"))
+      expect(integration?.name).toBe("xAI")
+      expect(integration?.methods).toEqual([
+        {
+          id: Integration.MethodID.make("device"),
+          type: "oauth",
+          label: "SuperGrok Subscription",
+        },
+        { type: "key", label: "Manually enter API Key" },
+      ])
     }),
   )
 
-  it.effect("creates xAI SDKs for custom provider IDs", () =>
+  it.effect("migrates browser OAuth credentials to the device method", () =>
     Effect.gen(function* () {
-      yield* PluginV2.Service
-      const aisdk = yield* AISDK.Service
-      yield* addPlugin()
-
-      const result = yield* aisdk.runSDK({
-        model: ModelV2.Info.make({
-          ...ModelV2.Info.empty(ProviderV2.ID.make("custom-xai"), ModelV2.ID.make("grok-4")),
-          api: { id: ModelV2.ID.make("grok-4"), type: "aisdk", package: "@ai-sdk/xai" },
+      const credentials = yield* Credential.Service
+      const original = yield* credentials.create({
+        integrationID: Integration.ID.make("xai"),
+        label: "personal",
+        value: Credential.OAuth.make({
+          type: "oauth",
+          methodID: Integration.MethodID.make("browser"),
+          access: "access",
+          refresh: "refresh",
+          expires: 123,
+          metadata: { account: "account" },
         }),
-        package: "@ai-sdk/xai",
-        options: {},
       })
 
-      expect(result.sdk.responses("grok-4").provider).toBe("xai.responses")
+      yield* addPlugin()
+
+      expect(yield* credentials.get(original.id)).toEqual({
+        ...original,
+        value: Credential.OAuth.make({
+          type: "oauth",
+          methodID: Integration.MethodID.make("device"),
+          access: "access",
+          refresh: "refresh",
+          expires: 123,
+          metadata: { account: "account" },
+        }),
+      })
     }),
   )
 
-  it.effect("uses responses with the model api.id for xAI language models", () =>
+  it.effect("enables xAI Responses WebSockets", () =>
     Effect.gen(function* () {
-      yield* PluginV2.Service
-      const aisdk = yield* AISDK.Service
-      const calls: string[] = []
-
-      yield* addPlugin()
-      const result = yield* aisdk.runLanguage({
-        model: ModelV2.Info.make({
-          ...ModelV2.Info.empty(ProviderV2.ID.make("xai"), ModelV2.ID.make("alias")),
-          api: { id: ModelV2.ID.make("grok-4"), type: "aisdk", package: "@ai-sdk/xai" },
-        }),
-        sdk: fakeSelectorSdk(calls),
-        options: {},
+      const providers = yield* Provider.Service
+      const models = yield* Model.Service
+      const providerID = Provider.ID.make("xai")
+      yield* providers.transform((editor) => {
+        editor.update(providerID, (provider) => {
+          provider.package = "@aigcfroge/ai/providers/xai"
+          provider.activation = "enabled"
+        })
+        editor.models.update(providerID, Model.ID.make("grok-4.6"), () => {})
       })
 
-      expect(calls).toEqual(["responses:grok-4"])
-      expect(result.language).toBeDefined()
-    }),
-  )
-
-  it.effect("ignores non-xAI providers", () =>
-    Effect.gen(function* () {
-      yield* PluginV2.Service
-      const aisdk = yield* AISDK.Service
-      const calls: string[] = []
-
       yield* addPlugin()
-      const result = yield* aisdk.runLanguage({
-        model: ModelV2.Info.make({
-          ...ModelV2.Info.empty(ProviderV2.ID.openai, ModelV2.ID.make("grok-4")),
-          api: { id: ModelV2.ID.make("grok-4"), type: "aisdk", package: "@ai-sdk/xai" },
-        }),
-        sdk: fakeSelectorSdk(calls),
-        options: {},
-      })
 
-      expect(calls).toEqual([])
-      expect(result.language).toBeUndefined()
+      const provider = yield* providers.get(providerID)
+      const model = yield* models.get(providerID, Model.ID.make("grok-4.6"))
+      expect(provider?.settings?.transport).toBe("websocket")
+      expect(model?.settings?.transport).toBeUndefined()
     }),
   )
 })

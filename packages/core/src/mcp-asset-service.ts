@@ -2,13 +2,14 @@ export * as MCPAssetService from "./mcp-asset-service"
 
 import path from "path"
 import { Context, Effect, Layer, Option, Schema } from "effect"
-import { MCPAsset as SchemaMCPAsset } from "@aigcfroge/schema/mcp-asset"
+import type { Candidate } from "@aigcfroge/schema/mcp-asset"
 import { MCPAsset } from "./mcp-asset"
 import { FileMutation } from "./file-mutation"
 import { MCPAssetPath } from "./mcp-asset/path"
-import { FSUtil } from "./fs-util"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { LocationMutation } from "./location-mutation"
-import { Hash } from "./util/hash"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { Hash } from "@aigcfroge/util/hash"
 import { KeyedMutex } from "./effect/keyed-mutex"
 import { yamlEscape } from "./util/yaml-escape"
 
@@ -16,7 +17,7 @@ function failureMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)
 }
 
-export class InvalidCandidateError extends Schema.TaggedErrorClass<InvalidCandidateError>()(
+export class InvalidCandidateError extends Schema.TaggedError<InvalidCandidateError>()(
   "MCPAssetService.InvalidCandidate",
   { reason: Schema.String },
 ) {
@@ -25,7 +26,7 @@ export class InvalidCandidateError extends Schema.TaggedErrorClass<InvalidCandid
   }
 }
 
-export class StaleRevisionError extends Schema.TaggedErrorClass<StaleRevisionError>()("MCPAssetService.StaleRevision", {
+export class StaleRevisionError extends Schema.TaggedError<StaleRevisionError>()("MCPAssetService.StaleRevision", {
   relativePath: Schema.String,
 }) {
   override get message() {
@@ -33,7 +34,7 @@ export class StaleRevisionError extends Schema.TaggedErrorClass<StaleRevisionErr
   }
 }
 
-export class OverwriteRequiredError extends Schema.TaggedErrorClass<OverwriteRequiredError>()(
+export class OverwriteRequiredError extends Schema.TaggedError<OverwriteRequiredError>()(
   "MCPAssetService.OverwriteRequired",
   { relativePath: Schema.String },
 ) {
@@ -42,7 +43,7 @@ export class OverwriteRequiredError extends Schema.TaggedErrorClass<OverwriteReq
   }
 }
 
-export class WriteFailedError extends Schema.TaggedErrorClass<WriteFailedError>()("MCPAssetService.WriteFailed", {
+export class WriteFailedError extends Schema.TaggedError<WriteFailedError>()("MCPAssetService.WriteFailed", {
   relativePath: Schema.String,
   reason: Schema.String,
 }) {
@@ -51,7 +52,7 @@ export class WriteFailedError extends Schema.TaggedErrorClass<WriteFailedError>(
   }
 }
 
-export class ReadbackMismatchError extends Schema.TaggedErrorClass<ReadbackMismatchError>()(
+export class ReadbackMismatchError extends Schema.TaggedError<ReadbackMismatchError>()(
   "MCPAssetService.ReadbackMismatch",
   { relativePath: Schema.String },
 ) {
@@ -60,16 +61,16 @@ export class ReadbackMismatchError extends Schema.TaggedErrorClass<ReadbackMisma
   }
 }
 
-export class RollbackFailedError extends Schema.TaggedErrorClass<RollbackFailedError>()(
-  "MCPAssetService.RollbackFailed",
-  { relativePath: Schema.String, reason: Schema.String },
-) {
+export class RollbackFailedError extends Schema.TaggedError<RollbackFailedError>()("MCPAssetService.RollbackFailed", {
+  relativePath: Schema.String,
+  reason: Schema.String,
+}) {
   override get message() {
     return `Rollback failed for ${this.relativePath}: ${this.reason}`
   }
 }
 
-export class ConcurrentModificationError extends Schema.TaggedErrorClass<ConcurrentModificationError>()(
+export class ConcurrentModificationError extends Schema.TaggedError<ConcurrentModificationError>()(
   "MCPAssetService.ConcurrentModification",
   { relativePath: Schema.String },
 ) {
@@ -78,7 +79,7 @@ export class ConcurrentModificationError extends Schema.TaggedErrorClass<Concurr
   }
 }
 
-export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("MCPAssetService.NotFound", {
+export class NotFoundError extends Schema.TaggedError<NotFoundError>()("MCPAssetService.NotFound", {
   relativePath: Schema.String,
 }) {
   override get message() {
@@ -95,7 +96,7 @@ export interface ProposeResult {
 }
 
 export interface ApplyInput {
-  candidate: SchemaMCPAsset.Candidate
+  candidate: Candidate
   baseRevision: string | null
   overwrite: boolean
 }
@@ -124,9 +125,7 @@ export type DeleteError =
   | FSUtil.Error
 
 export interface Interface {
-  readonly propose: (
-    input: SchemaMCPAsset.Candidate,
-  ) => Effect.Effect<ProposeResult, InvalidCandidateError | FSUtil.Error>
+  readonly propose: (input: Candidate) => Effect.Effect<ProposeResult, InvalidCandidateError | FSUtil.Error>
   readonly apply: (input: ApplyInput) => Effect.Effect<MCPAsset.Info, ApplyError>
   readonly delete: (input: DeleteInput) => Effect.Effect<void, DeleteError>
 }
@@ -143,7 +142,7 @@ export const locationLayer = Layer.effect(
 
     const locks = KeyedMutex.makeUnsafe<string>()
 
-    const propose = Effect.fn("MCPAssetService.propose")(function* (input: SchemaMCPAsset.Candidate) {
+    const propose = Effect.fn("MCPAssetService.propose")(function* (input: Candidate) {
       let filename: string
       try {
         const relPath = MCPAssetPath.nameToRelativePath(input.name)
@@ -156,7 +155,7 @@ export const locationLayer = Layer.effect(
       const target = yield* MCPAssetPath.resolveSafeTarget(filename, locationMutation).pipe(
         Effect.mapError((error) => new InvalidCandidateError({ reason: failureMessage(error) })),
       )
-      const fileExists = yield* fs.exists(target.canonical)
+      const fileExists = yield* fs.exists(target.absolute)
 
       const existingName = yield* registry.findByName(input.name)
       const existingPath = yield* registry.getByPath(filename).pipe(Effect.option)
@@ -165,7 +164,7 @@ export const locationLayer = Layer.effect(
 
       if (fileExists) {
         const bytes = yield* fs
-          .readFile(target.canonical)
+          .readFile(target.absolute)
           .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
         if (!bytes) {
           return {
@@ -205,6 +204,9 @@ export const locationLayer = Layer.effect(
         return yield* new InvalidCandidateError({ reason: `Invalid name or path: ${failureMessage(e)}` })
       }
 
+      if (input.candidate.relativePath !== "" && input.candidate.relativePath !== relativePath)
+        return yield* new InvalidCandidateError({ reason: "Candidate target does not match its name" })
+
       const target = yield* MCPAssetPath.resolveSafeTarget(relativePath, locationMutation).pipe(
         Effect.mapError((error) => new InvalidCandidateError({ reason: failureMessage(error) })),
       )
@@ -212,8 +214,8 @@ export const locationLayer = Layer.effect(
       return yield* locks.withLock(relativePath)(
         Effect.uninterruptible(
           Effect.gen(function* () {
-            const fileExists = yield* fs.exists(target.canonical)
-            const currentBytes: Uint8Array | null = fileExists ? yield* fs.readFile(target.canonical) : null
+            const fileExists = yield* fs.exists(target.absolute)
+            const currentBytes: Uint8Array | null = fileExists ? yield* fs.readFile(target.absolute) : null
             const currentRevision = currentBytes ? Hash.sha256(Buffer.from(currentBytes)) : null
 
             const isNew = input.baseRevision === null
@@ -232,7 +234,8 @@ export const locationLayer = Layer.effect(
             }
 
             const argsYaml = `[${input.candidate.args.map(yamlEscape).join(", ")}]`
-            const frontmatter = `---\nkind: mcp\nname: ${yamlEscape(input.candidate.name)}\ndescription: ${yamlEscape(input.candidate.description)}\ncommand: ${yamlEscape(input.candidate.command)}\nargs: ${argsYaml}\n---\n`
+            // Use the same JSON flow mapping as legacy MCP import, preserving every environment key and value.
+            const frontmatter = `---\nkind: mcp\nname: ${yamlEscape(input.candidate.name)}\ndescription: ${yamlEscape(input.candidate.description)}\ncommand: ${yamlEscape(input.candidate.command)}\nargs: ${argsYaml}\nenv: ${JSON.stringify(input.candidate.env)}\n---\n`
             const content = frontmatter + input.candidate.configJson
 
             yield* fileMutation
@@ -240,19 +243,17 @@ export const locationLayer = Layer.effect(
               .pipe(Effect.mapError((error) => new WriteFailedError({ relativePath, reason: failureMessage(error) })))
 
             const writtenBytes = yield* fs
-              .readFile(target.canonical)
+              .readFile(target.absolute)
               .pipe(
-                Effect.catch((err) =>
-                  Effect.fail(
-                    new WriteFailedError({ relativePath, reason: `readback failed: ${failureMessage(err)}` }),
-                  ),
+                Effect.mapError(
+                  (err) => new WriteFailedError({ relativePath, reason: `readback failed: ${failureMessage(err)}` }),
                 ),
               )
             const writtenRevision = Hash.sha256(Buffer.from(writtenBytes))
 
             const rollback = Effect.fnUntraced(function* () {
               const nowBytes = yield* fs
-                .readFile(target.canonical)
+                .readFile(target.absolute)
                 .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
               if (!nowBytes || Hash.sha256(Buffer.from(nowBytes)) !== writtenRevision) {
                 return yield* new ConcurrentModificationError({ relativePath })
@@ -267,7 +268,7 @@ export const locationLayer = Layer.effect(
                     ),
                   )
               } else {
-                yield* fs.remove(target.canonical).pipe(
+                yield* fs.remove(target.absolute).pipe(
                   Effect.catchReason("PlatformError", "NotFound", () => Effect.void),
                   Effect.mapError((error) => new RollbackFailedError({ relativePath, reason: failureMessage(error) })),
                 )
@@ -288,7 +289,20 @@ export const locationLayer = Layer.effect(
             }
 
             const info = readback.value
-            if (info.revision !== writtenRevision) {
+            if (
+              info.revision !== writtenRevision ||
+              info.relativePath !== relativePath ||
+              info.name !== input.candidate.name ||
+              info.description !== input.candidate.description ||
+              info.command !== input.candidate.command ||
+              info.configJson !== input.candidate.configJson ||
+              info.args.length !== input.candidate.args.length ||
+              info.args.some((value, index) => value !== input.candidate.args[index]) ||
+              Object.keys(info.env).length !== Object.keys(input.candidate.env).length ||
+              Object.entries(input.candidate.env).some(
+                ([key, value]) => !Object.hasOwn(info.env, key) || info.env[key] !== value,
+              )
+            ) {
               yield* rollback()
               return yield* new ReadbackMismatchError({ relativePath })
             }
@@ -316,13 +330,13 @@ export const locationLayer = Layer.effect(
       return yield* locks.withLock(relativePath)(
         Effect.uninterruptible(
           Effect.gen(function* () {
-            const fileExists = yield* fs.exists(target.canonical)
+            const fileExists = yield* fs.exists(target.absolute)
             if (!fileExists) {
               yield* registry.reload()
               return
             }
 
-            const currentBytes = yield* fs.readFile(target.canonical).pipe(
+            const currentBytes = yield* fs.readFile(target.absolute).pipe(
               Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)),
               Effect.mapError(
                 (error) =>
@@ -343,23 +357,22 @@ export const locationLayer = Layer.effect(
             }
 
             yield* fileMutation.remove({ target }).pipe(
-              Effect.catch((err) =>
-                Effect.fail(
+              Effect.mapError(
+                (err) =>
                   new WriteFailedError({
                     relativePath,
                     reason: failureMessage(err),
                   }),
-                ),
               ),
             )
 
             const backupHash = currentRevision
             const rollbackDelete = () =>
               Effect.gen(function* () {
-                const nowExists = yield* fs.exists(target.canonical)
+                const nowExists = yield* fs.exists(target.absolute)
                 if (nowExists) {
                   const nowBytes = yield* fs
-                    .readFile(target.canonical)
+                    .readFile(target.absolute)
                     .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)))
                   if (nowBytes && Hash.sha256(Buffer.from(nowBytes)) !== backupHash) {
                     return yield* new ConcurrentModificationError({ relativePath })
@@ -403,3 +416,9 @@ export const locationLayer = Layer.effect(
 )
 
 export const layer = locationLayer
+
+export const node = makeLocationNode({
+  service: Service,
+  layer: locationLayer,
+  deps: [FSUtil.node, LocationMutation.node, MCPAsset.node, FileMutation.node],
+})

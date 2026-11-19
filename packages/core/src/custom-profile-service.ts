@@ -1,21 +1,22 @@
 export * as CustomProfileService from "./custom-profile-service"
 
-import yaml from "js-yaml"
 import { Context, Effect, Layer, Option, Schema } from "effect"
+import { AssetYaml } from "./util/asset-yaml"
 import { CustomProfile as SchemaCustomProfile } from "@aigcfroge/schema/custom-profile"
 import { CustomProfile } from "./custom-profile"
 import { FileMutation } from "./file-mutation"
 import { CustomProfilePath } from "./custom-profile/path"
-import { FSUtil } from "./fs-util"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { LocationMutation } from "./location-mutation"
-import { Hash } from "./util/hash"
+import { Hash } from "@aigcfroge/util/hash"
 import { KeyedMutex } from "./effect/keyed-mutex"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
 
 function failureMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)
 }
 
-export class InvalidCandidateError extends Schema.TaggedErrorClass<InvalidCandidateError>()(
+export class InvalidCandidateError extends Schema.TaggedError<InvalidCandidateError>()(
   "CustomProfileService.InvalidCandidate",
   { reason: Schema.String },
 ) {
@@ -24,16 +25,15 @@ export class InvalidCandidateError extends Schema.TaggedErrorClass<InvalidCandid
   }
 }
 
-export class StaleRevisionError extends Schema.TaggedErrorClass<StaleRevisionError>()(
-  "CustomProfileService.StaleRevision",
-  { relativePath: Schema.String },
-) {
+export class StaleRevisionError extends Schema.TaggedError<StaleRevisionError>()("CustomProfileService.StaleRevision", {
+  relativePath: Schema.String,
+}) {
   override get message() {
     return `Stale revision for ${this.relativePath}`
   }
 }
 
-export class OverwriteRequiredError extends Schema.TaggedErrorClass<OverwriteRequiredError>()(
+export class OverwriteRequiredError extends Schema.TaggedError<OverwriteRequiredError>()(
   "CustomProfileService.OverwriteRequired",
   { relativePath: Schema.String },
 ) {
@@ -42,7 +42,7 @@ export class OverwriteRequiredError extends Schema.TaggedErrorClass<OverwriteReq
   }
 }
 
-export class WriteFailedError extends Schema.TaggedErrorClass<WriteFailedError>()("CustomProfileService.WriteFailed", {
+export class WriteFailedError extends Schema.TaggedError<WriteFailedError>()("CustomProfileService.WriteFailed", {
   relativePath: Schema.String,
   reason: Schema.String,
 }) {
@@ -51,7 +51,7 @@ export class WriteFailedError extends Schema.TaggedErrorClass<WriteFailedError>(
   }
 }
 
-export class ReadbackMismatchError extends Schema.TaggedErrorClass<ReadbackMismatchError>()(
+export class ReadbackMismatchError extends Schema.TaggedError<ReadbackMismatchError>()(
   "CustomProfileService.ReadbackMismatch",
   { relativePath: Schema.String },
 ) {
@@ -60,7 +60,7 @@ export class ReadbackMismatchError extends Schema.TaggedErrorClass<ReadbackMisma
   }
 }
 
-export class RollbackFailedError extends Schema.TaggedErrorClass<RollbackFailedError>()(
+export class RollbackFailedError extends Schema.TaggedError<RollbackFailedError>()(
   "CustomProfileService.RollbackFailed",
   { relativePath: Schema.String, reason: Schema.String },
 ) {
@@ -69,7 +69,7 @@ export class RollbackFailedError extends Schema.TaggedErrorClass<RollbackFailedE
   }
 }
 
-export class ConcurrentModificationError extends Schema.TaggedErrorClass<ConcurrentModificationError>()(
+export class ConcurrentModificationError extends Schema.TaggedError<ConcurrentModificationError>()(
   "CustomProfileService.ConcurrentModification",
   { relativePath: Schema.String },
 ) {
@@ -78,7 +78,7 @@ export class ConcurrentModificationError extends Schema.TaggedErrorClass<Concurr
   }
 }
 
-export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("CustomProfileService.NotFound", {
+export class NotFoundError extends Schema.TaggedError<NotFoundError>()("CustomProfileService.NotFound", {
   relativePath: Schema.String,
 }) {
   override get message() {
@@ -172,7 +172,7 @@ export const locationLayer = Layer.effect(
       const target = yield* CustomProfilePath.resolveSafeTarget(relativePath, locationMutation).pipe(
         Effect.mapError((error) => new InvalidCandidateError({ reason: failureMessage(error) })),
       )
-      const fileExists = yield* fs.exists(target.canonical)
+      const fileExists = yield* fs.exists(target.absolute)
 
       const existingName = yield* registry.findByName(input.name)
       const existingPath = yield* registry.getByPath(relativePath).pipe(Effect.option)
@@ -181,7 +181,7 @@ export const locationLayer = Layer.effect(
 
       if (fileExists) {
         const bytes = yield* fs
-          .readFile(target.canonical)
+          .readFile(target.absolute)
           .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
         if (!bytes) {
           return {
@@ -243,8 +243,8 @@ export const locationLayer = Layer.effect(
       return yield* locks.withLock(relativePath)(
         Effect.uninterruptible(
           Effect.gen(function* () {
-            const fileExists = yield* fs.exists(target.canonical)
-            const currentBytes: Uint8Array | null = fileExists ? yield* fs.readFile(target.canonical) : null
+            const fileExists = yield* fs.exists(target.absolute)
+            const currentBytes: Uint8Array | null = fileExists ? yield* fs.readFile(target.absolute) : null
             const currentRevision = currentBytes ? Hash.sha256(Buffer.from(currentBytes)) : null
 
             const isNew = input.baseRevision === null
@@ -263,26 +263,24 @@ export const locationLayer = Layer.effect(
             }
 
             const yamlDoc = Schema.encodeSync(SchemaCustomProfile.Profile)(input.candidate.profile)
-            const content = yaml.dump(yamlDoc, { indent: 2, lineWidth: -1 })
+            const content = AssetYaml.stringify(yamlDoc)
 
             yield* fileMutation
               .writeAtomic({ target, content })
               .pipe(Effect.mapError((error) => new WriteFailedError({ relativePath, reason: failureMessage(error) })))
 
             const writtenBytes = yield* fs
-              .readFile(target.canonical)
+              .readFile(target.absolute)
               .pipe(
-                Effect.catch((err) =>
-                  Effect.fail(
-                    new WriteFailedError({ relativePath, reason: `readback failed: ${failureMessage(err)}` }),
-                  ),
+                Effect.mapError(
+                  (err) => new WriteFailedError({ relativePath, reason: `readback failed: ${failureMessage(err)}` }),
                 ),
               )
             const writtenRevision = Hash.sha256(Buffer.from(writtenBytes))
 
             const rollback = Effect.fnUntraced(function* () {
               const nowBytes = yield* fs
-                .readFile(target.canonical)
+                .readFile(target.absolute)
                 .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
               if (!nowBytes || Hash.sha256(Buffer.from(nowBytes)) !== writtenRevision) {
                 yield* new ConcurrentModificationError({ relativePath })
@@ -297,7 +295,7 @@ export const locationLayer = Layer.effect(
                     ),
                   )
               } else {
-                yield* fs.remove(target.canonical).pipe(
+                yield* fs.remove(target.absolute).pipe(
                   Effect.catchReason("PlatformError", "NotFound", () => Effect.void),
                   Effect.mapError((error) => new RollbackFailedError({ relativePath, reason: failureMessage(error) })),
                 )
@@ -346,13 +344,13 @@ export const locationLayer = Layer.effect(
       return yield* locks.withLock(relativePath)(
         Effect.uninterruptible(
           Effect.gen(function* () {
-            const fileExists = yield* fs.exists(target.canonical)
+            const fileExists = yield* fs.exists(target.absolute)
             if (!fileExists) {
               yield* registry.reload()
               return yield* new NotFoundError({ relativePath })
             }
 
-            const currentBytes = yield* fs.readFile(target.canonical).pipe(
+            const currentBytes = yield* fs.readFile(target.absolute).pipe(
               Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)),
               Effect.mapError(
                 (error) =>
@@ -375,10 +373,10 @@ export const locationLayer = Layer.effect(
             const backupHash = currentRevision
             const rollbackDelete = () =>
               Effect.gen(function* () {
-                const nowExists = yield* fs.exists(target.canonical)
+                const nowExists = yield* fs.exists(target.absolute)
                 if (nowExists) {
                   const nowBytes = yield* fs
-                    .readFile(target.canonical)
+                    .readFile(target.absolute)
                     .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)))
                   if (nowBytes && Hash.sha256(Buffer.from(nowBytes)) !== backupHash) {
                     yield* new ConcurrentModificationError({ relativePath })
@@ -401,18 +399,17 @@ export const locationLayer = Layer.effect(
               })
 
             yield* fileMutation.remove({ target }).pipe(
-              Effect.catch((err) =>
-                Effect.fail(
+              Effect.mapError(
+                (err) =>
                   new WriteFailedError({
                     relativePath,
                     reason: failureMessage(err),
                   }),
-                ),
               ),
             )
 
             // Verify absence on disk
-            const stillExistsOnDisk = yield* fs.exists(target.canonical)
+            const stillExistsOnDisk = yield* fs.exists(target.absolute)
             if (stillExistsOnDisk) {
               yield* rollbackDelete()
               return yield* new WriteFailedError({
@@ -461,3 +458,9 @@ export const locationLayer = Layer.effect(
     } satisfies Interface)
   }),
 )
+
+export const node = makeLocationNode({
+  service: Service,
+  layer: locationLayer,
+  deps: [FSUtil.node, LocationMutation.node, CustomProfile.node, FileMutation.node],
+})

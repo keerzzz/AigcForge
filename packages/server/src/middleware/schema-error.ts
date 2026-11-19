@@ -1,6 +1,8 @@
 import { Effect } from "effect"
-import { HttpApiMiddleware } from "effect/unstable/httpapi"
-import { InvalidRequestError } from "../errors"
+import { HttpApiMiddleware } from "effect/http-api"
+import { InvalidRequestError } from "@aigcfroge/protocol/errors"
+import { SchemaErrorMiddleware } from "@aigcfroge/protocol/middleware/schema-error"
+export { SchemaErrorMiddleware } from "@aigcfroge/protocol/middleware/schema-error"
 
 const REASON_LIMIT = 1024
 
@@ -8,11 +10,6 @@ function truncateReason(reason: string) {
   if (reason.length <= REASON_LIMIT) return reason
   return reason.slice(0, REASON_LIMIT) + `... (${reason.length - REASON_LIMIT} more chars)`
 }
-
-export class SchemaErrorMiddleware extends HttpApiMiddleware.Service<SchemaErrorMiddleware>()(
-  "@aigcfroge/HttpApiSchemaError",
-  { error: InvalidRequestError },
-) {}
 
 export const schemaErrorLayer = HttpApiMiddleware.layerSchemaErrorTransform(SchemaErrorMiddleware, (error) => {
   const reason = truncateReason(error.cause.message)

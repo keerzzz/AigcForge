@@ -6,4 +6,4 @@ export const CaptureSource = Schema.Struct({
 })
 export type CaptureSource = Schema.Schema.Type<typeof CaptureSource>
 
-export * as SessionCapture from "./session-capture"
+export * as SessionCapture from "./session-capture.js"

@@ -22,7 +22,7 @@ const renderFacts = (facts: readonly CorrectionStore.Fact[]) =>
 export const source = (
   store: CorrectionStore.Interface,
   sessionID: SessionSchema.ID,
-): SystemContext.SystemContext | undefined => {
+): SystemContext.SystemContextValue | undefined => {
   if (!store.enabled) return undefined
   return SystemContext.make({
     key: SystemContext.Key.make("core/correction-facts"),

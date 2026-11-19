@@ -1,7 +1,7 @@
-export * as PathIdentity from "./path-identity"
+export * as PathIdentity from "./path-identity.js"
 
 import { Schema } from "effect"
-import { AbsolutePath } from "./schema"
+import { AbsolutePath } from "./schema.js"
 
 /** One local path reference. The server that receives it owns interpretation. */
 export class Ref extends Schema.Class<Ref>("PathIdentity.Ref")({

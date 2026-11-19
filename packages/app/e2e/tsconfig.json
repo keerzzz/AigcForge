@@ -1,17 +1,11 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
+    "composite": false,
+    "emitDeclarationOnly": false,
     "noEmit": true,
     "rootDir": "..",
     "types": ["node", "bun"]
   },
-  "include": [
-    "./**/*.ts",
-    "../src/utils/path-key.ts",
-    "../src/utils/session-title.ts",
-    "../playwright.config.ts",
-    "../vite.config.ts",
-    "../vite.js"
-  ],
-  "exclude": ["real/run-evidence", "real/test-results", "real/playwright-report", "test-results", "playwright-report"]
+  "include": ["./**/*.ts", "./**/*.tsx", "../component-tests/**/*.ts", "../src/types.ts"]
 }

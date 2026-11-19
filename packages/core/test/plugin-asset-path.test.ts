@@ -1,15 +1,18 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
-import { FSUtil } from "@aigcfroge/core/fs-util"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { LocationMutation } from "@aigcfroge/core/location-mutation"
 import { Location } from "@aigcfroge/core/location"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { location } from "./fixture/location"
 import { tmpdir } from "./fixture/tmpdir"
 import fs from "fs/promises"
+import { NodeFileSystem } from "@effect/platform-node"
 import path from "path"
 import { PluginAssetPath } from "../src/plugin-asset/path"
 import { it } from "./lib/effect"
+
+const fsLayer = FSUtil.layer.pipe(Layer.provide(NodeFileSystem.layer))
 
 const nonWindowsIt = process.platform === "win32" ? it.live.skip : it.live
 const nonWindowsTest = process.platform === "win32" ? test.skip : test
@@ -144,7 +147,7 @@ function mutationLayer(directory: string) {
     Layer.provide(
       Layer.succeed(Location.Service, Location.Service.of(location({ directory: AbsolutePath.make(directory) }))),
     ),
-    Layer.provide(FSUtil.defaultLayer),
+    Layer.provide(fsLayer),
   )
 }
 
@@ -153,7 +156,7 @@ describe("PluginAssetPath.resolveSafeTarget", () => {
     Effect.gen(function* () {
       const mutation = yield* LocationMutation.Service
       const result = yield* PluginAssetPath.resolveSafeTarget("test.plugin.yaml", mutation)
-      expect(result.canonical).toBe("/tmp/.aigcfroge/plugins/test.plugin.yaml")
+      expect(result.absolute).toBe(AbsolutePath.make("/tmp/.aigcfroge/plugins/test.plugin.yaml"))
     }).pipe(Effect.provide(mutationLayer("/tmp"))),
   )
 

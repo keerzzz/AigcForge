@@ -1,46 +1,88 @@
-export * as Agent from "./agent"
+export * as Agent from "./agent.js"
 
 import { Schema } from "effect"
-import { Handoff } from "./handoff"
-import { Model } from "./model"
-import { Permission } from "./permission"
-import { Provider } from "./provider"
-import { PositiveInt, withStatics } from "./schema"
+import { ephemeral, inventory } from "./event.js"
+import { Handoff } from "./handoff.js"
+import { optional } from "./schema.js"
+import { Model } from "./model.js"
+import { Permission } from "./permission.js"
+import { Provider } from "./provider.js"
+import { ProductMode } from "./product-mode.js"
+import { PositiveInt, statics } from "./schema.js"
 
-export const ID = Schema.String.pipe(Schema.brand("AgentV2.ID"))
+const Updated = ephemeral({ type: "agent.updated", schema: {} })
+
+export const ID = Schema.String.pipe(Schema.brand("Agent.ID"), Schema.annotate({ identifier: "Agent.ID" }))
 export type ID = typeof ID.Type
 
-export const Color = Schema.Union([
-  Schema.String.check(Schema.isPattern(/^#[0-9a-fA-F]{6}$/)),
-  Schema.Literals(["primary", "secondary", "accent", "success", "warning", "error", "info"]),
-])
+export const Name = Schema.String.pipe(Schema.brand("Agent.Name"))
+export type Name = typeof Name.Type
+
+export const Color = Schema.String.annotate({ identifier: "Agent.Color" })
 export type Color = typeof Color.Type
+
+export class Card extends Schema.Class<Card>("Agent.Card")({
+  capabilities: Schema.Array(Schema.String),
+  constraints: Schema.Array(Schema.String),
+  protocol: optional(Schema.String.check(Schema.isPattern(/\S/))),
+}) {}
+
+export class CardIssue extends Schema.Class<CardIssue>("Agent.CardIssue")({
+  _tag: Schema.Literal("InvalidCard"),
+  reason: Schema.Literals(["invalid_shape", "empty_protocol"]),
+}) {}
+
+export const CardValue = Schema.Union([Card, CardIssue]).annotate({ identifier: "Agent.CardValue" })
+export type CardValue = typeof CardValue.Type
 
 export interface Info extends Schema.Schema.Type<typeof Info> {}
 export const Info = Schema.Struct({
   id: ID,
-  model: Model.Ref.pipe(Schema.optional),
+  name: Name,
+  model: Model.Selection.pipe(optional),
   request: Provider.Request,
-  system: Schema.String.pipe(Schema.optional),
-  description: Schema.String.pipe(Schema.optional),
+  system: Schema.String.pipe(optional),
+  description: Schema.String.pipe(optional),
+  card: optional(CardValue),
   mode: Schema.Literals(["subagent", "primary", "all"]),
   hidden: Schema.Boolean,
-  color: Color.pipe(Schema.optional),
-  steps: PositiveInt.pipe(Schema.optional),
+  color: Color.pipe(optional),
+  steps: PositiveInt.pipe(optional),
   permissions: Permission.Ruleset,
-  attended: Schema.Boolean.pipe(Schema.optional),
-  handoffs: Schema.mutable(Schema.Array(Handoff)),
+  attended: optional(Schema.Boolean),
+  handoffs: Schema.Array(Handoff),
+  /** The defining producer's origin; omitted by historical frozen definitions. */
+  originKind: optional(Schema.Literals(["builtin", "user"])),
+  /** Core's ordinary directory projection; not an execution grant or stored agent setting. */
+  ordinaryModes: optional(Schema.Array(ProductMode.ID)),
   /** Asset provenance (ADR-20 §2.6): which bound file/revision produced this entry. */
-  originRelativePath: Schema.String.pipe(Schema.optional),
-  originRevision: Schema.String.pipe(Schema.optional),
+  originRelativePath: optional(Schema.String),
+  originRevision: optional(Schema.String),
 })
-  .annotate({ identifier: "AgentV2.Info" })
+  .annotate({ identifier: "Agent.Info" })
   .pipe(
-    withStatics((schema) => ({
+    statics((schema) => ({
+      default: (id: ID) =>
+        ({
+          id,
+          name: Name.make(id),
+          request: { settings: {}, headers: {}, body: {} },
+          mode: "primary",
+          hidden: false,
+          permissions: [
+            { action: "*", resource: "*", effect: "allow" },
+            { action: "memory_delete", resource: "*", effect: "ask" },
+            { action: "read", resource: "*.env", effect: "ask" },
+            { action: "read", resource: "*.env.*", effect: "ask" },
+            { action: "read", resource: "*.env.example", effect: "allow" },
+          ],
+          handoffs: [],
+        }) satisfies Info,
       empty: (id: ID) =>
         schema.make({
           id,
-          request: { headers: {}, body: {} },
+          name: Name.make(id),
+          request: { settings: {}, headers: {}, body: {} },
           mode: "all",
           hidden: false,
           permissions: [],
@@ -49,3 +91,8 @@ export const Info = Schema.Struct({
         }),
     })),
   )
+
+export const Event = {
+  Updated,
+  Definitions: inventory(Updated),
+}

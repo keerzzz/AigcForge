@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
 import { Composition } from "@aigcfroge/schema/composition"
+import { Agent } from "@aigcfroge/schema/agent"
 import { CompositionConsumerView } from "@aigcfroge/core/composition/consumer-view"
 
 // D5-A consumer scoping. The load-bearing property is negative: inside a scoped graph, a session
@@ -71,6 +72,70 @@ const preBindingSnapshot = () =>
   })
 
 describe("CompositionConsumerView.resolveScope", () => {
+  test("maps each explicit builtin root and keeps root and child roles isolated", () => {
+    ;(["build", "plan", "meta"] as const).forEach((id) => {
+      const base = Schema.encodeSync(Composition.Snapshot)(
+        scopedSnapshot(
+          {
+            orchestrator: binding([instruction("root-only")]),
+            "agents/coder": binding([instruction("child-only")]),
+          },
+          [agent("coder")],
+        ),
+      )
+      const snapshot = decode({
+        ...base,
+        data: {
+          ...base.data,
+          root: { source: "builtin", id, revision: rev },
+          orchestrator: Schema.encodeSync(Agent.Info)(Agent.Info.default(Agent.ID.make(id))),
+        },
+      })
+      expect(CompositionConsumerView.resolveScopeForAgent(snapshot, id)).toEqual({
+        _tag: "scoped",
+        key: "orchestrator",
+      })
+      expect(CompositionConsumerView.resolveScope(snapshot, { agent: id })).toEqual({
+        _tag: "scoped",
+        key: "orchestrator",
+      })
+      expect(CompositionConsumerView.resolveScope(snapshot, { agent: "coder", parentID: "ses_root" })).toEqual({
+        _tag: "scoped",
+        key: "agents/coder",
+      })
+      const invalid = [
+        CompositionConsumerView.resolveScope(snapshot, { agent: id, parentID: "ses_root" }),
+        CompositionConsumerView.resolveScope(snapshot, { agent: "coder" }),
+        CompositionConsumerView.resolveScopeForAgent(snapshot, "unselected"),
+      ]
+      invalid.forEach((scope) => {
+        expect(scope._tag).toBe("unresolved")
+        expect(CompositionConsumerView.isBindingSatisfied(snapshot, scope)).toBe(false)
+        expect(CompositionConsumerView.getInstructions(snapshot, scope)).toEqual([])
+      })
+    })
+  })
+
+  test("rejects builtin root mappings when the stored source and Info identities disagree", () => {
+    const base = Schema.encodeSync(Composition.Snapshot)(
+      scopedSnapshot({ orchestrator: binding([instruction("root-only")]) }, []),
+    )
+    const snapshot = decode({
+      ...base,
+      data: {
+        ...base.data,
+        root: { source: "builtin", id: "build", revision: rev },
+        orchestrator: Schema.encodeSync(Agent.Info)(Agent.Info.default(Agent.ID.make("meta"))),
+      },
+    })
+    ;["build", "meta"].forEach((id) => {
+      expect(CompositionConsumerView.resolveScopeForAgent(snapshot, id)).toEqual({ _tag: "unresolved", agent: id })
+      const scope = CompositionConsumerView.resolveScope(snapshot, { agent: id })
+      expect(scope).toEqual({ _tag: "unresolved", agent: id })
+      expect(CompositionConsumerView.getInstructions(snapshot, scope)).toEqual([])
+    })
+  })
+
   test("a pre-binding V2 snapshot is unscoped, so the flat arrays remain the contract", () => {
     const snapshot = preBindingSnapshot()
     const scope = CompositionConsumerView.resolveScope(snapshot, { parentID: undefined, agent: "meta" })

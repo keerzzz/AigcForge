@@ -1,7 +1,9 @@
 import { describe, expect } from "bun:test"
 import { Cause, Effect, Exit, Layer, Option } from "effect"
 import { Database } from "@aigcfroge/core/database/database"
-import { EventV2 } from "@aigcfroge/core/event"
+import { Bus } from "@aigcfroge/core/bus"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
 import { McpCredentialBindingStore } from "@aigcfroge/core/mcp/binding/store"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { Workspace } from "@aigcfroge/schema/workspace"
@@ -10,7 +12,9 @@ import { testEffect } from "./lib/effect"
 import { sql } from "drizzle-orm"
 import { location } from "./fixture/location"
 
-const dbEvents = Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer)
+const dbEvents = AppNodeBuilder.build(LayerNode.group([Database.node, Bus.node]), [
+  Bus.node.replace(Bus.configured({ persist: true })),
+])
 const it = testEffect(dbEvents)
 
 const makeStore = (ref: { directory: string; workspaceID?: string }) => {

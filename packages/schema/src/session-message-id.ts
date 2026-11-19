@@ -1,11 +1,17 @@
-export * as SessionMessageID from "./session-message-id"
+export * as SessionMessageID from "./session-message-id.js"
 
 import { Schema } from "effect"
-import { ascending } from "./identifier"
-import { withStatics } from "./schema"
+import { Event } from "./event.js"
+import { ascending } from "./identifier.js"
+import { statics } from "./schema.js"
 
-export const ID = Schema.String.check(Schema.isStartsWith("msg_")).pipe(
+// Goal refs and physical attempt records share the identity without importing the message payload graph.
+export const ID = Schema.String.check(Schema.isStartingWith("msg_")).pipe(
   Schema.brand("Session.Message.ID"),
-  withStatics((schema) => ({ create: () => schema.make("msg_" + ascending()) })),
+  Schema.annotate({ identifier: "Session.Message.ID" }),
+  statics((schema) => ({
+    create: () => schema.make("msg_" + ascending()),
+    fromEvent: (eventID: Event.ID) => schema.make(eventID.replace(/^evt_/, "msg_")),
+  })),
 )
 export type ID = typeof ID.Type

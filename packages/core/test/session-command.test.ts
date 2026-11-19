@@ -1,406 +1,351 @@
 import { describe, expect } from "bun:test"
-import { Effect, Layer, Schema } from "effect"
 import { eq } from "drizzle-orm"
-import { Composition } from "@aigcfroge/schema/composition"
+import { Effect, Layer, LayerMap } from "effect"
+import { Agent } from "@aigcfroge/core/agent"
+import { Bus } from "@aigcfroge/core/bus"
+import { Command } from "@aigcfroge/core/command"
+import { Config } from "@aigcfroge/core/config"
+import { CompositionDigest } from "@aigcfroge/core/composition/digest"
 import { Database } from "@aigcfroge/core/database/database"
-import { EventV2 } from "@aigcfroge/core/event"
-import { EventTable } from "@aigcfroge/core/event/sql"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import type { FileSystem } from "@aigcfroge/core/filesystem"
+import { Image } from "@aigcfroge/core/image"
+import { Location } from "@aigcfroge/core/location"
+import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
+import type { LocationServices } from "@aigcfroge/core/location-services"
+import { Plugin } from "@aigcfroge/core/plugin"
+import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
 import { Project } from "@aigcfroge/core/project"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
 import { AbsolutePath } from "@aigcfroge/core/schema"
-import { SessionV2 } from "@aigcfroge/core/session"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { SessionProjector } from "@aigcfroge/core/session/projector"
-import { SessionExecution } from "@aigcfroge/core/session/execution"
-import { SessionInputTable, SessionMessageTable, SessionTable } from "@aigcfroge/core/session/sql"
-import { SessionStore } from "@aigcfroge/core/session/store"
+import { Session } from "@aigcfroge/core/session"
 import { SessionComposition } from "@aigcfroge/core/session/composition"
-import { AgentAttachment, FileAttachment, Prompt } from "@aigcfroge/core/session/prompt"
+import { SessionExecution } from "@aigcfroge/core/session/execution"
+import { SessionCompositionSnapshotTable, SessionTable } from "@aigcfroge/core/session/sql"
+import { Skill } from "@aigcfroge/core/skill"
+import { Composition } from "@aigcfroge/schema/composition"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { CompositionFixture } from "./lib/composition"
 import { testEffect } from "./lib/effect"
-import { withCustomModeEnabled } from "./lib/product-mode"
+import { withCustomMode } from "./lib/product-mode"
+import { globalProjectNode } from "./lib/project"
 
-withCustomModeEnabled()
-
-const wakeCalls: SessionV2.ID[] = []
-const execution = Layer.succeed(
-  SessionExecution.Service,
-  SessionExecution.Service.of({
-    resume: () => Effect.void,
-    interrupt: () => Effect.void,
-    isActive: () => Effect.succeed(false),
-    wake: (sessionID) =>
-      Effect.sync(() => {
-        wakeCalls.push(sessionID)
-      }),
-  }),
-)
-const sessionComposition = SessionComposition.layer.pipe(Layer.provide(Database.defaultLayer))
-const sessions = SessionV2.layer.pipe(
-  Layer.provide(EventV2.defaultLayer),
-  Layer.provide(Database.defaultLayer),
-  Layer.provide(SessionStore.defaultLayer),
-  Layer.provide(Project.defaultLayer),
-  Layer.provide(execution),
-)
-const it = testEffect(
-  Layer.mergeAll(
-    Database.defaultLayer,
-    EventV2.defaultLayer,
-    SessionProjector.defaultLayer,
-    SessionStore.defaultLayer,
-    sessionComposition,
-    execution,
-    sessions,
-  ),
-)
-
-const mockRevision = Schema.decodeUnknownSync(Composition.Revision)(
-  "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-)
-const mockDigest = Composition.Digest.make("a".repeat(64))
-const mockCatalogDigest = Composition.Digest.make("b".repeat(64))
-
-const sessionID = SessionV2.ID.make("ses_command_test")
-const messageID = SessionMessage.ID.make("msg_command_test")
-
-const makeSnapshot = (commands: Composition.CommandInfo[]) =>
-  new Composition.SnapshotV2({
-    version: 2,
-    digest: mockDigest,
-    sessionID,
-    createdAt: Date.now(),
-    data: new Composition.SnapshotDataV2({
-      agents: [
-        {
-          id: "meta",
-          name: "meta",
-          description: "Meta",
-          relativePath: "meta.md",
-          revision: mockRevision,
-          consumerKey: "orchestrator",
-        },
-      ],
-      bindings: {
-        orchestrator: new Composition.SnapshotBindingData({
-          instructions: [],
-          prompts: [],
-          skills: [],
-          commands,
-        }),
-      },
-      instructions: [],
-      prompts: [],
-      skills: [],
-      tools: new Composition.SnapshotToolInfo({
-        fingerprints: [],
-        catalogDigest: mockCatalogDigest,
-        catalog: [],
-      }),
+const location = Location.Ref.make({ directory: AbsolutePath.make("/project") })
+const commandNode = makeGlobalNode({ service: Command.Service, layer: Command.layer, deps: [Bus.node] })
+const locations = makeGlobalNode({
+  service: LocationServiceMap.Service,
+  layer: Layer.effect(
+    LocationServiceMap.Service,
+    Effect.gen(function* () {
+      const commands = yield* Command.Service
+      return yield* LayerMap.make(
+        (_ref: Location.Ref) =>
+          // This virtual Location exposes the shared test registry and prompt preparation.
+          // The production LocationServices type includes unrelated runtime services.
+          Layer.mergeAll(
+            Layer.succeed(Command.Service, commands),
+            Layer.mock(Plugin.Service, { awaitActivation: Effect.void }),
+            LayerNode.compile(LayerNode.group([Agent.node, PluginHooks.node, Image.node, Skill.node, Config.node]), {
+              replacements: [Config.node.replace(Config.testLayer())],
+            }),
+          ) as unknown as Layer.Layer<LocationServices, FileSystem.DirectoryNotFoundError>,
+      )
     }),
-  })
+  ),
+  deps: [commandNode],
+})
+const it = testEffect(
+  AppNodeBuilder.build(LayerNode.group([Session.node, SessionComposition.node, commandNode, Database.node, Bus.node]), [
+    LocationServiceMap.node.replace(locations),
+    Project.node.replace(globalProjectNode),
+    SessionExecution.node.replace(SessionExecution.noopLayer),
+  ]),
+)
 
-const boundCommand = new Composition.CommandInfo({
-  name: "review",
-  description: "Review the change",
-  relativePath: "commands/review.md",
-  revision: mockRevision,
-  invocation: "/review $1",
-  args: "$1: path",
+const frozen = (name: string, source: string, invocation = `/${name}`) =>
+  new Composition.CommandInfo({
+    name,
+    description: "Frozen command",
+    relativePath: `${name}.md`,
+    revision: Composition.Revision.make("a".repeat(64)),
+    invocation,
+    source,
+  })
+const rootCommand = frozen("review", "Root $ARGUMENTS")
+const childCommand = frozen("review", "Child $1 / $2")
+const unbound = frozen("unbound", "Unbound")
+
+const setup = Effect.gen(function* () {
+  const sessions = yield* Session.Service
+  const compositions = yield* SessionComposition.Service
+  const database = yield* Database.Service
+  const root = yield* sessions.create({ location })
+  const worker = Agent.Info.make({ ...Agent.Info.empty(Agent.ID.make("coder")), mode: "subagent" })
+  const child = yield* sessions.create({ parentID: root.id, agent: worker.id })
+  const snapshot = yield* CompositionFixture.attach(root.id, worker)
+  const data = new Composition.SnapshotDataV2({
+    ...snapshot.data,
+    commands: [rootCommand, childCommand, unbound],
+    bindings: {
+      orchestrator: new Composition.SnapshotBindingData({
+        instructions: [],
+        prompts: [],
+        skills: [],
+        commands: [rootCommand],
+      }),
+      "agents/coder": new Composition.SnapshotBindingData({
+        instructions: [],
+        prompts: [],
+        skills: [],
+        commands: [childCommand],
+      }),
+    },
+  })
+  yield* database.db
+    .update(SessionCompositionSnapshotTable)
+    .set({ data, digest: CompositionDigest.computeDigest(data) })
+    .where(eq(SessionCompositionSnapshotTable.session_id, root.id))
+    .run()
+    .pipe(Effect.orDie)
+  yield* compositions.copy(root.id, child.id)
+  yield* database.db
+    .update(SessionTable)
+    .set({ mode: "custom", agent: "meta" })
+    .where(eq(SessionTable.id, root.id))
+    .run()
+    .pipe(Effect.orDie)
+  yield* database.db
+    .update(SessionTable)
+    .set({ mode: "custom" })
+    .where(eq(SessionTable.id, child.id))
+    .run()
+    .pipe(Effect.orDie)
+  return { sessions, database, root, child, data }
 })
 
-const setup = (commands: Composition.CommandInfo[] = [boundCommand]) =>
-  Effect.gen(function* () {
-    const { db } = yield* Database.Service
-    const composition = yield* SessionComposition.Service
-    wakeCalls.length = 0
-    yield* db
-      .insert(ProjectTable)
-      .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
-      .onConflictDoNothing()
-      .run()
-      .pipe(Effect.orDie)
-    yield* db
-      .insert(SessionTable)
-      .values({
-        id: sessionID,
-        project_id: Project.ID.global,
-        slug: sessionID,
-        directory: "/project",
-        title: "command-test",
-        version: "test",
-        mode: "custom",
-        agent: "meta",
-      })
-      .onConflictDoNothing()
-      .run()
-      .pipe(Effect.orDie)
-    yield* composition.attach(sessionID, makeSnapshot(commands))
-  })
-
-describe("SessionV2.command", () => {
-  it.effect("admits a frozen command to the durable inbox and schedules a wake", () =>
-    Effect.gen(function* () {
-      yield* setup()
-      const session = yield* SessionV2.Service
-
-      const admitted = yield* session.command({
-        id: messageID,
-        sessionID,
-        command: "review",
-        arguments: "src/main.ts",
-        resume: true,
-      })
-
-      expect(admitted).toMatchObject({
-        kind: "command",
-        command: "review",
-        relativePath: "commands/review.md",
-        revision: mockRevision,
-        consumer: "orchestrator",
-        arguments: "src/main.ts",
-        delivery: "steer",
-      })
-      expect(wakeCalls).toContain(sessionID)
-    }),
-  )
-
-  it.effect("persists the command input through the CommandAdmitted event projection", () =>
-    Effect.gen(function* () {
-      yield* setup()
-      const session = yield* SessionV2.Service
-      const { db } = yield* Database.Service
-
-      yield* session.command({
-        sessionID,
-        command: "review",
-        arguments: "src",
-        resume: false,
-      })
-
-      const row = yield* db
-        .select()
-        .from(SessionInputTable)
-        .where(eq(SessionInputTable.session_id, sessionID))
-        .get()
-        .pipe(Effect.orDie)
-      expect(row?.kind).toBe("command")
-      expect(row?.command).toBe("review")
-      expect(row?.delivery).toBe("steer")
-      expect(row?.command_payload).toMatchObject({
-        relativePath: "commands/review.md",
-        consumer: "orchestrator",
-        arguments: "src",
-        snapshotDigest: mockDigest,
-      })
-    }),
-  )
-
-  it.effect("publishes a command.admitted durable event", () =>
-    Effect.gen(function* () {
-      yield* setup()
-      const session = yield* SessionV2.Service
-      const { db } = yield* Database.Service
-
-      yield* session.command({ id: messageID, sessionID, command: "review", arguments: "src", resume: false })
-
-      const events = yield* db
-        .select()
-        .from(EventTable)
-        .where(eq(EventTable.aggregate_id, sessionID))
-        .all()
-        .pipe(Effect.orDie)
-      expect(events.map((event) => event.type)).toContain("session.next.command.admitted.1")
-    }),
-  )
-
-  it.effect("exact retry with the same message ID is idempotent: one inbox row and one wake", () =>
-    Effect.gen(function* () {
-      yield* setup()
-      const session = yield* SessionV2.Service
-      const { db } = yield* Database.Service
-
-      yield* session.command({ id: messageID, sessionID, command: "review", arguments: "src", resume: true })
-      yield* session.command({ id: messageID, sessionID, command: "review", arguments: "src", resume: true })
-
-      const rows = yield* db
-        .select()
-        .from(SessionInputTable)
-        .where(eq(SessionInputTable.id, messageID))
-        .all()
-        .pipe(Effect.orDie)
-      expect(rows).toHaveLength(1)
-      expect(wakeCalls.filter((id) => id === sessionID)).toHaveLength(1)
-    }),
-  )
-
-  it.effect("same message ID with changed arguments is a typed 409", () =>
-    Effect.gen(function* () {
-      yield* setup()
-      const session = yield* SessionV2.Service
-
-      yield* session.command({ id: messageID, sessionID, command: "review", arguments: "a", resume: false })
-
-      const error = yield* session
-        .command({ id: messageID, sessionID, command: "review", arguments: "b", resume: false })
-        .pipe(Effect.flip)
-      expect(error._tag).toBe("Session.PromptConflictError")
-    }),
-  )
-
-  it.effect("same message ID with a changed command name is a typed 409", () =>
-    Effect.gen(function* () {
-      yield* setup([
-        boundCommand,
-        new Composition.CommandInfo({
-          name: "other",
-          description: "Other",
-          relativePath: "commands/other.md",
-          revision: mockRevision,
-          invocation: "/other",
-        }),
-      ])
-      const session = yield* SessionV2.Service
-
-      yield* session.command({ id: messageID, sessionID, command: "review", arguments: "src", resume: false })
-
-      const error = yield* session
-        .command({ id: messageID, sessionID, command: "other", arguments: "src", resume: false })
-        .pipe(Effect.flip)
-      expect(error._tag).toBe("Session.PromptConflictError")
-    }),
-  )
-
-  it.effect("an unbound command name fails closed with a typed error", () =>
-    Effect.gen(function* () {
-      yield* setup([boundCommand])
-      const session = yield* SessionV2.Service
-
-      const error = yield* session.command({ sessionID, command: "outside-command", resume: false }).pipe(Effect.flip)
-      expect(error._tag).toBe("Session.CommandUnavailableError")
-      if (error._tag === "Session.CommandUnavailableError") expect(error.reason).toBe("unbound")
-    }),
-  )
-
-  it.effect("an ambiguous command name fails closed with a typed error", () =>
-    Effect.gen(function* () {
-      yield* setup([
-        boundCommand,
-        new Composition.CommandInfo({
-          name: "review",
-          description: "Second review",
-          relativePath: "commands/review-other.md",
-          revision: mockRevision,
-          invocation: "/review",
-        }),
-      ])
-      const session = yield* SessionV2.Service
-
-      const error = yield* session.command({ sessionID, command: "review", resume: false }).pipe(Effect.flip)
-      expect(error._tag).toBe("Session.CommandUnavailableError")
-      if (error._tag === "Session.CommandUnavailableError") expect(error.reason).toBe("ambiguous")
-    }),
-  )
-
-  it.effect('a legacy snapshot command (invocation "") fails closed', () =>
-    Effect.gen(function* () {
-      yield* setup([
-        new Composition.CommandInfo({
-          name: "review",
-          description: "Legacy",
-          relativePath: "commands/review.md",
-          revision: mockRevision,
-          invocation: "",
-        }),
-      ])
-      const session = yield* SessionV2.Service
-
-      const error = yield* session.command({ sessionID, command: "review", resume: false }).pipe(Effect.flip)
-      expect(error._tag).toBe("Session.CommandUnavailableError")
-      if (error._tag === "Session.CommandUnavailableError") expect(error.reason).toBe("legacy")
-    }),
-  )
-
-  it.effect("a non-custom session rejects command admission", () =>
-    Effect.gen(function* () {
-      const { db } = yield* Database.Service
-      yield* db
-        .insert(ProjectTable)
-        .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
-        .onConflictDoNothing()
-        .run()
-        .pipe(Effect.orDie)
-      yield* db
-        .insert(SessionTable)
-        .values({
-          id: sessionID,
-          project_id: Project.ID.global,
-          slug: sessionID,
-          directory: "/project",
-          title: "command-test",
-          version: "test",
-          mode: "coding",
-          agent: "build",
+describe("Custom Session commands", () => {
+  it.effect("uses only the consumer's frozen body after live commands change and disappear", () =>
+    withCustomMode(
+      "true",
+      Effect.gen(function* () {
+        const f = yield* setup
+        const commands = yield* Command.Service
+        const registration = yield* commands.transform((editor) =>
+          editor.add({
+            name: "review",
+            execute: () => Effect.die("Live callback must not execute"),
+          }),
+        )
+        yield* f.sessions.command({ sessionID: f.root.id, command: "review", text: "$& $$" })
+        yield* registration.dispose
+        expect(yield* commands.get("review")).toBeUndefined()
+        yield* f.sessions.command({ sessionID: f.root.id, command: "/review", text: "retained" })
+        yield* f.sessions.command({
+          sessionID: f.child.id,
+          command: "review",
+          text: '"alpha beta" gamma delta',
+          delivery: "queue",
         })
-        .onConflictDoNothing()
-        .run()
-        .pipe(Effect.orDie)
-      const session = yield* SessionV2.Service
-
-      const error = yield* session.command({ sessionID, command: "review", resume: false }).pipe(Effect.flip)
-      expect(error._tag).toBe("Session.CommandUnavailableError")
-      if (error._tag === "Session.CommandUnavailableError") expect(error.reason).toBe("not-custom")
-    }),
+        expect(yield* f.sessions.inbox(f.root.id)).toMatchObject([
+          { payload: { text: "Root $& $$" }, delivery: "steer" },
+          { payload: { text: "Root retained" }, delivery: "steer" },
+        ])
+        expect(yield* f.sessions.inbox(f.child.id)).toMatchObject([
+          { payload: { text: "Child alpha beta / gamma delta" }, delivery: "queue" },
+        ])
+        expect((yield* f.sessions.get(f.root.id)).agent).toBe(Agent.ID.make("meta"))
+        expect((yield* f.sessions.get(f.child.id)).agent).toBe(Agent.ID.make("coder"))
+        expect((yield* f.sessions.list()).data).toHaveLength(2)
+      }),
+    ),
   )
 
-  it.effect("command admission creates no session message row (no Tool surface)", () =>
-    Effect.gen(function* () {
-      yield* setup()
-      const session = yield* SessionV2.Service
-      const { db } = yield* Database.Service
-
-      yield* session.command({ id: messageID, sessionID, command: "review", arguments: "src", resume: false })
-
-      const message = yield* db
-        .select({ id: SessionMessageTable.id })
-        .from(SessionMessageTable)
-        .where(eq(SessionMessageTable.id, messageID))
-        .get()
-        .pipe(Effect.orDie)
-      expect(message).toBeUndefined()
-    }),
+  it.effect("does not expose commands from the flat snapshot catalog", () =>
+    withCustomMode(
+      "true",
+      Effect.gen(function* () {
+        const f = yield* setup
+        expect(
+          yield* f.sessions
+            .command({
+              sessionID: f.root.id,
+              command: "unbound",
+              text: "blocked",
+            })
+            .pipe(Effect.flip),
+        ).toMatchObject({ _tag: "Command.NotFoundError" })
+        expect(yield* f.sessions.inbox(f.root.id)).toEqual([])
+      }),
+    ),
   )
 
-  it.effect("command admission keeps the canonical context Prompt with files and agents", () =>
+  for (const item of [
+    { name: "missing body", commands: [new Composition.CommandInfo({ ...rootCommand, source: undefined })] },
+    { name: "legacy invocation", commands: [new Composition.CommandInfo({ ...rootCommand, invocation: "" })] },
+    { name: "ambiguous invocation", commands: [rootCommand, frozen("another", "Another", "review")] },
+    { name: "duplicate name", commands: [rootCommand, frozen("review", "Another", "/another")] },
+    { name: "shell interpolation", commands: [frozen("review", "Inspect !\`echo hidden\`")] },
+  ]) {
+    it.effect(`rejects ${item.name} before prompt admission`, () =>
+      withCustomMode(
+        "true",
+        Effect.gen(function* () {
+          const f = yield* setup
+          const data = new Composition.SnapshotDataV2({
+            ...f.data,
+            commands: item.commands,
+            bindings: {
+              ...f.data.bindings,
+              orchestrator: new Composition.SnapshotBindingData({
+                instructions: [],
+                prompts: [],
+                skills: [],
+                commands: item.commands,
+              }),
+            },
+          })
+          yield* f.database.db
+            .update(SessionCompositionSnapshotTable)
+            .set({ data })
+            .where(eq(SessionCompositionSnapshotTable.session_id, f.root.id))
+            .run()
+            .pipe(Effect.orDie)
+          expect(
+            yield* f.sessions
+              .command({
+                sessionID: f.root.id,
+                command: "review",
+                text: "no admission",
+              })
+              .pipe(Effect.flip),
+          ).toMatchObject({ _tag: "Command.ExecutionError" })
+          expect(yield* f.sessions.inbox(f.root.id)).toEqual([])
+          expect((yield* f.sessions.list()).data).toHaveLength(2)
+        }),
+      ),
+    )
+  }
+
+  it.effect("accepts an explicitly frozen empty template and rejects unavailable attachments without admission", () =>
+    withCustomMode(
+      "true",
+      Effect.gen(function* () {
+        const f = yield* setup
+        const empty = frozen("empty", "")
+        const data = new Composition.SnapshotDataV2({
+          ...f.data,
+          commands: [empty],
+          bindings: {
+            ...f.data.bindings,
+            orchestrator: new Composition.SnapshotBindingData({
+              instructions: [],
+              prompts: [],
+              skills: [],
+              commands: [empty],
+            }),
+          },
+        })
+        yield* f.database.db
+          .update(SessionCompositionSnapshotTable)
+          .set({ data })
+          .where(eq(SessionCompositionSnapshotTable.session_id, f.root.id))
+          .run()
+          .pipe(Effect.orDie)
+        yield* f.sessions.command({
+          sessionID: f.root.id,
+          command: "empty",
+          text: "Explicit arguments",
+          delivery: "queue",
+        })
+        const admitted = yield* f.sessions.inbox(f.root.id)
+        expect(admitted).toMatchObject([{ payload: { text: "Explicit arguments" }, delivery: "queue" }])
+        const error = yield* f.sessions
+          .command({
+            sessionID: f.root.id,
+            command: "empty",
+            text: "Do not expose this argument",
+            files: [{ uri: "data:text/plain;base64,invalid-body", name: "context.txt" }],
+          })
+          .pipe(Effect.flip)
+        expect(error).toMatchObject({ _tag: "Command.ExecutionError", message: "Command attachment is unavailable" })
+        expect(error.message).not.toContain("invalid-body")
+        expect(yield* f.sessions.inbox(f.root.id)).toEqual(admitted)
+      }),
+    ),
+  )
+
+  it.effect("preserves literal shell syntax supplied as an argument", () =>
+    withCustomMode(
+      "true",
+      Effect.gen(function* () {
+        const f = yield* setup
+        yield* f.sessions.command({
+          sessionID: f.root.id,
+          command: "review",
+          text: "!\`echo literal\`",
+          delivery: "queue",
+          files: [{ uri: "data:text/plain;base64,Y29udGV4dA==", name: "context.txt" }],
+        })
+        expect(yield* f.sessions.inbox(f.root.id)).toMatchObject([
+          { payload: { text: "Root !\`echo literal\`", files: [{ name: "context.txt" }] }, delivery: "queue" },
+        ])
+      }),
+    ),
+  )
+
+  it.effect("fails closed without a snapshot or while Custom mode is disabled", () =>
+    withCustomMode(
+      "true",
+      Effect.gen(function* () {
+        const f = yield* setup
+        yield* withCustomMode(
+          "false",
+          Effect.gen(function* () {
+            expect(
+              yield* f.sessions
+                .command({
+                  sessionID: f.root.id,
+                  command: "review",
+                  text: "blocked",
+                })
+                .pipe(Effect.flip),
+            ).toMatchObject({ _tag: "UnsupportedProductModeError" })
+          }),
+        )
+        yield* f.database.db
+          .delete(SessionCompositionSnapshotTable)
+          .where(eq(SessionCompositionSnapshotTable.session_id, f.root.id))
+          .run()
+          .pipe(Effect.orDie)
+        expect(
+          yield* f.sessions
+            .command({
+              sessionID: f.root.id,
+              command: "review",
+              text: "blocked",
+            })
+            .pipe(Effect.flip),
+        ).toMatchObject({ _tag: "Command.ExecutionError" })
+        expect(yield* f.sessions.inbox(f.root.id)).toEqual([])
+      }),
+    ),
+  )
+
+  it.effect("retains ordinary registered callback execution", () =>
     Effect.gen(function* () {
-      yield* setup()
-      const session = yield* SessionV2.Service
-      const { db } = yield* Database.Service
-      const context = Prompt.make({
-        text: "",
-        files: [FileAttachment.make({ uri: "file:///project/src/main.ts", mime: "text/plain" })],
-        agents: [AgentAttachment.make({ name: "coder" })],
-      })
-
-      yield* session.command({
-        id: messageID,
-        sessionID,
-        command: "review",
-        arguments: "src",
-        context,
-        resume: false,
-      })
-
-      const row = yield* db
-        .select()
-        .from(SessionInputTable)
-        .where(eq(SessionInputTable.id, messageID))
-        .get()
-        .pipe(Effect.orDie)
-      expect(row?.prompt).toMatchObject({
-        text: "",
-        files: [{ uri: "file:///project/src/main.ts", mime: "text/plain" }],
-        agents: [{ name: "coder" }],
-      })
+      const sessions = yield* Session.Service
+      const session = yield* sessions.create({ location })
+      const commands = yield* Command.Service
+      const calls: Command.Invocation[] = []
+      yield* commands.transform((editor) =>
+        editor.add({
+          name: "review",
+          execute: (input) => Effect.sync(() => void calls.push(input)),
+        }),
+      )
+      yield* sessions.command({ sessionID: session.id, command: "review", text: "ordinary", delivery: "queue" })
+      expect(calls).toMatchObject([{ sessionID: session.id, prompt: { text: "ordinary" }, delivery: "queue" }])
+      expect(yield* sessions.inbox(session.id)).toEqual([])
     }),
   )
 })

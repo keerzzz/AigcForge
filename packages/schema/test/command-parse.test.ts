@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { CommandParse } from "../src/command-parse"
+import { CommandParse } from "../src/command-parse.js"
 
 describe("CommandParse.splitCommandLine", () => {
   test("splits a slash line into command name and verbatim arguments", () => {

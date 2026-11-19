@@ -1,9 +1,9 @@
 import fs from "fs/promises"
 import os from "os"
-import { Effect, Layer } from "effect"
-import { FSUtil } from "@aigcfroge/core/fs-util"
-import { EffectFlock } from "@aigcfroge/core/util/effect-flock"
-import { Global } from "@aigcfroge/core/global"
+import { Effect } from "effect"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { EffectFlock } from "@aigcfroge/util/effect-flock"
+import { Global } from "@aigcfroge/util/global"
 
 type Msg = {
   key: string
@@ -30,7 +30,7 @@ const testGlobal = Global.layerWith({
   log: os.tmpdir(),
 })
 
-const testLayer = EffectFlock.layer.pipe(Layer.provide(testGlobal), Layer.provide(FSUtil.defaultLayer))
+const testLayer = LayerNode.compile(EffectFlock.node, { replacements: [Global.node.replace(testGlobal)] })
 
 async function job() {
   if (msg.ready) await fs.writeFile(msg.ready, String(process.pid))

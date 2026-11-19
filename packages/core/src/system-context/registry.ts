@@ -5,12 +5,12 @@ import { SystemContext } from "./index"
 
 export interface Entry {
   readonly key: SystemContext.Key
-  readonly load: Effect.Effect<SystemContext.SystemContext>
+  readonly load: Effect.Effect<SystemContext.SystemContextValue>
 }
 
 export interface Interface {
   readonly register: (entry: Entry) => Effect.Effect<void, never, Scope.Scope>
-  readonly load: () => Effect.Effect<SystemContext.SystemContext>
+  readonly load: () => Effect.Effect<SystemContext.SystemContextValue>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SystemContextRegistry") {}

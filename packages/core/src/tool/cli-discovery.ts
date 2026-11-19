@@ -13,7 +13,7 @@ export class Info extends Schema.Class<Info>("CliAgentDiscovery")({
 
 /** Read-only discovery: no SDK initialization, CLI execution, installation, or login. */
 export const list = Effect.fn("CliDiscovery.list")(
-  (adapters: readonly CliAdapter.CliAdapter[] = CliAdapter.listCliAdapters()) =>
+  (adapters: readonly CliAdapter.CliAdapterValue<Error>[] = CliAdapter.listCliAdapters()) =>
     Effect.sync(() =>
       adapters.map((adapter) => {
         const executable = which(adapter.command)

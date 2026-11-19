@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { PersonalMemory } from "../src/index"
+import { PersonalMemory } from "../src/index.js"
 
 const valid = {
   id: "pm_abc123",

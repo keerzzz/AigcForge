@@ -7,7 +7,7 @@ import { Flag } from "./flag/flag"
 export const CAPABILITY_CUSTOM_V1 = ProductMode.CAPABILITY_CUSTOM_V1
 export const CAPABILITIES_HEADER = ProductMode.CAPABILITIES_HEADER
 
-export class UnsupportedProductModeError extends Schema.TaggedErrorClass<UnsupportedProductModeError>()(
+export class UnsupportedProductModeError extends Schema.TaggedError<UnsupportedProductModeError>()(
   "UnsupportedProductModeError",
   {
     mode: Schema.String,
@@ -100,7 +100,7 @@ export function assertRuntimeSupported(mode: string | undefined): Effect.Effect<
 }
 
 export function shouldUseV2Runtime(mode: string | undefined, globalFlag: boolean): boolean {
-  if (mode === "custom" || mode === "assistant") return true
+  if (mode === "custom") return true
   return globalFlag
 }
 

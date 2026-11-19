@@ -24,6 +24,17 @@ You are a planning agent.
 `
 
 describe("AgentFileLoader", () => {
+  test("preserves file protocol cards and diagnoses invalid declarations", () => {
+    const card = "card:\n  capabilities: [search]\n  constraints: [read only]\n  protocol: Exact file protocol.\n"
+    expect(
+      parseAgentFile("file.agent.md", MINIMAL_AGENT.replace("name: Explore\n", "name: Explore\n" + card))?.info.card,
+    ).toEqual({ capabilities: ["search"], constraints: ["read only"], protocol: "Exact file protocol." })
+    expect(
+      parseAgentFile("file.agent.md", MINIMAL_AGENT.replace("name: Explore\n", "name: Explore\ncard: false\n"))?.info
+        .card,
+    ).toEqual({ _tag: "InvalidCard", reason: "invalid_shape" })
+    expect(parseAgentFile("file.agent.md", MINIMAL_AGENT)?.info.card).toBeUndefined()
+  })
   describe("parseAgentFile", () => {
     test("should parse minimal agent file", () => {
       const agent = parseAgentFile("/tmp/.claude/agents/explore.agent.md", MINIMAL_AGENT)

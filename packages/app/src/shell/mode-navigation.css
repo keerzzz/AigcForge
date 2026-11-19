@@ -1,0 +1,40 @@
+.mode-navigation-rail [data-component="icon-button-v2"][data-size="large"] {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+}
+
+.mode-navigation-rail [data-slot="active-indicator"] {
+  position: absolute;
+  pointer-events: none;
+  inset-inline-start: -2px;
+  top: 50%;
+  width: 2px;
+  height: 20px;
+  border-radius: 1px;
+  background-color: var(--v2-icon-icon-accent);
+  opacity: 0;
+  transform: translateY(-50%) scaleY(0.6);
+  transform-origin: center;
+  transition:
+    opacity 150ms ease,
+    transform 150ms ease;
+}
+
+.mode-navigation-rail [aria-current="page"] [data-slot="active-indicator"] {
+  opacity: 1;
+  transform: translateY(-50%) scaleY(1);
+}
+
+@media (forced-colors: active) {
+  .mode-navigation-rail [data-slot="active-indicator"] {
+    background-color: CanvasText;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mode-navigation-rail [data-slot="active-indicator"] {
+    transition: none;
+  }
+}

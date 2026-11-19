@@ -1,13 +1,15 @@
-export * as TaskReorderTool from "./task-reorder"
+export * as TaskReorderTool from "./task-reorder.js"
 
-import { ToolFailure } from "@aigcfroge/llm"
-import { Effect, Layer, Schema } from "effect"
-import { PermissionV2 } from "../permission"
-import { SessionTask } from "../session/task"
-import { Tool } from "./tool"
-import { Tools } from "./tools"
+import type { Context } from "@aigcfroge/plugin/effect/plugin"
+import { ToolFailure } from "@aigcfroge/ai"
+import { Effect, Schema } from "effect"
+import { Permission } from "../permission.js"
+import { SessionTask } from "../session/task.js"
 
 export const name = "task_reorder"
+
+export const description =
+  "Reorder the session's task list by id. Provide the full id list in the new order. Use this instead of rewriting the full list with taskwrite when only the order changed."
 
 export const Input = Schema.Struct({
   ids: Schema.Array(Schema.String).annotate({
@@ -23,55 +25,60 @@ export const Input = Schema.Struct({
 export const Output = Schema.Struct({
   tasks: Schema.Array(SessionTask.Info),
 })
-export type Output = typeof Output.Type
 
-export const toModelOutput = (output: Output) => JSON.stringify(output.tasks, null, 2)
+const toModelContent = (tasks: ReadonlyArray<SessionTask.Info>) => JSON.stringify(tasks, null, 2)
 
-export const layer = Layer.effectDiscard(
-  Effect.gen(function* () {
-    const tools = yield* Tools.Service
+export const Plugin = {
+  id: "aigcfroge.tool.task_reorder",
+  effect: Effect.fn("TaskReorderTool.Plugin")(function* (ctx: Context) {
     const tasks = yield* SessionTask.Service
-    const permission = yield* PermissionV2.Service
+    const permission = yield* Permission.Service
 
-    yield* tools
-      .register({
-        [name]: Tool.make({
-          description:
-            "Reorder the session's task list by id. Provide the full id list in the new order. Use this instead of rewriting the full list with taskwrite when only the order changed.",
+    yield* ctx.tool
+      .transform((editor) =>
+        editor.add({
+          name,
+          options: { codemode: false },
+          description,
           input: Input,
           output: Output,
-          toModelOutput: ({ output }) => [{ type: "text", text: toModelOutput(output) }],
           execute: (input, context) =>
-            Effect.gen(function* () {
-              yield* permission.assert({
+            permission
+              .assert({
                 action: name,
                 resources: ["*"],
                 save: ["*"],
                 sessionID: context.sessionID,
                 agent: context.agent,
-                source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
+                source: { type: "tool" as const, messageID: context.messageID, id: context.id },
               })
-              const resolved = yield* tasks
-                .reorder({
-                  sessionID: context.sessionID,
-                  ids: input.ids,
-                  expectedRevision: input.expectedRevision,
-                })
-                .pipe(
-                  Effect.mapError((error) =>
-                    error instanceof SessionTask.TaskWriteError
-                      ? new ToolFailure({ message: error.message })
-                      : new ToolFailure({ message: "Unable to reorder tasks" }),
-                  ),
-                )
-              return { tasks: resolved }
-            }).pipe(
-              Effect.mapError((error) =>
-                error instanceof ToolFailure ? error : new ToolFailure({ message: "Unable to reorder tasks" }),
+              .pipe(
+                Effect.mapError(() => new ToolFailure({ message: `Permission denied: ${name}` })),
+                Effect.andThen(
+                  tasks
+                    .reorder(
+                      {
+                        sessionID: context.sessionID,
+                        ids: input.ids,
+                        expectedRevision: input.expectedRevision,
+                      },
+                      { management: { type: "tool", messageID: context.messageID, id: context.id } },
+                    )
+                    .pipe(
+                      Effect.mapError((error) =>
+                        error instanceof SessionTask.TaskWriteError
+                          ? new ToolFailure({ message: error.message })
+                          : new ToolFailure({ message: "Unable to reorder tasks" }),
+                      ),
+                      Effect.map((resolved) => ({
+                        output: { tasks: resolved },
+                        content: toModelContent(resolved),
+                      })),
+                    ),
+                ),
               ),
-            ),
         }),
-      })
+      )
       .pipe(Effect.orDie)
   }),
-)
+}

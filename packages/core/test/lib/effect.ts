@@ -1,45 +1,50 @@
-import { onTestFinished, test, type TestOptions } from "bun:test"
-import { Cause, Duration, Effect, Exit, Layer } from "effect"
-import type * as Scope from "effect/Scope"
-import * as TestClock from "effect/testing/TestClock"
-import * as TestConsole from "effect/testing/TestConsole"
+import { test, type TestOptions } from "bun:test"
+import { Cause, Duration, Effect, Exit, Layer, type Scope } from "effect"
+import { TestClock, TestConsole } from "effect/testing"
+import { FetchHttpClient } from "effect/http"
 
 type Body<A, E, R> = Effect.Effect<A, E, R> | (() => Effect.Effect<A, E, R>)
 
 const body = <A, E, R>(value: Body<A, E, R>) => Effect.suspend(() => (typeof value === "function" ? value() : value))
 
+const loopback = new Set(["127.0.0.1", "localhost", "[::1]"])
+
+// Core is env-free, so nothing tells the default node graph to stay offline;
+// a test that boots it would phone home through FetchHttpClient. Every
+// FetchHttpClient reads this reference at request time, so refusing here covers
+// each node that shares the default client, while an explicit HttpClient
+// replacement never reaches it. Callers such as ModelsDev swallow request
+// failures, so the harness also records the attempt and fails the test itself.
+export const refuseNetwork = (violations: string[]): typeof fetch =>
+  Object.assign(
+    (input: string | URL | Request, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
+      if (loopback.has(new URL(url).hostname)) return fetch(input, init)
+      const method = init?.method ?? (input instanceof Request ? input.method : "GET")
+      const message = `test attempted network request: ${method} ${url} — provide an explicit HttpClient or disable the fetch`
+      violations.push(message)
+      return Promise.reject(new Error(message))
+    },
+    { preconnect: fetch.preconnect },
+  )
+
 const run = <A, E, R, E2>(value: Body<A, E, R | Scope.Scope>, layer: Layer.Layer<R, E2>) =>
   Effect.gen(function* () {
-    const exit = yield* body(value).pipe(Effect.scoped, Effect.provide(layer), Effect.exit)
+    const violations: string[] = []
+    const exit = yield* body(value).pipe(
+      Effect.scoped,
+      Effect.provide(layer),
+      Effect.provideService(FetchHttpClient.Fetch, refuseNetwork(violations)),
+      Effect.exit,
+    )
     if (Exit.isFailure(exit)) {
       for (const err of Cause.prettyErrors(exit.cause)) {
         yield* Effect.logError(err)
       }
     }
+    if (violations.length > 0) return yield* Effect.fail(new Error(violations.join("\n")))
     return yield* exit
-  }).pipe(runTest)
-
-// Bun rejects a timed-out test Promise without cancelling its underlying Effect.
-// Keep the Exit observable until the per-test hook has joined scope finalizers;
-// otherwise they can restore flags or release resources owned by the next test.
-export function runTest<A, E>(effect: Effect.Effect<A, E>): Promise<void> {
-  const controller = new AbortController()
-  const result = Effect.runPromiseExit(effect, { signal: controller.signal })
-  let settled = false
-  onTestFinished(async () => {
-    if (settled) return
-    controller.abort()
-    const exit = await result
-    // The timeout is already a Bun failure. Only its cancellation is expected;
-    // cleanup defects must still fail the originating test's completion hook.
-    if (Exit.isFailure(exit) && !Cause.hasInterruptsOnly(exit.cause)) throw Cause.squash(exit.cause)
-  })
-  return result.then((exit) => {
-    settled = true
-    if (controller.signal.aborted) return
-    if (Exit.isFailure(exit)) throw Cause.squash(exit.cause)
-  })
-}
+  }).pipe(Effect.runPromise)
 
 const make = <R, E>(testLayer: Layer.Layer<R, E>, liveLayer: Layer.Layer<R, E>) => {
   const effect = <A, E2>(name: string, value: Body<A, E2, R | Scope.Scope>, opts?: number | TestOptions) =>
@@ -71,17 +76,8 @@ const liveEnv = TestConsole.layer
 
 export const it = make(testEnv, liveEnv)
 
-export const awaitWithTimeout = <A, E, R>(
-  self: Effect.Effect<A, E, R>,
-  message: string,
-  duration: Duration.Input = "2 seconds",
-) =>
-  self.pipe(
-    Effect.timeoutOrElse({
-      duration,
-      orElse: () => Effect.fail(new Error(message)),
-    }),
-  )
+export const testEffect = <R, E>(layer: Layer.Layer<R, E>) =>
+  make(Layer.provideMerge(layer, testEnv), Layer.provideMerge(layer, liveEnv))
 
 export const pollWithTimeout = <A, E, R>(
   self: Effect.Effect<A | undefined, E, R>,
@@ -96,5 +92,14 @@ export const pollWithTimeout = <A, E, R>(
     }
   }).pipe(Effect.timeoutOrElse({ duration, orElse: () => Effect.fail(new Error(message)) }))
 
-export const testEffect = <R, E>(layer: Layer.Layer<R, E>) =>
-  make(Layer.provideMerge(layer, testEnv), Layer.provideMerge(layer, liveEnv))
+export const awaitWithTimeout = <A, E, R>(
+  self: Effect.Effect<A, E, R>,
+  message: string,
+  duration: Duration.Input = "2 seconds",
+) =>
+  self.pipe(
+    Effect.timeoutOrElse({
+      duration,
+      orElse: () => Effect.fail(new Error(message)),
+    }),
+  )

@@ -1,15 +1,14 @@
 /// <reference path="../env.d.ts" />
 import { tool } from "@aigcfroge/plugin"
 async function githubFetch(endpoint: string, options: RequestInit = {}) {
-  const headers = new Headers({
-    Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
-    Accept: "application/vnd.github+json",
-    "Content-Type": "application/json",
-  })
-  new Headers(options.headers).forEach((value, name) => headers.set(name, value))
   const response = await fetch(`https://api.github.com${endpoint}`, {
     ...options,
-    headers,
+    headers: {
+      Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json",
+      ...(options.headers instanceof Headers ? Object.fromEntries(options.headers.entries()) : options.headers),
+    },
   })
   if (!response.ok) {
     throw new Error(`GitHub API error: ${response.status} ${response.statusText}`)
@@ -25,7 +24,7 @@ interface PR {
 export default tool({
   description: `Use this tool to search GitHub pull requests by title and description.
 
-This tool searches PRs in the keerzzz/AigcForge repository and returns LLM-friendly results including:
+This tool searches PRs in the anomalyco/aigcfroge repository and returns LLM-friendly results including:
 - PR number and title
 - Author
 - State (open/closed/merged)
@@ -39,7 +38,7 @@ Use the query parameter to search for keywords that might appear in PR titles or
     offset: tool.schema.number().describe("Number of results to skip for pagination").default(0),
   },
   async execute(args) {
-    const owner = "keerzzz"
+    const owner = "anomalyco"
     const repo = "aigcfroge"
 
     const page = Math.floor(args.offset / args.limit) + 1

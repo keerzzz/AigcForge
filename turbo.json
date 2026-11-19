@@ -1,19 +1,50 @@
 {
   "$schema": "https://v2-8-13.turborepo.dev/schema.json",
+  "globalDependencies": [
+    "patches/**",
+    "bunfig.toml",
+    ".npmrc",
+    ".github/actions/setup-bun/**",
+    ".github/workflows/ci.yml"
+  ],
   "globalEnv": ["CI", "AIGCFROGE_DISABLE_SHARE"],
   "globalPassThroughEnv": ["CI", "AIGCFROGE_DISABLE_SHARE"],
   "tasks": {
     "typecheck": {},
+    "test:components": {
+      "outputs": [],
+      "cache": false
+    },
+    "@aigcfroge/server#typecheck": {
+      "dependsOn": ["@aigcfroge/core#typecheck"]
+    },
+    "@aigcfroge/simulation#typecheck": {
+      "dependsOn": ["@aigcfroge/core#typecheck"]
+    },
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": [],
       "outputs": ["dist/**"]
     },
-    "aigcfroge#test": {
+    "@aigcfroge/ai#test": {
       "dependsOn": ["^build"],
-      "outputs": [],
-      "passThroughEnv": ["*"]
+      "outputs": []
+    },
+    "@aigcfroge/codemode#test": {
+      "dependsOn": ["^build"],
+      "outputs": []
     },
     "@aigcfroge/core#test": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "@aigcfroge/desktop#test": {
+      "outputs": [],
+      "cache": false
+    },
+    "@aigcfroge/httpapi-codegen#test": {
+      "outputs": []
+    },
+    "@aigcfroge/server#test": {
       "dependsOn": ["^build"],
       "outputs": []
     },
@@ -26,30 +57,6 @@
       "outputs": []
     },
     "@aigcfroge/session-ui#test": {
-      "dependsOn": ["^build"],
-      "outputs": []
-    },
-    "@aigcfroge/desktop#test": {
-      "dependsOn": ["^build"],
-      "outputs": []
-    },
-    "@aigcfroge/tui#test": {
-      "dependsOn": ["^build"],
-      "outputs": []
-    },
-    "@aigcfroge/schema#test": {
-      "dependsOn": ["^build"],
-      "outputs": []
-    },
-    "@aigcfroge/llm#test": {
-      "dependsOn": ["^build"],
-      "outputs": []
-    },
-    "@aigcfroge/http-recorder#test": {
-      "dependsOn": ["^build"],
-      "outputs": []
-    },
-    "@aigcfroge/effect-drizzle-sqlite#test": {
       "dependsOn": ["^build"],
       "outputs": []
     }

@@ -1,0 +1,202 @@
+import { describe, expect } from "bun:test"
+import { LanguageModel, LLMClient, LLMEvent } from "@aigcfroge/ai"
+import { OpenAIChat } from "@aigcfroge/ai/protocols"
+import { Bus } from "@aigcfroge/core/bus"
+import { Config } from "@aigcfroge/core/config"
+import { ConfigCompactionPlugin } from "@aigcfroge/core/config/plugin/compaction"
+import { Database } from "@aigcfroge/core/database/database"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { llmClient } from "@aigcfroge/core/effect/app-node-platform"
+import { SessionCompaction } from "@aigcfroge/core/session/compaction"
+import { SessionEvent } from "@aigcfroge/core/session/event"
+import { SessionMessage } from "@aigcfroge/core/session/message"
+import { SessionModelRequest } from "@aigcfroge/core/session/model-request"
+import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
+import { Session } from "@aigcfroge/core/session"
+import { Agent } from "@aigcfroge/core/agent"
+import { Location } from "@aigcfroge/core/location"
+import { Project } from "@aigcfroge/core/project"
+import { ProjectTable } from "@aigcfroge/core/project/sql"
+import { SessionTable } from "@aigcfroge/core/session/sql"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { ConfigCompaction } from "@aigcfroge/schema/config/compaction"
+import { Document, Event, Info } from "@aigcfroge/schema/config"
+import { Money } from "@aigcfroge/schema/money"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { DateTime, Effect, Fiber, Layer, Option, Schema, Stream } from "effect"
+import { testEffect } from "../lib/effect"
+import { host } from "../plugin/host"
+
+const model = LanguageModel.make({
+  id: "test-model",
+  provider: "test-provider",
+  route: OpenAIChat.route,
+})
+const limit = { context: 100_000, output: 1_000 }
+const resolved = SessionRunnerModel.resolved(model, {
+  capabilities: { tools: true, input: ["text"], output: ["text"] },
+  cost: [],
+  limit,
+})
+const config = Config.testLayer()
+const it = testEffect(
+  Layer.merge(
+    config,
+    AppNodeBuilder.build(
+      LayerNode.group([SessionCompaction.node, SessionModelRequest.node, Config.node, Bus.node, Database.node]),
+      [
+        llmClient.replace(
+          Layer.mock(LLMClient.Service)({
+            stream: () => Stream.make(LLMEvent.textDelta({ id: "summary", text: "## Objective\n- summary" })),
+          }),
+        ),
+        Config.node.replace(config),
+        Location.node.replace(Location.boundNode({ directory: AbsolutePath.make("/tmp") })),
+      ],
+    ),
+  ),
+)
+describe("ConfigCompactionPlugin.Plugin", () => {
+  it.live("merges settings and reloads changed config", () =>
+    Effect.gen(function* () {
+      const compaction = yield* SessionCompaction.Service
+      // An automatic compaction that is not due is skipped.
+      const due = (input: typeof nearInput) =>
+        compaction
+          .compact({ reason: "auto", context: input.context })
+          .pipe(Effect.map((outcome) => outcome.status !== "skipped"))
+      const config = yield* Config.Test
+      const bus = yield* Bus.Service
+      const database = yield* Database.Service
+      yield* database.db
+        .insert(ProjectTable)
+        .values({ id: session.projectID, worktree: session.location.directory, sandboxes: [] })
+        .onConflictDoNothing()
+        .run()
+      yield* database.db
+        .insert(SessionTable)
+        .values({
+          id: session.id,
+          project_id: session.projectID,
+          slug: session.id,
+          directory: session.location.directory,
+          title: session.id,
+          version: "test",
+        })
+        .run()
+      yield* config.setEntries([
+        new Document({
+          type: "document",
+          info: new Info({ compaction: new ConfigCompaction.Info({ auto: false, buffer: 20_000 }) }),
+        }),
+        new Document({
+          type: "document",
+          info: new Info({
+            compaction: new ConfigCompaction.Info({
+              buffer: 10_000,
+              keep: new ConfigCompaction.Keep({ tokens: 0 }),
+            }),
+          }),
+        }),
+      ])
+      yield* ConfigCompactionPlugin.Plugin.effect(host({ event: { subscribe: () => bus.subscribe(Event.Updated) } }))
+
+      expect(yield* due(nearInput)).toBe(false)
+      const ended = yield* bus
+        .subscribe(SessionEvent.Compaction.Ended)
+        .pipe(Stream.runHead, Effect.forkScoped({ startImmediately: true }))
+      const messages = [
+        SessionMessage.User.make({
+          id: SessionMessage.ID.create(),
+          type: "user",
+          text: "Older context",
+          time: { created: DateTime.makeUnsafe(0) },
+        }),
+        SessionMessage.User.make({
+          id: SessionMessage.ID.create(),
+          type: "user",
+          text: "Recent context",
+          time: { created: DateTime.makeUnsafe(1) },
+        }),
+      ]
+      expect(
+        yield* compaction.compact({
+          reason: "manual",
+          context: { ...nearInput.context, messages },
+          inputID: SessionMessage.ID.make("msg_compaction_manual"),
+        }),
+      ).toEqual({ status: "completed" })
+      expect(Option.getOrThrow(yield* Fiber.join(ended)).data.recent).toContain("Recent context")
+
+      yield* config.setEntries([
+        new Document({
+          type: "document",
+          info: new Info({ compaction: new ConfigCompaction.Info({ auto: true, buffer: 20_000 }) }),
+        }),
+        new Document({
+          type: "document",
+          info: new Info({ compaction: new ConfigCompaction.Info({ buffer: 10_000 }) }),
+        }),
+      ])
+      yield* bus.publish(Event.Updated, {})
+      yield* Effect.gen(function* () {
+        for (let attempt = 0; attempt < 200; attempt++) {
+          if (yield* due(nearInput)) return
+          yield* Effect.sleep("10 millis")
+        }
+        yield* Effect.die(new Error("Timed out waiting for compaction config reload"))
+      })
+      expect(yield* due(bufferedInput)).toBe(false)
+
+      yield* config.setEntries([
+        new Document({
+          type: "document",
+          info: new Info({ compaction: new ConfigCompaction.Info({ auto: true, buffer: 20_000 }) }),
+        }),
+      ])
+      yield* bus.publish(Event.Updated, {})
+      for (let attempt = 0; attempt < 200; attempt++) {
+        if (yield* due(bufferedInput)) return
+        yield* Effect.sleep("10 millis")
+      }
+      yield* Effect.die(new Error("Timed out waiting for compaction config reload"))
+    }),
+  )
+})
+
+const session = Session.Info.make({
+  id: Session.ID.make("ses_compaction_config"),
+  projectID: Project.ID.global,
+  cost: Money.USD.zero,
+  tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+  time: { created: DateTime.makeUnsafe(0), updated: DateTime.makeUnsafe(0) },
+  location: Location.Ref.make({ directory: AbsolutePath.make("/tmp") }),
+})
+const input = (tokens: number) => {
+  const messages = [
+    Schema.decodeUnknownSync(SessionMessage.Assistant)({
+      id: SessionMessage.ID.make("msg_compaction_config"),
+      type: "assistant",
+      agent: Agent.defaultID,
+      model: { id: "test-model", providerID: "test-provider" },
+      content: [],
+      tokens: { input: tokens, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
+      time: { created: 0, completed: 0 },
+    }),
+  ]
+  return {
+    session,
+    resolved,
+    messages,
+    context: {
+      session,
+      model: resolved,
+      messages,
+      agent: { id: Agent.defaultID, info: Agent.Info.default(Agent.defaultID) },
+      initial: "",
+      tools: { definitions: [], catalog: [], execute: () => Effect.die("unused") },
+    },
+  }
+}
+const bufferedInput = input(85_000)
+const nearInput = input(95_000)

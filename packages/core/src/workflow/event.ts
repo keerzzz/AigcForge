@@ -2,25 +2,15 @@ export * as WorkflowEvent from "./event"
 
 import { Effect, Schema } from "effect"
 import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
-import { EventV2 } from "../event"
+import { Updated } from "@aigcfroge/schema/workflow-event"
+import { Bus } from "../bus"
+import { Event } from "@aigcfroge/schema/event"
 
-export const Updated = EventV2.define({
-  type: "workflow.run.updated",
-  durable: { version: 1, aggregate: "runID" },
-  schema: {
-    runID: WorkflowAsset.WorkflowRunID,
-    sessionID: Schema.String,
-    status: WorkflowAsset.WorkflowRunStatus,
-    revision: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
-    currentStepId: Schema.optional(Schema.String),
-    errorCategory: Schema.optional(WorkflowAsset.ErrorCategory),
-    timeUpdated: Schema.Finite,
-  },
-})
+export { Updated } from "@aigcfroge/schema/workflow-event"
 
-export type Update = EventV2.Data<typeof Updated>
+export type Update = Event.Data<typeof Updated>
 
-export class CommitRejected extends Schema.TaggedErrorClass<CommitRejected>()("WorkflowEvent.CommitRejected", {
+export class CommitRejected extends Schema.TaggedError<CommitRejected>()("WorkflowEvent.CommitRejected", {
   runID: WorkflowAsset.WorkflowRunID,
   revision: Schema.Int,
 }) {
@@ -30,17 +20,17 @@ export class CommitRejected extends Schema.TaggedErrorClass<CommitRejected>()("W
 }
 
 export const publish = Effect.fn("WorkflowEvent.publish")(function* (
-  events: EventV2.Interface,
+  events: Bus.Interface,
   update: Update,
-  commit: (tx: EventV2.Transaction) => Effect.Effect<boolean>,
+  commit: (seq: number) => Effect.Effect<boolean>,
 ) {
   return yield* events
     .publish(Updated, update, {
-      commit: (seq, tx) => {
+      commit: (seq) => {
         if (seq + 1 !== update.revision) {
           return Effect.die(new CommitRejected({ runID: update.runID, revision: update.revision }))
         }
-        return commit(tx).pipe(
+        return commit(seq).pipe(
           Effect.flatMap((accepted) =>
             accepted ? Effect.void : Effect.die(new CommitRejected({ runID: update.runID, revision: update.revision })),
           ),

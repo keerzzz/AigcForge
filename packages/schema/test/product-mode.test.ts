@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { ProductMode } from "../src/product-mode"
-import { AssetKindId } from "../src/asset"
-import { Session } from "../src/session"
+import { ProductMode } from "../src/product-mode.js"
+import { AssetKindId } from "../src/asset.js"
+import { Session } from "../src/v2/session.js"
 
 describe("ProductMode", () => {
   test("decodes all five product modes", () => {

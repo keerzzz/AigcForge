@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { PluginAsset } from "../src/plugin-asset"
+import { PluginAsset } from "../src/plugin-asset.js"
 
 describe("PluginAsset.Frontmatter", () => {
   test("accepts minimal valid frontmatter", () => {
@@ -83,5 +83,62 @@ describe("PluginAsset.InvalidEntry", () => {
       errorTag: "parse_error",
     })
     expect(e.errorTag).toBe("parse_error")
+  })
+})
+
+describe("PluginAsset review content", () => {
+  test("keeps original YAML and omits an unspecified candidate path from encoding", () => {
+    const content = '# keep formatting\nkind: plugin\nname: review\ndescription: Review\nversion: "1.0.0"\n'
+    const candidate = Schema.decodeUnknownSync(PluginAsset.Candidate)({
+      name: "review",
+      description: "Review",
+      content,
+    })
+    expect(Schema.encodeSync(PluginAsset.Candidate)(candidate)).toEqual({
+      name: "review",
+      description: "Review",
+      content,
+    })
+    const info = Schema.decodeUnknownSync(PluginAsset.Info)({
+      kind: "plugin",
+      name: "review",
+      description: "Review",
+      content,
+      relativePath: "review.plugin.yaml",
+      revision: "a".repeat(64),
+      version: "1.0.0",
+    })
+    expect(info.content).toBe(Schema.decodeUnknownSync(PluginAsset.Content)(content))
+    expect(() => Schema.decodeUnknownSync(PluginAsset.Info)({ ...info, content: undefined })).toThrow()
+    expect(() => Schema.decodeUnknownSync(PluginAsset.Content)("x".repeat(1_000_001))).toThrow()
+    expect(Schema.decodeUnknownSync(PluginAsset.BaseRevision)(null)).toBeNull()
+  })
+})
+
+const encodedInfo = Schema.toCodecJson(PluginAsset.Info)
+test("plugin wire encoding omits absent optional fields at every level", () => {
+  const info = Schema.decodeUnknownSync(PluginAsset.Info)({
+    kind: "plugin",
+    name: "review",
+    description: "Review",
+    relativePath: "review.plugin.yaml",
+    revision: "a".repeat(64),
+    content: "original",
+    version: "1.0.0",
+    author: { name: "Example" },
+    source: { type: "mcp", mcp: { name: "example" } },
+    hooks: [{ event: "PreToolUse", command: "review" }],
+  })
+  expect(Schema.encodeSync(encodedInfo)(info)).toEqual({
+    kind: "plugin",
+    name: "review",
+    description: "Review",
+    relativePath: "review.plugin.yaml",
+    revision: "a".repeat(64),
+    content: "original",
+    version: "1.0.0",
+    author: { name: "Example" },
+    source: { type: "mcp", mcp: { name: "example" } },
+    hooks: [{ event: "PreToolUse", command: "review" }],
   })
 })

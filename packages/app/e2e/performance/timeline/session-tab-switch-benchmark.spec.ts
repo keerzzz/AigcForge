@@ -1,80 +1,161 @@
 import type { Page } from "@playwright/test"
+import { mockAigcForgeServer } from "../../utils/mock-server"
 import { expectSessionTitle } from "../../utils/waits"
-import { benchmark, expect, withBenchmarkPage } from "../benchmark"
-import { fixture } from "./session-timeline-stress.fixture"
-import { installStressSessionTabs, mockStressTimeline, stressSessionHref } from "./timeline-test-helpers"
+import { benchmark, benchmarkDiagnostics, expect } from "../benchmark"
+import { fixture, installStressSessionTabs, installTimelineSettings } from "../../utils/session-fixture"
+import { sessionHref } from "../../utils/app"
+import { expected, messages } from "../../utils/markdown-sessions"
+import { workload } from "./session-tab-switch.fixture"
+import { createReviewDiffs } from "./timeline-test-helpers"
 import { measureSessionSwitch, waitForStableTimeline } from "./session-tab-switch-probe"
 
-const messages: Record<string, (typeof fixture.messages)[keyof typeof fixture.messages]> = fixture.messages
+const scenarios = [
+  { cache: "cold", review: "closed" },
+  { cache: "cold", review: "open" },
+  { cache: "warm", review: "closed" },
+  { cache: "warm", review: "open" },
+  { cache: "warm", review: "resized" },
+] as const
 
-type Result = Awaited<ReturnType<typeof measureSessionSwitch>>
+const viewport = { width: 1440, height: 900 }
 
-for (const mode of ["cold", "hot"] as const) {
-  benchmark(`benchmarks ${mode} session tab switching`, async ({ browser, report }, testInfo) => {
-    const results: Result[] = []
-    for (let run = 0; run < 5; run++) {
-      results.push(
-        await withBenchmarkPage(browser, `session-tab-switch-${mode}-${run}`, (page) => trial(page, mode), testInfo),
-      )
+const reviewDiffs = createReviewDiffs()
+
+benchmark.use({ viewport, video: "off", trace: "off", serviceWorkers: "block", traceScope: "interaction" })
+
+scenarios.forEach((scenario) => {
+  benchmark(`tab switch: ${scenario.cache}, review ${scenario.review}`, async ({ page, report }, testInfo) => {
+    const requests = await prepareSessionTabs(page)
+
+    if (scenario.review === "open") await openReviewPane(page)
+
+    if (scenario.cache === "warm") {
+      await switchSession(page, fixture.targetID, fixture.expected.targetTitle)
+      await expectReadyTimeline(page, fixture.targetID)
+      await switchSession(page, fixture.sourceID, fixture.expected.sourceTitle)
     }
-    report({ results: { [mode]: results }, summary: summarize({ [mode]: results }) })
-  })
-}
 
-async function trial(page: Page, mode: "cold" | "hot") {
-  await mockStressTimeline(page)
-  await installStressSessionTabs(page)
-  if (mode === "hot") {
-    await page.goto(stressSessionHref(fixture.targetID))
-    await expectSessionTitle(page, fixture.expected.targetTitle)
-    await waitForStableTimeline(page, fixture.expected.targetMessageIDs.at(-1)!)
-    await switchSession(page, fixture.sourceID, fixture.expected.sourceTitle)
-  } else {
-    await page.goto(stressSessionHref(fixture.sourceID))
-    await expectSessionTitle(page, fixture.expected.sourceTitle)
-  }
-  await waitForStableTimeline(page, fixture.expected.sourceMessageIDs.at(-1)!)
+    if (scenario.review === "resized") await openReviewPane(page)
+    await expectReadyTimeline(page, fixture.sourceID)
+    await benchmarkDiagnostics(page).startTrace()
+    const requestsBefore = requests.length
 
-  const destinationIDs = messages[fixture.targetID].map((message) => message.info.id)
-  const sourceIDs = messages[fixture.sourceID].map((message) => message.info.id)
-  const lastID = fixture.expected.targetMessageIDs.at(-1)!
-  const href = stressSessionHref(fixture.targetID)
-  const result = await measureSessionSwitch(page, {
-    destinationIDs,
-    sourceIDs,
-    lastID,
-    href,
-    switch: () => switchSession(page, fixture.targetID, fixture.expected.targetTitle),
-  })
-  return result
-}
+    const result = await measureSessionSwitch(page, {
+      destinationIDs: messages[fixture.targetID].map((message) => message.id),
+      sourceIDs: messages[fixture.sourceID].map((message) => message.id),
+      lastID: expected[fixture.targetID].lastID,
+      requiredPartID: expected[fixture.targetID].answerID,
+      href: sessionHref(fixture.targetID),
+      switch: () => switchSession(page, fixture.targetID, fixture.expected.targetTitle),
+    })
 
-function summarize(results: Record<string, Result[]>) {
-  const stats = (values: (number | null)[]) => {
-    const sorted = values.filter((value): value is number => value !== null).sort((a, b) => a - b)
-    return {
-      min: sorted[0] ?? null,
-      median: sorted[Math.floor(sorted.length / 2)] ?? null,
-      max: sorted.at(-1) ?? null,
-      missing: values.length - sorted.length,
-    }
-  }
-  return Object.fromEntries(
-    Object.entries(results).map(([mode, values]) => [
-      mode,
+    expect(result.firstCorrectObservedMs).not.toBeNull()
+    expect(result.stableObservedMs).not.toBeNull()
+    expect(requests).toHaveLength(requestsBefore + (scenario.cache === "cold" ? 1 : 0))
+    await expectReadyTimeline(page, fixture.targetID)
+    report(
       {
-        firstDestinationObservedMs: stats(values.map((value) => value.firstDestinationObservedMs)),
-        firstCorrectObservedMs: stats(values.map((value) => value.firstCorrectObservedMs)),
-        stableObservedMs: stats(values.map((value) => value.stableObservedMs)),
+        ...result,
+        messageRequestsDuringSwitch: requests.length - requestsBefore,
+        rendererMemory:
+          process.env.AIGCFROGE_PERFORMANCE_MEMORY === "1" ? await retainedRendererMemory(page) : undefined,
       },
-    ]),
+      {
+        ...scenario,
+        ...workload,
+        viewport,
+        browserVersion: page.context().browser()!.version(),
+        serviceWorkers: "blocked",
+        reviewFiles: scenario.review === "closed" ? 0 : reviewDiffs.length,
+        data: scenario.cache === "cold" ? "on-demand" : "cached",
+        transport: process.env.AIGCFROGE_PERFORMANCE_HTTP_FIXTURE === "1" ? "http" : "playwright-route",
+        inputEvent: "mousedown",
+        requireReadyAnswer: true,
+      },
+    )
+
+    if (testInfo.repeatEachIndex === 0) {
+      await page.screenshot({ path: testInfo.outputPath("destination.png") })
+      await testInfo.attach("destination", { path: testInfo.outputPath("destination.png"), contentType: "image/png" })
+    }
+  })
+})
+
+async function prepareSessionTabs(page: Page) {
+  const requests: string[] = []
+  page.on("request", (request) => {
+    if (request.method() !== "GET") return
+    const match = new URL(request.url()).pathname.match(/^\/api\/session\/([^/]+)\/message$/)
+
+    if (match) requests.push(decodeURIComponent(match[1]))
+  })
+
+  if (process.env.AIGCFROGE_PERFORMANCE_HTTP_FIXTURE !== "1")
+    await mockAigcForgeServer(page, {
+      sessions: fixture.sessions,
+      provider: fixture.provider,
+      directory: fixture.directory,
+      project: fixture.project,
+      // Return the full history so every scenario exercises a long loaded timeline.
+      pageMessages: (sessionID) => ({ items: messages[sessionID] ?? [] }),
+      vcsDiff: reviewDiffs,
+    })
+  await installTimelineSettings(page)
+  await installStressSessionTabs(page)
+  await page.goto(sessionHref(fixture.sourceID))
+  await expectSessionTitle(page, fixture.expected.sourceTitle)
+  await expectReadyTimeline(page, fixture.sourceID)
+  await expect(page.locator(`[data-timeline-part-id="${expected[fixture.targetID].answerID}"]`)).toHaveCount(0)
+  expect(requests).toEqual([fixture.sourceID])
+
+  return requests
+}
+
+async function expectReadyTimeline(page: Page, sessionID: string) {
+  const answer = page.locator(`[data-timeline-part-id="${expected[sessionID].answerID}"]`)
+  await expect(answer.locator('[data-component="markdown"]')).toHaveAttribute("data-markdown-ready", "")
+  await expect(answer.getByRole("table")).toHaveCount(1)
+  await expect(answer.locator("pre")).toHaveCount(4)
+  await expect
+    .poll(() => answer.evaluate((element) => element.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })))
+    .toBe(true)
+  await waitForStableTimeline(page, expected[sessionID].lastID)
+  await expect(page.locator('[data-timeline-key] [data-component="markdown"]:not([data-markdown-ready])')).toHaveCount(
+    0,
   )
 }
 
 async function switchSession(page: Page, sessionID: string, title: string) {
-  const href = stressSessionHref(sessionID)
-  const tab = page.locator(`[data-slot="titlebar-tabs"] a[href="${href}"]`).first()
-  await expect(tab).toBeVisible()
+  const tab = page.locator(`[data-slot="titlebar-tabs"] a[href="${sessionHref(sessionID)}"]`)
+  await expect(tab).toHaveCount(1)
   await tab.click()
   await expectSessionTitle(page, title)
+}
+
+async function openReviewPane(page: Page) {
+  await page.getByRole("button", { name: "Toggle review" }).click()
+  await expect(page.locator("#review-panel")).toBeVisible()
+  await page.waitForFunction(() => {
+    const text = document.querySelector("#review-panel")?.textContent ?? ""
+
+    return text.includes("generated-000.ts") && text.includes("+3")
+  })
+  await page.locator('[data-slot="session-chat-panel"]').evaluate(async (panel) => {
+    await Promise.all(panel.getAnimations().map((animation) => animation.finished))
+  })
+}
+
+async function retainedRendererMemory(page: Page) {
+  const cdp = await page.context().newCDPSession(page)
+
+  try {
+    await cdp.send("HeapProfiler.collectGarbage")
+
+    return {
+      heap: await cdp.send("Runtime.getHeapUsage"),
+      dom: await cdp.send("Memory.getDOMCounters"),
+    }
+  } finally {
+    await cdp.detach()
+  }
 }

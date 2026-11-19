@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { KBNote } from "../src/index"
+import { KBNote } from "../src/index.js"
 
 const validNote = {
   id: "kb_abc123",

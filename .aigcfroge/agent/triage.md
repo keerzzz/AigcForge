@@ -36,7 +36,7 @@ Core aigcfroge server and harness issues, including sqlite, snapshots, memory, A
 
 ### Inference
 
-Aigcfroge Zen, Aigcfroge Go, and billing issues.
+AigcForge Zen, AigcForge Go, and billing issues.
 
 ### Windows
 

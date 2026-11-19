@@ -47,17 +47,20 @@ jobs:
           AI_MODEL: ${{ vars.AI_ROBOT_MODEL || 'google/gemini-3.8-flash' }}
           SOURCE: ${{ inputs.source }}
           FROM: ${{ inputs.from }}
-          AIGCFROGE_PERMISSION: |
+          AIGCFROGE_DISABLE_PROJECT_CONFIG: "true"
+          AIGCFROGE_CONFIG_CONTENT: |
             {
-              "bash": {
-                "*": "deny",
-                "git show*": "allow",
-                "git diff*": "allow"
-              },
-              "edit": {
-                "*": "allow"
-              },
-              "webfetch": "deny"
+              "permission": {
+                "bash": {
+                  "*": "deny",
+                  "git show*": "allow",
+                  "git diff*": "allow"
+                },
+                "edit": {
+                  "*": "allow"
+                },
+                "webfetch": "deny"
+              }
             }
         run: |
           if [ -z "$GOOGLE_GENERATIVE_AI_API_KEY" ]; then

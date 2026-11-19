@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { PermissionTier } from "../src/permission-tier"
+import { PermissionTier } from "../src/permission-tier.js"
 
 describe("PermissionTier", () => {
   test("decodes the two allowed tiers", () => {

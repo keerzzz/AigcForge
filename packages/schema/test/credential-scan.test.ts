@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { CredentialScan } from "../src/credential-scan"
+import { CredentialScan } from "../src/credential-scan.js"
 
 const SECRET = "sk-live-abcdefghijklmnopqrstuvwxyz012345"
 

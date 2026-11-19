@@ -2,23 +2,25 @@ export * as AgentAsset from "./agent-asset"
 
 import { Context, Effect, Layer, Option, Schema, Scope, Stream } from "effect"
 import path from "path"
-import { AgentAsset as SchemaAgentAsset } from "@aigcfroge/schema/agent-asset"
+import { AgentAsset } from "@aigcfroge/schema/agent-asset"
 import { ConfigMarkdown } from "./config/markdown"
-import { EventV2 } from "./event"
-import { FSUtil } from "./fs-util"
+import { Bus } from "./bus"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { Flag } from "./flag/flag"
 import { KeyedMutex } from "./effect/keyed-mutex"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
 import { Location } from "./location"
 import { AssetMigration } from "./asset-migration"
 import { AgentAssetPath } from "./agent-asset/path"
 import { parseAgentAssetConfig } from "./agent/asset-bridge"
-import { Hash } from "./util/hash"
+import { Hash } from "@aigcfroge/util/hash"
 import { Watcher } from "./filesystem/watcher"
 import { AGENTS_DIR } from "./constants"
+import type { Agent } from "@aigcfroge/schema/agent"
 
 export { AGENTS_DIR }
 
-export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("AgentAsset.NotFound", {
+export class NotFoundError extends Schema.TaggedError<NotFoundError>()("AgentAsset.NotFound", {
   relativePath: Schema.String,
 }) {}
 
@@ -30,6 +32,7 @@ export interface Info {
   readonly config: string
   readonly source: string
   readonly revision: string
+  readonly card?: Agent.CardValue
   readonly handoffs: ReadonlyArray<{
     readonly label: string
     readonly agent: string
@@ -55,19 +58,21 @@ export interface Interface {
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/AgentAsset") {}
 
-function loadDir(
+export function loadDir<E = never>(
   fs: FSUtil.Interface,
   ownerRoot: string,
-): Effect.Effect<{ assets: Map<string, Info>; invalid: Map<string, InvalidEntry> }, FSUtil.Error> {
+  validate?: (relativePath: string, file: string) => Effect.Effect<unknown, E>,
+): Effect.Effect<{ assets: Map<string, Info>; invalid: Map<string, InvalidEntry> }, FSUtil.Error | E> {
   return Effect.gen(function* () {
     const assets = new Map<string, Info>()
     const invalid = new Map<string, InvalidEntry>()
     const byName = new Map<string, string[]>()
 
-    const files = yield* fs.glob("**/*.md", { cwd: ownerRoot, absolute: true, include: "file", dot: true })
+    const files = yield* fs.scan("**/*.md", { cwd: ownerRoot, absolute: true, include: "file", dot: true })
 
     for (const file of files) {
       const relativePath = path.relative(ownerRoot, file).replaceAll("\\", "/")
+      if (validate) yield* validate(relativePath, file)
       const raw = yield* fs
         .readFile(file)
         .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
@@ -81,9 +86,9 @@ function loadDir(
         continue
       }
 
-      let frontmatter: SchemaAgentAsset.Frontmatter
+      let frontmatter: AgentAsset.Frontmatter
       try {
-        frontmatter = Schema.decodeUnknownSync(SchemaAgentAsset.Frontmatter)(parsed.data)
+        frontmatter = Schema.decodeUnknownSync(AgentAsset.Frontmatter)(parsed.data)
       } catch {
         invalid.set(relativePath, { relativePath, errorTag: "bad_frontmatter" })
         yield* Effect.logWarning("Skipping invalid agent asset", { relativePath, errorTag: "bad_frontmatter" })
@@ -104,6 +109,7 @@ function loadDir(
       }
       byName.set(frontmatter.name, [relativePath])
 
+      const config = parseAgentAssetConfig(frontmatter.config)
       assets.set(relativePath, {
         kind: "agent",
         name: frontmatter.name,
@@ -115,7 +121,8 @@ function loadDir(
         // D13 (S3): handoffs ride the asset config YAML (ConfigAgent.Info) and/or a
         // top-level frontmatter key; surface them as a typed field so consumers
         // (asset-bridge, the workbench) read them from the asset itself.
-        handoffs: frontmatter.handoffs ?? parseAgentAssetConfig(frontmatter.config)?.handoffs ?? [],
+        handoffs: frontmatter.handoffs ?? config?.handoffs ?? [],
+        ...(config?.card === undefined ? {} : { card: config.card }),
       })
     }
 
@@ -170,7 +177,7 @@ export const layer = Layer.effect(
     })
 
     const scope = yield* Scope.Scope
-    const eventsOpt = yield* Effect.serviceOption(EventV2.Service)
+    const eventsOpt = yield* Effect.serviceOption(Bus.Service)
     if (Option.isSome(eventsOpt)) {
       yield* eventsOpt.value.subscribe(Watcher.Event.Updated).pipe(
         Stream.filter((e) => FSUtil.contains(ownerRoot, e.data.file) && e.data.file.endsWith(".md")),
@@ -208,3 +215,5 @@ const migrateLegacy = Effect.fnUntraced(function* (fs: FSUtil.Interface, directo
 })
 
 export const locationLayer = layer
+
+export const node = makeLocationNode({ service: Service, layer, deps: [FSUtil.node, Location.node] })

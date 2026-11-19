@@ -1,0 +1,1349 @@
+{
+  "report_kind": "bounded_p1_domain_contract_preflight",
+  "author": "/root/p03_fd_final_review",
+  "owner": "/root",
+  "artifact_date": "2026-10-25",
+  "date_basis": "UTC 2026-10-25; Asia/Shanghai local date 2026-10-26",
+  "target": {
+    "path": "/home/keer/workspace/aigcfroge-v2",
+    "branch": "v2-dev",
+    "head_at_start": "251c0fe38041a326e624db464d1ee0efd1522881",
+    "preexisting_wip": true
+  },
+  "old_reference": {
+    "path": "/home/keer/workspace/aigcfroge",
+    "branch": "main",
+    "head": "edbe67383d830aa40269ddf453c7f5617c940b46",
+    "preexisting_wip": true,
+    "read_only": true
+  },
+  "scope": {
+    "allowed_writes": [
+      "docs/research/upstream-v2-sync/p1-domain-contract-preflight-2026-10-25.md",
+      "docs/research/upstream-v2-sync/p1-domain-contract-preflight-2026-10-25.json"
+    ],
+    "package_plan_debt_prior_report_final_source_changes": false,
+    "tests_builds_typecheck_lint_acceptance_servers_index_executed": false,
+    "new_runtime_validation": "none",
+    "historical_log_tallies_repeated_or_accumulated": false,
+    "whole_architecture_report_repeated": false,
+    "complete_immutable_worktree_snapshot": false,
+    "note": "本报告保留合同和待核字段；主线模式创建运输独立推进。已有指已找到列明范围的真实 owner/消费者或现行账本关闭子范围，不是本次重新运行通过。"
+  },
+  "classification_definitions": {
+    "已有": "仅列明子范围有真实入口、owner 和消费者；不代表整领域验收完成。",
+    "部分接线": "已有存储、服务、工具或部分 HTTP/UI；完整用户链还有明确缺口。",
+    "待迁移": "明确保留的用户要求尚未定位完整当前入口/消费者；已有邻近能力不能代替。",
+    "待裁决": "存在具体规则冲突或未确定的产品边界；列出处与 Owner，不猜规则。"
+  },
+  "preservation_rules": [
+    "现行计划是工作令；旧 M7 只保留四态、进度、关闭后更新、导航和历史等功能要求，布局/尺寸/动画以 V2 宿主为准。",
+    "继续使用 V2 Session/AI/Model/Provider/Instructions；不回植旧 MetaAgentRuntime、TaskDriver、System Context registry 或第二 provider loop。",
+    "Meta 项目事实与个人长期记忆分开；Assistant Schedule/Delivery 与 Work Task 调度分开；内部 synthetic 分享与公开 URL 分享分开。",
+    "服务、Schema、daemonNode 或 helper 测试的存在不能证明生产启动与用户消费。stub 保持 fail closed，不能改成空成功。",
+    "保留 V2 Todo 及当前 Task 桥接的核对要求，不用旧 Todo/Task 树替代 V2 实现。",
+    "已关闭 V2-C-SHARE、V2-C-TASK-HTTP、V2-C-TASK-DECISION、V2-D-COMMAND 子范围不因本次盘点重开；未交付产品范围继续开放。"
+  ],
+  "contracts": [
+    {
+      "id": "META-IDENTITY",
+      "name": "Meta 持久身份、Session 关联与步骤",
+      "classification": "部分接线",
+      "user_entry": "保留 Meta 统一入口、持续协作、持久身份与可查看步骤。当前 builtin meta 是可选择 Agent；持久 Meta 配置管理及 create/attach 用户入口未定位。",
+      "input_output": "MetaAgentService.create 输入 title/agent/model(id/providerID/variant)，输出 MetaAgent.Info；attach 输入 metaID/sessionID/role/effort；sessions/stats/writeStep/updateStep 输出关联、统计及步骤。",
+      "session_persistent_owner": "MetaAgentTable、MetaAgentSessionTable、MetaAgentStepTable 由 MetaAgentService 管理；findBySession 查询实际关联表，选择 Agent=meta 不会自动创建关联。",
+      "agent": "builtin meta 为 primary，保持与 ProductMode 正交；配置中的 agent 字段不等于已绑定 Session 的实际执行选择。",
+      "model": "Meta 配置记录 canonical Model.Ref；实际 provider 使用当前 Session 的 Agent/Model 解析，create 配置本身不证明运行消费。",
+      "instructions": "当前 SessionContext 对选中 meta 调用 renderMetaSystem；持久身份、步骤与资产/记忆的自动 Instructions producer 未定位完整链。",
+      "tools": "已有 task/delegation、memory_record/search、list_assets 注册入口；不能将这些工具存在计作 create/attach 已接线。",
+      "permissions": "保留 meta deny-first 和当前叶工具/Session 权限；身份 create/attach/remove 的公共授权与角色可见域待核。",
+      "cancel": "service 有 detach/remove；它们不等于取消 active Session/Delegation。身份删除与历史/记忆保留策略待核。",
+      "retry": "create 生成新 Meta ID；attach 是关联插入；调用级去重、重复 attach 及多 Meta 关联选择合同待核，不默认幂等。",
+      "recovery": "真实 SQLite 行可读取；缺失关联不能从 builtin 名称猜 Meta ID。冷重载、fork/compaction 后身份使用需用户链证明。",
+      "consumers": "已定位 MetaAgentMemory.record 使用 findBySession；未定位生产 create/attach 管理入口。步骤事实进入产品视图及当前请求未证。",
+      "old_data": "保留旧 meta_agent/meta_agent_session/meta_agent_step 及其真实关联。缺失或冲突关系不得臆造、自动绑定或重跑外部步骤。",
+      "acceptance": "真实用户创建身份→attach 当前 Session→record/query→重载/fork/compaction→步骤查看及当前 Instructions 消费；验证 detach/remove 对活动执行及历史的明确合同。",
+      "owner": "Meta/Core/App；产品边界由产品 Owner 与 /root 裁决。",
+      "unknowns": "create/attach 公共入口与角色权限；每 Session 关联基数；身份删除保留；自动 Instructions 的确切 producer。",
+      "source_refs": [
+        "target:packages/core/src/meta-agent/service.ts:94",
+        "target:packages/core/src/meta-agent/service.ts:178",
+        "target:packages/core/src/meta-agent/service.ts:216",
+        "target:packages/core/src/session/context.ts:159",
+        "target:packages/core/src/plugin/agent.ts:182",
+        "old:docs/prd/meta-agent-orchestrator.md:67"
+      ],
+      "fixtures": [
+        "target:packages/core/test/meta-agent-service.test.ts:1",
+        "target:packages/core/test/meta-agent-integration.test.ts:1"
+      ]
+    },
+    {
+      "id": "META-MEMORY-ASSETS",
+      "name": "Meta 项目事实、资产/CLI 信息与当前请求",
+      "classification": "部分接线",
+      "user_entry": "保留跨 Session 的项目经验检索、资产发现和可用代理/CLI 信息。当前已注册 memory_record/search 和 list_assets；自动注入及完整管理 UI 未证。",
+      "input_output": "memory_record 接收四类项目事实、content 与来源 Session/Step，Tool 内容上限 2000 字符；search 返回记录。list_assets 当前返回 kind/name/path，采用目录文件名扫描，没有 canonical revision/health/source 信息。",
+      "session_persistent_owner": "MetaAgentMemoryTable 按 projectID 保存，并通过当前 Session 的 Meta 关联记录 metaAgentID；query/search 的决定 predicate 是 projectID。",
+      "agent": "保留 builtin meta 与当前子代理池；写入要求真实 attach，读取按项目；不将其改名为 Assistant 用户记忆。",
+      "model": "工具内容沿当前 Tool/SessionRunner 进入模型；无需第二模型执行器。",
+      "instructions": "renderMetaSystem 具有 assets 参数，但当前 SessionContext 的调用未传资产；自动事实/资产 producer 未定位。工具输出可用不等于当前 Instructions 自动已注入。",
+      "tools": "memory_record/search、list_assets 已在 internal plugins 注册；CLI discovery 另见外部续接项。",
+      "permissions": "已知写入 attach guard 和当前 Location.project；工具可见性沿现有 snapshot。memory_record 未见独立 Permission.assert；跨 Meta/Mode 读域与授权需核定。",
+      "cancel": "memory.remove 删除事实；活动 Session/任务取消仍由其执行 owner 负责。",
+      "retry": "service record 在调用方给固定 id 时 onConflictDoNothing；Tool 输入未携带该 id，不能外推重复事实调用无重复。",
+      "recovery": "事实有来源 Session/Step 与时间，可重读；不能以缺日志猜事实或外部步骤已完成。当前请求重载/fork/compaction 的消费待验。",
+      "consumers": "memory_search 的真实 content；list_assets 的文件名级内容；完整 canonical 资产信息、自动 Instructions 和管理 UI 缺口开放。",
+      "old_data": "Meta 事实保留 project/meta/source 身份；不自动混入 PersonalMemory、Notes 或确认队列。",
+      "acceptance": "同项目跨 Session 真实 record/search 与不同项目隔离；缺 attach 拒绝；原始来源与重试身份保留；canonical 资产信息→当前请求；禁止只测旧 System Context。",
+      "owner": "Meta/Core/Asset/App；记忆可见域由产品 Owner 裁决。",
+      "unknowns": "自动 producer；Mode/Role 读写策略；事实语义去重；canonical 资产 revision/来源信息的消费合同。",
+      "source_refs": [
+        "target:packages/core/src/agent/meta/memory.ts:87",
+        "target:packages/core/src/agent/meta/memory.ts:115",
+        "target:packages/core/src/tool/memory.ts:74",
+        "target:packages/core/src/tool/list-assets.ts:58",
+        "target:packages/core/src/plugin/agent.ts:31",
+        "target:packages/core/src/plugin/internal.ts:335"
+      ],
+      "fixtures": ["target:packages/core/test/meta-agent-memory.test.ts:1"]
+    },
+    {
+      "id": "ASSISTANT-PERSONAL-MEMORY",
+      "name": "个人长期记忆与 Memory Inspector",
+      "classification": "部分接线",
+      "user_entry": "保留对话提议→人类确认/拒绝、Inspector 查看/编辑/删除。旧 dashboard/session panel 有真实调用；当前 MemoryHandler 六端点全部 fail closed。",
+      "input_output": "内容、explicit/derived 来源、trust/sensitivity、来源 Session/Message、创建者/时间；propose 返回 pending Info，confirm/reject/edit/remove 返回持久状态。适用模式字段尚待核。",
+      "session_persistent_owner": "PersonalMemoryTable 是用户级记录，PersonalMemory.propose 固定 pending；listConfirmed 只读 confirmed；删除保留 deleted 审计行。它不使用 Meta 项目事实表。",
+      "agent": "沿当前 Session 选择 Agent；单选 assistant 产品模式不能隐式改 Agent。",
+      "model": "AI 仅提议；实际运行使用 V2 Model/Provider。人工确认前不得作为长期上下文生效。",
+      "instructions": "当前 Core 仅定位 listConfirmed 定义，未定位默认 Instructions 调用；确认后自动/按需消费必须接到现行 Instructions，不能恢复旧 registry。",
+      "tools": "propose_memory 已注册；公共 memory list/pending/confirm/reject/edit/remove 未接 service。",
+      "permissions": "旧 PRD 要求明确写入授权、来源/信任/敏感等级与可见审计，不信任外部网页/工具消息。Core telemetry marker 只带 memoryID；完整日志/错误正文边界及适用 Mode 可见域仍待核。",
+      "cancel": "pending 可 reject；pending/confirmed 可 edit；remove 软删除。不能将 rejected/deleted 自动恢复为可注入记忆。",
+      "retry": "confirm/reject 条件更新只针对 pending；重复操作返回 undefined 的 HTTP/UI 语义待接，不能默认再创建提议。",
+      "recovery": "持久查询应在重载/重连/fork/compaction 后保留确认状态；目前 service 存储不证明实际模型消费。",
+      "consumers": "旧 Inspector；当前 propose_memory 与 service 已有，当前公共 CRUD/UI/confirmed Instructions 链未完成。",
+      "old_data": "保留 provenance、trust/sensitivity、confirmedAt 与终态审计；缺授权或来源不能猜为 confirmed；不得把敏感原文写日志。",
+      "acceptance": "真实提议→pending HTTP→确认/拒绝/编辑/删除→当前请求，证明未确认不注入、删除不再可见、重载及可见域隔离；拒绝/敏感来源留明确状态。",
+      "owner": "Assistant/Core/Server/App；模式与用户可见域由产品 Owner 裁决。",
+      "unknowns": "适用 Mode/用户隔离、confirmed producer、公共操作重复语义与前端授权展示。",
+      "source_refs": [
+        "target:packages/core/src/session/personal-memory.ts:90",
+        "target:packages/core/src/session/personal-memory.ts:158",
+        "target:packages/core/src/session/personal-memory.ts:171",
+        "target:packages/server/src/handlers/assistant-stubs.ts:20",
+        "target:packages/core/src/plugin/internal.ts:338",
+        "target:packages/core/src/session/context.ts:225",
+        "old:docs/prd/assistant-mode-personal-agent.md:211",
+        "old:packages/app/src/pages/assistant-dashboard.tsx:116",
+        "old:packages/app/src/pages/session/assistant-session-panel.tsx:120"
+      ],
+      "fixtures": [
+        "target:packages/core/test/personal-memory.test.ts:1",
+        "target:packages/schema/test/personal-memory.test.ts:1"
+      ]
+    },
+    {
+      "id": "ASSISTANT-NOTES-DAILY",
+      "name": "Notes、Daily Notes 与 Studio 产物",
+      "classification": "待迁移",
+      "user_entry": "保留对话 propose_note→审查/修改/拒绝→确认写入、笔记编辑器、日期命名 Daily Notes、会议/周报/读书/每日回顾模板、URL→webfetch→草稿、版本 diff/回滚及源锚定引文。旧日记页要求不能遗漏。",
+      "input_output": "title/content/scope/tags/format；Schema 接受七种 format。当前 propose_note 只返回候选 exists/nameConflict/dangling，不落盘；日期生成、模板、版本和引文输入输出待核。",
+      "session_persistent_owner": "确认后的普通 Note 可复用 KBService/KBNote owner；Daily 日期页、模板与每次 update 的旧版本 owner 本轮未定位，不默认用一个普通 Note 当作全部实现。",
+      "agent": "当前 Session 所选 Agent；专用 Assistant/Studio prompt 的真实消费者待核。",
+      "model": "生成发生在当前有限 SessionRunner；源锚定回答需基于真实 Notes/Memory 检索。",
+      "instructions": "当前候选 content 与 kb 工具可用；七类模板、引文约束和真实当前请求的消费者尚未证明。",
+      "tools": "propose_note、kb_create/search/read/update/delete/list_dangling 已注册；propose_note output 未附 metadata，同源候选事实的持久 UI 消费需沿现有 Tool.Success 处理。",
+      "permissions": "propose_note/kb 工具有叶 Permission.assert；笔记正文应明确人类确认、外部剪藏保留不信任来源、路径由 KB owner 决定。",
+      "cancel": "候选取消/拒绝前无文件写入；编辑、版本回滚及草稿取消不修改已确认版本的合同待落地。",
+      "retry": "候选与修改后的内容需严格配对，不能沿用缺失/default facts；重复打开同日期、重复确认及回滚去重待核。",
+      "recovery": "要求恢复未提交草稿、历史版本与引文来源；service Note 重读不证明 Daily/Studio 恢复。",
+      "consumers": "旧 Assistant note editor/dashboard/KB tab 可作合同参考；当前无已定位 Notes/日记/Studio 用户入口，不能搬旧 Shell 几何。",
+      "old_data": "保留标题/aliases/tags/format、源数据锚点、旧版本与 Markdown；Daily 日期时区和重名规则待核。",
+      "acceptance": "真实候选→确认→HTTP/文件→读回/引文；日期命名生成、七种 format、模板/剪藏、旧版本 diff/rollback、取消和重载；确认前零落盘。",
+      "owner": "Assistant/Notes/Core/Server/App；日期和版本策略由产品 Owner 核定。",
+      "unknowns": "Daily 日期时区/重名、模板和版本存储、七类 Studio renderer、来源锚定及引文 payload；M3+图谱/闪卡/记忆关系边/导出继续按旧阶段保留待盘点，不计本项已交付。",
+      "source_refs": [
+        "target:packages/core/src/tool/propose-note.ts:59",
+        "target:packages/core/src/tool/propose-note.ts:81",
+        "target:packages/schema/src/kb-note.ts:24",
+        "target:packages/core/src/tool/kb-tools.ts:59",
+        "old:docs/prd/assistant-mode-personal-agent.md:258",
+        "old:docs/prd/assistant-mode-personal-agent.md:488",
+        "old:packages/app/src/pages/assistant-dashboard.tsx:171",
+        "old:packages/app/src/pages/session/assistant-kb-tab.tsx:25"
+      ],
+      "fixtures": ["target:packages/core/test/kb-service.test.ts:1"]
+    },
+    {
+      "id": "ASSISTANT-KB",
+      "name": "KB 文件、索引、双向链接与检索",
+      "classification": "部分接线",
+      "user_entry": "保留全局/项目 Notes、层级标签、aliases、FTS5、wikilinks/backlinks/dangling 与引文跳转；旧 KB tab 真调用这些读 API，当前八个公共 KB handler 全 fail closed。",
+      "input_output": "KBNote.Note(id/title/content/scope/tags/aliases/format/times)、Link 与 DanglingLink；create/update/remove/get/list/search/backlinks/dangling。中文检索与实际引文结果待验。",
+      "session_persistent_owner": "KBService 管理 KBNote/Link/FTS；有 baseDir 时写 <config>/knowledge-base 或 <directory>/.aigcfroge/knowledge-base。list 当前仅按 scope 标签过滤；项目隔离单元仍需实际核对。",
+      "agent": "沿当前 Agent 权限与 Session 选择；Notes 不授予执行能力。",
+      "model": "kb_search/read 的内容可进入当前 Tool 流；检索型回答与引用需实际请求证明，不称已完整 RAG。",
+      "instructions": "不默认把全部库注入 Instructions；检索和引文 producer/消费合同待接。",
+      "tools": "六个 kb 工具已注册并自断言权限；HTTP adapter 必须提供真实 scope/baseDir，不能把 DB-only 调用当 Markdown 已落盘。",
+      "permissions": "Title schema 拒路径分隔/parent 引用；服务 mirror containment；Scope/同名跨项目/外部编辑信任边界必须保留真实验证。",
+      "cancel": "删除和写入回滚由现有 KB owner 处理；真实 UI 冲突、取消、跨文件/索引失败后恢复待验。",
+      "retry": "scope+title 唯一、链接解析依当前 scope/aliases；并发写/重命名/重复操作不能复制第二套比较规则。",
+      "recovery": "syncFromDirectory 可重建索引；生产文件 watcher、外部 Obsidian 编辑、文件消失及重启重建的真实接线待核。",
+      "consumers": "当前 kb 工具；旧 KB tab 的 search/backlinks/dangling/链接装饰；当前公共 UI/HTTP、生产 watcher 与跨项目正确性开放。",
+      "old_data": "Markdown 内容和稳定 Note ID/title/aliases/links 保留；索引重建依据原文件；无 scope/source 的历史项不猜归属。",
+      "acceptance": "同 source owner 的 HTTP→文件/索引→查询→当前回答/引文；同名不同 scope/Location、aliases、悬空转正常/删除再悬空、外部编辑、中文搜索及失败回滚。",
+      "owner": "KB/Core/Server/App；Scope/历史缺失归属由产品 Owner 与 Core 核定。",
+      "unknowns": "项目隔离键、生产 watcher、中文 FTS 行为、引文来源结构与版本历史。",
+      "source_refs": [
+        "target:packages/core/src/session/kb-service.ts:167",
+        "target:packages/core/src/session/kb-service.ts:270",
+        "target:packages/core/src/session/kb-service.ts:273",
+        "target:packages/core/src/session/kb-service.ts:375",
+        "target:packages/core/src/tool/kb-tools.ts:45",
+        "target:packages/server/src/handlers/assistant-stubs.ts:30",
+        "old:docs/prd/assistant-mode-personal-agent.md:480",
+        "old:packages/app/src/pages/session/assistant-kb-tab.tsx:81"
+      ],
+      "fixtures": ["target:packages/core/test/kb-service.test.ts:1"]
+    },
+    {
+      "id": "ASSISTANT-REMINDERS",
+      "name": "单次提醒、Delivery inbox 与离线补投",
+      "classification": "部分接线",
+      "user_entry": "保留自然语言→展示内容/绝对时间/IANA 时区/离线语义→人类确认→创建、列表/取消、近期投递和已读。旧 dashboard/session panel 真调用；当前 Schedule/Delivery HTTP 全 fail closed。",
+      "input_output": "confirmed content/dueAt/timezone，持久 Schedule.Info 与 deliveryKey；Delivery 包含 schedule/session/content/deliveredAt/caughtUp/read。简单到期路径要求 0 LLM/工具调用。",
+      "session_persistent_owner": "ScheduleTable/DeliveryTable 由 ScheduleService/DeliveryService 管理，非 TaskTable。AssistantScheduler.trigger 将 claim、去重 delivery 与 settle 放同事务；daemonNode 定义未在检查生产 roots 找到启动调用。",
+      "agent": "创建发生在当前有限 Session；到期简单提醒不选择执行 Agent。",
+      "model": "仅自然语言候选解析使用当前模型。模型生成日报属于后续阶段，必须另经 durable input/普通有限 Drain，不能混入 M1 提醒。",
+      "instructions": "Tool 描述要求确认时间；真实确认展示/evidence 和到期产品触达仍需接线。",
+      "tools": "reminder_create/update/cancel 已注册；create 验 IANA/未来绝对时间，deliveryKey 由 Session+dueAt+内容 digest 决定。",
+      "permissions": "叶 Permission.assert，cancel 验当前 Session 归属；新提醒开关关闭后的查询/取消/已有 pending 投递合同保留，不丢数据。",
+      "cancel": "cancel 与事务 trigger 条件决定胜负，取消成功不误投；公共返回、运行中取消、终态展示需真实 UI 验证。",
+      "retry": "固定 deliveryKey 去重；事务失败/next_attempt/backoff 的 UI 与生产行为需同 owner 回归，不从工具说明外推无重复。",
+      "recovery": "daemon 有 startupSweep/caught_up 与 stale claim 恢复；定义不等于生产启动。离线期间不承诺 OS 后台运行，下次启动补投。",
+      "consumers": "当前创建/更新/取消工具与存储；daemon 开机接线、真实 Delivery HTTP/UI 与已读同步未完成。",
+      "old_data": "保留 pending/terminal 状态、lease/retry/deliveryKey 和 caughtUp；不得将历史提醒转换成 Work Task 或丢弃 flag-off 数据。",
+      "acceptance": "真实确认→创建→查询→生产启动/到期→唯一 inbox→已读；停机逾期补投、取消/认领竞争、重复确认/重启/故障回滚；证明简单到期不调用模型/工具且日志无正文。",
+      "owner": "Assistant/Schedule/Core/Server/App/Desktop runtime；时间和拓展阶段由产品 Owner 核定。",
+      "unknowns": "生产 daemon root、确认 evidence/通知 surface、flag-off 真实闭环；Cron/模型日报与 Work recurrence 的拓展合同另列。",
+      "source_refs": [
+        "target:packages/core/src/tool/reminder-create.ts:34",
+        "target:packages/core/src/tool/reminder-create.ts:77",
+        "target:packages/core/src/tool/reminder-create.ts:108",
+        "target:packages/core/src/tool/reminder-cancel.ts:56",
+        "target:packages/core/src/session/schedule-service.ts:533",
+        "target:packages/core/src/session/schedule-service.ts:697",
+        "target:packages/core/src/session/schedule-service.ts:714",
+        "target:packages/core/src/plugin/internal.ts:283",
+        "target:packages/server/src/handlers/assistant-stubs.ts:42",
+        "old:docs/prd/assistant-mode-personal-agent.md:51",
+        "old:docs/prd/assistant-mode-personal-agent.md:130",
+        "old:packages/app/src/pages/assistant-dashboard.tsx:259"
+      ],
+      "fixtures": ["target:packages/core/test/schedule-service.test.ts:1"]
+    },
+    {
+      "id": "IMPORT-ASSET-CONFIG",
+      "name": "跨工具资产/配置导入与审阅",
+      "classification": "部分接线",
+      "user_entry": "保留 paste/file/folder、选中文件、解析预览 warnings/errors、返回修改、AI-assisted fallback 和明确导入意图。旧 handleImport 只调用 onImport，不能从按钮名推断已写资产。",
+      "input_output": "当前 ImportParser 输入 content，输出 candidates(kind/name/description/template)、warnings/errors；纯文本/代码块提取与大小界限已有。外部配置 vendor/version/秘密/源路径字段矩阵待核。",
+      "session_persistent_owner": "Parser 只提取，不写资产。实际写入仍归选中 AssetService/CAS/安全 Location；public parse 在 assistant-stubs fail closed，七资产用户 apply 另见首资产预检。",
+      "agent": "确定性 parse 不选 Agent；AI fallback 使用当前有限 Session，不自动创建或改 mode/Agent。",
+      "model": "纯 Parser 无 LLM；AI fallback 保留原始导入内容的 untrusted 边界，不能自动当 system Instructions。",
+      "instructions": "外部内容必须与可信执行指令区分；旧 wrapImportContent 仅是输入格式参考，不替代授权/来源/实际当前请求验证。",
+      "tools": "现有 proposer/AssetService 与兼容配置 discovery 可复用；compatibility source 能读某格式不等于已经完成导入转换。",
+      "permissions": "parse 的 Authorization、写入的实际 Session/Location/路径/秘密边界与显式确认分开；Client 不能导入 Core/Server。",
+      "cancel": "选择/解析/预览/返回/关闭前不 apply；部分失败不伪装整体成功。",
+      "retry": "解析可重复读取；apply 用真实 proposal facts/revision，覆盖需人类确认；重复导入和多候选部分结果需真实合同。",
+      "recovery": "输入/选择/候选与来源需可审阅恢复；不能由扫描文件数量宣称全部导入。",
+      "consumers": "旧 ChatImportDialog；当前 parser service/Schema 已有，HTTP/UI/write→runtime consumer 未完成。",
+      "old_data": "保留原文件、vendor/version、路径和不支持项目的显式 warning/error；凭据不复制进公开 candidate 或日志。",
+      "acceptance": "真实选源→parse HTTP→预览→确认→AssetService→原生注册/当前 Session 消费；非法/大输入/秘密/路径/重复/冲突/取消/局部失败与 reload。",
+      "owner": "Import/Asset/Core/Server/App；源格式/version/秘密策略由 Import/产品 Owner 核定。",
+      "unknowns": "各工具配置格式矩阵、字段映射/秘密剥离、源身份、批量事务与恢复策略。",
+      "source_refs": [
+        "target:packages/core/src/import-parser.ts:252",
+        "target:packages/core/src/import-parser.ts:348",
+        "target:packages/schema/src/import-parser.ts:19",
+        "target:packages/protocol/src/groups/import-parser.ts:11",
+        "target:packages/server/src/handlers/assistant-stubs.ts:52",
+        "old:packages/app/src/components/chat/chat-import-dialog.tsx:104",
+        "old:packages/app/src/components/chat/chat-import-dialog.tsx:234",
+        "old:packages/app/src/components/chat/chat-import-dialog.tsx:262",
+        "target:docs/research/upstream-v2-sync/p1-first-asset-preflight-2026-10-25-skill.md:1"
+      ],
+      "fixtures": [
+        "target:packages/core/test/import-parser.test.ts:1",
+        "target:packages/core/test/import-parser-size-warnings.test.ts:1",
+        "target:packages/core/test/import-parser-redos.test.ts:1"
+      ]
+    },
+    {
+      "id": "IMPORT-EXTERNAL-HISTORY",
+      "name": "外部会话历史转换与 canonical Session transfer",
+      "classification": "待迁移",
+      "user_entry": "保留跨工具历史导入、来源可查、旧消息/工具/模型数据正确呈现；它不等于 Chat 资产文本 import，也不等于外部 live thread 续接。真实 App 入口与支持源版本本轮未定位。",
+      "input_output": "现有 canonical SessionTransfer 是 info+settled messages，export 可 sanitize；import 检查 Session ID 冲突并保存消息 ID/time/顺序。外部 JSONL/数据库/工具调用结构转换待核。",
+      "session_persistent_owner": "SessionTransfer 使用当前 Session/Message/Bus/Project 事务 owner；当前 import Created 参数未转交 mode，也没有导入 composition snapshot 的已定位合同，不称全模式历史恢复已完成。",
+      "agent": "canonical transfer 保留 Agent 字段；外部身份到当前 Agent 分类映射不能猜，不能仅因旧名称直接执行。",
+      "model": "canonical Model.Ref/消息 provider data 需真实转换；导入本身不调用模型。",
+      "instructions": "历史与可执行 Instructions/来源信任分开；Custom 历史读取不自动证明冻结依赖可继续执行。",
+      "tools": "复用 SessionTransfer 和既有 parser/Schema；资产 Parser 剥离 conversation noise，不是 transcript converter。",
+      "permissions": "导入源读取、目标 Location 和来源/秘密/授权需真实边界；sanitize 功能不是公开发布授权。",
+      "cancel": "取消导入不能留下半 Session/半消息；导入历史不能停止或恢复原外部运行。",
+      "retry": "当前 import 已有 ID 时明确 conflict；不能套普通 create 的 adoption 或旧 exact-payload retry 规则消除该冲突。",
+      "recovery": "验证重开与消息呈现；live continuation 需要外部 adapter 对具体 thread/turn/attempt 的证据，不能从已导入文本推导可重跑。",
+      "consumers": "canonical transfer owner 已有；外部格式转换、当前 App 历史 UI、模式/snapshot/source 全保留及真实消费者未证。",
+      "old_data": "保留原 vendor/version、Session/Message/tool IDs/time/source；缺失状态或未知副作用不补成成功。V1 数据库/凭据迁移不能算外部 transcript 导入。",
+      "acceptance": "真实各源样本→确定转换→canonical import→GET/timeline/tool/source→reopen；冲突、损坏、取消事务、模式与冻结历史语义；不触发外部工作。",
+      "owner": "Import/Core/Server/App；外部源身份/模式和历史恢复合同由产品 Owner 核定。",
+      "unknowns": "源格式/version 清单、Tool/provider 元数据映射、mode/snapshot 迁移、sanitization 与可继续执行的区分。",
+      "source_refs": [
+        "target:packages/core/src/session/transfer.ts:57",
+        "target:packages/core/src/session/transfer.ts:64",
+        "target:packages/core/src/session/transfer.ts:91",
+        "target:packages/core/src/import-parser.ts:269",
+        "target:docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md:126"
+      ],
+      "fixtures": ["target:packages/core/test/session-create.test.ts:1"]
+    },
+    {
+      "id": "EXTERNAL-CLI-CONTINUATION",
+      "name": "CLI 发现、外部 thread/turn 续接及只读审查",
+      "classification": "部分接线",
+      "user_entry": "保留 Codex/Claude 等本地 CLI 发现、持久 participant/thread、追加/steer/queue、interrupt、继续与审查。旧目标是 Build implementer+Codex只读 reviewer；当前 dispatch 仅接受 internal provider。",
+      "input_output": "CliDiscovery 返回 name/command/path/available；CliAdapter 有 jsonl/sdk/acp/app-server、resumeId、threadId/turnId、review/error/recoveryRequired 与可选控制方法。方法存在不能宣称所有 transport 都支持。",
+      "session_persistent_owner": "Delegation/Participant/Turn/Delivery 来源事实与 externalThreadID/externalTurnID 归现有 service；adapter registry 的实际生产注册与完整执行接线未证。",
+      "agent": "内部 delegate 目标需非 primary；当前 Build/meta 为 primary。保留配置分类，不能静默换 general 或降为 subagent 来实现旧故事。",
+      "model": "外部模型选择来自具体 adapter/配置；内部运行仍归 SessionRunner，不新增统一外部模型 loop。",
+      "instructions": "保留子代理协议卡片、来源和同 participant 持续协作上下文；外部请求/结果进入当前 Instructions/receipt 的具体 producer 待核。",
+      "tools": "CliAdapter、CliDiscovery 与现有 Delegation 控制面可复用；发现只读，不安装/登录/运行 CLI。外部 dispatch 不能靠接口存在放开。",
+      "permissions": "只读 reviewer 与真实 canUseTool/Permission waiter、attended、purge 权限必须接具体 transport；旧 verdict 不授予工具权限。",
+      "cancel": "按真实能力区分 cancel、interruptTurn、archiveThread/deleteThread；threadId 不能替代 active turnId。",
+      "retry": "review/revision/attempt 身份保留；未知副作用不能因 resumeThread 成功就重试旧工作；缺能力必须明确拒绝。",
+      "recovery": "reconcileResume 当前明确保留 unknown，返回 0；跨启动需要 adapter 的确切 attempt 证据，不能从缺日志或继续 thread 推导未执行。",
+      "consumers": "adapter 接口/发现函数与 service 的外部关联/清理已有；真实注册、外部执行、attended、review/revision producer 与用户 UI 仍开放。",
+      "old_data": "保留 external_cli_session/thread/turn/meta step/receipt 真实来源；不得把历史 ID 当通用 turn ID 或靠文本 resume hint 重跑未知副作用。",
+      "acceptance": "只读发现→显式协作→真实 transport→persist thread/turn/receipt→追加/取消/冷恢复→revision review barrier；逐能力验证不可用/超时/拒绝与来源保护。",
+      "owner": "CLI/Delegation/Import/Core/App；Build 通道、外部副作用和 attended/review 合同由产品 Owner 与 /root 裁决。",
+      "unknowns": "生产 adapter 注册、源 CLI/version/capability 矩阵、Build primary 的真实执行通道、未知结果 reconciliation 证据。",
+      "source_refs": [
+        "target:packages/core/src/tool/cli-adapter.ts:44",
+        "target:packages/core/src/tool/cli-adapter.ts:85",
+        "target:packages/core/src/tool/cli-adapter.ts:139",
+        "target:packages/core/src/tool/cli-discovery.ts:15",
+        "target:packages/core/src/delegation/execution.ts:587",
+        "target:packages/core/src/delegation/execution.ts:607",
+        "target:packages/core/src/delegation/service.ts:1104",
+        "target:packages/core/src/plugin/agent.ts:120",
+        "old:docs/prd/meta-agent-orchestrator.md:68",
+        "old:docs/prd/meta-agent-orchestrator.md:79"
+      ],
+      "fixtures": [
+        "target:packages/core/test/cli-discovery.test.ts:1",
+        "target:packages/core/test/delegation-service.test.ts:1"
+      ]
+    },
+    {
+      "id": "WORK-TASK-CONSUMPTION",
+      "name": "Task CRUD、真实进度、继续、调度、child 与当次历史",
+      "classification": "部分接线",
+      "user_entry": "当前 SessionTaskPanel 已接持久表单 CRUD/重开；保留 V2 四态、真实进度、外部关闭、收起后更新、继续执行、持久 child 导航和当次只读调用快照。旧 M7 几何由现行计划 supersede。",
+      "input_output": "content/priority/status 等 canonical Task 字段、taskID/sessionID/revision/summary/schedule；PATCH 使用 expectedRevision。运行进度和当次快照必须来自真实执行事实。",
+      "session_persistent_owner": "TaskTable/SessionTask 是持久 owner；updateTask 的 CAS/commit 可供 execution 复用；Data.session.task→generated HTTP→Core 已接。",
+      "agent": "实际执行沿现有 Task/Delegation/child Agent；表单重开 pending 不决定 Agent 或开始执行。",
+      "model": "CRUD 无模型调用；真实 runner 结果、receipt 和 progress 才可计执行消费，fixture 摘要不代替 provider 输出。",
+      "instructions": "保持当前 SessionRunner/Instructions；继续执行不能回植旧 TaskDriver 或第二 provider loop。",
+      "tools": "现有 Task 工具/HTTP 与 V2 Todo bridge 保留；Work 调度需要 Task adapter，不能用 Assistant ScheduleTable 承担。",
+      "permissions": "真实 Session/Location 归属、CAS、mutation ACK 与读回错误分别处理；运行取消/purge 与纯 CRUD 权限不混同。",
+      "cancel": "状态 PATCH/删除并不证明相应 trigger/inbox/Job 停止；完整 pause/remove/外部关闭需要执行 owner 联动。",
+      "retry": "TaskPanel.mutate 按 ACK 成功，读回失败不重做已成功写入；reopen 只是 pending PATCH。全量/reorder 的结构并发合同另待裁决。",
+      "recovery": "有确切 marker 的 Task/KV 更正子范围保留关闭；旧 marker 缺 owning input/revision 不能猜修。真实继续与冷恢复产品消费仍开放。",
+      "consumers": "当前表单 CRUD；Task.updated 在展开时触发 load；进度轨道/收起后刷新、child/historical snapshot、Work schedule 尚未完成。",
+      "old_data": "保留旧 marker/receipt/通知的可证明身份；历史与当前 Task 分开；不回放旧 Todo/Task 树替换 V2。",
+      "acceptance": "真实 CRUD/ACK/stale/CAS→runner结果→四态/关闭后更新→继续/child导航/当次快照→重载；schedule claim/取消/冷恢复及结构/时区并发独立验收。",
+      "owner": "Task/Core/Server/Client/App、/root；旧 marker/结构并发/recurrence 时区由产品 Owner 裁决。",
+      "unknowns": "真实进度度量、当次快照 UI 结构、Work 调度 adapter、全量/reorder 版本和 timezone nextRun 合同。",
+      "source_refs": [
+        "target:packages/app/src/session/tasks/session-task-panel.tsx:73",
+        "target:packages/app/src/session/tasks/session-task-panel.tsx:108",
+        "target:packages/app/src/session/tasks/session-task-panel.tsx:180",
+        "target:packages/app/src/session/tasks/session-task-panel.tsx:255",
+        "target:packages/core/src/session/task.ts:963",
+        "target:docs/review/v2-task-product-audit-2026-10-24.md:3",
+        "target:docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md:160",
+        "target:docs/technical-debt.md:14",
+        "target:docs/technical-debt.md:19"
+      ],
+      "fixtures": [
+        "target:packages/app/e2e/regression/session-header.spec.ts:1",
+        "target:packages/server/test/session-task.test.ts:1"
+      ]
+    },
+    {
+      "id": "WORK-DELEGATION",
+      "name": "持久 Delegation 协作、review/revision 与生命周期消费",
+      "classification": "部分接线",
+      "user_entry": "保留持久协作列表/详情、participant/turn、同证据 fanout、steer/queue、版本化只读审查、关闭/完成/归档/显式 purge 和失败可见性。当前生命周期 HTTP 与内部执行已有，完整产品 UI 未定位。",
+      "input_output": "Delegation/Participant/Turn/Delivery、evidence/revision digests、reviewedRevisionDigest/verdict 与 attempt 来源；appendTurn 不引入额外 requestID，按既有来源事实去重。",
+      "session_persistent_owner": "DelegationService/Event/SQL/fold 管持久关系，Execution/child Session/Job 管执行，Task/KV settlement 管写回。review barrier 用实际 copyable/evaluateReviewBarrier/canComplete 规则。",
+      "agent": "implementer/reviewer/approver 角色与当前 Agent 执行分类分开；内部 dispatch 非 primary，具体 Build 通道另裁决。",
+      "model": "内部模型归 SessionRunner；外部真实 adapter 另接，不能把 Coordinator 当第二模型 loop。",
+      "instructions": "当前 history/Instructions 与子代理协议；外部 review/revision producer 和 UI 可追溯来源仍待接。",
+      "tools": "已有 task/Delegation service 与真实 HTTP 控制；不能凭 DTO 或接口把外部 producer 算完成。",
+      "permissions": "HTTP 校验 parent ownership；review 不能绕过 Permission，purge 与默认保留历史分开；现有叶裁决保持。",
+      "cancel": "interrupt/close/complete/archive/delete 各自语义和完成 barrier 保留；取消来源 unarchive 等已验子范围不扩成全生命周期关闭。",
+      "retry": "revision/review receipt 是版本事实，sticky rejection 需明确撤回；copyable 只允许既有无代码变化规则；较新 receipt 与原历史保留。",
+      "recovery": "内部 exact child/input/Task marker 与冷恢复已有子范围；unknown side effects、多 pending、fanout 补偿、draft purge 与完整顺序仍开放，不由缺日志推导未执行。",
+      "consumers": "真实 Delegation HTTP/内部执行/写回；列表/详情/turn/进度/审查/恢复 UI 与外部产物消费尚未闭环。",
+      "old_data": "保留 role、thread/child、turn/attempt、revision 与原 receipt；旧来源不足时保留人工 reconciliation，不能自动改已审历史。",
+      "acceptance": "真实多人 turn→执行→revision/review→completion barrier→UI→取消/归档/重开；隔离失败不抹健康结果，冷恢复和未知结果的明确人工状态。",
+      "owner": "Delegation/Core/Server/App/CLI、/root；外部副作用、角色与缺日志策略由产品 Owner 裁决。",
+      "unknowns": "外部 producer、attended、完整 UI、draft purge 与未验多 participant/故障顺序；既有日志只引用子范围，不累加。",
+      "source_refs": [
+        "target:packages/server/src/handlers/delegation.ts:38",
+        "target:packages/server/src/handlers/delegation.ts:84",
+        "target:packages/core/src/delegation/service.ts:434",
+        "target:packages/core/src/delegation/review.ts:20",
+        "target:packages/core/src/delegation/review.ts:78",
+        "target:packages/core/src/delegation/execution.ts:550",
+        "old:docs/prd/meta-agent-orchestrator.md:65",
+        "target:docs/technical-debt.md:11"
+      ],
+      "fixtures": [
+        "target:packages/server/test/delegation.test.ts:1",
+        "target:packages/core/test/delegation-review.test.ts:1",
+        "target:packages/core/test/delegation-execution.test.ts:1"
+      ]
+    },
+    {
+      "id": "WORK-WORKFLOW",
+      "name": "Workflow 运行/步骤、取消/重试及产品状态",
+      "classification": "部分接线",
+      "user_entry": "保留 Workflow 运行/步骤/真实进度/child/Task 关联、取消/重试和当次历史。当前四执行 HTTP 与状态读取是真实实现；App 的完整 Workflow runtime 用户面板未定位。",
+      "input_output": "run 输入 sessionID/requestID/expectedSnapshotDigest；cancel/retry 使用 run/step ID 与 revision；输出 canonical run/steps status。当前 root 函数要求 Custom root 和有效冻结 Workflow。",
+      "session_persistent_owner": "WorkflowRun/StepRun/Event 与 Session composition snapshot 管持久身份；Execution 用现有 child Session/Job/Task；run 明确要求 retained events，snapshot digest 决定准入。",
+      "agent": "冻结 orchestrator/executor 选择；Work mode 页面不能未经明确 composition start/upgrade 就当成 Workflow root。",
+      "model": "每个 child 仍由当前 SessionRunner 调用 provider，不新增 workflow in-memory tool loop。",
+      "instructions": "consumer-scoped frozen bindings/当前 Instructions 与历史沿现有 Session owner；调用快照 UI 不用当前热 registry 替代。",
+      "tools": "四实际 handler 在 session-instance-stubs.ts 内；文件名不等于该文件全是 stub，逐 endpoint 判断。",
+      "permissions": "实际 session/run/step ownership、Custom enabled、snapshot/revision preconditions 与叶工具权限保留。",
+      "cancel": "持久 cancel intent 先于停止 Job；运行/步骤取消与 Task 更新需要实际消费验证。",
+      "retry": "requestID 与 run/step revision、已有结果/receipt 保护；未知步骤不能任意重跑。",
+      "recovery": "同源内部恢复已有有界子范围；events-off、未知副作用、生产 startup 规模与多故障顺序仍开放，不累加旧检查点。",
+      "consumers": "真实 HTTP status/run/cancel/retry 与 backend execution；App 运行控件、child/当次快照、真实事件更新仍开放。",
+      "old_data": "保留 frozen workflow revision、run/step/source/Task/child/input 身份；历史缺冻结依赖不回退最新定义。",
+      "acceptance": "明确 Custom start/upgrade→run CAS→真实 DAG/child/Task结果→status UI/历史→取消/重试→cold；旧 Work 入口怎样消费另确认，不能默改 mode。",
+      "owner": "Workflow/Custom/Core/Server/App、/root；Work 与 Custom 产品入口衔接由产品 Owner 核定。",
+      "unknowns": "完整 runtime UI、Work 入口衔接、events-off 语义/规模与未验故障顺序。",
+      "source_refs": [
+        "target:packages/core/src/workflow/execution.ts:179",
+        "target:packages/core/src/workflow/execution.ts:840",
+        "target:packages/core/src/workflow/execution.ts:863",
+        "target:packages/server/src/handlers/session-instance-stubs.ts:174",
+        "target:packages/server/src/handlers/session-instance-stubs.ts:180",
+        "target:packages/server/src/handlers/session-instance-stubs.ts:192",
+        "target:docs/technical-debt.md:22"
+      ],
+      "fixtures": [
+        "target:packages/server/test/workflow-execution.test.ts:1",
+        "target:packages/core/test/workflow-execution.test.ts:1"
+      ]
+    },
+    {
+      "id": "CUSTOM-PROFILE-BUILDER-FREEZE",
+      "name": "Custom Profile/Builder、Plan/Snapshot、冻结消费与反向引用",
+      "classification": "部分接线",
+      "user_entry": "保留 Profile 选择/创建/编辑、Builder、plan/health、明确 start/upgrade、绑定消费者、运行/历史/引用/删除。Profile list/content 与 composition plan/start/health/refs 已是真 HTTP；App 用户入口未接。",
+      "input_output": "Profile name/description/agents/bindings/presentation/requestedCapabilities/revision；ProfileInput 或 temporary CompositionInput→Plan→StartResponse(Session+snapshot)。旧 M1 单用户 Agent 与当前 Schema 1–16 的阶段范围需核定。",
+      "session_persistent_owner": "CustomProfile/Service 与 SessionComposition snapshot 是真实 owner；Session.startCustom 原子 Created+snapshot，root meta、child/fork frozen selection；不能普通 create 后补 snapshot。",
+      "agent": "冻结平台 meta root 与选中 executor，consumer scope 不回退 live/default Agent。",
+      "model": "沿当前 frozen executor/Session model 解析，不恢复旧 Meta runtime。",
+      "instructions": "当前 SessionContext 使用 frozen Skill/Prompt/Command 与现行 Instructions；已有 Command 执行子范围保持关闭，producer/ambient MCP/Web 仍开放。",
+      "tools": "复用当前 Tool.snapshot 的 direct/CodeMode 定义/Schema/namespace 同次重验；requestedCapabilities 仅声明，不能新建授权映射或强制 MCP 全 direct。",
+      "permissions": "当前 Agent/Session/leaf 权限与 capability 声明分开；凭据只存引用；Location/path/source/revision 和 exact runtime dependency 保留。",
+      "cancel": "候选/plan 不启动；明确 start 失败无半 Session/snapshot。删除先显示 refs，不级联 Profile/其他资产/历史；内容资产删除后 broken/new start blocked，冻结内容可历史重放。",
+      "retry": "Plan 不是启动承诺，start 重新 freeze/digest；fixed ID 的已验证 frozen retry 沿现有 owner；缺依赖明确阻断。",
+      "recovery": "历史版本与 Snapshot 始终可读范围保留；运行依赖不匹配阻断，不加载最新资产代替。sourceLocation、移动/归档和 snapshotsComplete 不能抹掉。",
+      "consumers": "真实 Profile/composition HTTP、frozen Session/Command 与 refs；Builder/Profile selector/删除提示/结果导航和完整 watcher/producer 消费未完成，不能用失效 Custom 按钮算第五入口。",
+      "old_data": "保留 Profile revision、consumer bindings、snapshot version/digest/sourceLocation 和 frozen bodies；历史缺 source 或 snapshot 损坏显示 incomplete/blocked，不臆造。",
+      "acceptance": "真实 Profile→plan→明确 start→atomic snapshot→当前消费者/command/Workflow→refs/删除/历史→cold/upgrade；disabled/capability、路径/凭据、missing/stale、Scope/来源和 watcher 就绪。",
+      "owner": "Custom/Asset/Core/Server/App；阶段 bounds、producer/ambient 冻结与权限展示由产品 Owner 核定。",
+      "unknowns": "Builder 产品阶段/Agent 数量限制、producer closure/Skill resources/ambient MCP/Web、完整 watcher 一致性与规模；第五入口 P3 未交付。",
+      "source_refs": [
+        "target:packages/server/src/handlers/custom-profile.ts:26",
+        "target:packages/server/src/handlers/composition-stubs.ts:65",
+        "target:packages/core/src/session.ts:392",
+        "target:packages/core/src/session.ts:429",
+        "target:packages/core/src/session/context.ts:215",
+        "target:packages/core/src/composition/reference.ts:26",
+        "target:packages/core/src/session/composition.ts:248",
+        "target:packages/schema/src/custom-profile.ts:83",
+        "old:docs/prd/custom-mode-composition-platform.md:123",
+        "old:docs/prd/custom-mode-composition-platform.md:292",
+        "target:docs/research/upstream-v2-sync/p2-mode-preflight-2026-10-25-generic-create.md:1"
+      ],
+      "fixtures": [
+        "target:packages/server/test/custom-composition.test.ts:1",
+        "target:packages/core/test/session-composition-references.test.ts:1",
+        "target:packages/core/test/session-skill.test.ts:1"
+      ]
+    },
+    {
+      "id": "GLOBAL-HOME-SEARCH",
+      "name": "全局首页的 Session 搜索与打开",
+      "classification": "已有",
+      "user_entry": "已有真实 Home search 输入、聚焦、键盘选择和打开 Session；仅指当前已定位的 metadata 搜索子范围，完整跨 Project/Location parity 不因此关闭。",
+      "input_output": "query、server/project 上下文与 Session records；按 Session label+projectName substring，另有 exact Session lookup，返回可导航记录，不是全文会话/KB/文件检索。",
+      "session_persistent_owner": "server.session.list/get 与当前 Project/Session/location owner；Home index+Data cache 合并，不能另建全局 Session 真源。",
+      "agent": "搜索/打开不选择或改 Agent。",
+      "model": "搜索不调用模型。",
+      "instructions": "不因为导航修改 Instructions 或恢复工作。",
+      "tools": "实际 Client session list/get、Home index/search/select；不是外部搜索 provider 工具。",
+      "permissions": "沿真实 Server/Project/Session 可见性与 canonical location；切换连接/项目不能串缓存。",
+      "cancel": "关闭搜索/改变 scope 不创建/删除 Session，不触发 runner。",
+      "retry": "index query retry=false、refetchOnReconnect；exact lookup 与错误/空结果区分的完整 UX 仍需生产回归。",
+      "recovery": "重连/重载索引与 canonical Data；旧路径、移动 Session 与未知 Project 名称的最终导航 parity 待验。",
+      "consumers": "createHomeSessionSearchController→实际 Home view/controller；已定位真实入口，不按旧 UI 文件数量判断。",
+      "old_data": "保留 canonical Session ID/server/location/project；不能从标题或旧 path 猜新身份。",
+      "acceptance": "当前搜索子范围可复用；完整 parity 需跨 Project/Location、exact ID、冷加载/重连、scope 切换/错误与打开正确 Session，避免 mock-only 结论。",
+      "owner": "App/Home/Client/Core/Server；聚合范围由现行 Global parity 工作令约束。",
+      "unknowns": "完整搜索 corpus/保留窗口、所有 Location/旧路径 parity、全字段/full-text 要求不凭当前 substring 自动承诺。",
+      "source_refs": [
+        "target:packages/app/src/home/sessions/search.ts:16",
+        "target:packages/app/src/home/sessions/search.ts:41",
+        "target:packages/app/src/home/sessions/search.ts:162",
+        "target:packages/app/src/home/sessions/controller.tsx:62",
+        "target:packages/app/src/home/sessions/controller.tsx:85",
+        "target:docs/technical-debt.md:71"
+      ],
+      "fixtures": ["target:packages/app/src/home/sessions/index.test.ts:1"]
+    },
+    {
+      "id": "GLOBAL-SYNC-CONFIG",
+      "name": "全局/Location Sync、配置读取与写回",
+      "classification": "部分接线",
+      "user_entry": "保留全局首页、跨项目/location聚合、canonical cache/event 重连与配置展示/修改。Current bootstrap/Client Data 已有；loadGlobalConfigQuery 返回 {}，App 配置写回明确 throws unavailable。",
+      "input_output": "Server-scoped global/project/path 与 Location 数据、Config；Server config.get 实际返回 entries，App 期待的 global Config 与范围映射需核定，不能默认空对象或复制镜像 API。",
+      "session_persistent_owner": "Project/Workspace/Location/Session 与 Core Config owner；客户端缓存只投影服务器事实。Config.latest 的 last matching document 决定每 key 选择，不能手写另一套 precedence。",
+      "agent": "Sync/config 加载不隐式改 Agent 或恢复 Session。",
+      "model": "Model/provider 刷新沿当前 V2 owner，不回植旧 LLM routing。",
+      "instructions": "配置改变经既有 current consumer/reload，真实 Instructions/provider 请求影响另验，空 Query 不证明更新。",
+      "tools": "复用 current config.get/update、Project/Location bootstrap 与 Data event handling；先对齐 global vs Location entries contract。",
+      "permissions": "Server scope、Location canonicalization、配置来源与凭据保持既有边界；失败写回不得显示成功。",
+      "cancel": "导航/断开/配置取消不触发持久 mutation；in-flight query、dispose 与迟到响应需保持当前 scoped lifecycle。",
+      "retry": "现有 bootstrap/query/reconnect 与 Data invalidation 保留；source precedence、部分失败与 stale echo 不以 {} 掩盖。",
+      "recovery": "离线重连、服务复用、location alias/eviction 与旧数据 hydration需真实回归；不重做已验证 P0 子范围或累加日志。",
+      "consumers": "真实 bootstrapGlobal/Home/Client Data；global config query 与 App save adapter 未接到已存在的 server config surface。",
+      "old_data": "旧 global/project 配置、server scope、路径与来源需明确归一化；不以合并对象猜 document 优先级或全局授权。",
+      "acceptance": "真实 config entries→明确 global/Location selection→UI→实际 update/echo→provider/Instructions refresh；跨项目/连接冷启动、部分失败、重连/迟到事件及 canonical cache 隔离。",
+      "owner": "Global/App/Client/Server/Core Config；global/Location shape 和保存能力合同由负责人核定。",
+      "unknowns": "global API 选择/adapter shape、配置保存能力、完整聚合/旧路径与迟到事件 parity。",
+      "source_refs": [
+        "target:packages/app/src/runtime/server/global-sync/bootstrap.ts:52",
+        "target:packages/app/src/runtime/server/global-sync/bootstrap.ts:81",
+        "target:packages/app/src/runtime/server/sync.tsx:289",
+        "target:packages/server/src/handlers/config.ts:7",
+        "target:packages/core/src/config.ts:22",
+        "target:packages/client/src/solid/data.ts:674",
+        "target:docs/technical-debt.md:71"
+      ],
+      "fixtures": [
+        "target:packages/app/src/runtime/server/global-sync/bootstrap.test.ts:1",
+        "target:packages/client/test/solid-data.test.ts:1"
+      ]
+    },
+    {
+      "id": "INTERNAL-SESSION-SHARE",
+      "name": "内部跨 Session reference/output/full 分享",
+      "classification": "已有",
+      "user_entry": "已有 share 工具的 backend/durable inbox 关闭子范围。源→目标 Session 的 scope 与 trigger 明确；它不生成公开 URL，也不是 AI summary。",
+      "input_output": "sourceSessionID/targetSessionID/scope(reference/output/full)/trigger；reference 是 ID，output 是最新 assistant text，full 是 formatMessages 决定的投影文本集合。",
+      "session_persistent_owner": "SessionShareV2.share 验源/目标后调用目标 Session.synthetic，持久 admission 先于 advisory wake；metadata 保留 sourceSessionID/scope。",
+      "agent": "目标 Session 处理仍用其当前 Agent；分享本身不改目标 Agent/mode。",
+      "model": "分享不调用独立 summary 模型；trigger=true 的后续处理归目标 SessionRunner。",
+      "instructions": "共享为 synthetic 内容，非 system Instructions producer；source/trust 与当前请求边界保留。",
+      "tools": "SessionShareTool 已注册；服务 scope/reference/output/full 与真实 content 决定函数可复用。",
+      "permissions": "share 叶对源/目标 Session ID 断言 Permission，不能把内部 service 存在当公开发布授权。",
+      "cancel": "trigger=false admit-only；已准入共享和目标 active execution 的取消分别归 Session owner。产品撤回/重复点击语义待核。",
+      "retry": "沿 current Session.synthetic 准入身份规则；ShareInput 本身无 caller id，不能外推任意重复 share 的 exactly-once 用户语义。",
+      "recovery": "durable synthetic 可重读并由目标 Session 继续；既有关闭子范围不扩成所有 UI/撤回/恢复已验。",
+      "consumers": "真实 share Tool→Session synthetic→目标 current runner；当前完整产品选择/确认/撤回 UX 另核，公开链接见独立项。",
+      "old_data": "保留来源/目标/scope 与投影内容；full 的格式由 formatMessages 决定，不能改称外部完整 transcript 或 public snapshot。",
+      "acceptance": "复用既有 backend 子范围；新增产品消费时验证显式 scope/源目标权限、trigger、目标 history/current request、重复点击/取消/重载，AI summary 不混计。",
+      "owner": "Session/Core/App、/root；产品撤回/重试和 AI summary 另按其开放范围核定。",
+      "unknowns": "完整 UI、撤回/双击重试、AI summary 与公开发布均不由当前内部分享覆盖。",
+      "source_refs": [
+        "target:packages/core/src/session/share-v2.ts:17",
+        "target:packages/core/src/session/share-v2.ts:36",
+        "target:packages/core/src/session/share-v2.ts:50",
+        "target:packages/core/src/session/share-v2.ts:66",
+        "target:packages/core/src/session/share-v2.ts:81",
+        "target:packages/core/src/tool/plugin/share.ts:48",
+        "target:packages/core/src/plugin/internal.ts:330",
+        "target:docs/technical-debt.md:9"
+      ],
+      "fixtures": []
+    },
+    {
+      "id": "PUBLIC-SHARE-LINK",
+      "name": "公开 URL 分享、访问控制与撤销",
+      "classification": "待迁移",
+      "user_entry": "保留用户明确发布→copy/open link→远端会话查看→撤销/访问受限。当前兼容 share/unshare handler fail closed；内部 synthetic 分享不能代替这条用户链。",
+      "input_output": "旧 ShareNext.create 返回 id/url/secret，并异步同步内容；remove 先远端 DELETE 成功后清本地记录。当前 canonical public payload、受众/保留期与 host 合同待核。",
+      "session_persistent_owner": "旧 SessionShareTable/ShareNext 可供合同参考；当前公开 URL owner/存储与 canonical SessionTransfer/sanitize 适配尚未完成，不复制旧 V1 runtime。",
+      "agent": "发布/撤销不改变 Session Agent。",
+      "model": "公开链接与 AI summary 分开；不会因为生成 URL 就调用新模型 loop。",
+      "instructions": "远端展示数据、可执行上下文与秘密分开；链接可访问不证明内容同步/当前历史正确。",
+      "tools": "复用 current Session/transfer/credential/HTTP owner，兼容 endpoint 逐个适配或退役；不将 stub 改成空 URL 成功。",
+      "permissions": "明确发布授权、源内容/sanitize、remote host/credential 与访问/撤销合同；secret 不进公开 UI 或日志。实际远程发布需独立授权。",
+      "cancel": "取消发布不产生远端对象；unshare 必须真实远端撤销 ACK，失败不能显示已撤销。",
+      "retry": "创建/同步/撤销的重试与远端身份关联待定；旧异步 full sync 失败不能外推链接已完整同步。",
+      "recovery": "旧 URL/secret/local row 与远端状态需核对；保留记录不等于有效访问或已撤销；离线失败策略待核。",
+      "consumers": "旧 public-link UI/ShareNext；当前 session-instance share/unshare 仍 fail closed，真实访问/撤销产品消费未交付。",
+      "old_data": "旧 share_url/ShareTable/远端身份与凭据保护保留；不由迁移字段存在宣称公开 API 活跃，不静默重新发布旧 Session。",
+      "acceptance": "显式发布授权→真实 canonical export/sync→实际链接访问/访问控制→撤销→旧链接失效→重载/离线重试；内容和秘密边界、历史/留存明确。",
+      "owner": "Share/Core/Server/App、/root；remote destination/访问/留存与发布范围由产品 Owner 裁决。",
+      "unknowns": "current public owner/API payload、remote host/授权/受众/保留期、幂等/同步失败/撤销恢复；不得默认远程发布。",
+      "source_refs": [
+        "target:packages/protocol/src/groups/session-instance.ts:709",
+        "target:packages/protocol/src/groups/session-instance.ts:721",
+        "target:packages/server/src/handlers/session-instance-stubs.ts:132",
+        "old:packages/aigcfroge/src/share/share-next.ts:310",
+        "old:packages/aigcfroge/src/share/share-next.ts:338",
+        "target:docs/technical-debt.md:10"
+      ],
+      "fixtures": []
+    }
+  ],
+  "decisions": [
+    {
+      "id": "P1-MEMORY-VISIBILITY",
+      "classification": "待裁决",
+      "rule": "Meta.query/search 是 project predicate；个人记忆为用户级 confirmed 集，旧 PRD 还要求适用模式与显式授权。哪些 Mode/Role 可读及缺来源处理尚未核定。",
+      "owner": "产品 Owner/Meta/Assistant/Core",
+      "unlock": "明确 Mode/Role/用户/项目可见域与授权，真实隔离及 current Instructions 消费",
+      "source_refs": [
+        "target:packages/core/src/agent/meta/memory.ts:115",
+        "target:packages/core/src/session/personal-memory.ts:158",
+        "old:docs/prd/assistant-mode-personal-agent.md:215",
+        "target:docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md:134"
+      ]
+    },
+    {
+      "id": "P1-BUILD-DELEGATION-CHANNEL",
+      "classification": "待裁决",
+      "rule": "旧协作故事明确 Build implementer；当前 Build 是 primary，internal dispatch 拒 primary。先明确真实执行通道，不能静默改分类或换 general。",
+      "owner": "产品 Owner/Delegation/Core",
+      "unlock": "确认符合 V2 Agent 分类的通道并真实验证 implementer+只读 reviewer",
+      "source_refs": [
+        "old:docs/prd/meta-agent-orchestrator.md:68",
+        "target:packages/core/src/plugin/agent.ts:120",
+        "target:packages/core/src/delegation/execution.ts:607"
+      ]
+    },
+    {
+      "id": "P1-CUSTOM-STAGE-BOUND",
+      "classification": "待裁决",
+      "rule": "旧 PRD M1 用户 Agent 长度固定1；当前 CustomProfile Schema 允许1–16。旧 main 对应阶段限制本轮未完整核对，保留现有已验证多消费者实现，UI阶段约束待核定。",
+      "owner": "产品 Owner/Custom/Core/App",
+      "unlock": "确定当前产品阶段与 UI bound，不凭旧数量改已验证 Snapshot/consumer owner",
+      "source_refs": [
+        "old:docs/prd/custom-mode-composition-platform.md:123",
+        "target:packages/schema/src/custom-profile.ts:83"
+      ]
+    },
+    {
+      "id": "P1-TASK-STRUCTURE-TIME-LEGACY",
+      "classification": "待裁决",
+      "rule": "现行账本明确全量/reorder 缺结构版本、recurrence 时区 nextRun 与旧 owning marker 的缺口；已关闭的确切 marker 更正不重开。",
+      "owner": "产品 Owner/Task/Core与/root",
+      "unlock": "结构竞争、时区和旧记录修复明确合同及真实证据",
+      "source_refs": ["target:docs/technical-debt.md:14", "target:docs/technical-debt.md:19"]
+    },
+    {
+      "id": "P1-WORK-CUSTOM-WORKFLOW-ENTRY",
+      "classification": "待裁决",
+      "rule": "Work 用户要求 Workflow 消费，但现有 WorkflowExecution.root 只接受冻结 Custom root；入口需明确 start/upgrade/关联，禁止隐式重分类。",
+      "owner": "产品 Owner/Work/Custom/App/Core",
+      "unlock": "明确符合 mode 冻结与 atomic composition 的用户路径",
+      "source_refs": [
+        "target:packages/core/src/workflow/execution.ts:179",
+        "target:docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md:140"
+      ]
+    },
+    {
+      "id": "P1-UNKNOWN-SIDE-EFFECTS",
+      "classification": "待裁决",
+      "rule": "外部 thread continuation 不证明旧 attempt 安全；缺日志、retention/删除与未知 side effects 不能靠自动 retry 推断。保留 V2 有预算的现有恢复子范围。",
+      "owner": "产品 Owner/Core/Delegation/Workflow与/root",
+      "unlock": "明确具体 attempt 的持久 reconciliation、保留/删除与人工路径",
+      "source_refs": [
+        "target:packages/core/src/delegation/service.ts:1104",
+        "target:packages/core/src/workflow/execution.ts:840",
+        "target:docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md:134"
+      ]
+    },
+    {
+      "id": "P1-PUBLIC-REMOTE-POLICY",
+      "classification": "待裁决",
+      "rule": "公开 URL 的 destination、受众/凭据/保留/撤销恢复未在当前 owner 中闭环；内部分享关闭不授权公开发布。",
+      "owner": "产品 Owner/Share/Server/App与/root",
+      "unlock": "具体可审查 payload/访问/撤销实现与独立远程发布授权",
+      "source_refs": ["target:docs/technical-debt.md:10", "old:packages/aigcfroge/src/share/share-next.ts:338"]
+    }
+  ],
+  "authority_refs": [
+    "target:docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md:5",
+    "target:docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md:132",
+    "target:docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md:160",
+    "target:docs/technical-debt.md:74"
+  ],
+  "verification_claim": {
+    "type": "read_only_source_and_artifact_metadata",
+    "repository_validation": "not_executed",
+    "green_tally": null,
+    "product_red_reproduced": false,
+    "debt_items_closed": []
+  },
+  "created_at_utc": "2026-10-25T19:53:25.786865+00:00",
+  "classification_counts": {
+    "部分接线": 12,
+    "待迁移": 3,
+    "已有": 2
+  },
+  "contract_count": 17,
+  "decision_count": 7,
+  "source_inputs": [
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md",
+      "scope": "target",
+      "sha256": "96bbbbb397353d205a850f0ad0f10bd2fc4c108f65af432d6eff79ef681c2ecc",
+      "line_count_at_capture": 229,
+      "cited_lines": [5, 126, 132, 134, 140, 160]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/p1-first-asset-preflight-2026-10-25-skill.md",
+      "scope": "target",
+      "sha256": "b94e7eed14f47ce9076d92ac851d08b34b7eb5cfdb193ff6993cf1724949832a",
+      "line_count_at_capture": 72,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/p2-mode-preflight-2026-10-25-generic-create.md",
+      "scope": "target",
+      "sha256": "a8acd2d1c1b930880439fc3f49bcc5a1ed44c35824698ffa1cf597e9a68690d0",
+      "line_count_at_capture": 118,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/docs/review/v2-task-product-audit-2026-10-24.md",
+      "scope": "target",
+      "sha256": "45ac52fd2c17d9479db16d513dac87318fdcdfebd52f0e152099542600e06ffa",
+      "line_count_at_capture": 43,
+      "cited_lines": [3]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/docs/technical-debt.md",
+      "scope": "target",
+      "sha256": "6fa66ae1873bcbea59a382c1f45056575af022f0f91e44477ce92230b4e0f4a0",
+      "line_count_at_capture": 74,
+      "cited_lines": [9, 10, 11, 14, 19, 22, 71, 74]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/app/e2e/regression/session-header.spec.ts",
+      "scope": "target",
+      "sha256": "d84e778f51a9bff79c854624446d38676bb82e325db32de338fb514d4c11852e",
+      "line_count_at_capture": 1012,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/app/src/home/sessions/controller.tsx",
+      "scope": "target",
+      "sha256": "54adc370893c980f0af63c6ac0895eab1dd167183a8bcb02cdb8c2c37a795654",
+      "line_count_at_capture": 447,
+      "cited_lines": [62, 85]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/app/src/home/sessions/index.test.ts",
+      "scope": "target",
+      "sha256": "4e5aac5664b8f8b2ecb2f079123cfd077e3a0f6f4bae91c6bd1bf9d58c90be1f",
+      "line_count_at_capture": 163,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/app/src/home/sessions/search.ts",
+      "scope": "target",
+      "sha256": "388c94bede4cb6bd1aa8e7c05333cca82b3e1d9941b3f50ac1f85acfef511d64",
+      "line_count_at_capture": 177,
+      "cited_lines": [16, 41, 162]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/app/src/runtime/server/global-sync/bootstrap.test.ts",
+      "scope": "target",
+      "sha256": "148ca3c3e9b18b29468dfb153af36b853a212ceffb9ed185627c77b8254810fe",
+      "line_count_at_capture": 174,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/app/src/runtime/server/global-sync/bootstrap.ts",
+      "scope": "target",
+      "sha256": "456061a7664a6d94a92b30782be0e0ff0c8371ac3e706c5cc449b1b99fcbb6df",
+      "line_count_at_capture": 179,
+      "cited_lines": [52, 81]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/app/src/runtime/server/sync.tsx",
+      "scope": "target",
+      "sha256": "06087d430c7721d9fc9fb4951eb49093bc4e6b1519dca51dc60e3f052b901c66",
+      "line_count_at_capture": 369,
+      "cited_lines": [289]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/app/src/session/tasks/session-task-panel.tsx",
+      "scope": "target",
+      "sha256": "8c1b452664c28d86e147c3dbcf055fcc675bf024db60b6b570fc39b163cea996",
+      "line_count_at_capture": 528,
+      "cited_lines": [73, 108, 180, 255]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/client/src/solid/data.ts",
+      "scope": "target",
+      "sha256": "7a29ed7cac739f457dab28d597a1207926bd2c8ae028fd5672551858e75c3422",
+      "line_count_at_capture": 2055,
+      "cited_lines": [674]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/client/test/solid-data.test.ts",
+      "scope": "target",
+      "sha256": "3a8ea4118bab4c433547b3b1705c091f8d1cf2862552689a3c93fa546446b6fe",
+      "line_count_at_capture": 1417,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/agent/meta/memory.ts",
+      "scope": "target",
+      "sha256": "e50c504091a84151f8946e45d959a851addb4757f352e436514c26ab365c0310",
+      "line_count_at_capture": 166,
+      "cited_lines": [87, 115]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/composition/reference.ts",
+      "scope": "target",
+      "sha256": "c6f31142b51f231d87dd0c74d595aa0d5851865b30bd2d371106bbd7e246146d",
+      "line_count_at_capture": 58,
+      "cited_lines": [26]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/config.ts",
+      "scope": "target",
+      "sha256": "6f8f5e068ab0a07df5de40adbef3f3ff2028617531ab766f84016f8aa964c02f",
+      "line_count_at_capture": 375,
+      "cited_lines": [22]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/execution.ts",
+      "scope": "target",
+      "sha256": "d8dc255aff6784f97f2ec054ab99ce28beefc669ed14f80fac98399c6dc1c767",
+      "line_count_at_capture": 1043,
+      "cited_lines": [550, 587, 607]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/review.ts",
+      "scope": "target",
+      "sha256": "ec22f99aaf4c2c6d174e3b6cd660f1437a1b9950b0a00c09b611a347b4bfe926",
+      "line_count_at_capture": 225,
+      "cited_lines": [20, 78]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/delegation/service.ts",
+      "scope": "target",
+      "sha256": "031e8afc9d52215c95a94363f1378047d455151f6375de538cd73c02142c4baa",
+      "line_count_at_capture": 1149,
+      "cited_lines": [434, 1104]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/import-parser.ts",
+      "scope": "target",
+      "sha256": "a84bddf8531bd5fd449764aeef14a54894edcbceeded3c9cdcbde90805d74b45",
+      "line_count_at_capture": 355,
+      "cited_lines": [252, 269, 348]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/meta-agent/service.ts",
+      "scope": "target",
+      "sha256": "473a291a4c4e64350ca3e3785741b10324964b9e6a00dc898c329ec9a1e8e328",
+      "line_count_at_capture": 301,
+      "cited_lines": [94, 178, 216]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/plugin/agent.ts",
+      "scope": "target",
+      "sha256": "fdc1581cc37632f5a7f09904958461d7f0be8a2d3835567e3794d253acfee8a3",
+      "line_count_at_capture": 220,
+      "cited_lines": [31, 120, 182]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/plugin/internal.ts",
+      "scope": "target",
+      "sha256": "0b1504efa42277d0dd1a90c0ca1016961f1898e3ab03e610aab06b177a761d26",
+      "line_count_at_capture": 399,
+      "cited_lines": [283, 330, 335, 338]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session.ts",
+      "scope": "target",
+      "sha256": "cc61a9836e8580231e6a49729f1f60d72413dec820bd9d751c1e6f553e0160fe",
+      "line_count_at_capture": 810,
+      "cited_lines": [392, 429]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/composition.ts",
+      "scope": "target",
+      "sha256": "8eb03f4e69815846d111fae35ca6b038bc12c325f62027ff15d674641239ee51",
+      "line_count_at_capture": 659,
+      "cited_lines": [248]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/context.ts",
+      "scope": "target",
+      "sha256": "25b11148445a0a3b1fca37ad1b95a33b0013acb9ce53173a0042cdb5eb74c63e",
+      "line_count_at_capture": 355,
+      "cited_lines": [159, 215, 225]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/kb-service.ts",
+      "scope": "target",
+      "sha256": "49d8d84c9a6a879f18a32db1f7864a0dc411d9c9f7ca6b805dc844eedd8e5def",
+      "line_count_at_capture": 818,
+      "cited_lines": [167, 270, 273, 375]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/personal-memory.ts",
+      "scope": "target",
+      "sha256": "d094a0166c6e8d56c527660c0a993ac0ffb049a9396f6bd3349a603a4631b387",
+      "line_count_at_capture": 244,
+      "cited_lines": [90, 158, 171]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/schedule-service.ts",
+      "scope": "target",
+      "sha256": "fbfbe574dacccfd70d54e973a01c21a56ce5c3e8ddfde7b69b040298ab71b95a",
+      "line_count_at_capture": 714,
+      "cited_lines": [533, 697, 714]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/share-v2.ts",
+      "scope": "target",
+      "sha256": "cc7a53905549af3e76a1902cfc5a75b71dfc1de85e07a2cdda4895353577c32e",
+      "line_count_at_capture": 97,
+      "cited_lines": [17, 36, 50, 66, 81]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/task.ts",
+      "scope": "target",
+      "sha256": "ca6200aa39797a6ef2b9358662c6261dfc093262bbb405e822cdfaa2bf1b6cae",
+      "line_count_at_capture": 1136,
+      "cited_lines": [963]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/transfer.ts",
+      "scope": "target",
+      "sha256": "39638ff14d7c1d35b254f6e3ea3ab5dc5ef7544b6106ddba74aafbfb51433013",
+      "line_count_at_capture": 336,
+      "cited_lines": [57, 64, 91]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/cli-adapter.ts",
+      "scope": "target",
+      "sha256": "d358c688fd81d5754200006a473a17efff9b1fead6bd80f051a58a11ae483fd8",
+      "line_count_at_capture": 156,
+      "cited_lines": [44, 85, 139]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/cli-discovery.ts",
+      "scope": "target",
+      "sha256": "6b9e289fcb0da69d48efd7d56814962a177f53d97f29392a803af6446b41640c",
+      "line_count_at_capture": 31,
+      "cited_lines": [15]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/kb-tools.ts",
+      "scope": "target",
+      "sha256": "4205282cb68836d465508361e35cd8b7c81fd44197ef7512639111b604fd2f7c",
+      "line_count_at_capture": 267,
+      "cited_lines": [45, 59]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/list-assets.ts",
+      "scope": "target",
+      "sha256": "8bdbe8a467641d4c7ebedd21fc0dfb102460d9c32fc6ff0db423b26918300ed5",
+      "line_count_at_capture": 118,
+      "cited_lines": [58]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/memory.ts",
+      "scope": "target",
+      "sha256": "0d8fed042c8a6e33434b49ee434c74fb63c463e74c191b1d7932a3366f57915d",
+      "line_count_at_capture": 134,
+      "cited_lines": [74]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/plugin/share.ts",
+      "scope": "target",
+      "sha256": "4d5e6acd8873e47cadcbd547c56b81d857394e0bb9be626f253331bd52ecaad1",
+      "line_count_at_capture": 77,
+      "cited_lines": [48]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/propose-note.ts",
+      "scope": "target",
+      "sha256": "12adbd79d51de3dc4085de54d8526377903ebd659fe114254d2819316a5384a3",
+      "line_count_at_capture": 103,
+      "cited_lines": [59, 81]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/reminder-cancel.ts",
+      "scope": "target",
+      "sha256": "36ed9282c69648725a3ccded2f96ba61c6d349329562c01c7cd0c3e79d6ac8f5",
+      "line_count_at_capture": 81,
+      "cited_lines": [56]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/reminder-create.ts",
+      "scope": "target",
+      "sha256": "8e1ce3a3e7946dc12fc4cddd57c6146e9866f5ed3a8b598bedba2ac6bc828925",
+      "line_count_at_capture": 128,
+      "cited_lines": [34, 77, 108]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/workflow/execution.ts",
+      "scope": "target",
+      "sha256": "82f0fe4af7194e06c100b89dab6d542e8c68d5ce14737a9cb6c85ca01c362e3c",
+      "line_count_at_capture": 1042,
+      "cited_lines": [179, 840, 863]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/cli-discovery.test.ts",
+      "scope": "target",
+      "sha256": "2f9af1cd32b50d27aaa5f1d616f3921f10728aea7894326dd13861e1b4dcb290",
+      "line_count_at_capture": 103,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/delegation-execution.test.ts",
+      "scope": "target",
+      "sha256": "8d6403bde2d9affbe443b889d172100e770e6c5240939fdf138a9f4842a93269",
+      "line_count_at_capture": 1429,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/delegation-review.test.ts",
+      "scope": "target",
+      "sha256": "acd35d84330bacfa1f277234763673c676055aa13f76f94da83cadca1b3e56cb",
+      "line_count_at_capture": 345,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/delegation-service.test.ts",
+      "scope": "target",
+      "sha256": "9c90e65f3d55ce53f6841d810026127bb1da9b7e3f6c584f32eadab571c1b43a",
+      "line_count_at_capture": 1329,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/import-parser-redos.test.ts",
+      "scope": "target",
+      "sha256": "44f756ed99b8efc76b7e72df72e37cf6ecfc60ee4573180bf76b15cf68f01757",
+      "line_count_at_capture": 70,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/import-parser-size-warnings.test.ts",
+      "scope": "target",
+      "sha256": "55707422120abcfa70b8e2ab07e5096aff6f87385b8b1f73f4faf3e2286cf3ee",
+      "line_count_at_capture": 95,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/import-parser.test.ts",
+      "scope": "target",
+      "sha256": "ec641130c15f3986e8504dbf7292a40aef256dedf49beded51482e15305cf8a3",
+      "line_count_at_capture": 128,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/kb-service.test.ts",
+      "scope": "target",
+      "sha256": "e124199d45752d472d5288ae9a5439b25a91ac8c7db8b84bea589189ca6bf0ea",
+      "line_count_at_capture": 429,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/meta-agent-integration.test.ts",
+      "scope": "target",
+      "sha256": "1b837ea3f756ff77b6f0ae344f56428f03820b55ab0d8dd0f1dd3c2e36391a1e",
+      "line_count_at_capture": 46,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/meta-agent-memory.test.ts",
+      "scope": "target",
+      "sha256": "f0845bd47c5a879adfb3fd41aa7f713b8a32610fe85b28675a596cf09280be63",
+      "line_count_at_capture": 241,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/meta-agent-service.test.ts",
+      "scope": "target",
+      "sha256": "68941a59b3b2020a2ec4b57e4ccbfd94cf6ab395b2fdda62724b8b2602a82ad3",
+      "line_count_at_capture": 171,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/personal-memory.test.ts",
+      "scope": "target",
+      "sha256": "78e53086699197f21dad3713d81eafd1406d5851578cb1f05f7cb1a377a9e85d",
+      "line_count_at_capture": 102,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/schedule-service.test.ts",
+      "scope": "target",
+      "sha256": "adc35c81fda8d1135765c9aa8882c4a30d69ad7953c5207219fe6a6c7b4b7168",
+      "line_count_at_capture": 442,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/session-composition-references.test.ts",
+      "scope": "target",
+      "sha256": "64ff08bc73b8f4fb5881e592323a2c6e9e7d5d986ca3c753b236f8d3e169959d",
+      "line_count_at_capture": 440,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/session-create.test.ts",
+      "scope": "target",
+      "sha256": "cf5f5c24acd1ac876f20fa0216bd94c667bfcf9e2aed5cd05106c8f7cb252b0f",
+      "line_count_at_capture": 1581,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/session-skill.test.ts",
+      "scope": "target",
+      "sha256": "d08b820a1d90c452fb9caa16be1b79aaa7becd67b471952d44ddedd9436a3d47",
+      "line_count_at_capture": 593,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/workflow-execution.test.ts",
+      "scope": "target",
+      "sha256": "f9e7a8b0bfca0d67e20a1d362ba6d9f14fecd97359a68f4db3303b6ee1431b7d",
+      "line_count_at_capture": 1944,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/protocol/src/groups/import-parser.ts",
+      "scope": "target",
+      "sha256": "de9f1587a18fd35bd36e40cea7bee6bb216248eb5693b784346295d872696472",
+      "line_count_at_capture": 28,
+      "cited_lines": [11]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/protocol/src/groups/session-instance.ts",
+      "scope": "target",
+      "sha256": "8cf66cd8fd3d2c528989dff096c3c51fe90f95eea52e06ba4a1c5a51452ff11e",
+      "line_count_at_capture": 1040,
+      "cited_lines": [709, 721]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/schema/src/custom-profile.ts",
+      "scope": "target",
+      "sha256": "c008a4c79d0d02d88d4961d6f4109894eac2e95d511a419f950c733ec5d10cc1",
+      "line_count_at_capture": 191,
+      "cited_lines": [83]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/schema/src/import-parser.ts",
+      "scope": "target",
+      "sha256": "72264cb866326ba9ad8cda5ba91dc96a1960d125fc878cb45d35d3dc9111cc82",
+      "line_count_at_capture": 35,
+      "cited_lines": [19]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/schema/src/kb-note.ts",
+      "scope": "target",
+      "sha256": "650e173ed66adae523fa62a6c5031b907dd7c77cc769885506f51dcf460901ab",
+      "line_count_at_capture": 101,
+      "cited_lines": [24]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/schema/test/personal-memory.test.ts",
+      "scope": "target",
+      "sha256": "dd2201c5382eb9021a047fbc8bf80d6b024657da27aa07eb1c03e44c6bcd5c36",
+      "line_count_at_capture": 56,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/server/src/handlers/assistant-stubs.ts",
+      "scope": "target",
+      "sha256": "9a1bea3f332f402199ca1f36b79e43c25d7b32152fa259369a265e6d71c767b8",
+      "line_count_at_capture": 56,
+      "cited_lines": [20, 30, 42, 52]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/server/src/handlers/composition-stubs.ts",
+      "scope": "target",
+      "sha256": "fc0d653811a9ecaaf778282b73f3c6a382da6f3a1e52efc252750981089df8d7",
+      "line_count_at_capture": 184,
+      "cited_lines": [65]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/server/src/handlers/config.ts",
+      "scope": "target",
+      "sha256": "9a314620f58985efe752905b87e8f59afd25c4426801d31832fbedef6ea30f92",
+      "line_count_at_capture": 26,
+      "cited_lines": [7]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/server/src/handlers/custom-profile.ts",
+      "scope": "target",
+      "sha256": "3ff01fb4a0f448c9b90219d32b2a2c116f359106f7bfa7304713d6c105454c96",
+      "line_count_at_capture": 125,
+      "cited_lines": [26]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/server/src/handlers/delegation.ts",
+      "scope": "target",
+      "sha256": "10f8da86dd67b9c35dea58c43e842ed6c06ed9bcd19f70703af2a80261d601c1",
+      "line_count_at_capture": 200,
+      "cited_lines": [38, 84]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/server/src/handlers/session-instance-stubs.ts",
+      "scope": "target",
+      "sha256": "a202949ec699659f9eba759cfe3876da7957135a0fbaee61de1e610b3f6026ce",
+      "line_count_at_capture": 226,
+      "cited_lines": [132, 174, 180, 192]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/server/test/custom-composition.test.ts",
+      "scope": "target",
+      "sha256": "09c5293fd8830392c095178affdea332d4664b2b784feba4ecd32c84b23b8997",
+      "line_count_at_capture": 1220,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/server/test/delegation.test.ts",
+      "scope": "target",
+      "sha256": "fac1d696616b756d47ab6c11defc3dc1d1ebd3b105ef0f21b19437a87209e990",
+      "line_count_at_capture": 1005,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/server/test/session-task.test.ts",
+      "scope": "target",
+      "sha256": "ca9b8ba5629dd02a5d7dbd856f0f883edbaf3d7720a07f8280c4694caca308e8",
+      "line_count_at_capture": 628,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/server/test/workflow-execution.test.ts",
+      "scope": "target",
+      "sha256": "86fedfddb33dee80415d846ac189f88c595036e47a6c32bf0e87147116954249",
+      "line_count_at_capture": 427,
+      "cited_lines": [1]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/docs/prd/assistant-mode-personal-agent.md",
+      "scope": "old",
+      "sha256": "cc36729e2fbf1dfb5a4a647927c01f714886a2592a38a9724e2fb34082051684",
+      "line_count_at_capture": 571,
+      "cited_lines": [51, 130, 211, 215, 258, 480, 488]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/docs/prd/custom-mode-composition-platform.md",
+      "scope": "old",
+      "sha256": "3e0504b54535450751298f7fa1c0fec77581887ea7f55da9fdec16f7a5336aa0",
+      "line_count_at_capture": 419,
+      "cited_lines": [123, 292]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/docs/prd/meta-agent-orchestrator.md",
+      "scope": "old",
+      "sha256": "bd6e80c24ae600527811ec93af9a9f50cd274a667097cc41ee9848550db2431b",
+      "line_count_at_capture": 356,
+      "cited_lines": [65, 67, 68, 79]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/aigcfroge/src/share/share-next.ts",
+      "scope": "old",
+      "sha256": "57c38ae8da8a4749b27969881b51ba96ad3f963430653accde5869071e424139",
+      "line_count_at_capture": 385,
+      "cited_lines": [310, 338]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/app/src/components/chat/chat-import-dialog.tsx",
+      "scope": "old",
+      "sha256": "cbd3df4585866c9b92a4ec05bcbeab286faacef78374871faa6b6eb71f0d6b3c",
+      "line_count_at_capture": 564,
+      "cited_lines": [104, 234, 262]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/app/src/pages/assistant-dashboard.tsx",
+      "scope": "old",
+      "sha256": "d0a9624b20af522b24f6ab622be07a223d0c0beec44d607d0a830e880d5a93eb",
+      "line_count_at_capture": 519,
+      "cited_lines": [116, 171, 259]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/assistant-kb-tab.tsx",
+      "scope": "old",
+      "sha256": "bf95f65b66a168f32e5c34a165381d47a0913ef9965432505f1d7a0aa09d1026",
+      "line_count_at_capture": 284,
+      "cited_lines": [25, 81]
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/app/src/pages/session/assistant-session-panel.tsx",
+      "scope": "old",
+      "sha256": "129abb0f01035f942fccd9caf53358e96d8e687b9c6e4a0253c69bfb45d49e2d",
+      "line_count_at_capture": 322,
+      "cited_lines": [120]
+    }
+  ],
+  "report_markdown": {
+    "path": "/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/p1-domain-contract-preflight-2026-10-25.md",
+    "sha256": "3eb3c5f3f6da53cb8f2ab8a18d2f07384e13f20b0092247f3fdbfae8f34575c3"
+  },
+  "artifact_integrity": {
+    "required_contract_fields_present": [
+      "id",
+      "name",
+      "classification",
+      "user_entry",
+      "input_output",
+      "session_persistent_owner",
+      "agent",
+      "model",
+      "instructions",
+      "tools",
+      "permissions",
+      "cancel",
+      "retry",
+      "recovery",
+      "consumers",
+      "old_data",
+      "acceptance",
+      "owner",
+      "unknowns",
+      "source_refs",
+      "fixtures"
+    ],
+    "source_files_captured": 85,
+    "cited_lines_count": 166,
+    "repository_verification": "not_executed"
+  }
+}

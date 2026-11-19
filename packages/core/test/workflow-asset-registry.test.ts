@@ -1,14 +1,20 @@
 import fs from "fs/promises"
+import { NodeFileSystem } from "@effect/platform-node"
 import path from "path"
 import { describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
 import { WorkflowAsset } from "@aigcfroge/core/workflow-asset"
-import { FSUtil } from "@aigcfroge/core/fs-util"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { Location } from "@aigcfroge/core/location"
-import { EventV2 } from "@aigcfroge/core/event"
+import { Bus } from "@aigcfroge/core/bus"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { location } from "./fixture/location"
 import { tmpdir } from "./fixture/tmpdir"
+
+const fsLayer = FSUtil.layer.pipe(Layer.provide(NodeFileSystem.layer))
+const busNodeLayer = AppNodeBuilder.build(LayerNode.group([Bus.node]), [Bus.node.replace(Bus.configured())])
 
 function locationLayer(dir: string) {
   return Layer.succeed(Location.Service, Location.Service.of(location({ directory: AbsolutePath.make(dir) })))
@@ -16,9 +22,9 @@ function locationLayer(dir: string) {
 
 function fullLayer(dir: string) {
   return WorkflowAsset.locationLayer.pipe(
-    Layer.provide(EventV2.defaultLayer),
+    Layer.provide(busNodeLayer),
     Layer.provide(locationLayer(dir)),
-    Layer.provide(FSUtil.defaultLayer),
+    Layer.provide(fsLayer),
   )
 }
 

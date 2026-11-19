@@ -1,12 +1,12 @@
-export * as SessionInput from "./session-input"
+export * as SessionInput from "./session-input.js"
 
 import { Schema } from "effect"
-import { Prompt } from "./prompt"
-import { DateTimeUtcFromMillis, NonNegativeInt } from "./schema"
-import { ParticipantID, TurnID } from "./delegation-id"
-import { SessionDelivery } from "./session-delivery"
-import { SessionID } from "./session-id"
-import { SessionMessageID } from "./session-message-id"
+import { Prompt } from "./prompt.js"
+import { DateTimeUtcFromMillis, NonNegativeInt } from "./schema.js"
+import { ParticipantID, TurnID } from "./delegation-id.js"
+import { SessionDelivery } from "./session-delivery.js"
+import { SessionID } from "./session-id.js"
+import { SessionMessageID } from "./session-message-id.js"
 
 export const Delivery = SessionDelivery.Delivery
 export type Delivery = SessionDelivery.Delivery
@@ -23,7 +23,7 @@ export const DelegationOrigin = Schema.Struct({
 const Base = {
   admittedSeq: NonNegativeInt,
   id: SessionMessageID.ID,
-  sessionID: SessionID.ID,
+  sessionID: SessionID,
   delivery: Delivery,
   timeCreated: DateTimeUtcFromMillis,
   promotedSeq: NonNegativeInt.pipe(Schema.optional),

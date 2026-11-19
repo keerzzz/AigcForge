@@ -1,5 +1,5 @@
 import fs from "fs/promises"
-import { Flock } from "@aigcfroge/core/util/flock"
+import { Flock } from "@aigcfroge/util/flock"
 
 type Msg = {
   key: string

@@ -1,79 +1,132 @@
-import { SessionV2 } from "@aigcfroge/core/session"
-import { LocationServiceMap } from "@aigcfroge/core/location-layer"
-import { PermissionSaved } from "@aigcfroge/core/permission/saved"
-import { PtyTicket } from "@aigcfroge/core/pty/ticket"
-import { TaskDriverFill } from "@aigcfroge/core/session/task-driver-fill"
-import { BackgroundJob } from "@aigcfroge/core/background-job"
-import { EventV2 } from "@aigcfroge/core/event"
-import { v2RuntimeLayer, v2ShareLayer } from "@aigcfroge/core/session/v2-runtime"
 import { Layer } from "effect"
-import { layer as locationLayer } from "./groups/location"
-import { sessionLocationLayer } from "./middleware/session-location"
+import { SessionGoalHandler } from "./handlers/session-goal"
+import { SessionCommunicationHandler } from "./handlers/session-communication"
+import { GenerateHandler } from "./handlers/generate"
 import { MessageHandler } from "./handlers/message"
 import { ModelHandler } from "./handlers/model"
 import { ProviderHandler } from "./handlers/provider"
 import { SessionHandler } from "./handlers/session"
 import { PermissionHandler } from "./handlers/permission"
-import { GrantHandler } from "./handlers/grant"
 import { FileSystemHandler } from "./handlers/fs"
+import { FormHandler } from "./handlers/form"
 import { CommandHandler } from "./handlers/command"
+import { CommandAssetHandler } from "./handlers/command-asset"
+import { PromptAssetHandler } from "./handlers/prompt-asset"
+import { AgentAssetHandler } from "./handlers/agent-asset"
+import { McpAssetHandler } from "./handlers/mcp-asset"
+import { PluginAssetHandler } from "./handlers/plugin-asset"
+import { WorkflowAssetHandler } from "./handlers/workflow-asset"
 import { SkillHandler } from "./handlers/skill"
+import { RpcHandler } from "./handlers/rpc"
 import { EventHandler } from "./handlers/event"
 import { AgentHandler } from "./handlers/agent"
-import { HealthHandler } from "./handlers/health"
+import { PluginHandler } from "./handlers/plugin"
+import { ServerHandler } from "./handlers/server"
+import { DebugHandler } from "./handlers/debug"
 import { PtyHandler } from "./handlers/pty"
-import { QuestionHandler } from "./handlers/question"
+import { PersistentPtyHandler } from "./handlers/persistent-pty"
+import { ShellHandler } from "./handlers/shell"
 import { ReferenceHandler } from "./handlers/reference"
 import { LocationHandler } from "./handlers/location"
-import { PathIdentityHandler } from "./handlers/path-identity"
 import { IntegrationHandler } from "./handlers/integration"
+import { WebSearchHandler } from "./handlers/websearch"
+import { McpHandler } from "./handlers/mcp"
 import { CredentialHandler } from "./handlers/credential"
-import { Credential } from "@aigcfroge/core/credential"
-import { ProjectCopyHandler } from "./handlers/project-copy"
+import { ProjectHandler } from "./handlers/project"
+import { WorktreeHandler } from "./handlers/worktree"
+import { VcsHandler } from "./handlers/vcs"
+import { EventFeed } from "./event-feed"
+import { MigrationHandler } from "./handlers/migration"
+import { ConfigHandler } from "./handlers/config"
+import { CustomCompositionHandler } from "./handlers/composition-stubs"
+import { CustomProfileHandler } from "./handlers/custom-profile"
+import { ImportParserHandler, KBHandler, MemoryHandler, ScheduleHandler } from "./handlers/assistant-stubs"
+import {
+  AgentTaskHandler,
+  ControlHandler,
+  ControlPlaneHandler,
+  SyncHandler,
+  WorkArtifactHandler,
+} from "./handlers/orchestration-stubs"
+import { ProjectCopyNameHandler, QuestionHandler } from "./handlers/agent-interaction-stubs"
 import { DelegationHandler } from "./handlers/delegation"
-
-// TaskDriverFill bridge: consumes SessionV2.Service + BackgroundJob.Service.
-// Uses .defaultLayer (self-contained) because Effect v4 Layer.mergeAll does not
-// self-satisfy. When V2 auth is fixed + AIGCFROGE_V2_RUNTIME=true, replace
-// SessionV2.defaultLayer with v2RuntimeLayer (real SessionExecutionLocal).
-const fillerLayer = TaskDriverFill.layer.pipe(
-  Layer.provide(SessionV2.defaultLayer),
-  Layer.provide(BackgroundJob.defaultLayer),
-  // The fill writes child messages through EventV2; SessionV2.defaultLayer
-  // consumes its own EventV2 internally, so provide the shared default explicitly.
-  Layer.provide(EventV2.defaultLayer),
-)
+import { FileInstanceHandler, PtyConnectInstanceHandler, PtyInstanceHandler } from "./handlers/file-pty-stubs"
+import { PermissionInstanceHandler, ProjectInstanceHandler } from "./handlers/project-permission-stubs"
+import { McpInstanceHandler } from "./handlers/mcp-instance-stubs"
+import { ConfigInstanceHandler } from "./handlers/config-instance-stubs"
+import { WorkspaceInstanceHandler } from "./handlers/workspace-instance-stubs"
+import { ProviderInstanceHandler } from "./handlers/provider-instance-stubs"
+import { InstanceInstanceHandler } from "./handlers/instance-stubs"
+import { SessionInstanceHandler } from "./handlers/session-instance-stubs"
+import { SkillAssetHandler } from "./handlers/asset-stubs"
+import { PathIdentityHandler } from "./handlers/path-identity"
+import { GrantHandler } from "./handlers/grant"
 
 export const handlers = Layer.mergeAll(
-  HealthHandler,
+  SessionGoalHandler,
+  SessionCommunicationHandler,
+  ServerHandler,
+  DebugHandler,
+  MigrationHandler,
   LocationHandler,
-  PathIdentityHandler,
   AgentHandler,
+  PluginHandler,
   SessionHandler,
   MessageHandler,
   ModelHandler,
+  GenerateHandler,
   ProviderHandler,
   IntegrationHandler,
+  WebSearchHandler,
+  McpHandler,
   CredentialHandler,
+  ProjectHandler,
+  FormHandler,
   PermissionHandler,
-  GrantHandler,
   FileSystemHandler,
   CommandHandler,
   SkillHandler,
-  EventHandler,
+  RpcHandler,
+  EventHandler.pipe(Layer.provide(EventFeed.layer)),
   PtyHandler,
-  QuestionHandler,
+  PersistentPtyHandler,
+  ShellHandler,
   ReferenceHandler,
-  ProjectCopyHandler,
+  WorktreeHandler,
+  VcsHandler,
+  ConfigHandler,
+  CustomProfileHandler,
+  CustomCompositionHandler,
+  MemoryHandler,
+  KBHandler,
+  ScheduleHandler,
+  ImportParserHandler,
+  AgentTaskHandler,
+  WorkArtifactHandler,
+  ControlPlaneHandler,
+  ControlHandler,
+  SyncHandler,
+  QuestionHandler,
   DelegationHandler,
-).pipe(
-  Layer.provide(sessionLocationLayer),
-  Layer.provide(locationLayer),
-  Layer.provide(v2RuntimeLayer),
-  Layer.provide(v2ShareLayer),
-  Layer.provide(PermissionSaved.defaultLayer),
-  Layer.provide(PtyTicket.defaultLayer),
-  Layer.provide(fillerLayer),
-  Layer.provide(LocationServiceMap.layer),
-  Layer.provide(Credential.defaultLayer),
+  ProjectCopyNameHandler,
+  FileInstanceHandler,
+  PtyInstanceHandler,
+  PtyConnectInstanceHandler,
+  ProjectInstanceHandler,
+  PermissionInstanceHandler,
+  McpInstanceHandler,
+  ConfigInstanceHandler,
+  WorkspaceInstanceHandler,
+  ProviderInstanceHandler,
+  InstanceInstanceHandler,
+  SessionInstanceHandler,
+  PromptAssetHandler,
+  SkillAssetHandler,
+  McpAssetHandler,
+  CommandAssetHandler,
+  AgentAssetHandler,
+  PluginAssetHandler,
+  WorkflowAssetHandler,
+  PathIdentityHandler,
+  GrantHandler,
 )

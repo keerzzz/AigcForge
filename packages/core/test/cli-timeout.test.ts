@@ -16,15 +16,15 @@
 import { describe, expect } from "bun:test"
 import { Duration, Effect, Fiber, Sink, Stream } from "effect"
 import * as TestClock from "effect/testing/TestClock"
-import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
+import { ChildProcess, ChildProcessSpawner } from "effect/process"
 import { executeWithTimeout } from "../src/tool/cli-timeout"
-import type { CliAdapter } from "../src/tool/cli-adapter"
+import type { CliAdapterValue } from "../src/tool/cli-adapter"
 import { it } from "./lib/effect"
 
 const encoder = new TextEncoder()
 
 /** A fake adapter whose parseOutput reflects a non-empty stderr as `failed`. */
-const makeAdapter = (overrides: Partial<CliAdapter> = {}): CliAdapter => ({
+const makeAdapter = (overrides: Partial<CliAdapterValue> = {}): CliAdapterValue => ({
   name: "test-cli",
   command: "test-cli",
   description: "test CLI adapter",

@@ -1,43 +1,35 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
 import { Database } from "@aigcfroge/core/database/database"
-import { EventV2 } from "@aigcfroge/core/event"
-import { PermissionV2 } from "@aigcfroge/core/permission"
+import { Image } from "@aigcfroge/core/image"
+import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
 import { Project } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
 import { AbsolutePath } from "@aigcfroge/core/schema"
-import { SessionV2 } from "@aigcfroge/core/session"
+import { Session } from "@aigcfroge/core/session"
 import { SessionTable } from "@aigcfroge/core/session/sql"
 import { SessionTask } from "@aigcfroge/core/session/task"
+import { Tool } from "@aigcfroge/core/tool"
 import { TaskScheduleTool } from "@aigcfroge/core/tool/taskschedule"
-import { ToolRegistry } from "@aigcfroge/core/tool/registry"
+import { Bus } from "@aigcfroge/core/bus"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
 import { testEffect } from "./lib/effect"
-import { executeTool, settleTool, toolIdentity } from "./lib/tool"
+import { permissionLayer } from "./lib/permission"
+import { executeTool, registerToolPlugin, toolDefinitions, toolIdentity } from "./lib/tool"
 
-const sessionID = SessionV2.ID.make("ses_taskschedule_tool_test")
+const sessionID = Session.ID.make("ses_taskschedule_tool_test")
 
-const permission = Layer.succeed(
-  PermissionV2.Service,
-  PermissionV2.Service.of({
-    grant: () => Effect.die("unused grant operation"),
-    effectiveRules: () => Effect.succeed([]),
-    assert: () => Effect.void,
-    ask: () => Effect.die("unused"),
-    reply: () => Effect.die("unused"),
-    get: () => Effect.die("unused"),
-    forSession: () => Effect.die("unused"),
-    list: () => Effect.die("unused"),
-  }),
+const permission = permissionLayer({ assert: () => Effect.void })
+
+const harness = Layer.mergeAll(
+  AppNodeBuilder.build(LayerNode.group([Tool.node, PluginHooks.node, SessionTask.node, Database.node, Bus.node]), [
+    Image.node.replace(Layer.mock(Image.Service, { normalize: (_resource, content) => Effect.succeed(content) })),
+  ]),
+  permission,
 )
-const registry = ToolRegistry.defaultLayer.pipe(Layer.provide(permission))
-const tool = TaskScheduleTool.layer.pipe(
-  Layer.provide(registry),
-  Layer.provide(permission),
-  Layer.provide(SessionTask.defaultLayer),
-)
-const it = testEffect(
-  Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer, SessionTask.defaultLayer, permission, registry, tool),
-)
+
+const it = testEffect(harness)
 
 const setup = Effect.gen(function* () {
   const { db } = yield* Database.Service
@@ -69,20 +61,22 @@ const call = (tasks: ReadonlyArray<Record<string, unknown>>, id = "call-tasksche
 describe("task_schedule tool", () => {
   it.effect("registers the task_schedule tool in the registry", () =>
     Effect.gen(function* () {
-      const reg = yield* ToolRegistry.Service
-      const materialized = yield* reg.materialize([{ action: TaskScheduleTool.name, resource: "*", effect: "allow" }])
-      expect(materialized.definitions.some((definition) => definition.name === TaskScheduleTool.name)).toBe(true)
+      yield* registerToolPlugin(TaskScheduleTool.Plugin)
+      const registry = yield* Tool.Service
+      const definitions = yield* toolDefinitions(registry)
+      expect(definitions.some((definition) => definition.name === TaskScheduleTool.name)).toBe(true)
     }),
   )
 
   it.effect("schedule persists content, scheduledAt, recurrence, and agentID on the created task", () =>
     Effect.gen(function* () {
       yield* setup
-      const reg = yield* ToolRegistry.Service
+      yield* registerToolPlugin(TaskScheduleTool.Plugin)
+      const registry = yield* Tool.Service
       const tasks = yield* SessionTask.Service
 
-      const settlement = yield* settleTool(
-        reg,
+      const result = yield* executeTool(
+        registry,
         call([
           {
             content: "nightly audit",
@@ -92,7 +86,7 @@ describe("task_schedule tool", () => {
           },
         ]),
       )
-      expect(settlement.result.type).toBe("text")
+      expect(result.status).toBe("completed")
 
       const persisted = yield* tasks.get(sessionID)
       expect(persisted).toHaveLength(1)
@@ -109,27 +103,25 @@ describe("task_schedule tool", () => {
   it.effect("multi-entry schedule resolves only the newly created tasks (no full-list duplication)", () =>
     Effect.gen(function* () {
       yield* setup
-      const reg = yield* ToolRegistry.Service
+      yield* registerToolPlugin(TaskScheduleTool.Plugin)
+      const registry = yield* Tool.Service
       const tasks = yield* SessionTask.Service
       yield* tasks.append({
         sessionID,
         tasks: [{ content: "pre-existing", status: "pending", priority: "medium" }],
       })
 
-      const settlement = yield* settleTool(
-        reg,
+      const result = yield* executeTool(
+        registry,
         call([
           { content: "first job", scheduledAt: 1_780_000_000_000 },
           { content: "second job", scheduledAt: 1_780_000_100_000 },
         ]),
       )
-      expect(settlement.result.type).toBe("text")
-      const value = settlement.result.value
-      expect(typeof value).toBe("string")
-      if (typeof value !== "string") return
-      const output: ReadonlyArray<{ id: string; content: string }> = JSON.parse(value)
+      expect(result.status).toBe("completed")
       // append resolves the full session list; the tool output must contain
       // only the two rows this call created, not 2x (or 3x) the full list.
+      const output = result.output?.tasks as ReadonlyArray<{ id: string; content: string }>
       expect(output).toHaveLength(2)
       expect(output.map((task) => task.content)).toEqual(["first job", "second job"])
 
@@ -142,17 +134,18 @@ describe("task_schedule tool", () => {
   it.effect("pause settles a scheduled task to cancelled and resume returns it to scheduled", () =>
     Effect.gen(function* () {
       yield* setup
-      const reg = yield* ToolRegistry.Service
+      yield* registerToolPlugin(TaskScheduleTool.Plugin)
+      const registry = yield* Tool.Service
       const tasks = yield* SessionTask.Service
       const [created] = yield* tasks.append({
         sessionID,
         tasks: [{ content: "audit", status: "scheduled", priority: "medium", scheduledAt: 1_780_000_000_000 }],
       })
 
-      yield* executeTool(reg, call([{ id: created.id, action: "pause" }]))
+      yield* executeTool(registry, call([{ id: created.id, action: "pause" }]))
       expect((yield* tasks.get(sessionID))[0]?.status).toBe("cancelled")
 
-      yield* executeTool(reg, call([{ id: created.id, action: "resume" }]))
+      yield* executeTool(registry, call([{ id: created.id, action: "resume" }]))
       expect((yield* tasks.get(sessionID))[0]?.status).toBe("scheduled")
     }),
   )
@@ -160,7 +153,8 @@ describe("task_schedule tool", () => {
   it.effect("remove drops only the target id", () =>
     Effect.gen(function* () {
       yield* setup
-      const reg = yield* ToolRegistry.Service
+      yield* registerToolPlugin(TaskScheduleTool.Plugin)
+      const registry = yield* Tool.Service
       const tasks = yield* SessionTask.Service
       const [keep, drop] = yield* tasks.append({
         sessionID,
@@ -170,7 +164,7 @@ describe("task_schedule tool", () => {
         ],
       })
 
-      yield* executeTool(reg, call([{ id: drop.id, action: "remove" }]))
+      yield* executeTool(registry, call([{ id: drop.id, action: "remove" }]))
 
       const remaining = yield* tasks.get(sessionID)
       expect(remaining).toHaveLength(1)
@@ -181,7 +175,8 @@ describe("task_schedule tool", () => {
   it.effect("remove does not drop a concurrently appended task (re-review HIGH-1)", () =>
     Effect.gen(function* () {
       yield* setup
-      const reg = yield* ToolRegistry.Service
+      yield* registerToolPlugin(TaskScheduleTool.Plugin)
+      const registry = yield* Tool.Service
       const tasks = yield* SessionTask.Service
       const [drop, keep] = yield* tasks.append({
         sessionID,
@@ -193,7 +188,7 @@ describe("task_schedule tool", () => {
 
       yield* Effect.all(
         [
-          executeTool(reg, call([{ id: drop.id, action: "remove" }])).pipe(Effect.asVoid),
+          executeTool(registry, call([{ id: drop.id, action: "remove" }])).pipe(Effect.asVoid),
           tasks.append({
             sessionID,
             tasks: [{ content: "concurrent", status: "pending", priority: "medium" }],
@@ -212,17 +207,16 @@ describe("task_schedule tool", () => {
   it.effect("rejects a schedule entry with missing or empty content", () =>
     Effect.gen(function* () {
       yield* setup
-      const reg = yield* ToolRegistry.Service
+      yield* registerToolPlugin(TaskScheduleTool.Plugin)
+      const registry = yield* Tool.Service
       const tasks = yield* SessionTask.Service
 
-      expect(yield* executeTool(reg, call([{ scheduledAt: 1_780_000_000_000 }]))).toEqual({
-        type: "error",
-        value: "task_schedule: schedule requires a non-empty content prompt",
-      })
-      expect(yield* executeTool(reg, call([{ content: "   ", scheduledAt: 1_780_000_000_000 }]))).toEqual({
-        type: "error",
-        value: "task_schedule: schedule requires a non-empty content prompt",
-      })
+      const missing = yield* executeTool(registry, call([{ scheduledAt: 1_780_000_000_000 }]))
+      expect(missing.status).toBe("error")
+      expect(missing.error?.message).toBe("task_schedule: schedule requires a non-empty content prompt")
+      const blank = yield* executeTool(registry, call([{ content: "   ", scheduledAt: 1_780_000_000_000 }]))
+      expect(blank.status).toBe("error")
+      expect(blank.error?.message).toBe("task_schedule: schedule requires a non-empty content prompt")
       expect(yield* tasks.get(sessionID)).toHaveLength(0)
     }),
   )
@@ -230,14 +224,15 @@ describe("task_schedule tool", () => {
   it.effect("rejects a schedule entry without scheduledAt or recurrence (dead job)", () =>
     Effect.gen(function* () {
       yield* setup
-      const reg = yield* ToolRegistry.Service
+      yield* registerToolPlugin(TaskScheduleTool.Plugin)
+      const registry = yield* Tool.Service
       const tasks = yield* SessionTask.Service
 
-      expect(yield* executeTool(reg, call([{ content: "never runs" }]))).toEqual({
-        type: "error",
-        value:
-          "task_schedule: schedule requires scheduledAt (one-shot) or recurrence (cron); a job without a trigger can never run",
-      })
+      const result = yield* executeTool(registry, call([{ content: "never runs" }]))
+      expect(result.status).toBe("error")
+      expect(result.error?.message).toBe(
+        "task_schedule: schedule requires scheduledAt (one-shot) or recurrence (cron); a job without a trigger can never run",
+      )
       expect(yield* tasks.get(sessionID)).toHaveLength(0)
     }),
   )
@@ -245,24 +240,27 @@ describe("task_schedule tool", () => {
   it.effect("rejects an enabled recurrence whose cron is invalid or never matches (dead job)", () =>
     Effect.gen(function* () {
       yield* setup
-      const reg = yield* ToolRegistry.Service
+      yield* registerToolPlugin(TaskScheduleTool.Plugin)
+      const registry = yield* Tool.Service
       const tasks = yield* SessionTask.Service
 
-      expect(
-        yield* executeTool(reg, call([{ content: "bad hour", recurrence: { cron: "0 25 * * *", enabled: true } }])),
-      ).toEqual({
-        type: "error",
-        value:
-          'task_schedule: recurrence cron "0 25 * * *" is invalid or has no future run; refusing to persist a dead job',
-      })
+      const badHour = yield* executeTool(
+        registry,
+        call([{ content: "bad hour", recurrence: { cron: "0 25 * * *", enabled: true } }]),
+      )
+      expect(badHour.status).toBe("error")
+      expect(badHour.error?.message).toBe(
+        'task_schedule: recurrence cron "0 25 * * *" is invalid or has no future run; refusing to persist a dead job',
+      )
       // A parseable cron with no real-world match (30th of February) is dead too.
-      expect(
-        yield* executeTool(reg, call([{ content: "feb 30", recurrence: { cron: "0 9 30 2 *", enabled: true } }])),
-      ).toEqual({
-        type: "error",
-        value:
-          'task_schedule: recurrence cron "0 9 30 2 *" is invalid or has no future run; refusing to persist a dead job',
-      })
+      const feb30 = yield* executeTool(
+        registry,
+        call([{ content: "feb 30", recurrence: { cron: "0 9 30 2 *", enabled: true } }]),
+      )
+      expect(feb30.status).toBe("error")
+      expect(feb30.error?.message).toBe(
+        'task_schedule: recurrence cron "0 9 30 2 *" is invalid or has no future run; refusing to persist a dead job',
+      )
       expect(yield* tasks.get(sessionID)).toHaveLength(0)
     }),
   )
@@ -270,15 +268,18 @@ describe("task_schedule tool", () => {
   it.effect("rejects a disabled recurrence without a scheduledAt fallback (dead job)", () =>
     Effect.gen(function* () {
       yield* setup
-      const reg = yield* ToolRegistry.Service
+      yield* registerToolPlugin(TaskScheduleTool.Plugin)
+      const registry = yield* Tool.Service
       const tasks = yield* SessionTask.Service
 
-      expect(
-        yield* executeTool(reg, call([{ content: "never runs", recurrence: { cron: "0 3 * * *", enabled: false } }])),
-      ).toEqual({
-        type: "error",
-        value: "task_schedule: recurrence is disabled and scheduledAt is unset; a job without a trigger can never run",
-      })
+      const result = yield* executeTool(
+        registry,
+        call([{ content: "never runs", recurrence: { cron: "0 3 * * *", enabled: false } }]),
+      )
+      expect(result.status).toBe("error")
+      expect(result.error?.message).toBe(
+        "task_schedule: recurrence is disabled and scheduledAt is unset; a job without a trigger can never run",
+      )
       expect(yield* tasks.get(sessionID)).toHaveLength(0)
     }),
   )
@@ -286,21 +287,16 @@ describe("task_schedule tool", () => {
   it.effect("rejects pause/resume/remove without an existing task id", () =>
     Effect.gen(function* () {
       yield* setup
-      const reg = yield* ToolRegistry.Service
+      yield* registerToolPlugin(TaskScheduleTool.Plugin)
+      const registry = yield* Tool.Service
       const tasks = yield* SessionTask.Service
 
-      expect(yield* executeTool(reg, call([{ action: "pause" }]))).toEqual({
-        type: "error",
-        value: "task_schedule: pause requires the id of an existing task",
-      })
-      expect(yield* executeTool(reg, call([{ action: "resume" }]))).toEqual({
-        type: "error",
-        value: "task_schedule: resume requires the id of an existing task",
-      })
-      expect(yield* executeTool(reg, call([{ action: "remove" }]))).toEqual({
-        type: "error",
-        value: "task_schedule: remove requires the id of an existing task",
-      })
+      const pause = yield* executeTool(registry, call([{ action: "pause" }]))
+      expect(pause.error?.message).toBe("task_schedule: pause requires the id of an existing task")
+      const resume = yield* executeTool(registry, call([{ action: "resume" }]))
+      expect(resume.error?.message).toBe("task_schedule: resume requires the id of an existing task")
+      const remove = yield* executeTool(registry, call([{ action: "remove" }]))
+      expect(remove.error?.message).toBe("task_schedule: remove requires the id of an existing task")
       expect(yield* tasks.get(sessionID)).toHaveLength(0)
     }),
   )

@@ -1,41 +1,61 @@
 export * as CustomProfile from "./custom-profile"
 
-import { Context, Effect, Layer, Option, Schema, Scope, Stream } from "effect"
+import { AssetYaml } from "./util/asset-yaml"
+import { Context, Effect, Layer, Option, Result, Schema, Scope, Stream } from "effect"
 import path from "path"
-import yaml from "js-yaml"
-import { CustomProfile as SchemaCustomProfile } from "@aigcfroge/schema/custom-profile"
-import { EventV2 } from "./event"
-import { FSUtil } from "./fs-util"
+import { Composition } from "@aigcfroge/schema/composition"
+import { AssetPlacement } from "@aigcfroge/schema/asset-placement"
+import { CompositionReference } from "./composition/reference"
+import { CustomProfile } from "@aigcfroge/schema/custom-profile"
+import { Bus } from "./bus"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { KeyedMutex } from "./effect/keyed-mutex"
 import { Location } from "./location"
-import { Hash } from "./util/hash"
+import { Hash } from "@aigcfroge/util/hash"
 import { Watcher } from "./filesystem/watcher"
 import { CUSTOM_PROFILES_DIR } from "./constants"
 import { CustomProfilePath } from "./custom-profile/path"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
 
 export { CUSTOM_PROFILES_DIR }
 
-export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("CustomProfile.NotFound", {
+export class NotFoundError extends Schema.TaggedError<NotFoundError>()("CustomProfile.NotFound", {
   relativePath: Schema.String,
 }) {}
 
+export class InvalidPathError extends Schema.TaggedError<InvalidPathError>()("CustomProfile.InvalidPath", {
+  kind: Composition.AllowedKind,
+  path: Schema.String,
+  reason: Schema.String,
+}) {
+  override get message() {
+    return this.reason
+  }
+}
+
 export interface Info {
   readonly kind: "custom-profile"
-  readonly name: string
-  readonly description: string
+  readonly name: CustomProfile.Name
+  readonly description: CustomProfile.Description
   readonly relativePath: string
-  readonly revision: string
-  readonly profile: SchemaCustomProfile.Profile
+  readonly revision: CustomProfile.Revision
+  readonly profile: CustomProfile.Profile
   readonly rawYaml?: string
 }
 
 export interface InvalidEntry {
   readonly relativePath: string
-  readonly errorTag: SchemaCustomProfile.InvalidErrorTag
+  readonly errorTag: CustomProfile.InvalidErrorTag
 }
 
 export interface Interface {
   readonly list: () => Effect.Effect<ReadonlyArray<Info>>
+  readonly references: (input: {
+    readonly kind: Composition.AllowedKind
+    readonly path: string
+    readonly target?: AssetPlacement.Target
+    readonly includeLegacyLocation?: boolean
+  }) => Effect.Effect<ReadonlyArray<CustomProfile.Summary>, InvalidPathError>
   readonly getByPath: (relativePath: string) => Effect.Effect<Info, NotFoundError>
   readonly findByName: (name: string) => Effect.Effect<Info | undefined>
   readonly listInvalid: () => Effect.Effect<ReadonlyArray<InvalidEntry>>
@@ -54,7 +74,7 @@ function loadDir(
     const invalid = new Map<string, InvalidEntry>()
     const byName = new Map<string, string[]>()
 
-    const files = yield* fs.glob("**/*.yaml", { cwd: ownerRoot, absolute: true, include: "file", dot: true })
+    const files = yield* fs.scan("**/*.yaml", { cwd: ownerRoot, absolute: true, include: "file", dot: true })
 
     for (const file of files) {
       const relativePath = path.relative(ownerRoot, file).replaceAll("\\", "/")
@@ -74,7 +94,7 @@ function loadDir(
 
       let doc: unknown
       try {
-        doc = yaml.load(text)
+        doc = AssetYaml.parse(text)
       } catch {
         invalid.set(relativePath, { relativePath, errorTag: "parse_error" })
         yield* Effect.logWarning("Skipping invalid custom profile YAML", { relativePath, errorTag: "parse_error" })
@@ -87,16 +107,16 @@ function loadDir(
         continue
       }
 
-      let profile: SchemaCustomProfile.Profile
+      let profile: CustomProfile.Profile
       try {
-        profile = SchemaCustomProfile.decodeProfile(doc)
+        profile = CustomProfile.decodeProfile(doc)
       } catch {
         invalid.set(relativePath, { relativePath, errorTag: "bad_yaml" })
         yield* Effect.logWarning("Skipping custom profile with bad schema", { relativePath, errorTag: "bad_yaml" })
         continue
       }
 
-      const revision = Hash.sha256(Buffer.from(raw))
+      const revision = CustomProfile.Revision.make(Hash.sha256(Buffer.from(raw)))
 
       const conflicts = byName.get(profile.name)
       if (conflicts) {
@@ -133,6 +153,38 @@ function normalizeLookupPath(relativePath: string) {
   }
 }
 
+function referencesProfile(
+  profile: CustomProfile.Profile,
+  kind: Composition.AllowedKind,
+  relativePath: string,
+  target: AssetPlacement.Target | undefined,
+  legacyTarget: AssetPlacement.Target | undefined,
+  includeLegacyLocation: boolean,
+) {
+  const matches = (candidate: CompositionReference.Entry) => {
+    // Historical omission retains this Profile's Location membership when its base is an alias.
+    if (candidate.target === undefined && includeLegacyLocation)
+      return CompositionReference.matches(kind, relativePath, candidate.relativePath)
+    return CompositionReference.matches(
+      kind,
+      relativePath,
+      candidate.relativePath,
+      target,
+      candidate.target ?? legacyTarget,
+    )
+  }
+
+  if (kind === "agent")
+    return (profile.root?.source === "asset" && matches(profile.root)) || profile.agents.some(matches)
+  if (kind === "workflow") return profile.workflow !== undefined && matches(profile.workflow)
+  if (kind === "mcp") return profile.mcpBindings.some((binding) => matches(binding.ref))
+  return Object.values(profile.bindings).some((binding) => {
+    if (kind === "prompt") return binding.prompts.some(matches)
+    if (kind === "skill") return binding.skills.some(matches)
+    return binding.commands.some(matches)
+  })
+}
+
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -156,6 +208,54 @@ export const layer = Layer.effect(
 
     const list = Effect.fn("CustomProfile.list")(function* () {
       return Array.from(assets.values())
+    })
+
+    const references = Effect.fn("CustomProfile.references")(function* (input: {
+      readonly kind: Composition.AllowedKind
+      readonly path: string
+      readonly target?: AssetPlacement.Target
+      readonly includeLegacyLocation?: boolean
+    }) {
+      if (input.target !== undefined && input.kind !== "prompt" && input.kind !== "skill" && input.kind !== "command")
+        return yield* new InvalidPathError({
+          kind: input.kind,
+          path: input.path,
+          reason: `Selected targets are unsupported for ${input.kind} references`,
+        })
+      const normalized = Result.try(() => CompositionReference.normalize(input.kind, input.path))
+      if (Result.isFailure(normalized))
+        return yield* new InvalidPathError({
+          kind: input.kind,
+          path: input.path,
+          reason: normalized.failure instanceof Error ? normalized.failure.message : String(normalized.failure),
+        })
+
+      const legacyTarget = CompositionReference.legacyTarget(input.kind, location.directory)
+      const includeLegacyLocation = input.includeLegacyLocation ?? input.target === undefined
+      return Array.from(assets.values())
+        .filter((entry) =>
+          referencesProfile(
+            entry.profile,
+            input.kind,
+            normalized.success,
+            input.target ?? legacyTarget,
+            legacyTarget,
+            includeLegacyLocation,
+          ),
+        )
+        .sort((left, right) =>
+          left.relativePath < right.relativePath ? -1 : left.relativePath > right.relativePath ? 1 : 0,
+        )
+        .map(
+          (entry) =>
+            new CustomProfile.Summary({
+              kind: entry.kind,
+              name: entry.name,
+              description: entry.description,
+              relativePath: entry.relativePath,
+              revision: entry.revision,
+            }),
+        )
     })
 
     const getByPath = Effect.fn("CustomProfile.getByPath")(function* (relativePath: string) {
@@ -186,7 +286,7 @@ export const layer = Layer.effect(
 
     // Watch for file changes
     const scope = yield* Scope.Scope
-    const eventsOpt = yield* Effect.serviceOption(EventV2.Service)
+    const eventsOpt = yield* Effect.serviceOption(Bus.Service)
     if (Option.isSome(eventsOpt)) {
       yield* eventsOpt.value.subscribe(Watcher.Event.Updated).pipe(
         Stream.filter((e) => FSUtil.contains(ownerRoot, e.data.file) && e.data.file.endsWith(".yaml")),
@@ -205,6 +305,7 @@ export const layer = Layer.effect(
 
     return Service.of({
       list,
+      references,
       getByPath,
       findByName,
       listInvalid,
@@ -215,3 +316,5 @@ export const layer = Layer.effect(
 )
 
 export const locationLayer = layer
+
+export const node = makeLocationNode({ service: Service, layer, deps: [FSUtil.node, Location.node, Bus.node] })

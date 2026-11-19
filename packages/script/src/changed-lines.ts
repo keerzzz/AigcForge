@@ -126,8 +126,11 @@ export async function resolveBaseline(env: {
 
 /**
  * `bun --cwd <pkg> run <script>` silently prints bun's usage and exits 0
- * without running anything (bun 1.3.14, recorded in docs/testing.md §0 and
- * technical-debt §4). Gate only logical commands containing an added line so
+ * without running anything. The original Bun 1.3.14 finding was reproduced
+ * on project Bun 1.4.2 on 2026-11-18: the bad form prints usage without the
+ * probe marker, while `bun run --cwd <pkg> <script>` executes the probe.
+ * Receipts: v2-main-integration/validation/bun-cwd-probe.
+ * Gate only logical commands containing an added line so
  * history remains untouched.
  */
 const BAD_CWD_RUN = /bun\s+--cwd(?:=|\s+)(?:[^\s]+|"[^"]*"|'[^']*')\s+run\s+/

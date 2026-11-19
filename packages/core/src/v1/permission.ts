@@ -1,14 +1,14 @@
 export * as PermissionV1 from "./permission"
 
 import { Schema } from "effect"
-import { ProjectV2 } from "../project"
-import { withStatics } from "../schema"
+import { Project } from "../project"
+import { statics } from "../schema"
 import { SessionSchema } from "../session/schema"
-import { Identifier } from "../util/identifier"
+import { Identifier } from "@aigcfroge/schema/identifier"
 
-export const ID = Schema.String.check(Schema.isStartsWith("per")).pipe(
+export const ID = Schema.String.check(Schema.isStartingWith("per")).pipe(
   Schema.brand("PermissionID"),
-  withStatics((schema) => ({ ascending: (id?: string) => schema.make(id ?? "per_" + Identifier.ascending()) })),
+  statics((schema) => ({ ascending: (id?: string) => schema.make(id ?? "per_" + Identifier.ascending()) })),
 )
 export type ID = typeof ID.Type
 
@@ -49,7 +49,7 @@ export const ReplyBody = Schema.Struct({
 export type ReplyBody = typeof ReplyBody.Type
 
 export const Approval = Schema.Struct({
-  projectID: ProjectV2.ID,
+  projectID: Project.ID,
   patterns: Schema.Array(Schema.String),
 }).annotate({ identifier: "PermissionApproval" })
 export type Approval = typeof Approval.Type
@@ -70,13 +70,13 @@ export const ReplyInput = Schema.Struct({
 }).annotate({ identifier: "PermissionReplyInput" })
 export type ReplyInput = typeof ReplyInput.Type
 
-export class RejectedError extends Schema.TaggedErrorClass<RejectedError>()("PermissionRejectedError", {}) {
+export class RejectedError extends Schema.TaggedError<RejectedError>()("PermissionRejectedError", {}) {
   override get message() {
     return "The user rejected permission to use this specific tool call."
   }
 }
 
-export class CorrectedError extends Schema.TaggedErrorClass<CorrectedError>()("PermissionCorrectedError", {
+export class CorrectedError extends Schema.TaggedError<CorrectedError>()("PermissionCorrectedError", {
   feedback: Schema.String,
 }) {
   override get message() {
@@ -84,7 +84,7 @@ export class CorrectedError extends Schema.TaggedErrorClass<CorrectedError>()("P
   }
 }
 
-export class DeniedError extends Schema.TaggedErrorClass<DeniedError>()("PermissionDeniedError", {
+export class DeniedError extends Schema.TaggedError<DeniedError>()("PermissionDeniedError", {
   ruleset: Schema.Any,
 }) {
   override get message() {
@@ -92,7 +92,7 @@ export class DeniedError extends Schema.TaggedErrorClass<DeniedError>()("Permiss
   }
 }
 
-export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("Permission.NotFoundError", {
+export class NotFoundError extends Schema.TaggedError<NotFoundError>()("Permission.NotFoundError", {
   requestID: ID,
 }) {}
 

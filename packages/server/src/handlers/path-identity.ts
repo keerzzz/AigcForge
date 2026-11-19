@@ -1,5 +1,5 @@
 import { PathIdentity } from "@aigcfroge/core/path-identity"
-import { HttpApiBuilder } from "effect/unstable/httpapi"
+import { HttpApiBuilder } from "effect/http-api"
 import { Api } from "../api"
 
 export const PathIdentityHandler = HttpApiBuilder.group(Api, "server.pathIdentity", (handlers) =>

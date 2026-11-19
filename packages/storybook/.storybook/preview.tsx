@@ -1,6 +1,4 @@
-import "@aigcfroge/ui/styles/tailwind"
-import "@aigcfroge/session-ui/styles"
-import "@aigcfroge/ui/v2/styles/tailwind.css"
+import "../../app/src/index.css"
 
 import { createEffect, onCleanup, onMount } from "solid-js"
 import addonA11y from "@storybook/addon-a11y"
@@ -13,6 +11,8 @@ import { DialogProvider } from "@aigcfroge/ui/context/dialog"
 import { MarkedProvider } from "@aigcfroge/ui/context/marked"
 import { ThemeProvider, useTheme, type ColorScheme } from "@aigcfroge/ui/theme"
 import { Font } from "@aigcfroge/ui/font"
+import { LanguageProvider, UiI18nBridge, useLanguage } from "@/runtime/i18n/language"
+import { ExtensionStory } from "./extension"
 
 function resolveScheme(value: unknown): ColorScheme {
   if (value === "light" || value === "dark" || value === "system") return value
@@ -44,30 +44,55 @@ const Scheme = (props: { value?: unknown }) => {
   return null
 }
 
+const Direction = (props: { value?: unknown }) => {
+  const language = useLanguage()
+  createEffect(() => {
+    language.setDirection(props.value === "rtl" ? "rtl" : "ltr")
+  })
+  return null
+}
+
+const BodyTypography = () => {
+  onMount(() => {
+    document.body.classList.add("font-(family-name:--font-family-text)", "text-[13px]", "font-[440]")
+    document.body.classList.remove("text-12-regular")
+  })
+  return null
+}
+
 const frame = createJSXDecorator((Story, context) => {
   const override = context.parameters?.themes?.themeOverride
   const selected = context.globals?.theme
   const pick = override === "light" || override === "dark" ? override : selected
   const scheme = resolveScheme(pick)
+  const fullscreen = context.parameters?.layout === "fullscreen"
   return (
     <MetaProvider>
       <Font />
       <ThemeProvider>
-        <Scheme value={scheme} />
-        <DialogProvider>
-          <MarkedProvider>
-            <div
-              style={{
-                "min-height": "100vh",
-                padding: "24px",
-                "background-color": "var(--background-base)",
-                color: "var(--text-base)",
-              }}
-            >
-              <Story />
-            </div>
-          </MarkedProvider>
-        </DialogProvider>
+        <LanguageProvider locale={typeof context.globals?.locale === "string" ? context.globals.locale : "en"}>
+          <UiI18nBridge>
+            <Scheme value={scheme} />
+            <Direction value={context.globals?.direction} />
+            <BodyTypography />
+            <DialogProvider>
+              <MarkedProvider>
+                <div
+                  style={{
+                    "min-height": "100vh",
+                    padding: fullscreen ? "0" : "24px",
+                    "background-color": "var(--background-base)",
+                    color: "var(--text-base)",
+                  }}
+                >
+                  <ExtensionStory file={context.parameters?.fileName}>
+                    <Story />
+                  </ExtensionStory>
+                </div>
+              </MarkedProvider>
+            </DialogProvider>
+          </UiI18nBridge>
+        </LanguageProvider>
       </ThemeProvider>
     </MetaProvider>
   )
@@ -81,6 +106,16 @@ export default definePreview({
       name: "Theme",
       description: "Global theme",
       defaultValue: "light",
+    },
+    direction: {
+      name: "Direction",
+      description: "Interface direction",
+      defaultValue: "ltr",
+    },
+    locale: {
+      name: "Locale",
+      description: "Interface language",
+      defaultValue: "en",
     },
   },
   parameters: {

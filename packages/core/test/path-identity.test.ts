@@ -1,11 +1,15 @@
 import { describe, expect } from "bun:test"
-import { FSUtil } from "@aigcfroge/core/fs-util"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { PathIdentity } from "@aigcfroge/core/path-identity"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import path from "path"
 import { Effect, FileSystem, Layer, Option } from "effect"
 import { systemError } from "effect/PlatformError"
 import { testEffect } from "./lib/effect"
+import { ByteSize } from "effect"
+import { NodeFileSystem } from "@effect/platform-node"
+
+const fsLayer = FSUtil.layer.pipe(Layer.provide(NodeFileSystem.layer))
 
 const refs = new PathIdentity.CompareInput({
   left: new PathIdentity.Ref({ path: AbsolutePath.make("/left") }),
@@ -25,7 +29,7 @@ function info(device: number, inode: Option.Option<number>): FileSystem.File.Inf
     uid: Option.none(),
     gid: Option.none(),
     rdev: Option.none(),
-    size: FileSystem.Size(0),
+    size: ByteSize.bytes(0),
     blksize: Option.none(),
     blocks: Option.none(),
   }
@@ -34,7 +38,7 @@ function info(device: number, inode: Option.Option<number>): FileSystem.File.Inf
 function mocked(realPath: FSUtil.Interface["realPath"], stat: FSUtil.Interface["stat"]) {
   const filesystem = Layer.unwrap(
     FSUtil.Service.pipe(Effect.map((fs) => Layer.mock(FSUtil.Service)({ ...fs, realPath, stat }))),
-  ).pipe(Layer.provide(FSUtil.defaultLayer))
+  ).pipe(Layer.provide(fsLayer))
   return PathIdentity.locationLayer.pipe(Layer.provide(filesystem))
 }
 
@@ -146,7 +150,7 @@ describe("PathIdentity", () => {
     }),
   )
 
-  const liveIt = testEffect(PathIdentity.locationLayer.pipe(Layer.provideMerge(FSUtil.defaultLayer)))
+  const liveIt = testEffect(PathIdentity.locationLayer.pipe(Layer.provideMerge(fsLayer)))
 
   liveIt.live("proves a symlink spelling through the real filesystem", () =>
     Effect.gen(function* () {

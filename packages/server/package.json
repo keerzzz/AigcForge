@@ -1,24 +1,48 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@aigcfroge/server",
-  "version": "0.0.8",
-  "private": true,
+  "version": "2.0.26",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anomalyco/aigcfroge.git",
+    "directory": "packages/server"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
   "exports": {
     "./*": "./src/*.ts"
   },
   "scripts": {
-    "typecheck": "tsgo --noEmit"
+    "build": "bun run script/build.ts",
+    "test": "bun test --only-failures",
+    "typecheck": "tsgo -b",
+    "probe:workerd": "bun run script/workerd-probe.ts"
   },
   "dependencies": {
+    "@effect/platform-node": "catalog:",
+    "@effect/platform-node-shared": "catalog:",
     "@aigcfroge/core": "workspace:*",
-    "drizzle-orm": "catalog:",
+    "@aigcfroge/protocol": "workspace:*",
+    "@aigcfroge/schema": "workspace:*",
+    "@aigcfroge/simulation": "workspace:*",
+    "@aigcfroge/util": "workspace:*",
     "effect": "catalog:"
   },
   "devDependencies": {
+    "@opencode-ai/pty": "0.2.0",
+    "@aigcfroge/ai": "workspace:*",
+    "@aigcfroge/client": "workspace:*",
+    "@aigcfroge/plugin": "workspace:*",
     "@tsconfig/bun": "catalog:",
     "@types/bun": "catalog:",
-    "@typescript/native-preview": "catalog:"
+    "@typescript/native-preview": "catalog:",
+    "drizzle-orm": "catalog:",
+    "fast-check": "catalog:"
   }
 }

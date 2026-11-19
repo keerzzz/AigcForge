@@ -1,4 +1,4 @@
-export * as PermissionTier from "./permission-tier"
+export * as PermissionTier from "./permission-tier.js"
 
 import { Schema } from "effect"
 

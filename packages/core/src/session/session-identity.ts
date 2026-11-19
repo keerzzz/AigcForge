@@ -1,17 +1,20 @@
 export * as SessionIdentityProjection from "./session-identity"
 
 import { Context, Effect, Layer, Option, Schema } from "effect"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
 import { AgentAsset } from "../agent-asset"
 import { CommandAsset } from "../command-asset"
 import { SessionIdentity } from "@aigcfroge/schema/session-identity"
+import { Model } from "@aigcfroge/schema/model"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { Git } from "../git"
 import { MCPAsset } from "../mcp-asset"
-import { PermissionV2 } from "../permission"
+import { MetaAgentService } from "../meta-agent/service"
+import { Permission } from "../permission"
 import { PluginAsset } from "../plugin-asset"
 import { ProductModePolicy } from "../product-mode-policy"
 import { PromptAsset } from "../prompt-asset"
-import { SessionV2 } from "../session"
+import { Session } from "../session"
 import { WorkArtifact } from "./artifact"
 import { SessionComposition } from "./composition"
 import { ScheduleService } from "./schedule-service"
@@ -41,33 +44,37 @@ import { WorkflowRun } from "../workflow/workflow-run"
  *    metadata or catalog digest participates.
  *  - `work`: the contract comes from the durable Work contract snapshot when present,
  *    with the WorkflowRun owner retained as a legacy fallback. Artifact identity/revision
- *    comes from WorkArtifact's persistent, content-verified owner. `presetCategoryId` is never used as identity.
+ *    comes from WorkArtifact's in-memory owner. `presetCategoryId` is never used as identity.
  *  - `assistant`: the current owner contract is personal schedules/reminders;
  *    Memory and Knowledge remain typed M2-degraded. Project scope is not emitted
  *    because no owner currently persists it.
  */
 export interface Interface {
-  readonly project: (sessionID: SessionV2.ID) => Effect.Effect<
+  readonly project: (sessionID: Session.ID) => Effect.Effect<
     SessionIdentity.Identity,
     // SnapshotDecodeError is the composition owner's own failure and is passed
     // through rather than swallowed: a corrupt snapshot is not "no snapshot".
-    SessionV2.NotFoundError | IdentityFieldMissing | SnapshotUnavailable | SessionComposition.SnapshotDecodeError
+    | Session.NotFoundError
+    | IdentityFieldMissing
+    | SnapshotUnavailable
+    | SessionComposition.SnapshotDecodeError
+    | Permission.BlockedError
   >
 }
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionIdentityProjection") {}
 
 /** A session with no agent is corrupt data, not a normal state: the projection refuses it. */
-export class IdentityFieldMissing extends Schema.TaggedErrorClass<IdentityFieldMissing>()(
+export class IdentityFieldMissing extends Schema.TaggedError<IdentityFieldMissing>()(
   "SessionIdentity.IdentityFieldMissing",
-  { sessionID: SessionV2.ID, field: Schema.String },
+  { sessionID: Session.ID, field: Schema.String },
   { httpApiStatus: 409 },
 ) {}
 
 /** A custom session whose composition snapshot is gone: an explicit failure, not a fabricated digest. */
-export class SnapshotUnavailable extends Schema.TaggedErrorClass<SnapshotUnavailable>()(
+export class SnapshotUnavailable extends Schema.TaggedError<SnapshotUnavailable>()(
   "SessionIdentity.SnapshotUnavailable",
-  { sessionID: SessionV2.ID, reason: Schema.String },
+  { sessionID: Session.ID, reason: Schema.String },
   { httpApiStatus: 404 },
 ) {}
 
@@ -75,9 +82,10 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const sessions = yield* SessionStore.Service
-    const permission = yield* PermissionV2.Service
+    const permission = yield* Permission.Service
     const composition = yield* SessionComposition.Service
     const git = yield* Git.Service
+    const metas = yield* MetaAgentService.Service
     const prompts = yield* Effect.serviceOption(PromptAsset.Service)
     const skills = yield* Effect.serviceOption(SkillAsset.Service)
     const mcps = yield* Effect.serviceOption(MCPAsset.Service)
@@ -95,7 +103,7 @@ export const layer = Layer.effect(
       reasons: ReadonlyArray<SessionIdentity.Reason>,
     ): SessionIdentity.Capability => ({ health, reasons: [...reasons] })
 
-    const resolveDetail = Effect.fnUntraced(function* (session: SessionV2.Info) {
+    const resolveDetail = Effect.fnUntraced(function* (session: Session.Info) {
       const notProjected = SessionIdentity.ReasonCodes.modeDetailNotProjected
       const missing = () => ({
         capability: capability("degraded", [{ code: notProjected, severity: "info" as const }]),
@@ -103,7 +111,7 @@ export const layer = Layer.effect(
       })
 
       if (session.mode === "coding") {
-        const repo = yield* git.find(session.location.directory)
+        const repo = yield* git.repo.discover(session.location.directory)
         if (!repo) {
           // Non-Git Location: ADR-23 §3 — absent VCS identity is `missing`, and an
           // identity fact never degrades the capability.
@@ -118,7 +126,7 @@ export const layer = Layer.effect(
             },
           }
         }
-        const branchName = yield* git.branch(repo.directory)
+        const branchName = yield* git.history.branch(repo)
         return {
           capability: capability("ready", []),
           detail: {
@@ -131,7 +139,7 @@ export const layer = Layer.effect(
                     ? { status: "missing" as const }
                     : { status: "ready" as const, value: branchName },
                 // The owner's working-tree root, not the session directory.
-                worktree: { status: "ready" as const, value: repo.directory },
+                worktree: { status: "ready" as const, value: repo.worktree },
               },
             },
           },
@@ -176,16 +184,7 @@ export const layer = Layer.effect(
 
       if (session.mode === "work") {
         const run = Option.isSome(runs) ? yield* runs.value.getBySession(session.id) : undefined
-        const artifact = Option.isSome(artifacts)
-          ? yield* artifacts.value
-              .get(session.id)
-              .pipe(
-                Effect.mapError(
-                  () =>
-                    new SnapshotUnavailable({ sessionID: session.id, reason: "Work artifact could not be verified" }),
-                ),
-              )
-          : undefined
+        const artifact = Option.isSome(artifacts) ? yield* artifacts.value.get(session.id) : undefined
         const contract = session.workContract
           ? session.workContract.source === "preset"
             ? {
@@ -269,9 +268,9 @@ export const layer = Layer.effect(
       return missing()
     })
 
-    const project = Effect.fn("SessionIdentityProjection.project")(function* (sessionID: SessionV2.ID) {
+    const project = Effect.fn("SessionIdentityProjection.project")(function* (sessionID: Session.ID) {
       const session = yield* sessions.get(sessionID)
-      if (!session) return yield* new SessionV2.NotFoundError({ sessionID })
+      if (!session) return yield* new Session.NotFoundError({ sessionID })
 
       // `agent` is required: a session with no agent is corrupt data. `model` is a
       // datum — a session legitimately has none until its first prompt.
@@ -283,9 +282,10 @@ export const layer = Layer.effect(
       // ruleset. A specific action may resolve differently, and this is not an
       // authorization for anything in particular.
       const rules = yield* permission.effectiveRules(sessionID)
-      const effect = PermissionV2.evaluate("*", "*", rules).effect
+      const effect = Permission.evaluate("*", "*", rules).effect
 
       const resolved = yield* resolveDetail(session)
+      const coordination = yield* metas.coordination(sessionID, { agent: session.agent })
 
       // Decode through the contract instead of asserting a literal: the identity
       // schema carries the aggregation rule as a filter, so this makes ADR-23's
@@ -303,9 +303,15 @@ export const layer = Layer.effect(
         model:
           model === undefined
             ? { status: "missing" as const }
-            : { status: "ready" as const, value: { providerID: String(model.providerID), modelID: String(model.id) } },
+            : {
+                status: "ready" as const,
+                value: Model.Selection.isGroup(model)
+                  ? model
+                  : { providerID: String(model.providerID), modelID: String(model.id) },
+              },
         permission: { declaredTier: session.permissionTier ?? PermissionTier.Default, effect },
         capability: resolved.capability,
+        coordination,
         detail: resolved.detail,
       }).pipe(
         Effect.catchTag("SchemaError", (error) =>
@@ -317,3 +323,24 @@ export const layer = Layer.effect(
     return { project } satisfies Interface
   }),
 )
+
+export const node = makeLocationNode({
+  service: Service,
+  layer,
+  deps: [
+    SessionStore.node,
+    Permission.node,
+    SessionComposition.node,
+    Git.node,
+    MetaAgentService.node,
+    PromptAsset.node,
+    SkillAsset.node,
+    MCPAsset.node,
+    CommandAsset.node,
+    AgentAsset.node,
+    WorkflowAsset.node,
+    PluginAsset.node,
+    WorkflowRun.node,
+    WorkArtifact.node,
+  ],
+})

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { ImportParser } from "../src/import-parser"
+import { ImportParser } from "../src/import-parser.js"
 
 describe("ImportParser.Candidate", () => {
   test("encodes/decodes valid candidate", () => {

@@ -1,11 +1,11 @@
-import { AccordionV2 } from "../v2/components/accordion-v2"
+import { Accordion } from "@aigcfroge/ui/accordion"
 import { ParentProps } from "solid-js"
 
 export function StickyAccordionHeader(
   props: ParentProps<{ class?: string; classList?: Record<string, boolean | undefined> }>,
 ) {
   return (
-    <AccordionV2.Header
+    <Accordion.Header
       data-component="sticky-accordion-header"
       classList={{
         ...props.classList,
@@ -13,6 +13,6 @@ export function StickyAccordionHeader(
       }}
     >
       {props.children}
-    </AccordionV2.Header>
+    </Accordion.Header>
   )
 }

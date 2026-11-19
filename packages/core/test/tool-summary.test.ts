@@ -17,7 +17,7 @@ describe("ToolSummary.fromMessages", () => {
         files: [],
         time: { created: Date.now() },
       },
-    ] as unknown as SessionMessage.Message[]
+    ] as unknown as SessionMessage.Info[]
     expect(ToolSummary.fromMessages(messages)).toEqual([])
   })
 

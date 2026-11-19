@@ -2,9 +2,9 @@ export * as InstructionContext from "./instruction-context"
 
 import { Array, Effect, Layer, Schema } from "effect"
 import { isAbsolute, join, relative, sep } from "path"
-import { FSUtil } from "./fs-util"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { Flag } from "./flag/flag"
-import { Global } from "./global"
+import { Global } from "@aigcfroge/util/global"
 import { Location } from "./location"
 import { AbsolutePath } from "./schema"
 import { SystemContext } from "./system-context/index"
@@ -80,7 +80,7 @@ export const layer = Layer.effectDiscard(
               ? SystemContext.empty
               : source(files),
         ),
-        Effect.catch(() => Effect.succeed(source(SystemContext.unavailable))),
+        Effect.orElseSucceed(() => source(SystemContext.unavailable)),
         Effect.catchDefect(() => Effect.succeed(source(SystemContext.unavailable))),
       ),
     })

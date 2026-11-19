@@ -1,7 +1,7 @@
-export * as WorkPreset from "./work-preset"
+export * as WorkPreset from "./work-preset.js"
 
 import { Schema } from "effect"
-import { WorkflowAsset } from "./workflow-asset"
+import { WorkflowAsset } from "./workflow-asset.js"
 
 export const Category = Schema.Literals(["it-development", "video-creation", "academic", "general-office"]).annotate({
   identifier: "WorkPreset.Category",

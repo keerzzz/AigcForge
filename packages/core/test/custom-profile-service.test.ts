@@ -1,16 +1,30 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Layer, Schema } from "effect"
+import path from "node:path"
+import { Composition } from "@aigcfroge/schema/composition"
 import { CustomProfile as SchemaCustomProfile } from "@aigcfroge/schema/custom-profile"
 import { CustomProfileService } from "@aigcfroge/core/custom-profile-service"
 import { CustomProfile } from "@aigcfroge/core/custom-profile"
 import { FileMutation } from "@aigcfroge/core/file-mutation"
 import { LocationMutation } from "@aigcfroge/core/location-mutation"
-import { FSUtil } from "@aigcfroge/core/fs-util"
+import { FSUtil } from "@aigcfroge/util/fs-util"
+import { Hash } from "@aigcfroge/util/hash"
 import { Location } from "@aigcfroge/core/location"
-import { EventV2 } from "@aigcfroge/core/event"
+import { Bus } from "@aigcfroge/core/bus"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { location } from "./fixture/location"
-import { tmpdir } from "./fixture/tmpdir"
+import { tmpdir, tmpdirScoped } from "./fixture/tmpdir"
+import { NodeFileSystem } from "@effect/platform-node"
+import { hostEnvironmentLayer } from "./fixture/environment"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Environment } from "@aigcfroge/core/environment/index"
+import { AssetYaml } from "../src/util/asset-yaml"
+import { testEffect } from "./lib/effect"
+
+const fsLayer = FSUtil.layer.pipe(Layer.provide(NodeFileSystem.layer))
+const it = testEffect(fsLayer)
+const busNodeLayer = AppNodeBuilder.build(LayerNode.group([Bus.node]), [Bus.node.replace(Bus.configured())])
 
 function locationLayer(dir: string) {
   return Layer.succeed(Location.Service, Location.Service.of(location({ directory: AbsolutePath.make(dir) })))
@@ -41,6 +55,7 @@ function fullLayer(dir: string, inject: Injection = {}) {
       const real = yield* CustomProfile.Service
       return CustomProfile.Service.of({
         list: () => real.list(),
+        references: (input) => real.references(input),
         getByPath: (relativePath) => {
           if (staleRegistryHit.on && staleRegistryHit.info !== undefined) {
             return Effect.succeed(staleRegistryHit.info)
@@ -68,7 +83,6 @@ function fullLayer(dir: string, inject: Injection = {}) {
     Effect.gen(function* () {
       const real = yield* FileMutation.Service
       return FileMutation.Service.of({
-        withTarget: (target, use) => real.withTarget(target, use),
         create: (input) => real.create(input),
         write: (input) => real.write(input),
         writeTextPreservingBom: (input) => real.writeTextPreservingBom(input),
@@ -77,20 +91,19 @@ function fullLayer(dir: string, inject: Injection = {}) {
           noopRemove.on
             ? Effect.succeed({
                 operation: "remove",
-                target: input.target.canonical,
+                target: input.target.absolute,
                 resource: input.target.resource,
                 existed: true,
               } satisfies FileMutation.RemoveResult)
             : real.remove(input),
         writeAtomic: (input) =>
           failWriteAtomic.on
-            ? Effect.fail(
-                new FSUtil.FileSystemError({ method: "writeAtomic", cause: new Error("injected write failure") }),
-              )
+            ? Effect.fail(new Error("writeAtomic injected write failure") as unknown as Environment.Failed)
             : real.writeAtomic(input),
+        withLock: real.withLock,
       } satisfies FileMutation.Interface)
     }),
-  ).pipe(Layer.provide(FileMutation.locationLayer))
+  ).pipe(Layer.provide(FileMutation.layer))
 
   return CustomProfileService.locationLayer.pipe(
     Layer.provide(fileMutationLayer),
@@ -98,9 +111,10 @@ function fullLayer(dir: string, inject: Injection = {}) {
     // provideMerge keeps CustomProfile.Service in the output so tests can
     // assert on registry state after compensation runs.
     Layer.provideMerge(registryLayer),
-    Layer.provide(EventV2.defaultLayer),
+    Layer.provide(busNodeLayer),
     Layer.provide(locationLayer(dir)),
-    Layer.provide(FSUtil.defaultLayer),
+    Layer.provide(fsLayer),
+    Layer.provide(hostEnvironmentLayer),
   )
 }
 
@@ -142,6 +156,126 @@ function makeCandidate(name: string, description = "test profile"): SchemaCustom
 }
 
 describe("CustomProfileService", () => {
+  it.live("saves captured roots through the existing bytes revision and CAS owner without a Session", () =>
+    Effect.gen(function* () {
+      const directory = yield* tmpdirScoped()
+      const fs = yield* FSUtil.Service
+      yield* Effect.gen(function* () {
+        const service = yield* CustomProfileService.Service
+        const registry = yield* CustomProfile.Service
+        const base = makeCandidate("captured-root")
+        const root = new Composition.BuiltinRoot({
+          source: "builtin",
+          id: "build",
+          revision: Composition.Revision.make("d".repeat(64)),
+        })
+        const candidate = new SchemaCustomProfile.Candidate({
+          ...base,
+          profile: new SchemaCustomProfile.Profile({ ...base.profile, root, agents: [], bindings: {} }),
+        })
+        const saved = yield* service.apply({ candidate, baseRevision: null, overwrite: false })
+        const file = path.join(directory.path, CustomProfile.CUSTOM_PROFILES_DIR, saved.relativePath)
+        const bytes = yield* fs.readFile(file)
+        expect(saved.revision).toBe(SchemaCustomProfile.Revision.make(Hash.sha256(Buffer.from(bytes))))
+        expect(saved.profile.root).toEqual(root)
+        expect(saved.profile.agents).toEqual([])
+        expect(SchemaCustomProfile.decodeProfile(AssetYaml.parse(new TextDecoder().decode(bytes))).root).toEqual(root)
+        yield* registry.reload()
+        expect(yield* registry.getByPath(saved.relativePath)).toEqual(saved)
+        expect((yield* service.propose(candidate)).revision).toBe(saved.revision)
+        expect(yield* fs.exists(path.join(directory.path, ".aigcfroge/agents"))).toBe(false)
+
+        const replacement = new SchemaCustomProfile.Candidate({
+          ...candidate,
+          profile: new SchemaCustomProfile.Profile({
+            ...candidate.profile,
+            root: new Composition.BuiltinRoot({
+              source: "builtin",
+              id: "plan",
+              revision: Composition.Revision.make("e".repeat(64)),
+            }),
+          }),
+        })
+        expect(
+          yield* service.apply({ candidate: replacement, baseRevision: null, overwrite: true }).pipe(Effect.flip),
+        ).toBeInstanceOf(CustomProfileService.StaleRevisionError)
+        expect(
+          yield* service
+            .apply({ candidate: replacement, baseRevision: "a".repeat(64), overwrite: true })
+            .pipe(Effect.flip),
+        ).toBeInstanceOf(CustomProfileService.StaleRevisionError)
+        expect(
+          yield* service
+            .apply({ candidate: replacement, baseRevision: saved.revision, overwrite: false })
+            .pipe(Effect.flip),
+        ).toBeInstanceOf(CustomProfileService.OverwriteRequiredError)
+        expect(yield* fs.readFile(file)).toEqual(bytes)
+        expect(yield* registry.getByPath(saved.relativePath)).toEqual(saved)
+
+        const updated = yield* service.apply({ candidate: replacement, baseRevision: saved.revision, overwrite: true })
+        expect(updated.revision).not.toBe(saved.revision)
+        expect(updated.profile.root).toEqual(replacement.profile.root)
+        expect(updated.revision).toBe(
+          SchemaCustomProfile.Revision.make(Hash.sha256(Buffer.from(yield* fs.readFile(file)))),
+        )
+        yield* registry.reload()
+        expect(yield* registry.getByPath(updated.relativePath)).toEqual(updated)
+        expect(saved.profile.root).toEqual(root)
+      }).pipe(Effect.provide(fullLayer(directory.path)))
+    }),
+  )
+
+  it.live("compensates a Profile root overwrite when the existing registry readback fails", () =>
+    Effect.gen(function* () {
+      const directory = yield* tmpdirScoped()
+      const fs = yield* FSUtil.Service
+      const failures = { count: 0 }
+      yield* Effect.gen(function* () {
+        const service = yield* CustomProfileService.Service
+        const registry = yield* CustomProfile.Service
+        const base = makeCandidate("compensated-root")
+        const candidate = new SchemaCustomProfile.Candidate({
+          ...base,
+          profile: new SchemaCustomProfile.Profile({
+            ...base.profile,
+            root: new Composition.BuiltinRoot({
+              source: "builtin",
+              id: "build",
+              revision: Composition.Revision.make("d".repeat(64)),
+            }),
+            agents: [],
+            bindings: {},
+          }),
+        })
+        const saved = yield* service.apply({ candidate, baseRevision: null, overwrite: false })
+        const file = path.join(directory.path, CustomProfile.CUSTOM_PROFILES_DIR, saved.relativePath)
+        const bytes = yield* fs.readFile(file)
+        failures.count = 1
+        const failed = yield* service
+          .apply({
+            candidate: new SchemaCustomProfile.Candidate({
+              ...candidate,
+              profile: new SchemaCustomProfile.Profile({
+                ...candidate.profile,
+                root: new Composition.BuiltinRoot({
+                  source: "builtin",
+                  id: "meta",
+                  revision: Composition.Revision.make("e".repeat(64)),
+                }),
+              }),
+            }),
+            baseRevision: saved.revision,
+            overwrite: true,
+          })
+          .pipe(Effect.flip)
+        expect(failed).toBeInstanceOf(CustomProfileService.ReadbackMismatchError)
+        expect(yield* fs.readFile(file)).toEqual(bytes)
+        expect(yield* registry.getByPath(saved.relativePath)).toEqual(saved)
+        expect((yield* service.propose(candidate)).revision).toBe(saved.revision)
+      }).pipe(Effect.provide(fullLayer(directory.path, { reloadFailures: failures })))
+    }),
+  )
+
   test("propose returns not-exists for new profile and exists for on-disk profile", async () => {
     await withTmp(async (dir) => {
       await Effect.runPromise(
@@ -157,7 +291,7 @@ describe("CustomProfileService", () => {
             baseRevision: null,
             overwrite: false,
           })
-          expect(created.name).toBe("my-profile")
+          expect(created.name).toBe(SchemaCustomProfile.Name.make("my-profile"))
           expect(created.revision).toHaveLength(64)
 
           // Propose again
@@ -212,7 +346,7 @@ describe("CustomProfileService", () => {
             overwrite: true,
           })
 
-          expect(updated.description).toBe("new description")
+          expect(updated.description).toBe(SchemaCustomProfile.Description.make("new description"))
           expect(updated.revision).not.toBe(created.revision)
         }).pipe(Effect.provide(fullLayer(dir)), Effect.scoped),
       )
@@ -339,7 +473,7 @@ describe("CustomProfileService", () => {
             overwrite: false,
           })
           expect(applied.relativePath).toBe("nested/team/nested-profile.yaml")
-          expect(applied.name).toBe("nested-profile")
+          expect(applied.name).toBe(SchemaCustomProfile.Name.make("nested-profile"))
 
           const proposedAfter = yield* svc.propose(candidate)
           expect(proposedAfter.exists).toBe(true)

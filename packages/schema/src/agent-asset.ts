@@ -1,7 +1,9 @@
-export * as AgentAsset from "./agent-asset"
+export * as AgentAsset from "./agent-asset.js"
 
 import { Effect, Schema } from "effect"
-import { Handoff } from "./handoff"
+import { Handoff } from "./handoff.js"
+import { Agent } from "./agent.js"
+import { optional } from "./schema.js"
 
 export const Handoffs = Schema.mutable(Schema.Array(Handoff)).pipe(
   Schema.withDecodingDefaultKey(Effect.succeed([])),
@@ -10,27 +12,17 @@ export const Handoffs = Schema.mutable(Schema.Array(Handoff)).pipe(
 export type Handoffs = typeof Handoffs.Type
 
 export const Name = Schema.String.pipe(
-  Schema.check(
-    Schema.makeFilter<string>((input) => Array.from(input).length >= 1, {
-      message: "Name must be at least 1 code point",
-    }),
-  ),
-  Schema.check(
-    Schema.makeFilter<string>((input) => Array.from(input).length <= 80, {
-      message: "Name must be at most 80 code points",
-    }),
-  ),
+  Schema.check(Schema.isMinLength(1)),
+  Schema.check(Schema.isMaxLength(80)),
   Schema.brand("AgentAsset.Name"),
+  Schema.annotate({ identifier: "AgentAsset.Name" }),
 )
 export type Name = typeof Name.Type
 
 export const Description = Schema.String.pipe(
-  Schema.check(
-    Schema.makeFilter<string>((input) => Array.from(input).length <= 300, {
-      message: "Description must be at most 300 code points",
-    }),
-  ),
+  Schema.check(Schema.isMaxLength(300)),
   Schema.brand("AgentAsset.Description"),
+  Schema.annotate({ identifier: "AgentAsset.Description" }),
 )
 export type Description = typeof Description.Type
 
@@ -39,26 +31,21 @@ export const Revision = Schema.String.pipe(
   Schema.check(Schema.isMaxLength(64)),
   Schema.check(Schema.isPattern(/^[0-9a-f]{64}$/)),
   Schema.brand("AgentAsset.Revision"),
+  Schema.annotate({ identifier: "AgentAsset.Revision" }),
 )
 export type Revision = typeof Revision.Type
 
 export const Config = Schema.String.pipe(
-  Schema.check(
-    Schema.makeFilter<string>((input) => new TextEncoder().encode(input).length <= 100_000, {
-      message: "Config must be at most 100,000 UTF-8 bytes",
-    }),
-  ),
+  Schema.check(Schema.isMaxLength(100_000)),
   Schema.brand("AgentAsset.Config"),
+  Schema.annotate({ identifier: "AgentAsset.Config" }),
 )
 export type Config = typeof Config.Type
 
 export const Source = Schema.String.pipe(
-  Schema.check(
-    Schema.makeFilter<string>((input) => new TextEncoder().encode(input).length <= 100_000, {
-      message: "Source must be at most 100,000 UTF-8 bytes",
-    }),
-  ),
+  Schema.check(Schema.isMaxLength(100_000)),
   Schema.brand("AgentAsset.Source"),
+  Schema.annotate({ identifier: "AgentAsset.Source" }),
 )
 export type Source = typeof Source.Type
 
@@ -68,6 +55,9 @@ export class Summary extends Schema.Class<Summary>("AgentAsset.Summary")({
   description: Description,
   relativePath: Schema.String,
   revision: Revision,
+  mode: optional(Agent.Info.fields.mode),
+  hidden: optional(Schema.Boolean),
+  disabled: optional(Schema.Boolean),
 }) {}
 
 export const WarningCode = Schema.Literals(["wildcard_allow", "dangerous_allow"])
@@ -88,6 +78,7 @@ export class Info extends Schema.Class<Info>("AgentAsset.Info")({
   config: Config,
   source: Source,
   handoffs: Handoffs,
+  card: optional(Agent.CardValue),
 }) {}
 
 export class ApplyResult extends Schema.Class<ApplyResult>("AgentAsset.ApplyResult")({
@@ -125,33 +116,32 @@ export class Candidate extends Schema.Class<Candidate>("AgentAsset.Candidate")({
 export const BaseRevision = Schema.Union([Schema.Null, Revision])
 export type BaseRevision = typeof BaseRevision.Type
 
-export class AssetNotFoundError extends Schema.TaggedErrorClass<AssetNotFoundError>()("AgentAsset.NotFound", {
+export class AssetNotFoundError extends Schema.TaggedError<AssetNotFoundError>()("AgentAsset.NotFound", {
   relativePath: Schema.String,
 }) {}
 
-export class NameConflictError extends Schema.TaggedErrorClass<NameConflictError>()("AgentAsset.NameConflict", {
+export class NameConflictError extends Schema.TaggedError<NameConflictError>()("AgentAsset.NameConflict", {
   name: Name,
 }) {}
 
-export class PathConflictError extends Schema.TaggedErrorClass<PathConflictError>()("AgentAsset.PathConflict", {
+export class PathConflictError extends Schema.TaggedError<PathConflictError>()("AgentAsset.PathConflict", {
   relativePath: Schema.String,
 }) {}
 
-export class StaleRevisionError extends Schema.TaggedErrorClass<StaleRevisionError>()("AgentAsset.StaleRevision", {
+export class StaleRevisionError extends Schema.TaggedError<StaleRevisionError>()("AgentAsset.StaleRevision", {
   relativePath: Schema.String,
 }) {}
 
-export class OverwriteRequiredError extends Schema.TaggedErrorClass<OverwriteRequiredError>()(
+export class OverwriteRequiredError extends Schema.TaggedError<OverwriteRequiredError>()(
   "AgentAsset.OverwriteRequired",
   { relativePath: Schema.String },
 ) {}
 
-export class InvalidCandidateError extends Schema.TaggedErrorClass<InvalidCandidateError>()(
-  "AgentAsset.InvalidCandidate",
-  { reason: Schema.String },
-) {}
+export class InvalidCandidateError extends Schema.TaggedError<InvalidCandidateError>()("AgentAsset.InvalidCandidate", {
+  reason: Schema.String,
+}) {}
 
-export class WriteFailedError extends Schema.TaggedErrorClass<WriteFailedError>()("AgentAsset.WriteFailed", {
+export class WriteFailedError extends Schema.TaggedError<WriteFailedError>()("AgentAsset.WriteFailed", {
   relativePath: Schema.String,
   reason: Schema.String,
 }) {}

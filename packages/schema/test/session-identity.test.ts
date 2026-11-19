@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { SessionIdentity } from "../src/session-identity"
-import { WorkflowAsset } from "../src/workflow-asset"
+import { SessionIdentity } from "../src/session-identity.js"
+import { WorkflowAsset } from "../src/workflow-asset.js"
 
 const hex64 = "a1".repeat(32)
 // Brand the fixtures through the real schemas: `toEqual` checks the expected side
@@ -425,5 +425,62 @@ describe("SessionIdentity model datum (S6 amendment)", () => {
       },
     })
     expect(identity.model).toEqual({ status: "ready", value: { providerID: "aigcfroge", modelID: "test-model" } })
+  })
+})
+
+describe("SessionIdentity coordination", () => {
+  const detail = {
+    status: "ready",
+    detail: { source: "work", contract: { source: "ad-hoc" }, artifact: { status: "missing" } },
+  }
+
+  test("MP01 keeps historical identities compatible and omits absent coordination fields", () => {
+    const identity = Schema.decodeUnknownSync(SessionIdentity.Identity)({ ...common, detail })
+    const encoded = Schema.encodeSync(SessionIdentity.Identity)(
+      Schema.decodeUnknownSync(Schema.toType(SessionIdentity.Identity))({ ...identity, coordination: undefined }),
+    )
+    expect(Object.hasOwn(encoded, "coordination")).toBe(false)
+    const selection = Schema.decodeUnknownSync(Schema.toType(SessionIdentity.CoordinationSelection))({
+      agent: "meta",
+      event: undefined,
+      compositionDigest: undefined,
+    })
+    expect(Schema.encodeSync(SessionIdentity.CoordinationSelection)(selection)).toEqual({ agent: "meta" })
+  })
+
+  test("MP01 retains the coordination selection event and adopted digest in the canonical contract", () => {
+    const identity = Schema.decodeUnknownSync(SessionIdentity.Identity)({
+      ...common,
+      agent: "meta",
+      detail,
+      coordination: {
+        available: true,
+        reasons: [],
+        selection: { agent: "meta", event: { id: "evt_selected_meta", seq: 7 }, compositionDigest: hex64 },
+      },
+    })
+    expect(Schema.encodeSync(SessionIdentity.Identity)(identity).coordination).toEqual({
+      available: true,
+      reasons: [],
+      selection: { agent: "meta", event: { id: "evt_selected_meta", seq: 7 }, compositionDigest: hex64 },
+    })
+    expect(identity.capability.health).toBe("ready")
+  })
+
+  test("MP01 keeps ordinary mode health ready when Meta coordination is unavailable", () => {
+    const identity = Schema.decodeUnknownSync(SessionIdentity.Identity)({
+      ...common,
+      detail,
+      coordination: {
+        available: false,
+        reasons: [{ code: "meta-not-selected", severity: "info" }],
+        selection: { agent: "build" },
+      },
+    })
+    expect(identity.coordination?.available).toBe(false)
+    expect(identity.capability).toEqual({ health: "ready", reasons: [] })
+    expect(identity.coordination?.reasons.map((reason) => reason.code)).toEqual([
+      SessionIdentity.ReasonCodes.metaNotSelected,
+    ])
   })
 })

@@ -1,17 +1,17 @@
-export * as CodexAcpAdapter from "./codex-acp"
+export * as CodexAcpAdapter from "./codex-acp.js"
 
 import { Effect } from "effect"
 import { makeBridgeConnectionFactory } from "../acp-client/process"
 import { which } from "../util/which"
-import { makeAcpAdapter, type AcpConnectionFactory } from "./acp"
-import type { CliAdapter } from "./cli-adapter"
+import { makeAcpAdapter, type AcpConnectionFactory } from "./acp.js"
+import type { CliAdapterValue } from "./cli-adapter.js"
 
 /**
  * A `transport: "acp"` adapter driving the `codex-acp` bridge process
  * (`@zed-industries/codex-acp`). Tests inject a mock connection factory;
  * production uses the real bridge.
  */
-export const makeCodexAcpAdapter = (connectionFactory: AcpConnectionFactory, name = "codex"): CliAdapter =>
+export const makeCodexAcpAdapter = (connectionFactory: AcpConnectionFactory, name = "codex"): CliAdapterValue =>
   makeAcpAdapter({
     name,
     command: "codex-acp",
@@ -23,6 +23,6 @@ export const makeCodexAcpAdapter = (connectionFactory: AcpConnectionFactory, nam
 // Production adapter backed by the real `codex-acp` stdio bridge. Only listed
 // when the bridge binary is on PATH (see detect); the SDK/jsonl transports
 // remain the default otherwise.
-export const adapter: CliAdapter = makeCodexAcpAdapter(
+export const adapter: CliAdapterValue = makeCodexAcpAdapter(
   makeBridgeConnectionFactory({ command: "codex-acp", args: ["--stdio"] }),
 )

@@ -85,12 +85,13 @@ for (const file of files) {
     const start = expectStart(source, match.index)
     if (start === undefined) continue
     const lineIndex = lineStarts.findLastIndex((offset) => offset <= start)
-    const prefix = source.slice(lineStarts[lineIndex]!, start)
+    const prefix = source.slice(lineStarts[lineIndex], start)
     // `.rejects` quoted inside a comment reads as a chain to the paren walk.
     if (prefix.includes("//")) continue
     chains++
-    if (CONSUMED.test(prefix)) continue
-    const line = source.slice(lineStarts[lineIndex]!, source.indexOf("\n", start))
+    // An expression-bodied callback returns the assertion, including across a newline.
+    if (CONSUMED.test(prefix) || source.slice(0, start).trimEnd().endsWith("=>")) continue
+    const line = source.slice(lineStarts[lineIndex], source.indexOf("\n", start))
     violations.push(`${file}:${lineIndex + 1}: ${line.trim()}`)
   }
 }

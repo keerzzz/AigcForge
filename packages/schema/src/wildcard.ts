@@ -1,4 +1,4 @@
-export * as Wildcard from "./wildcard"
+export * as Wildcard from "./wildcard.js"
 
 /**
  * Glob-style matcher shared by permission evaluation on every surface.

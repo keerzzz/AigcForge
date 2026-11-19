@@ -1,9 +1,9 @@
 export * as SessionContextEpoch from "./context-epoch"
 
 import { eq } from "drizzle-orm"
-import { DateTime, Effect, Schema } from "effect"
+import { Effect, Schema } from "effect"
 import type { Database } from "../database/database"
-import { EventV2 } from "../event"
+import { Bus } from "../bus"
 import { SystemContext } from "../system-context/index"
 import { ContextSnapshotDecodeError } from "./error"
 import { SessionEvent } from "./event"
@@ -22,7 +22,7 @@ interface Prepared {
 
 export function initialize(
   db: DatabaseService,
-  context: Effect.Effect<SystemContext.SystemContext>,
+  context: Effect.Effect<SystemContext.SystemContextValue>,
   sessionID: SessionSchema.ID,
 ): Effect.Effect<Prepared | undefined, SystemContext.InitializationBlocked> {
   return initializeOnce(db, context, sessionID).pipe(Effect.withSpan("SessionContextEpoch.initialize"))
@@ -30,8 +30,8 @@ export function initialize(
 
 export function prepare(
   db: DatabaseService,
-  events: EventV2.Interface,
-  context: Effect.Effect<SystemContext.SystemContext>,
+  events: Bus.Interface,
+  context: Effect.Effect<SystemContext.SystemContextValue>,
   sessionID: SessionSchema.ID,
 ): Effect.Effect<Prepared, SystemContext.InitializationBlocked | ContextSnapshotDecodeError> {
   return prepareOnce(db, events, context, sessionID).pipe(Effect.withSpan("SessionContextEpoch.prepare"))
@@ -39,12 +39,12 @@ export function prepare(
 
 const prepareOnce = Effect.fnUntraced(function* (
   db: DatabaseService,
-  events: EventV2.Interface,
-  context: Effect.Effect<SystemContext.SystemContext>,
+  events: Bus.Interface,
+  context: Effect.Effect<SystemContext.SystemContextValue>,
   sessionID: SessionSchema.ID,
 ) {
   const [value, stored, compaction] = yield* Effect.all(
-    [context, find(db, sessionID), SessionHistory.latestCompaction(db, sessionID)],
+    [context, find(db, sessionID), SessionHistory.latestCompaction(db, sessionID, "latest")],
     { concurrency: "unbounded" },
   )
   if (!stored) {
@@ -64,16 +64,16 @@ const prepareOnce = Effect.fnUntraced(function* (
     return { baseline: stored.baseline, baselineSeq: stored.baseline_seq }
   }
   if (result._tag === "ReplacementReady") {
-    const baselineSeq = replacementSeq ?? (yield* EventV2.latestSequence(db, sessionID))
+    const baselineSeq = replacementSeq ?? (yield* Bus.latestSequence(db, sessionID))
     yield* replace(db, sessionID, baselineSeq, result.generation)
     return { baseline: result.generation.baseline, baselineSeq }
   }
 
   yield* events.publish(
     SessionEvent.ContextUpdated,
-    { sessionID, messageID: SessionMessageID.ID.create(), timestamp: yield* DateTime.now, text: result.text },
+    { sessionID, messageID: SessionMessageID.ID.create(), text: result.text },
     {
-      commit: (_seq, tx) => advance(tx, sessionID, result.snapshot).pipe(Effect.orDie),
+      commit: () => advance(db, sessionID, result.snapshot).pipe(Effect.orDie),
     },
   )
   return { baseline: stored.baseline, baselineSeq: stored.baseline_seq }
@@ -81,7 +81,7 @@ const prepareOnce = Effect.fnUntraced(function* (
 
 const initializeOnce = Effect.fnUntraced(function* (
   db: DatabaseService,
-  context: Effect.Effect<SystemContext.SystemContext>,
+  context: Effect.Effect<SystemContext.SystemContextValue>,
   sessionID: SessionSchema.ID,
 ) {
   if (yield* exists(db, sessionID)) return
@@ -123,7 +123,7 @@ const insert = Effect.fnUntraced(function* (
   sessionID: SessionSchema.ID,
   generation: SystemContext.Generation,
 ) {
-  const baselineSeq = yield* EventV2.latestSequence(db, sessionID)
+  const baselineSeq = yield* Bus.latestSequence(db, sessionID)
   yield* db
     .insert(SessionContextEpochTable)
     .values({

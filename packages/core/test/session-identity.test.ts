@@ -3,25 +3,26 @@ import { Effect, Layer, Schema } from "effect"
 import { Composition } from "@aigcfroge/schema/composition"
 import { SessionIdentity } from "@aigcfroge/schema/session-identity"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { Agent } from "@aigcfroge/schema/agent"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
-import { Permission } from "@aigcfroge/schema/permission"
 import { Schedule } from "@aigcfroge/schema/schedule"
 import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
 import { AgentAsset } from "@aigcfroge/core/agent-asset"
 import { CommandAsset } from "@aigcfroge/core/command-asset"
 import { Git } from "@aigcfroge/core/git"
 import { MCPAsset } from "@aigcfroge/core/mcp-asset"
-import { PermissionV2 } from "@aigcfroge/core/permission"
+import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
+import { Permission } from "@aigcfroge/core/permission"
 import { PluginAsset } from "@aigcfroge/core/plugin-asset"
 import { PromptAsset } from "@aigcfroge/core/prompt-asset"
 import { AbsolutePath } from "@aigcfroge/core/schema"
-import { SessionV2 } from "@aigcfroge/core/session"
+import { Session } from "@aigcfroge/core/session"
 import { WorkArtifact } from "@aigcfroge/core/session/artifact"
 import { SessionComposition } from "@aigcfroge/core/session/composition"
 import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
 import { SessionIdentityProjection } from "@aigcfroge/core/session/session-identity"
 import { SessionStore } from "@aigcfroge/core/session/store"
-import { WorkspaceV2 } from "@aigcfroge/core/workspace"
+import { Workspace } from "@aigcfroge/core/workspace"
 import { SkillAsset } from "@aigcfroge/core/skill-asset"
 // Schema WorkflowAsset uses the unaliased name in this test; the core owner needs the collision alias.
 import { WorkflowAsset as WorkflowAssetOwner } from "@aigcfroge/core/workflow-asset"
@@ -38,7 +39,7 @@ const sessionInfo = (input: {
   presetCategoryId?: "it-development" | "video-creation" | "academic" | "general-office"
   workspaceID?: string
 }) =>
-  Schema.decodeUnknownSync(SessionV2.Info)({
+  Schema.decodeUnknownSync(Session.Info)({
     id: input.id ?? "ses_identity_fixture",
     mode: input.mode ?? "coding",
     slug: "identity-fixture",
@@ -58,13 +59,13 @@ const sessionInfo = (input: {
     ...(input.presetCategoryId ? { presetCategoryId: input.presetCategoryId } : {}),
   })
 
-const sessionLayer = (session: SessionV2.Info | undefined) =>
+const sessionLayer = (session: Session.Info | undefined) =>
   Layer.mock(SessionStore.Service, {
     get: () => Effect.succeed(session),
   })
 
 const permissionLayer = (rules: Permission.Ruleset) =>
-  Layer.mock(PermissionV2.Service, {
+  Layer.mock(Permission.Service, {
     effectiveRules: () => Effect.succeed(rules),
   })
 
@@ -97,15 +98,31 @@ const allowWildcard: Permission.Ruleset = [{ action: "*", resource: "*", effect:
 
 /** A repo whose working-tree root differs from the session directory (subdirectory case). */
 const gitLayer = (repo: { directory: string; branch?: string } | undefined) =>
-  Layer.mock(Git.Service, {
-    find: () =>
-      Effect.succeed(
-        repo === undefined
-          ? undefined
-          : { directory: AbsolutePath.make(repo.directory), store: AbsolutePath.make(`${repo.directory}/.git`) },
-      ),
-    branch: () => Effect.succeed(repo?.branch),
-  })
+  Layer.succeed(
+    Git.Service,
+    Git.Service.of({
+      repo: {
+        discover: () =>
+          Effect.succeed(
+            repo === undefined
+              ? undefined
+              : new Git.Repository({
+                  worktree: AbsolutePath.make(repo.directory),
+                  gitDirectory: AbsolutePath.make(`${repo.directory}/.git`),
+                  commonDirectory: AbsolutePath.make(`${repo.directory}/.git`),
+                }),
+          ),
+        clone: () => Effect.die("unused git.repo.clone"),
+        create: () => Effect.die("unused git.repo.create"),
+      },
+      history: {
+        branch: () => Effect.succeed(repo?.branch),
+        head: () => Effect.succeed(undefined),
+        defaultRemoteBranch: () => Effect.succeed(undefined),
+        rootCommits: () => Effect.succeed([]),
+      },
+    } as unknown as Git.Interface),
+  )
 
 // The projection only reads each list's length. A sparse `never[]` keeps this
 // fixture honest about that boundary without fabricating seven asset shapes.
@@ -127,21 +144,20 @@ const workflowRunLayer = (run: WorkflowAsset.WorkflowRunInfo | undefined) =>
     getBySession: () => Effect.succeed(run),
   })
 
-const artifactOf = (revision: WorkflowAsset.Revision) =>
-  new WorkArtifact.ArtifactSnapshot({
-    artifact: Schema.decodeUnknownSync(WorkArtifact.ArtifactRecord)({
-      id: "art_identity_fixture",
-      sessionID: "ses_identity_fixture",
-      kind: "document",
-      title: "Identity artifact",
-      mediaType: "text/markdown",
-      relativePath: "identity-artifact.md",
-      status: "available",
-      createdAt: 1_700_000_000_000,
-      updatedAt: 1_700_000_000_000,
-    }),
-    revision,
-  })
+const artifactOf = (revision: WorkflowAsset.Revision): WorkArtifact.ArtifactSnapshot => ({
+  artifact: Schema.decodeUnknownSync(WorkArtifact.ArtifactRecord)({
+    id: "art_identity_fixture",
+    sessionID: "ses_identity_fixture",
+    kind: "document",
+    title: "Identity artifact",
+    mediaType: "text/markdown",
+    relativePath: "identity-artifact.md",
+    status: "available",
+    createdAt: 1_700_000_000_000,
+    updatedAt: 1_700_000_000_000,
+  }),
+  revision,
+})
 
 const workArtifactLayer = (artifact: WorkArtifact.ArtifactSnapshot | undefined) =>
   Layer.mock(WorkArtifact.Service, {
@@ -158,13 +174,14 @@ const assistantOwnerLayers = Layer.mergeAll(
 )
 
 type ProjectionOptions = {
-  readonly session?: SessionV2.Info
+  readonly session?: Session.Info
   readonly rules?: Permission.Ruleset
   readonly snapshot?: Composition.Snapshot
   readonly repo?: { directory: string; branch?: string }
   readonly assetCounts?: Partial<Record<SessionIdentity.AssetKind, number>>
   readonly workflowRun?: WorkflowAsset.WorkflowRunInfo
   readonly artifact?: WorkArtifact.ArtifactSnapshot
+  readonly coordination?: SessionIdentity.Coordination
 }
 
 const projectionLayer = (options: ProjectionOptions = {}) =>
@@ -173,6 +190,16 @@ const projectionLayer = (options: ProjectionOptions = {}) =>
       Layer.mergeAll(
         sessionLayer(options.session ?? sessionInfo({})),
         permissionLayer(options.rules ?? askWildcard),
+        Layer.mock(MetaAgentService.Service, {
+          coordination: () =>
+            Effect.succeed(
+              options.coordination ?? {
+                available: false,
+                reasons: [{ code: SessionIdentity.ReasonCodes.metaNotSelected, severity: "info" }],
+                selection: { agent: options.session?.agent ?? Agent.ID.make("build") },
+              },
+            ),
+        }),
         gitLayer(options.repo),
         compositionLayer(options.snapshot ?? snapshotOf("a".repeat(64))),
         assetLayers(options.assetCounts),
@@ -205,12 +232,17 @@ describe("SessionIdentityProjection", () => {
   it.effect("projects the session's own baseline permission verdict, not a re-derived one", () =>
     Effect.gen(function* () {
       const projection = yield* SessionIdentityProjection.Service
-      const identity = yield* projection.project(SessionV2.ID.make("ses_identity_fixture"))
+      const identity = yield* projection.project(Session.ID.make("ses_identity_fixture"))
 
       expect(identity.permission.declaredTier).toBe(PermissionTier.Default)
       expect(identity.permission.effect).toBe("ask")
       expect(identity.mode).toBe("coding")
       expect(identity.agent).toBe("build")
+      expect(identity.coordination).toEqual({
+        available: false,
+        reasons: [{ code: SessionIdentity.ReasonCodes.metaNotSelected, severity: "info" }],
+        selection: { agent: Agent.ID.make("build") },
+      })
       expect(identity.model).toEqual({ status: "ready", value: { providerID: "aigcfroge", modelID: "gpt-test" } })
     }),
   )
@@ -218,17 +250,17 @@ describe("SessionIdentityProjection", () => {
   itWorkspace.effect("passes workspaceID through Location when the session owner has it", () =>
     Effect.gen(function* () {
       const projection = yield* SessionIdentityProjection.Service
-      const identity = yield* projection.project(SessionV2.ID.make("ses_identity_fixture"))
+      const identity = yield* projection.project(Session.ID.make("ses_identity_fixture"))
 
       expect(identity.location.directory).toBe(AbsolutePath.make("/tmp/aigcfroge-identity-fixture"))
-      expect(identity.location.workspaceID).toBe(WorkspaceV2.ID.make("wrk_identity_fixture"))
+      expect(identity.location.workspaceID).toBe(Workspace.ID.make("wrk_identity_fixture"))
     }),
   )
 
   it.effect("reports both VCS datums as missing for a non-Git location, and stays ready", () =>
     Effect.gen(function* () {
       const projection = yield* SessionIdentityProjection.Service
-      const identity = yield* projection.project(SessionV2.ID.make("ses_identity_fixture"))
+      const identity = yield* projection.project(Session.ID.make("ses_identity_fixture"))
 
       if (identity.detail.status !== "ready" || identity.detail.detail.source !== "coding") {
         throw new Error("expected a ready coding detail")
@@ -239,6 +271,29 @@ describe("SessionIdentityProjection", () => {
       expect(identity.detail.detail.vcs.worktree.status).toBe("missing")
       expect(identity.capability.health).toBe("ready")
       expect(identity.capability.reasons).toEqual([])
+    }),
+  )
+})
+
+describe("SessionIdentityProjection: coordination owner", () => {
+  const coordination = Schema.decodeUnknownSync(SessionIdentity.Coordination)({
+    available: true,
+    reasons: [],
+    selection: {
+      agent: "meta",
+      event: { id: "evt_identity_coordination", seq: 4 },
+      compositionDigest: "c".repeat(64),
+    },
+  })
+  const itMeta = testEffect(projectionLayer({ session: sessionInfo({ agent: "meta" }), coordination }))
+
+  itMeta.effect("MP01 projects the Meta owner's selection and availability without aggregating mode health", () =>
+    Effect.gen(function* () {
+      const projection = yield* SessionIdentityProjection.Service
+      const identity = yield* projection.project(Session.ID.make("ses_identity_fixture"))
+      expect(identity.coordination).toEqual(coordination)
+      expect(identity.agent).toBe("meta")
+      expect(identity.capability).toEqual({ health: "ready", reasons: [] })
     }),
   )
 })
@@ -254,7 +309,7 @@ describe("SessionIdentityProjection: Chat detail", () => {
   itChat.effect("counts the seven Location asset owners and never reads presetCategoryId", () =>
     Effect.gen(function* () {
       const projection = yield* SessionIdentityProjection.Service
-      const identity = yield* projection.project(SessionV2.ID.make("ses_identity_fixture"))
+      const identity = yield* projection.project(Session.ID.make("ses_identity_fixture"))
 
       if (identity.detail.status !== "ready" || identity.detail.detail.source !== "chat") {
         throw new Error("expected a ready chat detail")
@@ -282,7 +337,7 @@ describe("SessionIdentityProjection: Work detail", () => {
   itWorkflow.effect("takes workflow revision and artifact revision from the Work owners", () =>
     Effect.gen(function* () {
       const projection = yield* SessionIdentityProjection.Service
-      const identity = yield* projection.project(SessionV2.ID.make("ses_identity_fixture"))
+      const identity = yield* projection.project(Session.ID.make("ses_identity_fixture"))
 
       if (identity.detail.status !== "ready" || identity.detail.detail.source !== "work") {
         throw new Error("expected a ready work detail")
@@ -303,7 +358,7 @@ describe("SessionIdentityProjection: Work detail", () => {
   itAdHoc.effect("reports ad-hoc when no durable workflow owner exists, even with compatibility metadata", () =>
     Effect.gen(function* () {
       const projection = yield* SessionIdentityProjection.Service
-      const identity = yield* projection.project(SessionV2.ID.make("ses_identity_fixture"))
+      const identity = yield* projection.project(Session.ID.make("ses_identity_fixture"))
 
       if (identity.detail.status !== "ready" || identity.detail.detail.source !== "work") {
         throw new Error("expected a ready work detail")
@@ -321,7 +376,7 @@ describe("SessionIdentityProjection: Assistant detail", () => {
   itAssistant.effect("reads the real reminder owners and keeps Memory/KB explicitly M2-degraded", () =>
     Effect.gen(function* () {
       const projection = yield* SessionIdentityProjection.Service
-      const identity = yield* projection.project(SessionV2.ID.make("ses_identity_fixture"))
+      const identity = yield* projection.project(Session.ID.make("ses_identity_fixture"))
 
       if (identity.detail.status !== "ready" || identity.detail.detail.source !== "assistant") {
         throw new Error("expected a ready assistant detail")
@@ -359,7 +414,7 @@ describe("SessionIdentityProjection: custom gate", () => {
   itCustom.effect("exposes only the snapshot digest and the policy state, never snapshot contents", () =>
     Effect.gen(function* () {
       const projection = yield* SessionIdentityProjection.Service
-      const identity = yield* projection.project(SessionV2.ID.make("ses_identity_fixture"))
+      const identity = yield* projection.project(Session.ID.make("ses_identity_fixture"))
 
       if (identity.detail.status !== "ready" || identity.detail.detail.source !== "custom") {
         throw new Error("expected a ready custom detail")
@@ -384,7 +439,7 @@ describe("SessionIdentityProjection: rows missing a required identity field", ()
   itNoAgent.effect("fails typed instead of fabricating an agent", () =>
     Effect.gen(function* () {
       const projection = yield* SessionIdentityProjection.Service
-      const error = yield* projection.project(SessionV2.ID.make("ses_identity_fixture")).pipe(Effect.flip)
+      const error = yield* projection.project(Session.ID.make("ses_identity_fixture")).pipe(Effect.flip)
       expect(error._tag).toBe("SessionIdentity.IdentityFieldMissing")
     }),
   )
@@ -403,7 +458,7 @@ describe("SessionIdentityProjection: git-backed coding detail", () => {
   itRepo.effect("takes branch and worktree from the git owner, not from the session directory", () =>
     Effect.gen(function* () {
       const projection = yield* SessionIdentityProjection.Service
-      const identity = yield* projection.project(SessionV2.ID.make("ses_identity_fixture"))
+      const identity = yield* projection.project(Session.ID.make("ses_identity_fixture"))
 
       if (identity.detail.status !== "ready" || identity.detail.detail.source !== "coding") {
         throw new Error("expected a ready coding detail")
@@ -421,7 +476,7 @@ describe("SessionIdentityProjection: a session with no model yet", () => {
   itNoModel.effect("reports the model as missing without degrading the capability", () =>
     Effect.gen(function* () {
       const projection = yield* SessionIdentityProjection.Service
-      const identity = yield* projection.project(SessionV2.ID.make("ses_identity_fixture"))
+      const identity = yield* projection.project(Session.ID.make("ses_identity_fixture"))
 
       // A newly-created session has no model until its first prompt: the datum is
       // honest and, being an identity fact, does not contribute to the capability.

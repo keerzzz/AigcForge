@@ -1,11 +1,12 @@
-export * as ClaudeCodeSdkAdapter from "./claude-code-sdk"
+export * as ClaudeCodeSdkAdapter from "./claude-code-sdk.js"
 
-import { Duration, Effect } from "effect"
-import type { CanUseTool } from "@anthropic-ai/claude-agent-sdk"
-import { CliExecutable } from "./cli-executable"
+import { Duration, Effect, Option, Schema } from "effect"
+import type { CanUseTool, HookCallback, Options, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk"
+import { CliExecutable } from "./cli-executable.js"
 import { which } from "../util/which"
-import type { CliAdapter, DelegationResult, SdkPermissionRequest } from "./cli-adapter"
-import { DelegationParser } from "./delegation-parser"
+import type { CliAdapterValue, DelegationResult, SdkPermissionRequest } from "./cli-adapter.js"
+import { DelegationParser } from "./delegation-parser.js"
+import { DelegationReceipt } from "../delegation/receipt.js"
 
 export interface ClaudeQuery
   extends AsyncIterable<{
@@ -13,6 +14,7 @@ export interface ClaudeQuery
     result?: string
     is_error?: boolean
     session_id?: string
+    uuid?: string
   }> {
   close?: () => void
 }
@@ -24,14 +26,20 @@ export interface ClaudeQuery
  */
 export interface ClaudeSdk {
   query(input: {
-    prompt: string
-    options?: {
-      cwd?: string
-      resume?: string
-      persistSession?: boolean
-      abortController?: AbortController
-      canUseTool?: CanUseTool
-    }
+    prompt: string | AsyncIterable<SDKUserMessage>
+    options?: Pick<
+      Options,
+      | "cwd"
+      | "resume"
+      | "persistSession"
+      | "abortController"
+      | "canUseTool"
+      | "tools"
+      | "settingSources"
+      | "strictMcpConfig"
+      | "mcpServers"
+      | "hooks"
+    >
   }): ClaudeQuery
 }
 
@@ -41,70 +49,130 @@ const toSdkPermissionResult = (decision: "allow" | "deny") =>
     : { behavior: "deny" as const, message: "denied by AigcForge permission policy" }
 
 export const makeClaudeCodeSdkAdapter = (
-  sdk: ClaudeSdk | (() => Promise<ClaudeSdk>),
+  sdk: ClaudeSdk | ((command: string) => Promise<ClaudeSdk>),
   name = "claude-code",
-): CliAdapter & Required<Pick<CliAdapter, "execute">> => ({
+  command = "claude",
+): CliAdapterValue & Required<Pick<CliAdapterValue, "execute">> => ({
   name,
-  command: "claude",
+  command,
   description: "Claude Code — Anthropic's official AI coding assistant (SDK transport)",
   transport: "sdk",
-  detect: () => Effect.sync(() => which("claude") !== null),
+  detect: () => Effect.sync(() => which(command) !== null),
+  forCommand: (configuredCommand) => makeClaudeCodeSdkAdapter(sdk, name, configuredCommand),
   // Unused for the SDK transport; kept to satisfy the jsonl-shaped interface.
   buildArgs: () => Effect.succeed([]),
   parseOutput: (stdout) => Effect.succeed({ status: "success" as const, summary: stdout }),
-  execute: ({ prompt, cwd, resumeId, canUseTool, timeoutMs }) =>
+  execute: ({ prompt, cwd, resumeId, readOnly, canUseTool, timeoutMs, sdkInput, onSdkObservation }) =>
     Effect.scoped(
       Effect.gen(function* () {
         const client =
           typeof sdk === "function"
-            ? yield* Effect.tryPromise({ try: sdk, catch: (error) => new Error(errorMessage(error)) })
+            ? yield* Effect.tryPromise({ try: () => sdk(command), catch: (error) => new Error(errorMessage(error)) })
             : sdk
         const abortController = yield* Effect.acquireRelease(
           Effect.sync(() => new AbortController()),
           (controller) => Effect.sync(() => controller.abort()),
         )
-        const sdkPermission = canUseTool
-          ? async (toolName: string, input: Record<string, unknown>) => {
-              const request: SdkPermissionRequest = { toolName, input }
-              return toSdkPermissionResult(await canUseTool(request))
-            }
-          : undefined
+        let observedSessionId: string | undefined
+        const readOnlyTools = ["Read", "Grep", "Glob"]
+        const sdkHook: HookCallback = async (input, _toolUseID, options) => {
+          if (input.hook_event_name !== "PreToolUse") return {}
+          const record = Schema.decodeUnknownOption(Schema.Record(Schema.String, Schema.Unknown))(input.tool_input)
+          const decision =
+            canUseTool && readOnlyTools.includes(input.tool_name) && Option.isSome(record)
+              ? await canUseTool({
+                  toolName: input.tool_name,
+                  input: record.value,
+                  externalSessionID: input.session_id,
+                  toolUseID: input.tool_use_id,
+                  signal: options.signal,
+                })
+              : "deny"
+          return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: decision } }
+        }
+        const sdkPermission: CanUseTool | undefined =
+          !readOnly && canUseTool
+            ? async (toolName, input, options) => {
+                const request: SdkPermissionRequest = {
+                  toolName,
+                  input,
+                  ...(observedSessionId ? { externalSessionID: observedSessionId } : {}),
+                  toolUseID: options.toolUseID,
+                  requestId: options.requestId,
+                  signal: options.signal,
+                }
+                return toSdkPermissionResult(await canUseTool(request))
+              }
+            : undefined
         const sdkQuery = yield* Effect.acquireRelease(
           Effect.try({
-            try: () =>
-              client.query({
-                prompt,
+            try: () => {
+              const active = client.query({
+                prompt: sdkInput ?? prompt,
                 options: {
                   cwd,
                   resume: resumeId,
                   persistSession: true,
                   abortController,
-                  canUseTool: sdkPermission,
+                  ...(readOnly
+                    ? {
+                        tools: readOnlyTools,
+                        settingSources: [],
+                        strictMcpConfig: true,
+                        mcpServers: {},
+                        hooks: { PreToolUse: [{ hooks: [sdkHook] }] },
+                      }
+                    : { canUseTool: sdkPermission }),
                 },
-              }),
+              })
+              return { active, iterator: active[Symbol.asyncIterator]() }
+            },
             catch: (error) => new Error(errorMessage(error)),
           }),
-          (active) => Effect.sync(() => active.close?.()),
+          (query) =>
+            sdkInput
+              ? Effect.tryPromise({
+                  try: async () => {
+                    // Release a pending next/hook before awaiting the original iterator's cleanup.
+                    abortController.abort()
+                    query.active.close?.()
+                    await query.iterator.return?.()
+                  },
+                  catch: (error) => new Error(errorMessage(error)),
+                }).pipe(Effect.orDie)
+              : Effect.sync(() => query.active.close?.()),
         )
 
-        let observedSessionId = resumeId
+        const observe = Effect.runPromiseWith(yield* Effect.context())
+
         const collected = yield* Effect.tryPromise({
           try: async () => {
             let summary = ""
             let isError = false
             let sawResult = false
-            let sessionId = resumeId
-            for await (const message of sdkQuery) {
+            let sessionId: string | undefined
+            let messageId: string | undefined
+            for await (const message of { [Symbol.asyncIterator]: () => sdkQuery.iterator }) {
               if (message.session_id) {
-                sessionId = message.session_id
                 observedSessionId = message.session_id
               }
+              const observation = Schema.decodeUnknownOption(DelegationReceipt.SdkObservation)(message)
+              if (onSdkObservation && Option.isSome(observation))
+                await observe(onSdkObservation(observation.value), { signal: abortController.signal })
               if (message.type !== "result") continue
               sawResult = true
               isError = message.is_error === true
-              if (message.result) summary = message.result
+              summary =
+                message.result ||
+                (isError &&
+                Option.isSome(observation) &&
+                observation.value instanceof DelegationReceipt.SdkResultObservation
+                  ? (observation.value.errors?.join("\n") ?? "")
+                  : "")
+              sessionId = message.session_id
+              messageId = message.uuid
             }
-            return { summary: summary.trim(), isError, sawResult, sessionId, timedOut: false as const }
+            return { summary, isError, sawResult, sessionId, messageId, timedOut: false as const }
           },
           catch: (error) => new Error(errorMessage(error)),
         }).pipe(
@@ -115,7 +183,8 @@ export const makeClaudeCodeSdkAdapter = (
                 summary: "",
                 isError: true,
                 sawResult: false,
-                sessionId: observedSessionId,
+                sessionId: observedSessionId ?? resumeId,
+                messageId: undefined,
                 timedOut: true as const,
               }),
           }),
@@ -124,7 +193,8 @@ export const makeClaudeCodeSdkAdapter = (
               summary: errorMessage(error),
               isError: true,
               sawResult: false,
-              sessionId: observedSessionId,
+              sessionId: observedSessionId ?? resumeId,
+              messageId: undefined,
               timedOut: false as const,
             }),
           ),
@@ -142,20 +212,29 @@ export const makeClaudeCodeSdkAdapter = (
             status: "failed" as const,
             summary: collected.summary || "Claude Code reported an error without details",
             sessionId: collected.sessionId,
+            ...(collected.sessionId && collected.messageId
+              ? { sdkMessage: { sessionID: collected.sessionId, messageID: collected.messageId } }
+              : {}),
             errorCode: "provider_error",
             recoveryRequired: true,
             errors: collected.summary ? [collected.summary] : ["Claude Code reported an error without details"],
           }
         }
-        if (!collected.sawResult || !collected.summary) {
+        if (!collected.sawResult || !collected.summary.trim()) {
           return emptyResult(name, collected.sessionId, "completed without a final response")
         }
         if (!collected.sessionId) return emptyResult(name, undefined, "completed without a persistent session id")
+        if (!collected.messageId)
+          return emptyResult(name, collected.sessionId, "completed without a result message id", {
+            errorCode: "malformed_output",
+            recoveryRequired: true,
+          })
         const parsed = DelegationParser.parseDelegationResult(collected.summary)
         return {
           status: "success" as const,
           summary: collected.summary,
           sessionId: collected.sessionId,
+          sdkMessage: { sessionID: collected.sessionId, messageID: collected.messageId },
           review: parsed?.review,
         }
       }).pipe(
@@ -189,8 +268,8 @@ const emptyResult = (
 const errorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
 // Explicitly use the user's installation instead of the CLI shipped with the SDK.
-export const adapter: CliAdapter = makeClaudeCodeSdkAdapter(async () => {
-  const pathToClaudeCodeExecutable = CliExecutable.resolve("claude")
+export const adapter: CliAdapterValue = makeClaudeCodeSdkAdapter(async (command) => {
+  const pathToClaudeCodeExecutable = CliExecutable.resolve("claude", which(command))
   const { query } = await import("@anthropic-ai/claude-agent-sdk")
   return { query: (input) => query({ ...input, options: { ...input.options, pathToClaudeCodeExecutable } }) }
 })

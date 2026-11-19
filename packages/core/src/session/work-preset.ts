@@ -1,7 +1,7 @@
 export * as WorkPresetRegistry from "./work-preset"
 
 import { WorkPreset } from "@aigcfroge/schema/work-preset"
-import { Hash } from "../util/hash"
+import { Hash } from "@aigcfroge/util/hash"
 
 const DEFINITIONS: ReadonlyArray<Omit<WorkPreset.Preset, "revision">> = [
   {

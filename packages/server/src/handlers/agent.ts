@@ -1,16 +1,31 @@
-import { AgentV2 } from "@aigcfroge/core/agent"
-import { CliDiscovery } from "@aigcfroge/core/tool/cli-discovery"
+import { Agent } from "@aigcfroge/core/agent"
 import { Effect } from "effect"
-import { HttpApiBuilder } from "effect/unstable/httpapi"
+import { HttpApiBuilder } from "effect/http-api"
 import { Api } from "../api"
-import { response } from "../groups/location"
+import { response } from "../location"
+import { AgentNotFoundError } from "@aigcfroge/protocol/errors"
 
 export const AgentHandler = HttpApiBuilder.group(Api, "server.agent", (handlers) =>
   handlers
     .handle("agent.list", () =>
       Effect.gen(function* () {
-        return yield* response(AgentV2.Service.use((agent) => agent.all()))
+        return yield* response(
+          Agent.Service.use((agent) => agent.list()).pipe(
+            Effect.map((agents) => agents.map((agent) => ({ ...agent, ordinaryModes: Agent.ordinaryModes(agent) }))),
+          ),
+        )
       }),
     )
-    .handle("agent.cli", () => response(CliDiscovery.list())),
+    .handle(
+      "agent.get",
+      Effect.fn(function* (ctx) {
+        const agent = yield* Agent.Service.use((service) => service.get(ctx.params.agentID))
+        if (!agent)
+          return yield* new AgentNotFoundError({
+            agentID: ctx.params.agentID,
+            message: `Agent not found: ${ctx.params.agentID}`,
+          })
+        return yield* response(Effect.succeed({ ...agent, ordinaryModes: Agent.ordinaryModes(agent) }))
+      }),
+    ),
 )

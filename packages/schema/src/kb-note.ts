@@ -1,8 +1,8 @@
-export * as KBNote from "./kb-note"
+export * as KBNote from "./kb-note.js"
 
 import { Schema } from "effect"
-import { descending } from "./identifier"
-import { withStatics } from "./schema"
+import { descending } from "./identifier.js"
+import { statics } from "./schema.js"
 
 /**
  * Knowledge base contracts (Assistant PRD §7.4, M2): Obsidian-compatible notes
@@ -11,9 +11,10 @@ import { withStatics } from "./schema"
  * Backlinks are single-sided storage + index derivation — never double-written.
  */
 
-export const NoteID = Schema.String.check(Schema.isStartsWith("kb_")).pipe(
+export const NoteID = Schema.String.check(Schema.isStartingWith("kb_")).pipe(
   Schema.brand("KBNoteID"),
-  withStatics((schema) => ({
+  Schema.annotate({ identifier: "KBNote.ID" }),
+  statics((schema) => ({
     create: () => schema.make("kb_" + descending()),
   })),
 )
@@ -56,7 +57,15 @@ export const Title = Schema.String.pipe(
         if (title === "." || title === ".." || title.startsWith("..")) return false
         return true
       },
-      { message: "Note title must be a plain file name: no path separators, no parent references" },
+      {
+        message: "Note title must be a plain file name: no path separators, no parent references",
+        representation: { id: "aigcfroge/plainFileName", payload: {} },
+        arbitraryConstraint: {} as Record<string, unknown>,
+        toCode: () => ({
+          runtime:
+            'Schema.makeFilter((title) => { if (title.length === 0) return false; if (title !== title.trim()) return false; if (title.includes("/") || title.includes("\\")) return false; if (title === "." || title === ".." || title.startsWith("..")) return false; return true }, { message: "Note title must be a plain file name: no path separators, no parent references" })',
+        }),
+      },
     ),
   ),
 ).annotate({ identifier: "KBNoteTitle" })

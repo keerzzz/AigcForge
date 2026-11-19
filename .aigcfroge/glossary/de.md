@@ -2,12 +2,12 @@
 
 ## Sources
 
-- PR #9817: https://github.com/keerzzz/AigcForge/pull/9817
+- PR #9817: https://github.com/anomalyco/aigcfroge/pull/9817
 
 ## Do Not Translate (Locale Additions)
 
-- `Aigcfroge` (preserve casing in prose; keep `aigcfroge` only in commands, package names, paths, or code)
-- `Aigcfroge CLI`
+- `AigcForge` (preserve casing in prose; keep `aigcfroge` only in commands, package names, paths, or code)
+- `AigcForge CLI`
 - `CLI`, `TUI`, `MCP`, `OAuth`
 - Commands, flags, file paths, and code literals (keep exactly as written)
 

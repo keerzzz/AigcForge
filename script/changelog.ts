@@ -28,13 +28,13 @@ if (values.help) {
   console.log(`
 Usage: bun script/changelog.ts [options]
 
-Generates UPCOMING_CHANGELOG.md by running the aigcfroge changelog command.
+Generates UPCOMING_CHANGELOG.md through the V2 CLI and the release-notes template.
 
 Options:
   -f, --from <version>   Starting version (default: latest non-draft GitHub release)
   -t, --to <ref>         Ending ref (default: HEAD)
-      --model <name>     Model override in provider/model form (e.g. google/gemini-3.7-flash)
-      --variant <name>   Thinking variant for aigcfroge run (default: low)
+      --model <name>     Model in provider/model or provider/model#variant form
+      --variant <name>   Variant for a model without #variant (default: low)
       --quiet            Suppress aigcfroge command output unless it fails
       --print            Print the generated UPCOMING_CHANGELOG.md after success
   -h, --help             Show this help message
@@ -47,24 +47,37 @@ Examples:
   process.exit(0)
 }
 
-await rm(file, { force: true })
-
 const quiet = values.quiet
 const bunBin = process.argv[0] || "bun"
-const entry = path.join(root, "packages/aigcfroge/src/index.ts")
-const hasBinary = Boolean(Bun.which("aigcfroge"))
-const cmd = hasBinary ? ["aigcfroge", "run"] : [bunBin, "run", "--conditions=browser", entry, "run"]
+const raw = Bun.spawn([bunBin, path.join(root, "script/raw-changelog.ts"), ...args], {
+  cwd: root,
+  stdin: "ignore",
+  stdout: "pipe",
+  stderr: "pipe",
+})
+const [input, diagnostics, inputExit] = await Promise.all([
+  new Response(raw.stdout).text(),
+  new Response(raw.stderr).text(),
+  raw.exited,
+])
+if (inputExit !== 0) {
+  if (diagnostics) process.stderr.write(diagnostics)
+  process.exit(inputExit)
+}
 
-// Changelog generation inspects diffs and writes a file. Keep it on the build
-// agent instead of the interactive meta default, which can stall without a turn.
-cmd.push("--agent", "build")
-cmd.push("--variant", values.variant)
-if (values.model) cmd.push("--model", values.model)
-cmd.push("--command", "changelog", "--", ...args)
+const template = await Bun.file(path.join(root, ".aigcfroge/command/changelog.md")).text()
+const marker = "!`bun script/raw-changelog.ts $ARGUMENTS`"
+if (!template.includes(marker)) throw new Error("Changelog template is missing its structured input marker")
+const prompt = template.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, "").replace(marker, () => input)
+const cmd = [bunBin, path.join(root, "packages/cli/src/index.ts"), "run", "--standalone", "--agent", "build"]
+if (values.model) cmd.push("--model", values.model.includes("#") ? values.model : `${values.model}#${values.variant}`)
+cmd.push(prompt)
+
+await rm(file, { force: true })
 
 const proc = Bun.spawn(cmd, {
   cwd: root,
-  stdin: "inherit",
+  stdin: "ignore",
   stdout: quiet ? "pipe" : "inherit",
   stderr: quiet ? "pipe" : "inherit",
 })

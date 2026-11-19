@@ -1,590 +1,935 @@
 import { describe, expect } from "bun:test"
+import { eq } from "drizzle-orm"
 import { Effect, Layer, Schema } from "effect"
-import { Database } from "@aigcfroge/core/database/database"
-import { Project } from "@aigcfroge/core/project"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { computeDigest } from "@aigcfroge/core/composition/digest"
-import { SessionV2 } from "@aigcfroge/core/session"
-import { SessionTable } from "@aigcfroge/core/session/sql"
-import { SessionComposition } from "@aigcfroge/core/session/composition"
+import { Agent } from "@aigcfroge/schema/agent"
 import { Composition } from "@aigcfroge/schema/composition"
+import { Model } from "@aigcfroge/schema/model"
+import { Project } from "@aigcfroge/schema/project"
+import { AbsolutePath } from "@aigcfroge/schema/schema"
+import { Session } from "@aigcfroge/schema/session"
+import { Global } from "@aigcfroge/util/global"
+import { CompositionDigest } from "../src/composition/digest"
+import { CompositionConsumerView } from "../src/composition/consumer-view"
+import { Database } from "../src/database/database"
+import { ProjectTable } from "../src/project/sql"
+import { SessionComposition } from "../src/session/composition"
+import { SessionCompositionSnapshotTable, SessionTable } from "../src/session/sql"
 import { testEffect } from "./lib/effect"
 
-const it = testEffect(Layer.mergeAll(Database.defaultLayer, SessionComposition.defaultLayer))
-
-const sessionID = SessionV2.ID.make("ses_custom_snapshot_test")
-const secondSessionID = SessionV2.ID.make("ses_custom_snapshot_copy_test")
-
-const mockDigest = Schema.decodeUnknownSync(Composition.Digest)(
-  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+const globalLayer = Layer.succeed(
+  Global.Service,
+  Global.Service.of(Global.make({ data: "/data", config: "/config", tmp: "/tmp/aigcfroge" })),
 )
-const mockRevision = Schema.decodeUnknownSync(Composition.Revision)(
-  "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
-)
-
-function makeMockSnapshot(sid: string = sessionID): Composition.Snapshot {
-  return new Composition.SnapshotV1({
-    version: 1,
-    digest: mockDigest,
-    sessionID: sid,
-    profilePath: "custom-profiles/reviewer.yaml",
-    profileRevision: mockRevision,
-    createdAt: 1700000000000,
-    data: new Composition.SnapshotDataV1({
-      agentID: "code-reviewer",
-      instructions: [
-        new Composition.Instruction({
-          source: "platform",
-          content: "You are a code review assistant.",
-        }),
-      ],
-      prompts: [
-        new Composition.SnapshotPromptData({
-          relativePath: "prompts/review.md",
-          revision: mockRevision,
-          content: "Review this diff carefully.",
-        }),
-      ],
-      skills: [
-        new Composition.SkillInfo({
-          name: "git-diff-analyzer",
-          description: "Analyzes git diffs",
-          relativePath: "skills/git-diff.md",
-          revision: mockRevision,
-        }),
-      ],
-      tools: new Composition.SnapshotToolInfo({
-        fingerprints: [
-          {
-            placement: "/project",
-            name: "read",
-            digest: mockDigest,
-            installationVersion: "0.1.0",
-          },
-        ],
-        catalogDigest: mockDigest,
-        catalog: ["read"],
-      }),
-    }),
-  })
-}
+const databaseLayer = Database.layer({ path: ":memory:" }).pipe(Layer.provide(globalLayer))
+const it = testEffect(SessionComposition.layer.pipe(Layer.provideMerge(databaseLayer)))
+const sessionID = Session.ID.make("ses_composition_source")
+const copySessionID = Session.ID.make("ses_composition_copy")
+const revision = Composition.Revision.make("a".repeat(64))
+const otherRevision = Composition.Revision.make("b".repeat(64))
+const agentID = Agent.ID.make("asset_coder")
+const catalog = [
+  {
+    type: "tool" as const,
+    name: "read",
+    description: "Read a file",
+    inputSchema: { type: "object", properties: { path: { type: "string" } }, required: ["path"] },
+    outputSchema: { type: "string" },
+    placement: "direct" as const,
+    options: { codemode: false, permission: "read" },
+  },
+  {
+    type: "tool" as const,
+    name: "execute",
+    description: "A Code Mode child named execute",
+    inputSchema: { type: "object", properties: { value: { type: "string" } } },
+    outputSchema: { type: "string" },
+    placement: "codemode" as const,
+    options: { permission: "child" },
+  },
+  {
+    type: "tool" as const,
+    name: "execute",
+    description: "Run Code Mode",
+    inputSchema: { type: "object", properties: { code: { type: "string" } } },
+    placement: "direct" as const,
+  },
+  {
+    type: "tool" as const,
+    name: "mcp_git_list_files",
+    description: "List repository files",
+    inputSchema: { type: "object", properties: {} },
+    placement: "codemode" as const,
+    options: { codemode: true, permission: "mcp_git" },
+  },
+]
 
 const setup = Effect.gen(function* () {
-  const { db } = yield* Database.Service
-  yield* db
+  const database = yield* Database.Service
+  yield* database.db
     .insert(ProjectTable)
     .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
-    .onConflictDoNothing()
     .run()
     .pipe(Effect.orDie)
-  yield* db
+  yield* database.db
     .insert(SessionTable)
-    .values({
-      id: sessionID,
-      project_id: Project.ID.global,
-      slug: "custom-test",
-      mode: "custom",
-      directory: "/project",
-      title: "Custom Session",
-      version: "test",
-    })
-    .onConflictDoNothing()
+    .values(
+      [sessionID, copySessionID].map((id) => ({
+        id,
+        project_id: Project.ID.global,
+        slug: id,
+        directory: "/project",
+        title: "composition",
+        version: "test",
+      })),
+    )
     .run()
     .pipe(Effect.orDie)
 })
 
-const sortedFingerprints = [
-  { placement: "/project", name: "glob", digest: mockDigest, installationVersion: "0.1.0" },
-  { placement: "/project", name: "read", digest: mockDigest, installationVersion: "0.1.0" },
-]
-
-// Builds an internally consistent snapshot: catalogDigest recomputed over the
-// fingerprints array, catalog equal to the sorted fingerprint names.
-function makeConsistentSnapshot(options?: {
-  sid?: string
-  agentID?: string
-  fingerprints?: typeof sortedFingerprints
-  catalogDigest?: Composition.Digest
-  catalog?: string[]
-}): Composition.Snapshot {
-  const fingerprints = options?.fingerprints ?? sortedFingerprints
-  return new Composition.SnapshotV1({
-    version: 1,
-    digest: mockDigest,
-    sessionID: options?.sid ?? sessionID,
-    profilePath: "custom-profiles/reviewer.yaml",
-    profileRevision: mockRevision,
-    createdAt: 1700000000000,
-    data: new Composition.SnapshotDataV1({
-      agentID: options?.agentID ?? "code-reviewer",
-      instructions: [],
-      prompts: [],
-      skills: [],
-      tools: new Composition.SnapshotToolInfo({
-        fingerprints,
-        catalogDigest: options?.catalogDigest ?? computeDigest(fingerprints),
-        catalog: options?.catalog ?? fingerprints.map((fingerprint) => fingerprint.name),
+function frozenData() {
+  const skill = new Composition.SnapshotSkillData({
+    name: "git",
+    description: "Repository workflow",
+    relativePath: "git/SKILL.md",
+    revision,
+    content: "Inspect the diff before editing.",
+  })
+  const prompt = new Composition.SnapshotPromptData({
+    relativePath: "review.md",
+    revision,
+    content: "Review the requested change.",
+  })
+  const command = new Composition.CommandInfo({
+    name: "review",
+    description: "Review changes",
+    relativePath: "review.yaml",
+    revision,
+    invocation: "/review",
+    args: "$ARGUMENTS",
+    source: "Review $ARGUMENTS",
+  })
+  const instruction = new Composition.Instruction({ source: "AGENTS.md", content: "Run package tests." })
+  const ref = new Composition.McpRef({ kind: "mcp", relativePath: "git.yaml", revision })
+  return new Composition.SnapshotDataV2({
+    orchestrator: Agent.Info.make({
+      ...Agent.Info.empty(Agent.ID.make("meta")),
+      mode: "primary",
+      system: "Coordinate the frozen pool.",
+      request: { settings: {}, headers: { "X-Root": "frozen" }, body: { root: true } },
+      permissions: [{ action: "*", resource: "*", effect: "deny" }],
+    }),
+    agents: [
+      new Composition.AgentInfo({
+        id: agentID,
+        name: "coder",
+        description: "Implement changes",
+        relativePath: "coder.md",
+        revision,
+        consumerKey: "agents/coder",
       }),
+    ],
+    executors: [
+      new Composition.SnapshotExecutorData({
+        id: agentID,
+        relativePath: "coder.md",
+        revision,
+        info: Agent.Info.make({
+          ...Agent.Info.empty(agentID),
+          name: Agent.Name.make("coder"),
+          model: Model.Ref.parse("openai/frozen-model#review"),
+          system: "Implement the approved change.",
+          steps: 4,
+          request: {
+            settings: { timeout: 15000 },
+            headers: { "X-Agent": "coder" },
+            body: { temperature: 0.2, metadata: { owner: "coder", tags: ["frozen"] } },
+          },
+          permissions: [{ action: "read", resource: "*", effect: "allow" }],
+          originRelativePath: "coder.md",
+          originRevision: revision,
+        }),
+      }),
+    ],
+    bindings: {
+      orchestrator: new Composition.SnapshotBindingData({
+        instructions: [instruction],
+        prompts: [prompt],
+        skills: [],
+        commands: [command],
+      }),
+      "agents/coder": new Composition.SnapshotBindingData({
+        instructions: [new Composition.Instruction({ source: "coder.md", content: "Implement the approved change." })],
+        prompts: [prompt],
+        skills: [skill],
+        commands: [],
+      }),
+    },
+    maxConcurrency: 2,
+    commands: [command],
+    instructions: [instruction],
+    prompts: [prompt],
+    skills: [skill],
+    tools: CompositionDigest.captureTools(catalog, "/project#local", "test-host"),
+    mcp: new Composition.SnapshotMcpInfo({
+      bindings: [
+        new Composition.SnapshotMcpBinding({
+          serverName: "git",
+          ref,
+          credentialRef: "git-token",
+          transportFingerprint: CompositionDigest.computeDigest({ command: "git-mcp", args: ["--stdio"] }),
+        }),
+      ],
+      tools: [new Composition.SnapshotMcpTool({ canonicalName: "mcp_git_list_files", serverName: "git", ref })],
     }),
   })
 }
 
+function frozenSnapshot(data = frozenData()) {
+  return new Composition.SnapshotV2({
+    version: 2,
+    digest: CompositionDigest.computeDigest("resolved-plan"),
+    sessionID,
+    profilePath: "dev.yaml",
+    profileRevision: revision,
+    createdAt: 1_790_000_000_000,
+    data,
+  })
+}
+
 describe("SessionComposition", () => {
-  it.effect("attaches and reads immutable snapshot for a session", () =>
+  it.effect("selects and copies an explicit builtin root with a zero-member frozen pool", () =>
     Effect.gen(function* () {
       yield* setup
       const composition = yield* SessionComposition.Service
-      const snapshot = makeMockSnapshot()
-
-      yield* composition.attach(sessionID, snapshot)
-
-      const retrieved = yield* composition.read(sessionID)
-      expect(retrieved).toBeDefined()
-      expect(retrieved?.version).toBe(1)
-      expect(retrieved?.digest).toBe(mockDigest)
-      expect(retrieved?.profilePath).toBe("custom-profiles/reviewer.yaml")
-      expect(retrieved?.profileRevision).toBe(mockRevision)
-      if (retrieved?.version === 1) {
-        expect(retrieved?.data.agentID).toBe("code-reviewer")
-        expect(retrieved?.data.prompts.length).toBe(1)
-        expect(retrieved?.data.prompts[0].content).toBe("Review this diff carefully.")
-        expect(retrieved?.data.skills.length).toBe(1)
-        expect(retrieved?.data.tools.catalog).toEqual(["read"])
-      }
-
-      const exists = yield* composition.exists(sessionID)
-      expect(exists).toBe(true)
-    }),
-  )
-
-  it.effect("rejects duplicate attach for the same session (immutability)", () =>
-    Effect.gen(function* () {
-      yield* setup
-      const composition = yield* SessionComposition.Service
-      const snapshot = makeMockSnapshot()
-
-      yield* composition.attach(sessionID, snapshot)
-
-      const err = yield* composition.attach(sessionID, snapshot).pipe(Effect.flip)
-      expect(err).toBeInstanceOf(SessionComposition.SnapshotAlreadyExistsError)
-    }),
-  )
-
-  it.effect("copies snapshot from source session to target session", () =>
-    Effect.gen(function* () {
-      yield* setup
-      const { db } = yield* Database.Service
-      yield* db
-        .insert(SessionTable)
-        .values({
-          id: secondSessionID,
-          project_id: Project.ID.global,
-          slug: "custom-copy-test",
-          mode: "custom",
-          directory: "/project",
-          title: "Custom Copy Session",
-          version: "test",
-        })
-        .onConflictDoNothing()
-        .run()
-        .pipe(Effect.orDie)
-
-      const composition = yield* SessionComposition.Service
-      const snapshot = makeMockSnapshot()
-      yield* composition.attach(sessionID, snapshot)
-
-      const copied = yield* composition.copy(sessionID, secondSessionID)
-      expect(copied.digest).toBe(mockDigest)
-      expect(copied.sessionID).toBe(secondSessionID)
-
-      const readCopied = yield* composition.read(secondSessionID)
-      expect(readCopied?.digest).toBe(mockDigest)
-      expect(readCopied?.sessionID).toBe(secondSessionID)
-    }),
-  )
-
-  it.effect("cascades deletion when owning session is deleted", () =>
-    Effect.gen(function* () {
-      yield* setup
-      const { db } = yield* Database.Service
-      const composition = yield* SessionComposition.Service
-      const snapshot = makeMockSnapshot()
-      yield* composition.attach(sessionID, snapshot)
-
-      expect(yield* composition.exists(sessionID)).toBe(true)
-
-      // Delete the session
-      yield* db
-        .delete(SessionTable)
-        .where(require("drizzle-orm").eq(SessionTable.id, sessionID))
-        .run()
-        .pipe(Effect.orDie)
-
-      expect(yield* composition.exists(sessionID)).toBe(false)
-      expect(yield* composition.read(sessionID)).toBeUndefined()
-    }),
-  )
-
-  it.effect("assertAgentAllowed passes for snapshot agent and rejects unauthorized agents", () =>
-    Effect.gen(function* () {
-      yield* setup
-      const composition = yield* SessionComposition.Service
-      const snapshot = makeMockSnapshot()
-      yield* composition.attach(sessionID, snapshot)
-
-      // Allowed agent
-      yield* composition.assertAgentAllowed(sessionID, "code-reviewer")
-
-      // Forbidden agent
-      const err = yield* composition.assertAgentAllowed(sessionID, "other-agent").pipe(Effect.flip)
-      expect(err).toBeInstanceOf(SessionComposition.AgentDelegationForbiddenError)
-    }),
-  )
-
-  it.effect("returns SnapshotNotFoundError on get or assertAgentAllowed when snapshot does not exist", () =>
-    Effect.gen(function* () {
-      yield* setup
-      const nonExistentID = SessionV2.ID.make("ses_non_existent")
-      const composition = yield* SessionComposition.Service
-
-      const getErr = yield* composition.get(nonExistentID).pipe(Effect.flip)
-      expect(getErr).toBeInstanceOf(SessionComposition.SnapshotNotFoundError)
-
-      const assertErr = yield* composition.assertAgentAllowed(nonExistentID, "code-reviewer").pipe(Effect.flip)
-      expect(assertErr).toBeInstanceOf(SessionComposition.SnapshotNotFoundError)
-    }),
-  )
-
-  it.effect("returns SnapshotDecodeError when snapshot row has invalid JSON or unsupported version", () =>
-    Effect.gen(function* () {
-      yield* setup
-      const { db } = yield* Database.Service
-      const corruptSessionID = SessionV2.ID.make("ses_corrupt_snapshot")
-      yield* db
-        .insert(SessionTable)
-        .values({
-          id: corruptSessionID,
-          project_id: Project.ID.global,
-          slug: "corrupt",
-          mode: "custom",
-          directory: "/project",
-          title: "Corrupt Snapshot",
-          version: "test",
-        })
-        .onConflictDoNothing()
-        .run()
-        .pipe(Effect.orDie)
-
-      // Insert corrupt JSON
-      yield* db.run(require("drizzle-orm").sql`
-        INSERT INTO session_composition_snapshot (session_id, version, digest, profile_path, profile_revision, data, time_created)
-        VALUES ('ses_corrupt_snapshot', 1, ${mockDigest}, 'custom-profiles/test.yaml', ${mockRevision}, 'invalid-json-data', 1000)
-      `)
-
-      const composition = yield* SessionComposition.Service
-      const err = yield* composition.read(corruptSessionID).pipe(Effect.flip)
-      expect(err).toBeInstanceOf(SessionComposition.SnapshotDecodeError)
-
-      // Insert unsupported version
-      const wrongVersionSessionID = SessionV2.ID.make("ses_wrong_version_snapshot")
-      yield* db
-        .insert(SessionTable)
-        .values({
-          id: wrongVersionSessionID,
-          project_id: Project.ID.global,
-          slug: "wrong-version",
-          mode: "custom",
-          directory: "/project",
-          title: "Wrong Version Snapshot",
-          version: "test",
-        })
-        .onConflictDoNothing()
-        .run()
-        .pipe(Effect.orDie)
-
-      yield* db.run(require("drizzle-orm").sql`
-        INSERT INTO session_composition_snapshot (session_id, version, digest, profile_path, profile_revision, data, time_created)
-        VALUES ('ses_wrong_version_snapshot', 2, ${mockDigest}, 'custom-profiles/test.yaml', ${mockRevision}, '{}', 1000)
-      `)
-
-      const verErr = yield* composition.read(wrongVersionSessionID).pipe(Effect.flip)
-      expect(verErr).toBeInstanceOf(SessionComposition.SnapshotDecodeError)
-    }),
-  )
-
-  describe("assertDependency", () => {
-    it.effect("passes and returns the snapshot for an internally consistent row", () =>
-      Effect.gen(function* () {
-        yield* setup
-        const composition = yield* SessionComposition.Service
-        const snapshot = makeConsistentSnapshot()
-        yield* composition.attach(sessionID, snapshot)
-
-        const verified = yield* composition.assertDependency(sessionID)
-        expect(verified.digest).toBe(snapshot.digest)
-        expect(verified.data.tools.catalog).toEqual(["glob", "read"])
-      }),
-    )
-
-    it.effect("fails with SnapshotNotFoundError when no snapshot row exists", () =>
-      Effect.gen(function* () {
-        yield* setup
-        const composition = yield* SessionComposition.Service
-        const err = yield* composition.assertDependency(SessionV2.ID.make("ses_no_snapshot_row")).pipe(Effect.flip)
-        expect(err).toBeInstanceOf(SessionComposition.SnapshotNotFoundError)
-      }),
-    )
-
-    it.effect("fails with DependencyMissingError naming empty_agent_id", () =>
-      Effect.gen(function* () {
-        yield* setup
-        const composition = yield* SessionComposition.Service
-        yield* composition.attach(sessionID, makeConsistentSnapshot({ agentID: "" }))
-
-        const err = yield* composition.assertDependency(sessionID).pipe(Effect.flip)
-        expect(err).toBeInstanceOf(SessionComposition.DependencyMissingError)
-        if (err instanceof SessionComposition.DependencyMissingError) {
-          expect(err.reason).toBe("empty_agent_id")
-        }
-      }),
-    )
-
-    it.effect("fails with DependencyMissingError naming unsorted_tool_fingerprints", () =>
-      Effect.gen(function* () {
-        yield* setup
-        const composition = yield* SessionComposition.Service
-        const fingerprints = [sortedFingerprints[1], sortedFingerprints[0]]
-        yield* composition.attach(
-          sessionID,
-          makeConsistentSnapshot({ fingerprints, catalog: fingerprints.map((fingerprint) => fingerprint.name) }),
-        )
-
-        const err = yield* composition.assertDependency(sessionID).pipe(Effect.flip)
-        expect(err).toBeInstanceOf(SessionComposition.DependencyMissingError)
-        if (err instanceof SessionComposition.DependencyMissingError) {
-          expect(err.reason).toBe("unsorted_tool_fingerprints")
-        }
-      }),
-    )
-
-    it.effect("round-trips matching SnapshotV2 MCP audit facts through the durable owner", () =>
-      Effect.gen(function* () {
-        yield* setup
-        const composition = yield* SessionComposition.Service
-        const mcpFingerprint = {
-          placement: "/project",
-          name: "mcp_audit_echo",
-          digest: mockDigest,
-          installationVersion: "0.1.0",
-        }
-        const tools = new Composition.SnapshotToolInfo({
-          fingerprints: [mcpFingerprint],
-          catalogDigest: computeDigest([mcpFingerprint]),
-          catalog: ["mcp_audit_echo"],
-        })
-        const snapshot = new Composition.SnapshotV2({
-          version: 2,
-          digest: mockDigest,
-          sessionID,
-          createdAt: 1700000000000,
-          data: new Composition.SnapshotDataV2({
-            agents: [
-              new Composition.AgentInfo({
-                id: "code-reviewer",
-                name: "code-reviewer",
-                description: "Code reviewer",
-                relativePath: "agents/reviewer.md",
-                revision: mockRevision,
-              }),
-            ],
+      const info = Agent.Info.make({
+        ...Agent.Info.default(Agent.ID.make("build")),
+        name: Agent.Name.make("Build"),
+        mode: "all",
+        system: "The frozen builtin root.",
+      })
+      const root = new Composition.BuiltinRoot({
+        source: "builtin",
+        id: "build",
+        revision: Composition.Revision.make(CompositionDigest.computeDigest(Schema.encodeSync(Agent.Info)(info))),
+      })
+      const data = new Composition.SnapshotDataV2({
+        ...frozenData(),
+        root,
+        orchestrator: info,
+        agents: [],
+        executors: [],
+        bindings: {
+          orchestrator: new Composition.SnapshotBindingData({
             instructions: [],
             prompts: [],
             skills: [],
-            tools,
-            mcp: new Composition.SnapshotMcpInfo({
-              bindings: [
-                new Composition.SnapshotMcpBinding({
-                  serverName: "audit",
-                  ref: new Composition.McpRef({ kind: "mcp", relativePath: "mcps/audit.md", revision: mockRevision }),
-                }),
-              ],
-              tools: [
-                new Composition.SnapshotMcpTool({
-                  canonicalName: "mcp_audit_echo",
-                  serverName: "audit",
-                  ref: new Composition.McpRef({ kind: "mcp", relativePath: "mcps/audit.md", revision: mockRevision }),
-                }),
-              ],
-            }),
+            commands: [],
           }),
-        })
-        yield* composition.attach(sessionID, snapshot)
+        },
+      })
+      yield* composition.attach(sessionID, frozenSnapshot(data))
+      const selected = yield* SessionComposition.selectSessionAgent(composition, { id: sessionID, agent: info.id })
+      expect(selected.info).toEqual(info)
+      expect(selected.scope).toEqual({ _tag: "scoped", key: "orchestrator" })
+      expect(CompositionConsumerView.getSkills(selected.snapshot, selected.scope)).toEqual([])
+      expect(yield* composition.assertAgentAllowed(sessionID, "build").pipe(Effect.flip)).toMatchObject({
+        _tag: "SessionComposition.AgentDelegationForbiddenError",
+      })
+      expect(yield* composition.selectAgent(sessionID, "meta").pipe(Effect.flip)).toMatchObject({
+        _tag: "SessionComposition.AgentDelegationForbiddenError",
+      })
+      const copied = yield* composition.copy(sessionID, copySessionID)
+      expect(copied.data).toEqual(data)
+      expect(
+        yield* SessionComposition.selectSessionAgent(composition, { id: copySessionID, agent: info.id }),
+      ).toMatchObject({ info, scope: { _tag: "scoped", key: "orchestrator" } })
+    }),
+  )
 
-        const read = yield* composition.assertDependency(sessionID)
-
-        expect(read.version).toBe(2)
-        if (read.version !== 2) throw new Error("expected v2 snapshot")
-        expect(read.data.mcp.tools[0]?.canonicalName).toBe("mcp_audit_echo")
-        expect(read.data.mcp.bindings[0]?.ref.relativePath).toBe("mcps/audit.md")
-      }),
-    )
-
-    it.effect("fails when an MCP catalog entry has no SnapshotV2 registration audit fact", () =>
-      Effect.gen(function* () {
-        yield* setup
-        const composition = yield* SessionComposition.Service
-        const mcpFingerprint = {
-          placement: "/project",
-          name: "mcp_audit_echo",
-          digest: mockDigest,
-          installationVersion: "0.1.0",
-        }
-        const tools = new Composition.SnapshotToolInfo({
-          fingerprints: [mcpFingerprint],
-          catalogDigest: computeDigest([mcpFingerprint]),
-          catalog: ["mcp_audit_echo"],
-        })
-        yield* composition.attach(
-          sessionID,
-          new Composition.SnapshotV2({
-            version: 2,
-            digest: mockDigest,
-            sessionID,
-            createdAt: 1700000000000,
-            data: new Composition.SnapshotDataV2({
-              agents: [
-                new Composition.AgentInfo({
-                  id: "code-reviewer",
-                  name: "code-reviewer",
-                  description: "Code reviewer",
-                  relativePath: "agents/reviewer.md",
-                  revision: mockRevision,
-                }),
-              ],
-              instructions: [],
-              prompts: [],
-              skills: [],
-              tools,
-              mcp: new Composition.SnapshotMcpInfo({ bindings: [], tools: [] }),
-            }),
+  it.effect("requires matching builtin source and definition evidence before accepting an empty pool", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const composition = yield* SessionComposition.Service
+      const info = Agent.Info.make({ ...Agent.Info.default(Agent.ID.make("build")), mode: "all" })
+      const data = new Composition.SnapshotDataV2({
+        ...frozenData(),
+        root: new Composition.BuiltinRoot({ source: "builtin", id: "build" }),
+        orchestrator: info,
+        agents: [],
+        executors: [],
+        bindings: {
+          orchestrator: new Composition.SnapshotBindingData({
+            instructions: [],
+            prompts: [],
+            skills: [],
+            commands: [],
           }),
-        )
-
-        const error = yield* composition.assertDependency(sessionID).pipe(Effect.flip)
-
-        expect(error).toBeInstanceOf(SessionComposition.DependencyMissingError)
-        if (error instanceof SessionComposition.DependencyMissingError)
-          expect(error.reason).toBe("mcp_audit_catalog_mismatch")
-      }),
-    )
-
-    it.effect("fails when a SnapshotV2 MCP audit tool has no matching binding identity", () =>
-      Effect.gen(function* () {
-        yield* setup
-        const composition = yield* SessionComposition.Service
-        const mcpFingerprint = {
-          placement: "/project",
-          name: "mcp_audit_echo",
-          digest: mockDigest,
-          installationVersion: "0.1.0",
-        }
-        const tools = new Composition.SnapshotToolInfo({
-          fingerprints: [mcpFingerprint],
-          catalogDigest: computeDigest([mcpFingerprint]),
-          catalog: ["mcp_audit_echo"],
-        })
-        yield* composition.attach(
-          sessionID,
-          new Composition.SnapshotV2({
-            version: 2,
-            digest: mockDigest,
+        },
+      })
+      expect(yield* composition.assertDependency(sessionID, frozenSnapshot(data)).pipe(Effect.flip)).toMatchObject({
+        reason: "missing_builtin_root_revision",
+      })
+      expect(
+        yield* composition
+          .assertDependency(
             sessionID,
-            createdAt: 1700000000000,
-            data: new Composition.SnapshotDataV2({
-              agents: [
-                new Composition.AgentInfo({
-                  id: "code-reviewer",
-                  name: "code-reviewer",
-                  description: "Code reviewer",
-                  relativePath: "agents/reviewer.md",
-                  revision: mockRevision,
-                }),
-              ],
-              instructions: [],
-              prompts: [],
-              skills: [],
-              tools,
-              // Catalog and audit tools agree, so the catalog check passes; the
-              // tool's own binding identity is the row that went missing.
-              mcp: new Composition.SnapshotMcpInfo({
-                bindings: [],
-                tools: [
-                  new Composition.SnapshotMcpTool({
-                    canonicalName: "mcp_audit_echo",
-                    serverName: "audit",
-                    ref: new Composition.McpRef({
-                      kind: "mcp",
-                      relativePath: "mcps/audit.md",
-                      revision: mockRevision,
-                    }),
-                  }),
-                ],
+            frozenSnapshot(
+              new Composition.SnapshotDataV2({
+                ...data,
+                root: new Composition.BuiltinRoot({ source: "builtin", id: "build", revision: otherRevision }),
               }),
-            }),
+            ),
+          )
+          .pipe(Effect.flip),
+      ).toMatchObject({ reason: "builtin_root_revision_mismatch" })
+      expect(
+        yield* composition
+          .assertDependency(
+            sessionID,
+            frozenSnapshot(
+              new Composition.SnapshotDataV2({
+                ...data,
+                root: undefined,
+              }),
+            ),
+          )
+          .pipe(Effect.flip),
+      ).toMatchObject({ reason: "empty_agents" })
+    }),
+  )
+
+  it.effect("selects and copies asset roots by frozen source while isolating root and executors", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const composition = yield* SessionComposition.Service
+      const root = new Composition.AssetRoot({
+        source: "asset",
+        id: Agent.ID.make("release-root"),
+        kind: "agent",
+        relativePath: "roots/release.md",
+        revision: otherRevision,
+      })
+      const info = Agent.Info.make({
+        ...Agent.Info.empty(root.id),
+        mode: "all",
+        system: "Frozen asset root.",
+        originRelativePath: root.relativePath,
+        originRevision: root.revision,
+      })
+      const data = new Composition.SnapshotDataV2({ ...frozenData(), root, orchestrator: info })
+      yield* composition.attach(sessionID, frozenSnapshot(data))
+      const selected = yield* SessionComposition.selectSessionAgent(composition, { id: sessionID, agent: info.id })
+      expect(selected.info).toEqual(info)
+      expect(selected.scope).toEqual({ _tag: "scoped", key: "orchestrator" })
+      const executor = yield* composition.selectAgent(sessionID, agentID)
+      expect(executor.scope).toEqual({ _tag: "scoped", key: "agents/coder" })
+      expect(executor.info.id).toBe(agentID)
+      expect(yield* composition.assertAgentAllowed(sessionID, info.id).pipe(Effect.flip)).toMatchObject({
+        _tag: "SessionComposition.AgentDelegationForbiddenError",
+      })
+      expect(
+        yield* SessionComposition.selectSessionAgent(composition, { id: sessionID, agent: agentID }).pipe(Effect.flip),
+      ).toMatchObject({ _tag: "SessionComposition.AgentDelegationForbiddenError" })
+      expect(
+        yield* SessionComposition.selectSessionAgent(composition, {
+          id: sessionID,
+          parentID: copySessionID,
+          agent: info.id,
+        }).pipe(Effect.flip),
+      ).toMatchObject({ _tag: "SessionComposition.AgentDelegationForbiddenError" })
+      const copied = yield* composition.copy(sessionID, copySessionID)
+      expect(copied.data).toEqual(data)
+      expect(
+        yield* SessionComposition.selectSessionAgent(composition, { id: copySessionID, agent: info.id }),
+      ).toMatchObject({ info, scope: { _tag: "scoped", key: "orchestrator" } })
+    }),
+  )
+
+  it.effect("requires asset-root ID, origin and byte revision evidence without assigning Meta", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const composition = yield* SessionComposition.Service
+      const root = new Composition.AssetRoot({
+        source: "asset",
+        id: Agent.ID.make("release-root"),
+        kind: "agent",
+        relativePath: "roots/release.md",
+        revision,
+      })
+      const info = Agent.Info.make({
+        ...Agent.Info.empty(root.id),
+        mode: "primary",
+        originRelativePath: root.relativePath,
+        originRevision: root.revision,
+      })
+      const data = new Composition.SnapshotDataV2({
+        ...frozenData(),
+        root,
+        orchestrator: info,
+        agents: [],
+        executors: [],
+        bindings: {
+          orchestrator: new Composition.SnapshotBindingData({
+            instructions: [],
+            prompts: [],
+            skills: [],
+            commands: [],
           }),
+        },
+      })
+      expect((yield* composition.assertDependency(sessionID, frozenSnapshot(data))).data.orchestrator).toEqual(info)
+      yield* Effect.forEach(
+        [
+          { id: Agent.ID.make("foreign") },
+          { originRelativePath: undefined },
+          { originRelativePath: "other.md" },
+          { originRevision: undefined },
+          { originRevision: otherRevision },
+          { mode: "subagent" as const },
+          { hidden: true },
+        ],
+        (update) =>
+          Effect.gen(function* () {
+            const invalid = frozenSnapshot(
+              new Composition.SnapshotDataV2({ ...data, orchestrator: Agent.Info.make({ ...info, ...update }) }),
+            )
+            expect(yield* composition.assertDependency(sessionID, invalid).pipe(Effect.flip)).toMatchObject({
+              reason: "asset_root_identity_mismatch",
+            })
+          }),
+      )
+      expect(
+        yield* composition
+          .assertDependency(
+            sessionID,
+            frozenSnapshot(
+              new Composition.SnapshotDataV2({
+                ...data,
+                root: new Composition.AssetRoot({ ...root, id: Agent.ID.make("meta") }),
+                orchestrator: Agent.Info.make({ ...info, id: Agent.ID.make("meta") }),
+              }),
+            ),
+          )
+          .pipe(Effect.flip),
+      ).toMatchObject({ reason: "asset_root_identity_mismatch" })
+      expect(
+        yield* composition
+          .assertDependency(
+            sessionID,
+            frozenSnapshot(
+              new Composition.SnapshotDataV2({
+                ...frozenData(),
+                root: new Composition.AssetRoot({ ...root, id: agentID }),
+                orchestrator: Agent.Info.make({ ...info, id: agentID }),
+              }),
+            ),
+          )
+          .pipe(Effect.flip),
+      ).toMatchObject({ reason: "ambiguous_agent_identity" })
+    }),
+  )
+
+  it.effect("persists, reads, and copies complete frozen executor and tool data", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const composition = yield* SessionComposition.Service
+      const database = yield* Database.Service
+      const snapshot = frozenSnapshot()
+      expect(yield* composition.exists(sessionID)).toBe(false)
+      yield* composition.attach(sessionID, snapshot)
+      expect(yield* composition.exists(sessionID)).toBe(true)
+
+      const loaded = yield* composition.assertDependency(sessionID)
+      expect(loaded.version).toBe(2)
+      if (loaded.version !== 2) throw new Error("Expected a V2 snapshot")
+      expect(Schema.encodeSync(Composition.SnapshotV2)(loaded)).toEqual(
+        Schema.encodeSync(Composition.SnapshotV2)(snapshot),
+      )
+      expect(loaded.data.executors?.[0].info.request).toEqual(snapshot.data.executors?.[0].info.request)
+      expect(loaded.data.orchestrator).toEqual(snapshot.data.orchestrator)
+      expect(loaded.data.tools.catalog.filter((name) => name === "execute")).toEqual(["execute", "execute"])
+      expect(loaded.data.tools.capture).toEqual(snapshot.data.tools.capture)
+      expect(loaded.data.bindings?.["agents/coder"].skills[0].content).toBe("Inspect the diff before editing.")
+      expect(loaded.data.mcp.bindings[0].transportFingerprint).toBe(snapshot.data.mcp.bindings[0].transportFingerprint)
+
+      const row = yield* database.db
+        .select()
+        .from(SessionCompositionSnapshotTable)
+        .where(eq(SessionCompositionSnapshotTable.session_id, sessionID))
+        .get()
+        .pipe(Effect.orDie)
+      expect<unknown>(row?.data).toEqual(Schema.encodeSync(Composition.SnapshotDataV2)(snapshot.data))
+
+      const copied = yield* composition.copy(sessionID, copySessionID)
+      if (copied.version !== 2) throw new Error("Expected a copied V2 snapshot")
+      expect(copied.sessionID).toBe(copySessionID)
+      expect(copied.digest).toBe(snapshot.digest)
+      expect(copied.profilePath).toBe(snapshot.profilePath)
+      expect(copied.profileRevision).toBe(snapshot.profileRevision)
+      expect(copied.createdAt).toBe(snapshot.createdAt)
+      expect(Schema.encodeSync(Composition.SnapshotData)(copied.data)).toEqual(
+        Schema.encodeSync(Composition.SnapshotDataV2)(snapshot.data),
+      )
+      expect(yield* composition.get(copySessionID)).toEqual(copied)
+      expect(yield* composition.assertDependency(copySessionID)).toEqual(copied)
+      yield* composition.assertAgentAllowed(copySessionID, agentID)
+      yield* composition.assertAgentAllowed(copySessionID, "coder")
+    }),
+  )
+
+  it.effect("selects frozen root and executor identities without exposing another consumer's assets", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const composition = yield* SessionComposition.Service
+      const snapshot = frozenSnapshot()
+      if (snapshot.data.orchestrator === undefined) throw new Error("Expected a frozen orchestrator")
+      if (snapshot.data.executors?.[0] === undefined) throw new Error("Expected a frozen executor")
+      yield* composition.attach(sessionID, snapshot)
+      const root = yield* composition.selectAgent(sessionID, "meta")
+      expect(root.info).toEqual(snapshot.data.orchestrator)
+      expect(root.scope).toEqual({ _tag: "scoped", key: "orchestrator" })
+      expect(CompositionConsumerView.getSkills(root.snapshot, root.scope)).toEqual([])
+      expect(CompositionConsumerView.getCommands(root.snapshot, root.scope)).toEqual(snapshot.data.commands)
+
+      const named = yield* composition.selectAgent(sessionID, "coder")
+      const canonical = yield* composition.selectAgent(sessionID, agentID)
+      expect(named).toEqual(canonical)
+      expect(named.info).toEqual(snapshot.data.executors[0].info)
+      expect(named.info.id).toBe(agentID)
+      expect(named.scope).toEqual({ _tag: "scoped", key: "agents/coder" })
+      expect(CompositionConsumerView.getCommands(named.snapshot, named.scope)).toEqual([])
+      expect(CompositionConsumerView.getSkills(named.snapshot, named.scope)).toEqual(snapshot.data.skills)
+      expect(yield* Effect.result(composition.selectAgent(sessionID, "absent"))).toMatchObject({
+        _tag: "Failure",
+        failure: { _tag: "SessionComposition.AgentDelegationForbiddenError", agentID: "absent" },
+      })
+      expect(yield* Effect.result(composition.assertAgentAllowed(sessionID, "meta"))).toMatchObject({
+        _tag: "Failure",
+        failure: { _tag: "SessionComposition.AgentDelegationForbiddenError", agentID: "meta" },
+      })
+    }),
+  )
+
+  it.effect("does not overwrite an attached snapshot and rejects unknown agents", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const composition = yield* SessionComposition.Service
+      const snapshot = frozenSnapshot()
+      expect(yield* composition.read(sessionID)).toBeUndefined()
+      expect(yield* Effect.result(composition.get(sessionID))).toMatchObject({
+        _tag: "Failure",
+        failure: { _tag: "SessionComposition.SnapshotNotFoundError", sessionID },
+      })
+      yield* composition.attach(sessionID, snapshot)
+      expect(yield* Effect.result(composition.attach(sessionID, snapshot))).toMatchObject({
+        _tag: "Failure",
+        failure: { _tag: "SessionComposition.SnapshotAlreadyExistsError", sessionID },
+      })
+      expect(yield* Effect.result(composition.assertAgentAllowed(sessionID, "unbound"))).toMatchObject({
+        _tag: "Failure",
+        failure: { _tag: "SessionComposition.AgentDelegationForbiddenError", sessionID, agentID: "unbound" },
+      })
+      expect(yield* composition.get(sessionID)).toEqual(snapshot)
+    }),
+  )
+
+  it.effect("reads and copies historical V1 data but requires captured tools before execution", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const composition = yield* SessionComposition.Service
+      const data = frozenData()
+      const snapshot = new Composition.SnapshotV1({
+        version: 1,
+        digest: CompositionDigest.computeDigest("historical-plan"),
+        sessionID,
+        createdAt: 1_780_000_000_000,
+        data: new Composition.SnapshotDataV1({
+          agentID,
+          instructions: data.instructions,
+          prompts: data.prompts,
+          skills: data.skills,
+          tools: new Composition.SnapshotToolInfo({ ...data.tools, capture: undefined }),
+        }),
+      })
+      yield* composition.attach(sessionID, snapshot)
+      expect(yield* composition.read(sessionID)).toEqual(snapshot)
+      const copied = yield* composition.copy(sessionID, copySessionID)
+      expect(copied.version).toBe(1)
+      expect(copied.sessionID).toBe(copySessionID)
+      expect(copied.data).toEqual(snapshot.data)
+      expect(yield* composition.get(copySessionID)).toEqual(copied)
+      expect(yield* Effect.result(composition.assertDependency(copySessionID))).toMatchObject({
+        _tag: "Failure",
+        failure: { _tag: "SessionComposition.DependencyMissingError", reason: "missing_tool_capture" },
+      })
+    }),
+  )
+
+  it.effect("keeps V1 readable even with complete tool capture while rejecting absent executor configuration", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const composition = yield* SessionComposition.Service
+      const data = frozenData()
+      const snapshot = new Composition.SnapshotV1({
+        version: 1,
+        digest: CompositionDigest.computeDigest("historical-plan"),
+        sessionID,
+        createdAt: 1_780_000_000_000,
+        data: new Composition.SnapshotDataV1({
+          agentID,
+          instructions: data.instructions,
+          prompts: data.prompts,
+          skills: data.skills,
+          tools: data.tools,
+        }),
+      })
+      yield* composition.attach(sessionID, snapshot)
+      expect(yield* composition.get(sessionID)).toEqual(snapshot)
+      expect(yield* Effect.result(composition.assertDependency(sessionID))).toMatchObject({
+        _tag: "Failure",
+        failure: { _tag: "SessionComposition.DependencyMissingError", reason: "missing_executor_configuration" },
+      })
+    }),
+  )
+
+  it.effect("accepts an explicitly frozen empty Skill body", () =>
+    Effect.gen(function* () {
+      yield* setup
+      const composition = yield* SessionComposition.Service
+      const data = frozenData()
+      const skill = new Composition.SnapshotSkillData({ ...data.skills[0], content: "" })
+      const snapshot = frozenSnapshot(
+        new Composition.SnapshotDataV2({
+          ...data,
+          skills: [skill],
+          bindings: {
+            ...data.bindings,
+            "agents/coder": new Composition.SnapshotBindingData({
+              ...data.bindings?.["agents/coder"],
+              prompts: data.prompts,
+              skills: [skill],
+              commands: [],
+            }),
+          },
+        }),
+      )
+      yield* composition.attach(sessionID, snapshot)
+      expect(yield* composition.assertDependency(sessionID)).toEqual(snapshot)
+    }),
+  )
+
+  const incomplete = [
+    {
+      name: "missing frozen orchestrator configuration",
+      reason: "missing_orchestrator_configuration",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({ ...data, orchestrator: undefined }),
+    },
+    {
+      name: "a user executor substituted for the root",
+      reason: "orchestrator_identity_mismatch",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({ ...data, orchestrator: data.executors?.[0].info }),
+    },
+    {
+      name: "an asset-backed meta root",
+      reason: "orchestrator_identity_mismatch",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({
+          ...data,
+          orchestrator: Agent.Info.make({
+            ...Agent.Info.empty(Agent.ID.make("meta")),
+            mode: "primary",
+            originRelativePath: "meta.md",
+            originRevision: revision,
+          }),
+        }),
+    },
+    {
+      name: "duplicate consumers mapped from separate agents",
+      reason: "duplicate_consumer_key",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({
+          ...data,
+          agents: [
+            ...data.agents,
+            new Composition.AgentInfo({
+              ...data.agents[0],
+              id: "reviewer",
+              name: "reviewer",
+              relativePath: "reviewer.md",
+            }),
+          ],
+        }),
+    },
+    {
+      name: "an executor mapped to the orchestrator consumer",
+      reason: "duplicate_consumer_key",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({
+          ...data,
+          agents: data.agents.map((agent) => new Composition.AgentInfo({ ...agent, consumerKey: "orchestrator" })),
+        }),
+    },
+    {
+      name: "an orphan consumer binding",
+      reason: "orphan_consumer_binding",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({
+          ...data,
+          bindings: {
+            ...data.bindings,
+            "agents/unused": new Composition.SnapshotBindingData({
+              instructions: [],
+              prompts: [],
+              skills: [],
+              commands: [],
+            }),
+          },
+        }),
+    },
+    {
+      name: "a frozen Agent name matching another canonical identity",
+      reason: "ambiguous_agent_identity",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({
+          ...data,
+          agents: [
+            ...data.agents,
+            new Composition.AgentInfo({
+              ...data.agents[0],
+              id: "reviewer",
+              name: agentID,
+              consumerKey: "agents/reviewer",
+            }),
+          ],
+        }),
+    },
+    {
+      name: "an empty top-level Command invocation",
+      reason: "missing_command_invocation",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({
+          ...data,
+          commands: data.commands.map((command) => new Composition.CommandInfo({ ...command, invocation: "" })),
+        }),
+    },
+    {
+      name: "an empty scoped Command invocation",
+      reason: "missing_command_invocation",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({
+          ...data,
+          bindings: {
+            ...data.bindings,
+            orchestrator: new Composition.SnapshotBindingData({
+              ...data.bindings?.orchestrator,
+              prompts: data.prompts,
+              skills: [],
+              commands: data.commands.map((command) => new Composition.CommandInfo({ ...command, invocation: "" })),
+            }),
+          },
+        }),
+    },
+    {
+      name: "a missing top-level Command body",
+      reason: "missing_command_content",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({
+          ...data,
+          commands: data.commands.map((command) => new Composition.CommandInfo({ ...command, source: undefined })),
+        }),
+    },
+    {
+      name: "a missing scoped Command body",
+      reason: "missing_command_content",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({
+          ...data,
+          bindings: {
+            ...data.bindings,
+            orchestrator: new Composition.SnapshotBindingData({
+              ...data.bindings?.orchestrator,
+              prompts: data.prompts,
+              skills: [],
+              commands: data.commands.map((command) => new Composition.CommandInfo({ ...command, source: undefined })),
+            }),
+          },
+        }),
+    },
+    {
+      name: "missing tool capture in historical V2 data",
+      reason: "missing_tool_capture",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({
+          ...data,
+          executors: undefined,
+          bindings: undefined,
+          tools: new Composition.SnapshotToolInfo({ ...data.tools, capture: undefined }),
+        }),
+    },
+    {
+      name: "tampered tool description with unchanged fingerprints",
+      reason: "tool_capture_digest_mismatch",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({
+          ...data,
+          tools: new Composition.SnapshotToolInfo({
+            ...data.tools,
+            capture: data.tools.capture?.map((tool) =>
+              tool !== null && typeof tool === "object" && "name" in tool && tool.name === "read"
+                ? { ...tool, description: "A changed definition" }
+                : tool,
+            ),
+          }),
+        }),
+    },
+    {
+      name: "tampered tool input schema with unchanged fingerprints",
+      reason: "tool_capture_digest_mismatch",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({
+          ...data,
+          tools: new Composition.SnapshotToolInfo({
+            ...data.tools,
+            capture: data.tools.capture?.map((tool) =>
+              tool !== null && typeof tool === "object" && "name" in tool && tool.name === "read"
+                ? { ...tool, inputSchema: { type: "object", properties: {} } }
+                : tool,
+            ),
+          }),
+        }),
+    },
+    {
+      name: "missing executor configuration",
+      reason: "missing_executor_configuration",
+      update: (data: Composition.SnapshotDataV2) => new Composition.SnapshotDataV2({ ...data, executors: undefined }),
+    },
+    {
+      name: "executor configuration count mismatch",
+      reason: "missing_executor_configuration",
+      update: (data: Composition.SnapshotDataV2) => new Composition.SnapshotDataV2({ ...data, executors: [] }),
+    },
+    {
+      name: "executor Info identity mismatch",
+      reason: "executor_identity_mismatch",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({
+          ...data,
+          executors: data.executors?.map(
+            (executor) =>
+              new Composition.SnapshotExecutorData({
+                ...executor,
+                info: Agent.Info.make({ ...executor.info, id: Agent.ID.make("other") }),
+              }),
+          ),
+        }),
+    },
+    {
+      name: "executor asset path mismatch",
+      reason: "executor_identity_mismatch",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({
+          ...data,
+          executors: data.executors?.map(
+            (executor) => new Composition.SnapshotExecutorData({ ...executor, relativePath: "other.md" }),
+          ),
+        }),
+    },
+    {
+      name: "executor origin revision mismatch",
+      reason: "executor_identity_mismatch",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({
+          ...data,
+          executors: data.executors?.map(
+            (executor) =>
+              new Composition.SnapshotExecutorData({
+                ...executor,
+                info: Agent.Info.make({ ...executor.info, originRevision: otherRevision }),
+              }),
+          ),
+        }),
+    },
+    {
+      name: "absent consumer binding graph",
+      reason: "missing_consumer_bindings",
+      update: (data: Composition.SnapshotDataV2) => new Composition.SnapshotDataV2({ ...data, bindings: undefined }),
+    },
+    {
+      name: "missing top-level Skill body",
+      reason: "missing_skill_content",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({
+          ...data,
+          skills: data.skills.map((skill) => new Composition.SnapshotSkillData({ ...skill, content: undefined })),
+        }),
+    },
+    {
+      name: "missing consumer Skill body",
+      reason: "missing_skill_content",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({
+          ...data,
+          bindings: {
+            ...data.bindings,
+            "agents/coder": new Composition.SnapshotBindingData({
+              ...data.bindings?.["agents/coder"],
+              prompts: data.prompts,
+              skills: data.skills.map((skill) => new Composition.SnapshotSkillData({ ...skill, content: undefined })),
+              commands: [],
+            }),
+          },
+        }),
+    },
+    {
+      name: "missing MCP transport fingerprint",
+      reason: "missing_mcp_transport_fingerprint",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({
+          ...data,
+          mcp: new Composition.SnapshotMcpInfo({
+            ...data.mcp,
+            bindings: data.mcp.bindings.map(
+              (binding) => new Composition.SnapshotMcpBinding({ ...binding, transportFingerprint: undefined }),
+            ),
+          }),
+        }),
+    },
+    {
+      name: "invalid MCP transport fingerprint",
+      reason: "missing_mcp_transport_fingerprint",
+      update: (data: Composition.SnapshotDataV2) =>
+        new Composition.SnapshotDataV2({
+          ...data,
+          mcp: new Composition.SnapshotMcpInfo({
+            ...data.mcp,
+            bindings: data.mcp.bindings.map(
+              (binding) => new Composition.SnapshotMcpBinding({ ...binding, transportFingerprint: "invalid" }),
+            ),
+          }),
+        }),
+    },
+  ]
+
+  incomplete.forEach((scenario) => {
+    it.effect(`reads but rejects ${scenario.name}`, () =>
+      Effect.gen(function* () {
+        yield* setup
+        const composition = yield* SessionComposition.Service
+        const snapshot = frozenSnapshot(scenario.update(frozenData()))
+        yield* composition.attach(sessionID, snapshot)
+        expect(Schema.encodeSync(Composition.Snapshot)(yield* composition.get(sessionID))).toEqual(
+          Schema.encodeSync(Composition.SnapshotV2)(snapshot),
         )
-
-        const error = yield* composition.assertDependency(sessionID).pipe(Effect.flip)
-
-        expect(error).toBeInstanceOf(SessionComposition.DependencyMissingError)
-        if (error instanceof SessionComposition.DependencyMissingError)
-          expect(error.reason).toBe("mcp_audit_binding_missing")
-      }),
-    )
-
-    it.effect("fails with DependencyMissingError naming empty_tool_catalog", () =>
-      Effect.gen(function* () {
-        yield* setup
-        const composition = yield* SessionComposition.Service
-        yield* composition.attach(sessionID, makeConsistentSnapshot({ catalog: [] }))
-
-        const err = yield* composition.assertDependency(sessionID).pipe(Effect.flip)
-        expect(err).toBeInstanceOf(SessionComposition.DependencyMissingError)
-        if (err instanceof SessionComposition.DependencyMissingError) {
-          expect(err.reason).toBe("empty_tool_catalog")
-        }
-      }),
-    )
-
-    it.effect("fails with DependencyMissingError naming tool_catalog_mismatch", () =>
-      Effect.gen(function* () {
-        yield* setup
-        const composition = yield* SessionComposition.Service
-        yield* composition.attach(sessionID, makeConsistentSnapshot({ catalog: ["glob"] }))
-
-        const err = yield* composition.assertDependency(sessionID).pipe(Effect.flip)
-        expect(err).toBeInstanceOf(SessionComposition.DependencyMissingError)
-        if (err instanceof SessionComposition.DependencyMissingError) {
-          expect(err.reason).toBe("tool_catalog_mismatch")
-        }
-      }),
-    )
-
-    it.effect("fails with DependencyMissingError naming tool_catalog_digest_mismatch", () =>
-      Effect.gen(function* () {
-        yield* setup
-        const composition = yield* SessionComposition.Service
-        const tamperedDigest = Schema.decodeUnknownSync(Composition.Digest)(
-          "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        )
-        yield* composition.attach(sessionID, makeConsistentSnapshot({ catalogDigest: tamperedDigest }))
-
-        const err = yield* composition.assertDependency(sessionID).pipe(Effect.flip)
-        expect(err).toBeInstanceOf(SessionComposition.DependencyMissingError)
-        if (err instanceof SessionComposition.DependencyMissingError) {
-          expect(err.reason).toBe("tool_catalog_digest_mismatch")
-        }
+        expect(yield* Effect.result(composition.assertDependency(sessionID))).toMatchObject({
+          _tag: "Failure",
+          failure: { _tag: "SessionComposition.DependencyMissingError", sessionID, reason: scenario.reason },
+        })
+        expect(yield* Effect.result(composition.selectAgent(sessionID, "meta"))).toMatchObject({
+          _tag: "Failure",
+          failure: { _tag: "SessionComposition.DependencyMissingError", sessionID, reason: scenario.reason },
+        })
       }),
     )
   })

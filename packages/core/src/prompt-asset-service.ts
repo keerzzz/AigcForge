@@ -2,16 +2,17 @@ export * as PromptAssetService from "./prompt-asset-service"
 
 import path from "path"
 import { Context, Effect, Layer, Option, Schema } from "effect"
-import { PromptAsset as SchemaPromptAsset } from "@aigcfroge/schema/prompt-asset" // Schema namespace; local/core PromptAsset uses the unaliased name.
+import { Candidate, Inspection, Revision } from "@aigcfroge/schema/prompt-asset"
 import { PromptAsset } from "./prompt-asset"
 import { FileMutation } from "./file-mutation"
 import { PromptAssetPath } from "./prompt-asset/path"
-import { FSUtil } from "./fs-util"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { LocationMutation } from "./location-mutation"
-import { Hash } from "./util/hash"
-import { KeyedMutex } from "./effect/keyed-mutex"
-import { EventV2 } from "./event"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { Hash } from "@aigcfroge/util/hash"
+import { Bus } from "./bus"
 import { yamlEscape } from "./util/yaml-escape"
+import { AssetPlacement } from "./asset-placement"
 
 function failureMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error)
@@ -19,7 +20,7 @@ function failureMessage(error: unknown) {
 
 /** M2 埋点（PRD §12）：资产落盘成功时上报，payload 不含正文。Work 与 Chat 入口共用。 */
 export const Event = {
-  AssetSaved: EventV2.define({
+  AssetSaved: Bus.ephemeral({
     type: "work.asset_saved",
     schema: {
       relativePath: Schema.String,
@@ -27,7 +28,7 @@ export const Event = {
   }),
 }
 
-export class InvalidCandidateError extends Schema.TaggedErrorClass<InvalidCandidateError>()(
+export class InvalidCandidateError extends Schema.TaggedError<InvalidCandidateError>()(
   "PromptAssetService.InvalidCandidate",
   { reason: Schema.String },
 ) {
@@ -36,16 +37,15 @@ export class InvalidCandidateError extends Schema.TaggedErrorClass<InvalidCandid
   }
 }
 
-export class StaleRevisionError extends Schema.TaggedErrorClass<StaleRevisionError>()(
-  "PromptAssetService.StaleRevision",
-  { relativePath: Schema.String },
-) {
+export class StaleRevisionError extends Schema.TaggedError<StaleRevisionError>()("PromptAssetService.StaleRevision", {
+  relativePath: Schema.String,
+}) {
   override get message() {
     return `Stale revision for ${this.relativePath}`
   }
 }
 
-export class OverwriteRequiredError extends Schema.TaggedErrorClass<OverwriteRequiredError>()(
+export class OverwriteRequiredError extends Schema.TaggedError<OverwriteRequiredError>()(
   "PromptAssetService.OverwriteRequired",
   { relativePath: Schema.String },
 ) {
@@ -54,7 +54,7 @@ export class OverwriteRequiredError extends Schema.TaggedErrorClass<OverwriteReq
   }
 }
 
-export class WriteFailedError extends Schema.TaggedErrorClass<WriteFailedError>()("PromptAssetService.WriteFailed", {
+export class WriteFailedError extends Schema.TaggedError<WriteFailedError>()("PromptAssetService.WriteFailed", {
   relativePath: Schema.String,
   reason: Schema.String,
 }) {
@@ -63,7 +63,7 @@ export class WriteFailedError extends Schema.TaggedErrorClass<WriteFailedError>(
   }
 }
 
-export class ReadbackMismatchError extends Schema.TaggedErrorClass<ReadbackMismatchError>()(
+export class ReadbackMismatchError extends Schema.TaggedError<ReadbackMismatchError>()(
   "PromptAssetService.ReadbackMismatch",
   { relativePath: Schema.String },
 ) {
@@ -72,7 +72,7 @@ export class ReadbackMismatchError extends Schema.TaggedErrorClass<ReadbackMisma
   }
 }
 
-export class RollbackFailedError extends Schema.TaggedErrorClass<RollbackFailedError>()(
+export class RollbackFailedError extends Schema.TaggedError<RollbackFailedError>()(
   "PromptAssetService.RollbackFailed",
   { relativePath: Schema.String, reason: Schema.String },
 ) {
@@ -81,7 +81,7 @@ export class RollbackFailedError extends Schema.TaggedErrorClass<RollbackFailedE
   }
 }
 
-export class ConcurrentModificationError extends Schema.TaggedErrorClass<ConcurrentModificationError>()(
+export class ConcurrentModificationError extends Schema.TaggedError<ConcurrentModificationError>()(
   "PromptAssetService.ConcurrentModification",
   { relativePath: Schema.String },
 ) {
@@ -90,7 +90,7 @@ export class ConcurrentModificationError extends Schema.TaggedErrorClass<Concurr
   }
 }
 
-export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("PromptAssetService.NotFound", {
+export class NotFoundError extends Schema.TaggedError<NotFoundError>()("PromptAssetService.NotFound", {
   relativePath: Schema.String,
 }) {
   override get message() {
@@ -107,15 +107,24 @@ export interface ProposeResult {
 }
 
 export interface ApplyInput {
-  candidate: SchemaPromptAsset.Candidate
+  candidate: Candidate
   baseRevision: string | null
   overwrite: boolean
+  target?: AssetPlacement.Target
 }
 
 export interface DeleteInput {
   relativePath: string
   baseRevision: string | null
+  target?: AssetPlacement.Target
 }
+
+export interface InspectInput {
+  candidate: Candidate
+  scope: AssetPlacement.Scope
+}
+
+export type InspectError = InvalidCandidateError | AssetPlacement.Error
 
 export type ApplyError =
   | InvalidCandidateError
@@ -126,6 +135,7 @@ export type ApplyError =
   | RollbackFailedError
   | ConcurrentModificationError
   | FSUtil.Error
+  | AssetPlacement.Error
 
 export type DeleteError =
   | InvalidCandidateError
@@ -134,11 +144,11 @@ export type DeleteError =
   | RollbackFailedError
   | ConcurrentModificationError
   | FSUtil.Error
+  | AssetPlacement.Error
 
 export interface Interface {
-  readonly propose: (
-    input: SchemaPromptAsset.Candidate,
-  ) => Effect.Effect<ProposeResult, InvalidCandidateError | FSUtil.Error>
+  readonly propose: (input: Candidate) => Effect.Effect<ProposeResult, InvalidCandidateError | FSUtil.Error>
+  readonly inspect: (input: InspectInput) => Effect.Effect<Inspection, InspectError>
   readonly apply: (input: ApplyInput) => Effect.Effect<PromptAsset.Info, ApplyError>
   readonly delete: (input: DeleteInput) => Effect.Effect<void, DeleteError>
 }
@@ -149,172 +159,198 @@ export const locationLayer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const fs = yield* FSUtil.Service
-    const locationMutation = yield* LocationMutation.Service
+    const mutation = yield* LocationMutation.Service
     const registry = yield* PromptAsset.Service
-    const fileMutation = yield* FileMutation.Service
-    const events = yield* EventV2.Service
+    const files = yield* FileMutation.Service
+    const eventsOpt = yield* Effect.serviceOption(Bus.Service)
+    const readBytes = (absolute: string) =>
+      fs.readFile(absolute).pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)))
 
-    const locks = KeyedMutex.makeUnsafe<string>()
-
-    const propose = Effect.fn("PromptAssetService.propose")(function* (input: SchemaPromptAsset.Candidate) {
-      let filename: string
-      try {
-        const relPath = PromptAssetPath.nameToRelativePath(input.name)
-        PromptAssetPath.validateRelativePath(relPath)
-        filename = path.basename(relPath)
-      } catch (e) {
-        return yield* new InvalidCandidateError({ reason: `Invalid name or path: ${failureMessage(e)}` })
+    const resolveTarget = Effect.fnUntraced(function* (relativePath: string, reviewed?: AssetPlacement.Target) {
+      if (!reviewed) {
+        const target = yield* PromptAssetPath.resolveSafeTarget(relativePath, mutation, fs).pipe(
+          Effect.mapError((error) =>
+            error instanceof PromptAssetPath.PathValidationError || error instanceof LocationMutation.PathError
+              ? new InvalidCandidateError({ reason: error.reason })
+              : error,
+          ),
+        )
+        return { owner: registry, target }
       }
+      const owner = yield* registry.select(reviewed.scope)
+      const mismatch = AssetPlacement.targetMismatch(owner.target, reviewed)
+      if (mismatch) return yield* mismatch
+      const target = yield* PromptAssetPath.resolveSelectedTarget(relativePath, owner.target, mutation, fs)
+      return { owner, target }
+    })
 
-      const target = yield* PromptAssetPath.resolveSafeTarget(filename, locationMutation).pipe(
-        Effect.mapError((error) => new InvalidCandidateError({ reason: failureMessage(error) })),
-      )
-      const fileExists = yield* fs.exists(target.canonical)
-
-      // Check registry for name/path conflicts with already-loaded assets
-      const existingName = yield* registry.findByName(input.name)
-      const existingPath = yield* registry.getByPath(filename).pipe(Effect.option)
-      const nameConflict = existingName !== undefined && existingName.relativePath !== filename
-      const pathConflict = Option.isSome(existingPath) && existingPath.value.name !== input.name
-
-      if (fileExists) {
-        // Tolerate a TOCTOU delete between exists and read; treat as not-exists.
-        const bytes = yield* fs
-          .readFile(target.canonical)
-          .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
-        if (!bytes) {
-          return {
-            relativePath: filename,
-            exists: false,
-            revision: null,
-            nameConflict,
-            pathConflict,
-          } satisfies ProposeResult
-        }
-        const currentRevision = Hash.sha256(Buffer.from(bytes))
-        return {
-          relativePath: filename,
-          exists: true,
-          revision: currentRevision,
-          nameConflict,
-          pathConflict,
-        } satisfies ProposeResult
-      }
-
+    const inspectOwner = Effect.fnUntraced(function* (
+      input: Candidate,
+      relativePath: string,
+      prepared: {
+        readonly owner: PromptAsset.Interface | PromptAsset.Selected
+        readonly target: LocationMutation.Target
+      },
+    ) {
+      yield* prepared.owner.reload()
+      const bytes = yield* readBytes(prepared.target.absolute)
+      const existingName = yield* prepared.owner.findByName(input.name)
+      const existingPath = yield* prepared.owner
+        .getByPath(relativePath)
+        .pipe(Effect.catchTag("PromptAsset.NotFound", () => Effect.succeed(undefined)))
       return {
-        relativePath: filename,
-        exists: false,
-        revision: null,
-        nameConflict,
-        pathConflict,
-      } satisfies ProposeResult
+        relativePath,
+        exists: bytes !== null,
+        revision: bytes === null ? null : Revision.make(Hash.sha256(Buffer.from(bytes))),
+        nameConflict: existingName !== undefined && existingName.relativePath !== relativePath,
+        pathConflict: existingPath !== undefined && existingPath.name !== input.name,
+      }
+    })
+
+    const rollback = Effect.fnUntraced(function* (
+      relativePath: string,
+      reviewed: AssetPlacement.Target | undefined,
+      previous: Uint8Array | null,
+      expected: Uint8Array | null,
+    ) {
+      const prepared = yield* resolveTarget(relativePath, reviewed).pipe(
+        Effect.mapError((error) => new RollbackFailedError({ relativePath, reason: failureMessage(error) })),
+      )
+      const current = yield* readBytes(prepared.target.absolute).pipe(
+        Effect.mapError(() => new RollbackFailedError({ relativePath, reason: "Cannot read the rollback target" })),
+      )
+      if (!sameBytes(current, expected)) return yield* new ConcurrentModificationError({ relativePath })
+
+      if (previous === null) {
+        yield* files
+          .remove({ target: prepared.target })
+          .pipe(Effect.mapError((error) => new RollbackFailedError({ relativePath, reason: failureMessage(error) })))
+      }
+      if (previous !== null) {
+        yield* files
+          .writeAtomic({ target: prepared.target, content: previous })
+          .pipe(Effect.mapError((error) => new RollbackFailedError({ relativePath, reason: failureMessage(error) })))
+      }
+      const restored = yield* readBytes(prepared.target.absolute).pipe(
+        Effect.mapError(
+          () => new RollbackFailedError({ relativePath, reason: "Cannot verify the restored prompt file" }),
+        ),
+      )
+      if (!sameBytes(restored, previous))
+        return yield* new RollbackFailedError({
+          relativePath,
+          reason: "Restored content differs from the original prompt file",
+        })
+      yield* prepared.owner
+        .reload()
+        .pipe(Effect.mapError((error) => new RollbackFailedError({ relativePath, reason: failureMessage(error) })))
+    })
+
+    const propose = Effect.fn("PromptAssetService.propose")(
+      function* (input: Candidate) {
+        const relativePath = yield* Effect.try({
+          try: () => candidatePath(input, false),
+          catch: (error) => new InvalidCandidateError({ reason: failureMessage(error) }),
+        })
+        const initial = yield* resolveTarget(relativePath)
+        return yield* files.withLock([initial.target.absolute])(
+          Effect.gen(function* () {
+            const prepared = yield* resolveTarget(relativePath)
+            return yield* inspectOwner(input, relativePath, prepared)
+          }),
+        )
+      },
+      Effect.mapError((error) =>
+        error instanceof AssetPlacement.PathError ||
+        error instanceof AssetPlacement.TargetMismatchError ||
+        error instanceof LocationMutation.PathError
+          ? new InvalidCandidateError({ reason: failureMessage(error) })
+          : error,
+      ),
+    )
+
+    const inspect = Effect.fn("PromptAssetService.inspect")(function* (input: InspectInput) {
+      const relativePath = yield* Effect.try({
+        try: () => candidatePath(input.candidate, true),
+        catch: (error) => new InvalidCandidateError({ reason: failureMessage(error) }),
+      })
+      const owner = yield* registry.select(input.scope)
+      const initial = yield* resolveTarget(relativePath, owner.target)
+      return yield* files.withLock([initial.target.absolute])(
+        Effect.gen(function* () {
+          const prepared = yield* resolveTarget(relativePath, owner.target)
+          return new Inspection({
+            ...(yield* inspectOwner(input.candidate, relativePath, prepared)),
+            target: owner.target,
+          })
+        }),
+      )
     })
 
     const apply = Effect.fn("PromptAssetService.apply")(function* (input: ApplyInput) {
-      // 1. Validate candidate and resolve path
-      let relativePath: string
-      try {
-        const relPath = PromptAssetPath.nameToRelativePath(input.candidate.name)
-        PromptAssetPath.validateRelativePath(relPath)
-        relativePath = path.basename(relPath)
-      } catch (e) {
-        return yield* new InvalidCandidateError({ reason: `Invalid name or path: ${failureMessage(e)}` })
-      }
-
-      const target = yield* PromptAssetPath.resolveSafeTarget(relativePath, locationMutation).pipe(
-        Effect.mapError((error) => new InvalidCandidateError({ reason: failureMessage(error) })),
-      )
-
-      // Acquire target-level lock for the full transaction
-      return yield* locks.withLock(relativePath)(
+      const relativePath = yield* Effect.try({
+        try: () => candidatePath(input.candidate, input.target !== undefined),
+        catch: (error) => new InvalidCandidateError({ reason: failureMessage(error) }),
+      })
+      const initial = yield* resolveTarget(relativePath, input.target)
+      return yield* files.withLock([initial.target.absolute])(
         Effect.uninterruptible(
           Effect.gen(function* () {
-            // 2. Read current state
-            const fileExists = yield* fs.exists(target.canonical)
-            const currentBytes: Uint8Array | null = fileExists ? yield* fs.readFile(target.canonical) : null
-            const currentRevision = currentBytes ? Hash.sha256(Buffer.from(currentBytes)) : null
+            // Recompute placement after waiting for another Location graph's transaction.
+            const prepared = yield* resolveTarget(relativePath, input.target)
+            yield* prepared.owner.reload()
+            const previous = yield* readBytes(prepared.target.absolute)
+            const revision = previous === null ? null : Hash.sha256(Buffer.from(previous))
+            if (input.baseRevision !== revision) return yield* new StaleRevisionError({ relativePath })
+            if (previous !== null && !input.overwrite) return yield* new OverwriteRequiredError({ relativePath })
 
-            // 3. CAS: compare baseRevision with current
-            const isNew = input.baseRevision === null
-            if (isNew && fileExists) {
-              return yield* new StaleRevisionError({ relativePath })
-            }
-            if (!isNew && !fileExists) {
-              return yield* new StaleRevisionError({ relativePath })
-            }
-            if (currentRevision !== null && input.baseRevision !== null && currentRevision !== input.baseRevision) {
-              return yield* new StaleRevisionError({ relativePath })
-            }
-
-            // 4. Overwrite check
-            if (fileExists && !input.overwrite) {
-              return yield* new OverwriteRequiredError({ relativePath })
-            }
-
-            // 5. Serialize and write atomically
             const frontmatter = `---\nkind: prompt\nname: ${yamlEscape(input.candidate.name)}\ndescription: ${yamlEscape(input.candidate.description)}\n---\n`
-            const content = frontmatter + input.candidate.template
-
-            yield* fileMutation
-              .writeAtomic({ target, content })
+            // Establish rollback ownership before any readback, including one that fails.
+            const expected = new TextEncoder().encode(frontmatter + input.candidate.template)
+            const writtenRevision = Hash.sha256(Buffer.from(expected))
+            yield* files
+              .writeAtomic({ target: prepared.target, content: expected })
               .pipe(Effect.mapError((error) => new WriteFailedError({ relativePath, reason: failureMessage(error) })))
 
-            const writtenBytes = yield* fs
-              .readFile(target.canonical)
-              .pipe(
-                Effect.catch((err) =>
-                  Effect.fail(
-                    new WriteFailedError({ relativePath, reason: `readback failed: ${failureMessage(err)}` }),
-                  ),
+            const info = yield* Effect.gen(function* () {
+              const bytes = yield* readBytes(prepared.target.absolute).pipe(
+                Effect.mapError(
+                  (error) =>
+                    new WriteFailedError({ relativePath, reason: `Readback failed: ${failureMessage(error)}` }),
                 ),
               )
-            const writtenRevision = Hash.sha256(Buffer.from(writtenBytes))
-
-            const rollback = Effect.fnUntraced(function* () {
-              const nowBytes = yield* fs
-                .readFile(target.canonical)
-                .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
-              if (!nowBytes || Hash.sha256(Buffer.from(nowBytes)) !== writtenRevision) {
-                return yield* new ConcurrentModificationError({ relativePath })
-              }
-
-              if (currentBytes !== null) {
-                yield* fileMutation
-                  .writeAtomic({ target, content: currentBytes })
-                  .pipe(
-                    Effect.mapError(
-                      (error) => new RollbackFailedError({ relativePath, reason: failureMessage(error) }),
-                    ),
-                  )
-              } else {
-                yield* fs.remove(target.canonical).pipe(
-                  Effect.catchReason("PlatformError", "NotFound", () => Effect.void),
-                  Effect.mapError((error) => new RollbackFailedError({ relativePath, reason: failureMessage(error) })),
-                )
-              }
-              yield* registry
+              if (!sameBytes(bytes, expected)) return yield* new ReadbackMismatchError({ relativePath })
+              yield* prepared.owner
                 .reload()
-                .pipe(
-                  Effect.mapError((error) => new RollbackFailedError({ relativePath, reason: failureMessage(error) })),
-                )
-            })
+                .pipe(Effect.mapError((error) => new WriteFailedError({ relativePath, reason: failureMessage(error) })))
+              const info = yield* prepared.owner
+                .getByPath(relativePath)
+                .pipe(Effect.mapError(() => new ReadbackMismatchError({ relativePath })))
+              if (
+                info.kind !== "prompt" ||
+                info.relativePath !== relativePath ||
+                info.revision !== writtenRevision ||
+                info.name !== input.candidate.name ||
+                info.description !== input.candidate.description ||
+                info.template !== input.candidate.template ||
+                (input.target
+                  ? info.target === undefined || AssetPlacement.targetMismatch(input.target, info.target) !== undefined
+                  : info.target !== undefined)
+              )
+                return yield* new ReadbackMismatchError({ relativePath })
+              return info
+            }).pipe(
+              Effect.catch((error) =>
+                Effect.gen(function* () {
+                  yield* rollback(relativePath, input.target, previous, expected)
+                  return yield* error
+                }),
+              ),
+            )
 
-            // 6. Reload registry and verify the written asset is its canonical readback.
-            const readback = yield* registry
-              .reload()
-              .pipe(Effect.andThen(registry.getByPath(relativePath)), Effect.option)
-            if (Option.isNone(readback)) {
-              yield* rollback()
-              return yield* new ReadbackMismatchError({ relativePath })
+            if (Option.isSome(eventsOpt)) {
+              yield* eventsOpt.value.publish(Event.AssetSaved, { relativePath })
             }
-
-            const info = readback.value
-            if (info.revision !== writtenRevision) {
-              yield* rollback()
-              return yield* new ReadbackMismatchError({ relativePath })
-            }
-
-            yield* events.publish(Event.AssetSaved, { relativePath })
             return info
           }),
         ),
@@ -322,121 +358,87 @@ export const locationLayer = Layer.effect(
     })
 
     const deleteAsset = Effect.fn("PromptAssetService.delete")(function* (input: DeleteInput) {
-      // 1. Validate + normalize path(用 normalized 返回值,非 raw input)
-      let relativePath: string
-      try {
-        relativePath = PromptAssetPath.validateRelativePath(input.relativePath)
-      } catch (e) {
-        return yield* new InvalidCandidateError({
-          reason: `Invalid path: ${failureMessage(e)}`,
-        })
-      }
-
-      const target = yield* PromptAssetPath.resolveSafeTarget(relativePath, locationMutation).pipe(
-        Effect.mapError((error) => new InvalidCandidateError({ reason: failureMessage(error) })),
-      )
-
-      // Acquire target-level lock for the full transaction(用 normalized relativePath 作 key)
-      return yield* locks.withLock(relativePath)(
+      const relativePath = yield* Effect.try({
+        try: () => PromptAssetPath.validateRelativePath(input.relativePath),
+        catch: (error) => new InvalidCandidateError({ reason: failureMessage(error) }),
+      })
+      const initial = yield* resolveTarget(relativePath, input.target)
+      return yield* files.withLock([initial.target.absolute])(
         Effect.uninterruptible(
           Effect.gen(function* () {
-            // 2. Read current bytes(readFile 失败:NotFound 视幂等成功,其他报 WriteFailed)
-            const fileExists = yield* fs.exists(target.canonical)
-            if (!fileExists) {
-              // 幂等 delete:文件不存在视为成功(REST DELETE 语义,M6)
-              // 仍 reload 清理 registry 可能的陈旧条目(N2)
-              yield* registry.reload()
-              return
-            }
-
-            const currentBytes = yield* fs.readFile(target.canonical).pipe(
-              Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)),
+            const prepared = yield* resolveTarget(relativePath, input.target)
+            yield* prepared.owner.reload()
+            const previous = yield* readBytes(prepared.target.absolute).pipe(
               Effect.mapError(
                 (error) =>
-                  new WriteFailedError({
-                    relativePath,
-                    reason: `read before delete failed: ${failureMessage(error)}`,
-                  }),
+                  new WriteFailedError({ relativePath, reason: `Read before delete failed: ${failureMessage(error)}` }),
               ),
             )
-            // currentBytes 为 null 仅在 TOCTOU 文件被并发删时,视幂等成功
-            if (currentBytes === null) {
-              yield* registry.reload()
-              return
-            }
-            const currentRevision = Hash.sha256(Buffer.from(currentBytes))
-
-            // 3. CAS:baseRevision != null 时必须校验;baseRevision === null = 强删(delete 独有语义)
-            if (input.baseRevision !== null && currentRevision !== input.baseRevision) {
+            const revision = previous === null ? null : Hash.sha256(Buffer.from(previous))
+            // Legacy null revisions remain unconditional; missing legacy files remain idempotent.
+            if (
+              input.baseRevision !== revision &&
+              (input.target !== undefined || (previous !== null && input.baseRevision !== null))
+            )
               return yield* new StaleRevisionError({ relativePath })
-            }
+            if (previous === null) return
 
-            // 4. Atomic remove via fileMutation(幂等:NotFound 视成功,M4/M5/M6)
-            yield* fileMutation.remove({ target }).pipe(
-              Effect.catch((err) =>
-                Effect.fail(
-                  new WriteFailedError({
-                    relativePath,
-                    reason: failureMessage(err),
-                  }),
-                ),
-              ),
-            )
-
-            // 5. Reload registry — on failure restore the backup bytes so the delete
-            //    is fully reversible (the plan requires a proper delete transaction).
-            const backupHash = currentRevision
-            const rollbackDelete = () =>
-              Effect.gen(function* () {
-                // If the file now exists with different content than our backup,
-                // an external concurrent modification happened — do not overwrite.
-                const nowExists = yield* fs.exists(target.canonical)
-                if (nowExists) {
-                  const nowBytes = yield* fs
-                    .readFile(target.canonical)
-                    .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(null)))
-                  if (nowBytes && Hash.sha256(Buffer.from(nowBytes)) !== backupHash) {
-                    return yield* new ConcurrentModificationError({ relativePath })
-                  }
-                }
-                yield* fileMutation
-                  .writeAtomic({ target, content: currentBytes })
-                  .pipe(
-                    Effect.mapError(
-                      (error) => new RollbackFailedError({ relativePath, reason: failureMessage(error) }),
-                    ),
-                  )
-              })
-
-            yield* registry.reload().pipe(
-              Effect.catch((error) =>
-                Effect.gen(function* () {
-                  // Restore backup on reload failure (file is deleted, registry stale)
-                  yield* rollbackDelete()
-                  return yield* Effect.fail(
+            yield* files
+              .remove({ target: prepared.target })
+              .pipe(Effect.mapError((error) => new WriteFailedError({ relativePath, reason: failureMessage(error) })))
+            yield* Effect.gen(function* () {
+              const bytes = yield* readBytes(prepared.target.absolute).pipe(
+                Effect.mapError(
+                  (error) =>
                     new WriteFailedError({
                       relativePath,
-                      reason: `reload after delete failed: ${failureMessage(error)}`,
+                      reason: `Read after delete failed: ${failureMessage(error)}`,
                     }),
-                  )
+                ),
+              )
+              if (bytes !== null) return yield* new ConcurrentModificationError({ relativePath })
+              yield* prepared.owner
+                .reload()
+                .pipe(Effect.mapError((error) => new WriteFailedError({ relativePath, reason: failureMessage(error) })))
+              const present = yield* prepared.owner
+                .getByPath(relativePath)
+                .pipe(Effect.catchTag("PromptAsset.NotFound", () => Effect.succeed(undefined)))
+              if (present) return yield* new ConcurrentModificationError({ relativePath })
+            }).pipe(
+              Effect.catch((error) =>
+                Effect.gen(function* () {
+                  yield* rollback(relativePath, input.target, previous, null)
+                  return yield* error
                 }),
               ),
             )
-
-            // Confirm absence: if the registry still has the relativePath, another
-            // writer recreated the file concurrently — restore our backup.
-            const stillInRegistry = yield* registry.getByPath(relativePath).pipe(Effect.option)
-            if (Option.isSome(stillInRegistry)) {
-              yield* rollbackDelete()
-              return yield* new ConcurrentModificationError({ relativePath })
-            }
           }),
         ),
       )
     })
 
-    return Service.of({ propose, apply, delete: deleteAsset })
+    return Service.of({ propose, inspect, apply, delete: deleteAsset })
   }),
 )
 
 export const layer = locationLayer
+
+export const node = makeLocationNode({
+  service: Service,
+  layer: locationLayer,
+  deps: [FSUtil.node, LocationMutation.node, PromptAsset.node, FileMutation.node],
+})
+
+function candidatePath(input: Candidate, reviewed: boolean) {
+  const relativePath = PromptAssetPath.validateRelativePath(
+    path.basename(PromptAssetPath.nameToRelativePath(input.name)),
+  )
+  if (reviewed && input.relativePath !== relativePath)
+    throw new InvalidCandidateError({ reason: "Candidate path does not match the reviewed prompt name" })
+  return relativePath
+}
+
+function sameBytes(left: Uint8Array | null, right: Uint8Array | null) {
+  if (left === null || right === null) return left === right
+  return left.length === right.length && left.every((value, index) => value === right[index])
+}

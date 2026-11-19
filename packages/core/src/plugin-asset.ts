@@ -1,20 +1,21 @@
 export * as PluginAsset from "./plugin-asset"
 
+import { AssetYaml } from "./util/asset-yaml"
 import { Context, Effect, Layer, Option, Schema, Scope, Stream } from "effect"
 import path from "path"
-import { PluginAsset as SchemaPluginAsset } from "@aigcfroge/schema/plugin-asset"
-import { FSUtil } from "./fs-util"
-import { EventV2 } from "./event"
+import { Frontmatter } from "@aigcfroge/schema/plugin-asset"
+import { FSUtil } from "@aigcfroge/util/fs-util"
+import { Bus } from "./bus"
 import { KeyedMutex } from "./effect/keyed-mutex"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
 import { Location } from "./location"
-import { Hash } from "./util/hash"
+import { Hash } from "@aigcfroge/util/hash"
 import { Watcher } from "./filesystem/watcher"
 import { PLUGINS_DIR } from "./constants"
-import yaml from "js-yaml"
 
 export { PLUGINS_DIR }
 
-export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("PluginAsset.NotFound", {
+export class NotFoundError extends Schema.TaggedError<NotFoundError>()("PluginAsset.NotFound", {
   relativePath: Schema.String,
 }) {}
 
@@ -33,6 +34,7 @@ export interface Info {
   }
   readonly hooks: ReadonlyArray<{ readonly event: string; readonly command: string; readonly timeout?: number }>
   readonly revision: string
+  readonly content: string
 }
 
 export interface InvalidEntry {
@@ -51,56 +53,53 @@ export interface Interface {
 
 export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/PluginAsset") {}
 
-function loadDir(
+export function parseContent(content: string) {
+  if (content.length > 1_000_000) return { kind: "invalid", errorTag: "parse_error" } as const
+  const parsed = parseYaml(content)
+  if (Option.isNone(parsed) || !parsed.value || typeof parsed.value !== "object" || Array.isArray(parsed.value))
+    return { kind: "invalid", errorTag: "parse_error" } as const
+  const decoded = Schema.decodeUnknownOption(Frontmatter)(parsed.value)
+  if (Option.isNone(decoded)) return { kind: "invalid", errorTag: "bad_frontmatter" } as const
+  return { kind: "valid", value: decoded.value } as const
+}
+
+function parseYaml(content: string) {
+  try {
+    return Option.some(AssetYaml.parse(content))
+  } catch {
+    return Option.none()
+  }
+}
+
+export function loadDir<E = never>(
   fs: FSUtil.Interface,
   ownerRoot: string,
-): Effect.Effect<{ assets: Map<string, Info>; invalid: Map<string, InvalidEntry> }, FSUtil.Error> {
+  validate?: (relativePath: string, file: string) => Effect.Effect<unknown, E>,
+): Effect.Effect<{ assets: Map<string, Info>; invalid: Map<string, InvalidEntry> }, FSUtil.Error | E> {
   return Effect.gen(function* () {
     const assets = new Map<string, Info>()
     const invalid = new Map<string, InvalidEntry>()
     const byName = new Map<string, string[]>()
 
-    const files = yield* fs.glob("**/*.plugin.yaml", { cwd: ownerRoot, absolute: true, include: "file", dot: true })
+    const files = yield* fs.scan("**/*.plugin.yaml", { cwd: ownerRoot, absolute: true, include: "file", dot: true })
 
     for (const file of files) {
       const relativePath = path.relative(ownerRoot, file).replaceAll("\\", "/")
+      if (validate) yield* validate(relativePath, file)
       const raw = yield* fs
         .readFile(file)
         .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
       if (!raw) continue
 
-      const text = new TextDecoder().decode(raw)
+      const text = new TextDecoder("utf-8", { ignoreBOM: true }).decode(raw)
 
-      // Plugin YAML must not exceed 1MB
-      const MAX_YAML_BYTES = 1_000_000
-      if (text.length > MAX_YAML_BYTES) {
-        invalid.set(relativePath, { relativePath, errorTag: "parse_error" })
-        yield* Effect.logWarning("Plugin asset exceeds max size", { relativePath, size: text.length })
+      const parsed = parseContent(text)
+      if (parsed.kind === "invalid") {
+        invalid.set(relativePath, { relativePath, errorTag: parsed.errorTag })
+        yield* Effect.logWarning("Skipping invalid plugin asset", { relativePath, errorTag: parsed.errorTag })
         continue
       }
-
-      let doc: unknown
-      try {
-        doc = yaml.load(text)
-      } catch {
-        invalid.set(relativePath, { relativePath, errorTag: "parse_error" })
-        yield* Effect.logWarning("Skipping invalid plugin asset", { relativePath, errorTag: "parse_error" })
-        continue
-      }
-      if (!doc || typeof doc !== "object" || Array.isArray(doc)) {
-        invalid.set(relativePath, { relativePath, errorTag: "parse_error" })
-        yield* Effect.logWarning("Skipping invalid plugin asset", { relativePath, errorTag: "parse_error" })
-        continue
-      }
-
-      let frontmatter: SchemaPluginAsset.Frontmatter
-      try {
-        frontmatter = Schema.decodeUnknownSync(SchemaPluginAsset.Frontmatter)(doc)
-      } catch {
-        invalid.set(relativePath, { relativePath, errorTag: "bad_frontmatter" })
-        yield* Effect.logWarning("Skipping invalid plugin asset", { relativePath, errorTag: "bad_frontmatter" })
-        continue
-      }
+      const frontmatter = parsed.value
 
       const revision = Hash.sha256(Buffer.from(raw))
 
@@ -116,17 +115,13 @@ function loadDir(
       }
       byName.set(frontmatter.name, [relativePath])
 
+      const declaration = Schema.encodeSync(Frontmatter)(frontmatter)
       assets.set(relativePath, {
-        kind: "plugin",
-        name: frontmatter.name,
-        description: frontmatter.description,
+        ...declaration,
         relativePath,
-        version: frontmatter.version,
-        category: frontmatter.category,
-        author: frontmatter.author,
-        source: frontmatter.source,
-        hooks: frontmatter.hooks ?? [],
+        hooks: declaration.hooks ?? [],
         revision,
+        content: text,
       })
     }
 
@@ -181,7 +176,7 @@ export const layer = Layer.effect(
     })
 
     const scope = yield* Scope.Scope
-    const eventsOpt = yield* Effect.serviceOption(EventV2.Service)
+    const eventsOpt = yield* Effect.serviceOption(Bus.Service)
     if (Option.isSome(eventsOpt)) {
       yield* eventsOpt.value.subscribe(Watcher.Event.Updated).pipe(
         Stream.filter((e) => FSUtil.contains(ownerRoot, e.data.file) && e.data.file.endsWith(".plugin.yaml")),
@@ -205,3 +200,5 @@ export const layer = Layer.effect(
 )
 
 export const locationLayer = layer
+
+export const node = makeLocationNode({ service: Service, layer, deps: [FSUtil.node, Location.node] })

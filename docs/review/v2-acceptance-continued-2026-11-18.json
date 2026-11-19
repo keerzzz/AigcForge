@@ -1,0 +1,2879 @@
+{
+  "preparedUTC": "2026-11-18T07:29:09.935734+00:00",
+  "workspace": "/home/keer/workspace/aigcfroge-v2",
+  "head": "0a09f6bccdb71f1234eea759eb99e8a336d1d4da",
+  "authorization": "继续验收；可逆修复与离线验证，真实模型验收仍暂停；不提交、不推送、不创建PR",
+  "runtimeStatus": "passed-with-explicit-skips-and-stated-scope",
+  "reviewAccountingStatus": "closed-77-changed-test-reviews",
+  "sourceFreeze": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/final-source-freeze-after-brand.json",
+  "buildIdentity": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/final-build-identity.json",
+  "findings": [
+    {
+      "id": "CONT-01",
+      "title": "Malformed diagnostic coordinates rendered NaN",
+      "file": "packages/session-ui/src/tools/tool-renderer.tsx",
+      "fact": [
+        "The existing file-tool component keeper observed locations [1:1] and [NaN:NaN] with the incomplete start coordinate story arg.",
+        "The same keeper passed after validating the consumed diagnostic projection."
+      ],
+      "hypothesis": "The prior shallow guard admitted a range object without its numeric start coordinates.",
+      "inference": [
+        {
+          "evidence": "continued-diagnostic-red.json",
+          "relation": "The DOM failure is caused by a diagnostic accepted without finite line/character; rendering adds one to each missing coordinate."
+        }
+      ],
+      "recommendation": "Use the existing Schema boundary to decode message/severity/start coordinates, preserve severity=1, source order and top-three selection; no range.end requirement.",
+      "red": "continued-diagnostic-red",
+      "green": "continued-diagnostic-green",
+      "sourceSHA256": "64413531085ef0d494b38e8fd5416e277ca16bf16f32fbfd1196c37b4dbbbc12",
+      "redReceipt": {
+        "name": "continued-diagnostic-red",
+        "cwd": "/home/keer/workspace/aigcfroge-v2/packages/session-ui",
+        "command": [
+          "../../script/bun",
+          "run",
+          "test:components",
+          "component-tests/file-tool.spec.ts",
+          "--grep",
+          "edit preserves input fallback and disclosure through completion",
+          "--workers=1",
+          "--retries=0",
+          "--reporter=line",
+          "--output=/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/diagnostic-red-artifacts"
+        ],
+        "startedUTC": "2026-11-18T05:38:05.488927+00:00",
+        "exitCode": 1,
+        "durationSeconds": 32.65,
+        "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-diagnostic-red.log",
+        "fail": 1
+      },
+      "greenReceipt": {
+        "name": "continued-diagnostic-green",
+        "cwd": "/home/keer/workspace/aigcfroge-v2/packages/session-ui",
+        "command": [
+          "env",
+          "PLAYWRIGHT_STORYBOOK_PORT=18606",
+          "../../script/bun",
+          "run",
+          "test:components",
+          "component-tests/file-tool.spec.ts",
+          "--grep",
+          "edit preserves input fallback and disclosure through completion",
+          "--workers=1",
+          "--retries=0",
+          "--reporter=line",
+          "--output=/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/diagnostic-green-artifacts"
+        ],
+        "startedUTC": "2026-11-18T05:46:26.153244+00:00",
+        "exitCode": 0,
+        "durationSeconds": 16.1,
+        "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-diagnostic-green.log",
+        "pass": 1
+      },
+      "initialRepairSHA256": "7ae496f446d9d6dcfcf145ce07c2a6252a1d96804937de9e44c14ccbb2746709"
+    },
+    {
+      "id": "CONT-02",
+      "title": "Step cleanup aborted deferred external results during restart",
+      "file": "packages/core/src/session/execution/restart.ts",
+      "fact": [
+        "The existing MC06-R1 keeper retained a suspended claimed parent with an unread external result; after resumeSuspendedSessions its original Task Tool was error/aborted.",
+        "Deleting the early cleanup made the external keeper pass but the five-file replay failed two original SQLite attempt/Goal recovery keepers.",
+        "The final owner-first cleanup passed the complete five-file replay, 254/0/2234."
+      ],
+      "hypothesis": "Generic Step cleanup ran before durable Delegation ownership could establish that the parent must be deferred.",
+      "inference": [
+        {
+          "evidence": "packages/core/src/session/runner/step.ts:480",
+          "relation": "reconcile emits Tool.Failed for unsettled tools."
+        },
+        {
+          "evidence": "packages/core/src/session/execution/restart.ts:231",
+          "relation": "recoverPending decides deferredChildren/deferredParents; cleanup now excludes those and active Sessions before Goal recovery."
+        }
+      ],
+      "recommendation": "Recover durable tool owners first, clean eligible suspended Sessions, then recover Goals; retain cleanup before a permitted actual resume.",
+      "red": "continued-core45",
+      "green": "continued-core-recovery-task-fixed",
+      "intermediate": ["continued-core-restart-probe", "continued-core-recovery-task-green"],
+      "sourceSHA256": "a8c2c575c63d7394c1dc9fcd112bf178b49b1c1748f82fe43a15450772e43380",
+      "redReceipt": {
+        "name": "continued-core45",
+        "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+        "command": [
+          "env",
+          "CI=true",
+          "RECORD=false",
+          "../../script/bun",
+          "run",
+          "test",
+          "test/agent-asset-bridge.test.ts",
+          "test/agent.test.ts",
+          "test/composition-resolver.test.ts",
+          "test/config/agent.test.ts",
+          "test/config/command-subagent.test.ts",
+          "test/config/command.test.ts",
+          "test/config/model.test.ts",
+          "test/config/normalization.test.ts",
+          "test/delegation-execution.test.ts",
+          "test/delegation-task-decision.test.ts",
+          "test/generate.test.ts",
+          "test/mcp.test.ts",
+          "test/meta-agent-integration.test.ts",
+          "test/meta-agent-service.test.ts",
+          "test/model-group.test.ts",
+          "test/model-resolver.test.ts",
+          "test/permission-ask-bounds.test.ts",
+          "test/plugin.test.ts",
+          "test/plugin/provider-chatgpt.test.ts",
+          "test/plugin/provider-github-copilot.test.ts",
+          "test/provider-definition.test.ts",
+          "test/provider-discovery.test.ts",
+          "test/provider-quota.test.ts",
+          "test/schedule-execution.test.ts",
+          "test/schedule-rule.test.ts",
+          "test/session-communication.test.ts",
+          "test/session-create.test.ts",
+          "test/session-custom-context.test.ts",
+          "test/session-identity.test.ts",
+          "test/session-model-transport.test.ts",
+          "test/session-notification.test.ts",
+          "test/session-projector.test.ts",
+          "test/session-runner-message.test.ts",
+          "test/session-runner-tool-events.test.ts",
+          "test/session-step.test.ts",
+          "test/session-store.test.ts",
+          "test/session-task-service.test.ts",
+          "test/session-title.test.ts",
+          "test/tool-share.test.ts",
+          "test/tool-shell.test.ts",
+          "test/tool-subagent.test.ts",
+          "test/tool-task-update.test.ts",
+          "test/tool-task.test.ts",
+          "test/workflow-execution.test.ts",
+          "test/session-run-coordinator.test.ts",
+          "--timeout",
+          "30000"
+        ],
+        "startedUTC": "2026-11-18T05:47:14.827891+00:00",
+        "exitCode": 1,
+        "durationSeconds": 639.15,
+        "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-core45.log",
+        "pass": 1471,
+        "fail": 4,
+        "skip": 43,
+        "expects": 13662
+      },
+      "greenReceipt": {
+        "name": "continued-core-recovery-task-fixed",
+        "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+        "command": [
+          "env",
+          "CI=true",
+          "RECORD=false",
+          "../../script/bun",
+          "run",
+          "test",
+          "test/session-task-service.test.ts",
+          "test/session-execution.test.ts",
+          "test/session-step.test.ts",
+          "test/session-goal.test.ts",
+          "test/delegation-execution.test.ts",
+          "--timeout",
+          "30000"
+        ],
+        "startedUTC": "2026-11-18T06:07:08.037897+00:00",
+        "exitCode": 0,
+        "durationSeconds": 74.37,
+        "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-core-recovery-task-fixed.log",
+        "pass": 254,
+        "fail": 0,
+        "expects": 2234
+      },
+      "initialRepairSHA256": "a8c2c575c63d7394c1dc9fcd112bf178b49b1c1748f82fe43a15450772e43380"
+    },
+    {
+      "id": "CONT-03",
+      "title": "Operation attachment reordered Tasks after deletion gaps",
+      "file": "packages/core/src/session/task.ts",
+      "fact": [
+        "The existing attachment keeper failed full public Task IDs after appending four Tasks and deleting the first two.",
+        "The final full Task service file passed as part of the five-file 254/0 replay."
+      ],
+      "hypothesis": "Using live row count as the append position places the new Task before the retained largest position.",
+      "inference": [
+        {
+          "evidence": "packages/core/src/session/task.ts:542",
+          "relation": "read sorts Task rows by position."
+        },
+        {
+          "evidence": "packages/core/src/session/task.ts:1552",
+          "relation": "removeTask deletes without normalizing retained positions."
+        },
+        {
+          "evidence": "packages/core/src/session/task.ts:1367",
+          "relation": "ordinary append already uses largest retained position plus one."
+        }
+      ],
+      "recommendation": "Reuse the existing ordinary append position rule in attachOperationTask; preserve lock, transaction, claims and exact retry.",
+      "red": "continued-sc04-red",
+      "green": "continued-core-recovery-task-fixed",
+      "sourceSHA256": "a0e873bfdd9720b1633728ec19fdc4970a4707befa7d3e0ee27ea84f06f956d1",
+      "redReceipt": {
+        "name": "continued-sc04-red",
+        "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+        "command": [
+          "env",
+          "CI=true",
+          "RECORD=false",
+          "../../script/bun",
+          "run",
+          "test",
+          "test/session-task-service.test.ts",
+          "--test-name-pattern",
+          "protects operation claims from management and creates an optional Task only once",
+          "--timeout",
+          "30000"
+        ],
+        "startedUTC": "2026-11-18T06:03:00.794270+00:00",
+        "exitCode": 1,
+        "durationSeconds": 1.73,
+        "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-sc04-red.log",
+        "pass": 0,
+        "fail": 1,
+        "expects": 5
+      },
+      "greenReceipt": {
+        "name": "continued-core-recovery-task-fixed",
+        "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+        "command": [
+          "env",
+          "CI=true",
+          "RECORD=false",
+          "../../script/bun",
+          "run",
+          "test",
+          "test/session-task-service.test.ts",
+          "test/session-execution.test.ts",
+          "test/session-step.test.ts",
+          "test/session-goal.test.ts",
+          "test/delegation-execution.test.ts",
+          "--timeout",
+          "30000"
+        ],
+        "startedUTC": "2026-11-18T06:07:08.037897+00:00",
+        "exitCode": 0,
+        "durationSeconds": 74.37,
+        "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-core-recovery-task-fixed.log",
+        "pass": 254,
+        "fail": 0,
+        "expects": 2234
+      },
+      "initialRepairSHA256": "a0e873bfdd9720b1633728ec19fdc4970a4707befa7d3e0ee27ea84f06f956d1"
+    },
+    {
+      "id": "CONT-04",
+      "title": "Early drawer close retained modal ownership without a transform completion event",
+      "file": "patches/@corvu%2Fdrawer@0.2.4.patch",
+      "fact": [
+        "Original Composer component suite failed two focus-return keepers.",
+        "Original-timing lifecycle probe reproduced one failure: focus was inside drawer at Escape; afterward trigger closed, content reached the closed 162px transform, but data-open/data-closing and default focus remained with no transitionend.",
+        "Frozen package installation succeeded with unchanged dependency version; exact patch replay of baseline JS/JSX exports matches installed bytes.",
+        "Complete Composer keeper after repair: 19 passed, actual exit 0; single Escape timing retained and modal-hidden outcome added."
+      ],
+      "hypothesis": "The Drawer closing owner relied on a transform transitionend even when the opening paint had not created an actual transition.",
+      "inference": [
+        {
+          "evidence": "composer-escape-lifecycle-probe/observations.json",
+          "relation": "The early-close modal survived at its closed endpoint; waiting for initial focus is contradicted by the event-time focus observation."
+        },
+        {
+          "evidence": "composer-escape-readonly-rca/rca.json",
+          "relation": "Installed DrawerRoot closes transitionAwareOpen only on transitionend or zero declared duration; delayed opening/closing callbacks also lack current-intent guards."
+        }
+      ],
+      "recommendation": "Guard delayed callbacks by current open intent and invoke original closeDrawer when no direct running/pending transform CSSTransition exists. Preserve original event completion when an actual transform transition exists.",
+      "technicalDebt": {
+        "owner": "Root / App dependency maintainers",
+        "unlock": "Upgrade to an upstream fix, remove this patch, then replay the existing Composer fast Escape/hidden/focus keeper."
+      },
+      "sourceSHA256": "24e79c5a02c75da140c6feba74e7a69b8a77ef3c80051330b70a19a02d043787",
+      "red": "continued-composer-lifecycle-red",
+      "green": "continued-composer-components-fixed",
+      "redReceipt": {
+        "name": "continued-composer-lifecycle-red",
+        "cwd": "/home/keer/workspace/aigcfroge-v2/packages/app",
+        "command": [
+          "env",
+          "PLAYWRIGHT_STORYBOOK_PORT=18606",
+          "../../script/bun",
+          "run",
+          "test:components",
+          "component-tests/composer.spec.ts",
+          "--grep",
+          "scrolls overflowing",
+          "--workers=1",
+          "--retries=0",
+          "--reporter=line",
+          "--output=/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/composer-escape-lifecycle-probe/artifacts"
+        ],
+        "startedUTC": "2026-11-18T07:00:45.580587+00:00",
+        "exitCode": 1,
+        "durationSeconds": 47.38,
+        "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-composer-lifecycle-red.log",
+        "pass": 5,
+        "fail": 1
+      },
+      "greenReceipt": {
+        "name": "continued-composer-components-fixed",
+        "cwd": "/home/keer/workspace/aigcfroge-v2/packages/app",
+        "command": [
+          "env",
+          "PLAYWRIGHT_STORYBOOK_PORT=18606",
+          "../../script/bun",
+          "run",
+          "test:components",
+          "component-tests/composer.spec.ts",
+          "--workers=1",
+          "--retries=0",
+          "--reporter=line",
+          "--output=/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/composer-component-fixed-artifacts"
+        ],
+        "startedUTC": "2026-11-18T07:08:41.153079+00:00",
+        "exitCode": 0,
+        "durationSeconds": 72.26,
+        "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-composer-components-fixed.log",
+        "pass": 19
+      },
+      "independentReview": "composer-escape-readonly-rca/rca.json",
+      "patchReapplication": "drawer-fix/patch-reapplication.json"
+    }
+  ],
+  "validation": [
+    {
+      "name": "continued-core45-final",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+      "command": [
+        "env",
+        "CI=true",
+        "RECORD=false",
+        "../../script/bun",
+        "run",
+        "test",
+        "test/agent-asset-bridge.test.ts",
+        "test/agent.test.ts",
+        "test/composition-resolver.test.ts",
+        "test/config/agent.test.ts",
+        "test/config/command-subagent.test.ts",
+        "test/config/command.test.ts",
+        "test/config/model.test.ts",
+        "test/config/normalization.test.ts",
+        "test/delegation-execution.test.ts",
+        "test/delegation-task-decision.test.ts",
+        "test/generate.test.ts",
+        "test/mcp.test.ts",
+        "test/meta-agent-integration.test.ts",
+        "test/meta-agent-service.test.ts",
+        "test/model-group.test.ts",
+        "test/model-resolver.test.ts",
+        "test/permission-ask-bounds.test.ts",
+        "test/plugin.test.ts",
+        "test/plugin/provider-chatgpt.test.ts",
+        "test/plugin/provider-github-copilot.test.ts",
+        "test/provider-definition.test.ts",
+        "test/provider-discovery.test.ts",
+        "test/provider-quota.test.ts",
+        "test/schedule-execution.test.ts",
+        "test/schedule-rule.test.ts",
+        "test/session-communication.test.ts",
+        "test/session-create.test.ts",
+        "test/session-custom-context.test.ts",
+        "test/session-identity.test.ts",
+        "test/session-model-transport.test.ts",
+        "test/session-notification.test.ts",
+        "test/session-projector.test.ts",
+        "test/session-runner-message.test.ts",
+        "test/session-runner-tool-events.test.ts",
+        "test/session-step.test.ts",
+        "test/session-store.test.ts",
+        "test/session-task-service.test.ts",
+        "test/session-title.test.ts",
+        "test/tool-share.test.ts",
+        "test/tool-shell.test.ts",
+        "test/tool-subagent.test.ts",
+        "test/tool-task-update.test.ts",
+        "test/tool-task.test.ts",
+        "test/workflow-execution.test.ts",
+        "test/session-run-coordinator.test.ts",
+        "--timeout",
+        "30000"
+      ],
+      "startedUTC": "2026-11-18T06:50:42.241433+00:00",
+      "exitCode": 0,
+      "durationSeconds": 570.89,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-core45-final.log",
+      "pass": 1475,
+      "fail": 0,
+      "skip": 43,
+      "expects": 13684
+    },
+    {
+      "name": "continued-core-four-depth-final",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+      "command": [
+        "env",
+        "CI=true",
+        "RECORD=false",
+        "../../script/bun",
+        "run",
+        "test",
+        "test/session-execution.test.ts",
+        "test/session-inbox-admission.test.ts",
+        "test/session-provider-context.test.ts",
+        "test/session-runner.test.ts",
+        "--timeout",
+        "30000"
+      ],
+      "startedUTC": "2026-11-18T07:02:17.077354+00:00",
+      "exitCode": 0,
+      "durationSeconds": 46.24,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-core-four-depth-final.log",
+      "pass": 460,
+      "fail": 0,
+      "expects": 2805
+    },
+    {
+      "name": "continued-core-recorded-replay",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+      "command": [
+        "env",
+        "CI=true",
+        "RECORD=false",
+        "../../script/bun",
+        "run",
+        "test",
+        "test/session-runner-recorded.test.ts",
+        "--timeout",
+        "30000"
+      ],
+      "startedUTC": "2026-11-18T06:19:45.579103+00:00",
+      "exitCode": 0,
+      "durationSeconds": 2.53,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-core-recorded-replay.log",
+      "pass": 2,
+      "fail": 0,
+      "expects": 18
+    },
+    {
+      "name": "continued-core-recovery-task-fixed",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+      "command": [
+        "env",
+        "CI=true",
+        "RECORD=false",
+        "../../script/bun",
+        "run",
+        "test",
+        "test/session-task-service.test.ts",
+        "test/session-execution.test.ts",
+        "test/session-step.test.ts",
+        "test/session-goal.test.ts",
+        "test/delegation-execution.test.ts",
+        "--timeout",
+        "30000"
+      ],
+      "startedUTC": "2026-11-18T06:07:08.037897+00:00",
+      "exitCode": 0,
+      "durationSeconds": 74.37,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-core-recovery-task-fixed.log",
+      "pass": 254,
+      "fail": 0,
+      "expects": 2234
+    },
+    {
+      "name": "continued-schema-green",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/schema",
+      "command": ["../../script/bun", "run", "test", "--timeout", "30000"],
+      "startedUTC": "2026-11-18T05:14:32.416785+00:00",
+      "exitCode": 0,
+      "durationSeconds": 0.55,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-schema-green.log",
+      "pass": 487,
+      "fail": 0,
+      "expects": 1995
+    },
+    {
+      "name": "continued-core-migrations",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+      "command": [
+        "../../script/bun",
+        "run",
+        "test",
+        "test/database-migration.test.ts",
+        "test/v1-migration.test.ts",
+        "--timeout",
+        "30000"
+      ],
+      "startedUTC": "2026-11-18T05:31:01.467661+00:00",
+      "exitCode": 0,
+      "durationSeconds": 7.75,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-core-migrations.log",
+      "pass": 51,
+      "fail": 0,
+      "expects": 237
+    },
+    {
+      "name": "continued-server51",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/server",
+      "command": [
+        "env",
+        "CI=true",
+        "RECORD=false",
+        "../../script/bun",
+        "run",
+        "../core/script/test.ts",
+        "test/agent-asset.test.ts",
+        "test/approval-stream.test.ts",
+        "test/auth.test.ts",
+        "test/command-asset.test.ts",
+        "test/config.test.ts",
+        "test/cors.test.ts",
+        "test/custom-composition.test.ts",
+        "test/custom-profile.test.ts",
+        "test/delegation.test.ts",
+        "test/event-feed.test.ts",
+        "test/fetch.test.ts",
+        "test/fs.test.ts",
+        "test/generate.test.ts",
+        "test/handler-policy.test.ts",
+        "test/mcp-asset.test.ts",
+        "test/memory.test.ts",
+        "test/message.test.ts",
+        "test/model.test.ts",
+        "test/options.test.ts",
+        "test/permission-source.test.ts",
+        "test/persistent-pty.test.ts",
+        "test/plugin-asset.test.ts",
+        "test/process.test.ts",
+        "test/prompt-asset.test.ts",
+        "test/provider-definition.test.ts",
+        "test/provider-discovery.test.ts",
+        "test/provider.test.ts",
+        "test/pty-socket.property.test.ts",
+        "test/pty-socket.test.ts",
+        "test/pty-transport.test.ts",
+        "test/request-tracing.test.ts",
+        "test/rpc-handler-errors.test.ts",
+        "test/schedule.test.ts",
+        "test/service-status.test.ts",
+        "test/session-communication.test.ts",
+        "test/session-composition-status.test.ts",
+        "test/session-create.test.ts",
+        "test/session-diff.test.ts",
+        "test/session-goal.test.ts",
+        "test/session-import.test.ts",
+        "test/session-instances.test.ts",
+        "test/session-task.test.ts",
+        "test/session-update.test.ts",
+        "test/skill-asset.test.ts",
+        "test/sse-failure.test.ts",
+        "test/vcs.test.ts",
+        "test/workerd.test.ts",
+        "test/workflow-asset.test.ts",
+        "test/workflow-execution.test.ts",
+        "test/workspace-routing.test.ts",
+        "test/worktree.test.ts",
+        "--timeout",
+        "30000"
+      ],
+      "startedUTC": "2026-11-18T06:13:35.036612+00:00",
+      "exitCode": 0,
+      "durationSeconds": 219.83,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-server51.log",
+      "pass": 253,
+      "fail": 0,
+      "skip": 1,
+      "expects": 10327
+    },
+    {
+      "name": "continued-server-keeper-strengthened",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/server",
+      "command": [
+        "env",
+        "CI=true",
+        "RECORD=false",
+        "../../script/bun",
+        "run",
+        "../core/script/test.ts",
+        "test/provider-definition.test.ts",
+        "test/session-task.test.ts",
+        "test/schedule.test.ts",
+        "--timeout",
+        "30000"
+      ],
+      "startedUTC": "2026-11-18T06:47:45.999971+00:00",
+      "exitCode": 0,
+      "durationSeconds": 29.92,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-server-keeper-strengthened.log",
+      "pass": 22,
+      "fail": 0,
+      "expects": 516
+    },
+    {
+      "name": "continued-server-brand-keepers",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/server",
+      "command": [
+        "env",
+        "CI=true",
+        "RECORD=false",
+        "../../script/bun",
+        "run",
+        "../core/script/test.ts",
+        "test/custom-profile.test.ts",
+        "test/fetch.test.ts",
+        "--timeout",
+        "30000"
+      ],
+      "startedUTC": "2026-11-18T07:19:11.835815+00:00",
+      "exitCode": 0,
+      "durationSeconds": 17.64,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-server-brand-keepers.log",
+      "pass": 17,
+      "fail": 0,
+      "expects": 307
+    },
+    {
+      "name": "continued-app-unit-final",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/app",
+      "command": ["../../script/bun", "run", "test:unit", "--timeout", "30000"],
+      "startedUTC": "2026-11-18T06:28:37.106876+00:00",
+      "exitCode": 0,
+      "durationSeconds": 7.21,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-app-unit-final.log",
+      "pass": 814,
+      "fail": 0,
+      "expects": 2394
+    },
+    {
+      "name": "continued-app-browser-final",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/app",
+      "command": ["../../script/bun", "run", "test:browser", "--timeout", "30000"],
+      "startedUTC": "2026-11-18T06:28:44.354503+00:00",
+      "exitCode": 0,
+      "durationSeconds": 5.49,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-app-browser-final.log",
+      "pass": 172,
+      "fail": 0,
+      "expects": 1827
+    },
+    {
+      "name": "continued-session-ui-unit-final",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/session-ui",
+      "command": ["../../script/bun", "run", "test", "--timeout", "30000"],
+      "startedUTC": "2026-11-18T06:28:49.890519+00:00",
+      "exitCode": 0,
+      "durationSeconds": 1.08,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-session-ui-unit-final.log",
+      "pass": 256,
+      "fail": 0,
+      "expects": 684
+    },
+    {
+      "name": "continued-timeline-components",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/session-ui",
+      "command": [
+        "env",
+        "PLAYWRIGHT_STORYBOOK_PORT=18606",
+        "../../script/bun",
+        "run",
+        "test:components",
+        "component-tests/file-tool.spec.ts",
+        "component-tests/session-message-projection.spec.ts",
+        "component-tests/session-notice-projection.spec.ts",
+        "component-tests/session-timeline-notices.spec.ts",
+        "component-tests/session-timeline.spec.ts",
+        "component-tests/tool-group.spec.ts",
+        "component-tests/patch-group.spec.ts",
+        "--workers=1",
+        "--retries=0",
+        "--reporter=line",
+        "--output=/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/timeline-component-artifacts"
+      ],
+      "startedUTC": "2026-11-18T06:33:29.971408+00:00",
+      "exitCode": 0,
+      "durationSeconds": 105.5,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-timeline-components.log",
+      "pass": 33
+    },
+    {
+      "name": "continued-composer-components-fixed",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/app",
+      "command": [
+        "env",
+        "PLAYWRIGHT_STORYBOOK_PORT=18606",
+        "../../script/bun",
+        "run",
+        "test:components",
+        "component-tests/composer.spec.ts",
+        "--workers=1",
+        "--retries=0",
+        "--reporter=line",
+        "--output=/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/composer-component-fixed-artifacts"
+      ],
+      "startedUTC": "2026-11-18T07:08:41.153079+00:00",
+      "exitCode": 0,
+      "durationSeconds": 72.26,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-composer-components-fixed.log",
+      "pass": 19
+    },
+    {
+      "name": "continued-lint-fixed",
+      "cwd": "/home/keer/workspace/aigcfroge-v2",
+      "command": ["./script/bun", "run", "lint:changed", "HEAD"],
+      "startedUTC": "2026-11-18T07:12:29.986948+00:00",
+      "exitCode": 0,
+      "durationSeconds": 3.06,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-lint-fixed.log"
+    },
+    {
+      "name": "continued-repository-check-fixed",
+      "cwd": "/home/keer/workspace/aigcfroge-v2",
+      "command": ["./script/bun", "run", "check"],
+      "startedUTC": "2026-11-18T07:19:29.518353+00:00",
+      "exitCode": 0,
+      "durationSeconds": 34.09,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-repository-check-fixed.log"
+    },
+    {
+      "name": "continued-e2e-types-final",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/app",
+      "command": ["../../script/bun", "run", "typecheck:e2e"],
+      "startedUTC": "2026-11-18T07:21:11.230471+00:00",
+      "exitCode": 0,
+      "durationSeconds": 9.92,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-e2e-types-final.log"
+    },
+    {
+      "name": "continued-app-final-build",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/app",
+      "command": [
+        "env",
+        "-u",
+        "SENTRY_AUTH_TOKEN",
+        "VITE_AIGCFROGE_TEST_FIXTURES=1",
+        "../../script/bun",
+        "run",
+        "build",
+        "--config",
+        "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/vite-acceptance-final.config.mts"
+      ],
+      "startedUTC": "2026-11-18T07:21:21.265960+00:00",
+      "exitCode": 0,
+      "durationSeconds": 28.46,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-app-final-build.log"
+    },
+    {
+      "name": "continued-timeline-geometry",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/app",
+      "command": [
+        "env",
+        "PLAYWRIGHT_BUILD=1",
+        "PLAYWRIGHT_BASE_URL=http://127.0.0.1:18441",
+        "../../script/bun",
+        "run",
+        "test:e2e",
+        "e2e/regression/timeline-geometry.spec.ts",
+        "--workers=1",
+        "--retries=0",
+        "--reporter=line",
+        "--trace=retain-on-failure",
+        "--output=/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/timeline-geometry-artifacts"
+      ],
+      "startedUTC": "2026-11-18T07:23:31.667017+00:00",
+      "exitCode": 0,
+      "durationSeconds": 29.94,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-timeline-geometry.log",
+      "pass": 8
+    },
+    {
+      "name": "continued-three-target-final",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/app",
+      "command": [
+        "env",
+        "PLAYWRIGHT_BUILD=1",
+        "PLAYWRIGHT_BASE_URL=http://127.0.0.1:18441",
+        "AIGCFROGE_PERFORMANCE=1",
+        "AIGCFROGE_PERFORMANCE_RUN_ID=v2-acceptance-final-20261118",
+        "TIMELINE_HISTORY_TURNS=320",
+        "TIMELINE_DELTA_COUNT=160",
+        "TIMELINE_CPU_THROTTLE=30",
+        "TIMELINE_CPU_PROFILE=0",
+        "../../script/bun",
+        "run",
+        "test:e2e",
+        "e2e/performance/timeline/session-timeline-benchmark.spec.ts",
+        "--grep",
+        "streams main and two reopened saved BTW Chat targets",
+        "--workers=1",
+        "--retries=0",
+        "--reporter=line",
+        "--output=/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/three-target-final-artifacts"
+      ],
+      "startedUTC": "2026-11-18T07:24:01.649615+00:00",
+      "exitCode": 0,
+      "durationSeconds": 44.73,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-three-target-final.log",
+      "pass": 1
+    },
+    {
+      "name": "continued-sc03-schedule-keepers",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+      "command": [
+        "env",
+        "CI=true",
+        "RECORD=false",
+        "../../script/bun",
+        "run",
+        "test",
+        "test/schedule-rule.test.ts",
+        "test/schedule-execution.test.ts",
+        "test/schedule.test.ts",
+        "--timeout",
+        "30000"
+      ],
+      "startedUTC": "2026-11-18T08:17:20.248358+00:00",
+      "exitCode": 0,
+      "durationSeconds": 8.68,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-sc03-schedule-keepers.log",
+      "pass": 51,
+      "fail": 0,
+      "expects": 201
+    },
+    {
+      "name": "continued-sc03-rule-restored",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+      "command": [
+        "env",
+        "CI=true",
+        "RECORD=false",
+        "../../script/bun",
+        "run",
+        "test",
+        "test/schedule-rule.test.ts",
+        "--timeout",
+        "30000"
+      ],
+      "startedUTC": "2026-11-18T08:20:46.402015+00:00",
+      "exitCode": 0,
+      "durationSeconds": 2.29,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-sc03-rule-restored.log",
+      "pass": 12,
+      "fail": 0,
+      "expects": 92
+    },
+    {
+      "name": "continued-sc03-core-types",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+      "command": ["../../script/bun", "run", "typecheck"],
+      "startedUTC": "2026-11-18T08:19:34.823231+00:00",
+      "exitCode": 0,
+      "durationSeconds": 2.78,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-sc03-core-types.log"
+    },
+    {
+      "name": "continued-sc03-core-lint",
+      "cwd": "/home/keer/workspace/aigcfroge-v2",
+      "command": ["./script/bun", "run", "oxlint", "packages/core/test/schedule-rule.test.ts"],
+      "startedUTC": "2026-11-18T08:20:18.633437+00:00",
+      "exitCode": 0,
+      "durationSeconds": 0.47,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-sc03-core-lint.log"
+    },
+    {
+      "name": "continued-boundary-focused-contract-fixed",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+      "command": [
+        "env",
+        "CI=true",
+        "RECORD=false",
+        "../../script/bun",
+        "run",
+        "test",
+        "test/tool-task.test.ts",
+        "test/session-create.test.ts",
+        "-t",
+        "cancelling an exclusively promoted|captures an asset executor",
+        "--timeout",
+        "30000"
+      ],
+      "startedUTC": "2026-11-18T08:53:19.824959+00:00",
+      "exitCode": 0,
+      "durationSeconds": 5.6,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-boundary-focused-contract-fixed.log",
+      "pass": 2,
+      "fail": 0,
+      "expects": 32
+    },
+    {
+      "name": "continued-boundary-core-types",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+      "command": ["../../script/bun", "run", "typecheck"],
+      "startedUTC": "2026-11-18T08:54:06.755071+00:00",
+      "exitCode": 0,
+      "durationSeconds": 4.16,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-boundary-core-types.log"
+    },
+    {
+      "name": "continued-boundary-full-keepers-serial",
+      "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+      "command": [
+        "env",
+        "CI=true",
+        "RECORD=false",
+        "../../script/bun",
+        "run",
+        "test",
+        "test/tool-task.test.ts",
+        "test/session-create.test.ts",
+        "--timeout",
+        "30000"
+      ],
+      "startedUTC": "2026-11-18T09:00:34.623694+00:00",
+      "exitCode": 0,
+      "durationSeconds": 92.48,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-boundary-full-keepers-serial.log",
+      "pass": 185,
+      "fail": 0,
+      "expects": 1632
+    },
+    {
+      "name": "continued-boundary-core-lint-serial",
+      "cwd": "/home/keer/workspace/aigcfroge-v2",
+      "command": [
+        "./script/bun",
+        "run",
+        "oxlint",
+        "packages/core/test/tool-task.test.ts",
+        "packages/core/test/session-create.test.ts"
+      ],
+      "startedUTC": "2026-11-18T09:02:07.168357+00:00",
+      "exitCode": 0,
+      "durationSeconds": 0.38,
+      "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-boundary-core-lint-serial.log"
+    }
+  ],
+  "negativeControls": {
+    "cases": [
+      {
+        "id": "behavior",
+        "path": "packages/core/src/model-group.ts",
+        "sha256": "d1e8ac48d88fe6d5931371884c78cfbd5dd24c828872efae4ee905baaf8329b2",
+        "before": "behavior: definition === undefined ? undefined : snapshot(groupID, definition),",
+        "after": "behavior: undefined,",
+        "file": "test/provider-definition.test.ts",
+        "pattern": "P3 persists native groups through HTTP and SSE, falls back to the actual member, and reopens the same logical selection",
+        "receipt": {
+          "name": "continued-server-negative-behavior",
+          "cwd": "/home/keer/workspace/aigcfroge-v2/packages/server",
+          "command": [
+            "env",
+            "CI=true",
+            "RECORD=false",
+            "../../script/bun",
+            "run",
+            "../core/script/test.ts",
+            "test/provider-definition.test.ts",
+            "--test-name-pattern",
+            "P3 persists native groups through HTTP and SSE, falls back to the actual member, and reopens the same logical selection",
+            "--timeout",
+            "30000"
+          ],
+          "startedUTC": "2026-11-18T07:03:51.187548+00:00",
+          "exitCode": 1,
+          "durationSeconds": 4.41,
+          "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-server-negative-behavior.log",
+          "pass": 0,
+          "fail": 1,
+          "expects": 7
+        },
+        "restoreSHA256": "d1e8ac48d88fe6d5931371884c78cfbd5dd24c828872efae4ee905baaf8329b2",
+        "restored": true,
+        "detected": true
+      },
+      {
+        "id": "operation-id",
+        "path": "packages/schema/src/session-task-operation-id.ts",
+        "sha256": "c2db753c5db383b65e90a74f8b642cd690c93dc490fffc8c3419a929ae6a416c",
+        "before": "export const OperationID = Schema.String.check(Schema.isPattern(/^top_[A-Za-z0-9_-]+$/)).pipe(",
+        "after": "export const OperationID = Schema.String.pipe(",
+        "file": "test/session-task.test.ts",
+        "pattern": "MP01 HTTP task operations retain user provenance, durable retries, cancellation, and history after Task deletion",
+        "receipt": {
+          "name": "continued-server-negative-operation-id",
+          "cwd": "/home/keer/workspace/aigcfroge-v2/packages/server",
+          "command": [
+            "env",
+            "CI=true",
+            "RECORD=false",
+            "../../script/bun",
+            "run",
+            "../core/script/test.ts",
+            "test/session-task.test.ts",
+            "--test-name-pattern",
+            "MP01 HTTP task operations retain user provenance, durable retries, cancellation, and history after Task deletion",
+            "--timeout",
+            "30000"
+          ],
+          "startedUTC": "2026-11-18T07:03:55.646743+00:00",
+          "exitCode": 1,
+          "durationSeconds": 3.2,
+          "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-server-negative-operation-id.log",
+          "pass": 0,
+          "fail": 1,
+          "expects": 3
+        },
+        "restoreSHA256": "c2db753c5db383b65e90a74f8b642cd690c93dc490fffc8c3419a929ae6a416c",
+        "restored": true,
+        "detected": true
+      },
+      {
+        "id": "schedule-target",
+        "path": "packages/schema/src/schedule.ts",
+        "sha256": "6b4b1cdcacf64254a77cc9d31c767e22cea423ca5a71667d1b20549e8abfa272",
+        "before": "export const PublicTarget = Schema.Union([ExistingTarget, NewOnceTarget, NewTarget, GoalTarget]).annotate({",
+        "after": "export const PublicTarget = Schema.Union([ExistingTarget, NewOnceTarget, NewTarget, GoalTarget, LegacyChildTarget]).annotate({",
+        "file": "test/schedule.test.ts",
+        "pattern": "AC01 rejects Build root coordination and caller-supplied legacy child targets",
+        "receipt": {
+          "name": "continued-server-negative-schedule-target",
+          "cwd": "/home/keer/workspace/aigcfroge-v2/packages/server",
+          "command": [
+            "env",
+            "CI=true",
+            "RECORD=false",
+            "../../script/bun",
+            "run",
+            "../core/script/test.ts",
+            "test/schedule.test.ts",
+            "--test-name-pattern",
+            "AC01 rejects Build root coordination and caller-supplied legacy child targets",
+            "--timeout",
+            "30000"
+          ],
+          "startedUTC": "2026-11-18T07:03:58.886491+00:00",
+          "exitCode": 1,
+          "durationSeconds": 3.38,
+          "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-server-negative-schedule-target.log",
+          "pass": 0,
+          "fail": 1,
+          "expects": 8
+        },
+        "restoreSHA256": "6b4b1cdcacf64254a77cc9d31c767e22cea423ca5a71667d1b20549e8abfa272",
+        "restored": true,
+        "detected": true
+      }
+    ],
+    "allRestored": true
+  },
+  "strictLint": {
+    "exitCode": 0,
+    "diagnostics": 0,
+    "changedFiles": 234,
+    "receipt": "continued-lint-fixed"
+  },
+  "canonicalCheck": {
+    "exitCode": 0,
+    "warnings": 1140,
+    "errors": 0,
+    "typeTasksSuccessful": 24,
+    "typeTasksTotal": 24,
+    "cachedTypeTasks": 23,
+    "receipt": "continued-repository-check-fixed"
+  },
+  "threeTargetComparison": {
+    "parameterParity": {
+      "historyTurnsPerTarget": {
+        "baseline": 320,
+        "final": 320,
+        "equal": true
+      },
+      "deltaCountPerTarget": {
+        "baseline": 160,
+        "final": 160,
+        "equal": true
+      },
+      "queuedDeltas": {
+        "baseline": 480,
+        "final": 480,
+        "equal": true
+      },
+      "cpuThrottle": {
+        "baseline": 30,
+        "final": 30,
+        "equal": true
+      },
+      "profileCPU": {
+        "baseline": false,
+        "final": false,
+        "equal": true
+      },
+      "profileVisual": {
+        "baseline": false,
+        "final": false,
+        "equal": true
+      },
+      "minimal": {
+        "baseline": false,
+        "final": false,
+        "equal": true
+      },
+      "selectedDuringStream": {
+        "baseline": "ses_sc07_benchmark_side_a",
+        "final": "ses_sc07_benchmark_side_a",
+        "equal": true
+      },
+      "inactiveDuringStream": {
+        "baseline": "ses_sc07_benchmark_side_b",
+        "final": "ses_sc07_benchmark_side_b",
+        "equal": true
+      }
+    },
+    "metrics": {
+      "baselineCompletionObservedMs": 10471.800000011921,
+      "finalCompletionObservedMs": 8486.40000000596,
+      "finalMaxObservedProgressIndex": 160,
+      "finalSourceRowReplaced": false,
+      "finalSourceMarkdownReplaced": false,
+      "finalExecutionRequests": []
+    },
+    "samplesPerBuild": 1,
+    "meaning": "Same declared workload before and after current repairs. One observation per build does not establish a statistical performance improvement. Hidden geometry/paint and transient target replacements remain outside this profile.",
+    "baselineContextCapabilityLabel": "The benchmark emits an original capability label; this report compares the two separately frozen builds of the same V2 fixture."
+  },
+  "cleanup": {
+    "observedUTC": "2026-11-18T07:26:42.441145+00:00",
+    "baselineFixture": {
+      "pid": 3504931,
+      "execExitCode": 0,
+      "stopReceipt": "baseline-server-stop.json"
+    },
+    "finalFixture": {
+      "pid": 3601576,
+      "execExitCode": 0,
+      "stopReceipt": "final-server-stop.json"
+    },
+    "fixturePortsEmpty": [18441, 18606],
+    "scope": "Root-owned isolated static fixtures and Playwright-managed Storybook only"
+  },
+  "finalIndexIdentity": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/session-boundaries/final-index-receipt.json owns current staged objects and document hashes; documents do not hash themselves",
+  "reviewAccounting": {
+    "closedCount": 77,
+    "changedHunks": 358,
+    "partition": {
+      "core21": 21,
+      "session28": 28,
+      "schema14": 14,
+      "migration2": 2,
+      "server12": 12
+    },
+    "authority": "Root",
+    "receipt": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/session-boundaries/root-77-closure-current.json",
+    "accountantConsistency": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/session-boundaries/accounting-consistency.json",
+    "sourceManifest": [
+      {
+        "path": "packages/core/test/agent-asset-bridge.test.ts",
+        "sha256": "286d3e1cf9ed09f433f7e334c6c09b7455ab9373091b1b1c15dbb198fb2604c9",
+        "hunks": 2,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/agent/asset-bridge.ts:18",
+          "packages/core/src/agent/asset-bridge.ts:40",
+          "packages/core/src/model.ts:367"
+        ]
+      },
+      {
+        "path": "packages/core/test/agent.test.ts",
+        "sha256": "3709e2f7ef333fbbbf5893cb36da96645b98483bfe17c4df1f6dccd0607e99ea",
+        "hunks": 4,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/agent.ts:93",
+          "packages/core/src/agent.ts:150",
+          "packages/core/src/agent.ts:135",
+          "packages/core/src/permission/effective.ts:70",
+          "packages/core/src/permission/effective.ts:36"
+        ]
+      },
+      {
+        "path": "packages/core/test/composition-resolver.test.ts",
+        "sha256": "df2f64862eb28ee23325430a8f7c582ac619381ae86102d097e0c832fd1735b1",
+        "hunks": 2,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": ["packages/core/src/composition-resolver.ts:39", "packages/core/src/model-group.ts:307"]
+      },
+      {
+        "path": "packages/core/test/config/agent.test.ts",
+        "sha256": "af761b9ea28a747a49c70bfe94c0684a578af8a3fd7bbb230241758d226404f8",
+        "hunks": 7,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/config/plugin/agent.ts:181",
+          "packages/core/src/config/plugin/agent.ts:74",
+          "packages/core/src/config/plugin/agent.ts:122",
+          "packages/schema/src/config/model.ts:34",
+          "packages/schema/src/model.ts:61"
+        ]
+      },
+      {
+        "path": "packages/core/test/config/command-subagent.test.ts",
+        "sha256": "e3b2886ea16c152dc7db9a5c6d396e953a7f89b5f4bc578eb4e9d7896f4936e5",
+        "hunks": 6,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/config/plugin/command.ts:79",
+          "packages/core/src/config/plugin/command.ts:75",
+          "packages/core/src/plugin/service.ts:41",
+          "packages/core/src/plugin/agent.ts:200",
+          "packages/core/src/agent.ts:154"
+        ]
+      },
+      {
+        "path": "packages/core/test/config/command.test.ts",
+        "sha256": "501ac8ae849250d6afd924d744a761349f24b0a2498638cbd34fa6e08f5aa6bd",
+        "hunks": 2,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/config/plugin/command.ts:79",
+          "packages/core/src/model.ts:367",
+          "packages/schema/src/config/model.ts:34"
+        ]
+      },
+      {
+        "path": "packages/core/test/config/model.test.ts",
+        "sha256": "132caaef001f286b48e10f5a36b2ab0943e825dc12e909227c9dd78ca46bb8c3",
+        "hunks": 2,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/model.ts:367",
+          "packages/schema/src/config/model.ts:34",
+          "packages/schema/src/model.ts:61"
+        ]
+      },
+      {
+        "path": "packages/core/test/config/normalization.test.ts",
+        "sha256": "9c316ca9da528d7bddb1bb9f6fc9dad069058009c16bb0f9f8daf7e5e9b34eea",
+        "hunks": 2,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/config/normalize.ts:58",
+          "packages/core/src/v1/config/migrate.ts:169",
+          "packages/schema/src/model.ts:61"
+        ]
+      },
+      {
+        "path": "packages/core/test/database-migration.test.ts",
+        "sha256": "88599ae4dc81a96abb51a11876fe4dda2ecf4737ec6fc2119e4ada8627dab6ca",
+        "hunks": 13,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/final-77-reconciliation/migration-depth-accounting.json",
+        "runtimeReceipt": "continued-core-migrations.json",
+        "deciders": [
+          "packages/core/src/database/legacy-main-migration.ts:41",
+          "packages/core/src/database/legacy-main-migration.ts:80",
+          "packages/core/src/database/migration/20261016151043_task_and_schedule.ts:6",
+          "packages/core/src/database/migration/20261113012729_task-operation.ts:6",
+          "packages/core/src/database/migration/20261113121533_goal-schedule.ts:6",
+          "packages/core/src/database/migration.ts:58",
+          "packages/core/src/database/legacy-main-history.ts:238",
+          "packages/core/src/database/legacy-main-history.ts:508",
+          "packages/core/src/database/migration.ts:22",
+          "packages/core/src/database/legacy-main-migration.ts:31",
+          "packages/core/src/database/v1-migration.bun.ts:534",
+          "packages/core/src/database/schema.gen.ts:5",
+          "packages/core/src/database/migration.gen.ts:66"
+        ]
+      },
+      {
+        "path": "packages/core/test/delegation-execution.test.ts",
+        "sha256": "43c375543c675d4ae4b50565cc420f168401f0e620b5e621a594ae292676ff05",
+        "hunks": 7,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/session/input-result.ts:227",
+          "packages/core/src/agent.ts:150",
+          "packages/core/src/session.ts:519"
+        ]
+      },
+      {
+        "path": "packages/core/test/delegation-task-decision.test.ts",
+        "sha256": "9d61273735a1c6c7a1b58330dc464f756cda1f67ba27ce70e42ae6517e6ceabc",
+        "hunks": 3,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": ["packages/core/src/agent.ts:136", "packages/core/src/session.ts:519"]
+      },
+      {
+        "path": "packages/core/test/generate.test.ts",
+        "sha256": "59d42e9b270a3d561688179d64a882a8ff61504c51bdb34c71a1b0117d2c9be5",
+        "hunks": 4,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/generate.ts:39",
+          "packages/core/src/generate.ts:85",
+          "packages/core/src/model-resolver.ts:378",
+          "packages/core/src/provider.ts:174"
+        ]
+      },
+      {
+        "path": "packages/core/test/mcp.test.ts",
+        "sha256": "9b3cbc2039ade291fa2cbac2e822a245f90f9d0f96f74b2e42b04930cc725712",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": ["packages/core/src/model-resolver.ts:378"]
+      },
+      {
+        "path": "packages/core/test/meta-agent-integration.test.ts",
+        "sha256": "68f04754d717c8b05fdb46a334bd39ca59c06070f5c8c235546c0e1cda4c9f5e",
+        "hunks": 18,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/agent.ts:150",
+          "packages/core/src/session/runner/to-llm-message.ts:261",
+          "packages/core/src/tool/plugin/task.ts:1180",
+          "packages/schema/src/permission.ts:31",
+          "packages/core/src/delegation/service.ts:279",
+          "packages/core/src/meta-agent/service.ts:567",
+          "packages/core/src/session/runner/step.ts:119"
+        ]
+      },
+      {
+        "path": "packages/core/test/meta-agent-service.test.ts",
+        "sha256": "e763b5e404f2a1d6732b2fc7a81ad44cfdf4cbcb8bbb6c0a1b8a1aabdc4e49ad",
+        "hunks": 3,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": ["packages/core/src/meta-agent/service.ts:413", "packages/core/src/meta-agent/service.ts:496"]
+      },
+      {
+        "path": "packages/core/test/model-group.test.ts",
+        "sha256": "fbc9f0de16f2678886a097ae1df3f5f16fe1670d7cebb91cab7cf210f0b3c141",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/model-group.ts:76",
+          "packages/core/src/model-group.ts:37",
+          "packages/core/src/model-group.ts:169",
+          "packages/core/src/config.ts:504",
+          "packages/core/src/file-mutation.ts:119",
+          "packages/core/src/model.ts:376"
+        ]
+      },
+      {
+        "path": "packages/core/test/model-resolver.test.ts",
+        "sha256": "ebb15c3583c1f9d10cd40c597c6a85df22c9709619ea8c938dc02bb9b3db9424",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": ["packages/core/src/model-resolver.ts:378"]
+      },
+      {
+        "path": "packages/core/test/permission-ask-bounds.test.ts",
+        "sha256": "fb0f8290459407b18a455c8660c9b87d51c2176be32bdc7a19e01b10ffb03a8a",
+        "hunks": 4,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/permission.ts:276",
+          "packages/core/src/permission.ts:431",
+          "packages/core/src/permission.ts:170",
+          "packages/core/src/permission.ts:85"
+        ]
+      },
+      {
+        "path": "packages/core/test/plugin.test.ts",
+        "sha256": "5594e0893b616c9adfcfb08ceb5c7b6fce222bd58a047951ee4a4233c1f21a1b",
+        "hunks": 2,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/plugin/src/promise/adapter.ts:267",
+          "packages/core/src/plugin/host.ts:306",
+          "packages/core/src/model-group.ts:109"
+        ]
+      },
+      {
+        "path": "packages/core/test/plugin/provider-chatgpt.test.ts",
+        "sha256": "98f59323b6905970a9fd7468d1b438ff8d2955a638f72c70e05a955ed835e8cb",
+        "hunks": 5,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/plugin/provider/chatgpt.ts:225",
+          "packages/core/src/plugin/provider/chatgpt.ts:435",
+          "packages/core/src/plugin/provider/openai.ts:253",
+          "packages/core/src/plugin/provider/openai.ts:327",
+          "packages/core/src/plugin/provider/chatgpt.ts:363",
+          "packages/core/src/provider.ts:451",
+          "packages/core/src/model-resolver.ts:378"
+        ]
+      },
+      {
+        "path": "packages/core/test/plugin/provider-github-copilot.test.ts",
+        "sha256": "d310478819fe48ac40b87bd6516167b8fd7fa0918342e9d5b5248b829fb1b1fb",
+        "hunks": 2,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/plugin/provider/github-copilot.ts:184",
+          "packages/core/src/plugin/provider/github-copilot.ts:187",
+          "packages/core/src/plugin/provider/github-copilot.ts:284",
+          "packages/core/src/plugin/provider/github-copilot.ts:446",
+          "packages/core/src/provider.ts:451",
+          "packages/core/src/model-resolver.ts:378"
+        ]
+      },
+      {
+        "path": "packages/core/test/provider-definition.test.ts",
+        "sha256": "94798b6ceae2c3262a10dc605f20727e893160022542c5390c3d6f97da6af29e",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/provider/definition.ts:31",
+          "packages/core/src/provider/definition.ts:59",
+          "packages/core/src/provider/definition.ts:266",
+          "packages/core/src/config.ts:433",
+          "packages/core/src/config/provider-file.ts:98",
+          "packages/core/src/config/provider-file.ts:162",
+          "packages/core/src/file-mutation.ts:119"
+        ]
+      },
+      {
+        "path": "packages/core/test/provider-discovery.test.ts",
+        "sha256": "c75b9b672e3222f422f3dd45f3112af92ebe65d65c198c84bda08103d051aaed",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/provider/discovery.ts:515",
+          "packages/core/src/provider/discovery.ts:109",
+          "packages/core/src/provider/discovery.ts:478",
+          "packages/core/src/provider/discovery.ts:209",
+          "packages/core/src/provider/discovery.ts:263",
+          "packages/core/src/provider/discovery.ts:322",
+          "packages/core/src/provider/discovery-http.ts:55",
+          "packages/core/src/model-resolver.ts:378",
+          "packages/core/src/session/usage.ts:51"
+        ]
+      },
+      {
+        "path": "packages/core/test/provider-quota.test.ts",
+        "sha256": "dd64702f1fd9d69a44c5157e7e0187f18fb80bbda7c460d8af0571f566d35bc4",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/core-changed-test-review/core-test-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": ["packages/core/src/provider/quota.ts:45", "packages/core/src/provider/quota.ts:79"]
+      },
+      {
+        "path": "packages/core/test/schedule-execution.test.ts",
+        "sha256": "71dfff76592a9f88d8d7f625685f0e559661a859104c150dc8ca65780c874faa",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/session/schedule-execution.ts:74",
+          "packages/core/src/session/schedule-execution.ts:631",
+          "packages/core/src/session/schedule-execution.ts:644",
+          "packages/core/src/session/schedule-rule.ts:215"
+        ]
+      },
+      {
+        "path": "packages/core/test/schedule-rule.test.ts",
+        "sha256": "bafac67a7a47aff4bbed10fc0c99e2911ffc001646f7c80b99bef56a934993d2",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/sc03/impact-and-delta-review.json",
+        "runtimeReceipt": "continued-sc03-rule-restored.json",
+        "deciders": [
+          "packages/core/src/session/schedule-rule.ts:291",
+          "packages/core/src/session/schedule-rule.ts:180",
+          "packages/core/src/session/schedule-rule.ts:402",
+          "packages/core/src/session/schedule-rule.ts:373",
+          "packages/core/src/session/schedule-rule.ts:466",
+          "packages/core/src/session/schedule-rule.ts:504",
+          "packages/core/src/session/schedule-rule.ts:626",
+          "packages/core/src/session/schedule-rule.ts:663",
+          "packages/core/src/session/schedule-task.ts:21"
+        ],
+        "previousSHA256": "128ed9f1773906d46e748d9f3cc43fa3c805181220c0b27831e3d0e59f05cb6c",
+        "deltaAcceptance": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/sc03/root-acceptance.json"
+      },
+      {
+        "path": "packages/core/test/session-communication.test.ts",
+        "sha256": "7cb86c9fd698807b24480beacbcd7ebb926f0d3eeb5857ae66241e0b80130316",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/session/share-v2.ts:169",
+          "packages/core/src/session/share-v2.ts:258",
+          "packages/core/src/session/communication-record.ts:160",
+          "packages/core/src/session/communication-record.ts:28",
+          "packages/core/src/session/share-v2.ts:160"
+        ]
+      },
+      {
+        "path": "packages/core/test/session-create.test.ts",
+        "sha256": "5627300775543596b4cacbb2abed1d8f42638e15dfae80500e2645afce791d23",
+        "hunks": 16,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/session-boundaries/group-independent.json",
+        "runtimeReceipt": "continued-boundary-full-keepers-serial.json",
+        "deciders": [
+          "packages/core/src/session.ts:119",
+          "packages/core/src/session/context.ts:133",
+          "packages/core/src/session/context.ts:419",
+          "packages/core/src/session/runner/model.ts:167",
+          "packages/core/src/session/runner/step.ts:212"
+        ],
+        "previousSHA256": "3708b1f71a52bdfc5ad69b37baa049ee50d4aafd26b12d672233283c8c19a9b9",
+        "deltaAcceptance": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/session-boundaries/root-acceptance.json"
+      },
+      {
+        "path": "packages/core/test/session-custom-context.test.ts",
+        "sha256": "b549f9f20aad34d99a9b5aadd6c636f47d671a19448317b1492c687e79629967",
+        "hunks": 6,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/session/context.ts:188",
+          "packages/core/src/session/context.ts:326",
+          "packages/core/src/meta-agent/service.ts:411"
+        ]
+      },
+      {
+        "path": "packages/core/test/session-execution.test.ts",
+        "sha256": "8ded6e414d77ac2f151a4130b6172c4a42e357e690acf17a16bb50dc5218ad8d",
+        "hunks": 9,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core-four-depth-final.json",
+        "deciders": [
+          "packages/core/src/session/input-result.ts:227",
+          "packages/core/src/session/execution/restart.ts:211",
+          "packages/core/src/session.ts:1449",
+          "packages/core/src/session.ts:532",
+          "packages/core/src/session/runner/step.ts:480",
+          "packages/core/src/session/goal.ts:848",
+          "packages/core/src/session/goal.ts:1334",
+          "packages/core/src/session/schedule-execution.ts:587"
+        ]
+      },
+      {
+        "path": "packages/core/test/session-identity.test.ts",
+        "sha256": "fb33d3d4c684123b47e172a9c4f547fa694fdde7d4e3920ab9b699cf5e81588c",
+        "hunks": 6,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": ["packages/core/src/session/session-identity.ts:288"]
+      },
+      {
+        "path": "packages/core/test/session-inbox-admission.test.ts",
+        "sha256": "5c9dc72c6cdaf6faf828fbd5c3b249be82a86482a1a838bfb1070b1b860411fa",
+        "hunks": 4,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core-four-depth-final.json",
+        "deciders": [
+          "packages/core/src/session/task-operation.ts:40",
+          "packages/core/src/session/task-operation.ts:140",
+          "packages/core/src/session/task.ts:839",
+          "packages/core/src/session/task-operation.ts:315",
+          "packages/core/src/session/consultation.ts:44",
+          "packages/core/src/session/inbox.ts:167"
+        ]
+      },
+      {
+        "path": "packages/core/test/session-model-transport.test.ts",
+        "sha256": "fe2cbeeb6e21f062abb78df215492e5f5262f55677ee4289da049fb2f184cb05",
+        "hunks": 2,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/session/model-transport.ts:120",
+          "packages/core/src/session/model-transport.ts:302"
+        ]
+      },
+      {
+        "path": "packages/core/test/session-notification.test.ts",
+        "sha256": "f9ff8585c468c9d88a4fdbb2c9f8493d498290476d88b41dd06776235c9a6e3c",
+        "hunks": 4,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": ["packages/core/src/session/notification.ts:63", "packages/core/src/session/runner/step.ts:241"]
+      },
+      {
+        "path": "packages/core/test/session-projector.test.ts",
+        "sha256": "b1aeadcc9209272a063058b633e936fed3dd0e240eed9a39e96397ffd3449d05",
+        "hunks": 3,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/session/message-updater.ts:297",
+          "packages/core/src/session/projector.ts:481",
+          "packages/core/src/session/usage.ts:60",
+          "packages/core/src/session/runner/step.ts:480"
+        ]
+      },
+      {
+        "path": "packages/core/test/session-provider-context.test.ts",
+        "sha256": "13902fd71930f5f66eaa531b15d40259f4c19b216e15a9a349748efe15783bd8",
+        "hunks": 6,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core-four-depth-final.json",
+        "deciders": [
+          "packages/core/src/session/provider-context.ts:19",
+          "packages/core/src/session/provider-context.ts:48",
+          "packages/core/src/session/history.ts:37",
+          "packages/core/src/session/history.ts:123",
+          "packages/core/src/session/consultation-reference.ts:22",
+          "packages/core/src/session/consultation-reference.ts:126",
+          "packages/core/src/session/runner/to-llm-message.ts:321"
+        ]
+      },
+      {
+        "path": "packages/core/test/session-runner-message.test.ts",
+        "sha256": "ad61cebaeae5907b884d232513862f5362c0d7fae13ee061cd2f2f5ea83c1f21",
+        "hunks": 12,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/session/runner/to-llm-message.ts:160",
+          "packages/core/src/session/provider-context.ts:48",
+          "packages/core/src/session/provider-context.ts:19",
+          "packages/core/src/session/runner/to-llm-message.ts:295"
+        ]
+      },
+      {
+        "path": "packages/core/test/session-runner-recorded.test.ts",
+        "sha256": "fd062feb6da06db8fd63bbf40cfb3ca4e9df92ddf3980cba997b0c0e631635e1",
+        "hunks": 9,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core-recorded-replay.json",
+        "deciders": [
+          "packages/core/src/session/model-request.ts:404",
+          "packages/core/src/session/runner/step.ts:212",
+          "packages/http-recorder/src/http/recorder.ts:84",
+          "packages/http-recorder/src/replay/state.ts:10"
+        ]
+      },
+      {
+        "path": "packages/core/test/session-runner-tool-events.test.ts",
+        "sha256": "a6c234fe8818fbf601311786f63f3a60de304db23e5fab5336f5313efbdb2d3b",
+        "hunks": 3,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/session/runner/publish-llm-event.ts:594",
+          "packages/core/src/session/runner/publish-llm-event.ts:377",
+          "packages/core/src/session/runner/publish-llm-event.ts:497"
+        ]
+      },
+      {
+        "path": "packages/core/test/session-runner.test.ts",
+        "sha256": "8ef16e9bb99122850f10d0bd5b42411d4171df198c58b19745426ba480002493",
+        "hunks": 46,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core-four-depth-final.json",
+        "deciders": [
+          "packages/core/src/session/runner/model.ts:167",
+          "packages/core/src/session/runner/model.ts:136",
+          "packages/core/src/session/runner/model.ts:385",
+          "packages/core/src/session/runner/model.ts:277",
+          "packages/core/src/session/runner/model.ts:541",
+          "packages/core/src/session/runner/model.ts:468",
+          "packages/core/src/session/runner/model.ts:183",
+          "packages/core/src/session/runner/model.ts:418",
+          "packages/core/src/session/runner/step.ts:119",
+          "packages/core/src/session/runner/llm.ts:390",
+          "packages/core/src/session/runner/llm.ts:67",
+          "packages/core/src/session/usage.ts:60",
+          "packages/core/src/session/message-updater.ts:297",
+          "packages/core/src/session/runner/publish-llm-event.ts:107",
+          "packages/core/src/session/input-result.ts:227",
+          "packages/core/src/session/goal.ts:848",
+          "packages/core/test/fixture/session-wire.ts:49",
+          "packages/core/src/session/provider-context.ts:48",
+          "packages/core/src/session/goal.ts:717",
+          "packages/core/src/session/goal.ts:1136"
+        ]
+      },
+      {
+        "path": "packages/core/test/session-step.test.ts",
+        "sha256": "2463423117a7260520b4d1e78ea792c5b17102b5dbdc501461bd99f8caa8c0ea",
+        "hunks": 5,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/session/runner/model.ts:91",
+          "packages/core/src/session/runner/step.ts:119",
+          "packages/core/src/session/message-updater.ts:297",
+          "packages/core/src/session/usage.ts:60"
+        ]
+      },
+      {
+        "path": "packages/core/test/session-store.test.ts",
+        "sha256": "bace4773402bcf5342c13048dbe5bd9e8dca2df848fad6de7b25db1024b35817",
+        "hunks": 2,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/session/store.ts:97",
+          "packages/core/src/session/info.ts:77",
+          "packages/core/src/session/message-updater.ts:233"
+        ]
+      },
+      {
+        "path": "packages/core/test/session-task-service.test.ts",
+        "sha256": "7446b99be634dd76fcee0eb23719f6b65a56d04ecff35fae0d176263bdf5f99f",
+        "hunks": 5,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/session/task.ts:556",
+          "packages/core/src/session/task.ts:732",
+          "packages/core/src/session/task.ts:1395",
+          "packages/core/src/session/task.ts:1594",
+          "packages/core/src/session/schedule-task.ts:21",
+          "packages/core/src/session/task.ts:394",
+          "packages/core/src/session/task.ts:774",
+          "packages/core/src/session/task.ts:909",
+          "packages/core/src/session/task.ts:1007",
+          "packages/core/src/session/task-operation.ts:133",
+          "packages/core/src/session/task.ts:1037"
+        ]
+      },
+      {
+        "path": "packages/core/test/session-title.test.ts",
+        "sha256": "758a055ce59a05d1393fde55787f864b56dd219b01de7840466c082a856d3dd2",
+        "hunks": 2,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": ["packages/core/src/session/context.ts:157", "packages/core/src/session/title.ts:107"]
+      },
+      {
+        "path": "packages/core/test/tool-share.test.ts",
+        "sha256": "3f835d814e1a14393d26a8ccc0b846f61807df7c1bd03f1ff1ab587b85f28999",
+        "hunks": 15,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/tool/plugin/share.ts:63",
+          "packages/core/src/meta-agent/service.ts:511",
+          "packages/core/src/meta-agent/service.ts:483",
+          "packages/core/src/tool/plugin/share.ts:213",
+          "packages/core/src/session/share-v2.ts:184",
+          "packages/core/src/session/share-v2.ts:297",
+          "packages/core/src/session/context.ts:207"
+        ]
+      },
+      {
+        "path": "packages/core/test/tool-shell.test.ts",
+        "sha256": "da8a4646b4d337edbe06f261c286b19087bd7fd4550fb50fdaa99615325a357f",
+        "hunks": 5,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/shell/result.ts:22",
+          "packages/core/src/shell/result.ts:50",
+          "packages/core/src/tool/plugin/shell.ts:87",
+          "packages/core/src/session/runner/publish-llm-event.ts:594"
+        ]
+      },
+      {
+        "path": "packages/core/test/tool-subagent.test.ts",
+        "sha256": "90b5d8ae5e709ccb4f6de672be6951313a5779f7c93fff22d42b1a5242f36474",
+        "hunks": 14,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/tool/plugin/subagent.ts:83",
+          "packages/core/src/agent.ts:154",
+          "packages/core/src/tool/plugin/subagent.ts:207",
+          "packages/core/src/session.ts:1203",
+          "packages/core/src/session/composition.ts:147"
+        ]
+      },
+      {
+        "path": "packages/core/test/tool-task-update.test.ts",
+        "sha256": "c978e84e17bd212797f9e7037df6f26f16d3eb0ed5f122ab9bcdec049e89912b",
+        "hunks": 2,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/session/task.ts:732",
+          "packages/core/src/tool/task-update.ts:78",
+          "packages/core/src/tool/task-delete.ts:53"
+        ]
+      },
+      {
+        "path": "packages/core/test/tool-task.test.ts",
+        "sha256": "4253c5faa50f3dbaffafccb04cf2f6064cafb04371904d170d6160922a5bbd1e",
+        "hunks": 29,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/session-boundaries/sc02-independent.json",
+        "runtimeReceipt": "continued-boundary-full-keepers-serial.json",
+        "deciders": [
+          "packages/core/src/session.ts:794",
+          "packages/core/src/session.ts:866",
+          "packages/core/src/session/runner/llm.ts:99",
+          "packages/core/src/session/execution.ts:178"
+        ],
+        "previousSHA256": "a5bbd88168e80cd4de86bbeeac20d744804b41183e3cde9259f373d410cec997",
+        "deltaAcceptance": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/session-boundaries/root-acceptance.json"
+      },
+      {
+        "path": "packages/core/test/v1-migration.test.ts",
+        "sha256": "b2cf7397dbe95f98804fa659388bc4864d7ce7af2ea57daf0f6ab6a7472f4457",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/final-77-reconciliation/migration-depth-accounting.json",
+        "runtimeReceipt": "continued-core-migrations.json",
+        "deciders": [
+          "packages/core/src/database/v1-migration.bun.ts:35",
+          "packages/core/src/session/sql.ts:46",
+          "packages/core/src/database/migration/20261114221321_model-groups.ts:6",
+          "packages/core/src/database/v1-migration.bun.ts:222",
+          "packages/core/package.json:69"
+        ]
+      },
+      {
+        "path": "packages/core/test/workflow-execution.test.ts",
+        "sha256": "f1e44b03a6c956a8dd5c4a188c83b42394bf3df2ef53b509a65284895fdc5988",
+        "hunks": 4,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-core-session-review.json",
+        "runtimeReceipt": "continued-core45-final.json",
+        "deciders": [
+          "packages/core/src/workflow/execution.ts:697",
+          "packages/core/src/session.ts:123",
+          "packages/core/src/permission.ts:224"
+        ]
+      },
+      {
+        "path": "packages/schema/test/contract-hygiene.test.ts",
+        "sha256": "eb315eb5ee563ee2135a213a4035157100055328e2d2cbebbb487d2194f7fd1b",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/schema-changed-assertion-review.json",
+        "runtimeReceipt": "continued-schema-green.json",
+        "deciders": [
+          "packages/schema/src/meta-agent.ts:25",
+          "packages/schema/src/session.ts:24",
+          "packages/schema/src/meta-agent.ts:76",
+          "packages/schema/src/model.ts:57"
+        ]
+      },
+      {
+        "path": "packages/schema/test/event-manifest.test.ts",
+        "sha256": "b5a48da9e7cfd46db130dff4a3cfe9e917f586fffaf916d1496bc43fec583a43",
+        "hunks": 3,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/schema-changed-assertion-review.json",
+        "runtimeReceipt": "continued-schema-green.json",
+        "deciders": [
+          "packages/schema/src/event-manifest.ts:83",
+          "packages/schema/src/event-manifest.ts:98",
+          "packages/schema/src/event.ts:156",
+          "packages/schema/src/event.ts:178",
+          "packages/schema/src/durable-event-manifest.ts:11",
+          "packages/schema/src/session-event.ts:392",
+          "packages/schema/src/session-task-event.ts:82",
+          "packages/schema/src/schedule.ts:311"
+        ]
+      },
+      {
+        "path": "packages/schema/test/model-group.test.ts",
+        "sha256": "c4a323ac5b0cab35d236ed8748d7098d609972c8451cc715f0604494fbb6055d",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/schema-changed-assertion-review.json",
+        "runtimeReceipt": "continued-schema-green.json",
+        "deciders": [
+          "packages/schema/src/model-group.ts:18",
+          "packages/schema/src/model-group.ts:11",
+          "packages/schema/src/model-group.ts:9",
+          "packages/schema/src/model-group.ts:54",
+          "packages/schema/src/model-group.ts:116",
+          "packages/schema/src/session-attempt.ts:92",
+          "packages/schema/src/session-attempt.ts:78",
+          "packages/schema/src/session-attempt.ts:55",
+          "packages/schema/src/model-source.ts:73",
+          "packages/schema/src/model-source.ts:124",
+          "packages/schema/src/session.ts:60",
+          "packages/schema/src/session-message.ts:220",
+          "packages/schema/src/session-message.ts:25",
+          "packages/schema/src/session-goal.ts:18",
+          "packages/schema/src/model-group.ts:38",
+          "packages/schema/src/session-event.ts:62",
+          "packages/schema/src/session-event.ts:224"
+        ]
+      },
+      {
+        "path": "packages/schema/test/model.test.ts",
+        "sha256": "9f5797664ecaa0c065f30e70618ade3dbacc32fd330413600999e29d1c5b3a42",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/schema-changed-assertion-review.json",
+        "runtimeReceipt": "continued-schema-green.json",
+        "deciders": [
+          "packages/schema/src/model.ts:26",
+          "packages/schema/src/model.ts:61",
+          "packages/schema/src/model.ts:46",
+          "packages/schema/src/config/model.ts:25",
+          "packages/schema/src/config/model.ts:34"
+        ]
+      },
+      {
+        "path": "packages/schema/test/permission-source.test.ts",
+        "sha256": "63c0c9ff3032df8d9a889f8d24573ad80c848a0c82f27b29983616050ea8fcf5",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/schema-changed-assertion-review.json",
+        "runtimeReceipt": "continued-schema-green.json",
+        "deciders": [
+          "packages/schema/src/permission.ts:18",
+          "packages/schema/src/permission.ts:25",
+          "packages/schema/src/permission.ts:31",
+          "packages/schema/src/permission.ts:44",
+          "packages/schema/src/permission.ts:53",
+          "packages/schema/src/session-task.ts:21",
+          "packages/schema/src/session-task-operation-id.ts:6",
+          "packages/schema/src/session-task-operation-id.ts:14"
+        ]
+      },
+      {
+        "path": "packages/schema/test/provider-definition.test.ts",
+        "sha256": "5824fd1ea3cf44bef05917b6d353ddc4b22cb134abdee7c2c33016d371ec7127",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/schema-changed-assertion-review.json",
+        "runtimeReceipt": "continued-schema-green.json",
+        "deciders": [
+          "packages/schema/src/provider-definition.ts:108",
+          "packages/schema/src/provider-definition.ts:53",
+          "packages/schema/src/provider-definition.ts:61",
+          "packages/schema/src/provider-definition.ts:78",
+          "packages/schema/src/config/provider.ts:65",
+          "packages/schema/src/config/provider.ts:98",
+          "packages/schema/src/config/provider.ts:110"
+        ]
+      },
+      {
+        "path": "packages/schema/test/provider-discovery.test.ts",
+        "sha256": "ed87d6cbc5372fd80bff08e4a97734641a513c2d246ca491af2f1f469eaed319",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/schema-changed-assertion-review.json",
+        "runtimeReceipt": "continued-schema-green.json",
+        "deciders": [
+          "packages/schema/src/model.ts:70",
+          "packages/schema/src/model-source.ts:138",
+          "packages/schema/src/model-source.ts:124",
+          "packages/schema/src/provider-discovery.ts:86",
+          "packages/schema/src/provider-discovery.ts:58",
+          "packages/schema/src/provider-discovery.ts:43",
+          "packages/schema/src/model-source.ts:107",
+          "packages/schema/src/model-source.ts:157",
+          "packages/schema/src/config/provider.ts:110",
+          "packages/schema/src/provider-definition.ts:61"
+        ]
+      },
+      {
+        "path": "packages/schema/test/schedule.test.ts",
+        "sha256": "813eda4785f7b767423ee7f063799762b3e22080a7015ae11b6b015148b2cb02",
+        "hunks": 2,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/schema-changed-assertion-review.json",
+        "runtimeReceipt": "continued-schema-green.json",
+        "deciders": [
+          "packages/schema/src/schedule.ts:157",
+          "packages/schema/src/schedule.ts:114",
+          "packages/schema/src/schedule.ts:77",
+          "packages/schema/src/schedule.ts:34",
+          "packages/schema/src/schedule.ts:182",
+          "packages/schema/src/schedule.ts:203",
+          "packages/schema/src/schema.ts:18"
+        ]
+      },
+      {
+        "path": "packages/schema/test/session-communication.test.ts",
+        "sha256": "dee5ec877f68b0f79548ae841515462c1e321939999ebcb0a77a05d1802f5817",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/schema-changed-assertion-review.json",
+        "runtimeReceipt": "continued-schema-green.json",
+        "deciders": [
+          "packages/schema/src/session-communication.ts:11",
+          "packages/schema/src/session-communication.ts:18",
+          "packages/schema/src/session-communication.ts:135",
+          "packages/schema/src/session-communication.ts:143",
+          "packages/schema/src/session-communication.ts:91",
+          "packages/schema/src/session-communication.ts:77",
+          "packages/schema/src/session-event.ts:266"
+        ]
+      },
+      {
+        "path": "packages/schema/test/session-goal.test.ts",
+        "sha256": "20bbd37053036474cf67790f4de69c6a9930de64e9f16276b58983defc42e2a7",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/schema-changed-assertion-review.json",
+        "runtimeReceipt": "continued-schema-green.json",
+        "deciders": [
+          "packages/schema/src/session-goal.ts:18",
+          "packages/schema/src/session-goal-id.ts:9",
+          "packages/schema/src/session-goal.ts:78",
+          "packages/schema/src/schema.ts:3",
+          "packages/schema/src/session-goal.ts:41",
+          "packages/schema/src/session-goal.ts:92",
+          "packages/schema/src/session-task-operation-id.ts:14",
+          "packages/schema/src/session-goal.ts:253"
+        ]
+      },
+      {
+        "path": "packages/schema/test/session-identity.test.ts",
+        "sha256": "18431dabc6e55fa1262ce5e80f73e770fa90073872ec15b9cf8919aa704045a6",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/schema-changed-assertion-review.json",
+        "runtimeReceipt": "continued-schema-green.json",
+        "deciders": [
+          "packages/schema/src/session-identity.ts:97",
+          "packages/schema/src/session-identity.ts:105",
+          "packages/schema/src/session-identity.ts:308",
+          "packages/schema/src/session-identity.ts:268",
+          "packages/schema/src/session-identity.ts:294",
+          "packages/schema/src/schema.ts:18"
+        ]
+      },
+      {
+        "path": "packages/schema/test/session-result-contract.test.ts",
+        "sha256": "0e8dbd2701d13b0219c3d18a039f42e6fa803d22259dd35be9a6531ad985ef79",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/schema-changed-assertion-review.json",
+        "runtimeReceipt": "continued-schema-green.json",
+        "deciders": [
+          "packages/schema/src/session-event.ts:47",
+          "packages/schema/src/session-event.ts:254",
+          "packages/schema/src/session-event.ts:266",
+          "packages/schema/src/session-event.ts:458",
+          "packages/schema/src/session-event.ts:299",
+          "packages/schema/src/session-event.ts:306",
+          "packages/schema/src/session-event.ts:313",
+          "packages/schema/src/session-task-operation-id.ts:14"
+        ]
+      },
+      {
+        "path": "packages/schema/test/session-task-event.test.ts",
+        "sha256": "7d5729e0c562d5363cdd5d674f81d60eac101ef3ab238d8771bba98c9bdb9d85",
+        "hunks": 3,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/schema-changed-assertion-review.json",
+        "runtimeReceipt": "continued-schema-green.json",
+        "deciders": [
+          "packages/schema/src/session-task-event.ts:85",
+          "packages/schema/src/session-task-event.ts:82",
+          "packages/schema/src/session-task-event.ts:54",
+          "packages/schema/src/session-task-event.ts:72",
+          "packages/schema/src/event.ts:156",
+          "packages/schema/src/event.ts:178",
+          "packages/schema/src/event-manifest.ts:83",
+          "packages/schema/src/event-manifest.ts:98",
+          "packages/schema/src/durable-event-manifest.ts:11"
+        ]
+      },
+      {
+        "path": "packages/schema/test/session-task.test.ts",
+        "sha256": "09f72c87a61633912288359e0ecc617c2ea5ad9bfc254e4fb9887dd78b56d3ee",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/schema-changed-assertion-review.json",
+        "runtimeReceipt": "continued-schema-green.json",
+        "deciders": [
+          "packages/schema/src/session-task-operation-id.ts:6",
+          "packages/schema/src/session-task-operation-id.ts:14",
+          "packages/schema/src/session-task.ts:57",
+          "packages/schema/src/session-task.ts:137",
+          "packages/schema/src/session-task.ts:117",
+          "packages/schema/src/session-task.ts:126",
+          "packages/schema/src/session-task.ts:182",
+          "packages/schema/src/session-task.ts:152",
+          "packages/schema/src/session-task.ts:200",
+          "packages/schema/src/prompt-input.ts:9",
+          "packages/schema/src/prompt.ts:27",
+          "packages/schema/src/session-consultation.ts:43",
+          "packages/schema/src/session-task.ts:97",
+          "packages/schema/src/session-task.ts:253",
+          "packages/schema/src/session-task.ts:282"
+        ]
+      },
+      {
+        "path": "packages/server/test/agent-asset.test.ts",
+        "sha256": "f9abc2bd2bb47984451dfb4fab6bba251e2e36b175819062188dd79e5c9333ce",
+        "hunks": 7,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-server-ai-review.json",
+        "runtimeReceipt": "continued-server51.json",
+        "deciders": ["packages/core/src/agent/asset-bridge.ts:40", "packages/server/src/handlers/agent-asset.ts:30"]
+      },
+      {
+        "path": "packages/server/test/delegation.test.ts",
+        "sha256": "f174bc637f35c93cde78428d2bdee867a12390a74cbaebe5fabf0eb1a9d31e45",
+        "hunks": 3,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-server-ai-review.json",
+        "runtimeReceipt": "continued-server51.json",
+        "deciders": ["packages/core/src/session/runner/step.ts:288", "packages/core/src/flag/flag.ts:60"]
+      },
+      {
+        "path": "packages/server/test/permission-source.test.ts",
+        "sha256": "661bf37cbc2796f80241c0687be500d2df00c05d809ad70a8f6e0492fa47a643",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-server-ai-review.json",
+        "runtimeReceipt": "continued-server51.json",
+        "deciders": ["packages/protocol/src/groups/permission.ts:72", "packages/core/src/permission.ts:431"]
+      },
+      {
+        "path": "packages/server/test/process.test.ts",
+        "sha256": "ac6c9f5b855039af744acc5f7078520d8afc9a5b8272b80aca1788858cc747b0",
+        "hunks": 2,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-server-ai-review.json",
+        "runtimeReceipt": "continued-server51.json",
+        "deciders": ["packages/server/src/process.ts:108", "packages/core/src/session/schedule-core.ts:114"]
+      },
+      {
+        "path": "packages/server/test/provider-definition.test.ts",
+        "sha256": "5b27d0014b147deebce29e874c7444e77db6f63494ba81b1173be864feb27968",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-server-ai-review.json",
+        "runtimeReceipt": "continued-server-keeper-strengthened.json",
+        "deciders": [
+          "packages/core/src/model-group.ts:37",
+          "packages/core/src/model-group.ts:76",
+          "packages/core/src/provider/definition.ts:146"
+        ]
+      },
+      {
+        "path": "packages/server/test/provider-discovery.test.ts",
+        "sha256": "9eaa32c5d761d01c7ca77c907fc23d0585110a5951e2aeda9dbc67b950ffe6d0",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-server-ai-review.json",
+        "runtimeReceipt": "continued-server51.json",
+        "deciders": [
+          "packages/core/src/provider/discovery.ts:478",
+          "packages/core/src/provider/discovery.ts:515",
+          "packages/core/src/provider/discovery-http.ts:92",
+          "packages/core/src/provider/discovery.ts:109"
+        ]
+      },
+      {
+        "path": "packages/server/test/schedule.test.ts",
+        "sha256": "ba05baa16bd0027baec827c0b35859e974af8cd98a556040d41c4693e99c899a",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-server-ai-review.json",
+        "runtimeReceipt": "continued-server-keeper-strengthened.json",
+        "deciders": [
+          "packages/schema/src/schedule.ts:114",
+          "packages/core/src/session/schedule-execution.ts:618",
+          "packages/core/src/session/schedule-rule.ts:299",
+          "packages/server/src/middleware/schema-error.ts:14"
+        ]
+      },
+      {
+        "path": "packages/server/test/session-communication.test.ts",
+        "sha256": "e99b1fef6ae544594dde96baa8c9a8ef9af03c2a06701619f77714e9b73687c0",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-server-ai-review.json",
+        "runtimeReceipt": "continued-server51.json",
+        "deciders": [
+          "packages/core/src/session/share-v2.ts:189",
+          "packages/core/src/session/communication-record.ts:115",
+          "packages/core/src/session/communication-record.ts:169"
+        ]
+      },
+      {
+        "path": "packages/server/test/session-composition-status.test.ts",
+        "sha256": "f8e9279f823becb2f1d5e0bced6946731c739343dd288b661efb3a9129ec604f",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-server-ai-review.json",
+        "runtimeReceipt": "continued-server51.json",
+        "deciders": [
+          "packages/server/src/handlers/session-instance-stubs.ts:291",
+          "packages/core/src/workflow/workflow-run.ts:620"
+        ]
+      },
+      {
+        "path": "packages/server/test/session-create.test.ts",
+        "sha256": "d394ee127ce276646e347b257f00305760d89d0dfc903374316830d8108b063a",
+        "hunks": 5,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-server-ai-review.json",
+        "runtimeReceipt": "continued-server51.json",
+        "deciders": [
+          "packages/core/src/session/consultation.ts:42",
+          "packages/core/src/session.ts:1645",
+          "packages/core/src/session/consultation.ts:158",
+          "packages/core/src/session.ts:2015"
+        ]
+      },
+      {
+        "path": "packages/server/test/session-goal.test.ts",
+        "sha256": "d40c7a09d8bf36f499a4bdbb36b8c62effbd07fad768aa71a26b1e79d4f18aaf",
+        "hunks": 1,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-server-ai-review.json",
+        "runtimeReceipt": "continued-server51.json",
+        "deciders": [
+          "packages/core/src/session/goal.ts:579",
+          "packages/core/src/session/goal.ts:1136",
+          "packages/server/src/handlers/session-goal.ts:51"
+        ]
+      },
+      {
+        "path": "packages/server/test/session-task.test.ts",
+        "sha256": "99406e8d2477e29154da269d8f87dfe879aa20fedc482a4f41b139851f1c1a09",
+        "hunks": 8,
+        "reviewReport": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/depth-server-ai-review.json",
+        "runtimeReceipt": "continued-server-keeper-strengthened.json",
+        "deciders": [
+          "packages/core/src/session.ts:1539",
+          "packages/core/src/session/task-operation.ts:49",
+          "packages/schema/src/session-task-operation-id.ts:6",
+          "packages/server/src/handlers/session-instance-stubs.ts:57",
+          "packages/core/src/session/schedule-task.ts:17",
+          "packages/core/src/session/goal.ts:1053"
+        ]
+      }
+    ],
+    "scope": "Current changed fixture/assertion hunks and their owning keeper scope; explicit skips and adjacent semantic/native gaps remain separately stated.",
+    "previousReceipt": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/sc03/root-77-closure-current.json"
+  },
+  "goalCommandObserverBinding": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/goal-command-adjacent-binding.json",
+  "remainingCoverage": {
+    "core21": [
+      {
+        "path": "packages/core/test/agent-asset-bridge.test.ts",
+        "scopeLimits": ["本 diff 未新增 Group asset conversion 用例；Group 配置转换由其他 selected keepers 覆盖。"]
+      },
+      {
+        "path": "packages/core/test/agent.test.ts",
+        "scopeLimits": [
+          "Custom 情况的普通目录允许是 Agent selection unit 结论；此用例本身不执行 composition adoption。"
+        ]
+      },
+      {
+        "path": "packages/core/test/config/agent.test.ts",
+        "scopeLimits": ["这组检查 candidate 内容，没有在此用例执行用户资产导入或 Custom admission。"]
+      },
+      {
+        "path": "packages/core/test/config/command-subagent.test.ts",
+        "scopeLimits": ["首次 Core45 与 Core2 回放失败已保留日志；当前修复的绿色回放仍由 Root 确认。"]
+      },
+      {
+        "path": "packages/core/test/config/command.test.ts",
+        "scopeLimits": [
+          "Session.prompt 在此为 host stub；用例证明命令输入转换，不证明真实 Session 模型准入或 queue delivery。"
+        ]
+      },
+      {
+        "path": "packages/core/test/config/model.test.ts",
+        "scopeLimits": ["纯配置边界用例，没有运行 provider。"]
+      },
+      {
+        "path": "packages/core/test/config/normalization.test.ts",
+        "scopeLimits": [
+          "boolean interleaved 的 unsupported diagnostic 不在新增断言中单独验证；这里只验证 compatibility 不生成。"
+        ]
+      },
+      {
+        "path": "packages/core/test/generate.test.ts",
+        "scopeLimits": [
+          "当前新增 get fixture dies unused；完整 explicit connection load 行为由其他 provider tests 检查。"
+        ]
+      },
+      {
+        "path": "packages/core/test/composition-resolver.test.ts",
+        "scopeLimits": ["该 diff 本身没有新增 Group adoption/assertion；运行原 keeper 验证依赖接线不改变原行为。"]
+      },
+      {
+        "path": "packages/core/test/mcp.test.ts",
+        "scopeLimits": ["这是 fixture 接口完整性变更，没有新增 explicit connection MCP 行为测试。"]
+      },
+      {
+        "path": "packages/core/test/model-resolver.test.ts",
+        "scopeLimits": ["新增 requested connection lookup 分支并非此 changed fixture 执行路径。"]
+      },
+      {
+        "path": "packages/core/test/permission-ask-bounds.test.ts",
+        "scopeLimits": [
+          "四场景都在同一Session内；跨Session排除由 producer的sessionID guard确定，本次没有新增跨Session keeper。"
+        ]
+      },
+      {
+        "path": "packages/core/test/model-group.test.ts",
+        "scopeLimits": ["这里检查Group配置与default reader；rotate/weight的逐turn运行策略不是本文件所授予的覆盖。"]
+      },
+      {
+        "path": "packages/core/test/provider-definition.test.ts",
+        "scopeLimits": ["catalog ready表示本地catalog状态；新增文件没有调用真实上游模型生成。"]
+      },
+      {
+        "path": "packages/core/test/provider-discovery.test.ts",
+        "scopeLimits": ["本文件的quota字段合并不是实际订阅API；真实quota观测由两provider plugin新增keep​​ers覆盖。"]
+      },
+      {
+        "path": "packages/core/test/provider-quota.test.ts",
+        "scopeLimits": [
+          "test:30标题never turn has_quota false into unlimited比实际断言更宽；chat窗口仍允许unlimited=true。覆盖的纠错合同是premium_interactions exhausted，deciding condition在quota.ts:90。"
+        ]
+      },
+      {
+        "path": "packages/core/test/plugin.test.ts",
+        "scopeLimits": [
+          "该fixture明确没有authoredConfig，验证失败合同；实际成功save/remove由ModelGroup文件keeper覆盖。"
+        ]
+      },
+      {
+        "path": "packages/core/test/plugin/provider-chatgpt.test.ts",
+        "scopeLimits": [
+          "新增A/B例在compile/auth阶段核请求，没有向真实OpenAI上游发生成请求；quota HTTP使用真实effect服务的观察边界。"
+        ]
+      },
+      {
+        "path": "packages/core/test/plugin/provider-github-copilot.test.ts",
+        "scopeLimits": [
+          "新增集成用例以request billing multiplier区分premium/free，token-price逐model映射未在这两个新增例单独覆盖。"
+        ]
+      },
+      {
+        "path": "packages/core/test/meta-agent-service.test.ts",
+        "scopeLimits": [
+          "snapshot通过fixture直接attach来测试consumer；这个用例不经过CompositionResolver.adopt。新增captured selection差异例覆盖digest，不单独驱动AgentSelected event变化。"
+        ]
+      },
+      {
+        "path": "packages/core/test/meta-agent-integration.test.ts",
+        "scopeLimits": [
+          "test helper sdkSteerAdmit的readiness上限为2秒；新错误观察支路增强失败证据，生产SDK执行行为未由这些hunks改变。"
+        ]
+      }
+    ],
+    "session28": [],
+    "schema14": [],
+    "migration2": [
+      {
+        "case": "AC23",
+        "test": "packages/core/test/database-migration.test.ts:542",
+        "delivered": "Controlled local SQLite prior-lineage file copy, real production Task/Schedule migrations, fresh-connection upgrade/reapply checks and original-file preservation.",
+        "not_delivered": "Installed App database upgrade and startup/restart through the distributed desktop package.",
+        "owner": "Root acceptance/debt ledger",
+        "unlock_condition": "Run the installed App against a preserved supported historical database and verify upgrade/restart and visible history."
+      }
+    ],
+    "server12": [
+      {
+        "path": "packages/server/test/delegation.test.ts",
+        "id": "history-added-fields-subset-oracle",
+        "description": "该 historyBefore 比较使用部分对象匹配；新增字段须依赖下游专门 terminal 断言，未逐字段证明其他历史行的全部附加字段。",
+        "owner": "server-http / core-session",
+        "unlock": "若未来声明所有历史附加字段完全不变，需对应完整 producer oracle。",
+        "classification": "oracle-boundary-not-production-finding"
+      },
+      {
+        "path": "packages/server/test/session-communication.test.ts",
+        "id": "communication-all-durable-row-counts",
+        "description": "这份HTTP keeper未对所有durable record/index/Inbox表做逐表重复行计数。",
+        "owner": "server-http / core-communication",
+        "unlock": "已有Core keeper或后续授权的HTTP snapshot/count覆盖同一communication retry。",
+        "classification": "coverage-boundary-not-production-finding"
+      },
+      {
+        "path": "packages/server/test/session-create.test.ts",
+        "id": "consultation-invalid-matrix-full-state",
+        "description": "typed错误矩阵未在每一个非法case后逐表比较全部Session/consultation/Inbox/message持久状态。",
+        "owner": "server-http / core-session",
+        "unlock": "现有Core keeper的全状态负例或授权扩展原HTTP matrix。",
+        "classification": "coverage-boundary-not-production-finding"
+      },
+      {
+        "path": "packages/server/test/session-create.test.ts",
+        "id": "fork-all-source-message-remapping",
+        "description": "本HTTP fork keeper显式检查原first messageID未被沿用；完整source message ID重映射仍由Core keeper承担。",
+        "owner": "core-session",
+        "unlock": "Root绑定现有Core fork identity/remapping keeper到同一source版本。",
+        "classification": "adjacent-owner-coverage-not-closed-here"
+      },
+      {
+        "path": "packages/server/test/session-goal.test.ts",
+        "id": "goal-command-artifact-success-adjacent-owner",
+        "description": "该HTTP Goal文件聚焦human acceptance及非法admission；nonempty artifact evidence已由当前session-task MP04 keeper实现并在增强22回放通过。nonempty command evidence成功由Core原keeper承担，本报告尚未绑定其单独回执。",
+        "owner": "core-goal",
+        "unlock": "Root绑定Core原command evidence成功keeper到同一source版本；MP04 artifact增强22回执已绑定。",
+        "classification": "adjacent-core-command-owner-receipt-not-bound-here"
+      }
+    ]
+  },
+  "finalizedUTC": "2026-11-18T09:10:15.729055+00:00",
+  "sc03Acceptance": {
+    "acceptedUTC": "2026-11-18T08:27:59.280299+00:00",
+    "authority": "Root",
+    "id": "SC-03",
+    "status": "closed-contract-and-owning-keeper",
+    "authorization": "用户答复：根据协议的文本内容和第一性原理来选择吧；允许据此定案、可逆验证与精确暂存。",
+    "fact": [
+      {
+        "source": "docs/research/upstream-v2-sync/2026-11-13-meta-cross-mode-goal-schedule-closure-plan.md:332",
+        "observation": "原协议明确一次绝对 dueAt 或 recurrence＋IANA timezone，未直接定义二者同时传入时的首次优先级。",
+        "originalSnapshot": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/sc03/before/docs/research/upstream-v2-sync/2026-11-13-meta-cross-mode-goal-schedule-closure-plan.md"
+      },
+      {
+        "source": "packages/schema/src/schedule.ts:44",
+        "observation": "dueAt 在提醒合同中定义为绝对到期时间；Create/Edit 同时允许 dueAt 与 recurrence，未定义 startAt/notBefore。"
+      },
+      {
+        "source": "packages/core/src/session/schedule-rule.ts:291",
+        "observation": "原 dueAfter 在 recurrence.enabled 时取 next cron；创建、pending edit 与 resume 使用它，认领时按固定 scheduledAt 推进后续周期。"
+      }
+    ],
+    "hypothesis": [
+      {
+        "choice": "首次 dueAt 覆盖",
+        "consequence": "会引入一次不满足 cron 的计划触发，原文本没有定义这项额外执行。"
+      },
+      {
+        "choice": "dueAt 作起始下界",
+        "consequence": "保留 cron 网格，但需新增 dueAt=notBefore 的组合模式假设，会改变首期和期次身份集合。"
+      },
+      {
+        "choice": "enabled recurrence 选择周期触发模式",
+        "consequence": "采用原文的两种触发方式；dueAt 在一次性模式生效，周期模式使用 cron。"
+      }
+    ],
+    "inference": [
+      {
+        "source": "docs/research/upstream-v2-sync/2026-11-13-meta-cross-mode-goal-schedule-closure-plan.md:332",
+        "step": "“dueAt 或 recurrence”支持按 recurrence.enabled 选择触发模式；它不能单独推出首次混合输入优先级，故本次显式补充。"
+      },
+      {
+        "source": "docs/research/upstream-v2-sync/2026-11-13-meta-cross-mode-goal-schedule-closure-plan.md:372",
+        "step": "旧字段分别映射 scheduledAt→一次 dueAt、enabled recurrence→cron/timezone。下界需给一次到期时间新增起始角色；本次保持原角色。"
+      },
+      {
+        "source": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/sc03/impact-and-delta-review.json",
+        "step": "现有 UI 创建使用互斥触发输入、编辑一次性规则显式移除 recurrence，通用 API/CLI/Tool 转发 Schema；未发现起始下界约定。"
+      }
+    ],
+    "recommendation": {
+      "rule": "recurrence.enabled=true 时，首次及后续按 cron＋时区。dueAt 不作首次覆盖或下界；关闭或移除 recurrence 后按保存的 dueAt 一次执行。",
+      "implementation": "复用原 Schedule owner；本次生产实现没有改动。",
+      "contract": "docs/research/upstream-v2-sync/2026-11-13-meta-cross-mode-goal-schedule-closure-plan.md:334",
+      "scope": "创建、pending edit、resume、精确重试、后续 occurrence、关闭/移除 recurrence；手动 run 与既有错过周期策略按原合同。"
+    },
+    "alternativesDecision": {
+      "chosen": "cron-priority",
+      "basis": "协议的两种触发方式和 dueAt 的绝对到期角色；无需新增组合模式或状态。",
+      "independentSecondOpinion": "独立读者最初建议下界；复核确认它依赖新增 notBefore 假设，最终支持按现文本选择 cron 优先。",
+      "newAbstractions": 0,
+      "newTechnicalDebt": 0,
+      "acceptedExistingTradeoff": "保留双可选字段的兼容 wire shape；触发优先级由原 owner 和可执行 keeper 判定，类型本身不区分两触发模式。改成 tagged union 会改动公开 payload 与消费面，本次没有对应迁移需求。"
+    },
+    "example": {
+      "timezone": "UTC",
+      "createdAt": 0,
+      "cron": "* * * * *",
+      "dueAt": 300000,
+      "first": 60000,
+      "second": 120000,
+      "editAt": 180000,
+      "editedDueAt": 360000,
+      "nextEnabled": 240000,
+      "nextAfterDisabledOrRemoved": 360000
+    },
+    "identity": [
+      {
+        "path": "packages/core/src/session/schedule-rule.ts",
+        "sha256": "f5d95740a7105cba117685372de07c11f1fe75436c0df9e620068eb42c8f2afb"
+      },
+      {
+        "path": "packages/core/test/schedule-rule.test.ts",
+        "sha256": "bafac67a7a47aff4bbed10fc0c99e2911ffc001646f7c80b99bef56a934993d2"
+      },
+      {
+        "path": "docs/research/upstream-v2-sync/2026-11-13-meta-cross-mode-goal-schedule-closure-plan.md",
+        "sha256": "804660fa191eefa48de0914ae751330e44856d1ac514ac58d112d9631202f319"
+      }
+    ],
+    "previousKeeperSHA256": "128ed9f1773906d46e748d9f3cc43fa3c805181220c0b27831e3d0e59f05cb6c",
+    "independentReviews": [
+      {
+        "path": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/sc03/protocol-independent.json",
+        "sha256": "21f590fc2e6b07773698459b54c8d2ea0477bdc4008a65923c51d9f91a4d1c00"
+      },
+      {
+        "path": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/sc03/impact-and-delta-review.json",
+        "sha256": "80f95cfafc68542ec744c3d477663a2f4323ce7f244fc769745c30e1c4fb818d"
+      }
+    ],
+    "validation": [
+      {
+        "name": "continued-sc03-schedule-keepers",
+        "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+        "command": [
+          "env",
+          "CI=true",
+          "RECORD=false",
+          "../../script/bun",
+          "run",
+          "test",
+          "test/schedule-rule.test.ts",
+          "test/schedule-execution.test.ts",
+          "test/schedule.test.ts",
+          "--timeout",
+          "30000"
+        ],
+        "startedUTC": "2026-11-18T08:17:20.248358+00:00",
+        "exitCode": 0,
+        "durationSeconds": 8.68,
+        "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-sc03-schedule-keepers.log",
+        "pass": 51,
+        "fail": 0,
+        "expects": 201
+      },
+      {
+        "name": "continued-sc03-rule-restored",
+        "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+        "command": [
+          "env",
+          "CI=true",
+          "RECORD=false",
+          "../../script/bun",
+          "run",
+          "test",
+          "test/schedule-rule.test.ts",
+          "--timeout",
+          "30000"
+        ],
+        "startedUTC": "2026-11-18T08:20:46.402015+00:00",
+        "exitCode": 0,
+        "durationSeconds": 2.29,
+        "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-sc03-rule-restored.log",
+        "pass": 12,
+        "fail": 0,
+        "expects": 92
+      },
+      {
+        "name": "continued-sc03-core-types",
+        "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+        "command": ["../../script/bun", "run", "typecheck"],
+        "startedUTC": "2026-11-18T08:19:34.823231+00:00",
+        "exitCode": 0,
+        "durationSeconds": 2.78,
+        "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-sc03-core-types.log"
+      },
+      {
+        "name": "continued-sc03-core-lint",
+        "cwd": "/home/keer/workspace/aigcfroge-v2",
+        "command": ["./script/bun", "run", "oxlint", "packages/core/test/schedule-rule.test.ts"],
+        "startedUTC": "2026-11-18T08:20:18.633437+00:00",
+        "exitCode": 0,
+        "durationSeconds": 0.47,
+        "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-sc03-core-lint.log"
+      }
+    ],
+    "negativeControls": {
+      "generatedUTC": "2026-11-18T08:18:28.873294+00:00",
+      "originalSourceSHA256": "f5d95740a7105cba117685372de07c11f1fe75436c0df9e620068eb42c8f2afb",
+      "restoredSourceSHA256": "f5d95740a7105cba117685372de07c11f1fe75436c0df9e620068eb42c8f2afb",
+      "controls": [
+        {
+          "name": "continued-sc03-negative-first-override",
+          "variantSourceSHA256": "a461fbd003198b8964969bd61ba2fa3824559ff69dd979767f422471868278cb",
+          "receipt": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-sc03-negative-first-override.json",
+          "exitCode": 1,
+          "fail": 3
+        },
+        {
+          "name": "continued-sc03-negative-start-bound",
+          "variantSourceSHA256": "c2fd74ffba53da09976eff4d74388534a924cb3553d4cd183e75f0fca8c58d59",
+          "receipt": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-sc03-negative-start-bound.json",
+          "exitCode": 1,
+          "fail": 2
+        }
+      ]
+    },
+    "realProviderRequests": 0,
+    "accounting": "原 77 文件/355块集合保持；本文件的新 SHA 由增量审读、完整 Schedule3 和最终恢复单文件回执授予信用。各轮 tally 不相加。"
+  },
+  "sourceFreezeSupplement": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/session-boundaries/final-staged-source-manifest.json",
+  "sessionBoundaryAcceptance": {
+    "acceptedUTC": "2026-11-18T09:10:15.729055+00:00",
+    "authority": "Root",
+    "status": "closed-offline-session-boundaries",
+    "ids": ["SC02-NEXT-STEP", "GROUP-CUSTOM-RESUME"],
+    "productionChanges": [],
+    "testIdentities": [
+      {
+        "path": "packages/core/test/tool-task.test.ts",
+        "sha256": "4253c5faa50f3dbaffafccb04cf2f6064cafb04371904d170d6160922a5bbd1e"
+      },
+      {
+        "path": "packages/core/test/session-create.test.ts",
+        "sha256": "5627300775543596b4cacbb2abed1d8f42638e15dfae80500e2645afce791d23"
+      }
+    ],
+    "fact": [
+      {
+        "id": "SC02-NEXT-STEP",
+        "source": "packages/core/test/tool-task.test.ts:1037",
+        "observation": "原 exclusive Task keeper 首Step实际read临时文件；第二LLM请求到达并含原read正文及调用ID后，membership仅原input；Task cancel返回，目标idle；恰好2个Step.Started/1个Step.Completed/1个read Success/唯一Interrupted(user,原input anchor)，Operation cancelled并settled。"
+      },
+      {
+        "id": "GROUP-CUSTOM-RESUME",
+        "source": "packages/core/test/session-create.test.ts:327",
+        "observation": "真实asset→Custom freeze→Meta child创建；两成员catalog与API ID不同且保持可用。首运行后live Group改future成员，同child第二次实际resume仍请求frozen-group-api；两个request.http.headers绑定child ID，每个input的持久Assistant attempt保持原Group selection/physical model/API。"
+      }
+    ],
+    "hypothesis": [
+      {
+        "condition": "取消目标ID错误",
+        "consequence": "挂起的后续Step无法idle。",
+        "controlledEvidence": "continued-sc02-negative-target: timeout, 1 fail。"
+      },
+      {
+        "condition": "Context.load丢失groupBehavior",
+        "consequence": "首次oldAPI不变，live Group编辑后恢复请求选择futureAPI。",
+        "controlledEvidence": "continued-group-negative-runtime-binding: [frozen-group-api,future-group-api]，1 fail。"
+      }
+    ],
+    "inference": [
+      "第二请求含首Step真实工具结果且Step.Completed已持久化，固定自然continuation；runner/llm.ts:99/256每次经Inbox边界进入Step。",
+      "Group静态resolveModel与snapshot断言在负对照中通过，第二实际request oracle仍红，因此新keeper补足实际运行的冻结绑定覆盖。"
+    ],
+    "recommendation": "保留现有生产owner与实现，采用增强原keeper的离线回放证据关闭这两个范围。",
+    "scope": "SC02验证自然下一Step经过Inbox边界并开始请求后的membership取消；Group验证真实Runner的LLMRequest对象及持久attempt，live Group仅修改members并保持enabled。",
+    "independentReviews": [
+      {
+        "path": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/session-boundaries/sc02-independent.json",
+        "sha256": "816af85c083348a8c6b5d4f77ae9e74c320683e7c34fcb4a2142423bbe04f241"
+      },
+      {
+        "path": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/session-boundaries/group-independent.json",
+        "sha256": "c1568039801f8777dff8989a9dfb0b18434f0174c765127aac4ad4992d825ecd"
+      }
+    ],
+    "validation": [
+      {
+        "name": "continued-boundary-focused-contract-fixed",
+        "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+        "command": [
+          "env",
+          "CI=true",
+          "RECORD=false",
+          "../../script/bun",
+          "run",
+          "test",
+          "test/tool-task.test.ts",
+          "test/session-create.test.ts",
+          "-t",
+          "cancelling an exclusively promoted|captures an asset executor",
+          "--timeout",
+          "30000"
+        ],
+        "startedUTC": "2026-11-18T08:53:19.824959+00:00",
+        "exitCode": 0,
+        "durationSeconds": 5.6,
+        "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-boundary-focused-contract-fixed.log",
+        "pass": 2,
+        "fail": 0,
+        "expects": 32
+      },
+      {
+        "name": "continued-boundary-core-types",
+        "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+        "command": ["../../script/bun", "run", "typecheck"],
+        "startedUTC": "2026-11-18T08:54:06.755071+00:00",
+        "exitCode": 0,
+        "durationSeconds": 4.16,
+        "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-boundary-core-types.log"
+      },
+      {
+        "name": "continued-boundary-full-keepers-serial",
+        "cwd": "/home/keer/workspace/aigcfroge-v2/packages/core",
+        "command": [
+          "env",
+          "CI=true",
+          "RECORD=false",
+          "../../script/bun",
+          "run",
+          "test",
+          "test/tool-task.test.ts",
+          "test/session-create.test.ts",
+          "--timeout",
+          "30000"
+        ],
+        "startedUTC": "2026-11-18T09:00:34.623694+00:00",
+        "exitCode": 0,
+        "durationSeconds": 92.48,
+        "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-boundary-full-keepers-serial.log",
+        "pass": 185,
+        "fail": 0,
+        "expects": 1632
+      },
+      {
+        "name": "continued-boundary-core-lint-serial",
+        "cwd": "/home/keer/workspace/aigcfroge-v2",
+        "command": [
+          "./script/bun",
+          "run",
+          "oxlint",
+          "packages/core/test/tool-task.test.ts",
+          "packages/core/test/session-create.test.ts"
+        ],
+        "startedUTC": "2026-11-18T09:02:07.168357+00:00",
+        "exitCode": 0,
+        "durationSeconds": 0.38,
+        "log": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-boundary-core-lint-serial.log"
+      }
+    ],
+    "serialValidation": {
+      "steps": [
+        {
+          "name": "continued-boundary-full-keepers-serial",
+          "startedUTC": "2026-11-18T09:00:34.595226+00:00",
+          "finishedUTC": "2026-11-18T09:02:07.126390+00:00",
+          "exitCode": 0,
+          "receipt": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-boundary-full-keepers-serial.json"
+        },
+        {
+          "name": "continued-boundary-core-lint-serial",
+          "startedUTC": "2026-11-18T09:02:07.126599+00:00",
+          "finishedUTC": "2026-11-18T09:02:07.551945+00:00",
+          "exitCode": 0,
+          "receipt": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-boundary-core-lint-serial.json"
+        }
+      ],
+      "overlap": false,
+      "previousPairCredit": "nonfinal; see validation-slot-lapse.json"
+    },
+    "negativeControls": {
+      "generatedUTC": "2026-11-18T08:56:11.401369+00:00",
+      "controls": [
+        {
+          "name": "continued-sc02-negative-target",
+          "source": "packages/core/src/session.ts",
+          "originalSHA256": "a2f60838cc82e6fb8ae12f1cbe32806b17f680343c9c244e0180fcee8a47cc3d",
+          "variantSHA256": "98e723dfa6a190cc446390607cc1e24698f86d73713e7742c6ed0a16c444a5f4",
+          "receipt": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-sc02-negative-target.json",
+          "exitCode": 1,
+          "fail": 1,
+          "restoredSHA256": "a2f60838cc82e6fb8ae12f1cbe32806b17f680343c9c244e0180fcee8a47cc3d"
+        },
+        {
+          "name": "continued-group-negative-runtime-binding",
+          "source": "packages/core/src/session/context.ts",
+          "originalSHA256": "869ea05dfea31a8322abc44a807c3affdbed2e993f46fe8e38b5c9c7816f0976",
+          "variantSHA256": "868d7722b57ab940440d6d93a19df7ef05b435658a64fde4ecd1e6604155ac6d",
+          "receipt": "/home/keer/.codex/outputs/2026-11-18/v2-pr-review/continued-group-negative-runtime-binding.json",
+          "exitCode": 1,
+          "fail": 1,
+          "restoredSHA256": "869ea05dfea31a8322abc44a807c3affdbed2e993f46fe8e38b5c9c7816f0976"
+        }
+      ]
+    },
+    "realProviderRequests": 0,
+    "preliminaryFixtureFailures": ["continued-boundary-focused", "continued-boundary-focused-fixed"],
+    "fixtureCorrections": "使用实际Database服务、运行后的Session重试基线、request.http.headers，以及实际read正文；未将fixture失败登记为生产缺陷。",
+    "nonfinalOverlappingChecks": {
+      "full": "continued-boundary-full-keepers",
+      "lint": "continued-boundary-core-lint",
+      "record": "/home/keer/.codex/outputs/2026-11-18/v2-acceptance-continued/session-boundaries/validation-slot-lapse.json",
+      "finalCredit": false
+    },
+    "worktreeIntegration": {
+      "capturedUTC": "2026-11-18T08:57:02.348787+00:00",
+      "commands": [
+        {
+          "cwd": "/home/keer/workspace/aigcfroge-v2",
+          "command": ["git", "rev-parse", "--is-shallow-repository"],
+          "exitCode": 0,
+          "stdout": "true",
+          "stderr": ""
+        },
+        {
+          "cwd": "/home/keer/workspace/aigcfroge-v2",
+          "command": ["git", "merge-base", "main", "v2-dev"],
+          "exitCode": 1,
+          "stdout": "",
+          "stderr": ""
+        },
+        {
+          "cwd": "/home/keer/workspace/aigcfroge-v2",
+          "command": ["git", "merge-base", "upstream/v2", "v2-dev"],
+          "exitCode": 0,
+          "stdout": "4617210822bdbb31e5749751afbfb4584ccedac8",
+          "stderr": ""
+        },
+        {
+          "cwd": "/home/keer/workspace/aigcfroge-v2",
+          "command": ["git", "rev-list", "--left-right", "--count", "upstream/v2...v2-dev"],
+          "exitCode": 0,
+          "stdout": "0\t146",
+          "stderr": ""
+        },
+        {
+          "cwd": "/home/keer/workspace/aigcfroge",
+          "command": ["git", "branch", "--show-current"],
+          "exitCode": 0,
+          "stdout": "main",
+          "stderr": ""
+        },
+        {
+          "cwd": "/home/keer/workspace/aigcfroge",
+          "command": ["git", "rev-parse", "HEAD"],
+          "exitCode": 0,
+          "stdout": "edbe67383d830aa40269ddf453c7f5617c940b46",
+          "stderr": ""
+        }
+      ],
+      "trackedUnstagedFiles": [
+        {
+          "path": "CLAUDE.md",
+          "sha256": "e3ad5bbac138cd81fd68a43f8c729ea3c36fcb19e4d2418d8c1ee86a14d3b369"
+        },
+        {
+          "path": "docs/technical-debt.md",
+          "sha256": "39ea17b5b40ad74dc1a660ca80a9b19c533638c5ebcdd05b890be28a039fb421"
+        },
+        {
+          "path": "packages/app/e2e/coverage-manifest.json",
+          "sha256": "5a5a618947e2e9d22b35d40921eed574487b5928f19bb3626ae45d284012312e"
+        },
+        {
+          "path": "packages/app/e2e/performance/timeline/session-timeline-benchmark.fixture.ts",
+          "sha256": "63c2ae6036eda8acfab3a23ad51ff6be1652ba7888d1f09d6cc530cd6ce3daf4"
+        },
+        {
+          "path": "packages/app/e2e/performance/timeline/timeline-test-helpers.ts",
+          "sha256": "7ff2d1aa6a1c90f42b100f4a5abf80555ee7905cf254f4f73c19f4bdac9f70bf"
+        },
+        {
+          "path": "packages/app/e2e/regression/new-session-route.spec.ts",
+          "sha256": "09afcfeca6d4c4ba3fae324907fb737f158aa7005de6ec27fe6485b06693cacc"
+        },
+        {
+          "path": "packages/app/src/app.tsx",
+          "sha256": "3a4e5755b8c1cee5575984306d889164a53b87b2520cc4cf90759a69de297613"
+        },
+        {
+          "path": "packages/app/src/context/server-sync.test.ts",
+          "sha256": "d1ca1c5cdfadc909e004c1682f298abbc0c2f9c48a86ea38d0dd1ea67511c626"
+        },
+        {
+          "path": "packages/app/src/context/server-sync.tsx",
+          "sha256": "c6d6f7ded37fe47bc438059fea029cbd9769765bdabec24c707a0a965de5110a"
+        }
+      ],
+      "integrationRecommendation": "先整理可审阅的V2提交并确定本项目V2主线，再保存并按V2 owner移植默认目录WIP，最后默认目录检出V2主线。当前不执行提交/合并/分支切换或服务替换。"
+    }
+  }
+}

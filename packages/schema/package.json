@@ -1,24 +1,37 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@aigcfroge/schema",
-  "private": true,
+  "version": "2.0.26",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anomalyco/aigcfroge.git",
+    "directory": "packages/schema"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": "./src/index.ts",
     "./*": "./src/*.ts"
   },
   "scripts": {
+    "build": "bun run script/build.ts",
     "test": "bun test",
     "typecheck": "tsgo --noEmit"
   },
   "dependencies": {
+    "@standard-schema/spec": "catalog:",
     "effect": "catalog:"
   },
   "devDependencies": {
     "@tsconfig/bun": "catalog:",
     "@types/bun": "catalog:",
-    "@typescript/native-preview": "catalog:"
-  },
-  "version": "0.0.8"
+    "@typescript/native-preview": "catalog:",
+    "typescript": "catalog:"
+  }
 }

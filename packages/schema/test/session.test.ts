@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test"
-import { Session } from "@aigcfroge/schema/session"
+import { Session } from "@aigcfroge/schema/v2/session"
 import { DateTime, Schema } from "effect"
-import { Agent } from "../src/agent"
-import { Project } from "../src/project"
-import { AbsolutePath } from "../src/schema"
+import { Agent } from "../src/agent.js"
+import { Project } from "../src/project.js"
+import { AbsolutePath } from "../src/schema.js"
 
 describe("Session.Info JSON transport", () => {
   test("omits absent optional fields instead of serializing null", () => {

@@ -1,41 +1,68 @@
 export * as QuestionV2 from "./question"
 
 import { Context, Deferred, Effect, Layer, Schema } from "effect"
-import { EventV2 } from "./event"
-import { Question } from "@aigcfroge/schema/question"
+import { Bus } from "./bus"
 import { Identifier } from "./id/id"
-import { withStatics } from "./schema"
+import { statics } from "./schema"
 import { SessionSchema } from "./session/schema"
 
-export const ID = Question.ID.pipe(
-  withStatics((schema) => ({ ascending: (id?: string) => schema.make(Identifier.ascending("question", id)) })),
+export const ID = Schema.String.check(Schema.isStartingWith("que")).pipe(
+  Schema.brand("QuestionV2.ID"),
+  statics((schema) => ({ ascending: (id?: string) => schema.make(Identifier.ascending("question", id)) })),
 )
 export type ID = typeof ID.Type
 
-export const Option = Question.Option
-export type Option = Question.Option
+export const Option = Schema.Struct({
+  label: Schema.String.annotate({ description: "Display text (1-5 words, concise)" }),
+  description: Schema.String.annotate({ description: "Explanation of choice" }),
+}).annotate({ identifier: "QuestionV2.Option" })
+export type Option = typeof Option.Type
 
-export const Info = Question.Info
-export type Info = Question.Info
+const base = {
+  question: Schema.String.annotate({ description: "Complete question" }),
+  header: Schema.String.annotate({ description: "Very short label (max 30 chars)" }),
+  options: Schema.Array(Option).annotate({ description: "Available choices" }),
+  multiple: Schema.Boolean.pipe(Schema.optional).annotate({ description: "Allow selecting multiple choices" }),
+}
 
-export const Prompt = Question.Prompt
-export type Prompt = Question.Prompt
+export const Info = Schema.Struct({
+  ...base,
+  custom: Schema.Boolean.pipe(Schema.optional).annotate({
+    description: "Allow typing a custom answer (default: true)",
+  }),
+}).annotate({ identifier: "QuestionV2.Info" })
+export type Info = typeof Info.Type
 
-export const Tool = Question.Tool
-export type Tool = Question.Tool
+export const Prompt = Schema.Struct(base).annotate({ identifier: "QuestionV2.Prompt" })
+export type Prompt = typeof Prompt.Type
 
-export const Request = Question.Request
-export type Request = Question.Request
+export const Tool = Schema.Struct({
+  messageID: Schema.String,
+  callID: Schema.String,
+}).annotate({ identifier: "QuestionV2.Tool" })
+export type Tool = typeof Tool.Type
 
-export const Answer = Question.Answer
-export type Answer = Question.Answer
+export const Request = Schema.Struct({
+  id: ID,
+  sessionID: SessionSchema.ID,
+  questions: Schema.Array(Info).annotate({ description: "Questions to ask" }),
+  tool: Tool.pipe(Schema.optional),
+}).annotate({ identifier: "QuestionV2.Request" })
+export type Request = typeof Request.Type
 
-export const Reply = Question.Reply
-export type Reply = Question.Reply
+export const Answer = Schema.Array(Schema.String).annotate({ identifier: "QuestionV2.Answer" })
+export type Answer = typeof Answer.Type
+
+export const Reply = Schema.Struct({
+  answers: Schema.Array(Answer).annotate({
+    description: "User answers in order of questions (each answer is an array of selected labels)",
+  }),
+}).annotate({ identifier: "QuestionV2.Reply" })
+export type Reply = typeof Reply.Type
 
 export const Event = {
-  Asked: EventV2.define({ type: "question.v2.asked", schema: Request.fields }),
-  Replied: EventV2.define({
+  Asked: Bus.ephemeral({ type: "question.v2.asked", schema: Request.fields }),
+  Replied: Bus.ephemeral({
     type: "question.v2.replied",
     schema: {
       sessionID: SessionSchema.ID,
@@ -43,7 +70,7 @@ export const Event = {
       answers: Schema.Array(Answer),
     },
   }),
-  Rejected: EventV2.define({
+  Rejected: Bus.ephemeral({
     type: "question.v2.rejected",
     schema: {
       sessionID: SessionSchema.ID,
@@ -52,19 +79,15 @@ export const Event = {
   }),
 }
 
-export class RejectedError extends Schema.TaggedErrorClass<RejectedError>()("QuestionV2.RejectedError", {}) {
+export class RejectedError extends Schema.TaggedError<RejectedError>()("QuestionV2.RejectedError", {}) {
   override get message() {
     return "The user dismissed this question"
   }
 }
 
-export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("QuestionV2.NotFoundError", {
+export class NotFoundError extends Schema.TaggedError<NotFoundError>()("QuestionV2.NotFoundError", {
   requestID: ID,
-}) {
-  override get message() {
-    return `Question request not found: ${this.requestID}`
-  }
-}
+}) {}
 
 export interface AskInput {
   readonly sessionID: SessionSchema.ID
@@ -99,7 +122,7 @@ interface Pending {
 export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
-    const events = yield* EventV2.Service
+    const bus = yield* Bus.Service
     const pending = new Map<ID, Pending>()
 
     yield* Effect.addFinalizer(() =>
@@ -121,12 +144,11 @@ export const layer = Layer.effect(
           const deferred = yield* Deferred.make<ReadonlyArray<Answer>, RejectedError>()
           const request: Request = { id, ...input }
           pending.set(id, { request, deferred })
-          return yield* events.publish(Event.Asked, request).pipe(
+          return yield* bus.publish(Event.Asked, request).pipe(
             Effect.andThen(restore(Deferred.await(deferred))),
             Effect.ensuring(
-              Effect.gen(function* () {
-                if (!pending.delete(id)) return
-                yield* events.publish(Event.Rejected, { sessionID: input.sessionID, requestID: id })
+              Effect.sync(() => {
+                pending.delete(id)
               }),
             ),
           )
@@ -139,13 +161,13 @@ export const layer = Layer.effect(
         Effect.gen(function* () {
           const existing = pending.get(input.requestID)
           if (!existing) return yield* new NotFoundError({ requestID: input.requestID })
-          pending.delete(input.requestID)
-          yield* Deferred.succeed(existing.deferred, input.answers)
-          yield* events.publish(Event.Replied, {
+          yield* bus.publish(Event.Replied, {
             sessionID: existing.request.sessionID,
             requestID: existing.request.id,
             answers: input.answers.map((answer) => [...answer]),
           })
+          yield* Deferred.succeed(existing.deferred, input.answers)
+          pending.delete(input.requestID)
         }),
       ),
     )
@@ -155,12 +177,12 @@ export const layer = Layer.effect(
         Effect.gen(function* () {
           const existing = pending.get(requestID)
           if (!existing) return yield* new NotFoundError({ requestID })
-          pending.delete(requestID)
-          yield* Deferred.fail(existing.deferred, new RejectedError())
-          yield* events.publish(Event.Rejected, {
+          yield* bus.publish(Event.Rejected, {
             sessionID: existing.request.sessionID,
             requestID: existing.request.id,
           })
+          yield* Deferred.fail(existing.deferred, new RejectedError())
+          pending.delete(requestID)
         }),
       ),
     )

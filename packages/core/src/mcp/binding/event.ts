@@ -1,9 +1,10 @@
 export * as BindingEvent from "./event"
 
 import { Effect, Schema } from "effect"
-import { EventV2 } from "../../event"
+import { Bus } from "../../bus"
+import { Event } from "@aigcfroge/schema/event"
 
-export const Updated = EventV2.define({
+export const Updated = Bus.durable({
   type: "mcp_credential_binding.updated",
   durable: { version: 1, aggregate: "bindingID" },
   schema: {
@@ -14,9 +15,9 @@ export const Updated = EventV2.define({
   },
 })
 
-export type Update = EventV2.Data<typeof Updated>
+export type Update = Event.Data<typeof Updated>
 
-export class CommitRejected extends Schema.TaggedErrorClass<CommitRejected>()("BindingEvent.CommitRejected", {
+export class CommitRejected extends Schema.TaggedError<CommitRejected>()("BindingEvent.CommitRejected", {
   bindingID: Schema.String,
   revision: Schema.Int,
 }) {
@@ -27,17 +28,17 @@ export class CommitRejected extends Schema.TaggedErrorClass<CommitRejected>()("B
 
 /** Publishes one durable state transition whose commit writes the row (same transaction). */
 export const publish = Effect.fn("BindingEvent.publish")(function* (
-  events: EventV2.Interface,
+  events: Bus.Interface,
   update: Update,
-  commit: (tx: EventV2.Transaction) => Effect.Effect<boolean>,
+  commit: (seq: number) => Effect.Effect<boolean>,
 ) {
   return yield* events
     .publish(Updated, update, {
-      commit: (seq, tx) => {
+      commit: (seq) => {
         if (seq + 1 !== update.revision) {
           return Effect.die(new CommitRejected({ bindingID: update.bindingID, revision: update.revision }))
         }
-        return commit(tx).pipe(
+        return commit(seq).pipe(
           Effect.flatMap((accepted) =>
             accepted
               ? Effect.void

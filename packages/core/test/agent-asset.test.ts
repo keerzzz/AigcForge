@@ -2,10 +2,9 @@ import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
 import os from "os"
 import path from "path"
-import { FSUtil } from "../src/fs-util"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { Location } from "../src/location"
 import { LocationMutation } from "../src/location-mutation"
-import { Project } from "../src/project"
 import { PromptAsset } from "../src/prompt-asset"
 import { SkillAsset } from "../src/skill-asset"
 import { MCPAsset } from "../src/mcp-asset"
@@ -13,40 +12,68 @@ import { CommandAsset } from "../src/command-asset"
 import { AgentAsset } from "../src/agent-asset"
 import { AssetKind } from "../src/asset-kind"
 import { AbsolutePath } from "../src/schema"
+import { NodeFileSystem } from "@effect/platform-node"
+import { location } from "./fixture/location"
+import { tempGlobalLayer } from "./fixture/global"
+import { tmpdirScoped } from "./fixture/tmpdir"
 import { it } from "./lib/effect"
 
+const fsLayer = FSUtil.layer.pipe(Layer.provide(NodeFileSystem.layer))
+
 describe("AgentAsset", () => {
+  it.live("projects protocol cards from config YAML and updates their revisions", () =>
+    Effect.gen(function* () {
+      const directory = yield* tmpdirScoped()
+      const fs = yield* FSUtil.Service
+      const file = path.join(directory.path, ".aigcfroge/agents/reviewer.md")
+      const source = (card: string) =>
+        `---\nkind: agent\nname: reviewer\ndescription: Review\nconfig: |\n  card: ${card}\n---\nReview carefully.\n`
+      yield* fs.writeWithDirs(file, source("{ capabilities: [review], constraints: [], protocol: Exact A }"))
+      yield* Effect.gen(function* () {
+        const assets = yield* AgentAsset.Service
+        const a = yield* assets.getByPath("reviewer.md")
+        expect(a.card).toEqual({ capabilities: ["review"], constraints: [], protocol: "Exact A" })
+        yield* fs.writeFileString(file, source("false"))
+        yield* assets.reload()
+        const broken = yield* assets.getByPath("reviewer.md")
+        expect(broken.card).toEqual({ _tag: "InvalidCard", reason: "invalid_shape" })
+        expect(broken.revision).not.toBe(a.revision)
+        expect(a.card).toEqual({ capabilities: ["review"], constraints: [], protocol: "Exact A" })
+      }).pipe(
+        Effect.provide(AgentAsset.layer),
+        Effect.provide(LocationMutation.layer),
+        Effect.provide(tempGlobalLayer),
+        Effect.provideService(
+          Location.Service,
+          Location.Service.of(location({ directory: AbsolutePath.make(directory.path) })),
+        ),
+      )
+    }).pipe(Effect.provide(fsLayer)),
+  )
   it.live("loads agent assets and isolates from command, mcp, skill, prompt with same filename", () =>
     Effect.gen(function* () {
       const fs = yield* FSUtil.Service
       const tmpDir = yield* fs.makeTempDirectory({ directory: os.tmpdir(), prefix: "aigcfroge-agent-test-" })
       const locationDir = AbsolutePath.make(tmpDir)
 
-      const ref = { directory: locationDir }
-      const projectLayer = Layer.succeed(
-        Project.Service,
-        Project.Service.of({
-          directories: () => Effect.succeed([]),
-          resolve: () =>
-            Effect.succeed({
-              id: Project.ID.make("project"),
-              directory: locationDir,
-              vcs: { type: "git", store: AbsolutePath.make(path.join(tmpDir, ".git")) },
-            }),
-          commit: () => Effect.void,
-        }),
+      const locationLayer = Layer.succeed(
+        Location.Service,
+        Location.Service.of(
+          location(
+            { directory: locationDir },
+            { vcs: { type: "git", store: AbsolutePath.make(path.join(tmpDir, ".git")) } },
+          ),
+        ),
       )
-      const locationLayer = Location.layer(ref).pipe(Layer.provide(projectLayer))
 
-      const baseLayer = Layer.mergeAll(locationLayer, FSUtil.defaultLayer, AssetKind.layer)
+      const baseLayer = Layer.mergeAll(locationLayer, fsLayer, AssetKind.layer, tempGlobalLayer)
       const testAppLayer = Layer.mergeAll(
         AgentAsset.layer,
         CommandAsset.layer,
         MCPAsset.layer,
         SkillAsset.layer,
         PromptAsset.layer,
-        LocationMutation.layer,
-      ).pipe(Layer.provide(baseLayer))
+      ).pipe(Layer.provide(LocationMutation.layer), Layer.provide(baseLayer))
 
       return yield* Effect.gen(function* () {
         const agentService = yield* AgentAsset.Service
@@ -130,6 +157,6 @@ describe("AgentAsset", () => {
         expect(prompts[0].name).toBe("my-tool")
         expect(prompts[0].kind).toBe("prompt")
       }).pipe(Effect.provide(testAppLayer))
-    }).pipe(Effect.provide(FSUtil.defaultLayer)),
+    }).pipe(Effect.provide(fsLayer)),
   )
 })

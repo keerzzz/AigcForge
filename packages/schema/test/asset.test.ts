@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { AssetError, AssetSummary } from "../src/asset"
-import { WorkflowAsset } from "../src/workflow-asset"
+import { AssetError, AssetSummary } from "../src/asset.js"
+import { WorkflowAsset } from "../src/workflow-asset.js"
 
 describe("AssetSummary", () => {
   test("validates minimal summary", () => {
@@ -61,7 +61,7 @@ describe("WorkflowAsset", () => {
       ],
     })
     expect(f.kind).toBe("workflow")
-    expect(f.name).toBe("code-review")
+    expect(f.name).toBe(WorkflowAsset.Name.make("code-review"))
     expect(f.steps.length).toBe(3)
     expect(f.steps[0].next).toBe("lint_scan")
     expect(f.steps[1].branches).toEqual({ success: "report_good", failure: "report_issues" })

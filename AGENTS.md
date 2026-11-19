@@ -1,16 +1,47 @@
-# AigcForge Execution Protocol
+# AigcForge V2 Contributor Guide
 
-> **Role**: Senior full-stack engineering
-> **Scope**: Code style, branching, Effect coding, Schema, testing — applies repo-wide
-> **Nature**: Entry point for code conventions. Package-level `AGENTS.md` files strengthen (never relax) these rules. Architecture lives in `ARCHITECTURE.md`; UI design in `DESIGN.md`.
+Start with [CLAUDE.md](CLAUDE.md). Follow [ARCHITECTURE.md](ARCHITECTURE.md) for ownership, [DESIGN.md](DESIGN.md) for product surfaces, and [docs/testing.md](docs/testing.md) for validation. These entrypoints index the existing package guides and [V2 specifications](specs/v2/README.md); they do not replace their contracts.
 
-## Branch And Commit
+For the AigcForge migration, the [alignment plan](docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md) is the only overall route. Its [batch plans](docs/research/upstream-v2-sync/2026-10-29-migration-batch-plans.md) and [session prompts](docs/research/upstream-v2-sync/2026-10-29-migration-session-prompts.md) are execution attachments, not additional backlogs. Unfinished functionality stays in [docs/technical-debt.md](docs/technical-debt.md). Preserve the existing issue workflow; local documentation does not authorize creating or changing remote issues.
 
-The default branch is `main`. Use `main` or `origin/main` for diffs.
+Port observable capabilities through current V2 owners, not old file counts or parallel runtimes. Keep target behavior, current implementation, historical evidence, and dispatch authorization distinct. A documentation approval or an un-dispatched batch prompt never authorizes production edits, live-provider calls, service replacement, commits, or remote operations. Preserve the existing S1 owner and frozen work until its coordinator explicitly hands it off.
+
+- After changing the public Protocol or Server `HttpApi`, run `bun run generate` from `packages/client`. Do not edit generated client files directly.
+- Keep runtime dependencies directed from Schema to Core and Protocol, then from Core and Protocol to Server. Client runtime code may depend on Schema and Protocol but never Core or Server; `sdk` composes Client, Core, and Server.
+- Current implementation changes belong in `packages/core`, `packages/cli`, `packages/server`, `packages/protocol`, `packages/schema`, and related generated client surfaces when required.
+- This repository does not use Changesets. Do not add `.changeset` files; follow the existing release workflow instead.
+- The default branch in this repo is `main`.
+- Default new branches and worktrees to `main`, or `origin/main` when the local `main` ref is unavailable, and default pull requests to target `main`. Use another base or target branch when the requester explicitly instructs it.
+- Use `main` or `origin/main` for integration diffs.
+
+## Live V2 TUI Testing
+
+- Run `bun run dev:live` from a development worktree to test its TUI against the currently elected `aigcfroge` background server and live sessions.
+- Pass a directory after the script when needed, for example `bun run dev:live /path/to/project`.
+- The script discovers the server with `aigcfroge service status`, injects its private local credential from `aigcfroge service get password`, and uses the `dev` TUI storage channel so tabs and other client-local state match the installed client.
+- Prefer `dev:live` over plain `bun run dev` for this workflow. An implicit managed-service connection may replace the live server when the worktree client version differs; explicit `--server` warns and continues without replacing it.
+
+## V2 TUI Stories
+
+- When a user asks for a TUI story, add a fixture-driven story under `packages/tui/src/feature-plugins/system/storybook` and register it in `index.tsx`.
+- Render the real production component rather than a visual copy. Keep submissions and other side effects local to the story so it is safe to explore repeatedly.
+- Expose the meaningful state dimensions through story keybindings and list them in `StoryFooter`; include a reset command when combinations can leave the fixture in a confusing state.
+- Run a specific story with `AIGCFROGE_STORY=<story-id> bun run dev:live` from the development worktree, and exercise narrow and wide terminal sizes when layout is relevant.
+
+## TUI Theme Tokens
+
+- Choose theme tokens by semantic role, not by their current color. Do not use raw `theme.hue` values or borrow an unrelated semantic token to achieve a preferred appearance.
+- Use `text.feedback` and `background.feedback` only for outcome or status feedback such as errors, warnings, success messages, and informational messages. Use `formfield` states for form-control text, ordinals, and selection markers, and `action` states for actions.
+- If the theme does not expose a token for the required semantic role, extend the theme schema, defaults, resolution, and types with that role before using it in a component. Do not repurpose the nearest-looking existing token.
+- When changing the public theme token surface, verify the built-in light and dark defaults and the custom-theme fallback path in addition to the affected TUI component.
+
+## Branch Names
 
 Use a short branch name of at most three words, separated by hyphens. Do not use slashes or type prefixes such as `feat/` or `fix/`.
 
 Examples: `session-recovery`, `fix-scroll-state`, `regenerate-sdk`.
+
+## Commits and PR Titles
 
 Use conventional commit-style messages and PR titles: `type(scope): summary`.
 
@@ -18,54 +49,21 @@ Valid types are `feat`, `fix`, `docs`, `chore`, `refactor`, and `test`. Scopes a
 
 Examples: `fix(tui): simplify thinking toggle styling`, `docs: update contributing guide`, `chore(sdk): regenerate types`.
 
-To regenerate the JavaScript SDK, run `./packages/sdk/js/script/build.ts`.
-
-## Slice Checkpoints
-
-Checkpoint reports are accounting, not narrative. Four rules, each of which has already caught a real error:
-
-- **Generate every commit list, never write it by hand.** Paste the output of `git log --oneline <last commit of the previous batch>..HEAD`. Hand-written lists have drifted three times (24 reported vs 25 actual, 8 vs 11, an "ahead" count that did not match the branch). If a claim cannot be produced by a command, do not make it in a list.
-- **Separate what was verified from what was not.** A green round means the command exited 0 with the tally shown; anything else is described in its own words, with the failing evidence quoted. Do not let a summary sentence cover both.
-- **Ground a relational claim in the rule that decides it.** "A differs from B", "these two duplicate each other", "X is a second source of truth" are claims about a _relation_, and a relation is decided by the function that compares, merges or deduplicates — not by the call sites feeding it. Cite that function as `file:line`. Reading the inputs cannot settle the direction: in one session a report and its review concluded _opposite_ directions about the same pair, and both were wrong, because `systemCountFor` and `mergeAssets` turned out to be one shadow rule written twice and the surface one side "lacked" rows the other side "added" already had them. The checkable form is "which function decides this relation?" — if the answer is not a `file:line`, mark the claim unverified instead.
-- **Report scope you did not deliver.** Any plan item in the slice's own section that was not landed gets registered in `packages/app/e2e/coverage-manifest.json` (or the debt ledger) with an owner and an unlock condition before the slice closes. Unregistered gaps are the failure mode this protocol exists to prevent.
-
-## Code Retrieval
-
-Pick the tool by query shape. The `codegraph` MCP indexes symbols (definitions, calls, imports), not every text occurrence.
-
-- Symbol definition, call chain (`callers`/`callees`), or refactor blast radius -> `codegraph_search` / `codegraph_node` / `codegraph_callers` / `codegraph_callees` / `codegraph_impact` first. These have no per-project budget.
-- `codegraph_explore` is capped at **2 calls per project**; reserve it for multi-file source aggregation. For a single symbol, prefer `search`/`node` and only `explore` when you need verbatim source across several files at once.
-- String literal occurrences (env flags, error messages, i18n keys, magic strings), regex, or path globs -> `Grep` / `Glob`. `codegraph` is symbol-level: a flag read 19 times shows as 1 import node, so use `Grep` to find every use.
-- A single precise line range `codegraph` did not surface -> `Read`.
-- `codegraph` is read-only; edits still go through `Edit` / `Write`.
-
-## Agent Tool Synergy
-
-When the agent (aigcfroge product agent or Claude Code subagent) has `codegraph` MCP connected, prefer it over the matching builtin tool for symbol-shaped queries. Builtin tools come from `packages/aigcfroge/src/tool/registry.ts`; MCP tools inject via `MCP.Service` in `packages/aigcfroge/src/session/tools.ts`.
-
-| Builtin tool           | Use `codegraph` instead when                                                     | Keep builtin for                      |
-| ---------------------- | -------------------------------------------------------------------------------- | ------------------------------------- |
-| `lsp`                  | call chain (`callers`/`callees`), refactor impact + test-coverage gap (`impact`) | diagnostics, hover                    |
-| `read`                 | multi-file verbatim source (`explore`, mind 2/project budget)                    | single precise line range             |
-| `grep`                 | symbol definition lookup (`search`/`node`)                                       | string literals, regex, magic strings |
-| `glob`                 | indexed file tree by language/symbol count (`files`)                             | path glob patterns                    |
-| `edit`/`write`/`patch` | n/a (codegraph read-only) — run `impact` first to size blast radius              | the edit itself                       |
-| `plan`                 | `impact` before refactor planning                                                | —                                     |
-
-`codegraph` indexes symbols, not every text occurrence — same split as Code Retrieval above.
-
 ## Style Guide
 
 ### General Principles
 
-- Keep things in one function unless composable or reusable.
+- Keep things in one function unless composable or reusable
+- Validate unknown values once at the boundary that owns them. Pass typed values inward instead of repeating `typeof value === "object"` and property-existence checks. Do not defensively revalidate values already guaranteed by a schema, constructor, or internal type.
 - Do not extract single-use helpers preemptively. Inline the logic at the call site unless the helper is reused, hides a genuinely complex boundary, or has a clear independent name that improves the caller.
-- Use `try`/`catch` only at effectful boundaries (external API, file, network, subprocess, JSON parsing). Do not wrap synchronous control flow in `try`; at Effect boundaries prefer `Effect.try` or `Effect.catchTag`.
-- Avoid `else` statements. Prefer early returns. `else` after a guard return is always wrong.
-- Avoid the `any` type. Use `unknown` and narrow with type guards, or `Schema.Defect` at Effect defect boundaries.
-- Use Bun APIs when possible, like `Bun.file()`. Prefer them in scripts and non-Effect entrypoints; Effect-scoped code uses `FileSystem` / `HttpClient` services instead of `node:fs` / `fetch`.
-- Rely on type inference when possible; avoid explicit type annotations or interfaces unless necessary for exports or clarity.
-- Prefer functional array methods (flatMap, filter, map) over for loops; use type guards on filter to maintain type inference downstream.
+- Before adding complexity for a speculative or vanishingly unlikely race or security edge case, explain the concrete failure mode, likelihood, and complexity cost to the user and get their buy-in. Do not silently expand scope for theoretical robustness.
+- Avoid `try`/`catch` where possible
+- Avoid using the `any` type
+- Use Bun APIs when possible, like `Bun.file()`
+- Rely on type inference when possible; avoid explicit type annotations or interfaces unless necessary for exports or clarity
+- Prefer functional array methods (flatMap, filter, map) over for loops; use type guards on filter to maintain type inference downstream
+- In `src/config`, follow the existing self-export pattern at the top of the file (for example `export * as ConfigAgent from "./agent"`) when adding a new config module.
+- In Effect generators, bind services to named variables before calling methods. Do not use nested service yields such as `yield* (yield* Foo.Service).bar()`.
 
 Reduce total variable count by inlining when a value is only used once.
 
@@ -93,14 +91,11 @@ const { a, b } = obj
 
 ### Imports
 
-- **Self-export is the global default.** A new module exposes a namespace via `export * as Foo from "./foo"` at the bottom of the file, and consumers import it by name: `import { Foo } from "@/foo/foo"`, then reference `Foo.Service`, `Foo.layer`. This is mandatory in `packages/aigcfroge` (see its `AGENTS.md`); prefer it everywhere.
-- **Never `export namespace`.** It is non-standard ESM, breaks tree-shaking, and breaks the Node native TypeScript runner. Use the self-export pattern instead.
-- **Never alias imports.** `import { foo as bar }` is forbidden. The only exception is resolving a genuine same-name collision (e.g. `Config` from `effect` vs `node:config`, `Tool` from `ai` vs the internal `Tool`), and the alias must be commented with the reason.
-- **Never use star imports.** `import * as Foo from "..."` is forbidden. The only exception is `effect` submodule namespaces (`import * as Stream from "effect/Stream"`, `import * as … from "effect/unstable/…"`), which are an ecosystem idiom and do not conflict with the self-export pattern.
-- **Barrel `index.ts` is package-autonomous.** The default is to avoid it; a single-namespace directory may use `export * as Foo from "."`. Whether multi-sibling barrels are allowed is decided by each package's `AGENTS.md` — `packages/aigcfroge` forbids them; `packages/llm` allows them for `schema/` and `route/`.
+- Never alias imports. Do not use `import { foo as bar } from "..."` or renamed imports like `resolve as pathResolve`.
+- Never use type-position `import("...")` references such as `Schema.declare<import("@aigcfroge/plugin/effect/plugin").Plugin["effect"]>`. Only when two imports genuinely collide on a name and no other option exists, an aliased type import (`import type { Plugin as PluginDefinition } from "..."`) is permitted as a last resort — still strongly preferred not to.
+- Never use star imports. Do not use `import * as Foo from "..."` or `import type * as Foo from "..."`.
+- If a namespace-style value is needed, import the module's own exported namespace by name, for example `import { Project } from "@aigcfroge/core/project"`, then reference `Project.ID`.
 - Prefer dynamic imports for heavy modules that are only needed in selected code paths, especially in startup-sensitive entrypoints. Destructure dynamic import bindings near the top of the narrowest scope that needs them so they read like normal imports. Avoid inline chains such as `await import("./module").then((mod) => mod.value())` or `(await import("./module")).value()`. Keep branch-specific imports inside the branch that needs them to preserve lazy loading.
-
-> **Tech-debt disclosure:** the existing tree carries ~249 legacy star imports and ~123 legacy alias imports accumulated before this rule was enforced. New code MUST follow this section; do not propagate the legacy style.
 
 ### Variables
 
@@ -154,7 +149,7 @@ function requireConfig(input: unknown) {
 - Keep helpers close to the code they support, below the main export when that improves readability.
 - Do not over-abstract simple expressions into many single-use helpers; extract only when it names a real concept like `requireConfig` or `readMetadata`.
 - Do not return `Effect` from helpers unless they actually perform effectful work. Synchronous parsing, validation, and option building should stay synchronous.
-- Prefer Effect schema helpers such as `Schema.decodeUnknownOption` over manual `JSON.parse` wrapped in `Effect.try` when parsing untrusted JSON. `Schema.UnknownFromJsonString` is the preferred variant when the input shape is known; `Schema.fromJsonString` is the LLM-layer variant.
+- Prefer Effect schema helpers such as `Schema.UnknownFromJsonString` and `Schema.decodeUnknownOption` over manual `JSON.parse` wrapped in `Effect.try` when parsing untrusted JSON strings.
 - Add comments for non-obvious constraints and surprising behavior, not for obvious assignments or control flow.
 
 ### Schema Definitions (Drizzle)
@@ -177,52 +172,29 @@ const table = sqliteTable("session", {
 })
 ```
 
-## Effect Coding
-
-Enforced across all Effect-touching packages. Detail lives in `.aigcfroge/skills/effect/SKILL.md`; package-level `AGENTS.md` files add local strengthening.
-
-- Compose with `Effect.gen(function* () {})`. Name traced effects with `Effect.fn("Domain.method")`; use `Effect.fnUntraced` for internal helpers.
-- Prefer `Effect.void` over `Effect.succeed(undefined)`.
-- Fail with `yield* new MyError(...)` (a `Schema.TaggedErrorClass`), not `Effect.fail(new MyError(...))`.
-- Never `Effect.fork` or `forkDaemon`. Use `Effect.forkIn(scope)` for supervised fibers.
-- Prefer Effect services over raw APIs: `HttpClient.HttpClient` over `fetch`, `FileSystem` over `node:fs`, `ChildProcess` over `node:child_process`, `Stream.Stream` over ad hoc async generators.
-- Use `DateTime.nowAsDate` for current time inside `Effect.gen`.
-- Use `Effect.cached` to deduplicate shared services.
-- At native/external callback boundaries, bridge into Effect via `EffectBridge`.
-
-## Schema
-
-- Multi-field records: `Schema.Class<T>("Name")({...})`.
-- Single branded values: `Schema.brand`.
-- Errors: `Schema.TaggedErrorClass`. Use `Schema.Defect` instead of `unknown` for defect payloads.
-- See `.aigcfroge/skills/database/SKILL.md` for schema, migration, and custom column-type conventions.
-
 ## Testing
 
-- Avoid mocks as much as possible; you shouldn't be using `globalThis.*` at all unless it's the only option.
-- Test actual implementation; do not duplicate logic into tests.
-- Tests cannot run from repo root (guard: `do-not-run-tests-from-root`); run from package dirs like `packages/aigcfroge`. Per-package commands: `bun --cwd packages/<name> test --timeout 30000`.
-- Use `testEffect(...)` from `test/lib/effect.ts` instead of hand-writing a runtime. Prefer `Layer.mock` over `Layer.succeed(Service, Service.of({...}))` full stubs.
-- Never wait for concurrent fibers with `Effect.sleep(N)` or `setTimeout`. Use readiness signals: `pollWithTimeout`, `awaitWithTimeout`, `llm.wait(n)`, `SessionStatus.Service.get(sessionID)`, `BackgroundJob.wait({ id, timeout })`, Bus+Latch, or `Deferred.await(...).pipe(Effect.timeoutOrElse(...))`.
-- The three test modes are `it.effect` (TestClock + TestConsole), `it.live` (real OS), `it.instance` (scoped tmpdir + instance). See `packages/aigcfroge/test/AGENTS.md` for fixtures and the full pattern.
+- Avoid mocks as much as possible, you shouldn't be using globalThis.\* at all unless it's the only option.
+- Test actual implementation, do not duplicate logic into tests
+- Tests cannot run from repo root (guard: `do-not-run-tests-from-root`); run from package directories such as `packages/core`.
 
-## Type Checking
+## Checks
 
-- For daily development, prefer `bun --cwd packages/<name> typecheck` (single package). Run `bun typecheck` (routes to `bun turbo typecheck`) for full-repo checks in CI or before merging. Never invoke `tsc` directly.
-- Every package's `typecheck` script uses `tsgo --noEmit` (the `@typescript/native-preview` binary). `app` and `desktop` use `tsgo -b` (project-references build) instead of `--noEmit`; `app` additionally runs `tsgo --noEmit -p e2e/tsconfig.json` so the Playwright e2e specs stay typechecked.
-- `storybook` has no `typecheck` script and is excluded from `bun turbo typecheck`. `script` checks its shared release modules and release entrypoints with `tsgo --noEmit`.
-- The `.husky/pre-push` hook runs `bun typecheck` before push; it is not a pre-commit hook. Set `AIGCFROGE_SKIP_TYPECHECK=1` to skip (e.g. for rapid iteration pushes to a feature branch).
+- Run `bun run check` from the repository root as the canonical full lint and type-check verification.
+- During focused iteration, run `bun typecheck` from the affected package directory (for example, `packages/core`). Never run `tsc` directly.
 
 ## V2 Session Core
 
-These are architectural invariants. The full subsystem picture lives in `ARCHITECTURE.md` §4.1; terminology and relationship invariants live in `CONTEXT.md`. Symbols span two packages — implementations live in `packages/core/src`, consumers in `packages/aigcfroge/src`.
-
-- Keep durable prompt admission separate from model execution. `SessionV2.prompt(...)` admits one durable `session_input` row before scheduling advisory `SessionExecution.wake(sessionID)` unless `resume: false` requests admit-only behavior. The serialized runner promotes admitted inputs into visible user messages at safe boundaries.
-- Reusing a Session ID adopts the existing Session. Reusing a prompt message ID reconciles an exact retry only when Session, prompt, and delivery mode match; conflicting reuse fails. Historical projected prompts lazily synthesize promoted inbox records during exact retry.
-- Keep `SessionExecution` process-global and Session-ID based. Its local implementation owns the process-local Session coordinator and discovers placement through `SessionStore` plus `LocationServiceMap.get(session.location)` only when a drain starts; no layer should take a Session ID. V2 interruption targets the active process-local ownership chain for that Session; idle or missing interruption is a no-op.
+- Keep durable events minimal: record irreducible new facts and do not repeat state derivable by folding the ordered aggregate history. Enrich projections and read models with previous or derived state when consumers need self-contained views.
+- Keep durable prompt admission separate from model execution. `Session.prompt(...)` publishes `session.inbox.enqueued`, whose projection inserts one durable `session_inbox` row, before scheduling advisory `SessionExecution.wake(sessionID)` unless `resume: false` requests admit-only behavior. Delivery publishes `session.inbox.delivered`; its projection consumes the inbox row and inserts the visible message in the same transaction. `session_inbox` stores only unconsumed work.
+- Reusing a Session ID adopts the existing Session. Reusing a user or synthetic inbox item ID is idempotent when Session and type match: the first admission wins and the retried payload, metadata, and delivery mode are ignored, whether the item is still pending or already delivered (reconciled from the projected message without retained enqueue history). Cross-Session or cross-type reuse fails. Control items keep their operation-specific conflict behavior.
+- Keep `SessionExecution` process-global and Session-ID based. Its local implementation owns the process-local Session coordinator and discovers placement through `SessionStore` plus `LocationServiceMap.get(session.location)` only when a drain starts; no layer should take a Session ID. V2 interruption targets the active process-local ownership chain for that Session; interruption of a known but idle or locally unowned Session is a no-op, while the public API rejects an unknown Session.
 - Keep `SessionRunner`, model resolution, tool registry, permissions, and filesystem Location-scoped. Omitted `Location.workspaceID` means implicit-local placement; explicit workspace identity remains reserved for future placement semantics.
-- Preserve one explicit `llm.stream(request)` call per provider turn and reload projected history before durable continuation. Do not bridge through legacy `SessionPrompt.loop(...)` or delegate orchestration to an in-memory tool loop.
-- Keep local Session drains process-local until clustering is implemented. `SessionRunCoordinator` joins explicit same-Session resumes, coalesces prompt wakeups, and allows different Sessions to run concurrently. Advisory wakes drain eligible durable inbox rows only; post-crash continuation recovery requires a separate explicit design before it may retry provider work. A drain has no durable identity or transcript boundary.
-- Keep delivery vocabulary explicit. Prompts steer by default and promote at the next safe provider-turn boundary while the current drain requires continuation. An explicit `queue` input remains pending until the Session would otherwise become idle; promote one queued input at that boundary, then reevaluate continuation before promoting another. Promoting any new user input resets the selected agent's provider-turn allowance; a batch of steers resets it once.
-- Keep EventV2 replay owner claims separate from clustered Session execution ownership.
-- Keep the System Context algebra, registry, and built-ins in `packages/core/src/system-context`; keep Context Source producers with their observed domains, and keep Session History selection plus Context Epoch persistence Session-owned.
+- Preserve one explicit `llm.stream(request)` call per Physical Attempt and reload projected history before durable continuation. A logical Step may use generic pre-output retries, one full-context retry after continuation rejection, incomplete-stream continuation, or one overflow-compaction rebuild. Generic retries retain the logical step number and do not consume another agent-step allowance. Do not delegate orchestration to an in-memory tool loop.
+- Keep local Session drains process-local until clustering is implemented. `SessionRunCoordinator` joins explicit same-Session resumes, coalesces prompt wakeups, and allows different Sessions to run concurrently. A write-ahead execution claim marks a process-local busy period for restart recovery: terminal completion, failure, or user interruption releases it, while shutdown interruption and process death preserve it. Startup recovery resumes claimed top-level Sessions with durable per-execution attempt accounting. The claim is a recovery marker, not clustered ownership, fencing, or an exactly-once guarantee.
+- Keep provider-specific native compaction mechanisms in `@aigcfroge/ai` behind `LLMClient.compact`. `SessionCompaction` chooses a summary or native compaction from the model's `compaction` setting and owns route provenance, request shrinking, the retry policy, interruption, usage accounting, and checkpoint persistence.
+- Keep delivery vocabulary explicit. Prompts steer by default. At safe step boundaries, steered compaction takes priority up to the first steered move control; other steers retain enqueue order. At an idle boundary, steers take priority; otherwise exactly one queued item delivers before the runner reevaluates continuation. Inbox items may be cancelled or changed between queue and steer before delivery. Promoting new user input resets the selected agent's step allowance; a batch of steers resets it once.
+- One step is one logical LLM call; its durable record covers only the model-visible span. Do not write "provider turn", and do not use bare "turn" for a single call: "turn" is reserved for the future assistant-turn unit containing all steps from prompt promotion until the session would go idle.
+- Keep event replay ownership separate from clustered Session execution ownership.
+- Keep the Instructions algebra and built-ins in `src/instructions`; keep instruction producers with their observed domains, and keep Session History selection plus `InstructionState` and `InstructionEntry` persistence Session-owned. `InstructionDiscovery` observes ambient global and upward-project instructions. The runner composes built-ins, discovery, guidance, and entries explicitly in `loadInstructions`; there is no instruction registry.
+- `session.instructions.updated` stores changed source keys and content hashes and may freeze rendered chronological update text. Blob values live once in `instruction_blob`; the projected `instruction_state` row is the normal boundary-processing source of current and initial values. Request assembly renders the epoch baseline from stored values, while later frozen updates enter history as durable System messages. Completed compaction moves the instruction epoch; Session movement retains it so destination instruction changes are chronological, while committed revert clears it. Forks adopt the parent's newest instruction values even when copied message history ends at an earlier boundary. Unavailable sources retain the last value and block only the initial complete delta.

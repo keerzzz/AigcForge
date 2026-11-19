@@ -2,13 +2,13 @@
 
 ## Sources
 
-- PR #10018: https://github.com/keerzzz/AigcForge/pull/10018
-- PR #12935: https://github.com/keerzzz/AigcForge/pull/12935
+- PR #10018: https://github.com/anomalyco/aigcfroge/pull/10018
+- PR #12935: https://github.com/anomalyco/aigcfroge/pull/12935
 
 ## Do Not Translate (Locale Additions)
 
-- `Aigcfroge` (preserve casing in prose; keep `aigcfroge` only in commands, package names, paths, or code)
-- `Aigcfroge CLI`
+- `AigcForge` (preserve casing in prose; keep `aigcfroge` only in commands, package names, paths, or code)
+- `AigcForge CLI`
 - `CLI`, `TUI`, `MCP`, `OAuth`
 - Sound names (PR #10018 notes these were intentionally left untranslated)
 

@@ -9,13 +9,13 @@ const VALID_TRANSITIONS: Record<DelegationStatus, readonly DelegationStatus[]> =
   running: ["waiting_review", "changes_requested", "approved", "failed", "closing", "cancelled"],
   waiting_review: ["changes_requested", "approved", "failed", "closing"],
   changes_requested: ["running", "closing", "cancelled"],
-  approved: ["waiting_review", "closing"],
+  approved: ["running", "waiting_review", "closing"],
   failed: ["running", "recovery_required", "closing"],
   recovery_required: ["running", "failed", "closing"],
   closing: ["completed", "cancelled", "failed"],
   completed: ["archived"],
   cancelled: ["archived"],
-  archived: ["completed"],
+  archived: ["completed", "cancelled"],
 }
 
 /**

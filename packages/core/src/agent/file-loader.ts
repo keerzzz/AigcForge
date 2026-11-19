@@ -2,9 +2,10 @@ export * as AgentFileLoader from "./file-loader"
 
 import { Context, Effect, Layer, Option } from "effect"
 import { Agent } from "@aigcfroge/schema/agent"
-import { FSUtil } from "../fs-util"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 import { Location } from "../location"
 import matter from "gray-matter"
+import { AgentProtocol } from "./protocol.js"
 
 /**
  * File-based agent definition.
@@ -71,11 +72,13 @@ export function parseAgentFile(sourcePath: string, raw: string): FileAgent | und
         .map(({ label, agent, prompt, send }) => ({ label, agent, prompt, ...(send !== undefined ? { send } : {}) }))
     : []
 
+  const normalized = AgentProtocol.normalizeDefinition(parsed.data)
   return {
     sourcePath,
     info: {
       ...Agent.Info.empty(id),
       description: data.description,
+      ...(normalized.card === undefined ? {} : { card: normalized.card }),
       system: parsed.content.trim() || undefined,
       hidden: data["user-invocable"] === false,
       permissions,

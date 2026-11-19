@@ -4,7 +4,7 @@ import { Permission } from "@aigcfroge/schema/permission"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { Wildcard } from "../util/wildcard"
-import { PermissionV1 } from "../v1/permission"
+import { PermissionV1 } from "@aigcfroge/schema/v1/permission"
 import type { SessionSchema } from "../session/schema"
 
 // 档位化判定所需输入，由调用方从 Session / Agent / override service / saved
@@ -30,7 +30,7 @@ export function isDangerousAction(action: string) {
 // custom unattended 天花板白名单（ADR-20 §2.6，R6-2 整改）：只读类 action 才可
 // 为无人值守扇出预授权；成员逐一取自 builtins.ts 注册清单，新工具默认不在
 // 名单内即 deny。task_spawn/webfetch 等扇出与外发原语被刻意排除。
-const READONLY_CEILING_ACTIONS = ["glob", "grep", "list_assets", "read"] as const
+const READONLY_CEILING_ACTIONS = ["glob", "grep", "list_assets", "read", "generate_delegation_protocol"] as const
 const readonlyCeilingAction = new Set<string>(READONLY_CEILING_ACTIONS)
 
 export function evaluate(rules: Permission.Ruleset, action: string, resource: string): Permission.Effect {
@@ -40,6 +40,20 @@ export function evaluate(rules: Permission.Ruleset, action: string, resource: st
   )
 }
 
+/** Recursive dispatch is unavailable independently of configurable depth or grants. */
+export function childRules(rules: Permission.Ruleset): Permission.Ruleset {
+  return [
+    ...rules,
+    { action: "task", resource: "*", effect: "deny" },
+    { action: "subagent", resource: "*", effect: "deny" },
+  ]
+}
+
+export function whollyDenied(rules: Permission.Ruleset, action: string) {
+  const last = rules.findLast((rule) => Wildcard.match(action, rule.action))
+  return last?.resource === "*" && last.effect === "deny"
+}
+
 export function evaluateV1(rules: PermissionV1.Ruleset, permission: string, pattern: string): PermissionV1.Action {
   return (
     rules.findLast((rule) => Wildcard.match(permission, rule.permission) && Wildcard.match(pattern, rule.pattern))
@@ -47,37 +61,61 @@ export function evaluateV1(rules: PermissionV1.Ruleset, permission: string, patt
   )
 }
 
+export function usesOrderedConfiguration(input: Pick<Input, "mode" | "masterPermissionEnabled">) {
+  return input.mode === "coding" && !input.masterPermissionEnabled
+}
+
 // 唯一决策实现：mode × agent × tier × attended × master × saved 的全部条件分支
 // 只存在于这里；effectiveV1/effectiveV2 只是同一决策结果的双端格式转换。
-function compute(input: Input, baseInput: Permission.Ruleset): Permission.Ruleset {
+function compute(
+  input: Input,
+  agentRules: Permission.Ruleset,
+  sessionRules: Permission.Ruleset,
+  ordered = false,
+): Permission.Ruleset {
   const attended = input.attended !== false
+  // Only the Agent's leading deny is a fallback. Session rules are later policy
+  // overrides, so even their first wildcard deny must retain its authority.
+  const fallback =
+    input.mode === "custom" &&
+    agentRules[0]?.effect === "deny" &&
+    agentRules[0].action === "*" &&
+    agentRules[0].resource === "*"
+      ? agentRules.slice(0, 1)
+      : []
   // ADR-20 §2.6 (Phase D)：custom 模式下资产来源的执行类 allow 一律改判 ask
   // ——审批框只在 ask 时出现，「用户在场 ≠ 用户同意」。白名单只读类保持
   // allow；saved 追加来源在下游单独追加，不受此重写影响。
-  const approvalPrefix: Permission.Ruleset = []
-  const rest: Permission.Ruleset = []
-  for (const [index, rule] of baseInput.entries()) {
-    // Keep the leading default deny before declared approvals. Later global
-    // denies remain in place, so an explicit terminal deny still wins.
-    if (index === 0 && rule.action === "*" && rule.resource === "*" && rule.effect === "deny") {
-      approvalPrefix.push(rule)
-      continue
-    }
+  const rewrittenAsks: Permission.Rule[] = []
+  const rest: Permission.Rule[] = []
+  for (const rule of agentRules.slice(fallback.length)) {
     const rewritten =
       input.mode === "custom" && rule.effect === "allow" && !readonlyCeilingAction.has(rule.action)
         ? { ...rule, effect: "ask" as const }
         : rule
-    // 位序即语义（evaluate 是 findLast）：由 allow 改判的 ask 前置到白名单
-    // allow 与显式 deny 之前，避免尾部通配改判遮蔽它们；其余规则保持原序。
-    ;(rewritten.effect === "ask" && rule.effect === "allow" ? approvalPrefix : rest).push(rewritten)
+    // 改判 ask 前置到白名单 allow 与显式 deny 之前，避免通配改判遮蔽它们。
+    ;(rewritten.effect === "ask" && rule.effect === "allow" ? rewrittenAsks : rest).push(rewritten)
   }
-  const base = input.mode === "custom" ? [...approvalPrefix, ...rest] : baseInput
+  // Only asset rules are reordered. Session overrides retain last-match order.
+  const base =
+    input.mode === "custom"
+      ? [
+          ...fallback,
+          ...rewrittenAsks,
+          ...rest,
+          ...sessionRules.map((rule) =>
+            rule.effect === "allow" && !readonlyCeilingAction.has(rule.action)
+              ? { ...rule, effect: "ask" as const }
+              : rule,
+          ),
+        ]
+      : [...agentRules, ...sessionRules]
   // 档位只对 chat/work/assistant × meta × full 抬权；未知 mode fail-safe 不抬权。
   const elevatedMode = input.mode === "chat" || input.mode === "work" || input.mode === "assistant"
   const elevated = elevatedMode && input.agent === "meta" && input.tier === "full"
   const chatDangerous = input.mode === "chat" && elevated
 
-  const rules: Permission.Ruleset = elevated
+  const rules: Permission.Rule[] = elevated
     ? [
         ...base,
         // 未知能力可见但必须确认（红线 3：不产生新 allow）。
@@ -91,7 +129,7 @@ function compute(input: Input, baseInput: Permission.Ruleset): Permission.Rulese
   if (input.masterPermissionEnabled && attended) {
     rules.push({ action: "*", resource: "*", effect: "allow" })
   }
-  if (attended) {
+  if (attended && !ordered) {
     rules.push(
       ...input.savedApprovals.map(
         (item): Permission.Rule => ({ action: item.action, resource: item.resource, effect: "allow" }),
@@ -112,26 +150,15 @@ function compute(input: Input, baseInput: Permission.Ruleset): Permission.Rulese
     }
     rules.push(...DANGEROUS_ACTIONS.map((action): Permission.Rule => ({ action, resource: "*", effect: "ask" })))
   }
-  // 显式 deny（非 fallback wildcard）优先于 saved approval（§1.3 规则 1）。
-  rules.push(...base.filter((rule) => rule.effect === "deny" && !(rule.action === "*" && rule.resource === "*")))
+  // Product envelopes retain their deny ceiling. Ordinary V2 Coding keeps Agent→Session last-match order;
+  // Permission evaluates its configured denies before consulting saved approvals for the actual request.
+  if (!ordered)
+    rules.push(...base.filter((rule) => rule.effect === "deny" && !(rule.action === "*" && rule.resource === "*")))
 
   if (!attended) {
     // Deny-first custom ceiling（M2 遗留 §4.5-1；R6-1/R6-2 整改）：白名单制。
-    // 只有显式只读类 allow（READONLY_CEILING_ACTIONS）可为无人值守扇出预授权，
-    // 未收录 action（含未来新工具）一律默认 deny。base 的显式非通配 deny
-    // 必须保留且排在白名单 allow 之后——evaluate 是 findLast，否则通配 allow
-    // 会压过 {read,.env,deny} 这类资源级 deny，使 custom 弱于其它模式。
-    // 非 custom 维持 2026-08-02 scheduled-job 裁决：显式 allow 不被 clamp 改写。
-    if (input.mode === "custom") {
-      const clampedAsks = rules.flatMap((rule) =>
-        rule.effect === "ask" ? [{ action: rule.action, resource: rule.resource, effect: "deny" as const }] : [],
-      )
-      const ceilingAllows = rules.filter((rule) => rule.effect === "allow" && readonlyCeilingAction.has(rule.action))
-      const explicitDenies = rules.filter(
-        (rule) => rule.effect === "deny" && !(rule.action === "*" && rule.resource === "*"),
-      )
-      return [{ action: "*", resource: "*", effect: "deny" }, ...clampedAsks, ...ceilingAllows, ...explicitDenies]
-    }
+    // Non-readonly Custom allows are already asks. Clamp in place so Session
+    // overrides keep their order and explicit denies remain after the whitelist.
     // unattended 最高拒绝（红线 5）：saved/master 不放开（上方未追加），
     // 全部 ask → deny，头部 fallback deny 兜底未匹配 action。
     return [
@@ -142,15 +169,19 @@ function compute(input: Input, baseInput: Permission.Ruleset): Permission.Rulese
   return rules
 }
 
-export function effectiveV2(input: Input, base: Permission.Ruleset): Permission.Ruleset {
-  return compute(input, base)
+export function effectiveV2(
+  input: Input,
+  agentRules: Permission.Ruleset,
+  sessionRules: Permission.Ruleset = [],
+): Permission.Ruleset {
+  return compute(input, agentRules, sessionRules, usesOrderedConfiguration(input))
 }
 
 export function effectiveV1(input: Input, base: PermissionV1.Ruleset): PermissionV1.Ruleset {
   const v2Base = base.map(
     (rule): Permission.Rule => ({ action: rule.permission, resource: rule.pattern, effect: rule.action }),
   )
-  return compute(input, v2Base).map(
+  return compute(input, v2Base, []).map(
     (rule): PermissionV1.Rule => ({ permission: rule.action, pattern: rule.resource, action: rule.effect }),
   )
 }

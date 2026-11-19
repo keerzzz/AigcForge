@@ -1,9 +1,9 @@
-export * as McpScope from "./mcp-scope"
+export * as McpScope from "./mcp-scope.js"
 
 import { Schema } from "effect"
-import { Composition } from "./composition"
-import { AbsolutePath } from "./schema"
-import { containsSecret } from "./credential-scan"
+import { Composition } from "./composition.js"
+import { AbsolutePath } from "./schema.js"
+import { containsSecret } from "./credential-scan.js"
 
 // Decode-time bounds: every string and collection field fails closed at the
 // boundary instead of admitting oversized payloads (the workflow-asset lesson
@@ -38,13 +38,19 @@ const RelativeAssetPath = bounded(MAX_RELATIVE_PATH).pipe(
   Schema.check(
     Schema.makeFilter<string>((input) => !input.startsWith("/"), {
       message: "MCP binding refs are location-relative; absolute paths cannot address another tree",
+      representation: { id: "aigcfroge/relativeNoLeadingSlash", payload: {} },
+      arbitraryConstraint: {} as Record<string, unknown>,
+      toCode: () => ({
+        runtime:
+          'Schema.makeFilter((input) => !input.startsWith("/"), { message: "MCP binding refs are location-relative; absolute paths cannot address another tree" })',
+      }),
     }),
   ),
 )
 
 /** Opaque reference to a Credential-service entry; never carries material. */
 export const CredentialRef = Schema.String.pipe(
-  Schema.check(Schema.isStartsWith("cred_")),
+  Schema.check(Schema.isStartingWith("cred_")),
   Schema.check(Schema.isMaxLength(MAX_GRANT_ID_LENGTH)),
   Schema.brand("McpScope.CredentialRef"),
 )
@@ -63,31 +69,31 @@ export class McpServerBinding extends Schema.Class<McpServerBinding>("McpScope.M
   }),
   transport: Schema.Literals(["stdio", "remote"]),
   command: Schema.optional(
-    Schema.Array(bounded(MAX_COMMAND_ARG_LENGTH)).pipe(
-      Schema.check(
-        Schema.makeFilter<ReadonlyArray<string>>((input) => input.length <= MAX_COMMAND_ENTRIES, {
-          message: `MCP command must have at most ${MAX_COMMAND_ENTRIES} entries`,
-        }),
-      ),
-    ),
+    Schema.Array(bounded(MAX_COMMAND_ARG_LENGTH)).pipe(Schema.check(Schema.isMaxLength(MAX_COMMAND_ENTRIES))),
   ),
   url: Schema.optional(
     bounded(MAX_URL_LENGTH).pipe(
+      Schema.check(Schema.isPattern(/^https?:\/\//)),
+      // `user:pass@host` would put a credential in a field this schema treats
+      // as non-secret: the URL is echoed verbatim by typed connect errors and
+      // by the connection projection, so userinfo is a credential leak path.
+      // Credentials belong in `credentialRef` and only in `credentialRef`.
       Schema.check(
-        Schema.makeFilter<string>((input) => input.startsWith("http://") || input.startsWith("https://"), {
-          message: "MCP remote url must be http(s)",
-        }),
-        // `user:pass@host` would put a credential in a field this schema treats
-        // as non-secret: the URL is echoed verbatim by typed connect errors and
-        // by the connection projection, so userinfo is a credential leak path.
-        // Credentials belong in `credentialRef` and only in `credentialRef`.
         Schema.makeFilter<string>(
           (input) => {
             const parsed = URL.parse(input)
             if (parsed === null) return false
             return parsed.username === "" && parsed.password === ""
           },
-          { message: "MCP remote url must be parseable and must not embed userinfo; use credentialRef" },
+          {
+            message: "MCP remote url must be parseable and must not embed userinfo; use credentialRef",
+            representation: { id: "aigcfroge/urlNoUserinfo", payload: {} },
+            arbitraryConstraint: {} as Record<string, unknown>,
+            toCode: () => ({
+              runtime:
+                'Schema.makeFilter((input) => { const parsed = URL.parse(input); if (parsed === null) return false; return parsed.username === "" && parsed.password === "" }, { message: "MCP remote url must be parseable and must not embed userinfo; use credentialRef" })',
+            }),
+          },
         ),
       ),
     ),
@@ -101,7 +107,7 @@ export const GrantScope = Schema.Union([
   Schema.Struct({
     level: Schema.Literal("session"),
     sessionID: Schema.String.pipe(
-      Schema.check(Schema.isStartsWith("ses_")),
+      Schema.check(Schema.isStartingWith("ses_")),
       Schema.check(Schema.isMaxLength(MAX_SESSION_ID_LENGTH)),
     ),
   }),
@@ -117,18 +123,12 @@ export type GrantScope = typeof GrantScope.Type
  */
 export class ScopedGrant extends Schema.Class<ScopedGrant>("McpScope.ScopedGrant")({
   id: Schema.String.pipe(
-    Schema.check(Schema.isStartsWith("grt_")),
+    Schema.check(Schema.isStartingWith("grt_")),
     Schema.check(Schema.isMaxLength(MAX_GRANT_ID_LENGTH)),
   ),
   scope: GrantScope,
   action: bounded(MAX_GRANT_ACTION_LENGTH),
-  resources: Schema.Array(bounded(MAX_RESOURCE_LENGTH)).pipe(
-    Schema.check(
-      Schema.makeFilter<ReadonlyArray<string>>((input) => input.length <= MAX_GRANT_RESOURCES, {
-        message: `A grant covers at most ${MAX_GRANT_RESOURCES} resources`,
-      }),
-    ),
-  ),
+  resources: Schema.Array(bounded(MAX_RESOURCE_LENGTH)).pipe(Schema.check(Schema.isMaxLength(MAX_GRANT_RESOURCES))),
   effect: Schema.Literal("allow"),
   agent: Schema.optional(bounded(MAX_GRANT_ACTION_LENGTH)),
   revision: Schema.optional(Composition.Revision),
@@ -155,7 +155,7 @@ export class ScopedGrantInfo extends Schema.Class<ScopedGrantInfo>("McpScope.Sco
  */
 export class McpCredentialBinding extends Schema.Class<McpCredentialBinding>("McpScope.McpCredentialBinding")({
   id: Schema.String.pipe(
-    Schema.check(Schema.isStartsWith("mcb_")),
+    Schema.check(Schema.isStartingWith("mcb_")),
     Schema.check(Schema.isMaxLength(MAX_GRANT_ID_LENGTH)),
   ),
   directory: AbsolutePath,

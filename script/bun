@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+
+# Preserve the caller's package directory and put the same runtime on child PATHs.
+runtime_bin=$(node "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/runtime/prepare.mjs")
+PATH="$runtime_bin:$PATH"
+export PATH
+exec "$runtime_bin/bun" "$@"

@@ -1,28 +1,38 @@
 import { describe, expect } from "bun:test"
-import { Duration, Effect, Layer, Ref } from "effect"
-import * as TestClock from "effect/testing/TestClock"
+import { DateTime, Duration, Effect, Layer, Ref } from "effect"
+import { TestClock } from "effect/testing"
 import { Database } from "@aigcfroge/core/database/database"
-import { EventV2 } from "@aigcfroge/core/event"
+import { Bus } from "@aigcfroge/core/bus"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Global } from "@aigcfroge/util/global"
 import { Project } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
 import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Schedule } from "@aigcfroge/schema/schedule"
-import { SessionV2 } from "@aigcfroge/core/session"
+import { Session } from "@aigcfroge/core/session"
 import { SessionTable } from "@aigcfroge/core/session/sql"
 import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
 import { testEffect } from "./lib/effect"
 
-const sessionID = SessionV2.ID.make("ses_schedule_service_test")
-
-const it = testEffect(
-  ScheduleService.layer.pipe(Layer.provideMerge(Database.defaultLayer), Layer.provideMerge(EventV2.defaultLayer)),
+const globalLayer = Layer.succeed(
+  Global.Service,
+  Global.Service.of(Global.make({ data: "/data", config: "/config", tmp: "/tmp/aigcfroge" })),
 )
+const databaseLayer = Database.layer().pipe(Layer.provide(globalLayer))
+
+const busNodeLayer = AppNodeBuilder.build(LayerNode.group([Database.node, Bus.node]), [
+  Bus.node.replace(Bus.configured()),
+])
+
+const sessionID = Session.ID.make("ses_schedule_service_test")
+
+const it = testEffect(ScheduleService.layer.pipe(Layer.provideMerge(databaseLayer), Layer.provideMerge(busNodeLayer)))
 
 const deliveryIt = testEffect(
   ScheduleService.layer.pipe(
     Layer.provideMerge(ScheduleService.deliveryLayer),
-    Layer.provideMerge(Database.defaultLayer),
-    Layer.provideMerge(EventV2.defaultLayer),
+    Layer.provideMerge(databaseLayer),
+    Layer.provideMerge(busNodeLayer),
   ),
 )
 
@@ -240,8 +250,8 @@ const daemonIt = testEffect(
   ScheduleService.daemonLayer.pipe(
     Layer.provideMerge(ScheduleService.layer),
     Layer.provideMerge(ScheduleService.deliveryLayer),
-    Layer.provideMerge(EventV2.defaultLayer),
-    Layer.provideMerge(Database.defaultLayer),
+    Layer.provideMerge(busNodeLayer),
+    Layer.provideMerge(databaseLayer),
   ),
 )
 
@@ -251,7 +261,9 @@ describe("AssistantSchedulerDaemon", () => {
       yield* setup
       const schedules = yield* ScheduleService.Service
       const deliveries = yield* ScheduleService.DeliveryService
-      yield* schedules.create(makeInput({ dueAt: Date.now() - 60_000, deliveryKey: "reminder:due:1" }))
+      yield* schedules.create(
+        makeInput({ dueAt: (yield* DateTime.nowAsDate).getTime() - 60_000, deliveryKey: "reminder:due:1" }),
+      )
 
       // The daemon armed at startup (recover pass); tick once to fire the due row.
       for (let i = 0; i < 3; i++) {
@@ -281,8 +293,8 @@ describe("AssistantSchedulerDaemon", () => {
 const coreIt = testEffect(
   ScheduleService.layer.pipe(
     Layer.provideMerge(ScheduleService.deliveryLayer),
-    Layer.provideMerge(EventV2.defaultLayer),
-    Layer.provideMerge(Database.defaultLayer),
+    Layer.provideMerge(busNodeLayer),
+    Layer.provideMerge(databaseLayer),
   ),
 )
 
@@ -292,7 +304,7 @@ const coreIt = testEffect(
 const restart = Effect.gen(function* () {
   const { db } = yield* Database.Service
   const schedules = yield* ScheduleService.Service
-  const events = yield* EventV2.Service
+  const events = yield* Bus.Service
   const recovered = yield* Ref.make(new Set<string>())
   yield* ScheduleService.markCatchUp({ db, recovered, now: Date.now() })
   const core = yield* ScheduleService.makeAssistantCore({ db, schedules, events, recovered })
@@ -388,8 +400,8 @@ const splitEventIt = testEffect(
   ScheduleService.daemonLayer.pipe(
     Layer.provideMerge(ScheduleService.layer),
     Layer.provideMerge(ScheduleService.deliveryLayer),
-    Layer.provideMerge(EventV2.defaultLayer),
-    Layer.provideMerge(Database.defaultLayer),
+    Layer.provideMerge(busNodeLayer),
+    Layer.provideMerge(databaseLayer),
   ),
 )
 
@@ -403,16 +415,18 @@ describe("AssistantSchedulerDaemon (split EventV2 instances)", () => {
       // in-memory db: the daemon never sees its schedule.updated publish —
       // only the per-minute arm re-derives the row from the table. (The test
       // db is :memory:, so the split layer must reuse the outer db handle
-      // rather than building its own Database.defaultLayer.)
+      // rather than building its own databaseLayer.)
       yield* Effect.scoped(
         Effect.gen(function* () {
           const ctx = yield* ScheduleService.layer.pipe(
-            Layer.provideMerge(EventV2.defaultLayer),
+            Layer.provideMerge(busNodeLayer),
             Layer.provideMerge(Layer.succeed(Database.Service, { db })),
             Layer.build,
           )
           const split = yield* ScheduleService.Service.pipe(Effect.provide(ctx))
-          yield* split.create(makeInput({ dueAt: Date.now() - 60_000, deliveryKey: "reminder:split:1" }))
+          yield* split.create(
+            makeInput({ dueAt: (yield* DateTime.nowAsDate).getTime() - 60_000, deliveryKey: "reminder:split:1" }),
+          )
         }),
       )
 

@@ -1,205 +1,363 @@
 import { describe, expect } from "bun:test"
-import { and, eq } from "drizzle-orm"
-import { Effect, Exit } from "effect"
+import { asc, eq } from "drizzle-orm"
+import { Effect } from "effect"
+import { Bus } from "@aigcfroge/core/bus"
 import { Database } from "@aigcfroge/core/database/database"
-import { EventV2 } from "@aigcfroge/core/event"
-import { EventTable } from "../src/event/sql"
-import { DelegationProjector } from "../src/delegation/projector"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { DelegationEvent } from "@aigcfroge/core/delegation/event"
+import { foldDelegation } from "@aigcfroge/core/delegation/fold"
+import { DelegationProjector } from "@aigcfroge/core/delegation/projector"
+import { DelegationParticipantTable, DelegationTable, DelegationTurnTable } from "@aigcfroge/core/delegation/sql"
+import { EventSequenceTable, EventTable } from "@aigcfroge/core/event/sql"
+import { Project } from "@aigcfroge/core/project"
+import { ProjectTable } from "@aigcfroge/core/project/sql"
+import { AbsolutePath } from "@aigcfroge/core/schema"
+import { SessionTable } from "@aigcfroge/core/session/sql"
 import { DelegationID, ParticipantID, TurnID } from "@aigcfroge/schema/delegation-id"
-import { ID as SessionID } from "@aigcfroge/schema/session-id"
-import { DelegationEvent } from "../src/delegation/event"
-import { DelegationParticipantTable, DelegationTable, DelegationTurnTable } from "../src/delegation/sql"
-import { seedDelegationParentSession, testDelegationBaseLayer } from "./delegation-test-support"
+import { Event } from "@aigcfroge/schema/event"
+import { Session } from "@aigcfroge/schema/session"
+import { SessionEvent } from "@aigcfroge/schema/session-event"
+import { SessionID } from "@aigcfroge/schema/session-id"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
 import { testEffect } from "./lib/effect"
 
-const it = testEffect(testDelegationBaseLayer)
+const it = testEffect(
+  AppNodeBuilder.build(LayerNode.group([Database.node, Bus.node, DelegationProjector.node]), [
+    Bus.node.replace(Bus.configured({ persist: true })),
+  ]),
+)
+const itWithoutPersistence = testEffect(
+  AppNodeBuilder.build(LayerNode.group([Database.node, Bus.node, DelegationProjector.node])),
+)
 
-const publishProjectedSequence = (delegationID: DelegationID.ID, parentSessionID: SessionID) =>
-  Effect.gen(function* () {
-    const events = yield* EventV2.Service
-    const participantID = ParticipantID.make(`par_${delegationID.slice(4)}_participant`)
-    const turnID = TurnID.make(`trn_${delegationID.slice(4)}_turn`)
-    const timestamp = 1700000000000
-
-    yield* events.publish(DelegationEvent.Created, {
-      delegationID,
-      parentSessionID,
-      title: "Projector test",
-      status: "draft",
-      timestamp,
+const seedDelegation = Effect.gen(function* () {
+  const bus = yield* Bus.Service
+  const database = yield* Database.Service
+  const delegationID = DelegationID.ID.create()
+  const parentSessionID = SessionID.create()
+  const implementerID = ParticipantID.create()
+  const reviewerID = ParticipantID.create()
+  yield* database.db
+    .insert(ProjectTable)
+    .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
+    .run()
+  yield* database.db
+    .insert(SessionTable)
+    .values({
+      id: parentSessionID,
+      project_id: Project.ID.global,
+      slug: "test",
+      directory: "/project",
+      title: "Delegation owner",
+      version: "test",
     })
-    yield* events.publish(DelegationEvent.ParticipantAdded, {
-      delegationID,
-      participantID,
-      provider: "internal",
-      target: "build",
-      role: "implementer",
-      context: "fresh",
-      phase: "provisioning",
-      timestamp: timestamp + 1,
-    })
-    yield* events.publish(DelegationEvent.TurnAdmitted, {
-      delegationID,
-      turnID,
-      seq: 1,
-      kind: "task",
-      promptSummary: "bounded summary",
-      participantIDs: [participantID],
-      delivery: "steer",
-      timestamp: timestamp + 2,
-    })
-    yield* events.publish(DelegationEvent.DeliveryAdmitted, {
-      delegationID,
-      turnID,
-      participantID,
-      deliveryOrigin: "build",
-      senderParticipantID: participantID,
-      attempt: 1,
-      status: "admitted",
-      timestamp: timestamp + 2,
-    })
-    yield* events.publish(DelegationEvent.DeliveryStarted, {
-      delegationID,
-      turnID,
-      participantID,
-      deliveryOrigin: "build",
-      senderParticipantID: participantID,
-      attempt: 1,
-      timestamp: timestamp + 3,
-    })
-    yield* events.publish(DelegationEvent.DeliveryCompleted, {
-      delegationID,
-      turnID,
-      participantID,
-      deliveryOrigin: "build",
-      senderParticipantID: participantID,
-      attempt: 1,
-      summary: "completed",
-      timestamp: timestamp + 4,
-    })
-
-    return { participantID, turnID }
+    .run()
+  yield* bus.publish(DelegationEvent.Created, {
+    delegationID,
+    parentSessionID,
+    title: "Build and review",
+    status: "draft",
+    timestamp: 0,
   })
+  yield* bus.publish(DelegationEvent.ParticipantAdded, {
+    delegationID,
+    participantID: implementerID,
+    provider: "internal",
+    target: "build",
+    role: "implementer",
+    context: "fresh",
+    phase: "provisioning",
+    timestamp: 1,
+  })
+  yield* bus.publish(DelegationEvent.ParticipantAdded, {
+    delegationID,
+    participantID: reviewerID,
+    provider: "codex",
+    target: "codex",
+    role: "reviewer",
+    context: "fresh",
+    phase: "provisioning",
+    timestamp: 2,
+  })
+  return { bus, database, delegationID, implementerID, reviewerID }
+})
 
-describe("Delegation EventV2 projector", () => {
-  it.effect("keeps projection status and turn status equal to folded durable state", () =>
+describe("DelegationProjector durable batches", () => {
+  it.effect("exposes only earlier batch events to each historical projector", () =>
     Effect.gen(function* () {
-      const { db } = yield* Database.Service
-      const delegationID = DelegationID.ID.make("dlg_projector")
-      const parentSessionID = SessionID.make("ses_projector")
-      yield* seedDelegationParentSession(db, parentSessionID)
-      const { participantID, turnID } = yield* publishProjectedSequence(delegationID, parentSessionID)
-
-      const delegation = yield* db.select().from(DelegationTable).where(eq(DelegationTable.id, delegationID)).get()
-      const participant = yield* db
-        .select()
-        .from(DelegationParticipantTable)
-        .where(
-          and(
-            eq(DelegationParticipantTable.id, participantID),
-            eq(DelegationParticipantTable.delegation_id, delegationID),
+      const bus = yield* Bus.Service
+      const database = yield* Database.Service
+      const sessionID = Session.ID.create()
+      const observed = new Array<number[]>()
+      expect(bus.retainsEvents).toBe(true)
+      yield* bus.project(SessionEvent.Renamed, (event) =>
+        database.db
+          .select({ seq: EventTable.seq })
+          .from(EventTable)
+          .where(eq(EventTable.aggregate_id, event.data.sessionID))
+          .orderBy(asc(EventTable.seq))
+          .all()
+          .pipe(
+            Effect.orDie,
+            Effect.map((rows) => observed.push(rows.map((row) => row.seq))),
+            Effect.asVoid,
           ),
-        )
-        .get()
-      const turn = yield* db.select().from(DelegationTurnTable).where(eq(DelegationTurnTable.id, turnID)).get()
+      )
+      yield* bus.publish(SessionEvent.Renamed, { sessionID, title: "before batch" })
+      yield* bus.publishAll([
+        [SessionEvent.Renamed, { sessionID, title: "first" }],
+        [SessionEvent.Renamed, { sessionID, title: "second" }],
+      ])
 
-      expect(delegation?.status).toBe("approved")
-      expect(delegation?.last_activity_at).toBe(1700000000004)
-      expect(participant?.phase).toBe("provisioning")
-      expect(turn?.status).toBe("completed")
-      expect(turn?.prompt_summary).toBe("bounded summary")
-      expect(yield* db.select().from(EventTable).where(eq(EventTable.aggregate_id, delegationID))).toHaveLength(6)
+      expect(observed).toEqual([[], [0], [0, 1]])
     }),
   )
 
-  it.effect("rebuilds all three projections from EventV2 after projection loss", () =>
+  itWithoutPersistence.effect("requires event retention before projecting later delegation facts", () =>
     Effect.gen(function* () {
-      const { db } = yield* Database.Service
-      const delegationID = DelegationID.ID.make("dlg_projector_rebuild")
-      const parentSessionID = SessionID.make("ses_projector_rebuild")
-      yield* seedDelegationParentSession(db, parentSessionID)
-      const { participantID, turnID } = yield* publishProjectedSequence(delegationID, parentSessionID)
-
-      yield* db
-        .delete(DelegationParticipantTable)
-        .where(eq(DelegationParticipantTable.delegation_id, delegationID))
+      const bus = yield* Bus.Service
+      const database = yield* Database.Service
+      const delegationID = DelegationID.ID.create()
+      const parentSessionID = SessionID.create()
+      expect(bus.retainsEvents).toBe(false)
+      yield* database.db
+        .insert(ProjectTable)
+        .values({ id: Project.ID.global, worktree: AbsolutePath.make("/project"), sandboxes: [] })
         .run()
-      yield* db.delete(DelegationTurnTable).where(eq(DelegationTurnTable.delegation_id, delegationID)).run()
-      yield* db.delete(DelegationTable).where(eq(DelegationTable.id, delegationID)).run()
-      expect(yield* db.select().from(DelegationTable).where(eq(DelegationTable.id, delegationID))).toEqual([])
-
-      yield* DelegationProjector.rebuild(db, delegationID)
-
-      expect(yield* db.select().from(DelegationTable).where(eq(DelegationTable.id, delegationID))).toHaveLength(1)
-      expect(
-        yield* db
-          .select()
-          .from(DelegationParticipantTable)
-          .where(
-            and(
-              eq(DelegationParticipantTable.id, participantID),
-              eq(DelegationParticipantTable.delegation_id, delegationID),
-            ),
-          ),
-      ).toHaveLength(1)
-      const turn = yield* db.select().from(DelegationTurnTable).where(eq(DelegationTurnTable.id, turnID)).get()
-      expect(turn?.status).toBe("completed")
-      expect(turn?.prompt_summary).toBe("bounded summary")
-      expect(yield* db.select().from(EventTable).where(eq(EventTable.aggregate_id, delegationID))).toHaveLength(6)
-    }),
-  )
-
-  it.effect("rolls back a projector failure and does not notify listeners", () =>
-    Effect.gen(function* () {
-      const events = yield* EventV2.Service
-      const { db } = yield* Database.Service
-      const delegationID = DelegationID.ID.make("dlg_projector_rollback")
-      const participantID = ParticipantID.make("par_projector_rollback")
-      const parentSessionID = SessionID.make("ses_projector_rollback")
-      yield* seedDelegationParentSession(db, parentSessionID)
-      yield* events.publish(DelegationEvent.Created, {
+      yield* database.db
+        .insert(SessionTable)
+        .values({
+          id: parentSessionID,
+          project_id: Project.ID.global,
+          slug: "test",
+          directory: "/project",
+          title: "Delegation owner",
+          version: "test",
+        })
+        .run()
+      yield* bus.publish(DelegationEvent.Created, {
         delegationID,
         parentSessionID,
-        title: "Rollback test",
+        title: "Requires retained history",
         status: "draft",
-        timestamp: 1700000000000,
+        timestamp: 0,
       })
-      let notifications = 0
-      yield* events.listen(() =>
-        Effect.sync(() => {
-          notifications += 1
-        }),
-      )
-      yield* events.project(DelegationEvent.ParticipantAdded, () => Effect.die("projector failed"))
-
-      const result = yield* events
+      const exit = yield* bus
         .publish(DelegationEvent.ParticipantAdded, {
           delegationID,
-          participantID,
+          participantID: ParticipantID.create(),
           provider: "internal",
           target: "build",
           role: "implementer",
           context: "fresh",
           phase: "provisioning",
-          timestamp: 1700000000001,
+          timestamp: 1,
         })
         .pipe(Effect.exit)
 
-      expect(Exit.isFailure(result)).toBe(true)
-      expect(notifications).toBe(0)
+      expect(String(exit)).toContain("Delegation.DelegationSequenceError")
       expect(
-        yield* db
-          .select()
-          .from(DelegationParticipantTable)
-          .where(
-            and(
-              eq(DelegationParticipantTable.id, participantID),
-              eq(DelegationParticipantTable.delegation_id, delegationID),
-            ),
-          ),
+        yield* database.db.select().from(EventTable).where(eq(EventTable.aggregate_id, delegationID)).all(),
       ).toEqual([])
-      expect(yield* db.select().from(DelegationTable).where(eq(DelegationTable.id, delegationID))).toHaveLength(1)
-      expect(yield* db.select().from(EventTable).where(eq(EventTable.aggregate_id, delegationID))).toHaveLength(1)
+      expect(
+        yield* database.db
+          .select({ status: DelegationTable.status })
+          .from(DelegationTable)
+          .where(eq(DelegationTable.id, delegationID))
+          .get(),
+      ).toEqual({ status: "draft" })
+    }),
+  )
+
+  it.effect("preserves aggregate sequence rows initialized by the first batch projector", () =>
+    Effect.gen(function* () {
+      const bus = yield* Bus.Service
+      const database = yield* Database.Service
+      const sessionID = Session.ID.create()
+      yield* bus.project(SessionEvent.Renamed, (event) =>
+        Bus.reserveSequence(database.db, event.data.sessionID, event.durable.seq),
+      )
+
+      yield* bus.publishAll([
+        [SessionEvent.Renamed, { sessionID, title: "first" }],
+        [SessionEvent.Renamed, { sessionID, title: "second" }],
+      ])
+
+      expect(
+        yield* database.db
+          .select({ seq: EventTable.seq })
+          .from(EventTable)
+          .where(eq(EventTable.aggregate_id, sessionID))
+          .orderBy(asc(EventTable.seq))
+          .all(),
+      ).toEqual([{ seq: 0 }, { seq: 1 }])
+      expect(
+        yield* database.db
+          .select({ seq: EventSequenceTable.seq })
+          .from(EventSequenceTable)
+          .where(eq(EventSequenceTable.aggregate_id, sessionID))
+          .get(),
+      ).toEqual({ seq: 1 })
+    }),
+  )
+
+  it.effect("projects a turn and every target delivery before notifying observers", () =>
+    Effect.gen(function* () {
+      const seed = yield* seedDelegation
+      const turnID = TurnID.create()
+      const observed = new Array<number>()
+      yield* seed.bus.listen((event) => {
+        if (event.durable?.aggregateID !== seed.delegationID) return Effect.void
+        return seed.database.db
+          .select({ seq: EventTable.seq })
+          .from(EventTable)
+          .where(eq(EventTable.aggregate_id, seed.delegationID))
+          .all()
+          .pipe(
+            Effect.orDie,
+            Effect.map((rows) => observed.push(rows.length)),
+            Effect.asVoid,
+          )
+      })
+
+      const published = yield* seed.bus.publishAll([
+        [
+          DelegationEvent.TurnAdmitted,
+          {
+            delegationID: seed.delegationID,
+            turnID,
+            seq: 1,
+            kind: "task",
+            participantIDs: [seed.implementerID, seed.reviewerID],
+            delivery: "steer",
+            timestamp: 3,
+          },
+        ],
+        [
+          DelegationEvent.DeliveryAdmitted,
+          {
+            delegationID: seed.delegationID,
+            turnID,
+            participantID: seed.implementerID,
+            deliveryOrigin: "parent-task",
+            senderParticipantID: seed.implementerID,
+            attempt: 1,
+            status: "admitted",
+            timestamp: 3,
+          },
+        ],
+        [
+          DelegationEvent.DeliveryAdmitted,
+          {
+            delegationID: seed.delegationID,
+            turnID,
+            participantID: seed.reviewerID,
+            deliveryOrigin: "parent-task",
+            senderParticipantID: seed.implementerID,
+            attempt: 1,
+            status: "admitted",
+            timestamp: 3,
+          },
+        ],
+      ])
+
+      const state = foldDelegation(yield* DelegationProjector.readEvents(seed.database.db, seed.delegationID))
+      expect(state?.turns.get(turnID)?.participantIDs).toEqual([seed.implementerID, seed.reviewerID])
+      expect(state?.deliveries.size).toBe(2)
+      expect(published.map((event) => event.durable.seq)).toEqual([
+        Event.Seq.make(3),
+        Event.Seq.make(4),
+        Event.Seq.make(5),
+      ])
+      expect(observed).toEqual([6, 6, 6])
+      expect(
+        yield* seed.database.db
+          .select({ id: DelegationTurnTable.id, status: DelegationTurnTable.status })
+          .from(DelegationTurnTable)
+          .where(eq(DelegationTurnTable.delegation_id, seed.delegationID))
+          .all(),
+      ).toEqual([{ id: turnID, status: "admitted" }])
+    }),
+  )
+
+  it.effect("rolls back an earlier projected prefix when a later delivery is invalid", () =>
+    Effect.gen(function* () {
+      const seed = yield* seedDelegation
+      const turnID = TurnID.create()
+      const observed = new Array<string>()
+      yield* seed.bus.listen((event) =>
+        Effect.sync(() => {
+          observed.push(event.type)
+        }),
+      )
+      const exit = yield* seed.bus
+        .publishAll([
+          [
+            DelegationEvent.TurnAdmitted,
+            {
+              delegationID: seed.delegationID,
+              turnID,
+              seq: 1,
+              kind: "task",
+              participantIDs: [seed.implementerID],
+              delivery: "steer",
+              timestamp: 3,
+            },
+          ],
+          [
+            DelegationEvent.DeliveryAdmitted,
+            {
+              delegationID: seed.delegationID,
+              turnID,
+              participantID: seed.reviewerID,
+              deliveryOrigin: "parent-task",
+              senderParticipantID: seed.implementerID,
+              attempt: 1,
+              status: "admitted",
+              timestamp: 3,
+            },
+          ],
+        ])
+        .pipe(Effect.exit)
+
+      expect(String(exit)).toContain(`Participant ${seed.reviewerID} is not admitted for turn ${turnID}`)
+      expect(
+        yield* seed.database.db
+          .select({ seq: EventTable.seq })
+          .from(EventTable)
+          .where(eq(EventTable.aggregate_id, seed.delegationID))
+          .orderBy(asc(EventTable.seq))
+          .all(),
+      ).toEqual([{ seq: 0 }, { seq: 1 }, { seq: 2 }])
+      expect(
+        yield* seed.database.db
+          .select({ seq: EventSequenceTable.seq })
+          .from(EventSequenceTable)
+          .where(eq(EventSequenceTable.aggregate_id, seed.delegationID))
+          .get(),
+      ).toEqual({ seq: 2 })
+      expect(
+        yield* seed.database.db
+          .select({ id: DelegationTurnTable.id })
+          .from(DelegationTurnTable)
+          .where(eq(DelegationTurnTable.delegation_id, seed.delegationID))
+          .all(),
+      ).toEqual([])
+      expect(
+        yield* seed.database.db
+          .select({ status: DelegationTable.status })
+          .from(DelegationTable)
+          .where(eq(DelegationTable.id, seed.delegationID))
+          .get(),
+      ).toEqual({ status: "draft" })
+      expect(
+        (yield* seed.database.db
+          .select({ id: DelegationParticipantTable.id })
+          .from(DelegationParticipantTable)
+          .where(eq(DelegationParticipantTable.delegation_id, seed.delegationID))
+          .all()).length,
+      ).toBe(2)
+      expect(observed).toEqual([])
     }),
   )
 })

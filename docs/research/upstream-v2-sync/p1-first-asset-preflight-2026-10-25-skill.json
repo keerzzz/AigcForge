@@ -1,0 +1,602 @@
+{
+  "report_kind": "bounded_first_asset_preflight",
+  "created_at_utc": "2026-10-25T18:59:30.008285+00:00",
+  "artifact_date_basis": "2026-10-25 UTC; Asia/Shanghai local date 2026-10-26",
+  "author": "/root/p03_fd_final_review",
+  "owner": "/root",
+  "target": {
+    "path": "/home/keer/workspace/aigcfroge-v2",
+    "branch": "v2-dev",
+    "head": "251c0fe38041a326e624db464d1ee0efd1522881",
+    "has_preexisting_wip": true
+  },
+  "old_reference": {
+    "path": "/home/keer/workspace/aigcfroge",
+    "branch": "main",
+    "head": "edbe67383d830aa40269ddf453c7f5617c940b46",
+    "has_preexisting_wip": true,
+    "read_only": true
+  },
+  "scope": {
+    "kind": "read_only_preflight_with_two_new_report_artifacts",
+    "implementation_approval": "pending_parent_authorization_after_P0_same_source_acceptance",
+    "package_source_changes": false,
+    "tests_builds_typecheck_lint_acceptance_servers_executed": false,
+    "full_immutable_worktree_snapshot": false,
+    "source_hash_scope": "only the cited files read for this preflight",
+    "plan_and_debt_changed_by_reviewer": false
+  },
+  "selected_family": {
+    "kind": "skill",
+    "subset": {
+      "slash": false,
+      "triggers": [],
+      "tags": []
+    },
+    "variable_fields": ["name", "description", "content"],
+    "path_owner": "SkillAssetPath.nameToRelativePath / SkillAssetService.propose"
+  },
+  "confirmed_static_gaps": [
+    {
+      "id": "proposal_durable_facts_missing",
+      "status": "static_verified_not_product_reproduced",
+      "selected_producer": "packages/core/src/tool/propose-skill-asset.ts:65",
+      "shared_deciding_boundaries": [
+        "packages/core/src/tool/runtime.ts:261",
+        "packages/core/src/session/runner/publish-llm-event.ts:579",
+        "packages/schema/src/session-message.ts:139"
+      ],
+      "facts": ["relativePath", "exists", "revision", "nameConflict", "pathConflict"],
+      "minimum_fix": "Persist the existing selected producer facts in its Tool metadata; preserve canonical Tool.Success projection.",
+      "forbidden_fallback": "Do not default missing facts to exists=false, conflicts=false, revision=null or an empty path.",
+      "other_producers_claimed_identical": false
+    },
+    {
+      "id": "public_skill_http_stubs",
+      "status": "static_verified_not_product_reproduced",
+      "owner": "packages/server/src/handlers/asset-stubs.ts:27",
+      "required_handoff": "existing SkillAssetService via real Location graph, auth, canonical route and actual Session placement",
+      "client_surface": "client[\"skill-asset\"]"
+    },
+    {
+      "id": "candidate_confirmation_ui_unwired",
+      "status": "static_verified_not_product_reproduced",
+      "owner": "packages/gui-extensions/src/renderer.ts:38",
+      "reuse": ["Panel", "Slot", "Command", "ServerRef", "SessionRef", "current assistant content Tool states"],
+      "forbidden_topologies": [
+        "old global prompt-asset-store",
+        "old data.part assumption",
+        "fictional UserUI/Slots SDK",
+        "Core/App runtime imports into extension"
+      ]
+    }
+  ],
+  "unverified_handoffs": [
+    {
+      "id": "http_apply_to_native_skill_visibility",
+      "reason": "SkillAssetService.apply waits for SkillAsset catalog readback; native ConfigSkillPlugin refresh is driven separately by watcher/config events.",
+      "deciders": [
+        "packages/core/src/skill-asset-service.ts:143",
+        "packages/core/src/skill-asset-service.ts:289",
+        "packages/core/src/config/plugin/skill.ts:171"
+      ],
+      "acceptance": "Observe native skill.list/skill.updated with readiness signals, then submit @skill and inspect the current SessionRunner request."
+    },
+    {
+      "id": "chat_mode_creation_prerequisite",
+      "reason": "Session.Info has mode; canonical public create payload and handler do not pass it.",
+      "deciders": [
+        "packages/schema/src/session.ts:43",
+        "packages/protocol/src/groups/session.ts:222",
+        "packages/server/src/handlers/session.ts:137"
+      ],
+      "dependency": "P2.1",
+      "coding_probe_is_chat_acceptance": false
+    }
+  ],
+  "current_consumer": {
+    "instructions": {
+      "producer": "packages/core/src/skill/instructions.ts:76",
+      "key": "core/skill-guidance",
+      "assembly": "packages/core/src/session/context.ts:260"
+    },
+    "body": {
+      "composer": "packages/app/src/composer/submit.ts:518",
+      "materialization": "packages/core/src/session/prompt.ts:65",
+      "request": "packages/core/src/session/runner/to-llm-message.ts:269"
+    },
+    "legacy_system_context_registry_required": false,
+    "second_provider_loop_required": false
+  },
+  "deletion_policy": {
+    "source": "/home/keer/workspace/aigcfroge/docs/prd/custom-mode-composition-platform.md:292",
+    "previously_decided": true,
+    "show_reverse_references_before_delete": true,
+    "cascade_delete_profiles_assets_or_session_history": false,
+    "content_asset_delete": "Profile broken; future starts blocked; existing frozen history remains usable.",
+    "all_referenced_deletion_blocked": false,
+    "identity_decider": "packages/core/src/composition/reference.ts:26",
+    "historical_location_decider": "packages/core/src/session/composition.ts:248",
+    "partial_snapshot_results_must_not_mean_no_references": true
+  },
+  "new_human_decisions_required_for_selected_subset": [],
+  "later_scope": [
+    {
+      "scope": "P2.1 five-mode creation",
+      "owner": "Core/App",
+      "unlock": "actual creation, echo and child/fork inheritance accepted"
+    },
+    {
+      "scope": "slash=true / nonempty triggers or tags",
+      "owner": "Product Owner/Core",
+      "unlock": "old intended behavior mapped to actual native parser/consumer"
+    },
+    {
+      "scope": "other six families and imports",
+      "owner": "Core/Server/GUI/Import",
+      "unlock": "first real family chain accepted, followed by per-family consumer evidence"
+    },
+    {
+      "scope": "full Custom Builder/runtime dependency freeze",
+      "owner": "Custom Owner",
+      "unlock": "current P3 contract accepted"
+    }
+  ],
+  "minimum_next_slice_acceptance": [
+    {
+      "id": "persistent_proposal_facts",
+      "status": "planned_not_executed",
+      "owner": "Core"
+    },
+    {
+      "id": "four_real_skill_http_handlers_and_placement",
+      "status": "planned_not_executed",
+      "owner": "Server"
+    },
+    {
+      "id": "explicit_confirm_cancel_conflict_and_cas",
+      "status": "planned_not_executed",
+      "owner": "Core/Server/GUI"
+    },
+    {
+      "id": "http_apply_native_reload_and_current_session_request",
+      "status": "planned_not_executed",
+      "owner": "Core/Server/Client/App"
+    },
+    {
+      "id": "delete_refs_source_and_frozen_history",
+      "status": "planned_not_executed",
+      "owner": "Core/Server/GUI"
+    },
+    {
+      "id": "real_chat_managed_server_user_chain_after_p2_1",
+      "status": "planned_not_executed",
+      "owner": "Core/Server/App"
+    }
+  ],
+  "verification_claim": {
+    "kind": "source_reads_and_report_integrity_only",
+    "repository_validation": "not_executed",
+    "green_tally": null,
+    "product_red_reproduced": false
+  },
+  "report_markdown": {
+    "path": "/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/p1-first-asset-preflight-2026-10-25-skill.md",
+    "sha256": "b94e7eed14f47ce9076d92ac851d08b34b7eb5cfdb193ff6993cf1724949832a"
+  },
+  "sources": [
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/2026-10-25-v2-alignment-execution-plan.md",
+      "scope": "target_input",
+      "sha256": "e4d16e73b98075d2a8866bdd8cc72dbfedc320dda3af620e0ba2f256f7d7538f",
+      "cited_lines": [134, 140],
+      "line_count_at_capture": 227
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/docs/technical-debt.md",
+      "scope": "target_input",
+      "sha256": "b3dfcca7e6935dbe621b97254f20da4f5c17a7e68246380fc04bd7cab93e8a6c",
+      "cited_lines": [66],
+      "line_count_at_capture": 74
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/app/e2e/regression/new-session.spec.ts",
+      "scope": "target_input",
+      "sha256": "78e366324e10e582243e797127275ef8ff19e41cd58414e969f48dd87f4130ef",
+      "cited_lines": [1],
+      "line_count_at_capture": 586
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/app/e2e/regression/side-panels.spec.ts",
+      "scope": "target_input",
+      "sha256": "89959565d95ac5dfa31b03ee4ed19089cf42e0774f71129a75eeeab5c50cbbd8",
+      "cited_lines": [6],
+      "line_count_at_capture": 429
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/app/src/composer/model.ts",
+      "scope": "target_input",
+      "sha256": "a0422e97897216764f8e76e2b56d884d1f9fee2fbb8e4dced04021941f248118",
+      "cited_lines": [188],
+      "line_count_at_capture": 513
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/app/src/composer/submit.ts",
+      "scope": "target_input",
+      "sha256": "94b48bf761890e50da2e915b3bd4c95ce993a312b2192073e1134e4b77de155a",
+      "cited_lines": [518],
+      "line_count_at_capture": 566
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/client/src/promise/generated/client.ts",
+      "scope": "target_input",
+      "sha256": "b2d0cda30bd363a242955a98be3cb6f530b81d65507086d0749af015f1c9ae96",
+      "cited_lines": [2766],
+      "line_count_at_capture": 5468
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/client/src/solid/data.ts",
+      "scope": "target_input",
+      "sha256": "e2f402cc1fa04e9f93e8ea43eec64bc2e1c35a139ac143f8391c6657521c9ec8",
+      "cited_lines": [1271, 2034],
+      "line_count_at_capture": 2052
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/command-asset-service.ts",
+      "scope": "target_input",
+      "sha256": "e41f89efbf5d358f40726f40b3f6cc9c6d94232ac9fd461ac9aeadb00c55aba5",
+      "cited_lines": [237],
+      "line_count_at_capture": 409
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/composition-resolver.ts",
+      "scope": "target_input",
+      "sha256": "46a2c20b98dec4f6208b3cb261b42793efb3316486760fd4f9ad363863e39a7a",
+      "cited_lines": [428],
+      "line_count_at_capture": 811
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/composition/reference.ts",
+      "scope": "target_input",
+      "sha256": "c6f31142b51f231d87dd0c74d595aa0d5851865b30bd2d371106bbd7e246146d",
+      "cited_lines": [26, 32],
+      "line_count_at_capture": 58
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/config/discovery.ts",
+      "scope": "target_input",
+      "sha256": "3addff99b058a4c2610b12f4fb4b255b55512be7c33faf71080065f89dde4c1d",
+      "cited_lines": [23],
+      "line_count_at_capture": 84
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/config/plugin/command.ts",
+      "scope": "target_input",
+      "sha256": "9110720ec62e418b70934ddc402c14e9ff9e004cba392ab1975c4b3f62d82bba",
+      "cited_lines": [175],
+      "line_count_at_capture": 230
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/config/plugin/skill-file.ts",
+      "scope": "target_input",
+      "sha256": "478ac2eda15c2c01418188ce80c1206993013f0a938e494b06a9639289e07cb3",
+      "cited_lines": [46],
+      "line_count_at_capture": 66
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/config/plugin/skill.ts",
+      "scope": "target_input",
+      "sha256": "b16bd352351f3b868105e5ed3fc1b35d41ef6b8fb5fc4008ea72ed3446651c9b",
+      "cited_lines": [105, 149, 171],
+      "line_count_at_capture": 193
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/file-mutation.ts",
+      "scope": "target_input",
+      "sha256": "8bc94967938bdcf81570021e6c42e4f2afbd47b9ee5ba195b197b9ce1753890f",
+      "cited_lines": [223],
+      "line_count_at_capture": 293
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/flag/flag.ts",
+      "scope": "target_input",
+      "sha256": "6ef7b610ae3a85080ce0b4bac1c3abf39aacd65ca299f142945a6a063bf094fe",
+      "cited_lines": [66],
+      "line_count_at_capture": 105
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/composition.ts",
+      "scope": "target_input",
+      "sha256": "8eb03f4e69815846d111fae35ca6b038bc12c325f62027ff15d674641239ee51",
+      "cited_lines": [248, 342],
+      "line_count_at_capture": 659
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/context.ts",
+      "scope": "target_input",
+      "sha256": "25b11148445a0a3b1fca37ad1b95a33b0013acb9ce53173a0042cdb5eb74c63e",
+      "cited_lines": [230, 260],
+      "line_count_at_capture": 355
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/prompt.ts",
+      "scope": "target_input",
+      "sha256": "91f6b9dd7ff0e7c25cac093dbc8e75690fd5560261649b6dce32e4de1bbf5328",
+      "cited_lines": [65],
+      "line_count_at_capture": 230
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/runner/llm.ts",
+      "scope": "target_input",
+      "sha256": "708b5e0743129a1a481b014505dc8764f6f52103899d767a98de769d52120972",
+      "cited_lines": [207],
+      "line_count_at_capture": 382
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/runner/publish-llm-event.ts",
+      "scope": "target_input",
+      "sha256": "9d5ecdba7ccf8df5e033cf3b6c0479fa7980109a7875fc310a43e1bab6e97ce7",
+      "cited_lines": [579],
+      "line_count_at_capture": 627
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/runner/step.ts",
+      "scope": "target_input",
+      "sha256": "e9d1b6b2fc63c34f3cd0c77ba8979d3df76afd698a447c49c725d2765c2fcbf5",
+      "cited_lines": [111],
+      "line_count_at_capture": 325
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/session/runner/to-llm-message.ts",
+      "scope": "target_input",
+      "sha256": "f6f481f8bb3152fbc429972dd1ac27247bfdcb6c68758ed8ba6941d8c7e65c7c",
+      "cited_lines": [269],
+      "line_count_at_capture": 334
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/skill-asset-service.ts",
+      "scope": "target_input",
+      "sha256": "41e7e516e5999cf8772f51a664d0e14c14269f08ead8dbd64bd909c3ae73add9",
+      "cited_lines": [143, 148, 200, 289],
+      "line_count_at_capture": 414
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/skill-asset/path.ts",
+      "scope": "target_input",
+      "sha256": "e9427d444870e2c5e35082b2731bae9b837bb77284a064e85ed5abc571d685ed",
+      "cited_lines": [67, 81],
+      "line_count_at_capture": 101
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/skill/instructions.ts",
+      "scope": "target_input",
+      "sha256": "fc8eef9a923d88111479ea395b2042f83579d7409074b662c4d654295bbebdc1",
+      "cited_lines": [76],
+      "line_count_at_capture": 99
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/propose-skill-asset.ts",
+      "scope": "target_input",
+      "sha256": "68d08784ebdbae58f38103b86361a883d2e429f3bc92c2857e9c36c3ed3a4b21",
+      "cited_lines": [41, 65],
+      "line_count_at_capture": 84
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/src/tool/runtime.ts",
+      "scope": "target_input",
+      "sha256": "6277c7f5c958d68f68db76e624db78057509a558862c20fdc51c7bc84b4b4a33",
+      "cited_lines": [55, 261],
+      "line_count_at_capture": 281
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/config/skill.test.ts",
+      "scope": "target_input",
+      "sha256": "0e1ce47b0222773261083cf5d31df0c2dfe5d81373d33d03af30f9b302dc15c8",
+      "cited_lines": [304],
+      "line_count_at_capture": 428
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/session-composition-references.test.ts",
+      "scope": "target_input",
+      "sha256": "64ff08bc73b8f4fb5881e592323a2c6e9e7d5d986ca3c753b236f8d3e169959d",
+      "cited_lines": [229],
+      "line_count_at_capture": 440
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/session-runner-tool-events.test.ts",
+      "scope": "target_input",
+      "sha256": "43f16843202b168a0f387f677fafbbccd96d177126ed88b55500bc767ff346d5",
+      "cited_lines": [87],
+      "line_count_at_capture": 714
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/session-skill.test.ts",
+      "scope": "target_input",
+      "sha256": "d08b820a1d90c452fb9caa16be1b79aaa7becd67b471952d44ddedd9436a3d47",
+      "cited_lines": [205, 371],
+      "line_count_at_capture": 593
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/session-tool-progress.test.ts",
+      "scope": "target_input",
+      "sha256": "599b0560943dd927c971137cc0811a5d66254271adb748876523ad061e2adc47",
+      "cited_lines": [32],
+      "line_count_at_capture": 157
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/core/test/skill/instructions.test.ts",
+      "scope": "target_input",
+      "sha256": "b00ac0ffab69d8da13e6a1eee914bbda292d679c47172350ac8045f0282ba3f4",
+      "cited_lines": [48],
+      "line_count_at_capture": 195
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/context/renderer.tsx",
+      "scope": "target_input",
+      "sha256": "5f7aea6494b837ed322b5cff86b2db8e026c33534c22226f8b82715ffe3fc412",
+      "cited_lines": [30],
+      "line_count_at_capture": 69
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/renderer.ts",
+      "scope": "target_input",
+      "sha256": "78dac854aa8c923efeefd6c6d7c5be6dd08f81c1666185c926b5d1c37da1bc24",
+      "cited_lines": [38],
+      "line_count_at_capture": 52
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/sdk/host-apis.ts",
+      "scope": "target_input",
+      "sha256": "83ac8c44b98ed56bd875987ef64f4be8b3ded3be557c7bd8e1f06eedaeabe775",
+      "cited_lines": [13],
+      "line_count_at_capture": 1132
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/gui-extensions/src/sdk/registries.ts",
+      "scope": "target_input",
+      "sha256": "38a9da624fb5b4d38482e72416f4405d0367dbbe942da98979011315fc543270",
+      "cited_lines": [230, 545, 608],
+      "line_count_at_capture": 694
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/protocol/src/groups/custom-composition.ts",
+      "scope": "target_input",
+      "sha256": "178a0bbd36f6c150188fbed72c9b7038fe6500c993c95444e1248a5d4b4daf45",
+      "cited_lines": [102],
+      "line_count_at_capture": 123
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/protocol/src/groups/session.ts",
+      "scope": "target_input",
+      "sha256": "51ab3e3d9b14633229dc45dbc5ca91773f87a64f86b5f7420788d788b041d7a8",
+      "cited_lines": [222],
+      "line_count_at_capture": 908
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/protocol/src/groups/skill-asset.ts",
+      "scope": "target_input",
+      "sha256": "e3301b989d10a564486d0c3c25fceacd8bd4ae7cbc3a9bedebe02d0b3b11c4ed",
+      "cited_lines": [69],
+      "line_count_at_capture": 106
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/schema/src/session-message.ts",
+      "scope": "target_input",
+      "sha256": "f3d021ed53acc18a79af8804fd1ff0eee2eca0696a35d5d082a367c3b6141623",
+      "cited_lines": [139, 161],
+      "line_count_at_capture": 324
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/schema/src/session.ts",
+      "scope": "target_input",
+      "sha256": "9a336375639aeadecf742aecb7ec7483c6b8fa719fa03ba06b54865d12dd17e6",
+      "cited_lines": [43],
+      "line_count_at_capture": 81
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/schema/src/skill-asset.ts",
+      "scope": "target_input",
+      "sha256": "487220ba3d2ff99c2a7ed83783d2de35f42d5b85e2a880c94e758c833477d6ac",
+      "cited_lines": [68],
+      "line_count_at_capture": 110
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/server/src/handlers.ts",
+      "scope": "target_input",
+      "sha256": "71605667c55b588bf354d74b8ecec7481c5bd660411db8a53c0ab44ae4c91c8c",
+      "cited_lines": [122],
+      "line_count_at_capture": 130
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/server/src/handlers/asset-stubs.ts",
+      "scope": "target_input",
+      "sha256": "c74683fcb9b65cd5910ce35b332d0ecba7342c3f02439b20cdcb252c76b52bbb",
+      "cited_lines": [27],
+      "line_count_at_capture": 73
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/server/src/handlers/composition-stubs.ts",
+      "scope": "target_input",
+      "sha256": "fc0d653811a9ecaaf778282b73f3c6a382da6f3a1e52efc252750981089df8d7",
+      "cited_lines": [49, 164],
+      "line_count_at_capture": 184
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/server/src/handlers/session.ts",
+      "scope": "target_input",
+      "sha256": "55896763c0c8551fea45e7d09b10eb4f6c53b168fd40a582a1d55d47c1c7d269",
+      "cited_lines": [137],
+      "line_count_at_capture": 775
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/server/src/middleware/session-location.ts",
+      "scope": "target_input",
+      "sha256": "0e18210b06c0943c9fc3bbc8112bfdf799fc173e2e74cea21349d7ec533daa82",
+      "cited_lines": [22],
+      "line_count_at_capture": 30
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/server/src/middleware/workspace-routing.ts",
+      "scope": "target_input",
+      "sha256": "8ab93ddfdc9885ba4feef11d7153c8fc491b1559e51ba04a70c06e825a72b8c0",
+      "cited_lines": [18, 54],
+      "line_count_at_capture": 95
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge-v2/packages/server/test/custom-composition.test.ts",
+      "scope": "target_input",
+      "sha256": "09c5293fd8830392c095178affdea332d4664b2b784feba4ecd32c84b23b8997",
+      "cited_lines": [110, 1157],
+      "line_count_at_capture": 1220
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/docs/prd/custom-mode-composition-platform.md",
+      "scope": "old_reference_read_only",
+      "sha256": "3e0504b54535450751298f7fa1c0fec77581887ea7f55da9fdec16f7a5336aa0",
+      "cited_lines": [292],
+      "line_count_at_capture": 419
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/aigcfroge/src/server/routes/instance/httpapi/handlers/skill-asset.ts",
+      "scope": "old_reference_read_only",
+      "sha256": "c5eff731f8a0c32086c0c7b09b01040c45e92ed89ccda72c857fba4f38ac1474",
+      "cited_lines": [123],
+      "line_count_at_capture": 171
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/aigcfroge/src/tool/propose-skill-asset.ts",
+      "scope": "old_reference_read_only",
+      "sha256": "deabb9f48fb1d4973136f180a80a8bbbea9b2e1a6224b88e2ff169c7f6a57565",
+      "cited_lines": [47],
+      "line_count_at_capture": 61
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/app/src/components/chat/asset-insert.ts",
+      "scope": "old_reference_read_only",
+      "sha256": "91021522cb93534ac49fd3fd87e95549b4d7b14b9e7b91ef926e41ba0e0a914d",
+      "cited_lines": [59],
+      "line_count_at_capture": 119
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/app/src/components/chat/chat-right-panel.tsx",
+      "scope": "old_reference_read_only",
+      "sha256": "dd2672c26de774f3cca42f36512c9a35fa21b84169327bbf0b7ad9d1436cb150",
+      "cited_lines": [172, 198],
+      "line_count_at_capture": 429
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/app/src/components/chat/prompt-asset-candidate.ts",
+      "scope": "old_reference_read_only",
+      "sha256": "6611d652909b954c88578fa57044e25eb2ccc4e1e2b663d3d8fc72913a7cfd24",
+      "cited_lines": [235, 281],
+      "line_count_at_capture": 337
+    },
+    {
+      "path": "/home/keer/workspace/aigcfroge/packages/app/src/components/chat/prompt-asset-store.ts",
+      "scope": "old_reference_read_only",
+      "sha256": "07a6aa17f06036be510e16eba6102f777136242e36e842239f501a6125ae1c31",
+      "cited_lines": [19],
+      "line_count_at_capture": 55
+    }
+  ]
+}

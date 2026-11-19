@@ -1,12 +1,11 @@
-export * as ProposeMemoryTool from "./propose-memory"
+export * as ProposeMemoryTool from "./propose-memory.js"
 
-import { ToolFailure } from "@aigcfroge/llm"
-import { Cause, Effect, Layer, Schema } from "effect"
+import type { Context } from "@aigcfroge/plugin/effect/plugin"
+import { ToolFailure } from "@aigcfroge/ai"
+import { Effect, Schema } from "effect"
 import { PersonalMemory as PersonalMemorySchema } from "@aigcfroge/schema/personal-memory"
-import { PermissionV2 } from "../permission"
-import { PersonalMemory } from "../session/personal-memory"
-import { Tool } from "./tool"
-import { Tools } from "./tools"
+import { Permission } from "../permission.js"
+import { PersonalMemory } from "../session/personal-memory.js"
 
 export const name = "memory_propose"
 
@@ -43,71 +42,68 @@ export const Output = Schema.Struct({
   sensitivityLevel: Schema.String,
 })
 
-export const layer = Layer.effectDiscard(
-  Effect.gen(function* () {
-    const tools = yield* Tools.Service
+export const Plugin = {
+  id: "aigcfroge.tool.memory_propose",
+  effect: Effect.fn("ProposeMemoryTool.Plugin")(function* (ctx: Context) {
     const memories = yield* PersonalMemory.Service
-    const permission = yield* PermissionV2.Service
+    const permission = yield* Permission.Service
 
-    const tool = Tool.make({
-      description,
-      input: Input,
-      output: Output,
-      execute: (input, context) =>
-        permission
-          .assert({
-            action: name,
-            resources: ["*"],
-            sessionID: context.sessionID,
-            agent: context.agent,
-            source: { type: "tool", messageID: context.assistantMessageID, callID: context.toolCallID },
-          })
-          .pipe(
-            Effect.mapError(() => new ToolFailure({ message: "Permission denied: memory_propose" })),
-            Effect.andThen(
-              Effect.gen(function* () {
-                if (input.sensitivityLevel === "high") {
-                  return yield* Effect.fail(
-                    new ToolFailure({
-                      message:
-                        "Sensitive information is never stored in long-term memory (PRD §9). Ask the user to rephrase or drop it.",
-                    }),
-                  )
-                }
-                const created = yield* memories.propose({
-                  content: input.content,
-                  source: input.source,
-                  trustLevel: input.trustLevel,
-                  sensitivityLevel: input.sensitivityLevel,
-                  sourceSessionID: context.sessionID,
-                  sourceMessageID: context.assistantMessageID,
-                  createdBy: "assistant",
-                })
-                return {
-                  id: created.id,
-                  status: created.status,
-                  content: created.content,
-                  source: created.source,
-                  sensitivityLevel: created.sensitivityLevel,
-                }
-              }).pipe(
-                Effect.catchCause((cause) =>
-                  Effect.fail(new ToolFailure({ message: `Memory proposal failed: ${Cause.pretty(cause)}` })),
+    yield* ctx.tool
+      .transform((editor) =>
+        editor.add({
+          name,
+          options: { codemode: false },
+          description,
+          input: Input,
+          output: Output,
+          execute: (input, context) =>
+            permission
+              .assert({
+                action: name,
+                resources: ["*"],
+                sessionID: context.sessionID,
+                agent: context.agent,
+                source: { type: "tool" as const, messageID: context.messageID, id: context.id },
+              })
+              .pipe(
+                Effect.mapError(() => new ToolFailure({ message: "Permission denied: memory_propose" })),
+                Effect.andThen(
+                  Effect.gen(function* () {
+                    if (input.sensitivityLevel === "high") {
+                      return yield* Effect.fail(
+                        new ToolFailure({
+                          message:
+                            "Sensitive information is never stored in long-term memory (PRD §9). Ask the user to rephrase or drop it.",
+                        }),
+                      )
+                    }
+                    const created = yield* memories.propose({
+                      content: input.content,
+                      source: input.source,
+                      trustLevel: input.trustLevel,
+                      sensitivityLevel: input.sensitivityLevel,
+                      sourceSessionID: context.sessionID,
+                      sourceMessageID: context.messageID,
+                      createdBy: "assistant",
+                    })
+                    return {
+                      output: {
+                        id: created.id,
+                        status: created.status,
+                        content: created.content,
+                        source: created.source,
+                        sensitivityLevel: created.sensitivityLevel,
+                      },
+                      content:
+                        created.status === "pending"
+                          ? `Memory proposed (pending review): "${created.content}". The user can confirm or reject it in the Memory Inspector.`
+                          : `Memory recorded: "${created.content}".`,
+                    }
+                  }),
                 ),
               ),
-            ),
-          ),
-      toModelOutput: ({ output }) => [
-        {
-          type: "text" as const,
-          text:
-            output.status === "pending"
-              ? `Memory proposed (pending review): "${output.content}". The user can confirm or reject it in the Memory Inspector.`
-              : `Memory recorded: "${output.content}".`,
-        },
-      ],
-    })
-
-    yield* tools.register({ [name]: tool }).pipe(Effect.catch((err) => Effect.die(err)))
+        }),
+      )
+      .pipe(Effect.orDie)
   }),
-)
+}

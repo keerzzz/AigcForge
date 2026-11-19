@@ -2,8 +2,9 @@ import { TextField as Kobalte } from "@kobalte/core/text-field"
 import { createSignal, Show, splitProps } from "solid-js"
 import type { ComponentProps } from "solid-js"
 import { useI18n } from "../context/i18n"
-import { IconButton } from "./icon-button"
-import { TooltipV2 } from "../v2/components/tooltip-v2"
+import { IconButton } from "@aigcfroge/ui/icon-button"
+import { Icon } from "@aigcfroge/ui/icon"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
 
 export interface TextFieldProps
   extends ComponentProps<typeof Kobalte.Input>,
@@ -33,6 +34,7 @@ export interface TextFieldProps
 
 export function TextField(props: TextFieldProps) {
   const i18n = useI18n()
+
   const [local, others] = splitProps(props, [
     "name",
     "defaultValue",
@@ -53,17 +55,22 @@ export function TextField(props: TextFieldProps) {
     "copyKind",
     "multiline",
   ])
+
   const [copied, setCopied] = createSignal(false)
 
   const label = () => {
     if (copied()) return i18n.t("ui.textField.copied")
+
     if (local.copyKind === "link") return i18n.t("ui.textField.copyLink")
+
     return i18n.t("ui.textField.copyToClipboard")
   }
 
   const icon = () => {
     if (copied()) return "check"
+
     if (local.copyKind === "link") return "link"
+
     return "copy"
   }
 
@@ -106,17 +113,24 @@ export function TextField(props: TextFieldProps) {
           <Kobalte.TextArea {...others} autoResize data-slot="input-input" class={local.class} />
         </Show>
         <Show when={local.copyable}>
-          <TooltipV2 value={label()} placement="top" gutter={4} forceOpen={copied()} skipDelayDuration={0}>
+          <Tooltip
+            appearance="standard"
+            value={label()}
+            placement="top"
+            gutter={4}
+            forceOpen={copied() ? true : undefined}
+            skipDelayDuration={0}
+          >
             <IconButton
               type="button"
-              icon={icon()}
+              icon={<Icon name={icon()} />}
               variant="ghost"
               onClick={handleCopy}
               tabIndex={-1}
               data-slot="input-copy-button"
               aria-label={label()}
             />
-          </TooltipV2>
+          </Tooltip>
         </Show>
       </div>
       <Show when={local.description}>

@@ -4,6 +4,7 @@ import { Context, Effect, Option, Schema } from "effect"
 import { Config } from "../config"
 import { Verifier } from "../session/verifier"
 import { SystemContext } from "./index"
+import { Document, type Entry } from "@aigcfroge/schema/config"
 
 const DEFAULT_ENABLED = false
 
@@ -11,16 +12,16 @@ type Settings = {
   readonly enabled: boolean
 }
 
-const settings = (documents: readonly Config.Entry[]) => {
+const settings = (documents: readonly Entry[]) => {
   const configured = documents
-    .filter((entry): entry is Config.Document => entry.type === "document")
+    .filter((entry): entry is Document => entry.type === "document")
     .flatMap((entry) => (entry.info.meta?.reverse_refs ? [entry.info.meta.reverse_refs] : []))
   return configured.reduce<Settings>((result, current) => ({ enabled: current.enabled ?? result.enabled }), {
     enabled: DEFAULT_ENABLED,
   })
 }
 
-export class CodegraphError extends Schema.TaggedErrorClass<CodegraphError>()("ReverseRefs.CodegraphError", {
+export class CodegraphError extends Schema.TaggedError<CodegraphError>()("ReverseRefs.CodegraphError", {
   reason: Schema.String,
 }) {
   override get message() {
@@ -52,7 +53,7 @@ const renderCallers = (callers: readonly string[]) =>
  * when disabled or when codegraph is unavailable, so the baseline (and the
  * prompt-cache prefix hash) is byte-identical to the pre-feature state.
  */
-export const source = (files: readonly string[]): Effect.Effect<SystemContext.SystemContext | undefined> =>
+export const source = (files: readonly string[]): Effect.Effect<SystemContext.SystemContextValue | undefined> =>
   Effect.gen(function* () {
     const config = yield* Effect.serviceOption(Config.Service)
     if (Option.isNone(config) || !settings(yield* config.value.entries()).enabled) return undefined

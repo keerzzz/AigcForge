@@ -12,7 +12,7 @@ import { Effect, Schema } from "effect"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
 
-export class AgentNotAllowedError extends Schema.TaggedErrorClass<AgentNotAllowedError>()("AgentNotAllowedError", {
+export class AgentNotAllowedError extends Schema.TaggedError<AgentNotAllowedError>()("AgentNotAllowedError", {
   mode: Schema.String,
   agent: Schema.optional(Schema.String),
   reason: Schema.String,
@@ -22,7 +22,7 @@ export class AgentNotAllowedError extends Schema.TaggedErrorClass<AgentNotAllowe
   }
 }
 
-export class CommandDeniedError extends Schema.TaggedErrorClass<CommandDeniedError>()("CommandDeniedError", {
+export class CommandDeniedError extends Schema.TaggedError<CommandDeniedError>()("CommandDeniedError", {
   mode: Schema.String,
   reason: Schema.String,
 }) {

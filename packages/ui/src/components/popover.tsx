@@ -3,7 +3,8 @@ import { ComponentProps, JSXElement, ParentProps, Show, createEffect, splitProps
 import { createStore } from "solid-js/store"
 import { makeEventListener } from "@solid-primitives/event-listener"
 import { useI18n } from "../context/i18n"
-import { IconButton } from "./icon-button"
+import { Icon } from "@aigcfroge/ui/icon"
+import { IconButton } from "@aigcfroge/ui/icon-button"
 
 export interface PopoverProps<T extends ValidComponent = "div">
   extends ParentProps,
@@ -17,11 +18,11 @@ export interface PopoverProps<T extends ValidComponent = "div">
   classList?: ComponentProps<"div">["classList"]
   style?: ComponentProps<"div">["style"]
   portal?: boolean
-  restoreFocusOnOutsideClose?: boolean
 }
 
 export function Popover<T extends ValidComponent = "div">(props: PopoverProps<T>) {
   const i18n = useI18n()
+
   const [local, rest] = splitProps(props, [
     "trigger",
     "triggerAs",
@@ -33,7 +34,6 @@ export function Popover<T extends ValidComponent = "div">(props: PopoverProps<T>
     "style",
     "children",
     "portal",
-    "restoreFocusOnOutsideClose",
     "open",
     "defaultOpen",
     "onOpenChange",
@@ -48,14 +48,18 @@ export function Popover<T extends ValidComponent = "div">(props: PopoverProps<T>
   })
 
   const controlled = () => local.open !== undefined
+
   const opened = () => {
     if (controlled()) return local.open ?? false
+
     return state.uncontrolledOpen
   }
 
   const onOpenChange = (next: boolean) => {
     if (next) setState("dismiss", null)
+
     if (local.onOpenChange) local.onOpenChange(next)
+
     if (controlled()) return
     setState("uncontrolledOpen", next)
   }
@@ -66,9 +70,12 @@ export function Popover<T extends ValidComponent = "div">(props: PopoverProps<T>
     const inside = (node: Node | null | undefined) => {
       if (!node) return false
       const content = state.contentRef
+
       if (content && content.contains(node)) return true
       const trigger = state.triggerRef
+
       if (trigger && trigger.contains(node)) return true
+
       return false
     }
 
@@ -86,14 +93,18 @@ export function Popover<T extends ValidComponent = "div">(props: PopoverProps<T>
 
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target
+
       if (!(target instanceof Node)) return
+
       if (inside(target)) return
       close("outside")
     }
 
     const onFocusIn = (event: FocusEvent) => {
       const target = event.target
+
       if (!(target instanceof Node)) return
+
       if (inside(target)) return
       close("outside")
     }
@@ -113,8 +124,7 @@ export function Popover<T extends ValidComponent = "div">(props: PopoverProps<T>
       }}
       style={local.style}
       onCloseAutoFocus={(event: Event) => {
-        if (state.dismiss === "outside" && !local.restoreFocusOnOutsideClose) event.preventDefault()
-        if (local.restoreFocusOnOutsideClose && state.triggerRef?.isConnected) state.triggerRef.focus()
+        if (state.dismiss === "outside") event.preventDefault()
         setState("dismiss", null)
       }}
     >
@@ -125,7 +135,7 @@ export function Popover<T extends ValidComponent = "div">(props: PopoverProps<T>
           <Kobalte.CloseButton
             data-slot="popover-close-button"
             as={IconButton}
-            icon="close"
+            icon={<Icon name="close" />}
             variant="ghost"
             aria-label={i18n.t("ui.common.close")}
           />

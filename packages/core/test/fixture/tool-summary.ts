@@ -19,17 +19,15 @@ export function makeToolCall(overrides: {
   const makeState = () => {
     switch (status) {
       case "pending":
-        return { status: "pending" as const, input: JSON.stringify(input) }
+        return { status: "streaming" as const, input: JSON.stringify(input) }
       case "running":
-        return { status: "running" as const, input, structured: {} as Record<string, unknown>, content: [] }
+        return { status: "running" as const, input, metadata: {} as Record<string, unknown> }
       case "completed":
-        return { status: "completed" as const, input, structured: {} as Record<string, unknown>, content: [] }
+        return { status: "completed" as const, input, content: [{ type: "text" as const, text: "" }] }
       case "error":
         return {
           status: "error" as const,
           input,
-          content: [],
-          structured: {} as Record<string, unknown>,
           error: { type: "unknown" as const, message: "tool failed" },
         }
     }
@@ -54,7 +52,7 @@ export function makeAssistantMessage(
     agent,
     model: { id: "claude-sonnet-4", providerID: "anthropic", variant: "default" },
     content: toolPlainObjects,
-    finish: "end_turn",
+    finish: "stop",
     tokens: { input: 100, output: 200, reasoning: 0, cache: { read: 0, write: 0 } },
     cost: 0.01,
     time: { created: Date.now() },
@@ -80,17 +78,15 @@ export function makeToolCallPlain(overrides: {
   const makeState = () => {
     switch (status) {
       case "pending":
-        return { status: "pending" as const, input: JSON.stringify(input) }
+        return { status: "streaming" as const, input: JSON.stringify(input) }
       case "running":
-        return { status: "running" as const, input, structured: {} as Record<string, unknown>, content: [] }
+        return { status: "running" as const, input, metadata: {} as Record<string, unknown> }
       case "completed":
-        return { status: "completed" as const, input, structured: {} as Record<string, unknown>, content: [] }
+        return { status: "completed" as const, input, content: [{ type: "text" as const, text: "" }] }
       case "error":
         return {
           status: "error" as const,
           input,
-          content: [],
-          structured: {} as Record<string, unknown>,
           error: { type: "unknown" as const, message: "tool failed" },
         }
     }

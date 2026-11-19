@@ -2,9 +2,10 @@ export * as AssetMigration from "./asset-migration"
 
 import path from "path"
 import { Effect } from "effect"
-import { Config } from "./config"
+import { Document, type Entry } from "@aigcfroge/schema/config"
 import { ConfigMarkdown } from "./config/markdown"
-import { FSUtil } from "./fs-util"
+import { Model } from "./model"
+import { FSUtil } from "@aigcfroge/util/fs-util"
 
 /** Project-local legacy source that can be parsed into an owned chat asset. */
 export interface LegacyFile {
@@ -21,7 +22,7 @@ export interface LegacyEntry {
 
 import { yamlEscape } from "./util/yaml-escape"
 
-function localDocument(entry: Config.Entry, projectDirectory: string): entry is Config.Document {
+function localDocument(entry: Entry, projectDirectory: string): entry is Document {
   if (entry.type !== "document" || !entry.path) return false
   const relative = path.relative(projectDirectory, entry.path)
   return relative === "" || (!path.isAbsolute(relative) && relative !== ".." && !relative.startsWith(`..${path.sep}`))
@@ -38,8 +39,8 @@ function safeRelativePath(relativePath: string) {
 export const legacySkillFiles = Effect.fnUntraced(function* (fs: FSUtil.Interface, directory: string) {
   const groups = yield* Effect.forEach([".claude/skills", ".agents/skills"], (dir) =>
     fs
-      .glob("**/SKILL.md", { cwd: path.resolve(directory, dir), absolute: true, include: "file", dot: true })
-      .pipe(Effect.catch(() => Effect.succeed([] as string[]))),
+      .scan("**/SKILL.md", { cwd: path.resolve(directory, dir), absolute: true, include: "file", dot: true })
+      .pipe(Effect.orElseSucceed(() => [] as string[])),
   )
   return groups
     .flat()
@@ -49,8 +50,8 @@ export const legacySkillFiles = Effect.fnUntraced(function* (fs: FSUtil.Interfac
 /** Project-level legacy agent files: `.claude/agents/*.agent.md`. */
 export const legacyAgentFiles = Effect.fnUntraced(function* (fs: FSUtil.Interface, directory: string) {
   const files = yield* fs
-    .glob("*.agent.md", { cwd: path.resolve(directory, ".claude/agents"), absolute: true, include: "file", dot: true })
-    .pipe(Effect.catch(() => Effect.succeed([] as string[])))
+    .scan("*.agent.md", { cwd: path.resolve(directory, ".claude/agents"), absolute: true, include: "file", dot: true })
+    .pipe(Effect.orElseSucceed(() => [] as string[]))
   return files.map((file) => ({ path: file, fallbackName: path.basename(file, ".agent.md") }) satisfies LegacyFile)
 })
 
@@ -58,8 +59,8 @@ export const legacyAgentFiles = Effect.fnUntraced(function* (fs: FSUtil.Interfac
 export const legacyCommandFiles = Effect.fnUntraced(function* (fs: FSUtil.Interface, directory: string) {
   const root = path.resolve(directory, ".aigcfroge/command")
   const files = yield* fs
-    .glob("**/*.md", { cwd: root, absolute: true, include: "file", dot: true })
-    .pipe(Effect.catch(() => Effect.succeed([] as string[])))
+    .scan("**/*.md", { cwd: root, absolute: true, include: "file", dot: true })
+    .pipe(Effect.orElseSucceed(() => [] as string[]))
   return files.map(
     (file) =>
       ({
@@ -120,15 +121,18 @@ export function commandEntry(raw: string, fallbackName: string): LegacyEntry | u
 }
 
 /** Project-local JSON/JSONC command definitions, with higher-priority documents winning. */
-export function commandConfigEntries(entries: readonly Config.Entry[], projectDirectory: string) {
+export function commandConfigEntries(entries: readonly Entry[], projectDirectory: string) {
   const commands = new Map<string, LegacyEntry>()
   for (const entry of entries) {
     if (!localDocument(entry, projectDirectory)) continue
     for (const [name, command] of Object.entries(entry.info.commands ?? {})) {
+      const model = command.model === undefined ? undefined : Model.fromConfig(command.model)
       const optional = [
         command.agent ? `agent: ${yamlEscape(command.agent)}` : undefined,
-        command.model ? `model: ${yamlEscape(command.model)}` : undefined,
-        command.variant ? `variant: ${yamlEscape(command.variant)}` : undefined,
+        model
+          ? `model: ${yamlEscape(Model.Selection.isGroup(model) ? `group:${model.groupID}` : `${model.providerID}/${model.id}`)}`
+          : undefined,
+        model && !Model.Selection.isGroup(model) && model.variant ? `variant: ${yamlEscape(model.variant)}` : undefined,
         command.subtask !== undefined ? `subtask: ${String(command.subtask)}` : undefined,
       ].filter((line): line is string => line !== undefined)
       const file = [
@@ -148,7 +152,7 @@ export function commandConfigEntries(entries: readonly Config.Entry[], projectDi
 }
 
 /** Project-local MCP config definitions, with higher-priority documents winning. */
-export function mcpConfigEntries(entries: readonly Config.Entry[], projectDirectory: string) {
+export function mcpConfigEntries(entries: readonly Entry[], projectDirectory: string) {
   const servers = new Map<string, LegacyEntry>()
   for (const entry of entries) {
     if (!localDocument(entry, projectDirectory)) continue
@@ -203,6 +207,11 @@ export const importEntriesOnce = Effect.fn("AssetMigration.importEntriesOnce")(f
   },
 ) {
   if (yield* fs.exists(input.marker ?? input.ownerRoot)) return
+  // Nothing to import means nothing was migrated: writing a marker here would
+  // both suppress a legitimate future migration and materialize directory
+  // trees for roots that do not exist (a missing location must stay missing —
+  // the location graph relies on the boot failing).
+  if (input.entries.length === 0) return
 
   const seen = new Set<string>()
   const entries = input.entries.filter((entry) => {

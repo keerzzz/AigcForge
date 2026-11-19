@@ -131,19 +131,15 @@ async function commits(from: string, to: string) {
     const areas = new Set<string>()
 
     for (const file of diff.split("\n").filter(Boolean).filter(Release.affectsDesktop)) {
-      if (file.startsWith("packages/aigcfroge/src/cli/cmd/")) {
+      if (file.startsWith("packages/cli/") || file.startsWith("packages/tui/")) {
         areas.add("tui")
-        continue
-      }
-      if (file.startsWith("packages/desktop/src-tauri/")) {
-        areas.add("tauri")
         continue
       }
       if (file.startsWith("packages/desktop/") || file.startsWith("packages/app/")) {
         areas.add("app")
         continue
       }
-      if (file.startsWith("packages/sdk/") || file.startsWith("packages/plugin/")) {
+      if (file.startsWith("packages/client/") || file.startsWith("packages/plugin/")) {
         areas.add("sdk")
         continue
       }

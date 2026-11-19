@@ -1,11 +1,12 @@
 export * as ScopedGrantStore from "./store"
 
 import { Cause, Context, Duration, Effect, Layer, Schedule, Schema } from "effect"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
 import { and, eq, gte, isNull, isNotNull, lt, lte, or } from "drizzle-orm"
 import { Composition } from "@aigcfroge/schema/composition"
 import { McpScope } from "@aigcfroge/schema/mcp-scope"
 import { Database } from "../database/database"
-import { EventV2 } from "../event"
+import { Bus } from "../bus"
 import { Location } from "../location"
 import { Wildcard } from "../util/wildcard"
 import { GrantEvent, type CommitRejected } from "./event"
@@ -20,7 +21,7 @@ export const SETTLED_GRANT_PRUNE_INTERVAL = Duration.hours(1)
 
 export type Info = typeof McpScope.ScopedGrantInfo.Type
 
-export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("ScopedGrant.NotFoundError", {
+export class NotFoundError extends Schema.TaggedError<NotFoundError>()("ScopedGrant.NotFoundError", {
   grantID: Schema.String,
 }) {
   override get message() {
@@ -29,7 +30,7 @@ export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("Sco
 }
 
 /** Typed failure for a denied transition: wrong CAS revision or already-settled state. */
-export class StateError extends Schema.TaggedErrorClass<StateError>()("ScopedGrant.StateError", {
+export class StateError extends Schema.TaggedError<StateError>()("ScopedGrant.StateError", {
   grantID: Schema.String,
   reason: Schema.Literals(["already_consumed", "already_revoked", "expired", "revision_mismatch"]),
 }) {
@@ -231,7 +232,7 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const { db } = yield* Database.Service
-    const events = yield* EventV2.Service
+    const events = yield* Bus.Service
     const location = yield* Location.Service
     const currentLocation = () => ({ directory: location.directory, workspaceID: location.workspaceID })
 
@@ -250,9 +251,9 @@ export const layer = Layer.effect(
           issuedAt: input.issuedAt ?? now,
           ...(input.expiresAt !== undefined ? { expiresAt: input.expiresAt } : {}),
         })
-        yield* GrantEvent.publish(events, { grantID: id, status: "active", revision: 1, timeUpdated: now }, (tx) =>
+        yield* GrantEvent.publish(events, { grantID: id, status: "active", revision: 1, timeUpdated: now }, () =>
           Effect.gen(function* () {
-            yield* tx
+            yield* db
               .insert(ScopedGrantTable)
               .values({
                 id,
@@ -384,9 +385,9 @@ export const layer = Layer.effect(
         yield* GrantEvent.publish(
           events,
           { grantID: id, status: "consumed", revision: nextRevision, timeUpdated: now },
-          (tx) =>
+          () =>
             Effect.gen(function* () {
-              const updated = yield* tx
+              const updated = yield* db
                 .update(ScopedGrantTable)
                 .set({ consumed_at: now, grant_revision: nextRevision })
                 .where(
@@ -430,9 +431,9 @@ export const layer = Layer.effect(
         yield* GrantEvent.publish(
           events,
           { grantID: id, status: "revoked", revision: nextRevision, timeUpdated: now },
-          (tx) =>
+          () =>
             Effect.gen(function* () {
-              const updated = yield* tx
+              const updated = yield* db
                 .update(ScopedGrantTable)
                 .set({ revoked_at: now, grant_revision: nextRevision })
                 .where(
@@ -495,3 +496,5 @@ export const cleanupLayer = Layer.effectDiscard(
  * "uses the Location-provided Database and EventV2 instances".
  */
 export const locationLayer = Layer.merge(layer, cleanupLayer.pipe(Layer.provide(layer)))
+
+export const node = makeLocationNode({ service: Service, layer, deps: [Database.node, Bus.node, Location.node] })

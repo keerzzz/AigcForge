@@ -1,8 +1,23 @@
-export * as Delegation from "./delegation"
+export * as Delegation from "./delegation.js"
 
 import { Schema } from "effect"
-import { ID as DelegationID, ParticipantID, TurnID } from "./delegation-id"
-import { ID as SessionID } from "./session-id"
+import { optional } from "./schema.js"
+import { DelegationID, ParticipantID, TurnID } from "./delegation-id.js"
+import { SessionID } from "./session-id.js"
+import { MetaAgent } from "./meta-agent.js"
+import { SessionMessage } from "./session-message.js"
+import { Permission } from "./permission.js"
+
+export class Receipt extends Schema.Class<Receipt>("Delegation.Receipt")({
+  delegationID: DelegationID.ID,
+  turnID: TurnID,
+  participantID: ParticipantID,
+  deliveryOrigin: Schema.String,
+  senderParticipantID: ParticipantID,
+  attempt: Schema.Int,
+  childSessionID: SessionID,
+  inputID: SessionMessage.ID,
+}) {}
 
 export const DelegationStatus = Schema.Literals([
   "draft",
@@ -95,11 +110,11 @@ export const ChangeKind = Schema.Literals(["no_change", "no_code_change", "forma
 export type ChangeKind = typeof ChangeKind.Type
 
 export const ReviewFinding = Schema.Struct({
-  file: Schema.optional(Schema.String.check(Schema.isMaxLength(1024))),
-  line: Schema.optional(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))),
+  file: optional(Schema.String.check(Schema.isMaxLength(1024))),
+  line: optional(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))),
   severity: ReviewSeverity,
   summary: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(2048)),
-  message: Schema.optional(Schema.String.check(Schema.isMaxLength(4096))),
+  message: optional(Schema.String.check(Schema.isMaxLength(4096))),
 }).annotate({ identifier: "DelegationReviewFinding" })
 export type ReviewFinding = typeof ReviewFinding.Type
 
@@ -108,7 +123,7 @@ export const ReviewEnvelope = Schema.Struct({
   reviewed_revision_digest: RevisionDigest,
   verdict: ReviewVerdict,
   findings: Schema.Array(ReviewFinding).check(Schema.isMaxLength(100)),
-  summary: Schema.optional(Schema.String.check(Schema.isMaxLength(4096))),
+  summary: optional(Schema.String.check(Schema.isMaxLength(4096))),
 }).annotate({ identifier: "DelegationReviewEnvelope" })
 export type ReviewEnvelope = typeof ReviewEnvelope.Type
 
@@ -119,62 +134,115 @@ export const DeliveryOrigin = Schema.Struct({
 }).annotate({ identifier: "DelegationDeliveryOrigin" })
 export type DeliveryOrigin = typeof DeliveryOrigin.Type
 
-export class Info extends Schema.Class<Info>("Delegation.Info")({
-  id: DelegationID,
-  parentSessionID: SessionID,
-  metaAgentID: Schema.optional(Schema.String),
-  title: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(255)),
-  status: DelegationStatus,
-  latestRevisionDigest: Schema.optional(RevisionDigest),
-  rejectionBlocked: Schema.Boolean,
-  rejectionReason: Schema.optional(Schema.String),
-  rejectionParticipantID: Schema.optional(ParticipantID),
-  lastActivityAt: Schema.Number,
-  completedAt: Schema.optional(Schema.Number),
-  closedAt: Schema.optional(Schema.Number),
-  archivedAt: Schema.optional(Schema.Number),
-  createdAt: Schema.Number,
-  updatedAt: Schema.Number,
-}) {}
+export class Info extends Schema.Class<Info>("Delegation.Info")(
+  Schema.Struct({
+    id: DelegationID.ID,
+    parentSessionID: SessionID,
+    metaAgentID: optional(Schema.String),
+    title: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(255)),
+    status: DelegationStatus,
+    latestRevisionDigest: optional(RevisionDigest),
+    rejectionBlocked: Schema.Boolean,
+    rejectionReason: optional(Schema.String),
+    rejectionParticipantID: optional(ParticipantID),
+    lastActivityAt: Schema.Number,
+    completedAt: optional(Schema.Number),
+    closedAt: optional(Schema.Number),
+    archivedAt: optional(Schema.Number),
+    createdAt: Schema.Number,
+    updatedAt: Schema.Number,
+  }).annotate({ identifier: "Delegation.Info" }),
+) {}
 
-export class ParticipantInfo extends Schema.Class<ParticipantInfo>("Delegation.ParticipantInfo")({
-  id: ParticipantID,
-  delegationID: DelegationID,
+export class ParticipantInfo extends Schema.Class<ParticipantInfo>("Delegation.ParticipantInfo")(
+  Schema.Struct({
+    id: ParticipantID,
+    delegationID: DelegationID.ID,
+    provider: Schema.String,
+    target: Schema.String,
+    role: ParticipantRole,
+    context: ParticipantContext,
+    phase: ParticipantPhase,
+    runtimeStatus: optional(ParticipantRuntimeStatus),
+    childSessionID: optional(SessionID),
+    executor: optional(MetaAgent.ExecutorBinding),
+    externalThreadID: optional(Schema.String),
+    lastActivityAt: Schema.Number,
+    closedAt: optional(Schema.Number),
+    createdAt: Schema.Number,
+    updatedAt: Schema.Number,
+  }).annotate({ identifier: "Delegation.ParticipantInfo" }),
+) {}
+
+export class TurnInfo extends Schema.Class<TurnInfo>("Delegation.TurnInfo")(
+  Schema.Struct({
+    id: TurnID,
+    delegationID: DelegationID.ID,
+    seq: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+    kind: TurnKind,
+    status: TurnStatus,
+    promptSummary: optional(Schema.String.check(Schema.isMaxLength(1024))),
+    evidenceDigest: optional(Schema.String.check(Schema.isMaxLength(1024))),
+    revisionDigest: optional(RevisionDigest),
+    participantIDs: Schema.Array(ParticipantID),
+    delivery: DeliveryIntent,
+    createdAt: Schema.Number,
+    updatedAt: Schema.Number,
+  }).annotate({ identifier: "Delegation.TurnInfo" }),
+) {}
+
+export class DeliveryInfo extends Schema.Class<DeliveryInfo>("Delegation.DeliveryInfo")({
+  delegationID: DelegationID.ID,
+  turnID: TurnID,
+  participantID: ParticipantID,
+  deliveryOrigin: Schema.String,
+  senderParticipantID: ParticipantID,
+  attempt: Schema.Int,
   provider: Schema.String,
-  target: Schema.String,
-  role: ParticipantRole,
-  context: ParticipantContext,
-  phase: ParticipantPhase,
-  runtimeStatus: Schema.optional(ParticipantRuntimeStatus),
-  childSessionID: Schema.optional(SessionID),
-  externalThreadID: Schema.optional(Schema.String),
-  lastActivityAt: Schema.Number,
-  closedAt: Schema.optional(Schema.Number),
-  createdAt: Schema.Number,
+  status: DeliveryStatus,
+  current: Schema.Boolean,
   updatedAt: Schema.Number,
+  summary: optional(Schema.String),
+  errorCode: optional(Schema.String),
+  receipt: optional(Receipt),
+  source: optional(Permission.Source),
+  parentTaskID: optional(Schema.String),
+  externalThreadID: optional(Schema.String),
+  externalTurnID: optional(Schema.String),
 }) {}
 
-export class TurnInfo extends Schema.Class<TurnInfo>("Delegation.TurnInfo")({
-  id: TurnID,
-  delegationID: DelegationID,
-  seq: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
-  kind: TurnKind,
-  status: TurnStatus,
-  promptSummary: Schema.optional(Schema.String.check(Schema.isMaxLength(1024))),
-  evidenceDigest: Schema.optional(Schema.String.check(Schema.isMaxLength(1024))),
-  revisionDigest: Schema.optional(RevisionDigest),
-  participantIDs: Schema.Array(ParticipantID),
-  delivery: DeliveryIntent,
-  createdAt: Schema.Number,
-  updatedAt: Schema.Number,
+export class Result extends Schema.Class<Result>("Delegation.Result")({
+  delivery: DeliveryInfo,
+  available: Schema.Boolean,
+  text: optional(Schema.String),
+}) {}
+
+export class ReviewRecord extends Schema.Class<ReviewRecord>("Delegation.ReviewRecord")({
+  participantID: ParticipantID,
+  reviewedRevisionDigest: RevisionDigest,
+  verdict: ReviewVerdict,
+  findings: Schema.Array(ReviewFinding),
+  summary: optional(Schema.String),
+}) {}
+
+export class RevisionRecord extends Schema.Class<RevisionRecord>("Delegation.RevisionRecord")({
+  revisionDigest: RevisionDigest,
+  changeKind: ChangeKind,
+}) {}
+
+export class Barrier extends Schema.Class<Barrier>("Delegation.Barrier")({
+  passed: Schema.Boolean,
+  reason: optional(Schema.String),
+  missingRoles: optional(Schema.Array(ParticipantRole)),
+  completionEligible: Schema.Boolean,
 }) {}
 
 // ── Tagged Errors ──
 
-export class DelegationNotFoundError extends Schema.TaggedErrorClass<DelegationNotFoundError>()(
+export class DelegationNotFoundError extends Schema.TaggedError<DelegationNotFoundError>()(
   "Delegation.DelegationNotFoundError",
   {
-    delegationID: DelegationID,
+    delegationID: DelegationID.ID,
   },
 ) {
   override get message() {
@@ -182,7 +250,7 @@ export class DelegationNotFoundError extends Schema.TaggedErrorClass<DelegationN
   }
 }
 
-export class DelegationParentSessionNotFoundError extends Schema.TaggedErrorClass<DelegationParentSessionNotFoundError>()(
+export class DelegationParentSessionNotFoundError extends Schema.TaggedError<DelegationParentSessionNotFoundError>()(
   "Delegation.DelegationParentSessionNotFoundError",
   {
     parentSessionID: SessionID,
@@ -193,10 +261,10 @@ export class DelegationParentSessionNotFoundError extends Schema.TaggedErrorClas
   }
 }
 
-export class DelegationInvalidStateError extends Schema.TaggedErrorClass<DelegationInvalidStateError>()(
+export class DelegationInvalidStateError extends Schema.TaggedError<DelegationInvalidStateError>()(
   "Delegation.DelegationInvalidStateError",
   {
-    delegationID: DelegationID,
+    delegationID: DelegationID.ID,
     currentStatus: Schema.String,
     attemptedTransition: Schema.String,
     reason: Schema.String,
@@ -207,10 +275,10 @@ export class DelegationInvalidStateError extends Schema.TaggedErrorClass<Delegat
   }
 }
 
-export class DelegationParticipantNotFoundError extends Schema.TaggedErrorClass<DelegationParticipantNotFoundError>()(
+export class DelegationParticipantNotFoundError extends Schema.TaggedError<DelegationParticipantNotFoundError>()(
   "Delegation.DelegationParticipantNotFoundError",
   {
-    delegationID: DelegationID,
+    delegationID: DelegationID.ID,
     participantID: ParticipantID,
   },
 ) {
@@ -219,10 +287,10 @@ export class DelegationParticipantNotFoundError extends Schema.TaggedErrorClass<
   }
 }
 
-export class DelegationTurnNotFoundError extends Schema.TaggedErrorClass<DelegationTurnNotFoundError>()(
+export class DelegationTurnNotFoundError extends Schema.TaggedError<DelegationTurnNotFoundError>()(
   "Delegation.DelegationTurnNotFoundError",
   {
-    delegationID: DelegationID,
+    delegationID: DelegationID.ID,
     turnID: TurnID,
   },
 ) {
@@ -231,10 +299,10 @@ export class DelegationTurnNotFoundError extends Schema.TaggedErrorClass<Delegat
   }
 }
 
-export class DelegationPermissionDeniedError extends Schema.TaggedErrorClass<DelegationPermissionDeniedError>()(
+export class DelegationPermissionDeniedError extends Schema.TaggedError<DelegationPermissionDeniedError>()(
   "Delegation.DelegationPermissionDeniedError",
   {
-    delegationID: DelegationID,
+    delegationID: DelegationID.ID,
     parentSessionID: SessionID,
     reason: Schema.String,
   },
@@ -244,12 +312,12 @@ export class DelegationPermissionDeniedError extends Schema.TaggedErrorClass<Del
   }
 }
 
-export class DelegationRecoveryRequiredError extends Schema.TaggedErrorClass<DelegationRecoveryRequiredError>()(
+export class DelegationRecoveryRequiredError extends Schema.TaggedError<DelegationRecoveryRequiredError>()(
   "Delegation.DelegationRecoveryRequiredError",
   {
-    delegationID: DelegationID,
-    participantID: Schema.optional(ParticipantID),
-    turnID: Schema.optional(TurnID),
+    delegationID: DelegationID.ID,
+    participantID: optional(ParticipantID),
+    turnID: optional(TurnID),
     reason: Schema.String,
   },
 ) {
@@ -258,11 +326,11 @@ export class DelegationRecoveryRequiredError extends Schema.TaggedErrorClass<Del
   }
 }
 
-export class DelegationRejectionBlockedError extends Schema.TaggedErrorClass<DelegationRejectionBlockedError>()(
+export class DelegationRejectionBlockedError extends Schema.TaggedError<DelegationRejectionBlockedError>()(
   "Delegation.DelegationRejectionBlockedError",
   {
-    delegationID: DelegationID,
-    participantID: Schema.optional(ParticipantID),
+    delegationID: DelegationID.ID,
+    participantID: optional(ParticipantID),
     reason: Schema.String,
   },
 ) {
@@ -271,10 +339,10 @@ export class DelegationRejectionBlockedError extends Schema.TaggedErrorClass<Del
   }
 }
 
-export class DelegationBarrierNotMetError extends Schema.TaggedErrorClass<DelegationBarrierNotMetError>()(
+export class DelegationBarrierNotMetError extends Schema.TaggedError<DelegationBarrierNotMetError>()(
   "Delegation.DelegationBarrierNotMetError",
   {
-    delegationID: DelegationID,
+    delegationID: DelegationID.ID,
     missingRoles: Schema.Array(ParticipantRole),
     reason: Schema.String,
   },
@@ -284,10 +352,10 @@ export class DelegationBarrierNotMetError extends Schema.TaggedErrorClass<Delega
   }
 }
 
-export class DelegationCorruptedEventError extends Schema.TaggedErrorClass<DelegationCorruptedEventError>()(
+export class DelegationCorruptedEventError extends Schema.TaggedError<DelegationCorruptedEventError>()(
   "Delegation.DelegationCorruptedEventError",
   {
-    delegationID: Schema.optional(DelegationID),
+    delegationID: optional(DelegationID.ID),
     eventType: Schema.String,
     reason: Schema.String,
   },
@@ -297,10 +365,10 @@ export class DelegationCorruptedEventError extends Schema.TaggedErrorClass<Deleg
   }
 }
 
-export class DelegationAggregateMismatchError extends Schema.TaggedErrorClass<DelegationAggregateMismatchError>()(
+export class DelegationAggregateMismatchError extends Schema.TaggedError<DelegationAggregateMismatchError>()(
   "Delegation.DelegationAggregateMismatchError",
   {
-    expectedDelegationID: DelegationID,
+    expectedDelegationID: DelegationID.ID,
     actualDelegationID: Schema.String,
   },
 ) {
@@ -309,10 +377,10 @@ export class DelegationAggregateMismatchError extends Schema.TaggedErrorClass<De
   }
 }
 
-export class DelegationSequenceError extends Schema.TaggedErrorClass<DelegationSequenceError>()(
+export class DelegationSequenceError extends Schema.TaggedError<DelegationSequenceError>()(
   "Delegation.DelegationSequenceError",
   {
-    delegationID: DelegationID,
+    delegationID: DelegationID.ID,
     expectedSeq: Schema.Number,
     actualSeq: Schema.Number,
     reason: Schema.String,

@@ -7,32 +7,30 @@ export function DialogVariant() {
   const local = useLocal()
   const dialog = useDialog()
 
-  const options = createMemo(() => {
-    return [
-      {
-        value: "default",
-        title: "Default",
-        onSelect: () => {
-          dialog.clear()
-          local.model.variant.set(undefined)
-        },
+  const options = createMemo(() => [
+    {
+      value: undefined,
+      title: "Default",
+      onSelect: () => {
+        dialog.clear()
+        local.model.variant.set(undefined)
       },
-      ...local.model.variant.list().map((variant) => ({
-        value: variant,
-        title: variant,
-        onSelect: () => {
-          dialog.clear()
-          local.model.variant.set(variant)
-        },
-      })),
-    ]
-  })
+    },
+    ...local.model.variant.list().map((variant) => ({
+      value: variant,
+      title: variant,
+      onSelect: () => {
+        dialog.clear()
+        local.model.variant.set(variant)
+      },
+    })),
+  ])
 
   return (
-    <DialogSelect<string>
+    <DialogSelect<string | undefined>
       options={options()}
       title={"Select variant"}
-      current={local.model.variant.selected()}
+      current={local.model.variant.current()}
       flat={true}
     />
   )

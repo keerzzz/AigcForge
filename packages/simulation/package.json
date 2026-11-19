@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json.schemastore.org/package.json",
+  "name": "@aigcfroge/simulation",
+  "version": "2.0.26",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anomalyco/aigcfroge.git",
+    "directory": "packages/simulation"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    "./backend": "./src/backend/index.ts",
+    "./backend/*": "./src/backend/*.ts",
+    "./frontend": "./src/frontend/simulation.ts",
+    "./frontend/*": "./src/frontend/*.ts",
+    "./protocol": "./src/protocol/index.ts",
+    "./recording": "./src/recording.ts"
+  },
+  "scripts": {
+    "build": "bun run script/build.ts",
+    "test": "bun test --timeout 30000 --only-failures",
+    "typecheck": "tsgo -b"
+  },
+  "dependencies": {
+    "@aigcfroge/core": "workspace:*",
+    "@aigcfroge/ai": "workspace:*",
+    "@aigcfroge/plugin": "workspace:*",
+    "@aigcfroge/protocol": "workspace:*",
+    "@aigcfroge/util": "workspace:*",
+    "@opentui/core": "catalog:",
+    "effect": "catalog:",
+    "ws": "8.21.0"
+  },
+  "devDependencies": {
+    "@tsconfig/bun": "catalog:",
+    "@types/bun": "catalog:",
+    "@types/ws": "8.18.1",
+    "@typescript/native-preview": "catalog:"
+  }
+}

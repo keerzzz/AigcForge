@@ -1,29 +1,21 @@
-export * as WorkflowAsset from "./workflow-asset"
+export * as WorkflowAsset from "./workflow-asset.js"
 
 import { Effect, Schema } from "effect"
+import { optional } from "./schema.js"
+import { Permission } from "./permission.js"
 
 export const Name = Schema.String.pipe(
-  Schema.check(
-    Schema.makeFilter<string>((input) => Array.from(input).length >= 1, {
-      message: "Name must be at least 1 code point",
-    }),
-  ),
-  Schema.check(
-    Schema.makeFilter<string>((input) => Array.from(input).length <= 80, {
-      message: "Name must be at most 80 code points",
-    }),
-  ),
+  Schema.check(Schema.isMinLength(1)),
+  Schema.check(Schema.isMaxLength(80)),
   Schema.brand("WorkflowAsset.Name"),
+  Schema.annotate({ identifier: "WorkflowAsset.Name" }),
 )
 export type Name = typeof Name.Type
 
 export const Description = Schema.String.pipe(
-  Schema.check(
-    Schema.makeFilter<string>((input) => Array.from(input).length <= 300, {
-      message: "Description must be at most 300 code points",
-    }),
-  ),
+  Schema.check(Schema.isMaxLength(300)),
   Schema.brand("WorkflowAsset.Description"),
+  Schema.annotate({ identifier: "WorkflowAsset.Description" }),
 )
 export type Description = typeof Description.Type
 
@@ -32,8 +24,28 @@ export const Revision = Schema.String.pipe(
   Schema.check(Schema.isMaxLength(64)),
   Schema.check(Schema.isPattern(/^[0-9a-f]{64}$/)),
   Schema.brand("WorkflowAsset.Revision"),
+  Schema.annotate({ identifier: "WorkflowAsset.Revision" }),
 )
 export type Revision = typeof Revision.Type
+
+export const Content = Schema.String.pipe(
+  Schema.check(Schema.isMaxLength(100_000)),
+  Schema.brand("WorkflowAsset.Content"),
+  Schema.annotate({ identifier: "WorkflowAsset.Content" }),
+)
+export type Content = typeof Content.Type
+
+export const BaseRevision = Schema.Union([Schema.Null, Revision])
+export type BaseRevision = typeof BaseRevision.Type
+
+export class Candidate extends Schema.Class<Candidate>("WorkflowAsset.Candidate")(
+  Schema.Struct({
+    name: Name,
+    description: Description,
+    content: Content,
+    relativePath: optional(Schema.String),
+  }).annotate({ identifier: "WorkflowAsset.Candidate" }),
+) {}
 
 export const FailurePolicy = Schema.Literals(["abort", "continue", "retry"])
 export type FailurePolicy = typeof FailurePolicy.Type
@@ -64,10 +76,16 @@ export const StepRunStatus = Schema.Literals([
 ])
 export type StepRunStatus = typeof StepRunStatus.Type
 
-export const WorkflowRunID = Schema.String.pipe(Schema.brand("WorkflowRunID"))
+export const WorkflowRunID = Schema.String.pipe(
+  Schema.brand("WorkflowRunID"),
+  Schema.annotate({ identifier: "WorkflowAsset.RunID" }),
+)
 export type WorkflowRunID = typeof WorkflowRunID.Type
 
-export const StepRunID = Schema.String.pipe(Schema.brand("StepRunID"))
+export const StepRunID = Schema.String.pipe(
+  Schema.brand("StepRunID"),
+  Schema.annotate({ identifier: "WorkflowAsset.StepRunID" }),
+)
 export type StepRunID = typeof StepRunID.Type
 
 export const ErrorCategory = Schema.Literals([
@@ -85,49 +103,57 @@ export const ErrorCategory = Schema.Literals([
 ])
 export type ErrorCategory = typeof ErrorCategory.Type
 
-export class WorkflowRunInfo extends Schema.Class<WorkflowRunInfo>("WorkflowAsset.WorkflowRunInfo")({
-  id: WorkflowRunID,
-  sessionID: Schema.String,
-  snapshotDigest: Schema.String,
-  workflowName: Schema.String,
-  workflowRevision: Schema.String,
-  status: WorkflowRunStatus,
-  revision: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
-  parentRunID: Schema.optional(WorkflowRunID),
-  rootRunID: Schema.optional(WorkflowRunID),
-  retryOfStepRunID: Schema.optional(StepRunID),
-  currentStepId: Schema.optional(Schema.String),
-  errorCategory: Schema.optional(ErrorCategory),
-  timeCreated: Schema.Finite,
-  timeUpdated: Schema.Finite,
-  timeCompleted: Schema.optional(Schema.Finite),
-}) {}
+export class WorkflowRunInfo extends Schema.Class<WorkflowRunInfo>("WorkflowAsset.WorkflowRunInfo")(
+  Schema.Struct({
+    id: WorkflowRunID,
+    sessionID: Schema.String,
+    snapshotDigest: Schema.String,
+    workflowName: Schema.String,
+    workflowRevision: Schema.String,
+    status: WorkflowRunStatus,
+    revision: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+    parentRunID: optional(WorkflowRunID),
+    rootRunID: optional(WorkflowRunID),
+    retryOfStepRunID: optional(StepRunID),
+    source: optional(Permission.Source),
+    parentTaskID: optional(Schema.String),
+    currentStepId: optional(Schema.String),
+    errorCategory: optional(ErrorCategory),
+    timeCreated: Schema.Finite,
+    timeUpdated: Schema.Finite,
+    timeCompleted: optional(Schema.Finite),
+  }).annotate({ identifier: "WorkflowAsset.WorkflowRunInfo" }),
+) {}
 
-export class StepRunInfo extends Schema.Class<StepRunInfo>("WorkflowAsset.StepRunInfo")({
-  id: StepRunID,
-  runId: WorkflowRunID,
-  stepId: Schema.String,
-  agentId: Schema.String,
-  status: StepRunStatus,
-  attempt: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
-  revision: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
-  taskId: Schema.optional(Schema.String),
-  childSessionId: Schema.optional(Schema.String),
-  inputDigest: Schema.optional(Schema.String),
-  outputDigest: Schema.optional(Schema.String),
-  branchTarget: Schema.optional(Schema.String),
-  errorCategory: Schema.optional(ErrorCategory),
-  timeCreated: Schema.Finite,
-  timeStarted: Schema.optional(Schema.Finite),
-  timeCompleted: Schema.optional(Schema.Finite),
-}) {}
+export class StepRunInfo extends Schema.Class<StepRunInfo>("WorkflowAsset.StepRunInfo")(
+  Schema.Struct({
+    id: StepRunID,
+    runId: WorkflowRunID,
+    stepId: Schema.String,
+    agentId: Schema.String,
+    status: StepRunStatus,
+    attempt: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+    revision: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+    taskId: optional(Schema.String),
+    childSessionId: optional(Schema.String),
+    inputDigest: optional(Schema.String),
+    outputDigest: optional(Schema.String),
+    branchTarget: optional(Schema.String),
+    errorCategory: optional(ErrorCategory),
+    timeCreated: Schema.Finite,
+    timeStarted: optional(Schema.Finite),
+    timeCompleted: optional(Schema.Finite),
+  }).annotate({ identifier: "WorkflowAsset.StepRunInfo" }),
+) {}
 
 export class WorkflowStatusResponse extends Schema.Class<WorkflowStatusResponse>(
   "WorkflowAsset.WorkflowStatusResponse",
-)({
-  run: Schema.optional(WorkflowRunInfo),
-  steps: Schema.Array(StepRunInfo),
-}) {}
+)(
+  Schema.Struct({
+    run: optional(WorkflowRunInfo),
+    steps: Schema.Array(StepRunInfo),
+  }).annotate({ identifier: "WorkflowAsset.WorkflowStatusResponse" }),
+) {}
 
 // Graph and execution bounds are part of the persisted workflow contract.
 export const MAX_STEPS = 64
@@ -142,12 +168,10 @@ export type StepInput = typeof StepInput.Type
 export class BranchOutput extends Schema.Class<BranchOutput>("WorkflowAsset.BranchOutput")({
   branch: Schema.String,
   summary: Schema.optional(
-    Schema.String.pipe(
-      Schema.check(
-        Schema.makeFilter<string>((input) => Array.from(input).length <= MAX_BRANCH_SUMMARY_CODE_POINTS, {
-          message: `Branch summary must be at most ${MAX_BRANCH_SUMMARY_CODE_POINTS} code points`,
-        }),
-      ),
+    Schema.String.check(
+      Schema.isMaxCodePoints(MAX_BRANCH_SUMMARY_CODE_POINTS, {
+        message: "Branch summary must contain at most 2000 code points",
+      }),
     ),
   ),
 }) {}
@@ -183,28 +207,33 @@ export class Summary extends Schema.Class<Summary>("WorkflowAsset.Summary")({
   revision: Revision,
 }) {}
 
-export class Info extends Schema.Class<Info>("WorkflowAsset.Info")({
-  kind: Schema.Literal("workflow"),
-  name: Name,
-  description: Description,
-  relativePath: Schema.String,
-  revision: Revision,
-  version: Schema.String,
-  triggers: Schema.Array(Schema.String),
-  steps: Schema.Array(StepDef),
-}) {}
+export class Info extends Schema.Class<Info>("WorkflowAsset.Info")(
+  Schema.Struct({
+    kind: Schema.Literal("workflow"),
+    name: Name,
+    description: Description,
+    relativePath: Schema.String,
+    revision: Revision,
+    content: Schema.String,
+    version: Schema.String,
+    triggers: Schema.Array(Schema.String),
+    steps: Schema.Array(StepDef),
+  }).annotate({ identifier: "WorkflowAsset.Info" }),
+) {}
 
-export class Frontmatter extends Schema.Class<Frontmatter>("WorkflowAsset.Frontmatter")({
-  kind: Schema.Literal("workflow"),
-  name: Schema.String,
-  description: Schema.String,
-  version: Schema.String,
-  triggers: Schema.optional(Schema.Array(Schema.String)).pipe(
-    Schema.withDecodingDefaultKey(Effect.succeed([])),
-    Schema.withConstructorDefault(Effect.succeed([])),
-  ),
-  steps: Schema.Array(StepDef),
-}) {}
+export class Frontmatter extends Schema.Class<Frontmatter>("WorkflowAsset.Frontmatter")(
+  Schema.Struct({
+    kind: Schema.Literal("workflow"),
+    name: Name,
+    description: Description,
+    version: Schema.String,
+    triggers: Schema.optional(Schema.Array(Schema.String)).pipe(
+      Schema.withDecodingDefaultKey(Effect.succeed([])),
+      Schema.withConstructorDefault(Effect.succeed([])),
+    ),
+    steps: Schema.Array(StepDef),
+  }).annotate({ identifier: "WorkflowAsset.Frontmatter" }),
+) {}
 
 export const InvalidErrorTag = Schema.Literals(["parse_error", "bad_frontmatter", "name_conflict"])
 export type InvalidErrorTag = typeof InvalidErrorTag.Type

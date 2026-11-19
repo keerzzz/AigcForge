@@ -14,8 +14,9 @@ describe("Delegation State Machine (Phase 1)", () => {
     expect(canTransition("closing", "completed")).toBe(true)
     expect(canTransition("completed", "archived")).toBe(true)
 
-    // Unarchive: archived -> completed
+    // Unarchive restores the terminal status that preceded the archive.
     expect(canTransition("archived", "completed")).toBe(true)
+    expect(canTransition("archived", "cancelled")).toBe(true)
 
     // Review feedback and changes requested cycles
     expect(canTransition("running", "changes_requested")).toBe(true)
@@ -45,6 +46,8 @@ describe("Delegation State Machine (Phase 1)", () => {
 
     // Invalid backwards jumps: archived cannot jump directly to running
     expect(canTransition("archived", "running")).toBe(false)
+    expect(canTransition("archived", "approved")).toBe(false)
+    expect(canTransition("cancelled", "running")).toBe(false)
     expect(canTransition("cancelled", "approved")).toBe(false)
     expect(canTransition("completed", "running")).toBe(false)
 

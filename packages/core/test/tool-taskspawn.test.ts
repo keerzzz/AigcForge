@@ -1,45 +1,40 @@
 import { describe, expect } from "bun:test"
 import { eq } from "drizzle-orm"
 import { Effect, Layer } from "effect"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
 import { Database } from "@aigcfroge/core/database/database"
-import { EventV2 } from "@aigcfroge/core/event"
-import { PermissionV2 } from "@aigcfroge/core/permission"
+import { Image } from "@aigcfroge/core/image"
+import { Permission } from "@aigcfroge/core/permission"
+import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
 import { Project } from "@aigcfroge/core/project"
 import { ProjectTable } from "@aigcfroge/core/project/sql"
 import { AbsolutePath } from "@aigcfroge/core/schema"
-import { SessionV2 } from "@aigcfroge/core/session"
+import { Session } from "@aigcfroge/core/session"
 import { SessionTable, TaskTable } from "@aigcfroge/core/session/sql"
 import { SessionTask } from "@aigcfroge/core/session/task"
+import { Tool } from "@aigcfroge/core/tool"
 import { TaskSpawnTool } from "@aigcfroge/core/tool/taskspawn"
-import { ToolRegistry } from "@aigcfroge/core/tool/registry"
+import { Bus } from "@aigcfroge/core/bus"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
 import { testEffect } from "./lib/effect"
-import { executeTool, settleTool, toolIdentity, toolDefinitions } from "./lib/tool"
+import { permissionLayer } from "./lib/permission"
+import { executeTool, registerToolPlugin, toolDefinitions, toolIdentity } from "./lib/tool"
 
-const sessionID = SessionV2.ID.make("ses_taskspawn_tool_test")
-const assertions: PermissionV2.AssertInput[] = []
+const sessionID = Session.ID.make("ses_taskspawn_tool_test")
+const assertions: Permission.AssertInput[] = []
 
-const permission = Layer.succeed(
-  PermissionV2.Service,
-  PermissionV2.Service.of({
-    grant: () => Effect.die("unused grant operation"),
-    effectiveRules: () => Effect.succeed([]),
-    assert: (input) => Effect.sync(() => assertions.push(input)),
-    ask: () => Effect.die("unused"),
-    reply: () => Effect.die("unused"),
-    get: () => Effect.die("unused"),
-    forSession: () => Effect.die("unused"),
-    list: () => Effect.die("unused"),
-  }),
+const permission = permissionLayer({
+  assert: (input) => Effect.sync(() => assertions.push(input)),
+})
+
+const harness = Layer.mergeAll(
+  AppNodeBuilder.build(LayerNode.group([Tool.node, PluginHooks.node, SessionTask.node, Database.node, Bus.node]), [
+    Image.node.replace(Layer.mock(Image.Service, { normalize: (_resource, content) => Effect.succeed(content) })),
+  ]),
+  permission,
 )
-const registry = ToolRegistry.defaultLayer.pipe(Layer.provide(permission))
-const tool = TaskSpawnTool.layer.pipe(
-  Layer.provide(registry),
-  Layer.provide(permission),
-  Layer.provide(SessionTask.defaultLayer),
-)
-const it = testEffect(
-  Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer, SessionTask.defaultLayer, permission, registry, tool),
-)
+
+const it = testEffect(harness)
 
 const setup = Effect.gen(function* () {
   assertions.length = 0
@@ -72,22 +67,24 @@ const call = (tasks: ReadonlyArray<Record<string, unknown>>, id = "call-taskspaw
 describe("task_spawn tool", () => {
   it.effect("registers the task_spawn tool in the registry", () =>
     Effect.gen(function* () {
-      const reg = yield* ToolRegistry.Service
-      expect((yield* toolDefinitions(reg)).map((tool) => tool.name)).toEqual([TaskSpawnTool.name])
+      yield* registerToolPlugin(TaskSpawnTool.Plugin)
+      const registry = yield* Tool.Service
+      expect((yield* toolDefinitions(registry)).map((tool) => tool.name)).toContain(TaskSpawnTool.name)
     }),
   )
 
-  it.effect("asserts permission and records spawnedFrom = assistantMessageID on the spawned task", () =>
+  it.effect("asserts permission and records spawnedFrom = messageID on the spawned task", () =>
     Effect.gen(function* () {
       yield* setup
-      const reg = yield* ToolRegistry.Service
+      yield* registerToolPlugin(TaskSpawnTool.Plugin)
+      const registry = yield* Tool.Service
       const tasks = yield* SessionTask.Service
 
-      const settlement = yield* settleTool(
-        reg,
+      const result = yield* executeTool(
+        registry,
         call([{ content: "restock analysis", priority: "high", dependsOn: ["tsk_pred_a"], agentID: "auditor" }]),
       )
-      expect(settlement.result.type).toBe("text")
+      expect(result.status).toBe("completed")
       // The permission assertion carries the tool's action/resource/save plus the
       // calling session, agent, and the tool call source for auditability.
       expect(assertions).toMatchObject([
@@ -97,7 +94,7 @@ describe("task_spawn tool", () => {
           resources: ["*"],
           save: ["*"],
           agent: toolIdentity.agent,
-          source: { type: "tool", messageID: toolIdentity.assistantMessageID, callID: "call-taskspawn" },
+          source: { type: "tool", messageID: toolIdentity.messageID, id: "call-taskspawn" },
         },
       ])
 
@@ -107,7 +104,7 @@ describe("task_spawn tool", () => {
         content: "restock analysis",
         status: "pending",
         priority: "high",
-        spawnedFrom: toolIdentity.assistantMessageID,
+        spawnedFrom: toolIdentity.messageID,
         dependsOn: ["tsk_pred_a"],
         agentID: "auditor",
       })
@@ -117,7 +114,8 @@ describe("task_spawn tool", () => {
   it.effect("maps a TaskWriteError to a ToolFailure carrying the TaskWriteError message", () =>
     Effect.gen(function* () {
       yield* setup
-      const reg = yield* ToolRegistry.Service
+      yield* registerToolPlugin(TaskSpawnTool.Plugin)
+      const registry = yield* Tool.Service
       const tasks = yield* SessionTask.Service
       const { db } = yield* Database.Service
       const [a, b] = yield* tasks.append({
@@ -141,10 +139,9 @@ describe("task_spawn tool", () => {
         .where(eq(TaskTable.id, b.id))
         .run()
 
-      const result = yield* executeTool(reg, call([{ content: "c" }]))
-      expect(result.type).toBe("error")
-      if (result.type !== "error") return
-      expect(result.value).toContain("introduces a dependency cycle")
+      const result = yield* executeTool(registry, call([{ content: "c" }]))
+      expect(result.status).toBe("error")
+      expect(result.error?.message).toContain("introduces a dependency cycle")
     }),
   )
 })

@@ -57,20 +57,14 @@ function scanText(text: string): Hit[] {
 function stripText(text: string): string {
   let result = text
   for (const pattern of SECRET_PATTERN_LIST) {
-    if (pattern.type === "private_key") {
-      result = result.replace(pattern.regex, (match) => {
-        const lines = match.split("\n")
-        return `${lines[0]}\n[REDACTED]\n${lines[lines.length - 1]}`
-      })
-    } else {
-      result = result.replace(pattern.regex, (match) => {
-        const eqIdx = match.indexOf("=")
-        const colonIdx = match.indexOf(":")
-        if (eqIdx !== -1) return match.slice(0, eqIdx + 1) + "[REDACTED]"
-        if (colonIdx !== -1) return match.slice(0, colonIdx + 1) + " [REDACTED]"
-        return "[REDACTED]"
-      })
-    }
+    result = result.replace(pattern.regex, (match) => {
+      if (pattern.type === "private_key") return "[REDACTED]"
+      const eqIdx = match.indexOf("=")
+      const colonIdx = match.indexOf(":")
+      if (eqIdx !== -1) return match.slice(0, eqIdx + 1) + "[REDACTED]"
+      if (colonIdx !== -1) return match.slice(0, colonIdx + 1) + " [REDACTED]"
+      return "[REDACTED]"
+    })
   }
   return result
 }

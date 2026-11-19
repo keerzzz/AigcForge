@@ -1,0 +1,851 @@
+import type {
+  ModelGroupRead,
+  SessionAttemptInfo,
+  SessionMessageAssistant,
+  SessionMessageInfo,
+} from "@aigcfroge/client/promise"
+import { expect, test, type Page } from "@playwright/test"
+import { seed, sessionHref } from "../utils/app"
+import { trackPageErrors } from "../utils/errors"
+import { fixture, installTimelineSettings, mockStressTimeline } from "../utils/session-fixture"
+import {
+  assistantMessage,
+  messageUpdated,
+  sessionID,
+  setupTimeline,
+  status,
+  textPart,
+  userMessage,
+  makeEvent,
+  session,
+} from "../utils/timeline"
+import { expectSessionTitle } from "../utils/waits"
+
+test.use({ serviceWorkers: "block" })
+
+test.describe("timeline history", () => {
+  test("keeps logical groups and durable attempts distinct through reload and an Idle failure", async ({
+    page,
+  }, testInfo) => {
+    const selected = { type: "group" as const, groupID: "fallback" }
+
+    const group: ModelGroupRead = {
+      targets: [],
+      definitions: [],
+      effective: [
+        {
+          groupID: selected.groupID,
+          definition: {
+            name: "Fallback route",
+            enabled: true,
+            members: [
+              { providerID: "provider", id: "a" },
+              { providerID: "provider", id: "b" },
+            ],
+            strategy: "order",
+            affinity: "turn",
+          },
+        },
+      ],
+    }
+
+    const request = (
+      id: string,
+      ordinal: number,
+      status: "completed" | "failed",
+      unknown: boolean,
+      started = 1700000001000,
+    ): SessionAttemptInfo => ({
+      ordinal,
+      attemptID: `request-${id}`,
+      agent: "build",
+      selection: selected,
+      model: { providerID: "provider", id: ordinal === 0 ? "a" : "b" },
+      apiModelID: `api-${id}`,
+      connection: { type: "credential", id: `account-${id}` },
+      goalRefs: [],
+      transition: ordinal === 0 ? "initial" : "fallback",
+      reason: ordinal ? { reason: "Authentication" } : undefined,
+      started,
+      quote: unknown
+        ? { status: "unknown" }
+        : {
+            status: "known",
+            prices: [{ input: 2, output: 4, cache: { read: 0.5, write: 1 } }],
+            source: "Recorded price source",
+          },
+      quoteOrigin: unknown ? "unknown" : "user",
+      quota: unknown
+        ? { status: "unsupported", source: "quota-unavailable", reason: "unsupported", windows: [] }
+        : {
+            status: "known",
+            source: "Recorded quota source",
+            connection: { type: "credential", id: `account-${id}` },
+            observedAt: started - 100,
+            freshUntil: started + 2_000,
+            windows: [],
+          },
+      observations: [
+        {
+          observedAt: started + 100,
+          event: { id: `evt_observed_${id}`, seq: ordinal },
+          transport: "http",
+          delivery: status === "completed" ? "accepted" : "rejected",
+          outputStarted: status === "completed" ? true : undefined,
+          firstOutputAt: status === "completed" ? started + 100 : undefined,
+        },
+      ],
+      terminal: {
+        status,
+        ended: started + 1000,
+        outputStarted: status === "completed",
+        delivery: status === "completed" ? "accepted" : "rejected",
+        providerEndedAt: status === "completed" ? started + 750 : undefined,
+        cost: unknown ? undefined : status === "completed" ? 0.04 : 0.005,
+        usage: unknown ? undefined : { input: 12, output: 34, reasoning: 5, cache: { read: 6, write: 7 } },
+        failure: status === "failed" ? { reason: unknown ? "Authentication" : "ProviderInternal" } : undefined,
+      },
+    })
+
+    const earlierUser = {
+      ...userMessage(undefined, { id: "msg_earlier_group" }),
+      text: "Earlier request",
+      metadata: { model: selected },
+    }
+
+    const completed: SessionMessageAssistant = {
+      ...assistantMessage([textPart("prt_completed_group", "The actual response came from B.")], {
+        id: "msg_completed_group",
+        parentID: earlierUser.id,
+      }),
+      model: { providerID: "provider", id: "b" },
+      attempts: [request("completed-a", 0, "failed", true), request("completed-b", 1, "completed", false)],
+      cost: 0.04,
+      unknownPriceAttempts: 1,
+      missingUsageAttempts: 1,
+    }
+
+    const latestUser = {
+      ...userMessage(undefined, { id: "msg_failed_group", created: 1700000003000 }),
+      text: "Failed request",
+      metadata: { model: selected },
+    }
+
+    const failed: SessionMessageAssistant = {
+      ...assistantMessage([], {
+        id: "msg_failed_group_assistant",
+        parentID: latestUser.id,
+        error: { type: "provider.error", message: "All candidates failed" },
+        created: 1700000004000,
+      }),
+      model: { providerID: "provider", id: "b" },
+      attempts: [
+        request("failed-a", 0, "failed", true, 1700000004000),
+        request("failed-b", 1, "failed", false, 1700000004000),
+      ],
+      cost: 0.005,
+      unknownPriceAttempts: 1,
+      missingUsageAttempts: 1,
+    }
+
+    const messages: SessionMessageInfo[] = [earlierUser, completed, latestUser, failed]
+
+    const timeline = await setupTimeline(page, {
+      sessionMessages: messages,
+      modelGroups: group,
+      sessions: [{ ...session(), model: selected, cost: 0.045, unknownPriceAttempts: 2, missingUsageAttempts: 2 }],
+      sessionStatus: { [sessionID]: { type: "idle" } },
+      viewport: { width: 1400, height: 1100 },
+    })
+
+    const latest = page.locator('[data-timeline-row="UserMessage"][data-message-id="msg_failed_group"]')
+    await expect(latest).toContainText("Group · Fallback route")
+    await expect(
+      page.locator(`[data-timeline-part-id="${completed.id}:text:0"] [data-slot="text-part-meta"]`),
+    ).toContainText(" · b · ")
+    const successButton = page
+      .locator('[data-timeline-row="AssistantPart"]')
+      .filter({ hasText: "The actual response came from B." })
+      .getByRole("button", { name: "2 model attempts", exact: true })
+    await expect(page.locator('[data-timeline-row="AssistantAttempts"]')).toHaveCount(0)
+    await page.locator(`[data-timeline-part-id="${completed.id}:text:0"]`).hover()
+    await successButton.click()
+    const success = page.getByRole("dialog", { name: "2 model attempts", exact: true })
+    await expect(success).toContainText(completed.id)
+    await expect(success).toContainText("api-completed-b")
+    await expect(success).toContainText("First attributable output")
+    await expect(success).toContainText("Recorded price source")
+    await expect(success).toContainText("$0.04")
+    const actual = success.getByRole("heading", { name: /^Attempt 2 ·/ }).locator("..")
+    const physicalModel = await actual.getByRole("heading").innerText()
+    await expect(actual).toContainText("Time to first token (TTFT)Not observed")
+    await expect(actual).toContainText("Output rate including reasoning (TPS)Not observed")
+    await expect(actual).toContainText("Quota at attempt startQuota known")
+    await expect(actual).toContainText("Recorded quota source")
+
+    const observation = {
+      observedAt: 1700000001250,
+      firstTokenAt: 1700000001250,
+      gatewayReport: {
+        source: "response-headers" as const,
+        provider: "early-gateway-provider",
+        model: "gateway/early-model",
+      },
+    }
+
+    const observed = makeEvent("session.attempt.observed", {
+      sessionID,
+      assistantMessageID: completed.id,
+      ordinal: 1,
+      observation,
+    })
+    if (observed.type !== "session.attempt.observed") throw new Error("Expected an attempt observation")
+
+    await timeline.send(observed)
+    await expect(actual).toContainText("Time to first token (TTFT)250 ms")
+    await expect(actual).toContainText("Output rate including reasoning (TPS)78 tokens/s")
+    await expect(actual).toContainText("Gateway report (response headers)")
+    await expect(actual).toContainText("Reported provider: early-gateway-provider")
+    await expect(actual).toContainText("Reported model: gateway/early-model")
+    await expect(actual.getByRole("heading")).toHaveText(physicalModel)
+    await expect(actual).toContainText("api-completed-b")
+    await page.screenshot({ path: testInfo.outputPath("attempt-popover-en.png") })
+    completed.attempts![1]!.observations.push({ ...observation, event: { id: observed.id, seq: observed.durable.seq } })
+    await page.locator(`[data-timeline-part-id="${completed.id}:text:0"]`).hover()
+    await successButton.click()
+    await expect(success).toHaveCount(0)
+    const error = page.locator('[data-timeline-row="Error"][data-message-id="msg_failed_group"]')
+    await expect(error).toContainText("All candidates failed")
+    await error.getByRole("button", { name: "2 model attempts", exact: true }).click()
+    const failure = page.getByRole("dialog", { name: "2 model attempts", exact: true })
+    await expect(failure).toContainText(failed.id)
+    await expect(failure).toContainText("api-failed-a")
+    await expect(failure).toContainText("api-failed-b")
+    await expect(failure).toContainText("account-failed-b")
+    await expect(failure).toContainText("Price unknown")
+    await expect(failure.getByText("Free", { exact: true })).toHaveCount(0)
+    await expect(failure).toContainText("$0.005")
+    await expect(failure).toContainText("Attempts with unknown prices1")
+    await expect(failure).toContainText("Attempts without reported usage1")
+    await expect(failure).toContainText("Quota lookup unsupported")
+    await page.reload()
+    await expect(latest).toContainText("Group · Fallback route")
+    await error.getByRole("button", { name: "2 model attempts", exact: true }).click()
+    await expect(failure).toContainText(failed.id)
+    await expect(failure).toContainText("request-failed-b")
+    await expect(failure).toContainText("$0.005")
+    await page.keyboard.press("Escape")
+    await expect(failure).toHaveCount(0)
+    await timelineScroller(page).hover()
+    await page.mouse.wheel(0, -100_000)
+    await page.locator(`[data-timeline-part-id="${completed.id}:text:0"]`).hover()
+    await successButton.click()
+    await expect(actual).toContainText("Time to first token (TTFT)250 ms")
+    await expect(actual).toContainText("Output rate including reasoning (TPS)78 tokens/s")
+    await expect(actual).toContainText("Gateway report (response headers)")
+    await expect(actual.getByRole("heading")).toHaveText(physicalModel)
+    await page.locator(`[data-timeline-part-id="${completed.id}:text:0"]`).hover()
+    await successButton.click()
+    await expect(success).toHaveCount(0)
+    await page.mouse.wheel(0, 100_000)
+    const idle = makeEvent("session.execution.failed", {
+      sessionID,
+      error: { type: "provider.error", message: "Idle failure recorded" },
+    })
+    await timeline.send(idle)
+    await expect(error).toContainText("Idle failure recorded")
+    await error.getByRole("button", { name: "2 model attempts", exact: true }).click()
+    const retained = page.getByRole("dialog", { name: "2 model attempts", exact: true })
+    await expect(retained).toContainText(failed.id)
+    await expect(retained).toContainText("request-failed-b")
+    await expect(retained).toContainText("$0.005")
+    await expect(page.locator('[data-action="composer-model"]')).toContainText("Group · Fallback route")
+    await seed(page, { locale: "zh" })
+    await page.setViewportSize({ width: 900, height: 900 })
+    await page.reload()
+    const localizedError = page.locator('[data-timeline-row="Error"][data-message-id="msg_failed_group"]')
+    await expect(localizedError).toContainText("All candidates failed")
+    await localizedError.getByRole("button", { name: "2 次模型尝试", exact: true }).click()
+    const localized = page.getByRole("dialog", { name: "2 次模型尝试", exact: true })
+    await expect(localized).toContainText("价格出处")
+    await expect(localized).toContainText("身份验证失败")
+    await expect(localized).toContainText("request-failed-b")
+    await expect(page.locator('[data-timeline-row="AssistantAttempts"]')).toHaveCount(0)
+    await expect
+      .poll(async () => {
+        const bounds = await localized.boundingBox()
+        const viewport = page.viewportSize()
+
+        return (
+          bounds &&
+          viewport &&
+          bounds.x >= 0 &&
+          bounds.y >= 0 &&
+          bounds.x + bounds.width <= viewport.width &&
+          bounds.y + bounds.height <= viewport.height
+        )
+      })
+      .toBe(true)
+    await page.screenshot({ path: testInfo.outputPath("attempt-popover-zh-narrow.png") })
+  })
+  test("keeps visible rows fixed while an older page prepends", async ({ page }) => {
+    const older = Promise.withResolvers<void>()
+    const requests: { before?: string; phase: "start" | "end" }[] = []
+    await openStressTarget(page, {
+      beforeMessagesResponse: ({ before }) => (before ? older.promise : Promise.resolve()),
+      onMessages: (request) => requests.push(request),
+    })
+    const scroller = timelineScroller(page)
+    await scroller.hover()
+    await page.mouse.wheel(0, -100_000)
+    await expect.poll(() => requests.some((request) => request.before && request.phase === "start")).toBe(true)
+    await expect.poll(() => scroller.evaluate((element) => element.scrollTop)).toBeLessThanOrEqual(1)
+
+    const keys = await scroller.evaluate((element) => {
+      const view = element.getBoundingClientRect()
+
+      return [...element.querySelectorAll<HTMLElement>("[data-timeline-part-id]")]
+        .filter((row) => {
+          const rect = row.getBoundingClientRect()
+
+          return rect.bottom > view.top && rect.top < view.bottom
+        })
+        .flatMap((row) => (row.dataset.timelinePartId ? [row.dataset.timelinePartId] : []))
+        .slice(0, 3)
+    })
+
+    expect(keys).toHaveLength(3)
+
+    const positions = () =>
+      scroller.evaluate((element, keys) => {
+        const top = element.getBoundingClientRect().top
+
+        return keys.map((key) => {
+          const row = element.querySelector<HTMLElement>(`[data-timeline-part-id="${key}"]`)
+
+          if (!row) return undefined
+
+          return Math.round((row.getBoundingClientRect().top - top) * devicePixelRatio) / devicePixelRatio
+        })
+      }, keys)
+
+    const before = await positions()
+    const height = await scroller.evaluate((element) => element.scrollHeight)
+    expect(requests.some((request) => request.before && request.phase === "end")).toBe(false)
+
+    older.resolve()
+    await expect.poll(() => requests.some((request) => request.before && request.phase === "end")).toBe(true)
+    // The older page has landed above the visible rows.
+    await expect.poll(() => scroller.evaluate((element) => element.scrollHeight)).toBeGreaterThan(height)
+    await expect.poll(positions).toEqual(before)
+  })
+
+  test("mounts every part once and in order while paging to the start", async ({ page }, testInfo) => {
+    test.setTimeout(600_000)
+    const errors = trackPageErrors(page)
+    const held: (() => void)[] = []
+    const loads = { started: 0, ended: 0 }
+    await page.setViewportSize({ width: 1280, height: 1400 })
+    await openStressTarget(page, {
+      // Older pages land only between scroll steps, so a step never races the prepend.
+      beforeMessagesResponse: ({ before }) =>
+        before ? new Promise<void>((resolve) => held.push(resolve)) : Promise.resolve(),
+      onMessages: (request) => {
+        if (request.before && request.phase === "start") loads.started++
+
+        if (request.before && request.phase === "end") loads.ended++
+      },
+    })
+    const expectedParts = fixture.messages[fixture.targetID]!.flatMap(partIDs)
+    const expectedMessages = fixture.expected.targetMessageIDs
+    const seenParts = new Set<string>()
+    const seenMessages = new Set<string>()
+    const observe = async () => {
+      const state = await visibleTimeline(page)
+      expectOrdered(expectedParts, state.parts, "mounted parts")
+      expectOrdered(expectedParts, state.visibleParts, "visible parts")
+      expectOrdered(expectedMessages, state.messages, "mounted messages")
+      expectOrdered(expectedMessages, state.visibleMessages, "visible messages")
+      expect(state.errorToasts).toBe(0)
+      state.parts.forEach((id) => seenParts.add(id))
+      state.messages.forEach((id) => seenMessages.add(id))
+
+      return {
+        ...state,
+        ready:
+          state.covered &&
+          state.parts.length > 0 &&
+          state.visibleParts.length > 0 &&
+          state.messages.length > 0 &&
+          state.visibleMessages.length > 0,
+      }
+    }
+
+    for (;;) {
+      const state = await observe()
+
+      if (state.ready && state.scrollTop <= 1 && seenParts.size === expectedParts.length) break
+
+      if (held.length) {
+        held.splice(0).forEach((release) => release())
+        await expect.poll(() => loads.ended).toBe(loads.started)
+        let previous = ""
+        await expect
+          .poll(async () => {
+            const next = await observe()
+            if (held.length) return true
+            const stable = next.ready && next.signature === previous
+            previous = next.ready ? next.signature : ""
+
+            return stable
+          })
+          .toBe(true)
+        continue
+      }
+
+      if (!state.ready) {
+        await expect
+          .poll(async () => {
+            const next = await observe()
+            return held.length > 0 || next.ready
+          })
+          .toBe(true)
+        continue
+      }
+
+      // Keep consecutive observation windows overlapping. A large measured overscan row can otherwise
+      // carry a step past rows mounted during the next range and size update.
+      await timelineScroller(page).evaluate((element, delta) => {
+        element.dispatchEvent(new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: -delta }))
+        element.scrollTop -= delta
+      }, state.mountedAbove)
+      const observed = { next: state }
+      await expect
+        .poll(async () => {
+          const next = await observe()
+          observed.next = next
+
+          return held.length > 0 || (next.ready && next.signature !== state.signature)
+        })
+        .toBe(true)
+        .catch(async (error) => {
+          await testInfo.attach("timeline-paging-no-progress.json", {
+            body: JSON.stringify({
+              before: state,
+              after: observed.next,
+              held: held.length,
+              loads,
+              missingParts: expectedParts.filter((id) => !seenParts.has(id)),
+              missingMessages: expectedMessages.filter((id) => !seenMessages.has(id)),
+            }),
+            contentType: "application/json",
+          })
+          throw error
+        })
+    }
+
+    expect(expectedParts.filter((id) => !seenParts.has(id))).toEqual([])
+    expect(expectedMessages.filter((id) => !seenMessages.has(id))).toEqual([])
+    expect(errors).toEqual([])
+  })
+
+  for (const scenario of [
+    { name: "completion", error: undefined, idleFirst: false },
+    { name: "interruption", error: { type: "MessageAbortedError", message: "Stopped" }, idleFirst: true },
+  ] as const) {
+    test(`keeps visible content through ${scenario.name}`, async ({ page }) => {
+      const history = Promise.withResolvers<void>()
+      const requests: { before?: string; phase: "start" | "end" }[] = []
+      const pages: { before?: string; limit: number }[] = []
+      const roots: { sessionID: string; messageID: string }[] = []
+      const sequence: string[] = []
+      const messages = rootHistory()
+      const last = messages.at(-1)
+
+      if (last?.type !== "assistant") throw new Error("The history fixture must end in an assistant message")
+      await page.addInitScript(installVisibilityProbe)
+
+      const timeline = await setupTimeline(page, {
+        sessionMessages: messages,
+        sessionStatus: { [sessionID]: { type: "busy" } },
+        viewport: { width: 646, height: 1385 },
+        beforeMessagesResponse: (request) => (request.before ? history.promise : Promise.resolve()),
+        onMessages: (request) => {
+          requests.push(request)
+          sequence.push(`messages:${request.phase}:${request.before ?? "latest"}`)
+        },
+        onMessage: (request) => roots.push(request),
+        message: (requested, messageID) =>
+          requested === sessionID ? messages.find((item) => item.id === messageID) : undefined,
+        pageMessages: (_, limit, before) => {
+          pages.push({ before, limit })
+          const end = before ? messages.findIndex((message) => message.id === before) : messages.length
+          const start = Math.max(0, end - limit)
+
+          return { items: messages.slice(start, end), cursor: start > 0 ? messages[start]!.id : undefined }
+        },
+      })
+
+      await expect(page.locator(`[data-timeline-part-id="${last.id}:text:0"]`)).toBeVisible()
+      await expect(page.locator(`[data-timeline-part-id="${messages.at(-2)!.id}:text:0"]`)).toBeVisible()
+      await timelineScroller(page).hover()
+      await page.mouse.wheel(0, -100_000)
+      await expect.poll(() => requests.filter((request) => request.phase === "start").length).toBe(2)
+      expect(sequence).toEqual(["messages:start:latest", "messages:end:latest", `messages:start:${messages[2]!.id}`])
+
+      // The probe samples every painted frame from here on; the steps below wait for projected state, not samples.
+      expect(await page.evaluate(() => window.__historyRootProbe!.arm())).not.toEqual([])
+      expect(await page.evaluate(() => window.__historyRootProbe!.hidden)).toBe(false)
+      history.resolve()
+      await expect.poll(() => requests.filter((request) => request.phase === "end").length).toBe(2)
+      await expect(page.getByRole("button", { name: "Stop" })).toBeVisible()
+      // The older page is projected above the kept rows.
+      await expect(
+        page.locator(`[data-timeline-row="UserMessage"][data-message-id="${messages[0]!.id}"]`),
+      ).toBeAttached()
+      expect(pages).toEqual([
+        { before: undefined, limit: 40 },
+        { before: messages[2]!.id, limit: 20 },
+      ])
+      expect(roots).toEqual([])
+
+      const completed = {
+        ...last,
+        time: { ...last.time, completed: last.time.created + 15_000 },
+        error: scenario.error,
+      }
+
+      const message = messageUpdated(completed)
+      const idle = status("idle")
+      // Idle ends the working turn, so its last text part shows the response actions. A completed step changes
+      // nothing visible while the session is still busy; the idle that follows it proves both were projected.
+      const actionsSelector = `[data-timeline-part-id="${last.id}:text:0"] [data-slot="text-part-copy-wrapper"]`
+      const actions = page.locator(actionsSelector)
+      // The final state: the response actions after a completion, the Interrupted notice after an interruption.
+      const spacer = { selector: '[data-timeline-row="bottom-spacer"]' }
+      await page.evaluate(
+        (final) => window.__historyRootProbe!.settle(final),
+        scenario.error
+          ? {
+              attached: [],
+              visible: [spacer, { selector: '[data-slot="session-timeline-notice-label"]', text: "Interrupted" }],
+            }
+          : { attached: [actionsSelector], visible: [spacer] },
+      )
+
+      for (const event of scenario.idleFirst ? [idle, message] : [message, idle]) {
+        await timeline.send(event)
+
+        if (event === idle) {
+          await expect(page.getByRole("button", { name: "Stop" })).toHaveCount(0)
+          await expect(actions).toBeAttached()
+        }
+
+        if (event === message && scenario.error)
+          await expect(page.getByText("Interrupted", { exact: true })).toBeVisible()
+        await expect(page.locator("[data-timeline-virtual-content]")).toHaveCount(1)
+        await expect(page.locator("[data-timeline-key]")).not.toHaveCount(0)
+      }
+
+      await expect(page.getByRole("button", { name: "Stop" })).toHaveCount(0)
+      await expect(page.locator('[data-timeline-row="bottom-spacer"]')).toBeVisible()
+
+      if (scenario.error) await expect(page.getByText("Interrupted", { exact: true })).toBeVisible()
+      // The DOM can settle before the sampler's next frame; `hidden` is complete once a sample has shown the final state.
+      await expect.poll(() => page.evaluate(() => window.__historyRootProbe!.settled)).toBe(true)
+      expect(await page.evaluate(() => window.__historyRootProbe!.hidden)).toBe(false)
+    })
+  }
+
+  for (const tailKind of ["assistant-only", "mixed"] as const) {
+    test(`renders the ${tailKind} tail before parent hydration and preserves it afterward`, async ({ page }) => {
+      const session = { ...fixture.sessions[0]!, id: `ses_hydration_${tailKind}` }
+
+      // Compact's initial 40 and the next 20 begin with an assistant; page three supplies its parent.
+      const messages = Array.from({ length: 61 }, (_, index): SessionMessageInfo => {
+        const id = `msg_hydration_${index}`
+        const time = { created: 1700000000000 + index * 1_000 }
+
+        if (index === 0 || (tailKind === "mixed" && index === 59))
+          return { id, type: "user", time, text: `Prompt ${index}` }
+
+        return {
+          id,
+          type: "assistant",
+          time: { ...time, completed: time.created + 500 },
+          model: { id: "claude-opus-4-6", providerID: "aigcfroge" },
+          agent: "build",
+          content: [{ type: "text", text: index === 60 ? "## Hydrated tail\n\n**Ready.**" : `Answer ${index}` }],
+        }
+      })
+
+      const gates = [21, 1].map((index) => ({
+        before: messages[index]!.id,
+        parent: messages[index === 21 ? 1 : 0]!.id,
+        requested: Promise.withResolvers<void>(),
+        release: Promise.withResolvers<void>(),
+      }))
+
+      const requests: (string | undefined)[] = []
+      await page.setViewportSize({ width: 1440, height: 900 })
+      await mockStressTimeline(page, {
+        sessions: [session],
+        beforeMessagesResponse: async ({ before }) => {
+          requests.push(before)
+
+          if (!before) return
+          const gate = gates.find((gate) => gate.before === before)
+
+          if (!gate) throw new Error(`Unexpected older-page boundary: ${before}`)
+          gate.requested.resolve()
+          await gate.release.promise
+        },
+        pageMessages: (_, limit, before) => {
+          expect(limit).toBe(before ? 20 : 40)
+          const end = before ? messages.findIndex((message) => message.id === before) : messages.length
+          const start = Math.max(0, end - limit)
+
+          return { items: messages.slice(start, end), cursor: start > 0 ? messages[start]!.id : undefined }
+        },
+      })
+      const tail = page.locator('[data-timeline-part-id="msg_hydration_60:text:0"]')
+      const markdown = tail.locator('[data-component="markdown"]')
+      const content = page.locator("[data-timeline-virtual-content]", { has: tail })
+      const viewport = page.locator(".scroll-view__viewport", { has: tail })
+
+      const orphan = page.locator('[data-timeline-row="AssistantPart"]', {
+        has: page.locator('[data-timeline-part-id="msg_hydration_58:text:0"]'),
+      })
+
+      const expectReadyTail = async () => {
+        await expect(content).toHaveCSS("visibility", "visible")
+        await expect(markdown).toHaveAttribute("data-markdown-ready", "")
+        await expect(markdown.getByRole("heading", { name: "Hydrated tail", exact: true })).toBeInViewport({
+          ratio: 1,
+        })
+        await expect
+          .poll(() =>
+            viewport.evaluate((element) => Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop)),
+          )
+          .toBeLessThanOrEqual(1)
+      }
+
+      try {
+        await page.goto(sessionHref(session.id))
+        await gates[0]!.requested.promise
+        // This must pass while the first older response is still held.
+        await expectReadyTail()
+        await expect(orphan).toHaveAttribute("data-message-id", "msg_hydration_21")
+
+        if (tailKind === "mixed")
+          await expect(
+            page.locator('[data-timeline-row="UserMessage"][data-message-id="msg_hydration_59"]'),
+          ).toBeInViewport()
+        const original = await markdown.elementHandle()
+
+        for (const gate of gates) {
+          await gate.requested.promise
+          gate.release.resolve()
+          // Parent ownership proves the page reached the projection, not just the network.
+          await expect(orphan).toHaveAttribute("data-message-id", gate.parent)
+          await expectReadyTail()
+          expect(await markdown.evaluate((element, original) => element === original, original)).toBe(true)
+        }
+
+        expect(requests).toEqual([undefined, ...gates.map((gate) => gate.before)])
+
+        const ids = await content
+          .locator("[data-timeline-part-id]")
+          .evaluateAll((elements) => elements.map((element) => element.getAttribute("data-timeline-part-id")))
+
+        expect(new Set(ids).size).toBe(ids.length)
+      } finally {
+        gates.forEach((gate) => gate.release.resolve())
+      }
+    })
+  }
+})
+
+declare global {
+  interface Window {
+    __historyRootProbe?: { arm(): string[]; hidden: boolean; settle(final: ProbeFinal): void; settled: boolean }
+  }
+}
+
+async function openStressTarget(page: Page, input: Parameters<typeof mockStressTimeline>[1] = {}) {
+  await mockStressTimeline(page, input)
+  await installTimelineSettings(page)
+  await seed(page, {
+    projects: { local: [{ worktree: fixture.directory, expanded: true }] },
+    lastProject: { local: fixture.directory },
+  })
+  await page.goto(sessionHref(fixture.targetID))
+  await expectSessionTitle(page, fixture.expected.targetTitle)
+  await expect(page.locator("[data-timeline-virtual-content]")).toHaveCSS("visibility", "visible")
+}
+
+function timelineScroller(page: Page) {
+  return page.locator(".scroll-view__viewport", { has: page.locator("[data-timeline-row]") })
+}
+
+function visibleTimeline(page: Page) {
+  return timelineScroller(page).evaluate((scroller) => {
+    const view = scroller.getBoundingClientRect()
+
+    const inView = (element: Element) => {
+      const rect = element.getBoundingClientRect()
+
+      return rect.bottom >= view.top && rect.top <= view.bottom
+    }
+
+    const parts = [...scroller.querySelectorAll<HTMLElement>("[data-timeline-part-id], [data-timeline-part-ids]")]
+
+    const partIDs = (element: HTMLElement) =>
+      [element.dataset.timelinePartId, ...(element.dataset.timelinePartIds?.split(",") ?? [])].filter(
+        (id): id is string => !!id,
+      )
+
+    const messages = [...scroller.querySelectorAll<HTMLElement>("[data-message-id]")]
+    const messageIDs = (elements: HTMLElement[]) => [...new Set(elements.map((element) => element.dataset.messageId!))]
+
+    const firstRowTop = Math.min(
+      ...[...scroller.querySelectorAll("[data-timeline-key]")].map((row) => row.getBoundingClientRect().top),
+    )
+
+    return {
+      parts: parts.flatMap(partIDs),
+      visibleParts: parts.filter(inView).flatMap(partIDs),
+      messages: messageIDs(messages),
+      visibleMessages: messageIDs(messages.filter(inView)),
+      scrollTop: Math.round(scroller.scrollTop),
+      scrollHeight: scroller.scrollHeight,
+      viewportTop: view.top,
+      firstRowTop,
+      // Mounted rows reach the top edge, so the virtualizer has rendered this position. Below 200px the
+      // timeline requests the next older page instead.
+      covered: scroller.scrollTop < 200 || firstRowTop <= view.top + 1,
+      mountedAbove: Math.min(Math.floor(view.height / 2), Math.max(80, Math.floor(view.top - firstRowTop))),
+      errorToasts: document.querySelectorAll(".toast-v2--error").length,
+      signature: JSON.stringify([
+        Math.round(scroller.scrollTop),
+        Math.round(scroller.scrollHeight),
+        parts.flatMap(partIDs),
+      ]),
+    }
+  })
+}
+
+function expectOrdered(expected: string[], actual: string[], label: string) {
+  // expect.poll retries its matcher, not exceptions thrown by the observation callback.
+  if (actual.length === 0) return
+  expect(actual.length, `${label} should not be empty`).toBeGreaterThan(0)
+  const present = new Set(actual)
+  expect(actual, label).toEqual(expected.filter((id) => present.has(id)))
+}
+
+function partIDs(message: SessionMessageInfo) {
+  if (message.type === "user") return [`${message.id}:text:0`]
+
+  if (message.type !== "assistant") return []
+  const ordinals = { text: 0, reasoning: 0 }
+
+  return message.content.flatMap((part) => {
+    if (part.type === "text" || part.type === "reasoning")
+      return [`${message.id}:${part.type}:${ordinals[part.type]++}`]
+
+    if (part.type === "tool") return [part.id]
+
+    return []
+  })
+}
+
+// 21 turns: the latest 40-message page starts at the second turn, so one older page of 20 reaches the first.
+function rootHistory() {
+  return Array.from({ length: 21 }, (_, index) => {
+    const id = `msg_${String(index + 1001).padStart(4, "0")}_history_root_user`
+
+    return [
+      userMessage(undefined, { id, created: 1700000000000 + index * 2_000 }),
+      assistantMessage([textPart(`prt_history_root_${index}`, `Assistant response ${index}`)], {
+        id: `msg_${String(index + 1001).padStart(4, "0")}_history_root_assistant`,
+        parentID: id,
+        created: 1700000001000 + index * 2_000,
+        completed: index < 20,
+      }),
+    ]
+  }).flat()
+}
+
+// A state the probe waits to see painted: every `attached` selector matches, and every `visible` entry matches a
+// visible element (with exactly `text`, when set).
+type ProbeFinal = { attached: string[]; visible: { selector: string; text?: string }[] }
+
+// Samples every painted frame and records whether any part that was visible when armed disappeared. After `settle`,
+// it also records (`settled`) the first sample that shows the final state, so `hidden` then covers that frame.
+function installVisibilityProbe() {
+  const shown = (element: Element) => {
+    const rect = element.getBoundingClientRect()
+
+    return rect.width > 0 && rect.height > 0 && element.checkVisibility({ visibilityProperty: true })
+  }
+
+  const shows = (final: ProbeFinal) =>
+    final.attached.every((selector) => document.querySelector(selector)) &&
+    final.visible.every((entry) =>
+      [...document.querySelectorAll(entry.selector)].some(
+        (element) => shown(element) && (entry.text === undefined || element.textContent?.trim() === entry.text),
+      ),
+    )
+
+  const visibleParts = () => {
+    const viewport = document.querySelector("[data-timeline-virtual-content]")?.closest(".scroll-view__viewport")
+    const view = viewport?.getBoundingClientRect()
+
+    if (!viewport || !view) return []
+
+    return [...viewport.querySelectorAll<HTMLElement>("[data-timeline-part-id]")]
+      .filter((part) => {
+        const rect = part.getBoundingClientRect()
+
+        return rect.width > 0 && rect.height > 0 && rect.bottom > view.top && rect.top < view.bottom
+      })
+      .flatMap((part) => (part.dataset.timelinePartId ? [part.dataset.timelinePartId] : []))
+  }
+
+  const state = {
+    armed: false,
+    hidden: false,
+    // SAFETY: arm fills this array with visible part IDs before any probe reads it.
+    parts: [] as string[],
+    // SAFETY: settle supplies ProbeFinal after the probe has been armed.
+    final: undefined as ProbeFinal | undefined,
+    settled: false,
+    // Returns the parts that must stay visible.
+    arm() {
+      state.parts = visibleParts()
+      state.armed = true
+
+      return state.parts
+    },
+    settle(final: ProbeFinal) {
+      state.final = final
+      state.settled = false
+    },
+  }
+
+  window.__historyRootProbe = state
+
+  const sample = () => {
+    if (state.armed) {
+      const visible = new Set(visibleParts())
+
+      if (state.parts.length === 0 || state.parts.some((partID) => !visible.has(partID))) state.hidden = true
+
+      if (state.final && !state.settled) state.settled = shows(state.final)
+    }
+
+    requestAnimationFrame(() => setTimeout(sample, 0))
+  }
+
+  requestAnimationFrame(() => setTimeout(sample, 0))
+}

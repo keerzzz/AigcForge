@@ -3,11 +3,11 @@ export * as McpConnection from "./connection"
 import {
   Cause,
   Context,
+  DateTime,
   Deferred,
   Duration,
   Effect,
   Exit,
-  JsonSchema,
   Layer,
   Option,
   Scope,
@@ -15,17 +15,24 @@ import {
   Semaphore,
   Stream,
 } from "effect"
-import { HttpClient, HttpClientError, HttpClientRequest } from "effect/unstable/http"
-import { ChildProcess } from "effect/unstable/process"
-import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
+import { HttpClient, HttpClientError, HttpClientRequest } from "effect/http"
+import { ChildProcess } from "effect/process"
+import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner"
+import { ToolFailure } from "@aigcfroge/ai"
+import type { Info } from "@aigcfroge/schema/tool"
 import { Composition } from "@aigcfroge/schema/composition"
 import { McpScope, McpServerBinding } from "@aigcfroge/schema/mcp-scope"
-import { canonicalToolName, McpRegistration, SERVER_NAME_PATTERN } from "../tool/mcp-registration"
-import { RegistrationError, Tool } from "../tool/tool"
-import { McpCredentialBindingStore } from "./binding/store"
-import { Credential } from "../credential"
-import { CredentialScanner } from "../credential-scanner"
-import { ProductModePolicy } from "../product-mode-policy"
+import { canonicalToolName, McpRegistration, SERVER_NAME_PATTERN } from "../tool/mcp-registration.js"
+import { Tool } from "../tool.js"
+import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { httpClient } from "@aigcfroge/util/effect/app-node-platform"
+import { CrossSpawnSpawner } from "@aigcfroge/util/cross-spawn-spawner"
+import { McpCredentialBindingStore } from "./binding/store.js"
+import { Credential } from "../credential.js"
+import { CredentialScanner } from "../credential-scanner.js"
+import { ProductModePolicy } from "../product-mode-policy.js"
+import { Permission } from "../permission.js"
+import { CompositionDigest } from "../composition/digest.js"
 
 // Phase C Slice 2: typed credential binding resolution. A binding carrying
 // credentialRef is resolved via McpCredentialBindingStore (Location-scoped,
@@ -35,16 +42,16 @@ import { ProductModePolicy } from "../product-mode-policy"
 
 export const HANDSHAKE_TIMEOUT = Duration.seconds(10)
 
-export class InvalidConfigError extends Schema.TaggedErrorClass<InvalidConfigError>()(
-  "McpConnection.InvalidConfigError",
-  { serverName: Schema.String, reason: Schema.String },
-) {
+export class InvalidConfigError extends Schema.TaggedError<InvalidConfigError>()("McpConnection.InvalidConfigError", {
+  serverName: Schema.String,
+  reason: Schema.String,
+}) {
   override get message() {
     return `Invalid MCP binding for '${this.serverName}': ${this.reason}`
   }
 }
 
-export class ProcessStartError extends Schema.TaggedErrorClass<ProcessStartError>()("McpConnection.ProcessStartError", {
+export class ProcessStartError extends Schema.TaggedError<ProcessStartError>()("McpConnection.ProcessStartError", {
   serverName: Schema.String,
   reason: Schema.String,
 }) {
@@ -53,7 +60,7 @@ export class ProcessStartError extends Schema.TaggedErrorClass<ProcessStartError
   }
 }
 
-export class HandshakeTimeoutError extends Schema.TaggedErrorClass<HandshakeTimeoutError>()(
+export class HandshakeTimeoutError extends Schema.TaggedError<HandshakeTimeoutError>()(
   "McpConnection.HandshakeTimeoutError",
   { serverName: Schema.String, timeoutMs: Schema.Number },
 ) {
@@ -62,7 +69,7 @@ export class HandshakeTimeoutError extends Schema.TaggedErrorClass<HandshakeTime
   }
 }
 
-export class ProtocolError extends Schema.TaggedErrorClass<ProtocolError>()("McpConnection.ProtocolError", {
+export class ProtocolError extends Schema.TaggedError<ProtocolError>()("McpConnection.ProtocolError", {
   serverName: Schema.String,
   reason: Schema.String,
 }) {
@@ -71,7 +78,7 @@ export class ProtocolError extends Schema.TaggedErrorClass<ProtocolError>()("Mcp
   }
 }
 
-export class NotConnectedError extends Schema.TaggedErrorClass<NotConnectedError>()("McpConnection.NotConnectedError", {
+export class NotConnectedError extends Schema.TaggedError<NotConnectedError>()("McpConnection.NotConnectedError", {
   serverName: Schema.String,
 }) {
   override get message() {
@@ -79,7 +86,7 @@ export class NotConnectedError extends Schema.TaggedErrorClass<NotConnectedError
   }
 }
 
-export class UnknownToolError extends Schema.TaggedErrorClass<UnknownToolError>()("McpConnection.UnknownToolError", {
+export class UnknownToolError extends Schema.TaggedError<UnknownToolError>()("McpConnection.UnknownToolError", {
   name: Schema.String,
 }) {
   override get message() {
@@ -87,7 +94,7 @@ export class UnknownToolError extends Schema.TaggedErrorClass<UnknownToolError>(
   }
 }
 
-export class CredentialMissingError extends Schema.TaggedErrorClass<CredentialMissingError>()(
+export class CredentialMissingError extends Schema.TaggedError<CredentialMissingError>()(
   "McpConnection.CredentialMissingError",
   { serverName: Schema.String, credentialRef: Schema.optional(Schema.String) },
 ) {
@@ -96,7 +103,7 @@ export class CredentialMissingError extends Schema.TaggedErrorClass<CredentialMi
   }
 }
 
-export class CredentialExpiredError extends Schema.TaggedErrorClass<CredentialExpiredError>()(
+export class CredentialExpiredError extends Schema.TaggedError<CredentialExpiredError>()(
   "McpConnection.CredentialExpiredError",
   { serverName: Schema.String, credentialRef: Schema.String },
 ) {
@@ -105,36 +112,36 @@ export class CredentialExpiredError extends Schema.TaggedErrorClass<CredentialEx
   }
 }
 
-export class RemoteDnsError extends Schema.TaggedErrorClass<RemoteDnsError>()("McpConnection.RemoteDnsError", {
+export class RemoteDnsError extends Schema.TaggedError<RemoteDnsError>()("McpConnection.RemoteDnsError", {
   serverName: Schema.String,
   url: Schema.String,
 }) {}
 
-export class RemoteConnectionRefusedError extends Schema.TaggedErrorClass<RemoteConnectionRefusedError>()(
+export class RemoteConnectionRefusedError extends Schema.TaggedError<RemoteConnectionRefusedError>()(
   "McpConnection.RemoteConnectionRefusedError",
   { serverName: Schema.String, url: Schema.String },
 ) {}
 
-export class RemoteTlsError extends Schema.TaggedErrorClass<RemoteTlsError>()("McpConnection.RemoteTlsError", {
+export class RemoteTlsError extends Schema.TaggedError<RemoteTlsError>()("McpConnection.RemoteTlsError", {
   serverName: Schema.String,
   url: Schema.String,
 }) {}
 
-export class RemoteUnavailableError extends Schema.TaggedErrorClass<RemoteUnavailableError>()(
+export class RemoteUnavailableError extends Schema.TaggedError<RemoteUnavailableError>()(
   "McpConnection.RemoteUnavailableError",
   { serverName: Schema.String, url: Schema.String, status: Schema.optional(Schema.Number) },
 ) {}
 
-export class ConnectionClosedError extends Schema.TaggedErrorClass<ConnectionClosedError>()(
+export class ConnectionClosedError extends Schema.TaggedError<ConnectionClosedError>()(
   "McpConnection.ConnectionClosedError",
   { serverName: Schema.String, reason: Schema.Literals(["disconnect", "owner_scope_closed", "kill_switch_disabled"]) },
 ) {}
 
-export class McpDisabledError extends Schema.TaggedErrorClass<McpDisabledError>()("McpConnection.McpDisabledError", {
+export class McpDisabledError extends Schema.TaggedError<McpDisabledError>()("McpConnection.McpDisabledError", {
   operation: Schema.Literals(["connect", "call"]),
 }) {}
 
-export class HealthTransitionError extends Schema.TaggedErrorClass<HealthTransitionError>()(
+export class HealthTransitionError extends Schema.TaggedError<HealthTransitionError>()(
   "McpConnection.HealthTransitionError",
   {
     from: McpScope.McpConnectionHealth,
@@ -218,10 +225,20 @@ export class ConnInfo extends Schema.Class<ConnInfo>("McpConnection.ConnInfo")({
 export class Fact extends Schema.Class<Fact>("McpConnection.Fact")({
   serverName: Schema.String,
   ref: Schema.Struct({ relativePath: Schema.String, revision: Composition.Revision }),
+  transportFingerprint: Composition.Digest,
   credentialRef: Schema.optional(Schema.String),
+  credentialStatus: Composition.McpCredentialStatus,
   health: McpScope.McpConnectionHealth,
   tools: Schema.Array(Schema.String),
 }) {}
+
+/** The transport branch actually used by the owner, without exposing its material. */
+export const transportFingerprint = (binding: McpServerBinding): Composition.Digest =>
+  CompositionDigest.computeDigest(
+    binding.transport === "stdio"
+      ? { transport: binding.transport, command: binding.command }
+      : { transport: binding.transport, url: binding.url },
+  )
 
 export type ConnectError =
   | InvalidConfigError
@@ -230,7 +247,7 @@ export type ConnectError =
   | ProtocolError
   | McpRegistration.InvalidServerNameError
   | McpRegistration.McpNameCollisionError
-  | RegistrationError
+  | Tool.RegistrationError
   /**
    * ADR-21 §2.2: a credentialRef that is not bound in THIS Location is rejected
    * fail closed, and the rejection is part of `connect`'s public contract — the
@@ -302,7 +319,7 @@ export interface Interface {
   readonly connections: () => Effect.Effect<readonly ConnInfo[]>
   /** Last observed health for one server, including failed admissions. */
   readonly health: (serverName: string) => Effect.Effect<McpScope.McpConnectionHealth | undefined>
-  /** Successful canonical registrations and their non-secret binding identity. */
+  /** Successful registrations with current credential admission facts; does not mutate observed health. */
   readonly facts: () => Effect.Effect<readonly Fact[]>
   /** Execute a tool by canonical name through the owning connection. */
   readonly callTool: (input: {
@@ -317,6 +334,48 @@ export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value)
+
+/**
+ * Translate one JSON-RPC `tools/call` result into the tool service's Result
+ * shape: `isError` becomes a ToolFailure, MCP content parts become model
+ * content, and the structured/text payload becomes the declared output.
+ * Mirrors the conversion the config-driven MCP tools use in `tool/mcp.ts`.
+ */
+const toolResultOf = (result: unknown, outputSchema?: Record<string, unknown>) =>
+  Effect.gen(function* () {
+    const record = isRecord(result) ? result : {}
+    const rawContent = Array.isArray(record.content) ? record.content : []
+    type ModelContent =
+      | { readonly type: "text"; readonly text: string }
+      | { readonly type: "file"; readonly uri: string; readonly mime: string }
+    const content = rawContent.flatMap((part): ModelContent[] => {
+      if (!isRecord(part)) return []
+      if (part.type === "text" && typeof part.text === "string") return [{ type: "text", text: part.text }]
+      if (typeof part.mimeType === "string" && typeof part.data === "string")
+        return [{ type: "file", uri: `data:${part.mimeType};base64,${part.data}`, mime: part.mimeType }]
+      return []
+    })
+    if (record.isError === true) {
+      const text = content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("\n")
+      return yield* new ToolFailure({ message: text.trim() || "MCP tool returned an error" })
+    }
+    const text = content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("\n")
+    const output = (() => {
+      if (record.structuredContent !== undefined) return record.structuredContent
+      if (text === "") return null
+      // Agents assume JSON returned as text is already an object: parse it when
+      // the server declares no output schema and the text looks like JSON.
+      if (outputSchema === undefined && (text.startsWith("{") || text.startsWith("["))) {
+        try {
+          return JSON.parse(text)
+        } catch {
+          return text
+        }
+      }
+      return text
+    })()
+    return { output, ...(content.length === 0 ? {} : { content }) }
+  })
 
 /**
  * Ceiling for one redacted stderr line in the log. Applied AFTER scanning —
@@ -365,8 +424,13 @@ const decodeBinding = McpScope.decodeBinding
  * `metadata` is NOT forwarded — it is caller-supplied and could carry anything,
  * so it stays out of the child environment.
  */
-const credentialEnvFor = (value: Credential.Value): Record<string, string> =>
-  value.type === "oauth" ? { MCP_CREDENTIAL_ACCESS_TOKEN: value.access } : { MCP_CREDENTIAL_API_KEY: value.key }
+const credentialEnvFor = (value: Credential.Value): Record<string, string> => {
+  if (value.type === "oauth") return { MCP_CREDENTIAL_ACCESS_TOKEN: value.access }
+  if (value.type === "key") return { MCP_CREDENTIAL_API_KEY: value.key }
+  // External credentials carry no material: the child authenticates through its
+  // own environment, so there is nothing to inject.
+  return {}
+}
 
 const credentialHeadersFor = (value: Credential.OAuth): Record<string, string> => ({
   Authorization: `Bearer ${value.access}`,
@@ -408,7 +472,8 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const spawner = yield* ChildProcessSpawner
-    const registration = yield* McpRegistration.Service
+    const toolService = yield* Tool.Service
+    const permission = yield* Permission.Service
     const bindingStore = yield* McpCredentialBindingStore.Service
     const credentialService = yield* Credential.Service
     const scanner = yield* CredentialScanner.Service
@@ -635,7 +700,7 @@ export const layer = Layer.effect(
           HttpClientRequest.setHeaders(input.headers ?? {}),
           HttpClientRequest.bodyJson(payload),
           Effect.flatMap(http.execute),
-          Effect.catch((cause) => Effect.fail(classifyRemoteFailure({ ...input, cause }))),
+          Effect.mapError((cause) => classifyRemoteFailure({ ...input, cause })),
         )
       const stop = (error: ConnectionClosedError) =>
         Effect.gen(function* () {
@@ -772,6 +837,27 @@ export const layer = Layer.effect(
     const callServer = (server: string, tool: string, args: unknown): Effect.Effect<unknown, CallToolError> =>
       requestOn(server, "tools/call", { name: tool, arguments: args ?? {} })
 
+    const credentialStatusFor = Effect.fnUntraced(function* (binding: McpServerBinding) {
+      if (binding.credentialRef === undefined) return "not-required" as const
+      const status = yield* bindingStore
+        .resolve({ serverName: binding.serverName, credentialRef: binding.credentialRef })
+        .pipe(
+          Effect.match({
+            onFailure: (error) =>
+              error instanceof McpCredentialBindingStore.RevokedRefError ? ("revoked" as const) : ("missing" as const),
+            onSuccess: () => "available" as const,
+          }),
+        )
+      if (status !== "available") return status
+      // Credential.get is the existing read contract. Material stays local to
+      // this projection; only existence and the shared expiry rule survive it.
+      const credential = yield* credentialService.get(Credential.ID.make(binding.credentialRef))
+      if (credential === undefined) return "missing" as const
+      return isCredentialExpired(credential.value, (yield* DateTime.nowAsDate).getTime())
+        ? ("expired" as const)
+        : ("available" as const)
+    })
+
     const connect = Effect.fn("McpConnection.connect")(function* (input: { readonly binding: unknown }) {
       if (!ProductModePolicy.isCustomModeEnabled()) {
         yield* shutdownConnections("kill_switch_disabled")
@@ -894,30 +980,51 @@ export const layer = Layer.effect(
               name: t.name,
               description: typeof t.description === "string" ? t.description : "",
               inputSchema: isRecord(t.inputSchema) ? t.inputSchema : { type: "object" },
+              outputSchema: isRecord(t.outputSchema) ? t.outputSchema : undefined,
             },
           ]
         })
         // Null prototype: server-provided tool names are external input; a
         // tool literally named `__proto__` must become an own data key, not
         // mutate Object.prototype (§6.2 red line).
-        const wrapped: Record<string, Tool.AnyTool> = Object.create(null)
+        const wrapped: Record<string, Info> = Object.create(null)
         for (const t of discovered) {
-          wrapped[t.name] = Tool.makeRaw({
+          wrapped[t.name] = {
+            name: t.name,
             description: t.description,
             // JsonSchema is `{ [x: string]: unknown }` — the guarded record
             // flows straight through, no assertion needed.
-            inputSchema: t.inputSchema,
-            execute: (callInput) =>
-              callServer(serverName, t.name, callInput).pipe(
-                Effect.catch((e) => new Tool.Failure({ message: e._tag })),
+            input: t.inputSchema,
+            output: t.outputSchema ?? {},
+            execute: (callInput, context) =>
+              Effect.gen(function* () {
+                yield* permission.assert({
+                  action: canonicalToolName(serverName, t.name),
+                  resources: ["*"],
+                  save: ["*"],
+                  metadata: {},
+                  sessionID: context.sessionID,
+                  agent: context.agent,
+                  source: { type: "tool", messageID: context.messageID, id: context.id },
+                })
+                const result = yield* callServer(serverName, t.name, callInput)
+                return yield* toolResultOf(result, t.outputSchema)
+              }).pipe(
+                Effect.mapError((e) =>
+                  e instanceof ToolFailure
+                    ? e
+                    : new ToolFailure({
+                        message: e instanceof Permission.CorrectedError ? e.feedback : e._tag,
+                      }),
+                ),
               ),
-          })
+          }
         }
         // Registration lives on the CONNECTION's own scope: closing or killing
         // the connection unregisters its canonical names automatically.
-        yield* registration
-          .registerServer({ serverName, tools: wrapped })
-          .pipe(Effect.provideService(Scope.Scope, connScope))
+        yield* McpRegistration.registerServer(toolService, { serverName, tools: wrapped }).pipe(
+          Effect.provideService(Scope.Scope, connScope),
+        )
         // Routes derive from the keys that were ACTUALLY registered — never
         // from the discovered list — so a route can never exist without its
         // registration behind it.
@@ -974,18 +1081,31 @@ export const layer = Layer.effect(
         return health.get(serverName)
       }),
       facts: Effect.fn("McpConnection.facts")(function* () {
-        return [...conns.values()].flatMap((wire) => {
-          if (wire.binding === undefined || wire.tools === undefined) return []
-          return [
-            new Fact({
-              serverName: wire.serverName,
-              ref: wire.binding.ref,
-              credentialRef: wire.binding.credentialRef,
-              health: wire.health,
-              tools: wire.tools,
+        return yield* Effect.forEach(
+          [...conns.values()].flatMap((wire) =>
+            wire.binding === undefined || wire.tools === undefined
+              ? []
+              : [{ wire, binding: wire.binding, tools: wire.tools }],
+          ),
+          (entry) =>
+            Effect.gen(function* () {
+              const credentialStatus = yield* credentialStatusFor(entry.binding)
+              return new Fact({
+                serverName: entry.wire.serverName,
+                ref: entry.binding.ref,
+                transportFingerprint: transportFingerprint(entry.binding),
+                credentialRef: entry.binding.credentialRef,
+                credentialStatus,
+                health:
+                  credentialStatus === "revoked"
+                    ? "revoked"
+                    : credentialStatus === "missing" || credentialStatus === "expired"
+                      ? "auth-required"
+                      : entry.wire.health,
+                tools: entry.tools,
+              })
             }),
-          ]
-        })
+        )
       }),
       callTool: Effect.fn("McpConnection.callTool")(function* (input: {
         readonly name: string
@@ -1003,3 +1123,16 @@ export const layer = Layer.effect(
     })
   }),
 )
+
+export const node = makeLocationNode({
+  service: Service,
+  layer: layer.pipe(Layer.provide(CredentialScanner.layer)),
+  deps: [
+    Tool.node,
+    Permission.node,
+    McpCredentialBindingStore.node,
+    CrossSpawnSpawner.node,
+    httpClient,
+    Credential.node,
+  ],
+})

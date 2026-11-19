@@ -1,53 +1,70 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@aigcfroge/plugin",
-  "version": "0.0.8",
+  "version": "2.0.26",
   "type": "module",
   "license": "MIT",
   "scripts": {
+    "test": "bun test --only-failures",
     "typecheck": "tsgo --noEmit",
-    "build": "tsc"
+    "build": "tsc -p tsconfig.build.json"
   },
   "exports": {
-    ".": "./src/index.ts",
-    "./tool": "./src/tool.ts",
-    "./tui": "./src/tui.ts",
-    "./v2/effect": "./src/v2/effect/index.ts",
-    "./v2/effect/integration": "./src/v2/effect/integration.ts",
-    "./v2/effect/plugin": "./src/v2/effect/plugin.ts",
-    "./v2/promise": "./src/v2/promise/index.ts"
+    ".": "./src/promise/index.ts",
+    "./effect": "./src/effect/index.ts",
+    "./host": "./src/host.ts",
+    "./runtime": "./src/runtime.ts",
+    "./tui": "./src/tui/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "imports": {
+    "#plugin-source": {
+      "bun": "./src/source.bun.ts",
+      "node": "./src/source.node.ts",
+      "default": "./src/source.node.ts"
+    }
   },
   "files": [
     "dist"
   ],
   "dependencies": {
     "@ai-sdk/provider": "3.0.8",
-    "@aigcfroge/sdk": "workspace:*",
-    "effect": "catalog:",
-    "zod": "catalog:"
+    "@aigcfroge/ai": "workspace:*",
+    "@aigcfroge/client": "workspace:*",
+    "@aigcfroge/protocol": "workspace:*",
+    "@aigcfroge/schema": "workspace:*",
+    "@aigcfroge/util": "workspace:*",
+    "effect": "catalog:"
   },
   "peerDependencies": {
-    "@opentui/core": ">=0.4.2",
-    "@opentui/keymap": ">=0.4.2",
-    "@opentui/solid": ">=0.4.2"
+    "@aigcfroge/theme": "workspace:*",
+    "@opentui/core": ">=0.5.17",
+    "@opentui/solid": ">=0.5.17",
+    "solid-js": ">=1.9.0"
   },
   "peerDependenciesMeta": {
-    "@opentui/core": {
+    "@aigcfroge/theme": {
       "optional": true
     },
-    "@opentui/keymap": {
+    "@opentui/core": {
       "optional": true
     },
     "@opentui/solid": {
       "optional": true
+    },
+    "solid-js": {
+      "optional": true
     }
   },
   "devDependencies": {
+    "@aigcfroge/theme": "workspace:*",
     "@opentui/core": "catalog:",
-    "@opentui/keymap": "catalog:",
     "@opentui/solid": "catalog:",
+    "@tsconfig/bun": "catalog:",
     "@tsconfig/node22": "catalog:",
+    "@types/bun": "catalog:",
     "@types/node": "catalog:",
+    "solid-js": "catalog:",
     "typescript": "catalog:",
     "@typescript/native-preview": "catalog:"
   }

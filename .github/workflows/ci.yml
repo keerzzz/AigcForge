@@ -6,36 +6,247 @@ on:
       - dev
       - main
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+  workflow_dispatch:
+
+concurrency:
+  # Preserve every branch push for release consumers; PRs cancel stale runs.
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.run_id || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  lint-test-typecheck:
-    name: Lint, Test, and Typecheck
+  quality:
+    name: typecheck
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
-          fetch-depth: 0
+          # A pull request checks out its merge into the current base; the first parent is that base.
+          fetch-depth: 2
 
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
 
-      - name: Install dependencies
-        run: bun install
+      - name: Run checks
+        run: bun run check
 
-      - name: Lint
-        run: bun run lint
+      - name: Check app E2E types
+        run: bun --cwd packages/app typecheck:e2e
+
+      # Guard main's six semantic rules on newly added JavaScript and TypeScript lines.
+      # GUI anti-slop warnings remain visible in the full lint inventory.
+      - name: Lint changed files
+        if: github.event_name == 'pull_request'
+        # Main's merge parent is the normal base. PR #142 uses its approved pre-integration V2 snapshot once.
+        run: |
+          migration_lint_base=HEAD^1
+          if [ "${{ github.event.pull_request.number }}" = "142" ]; then
+            git fetch --no-tags --deepen=16 origin "$GITHUB_SHA"
+            git merge-base --is-ancestor 928377ca374b85f4e1080b3ee836d4bb75c0fdfb HEAD
+            migration_lint_base=928377ca374b85f4e1080b3ee836d4bb75c0fdfb
+          fi
+          bun run lint:changed "$migration_lint_base"
+
+  unit:
+    name: unit (${{ matrix.settings.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - name: linux
+            host: ubuntu-latest
+          - name: windows
+            host: windows-latest
+    runs-on: ${{ matrix.settings.host }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24"
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+
+      - name: Test Effect simplification rules
+        if: runner.os == 'Linux'
+        run: bun run test:effect-simplification-rules
+
+      - name: Check Effect simplifications
+        if: runner.os == 'Linux'
+        run: bun run lint:effect-simplifications
+
+      - name: Configure git identity
+        run: |
+          git config --global user.email "bot@aigcfroge.ai"
+          git config --global user.name "aigcfroge"
+
+      - name: Install ripgrep on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes ripgrep
+
+      - name: Install ripgrep on Windows
+        if: runner.os == 'Windows'
+        run: choco install ripgrep --yes --no-progress
+
+      - name: Cache Turbo
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: node_modules/.cache/turbo
+          key: turbo-${{ runner.os }}-${{ hashFiles('turbo.json', '**/package.json') }}-${{ github.sha }}
+          restore-keys: |
+            turbo-${{ runner.os }}-${{ hashFiles('turbo.json', '**/package.json') }}-
+            turbo-${{ runner.os }}-
+
+      - name: Run unit tests
+        timeout-minutes: ${{ runner.os == 'Windows' && 90 || 40 }}
+        run: GITHUB_ACTIONS=false bun turbo test --concurrency=3
         env:
-          LINT_BASE_REF: ${{ github.event.pull_request.base.sha || github.event.before }}
+          AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || 'false' }}
 
-      - name: Typecheck
-        run: bun turbo typecheck
+      - name: Verify codemode package contents
+        if: runner.os == 'Linux'
+        working-directory: packages/codemode
+        run: |
+          bun run build
+          bun pm pack --dry-run --ignore-scripts
 
-      - name: OpenAPI snapshot drift (gate)
-        # Regenerates the spec through the shared boundary and diffs it against
-        # the committed snapshot; drift fails the job so a route change can never
-        # ship without refreshing packages/sdk/openapi.json.
-        run: bun run script/check-openapi-drift.ts
+      - name: Verify workerd module graph
+        if: runner.os == 'Linux'
+        timeout-minutes: 15
+        working-directory: packages/server
+        run: bun run probe:workerd
 
-      - name: Test
-        run: bun turbo test
+      - name: Check generated client
+        if: runner.os == 'Linux'
+        working-directory: packages/client
+        run: bun run check:generated
+
+  e2e:
+    name: e2e (${{ matrix.settings.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        settings:
+          - name: linux
+            host: ubuntu-24.04
+          - name: windows
+            host: windows-latest
+    runs-on: ${{ matrix.settings.host }}
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.playwright-browsers
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bun
+        uses: ./.github/actions/setup-bun
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          # Playwright 1.59 hangs while extracting Chromium with Node 24.16.
+          node-version: "24.15"
+
+      - name: Read Playwright version
+        id: playwright-version
+        run: |
+          version=$(node -e 'console.log(require("./package.json").workspaces.catalog["@playwright/test"])')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ github.workspace }}/.playwright-browsers
+          key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ steps.playwright-version.outputs.version }}-chromium
+
+      - name: Install Playwright system dependencies
+        if: runner.os == 'Linux'
+        working-directory: packages/app
+        run: bunx playwright install-deps chromium
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        working-directory: packages/app
+        run: bunx playwright install chromium
+
+      - name: Run app e2e tests against production build
+        run: bun --cwd packages/app test:e2e:built
+        env:
+          CI: true
+          PLAYWRIGHT_WORKERS: ${{ runner.os == 'Windows' && '2' || '3' }}
+        timeout-minutes: ${{ runner.os == 'Windows' && 50 || 90 }}
+
+      - name: Verify service worker precaching and upgrades
+        working-directory: packages/app
+        run: bunx playwright test --config e2e/service-worker/playwright.config.ts
+        timeout-minutes: 5
+
+      - name: Run session UI component tests
+        if: ${{ !cancelled() }}
+        run: bun --cwd packages/session-ui test:components
+        env:
+          CI: true
+        timeout-minutes: 15
+
+      - name: Run app component tests
+        if: ${{ !cancelled() }}
+        run: bun --cwd packages/app test:components
+        env:
+          CI: true
+        timeout-minutes: 15
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: playwright-${{ matrix.settings.name }}-${{ github.run_attempt }}
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            packages/app/e2e/test-results
+            packages/app/e2e/playwright-report
+            packages/session-ui/component-tests/test-results
+            packages/session-ui/component-tests/playwright-report
+            packages/app/component-tests/test-results
+            packages/app/component-tests/playwright-report
+
+  lint-test-typecheck:
+    name: Lint, Test, and Typecheck
+    needs: [quality, unit, e2e]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify CI results
+        shell: bash
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          UNIT_RESULT: ${{ needs.unit.result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
+        run: |
+          printf 'quality=%s unit=%s e2e=%s\n' "$QUALITY_RESULT" "$UNIT_RESULT" "$E2E_RESULT"
+          if [ "$QUALITY_RESULT" != success ] || [ "$UNIT_RESULT" != success ] || [ "$E2E_RESULT" != success ]; then
+            exit 1
+          fi

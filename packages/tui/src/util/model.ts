@@ -1,28 +1,31 @@
-import type { Provider } from "@aigcfroge/sdk/v2"
+import type { ModelGroupCurrent, ModelSelection } from "@aigcfroge/client/promise"
+import { Model } from "@aigcfroge/schema/model"
+import { isModelGroup, toModelPreference } from "../model-preference"
 
 export function parse(value: string) {
+  if (value.startsWith("group:") && !value.includes("/")) return toModelPreference(Model.Selection.parse(value))
+  if (value.includes("#") && value.includes("/")) return toModelPreference(Model.Selection.parse(value))
   const [providerID, ...modelID] = value.split("/")
   return { providerID, modelID: modelID.join("/") }
 }
 
-export function index(list: Provider[] | undefined) {
-  return new Map((list ?? []).map((item) => [item.id, item] as const))
+export function formatRef(model: ModelSelection) {
+  if (isModelGroup(model)) return `group:${model.groupID}`
+  return [model.providerID, model.id, model.variant].filter((value) => value !== undefined).join("/")
 }
 
-export function get(list: Provider[] | ReadonlyMap<string, Provider> | undefined, providerID: string, modelID: string) {
-  const provider =
-    list instanceof Map
-      ? list.get(providerID)
-      : Array.isArray(list)
-        ? list.find((item) => item.id === providerID)
-        : undefined
-  return provider?.models[modelID]
-}
-
-export function name(
-  list: Provider[] | ReadonlyMap<string, Provider> | undefined,
-  providerID: string,
-  modelID: string,
+export function switchLabel(
+  model: ModelSelection,
+  models?: readonly { providerID: string; id: string; name: string }[],
+  previous?: ModelSelection,
+  groups?: readonly ModelGroupCurrent[],
 ) {
-  return get(list, providerID, modelID)?.name ?? modelID
+  if (isModelGroup(model))
+    return `Switched model to ${groups?.find((item) => item.groupID === model.groupID)?.definition?.name ?? formatRef(model)}`
+  if (previous && !isModelGroup(previous) && previous.providerID === model.providerID && previous.id === model.id)
+    return `Switched variant to ${model.variant ?? "default"}`
+  const display = models?.find((item) => item.providerID === model.providerID && item.id === model.id)?.name
+  if (display === undefined) return `Switched model to ${formatRef(model)}`
+  const variant = model.variant && model.variant !== "default" ? ` (${model.variant})` : ""
+  return `Switched model to ${display}${variant}`
 }

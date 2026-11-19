@@ -1,34 +1,32 @@
 export * as SessionV1 from "./session"
 
 import { Effect, Schema, Types } from "effect"
-import { EventV2 } from "../event"
+import { Bus } from "../bus"
 import { PermissionV1 } from "./permission"
-import { ProjectV2 } from "../project"
-import { ProviderV2 } from "../provider"
-import { ModelV2 } from "../model"
-import { optionalOmitUndefined, withStatics } from "../schema"
-import { Identifier } from "../util/identifier"
+import { Project } from "../project"
+import { Provider } from "../provider"
+import { Model } from "../model"
+import { optional, statics } from "../schema"
+import { Identifier } from "@aigcfroge/schema/identifier"
 import { NonNegativeInt } from "../schema"
 import { NamedError } from "../util/error"
 import { SessionSchema } from "../session/schema"
-import { WorkspaceV2 } from "../workspace"
+import { Workspace } from "../workspace"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { PermissionTier } from "@aigcfroge/schema/permission-tier"
 import { SessionInput } from "@aigcfroge/schema/session-input"
-import { WorkContract } from "@aigcfroge/schema/work-contract"
-import { WorkReview } from "@aigcfroge/schema/work-review"
 
 const Timestamp = Schema.Finite.check(Schema.isGreaterThanOrEqualTo(0))
 
-export const MessageID = Schema.String.check(Schema.isStartsWith("msg")).pipe(
+export const MessageID = Schema.String.check(Schema.isStartingWith("msg")).pipe(
   Schema.brand("MessageID"),
-  withStatics((schema) => ({ ascending: (id?: string) => schema.make(id ?? "msg_" + Identifier.ascending()) })),
+  statics((schema) => ({ ascending: (id?: string) => schema.make(id ?? "msg_" + Identifier.ascending()) })),
 )
 export type MessageID = typeof MessageID.Type
 
-export const PartID = Schema.String.check(Schema.isStartsWith("prt")).pipe(
+export const PartID = Schema.String.check(Schema.isStartingWith("prt")).pipe(
   Schema.brand("PartID"),
-  withStatics((schema) => ({ ascending: (id?: string) => schema.make(id ?? "prt_" + Identifier.ascending()) })),
+  statics((schema) => ({ ascending: (id?: string) => schema.make(id ?? "prt_" + Identifier.ascending()) })),
 )
 export type PartID = typeof PartID.Type
 
@@ -208,8 +206,8 @@ export const SubtaskPart = Schema.Struct({
   agent: Schema.String,
   model: Schema.optional(
     Schema.Struct({
-      providerID: ProviderV2.ID,
-      modelID: ModelV2.ID,
+      providerID: Provider.ID,
+      modelID: Model.ID,
     }),
   ),
   command: Schema.optional(Schema.String),
@@ -352,8 +350,8 @@ export const User = Schema.Struct({
   ),
   agent: Schema.String,
   model: Schema.Struct({
-    providerID: ProviderV2.ID,
-    modelID: ModelV2.ID,
+    providerID: Provider.ID,
+    modelID: Model.ID,
     variant: Schema.optional(Schema.String),
   }),
   system: Schema.optional(Schema.String),
@@ -450,8 +448,8 @@ export const SubtaskPartInput = Schema.Struct({
   agent: Schema.String,
   model: Schema.optional(
     Schema.Struct({
-      providerID: ProviderV2.ID,
-      modelID: ModelV2.ID,
+      providerID: Provider.ID,
+      modelID: Model.ID,
     }),
   ),
   command: Schema.optional(Schema.String),
@@ -467,8 +465,8 @@ export const Assistant = Schema.Struct({
   }),
   error: Schema.optional(AssistantErrorSchema),
   parentID: MessageID,
-  modelID: ModelV2.ID,
-  providerID: ProviderV2.ID,
+  modelID: Model.ID,
+  providerID: Provider.ID,
   mode: Schema.String,
   agent: Schema.String,
   path: Schema.Struct({
@@ -518,7 +516,7 @@ const SessionSummary = Schema.Struct({
   additions: Schema.Finite,
   deletions: Schema.Finite,
   files: Schema.Finite,
-  diffs: optionalOmitUndefined(Schema.Array(FileDiff)),
+  diffs: optional(Schema.Array(FileDiff)),
 })
 
 const SessionTokens = Schema.Struct({
@@ -537,55 +535,53 @@ const SessionShare = Schema.Struct({
 
 const SessionRevert = Schema.Struct({
   messageID: MessageID,
-  partID: optionalOmitUndefined(PartID),
-  snapshot: optionalOmitUndefined(Schema.String),
-  diff: optionalOmitUndefined(Schema.String),
+  partID: optional(PartID),
+  snapshot: optional(Schema.String),
+  diff: optional(Schema.String),
 })
 
 const SessionModel = Schema.Struct({
-  id: ModelV2.ID,
-  providerID: ProviderV2.ID,
-  variant: optionalOmitUndefined(Schema.String),
+  id: Model.ID,
+  providerID: Provider.ID,
+  variant: optional(Schema.String),
 })
 
 export const SessionInfo = Schema.Struct({
   id: SessionSchema.ID,
-  workContract: optionalOmitUndefined(WorkContract.Snapshot),
-  workReview: optionalOmitUndefined(WorkReview.Review),
   mode: ProductMode.ID.pipe(
     Schema.withDecodingDefaultKey(Effect.succeed(ProductMode.Default as ProductMode.ID)),
     Schema.withConstructorDefault(Effect.succeed(ProductMode.Default as ProductMode.ID)),
   ),
   slug: Schema.String,
-  projectID: ProjectV2.ID,
-  workspaceID: optionalOmitUndefined(WorkspaceV2.ID),
+  projectID: Project.ID,
+  workspaceID: optional(Workspace.ID),
   directory: Schema.String,
-  path: optionalOmitUndefined(Schema.String),
-  parentID: optionalOmitUndefined(SessionSchema.ID),
-  summary: optionalOmitUndefined(SessionSummary),
-  cost: optionalOmitUndefined(Schema.Finite),
-  tokens: optionalOmitUndefined(SessionTokens),
-  share: optionalOmitUndefined(SessionShare),
+  path: optional(Schema.String),
+  parentID: optional(SessionSchema.ID),
+  summary: optional(SessionSummary),
+  cost: optional(Schema.Finite),
+  tokens: optional(SessionTokens),
+  share: optional(SessionShare),
   title: Schema.String,
-  agent: optionalOmitUndefined(Schema.String),
-  model: optionalOmitUndefined(SessionModel),
+  agent: optional(Schema.String),
+  model: optional(SessionModel),
   version: Schema.String,
-  metadata: optionalOmitUndefined(Schema.Record(Schema.String, Schema.Any)),
+  metadata: optional(Schema.Record(Schema.String, Schema.Any)),
   time: Schema.Struct({
     created: NonNegativeInt,
     updated: NonNegativeInt,
-    compacting: optionalOmitUndefined(NonNegativeInt),
-    archived: optionalOmitUndefined(Schema.Finite),
+    compacting: optional(NonNegativeInt),
+    archived: optional(Schema.Finite),
   }),
-  permission: optionalOmitUndefined(PermissionV1.Ruleset),
-  attended: optionalOmitUndefined(Schema.Boolean),
-  permissionTier: optionalOmitUndefined(PermissionTier.ID),
-  revert: optionalOmitUndefined(SessionRevert),
+  permission: optional(PermissionV1.Ruleset),
+  attended: optional(Schema.Boolean),
+  permissionTier: optional(PermissionTier.ID),
+  revert: optional(SessionRevert),
 }).annotate({ identifier: "Session" })
 export type SessionInfo = typeof SessionInfo.Type
 
 export const Event = {
-  Created: EventV2.define({
+  Created: Bus.durable({
     type: "session.created",
     ...options,
     schema: {
@@ -593,7 +589,7 @@ export const Event = {
       info: SessionInfo,
     },
   }),
-  Updated: EventV2.define({
+  Updated: Bus.durable({
     type: "session.updated",
     ...options,
     schema: {
@@ -601,7 +597,7 @@ export const Event = {
       info: SessionInfo,
     },
   }),
-  Deleted: EventV2.define({
+  Deleted: Bus.durable({
     type: "session.deleted",
     ...options,
     schema: {
@@ -609,7 +605,7 @@ export const Event = {
       info: SessionInfo,
     },
   }),
-  MessageUpdated: EventV2.define({
+  MessageUpdated: Bus.durable({
     type: "message.updated",
     ...options,
     schema: {
@@ -617,7 +613,7 @@ export const Event = {
       info: Info,
     },
   }),
-  MessageRemoved: EventV2.define({
+  MessageRemoved: Bus.durable({
     type: "message.removed",
     ...options,
     schema: {
@@ -625,7 +621,7 @@ export const Event = {
       messageID: MessageID,
     },
   }),
-  PartUpdated: EventV2.define({
+  PartUpdated: Bus.durable({
     type: "message.part.updated",
     ...options,
     schema: {
@@ -634,7 +630,7 @@ export const Event = {
       time: Schema.Finite,
     },
   }),
-  PartRemoved: EventV2.define({
+  PartRemoved: Bus.durable({
     type: "message.part.removed",
     ...options,
     schema: {

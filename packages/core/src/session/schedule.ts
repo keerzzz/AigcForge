@@ -1,5 +1,7 @@
 export * as Schedule from "./schedule"
 
+import { Cron, DateTime, Option } from "effect"
+
 /**
  * Minimal minute-level cron evaluation for scheduled jobs (M3). Supports the
  * standard 5-field cron:
@@ -7,8 +9,8 @@ export * as Schedule from "./schedule"
  *   minute hour day-of-month month day-of-week
  *
  * with star, step (star/n), single values, ranges, and comma lists. No seconds
- * field, no names (@daily etc.), no timezone-aware DST handling — the scheduler
- * is a single-process in-memory minute ticker (plan §10: 分钟级 cron).
+ * field or names (@daily etc.). Named timezones skip missing local times and
+ * select only the first occurrence of repeated local times.
  */
 
 type CronFields = {
@@ -100,7 +102,35 @@ const MAX_DAY_STEPS = 365
  * candidate is re-validated as a whole; a mismatch re-advances from the rolled
  * date, so the returned value is always the earliest full match after `from`.
  */
-export const nextRun = (cron: string, from: number): number | undefined => {
+export const nextRun = (cron: string, from: number, timezone?: string): number | undefined => {
+  if (!Number.isFinite(new Date(from + 60_000).getTime())) return undefined
+  if (timezone === undefined) {
+    const run = nextLegacyRun(cron, from)
+    if (run === undefined || run > from) return run
+
+    // Legacy Date setters may move backward in a fold. Repair that case in
+    // the host timezone without changing the normal legacy search budget.
+    return nextRun(cron, from, DateTime.zoneMakeLocal().id)
+  }
+
+  const fields = parseCron(cron)
+  if (!fields) return undefined
+  const tz = DateTime.zoneMakeNamed(timezone)
+  if (Option.isNone(tz)) return undefined
+  const schedule = Cron.make({
+    minutes: fields.minutes,
+    hours: fields.hours,
+    days: fields.daysOfMonth,
+    months: fields.months,
+    weekdays: fields.daysOfWeek,
+    and: true,
+    tz: DateTime.zoneMakeNamedUnsafe("UTC"),
+  })
+  return nextRunAfter((start) => nextCronRun(schedule, start, tz.value), from)
+}
+
+// Keep the historical host-local field search and its day-step budget.
+const nextLegacyRun = (cron: string, from: number): number | undefined => {
   const fields = parseCron(cron)
   if (!fields) return undefined
   const candidate = new Date(from + 60_000)
@@ -128,4 +158,46 @@ export const nextRun = (cron: string, from: number): number | undefined => {
     if (matches(candidate, fields)) return candidate.getTime()
   }
   return undefined
+}
+
+const nextRunAfter = (search: (from: number) => number | undefined, from: number): number | undefined => {
+  const run = search(from)
+  if (run === undefined || run > from) return run
+
+  // First occurrences within a fold may precede the supplied instant.
+  // Their epoch distance bounds the number of minute-level successors.
+  const budget = Math.floor((from - run) / 60_000) + 1
+  let candidate = run
+  for (let step = 0; step < budget; step++) {
+    const next = search(candidate)
+    if (next === undefined || next <= candidate) return undefined
+    if (next > from) return next
+    candidate = next
+  }
+  return undefined
+}
+
+const nextCronRun = (cron: Cron.Cron, from: number, timezone: DateTime.TimeZone.Named): number | undefined => {
+  try {
+    // Search local calendar fields in UTC so Cron cannot shift a missing time
+    // past an earlier valid candidate, including half-hour DST transitions.
+    let candidate = DateTime.toDate(DateTime.makeZonedUnsafe(from, { timeZone: timezone })).getTime()
+    const skipped = new Set<number>()
+    while (skipped.size < MAX_DAY_STEPS) {
+      candidate = Cron.next(cron, candidate).getTime()
+      const resolved = DateTime.makeZonedUnsafe(candidate, {
+        timeZone: timezone,
+        adjustForTimeZone: true,
+        disambiguation: "earlier",
+      })
+      if (DateTime.toDate(resolved).getTime() === candidate) return DateTime.toEpochMillis(resolved)
+
+      // Count missing dates, not minutes, so a dense skipped day stays live.
+      skipped.add(Math.floor(candidate / 86_400_000))
+    }
+    return undefined
+  } catch {
+    // The dependency boundary rejects impossible calendars or date overflow.
+    return undefined
+  }
 }

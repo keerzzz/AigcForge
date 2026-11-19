@@ -1,34 +1,36 @@
-import { describe, expect } from "bun:test"
-import { Cause, Deferred, Effect, Exit, Fiber, Layer, Option, Schema } from "effect"
+import { describe, expect, test } from "bun:test"
+import { eq } from "drizzle-orm"
+import { Deferred, Effect, Fiber, Layer, Schema } from "effect"
 import * as TestClock from "effect/testing/TestClock"
-import { ApplicationTools } from "@aigcfroge/core/tool/application-tools"
-import { CrossSpawnSpawner } from "@aigcfroge/core/cross-spawn-spawner"
-import { CredentialScanner } from "@aigcfroge/core/credential-scanner"
-import { FSUtil } from "@aigcfroge/core/fs-util"
-import { Global } from "@aigcfroge/core/global"
-import { McpConnection } from "@aigcfroge/core/mcp/connection"
-import { McpRegistration } from "@aigcfroge/core/tool/mcp-registration"
-import { PermissionV2 } from "@aigcfroge/core/permission"
-import { ToolRegistry } from "@aigcfroge/core/tool/registry"
-import { Tool } from "@aigcfroge/core/tool/tool"
-import { Tools } from "@aigcfroge/core/tool/tools"
-import { ToolOutputStore } from "@aigcfroge/core/tool-output-store"
-import { McpServerBinding } from "@aigcfroge/schema/mcp-scope"
-import { Composition } from "@aigcfroge/schema/composition"
+import { HttpClient, HttpClientError, HttpClientResponse } from "effect/http"
+import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
+import { Bus } from "@aigcfroge/core/bus"
 import { Credential } from "@aigcfroge/core/credential"
-import { Integration } from "@aigcfroge/schema/integration"
-import { McpCredentialBindingStore } from "@aigcfroge/core/mcp/binding/store"
-import { Location } from "@aigcfroge/core/location"
+import { CredentialScanner } from "@aigcfroge/core/credential-scanner"
 import { Database } from "@aigcfroge/core/database/database"
-import { EventV2 } from "@aigcfroge/core/event"
+import { Image } from "@aigcfroge/core/image"
+import { Location } from "@aigcfroge/core/location"
+import { McpConnection } from "@aigcfroge/core/mcp/connection"
+import { McpCredentialBindingStore } from "@aigcfroge/core/mcp/binding/store"
+import { McpCredentialBindingTable } from "@aigcfroge/core/mcp/binding/sql"
+import { Permission } from "@aigcfroge/core/permission"
+import { Tool } from "@aigcfroge/core/tool"
+import { Composition } from "@aigcfroge/schema/composition"
+import { Integration } from "@aigcfroge/schema/integration"
+import { McpServerBinding } from "@aigcfroge/schema/mcp-scope"
+import { Session } from "@aigcfroge/schema/session"
+import { CrossSpawnSpawner } from "@aigcfroge/util/cross-spawn-spawner"
+import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import os from "node:os"
 import * as path from "node:path"
 import { readFileSync } from "node:fs"
 import { randomUUID } from "node:crypto"
 import { pollWithTimeout, testEffect } from "./lib/effect"
-import { location as fixtureLocation } from "./fixture/location"
+import { location } from "./fixture/location"
 import { AbsolutePath } from "@aigcfroge/core/schema"
 import { withCustomModeEnabled } from "./lib/product-mode"
-import { HttpClient, HttpClientError, HttpClientResponse } from "effect/unstable/http"
+import { permissionLayer } from "./lib/permission"
+import { codeModeListings, toolIdentity } from "./lib/tool"
 
 // Slice 1-2 (ADR-21 v1.2 / M3 plan §3 Phase C): the typed MCP connection owner.
 // Every lifecycle failure is a typed failure, every child process is owned by
@@ -39,22 +41,22 @@ const FIXTURE = path.join(import.meta.dir, "fixture", "mcp", "fake-mcp-server.mj
 
 withCustomModeEnabled()
 
-const permission = Layer.mock(PermissionV2.Service, { assert: () => Effect.void })
-const dbEvents = Layer.mergeAll(Database.defaultLayer, EventV2.defaultLayer)
 const testLocation = Layer.succeed(
   Location.Service,
-  fixtureLocation({ directory: AbsolutePath.make("/tmp/test-mcp-connection") }),
+  location({ directory: AbsolutePath.make("/tmp/test-mcp-connection") }),
 )
-const credentialStore = Credential.layer.pipe(Layer.provide(dbEvents))
-const bindingStore = McpCredentialBindingStore.layer.pipe(Layer.provide(dbEvents), Layer.provide(testLocation))
-const Deps = Layer.mergeAll(CrossSpawnSpawner.defaultLayer, ApplicationTools.layer, ToolOutputStore.defaultLayer).pipe(
-  Layer.provide(permission),
-)
-// Shared value => memoized into ONE ToolRegistry across owner + assertions.
-const RegistryLayer = McpRegistration.layer.pipe(Layer.provide(Deps))
-// Provided the same way production does (location-layer.ts): if the harness were
-// the only place the scanner came from, the stderr redaction path would be green
-// here and absent in production — §4.6 trap 3.
+const dbCred = AppNodeBuilder.build(LayerNode.group([Credential.node, Database.node, Bus.node]), [
+  Bus.node.replace(Bus.configured({ persist: true })),
+])
+// Shared value => memoized into ONE tool service across owner + assertions.
+const toolRegistry = AppNodeBuilder.build(LayerNode.group([Tool.node]), [
+  Image.node.replace(Layer.mock(Image.Service, { normalize: (_resource, content) => Effect.succeed(content) })),
+])
+const spawnerGraph = AppNodeBuilder.build(LayerNode.group([CrossSpawnSpawner.node]))
+const bindingStore = McpCredentialBindingStore.layer.pipe(Layer.provide(dbCred), Layer.provide(testLocation))
+// Provided the same way production does (the connection node provides the
+// scanner inline): if the harness were the only place the scanner came from,
+// the stderr redaction path would be green here and absent in production.
 const scannedRemoteTexts: string[] = []
 const scannerLayer = CredentialScanner.layer
 const trackingScannerLayer = Layer.effect(
@@ -93,26 +95,31 @@ const remoteHttp = Layer.succeed(
     }),
   ),
 )
-const TestLayer = Layer.mergeAll(
-  McpConnection.layer.pipe(
-    Layer.provide(RegistryLayer),
-    Layer.provide(CrossSpawnSpawner.defaultLayer),
-    Layer.provide(bindingStore),
-    Layer.provide(credentialStore),
-    Layer.provide(trackingScannerLayer),
-    Layer.provide(remoteHttp),
-    Layer.provide(testLocation),
-    Layer.provide(dbEvents),
-  ),
-  RegistryLayer,
-  bindingStore,
-  credentialStore,
-  trackingScannerLayer,
-  remoteHttp,
-  testLocation,
-  dbEvents,
-)
+const makeTestLayer = (permissions = permissionLayer()) =>
+  Layer.mergeAll(
+    McpConnection.layer.pipe(
+      Layer.provide(permissions),
+      Layer.provide(toolRegistry),
+      Layer.provide(spawnerGraph),
+      Layer.provide(bindingStore),
+      Layer.provide(dbCred),
+      Layer.provide(trackingScannerLayer),
+      Layer.provide(remoteHttp),
+      Layer.provide(testLocation),
+    ),
+    toolRegistry,
+    spawnerGraph,
+    bindingStore,
+    dbCred,
+    trackingScannerLayer,
+    remoteHttp,
+    testLocation,
+  )
+const TestLayer = makeTestLayer()
 const it = testEffect(TestLayer)
+
+const registeredNames = (tools: Tool.Interface) =>
+  tools.list().pipe(Effect.map((list) => new Set(list.map((tool) => tool.id))))
 
 const REVISION = Schema.decodeUnknownSync(Composition.Revision)("a".repeat(64))
 
@@ -134,6 +141,28 @@ const binding = (
     ...(over.credentialRef === undefined ? {} : { credentialRef: over.credentialRef }),
     command: over.command ?? [process.execPath, FIXTURE, over.mode ?? "ok"],
   })
+
+test("transport fingerprints track the active endpoint and preserve command order", () => {
+  const stdio = binding({ command: ["runner", "first", "second"] })
+  expect(McpConnection.transportFingerprint(stdio)).not.toBe(
+    McpConnection.transportFingerprint(binding({ command: ["runner", "second", "first"] })),
+  )
+  expect(McpConnection.transportFingerprint(stdio)).toBe(
+    McpConnection.transportFingerprint(
+      binding({ command: ["runner", "first", "second"], url: "https://unused.test/mcp" }),
+    ),
+  )
+  const remote = binding({ transport: "remote", url: "https://remote.test/mcp" })
+  expect(McpConnection.transportFingerprint(remote)).not.toBe(McpConnection.transportFingerprint(stdio))
+  expect(McpConnection.transportFingerprint(remote)).not.toBe(
+    McpConnection.transportFingerprint(binding({ transport: "remote", url: "https://changed.test/mcp" })),
+  )
+  expect(McpConnection.transportFingerprint(remote)).toBe(
+    McpConnection.transportFingerprint(
+      binding({ transport: "remote", url: "https://remote.test/mcp", command: ["unused"] }),
+    ),
+  )
+})
 
 type Probe = { readonly failed: boolean; readonly tag?: string; readonly reason?: string }
 const probe = <A, E>(eff: Effect.Effect<A, E, never>): Effect.Effect<Probe> =>
@@ -282,7 +311,7 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
 
   it.live("disconnect releases a real stdio pending call with a typed close reason", () =>
     Effect.gen(function* () {
-      const marker = path.join("/tmp", `aigcfroge-mcp-pending-${randomUUID()}`)
+      const marker = path.join(os.tmpdir(), `aigcfroge-mcp-pending-${randomUUID()}`)
       const conn = yield* McpConnection.Service
       const info = yield* conn.connect({
         binding: binding({ serverName: "pending", command: [process.execPath, FIXTURE, "pendingcall", marker] }),
@@ -308,7 +337,7 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
 
   it.live("revoking a bound credential fails the next tool admission before the server observes it", () =>
     Effect.gen(function* () {
-      const marker = path.join("/tmp", `aigcfroge-mcp-revoked-${randomUUID()}`)
+      const marker = path.join(os.tmpdir(), `aigcfroge-mcp-revoked-${randomUUID()}`)
       const credential = yield* Credential.Service
       const bindings = yield* McpCredentialBindingStore.Service
       const conn = yield* McpConnection.Service
@@ -325,7 +354,15 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
           command: [process.execPath, FIXTURE, "pendingcall", marker],
         }),
       })
+      expect((yield* conn.facts())[0]?.credentialStatus).toBe("available")
       yield* bindings.revoke(storedBinding.id, storedBinding.bindingRevision)
+
+      const revokedFacts = yield* conn.facts()
+      expect(revokedFacts[0]?.credentialStatus).toBe("revoked")
+      expect(revokedFacts[0]?.health).toBe("revoked")
+      expect(yield* conn.health("revoke-call")).toBe("ready")
+      expect((yield* conn.connections())[0]?.health).toBe("ready")
+      expect(yield* Effect.promise(() => Bun.file(marker).exists())).toBe(false)
 
       const result = yield* probe(conn.callTool({ name: "mcp_revoke-call_echo", args: {} }))
       expect(result.failed).toBe(true)
@@ -346,14 +383,74 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
       expect(facts[0]?.serverName).toBe("fact-server")
       expect(facts[0]?.ref).toEqual({ relativePath: "mcp/fake.json", revision: REVISION })
       expect(facts[0]?.tools).toEqual(["mcp_fact-server_echo", "mcp_fact-server_desc"])
+      expect(facts[0]?.transportFingerprint).toBe(
+        McpConnection.transportFingerprint(binding({ serverName: "fact-server" })),
+      )
+      expect(facts[0]?.credentialStatus).toBe("not-required")
       expect("command" in (facts[0] ?? {})).toBe(false)
+      expect("url" in (facts[0] ?? {})).toBe(false)
+      expect("value" in (facts[0] ?? {})).toBe(false)
       yield* conn.disconnect("fact-server")
+    }),
+  )
+
+  it.live("facts detect removed credential material before a tool call without changing observed health", () =>
+    Effect.gen(function* () {
+      const credential = yield* Credential.Service
+      const bindings = yield* McpCredentialBindingStore.Service
+      const conn = yield* McpConnection.Service
+      const stored = yield* credential.create({
+        integrationID: Integration.ID.make("int_mcp_fact_missing"),
+        value: Schema.decodeUnknownSync(Credential.Key)({ type: "key", key: "fact-secret" }),
+      })
+      yield* bindings.bind({ serverName: "fact-missing", credentialRef: String(stored.id) })
+      yield* conn.connect({ binding: binding({ serverName: "fact-missing", credentialRef: String(stored.id) }) })
+      yield* credential.remove(stored.id)
+
+      const facts = yield* conn.facts()
+      expect(facts[0]?.credentialStatus).toBe("missing")
+      expect(facts[0]?.health).toBe("auth-required")
+      expect(yield* conn.health("fact-missing")).toBe("ready")
+      expect((yield* conn.connections())[0]?.health).toBe("ready")
+      expect(JSON.stringify(facts)).not.toContain("fact-secret")
+      yield* conn.disconnect("fact-missing")
+    }),
+  )
+
+  it.live("facts recheck Location authorization when a connected binding belongs to another Location", () =>
+    Effect.gen(function* () {
+      const credential = yield* Credential.Service
+      const bindings = yield* McpCredentialBindingStore.Service
+      const conn = yield* McpConnection.Service
+      const database = yield* Database.Service
+      const stored = yield* credential.create({
+        integrationID: Integration.ID.make("int_mcp_fact_location"),
+        value: Schema.decodeUnknownSync(Credential.Key)({ type: "key", key: "location-secret" }),
+      })
+      const authorized = yield* bindings.bind({ serverName: "fact-location", credentialRef: String(stored.id) })
+      yield* conn.connect({ binding: binding({ serverName: "fact-location", credentialRef: String(stored.id) }) })
+      yield* database.db
+        .update(McpCredentialBindingTable)
+        .set({ directory: "/tmp/foreign-mcp-facts" })
+        .where(eq(McpCredentialBindingTable.id, authorized.id))
+        .run()
+      expect(
+        (yield* bindings.resolve({ serverName: "fact-location", credentialRef: String(stored.id) }).pipe(Effect.flip))
+          ._tag,
+      ).toBe("McpBinding.CrossLocationRefError")
+      const facts = yield* conn.facts()
+      expect(facts[0]?.credentialStatus).toBe("missing")
+      expect(facts[0]?.health).toBe("auth-required")
+      expect(yield* conn.health("fact-location")).toBe("ready")
+      expect((yield* conn.connections())[0]?.health).toBe("ready")
+      expect(JSON.stringify(facts)).not.toContain("location-secret")
+      yield* conn.disconnect("fact-location")
     }),
   )
 
   it.live("kill switch rejects new admission and closes an already pending call", () =>
     Effect.gen(function* () {
-      const marker = path.join("/tmp", `aigcfroge-mcp-kill-${randomUUID()}`)
+      const marker = path.join(os.tmpdir(), `aigcfroge-mcp-kill-${randomUUID()}`)
       const conn = yield* McpConnection.Service
       const info = yield* conn.connect({
         binding: binding({ serverName: "killswitch", command: [process.execPath, FIXTURE, "pendingcall", marker] }),
@@ -391,13 +488,12 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
    * The rollout gate's two paths (M3 Phase G §7.2). The existing kill-switch
    * case above covers admission and the pending call; what neither it nor
    * anything else covered is the **tool catalog**, which is the half that
-   * decides what the model can see. `registeredNames` alone is not enough
-   * either — `materialize()` is what reaches the provider, and a name can be
-   * absent from one while present in the other (testing.md §10 red line 4).
+   * decides what the model can see. A canonical registration must also appear
+   * in the captured catalog and Code Mode discovery.
    *
    * Rollback here is deliberately **lazy**, and that is measured, not assumed:
    * flipping the env leaves the child process running and its tools both
-   * registered and materialized until the next `connect`/`callTool` reaches the
+   * registered and discoverable until the next `connect`/`callTool` reaches the
    * check and tears the connection down. That is not an authorization hole —
    * every call after the flip is rejected before dispatch — but it is a real
    * mounted window, so it is pinned rather than glossed. Operationally the
@@ -407,11 +503,14 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
   const echoOf = (server: string) => `mcp_${server}_echo`
   const catalogHas = (server: string) =>
     Effect.gen(function* () {
-      const registry = yield* ToolRegistry.Service
-      const { definitions } = yield* registry.materialize()
+      const tools = yield* Tool.Service
+      const snapshot = yield* tools.snapshot()
       return {
-        registered: registry.registeredNames().has(echoOf(server)),
-        materialized: definitions.some((definition) => definition.name === echoOf(server)),
+        registered: (yield* registeredNames(tools)).has(echoOf(server)),
+        captured: snapshot.catalog.some((tool) => tool.name === echoOf(server)),
+        discoverable:
+          snapshot.codeModeCatalog !== undefined &&
+          codeModeListings(snapshot.codeModeCatalog).some((tool) => tool.path === echoOf(server)),
       }
     })
 
@@ -465,18 +564,17 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
         ),
       )
       expect(blocked.tag).toBe("McpConnection.McpDisabledError")
-      expect(yield* catalogHas(server)).toEqual({ registered: false, materialized: false })
+      expect(yield* catalogHas(server)).toEqual({ registered: false, captured: false, discoverable: false })
 
-      // Switched on: the same binding now connects and the tool is visible in
-      // both the registry and the materialized definitions the model receives.
+      // The enabled binding contributes one canonical registration to Code Mode discovery.
       const info = yield* conn.connect({ binding: binding({ serverName: server }) })
       expect(info.health).toBe("ready")
-      expect(yield* catalogHas(server)).toEqual({ registered: true, materialized: true })
+      expect(yield* catalogHas(server)).toEqual({ registered: true, captured: true, discoverable: true })
       const called = yield* probe(conn.callTool({ name: echoOf(server), args: { msg: "hi" } }))
       expect(called.failed).toBe(false)
 
       yield* conn.disconnect(server)
-      expect(yield* catalogHas(server)).toEqual({ registered: false, materialized: false })
+      expect(yield* catalogHas(server)).toEqual({ registered: false, captured: false, discoverable: false })
     }),
   )
 
@@ -486,7 +584,7 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
       const server = "rollout-off"
       const info = yield* conn.connect({ binding: binding({ serverName: server }) })
       if (info.pid === undefined) throw new Error("stdio connection did not expose a pid")
-      expect(yield* catalogHas(server)).toEqual({ registered: true, materialized: true })
+      expect(yield* catalogHas(server)).toEqual({ registered: true, captured: true, discoverable: true })
       // Control for the reap assertion below: it must be false while mounted,
       // otherwise "reaped after rollback" would hold vacuously.
       expect(yield* reaped(info.pid)).toBe(false)
@@ -496,7 +594,7 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
       const result = yield* Effect.gen(function* () {
         // The mounted window, asserted so a move to eager teardown shows up here
         // instead of silently changing what the model can see.
-        expect(yield* catalogHas(server)).toEqual({ registered: true, materialized: true })
+        expect(yield* catalogHas(server)).toEqual({ registered: true, captured: true, discoverable: true })
         expect(yield* conn.connections()).toHaveLength(1)
 
         return yield* probe(conn.callTool({ name: echoOf(server), args: { msg: "hi" } }))
@@ -511,9 +609,9 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
 
       expect(result.tag).toBe("McpConnection.McpDisabledError")
       // Nothing half-mounted once the check has run: no connection, no child, and
-      // the canonical name gone from both the registry and the materialization.
+      // the canonical name gone from the registry, capture, and Code Mode discovery.
       expect(yield* conn.connections()).toHaveLength(0)
-      expect(yield* catalogHas(server)).toEqual({ registered: false, materialized: false })
+      expect(yield* catalogHas(server)).toEqual({ registered: false, captured: false, discoverable: false })
       yield* waitDead(info.pid)
       // And the child is reaped, not merely stopped — the observable that a
       // stream reader or death watcher was released with the owner scope.
@@ -569,6 +667,14 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
 
       yield* credential.update(created.id, { value: oauth(Math.floor(Date.now() / 1000) - 1) })
 
+      const facts = yield* conn.facts()
+      expect(facts[0]?.credentialStatus).toBe("expired")
+      expect(facts[0]?.health).toBe("auth-required")
+      expect(yield* conn.health("expiring")).toBe("ready")
+      expect((yield* conn.connections())[0]?.health).toBe("ready")
+      expect(JSON.stringify(facts)).not.toContain("sk-live-midsession-0123456789abcdef")
+      expect(JSON.stringify(facts)).not.toContain("refresh")
+
       const result = yield* probe(conn.callTool({ name: "mcp_expiring_echo", args: { msg: "hi" } }))
       expect(result.tag).toBe("McpConnection.CredentialExpiredError")
 
@@ -606,7 +712,7 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
    */
   it.live("fails an in-flight call with the child's exit code and leaves sibling servers usable", () =>
     Effect.gen(function* () {
-      const marker = path.join("/tmp", `aigcfroge-mcp-die-${randomUUID()}`)
+      const marker = path.join(os.tmpdir(), `aigcfroge-mcp-die-${randomUUID()}`)
       const conn = yield* McpConnection.Service
       yield* conn.connect({ binding: binding({ serverName: "survivor" }) })
       const dying = yield* conn.connect({
@@ -647,37 +753,141 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
     }),
   )
 
-  it.live("registers discovered tools under mcp_<server>_<tool> in the one canonical registry", () =>
+  it.live("registers canonical MCP tools in Code Mode by default", () =>
     Effect.gen(function* () {
       const conn = yield* McpConnection.Service
       yield* conn.connect({ binding: binding() })
-      const registry = yield* ToolRegistry.Service
-      const names = registry.registeredNames()
+      const tools = yield* Tool.Service
+      const names = yield* registeredNames(tools)
       expect(names.has("mcp_fake_echo")).toBe(true)
       expect(names.has("mcp_fake_desc")).toBe(true)
-      const { definitions } = yield* registry.materialize()
-      const echoDef = definitions.find((d) => d.name === "mcp_fake_echo")
-      expect(echoDef?.description).toBe("Echo a message")
+      const snapshot = yield* tools.snapshot()
+      expect(snapshot.definitions.map((tool) => tool.name)).toEqual(["execute"])
+      expect(snapshot.catalog.find((tool) => tool.name === "mcp_fake_echo")).toMatchObject({
+        description: "Echo a message",
+        placement: "codemode",
+      })
+      if (snapshot.codeModeCatalog === undefined) throw new Error("Missing MCP Code Mode discovery")
+      expect(codeModeListings(snapshot.codeModeCatalog).map((tool) => tool.path)).toEqual([
+        "mcp_fake_desc",
+        "mcp_fake_echo",
+      ])
     }),
+  )
+
+  testEffect(Layer.empty).live(
+    "Code Mode MCP child calls preserve permission identity and refuse dispatch after denial",
+    () =>
+      Effect.gen(function* () {
+        const calls: Permission.AssertInput[] = []
+        const marker = path.join(os.tmpdir(), `aigcfroge-mcp-permission-${randomUUID()}`)
+        const denied = new Permission.BlockedError({
+          permission: "mcp_approved_empty",
+          resources: ["*"],
+          rules: [{ action: "mcp_approved_empty", resource: "*", effect: "deny" }],
+        })
+        yield* Effect.gen(function* () {
+          const conn = yield* McpConnection.Service
+          yield* conn.connect({
+            binding: binding({ serverName: "approved", command: [process.execPath, FIXTURE, "results", marker] }),
+          })
+          const registry = yield* Tool.Service
+          const snapshot = yield* registry.snapshot()
+          expect(snapshot.definitions.map((tool) => tool.name)).toEqual(["execute"])
+          expect(snapshot.catalog.find((tool) => tool.name === "mcp_approved_structured")?.placement).toBe("codemode")
+          if (snapshot.codeModeCatalog === undefined) throw new Error("Missing MCP Code Mode discovery")
+          expect(codeModeListings(snapshot.codeModeCatalog).map((tool) => tool.path)).toContain(
+            "mcp_approved_structured",
+          )
+          const sessionID = Session.ID.make("ses_mcp_permission")
+          const allowed = yield* snapshot.execute({
+            sessionID,
+            ...toolIdentity,
+            call: {
+              type: "tool-call",
+              id: "mcp-permission-allowed",
+              name: "execute",
+              input: { code: "return (await tools.mcp_approved_structured({})).count;" },
+            },
+          })
+          expect(allowed.output).toMatchObject({
+            output: "1",
+            toolCalls: [{ tool: "mcp_approved_structured", status: "completed" }],
+          })
+          expect(yield* Effect.promise(() => Bun.file(marker).text())).toBe("structured")
+          const blocked = yield* snapshot.execute({
+            sessionID,
+            ...toolIdentity,
+            call: {
+              type: "tool-call",
+              id: "mcp-permission-denied",
+              name: "execute",
+              input: { code: "return await tools.mcp_approved_empty({});" },
+            },
+          })
+          expect(blocked.output).toMatchObject({
+            error: true,
+            output: expect.stringContaining("Permission.BlockedError"),
+            toolCalls: [{ tool: "mcp_approved_empty", status: "error" }],
+          })
+          // The fixture updates this marker only after a tools/call reaches it.
+          expect(yield* Effect.promise(() => Bun.file(marker).text())).toBe("structured")
+          expect(calls).toEqual([
+            {
+              action: "mcp_approved_structured",
+              resources: ["*"],
+              save: ["*"],
+              metadata: {},
+              sessionID,
+              agent: toolIdentity.agent,
+              source: { type: "tool", messageID: toolIdentity.messageID, id: "mcp-permission-allowed" },
+            },
+            {
+              action: "mcp_approved_empty",
+              resources: ["*"],
+              save: ["*"],
+              metadata: {},
+              sessionID,
+              agent: toolIdentity.agent,
+              source: { type: "tool", messageID: toolIdentity.messageID, id: "mcp-permission-denied" },
+            },
+          ])
+        }).pipe(
+          Effect.provide(
+            makeTestLayer(
+              permissionLayer({
+                assert: (input) =>
+                  Effect.gen(function* () {
+                    calls.push(input)
+                    if (input.action === denied.permission) return yield* denied
+                  }),
+              }),
+            ).pipe(Layer.fresh),
+          ),
+          Effect.ensuring(Effect.promise(() => Bun.file(marker).delete()).pipe(Effect.ignore)),
+        )
+      }),
   )
 
   it.live("a name collision fails closed and leaves the previous winner untouched", () =>
     Effect.gen(function* () {
       const conn = yield* McpConnection.Service
-      const tools = yield* Tools.Service
-      const sentinel = Tool.makeRaw({
-        description: "sentinel",
-        inputSchema: { type: "object" },
-        execute: () => Effect.succeed("sentinel"),
-      })
-      yield* tools.register({ mcp_fake_echo: sentinel })
+      const tools = yield* Tool.Service
+      yield* tools.transform((editor) =>
+        editor.add({
+          name: "mcp_fake_echo",
+          description: "sentinel",
+          options: { codemode: false },
+          input: { type: "object" },
+          execute: () => Effect.succeed({ output: "sentinel", content: "sentinel" }),
+        }),
+      )
       const result = yield* probe(conn.connect({ binding: binding() }))
       expect(result.tag).toBe("McpRegistration.McpNameCollisionError")
       // The failed registration must not leak its own child either.
       expect(yield* conn.connections()).toHaveLength(0)
       // The previous winner is still what answers for the name.
-      const registry = yield* ToolRegistry.Service
-      const { definitions } = yield* registry.materialize()
+      const { definitions } = yield* tools.snapshot()
       expect(definitions.find((d) => d.name === "mcp_fake_echo")?.description).toBe("sentinel")
     }),
   )
@@ -736,8 +946,8 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
     Effect.gen(function* () {
       const conn = yield* McpConnection.Service
       yield* conn.connect({ binding: binding({ serverName: "proto", mode: "proto" }) })
-      const registry = yield* ToolRegistry.Service
-      const names = registry.registeredNames()
+      const tools = yield* Tool.Service
+      const names = yield* registeredNames(tools)
       // The names assertion comes FIRST so a regression here is a fast,
       // deterministic red instead of a hung callTool.
       expect(names.has("mcp_proto_good")).toBe(true)
@@ -779,6 +989,10 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
         label: "test2",
       })
       expect(String(recreated.id)).not.toBe(String(created.id))
+      // v2 keeps multiple credentials per integration, so removing the old
+      // record is what makes the bound ref dangle — the same guarantee the
+      // fork's replace-on-create semantics produced implicitly.
+      yield* credential.remove(created.id)
       // Unconditional: a nested `if (... instanceof ...)` here would skip the
       // assertion whenever the error type changed, which is precisely the
       // regression this case exists to catch.
@@ -815,19 +1029,20 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
       expect(fromA.health).toBe("ready")
 
       const db = yield* Database.Service
-      const events = yield* EventV2.Service
+      const events = yield* Bus.Service
       const locationB = Layer.succeed(
         Location.Service,
-        fixtureLocation({ directory: AbsolutePath.make("/tmp/test-mcp-connection-b") }),
+        location({ directory: AbsolutePath.make("/tmp/test-mcp-connection-b") }),
       )
       const bindingsB = McpCredentialBindingStore.layer.pipe(
         Layer.provide(
-          Layer.mergeAll(Layer.succeed(Database.Service, db), Layer.succeed(EventV2.Service, events), locationB),
+          Layer.mergeAll(Layer.succeed(Database.Service, db), Layer.succeed(Bus.Service, events), locationB),
         ),
       )
       const connectionB = McpConnection.layer.pipe(
-        Layer.provide(RegistryLayer.pipe(Layer.fresh)),
-        Layer.provide(CrossSpawnSpawner.defaultLayer),
+        Layer.provide(permissionLayer()),
+        Layer.provide(toolRegistry.pipe(Layer.fresh)),
+        Layer.provide(spawnerGraph),
         Layer.provide(bindingsB),
         Layer.provide(Layer.succeed(Credential.Service, credential)),
         Layer.provide(trackingScannerLayer),
@@ -892,8 +1107,8 @@ describe("McpConnection typed stdio owner (Phase C Slice 1)", () => {
 
       // 3. It is not on the registered tool catalog either — the registry is the
       //    surface a provider turn sees, so a leak there would reach the model.
-      const registry = yield* ToolRegistry.Service
-      const catalog = JSON.stringify([...registry.registeredNames()])
+      const tools = yield* Tool.Service
+      const catalog = JSON.stringify([...(yield* registeredNames(tools))])
       expect(catalog).not.toContain(SECRET)
       expect(catalog).toContain("mcp_envsrv_echo")
 
@@ -1024,8 +1239,13 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
       expect(info.pid).toBeUndefined()
       expect(remoteRequests).toHaveLength(3)
       expect(remoteRequests[0]?.headers.authorization).toBeUndefined()
-      const registry = yield* ToolRegistry.Service
-      expect(registry.registeredNames().has("mcp_remote_echo")).toBe(true)
+      const tools = yield* Tool.Service
+      expect((yield* registeredNames(tools)).has("mcp_remote_echo")).toBe(true)
+      const snapshot = yield* tools.snapshot()
+      expect(snapshot.definitions.map((tool) => tool.name)).toEqual(["execute"])
+      expect(snapshot.catalog.find((tool) => tool.name === "mcp_remote_echo")?.placement).toBe("codemode")
+      if (snapshot.codeModeCatalog === undefined) throw new Error("Missing remote MCP Code Mode discovery")
+      expect(codeModeListings(snapshot.codeModeCatalog).map((tool) => tool.path)).toEqual(["mcp_remote_echo"])
       expect(JSON.stringify(yield* conn.callTool({ name: "mcp_remote_echo", args: { msg: "hi" } }))).toContain(
         "remote:hi",
       )
@@ -1038,16 +1258,18 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
       const conn = yield* McpConnection.Service
       const first = yield* conn.connect({ binding: binding({ serverName: "reconnect", mode: "ok" }) })
       if (first.pid === undefined) throw new Error("stdio connection did not expose a pid")
-      const registry = yield* ToolRegistry.Service
-      expect(
-        (yield* registry.materialize()).definitions.find((item) => item.name === "mcp_reconnect_echo")?.description,
-      ).toBe("Echo a message")
+      const tools = yield* Tool.Service
+      expect((yield* tools.snapshot()).catalog.find((item) => item.name === "mcp_reconnect_echo")).toMatchObject({
+        description: "Echo a message",
+        placement: "codemode",
+      })
 
       const second = yield* conn.connect({ binding: binding({ serverName: "reconnect", mode: "changed" }) })
       expect(second.health).toBe("ready")
-      expect(
-        (yield* registry.materialize()).definitions.find((item) => item.name === "mcp_reconnect_echo")?.description,
-      ).toBe("Changed echo")
+      expect((yield* tools.snapshot()).catalog.find((item) => item.name === "mcp_reconnect_echo")).toMatchObject({
+        description: "Changed echo",
+        placement: "codemode",
+      })
       yield* waitDead(first.pid)
       yield* conn.disconnect("reconnect")
     }),
@@ -1056,7 +1278,7 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
   it.live("serializes two concurrent connects for one server name and orphans no child", () =>
     Effect.gen(function* () {
       const conn = yield* McpConnection.Service
-      const registry = yield* ToolRegistry.Service
+      const tools = yield* Tool.Service
       // Both fibers race the same server name. Unserialized, each passes the
       // `conns.has` check before either reaches `conns.set`: two children spawn,
       // the map keeps one, and the loser's process plus its tool registration
@@ -1075,9 +1297,10 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
       expect(live).toHaveLength(1)
       expect(live[0]?.health).toBe("ready")
       // Exactly one registration survives, so the winner's tool is callable.
-      expect((yield* registry.materialize()).definitions.filter((item) => item.name === "mcp_race_echo")).toHaveLength(
-        1,
-      )
+      const snapshot = yield* tools.snapshot()
+      expect(snapshot.catalog.filter((item) => item.name === "mcp_race_echo")).toHaveLength(1)
+      if (snapshot.codeModeCatalog === undefined) throw new Error("Missing MCP Code Mode discovery")
+      expect(codeModeListings(snapshot.codeModeCatalog).filter((item) => item.path === "mcp_race_echo")).toHaveLength(1)
       expect((yield* conn.facts()).filter((fact) => fact.serverName === "race")).toHaveLength(1)
 
       const loser = [a.pid, b.pid].find((pid) => pid !== live[0]?.pid)
@@ -1086,7 +1309,7 @@ describe("McpConnection remote/OAuth health (Phase C Slice 3)", () => {
       // `reaped` above. On Windows it reports every pid as dead, which would
       // fail the survivor assertion on a missing instrument rather than on a
       // real orphan. The serialization contract itself (one live connection, one
-      // fact, one registered definition) is asserted on every platform above.
+      // fact, one captured tool) is asserted on every platform above.
       if (process.platform === "linux") {
         yield* waitDead(loser)
         expect(yield* alive(live[0]!.pid!)).toBe(true)

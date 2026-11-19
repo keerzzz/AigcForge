@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { WorkPreset } from "../src/work-preset"
+import { WorkPreset } from "../src/work-preset.js"
 
 const validPreset = {
   id: "storyboard-video",
@@ -66,7 +66,7 @@ describe("WorkPreset.Preset", () => {
 
 describe("WorkContract.Snapshot", () => {
   test("accepts a versioned preset snapshot with its output contract", async () => {
-    const { WorkContract } = await import("../src/work-contract")
+    const { WorkContract } = await import("../src/work-contract.js")
     const decoded = Schema.decodeUnknownSync(WorkContract.Snapshot)({
       source: "preset",
       contractVersion: 1,

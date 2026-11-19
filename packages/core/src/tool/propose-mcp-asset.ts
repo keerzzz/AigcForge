@@ -1,12 +1,11 @@
-export * as ProposeMCPAssetTool from "./propose-mcp-asset"
+export * as ProposeMCPAssetTool from "./propose-mcp-asset.js"
 
-import { ToolFailure } from "@aigcfroge/llm"
-import { Effect, Layer, Schema } from "effect"
-import { Flag } from "../flag/flag"
+import type { Context } from "@aigcfroge/plugin/effect/plugin"
+import { ToolFailure } from "@aigcfroge/ai"
+import { Effect, Schema } from "effect"
 import { MCPAsset } from "@aigcfroge/schema/mcp-asset"
-import { MCPAssetService } from "../mcp-asset-service"
-import { Tool } from "./tool"
-import { Tools } from "./tools"
+import { Flag } from "../flag/flag.js"
+import { MCPAssetService } from "../mcp-asset-service.js"
 
 export const name = "propose_mcp_asset"
 
@@ -40,47 +39,51 @@ export const Output = Schema.Struct({
   pathConflict: Schema.Boolean,
 })
 
-export const layer = Layer.effectDiscard(
-  Effect.gen(function* () {
+export const Plugin = {
+  id: "aigcfroge.tool.propose_mcp_asset",
+  effect: Effect.fn("ProposeMCPAssetTool.Plugin")(function* (ctx: Context) {
     if (!Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET) return
 
-    const tools = yield* Tools.Service
     const service = yield* MCPAssetService.Service
 
-    const tool = Tool.make({
-      description,
-      input: Input,
-      output: Output,
-      execute: (input) =>
-        Effect.gen(function* () {
-          const candidate = MCPAsset.Candidate.make({ ...input, relativePath: "" })
-          const result = yield* service.propose(candidate)
-          return {
-            relativePath: result.relativePath,
-            exists: result.exists,
-            revision: result.revision ?? undefined,
-            nameConflict: result.nameConflict,
-            pathConflict: result.pathConflict,
-          }
-        }).pipe(
-          Effect.catch((err) =>
-            Effect.fail(new ToolFailure({ message: `Proposal failed: ${(err as Error).message}` })),
-          ),
-        ),
-      toModelOutput: ({ output }) => [
-        {
-          type: "text" as const,
-          text: output.nameConflict
-            ? `Name conflicts with an existing MCP. Choose a different name.`
-            : output.pathConflict
-              ? `Path conflict. Choose a different name.`
-              : output.exists
-                ? `MCP exists at "${output.relativePath}". Ask user to review before overwriting.`
-                : `Candidate is valid at "${output.relativePath}". Ask user to apply.`,
-        },
-      ],
-    })
-
-    yield* tools.register({ [name]: tool }).pipe(Effect.catch((err) => Effect.die(err)))
+    yield* ctx.tool
+      .transform((editor) =>
+        editor.add({
+          name,
+          options: { codemode: false },
+          description,
+          input: Input,
+          output: Output,
+          execute: (input) =>
+            Effect.gen(function* () {
+              const candidate = MCPAsset.Candidate.make({ ...input, relativePath: "" })
+              const result = yield* service.propose(candidate)
+              const output = {
+                relativePath: result.relativePath,
+                exists: result.exists,
+                revision: result.revision ?? undefined,
+                nameConflict: result.nameConflict,
+                pathConflict: result.pathConflict,
+              }
+              return {
+                output,
+                metadata: { ...output, revision: result.revision },
+                content: output.nameConflict
+                  ? `Name conflicts with an existing MCP. Choose a different name.`
+                  : output.pathConflict
+                    ? `Path conflict. Choose a different name.`
+                    : output.exists
+                      ? `MCP exists at "${output.relativePath}". Ask user to review before overwriting.`
+                      : `Candidate is valid at "${output.relativePath}". Ask user to apply.`,
+              }
+            }).pipe(
+              Effect.mapError(
+                (err) =>
+                  new ToolFailure({ message: `Proposal failed: ${err instanceof Error ? err.message : String(err)}` }),
+              ),
+            ),
+        }),
+      )
+      .pipe(Effect.orDie)
   }),
-)
+}

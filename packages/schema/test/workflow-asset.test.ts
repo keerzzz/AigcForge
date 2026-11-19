@@ -1,8 +1,75 @@
 import { describe, expect, test } from "bun:test"
-import { Schema } from "effect"
-import { WorkflowAsset } from "../src/workflow-asset"
+import { Schema, SchemaRepresentation } from "effect"
+import { WorkflowAsset } from "../src/workflow-asset.js"
 
 describe("WorkflowAsset Schema M2", () => {
+  test("minimal workflow step JSON omits absent options and preserves defaults", () => {
+    const step = Schema.decodeUnknownSync(WorkflowAsset.StepDef)({ id: "review", name: "Review", agent: "coder" })
+    const encoded = Schema.encodeSync(Schema.toCodecJson(WorkflowAsset.StepDef))(step)
+    expect(encoded).toEqual({
+      id: "review",
+      name: "Review",
+      agent: "coder",
+      input: {},
+      failurePolicy: "abort",
+      maxAttempts: 1,
+    })
+    expect(Schema.decodeUnknownSync(Schema.toCodecJson(WorkflowAsset.StepDef))(encoded)).toEqual(step)
+  })
+
+  test("workflow declaration JSON preserves raw content and nested step options", () => {
+    const content = "\uFEFF# original YAML\n" + "x".repeat(100_001)
+    const info = Schema.decodeUnknownSync(WorkflowAsset.Info)({
+      kind: "workflow",
+      name: "review",
+      description: "Review",
+      relativePath: "review.yaml",
+      revision: "a".repeat(64),
+      content,
+      version: "1",
+      triggers: [],
+      steps: [
+        {
+          id: "review",
+          name: "Review",
+          agent: "coder",
+          input: { nested: [true, null, { text: "keep" }] },
+          branches: { yes: "END" },
+          timeoutSeconds: 30,
+        },
+      ],
+    })
+    const encoded = Schema.encodeSync(Schema.toCodecJson(WorkflowAsset.Info))(info)
+    expect(Schema.decodeUnknownSync(Schema.toCodecJson(WorkflowAsset.Info))(encoded)).toEqual(info)
+    expect(info.content).toBe(content)
+    expect(() =>
+      Schema.decodeUnknownSync(WorkflowAsset.Candidate)({ name: "review", description: "Review", content }),
+    ).toThrow()
+  })
+
+  test("workflow frontmatter uses the same identity limits as public assets", () => {
+    const value = { kind: "workflow", name: "review", description: "Review", version: "1", steps: [] }
+    expect(() => Schema.decodeUnknownSync(WorkflowAsset.Frontmatter)({ ...value, name: "x".repeat(81) })).toThrow()
+    expect(() =>
+      Schema.decodeUnknownSync(WorkflowAsset.Frontmatter)({ ...value, description: "x".repeat(301) }),
+    ).toThrow()
+  })
+
+  test("workflow candidate omits the optional target and retains an explicit null revision", () => {
+    const candidate = WorkflowAsset.Candidate.make({
+      name: WorkflowAsset.Name.make("review"),
+      description: WorkflowAsset.Description.make("Review"),
+      content: WorkflowAsset.Content.make("source"),
+    })
+    expect(Schema.encodeSync(Schema.toCodecJson(WorkflowAsset.Candidate))(candidate)).toEqual({
+      name: "review",
+      description: "Review",
+      content: "source",
+    })
+    expect(Schema.decodeUnknownSync(WorkflowAsset.BaseRevision)(null)).toBeNull()
+    expect(() => Schema.decodeUnknownSync(WorkflowAsset.BaseRevision)("invalid")).toThrow()
+  })
+
   test("StepDef accepts failurePolicy, maxAttempts, and timeoutSeconds", () => {
     const step = Schema.decodeUnknownSync(WorkflowAsset.StepDef)({
       id: "step_1",
@@ -120,6 +187,77 @@ describe("WorkflowAsset Schema M2", () => {
     expect(String(run.retryOfStepRunID)).toBe("step-failed")
   })
 
+  test("workflow status omits an undefined run from the JSON contract", () => {
+    const response = new WorkflowAsset.WorkflowStatusResponse({ run: undefined, steps: [] })
+    expect(Schema.encodeSync(Schema.toCodecJson(WorkflowAsset.WorkflowStatusResponse))(response)).toEqual({ steps: [] })
+  })
+
+  test("workflow run and step JSON omit undefined fields and preserve their decoded values", () => {
+    const run = new WorkflowAsset.WorkflowRunInfo({
+      id: WorkflowAsset.WorkflowRunID.make("run-json"),
+      sessionID: "session-json",
+      snapshotDigest: "a".repeat(64),
+      workflowName: "review",
+      workflowRevision: "b".repeat(64),
+      status: "pending",
+      revision: 1,
+      parentRunID: undefined,
+      rootRunID: undefined,
+      retryOfStepRunID: undefined,
+      currentStepId: undefined,
+      errorCategory: undefined,
+      timeCreated: 1,
+      timeUpdated: 1,
+      timeCompleted: undefined,
+    })
+    const step = new WorkflowAsset.StepRunInfo({
+      id: WorkflowAsset.StepRunID.make("step-json"),
+      runId: run.id,
+      stepId: "review",
+      agentId: "coder",
+      status: "ready",
+      attempt: 1,
+      revision: 1,
+      taskId: undefined,
+      childSessionId: undefined,
+      inputDigest: undefined,
+      outputDigest: undefined,
+      branchTarget: undefined,
+      errorCategory: undefined,
+      timeCreated: 1,
+      timeStarted: undefined,
+      timeCompleted: undefined,
+    })
+    const response = new WorkflowAsset.WorkflowStatusResponse({ run, steps: [step] })
+    const codec = Schema.toCodecJson(WorkflowAsset.WorkflowStatusResponse)
+    const encoded = Schema.encodeSync(WorkflowAsset.WorkflowStatusResponse)(response)
+    expect(Schema.encodeSync(codec)(response)).toEqual(encoded)
+    expect(encoded.run).toEqual({
+      id: run.id,
+      sessionID: run.sessionID,
+      snapshotDigest: run.snapshotDigest,
+      workflowName: run.workflowName,
+      workflowRevision: run.workflowRevision,
+      status: run.status,
+      revision: run.revision,
+      timeCreated: run.timeCreated,
+      timeUpdated: run.timeUpdated,
+    })
+    expect(encoded.steps).toEqual([
+      {
+        id: step.id,
+        runId: step.runId,
+        stepId: step.stepId,
+        agentId: step.agentId,
+        status: step.status,
+        attempt: step.attempt,
+        revision: step.revision,
+        timeCreated: step.timeCreated,
+      },
+    ])
+    expect(Schema.decodeUnknownSync(codec)(encoded)).toEqual(response)
+  })
+
   test("StepDef input accepts only JSON objects", () => {
     const step = Schema.decodeUnknownSync(WorkflowAsset.StepDef)({
       id: "step_1",
@@ -158,6 +296,35 @@ describe("WorkflowAsset Schema M2", () => {
     expect(() => decode({ branch: "approved", result: "legacy" })).toThrow()
     expect(() => decode({ branch: 1 })).toThrow()
     expect(() => decode({ branch: "approved", summary: "x".repeat(2_001) })).toThrow()
+    expect(decode({ branch: "approved", summary: "😀".repeat(1_001) }).summary).toBe("😀".repeat(1_001))
+    expect(decode({ branch: "approved", summary: "😀".repeat(2_000) }).summary).toBe("😀".repeat(2_000))
+    expect(() => decode({ branch: "approved", summary: "😀".repeat(2_001) })).toThrow()
+  })
+
+  test("BranchOutput preserves its codepoint limit through representation persistence and codegen", () => {
+    const encoded = Schema.toEncoded(WorkflowAsset.BranchOutput)
+    const persisted = SchemaRepresentation.toJson(SchemaRepresentation.toRepresentation(encoded.ast))
+    const restored = SchemaRepresentation.fromRepresentation(SchemaRepresentation.fromJson(persisted), {
+      revivers: [SchemaRepresentation.isMaxCodePointsReviver],
+    })
+    const decode = Schema.decodeUnknownSync(Schema.make<Schema.Codec<unknown>>(restored.ast))
+    const summaries = [
+      "x".repeat(WorkflowAsset.MAX_BRANCH_SUMMARY_CODE_POINTS),
+      "😀".repeat(WorkflowAsset.MAX_BRANCH_SUMMARY_CODE_POINTS),
+      "e\u0301".repeat(WorkflowAsset.MAX_BRANCH_SUMMARY_CODE_POINTS / 2),
+      "\ud800".repeat(WorkflowAsset.MAX_BRANCH_SUMMARY_CODE_POINTS),
+    ]
+    for (const summary of summaries) {
+      expect(decode({ branch: "approved", summary })).toEqual({ branch: "approved", summary })
+      expect(() => decode({ branch: "approved", summary: `${summary}x` })).toThrow()
+    }
+
+    const document = SchemaRepresentation.toCodeDocument(SchemaRepresentation.toRepresentations([encoded.ast]))
+    const runtime = [
+      ...document.codes.map((code) => code.runtime),
+      ...document.references.nonRecursives.map((reference) => reference.code.runtime),
+    ].join("\n")
+    expect(runtime).toContain(`Schema.isMaxCodePoints(${WorkflowAsset.MAX_BRANCH_SUMMARY_CODE_POINTS})`)
   })
 
   describe("Graph Validation", () => {
