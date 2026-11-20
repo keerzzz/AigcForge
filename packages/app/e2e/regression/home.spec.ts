@@ -39,140 +39,197 @@ test.use({ serviceWorkers: "block" })
 const row = (page: Page, title: string) =>
   page.locator('[data-component="home-session-row"]').filter({ hasText: title })
 
-test("MC09 personal Memory keeps confirmation ACK across read failure and edits, rejects, deletes, and opens its source", async ({
-  page,
-}, testInfo) => {
-  const memory: PersonalMemoryInfo[] = [
-    {
-      id: "pm_first",
-      content: "Prefer precise updates 中文",
-      source: "explicit",
-      trustLevel: "high",
-      sensitivityLevel: "low",
-      status: "pending",
-      sourceSessionID: "ses_memory_source",
+for (const copy of [
+  {
+    locale: "en",
+    modes: "Modes",
+    assistant: "Assistant",
+    work: "Work",
+    memory: "Personal memory",
+    memoryRow: "Memory",
+    confirm: "Confirm",
+    confirmed: "Confirmed",
+    refresh: "Refresh",
+    edit: "Edit",
+    content: "Memory content",
+    save: "Save memory",
+    reject: "Reject",
+    rejected: "Rejected",
+    remove: "Delete",
+    deleteMemory: "Delete memory",
+    deleted: "Deleted",
+    source: "Open source session",
+    hub: "Agent Hub",
+    tasksRefresh: "Refresh tasks",
+    taskSource: "Open task session",
+  },
+  {
+    locale: "zh",
+    modes: "模式",
+    assistant: "助手",
+    work: "工作",
+    memory: "个人记忆审核",
+    memoryRow: "记忆",
+    confirm: "确认",
+    confirmed: "已确认",
+    refresh: "刷新",
+    edit: "编辑",
+    content: "记忆内容",
+    save: "保存记忆",
+    reject: "拒绝",
+    rejected: "已拒绝",
+    remove: "删除",
+    deleteMemory: "删除记忆",
+    deleted: "已删除",
+    source: "打开来源会话",
+    hub: "任务汇总",
+    tasksRefresh: "刷新任务",
+    taskSource: "打开任务所属会话",
+  },
+]) {
+  test(`MC09 personal Memory keeps confirmation ACK across read failure and edits, rejects, deletes, and opens its source (${copy.locale})`, async ({
+    page,
+  }, testInfo) => {
+    const memory: PersonalMemoryInfo[] = [
+      {
+        id: "pm_first",
+        content: "Prefer precise updates 中文",
+        source: "explicit",
+        trustLevel: "high",
+        sensitivityLevel: "low",
+        status: "pending",
+        sourceSessionID: "ses_memory_source",
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      {
+        id: "pm_second",
+        content: "Possible preference",
+        source: "derived",
+        trustLevel: "low",
+        sensitivityLevel: "medium",
+        status: "pending",
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    ]
+
+    const state = { unreadable: false }
+    const calls: string[] = []
+    await mockWorkspace(page, {
+      name: "Memory Consumer",
+      sessions: [{ id: "ses_memory_source", title: "Memory source", mode: "assistant" }],
+      memory,
+      onMemoryRead: () =>
+        state.unreadable ? new InvalidRequestError({ message: "Memory temporarily unavailable" }) : undefined,
+      onMemoryAction(action, id, body) {
+        calls.push(action)
+        const item = memory.find((item) => item.id === id)
+
+        if (!item) return new InvalidRequestError({ message: "Memory not found" })
+
+        if (action === "confirm") {
+          state.unreadable = true
+
+          return { ...item, status: "confirmed", updatedAt: 2 }
+        }
+
+        if (action === "reject") return { ...item, status: "rejected", updatedAt: 3 }
+
+        if (action === "remove") return { ...item, status: "deleted", updatedAt: 4 }
+
+        if (body?.content !== undefined) return { ...item, content: body.content, updatedAt: 3 }
+
+        return new InvalidRequestError({ message: "Invalid edit" })
+      },
+      seed: { tabs: [], locale: copy.locale },
+    })
+    await page.goto("/")
+    await page
+      .getByRole("navigation", { name: copy.modes, exact: true })
+      .getByRole("button", { name: copy.assistant, exact: true })
+      .click()
+    await page.getByRole("button", { name: copy.memory, exact: true }).press("Enter")
+    const inspector = page.getByRole("region", { name: copy.memory, exact: true })
+    const first = inspector.getByRole("listitem", { name: `${copy.memoryRow} pm_first`, exact: true })
+    const second = inspector.getByRole("listitem", { name: `${copy.memoryRow} pm_second`, exact: true })
+    await expect(first.getByText(memory[0].content, { exact: true })).toBeVisible()
+    await first.getByRole("button", { name: copy.confirm, exact: true }).click()
+    await expect(inspector.getByRole("alert")).toContainText("Memory temporarily unavailable")
+    await expect(first.getByRole("button", { name: copy.confirm, exact: true })).toHaveCount(0)
+    await expect(first.getByText(copy.confirmed, { exact: true })).toBeVisible()
+    state.unreadable = false
+    await inspector.getByRole("button", { name: copy.refresh, exact: true }).click()
+    await first.getByRole("button", { name: copy.edit, exact: true }).click()
+    await inspector.getByRole("textbox", { name: copy.content, exact: true }).fill("Updated precise preference")
+    await inspector.getByRole("button", { name: copy.save, exact: true }).click()
+    await expect(first.getByText("Updated precise preference", { exact: true })).toBeVisible()
+    await second.getByRole("button", { name: copy.reject, exact: true }).click()
+    await expect(second.getByText(copy.rejected, { exact: true })).toBeVisible()
+    await first.getByRole("button", { name: copy.remove, exact: true }).click()
+    await inspector.getByRole("button", { name: copy.deleteMemory, exact: true }).click()
+    await expect(first.getByText(copy.deleted, { exact: true })).toBeVisible()
+    await page.screenshot({ path: testInfo.outputPath("memory-desktop.png") })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await expect(first).toBeVisible()
+    await page.screenshot({ path: testInfo.outputPath("memory-narrow.png") })
+    await first.getByRole("button", { name: copy.source, exact: true }).click()
+    await expect(page).toHaveURL(/\/session\/ses_memory_source$/)
+    expect(calls).toEqual(["confirm", "edit", "reject", "remove"])
+  })
+
+  test(`MC09 Hub shows location-owned task progress and opens the actual owning Session (${copy.locale})`, async ({
+    page,
+  }) => {
+    const stream = await installSseTransport(page, { server: SERVER })
+
+    const task = new SessionTask.Info({
+      id: "tsk_hub",
+      sessionID: "ses_hub",
+      agentID: "builder",
+      content: "Saved Hub result 中文",
+      status: "completed",
+      priority: "medium",
+      revision: 2,
+      outputDigest: "Actual Hub digest",
       createdAt: 1,
-      updatedAt: 1,
-    },
-    {
-      id: "pm_second",
-      content: "Possible preference",
-      source: "derived",
-      trustLevel: "low",
-      sensitivityLevel: "medium",
-      status: "pending",
-      createdAt: 1,
-      updatedAt: 1,
-    },
-  ]
+      updatedAt: 2,
+    })
 
-  const state = { unreadable: false }
-  const calls: string[] = []
-  await mockWorkspace(page, {
-    name: "Memory Consumer",
-    sessions: [{ id: "ses_memory_source", title: "Memory source", mode: "assistant" }],
-    memory,
-    onMemoryRead: () =>
-      state.unreadable ? new InvalidRequestError({ message: "Memory temporarily unavailable" }) : undefined,
-    onMemoryAction(action, id, body) {
-      calls.push(action)
-      const item = memory.find((item) => item.id === id)
+    const tasks = [
+      task,
+      new SessionTask.Info({ ...task, id: "tsk_other", sessionID: "ses_hub_other", content: "Foreign location task" }),
+    ]
 
-      if (!item) return new InvalidRequestError({ message: "Memory not found" })
-
-      if (action === "confirm") {
-        state.unreadable = true
-
-        return { ...item, status: "confirmed", updatedAt: 2 }
-      }
-
-      if (action === "reject") return { ...item, status: "rejected", updatedAt: 3 }
-
-      if (action === "remove") return { ...item, status: "deleted", updatedAt: 4 }
-
-      if (body?.content !== undefined) return { ...item, content: body.content, updatedAt: 3 }
-
-      return new InvalidRequestError({ message: "Invalid edit" })
-    },
-    seed: { tabs: [] },
+    await mockWorkspace(page, {
+      name: "Hub Consumer",
+      sessions: [
+        { id: "ses_hub", title: "Hub owner", mode: "work" },
+        { id: "ses_hub_other", title: "Other owner", location: { directory: "/other" }, mode: "work" },
+      ],
+      tasks,
+      seed: { tabs: [], locale: copy.locale },
+    })
+    await page.goto("/")
+    await page
+      .getByRole("navigation", { name: copy.modes, exact: true })
+      .getByRole("button", { name: copy.work, exact: true })
+      .click()
+    await page.getByRole("button", { name: copy.hub, exact: true }).click()
+    const hub = page.getByRole("region", { name: copy.hub, exact: true })
+    await expect(hub.getByText("Saved Hub result 中文", { exact: true })).toBeVisible()
+    await expect(hub.getByText("Actual Hub digest", { exact: true })).toBeVisible()
+    await expect(hub.getByText("Foreign location task", { exact: true })).toHaveCount(0)
+    await expect(hub.getByRole("button", { name: copy.tasksRefresh, exact: true })).toBeEnabled()
+    tasks[0] = new SessionTask.Info({ ...task, content: "Saved Hub result after reconnect", revision: 3 })
+    const connection = await stream.waitForConnection()
+    await stream.disconnect()
+    await stream.waitForConnection({ after: connection.id })
+    await expect(hub.getByText("Saved Hub result after reconnect", { exact: true })).toBeVisible()
+    await hub.getByRole("button", { name: copy.taskSource, exact: true }).click()
+    await expect(page).toHaveURL(/\/session\/ses_hub$/)
   })
-  await page.goto("/")
-  await selectGlobalMode(page, "Assistant")
-  await page.getByRole("button", { name: "Personal memory", exact: true }).press("Enter")
-  const inspector = page.getByRole("region", { name: "Personal memory", exact: true })
-  const first = inspector.getByRole("listitem", { name: "Memory pm_first", exact: true })
-  const second = inspector.getByRole("listitem", { name: "Memory pm_second", exact: true })
-  await expect(first.getByText(memory[0].content, { exact: true })).toBeVisible()
-  await first.getByRole("button", { name: "Confirm", exact: true }).click()
-  await expect(inspector.getByRole("alert")).toContainText("Memory temporarily unavailable")
-  await expect(first.getByRole("button", { name: "Confirm", exact: true })).toHaveCount(0)
-  await expect(first.getByText("Confirmed", { exact: true })).toBeVisible()
-  state.unreadable = false
-  await inspector.getByRole("button", { name: "Refresh", exact: true }).click()
-  await first.getByRole("button", { name: "Edit", exact: true }).click()
-  await inspector.getByRole("textbox", { name: "Memory content", exact: true }).fill("Updated precise preference")
-  await inspector.getByRole("button", { name: "Save memory", exact: true }).click()
-  await expect(first.getByText("Updated precise preference", { exact: true })).toBeVisible()
-  await second.getByRole("button", { name: "Reject", exact: true }).click()
-  await expect(second.getByText("Rejected", { exact: true })).toBeVisible()
-  await first.getByRole("button", { name: "Delete", exact: true }).click()
-  await inspector.getByRole("button", { name: "Delete memory", exact: true }).click()
-  await expect(first.getByText("Deleted", { exact: true })).toBeVisible()
-  await page.screenshot({ path: testInfo.outputPath("memory-desktop.png") })
-  await page.setViewportSize({ width: 390, height: 844 })
-  await expect(first).toBeVisible()
-  await page.screenshot({ path: testInfo.outputPath("memory-narrow.png") })
-  await first.getByRole("button", { name: "Open source session", exact: true }).click()
-  await expect(page).toHaveURL(/\/session\/ses_memory_source$/)
-  expect(calls).toEqual(["confirm", "edit", "reject", "remove"])
-})
-
-test("MC09 Hub shows location-owned task progress and opens the actual owning Session", async ({ page }) => {
-  const stream = await installSseTransport(page, { server: SERVER })
-
-  const task = new SessionTask.Info({
-    id: "tsk_hub",
-    sessionID: "ses_hub",
-    agentID: "builder",
-    content: "Saved Hub result 中文",
-    status: "completed",
-    priority: "medium",
-    revision: 2,
-    outputDigest: "Actual Hub digest",
-    createdAt: 1,
-    updatedAt: 2,
-  })
-
-  const tasks = [
-    task,
-    new SessionTask.Info({ ...task, id: "tsk_other", sessionID: "ses_hub_other", content: "Foreign location task" }),
-  ]
-
-  await mockWorkspace(page, {
-    name: "Hub Consumer",
-    sessions: [
-      { id: "ses_hub", title: "Hub owner", mode: "work" },
-      { id: "ses_hub_other", title: "Other owner", location: { directory: "/other" }, mode: "work" },
-    ],
-    tasks,
-    seed: { tabs: [] },
-  })
-  await page.goto("/")
-  await selectGlobalMode(page, "Work")
-  await page.getByRole("button", { name: "Agent Hub", exact: true }).click()
-  const hub = page.getByRole("region", { name: "Agent Hub", exact: true })
-  await expect(hub.getByText("Saved Hub result 中文", { exact: true })).toBeVisible()
-  await expect(hub.getByText("Actual Hub digest", { exact: true })).toBeVisible()
-  await expect(hub.getByText("Foreign location task", { exact: true })).toHaveCount(0)
-  await expect(hub.getByRole("button", { name: "Refresh tasks", exact: true })).toBeEnabled()
-  tasks[0] = new SessionTask.Info({ ...task, content: "Saved Hub result after reconnect", revision: 3 })
-  const connection = await stream.waitForConnection()
-  await stream.disconnect()
-  await stream.waitForConnection({ after: connection.id })
-  await expect(hub.getByText("Saved Hub result after reconnect", { exact: true })).toBeVisible()
-  await hub.getByRole("button", { name: "Open task session", exact: true }).click()
-  await expect(page).toHaveURL(/\/session\/ses_hub$/)
-})
+}
 
 async function openHome(
   page: Page,
