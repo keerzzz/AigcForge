@@ -124,7 +124,7 @@ jobs:
 
       - name: Run unit tests
         timeout-minutes: ${{ runner.os == 'Windows' && 90 || 40 }}
-        run: GITHUB_ACTIONS=false bun turbo test --concurrency=3
+        run: GITHUB_ACTIONS=false bun turbo test --concurrency=1
         env:
           AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || 'false' }}
 
