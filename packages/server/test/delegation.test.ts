@@ -516,392 +516,399 @@ it.live("serves durable delegation admission and queries through the production 
   ),
 )
 
-it.live("executes full prompts and interrupts through the generated client and production Session owners", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
-    Effect.gen(function* () {
-      const directory = (yield* tmpdirScoped()).path
-      const llm = Context.get(yield* Layer.build(TestLLM.testLayer()), TestLLM.Test)
-      const model = Model.Ref.make({ id: Model.ID.make("delegation"), providerID: Provider.ID.make("test") })
-      const test = yield* boot(directory, {}, [
-        LayerNodePlatform.llmClient.replace(Layer.succeed(LLMClient.Service, llm)),
-        SessionRunnerModel.node.replace(
-          Layer.succeed(SessionRunnerModel.Service, {
-            resolve: () =>
-              Effect.succeed(
-                SessionRunnerModel.resolved(
-                  LanguageModel.make({ id: "delegation", provider: "test", route: OpenAIChat.route }),
-                  {
-                    capabilities: { tools: true, input: ["text"], output: ["text"] },
-                    cost: [],
-                    limit: { context: 200_000, output: 32_000 },
-                  },
+it.live(
+  "executes full prompts and interrupts through the generated client and production Session owners",
+  () =>
+    withEnv({ AIGCFROGE_EXPERIMENTAL_PERSISTENT_DELEGATIONS: "true" }, () =>
+      Effect.gen(function* () {
+        const directory = (yield* tmpdirScoped()).path
+        const llm = Context.get(yield* Layer.build(TestLLM.testLayer()), TestLLM.Test)
+        const model = Model.Ref.make({ id: Model.ID.make("delegation"), providerID: Provider.ID.make("test") })
+        const test = yield* boot(directory, {}, [
+          LayerNodePlatform.llmClient.replace(Layer.succeed(LLMClient.Service, llm)),
+          SessionRunnerModel.node.replace(
+            Layer.succeed(SessionRunnerModel.Service, {
+              resolve: () =>
+                Effect.succeed(
+                  SessionRunnerModel.resolved(
+                    LanguageModel.make({ id: "delegation", provider: "test", route: OpenAIChat.route }),
+                    {
+                      capabilities: { tools: true, input: ["text"], output: ["text"] },
+                      cost: [],
+                      limit: { context: 200_000, output: 32_000 },
+                    },
+                  ),
+                ),
+            }),
+          ),
+        ])
+        const api = test.api
+        const parentSessionID = yield* test.session
+        const sessions = Context.get(test.context, Session.Service)
+        const parent = yield* sessions.get(parentSessionID)
+        if (!parent) return yield* Effect.die(new Error("Parent missing"))
+        const locations = Context.get(test.context, LocationServiceMap.Service)
+        yield* Plugin.awaitActivation.pipe(Effect.provide(locations.get(parent.location)))
+        const worker = Agent.ID.make("general")
+        yield* Agent.Service.use((agents) =>
+          agents.transform((editor) =>
+            editor.update(worker, (agent) => {
+              agent.mode = "subagent"
+              agent.model = model
+            }),
+          ),
+        ).pipe(Effect.provide(locations.get(parent.location)))
+        const created = Schema.decodeUnknownSync(LegacyDelegationState)(
+          yield* Effect.promise(() => api.delegation.create({ parentSessionID, title: "HTTP execution", directory })),
+        )
+        const participant = Schema.decodeUnknownSync(Delegation.ParticipantInfo)(
+          yield* Effect.promise(() =>
+            api.delegation.addParticipant({
+              delegationID: created.delegation.id,
+              provider: "internal",
+              target: worker,
+              role: "implementer",
+              context: "fresh",
+              directory,
+            }),
+          ),
+        )
+        const service = Context.get(test.context, DelegationService.Service)
+        const bus = Context.get(test.context, Bus.Service)
+        const wait = (turnID: string, status: string, delegationID = created.delegation.id) =>
+          awaitWithTimeout(
+            bus.log({ aggregateID: delegationID, follow: true }).pipe(
+              Stream.mapEffect(() => service.foldState(delegationID)),
+              Stream.map((state) =>
+                [...(state?.deliveries.values() ?? [])].find(
+                  (delivery) => delivery.turnID === turnID && delivery.status === status,
                 ),
               ),
-          }),
-        ),
-      ])
-      const api = test.api
-      const parentSessionID = yield* test.session
-      const sessions = Context.get(test.context, Session.Service)
-      const parent = yield* sessions.get(parentSessionID)
-      if (!parent) return yield* Effect.die(new Error("Parent missing"))
-      const locations = Context.get(test.context, LocationServiceMap.Service)
-      yield* Plugin.awaitActivation.pipe(Effect.provide(locations.get(parent.location)))
-      const worker = Agent.ID.make("general")
-      yield* Agent.Service.use((agents) =>
-        agents.transform((editor) =>
-          editor.update(worker, (agent) => {
-            agent.mode = "subagent"
-            agent.model = model
-          }),
-        ),
-      ).pipe(Effect.provide(locations.get(parent.location)))
-      const created = Schema.decodeUnknownSync(LegacyDelegationState)(
-        yield* Effect.promise(() => api.delegation.create({ parentSessionID, title: "HTTP execution", directory })),
-      )
-      const participant = Schema.decodeUnknownSync(Delegation.ParticipantInfo)(
-        yield* Effect.promise(() =>
-          api.delegation.addParticipant({
-            delegationID: created.delegation.id,
-            provider: "internal",
-            target: worker,
-            role: "implementer",
-            context: "fresh",
-            directory,
-          }),
-        ),
-      )
-      const service = Context.get(test.context, DelegationService.Service)
-      const bus = Context.get(test.context, Bus.Service)
-      const wait = (turnID: string, status: string, delegationID = created.delegation.id) =>
-        awaitWithTimeout(
-          bus.log({ aggregateID: delegationID, follow: true }).pipe(
-            Stream.mapEffect(() => service.foldState(delegationID)),
-            Stream.map((state) =>
-              [...(state?.deliveries.values() ?? [])].find(
-                (delivery) => delivery.turnID === turnID && delivery.status === status,
+              Stream.filter((delivery) => delivery !== undefined),
+              Stream.runHead,
+              Effect.flatMap((result) =>
+                Option.isSome(result) ? Effect.succeed(result.value) : Effect.die(new Error("Result missing")),
               ),
             ),
-            Stream.filter((delivery) => delivery !== undefined),
-            Stream.runHead,
-            Effect.flatMap((result) =>
-              Option.isSome(result) ? Effect.succeed(result.value) : Effect.die(new Error("Result missing")),
-            ),
-          ),
-          `HTTP delivery did not become ${status}`,
-          "10 seconds",
+            `HTTP delivery did not become ${status}`,
+            "10 seconds",
+          )
+        const input = {
+          delegationID: created.delegation.id,
+          directory,
+          kind: "task" as const,
+          participantIDs: [participant.id],
+          delivery: "queue" as const,
+          deliveryOrigin: "human",
+          senderParticipantID: participant.id,
+          promptSummary: "Public summary",
+        }
+        yield* llm.push(TestLLM.text("HTTP result", "http"))
+        const full = "Full task text retained only in the Session"
+        const turn = yield* Effect.promise(() =>
+          api.delegation.appendTurn({ ...input, prompt: full, evidenceDigest: "http-full-prompt" }),
         )
-      const input = {
-        delegationID: created.delegation.id,
-        directory,
-        kind: "task" as const,
-        participantIDs: [participant.id],
-        delivery: "queue" as const,
-        deliveryOrigin: "human",
-        senderParticipantID: participant.id,
-        promptSummary: "Public summary",
-      }
-      yield* llm.push(TestLLM.text("HTTP result", "http"))
-      const full = "Full task text retained only in the Session"
-      const turn = yield* Effect.promise(() =>
-        api.delegation.appendTurn({ ...input, prompt: full, evidenceDigest: "http-full-prompt" }),
-      )
-      const receipt = yield* wait(turn.id, "completed")
-      expect(receipt?.summary).toBe("HTTP result")
-      expect(yield* llm.requests()).toHaveLength(1)
-      const participantState = yield* service.getParticipant({
-        delegationID: created.delegation.id,
-        participantID: participant.id,
-      })
-      if (!participantState?.childSessionID) return yield* Effect.die(new Error("Child missing"))
-      expect(
-        (yield* sessions.context(participantState.childSessionID)).filter((message) => message.type === "user"),
-      ).toMatchObject([{ text: full }])
-      yield* sessions.wait(participantState.childSessionID)
-      const database = Context.get(test.context, Database.Service)
-      const readState = () =>
-        Effect.all({
-          lifecycle: storedLifecycle(database, created.delegation.id),
-          events: database.db.select().from(EventTable).all(),
-          sessions: database.db.select().from(SessionTable).all(),
-          messages: database.db.select().from(SessionMessageTable).all(),
-          inbox: database.db.select().from(SessionInboxTable).all(),
-          requests: llm.requests(),
+        const receipt = yield* wait(turn.id, "completed")
+        expect(receipt?.summary).toBe("HTTP result")
+        expect(yield* llm.requests()).toHaveLength(1)
+        const participantState = yield* service.getParticipant({
+          delegationID: created.delegation.id,
+          participantID: participant.id,
         })
-      const beforeRead = yield* readState()
-      const view = yield* Effect.promise(() => api.delegation.get({ delegationID: created.delegation.id, directory }))
-      const delivery = view.deliveries?.find(
-        (delivery) => delivery.turnID === turn.id && delivery.participantID === participant.id,
-      )
-      if (!delivery?.receipt)
-        return yield* Effect.die(new Error("Generated client omitted the admitted delivery receipt"))
-      expect(delivery).toMatchObject({
-        provider: "internal",
-        status: "completed",
-        current: true,
-        attempt: 1,
-        receipt: { childSessionID: participantState.childSessionID },
-      })
-      expect(delivery.source).toBeUndefined()
-      const resultInput = {
-        delegationID: created.delegation.id,
-        turnID: turn.id,
-        participantID: participant.id,
-        deliveryOrigin: "human",
-        senderParticipantID: participant.id,
-        attempt: 1,
-        directory,
-      }
-      expect(yield* Effect.promise(() => api.delegation.result(resultInput))).toMatchObject({
-        delivery: { receipt: delivery.receipt },
-        available: true,
-        text: "HTTP result",
-      })
-      expect(yield* Effect.promise(() => api.delegation.list({ parentSessionID, directory }))).toMatchObject([
-        { deliveries: [delivery] },
-      ])
-      expect(yield* readState()).toEqual(beforeRead)
-      const resultRoute = `/delegation/${created.delegation.id}/turn/${turn.id}/participant/${participant.id}/result?deliveryOrigin=human&senderParticipantID=${participant.id}&attempt=1`
-      expect((yield* test.request(resultRoute, { authenticated: false })).status).toBe(401)
-      expect((yield* test.request(resultRoute, { directory: (yield* tmpdirScoped()).path })).status).toBe(400)
-      expect(
-        (yield* test.request(`${resultRoute.slice(0, resultRoute.lastIndexOf("attempt="))}attempt=99`)).status,
-      ).toBe(400)
-      const repeated = yield* Effect.promise(() =>
-        api.delegation.appendTurn({ ...input, prompt: "Ignored duplicate text", evidenceDigest: "http-full-prompt" }),
-      )
-      expect(repeated.id).toBe(turn.id)
-      expect(yield* llm.requests()).toHaveLength(1)
-      const rows = yield* database.db.select().from(EventTable).all()
-      expect(JSON.stringify(rows.filter((row) => row.aggregate_id === created.delegation.id))).not.toContain(full)
-      const gate = yield* llm.gate()
-      yield* llm.push(TestLLM.hangAfter())
-      const active = yield* Effect.promise(() =>
-        api.delegation.appendTurn({ ...input, prompt: "Interrupt active work" }),
-      )
-      yield* awaitWithTimeout(gate.started, "HTTP model did not start")
-      const root = `/delegation/${created.delegation.id}`
-      const escaped = yield* test.request(`${root}/interrupt`, {
-        directory: (yield* tmpdirScoped()).path,
-        body: { participantID: participant.id },
-      })
-      expect(escaped.status).toBe(400)
-      yield* Effect.promise(() =>
-        api.delegation.interrupt({ delegationID: created.delegation.id, directory, participantID: participant.id }),
-      )
-      expect((yield* wait(active.id, "cancelled"))?.summary).toBe("Session interrupted")
-      yield* gate.release
-      yield* llm.push(TestLLM.text("HTTP retried result", "http-retry"))
-      yield* Effect.promise(() =>
-        api.delegation.retry({
+        if (!participantState?.childSessionID) return yield* Effect.die(new Error("Child missing"))
+        expect(
+          (yield* sessions.context(participantState.childSessionID)).filter((message) => message.type === "user"),
+        ).toMatchObject([{ text: full }])
+        yield* sessions.wait(participantState.childSessionID)
+        const database = Context.get(test.context, Database.Service)
+        const readState = () =>
+          Effect.all({
+            lifecycle: storedLifecycle(database, created.delegation.id),
+            events: database.db.select().from(EventTable).all(),
+            sessions: database.db.select().from(SessionTable).all(),
+            messages: database.db.select().from(SessionMessageTable).all(),
+            inbox: database.db.select().from(SessionInboxTable).all(),
+            requests: llm.requests(),
+          })
+        const beforeRead = yield* readState()
+        const view = yield* Effect.promise(() => api.delegation.get({ delegationID: created.delegation.id, directory }))
+        const delivery = view.deliveries?.find(
+          (delivery) => delivery.turnID === turn.id && delivery.participantID === participant.id,
+        )
+        if (!delivery?.receipt)
+          return yield* Effect.die(new Error("Generated client omitted the admitted delivery receipt"))
+        expect(delivery).toMatchObject({
+          provider: "internal",
+          status: "completed",
+          current: true,
+          attempt: 1,
+          receipt: { childSessionID: participantState.childSessionID },
+        })
+        expect(delivery.source).toBeUndefined()
+        const resultInput = {
           delegationID: created.delegation.id,
-          turnID: active.id,
+          turnID: turn.id,
           participantID: participant.id,
+          deliveryOrigin: "human",
+          senderParticipantID: participant.id,
+          attempt: 1,
           directory,
-        }),
-      )
-      expect(yield* wait(active.id, "completed")).toMatchObject({ attempt: 2, summary: "HTTP retried result" })
-      yield* sessions.wait(participantState.childSessionID)
-      const retried = yield* Effect.promise(() =>
-        api.delegation.get({ delegationID: created.delegation.id, directory }),
-      )
-      const attempts = retried.deliveries?.filter(
-        (delivery) => delivery.turnID === active.id && delivery.participantID === participant.id,
-      )
-      expect(
-        attempts?.map((delivery) => ({
-          attempt: delivery.attempt,
-          status: delivery.status,
-          current: delivery.current,
-        })),
-      ).toEqual([
-        { attempt: 1, status: "cancelled", current: false },
-        { attempt: 2, status: "completed", current: true },
-      ])
-      expect(new Set(attempts?.map((delivery) => delivery.receipt?.inputID)).size).toBe(2)
-      const afterRetry = yield* readState()
-      expect(
-        yield* Effect.promise(() => api.delegation.result({ ...resultInput, turnID: active.id, attempt: 2 })),
-      ).toMatchObject({ available: true, text: "HTTP retried result", delivery: { attempt: 2, current: true } })
-      expect(yield* readState()).toEqual(afterRetry)
-      const closeGate = yield* llm.gate()
-      yield* llm.push(TestLLM.hangAfter())
-      const closingActive = yield* Effect.promise(() =>
-        api.delegation.appendTurn({ ...input, prompt: "Close current work" }),
-      )
-      yield* awaitWithTimeout(closeGate.started, "Close model did not start")
-      const closingQueued = yield* Effect.promise(() =>
-        api.delegation.appendTurn({ ...input, prompt: "Queued before close" }),
-      )
-      yield* Effect.promise(() =>
-        api.delegation.steer({
-          delegationID: created.delegation.id,
-          turnID: closingQueued.id,
-          participantID: participant.id,
-          directory,
-        }),
-      )
-      expect(yield* sessions.inbox(participantState.childSessionID)).toMatchObject([{ delivery: "steer" }])
-      const closed = yield* Effect.promise(() =>
-        api.delegation.close({ delegationID: created.delegation.id, directory, reason: "HTTP owner closed" }),
-      )
-      expect(closed.delegation.status).toBe("closing")
-      expect(yield* wait(closingActive.id, "cancelled")).toBeDefined()
-      expect(yield* wait(closingQueued.id, "cancelled")).toBeDefined()
-      expect(yield* SessionInbox.list(database.db, participantState.childSessionID)).toHaveLength(0)
-      yield* Context.get(test.context, DelegationExecution.Service).interrupt({
-        delegationID: created.delegation.id,
-        participantID: ParticipantID.create(),
-      })
-      expect(yield* llm.requests()).toHaveLength(4)
-      yield* closeGate.release
-      const lifecycleCreated = Schema.decodeUnknownSync(LegacyDelegationState)(
+        }
+        expect(yield* Effect.promise(() => api.delegation.result(resultInput))).toMatchObject({
+          delivery: { receipt: delivery.receipt },
+          available: true,
+          text: "HTTP result",
+        })
+        expect(yield* Effect.promise(() => api.delegation.list({ parentSessionID, directory }))).toMatchObject([
+          { deliveries: [delivery] },
+        ])
+        expect(yield* readState()).toEqual(beforeRead)
+        const resultRoute = `/delegation/${created.delegation.id}/turn/${turn.id}/participant/${participant.id}/result?deliveryOrigin=human&senderParticipantID=${participant.id}&attempt=1`
+        expect((yield* test.request(resultRoute, { authenticated: false })).status).toBe(401)
+        expect((yield* test.request(resultRoute, { directory: (yield* tmpdirScoped()).path })).status).toBe(400)
+        expect(
+          (yield* test.request(`${resultRoute.slice(0, resultRoute.lastIndexOf("attempt="))}attempt=99`)).status,
+        ).toBe(400)
+        const repeated = yield* Effect.promise(() =>
+          api.delegation.appendTurn({ ...input, prompt: "Ignored duplicate text", evidenceDigest: "http-full-prompt" }),
+        )
+        expect(repeated.id).toBe(turn.id)
+        expect(yield* llm.requests()).toHaveLength(1)
+        const rows = yield* database.db.select().from(EventTable).all()
+        expect(JSON.stringify(rows.filter((row) => row.aggregate_id === created.delegation.id))).not.toContain(full)
+        const gate = yield* llm.gate()
+        yield* llm.push(TestLLM.hangAfter())
+        const active = yield* Effect.promise(() =>
+          api.delegation.appendTurn({ ...input, prompt: "Interrupt active work" }),
+        )
+        yield* awaitWithTimeout(gate.started, "HTTP model did not start")
+        const root = `/delegation/${created.delegation.id}`
+        const escaped = yield* test.request(`${root}/interrupt`, {
+          directory: (yield* tmpdirScoped()).path,
+          body: { participantID: participant.id },
+        })
+        expect(escaped.status).toBe(400)
         yield* Effect.promise(() =>
-          api.delegation.create({
-            parentSessionID,
-            title: "Verified retry and purge",
+          api.delegation.interrupt({ delegationID: created.delegation.id, directory, participantID: participant.id }),
+        )
+        expect((yield* wait(active.id, "cancelled"))?.summary).toBe("Session interrupted")
+        yield* gate.release
+        yield* llm.push(TestLLM.text("HTTP retried result", "http-retry"))
+        yield* Effect.promise(() =>
+          api.delegation.retry({
+            delegationID: created.delegation.id,
+            turnID: active.id,
+            participantID: participant.id,
             directory,
           }),
-        ),
-      )
-      const lifecycleParticipant = Schema.decodeUnknownSync(Delegation.ParticipantInfo)(
+        )
+        expect(yield* wait(active.id, "completed")).toMatchObject({ attempt: 2, summary: "HTTP retried result" })
+        yield* sessions.wait(participantState.childSessionID)
+        const retried = yield* Effect.promise(() =>
+          api.delegation.get({ delegationID: created.delegation.id, directory }),
+        )
+        const attempts = retried.deliveries?.filter(
+          (delivery) => delivery.turnID === active.id && delivery.participantID === participant.id,
+        )
+        expect(
+          attempts?.map((delivery) => ({
+            attempt: delivery.attempt,
+            status: delivery.status,
+            current: delivery.current,
+          })),
+        ).toEqual([
+          { attempt: 1, status: "cancelled", current: false },
+          { attempt: 2, status: "completed", current: true },
+        ])
+        expect(new Set(attempts?.map((delivery) => delivery.receipt?.inputID)).size).toBe(2)
+        const afterRetry = yield* readState()
+        expect(
+          yield* Effect.promise(() => api.delegation.result({ ...resultInput, turnID: active.id, attempt: 2 })),
+        ).toMatchObject({ available: true, text: "HTTP retried result", delivery: { attempt: 2, current: true } })
+        expect(yield* readState()).toEqual(afterRetry)
+        const closeGate = yield* llm.gate()
+        yield* llm.push(TestLLM.hangAfter())
+        const closingActive = yield* Effect.promise(() =>
+          api.delegation.appendTurn({ ...input, prompt: "Close current work" }),
+        )
+        yield* awaitWithTimeout(closeGate.started, "Close model did not start")
+        const closingQueued = yield* Effect.promise(() =>
+          api.delegation.appendTurn({ ...input, prompt: "Queued before close" }),
+        )
         yield* Effect.promise(() =>
-          api.delegation.addParticipant({
+          api.delegation.steer({
+            delegationID: created.delegation.id,
+            turnID: closingQueued.id,
+            participantID: participant.id,
+            directory,
+          }),
+        )
+        expect(yield* sessions.inbox(participantState.childSessionID)).toMatchObject([{ delivery: "steer" }])
+        const closed = yield* Effect.promise(() =>
+          api.delegation.close({ delegationID: created.delegation.id, directory, reason: "HTTP owner closed" }),
+        )
+        expect(closed.delegation.status).toBe("closing")
+        expect(yield* wait(closingActive.id, "cancelled")).toBeDefined()
+        expect(yield* wait(closingQueued.id, "cancelled")).toBeDefined()
+        expect(yield* SessionInbox.list(database.db, participantState.childSessionID)).toHaveLength(0)
+        yield* Context.get(test.context, DelegationExecution.Service).interrupt({
+          delegationID: created.delegation.id,
+          participantID: ParticipantID.create(),
+        })
+        expect(yield* llm.requests()).toHaveLength(4)
+        yield* closeGate.release
+        const lifecycleCreated = Schema.decodeUnknownSync(LegacyDelegationState)(
+          yield* Effect.promise(() =>
+            api.delegation.create({
+              parentSessionID,
+              title: "Verified retry and purge",
+              directory,
+            }),
+          ),
+        )
+        const lifecycleParticipant = Schema.decodeUnknownSync(Delegation.ParticipantInfo)(
+          yield* Effect.promise(() =>
+            api.delegation.addParticipant({
+              delegationID: lifecycleCreated.delegation.id,
+              provider: "internal",
+              target: worker,
+              role: "implementer",
+              context: "fresh",
+              directory,
+            }),
+          ),
+        )
+        const lifecycleInput = {
+          ...input,
+          delegationID: lifecycleCreated.delegation.id,
+          participantIDs: [lifecycleParticipant.id],
+          senderParticipantID: lifecycleParticipant.id,
+        }
+        const reconcileGate = yield* llm.gate()
+        yield* llm.push(TestLLM.hangAfter())
+        const retryTurn = yield* Effect.promise(() =>
+          api.delegation.appendTurn({ ...lifecycleInput, prompt: "Verified original input" }),
+        )
+        yield* awaitWithTimeout(reconcileGate.started, "Reconcile attempt did not start")
+        yield* Effect.promise(() =>
+          api.delegation.interrupt({
             delegationID: lifecycleCreated.delegation.id,
-            provider: "internal",
-            target: worker,
-            role: "implementer",
-            context: "fresh",
+            participantID: lifecycleParticipant.id,
             directory,
           }),
-        ),
-      )
-      const lifecycleInput = {
-        ...input,
-        delegationID: lifecycleCreated.delegation.id,
-        participantIDs: [lifecycleParticipant.id],
-        senderParticipantID: lifecycleParticipant.id,
-      }
-      const reconcileGate = yield* llm.gate()
-      yield* llm.push(TestLLM.hangAfter())
-      const retryTurn = yield* Effect.promise(() =>
-        api.delegation.appendTurn({ ...lifecycleInput, prompt: "Verified original input" }),
-      )
-      yield* awaitWithTimeout(reconcileGate.started, "Reconcile attempt did not start")
-      yield* Effect.promise(() =>
-        api.delegation.interrupt({
+        )
+        expect(yield* wait(retryTurn.id, "cancelled", lifecycleCreated.delegation.id)).toMatchObject({ attempt: 1 })
+        yield* reconcileGate.release
+        yield* llm.push(TestLLM.text("Reconciled result", "http-reconcile-retry"))
+        yield* Effect.promise(() =>
+          api.delegation.reconcile({
+            delegationID: lifecycleCreated.delegation.id,
+            turnID: retryTurn.id,
+            participantID: lifecycleParticipant.id,
+            decision: "retry",
+            directory,
+          }),
+        )
+        expect(yield* wait(retryTurn.id, "completed", lifecycleCreated.delegation.id)).toMatchObject({
+          attempt: 2,
+          summary: "Reconciled result",
+        })
+        const retryAdmissions = (yield* storedLifecycle(database, lifecycleCreated.delegation.id)).events.filter(
+          (event) =>
+            event.type ===
+            Event.versionedType(
+              DelegationEvent.DeliveryAdmitted.type,
+              DelegationEvent.DeliveryAdmitted.durable.version,
+            ),
+        )
+        expect(retryAdmissions.map((event) => event.data.attempt)).toEqual([1, 2])
+        expect(yield* llm.requests()).toHaveLength(6)
+        const child = yield* service.getParticipant({
           delegationID: lifecycleCreated.delegation.id,
           participantID: lifecycleParticipant.id,
-          directory,
-        }),
-      )
-      expect(yield* wait(retryTurn.id, "cancelled", lifecycleCreated.delegation.id)).toMatchObject({ attempt: 1 })
-      yield* reconcileGate.release
-      yield* llm.push(TestLLM.text("Reconciled result", "http-reconcile-retry"))
-      yield* Effect.promise(() =>
-        api.delegation.reconcile({
-          delegationID: lifecycleCreated.delegation.id,
-          turnID: retryTurn.id,
-          participantID: lifecycleParticipant.id,
-          decision: "retry",
-          directory,
-        }),
-      )
-      expect(yield* wait(retryTurn.id, "completed", lifecycleCreated.delegation.id)).toMatchObject({
-        attempt: 2,
-        summary: "Reconciled result",
-      })
-      const retryAdmissions = (yield* storedLifecycle(database, lifecycleCreated.delegation.id)).events.filter(
-        (event) =>
-          event.type ===
-          Event.versionedType(DelegationEvent.DeliveryAdmitted.type, DelegationEvent.DeliveryAdmitted.durable.version),
-      )
-      expect(retryAdmissions.map((event) => event.data.attempt)).toEqual([1, 2])
-      expect(yield* llm.requests()).toHaveLength(6)
-      const child = yield* service.getParticipant({
-        delegationID: lifecycleCreated.delegation.id,
-        participantID: lifecycleParticipant.id,
-      })
-      if (!child.childSessionID) return yield* Effect.die(new Error("Lifecycle child missing"))
-      const purgeGate = yield* llm.gate()
-      yield* llm.push(TestLLM.hangAfter())
-      const purgeActive = yield* Effect.promise(() =>
-        api.delegation.appendTurn({ ...lifecycleInput, prompt: "Active until purge" }),
-      )
-      yield* awaitWithTimeout(purgeGate.started, "Purge model did not start")
-      const purgeQueued = yield* Effect.promise(() =>
-        api.delegation.appendTurn({ ...lifecycleInput, prompt: "Queued until purge" }),
-      )
-      expect((yield* sessions.active).has(child.childSessionID)).toBe(true)
-      const pending = yield* sessions.inbox(child.childSessionID)
-      expect(pending).toHaveLength(1)
-      expect(yield* wait(purgeQueued.id, "queued", lifecycleCreated.delegation.id)).toMatchObject({ attempt: 1 })
-      const beforePurge = yield* storedLifecycle(database, lifecycleCreated.delegation.id)
-      const lifecycleRoot = `/delegation/${lifecycleCreated.delegation.id}`
-      const rejectedPurge = yield* test.request(`${lifecycleRoot}?purge=false`, { method: "DELETE" })
-      expect(rejectedPurge.status).toBe(400)
-      expect(yield* Effect.promise(() => rejectedPurge.json())).toMatchObject({
-        message: "Explicit purge is required to delete delegation",
-      })
-      expect(yield* storedLifecycle(database, lifecycleCreated.delegation.id)).toEqual(beforePurge)
-      expect(yield* sessions.inbox(child.childSessionID)).toEqual(pending)
-      expect((yield* sessions.active).has(child.childSessionID)).toBe(true)
-      const jobs = Context.get(test.context, Job.Service)
-      expect((yield* jobs.get(`delegation:${lifecycleParticipant.id}`))?.status).toBe("running")
-      const historyBefore = yield* sessions.context(child.childSessionID)
-      const purged = yield* Effect.promise(() =>
-        api.delegation.delete({ delegationID: lifecycleCreated.delegation.id, purge: true, directory }),
-      )
-      expect(purged).toBeUndefined()
-      expect(yield* service.foldState(lifecycleCreated.delegation.id)).toBeUndefined()
-      expect(yield* storedLifecycle(database, lifecycleCreated.delegation.id)).toEqual({
-        events: [],
-        sequences: [],
-        delegations: [],
-        participants: [],
-        turns: [],
-      })
-      expect(yield* sessions.inbox(child.childSessionID)).toEqual([])
-      expect((yield* sessions.active).has(child.childSessionID)).toBe(false)
-      expect(yield* jobs.get(`delegation:${lifecycleParticipant.id}`)).toBeUndefined()
-      expect(
-        (yield* jobs.pendingBackground).filter(
-          (job) => job.recovery.kind === "delegation" && job.recovery.delegationID === lifecycleCreated.delegation.id,
-        ),
-      ).toEqual([])
-      expect((yield* sessions.get(child.childSessionID)).id).toBe(child.childSessionID)
-      expect(
-        (yield* database.db.select().from(SessionTable).all()).find((row) => row.id === child.childSessionID)
-          ?.time_suspended,
-      ).toBeNull()
-      const historyAfter = yield* sessions.context(child.childSessionID)
-      expect(historyAfter.filter((message) => historyBefore.some((prior) => prior.id === message.id))).toMatchObject(
-        historyBefore,
-      )
-      const interrupted = historyBefore
-        .filter((message) => message.type === "assistant")
-        .filter((message) => !message.time.completed)
-      expect(interrupted).toHaveLength(1)
-      const cancelled = historyAfter
-        .filter((message) => message.type === "assistant")
-        .find((message) => message.id === interrupted[0].id)
-      expect(cancelled).toMatchObject({
-        type: "assistant",
-        finish: "error",
-        error: { type: "aborted", message: "Step interrupted" },
-        attempts: [{ terminal: { status: "cancelled" } }],
-      })
-      expect(cancelled?.time.completed).toBeDefined()
-      expect(historyAfter.filter((message) => message.type === "user").map((message) => message.text)).toEqual([
-        "Verified original input",
-        "Verified original input",
-        "Active until purge",
-      ])
-      expect(purgeActive.id).not.toBe(purgeQueued.id)
-      yield* purgeGate.release
-      expect(yield* llm.requests()).toHaveLength(7)
-    }),
-  ),
+        })
+        if (!child.childSessionID) return yield* Effect.die(new Error("Lifecycle child missing"))
+        const purgeGate = yield* llm.gate()
+        yield* llm.push(TestLLM.hangAfter())
+        const purgeActive = yield* Effect.promise(() =>
+          api.delegation.appendTurn({ ...lifecycleInput, prompt: "Active until purge" }),
+        )
+        yield* awaitWithTimeout(purgeGate.started, "Purge model did not start")
+        const purgeQueued = yield* Effect.promise(() =>
+          api.delegation.appendTurn({ ...lifecycleInput, prompt: "Queued until purge" }),
+        )
+        expect((yield* sessions.active).has(child.childSessionID)).toBe(true)
+        const pending = yield* sessions.inbox(child.childSessionID)
+        expect(pending).toHaveLength(1)
+        expect(yield* wait(purgeQueued.id, "queued", lifecycleCreated.delegation.id)).toMatchObject({ attempt: 1 })
+        const beforePurge = yield* storedLifecycle(database, lifecycleCreated.delegation.id)
+        const lifecycleRoot = `/delegation/${lifecycleCreated.delegation.id}`
+        const rejectedPurge = yield* test.request(`${lifecycleRoot}?purge=false`, { method: "DELETE" })
+        expect(rejectedPurge.status).toBe(400)
+        expect(yield* Effect.promise(() => rejectedPurge.json())).toMatchObject({
+          message: "Explicit purge is required to delete delegation",
+        })
+        expect(yield* storedLifecycle(database, lifecycleCreated.delegation.id)).toEqual(beforePurge)
+        expect(yield* sessions.inbox(child.childSessionID)).toEqual(pending)
+        expect((yield* sessions.active).has(child.childSessionID)).toBe(true)
+        const jobs = Context.get(test.context, Job.Service)
+        expect((yield* jobs.get(`delegation:${lifecycleParticipant.id}`))?.status).toBe("running")
+        const historyBefore = yield* sessions.context(child.childSessionID)
+        const purged = yield* Effect.promise(() =>
+          api.delegation.delete({ delegationID: lifecycleCreated.delegation.id, purge: true, directory }),
+        )
+        expect(purged).toBeUndefined()
+        expect(yield* service.foldState(lifecycleCreated.delegation.id)).toBeUndefined()
+        expect(yield* storedLifecycle(database, lifecycleCreated.delegation.id)).toEqual({
+          events: [],
+          sequences: [],
+          delegations: [],
+          participants: [],
+          turns: [],
+        })
+        expect(yield* sessions.inbox(child.childSessionID)).toEqual([])
+        expect((yield* sessions.active).has(child.childSessionID)).toBe(false)
+        expect(yield* jobs.get(`delegation:${lifecycleParticipant.id}`)).toBeUndefined()
+        expect(
+          (yield* jobs.pendingBackground).filter(
+            (job) => job.recovery.kind === "delegation" && job.recovery.delegationID === lifecycleCreated.delegation.id,
+          ),
+        ).toEqual([])
+        expect((yield* sessions.get(child.childSessionID)).id).toBe(child.childSessionID)
+        expect(
+          (yield* database.db.select().from(SessionTable).all()).find((row) => row.id === child.childSessionID)
+            ?.time_suspended,
+        ).toBeNull()
+        const historyAfter = yield* sessions.context(child.childSessionID)
+        expect(historyAfter.filter((message) => historyBefore.some((prior) => prior.id === message.id))).toMatchObject(
+          historyBefore,
+        )
+        const interrupted = historyBefore
+          .filter((message) => message.type === "assistant")
+          .filter((message) => !message.time.completed)
+        expect(interrupted).toHaveLength(1)
+        const cancelled = historyAfter
+          .filter((message) => message.type === "assistant")
+          .find((message) => message.id === interrupted[0].id)
+        expect(cancelled).toMatchObject({
+          type: "assistant",
+          finish: "error",
+          error: { type: "aborted", message: "Step interrupted" },
+          attempts: [{ terminal: { status: "cancelled" } }],
+        })
+        expect(cancelled?.time.completed).toBeDefined()
+        expect(historyAfter.filter((message) => message.type === "user").map((message) => message.text)).toEqual([
+          "Verified original input",
+          "Verified original input",
+          "Active until purge",
+        ])
+        expect(purgeActive.id).not.toBe(purgeQueued.id)
+        yield* purgeGate.release
+        expect(yield* llm.requests()).toHaveLength(7)
+        return undefined
+      }),
+    ),
+  30_000,
 )
 
 it.live("defaults to retained Bus and enforces explicit disabling and authentication before delegation writes", () =>
