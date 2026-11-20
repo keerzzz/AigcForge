@@ -561,7 +561,18 @@ const layer = Layer.effect(
     })
 
     const writeTree = Effect.fn("Git.tree.write")(function* (repository: Repository, index?: string) {
-      const tree = (yield* repositoryOperation("write_tree", repository, ["write-tree"], { index })).text.trim()
+      const tree = (yield* repositoryOperation("write_tree", repository, ["write-tree"], { index }).pipe(
+        // A concurrent writer can briefly hold the same loose object on Windows.
+        // A fresh command retries object discovery against the unchanged index.
+        Effect.retry({
+          while: (error) =>
+            error.message.includes("unable to write file") &&
+            error.message.includes("Permission denied") &&
+            /[\\/]objects[\\/][0-9a-f]{2}[\\/]/.test(error.message),
+          times: 3,
+          schedule: Schedule.spaced("20 millis"),
+        }),
+      )).text.trim()
       if (/^[0-9a-f]{40,64}$/.test(tree)) return TreeID.make(tree)
       return yield* new OperationError({
         operation: "write_tree",

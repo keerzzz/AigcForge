@@ -7,6 +7,7 @@ import {
 import { Button } from "@aigcfroge/ui/button"
 import { Badge } from "@aigcfroge/ui/badge"
 import { Collapsible } from "@aigcfroge/ui/collapsible"
+import { Checkbox } from "@aigcfroge/ui/checkbox"
 import { Dialog, DialogBody, DialogHeader, DialogTitleGroup } from "@aigcfroge/ui/dialog"
 import { Icon } from "@aigcfroge/ui/icon"
 import { IconButton } from "@aigcfroge/ui/icon-button"
@@ -45,7 +46,7 @@ type DelegationPanelState = {
   controlOwner: (() => boolean) | undefined
   resultOwner: (() => boolean) | undefined
   results: Record<string, { pending?: boolean; text?: string; error?: string } | undefined>
-  monitor?: { scope: string; filter: MonitorFilter; selected: string | undefined }
+  monitor?: { scope: string; filter: MonitorFilter; selected: string | undefined; collapsed?: boolean }
 }
 
 type MonitorFilter = "all" | "running" | "attention" | "completed"
@@ -356,7 +357,12 @@ function DelegationContent(props: Props & { server: ServerRef }) {
   const filter = () => (state().monitor?.scope === target().key ? state().monitor?.filter : undefined) ?? "all"
   const setMonitor = (filter: MonitorFilter, selected: string | undefined) =>
     memory()[1]((draft) => {
-      draft.monitor = { scope: target().key, filter, selected }
+      draft.monitor = {
+        scope: target().key,
+        filter,
+        selected,
+        collapsed: draft.monitor?.scope === target().key ? draft.monitor.collapsed : false,
+      }
     })
   const nodes = createMemo(() => {
     const taskNodes = tasks().map<MonitorNode>((task) => ({
@@ -520,11 +526,18 @@ function DelegationContent(props: Props & { server: ServerRef }) {
     return ctx.t("session.dispatchMonitor.sourceSession")
   }
 
-  let overviewTitle: HTMLHeadingElement | undefined
+  const listOpen = () => state().monitor?.scope !== target().key || !state().monitor?.collapsed
+  const setListOpen = (open: boolean) =>
+    memory()[1]((draft) => {
+      draft.monitor = { scope: target().key, filter: filter(), selected: selectedNode()?.key, collapsed: !open }
+    })
+
+  let overview: HTMLElement | undefined
 
   const selectNode = (key: string) => {
+    setListOpen(true)
     setMonitor(filter(), key)
-    overviewTitle?.focus({ preventScroll: true })
+    overview?.focus({ preventScroll: true })
   }
   const sourceTitle = () =>
     props.server.data.session.get(targetID())?.title ?? ctx.t("session.dispatchMonitor.sourceSession")
@@ -973,18 +986,23 @@ function DelegationContent(props: Props & { server: ServerRef }) {
           </section>
           <div data-slot="monitor-map-caption">
             <span>{ctx.plural("session.dispatchMonitor.executions", runningExecutions())}</span>
-            <Show when={visibleNodes().length > diagram().length}>
-              <span>{ctx.plural("session.dispatchMonitor.more", visibleNodes().length - diagram().length)}</span>
-            </Show>
+            <span>
+              {ctx.plural("session.dispatchMonitor.shown", visibleNodes().length, { shown: diagram().length })}
+            </span>
           </div>
           <p data-slot="monitor-map-hint">{ctx.t("session.dispatchMonitor.relationshipsHint")}</p>
-          <Show
-            when={selectedNode()}
-            fallback={
-              <section data-slot="monitor-task-list" aria-label={ctx.t("session.tasks.title")}>
-                <div data-slot="monitor-section-heading">
-                  <h4>{ctx.t("session.tasks.title")}</h4>
-                </div>
+          <section data-slot="monitor-task-list" aria-label={ctx.t("session.tasks.title")}>
+            <Collapsible variant="ghost" open={listOpen()} onOpenChange={setListOpen}>
+              <Collapsible.Trigger
+                type="button"
+                data-slot="monitor-list-trigger"
+                aria-label={ctx.t("session.tasks.title")}
+              >
+                <span data-slot="monitor-list-title">{ctx.t("session.tasks.title")}</span>
+                <span>{visibleNodes().length}</span>
+                <Icon name="chevron-down" size="small" data-slot="monitor-disclosure-chevron" />
+              </Collapsible.Trigger>
+              <Collapsible.Content>
                 <Show
                   when={visibleNodes().length}
                   fallback={
@@ -1001,264 +1019,326 @@ function DelegationContent(props: Props & { server: ServerRef }) {
                 >
                   <ul>
                     <For each={visibleNodes()}>
-                      {(node) => (
-                        <li data-state={nodeTone(node)}>
-                          <Button
-                            type="button"
+                      {(item) => (
+                        <li data-state={nodeTone(item)}>
+                          <Collapsible
                             variant="ghost"
-                            data-slot="monitor-task-row"
-                            aria-label={ctx.t("session.dispatchMonitor.viewTask", { title: nodeTitle(node) })}
-                            onClick={() => selectNode(node.key)}
+                            open={selectedNode()?.key === item.key}
+                            onOpenChange={(open) => setMonitor(filter(), open ? item.key : undefined)}
                           >
-                            <span data-slot="monitor-row-icon">
-                              <Icon name={nodeIcon(node)} size="normal" />
-                            </span>
-                            <span data-slot="monitor-row-copy">
-                              <span data-slot="monitor-row-title">
-                                <strong>{nodeTitle(node)}</strong>
-                                <span>{nodeStatus(node)}</span>
-                              </span>
-                              <span data-slot="monitor-row-owner">{nodeOwner(node)}</span>
-                              <Show when={node.kind === "task" ? node.operation : undefined}>
-                                {(operation) => (
-                                  <span data-slot="monitor-row-phase">
-                                    {ctx.t("session.dispatchMonitor.executionStatus", {
-                                      status: operationStatus(operation()),
-                                    })}
+                            <div data-slot="monitor-task-heading">
+                              <Show
+                                when={item.kind === "task" ? item.task : undefined}
+                                fallback={
+                                  <span data-slot="monitor-row-icon">
+                                    <Icon name={nodeIcon(item)} size="small" />
                                   </span>
+                                }
+                              >
+                                {(task) => (
+                                  <Checkbox
+                                    readOnly
+                                    hideLabel
+                                    checked={task().status === "completed"}
+                                    indeterminate={task().status === "in_progress"}
+                                    icon={
+                                      task().status === "in_progress" ? (
+                                        <span data-slot="monitor-progress-mark" />
+                                      ) : undefined
+                                    }
+                                  >
+                                    {task().content}
+                                  </Checkbox>
                                 )}
                               </Show>
-                              <Show when={node.kind !== "task" && waitingForInput(node)}>
-                                <span data-slot="monitor-evidence">
-                                  {ctx.t("session.dispatchMonitor.waitingForInput")}
+                              <Collapsible.Trigger
+                                type="button"
+                                data-slot="monitor-task-row"
+                                aria-label={ctx.t("session.dispatchMonitor.viewTask", { title: nodeTitle(item) })}
+                              >
+                                <span data-slot="monitor-row-copy">
+                                  <span data-slot="monitor-row-title">
+                                    <strong>{nodeTitle(item)}</strong>
+                                    <span>{nodeStatus(item)}</span>
+                                  </span>
+                                  <Show when={item.kind === "task" ? item.operation : undefined}>
+                                    {(operation) => (
+                                      <span data-slot="monitor-row-phase">
+                                        {ctx.t("session.dispatchMonitor.executionStatus", {
+                                          status: operationStatus(operation()),
+                                        })}
+                                      </span>
+                                    )}
+                                  </Show>
+                                  <Show when={item.kind !== "task" && waitingForInput(item)}>
+                                    <span data-slot="monitor-evidence">
+                                      {ctx.t("session.dispatchMonitor.waitingForInput")}
+                                    </span>
+                                  </Show>
                                 </span>
+                                <Icon name="chevron-down" size="small" data-slot="monitor-disclosure-chevron" />
+                              </Collapsible.Trigger>
+                            </div>
+                            <Collapsible.Content>
+                              <Show when={selectedNode()?.key === item.key ? selectedNode() : undefined}>
+                                {(node) => {
+                                  const task = () => {
+                                    const selected = node()
+
+                                    return selected.kind === "task" ? selected.task : undefined
+                                  }
+                                  const operation = () => monitorOperation(node())
+                                  const delegation = () => {
+                                    const selected = node()
+
+                                    return selected.kind === "delegation" ? selected.delegation : undefined
+                                  }
+                                  const targetSession = () => operation()?.targetSessionID
+
+                                  return (
+                                    <section
+                                      data-slot="monitor-overview"
+                                      aria-label={ctx.t("session.dispatchMonitor.overview")}
+                                      ref={overview}
+                                      tabIndex={-1}
+                                    >
+                                      <p data-slot="monitor-detail-owner">{nodeOwner(node())}</p>
+                                      <Show when={node().kind === "delegation" && waitingForInput(node())}>
+                                        <p data-slot="monitor-evidence">
+                                          {ctx.t("session.dispatchMonitor.waitingForInput")}
+                                        </p>
+                                      </Show>
+                                      <Show when={operation()}>
+                                        {(value) => (
+                                          <>
+                                            <Show
+                                              when={
+                                                value().request.description &&
+                                                value().request.description !== nodeTitle(node())
+                                              }
+                                            >
+                                              <p data-slot="monitor-description">{value().request.description}</p>
+                                            </Show>
+                                            <div data-slot="monitor-execution-state">
+                                              <span>{ctx.t("session.operation.title")}</span>
+                                              <Badge>{operationStatus(value())}</Badge>
+                                            </div>
+                                            <Show when={value().error}>
+                                              {(error) => (
+                                                <p data-slot="task-error" role="alert">
+                                                  {error().message}
+                                                </p>
+                                              )}
+                                            </Show>
+                                            <Show when={value().result?.text !== undefined}>
+                                              <div data-slot="monitor-result">
+                                                <h4>{ctx.t("session.operation.result")}</h4>
+                                                <Markdown text={value().result?.text ?? ""} />
+                                              </div>
+                                            </Show>
+                                            <Show when={value().sourceSettlement}>
+                                              {(settlement) => (
+                                                <p data-slot="monitor-evidence">
+                                                  {ctx.t(`session.operation.taskUpdate.${settlement()}`)}
+                                                </p>
+                                              )}
+                                            </Show>
+                                            <Show when={value().result}>
+                                              <p data-slot="monitor-evidence">
+                                                {ctx.plural(
+                                                  "session.dispatchMonitor.consumers",
+                                                  value().consumers?.length ?? 0,
+                                                )}
+                                              </p>
+                                            </Show>
+                                          </>
+                                        )}
+                                      </Show>
+                                      <Show
+                                        when={
+                                          task()?.outputDigest !== undefined &&
+                                          task()?.outputDigest !== operation()?.result?.text
+                                        }
+                                      >
+                                        <div data-slot="monitor-result">
+                                          <h4>{ctx.t("session.tasks.savedOutput")}</h4>
+                                          <Markdown text={task()?.outputDigest ?? ""} />
+                                        </div>
+                                      </Show>
+                                      <Show when={task()?.dependsOn?.length}>
+                                        <div data-slot="monitor-dependencies">
+                                          <h4>{ctx.t("session.taskDetails.dependencies")}</h4>
+                                          <ul>
+                                            <For each={task()?.dependsOn}>
+                                              {(id) => (
+                                                <li>
+                                                  {tasks().find((dependency) => dependency.id === id)?.content ??
+                                                    ctx.t("session.dispatchMonitor.unloadedDependency")}
+                                                </li>
+                                              )}
+                                            </For>
+                                          </ul>
+                                        </div>
+                                      </Show>
+                                      <Show when={delegation()}>
+                                        {(value) => (
+                                          <div data-slot="monitor-participants">
+                                            <Show when={value().delegation.rejectionBlocked}>
+                                              <p data-slot="task-error" role="alert">
+                                                {value().delegation.rejectionReason ??
+                                                  ctx.t("session.collaboration.rejectionBlocked")}
+                                              </p>
+                                            </Show>
+                                            <For each={value().participants}>
+                                              {(participant) => (
+                                                <div data-slot="monitor-participant">
+                                                  <div data-slot="monitor-section-heading">
+                                                    <strong>{participant.target}</strong>
+                                                    <Badge>
+                                                      {ctx.t(`session.collaboration.role.${participant.role}`)}
+                                                    </Badge>
+                                                  </div>
+                                                  <Show when={participant.childSessionID}>
+                                                    {(id) => (
+                                                      <Button
+                                                        type="button"
+                                                        size="small"
+                                                        variant="ghost"
+                                                        onClick={() =>
+                                                          props.openSession({
+                                                            source: props.session,
+                                                            target: ctx.sessions.target({
+                                                              server: props.server,
+                                                              sessionID: id(),
+                                                            }),
+                                                            interaction: "readonly",
+                                                          })
+                                                        }
+                                                      >
+                                                        {ctx.t("session.collaboration.viewSession")}
+                                                      </Button>
+                                                    )}
+                                                  </Show>
+                                                  <For
+                                                    each={value().deliveries?.filter(
+                                                      (record) =>
+                                                        record.participantID === participant.id && record.current,
+                                                    )}
+                                                  >
+                                                    {(record) => (
+                                                      <div data-slot="monitor-result">
+                                                        <Badge>
+                                                          {ctx.t(`session.collaboration.status.${record.status}`)}
+                                                        </Badge>
+                                                        <Show when={record.summary}>
+                                                          {(summary) => <p>{summary()}</p>}
+                                                        </Show>
+                                                        <Button
+                                                          type="button"
+                                                          size="small"
+                                                          variant="ghost"
+                                                          disabled={!connected() || resultState(record)?.pending}
+                                                          onClick={() => void readResult(record)}
+                                                        >
+                                                          {ctx.t("session.collaboration.openResult")}
+                                                        </Button>
+                                                        <Show when={resultState(record)?.text !== undefined}>
+                                                          <Markdown text={resultState(record)?.text ?? ""} />
+                                                        </Show>
+                                                        <Show when={resultState(record)?.error}>
+                                                          {(error) => (
+                                                            <p data-slot="task-error" role="alert">
+                                                              {error()}
+                                                            </p>
+                                                          )}
+                                                        </Show>
+                                                      </div>
+                                                    )}
+                                                  </For>
+                                                </div>
+                                              )}
+                                            </For>
+                                          </div>
+                                        )}
+                                      </Show>
+                                      <Show
+                                        when={
+                                          node().kind !== "delegation" &&
+                                          task()?.outputDigest === undefined &&
+                                          operation()?.result?.text === undefined
+                                        }
+                                      >
+                                        <p data-slot="task-progress">
+                                          {ctx.t(
+                                            operation()?.result
+                                              ? "session.dispatchMonitor.referencedResult"
+                                              : "session.dispatchMonitor.noResult",
+                                          )}
+                                        </p>
+                                      </Show>
+                                      <div data-slot="task-form-actions">
+                                        <Show when={targetSession()}>
+                                          {(id) => (
+                                            <Button
+                                              type="button"
+                                              size="small"
+                                              variant="ghost"
+                                              onClick={() =>
+                                                props.openSession({
+                                                  source: props.session,
+                                                  target: ctx.sessions.target({
+                                                    server: props.server,
+                                                    sessionID: id(),
+                                                  }),
+                                                  interaction: props.server.data.session.get(id())?.parentID
+                                                    ? "readonly"
+                                                    : "interactive",
+                                                })
+                                              }
+                                            >
+                                              {ctx.t("session.collaboration.viewSession")}
+                                            </Button>
+                                          )}
+                                        </Show>
+                                        <Show when={operation()?.source.type === "model_tool"}>
+                                          <Button
+                                            type="button"
+                                            size="small"
+                                            variant="ghost"
+                                            onClick={() => {
+                                              const source = operation()?.source
+
+                                              if (source?.type === "model_tool") openResult(source.id)
+                                            }}
+                                          >
+                                            {ctx.t("session.collaboration.openTool")}
+                                          </Button>
+                                        </Show>
+                                        <Show when={node().kind !== "delegation"}>
+                                          <Button
+                                            type="button"
+                                            size="small"
+                                            variant="ghost"
+                                            onClick={() => openTaskDetails(node())}
+                                          >
+                                            {ctx.t("session.taskDetails.title")}
+                                          </Button>
+                                        </Show>
+                                      </div>
+                                    </section>
+                                  )
+                                }}
                               </Show>
-                            </span>
-                            <Icon name="chevron-right" size="small" />
-                          </Button>
+                            </Collapsible.Content>
+                          </Collapsible>
                         </li>
                       )}
                     </For>
                   </ul>
                 </Show>
-              </section>
-            }
-          >
-            {(node) => {
-              const task = () => {
-                const selected = node()
-
-                return selected.kind === "task" ? selected.task : undefined
-              }
-              const operation = () => monitorOperation(node())
-              const delegation = () => {
-                const selected = node()
-
-                return selected.kind === "delegation" ? selected.delegation : undefined
-              }
-              const targetSession = () => operation()?.targetSessionID
-
-              return (
-                <section data-slot="monitor-overview" aria-label={ctx.t("session.dispatchMonitor.overview")}>
-                  <div data-slot="monitor-section-heading">
-                    <Button type="button" size="small" variant="ghost" onClick={() => setMonitor(filter(), undefined)}>
-                      <Icon name="chevron-left" size="small" />
-                      {ctx.t("session.dispatchMonitor.back")}
-                    </Button>
-                    <Badge data-state={nodeTone(node())}>{nodeStatus(node())}</Badge>
-                  </div>
-                  <h4 ref={overviewTitle} tabIndex={-1}>
-                    {nodeTitle(node())}
-                  </h4>
-                  <p data-slot="monitor-detail-owner">{nodeOwner(node())}</p>
-                  <Show when={node().kind === "delegation" && waitingForInput(node())}>
-                    <p data-slot="monitor-evidence">{ctx.t("session.dispatchMonitor.waitingForInput")}</p>
-                  </Show>
-                  <Show when={operation()}>
-                    {(value) => (
-                      <>
-                        <Show when={value().request.description && value().request.description !== nodeTitle(node())}>
-                          <p data-slot="monitor-description">{value().request.description}</p>
-                        </Show>
-                        <div data-slot="monitor-execution-state">
-                          <span>{ctx.t("session.operation.title")}</span>
-                          <Badge>{operationStatus(value())}</Badge>
-                        </div>
-                        <Show when={value().error}>
-                          {(error) => (
-                            <p data-slot="task-error" role="alert">
-                              {error().message}
-                            </p>
-                          )}
-                        </Show>
-                        <Show when={value().result?.text !== undefined}>
-                          <div data-slot="monitor-result">
-                            <h4>{ctx.t("session.operation.result")}</h4>
-                            <Markdown text={value().result?.text ?? ""} />
-                          </div>
-                        </Show>
-                        <Show when={value().sourceSettlement}>
-                          {(settlement) => (
-                            <p data-slot="monitor-evidence">{ctx.t(`session.operation.taskUpdate.${settlement()}`)}</p>
-                          )}
-                        </Show>
-                        <Show when={value().result}>
-                          <p data-slot="monitor-evidence">
-                            {ctx.plural("session.dispatchMonitor.consumers", value().consumers?.length ?? 0)}
-                          </p>
-                        </Show>
-                      </>
-                    )}
-                  </Show>
-                  <Show when={task()?.outputDigest !== undefined && task()?.outputDigest !== operation()?.result?.text}>
-                    <div data-slot="monitor-result">
-                      <h4>{ctx.t("session.tasks.savedOutput")}</h4>
-                      <Markdown text={task()?.outputDigest ?? ""} />
-                    </div>
-                  </Show>
-                  <Show when={task()?.dependsOn?.length}>
-                    <div data-slot="monitor-dependencies">
-                      <h4>{ctx.t("session.taskDetails.dependencies")}</h4>
-                      <ul>
-                        <For each={task()?.dependsOn}>
-                          {(id) => (
-                            <li>
-                              {tasks().find((dependency) => dependency.id === id)?.content ??
-                                ctx.t("session.dispatchMonitor.unloadedDependency")}
-                            </li>
-                          )}
-                        </For>
-                      </ul>
-                    </div>
-                  </Show>
-                  <Show when={delegation()}>
-                    {(value) => (
-                      <div data-slot="monitor-participants">
-                        <Show when={value().delegation.rejectionBlocked}>
-                          <p data-slot="task-error" role="alert">
-                            {value().delegation.rejectionReason ?? ctx.t("session.collaboration.rejectionBlocked")}
-                          </p>
-                        </Show>
-                        <For each={value().participants}>
-                          {(participant) => (
-                            <div data-slot="monitor-participant">
-                              <div data-slot="monitor-section-heading">
-                                <strong>{participant.target}</strong>
-                                <Badge>{ctx.t(`session.collaboration.role.${participant.role}`)}</Badge>
-                              </div>
-                              <Show when={participant.childSessionID}>
-                                {(id) => (
-                                  <Button
-                                    type="button"
-                                    size="small"
-                                    variant="ghost"
-                                    onClick={() =>
-                                      props.openSession({
-                                        source: props.session,
-                                        target: ctx.sessions.target({ server: props.server, sessionID: id() }),
-                                        interaction: "readonly",
-                                      })
-                                    }
-                                  >
-                                    {ctx.t("session.collaboration.viewSession")}
-                                  </Button>
-                                )}
-                              </Show>
-                              <For
-                                each={value().deliveries?.filter(
-                                  (record) => record.participantID === participant.id && record.current,
-                                )}
-                              >
-                                {(record) => (
-                                  <div data-slot="monitor-result">
-                                    <Badge>{ctx.t(`session.collaboration.status.${record.status}`)}</Badge>
-                                    <Show when={record.summary}>{(summary) => <p>{summary()}</p>}</Show>
-                                    <Button
-                                      type="button"
-                                      size="small"
-                                      variant="ghost"
-                                      disabled={!connected() || resultState(record)?.pending}
-                                      onClick={() => void readResult(record)}
-                                    >
-                                      {ctx.t("session.collaboration.openResult")}
-                                    </Button>
-                                    <Show when={resultState(record)?.text !== undefined}>
-                                      <Markdown text={resultState(record)?.text ?? ""} />
-                                    </Show>
-                                    <Show when={resultState(record)?.error}>
-                                      {(error) => (
-                                        <p data-slot="task-error" role="alert">
-                                          {error()}
-                                        </p>
-                                      )}
-                                    </Show>
-                                  </div>
-                                )}
-                              </For>
-                            </div>
-                          )}
-                        </For>
-                      </div>
-                    )}
-                  </Show>
-                  <Show
-                    when={
-                      node().kind !== "delegation" &&
-                      task()?.outputDigest === undefined &&
-                      operation()?.result?.text === undefined
-                    }
-                  >
-                    <p data-slot="task-progress">
-                      {ctx.t(
-                        operation()?.result
-                          ? "session.dispatchMonitor.referencedResult"
-                          : "session.dispatchMonitor.noResult",
-                      )}
-                    </p>
-                  </Show>
-                  <div data-slot="task-form-actions">
-                    <Show when={targetSession()}>
-                      {(id) => (
-                        <Button
-                          type="button"
-                          size="small"
-                          variant="ghost"
-                          onClick={() =>
-                            props.openSession({
-                              source: props.session,
-                              target: ctx.sessions.target({ server: props.server, sessionID: id() }),
-                              interaction: props.server.data.session.get(id())?.parentID ? "readonly" : "interactive",
-                            })
-                          }
-                        >
-                          {ctx.t("session.collaboration.viewSession")}
-                        </Button>
-                      )}
-                    </Show>
-                    <Show when={operation()?.source.type === "model_tool"}>
-                      <Button
-                        type="button"
-                        size="small"
-                        variant="ghost"
-                        onClick={() => {
-                          const source = operation()?.source
-
-                          if (source?.type === "model_tool") openResult(source.id)
-                        }}
-                      >
-                        {ctx.t("session.collaboration.openTool")}
-                      </Button>
-                    </Show>
-                    <Show when={node().kind !== "delegation"}>
-                      <Button type="button" size="small" variant="ghost" onClick={() => openTaskDetails(node())}>
-                        {ctx.t("session.taskDetails.title")}
-                      </Button>
-                    </Show>
-                  </div>
-                </section>
-              )
-            }}
-          </Show>
+              </Collapsible.Content>
+            </Collapsible>
+          </section>
         </section>
       </Show>
       <Show when={source()}>
