@@ -187,10 +187,17 @@ describe("Snapshot", () => {
             }).pipe(Effect.provide(snapshotLayer(tmp.path, project)))
           const logged: unknown[] = []
           const results = yield* Effect.all([writer(0), writer(1), writer(2)], { concurrency: "unbounded" }).pipe(
-            Effect.provideService(Logger.CurrentLoggers, new Set([Logger.make((entry) => logged.push(entry.message))])),
+            Effect.provideService(
+              Logger.CurrentLoggers,
+              new Set([
+                Logger.make((entry) => {
+                  if (entry.message[0] === "failed to capture snapshot") logged.push(entry.message)
+                }),
+              ]),
+            ),
           )
           const captured = results.flat().every((tree) => tree !== undefined)
-          if (!captured) console.error("SNAPSHOT_CAPTURE_FAILURE", { results, logged })
+          if (!captured) console.error("SNAPSHOT_CAPTURE_FAILURE", JSON.stringify({ results, logged }))
           expect(captured).toBe(true)
         }),
       (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
