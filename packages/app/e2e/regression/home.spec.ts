@@ -1143,7 +1143,9 @@ test("global mode navigation drives Home and New without changing an existing dr
     await expect(button.locator("svg")).toHaveAttribute("width", "20")
     await expect(button).toHaveCSS("width", "40px")
     await expect(button).toHaveCSS("height", "40px")
-    await expect(page.locator(`#aigcfroge-v2-icon-rail-${mode.id} > g`)).toHaveAttribute("stroke-width", "1")
+    const strokes = page.locator(`#aigcfroge-v2-icon-rail-${mode.id} [stroke="currentColor"]`)
+    expect(await strokes.count()).toBeGreaterThan(0)
+    for (const stroke of await strokes.all()) await expect(stroke).toHaveCSS("stroke-width", "1.25px")
     geometry.set(mode.id, await button.boundingBox())
   }
 

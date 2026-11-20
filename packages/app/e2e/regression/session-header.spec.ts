@@ -176,20 +176,24 @@ for (const direction of ["ltr", "rtl"] as const) {
             if (!use || !href) return 1
 
             const bounds = use.getBBox()
-            const paths = Array.from(document.querySelectorAll<SVGPathElement>(`${href} path`))
+            const shapes = Array.from(
+              document.querySelectorAll<SVGGeometryElement>(
+                `${href} :is(path, rect, line, polyline, polygon, circle, ellipse)`,
+              ),
+            )
 
             // Sample the visible divider, excluding the frame's outer edges.
             const divider = Array.from(
               { length: 101 },
               (_, index) => bounds.x + bounds.width * (0.15 + index * 0.007),
             ).filter((x) =>
-              paths.some((path) => {
+              shapes.some((shape) => {
                 const point = new DOMPoint(x, bounds.y + bounds.height / 2)
-                const paint = getComputedStyle(path)
+                const paint = getComputedStyle(shape)
 
                 return (
-                  (paint.fill !== "none" && path.isPointInFill(point)) ||
-                  (paint.stroke !== "none" && path.isPointInStroke(point))
+                  (paint.fill !== "none" && shape.isPointInFill(point)) ||
+                  (paint.stroke !== "none" && shape.isPointInStroke(point))
                 )
               }),
             )

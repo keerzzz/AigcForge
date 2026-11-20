@@ -162,6 +162,18 @@ const setup: Setup<typeof Review> = (ctx) => {
     dom: { tab: "session-side-panel-review-tab", panel: "session-side-panel-review-tabpanel" },
   }
 
+  // A formerly pinned tab could retain selection without membership in the stored strip.
+  const restoringTab: PanelTab = {
+    id: TAB,
+    get title() {
+      return tab.title
+    },
+    hidden: true,
+    pinned: true,
+    fallback: false,
+    dom: tab.dom,
+  }
+
   const ReviewPanel = lazy(() => import("./panel"))
   const MobileReview = lazy(() => import("./mobile"))
 
@@ -229,7 +241,11 @@ const setup: Setup<typeof Review> = (ctx) => {
         order: 10,
         kind: "tab",
       },
-      list: (input) => (!layout.narrow() && input.session.project && input.open.includes(TAB) ? [tab] : []),
+      list: (input) =>
+        !layout.narrow() && input.session.project ? [input.open.includes(TAB) ? tab : restoringTab] : [],
+      focus: (input) => {
+        if (input.tab === restoringTab) layout.open(KEY, input.session, { tab: "append" })
+      },
       render: (props) => {
         const frame = usePanel()
 

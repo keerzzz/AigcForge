@@ -1420,8 +1420,9 @@ test.describe("compaction", () => {
     await timeline.send(compactionStarted({ sessionID, reason: "manual", recent: "" }))
     const compaction = page.locator('[data-component="session-compaction-message"]')
     await expect(compaction.getByText("Session compaction started", { exact: true })).toBeVisible()
-    await expect(compaction.getByRole("status").getByLabel("Compacting", { exact: true })).toBeVisible()
-    await expect(compaction.locator('[data-component="text-shimmer"]')).toHaveAttribute("data-active", "true")
+    await expect(compaction.getByRole("status").getByText("Compacting", { exact: true })).toBeVisible()
+    await expect(compaction.locator('[data-component="text-shimmer"]')).toHaveCount(0)
+    await expect(compaction.locator("[data-progress-arc]")).toHaveCSS("animation-name", "session-progress-orbit")
     await expect(compaction.getByText("Session compacted", { exact: true })).toHaveCount(0)
     await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible()
     await expect(page.locator('[data-component="session-working"]')).toHaveCount(0)
@@ -1432,7 +1433,7 @@ test.describe("compaction", () => {
     await timeline.send(compactionDelta({ sessionID, text: "## Checkpoint\n\nStreamed implementation details." }))
     await expect(compaction.getByRole("heading", { name: "Checkpoint" })).toBeVisible()
     await expect(compaction).toContainText("Streamed implementation details.")
-    const running = compaction.getByRole("status").getByLabel("Compacting", { exact: true })
+    const running = compaction.getByRole("status").getByText("Compacting", { exact: true })
     await expect(running).toBeVisible()
     await expect
       .poll(async () => {
@@ -1519,7 +1520,7 @@ test.describe("compaction", () => {
         await expect(compaction).toContainText(outcome.partial)
 
         if (name === "interrupted") {
-          await expect(compaction.getByRole("status").getByLabel("Compacting", { exact: true })).toBeVisible()
+          await expect(compaction.getByRole("status").getByText("Compacting", { exact: true })).toBeVisible()
 
           const request = page.waitForRequest(
             (request) =>

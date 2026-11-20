@@ -2475,6 +2475,7 @@ test("resource display preferences preserve file order and terminal while hidden
 
   const side = page.locator("#review-panel")
   const fileTabs = side.getByRole("tab").filter({ hasText: /^(note\.txt|preview\.html)$/ })
+  await openSidePanel(page, "Review")
   await page.getByRole("link", { name: "note.txt", exact: true }).click()
   await expect(side.getByRole("tab", { name: "note.txt", exact: true })).toHaveAttribute("aria-selected", "true")
   await page.getByRole("link", { name: "preview.html", exact: true }).click()
@@ -2584,8 +2585,15 @@ test("review and terminal follow the session tab and stay mounted", async ({ pag
     await expectSessionTitle(page, title)
   }
 
+  // Beta owns a Review tab whose region is closed; switching back must retain the loaded panel.
+  await switchTab(b.title)
+  await openSidePanel(page, "Review")
+  await page.getByRole("button", { name: "Toggle review", exact: true }).click()
+  await expect(review).toBeHidden()
+  await switchTab(a.title)
+
   const transition = () => chat.evaluate((element) => getComputedStyle(element).transitionDuration)
-  await page.getByRole("button", { name: "Toggle review" }).click()
+  await openSidePanel(page, "Review")
   await expect.poll(transition).not.toBe("0s")
   await page.keyboard.press("Control+Backquote")
   await expect(review).toBeVisible()
@@ -2609,7 +2617,7 @@ test("review and terminal follow the session tab and stay mounted", async ({ pag
   await expect.poll(transition).toBe("0s")
   await expectMarked(review)
   await expectMarked(terminal)
-  await page.getByRole("button", { name: "Toggle review" }).click()
+  await openSidePanel(page, "Review")
   await page.keyboard.press("Control+Backquote")
   await expect(review).toBeVisible()
   await expect(terminal).toBeVisible()
@@ -2927,7 +2935,7 @@ test("terminal stacks under review by default and spans the bottom when configur
   const review = page.locator('[data-component="session-review-v2"]')
   const terminal = page.locator('[data-component="terminal"]')
 
-  await toggle.click()
+  await openSidePanel(page, "Review")
   await expect(reviewPanel).toBeVisible()
   await expectTreeSentinel(page)
 

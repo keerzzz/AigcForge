@@ -11,6 +11,50 @@ import { Schema } from "effect"
 
 test.use({ viewport: { width: 1440, height: 900 } })
 
+for (const stored of [
+  { all: [], active: "review" },
+  { all: ["context:main"], active: "review:changes" },
+]) {
+  test(`restores an active-only Review beside ${stored.all.length ? "Context" : "an empty strip"}`, async ({
+    page,
+  }) => {
+    const directory = "C:/AigcForge/ReviewActiveOnly"
+    const id = "ses_review_active_only"
+    const key = `local\u0000${base64Encode(directory)}/${id}`
+    await openSession(page, {
+      name: "ReviewActiveOnly",
+      directory,
+      sessions: [{ id, title: "Active Review" }],
+      vcsDiff: [fileDiff("alpha.ts")],
+      seed: {
+        panes: { [id]: { review: true } },
+        storage: { "aigcfroge.global.dat:layout": { sessionTabs: { [key]: stored } } },
+      },
+    })
+    const tab = page.locator("#session-side-panel-review-tab")
+    await expect(tab).toHaveAttribute("aria-selected", "true")
+    await expect(page.locator('[data-slot="session-review-v2-file-name"]')).toHaveText("alpha.ts")
+
+    const state = () =>
+      page.evaluate(
+        (key) => JSON.parse(localStorage.getItem("aigcfroge.global.dat:layout") ?? "{}").sessionTabs[key],
+        key,
+      )
+
+    await expect.poll(state).toEqual({ all: [...stored.all, "review:changes"], active: "review:changes" })
+    await page.reload()
+    await expectSessionTitle(page, "Active Review")
+    await expect(tab).toHaveAttribute("aria-selected", "true")
+    await expect.poll(state).toEqual({ all: [...stored.all, "review:changes"], active: "review:changes" })
+    await tab.hover()
+    await tab.locator("..").getByRole("button", { name: "Close tab", exact: true }).click()
+    await expect(tab).toHaveCount(0)
+    await page.reload()
+    await expectSessionTitle(page, "Active Review")
+    await expect(tab).toHaveCount(0)
+  })
+}
+
 test("MC09 Work artifact preserves write ACK, reads the real file, opens its viewer, and rebuilds after deletion", async ({
   page,
 }, testInfo) => {
@@ -141,7 +185,7 @@ for (const view of ["desktop", "mobile"] as const) {
       onVcsInit: (input) => requests.push(input),
     })
 
-    if (view === "desktop") await page.getByRole("button", { name: "Toggle review" }).click()
+    if (view === "desktop") await openSidePanel(page, "Review")
     else await page.getByRole("tablist", { name: "Session view" }).getByRole("tab", { name: "Changes" }).click()
 
     const panel = view === "desktop" ? page.locator("#review-panel") : page.locator('[data-component="session-review"]')
@@ -174,6 +218,7 @@ test("Git initialization belongs to its session and refreshes after a session sw
   const panel = page.locator("#review-panel")
   const init = panel.getByRole("button", { name: "Create Git repository", exact: true })
   const pending = panel.getByRole("button", { name: "Creating Git repository…", exact: true })
+  await openSidePanel(page, "Review")
   await expect(init).toBeEnabled()
   await init.click()
   await request.arrived
@@ -181,6 +226,7 @@ test("Git initialization belongs to its session and refreshes after a session sw
 
   await page.locator("[data-titlebar-tab-slot]", { hasText: "Initialize Beta" }).click()
   await expectSessionTitle(page, "Initialize Beta")
+  await openSidePanel(page, "Review")
   await expect(init).toBeEnabled()
   await expect(pending).toHaveCount(0)
 
@@ -222,10 +268,12 @@ test("a rejected Git init releases its session's button without showing an error
   })
   const request = await holdRoute(page, (url) => url.pathname === "/api/vcs/init", { method: "POST" })
   const init = page.locator("#review-panel").getByRole("button", { name: "Create Git repository", exact: true })
+  await openSidePanel(page, "Review")
   await init.click()
   await request.arrived
   await page.locator("[data-titlebar-tab-slot]", { hasText: "Initialize Beta" }).click()
   await expectSessionTitle(page, "Initialize Beta")
+  await openSidePanel(page, "Review")
   await expect(init).toBeEnabled()
   const response = page.waitForResponse((item) => new URL(item.url()).pathname === "/api/vcs/init")
   request.release()
@@ -341,7 +389,7 @@ test("open file tab browses, searches, and tracks missing files", async ({ page 
   await expect(tab("nested.ts")).toHaveCount(1)
   await expect(tab("Open file")).toHaveAttribute("aria-selected", "true")
   await expect(sidebarToggle).toBeDisabled()
-  await panel.locator("#session-side-panel-review-tab").click()
+  await openSidePanel(page, "Review")
   await expect(sidebarToggle).toBeEnabled()
   await tab("Open file").click()
   await page.keyboard.press("Control+w")
@@ -454,7 +502,7 @@ test("context closes the side region only when its button opened it", async ({ p
   await expect(context).toHaveCount(0)
   await expect(toggle).toHaveAttribute("aria-expanded", "false")
 
-  // Reopening the region by hand makes it the user's, so closing Context leaves Review open.
+  // Reopening the region by hand makes it the user's, so closing Context leaves the region open.
   await contextButton.click()
   await expect(context).toHaveAttribute("aria-selected", "true")
   await toggle.click()
@@ -465,6 +513,9 @@ test("context closes the side region only when its button opened it", async ({ p
   await contextButton.click()
   await expect(context).toHaveCount(0)
   await expect(toggle).toHaveAttribute("aria-expanded", "true")
+  await expect(panel.locator("#session-side-panel-review-tab")).toHaveCount(0)
+  await expect(panel.getByRole("button", { name: "Add tab", exact: true })).toBeEnabled()
+  await openSidePanel(page, "Review")
   await expect(panel.locator("#session-side-panel-review-tab")).toHaveAttribute("aria-selected", "true")
 })
 
@@ -598,7 +649,7 @@ test("a restored file tab keeps the file tree on Files Changed", async ({ page }
   await expect(treeTab("Files Changed 1")).toHaveAttribute("aria-selected", "true")
 
   // Selecting a file tab after load still shows it among all files.
-  await panel.locator("#session-side-panel-review-tab").click()
+  await openSidePanel(page, "Review")
   await readme.click()
   await expect(treeTab("All files")).toHaveAttribute("aria-selected", "true")
 })
@@ -670,7 +721,7 @@ test("image files keep the review panel painted while loading", async ({ page })
       return []
     },
   })
-  await page.getByRole("button", { name: "Toggle review" }).click()
+  await openSidePanel(page, "Review")
   await expect(page.locator('#review-panel [data-component="session-review-v2"]')).toBeVisible()
 
   // Records every painted frame from before the click until after the image read completes.
@@ -762,7 +813,7 @@ test("restores review state and the side-panel tab per session", async ({ page }
   }
 
   // Each session selects a file other than the first, which the review would show without a stored selection.
-  await toggle.click()
+  await openSidePanel(page, "Review")
   await page.getByRole("button", { name: "gamma.ts" }).click()
   await selectedFile("gamma.ts")
   await openSidePanel(page, "Open file")
@@ -770,7 +821,7 @@ test("restores review state and the side-panel tab per session", async ({ page }
   await selectedTab("README.md")
 
   await switchSession("Beta review state")
-  await toggle.click()
+  await openSidePanel(page, "Review")
   await expect(review).toHaveAttribute("aria-selected", "true")
   await page.getByRole("button", { name: "Git changes" }).click()
   await page.getByRole("option", { name: "Branch changes" }).click()
@@ -826,7 +877,7 @@ test("shows and restores last turn changes from the session diff", async ({ page
     }),
   )
   const panel = page.locator("#review-panel")
-  await page.getByRole("button", { name: "Toggle review" }).click()
+  await openSidePanel(page, "Review")
   await page.getByRole("button", { name: "Git changes" }).click()
   await page.getByRole("option", { name: "Last turn changes" }).click()
   await expect(page.getByRole("button", { name: "Last turn changes" })).toBeVisible()
@@ -868,7 +919,7 @@ test("keeps the review state a session stored before extensions", async ({ page 
       .locator(`[data-component="session-review"] [data-file="${file}"]`)
       .getByRole("button", { name: file, exact: true })
 
-  await page.getByRole("button", { name: "Toggle review" }).click()
+  await openSidePanel(page, "Review")
   await expect(mode("Branch changes")).toBeVisible()
   await expect(page.locator('[data-slot="session-review-v2-file-name"]')).toHaveText("beta.ts")
   // The narrow review lists every file and expands the ones left open.
@@ -922,7 +973,7 @@ test("desktop review waits for the session's stored mode before it loads changes
 
   await page.goto(desktop())
   await expectSessionTitle(page, title)
-  await toggle.click()
+  await openSidePanel(page, "Review")
   await mode("Git changes").click()
   await page.getByRole("option", { name: "Branch changes" }).click()
   await expect(file).toHaveText("beta.ts")
@@ -962,7 +1013,7 @@ test("a chosen mode the session stops offering shows as Git, and comes back when
   const mode = (name: string) => page.getByRole("button", { name, exact: true })
   const file = page.locator('[data-slot="session-review-v2-file-name"]')
 
-  await page.getByRole("button", { name: "Toggle review", exact: true }).click()
+  await openSidePanel(page, "Review")
   await mode("Git changes").click()
   await page.getByRole("option", { name: "Branch changes" }).click()
   await expect(file).toHaveText("beta.ts")
@@ -989,7 +1040,7 @@ test("review keeps its changed-file tree and filter usable while Files are hidde
     fileList: () => [fileNode(directory, "alpha.ts"), fileNode(directory, "beta.ts")],
     fileContent: (path) => `contents:${path}`,
   })
-  await page.getByRole("button", { name: "Toggle review", exact: true }).click()
+  await openSidePanel(page, "Review")
   const panel = page.locator("#review-panel")
   const sidebar = panel.locator('[data-slot="session-review-v2-sidebar"]')
   const selected = panel.locator('[data-slot="session-review-v2-file-name"]')
@@ -1032,7 +1083,7 @@ test("review keeps its changed-file tree and filter usable while Files are hidde
 test("names a single change source and keeps the review header rows at 48px", async ({ page }) => {
   // Turn changes are offered only for Git, so another VCS offers one source.
   await openSession(page, { name: "ReviewHeader", project: { vcs: "hg" }, vcsDiff: [fileDiff("src/alpha.ts")] })
-  await page.getByRole("button", { name: "Toggle review", exact: true }).click()
+  await openSidePanel(page, "Review")
   const panel = page.locator("#review-panel")
   const toggle = panel.getByRole("button", { name: "Toggle file tree" })
   const header = panel.locator('[data-slot="session-review-v2-sidebar-header"]')

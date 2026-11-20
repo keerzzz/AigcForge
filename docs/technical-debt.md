@@ -1,5 +1,9 @@
 # V2 迁移未交付账本
 
+## 2026-11-20 Review 旧选择兼容
+
+Owner：Review extension / App layout。旧 pinned Review 可以只保存 active、不保存 all；按需标签已用原 Panel metadata 与 Layout append 恢复 membership，覆盖空列表与已有 Context 两种实际旧状态，并验证关闭后 reload 不复活。保留这条 Review-owned 有限兼容；停止支持缺少 membership 的旧布局快照后，可删除隐藏恢复标签。当前只有 Review 的 pinned-to-on-demand 迁移需要该补齐，因此采用插件内修复，保持共享标签状态合同。
+
 ## 2026-11-18 V2 完整 PR 交付范围
 
 [发布检查点](review/v2-pr-publication-2026-11-18.md)与[机器索引](review/v2-pr-publication-2026-11-18.json)区分原638文件暂存验收与固定上游4617210…上的完整5,193文件源码迁移。

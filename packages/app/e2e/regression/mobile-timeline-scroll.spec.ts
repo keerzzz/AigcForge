@@ -11,7 +11,7 @@ import {
   textPart,
   userMessage,
 } from "../utils/timeline"
-import { capturePromptMotion, promptMotionIssues, readPromptPositions } from "../utils/prompt-motion"
+import { capturePromptMotion, markPrompt, promptMotionIssues, readPromptPositions } from "../utils/prompt-motion"
 
 // Compositor prediction can add 20–25px to discrete CDP moves even in a plain
 // scrollport. Disable it so the visual assertion measures the supplied gesture.
@@ -838,7 +838,10 @@ for (const device of ["Pixel 7", "iPhone 13"]) {
 
 test("painted motion rejects a prompt whose pixels disappear", async ({ page }) => {
   await setupTimeline(page, {
-    messages: [userMessage(), assistantMessage([textPart("prt_pixel_control", "Content.")])],
+    messages: [
+      userMessage(),
+      assistantMessage([shell("prt_pixel_shell", "running", "Output."), textPart("prt_pixel_control", "Content.")]),
+    ],
     viewport: { width: 390, height: 844 },
   })
   const timeline = page.locator('[data-slot="session-timeline-scroll"]')
@@ -846,6 +849,7 @@ test("painted motion rejects a prompt whose pixels disappear", async ({ page }) 
   await page.evaluate(() => document.fonts.ready)
   const prompt = timeline.locator('[data-timeline-row="UserMessage"]')
   await expect(prompt).toBeInViewport()
+  await markPrompt(page)
   const view = (await timeline.getByRole("region", { name: "scrollable content", exact: true }).boundingBox())!
   const frames = [(await page.screenshot({ type: "jpeg" })).toString("base64")]
   // Negative control: a captured disappearance must fail even if the layout recovers.
