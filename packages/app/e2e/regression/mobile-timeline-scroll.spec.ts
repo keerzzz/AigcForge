@@ -746,6 +746,24 @@ for (const device of ["Pixel 7", "iPhone 13"]) {
           }
 
           const anchor = page.getByText(detach === "scroll" ? "Part 47." : "Reading 20.", { exact: true })
+          const unloaded = page.getByAltText("Delayed image", { exact: true })
+          const imageRow = scroller.locator("[data-timeline-key]", { has: unloaded })
+          // Native momentum ends at different rows across devices. Reading-position
+          // compensation applies to earlier content entirely above the visible fold.
+          if (detach === "scroll")
+            await imageRow.evaluate((row) => {
+              const root = row.closest<HTMLElement>("[data-scrollable]")!
+              root.scrollTop += Math.max(0, row.getBoundingClientRect().bottom - root.getBoundingClientRect().top + 1)
+            })
+          await expect
+            .poll(() =>
+              imageRow.evaluate(
+                (row) =>
+                  row.getBoundingClientRect().bottom -
+                  row.closest<HTMLElement>("[data-scrollable]")!.getBoundingClientRect().top,
+              ),
+            )
+            .toBeLessThan(0)
           await expect(anchor).toBeInViewport()
           const before = await anchor.evaluate((element) => element.getBoundingClientRect().top)
           image.resolve()
