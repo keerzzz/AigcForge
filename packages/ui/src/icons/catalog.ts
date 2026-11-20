@@ -1,302 +1,301 @@
 import { additionalIcons, additionalIconViewBox } from "./icon/additional-icons"
 
-// Consumers center the SVG viewport, so each icon must center its artwork within its viewBox.
+// Artwork uses one optical grid; provenance and licenses are recorded in NOTICE.md.
 const icons = {
   "rail-chat": {
     viewBox: "0 0 16 16",
-    body: `<g fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5H4A1.5 1.5 0 0 0 2.5 4v6A1.5 1.5 0 0 0 4 11.5h1.2v2.4l2.9-2.4H12A1.5 1.5 0 0 0 13.5 10V4A1.5 1.5 0 0 0 12 2.5Z"/><circle cx="5.2" cy="7" r="0.85" fill="currentColor" stroke="none"/><circle cx="8" cy="7" r="0.85" fill="currentColor" stroke="none"/><circle cx="10.8" cy="7" r="0.85" fill="currentColor" stroke="none"/></g>`,
+    body: `<g><path d="M3.5 2.5h9A1.5 1.5 0 0 1 14 4v5.5a1.5 1.5 0 0 1-1.5 1.5H6.8L3.8 13.5V11H3.5A1.5 1.5 0 0 1 2 9.5V4a1.5 1.5 0 0 1 1.5-1.5Z" fill="currentColor" fill-opacity="var(--icon-active-fill, 0)"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M3.5 2.5h9A1.5 1.5 0 0 1 14 4v5.5a1.5 1.5 0 0 1-1.5 1.5H6.8L3.8 13.5V11H3.5A1.5 1.5 0 0 1 2 9.5V4a1.5 1.5 0 0 1 1.5-1.5Z"/><circle vector-effect="non-scaling-stroke" cx="5.5" cy="6.75" r="0.8" fill="currentColor" stroke="none"/><circle vector-effect="non-scaling-stroke" cx="8" cy="6.75" r="0.8" fill="currentColor" stroke="none"/><circle vector-effect="non-scaling-stroke" cx="10.5" cy="6.75" r="0.8" fill="currentColor" stroke="none"/></g></g>`,
   },
   "rail-coding": {
     viewBox: "0 0 16 16",
-    body: `<g fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M5.33 4L1.33 8L5.33 12M10.67 4L14.67 8L10.67 12M9.33 2.67L6.67 13.33"/></g>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M5 4.75 1.75 8 5 11.25"/><path vector-effect="non-scaling-stroke" d="M11 4.75 14.25 8 11 11.25"/><path vector-effect="non-scaling-stroke" d="m9.25 3.25-2.5 9.5"/></g>`,
   },
   "rail-work": {
     viewBox: "0 0 16 16",
-    body: `<g fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="4.67" height="4.67" rx="1.33"/><rect x="9.33" y="2" width="4.67" height="4.67" rx="1.33"/><rect x="2" y="9.33" width="4.67" height="4.67" rx="1.33"/><rect x="9.33" y="9.33" width="4.67" height="4.67" rx="1.33"/><path d="M10.67 11.67L11.67 12.67L13.33 11"/></g>`,
+    body: `<g><rect x="2.25" y="2.25" width="4.5" height="4.5" rx="1.2" fill="currentColor" fill-opacity="0.14"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect vector-effect="non-scaling-stroke" x="2.25" y="2.25" width="4.5" height="4.5" rx="1.2"/><rect vector-effect="non-scaling-stroke" x="9.25" y="2.25" width="4.5" height="4.5" rx="1.2"/><rect vector-effect="non-scaling-stroke" x="2.25" y="9.25" width="4.5" height="4.5" rx="1.2"/><path vector-effect="non-scaling-stroke" d="m9.5 11.75 1.5 1.5 3-3"/></g></g>`,
   },
   "rail-assistant": {
     viewBox: "0 0 16 16",
-    body: `<g fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="5.9" y="0.1" width="1.1" height="2.2" rx="0.5" fill="currentColor" stroke="none"/><rect x="9" y="0.1" width="1.1" height="2.2" rx="0.5" fill="currentColor" stroke="none"/><rect x="4.5" y="1.6" width="7" height="6" rx="1.5"/><circle cx="8" cy="4.5" r="1.7"/><path d="M8 3.9V4.5H9"/><path d="M8 7.6V8.5"/><rect x="2" y="8.5" width="12" height="6" rx="1.5"/><path d="M4.5 10.6H8M4.5 12.4H6.8"/><path d="M10.6 8.5V11.1L12 10.3L13 11.1V8.5Z" fill="currentColor" stroke="none"/></g>`,
+    body: `<g><rect x="2.5" y="2.5" width="9.5" height="11" rx="2" fill="currentColor" fill-opacity="0.1"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M9.5 2.5H4.5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h5.5a2 2 0 0 0 2-2V7.5"/><path vector-effect="non-scaling-stroke" d="M5.25 6.5h3"/><path vector-effect="non-scaling-stroke" d="M5.25 9.5h4.5"/><path vector-effect="non-scaling-stroke" d="M12.25 1.5c0 1.5.75 2.25 2.25 2.25-1.5 0-2.25.75-2.25 2.25 0-1.5-.75-2.25-2.25-2.25 1.5 0 2.25-.75 2.25-2.25Z" fill="currentColor"/></g></g>`,
   },
   "rail-custom": {
     viewBox: "0 0 16 16",
-    body: `<g fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M2.67 4H13.33M2.67 8H13.33M2.67 12H13.33"/><circle cx="5.33" cy="4" r="1.67" fill="currentColor"/><circle cx="10.67" cy="8" r="1.67" fill="currentColor"/><circle cx="6.67" cy="12" r="1.67" fill="currentColor"/></g>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect vector-effect="non-scaling-stroke" x="1.75" y="1.75" width="4.5" height="4.5" rx="1"/><rect vector-effect="non-scaling-stroke" x="9.75" y="1.75" width="4.5" height="4.5" rx="1"/><rect vector-effect="non-scaling-stroke" x="5.75" y="9.75" width="4.5" height="4.5" rx="1"/><path vector-effect="non-scaling-stroke" d="M4 6.25v1.5h8v-1.5M8 7.75v2"/></g>`,
   },
   lock: {
     viewBox: "0 0 16 16",
-    body: `<rect x="3.5" y="7" width="9" height="7" rx="1" stroke="currentColor"/><path d="M5 7V5a3 3 0 0 1 6 0v2M8 10v1" stroke="currentColor" stroke-linecap="round"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect vector-effect="non-scaling-stroke" x="3.25" y="7" width="9.5" height="6.75" rx="1.5"/><path vector-effect="non-scaling-stroke" d="M5.25 7V5a2.75 2.75 0 0 1 5.5 0v2"/><path vector-effect="non-scaling-stroke" d="M8 9.75v1.25"/></g>`,
   },
   globe: {
     viewBox: "0 0 16 16",
-    body: `<circle cx="8" cy="8" r="6" stroke="currentColor"/><ellipse cx="8" cy="8" rx="2.5" ry="6" stroke="currentColor"/><path d="M2 8h12" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle vector-effect="non-scaling-stroke" cx="8" cy="8" r="6"/><ellipse vector-effect="non-scaling-stroke" cx="8" cy="8" rx="2.6" ry="6"/><path vector-effect="non-scaling-stroke" d="M2.25 8h11.5"/></g>`,
   },
   "select-element": {
     viewBox: "0 0 16 16",
-    body: `<path d="M12.5 6.5V2.5C12.5 1.94772 12.0523 1.5 11.5 1.5H2.5C1.94772 1.5 1.5 1.94772 1.5 2.5V11.5C1.5 12.0523 1.94772 12.5 2.5 12.5H6.5" stroke="currentColor" stroke-linecap="round"/><path d="M7.5 7.5L14.5 10.1L11.1 11.1L10.1 14.5L7.5 7.5Z" stroke="currentColor" stroke-linejoin="round"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M12.5 6.75V3.75a1.5 1.5 0 0 0-1.5-1.5H3.75a1.5 1.5 0 0 0-1.5 1.5V11a1.5 1.5 0 0 0 1.5 1.5h3"/><path vector-effect="non-scaling-stroke" d="m7.75 7.75 6 2.1-2.5 1-1 2.5-2.5-5.6Z"/></g>`,
   },
   flask: {
     viewBox: "0 0 16 16",
-    body: `<path d="M5.5 2H10.5M6 2V6L2.5 12C2 13 2.5 14 3.5 14H12.5C13.5 14 14 13 13.5 12L10 6V2M4.25 9H11.75" stroke="currentColor" stroke-linecap="square" stroke-linejoin="round"/>`,
+    body: `<g><path d="M4.3 9.5h7.4l1.55 2.8a1 1 0 0 1-.87 1.45H3.62a1 1 0 0 1-.87-1.45L4.3 9.5Z" fill="currentColor" fill-opacity="0.14"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M5.75 2.25h4.5M6.5 2.25v3.8L2.75 12.3a1 1 0 0 0 .87 1.45h8.76a1 1 0 0 0 .87-1.45L9.5 6.05v-3.8M4.3 9.5h7.4"/></g></g>`,
   },
   edit: {
     viewBox: "0 0 16 16",
-    body: `<path d="M13.5556 8.21529V13.5556H2.44446L2.44446 2.44445H7.78474M6.00002 8.16216V10H7.83786L14 3.83784L12.1622 2L6.00002 8.16216Z" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M7.75 2.75H3.75A1.5 1.5 0 0 0 2.25 4.25v8a1.5 1.5 0 0 0 1.5 1.5h8a1.5 1.5 0 0 0 1.5-1.5v-4"/><path vector-effect="non-scaling-stroke" d="m11.9 2.1 2 2L8.25 9.75H6.25v-2L11.9 2.1Z"/></g>`,
   },
   "folder-add-left": {
     viewBox: "0 0 16 16",
-    body: `<path d="M7.5 13.3333H1.5V2H6.83333L8.83333 4H14.8333V6M10.1667 11.3333H15.5M12.8333 8.66667V14" stroke="currentColor" stroke-miterlimit="10" stroke-linecap="square"/>`,
+    body: `<g><path d="M2 4a1.25 1.25 0 0 1 1.25-1.25h3.1l1.5 1.75H12.75A1.25 1.25 0 0 1 14 5.75v6.25a1.25 1.25 0 0 1-1.25 1.25H3.25A1.25 1.25 0 0 1 2 12V4Z" fill="currentColor" fill-opacity="0.08"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M8.5 13.25H3.25A1.25 1.25 0 0 1 2 12V4a1.25 1.25 0 0 1 1.25-1.25h3.1l1.5 1.75H12.75A1.25 1.25 0 0 1 14 5.75v2"/><path vector-effect="non-scaling-stroke" d="M12 9.5v4.5M9.75 11.75h4.5"/></g></g>`,
   },
   folder: {
     viewBox: "0 0 16 16",
-    body: `<path d="M1.33337 2V13.3333H14.6667V4H8.66671L6.66671 2H1.33337Z" stroke="currentColor" stroke-miterlimit="10" stroke-linecap="square"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M2 4.25A1.5 1.5 0 0 1 3.5 2.75h2.85a1 1 0 0 1 .78.38l1.12 1.37h4.25A1.5 1.5 0 0 1 14 6v6a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12V4.25Z"/></g>`,
   },
   "folder-open": {
     viewBox: "0 0 16 16",
-    body: `<path d="M1.33337 13.3333V2H6.66671L8.66671 4H14.6667V6.66667M1.33337 13.3333L3.33337 6.66667H15.3334L13.3334 13.3333H1.33337Z" stroke="currentColor" stroke-linecap="square" stroke-linejoin="round"/>`,
+    body: `<g><path d="m2.2 12.75 1.4-5.25A1 1 0 0 1 4.55 6.75h8.7a.8.8 0 0 1 .77 1l-1.35 5a1 1 0 0 1-.97.75H3A.8.8 0 0 1 2.2 12.75Z" fill="currentColor" fill-opacity="0.12"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M2 12.5V4.25A1.5 1.5 0 0 1 3.5 2.75h2.85a1 1 0 0 1 .78.38l1.12 1.37H12a1.5 1.5 0 0 1 1.5 1.5v.75"/><path vector-effect="non-scaling-stroke" d="m2.2 12.75 1.4-5.25A1 1 0 0 1 4.55 6.75h8.7a.8.8 0 0 1 .77 1l-1.35 5a1 1 0 0 1-.97.75H3A.8.8 0 0 1 2.2 12.75Z"/></g></g>`,
   },
   branch: {
     viewBox: "0 0 16 16",
-    body: `<path d="M5.118 5.686V10.314M5.118 5.686C5.97 5.686 6.661 4.995 6.661 4.143C6.661 3.291 5.97 2.6 5.118 2.6C4.266 2.6 3.575 3.291 3.575 4.143C3.575 4.995 4.266 5.686 5.118 5.686ZM5.118 10.314C4.266 10.314 3.575 11.005 3.575 11.857C3.575 12.709 4.266 13.4 5.118 13.4C5.97 13.4 6.661 12.709 6.661 11.857M5.118 10.314C5.97 10.314 6.661 11.005 6.661 11.857M10.882 5.686C11.734 5.686 12.425 4.995 12.425 4.143C12.425 3.291 11.734 2.6 10.882 2.6C10.03 2.6 9.339 3.291 9.339 4.143C9.339 4.995 10.03 5.686 10.882 5.686ZM10.882 5.686V9.457C10.882 10.783 9.807 11.857 8.482 11.857H6.661" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><line vector-effect="non-scaling-stroke" x1="4.75" y1="5.5" x2="4.75" y2="10.5"/><circle vector-effect="non-scaling-stroke" cx="4.75" cy="3.75" r="1.75"/><circle vector-effect="non-scaling-stroke" cx="11.25" cy="4.75" r="1.75"/><circle vector-effect="non-scaling-stroke" cx="4.75" cy="12.25" r="1.75"/><path vector-effect="non-scaling-stroke" d="M11.25 6.5v1.25a2.5 2.5 0 0 1-2.5 2.5H4.75"/></g>`,
   },
   "branch-out": {
     viewBox: "0 0 16 16",
-    body: `<path d="M10.4225 3.35355L12.9024 5.83344L10.4225 8.31333" stroke="currentColor"/><path d="M1 12.2852H4.23042C4.89912 12.2852 5.52359 11.951 5.89452 11.3946L9.00783 6.72462C8.37877 6.16823 10.0032 5.83402 10.6719 5.83402H12.9024" stroke="currentColor"/><path d="M8.5 12.2852H14" stroke="currentColor" stroke-linejoin="round"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="m10.75 3.25 2.5 2.5-2.5 2.5"/><path vector-effect="non-scaling-stroke" d="M1.75 12h2.75a2.5 2.5 0 0 0 2.1-1.15l2.3-3.7A2.5 2.5 0 0 1 11 6h2.25"/><path vector-effect="non-scaling-stroke" d="M8.75 12h4.5"/></g>`,
   },
   "grid-plus": {
     viewBox: "0 0 16 16",
-    body: `<path d="M13.9948 11.668H9.32812M11.6641 9.33203V13.9987M6.66667 9.33203V13.9987H2V9.33203H6.66667ZM6.66667 2V6.66667H2V2H6.66667ZM13.9948 2V6.66667H9.32812V2H13.9948Z" stroke="currentColor" stroke-miterlimit="10" stroke-linecap="square"/>`,
+    body: `<g><rect x="2.25" y="2.25" width="4.5" height="4.5" rx="1" fill="currentColor" fill-opacity="0.14"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect vector-effect="non-scaling-stroke" x="2.25" y="2.25" width="4.5" height="4.5" rx="1"/><rect vector-effect="non-scaling-stroke" x="9.25" y="2.25" width="4.5" height="4.5" rx="1"/><rect vector-effect="non-scaling-stroke" x="2.25" y="9.25" width="4.5" height="4.5" rx="1"/><path vector-effect="non-scaling-stroke" d="M11.5 9.25v4.5M9.25 11.5h4.5"/></g></g>`,
   },
   help: {
     viewBox: "0 0 16 16",
-    body: `<path d="M6.33345 6.33349V5.00015H9.66679V7.00015L8.00015 8.00015V9.66679M8.27485 11.6819H7.71897M14.4446 8.00011C14.4446 11.5593 11.5593 14.4446 8.00011 14.4446C4.44094 14.4446 1.55566 11.5593 1.55566 8.00011C1.55566 4.44094 4.44094 1.55566 8.00011 1.55566C11.5593 1.55566 14.4446 4.44094 14.4446 8.00011Z" stroke="currentColor" stroke-linecap="square"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle vector-effect="non-scaling-stroke" cx="8" cy="8" r="6"/><path vector-effect="non-scaling-stroke" d="M6.4 6.25a1.65 1.65 0 0 1 3.2.55c0 1.1-1.6 1.45-1.6 2.45"/><circle vector-effect="non-scaling-stroke" cx="8" cy="11.35" r="0.65" fill="currentColor" stroke="none"/></g>`,
   },
   info: {
     viewBox: "0 0 16 16",
-    body: `<g transform="translate(2 2)"><path d="M12 12H0V0H12V12ZM1 1V11H11V1H1ZM6.5791 4.81641V9.37207H5.5791V5.81641H4.46777V4.81641H6.5791ZM6.85645 2.62891V3.62891H5.30078V2.62891H6.85645Z" fill="currentColor"/></g>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle vector-effect="non-scaling-stroke" cx="8" cy="8" r="6"/><path vector-effect="non-scaling-stroke" d="M8 7.25v3.75"/><circle vector-effect="non-scaling-stroke" cx="8" cy="4.85" r="0.65" fill="currentColor" stroke="none"/></g>`,
   },
   "circle-exclamation": {
     viewBox: "0 0 16 16",
-    body: `<path d="M8.75 11.75H7.25V10.25H8.75V11.75Z" fill="currentColor"/><path d="M8.75 9.25H7.25V4.25H8.75V9.25Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M8 1C9.93286 1 11.684 1.7836 12.9502 3.0498C14.2164 4.31601 15 6.06714 15 8C15 11.866 11.866 15 8 15C6.06714 15 4.31601 14.2164 3.0498 12.9502C1.7836 11.684 1 9.93286 1 8C1 4.13401 4.13401 1 8 1ZM8 2C4.68629 2 2 4.68629 2 8C2 9.65699 2.67148 11.1559 3.75781 12.2422C4.84415 13.3285 6.34301 14 8 14C11.3137 14 14 11.3137 14 8C14 6.34301 13.3285 4.84415 12.2422 3.75781C11.1559 2.67148 9.65699 2 8 2Z" fill="currentColor"/>`,
+    body: `<g><circle cx="8" cy="8" r="6" fill="currentColor" fill-opacity="0.1"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle vector-effect="non-scaling-stroke" cx="8" cy="8" r="6"/><path vector-effect="non-scaling-stroke" d="M8 5v3.5"/><circle vector-effect="non-scaling-stroke" cx="8" cy="11" r="0.7" fill="currentColor" stroke="none"/></g></g>`,
   },
   "circle-xmark": {
     viewBox: "0 0 16 16",
-    body: `<path fill-rule="evenodd" clip-rule="evenodd" d="M1.33334 8.00016C1.33334 4.31826 4.31811 1.3335 8.00001 1.3335C11.6819 1.3335 14.6667 4.31826 14.6667 8.00016C14.6667 11.6821 11.6819 14.6668 8.00001 14.6668C4.31811 14.6668 1.33334 11.6821 1.33334 8.00016ZM6.00001 5.29306L5.2929 6.00016L7.2929 8.00016L5.2929 10.0002L6.00001 10.7073L8.00001 8.70727L10 10.7073L10.7071 10.0002L8.70712 8.00016L10.7071 6.00016L10 5.29306L8.00001 7.29306L6.00001 5.29306Z" fill="currentColor"/>`,
+    body: `<g><circle cx="8" cy="8" r="6" fill="currentColor" fill-opacity="0.14"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle vector-effect="non-scaling-stroke" cx="8" cy="8" r="6"/><path vector-effect="non-scaling-stroke" d="m10 6-4 4M6 6l4 4"/></g></g>`,
   },
   "sidebar-right": {
-    viewBox: "0 0 20 20",
-    body: additionalIcons["layout-right"],
+    viewBox: "0 0 16 16",
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect vector-effect="non-scaling-stroke" x="2.25" y="2.5" width="11.5" height="11" rx="1.75"/><line vector-effect="non-scaling-stroke" x1="9.75" y1="2.5" x2="9.75" y2="13.5"/></g>`,
   },
   status: {
-    viewBox: "0 0 20 20",
-    body: `<path d="M2 10V18H18V10M2 10V2H18V10M2 10H18M5 6H9M5 14H9" stroke="currentColor"/>`,
+    viewBox: "0 0 16 16",
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect vector-effect="non-scaling-stroke" x="2.25" y="2.25" width="11.5" height="11.5" rx="1.75"/><path vector-effect="non-scaling-stroke" d="M2.25 8h11.5M4.75 5.1h3M4.75 10.9h3"/></g>`,
   },
   "status-active": {
-    viewBox: "0 0 20 20",
-    body: `<path d="M18 2H2V10H18V2Z" fill="currentColor" fill-opacity="0.1"/><path d="M2 18H18V10H2V18Z" fill="currentColor" fill-opacity="0.1"/><path d="M2 10V18H18V10M2 10V2H18V10M2 10H18M5 6H9M5 14H9" stroke="currentColor"/>`,
+    viewBox: "0 0 16 16",
+    body: `<g><rect x="2.25" y="2.25" width="11.5" height="11.5" rx="1.75" fill="currentColor" fill-opacity="0.14"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect vector-effect="non-scaling-stroke" x="2.25" y="2.25" width="11.5" height="11.5" rx="1.75"/><path vector-effect="non-scaling-stroke" d="M2.25 8h11.5M4.75 5.1h3M4.75 10.9h3"/></g></g>`,
   },
   "magnifying-glass": {
     viewBox: "0 0 16 16",
-    body: `<path d="M14 14L10.3454 10.3454M6.88889 11.7778C9.58889 11.7778 11.7778 9.58889 11.7778 6.88889C11.7778 4.18889 9.58889 2 6.88889 2C4.18889 2 2 4.18889 2 6.88889C2 9.58889 4.18889 11.7778 6.88889 11.7778Z" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle vector-effect="non-scaling-stroke" cx="7" cy="7" r="4.5"/><path vector-effect="non-scaling-stroke" d="m10.25 10.25 3.5 3.5"/></g>`,
   },
   menu: {
     viewBox: "0 0 16 16",
-    body: `<path d="M2 8H14M2 4.664H14M2 11.336H14" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/></g>`,
   },
   plus: {
     viewBox: "0 0 16 16",
-    body: `<path d="M8 2.88867V13.1109" stroke="currentColor" stroke-linejoin="round"/><path d="M2.88867 8H13.1109" stroke="currentColor" stroke-linejoin="round"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M8 3v10M3 8h10"/></g>`,
   },
   "settings-gear": {
     viewBox: "0 0 16 16",
-    body: `<path d="M7.99998 1.3335L14 4.66683V11.3335L7.99998 14.6668L2 11.3335V4.66683L7.99998 1.3335Z" stroke="currentColor"/><path d="M9.99998 8.00016C9.99998 9.10476 9.10458 10.0002 7.99998 10.0002C6.89538 10.0002 5.99998 9.10476 5.99998 8.00016C5.99998 6.89556 6.89538 6.00016 7.99998 6.00016C9.10458 6.00016 9.99998 6.89556 9.99998 8.00016Z" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle vector-effect="non-scaling-stroke" cx="8" cy="8" r="2.1"/><path vector-effect="non-scaling-stroke" d="M9.1 1.75h-2.2l-.35 1.45a4.8 4.8 0 0 0-1.15.66l-1.4-.45-1.1 1.9 1.06 1a4.9 4.9 0 0 0 0 1.38l-1.06 1 1.1 1.9 1.4-.45c.35.27.73.5 1.15.66l.35 1.45h2.2l.35-1.45a4.8 4.8 0 0 0 1.15-.66l1.4.45 1.1-1.9-1.06-1a4.9 4.9 0 0 0 0-1.38l1.06-1-1.1-1.9-1.4.45a4.8 4.8 0 0 0-1.15-.66L9.1 1.75Z"/></g>`,
   },
   "chevron-down": {
     viewBox: "0 0 16 16",
-    body: `<path d="M5 6.5L8 9.5L11 6.5" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="m4.5 6.25 3.5 3.5 3.5-3.5"/></g>`,
   },
   collapse: {
     viewBox: "0 0 16 16",
-    body: `<path d="M8 1V6M11 3L8 6L5 3" stroke="currentColor"/><path d="M8 15V10M11 13L8 10L5 13" stroke="currentColor"/><path d="M4 8H6" stroke="currentColor"/><path d="M7 8H9" stroke="currentColor"/><path d="M10 8H12" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M8 1.75V5.5M10.5 3.25 8 5.5 5.5 3.25"/><path vector-effect="non-scaling-stroke" d="M8 14.25V10.5M10.5 12.75 8 10.5l-2.5 2.25"/><path vector-effect="non-scaling-stroke" d="M4 8h1.5M7.25 8h1.5M10.5 8H12"/></g>`,
   },
   check: {
     viewBox: "0 0 16 16",
-    body: `<path d="M3.53613 8.17857L6.39328 11.75L12.4647 4.25" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="m3.25 8.25 3.1 3.1 6.4-6.7"/></g>`,
   },
   monitor: {
     viewBox: "0 0 16 16",
-    body: `<path d="M4.05559 9.38889H0.500007C0.500007 9.38889 0.500017 8.59298 0.500017 7.61112V2.27778C0.500017 1.29594 0.500102 0.5 0.500102 0.5H13.3889C13.3889 0.5 13.3889 1.29594 13.3889 2.27778V7.61112C13.3889 8.59298 13.3889 9.38889 13.3889 9.38889H9.83336M4.05559 9.38889V11.6111H6.94448H9.83336V9.38889M4.05559 9.38889H9.83336" transform="translate(1.05556 1.94444)" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect vector-effect="non-scaling-stroke" x="2" y="2.5" width="12" height="8.5" rx="1.5"/><path vector-effect="non-scaling-stroke" d="M5.5 13.5h5M8 11v2.5"/></g>`,
   },
   "workspace-new": {
     viewBox: "0 0 16 16",
-    body: `<path d="M2 10.7578V14.0011H5.24324M13.9991 5.24324V2H10.7559M13.9991 10.7578V14.0011H10.7559M2 5.24324V2H5.24324" stroke="currentColor" stroke-miterlimit="10" stroke-linecap="square"/><path d="M8 4.5V11.5M4.5 8H11.5" stroke="currentColor" stroke-linejoin="round"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M2.25 5.25v-2a1 1 0 0 1 1-1h2M10.75 2.25h2a1 1 0 0 1 1 1v2M13.75 10.75v2a1 1 0 0 1-1 1h-2M5.25 13.75h-2a1 1 0 0 1-1-1v-2"/><path vector-effect="non-scaling-stroke" d="M8 5.25v5.5M5.25 8h5.5"/></g>`,
   },
   "workspace-isolated": {
     viewBox: "0 0 16 16",
-    body: `<path d="M10.5 10.5V5.5H5.5V10.5H10.5Z" fill="currentColor"/><rect x="2.5" y="2.5" width="11" height="11" stroke="currentColor"/>`,
+    body: `<g><path d="M8 4.75 11.25 6.5v3L8 11.25 4.75 9.5v-3L8 4.75Z" fill="currentColor" fill-opacity="0.18"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect vector-effect="non-scaling-stroke" x="2.25" y="2.25" width="11.5" height="11.5" rx="2"/><path vector-effect="non-scaling-stroke" d="M8 4.75 11.25 6.5v3L8 11.25 4.75 9.5v-3L8 4.75Z"/></g></g>`,
   },
   workspace: {
     viewBox: "0 0 16 16",
-    body: `<path d="M2 10.668V14.0013H10.6667M13.9974 10.6667V2H2.66406M13.9974 10.668V14.0013H10.6641M2 10V2H5.33333" stroke="currentColor" stroke-miterlimit="10" stroke-linecap="square"/><path d="M10.6693 10.6654V5.33203H5.33594V10.6654H10.6693Z" fill="currentColor"/>`,
+    body: `<g><rect x="5.25" y="5.25" width="5.5" height="5.5" rx="1" fill="currentColor" fill-opacity="0.2"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M2.25 5.25v-2a1 1 0 0 1 1-1h2M10.75 2.25h2a1 1 0 0 1 1 1v2M13.75 10.75v2a1 1 0 0 1-1 1h-2M5.25 13.75h-2a1 1 0 0 1-1-1v-2"/><rect vector-effect="non-scaling-stroke" x="5.25" y="5.25" width="5.5" height="5.5" rx="1"/></g></g>`,
   },
   "outline-worktree": {
     viewBox: "0 0 16 16",
-    body: `<path d="M12 3.11133L14.3885 5.49977L12 7.88822M14.5 5.49972H10.058L5.13456 11.8139M14.5 11.6606L8.5 11.6606M5.50012 11.6597H1.5" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="m11.75 3.25 2.25 2.25-2.25 2.25"/><path vector-effect="non-scaling-stroke" d="M14 5.5H9.75L5.25 11.5H2"/><path vector-effect="non-scaling-stroke" d="M8.5 11.5H14"/></g>`,
   },
   "outline-trash": {
     viewBox: "0 0 16 16",
-    body: `<path d="M2.44434 4.22224H13.5554M5.99994 4.22224V2.44446C5.99994 1.95557 5.99992 1.55557 5.99992 1.55557H9.99989C9.99989 1.55557 9.99994 1.95557 9.99994 2.44446V4.22224M6.55545 7.77779L6.7485 11.7778M9.44437 7.77779L9.2513 11.7778M12.1756 6.88891L11.8666 12.7556C11.8168 13.7068 11.7748 14.4445 11.7748 14.4445H4.22511C4.22511 14.4445 4.18392 13.7067 4.13414 12.7556L3.82509 6.88891" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M2.5 4.25h11"/><path vector-effect="non-scaling-stroke" d="M5.75 4.25V3a1 1 0 0 1 1-1h2.5a1 1 0 0 1 1 1v1.25"/><path vector-effect="non-scaling-stroke" d="M12 4.25v8.25a1.5 1.5 0 0 1-1.5 1.5h-5A1.5 1.5 0 0 1 4 12.5V4.25"/><path vector-effect="non-scaling-stroke" d="M6.75 7.25v3.75M9.25 7.25v3.75"/></g>`,
   },
   close: {
-    viewBox: "0 0 20 20",
-    body: `<path d="M14.4446 5.55566L5.55566 14.4446M5.55566 5.55566L14.4446 14.4446" stroke="currentColor" stroke-linejoin="round"/>`,
+    viewBox: "0 0 16 16",
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M12 4 4 12M4 4l8 8"/></g>`,
   },
   "xmark-small": {
     viewBox: "0 0 16 16",
-    body: `<path d="M4.25 11.75L11.75 4.25M11.75 11.75L4.25 4.25" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="m11.25 4.75-6.5 6.5M4.75 4.75l6.5 6.5"/></g>`,
   },
   "outline-xmark": {
     viewBox: "0 0 16 16",
-    body: `<path fill-rule="evenodd" clip-rule="evenodd" d="M4.99487 5.70186L7.29297 7.99995L4.99487 10.2981L5.70198 11.0052L8.00008 8.70706L10.2982 11.0052L11.0053 10.2981L8.70718 7.99995L11.0053 5.70186L10.2982 4.99475L8.00008 7.29285L5.70198 4.99475L4.99487 5.70186Z" fill="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="m10.75 5.25-5.5 5.5M5.25 5.25l5.5 5.5"/></g>`,
   },
   "outline-chevron-down": {
     viewBox: "0 0 16 16",
-    body: `<path d="M5 6.5L8 9.5L11 6.5" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="m4.5 6.25 3.5 3.5 3.5-3.5"/></g>`,
   },
   "outline-dots": {
     viewBox: "0 0 16 16",
-    body: `<path d="M2.5 7.5H3.5V8.5H2.5V7.5Z" stroke="currentColor"/><path d="M7.5 7.5H8.5V8.5H7.5V7.5Z" stroke="currentColor"/><path d="M12.5 7.5H13.5V8.5H12.5V7.5Z" stroke="currentColor"/>`,
+    body: `<g fill="currentColor"><circle cx="3.5" cy="8" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="12.5" cy="8" r="1.2"/></g>`,
   },
   expand: {
     viewBox: "0 0 16 16",
-    body: `<path d="M8.25 6.17773V1.17773M11.25 4.17773L8.25 1.17773L5.25 4.17773" stroke="currentColor"/><path d="M8.25 9.17773V14.1777M11.25 11.1777L8.25 14.1777L5.25 11.1777" stroke="currentColor"/><path d="M4.25 7.67773H12.25" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M8 5.5V1.75M10.5 4 8 1.75 5.5 4"/><path vector-effect="non-scaling-stroke" d="M8 10.5v3.75M10.5 12 8 14.25 5.5 12"/><path vector-effect="non-scaling-stroke" d="M3.5 8h9"/></g>`,
   },
   filetree: {
     viewBox: "0 0 16 16",
-    body: `<path d="M2.5 1.5V12.2484H6.75M2.5 4.74838H6.75" stroke="currentColor"/><rect x="8.5" y="3.2168" width="6" height="3" fill="none" stroke="currentColor"/><rect x="8.5" y="10.75" width="6" height="3" fill="none" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M3 2.25v9.5h3.5M3 5.5h3.5"/><rect vector-effect="non-scaling-stroke" x="8.25" y="3.75" width="5.5" height="3" rx="0.75"/><rect vector-effect="non-scaling-stroke" x="8.25" y="10.25" width="5.5" height="3" rx="0.75"/></g>`,
   },
   split: {
     viewBox: "0 0 16 16",
-    body: `<path d="M1 14H15L15 2H1V14Z" stroke="currentColor"/><rect x="3" y="4" width="4" height="8" fill="currentColor" fill-opacity="0.5"/><rect x="9" y="4" width="4" height="8" fill="currentColor" fill-opacity="0.5"/>`,
+    body: `<g><rect x="3.5" y="4.25" width="3.25" height="7.5" rx="0.6" fill="currentColor" fill-opacity="0.3"/><rect x="9.25" y="4.25" width="3.25" height="7.5" rx="0.6" fill="currentColor" fill-opacity="0.3"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect vector-effect="non-scaling-stroke" x="2" y="2.5" width="12" height="11" rx="1.75"/><line vector-effect="non-scaling-stroke" x1="8" y1="2.5" x2="8" y2="13.5"/></g></g>`,
   },
   unified: {
     viewBox: "0 0 16 16",
-    body: `<path d="M3.00001 4.00045L12.9998 4L13 6.99955L3 7L3.00001 4.00045Z" fill="currentColor" fill-opacity="0.5"/><path d="M3.0001 9H13L12.9999 12H3L3.0001 9Z" fill="currentColor" fill-opacity="0.5"/><path d="M1 14H15L15 2H1V14Z" stroke="currentColor"/>`,
+    body: `<g><rect x="3.75" y="4.25" width="8.5" height="2.75" rx="0.6" fill="currentColor" fill-opacity="0.3"/><rect x="3.75" y="9" width="8.5" height="2.75" rx="0.6" fill="currentColor" fill-opacity="0.3"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect vector-effect="non-scaling-stroke" x="2" y="2.5" width="12" height="11" rx="1.75"/><line vector-effect="non-scaling-stroke" x1="2" y1="8" x2="14" y2="8"/></g></g>`,
   },
   review: {
-    viewBox: "0 0 20 20",
-    body: `<path d="M7 14.5H13M7 7.99512H10.0049M10.0049 7.99512H13M10.0049 7.99512V5M10.0049 7.99512V11M18 18V2L2 2L2 18H18Z" stroke="currentColor"/>`,
+    viewBox: "0 0 16 16",
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect vector-effect="non-scaling-stroke" x="2.25" y="2.25" width="11.5" height="11.5" rx="1.75"/><path vector-effect="non-scaling-stroke" d="M8 4.75v4.5M5.75 7h4.5M5.75 11.25h4.5"/></g>`,
   },
   "window-analytics": {
     viewBox: "0 0 16 16",
-    body: `<path d="M14.5 9.8333V13.5H1.5V2.5H7.1667M9.5 2.5V7.5H14.5V2.5H9.5Z" stroke="currentColor" stroke-miterlimit="10" stroke-linecap="square"/>`,
+    body: `<g><rect x="9.25" y="2.5" width="4.5" height="4.5" rx="1" fill="currentColor" fill-opacity="0.16"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M13.75 9.5v2.75a1.5 1.5 0 0 1-1.5 1.5H3.75a1.5 1.5 0 0 1-1.5-1.5V4a1.5 1.5 0 0 1 1.5-1.5H7"/><rect vector-effect="non-scaling-stroke" x="9.25" y="2.5" width="4.5" height="4.5" rx="1"/><path vector-effect="non-scaling-stroke" d="M5 10.75v-2M7.5 10.75v-3.5M10 10.75v-1.25"/></g></g>`,
   },
   "graduation-cap": {
     viewBox: "0 0 16 16",
-    body: `<path d="M12.3327 7.50065V11.0007L7.99935 13.6673L3.66602 11.0007V7.50065M14.3327 9.83398V6.16732M7.99935 2.33398L1.66602 6.00065L7.99935 10.0007L14.3327 6.00065L7.99935 2.33398Z" stroke="currentColor" stroke-linecap="square"/>`,
+    body: `<g><path d="M8 2.5 1.75 5.75 8 9l6.25-3.25L8 2.5Z" fill="currentColor" fill-opacity="0.12"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M8 2.5 1.75 5.75 8 9l6.25-3.25L8 2.5Z"/><path vector-effect="non-scaling-stroke" d="M14 6v4.25"/><path vector-effect="non-scaling-stroke" d="M4 7.25v3.5c0 1.1 1.8 2.25 4 2.25s4-1.15 4-2.25v-3.5"/></g></g>`,
   },
   "code-slash": {
     viewBox: "0 0 16 16",
-    body: `<path fill-rule="evenodd" clip-rule="evenodd" d="M10.0812 2.10803L6.55974 14.0809L5.92016 13.8928L9.44161 1.91992L10.0812 2.10803ZM4.13793 4.97275L1.44666 8.00045L4.13793 11.0281L3.63966 11.471L0.554688 8.00045L3.63966 4.52984L4.13793 4.97275ZM12.3617 4.52984L15.4467 8.00045L12.3617 11.471L11.8634 11.0281L14.5547 8.00045L11.8634 4.97275L12.3617 4.52984Z" fill="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M4.75 5 1.75 8l3 3M11.25 5l3 3-3 3M9.25 3.25l-2.5 9.5"/></g>`,
   },
   trash: {
-    viewBox: "0 0 20 20",
-    body: `<path d="M4.58342 17.9134L4.58369 17.4134L4.22787 17.5384L4.22766 18.0384H4.58342V17.9134ZM15.4167 17.9134V18.0384H15.7725L15.7723 17.5384L15.4167 17.9134ZM2.08342 3.95508V3.45508H1.58342V3.95508H2.08342V4.45508V3.95508ZM17.9167 4.45508V4.95508H18.4167V4.45508H17.9167V3.95508V4.45508ZM4.16677 4.58008L3.66701 4.5996L4.22816 17.5379L4.72792 17.4934L5.22767 17.4489L4.66652 4.54055L4.16677 4.58008ZM4.58342 18.0384V17.9134H15.4167V18.0384V18.5384H4.58342V18.0384ZM15.4167 17.9134L15.8332 17.5379L16.2498 4.5996L15.7501 4.58008L15.2503 4.56055L14.8337 17.4989L15.4167 17.9134ZM15.8334 4.58008V4.08008H4.16677V4.58008V5.08008H15.8334V4.58008ZM2.08342 4.45508V4.95508H4.16677V4.58008V4.08008H2.08342V4.45508ZM15.8334 4.58008V5.08008H17.9167V4.45508V3.95508H15.8334V4.58008ZM6.83951 4.35149L7.432 4.55047C7.79251 3.47701 8.80699 2.70508 10.0001 2.70508V2.20508V1.70508C8.25392 1.70508 6.77335 2.83539 6.24702 4.15251L6.83951 4.35149ZM10.0001 2.20508V2.70508C11.1932 2.70508 12.2077 3.47701 12.5682 4.55047L13.1607 4.35149L13.7532 4.15251C13.2269 2.83539 11.7463 1.70508 10.0001 1.70508V2.20508Z" fill="currentColor"/>`,
+    viewBox: "0 0 16 16",
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M2.5 4.25h11"/><path vector-effect="non-scaling-stroke" d="M5.75 4.25V3a1 1 0 0 1 1-1h2.5a1 1 0 0 1 1 1v1.25"/><path vector-effect="non-scaling-stroke" d="M12 4.25v8.25a1.5 1.5 0 0 1-1.5 1.5h-5A1.5 1.5 0 0 1 4 12.5V4.25"/><path vector-effect="non-scaling-stroke" d="M6.75 7.25v3.75M9.25 7.25v3.75"/></g>`,
   },
   "outline-sliders": {
     viewBox: "0 0 16 16",
-    body: `<path d="M11.7779 4.66675H14.4446M11.7779 4.66675C11.7779 5.77132 10.8825 6.66675 9.77789 6.66675C8.67332 6.66675 7.77789 5.77132 7.77789 4.66675M11.7779 4.66675C11.7779 3.56218 10.8825 2.66675 9.77789 2.66675C8.67332 2.66675 7.77789 3.56218 7.77789 4.66675M1.55566 4.66675H7.77789M4.22233 11.3334H1.55566M4.22233 11.3334C4.22233 12.438 5.11776 13.3334 6.22233 13.3334C7.3269 13.3334 8.22233 12.438 8.22233 11.3334M4.22233 11.3334C4.22233 10.2288 5.11776 9.33341 6.22233 9.33341C7.3269 9.33341 8.22233 10.2288 8.22233 11.3334M14.4446 11.3334H8.22233" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M2 5h5.25M10.75 5H14"/><circle vector-effect="non-scaling-stroke" cx="9" cy="5" r="1.75"/><path vector-effect="non-scaling-stroke" d="M2 11h3.25M8.75 11H14"/><circle vector-effect="non-scaling-stroke" cx="7" cy="11" r="1.75"/></g>`,
   },
   "outline-copy": {
     viewBox: "0 0 16 16",
-    body: `<path d="M4.14908 11.0081H1.76282V1.51758H9.1038V2.55588M14.2225 4.99681H6.75397V14.4873H14.2225V4.99681Z" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect vector-effect="non-scaling-stroke" x="5.5" y="5.5" width="8.25" height="8.25" rx="1.5"/><path vector-effect="non-scaling-stroke" d="M3.5 10.5h-.25a1.5 1.5 0 0 1-1.5-1.5V3.75a1.5 1.5 0 0 1 1.5-1.5H8.5a1.5 1.5 0 0 1 1.5 1.5V4"/></g>`,
   },
   "outline-arrow-left": {
     viewBox: "0 0 16 16",
-    body: `<path d="M2.44442 7.99999H13.5555M6.22221 4.22222L2.44442 7.99999L6.22221 11.7778" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M13 8H3M7 4 3 8l4 4"/></g>`,
   },
   "outline-arrow-right": {
     viewBox: "0 0 16 16",
-    body: `<path d="M13.5555 7.99999H2.4444M9.77773 11.7778L13.5555 7.99999L9.77773 4.22222" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M3 8h10M9 4l4 4-4 4"/></g>`,
   },
   "outline-arrow-up-right": {
     viewBox: "0 0 16 16",
-    body: `<path d="M12.5 3.5L3.5 12.5M12.5 9.62L12.5 3.5L6.38 3.5" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M4 12 12 4M6 4h6v6"/></g>`,
   },
   "outline-rotate-clockwise": {
     viewBox: "0 0 16 16",
-    body: `<path d="M14.1992 8C14.1992 9.18669 13.8473 10.3467 13.188 11.3334C12.5288 12.3201 11.5917 13.0892 10.4953 13.5433C9.39897 13.9974 8.19257 14.1162 7.02868 13.8847C5.86479 13.6532 4.7957 13.0818 3.95658 12.2426C3.11747 11.4035 2.54602 10.3344 2.31451 9.17054C2.083 8.00666 2.20182 6.80026 2.65594 5.7039C3.11007 4.60754 3.87911 3.67047 4.8658 3.01118C5.85249 2.35189 7.01253 2 8.19922 2C9.87922 2 11.4859 2.66667 12.6926 3.82667L14.1992 5.33333M10.866 5.33333L14.1992 5.33333L14.1993 2" stroke="currentColor" stroke-linecap="square" stroke-linejoin="round"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M13.25 6.25A5.5 5.5 0 1 0 13.5 9"/><path vector-effect="non-scaling-stroke" d="M13.25 2.75v3.5h-3.5"/></g>`,
   },
   "outline-globe": {
     viewBox: "0 0 16 16",
-    body: `<path d="M8.00001 14.4445C9.47277 14.4445 10.6667 11.5592 10.6667 8.00001C10.6667 4.44085 9.47277 1.55557 8.00001 1.55557M8.00001 14.4445C6.52725 14.4445 5.33335 11.5592 5.33335 8.00001C5.33335 4.44085 6.52725 1.55557 8.00001 1.55557M8.00001 14.4445C11.5592 14.4445 14.4444 11.5592 14.4444 8C14.4444 4.44083 11.5592 1.55557 8.00001 1.55557M8.00001 14.4445C4.44085 14.4445 1.55556 11.5592 1.55556 8C1.55556 4.44083 4.44085 1.55557 8.00001 1.55557M1.87203 6.00001H14.128M2.03555 10.4445H13.9644" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle vector-effect="non-scaling-stroke" cx="8" cy="8" r="6"/><ellipse vector-effect="non-scaling-stroke" cx="8" cy="8" rx="2.5" ry="6"/><path vector-effect="non-scaling-stroke" d="M2.6 5.75h10.8M2.6 10.25h10.8"/></g>`,
   },
   "outline-globe-plus": {
     viewBox: "0 0 16 16",
-    body: `<path d="M7 12.6667C5.71133 12.6667 4.66667 10.1296 4.66667 7C4.66667 3.87039 5.71133 1.33333 7 1.33333C8.2426 1.33333 9.25833 3.69221 9.32933 6.66667" stroke="currentColor" stroke-miterlimit="10"/><path d="M12.6667 6.66667H1.33333" stroke="currentColor"/><path d="M12.6667 7.72825V7C12.6667 3.87039 10.1296 1.33333 7 1.33333C3.8704 1.33333 1.33333 3.87039 1.33333 7C1.33333 10.1296 3.8704 12.6667 7 12.6667H7.58694" stroke="currentColor" stroke-miterlimit="10"/><path d="M9.5 11.5H13.5M11.5 9.5V13.5" stroke="currentColor" stroke-miterlimit="10" stroke-linecap="square"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M7.5 13.75A5.75 5.75 0 1 1 13.25 8"/><path vector-effect="non-scaling-stroke" d="M7.5 2.25c-1.4 0-2.5 2.57-2.5 5.75s1.1 5.75 2.5 5.75M9.8 6.5C9.55 4.05 8.62 2.25 7.5 2.25"/><path vector-effect="non-scaling-stroke" d="M2 7.5h10.5"/><path vector-effect="non-scaling-stroke" d="M12 10v4M10 12h4"/></g>`,
   },
   "outline-cookie": {
     viewBox: "0 0 16 16",
-    body: `<path d="M14 8.5A6 6 0 1 1 7.5 2a2 2 0 0 0 2.5 2.5 2 2 0 0 0 2.5 2.5c.4.6.9 1.1 1.5 1.5Z" stroke="currentColor" stroke-linejoin="round"/><path d="M5.5 6.5h.01M5.5 10h.01M8.5 9h.01M10.5 11.5h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M13.75 8.5A5.75 5.75 0 1 1 7.5 2.25a2 2 0 0 0 2.4 2.4 2 2 0 0 0 2.4 2.4c.38.58.86 1.06 1.45 1.45Z"/><path vector-effect="non-scaling-stroke" d="M5.5 6.5h.01M5.75 10h.01M8.5 8.75h.01M10.25 11h.01"/></g>`,
   },
   "outline-browser-annotate": {
     viewBox: "0 0 16 16",
-    body: `<path d="M10.6667 2H14V5.33333M2 5.33333V2H5.33333M2 10.6667V14H5.33333" stroke="currentColor" stroke-linecap="square"/><path d="M11.8571 11.8572L14 14M6.50008 6.50033L14.0001 9.00033L9.00008 14.0003L6.50008 6.50033Z" stroke="currentColor" stroke-linecap="square"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M10.75 2.25h2a1 1 0 0 1 1 1v2M2.25 5.25v-2a1 1 0 0 1 1-1h2M2.25 10.75v2a1 1 0 0 0 1 1h2"/><path vector-effect="non-scaling-stroke" d="m7 7 6.5 2.15-2.75 1.1-1.1 2.75L7 7Z"/></g>`,
   },
   "arrow-up-right": {
     viewBox: "0 0 16 16",
-    body: `<path d="M11 9.56V5H6.44M11 5L5 11" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M4.5 11.5 11.5 4.5M6 4.5h5.5V10"/></g>`,
   },
   "outline-square-arrow": {
     viewBox: "0 0 16 16",
-    body: `<path d="M13.5555 6.66656V2.44434H9.33326M13.5555 2.44434L7.99993 7.99989M13.5555 9.33324V13.5555C13.5555 13.5555 12.7599 13.5555 11.7777 13.5555H2.44438C2.44438 13.5555 2.44438 12.7599 2.44438 11.7777V4.22213C2.44438 3.2399 2.44434 2.44435 2.44434 2.44435H6.66661" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M13 8.75v3.5a1.5 1.5 0 0 1-1.5 1.5h-7a1.5 1.5 0 0 1-1.5-1.5v-7A1.5 1.5 0 0 1 4.5 3.75H8"/><path vector-effect="non-scaling-stroke" d="M10 2.25h3.75V6M13.5 2.5 7.75 8.25"/></g>`,
   },
   "outline-arrow-to-corner-top-right": {
     viewBox: "0 0 16 16",
-    body: `<path d="M2 8.5V2H14V14H8M5 5.66667H10.3333V11M3.66797 12.333L9.94292 6.05806" stroke="currentColor" stroke-linecap="square"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect vector-effect="non-scaling-stroke" x="2.25" y="2.25" width="11.5" height="11.5" rx="1.75"/><path vector-effect="non-scaling-stroke" d="M6.25 5.5h4.25v4.25M10.25 5.75l-4.75 4.75"/></g>`,
   },
   "outline-hexagonal-warning": {
     viewBox: "0 0 16 16",
-    body: `<path d="M10.6667 1.33325H5.33272L1.33334 5.33325L1.33342 10.6917L5.3327 14.691L10.6667 14.6909L14.6911 10.6917V5.33255L10.6667 1.33325Z" stroke="currentColor"/><path d="M8 10.6667H8.00667" stroke="currentColor" stroke-linecap="square"/><path d="M8 7.99992V5.33325" stroke="currentColor" stroke-linecap="square"/>`,
+    body: `<g><path d="M5.6 2h4.8L14 5.6v4.8L10.4 14H5.6L2 10.4V5.6L5.6 2Z" fill="currentColor" fill-opacity="0.1"/><g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M5.6 2h4.8L14 5.6v4.8L10.4 14H5.6L2 10.4V5.6L5.6 2Z"/><path vector-effect="non-scaling-stroke" d="M8 5.25v3.25"/><circle vector-effect="non-scaling-stroke" cx="8" cy="11" r="0.65" fill="currentColor" stroke="none"/></g></g>`,
   },
   "outline-share": {
     viewBox: "0 0 16 16",
-    body: `<path d="M13.5554 10.4445V13.5556C13.5554 13.5556 12.7599 13.5556 11.7777 13.5556H4.22211C3.23989 13.5556 2.44434 13.5556 2.44434 13.5556V10.4445M4.88878 5.55557L7.99989 2.44446L11.111 5.55557M7.99989 2.44446L7.99989 9.11112" stroke="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M8 10V2.5M5.25 5.25 8 2.5l2.75 2.75"/><path vector-effect="non-scaling-stroke" d="M2.75 9.75v2.5a1.5 1.5 0 0 0 1.5 1.5h7.5a1.5 1.5 0 0 0 1.5-1.5v-2.5"/></g>`,
   },
   "outline-eye": {
-    viewBox: "0 0 20 20",
-    body: `<path d="M2.5 10s3.33-5.42 7.5-5.42S17.5 10 17.5 10s-3.33 5.42-7.5 5.42S2.5 10 2.5 10Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="10" r="2.5" stroke="currentColor"/>`,
+    viewBox: "0 0 16 16",
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M1.75 8S4.25 3.75 8 3.75 14.25 8 14.25 8 11.75 12.25 8 12.25 1.75 8 1.75 8Z"/><circle vector-effect="non-scaling-stroke" cx="8" cy="8" r="2"/></g>`,
   },
   "outline-eye-slash": {
-    viewBox: "0 0 20 20",
-    body: `<path d="M2.5 10s3.33-5.42 7.5-5.42S17.5 10 17.5 10s-3.33 5.42-7.5 5.42S2.5 10 2.5 10Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="10" r="2.5" stroke="currentColor"/><path d="M3 3 17 17" stroke="currentColor" stroke-linecap="round"/>`,
+    viewBox: "0 0 16 16",
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M6.6 6.6a2 2 0 0 0 2.8 2.8"/><path vector-effect="non-scaling-stroke" d="M10.7 10.7C9.9 11.2 9 11.5 8 11.5c-3.75 0-6.25-3.5-6.25-3.5a11.7 11.7 0 0 1 3.1-3.1M6.3 4.65A5.8 5.8 0 0 1 8 4.5c3.75 0 6.25 3.5 6.25 3.5a11.8 11.8 0 0 1-1.65 2.05"/><path vector-effect="non-scaling-stroke" d="m2.5 2.5 11 11"/></g>`,
   },
   refresh: {
-    viewBox: "0 0 20 20",
-    body: `<path d="M16.25 7.5A6.5 6.5 0 1 0 16.5 11M16.25 3.5v4h-4" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>`,
+    viewBox: "0 0 16 16",
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M13.25 6.25A5.5 5.5 0 1 0 13.5 9"/><path vector-effect="non-scaling-stroke" d="M13.25 2.75v3.5h-3.5"/></g>`,
   },
   reset: {
-    viewBox: "0 0 20 20",
-    body: `<path d="M5.83333 4.16406L2.5 7.4974L5.83333 10.8307M3.33333 7.4974H17.9167V15.4141H10" stroke="currentColor" stroke-linecap="square"/>`,
+    viewBox: "0 0 16 16",
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M4.75 3.5 2 6.25 4.75 9"/><path vector-effect="non-scaling-stroke" d="M2.25 6.25h7.5a3.75 3.75 0 0 1 0 7.5H7.5"/></g>`,
   },
   "outline-undo": {
     viewBox: "0 0 16 16",
-    body: `<path d="M2 10L4.25193 7.76999C7.29213 4.7594 12.4119 5.77372 14.0747 9.71606" stroke="currentColor"/><path d="M2 6V10H6" stroke="currentColor" stroke-linecap="square"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M2.5 8.5 4.4 6.6a5.5 5.5 0 0 1 8.85 1.9"/><path vector-effect="non-scaling-stroke" d="M2.5 5v3.5H6"/></g>`,
   },
   "outline-reset": {
-    viewBox: "0 0 20 20",
-    body: `<path d="M5.83333 4.16406L2.5 7.4974L5.83333 10.8307M3.33333 7.4974H17.9167V15.4141H10" stroke="currentColor" stroke-linecap="square"/>`,
+    viewBox: "0 0 16 16",
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path vector-effect="non-scaling-stroke" d="M4.75 3.5 2 6.25 4.75 9"/><path vector-effect="non-scaling-stroke" d="M2.25 6.25h7.5a3.75 3.75 0 0 1 0 7.5H7.5"/></g>`,
   },
   "fill-triangle-down": {
     viewBox: "0 0 16 16",
-    body: `<path d="M5.37624 6.75194C5.18184 6.41861 5.42224 6 5.80814 6H10.1921C10.578 6 10.8184 6.41861 10.624 6.75194L8.43203 10.5096C8.23909 10.8404 7.76119 10.8404 7.56825 10.5096L5.37624 6.75194Z" fill="currentColor"/>`,
+    body: `<path d="M5.2 6.2c-.35 0-.55.4-.35.7l2.8 4.1c.2.28.5.28.7 0l2.8-4.1c.2-.3 0-.7-.35-.7H5.2Z" fill="currentColor"/>`,
   },
   archive: {
     viewBox: "0 0 16 16",
-    body: `<path d="M13.1112 13.5555V14.0555H13.6112V13.5555H13.1112ZM2.889 13.5555H2.389L2.389 14.0555H2.889V13.5555ZM3.38901 5.55546L3.38901 5.05546L2.38901 5.05546L2.38901 5.55546L2.88901 5.55546L3.38901 5.55546ZM14.4446 2.44434H14.9446V1.94434L14.4446 1.94434L14.4446 2.44434ZM14.4446 5.55545L14.4446 6.05545L14.9446 6.05545V5.55545H14.4446ZM1.55566 5.55546L1.05566 5.55545L1.05566 6.05546L1.55566 6.05546L1.55566 5.55546ZM1.5557 2.44436L1.5557 1.94436L1.05571 1.94436L1.0557 2.44435L1.5557 2.44436ZM13.1112 5.55546H12.6112V13.5555H13.1112H13.6112V5.55546H13.1112ZM2.889 13.5555H3.389L3.38901 5.55546L2.88901 5.55546L2.38901 5.55546L2.389 13.5555H2.889ZM14.4446 2.44434H13.9446V5.55545H14.4446H14.9446V2.44434H14.4446ZM1.55566 5.55546L2.05566 5.55547L2.0557 2.44436L1.5557 2.44436L1.0557 2.44435L1.05566 5.55545L1.55566 5.55546ZM6.22234 8.22213V8.72213H9.7779V8.22213V7.72213H6.22234V8.22213ZM13.1112 13.5555V13.0555H2.889V13.5555V14.0555H13.1112V13.5555ZM1.5557 2.44436L1.5557 2.94436L14.4446 2.94434L14.4446 2.44434L14.4446 1.94434L1.5557 1.94436L1.5557 2.44436ZM14.4446 5.55545L14.4446 5.05545L1.55566 5.05546L1.55566 5.55546L1.55566 6.05546L14.4446 6.05545L14.4446 5.55545Z" fill="currentColor"/>`,
+    body: `<g fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect vector-effect="non-scaling-stroke" x="1.75" y="2.5" width="12.5" height="3" rx="0.8"/><path vector-effect="non-scaling-stroke" d="M3 5.5v6.75a1.25 1.25 0 0 0 1.25 1.25h7.5A1.25 1.25 0 0 0 13 12.25V5.5"/><path vector-effect="non-scaling-stroke" d="M6.5 8.25h3"/></g>`,
   },
-}
+} as const
 
-/** Icon names derived from the shared artwork, with no UI or runtime dependencies. */
 export type IconName = keyof typeof icons | keyof typeof additionalIcons
 
 /** The artwork catalog's names, in sprite order. */

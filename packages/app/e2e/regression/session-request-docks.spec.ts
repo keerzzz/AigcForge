@@ -11,7 +11,7 @@ import { mockServers, type MockGoalMutation } from "../utils/mock-server"
 import { installSseTransport } from "../utils/sse-transport"
 import { expectSessionTitle } from "../utils/waits"
 import { mockWorkspace, type WorkspaceInput } from "../utils/workspace"
-import { attachSession } from "../utils/side-panel"
+import { attachSession, openSidePanel } from "../utils/side-panel"
 
 const directory = "C:/AigcForge/RequestDocks"
 
@@ -275,19 +275,191 @@ test("shows a pending question dock", async ({ page }) => {
   expect((await reply).postDataJSON()).toEqual({ answer: { q0: "minimal" } })
 })
 
+test("background Subagent feedback follows the child request owner", async ({ page }) => {
+  const childID = "ses_background_feedback_child"
+  const transport = await installSseTransport(page, { server: SERVER, retry: 20 })
+  const messages: SessionMessageInfo[] = [
+    { id: "msg_background_prompt", type: "user", text: "Track background work", time: { created: 1 } },
+    {
+      id: "msg_background_reply",
+      type: "assistant",
+      agent: "build",
+      model: { providerID: "fixture", id: "fixture" },
+      time: { created: 2, completed: 3 },
+      content: [
+        {
+          id: "tool_background_child",
+          type: "tool",
+          name: "subagent",
+          time: { created: 2, ran: 2, completed: 3 },
+          state: {
+            status: "completed",
+            input: { description: "Background worker", agent: "build" },
+            content: [{ type: "text", text: "The child was admitted in the background." }],
+            metadata: { sessionID: childID, background: true, status: "running" },
+          },
+        },
+      ],
+    },
+  ]
+  await mockWorkspace(page, {
+    name: "RequestDocks",
+    directory,
+    sessions: [
+      { id: sessionID, title },
+      { id: childID, parentID: sessionID, title: "Background worker" },
+    ],
+    pageMessages: () => ({ items: messages }),
+    sessionStatus: { [childID]: { type: "busy" } },
+  })
+  await page.goto(sessionHref(sessionID))
+  await expectSessionTitle(page, title)
+  await transport.waitForConnection()
+  await page.locator('[data-component="context-tool-group-trigger"]').click()
+  const tool = page.locator('[data-component="tool-part-wrapper"][data-timeline-part-id="tool_background_child"]')
+  const progress = tool.locator('[data-component="session-progress-indicator-v2"]')
+  await expect(progress).toHaveCount(1)
+  await transport.send({
+    id: "evt_child_waiting",
+    created: 4,
+    type: "permission.asked",
+    location: { directory },
+    data: {
+      id: "per_background_child",
+      sessionID: childID,
+      action: "read",
+      resources: ["child.txt"],
+      source: { type: "tool", messageID: "msg_child_work", id: "tool_child_read" },
+    },
+  })
+  await expect(progress).toHaveCount(0)
+  await transport.send({
+    id: "evt_child_resumed",
+    created: 5,
+    type: "permission.replied",
+    location: { directory },
+    data: { sessionID: childID, requestID: "per_background_child", reply: "once" },
+  })
+  await expect(progress).toHaveCount(1)
+  await transport.send({
+    id: "evt_child_form_waiting",
+    created: 6,
+    type: "form.created",
+    location: { directory },
+    data: {
+      form: {
+        id: "frm_child_waiting",
+        sessionID: childID,
+        title: "Child question",
+        fields: [{ key: "q0", type: "string", title: "Continue the child" }],
+      },
+    },
+  })
+  await expect(progress).toHaveCount(0)
+  await transport.send({
+    id: "evt_child_form_resumed",
+    created: 7,
+    type: "form.replied",
+    location: { directory },
+    data: { id: "frm_child_waiting", sessionID: childID, answer: { q0: "yes" } },
+  })
+  await expect(progress).toHaveCount(1)
+  await transport.send({
+    id: "evt_parent_waiting",
+    created: 8,
+    type: "form.created",
+    location: { directory },
+    data: {
+      form: {
+        id: "frm_parent_waiting",
+        sessionID,
+        title: "Questions",
+        metadata: { kind: "question" },
+        fields: [
+          {
+            key: "q0",
+            type: "string",
+            title: "Continue",
+            description: "Continue the parent?",
+            options: [{ value: "yes", label: "Yes" }],
+            custom: true,
+          },
+        ],
+      },
+    },
+  })
+  await expect(page.locator('[data-component="dock-prompt"][data-kind="question"]')).toBeVisible()
+  await expect(progress.locator("[data-progress-arc]")).toHaveCSS("animation-name", "session-progress-orbit")
+})
+
 test("shows a pending permission dock", async ({ page }) => {
+  const messages: SessionMessageInfo[] = [
+    {
+      id: "msg_user_permission_pending",
+      type: "user",
+      text: "Publish the verified preview build to the canary channel.",
+      time: {
+        created: 1735689683000,
+      },
+      metadata: {
+        agent: "build",
+        model: {
+          id: "claude-sonnet-4",
+          providerID: "anthropic",
+          variant: "balanced",
+        },
+      },
+    },
+    {
+      id: "msg_assistant_permission_pending",
+      type: "assistant",
+      agent: "build",
+      model: {
+        id: "claude-sonnet-4",
+        providerID: "anthropic",
+        variant: "balanced",
+      },
+      content: [
+        {
+          type: "tool",
+          id: "tool_permission_pending",
+          name: "shell",
+          state: {
+            status: "running",
+            input: {
+              command: "npm publish --tag canary",
+            },
+            metadata: {},
+          },
+          time: {
+            created: 1735689684100,
+            ran: 1735689684200,
+          },
+        },
+      ],
+      time: {
+        created: 1735689684000,
+      },
+    },
+  ]
   const replies: { sessionID: string; permissionID: string; body: unknown }[] = []
-  await mockServer(page, {
+  await mockWorkspace(page, {
+    name: "RequestDocks",
+    directory,
+    sessions: [{ id: sessionID, title }],
+    sessionStatus: { [sessionID]: { type: "busy" } },
+    pageMessages: () => ({ items: messages }),
     onPermissionReply: (reply) => replies.push(reply),
     sessionPermissions: {
       [sessionID]: [
         {
           id: "permission-request",
           sessionID,
-          permission: "shell",
-          patterns: ["git status", "git diff"],
+          action: "shell",
+          resources: ["git status", "git diff"],
+          source: { type: "tool", messageID: "msg_assistant_permission_pending", id: "tool_permission_pending" },
           metadata: {},
-          always: [],
+          save: [],
         },
       ],
     },
@@ -303,6 +475,13 @@ test("shows a pending permission dock", async ({ page }) => {
   await expect(permission.locator('[data-slot="permission-footer-actions"] button')).toHaveCount(3)
   await expect(page.locator('[data-component="composer"]')).toHaveCount(0)
 
+  const group = page.locator('[data-component="context-tool-group-trigger"]')
+  await expect(group.locator('[data-component="session-progress-indicator-v2"]')).toHaveCount(0)
+  await group.click()
+  const tool = page.locator('[data-component="tool-part-wrapper"][data-timeline-part-id$="tool_permission_pending"]')
+  await expect(tool).toBeVisible()
+  const shimmer = tool.locator('[data-slot="text-shimmer-char-shimmer"]').first()
+  await expect(shimmer).toHaveCSS("animation-name", "none")
   const reply = page.waitForResponse((response) => response.request().method() === "POST")
   await permission.getByRole("button", { name: "Allow once" }).click()
   const response = await reply
@@ -311,6 +490,8 @@ test("shows a pending permission dock", async ({ page }) => {
   expect(response.status()).toBe(204)
   expect(replies).toEqual([{ sessionID, permissionID: "permission-request", body: { decision: "once" } }])
   await expect(permission).toHaveCount(0)
+  await expect(shimmer).toHaveCSS("animation-name", "text-shimmer-sweep")
+  await expect(group.locator('[data-component="session-progress-indicator-v2"]')).toHaveCount(1)
   await expect(page.locator('[data-component="composer"]')).toBeVisible()
 })
 
@@ -917,6 +1098,7 @@ test("MP03 Task dock and notice open the exact saved operation without reading l
   const targetID = "ses_mp03_task_target"
   const taskID = "tsk_mp03_operation"
   const operationID = "top_mp03_operation"
+  const taskTitle = "Inspect the exact saved operation"
 
   const operations: SessionTaskOperationInfo[] = [
     {
@@ -963,7 +1145,7 @@ test("MP03 Task dock and notice open the exact saved operation without reading l
     new SessionTask.Info({
       id: taskID,
       sessionID: sourceID,
-      content: "Inspect the exact saved operation",
+      content: taskTitle,
       status: "in_progress",
       priority: "high",
       revision: 1,
@@ -1032,10 +1214,35 @@ test("MP03 Task dock and notice open the exact saved operation without reading l
   await expectSessionTitle(page, "Task operation source")
   await transport.waitForConnection()
   const dock = page.getByRole("region", { name: "Tasks", exact: true })
-  await dock.getByRole("button", { name: "View details for Inspect the exact saved operation", exact: true }).click()
+  await dock.getByRole("button", { name: `View details for ${taskTitle}`, exact: true }).click()
   const side = page.locator("#review-panel")
   const details = side.getByRole("region", { name: "Task details", exact: true })
   const dispatch = details.getByRole("article", { name: `Dispatch ${operationID}`, exact: true })
+  await expect(dispatch).toContainText("Awaiting source Task update")
+  await details.getByRole("button", { name: "Back to collaborations", exact: true }).click()
+  await openSidePanel(page, "Task delegation")
+  const monitor = side.getByRole("region", { name: "Task dispatch", exact: true })
+  const running = monitor.getByRole("button", { name: "Running", exact: true })
+  const completed = monitor.getByRole("button", { name: "Completed", exact: true })
+  const taskList = monitor.getByRole("region", { name: "Tasks", exact: true })
+  const taskButton = taskList.getByRole("button", { name: `View task: ${taskTitle}`, exact: true })
+  const overview = side.getByRole("region", { name: "Task overview", exact: true })
+
+  await expect(running.getByText("1", { exact: true })).toBeVisible()
+  await expect(completed.getByText("0", { exact: true })).toBeVisible()
+  await completed.click()
+  await expect(completed).toHaveAttribute("aria-pressed", "true")
+  await expect(taskButton).toHaveCount(0)
+  await running.click()
+  await expect(running).toHaveAttribute("aria-pressed", "true")
+  await expect(taskButton).toHaveCount(1)
+  await taskButton.click()
+  await expect(overview.getByRole("heading", { name: taskTitle, exact: true })).toBeVisible()
+  await overview.getByRole("button", { name: "All tasks", exact: true }).click()
+  await expect(running).toHaveAttribute("aria-pressed", "true")
+  await expect(taskButton).toHaveCount(1)
+  await taskButton.click()
+  await overview.getByRole("button", { name: "Task details", exact: true }).click()
   await expect(dispatch.getByText("Exact saved dispatch prompt", { exact: true })).toBeVisible()
   await expect(dispatch.getByText("Complete durable Task result\nSecond result line", { exact: true })).toBeVisible()
   await expect(dispatch).toContainText("Awaiting source Task update")
@@ -1078,6 +1285,46 @@ test("MP03 Task dock and notice open the exact saved operation without reading l
   await expect(dispatch.getByRole("button", { name: "Read result text", exact: true })).toHaveCount(0)
   expect(reads).not.toContain(targetID)
   await details.getByRole("button", { name: "Back to collaborations", exact: true }).click()
+  await expect(overview.getByRole("heading", { name: taskTitle, exact: true })).toBeVisible()
+  await overview.getByRole("button", { name: "All tasks", exact: true }).click()
+  await expect(running).toHaveAttribute("aria-pressed", "true")
+  await expect(running.getByText("1", { exact: true })).toBeVisible()
+  await expect(completed.getByText("0", { exact: true })).toBeVisible()
+  await expect(taskButton).toHaveCount(1)
+
+  const currentTask = tasks[0]
+
+  if (!currentTask) throw new Error("The saved Task fixture is missing")
+  tasks[0] = new SessionTask.Info({
+    ...currentTask,
+    status: "completed",
+    outputDigest: persisted.result?.text,
+    revision: currentTask.revision + 1,
+    updatedAt: 5,
+  })
+  const taskUpdated = page.waitForResponse(
+    (response) =>
+      response.request().method() === "GET" && new URL(response.url()).pathname === `/session/${sourceID}/task`,
+  )
+
+  await transport.send({
+    id: "evt_mp03_task_completed",
+    created: 5,
+    type: SessionTaskEvent.Updated.type,
+    location: { directory },
+    data: {
+      sessionID: sourceID,
+      tasks: tasks.map((task) => ({ ...task, dependsOn: task.dependsOn && [...task.dependsOn] })),
+    },
+  })
+  expect((await taskUpdated).status()).toBe(200)
+  await expect(running.getByText("0", { exact: true })).toBeVisible()
+  await expect(completed.getByText("1", { exact: true })).toBeVisible()
+  await expect(taskButton).toHaveCount(0)
+  await completed.click()
+  await expect(completed).toHaveAttribute("aria-pressed", "true")
+  await expect(taskButton).toHaveCount(1)
+  await expect(taskList.getByText("Completed", { exact: true })).toBeVisible()
 
   const notice = page
     .locator('[data-slot="session-chat-panel"] [data-slot="session-timeline-coordination"]')

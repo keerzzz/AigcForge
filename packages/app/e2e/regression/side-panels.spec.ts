@@ -106,6 +106,17 @@ test("web browser module uses the shared launcher without native IPC or extra co
   await page.locator('[data-component="composer-editor"]').click()
   await page.keyboard.press("Control+Shift+B")
   await expect(panel).toBeVisible()
+  const browserTab = page.locator("#review-panel").getByRole("tab", { name: "Browser", exact: true })
+  const browserClose = browserTab.locator("..").getByRole("button", { name: "Close tab", exact: true })
+  await page.locator('[data-component="composer-editor"]').click()
+  await page.mouse.move(0, 0)
+  await expect(browserClose).toHaveCSS("opacity", "0")
+  await browserTab.hover()
+  await expect(browserClose).toHaveCSS("opacity", "1")
+  await browserClose.click()
+  await expect(browserTab).toHaveCount(0)
+  await page.locator('[data-component="composer-editor"]').press("Control+Shift+B")
+  await expect(panel).toBeVisible()
   await testInfo.attach("browser-reopened-geometry", {
     body: JSON.stringify(await geometry(), null, 2),
     contentType: "application/json",
@@ -210,7 +221,7 @@ test("Chinese sidebar labels follow live language changes", async ({ page }, tes
   await expect(side.getByRole("switch", { name: "预览文件", exact: true })).toHaveCount(0)
 
   for (const [name, expected] of [
-    ["任务委派", "已加载的记录中暂无协作。"],
+    ["任务委派", "暂无任务。"],
     ["技能提案", "此会话尚无已完成的技能提案。"],
     ["命令提案", "此会话尚无已完成的命令提案。"],
     ["提示词提案", "此会话尚无已完成的提示词提案。"],
@@ -262,7 +273,7 @@ test("Chinese sidebar labels follow live language changes", async ({ page }, tes
   await expect(side.getByRole("switch", { name: "Preview files", exact: true })).toHaveCount(0)
   await openSidePanel(page, "Task delegation")
   await expect(side.getByRole("region", { name: "Task delegation", exact: true })).toBeVisible()
-  await expect(side.getByText("No collaborations in loaded history.", { exact: true })).toBeVisible()
+  await expect(side.getByText("No tasks yet.", { exact: true })).toBeVisible()
   await page.locator('[data-component="composer-editor"]').click()
   await page.keyboard.press("Control+,")
   await settings.locator('[data-action="settings-language"]').click()
@@ -279,7 +290,7 @@ test("Chinese sidebar labels follow live language changes", async ({ page }, tes
   await drawer.getByRole("button", { name: "任务委派", exact: true }).click()
   await expect(drawer).toBeHidden()
   await expect(page.getByRole("region", { name: "任务委派", exact: true })).toBeVisible()
-  await expect(page.getByText("已加载的记录中暂无协作。", { exact: true })).toBeVisible()
+  await expect(page.getByText("暂无任务。", { exact: true })).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath("sidebar-chinese-narrow.png") })
 
   await page.setViewportSize({ width: 1600, height: 900 })
@@ -289,7 +300,7 @@ test("Chinese sidebar labels follow live language changes", async ({ page }, tes
   await expect(page.locator("html")).toHaveAttribute("lang", "zh-Hant")
   await expect(side.getByRole("tab", { name: "任務委派", exact: true })).toHaveAttribute("aria-selected", "true")
   await expect(side.getByRole("region", { name: "任務委派", exact: true })).toBeVisible()
-  await expect(side.getByText("已載入的記錄中暫無協作。", { exact: true })).toBeVisible()
+  await expect(side.getByText("尚無任務。", { exact: true })).toBeVisible()
   await side.getByRole("button", { name: "新增分頁", exact: true }).click()
   await expect(launcher).toBeVisible()
 
@@ -653,6 +664,50 @@ test("Chat launcher shares Context and Review tabs with original controls and di
   }
 })
 
+test("panel close controls reveal on hover and preserve the draft and closed tabs after reload", async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  const title = "Panel close controls"
+  await openSession(page, {
+    name: "PanelCloseControls",
+    sessions: [{ id: "ses_panel_close_controls", title, mode: "chat" }],
+    vcsDiff: [],
+  })
+  await openSidePanel(page, "Context")
+  await openSidePanel(page, "Review")
+  const side = page.locator("#review-panel")
+  const add = side.getByRole("button", { name: "Add tab", exact: true })
+  const launcher = side.locator('[data-component="session-panel-launcher"]')
+  const context = side.getByRole("tab", { name: "Context", exact: true })
+  const review = side.locator("#session-side-panel-review-tab")
+  const composer = page.locator('[data-component="composer-editor"]')
+  await composer.fill("Keep this draft while closing panels")
+  for (const [name, tab] of [
+    ["Context", context],
+    ["Review", review],
+  ] as const) {
+    const close = tab.locator("..").getByRole("button", { name: "Close tab", exact: true })
+    await composer.click()
+    await page.mouse.move(0, 0)
+    await expect(close).toHaveCSS("opacity", "0")
+    await tab.hover()
+    await expect(close).toHaveCSS("opacity", "1")
+    await close.click()
+    await expect(tab).toHaveCount(0)
+    await expect(composer).toHaveText("Keep this draft while closing panels")
+    await add.click()
+    await launcher.getByRole("button", { name, exact: true }).click()
+    await expect(tab).toHaveAttribute("aria-selected", "true")
+  }
+  await review.locator("..").getByRole("button", { name: "Close tab", exact: true }).click()
+  await page.reload()
+  await expectSessionTitle(page, title)
+  await expect(review).toHaveCount(0)
+  await expect(context).toHaveCount(1)
+  await expect(composer).toHaveText("Keep this draft while closing panels")
+  await openSidePanel(page, "Review")
+  await expect(review).toHaveAttribute("aria-selected", "true")
+})
+
 test("side-panel shortcuts follow saved custom bindings and retain the composer draft", async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   const title = "Custom sidebar shortcuts"
@@ -696,7 +751,7 @@ test("side-panel shortcuts follow saved custom bindings and retain the composer 
 test("the new tab launcher follows Chat, Coding, Work, Custom, and Assistant session modes", async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
 
-  const common = ["Context", "Open file", "Task delegation"]
+  const common = ["Context", "Open file", "Task delegation", "Review"]
 
   const proposals = [
     "Skill proposals",
@@ -715,7 +770,7 @@ test("the new tab launcher follows Chat, Coding, Work, Custom, and Assistant ses
     },
     {
       session: { id: "ses_launcher_coding", title: "Launcher Coding", mode: "coding" },
-      visible: [...common, "Review"],
+      visible: common,
     },
     {
       session: {
@@ -879,7 +934,7 @@ test("the new tab launcher follows Chat, Coding, Work, Custom, and Assistant ses
   }
 })
 
-test("Chat review launcher availability follows filesystem events while its guide stays selected", async ({ page }) => {
+test("Chat review stays reopenable while filesystem events update its unselected tab", async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
 
   // SAFETY: The VCS fixture starts empty; every added entry comes from fileDiff().
@@ -898,12 +953,12 @@ test("Chat review launcher availability follows filesystem events while its guid
   const entry = launcher.getByRole("button", { name: "Review", exact: true })
   const initial = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/vcs/diff"))
 
-  await page.getByRole("button", { name: "Toggle review", exact: true }).click()
+  await openSidePanel(page, "Review")
   expect((await initial).status()).toBe(200)
   await expect(side.getByText("No file changes yet", { exact: true })).toBeVisible()
   await side.getByRole("button", { name: "Add tab", exact: true }).click()
   await expect(guide).toHaveAttribute("aria-selected", "true")
-  await expect(entry).toHaveCount(0)
+  await expect(entry).toBeVisible()
   await expect(launcher.getByRole("button", { name: "Context", exact: true })).toBeVisible()
 
   const changed = page.waitForResponse((response) => new URL(response.url()).pathname.endsWith("/vcs/diff"))
@@ -936,7 +991,7 @@ test("Chat review launcher availability follows filesystem events while its guid
     },
   ])
   expect((await removed).status()).toBe(200)
-  await expect(entry).toHaveCount(0)
+  await expect(entry).toBeVisible()
   await expect(review).toHaveText("Review")
   await expect(review).toHaveAttribute("data-value", "review:changes")
   await expect(review).toHaveCount(1)
@@ -2420,6 +2475,7 @@ test("resource display preferences preserve file order and terminal while hidden
 
   const side = page.locator("#review-panel")
   const fileTabs = side.getByRole("tab").filter({ hasText: /^(note\.txt|preview\.html)$/ })
+  await openSidePanel(page, "Review")
   await page.getByRole("link", { name: "note.txt", exact: true }).click()
   await expect(side.getByRole("tab", { name: "note.txt", exact: true })).toHaveAttribute("aria-selected", "true")
   await page.getByRole("link", { name: "preview.html", exact: true }).click()
@@ -2529,8 +2585,15 @@ test("review and terminal follow the session tab and stay mounted", async ({ pag
     await expectSessionTitle(page, title)
   }
 
+  // Beta owns a Review tab whose region is closed; switching back must retain the loaded panel.
+  await switchTab(b.title)
+  await openSidePanel(page, "Review")
+  await page.getByRole("button", { name: "Toggle review", exact: true }).click()
+  await expect(review).toBeHidden()
+  await switchTab(a.title)
+
   const transition = () => chat.evaluate((element) => getComputedStyle(element).transitionDuration)
-  await page.getByRole("button", { name: "Toggle review" }).click()
+  await openSidePanel(page, "Review")
   await expect.poll(transition).not.toBe("0s")
   await page.keyboard.press("Control+Backquote")
   await expect(review).toBeVisible()
@@ -2554,7 +2617,7 @@ test("review and terminal follow the session tab and stay mounted", async ({ pag
   await expect.poll(transition).toBe("0s")
   await expectMarked(review)
   await expectMarked(terminal)
-  await page.getByRole("button", { name: "Toggle review" }).click()
+  await openSidePanel(page, "Review")
   await page.keyboard.press("Control+Backquote")
   await expect(review).toBeVisible()
   await expect(terminal).toBeVisible()
@@ -2612,6 +2675,7 @@ test("the selected side panel owns the resize limit and preserves the requested 
   const prompt = page.locator('[data-component="prompt-proposals-panel"]')
   const promptTab = page.locator("#session-side-panel-prompt-proposals-tab")
 
+  await openSidePanel(page, "Review")
   await openSidePanel(page, "Prompt proposals")
   await expect(prompt.getByRole("heading", { name: "Prompt proposals", exact: true })).toBeVisible()
   await expect(chat).toHaveCSS("width", "450px")
@@ -2718,6 +2782,7 @@ test("long file and management tabs keep close buttons reachable while the side 
   const scrollPrevious = side.getByRole("button", { name: "Scroll tabs backward", exact: true })
   const scrollNext = side.getByRole("button", { name: "Scroll tabs forward", exact: true })
 
+  await openSidePanel(page, "Review")
   for (const name of ["Task delegation", "Workflow run"]) {
     await openSidePanel(page, name)
     await expect(strip.getByRole("tab", { name, exact: true })).toHaveCount(1)
@@ -2870,7 +2935,7 @@ test("terminal stacks under review by default and spans the bottom when configur
   const review = page.locator('[data-component="session-review-v2"]')
   const terminal = page.locator('[data-component="terminal"]')
 
-  await toggle.click()
+  await openSidePanel(page, "Review")
   await expect(reviewPanel).toBeVisible()
   await expectTreeSentinel(page)
 

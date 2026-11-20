@@ -26,6 +26,7 @@ export const createTabStripScroll = (input: {
   let prevClientWidth = input.el.clientWidth
   let prevScrollWidth = input.el.scrollWidth
   let prevLeadOpen = input.lead()
+  let prevSelected: Element | null | undefined
 
   const notify = () => {
     const max = Math.max(0, input.el.scrollWidth - input.el.clientWidth)
@@ -63,9 +64,9 @@ export const createTabStripScroll = (input: {
       })
     }
 
-    // Resizing can clip the selected tab without adding a tab or increasing scrollWidth.
-    if (clientWidth !== prevClientWidth) {
-      const selected = input.el.querySelector('[role="tab"][aria-selected="true"]')?.parentElement
+    // Native focus reveals the trigger only; include its sibling close button on selection and resize.
+    const selected = input.el.querySelector('[role="tab"][aria-selected="true"]')?.parentElement
+    if (clientWidth !== prevClientWidth || selected !== prevSelected) {
       const bounds = selected?.getBoundingClientRect()
       const viewport = input.el.getBoundingClientRect()
 
@@ -77,6 +78,7 @@ export const createTabStripScroll = (input: {
     prevClientWidth = clientWidth
     prevScrollWidth = scrollWidth
     prevLeadOpen = leadOpen
+    prevSelected = selected
     notify()
   }
 
@@ -97,7 +99,7 @@ export const createTabStripScroll = (input: {
   input.el.addEventListener("wheel", onWheel, { passive: false })
   input.el.addEventListener("scroll", notify)
   const observer = new MutationObserver(schedule)
-  observer.observe(input.el, { childList: true })
+  observer.observe(input.el, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-selected"] })
   const resize = new ResizeObserver(schedule)
   resize.observe(input.el)
 

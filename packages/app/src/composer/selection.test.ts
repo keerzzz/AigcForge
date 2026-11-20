@@ -148,7 +148,7 @@ async function browserKeepers() {
     })
   }
 
-  type Canonical = Pick<SessionInfo, "agent" | "model" | "controller" | "executorPreference">
+  type Canonical = Pick<SessionInfo, "agent" | "model" | "controller" | "executorPreference" | "mode">
 
   type SelectedEvent = { data: { sessionID: string } }
 
@@ -215,7 +215,7 @@ async function browserKeepers() {
     const [state, set] = createStore<{
       visible: boolean
       route: { id: string | undefined }
-      agents: Agent[]
+      agents: Agent[] | undefined
       sessions: Record<string, Canonical | undefined>
       providers: ProviderListOutput["data"]
       groups: ModelGroupCurrent[]
@@ -308,7 +308,7 @@ async function browserKeepers() {
         get api() {
           return input.api?.() ?? transport.api
         },
-        connection: { status: () => "connected" },
+        connection: { status: () => "connected", attempt: () => 0 },
         event: {
           on(type: string, handler: (event: SelectedEvent) => void) {
             const handlers = events.get(type) ?? new Set<(event: SelectedEvent) => void>()
@@ -432,6 +432,65 @@ async function browserKeepers() {
       tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
     }
   }
+
+  test("keeps a session's saved model while its agent catalog is loading", () => {
+    const f = fixture({ session: root("b", "low") })
+    f.set("agents", undefined)
+    const mounted = f.mount()
+
+    expect({ model: mounted.local.model.key(), loading: mounted.controls().model.loading }).toEqual({
+      model: { ...key("b"), variant: "low" },
+      loading: true,
+    })
+    expect(mounted.local.model.variant.current()).toBe("low")
+    f.set("agents", [agent("meta", "primary", "a"), agent("build", "all", "b")])
+    expect({ model: mounted.local.model.key(), loading: mounted.controls().model.loading }).toEqual({
+      model: { ...key("b"), variant: "low" },
+      loading: false,
+    })
+    expect(mounted.local.model.variant.current()).toBe("low")
+  })
+
+  test("an empty loaded agent catalog releases loading to the existing missing-selection path", () => {
+    const f = fixture({ agents: [] })
+    const { local, controls } = f.mount()
+
+    expect(local.agent.ready()).toBe(true)
+    expect(local.agent.current()).toBeUndefined()
+    expect(controls().model.loading).toBe(false)
+  })
+
+  test.each(["custom", "workflow"] as const)("a frozen %s keeps its durable Agent while catalogs load", (kind) => {
+    const binding = {
+      agent: "build",
+      model: { id: "b", providerID: "provider", variant: "low" },
+      source: "preference" as const,
+    }
+    const f = fixture({
+      session: canonical({
+        agent: binding.agent,
+        model: binding.model,
+        mode: kind === "custom" ? "custom" : "coding",
+        controller:
+          kind === "workflow"
+            ? {
+                kind: "child",
+                metaAgentID: "meta_a",
+                rootSessionID: "ses_root",
+                executor: binding,
+                source: { kind: "workflow", runID: "wfr_a", stepRunID: "stp_a", inputID: "msg_a" },
+              }
+            : undefined,
+      }),
+    })
+    f.set("agents", undefined)
+    const { local, controls } = f.mount()
+
+    expect(local.agent.ready()).toBe(true)
+    expect(local.agent.current()?.name).toBe("build")
+    expect(controls().model.loading).toBe(false)
+    expect(selection(local)).toEqual({ model: "b", variant: "low", executorPreference: undefined })
+  })
 
   test("Meta and executor groups retain distinct identities through canonical ACK and persisted choices", () => {
     const group = (groupID: string, modelID: string): ModelGroupCurrent => ({
@@ -1475,6 +1534,13 @@ async function browserKeepers() {
     expect(local.metaSelected()).toBe(false)
     expect(controls().agents.options).toEqual(["build"])
     expect(local.agent.current()?.name).toBe("build")
+    expect(selection(local)).toEqual({ model: "b", variant: "low", executorPreference: undefined })
+    f.set("agents", undefined)
+    expect(local.agent.ready()).toBe(false)
+    expect(controls().model.loading).toBe(true)
+    expect(local.model.key()).toEqual({ ...key("b"), variant: "low" })
+    f.set("agents", [agent("build", "all", "c")])
+    expect(controls().model.loading).toBe(false)
     expect(selection(local)).toEqual({ model: "b", variant: "low", executorPreference: undefined })
   })
 

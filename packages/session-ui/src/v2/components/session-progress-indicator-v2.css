@@ -1,25 +1,27 @@
 [data-component="session-progress-indicator-v2"] {
   display: block;
   flex-shrink: 0;
-  color: var(--v2-icon-icon-muted, #808080);
+  color: var(--v2-icon-icon-base);
 }
 
-[data-component="session-progress-indicator-v2"] [data-frame-content] {
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
+[data-component="session-progress-indicator-v2"] [data-progress-arc] {
+  transform-origin: 8px 8px;
+  animation: session-progress-orbit 1.2s linear infinite;
 }
 
-[data-component="session-progress-indicator-v2"] [data-reduced-motion] {
-  display: none;
-  fill: currentColor;
+[data-visible="false"] [data-component="session-progress-indicator-v2"] [data-progress-arc],
+[hidden] [data-component="session-progress-indicator-v2"] [data-progress-arc] {
+  animation: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-component="session-progress-indicator-v2"] [data-frame-content] {
-    display: none;
+  [data-component="session-progress-indicator-v2"] [data-progress-arc] {
+    animation: none;
   }
+}
 
-  [data-component="session-progress-indicator-v2"] [data-reduced-motion] {
-    display: block;
+@keyframes session-progress-orbit {
+  to {
+    transform: rotate(360deg);
   }
 }

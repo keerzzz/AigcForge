@@ -1,9 +1,22 @@
-import type { Page } from "@playwright/test"
+import { expect, type Page } from "@playwright/test"
 
 export type PromptPosition = { frame: number; top: number | null }
 
+// A fixture-only paint marker distinguishes the prompt from themed icons without changing its geometry.
+export async function markPrompt(page: Page) {
+  await page.addStyleTag({
+    content:
+      '[data-timeline-row="UserMessage"] [data-slot="user-message-text"] { color: rgb(240, 0, 180) !important; }',
+  })
+  // Virtualization can detach the prompt before capture; newly mounted rows inherit the marker immediately.
+  const prompt = page.locator('[data-timeline-row="UserMessage"] [data-slot="user-message-text"]').first()
+
+  if (await prompt.count()) await expect(prompt).toHaveCSS("color", "rgb(240, 0, 180)")
+}
+
 // Records painted compositor frames; the returned stop function reads the prompt position in each frame.
 export async function capturePromptMotion(page: Page, view: { x: number; y: number; width: number }) {
+  await markPrompt(page)
   const session = await page.context().newCDPSession(page)
   const frames: string[] = []
   const acknowledgements: Promise<unknown>[] = []
@@ -33,7 +46,7 @@ export async function capturePromptMotion(page: Page, view: { x: number; y: numb
   }
 }
 
-// Finds the top of the only blue ink (the user prompt) in the top 200px of `view` in each JPEG frame.
+// Finds the prompt's magenta marker in the top 200px of `view` in each JPEG frame.
 export async function readPromptPositions(
   page: Page,
   frames: string[],
@@ -44,7 +57,7 @@ export async function readPromptPositions(
       const positions: { frame: number; top: number | null }[] = []
 
       for (const [frame, encoded] of frames.entries()) {
-        const position = { frame, top: null as number | null }
+        const position: PromptPosition = { frame, top: null }
 
         const image = await createImageBitmap(
           new Blob([Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0))], { type: "image/jpeg" }),
@@ -62,7 +75,12 @@ export async function readPromptPositions(
           for (let x = Math.ceil((view.x + 16) * scale); x < (view.x + view.width - 16) * scale; x++) {
             const offset = (y * image.width + x) * 4
 
-            if (pixels[offset + 2] > pixels[offset] + 50 && pixels[offset + 2] > pixels[offset + 1] + 30) ink++
+            if (
+              pixels[offset] > pixels[offset + 1] + 60 &&
+              pixels[offset + 2] > pixels[offset + 1] + 40 &&
+              pixels[offset] > pixels[offset + 2] + 20
+            )
+              ink++
           }
 
           if (ink < 3) continue

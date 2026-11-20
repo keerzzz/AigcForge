@@ -3,6 +3,7 @@ import { useI18n } from "@aigcfroge/ui/context/i18n"
 import { Icon } from "@aigcfroge/ui/icon"
 import { IconButton } from "@aigcfroge/ui/icon-button"
 import { Popover } from "@aigcfroge/ui/popover"
+import { Tooltip } from "@aigcfroge/ui/tooltip"
 import { For, Show, createMemo } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useData } from "../context"
@@ -20,27 +21,29 @@ export function AssistantAttemptsPopover(props: { messages: readonly SessionMess
 
   return (
     <Show when={messages().length}>
-      <Popover
-        open={state.open}
-        onOpenChange={(open) => setState("open", open)}
-        title={title()}
-        placement="top-end"
-        triggerAs={IconButton}
-        triggerProps={{ variant: "ghost", size: "small", "aria-label": title() }}
-        trigger={<Icon name="info" size="small" />}
-        class="flex min-h-0 flex-col [&>[data-slot=popover-body]]:min-h-0 [&>[data-slot=popover-body]]:overflow-y-auto"
-        style={{
-          "max-width": "min(560px, calc(100vw - 24px))",
-          width: "560px",
-          "max-height": "min(70dvh, 640px, var(--kb-popper-content-available-height))",
-        }}
-      >
-        <Show when={state.open}>
-          <div class="flex min-w-0 flex-col gap-4">
-            <For each={messages()}>{(message) => <AssistantAttemptDetails message={message} />}</For>
-          </div>
-        </Show>
-      </Popover>
+      <Tooltip appearance="compact" value={title()} placement="top" gutter={4}>
+        <Popover
+          open={state.open}
+          onOpenChange={(open) => setState("open", open)}
+          title={title()}
+          placement="top-end"
+          triggerAs={IconButton}
+          triggerProps={{ variant: "ghost", size: "small", "aria-label": title() }}
+          trigger={<Icon name="info" size="small" />}
+          class="flex min-h-0 flex-col [&>[data-slot=popover-body]]:min-h-0 [&>[data-slot=popover-body]]:overflow-y-auto"
+          style={{
+            "max-width": "min(560px, calc(100vw - 24px))",
+            width: "560px",
+            "max-height": "min(70dvh, 640px, var(--kb-popper-content-available-height))",
+          }}
+        >
+          <Show when={state.open}>
+            <div class="flex min-w-0 flex-col gap-4">
+              <For each={messages()}>{(message) => <AssistantAttemptDetails message={message} />}</For>
+            </div>
+          </Show>
+        </Popover>
+      </Tooltip>
     </Show>
   )
 }

@@ -27,6 +27,10 @@
   transform: translateY(-50%) scaleY(1);
 }
 
+.mode-navigation-rail [aria-current="page"] [data-slot="icon-svg"] {
+  --icon-active-fill: 0.12;
+}
+
 @media (forced-colors: active) {
   .mode-navigation-rail [data-slot="active-indicator"] {
     background-color: CanvasText;

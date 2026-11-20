@@ -9,11 +9,16 @@ import { Button } from "@aigcfroge/ui/button"
 import { Show, createMemo, createSignal, type JSX } from "solid-js"
 import { CURRENT_SESSION_ID, STORY_TIME } from "./current-session-fixtures"
 
-export function CurrentSessionProviders(props: { document: SessionDocument; children: JSX.Element }) {
+export function CurrentSessionProviders(props: {
+  document: SessionDocument
+  toolMotion?: (id?: string) => boolean
+  children: JSX.Element
+}) {
   return (
     <DataProvider
       directory="C:/workspaces/aigcfroge"
       sessionID={props.document.sessionID}
+      toolMotion={props.toolMotion}
       data={{
         agent: [
           { name: "build", color: "blue" },

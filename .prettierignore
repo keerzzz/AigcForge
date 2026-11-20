@@ -2,3 +2,12 @@ sst-env.d.ts
 packages/desktop/src/bindings.ts
 packages/client/src/generated/
 packages/client/src/generated-effect/
+
+# Generated local indexes and test evidence are not source formatting inputs.
+/.codegraph/
+/.reasonix/
+/dogfood-output/
+**/playwright-report/
+**/test-results/
+**/storybook-static/
+/packages/desktop/out/

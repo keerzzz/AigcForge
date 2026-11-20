@@ -46,7 +46,6 @@
     "./v2/*": "./src/v2/components/*.tsx"
   },
   "scripts": {
-    "generate:progress-indicator": "bun script/generate-session-progress-indicator.ts",
     "typecheck": "tsgo -b",
     "test": "bun test src --only-failures",
     "test:components": "playwright test --config playwright.components.config.ts",

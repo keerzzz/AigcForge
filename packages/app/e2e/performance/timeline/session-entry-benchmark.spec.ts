@@ -2,6 +2,7 @@ import { benchmark, benchmarkDiagnostics, expect } from "../benchmark"
 import { measureNavigationMilestones } from "./navigation-milestones"
 import { fixture, installStressSessionTabs, mockStressTimeline } from "../../utils/session-fixture"
 import { sessionHref } from "../../utils/app"
+import { selectHomeSessionMode } from "../../utils/home-mode"
 import { measureSessionSwitch, waitForStableTimeline } from "./session-tab-switch-probe"
 
 benchmark.use({
@@ -18,6 +19,7 @@ for (const entry of ["home", "session"] as const) {
     await installStressSessionTabs(page, { sessionIDs: entry === "home" ? [] : [fixture.sourceID] })
     await page.goto(entry === "home" ? "/" : sessionHref(fixture.sourceID))
 
+    if (entry === "home") await selectHomeSessionMode(page, "Coding")
     if (entry === "session") await waitForStableTimeline(page, fixture.expected.sourceMessageIDs.at(-1)!)
     const trigger = entry === "home" ? '[data-action="home-new-session"]' : 'button[aria-label="New session"]'
     await expect(page.locator(trigger)).toBeVisible()

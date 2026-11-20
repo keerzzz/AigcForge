@@ -8,6 +8,7 @@ export function createComposerControls(input: { model?: ModelSelection } = {}) {
   const local = useLocal()
   const sdk = useWorkspaceLocation()
   const providers = useProviders(() => sdk().directory)
+  const loading = () => !local.agent.ready() || !local.session.ready() || !providers.ready()
 
   return createMemo<ComposerControls>(() => ({
     agents: {
@@ -20,14 +21,14 @@ export function createComposerControls(input: { model?: ModelSelection } = {}) {
     model: {
       selection: input.model ?? local.model,
       paid: providers.paid().length > 0,
-      loading: !(input.model ?? local.model).ready() || !local.session.ready() || !providers.ready(),
+      loading: !(input.model ?? local.model).ready() || loading(),
     },
     executor: local.metaSelected()
       ? {
           selection: local.executor.model,
           preference: local.executor.preference,
           paid: providers.paid().length > 0,
-          loading: !local.executor.model.ready() || !local.session.ready() || !providers.ready(),
+          loading: !local.executor.model.ready() || loading(),
         }
       : undefined,
   }))

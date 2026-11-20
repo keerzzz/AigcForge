@@ -316,18 +316,18 @@ A module contributes its real `Panel` and a `MenuItem` with `menu: "session.pane
 
 The shipping [panel launcher](src/panel-launcher/renderer.tsx) uses the existing `Slot` for the + button and a transient `PanelTab` for the guide. The + button selects one guide per session without replacing an ordinary file preview. An opened module replaces the selected guide; fixed tab keys reuse an existing tab, while a Browser opening can contribute a new key. `Layout.open(..., { tab: "select" })` also replaces a selected transient launcher, preserving another file preview. A file-picker preview uses the existing single preview slot.
 
-Context and Review contribute launcher entries alongside their existing shortcuts. Both routes open the same panel: Context keeps its first position, and Review stays pinned without entering stored tab order. Opening either from a selected transient launcher consumes that launcher and keeps ordinary file previews.
+Context and Review contribute launcher entries alongside their existing shortcuts. Both routes open the same panel: Context keeps its first position, and Review opens as a closable tab in stored tab order. Closing Review removes only the workspace tab; the launcher, shortcut, and changes action can open it again. Opening either from a selected transient launcher consumes that launcher and keeps ordinary file previews.
 
 Each extension owns its launcher availability, combined with its display setting. Switching sessions updates the same guide; mode filtering does not remove stored panels or their original shortcuts.
 
-| Module                                 | Launcher availability                                                                                                     |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| File, Browser, Context, Collaborations | All modes, subject to each module's existing capability conditions                                                        |
-| Review                                 | A project, and either Coding mode or actual diffs in the existing review model; the original pinned tab remains available |
-| Seven asset proposal kinds             | All seven by default in Chat; other modes offer each kind after a completed corresponding proposal tool result exists     |
-| Meta                                   | A session controller is present                                                                                           |
-| Workflow run                           | Work or Custom                                                                                                            |
-| Artifacts                              | Work                                                                                                                      |
+| Module                                 | Launcher availability                                                                                                 |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| File, Browser, Context, Collaborations | All modes, subject to each module's existing capability conditions                                                    |
+| Review                                 | A project; narrow screens additionally require Coding mode or actual diffs in the existing review model               |
+| Seven asset proposal kinds             | All seven by default in Chat; other modes offer each kind after a completed corresponding proposal tool result exists |
+| Meta                                   | A session controller is present                                                                                       |
+| Workflow run                           | Work or Custom                                                                                                        |
+| Artifacts                              | Work                                                                                                                  |
 
 Review keeps its existing diff query active while the side region is open, so filesystem events update launcher availability even while the guide is selected. Proposal discovery reads the existing message store and keeps the parser and panel chunk lazy.
 

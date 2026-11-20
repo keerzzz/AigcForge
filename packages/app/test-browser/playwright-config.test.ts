@@ -1,42 +1,47 @@
 import { expect, test } from "bun:test"
 import path from "node:path"
 
+// Real Playwright imports in a cold child can exceed Bun's default five-second budget on Windows.
 test.each([
   { name: "local development", ci: "", build: "", built: false },
   { name: "local production build", ci: "", build: "1", built: true },
   { name: "CI production build", ci: "true", build: "", built: true },
   { name: "CI cannot opt into development", ci: "true", build: "0", built: true },
-])("Playwright uses $name", ({ ci, build, built }) => {
-  const result = Bun.spawnSync({
-    cmd: [process.execPath, "-e", 'import config from "./playwright.config.ts"; console.log(JSON.stringify(config))'],
-    cwd: path.resolve(import.meta.dirname, ".."),
-    env: {
-      ...process.env,
-      CI: ci,
-      PLAYWRIGHT_BUILD: build,
-      PLAYWRIGHT_BASE_URL: undefined,
-      PLAYWRIGHT_PORT: "4321",
-      PLAYWRIGHT_SERVER_HOST: "127.0.0.2",
-      PLAYWRIGHT_SERVER_PORT: "4322",
-    },
-  })
+])(
+  "Playwright uses $name",
+  ({ ci, build, built }) => {
+    const result = Bun.spawnSync({
+      cmd: [process.execPath, "-e", 'import config from "./playwright.config.ts"; console.log(JSON.stringify(config))'],
+      cwd: path.resolve(import.meta.dirname, ".."),
+      env: {
+        ...process.env,
+        CI: ci,
+        PLAYWRIGHT_BUILD: build,
+        PLAYWRIGHT_BASE_URL: undefined,
+        PLAYWRIGHT_PORT: "4321",
+        PLAYWRIGHT_SERVER_HOST: "127.0.0.2",
+        PLAYWRIGHT_SERVER_PORT: "4322",
+      },
+    })
 
-  expect(result.exitCode).toBe(0)
-  const config = JSON.parse(result.stdout.toString())
-  expect(config.use.baseURL).toBe("http://127.0.0.1:4321")
-  expect(config.webServer.url).toBe(config.use.baseURL)
-  expect(config.webServer.command).toBe(
-    built
-      ? "bun run build && bun run serve -- --host 127.0.0.1 --port 4321 --strictPort"
-      : "bun run dev -- --host 127.0.0.1 --port 4321 --strictPort",
-  )
-  expect(config.webServer.reuseExistingServer).toBe(!built)
-  expect(config.webServer.env).toEqual({
-    VITE_AIGCFROGE_TEST_FIXTURES: "1",
-    VITE_AIGCFROGE_SERVER_HOST: built ? "127.0.0.1" : "127.0.0.2",
-    VITE_AIGCFROGE_SERVER_PORT: built ? "4321" : "4322",
-  })
-})
+    expect(result.exitCode).toBe(0)
+    const config = JSON.parse(result.stdout.toString())
+    expect(config.use.baseURL).toBe("http://127.0.0.1:4321")
+    expect(config.webServer.url).toBe(config.use.baseURL)
+    expect(config.webServer.command).toBe(
+      built
+        ? "bun run build && bun run serve -- --host 127.0.0.1 --port 4321 --strictPort"
+        : "bun run dev -- --host 127.0.0.1 --port 4321 --strictPort",
+    )
+    expect(config.webServer.reuseExistingServer).toBe(!built)
+    expect(config.webServer.env).toEqual({
+      VITE_AIGCFROGE_TEST_FIXTURES: "1",
+      VITE_AIGCFROGE_SERVER_HOST: built ? "127.0.0.1" : "127.0.0.2",
+      VITE_AIGCFROGE_SERVER_PORT: built ? "4321" : "4322",
+    })
+  },
+  30_000,
+)
 
 test.each([
   "./playwright.config.ts",

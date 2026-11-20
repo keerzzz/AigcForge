@@ -1,0 +1,926 @@
+[
+  {
+    "name": "align-right",
+    "reference": "Lucide arrow-right-to-line (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "arrow-up",
+    "reference": "Lucide arrow-up (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "arrow-left",
+    "reference": "Lucide arrow-left (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "arrow-right",
+    "reference": "Lucide arrow-right (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "archive",
+    "reference": "Lucide archive (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "bubble-5",
+    "reference": "Lucide message-circle (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "prompt",
+    "reference": "Lucide messages-square (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "brain",
+    "reference": "Lucide brain (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "fork",
+    "reference": "Lucide split (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "workspace-isolated",
+    "reference": "Lucide box-select / container (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "bullet-list",
+    "reference": "Lucide list (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "check-small",
+    "reference": "Lucide check (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "chevron-down",
+    "reference": "Lucide chevron-down (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "chevron-left",
+    "reference": "Lucide chevron-left (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "chevron-right",
+    "reference": "Lucide chevron-right (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "chevron-grabber-vertical",
+    "reference": "Lucide chevrons-up-down (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "chevron-double-right",
+    "reference": "Lucide chevrons-right (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "circle-x",
+    "reference": "Lucide circle-x (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "close",
+    "reference": "Lucide x (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "close-small",
+    "reference": "Lucide x (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "checklist",
+    "reference": "Lucide list-todo (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "console",
+    "reference": "Lucide terminal (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "terminal",
+    "reference": "Lucide square-terminal (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "terminal-active",
+    "reference": "Lucide square-terminal duotone (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "review",
+    "reference": "Lucide file-diff / git-compare (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "review-active",
+    "reference": "Lucide file-diff duotone (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "expand",
+    "reference": "Lucide unfold-vertical (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "collapse",
+    "reference": "Lucide fold-vertical (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "code",
+    "reference": "Lucide square-code (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "code-lines",
+    "reference": "Lucide text-code (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "circle-ban-sign",
+    "reference": "Lucide ban (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "edit-small-2",
+    "reference": "Lucide file-pen-line (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "eye",
+    "reference": "Lucide eye (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "enter",
+    "reference": "Lucide corner-down-left (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "folder",
+    "reference": "Lucide folder (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "file-tree",
+    "reference": "Lucide folder-tree (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "file-tree-active",
+    "reference": "Lucide folder-tree duotone (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "magnifying-glass",
+    "reference": "Lucide search (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "plus-small",
+    "reference": "Lucide plus (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "plus",
+    "reference": "Lucide plus (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "new-session",
+    "reference": "Lucide square-pen (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "new-session-active",
+    "reference": "Lucide square-pen duotone (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "pencil-line",
+    "reference": "Lucide pen-line (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "mcp",
+    "reference": "Existing MCP protocol mark",
+    "kind": "retained-repository-artwork",
+    "viewBox": "0 0 20 20"
+  },
+  {
+    "name": "glasses",
+    "reference": "Lucide glasses (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "magnifying-glass-menu",
+    "reference": "Lucide text-search (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "window-cursor",
+    "reference": "Lucide app-window + pointer (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "task",
+    "reference": "AigcForge clipboard/list redraw, Lucide vocabulary (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "subagent",
+    "reference": "Lucide bot (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "stop",
+    "reference": "Lucide square (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "status",
+    "reference": "Lucide hard-drive (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "status-active",
+    "reference": "Lucide hard-drive duotone (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "sidebar",
+    "reference": "Lucide panel-left (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "sidebar-active",
+    "reference": "Lucide panel-left duotone (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "layout-left",
+    "reference": "Lucide panel-left (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "layout-left-partial",
+    "reference": "Lucide panel-left duotone (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "layout-left-full",
+    "reference": "Lucide panel-left filled (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "layout-right",
+    "reference": "Lucide panel-right (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "layout-right-partial",
+    "reference": "Lucide panel-right duotone (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "layout-right-full",
+    "reference": "Lucide panel-right filled (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "square-arrow-top-right",
+    "reference": "Lucide square-arrow-out-up-right (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "open-file",
+    "reference": "Lucide external-link (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "speech-bubble",
+    "reference": "Lucide message-circle-more (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "comment",
+    "reference": "Lucide message-square-text (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "folder-add-left",
+    "reference": "Lucide folder-plus (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "github",
+    "reference": "Official GitHub Mark (16x16 centered)",
+    "kind": "retained-brand",
+    "viewBox": "0 0 20 20"
+  },
+  {
+    "name": "discord",
+    "reference": "Official Discord Mark (16x16 centered)",
+    "kind": "retained-brand",
+    "viewBox": "0 0 20 20"
+  },
+  {
+    "name": "layout-bottom",
+    "reference": "Lucide panel-bottom (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "layout-bottom-partial",
+    "reference": "Lucide panel-bottom duotone (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "layout-bottom-full",
+    "reference": "Lucide panel-bottom filled (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "dot-grid",
+    "reference": "Lucide ellipsis (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "circle-check",
+    "reference": "Lucide circle-check (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "copy",
+    "reference": "Lucide copy (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "check",
+    "reference": "Lucide check (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "photo",
+    "reference": "Lucide image (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "share",
+    "reference": "Lucide share (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "shield",
+    "reference": "Lucide shield-check (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "download",
+    "reference": "Lucide download (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "menu",
+    "reference": "Lucide menu (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "server",
+    "reference": "Lucide server (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "branch",
+    "reference": "Lucide git-branch (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "edit",
+    "reference": "Lucide square-pen (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "help",
+    "reference": "Lucide circle-help (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "settings-gear",
+    "reference": "Lucide settings / bolt (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "dash",
+    "reference": "Lucide minus (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "cloud-upload",
+    "reference": "Lucide cloud-upload (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "trash",
+    "reference": "Lucide trash-2 (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "sliders",
+    "reference": "Lucide sliders-horizontal (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "keyboard",
+    "reference": "Lucide keyboard (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "selector",
+    "reference": "Lucide chevrons-up-down (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "arrow-down-to-line",
+    "reference": "Lucide arrow-down-to-line (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "warning",
+    "reference": "Lucide triangle-alert (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "reset",
+    "reference": "Lucide undo-2 (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "link",
+    "reference": "Lucide link-2 (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "providers",
+    "reference": "AigcForge cloud/source redraw, Lucide vocabulary (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "models",
+    "reference": "Lucide sparkles (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "appearance",
+    "reference": "Lucide sun-moon / contrast (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "notifications",
+    "reference": "Lucide bell-dot (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "extensions",
+    "reference": "Lucide blocks (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "cube",
+    "reference": "Lucide box (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "post-skill",
+    "reference": "Lucide book-marked / file-badge (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "arrow-undo-down",
+    "reference": "Lucide corner-down-left (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "rail-chat",
+    "reference": "Lucide message-square-dots (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "rail-coding",
+    "reference": "Lucide code-xml (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "rail-work",
+    "reference": "Lucide layout-grid + check (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "rail-assistant",
+    "reference": "Lucide sparkles + compass/book (ISC/MIT)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "rail-custom",
+    "reference": "AigcForge connected composition blocks redraw, Lucide vocabulary (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "lock",
+    "reference": "Lucide lock (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "globe",
+    "reference": "Lucide globe (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "select-element",
+    "reference": "Lucide square-mouse-pointer (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "flask",
+    "reference": "Lucide flask-conical (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "folder-open",
+    "reference": "Lucide folder-open (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "branch-out",
+    "reference": "Lucide git-pull-request-arrow (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "grid-plus",
+    "reference": "Lucide layout-grid-plus (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "info",
+    "reference": "Lucide info (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "circle-exclamation",
+    "reference": "Lucide circle-alert (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "circle-xmark",
+    "reference": "Lucide circle-x (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "sidebar-right",
+    "reference": "Lucide panel-right (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "monitor",
+    "reference": "Lucide monitor (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "workspace-new",
+    "reference": "Lucide plus-square-dashed (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "workspace",
+    "reference": "Lucide square-dashed-kanban (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-worktree",
+    "reference": "Lucide network / git-fork (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-trash",
+    "reference": "Lucide trash-2 (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "xmark-small",
+    "reference": "Lucide x (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-xmark",
+    "reference": "Lucide x (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-chevron-down",
+    "reference": "Lucide chevron-down (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-dots",
+    "reference": "Lucide ellipsis (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "filetree",
+    "reference": "Lucide list-tree (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "split",
+    "reference": "Lucide columns-2 (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "unified",
+    "reference": "Lucide rows-2 (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "window-analytics",
+    "reference": "Lucide panel-top-chart (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "graduation-cap",
+    "reference": "Lucide graduation-cap (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "code-slash",
+    "reference": "Lucide code-xml (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-sliders",
+    "reference": "Lucide sliders-horizontal (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-copy",
+    "reference": "Lucide copy (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-arrow-left",
+    "reference": "Lucide arrow-left (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-arrow-right",
+    "reference": "Lucide arrow-right (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-arrow-up-right",
+    "reference": "Lucide arrow-up-right (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-rotate-clockwise",
+    "reference": "Lucide rotate-cw (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-globe",
+    "reference": "Lucide globe (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-globe-plus",
+    "reference": "Lucide globe + plus (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-cookie",
+    "reference": "Lucide cookie (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-browser-annotate",
+    "reference": "Lucide scan + pointer (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "arrow-up-right",
+    "reference": "Lucide arrow-up-right (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-square-arrow",
+    "reference": "Lucide square-arrow-out-up-right (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-arrow-to-corner-top-right",
+    "reference": "Lucide square-arrow-up-right (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-hexagonal-warning",
+    "reference": "Lucide octagon-alert (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-share",
+    "reference": "Lucide upload / share (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-eye",
+    "reference": "Lucide eye (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-eye-slash",
+    "reference": "Lucide eye-off (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "refresh",
+    "reference": "Lucide rotate-cw (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-undo",
+    "reference": "Lucide rotate-ccw (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "outline-reset",
+    "reference": "Lucide undo-2 (ISC)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  },
+  {
+    "name": "fill-triangle-down",
+    "reference": "Radix triangle-down (MIT)",
+    "kind": "adapted-preview",
+    "viewBox": "0 0 16 16"
+  }
+]

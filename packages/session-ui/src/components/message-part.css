@@ -646,13 +646,34 @@
   align-items: center;
   justify-content: center;
   align-self: center;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
   color: var(--v2-text-text-muted);
 
   &[data-working] {
     color: var(--v2-text-text-base);
+  }
+
+  &:not([data-working]) [data-slot="icon-svg"] {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+[data-component="read-tool-group"][role="button"] {
+  [data-slot="tool-summary-icon"]:not([data-working]) {
+    transition: color 0.15s ease;
+  }
+
+  &:is(:hover, :focus-visible, [aria-expanded="true"]) [data-slot="tool-summary-icon"]:not([data-working]) {
+    color: var(--text-interactive-base);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-slot="tool-summary-icon"] {
+      transition: none;
+    }
   }
 }
 

@@ -152,13 +152,26 @@ const setup: Setup<typeof Review> = (ctx) => {
     get title() {
       return count() > 0 ? ctx.plural("tab.count", count()) : ctx.t("tab.title")
     },
-    pinned: true,
+    draggable: false,
+    closable: "hover",
     // Without focusable content the panel itself joins the tab order.
     get tabbable() {
       return !(count() > 0 || layout.sidebar.opened())
     },
     fallback: true,
     dom: { tab: "session-side-panel-review-tab", panel: "session-side-panel-review-tabpanel" },
+  }
+
+  // A formerly pinned tab could retain selection without membership in the stored strip.
+  const restoringTab: PanelTab = {
+    id: TAB,
+    get title() {
+      return tab.title
+    },
+    hidden: true,
+    pinned: true,
+    fallback: false,
+    dom: tab.dom,
   }
 
   const ReviewPanel = lazy(() => import("./panel"))
@@ -172,7 +185,11 @@ const setup: Setup<typeof Review> = (ctx) => {
 
       if (!session?.project) return false
 
-      return session.server.data.session.get(session.id)?.mode === "coding" || (modelFor(session)?.count() ?? 0) > 0
+      return (
+        !layout.narrow() ||
+        session.server.data.session.get(session.id)?.mode === "coding" ||
+        (modelFor(session)?.count() ?? 0) > 0
+      )
     }
 
     const open = () => {
@@ -216,8 +233,6 @@ const setup: Setup<typeof Review> = (ctx) => {
       get wide() {
         return diff.value.diffStyle === "split"
       },
-      // The review tab is pinned, never stored; a stored key, such as one from before extensions, leaves the strip.
-      transient: true,
       legacy: { review: TAB },
       mobile: {
         get title() {
@@ -226,7 +241,11 @@ const setup: Setup<typeof Review> = (ctx) => {
         order: 10,
         kind: "tab",
       },
-      list: (input) => (!layout.narrow() && input.session.project ? [tab] : []),
+      list: (input) =>
+        !layout.narrow() && input.session.project ? [input.open.includes(TAB) ? tab : restoringTab] : [],
+      focus: (input) => {
+        if (input.tab === restoringTab) layout.open(KEY, input.session, { tab: "append" })
+      },
       render: (props) => {
         const frame = usePanel()
 
@@ -344,10 +363,7 @@ const setup: Setup<typeof Review> = (ctx) => {
     open(session) {
       if (!visible()) return showHidden()
 
-      // The session details' changes row: narrow screens switch to the Changes view; wide ones open the side region.
-      if (layout.narrow()) return layout.open(KEY, session)
-
-      if (!layout.side.opened(session)) layout.side.toggle(session)
+      layout.open(KEY, session)
     },
     watch,
     onReveal(listener) {

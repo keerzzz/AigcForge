@@ -253,7 +253,18 @@ function SessionSurfaceState(props: SessionPreviewProps & { onReset: () => void 
               onReviewToggle={() => setState("reviewOpened", (value) => !value)}
               onReset={props.onReset}
             />
-            <CurrentSessionProviders document={props.document}>
+            <CurrentSessionProviders
+              document={props.document}
+              toolMotion={(id) => {
+                const request = state.request
+
+                if (!request) return true
+                if (!id || request.type !== "permission" || !request.value.source) return false
+                const source = request.value.source
+
+                return source.type !== "tool" || (id !== source.id && id !== `${source.messageID}:${source.id}`)
+              }}
+            >
               <div class="flex min-h-0 flex-1">
                 <section
                   classList={{

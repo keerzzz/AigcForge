@@ -1,35 +1,10 @@
-import { For } from "solid-js"
+import { For, Show } from "solid-js"
+import { createStore } from "solid-js/store"
 import { Icon, type IconProps } from "./icon"
+import { iconNames } from "../catalog"
+import { Button } from "@aigcfroge/ui/button"
 
-const names = [
-  "archive",
-  "arrow-left",
-  "arrow-right",
-  "arrow-up-right",
-  "branch",
-  "check",
-  "chevron-down",
-  "close",
-  "code-slash",
-  "edit",
-  "folder",
-  "graduation-cap",
-  "help",
-  "magnifying-glass",
-  "menu",
-  "monitor",
-  "outline-arrow-to-corner-top-right",
-  "outline-copy",
-  "outline-dots",
-  "outline-eye",
-  "outline-eye-slash",
-  "outline-hexagonal-warning",
-  "plus",
-  "review",
-  "settings-gear",
-  "trash",
-  "workspace",
-] satisfies IconProps["name"][]
+const names = iconNames() satisfies IconProps["name"][]
 
 export default {
   title: "UI/Icon",
@@ -74,16 +49,59 @@ export const Directional = {
 }
 
 export const Gallery = {
-  render: () => (
-    <div style={{ display: "grid", gap: "12px", "grid-template-columns": "repeat(5, minmax(88px, 1fr))" }}>
-      <For each={names}>
-        {(name) => (
-          <div style={{ display: "grid", gap: "6px", "justify-items": "center" }}>
-            <Icon name={name} />
-            <span style={{ "font-size": "10px", color: "var(--text-weak)", "text-align": "center" }}>{name}</span>
-          </div>
-        )}
-      </For>
-    </div>
-  ),
+  render: () => {
+    const [state, setState] = createStore({ query: "" })
+    const matches = () => names.filter((name) => name.includes(state.query.toLowerCase()))
+    return (
+      <div style={{ display: "grid", gap: "16px", "min-width": "0" }}>
+        <input
+          aria-label="Search icons"
+          placeholder="Search icons"
+          value={state.query}
+          onInput={(event) => setState("query", event.currentTarget.value)}
+          style={{
+            width: "100%",
+            padding: "8px",
+            color: "var(--v2-text-text-base)",
+            background: "var(--v2-background-bg-layer-02)",
+            border: "1px solid var(--v2-border-border-base)",
+            "border-radius": "4px",
+          }}
+        />
+        <div
+          style={{
+            display: "grid",
+            gap: "12px",
+            "grid-template-columns": "repeat(auto-fill, minmax(min(120px, 100%), 1fr))",
+          }}
+        >
+          <For each={matches()}>
+            {(name) => (
+              <div style={{ display: "grid", gap: "8px", "justify-items": "center", "min-width": "0" }}>
+                <div style={{ display: "flex", gap: "12px", "align-items": "center" }}>
+                  <Icon name={name} size="small" />
+                  <Icon name={name} />
+                  <Icon name={name} size="large" />
+                </div>
+                <span
+                  style={{
+                    "font-size": "12px",
+                    color: "var(--v2-text-text-base)",
+                    "text-align": "center",
+                    "overflow-wrap": "anywhere",
+                  }}
+                >
+                  {name}
+                </span>
+              </div>
+            )}
+          </For>
+        </div>
+        <Show when={matches().length === 0}>
+          <p role="status">No matching icons.</p>
+          <Button onClick={() => setState("query", "")}>Clear search</Button>
+        </Show>
+      </div>
+    )
+  },
 }

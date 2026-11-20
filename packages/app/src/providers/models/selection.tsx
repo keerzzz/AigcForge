@@ -401,6 +401,10 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
     }
 
     const agent = {
+      ready: () =>
+        frozen()
+          ? !!durable()?.agent || adopted.snapshot !== undefined
+          : data.location.agent.list({ directory: sdk().directory }) !== undefined,
       available: allAgents,
       list,
       visible: () => !locked() || settings.visibility.customAgents() || hasCustomAgent(list()),
@@ -494,8 +498,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
 
       if (local) return local
       const session = durable()
+      const current = agent.current()
 
-      if (session?.agent && session.agent !== agent.current()?.name) return
+      if (session?.agent && current && session.agent !== current.name) return undefined
       const value = session?.model
 
       return value ? fromSelection(value) : undefined
@@ -588,8 +593,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
 
       if (draft?.model) return draft.variant
       const session = durable()
+      const current = agent.current()
 
-      if (session?.agent && session.agent !== agent.current()?.name) return
+      if (session?.agent && current && session.agent !== current.name) return undefined
       const value = session?.model
 
       if (value) return "type" in value ? null : (value.variant ?? null)

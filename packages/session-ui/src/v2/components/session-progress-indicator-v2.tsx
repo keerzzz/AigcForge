@@ -1,20 +1,8 @@
-import { createUniqueId, splitProps, type ComponentProps } from "solid-js"
+import { splitProps, type ComponentProps } from "solid-js"
 import "./session-progress-indicator-v2.css"
-
-const frames = new URL("./session-progress-indicator-v2-1x.png", import.meta.url).href
-
-const dots = Array.from({ length: 25 }, (_, index) => {
-  const x = 1 + (index % 5) * 3
-  const y = 1 + Math.floor(index / 5) * 3
-
-  return `M${x} ${y}h2v2h-2z`
-}).join("")
 
 export function SessionProgressIndicatorV2(props: ComponentProps<"svg">) {
   const [local, rest] = splitProps(props, ["class", "classList", "width", "height"])
-  const id = createUniqueId()
-  const filter = `session-progress-indicator-filter-${id}`
-  const clip = `session-progress-indicator-clip-${id}`
 
   return (
     <svg
@@ -29,26 +17,23 @@ export function SessionProgressIndicatorV2(props: ComponentProps<"svg">) {
       data-component="session-progress-indicator-v2"
       aria-hidden={rest["aria-hidden"] ?? "true"}
     >
-      <defs>
-        <filter id={filter} filterUnits="userSpaceOnUse" x={0} y={0} width={16} height={16}>
-          <feFlood flood-color="currentColor" result="color" />
-          <feComposite in="color" in2="SourceAlpha" operator="in" />
-        </filter>
-        <clipPath id={clip}>
-          <path d={dots} />
-        </clipPath>
-      </defs>
-      <image
-        data-frame-content
-        href={frames}
-        x={0}
-        y={0}
-        width={16}
-        height={16}
-        filter={`url(#${filter})`}
-        clip-path={`url(#${clip})`}
+      <circle
+        cx={8}
+        cy={8}
+        r={5.5}
+        stroke="currentColor"
+        stroke-width={1.25}
+        opacity={0.25}
+        vector-effect="non-scaling-stroke"
       />
-      <rect data-reduced-motion x={7} y={7} width={2} height={2} />
+      <path
+        data-progress-arc
+        d="M8 2.5a5.5 5.5 0 0 1 5.5 5.5"
+        stroke="currentColor"
+        stroke-width={1.25}
+        stroke-linecap="round"
+        vector-effect="non-scaling-stroke"
+      />
     </svg>
   )
 }

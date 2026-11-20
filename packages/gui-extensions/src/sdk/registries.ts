@@ -161,9 +161,9 @@ export interface PanelTab {
   /** The user can drag the tab to reorder it. Defaults to true. */
   readonly draggable?: boolean
   /**
-   * The close button; only how it looks. Defaults to a plain one.
+   * The close button; only how it looks. Defaults to a plain one, shown on hover or keyboard focus.
    * - `compact`: a compact close button.
-   * - `hover`: shows on hover or while selected.
+   * - `hover`: shows on hover or keyboard focus.
    * - `false`: none.
    */
   readonly closable?: "compact" | "hover" | false

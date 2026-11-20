@@ -54,9 +54,12 @@ story("replaces hidden switches with solid lines and restores options", async ({
   await expect(visibility.locator("use")).toHaveAttribute("href", "#aigcfroge-v2-icon-outline-eye-slash")
   await component.getByRole("button", { name: "Advanced", exact: true }).hover()
   await expect(visibility).not.toHaveCSS("color", iconColor)
-  await expect(shell.locator('[data-slot="timeline-detail-unavailable"]').first()).toHaveCSS(
-    "border-top-color",
-    await visibility.evaluate((element) => getComputedStyle(element).color),
+  await expect(visibility).toHaveCSS(
+    "color",
+    await shell
+      .locator('[data-slot="timeline-detail-unavailable"]')
+      .first()
+      .evaluate((element) => getComputedStyle(element).borderTopColor),
   )
   await visibility.hover()
   await expect(page.getByRole("tooltip")).toHaveText("Show")

@@ -58,6 +58,8 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
     data: Data
     directory: string
     sessionID?: string
+    /** Presentation gate for a tool ID, or the Session summary when omitted. */
+    toolMotion?: (id?: string) => boolean
     shellRunning?: (id: string) => boolean
     shellOutput?: (input: ShellOutputInput) => Promise<ShellOutputOutput>
     onNavigateToSession?: NavigateToSessionFn
@@ -80,6 +82,7 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
       },
       navigateToSession: props.onNavigateToSession,
       sessionHref: props.onSessionHref,
+      toolMotion: props.toolMotion,
       shellRunning: props.shellRunning,
       shellOutput: props.shellOutput,
       openTask: props.onOpenTask,

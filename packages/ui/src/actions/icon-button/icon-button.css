@@ -11,7 +11,12 @@
   user-select: none;
   outline: none;
   padding: 0;
-  cursor: default;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease-out,
+    color 120ms ease-out,
+    box-shadow 120ms ease-out,
+    scale 80ms ease-out;
 }
 
 [data-component="icon-button-v2"]:focus {
@@ -41,6 +46,19 @@
 
 [data-component="icon-button-v2"] [data-slot="icon-svg"] {
   color: currentColor;
+}
+
+[data-component="icon-button-v2"]:active:not(:disabled) {
+  scale: 0.96;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-component="icon-button-v2"] {
+    transition: none;
+  }
+  [data-component="icon-button-v2"]:active:not(:disabled) {
+    scale: none;
+  }
 }
 
 /* Neutral */
@@ -102,6 +120,7 @@
     [data-expanded]
   ) {
   background-color: var(--v2-overlay-simple-overlay-hover);
+  color: var(--v2-icon-icon-base);
 }
 
 [data-component="icon-button-v2"][data-variant="ghost-muted"]:is(:active, [data-state="pressed"]):not(:disabled) {
