@@ -69,7 +69,7 @@ export function SessionPanel(props: {
     if (signal.aborted || ctx.signal.aborted) return
   })
 
-  const status = () => {
+  const status = createMemo(() => {
     const value = target()
 
     if (!value?.server.connected) return "disconnected"
@@ -80,8 +80,18 @@ export function SessionPanel(props: {
     )
       return "waiting"
 
-    return value.server.data.session.status(value.id) ?? "idle"
-  }
+    const runtime = value.server.data.session.status(value.id) ?? "idle"
+
+    if (runtime !== "idle") return runtime
+
+    const outcome = value.server.data.session.get(value.id)?.outcome
+
+    if (outcome === "succeeded") return "completed"
+    if (outcome === "failed") return "failed"
+    if (outcome === "interrupted") return "interrupted"
+
+    return "idle"
+  })
 
   return (
     <section data-component="session-content-panel" aria-label={ctx.t("session.content.title")}>
@@ -119,7 +129,7 @@ export function SessionPanel(props: {
         >
           {(binding) => (
             <>
-              <div data-slot="session-content-heading">
+              <Collapsible variant="ghost" data-slot="session-content-heading">
                 <Show when={child() && props.onBack}>
                   <IconButton
                     type="button"
@@ -135,44 +145,62 @@ export function SessionPanel(props: {
                   <h3>
                     {target()?.server.data.session.get(binding().sessionID)?.title ?? ctx.t("session.content.loading")}
                   </h3>
-                  <div data-slot="session-content-status-line" data-state={status()}>
-                    <span data-slot="task-running-indicator" aria-hidden="true" />
-                    <span>{ctx.t(`session.collaboration.status.${status()}`)}</span>
+                </div>
+                <div data-slot="session-content-metadata">
+                  <div data-slot="session-content-summary">
+                    <div data-slot="session-content-status-line" data-state={status()} role="status">
+                      <Icon
+                        name={
+                          status() === "completed"
+                            ? "circle-check"
+                            : status() === "failed"
+                              ? "circle-x"
+                              : status() === "interrupted"
+                                ? "circle-ban-sign"
+                                : status() === "running"
+                                  ? "refresh"
+                                  : status() === "idle"
+                                    ? "dash"
+                                    : "circle-exclamation"
+                        }
+                        size="small"
+                      />
+                      <span>{ctx.t(`session.collaboration.status.${status()}`)}</span>
+                    </div>
                     <Show when={!child()}>
                       <span>{ctx.t(`session.content.${binding().interaction}`)}</span>
                     </Show>
+                    <Collapsible.Trigger type="button">
+                      {ctx.t("session.collaboration.details")}
+                      <Collapsible.Arrow />
+                    </Collapsible.Trigger>
+                    <Show when={target()}>
+                      {(session) => (
+                        <IconButton
+                          type="button"
+                          size="small"
+                          variant="ghost-muted"
+                          aria-label={ctx.t("session.collaboration.openSession")}
+                          title={ctx.t("session.collaboration.openSession")}
+                          icon={<Icon name="outline-square-arrow" size="small" />}
+                          onClick={() =>
+                            ctx.sessions.open({
+                              source: props.session,
+                              server: session().server,
+                              sessionID: session().id,
+                            })
+                          }
+                        />
+                      )}
+                    </Show>
                   </div>
-                </div>
-                <Show when={target()}>
-                  {(session) => (
-                    <Button
-                      type="button"
-                      size="small"
-                      variant="ghost"
-                      onClick={() =>
-                        ctx.sessions.open({
-                          source: props.session,
-                          server: session().server,
-                          sessionID: session().id,
-                        })
-                      }
-                    >
-                      {ctx.t("session.collaboration.openSession")}
-                    </Button>
-                  )}
-                </Show>
-                <Collapsible variant="ghost" data-slot="session-content-metadata">
-                  <Collapsible.Trigger type="button">
-                    <Collapsible.Arrow />
-                    {ctx.t("session.collaboration.details")}
-                  </Collapsible.Trigger>
                   <Collapsible.Content>
                     <code>{binding().sessionID}</code>
                     <span>{target()?.server.name ?? binding().serverID}</span>
                     <code>{binding().serverID}</code>
                   </Collapsible.Content>
-                </Collapsible>
-              </div>
+                </div>
+              </Collapsible>
               <div data-slot="session-content-body">
                 <Show
                   when={target()}

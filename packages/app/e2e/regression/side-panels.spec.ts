@@ -14,6 +14,7 @@ import type {
 import { ApiNotFoundError, ConflictError, InvalidRequestError } from "@aigcfroge/protocol/errors"
 import { SessionCommunication } from "@aigcfroge/schema/session-communication"
 import { SessionGoal } from "@aigcfroge/schema/session-goal"
+import { SessionTask } from "@aigcfroge/schema/session-task"
 import { base64Encode } from "@aigcfroge/util/encode"
 import { Match, Schema } from "effect"
 import { AgentAssets } from "../utils/agent-asset"
@@ -7563,4 +7564,72 @@ test.describe("Workflow proposal panel", () => {
       expect(api.calls).toHaveLength(1)
     })
   }
+})
+
+test("dispatch task list keeps records visible while group and item details collapse", async ({ page }, testInfo) => {
+  const sessionID = "ses_dispatch_disclosure"
+  const writes: string[] = []
+  page.on("request", (request) => {
+    const path = new URL(request.url()).pathname
+    if (!["GET", "HEAD", "OPTIONS"].includes(request.method()) && /(?:session|task)/.test(path))
+      writes.push(`${request.method()} ${path}`)
+  })
+  const tasks = Array.from(
+    { length: 18 },
+    (_, index) =>
+      new SessionTask.Info({
+        id: `tsk_disclosure_${index}`,
+        sessionID,
+        content: index === 0 ? "核验真实任务结果与非常长的任务标题在窄屏下的换行排版" : `Recorded task ${index + 1}`,
+        status: "completed",
+        priority: "medium",
+        revision: 1,
+        outputDigest: `Durable result ${index + 1}`,
+        createdAt: index + 1,
+        updatedAt: index + 1,
+      }),
+  )
+  const workspace = await openSession(page, {
+    name: "Dispatch disclosure",
+    sessions: [{ id: sessionID, title: "Dispatch disclosure" }],
+    tasks,
+    seed: { theme: { id: "oc-2", scheme: "light" } },
+  })
+  await workspace.editor.fill("Keep this parent draft")
+  await openSidePanel(page, "Task delegation")
+  const panel = page.locator('[data-slot="dispatch-monitor"]')
+  await expect(panel).toContainText("18 of 18 tasks completed")
+  await expect(panel.getByText("Showing 6 of 18 records", { exact: true })).toBeVisible()
+  const list = panel.locator('[data-slot="monitor-task-list"]')
+  const group = list.getByRole("button", { name: "Tasks", exact: true })
+  await expect(group).toHaveAttribute("aria-expanded", "true")
+  const rows = list.locator('[data-slot="monitor-task-row"]')
+  await expect(rows).toHaveCount(18)
+  const first = list.getByRole("button", { name: `View task: ${tasks[0].content}`, exact: true })
+  await expect(first).toHaveAttribute("aria-expanded", "false")
+  await first.press("Enter")
+  await expect(first).toHaveAttribute("aria-expanded", "true")
+  await expect(first).toHaveCSS("outline-style", "solid")
+  await expect(list.getByText("Durable result 1", { exact: true })).toBeVisible()
+  await expect(rows).toHaveCount(18)
+  await expect(list.getByRole("checkbox", { name: tasks[0].content, exact: true })).toBeChecked()
+  await first.press("Space")
+  await expect(first).toHaveAttribute("aria-expanded", "false")
+  await expect(first).toBeFocused()
+  await expect(list.getByText("Durable result 1", { exact: true })).toBeHidden()
+  await group.press("Enter")
+  await expect(group).toHaveAttribute("aria-expanded", "false")
+  await expect(first).toBeHidden()
+  await panel
+    .locator('[data-slot="monitor-diagram"]')
+    .getByRole("button", { name: `View task: ${tasks[0].content}`, exact: true })
+    .click()
+  await expect(group).toHaveAttribute("aria-expanded", "true")
+  await expect(first).toHaveAttribute("aria-expanded", "true")
+  await expect(list.getByText("Durable result 1", { exact: true })).toBeVisible()
+  await expect(rows).toHaveCount(18)
+  await expect(list.getByRole("region", { name: "Task overview", exact: true })).toBeFocused()
+  await page.screenshot({ path: testInfo.outputPath("dispatch-list-wide.png") })
+  await expect(workspace.editor).toHaveText("Keep this parent draft")
+  expect(writes).toEqual([])
 })
