@@ -54,7 +54,8 @@ export function createComposerModel(
   const content = useSessionContent()
 
   const available = () =>
-    server.conn.type !== "extension" || !server.conn.managed || server.ctx.sdk.connection.status() === "connected"
+    !adapter.controls().model.loading &&
+    (server.conn.type !== "extension" || !server.conn.managed || server.ctx.sdk.connection.status() === "connected")
 
   const files = useFile()
   const links = useExtensionHost().links

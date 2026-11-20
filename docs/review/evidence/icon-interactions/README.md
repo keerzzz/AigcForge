@@ -12,6 +12,7 @@ The lifecycle capture renders the real `BasicTool`, `SessionProgressIndicatorV2`
 - Permission timeline regression: the real App provider and nested extension provider preserve the exact tool source; the tool shimmer and group indicator stop before approval and resume after it. The keeper fails on the original raw-running path.
 - Background Subagent regression: a completed parent tool follows its child's permission/form waits and resumes. A parent question leaves the independent child running. The original child projection and parent wrapper gate each fail the corresponding production assertion.
 - App regression: the existing saved Delegation keeper drives permission asked/replied through SSE and observes both the node and tab pause/resume. Restoring the old raw-status adapter makes this regression fail.
+- Composer readiness: a held configuration response reproduced an editable draft with a hidden model control and an enabled Send button. Send and Enter now share the existing model-loading gate. Light/dark at 390/1440 pixels verify draft retention, no early session creation, and one prompt using the selected model after release. All 53 composer, queue, and mobile-focus regression scenarios passed against the production build with one worker and no retries; SC03 also checks the restored target model before sending its retained draft and attachment.
 
 ## Production icon gallery
 

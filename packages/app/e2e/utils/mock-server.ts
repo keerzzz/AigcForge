@@ -182,6 +182,7 @@ export interface MockServerConfig {
   // Without it, writes answer 501 MockUnsupported.
   onFileWrite?: (input: { path: string; directory: string; body: string }) => void
   configEntries?: unknown[]
+  beforeConfigResponse?: () => Promise<void>
   directory: string
   project: unknown
   // Replaces the `/api/project` inventory, which defaults to `[project]`.
@@ -1702,7 +1703,10 @@ function mockHandlers(
             urls: config.server ? [config.server] : [],
             paths: { tmp: "/tmp/aigcfroge" },
           }),
-        config: () => Effect.succeed(configEntries),
+        config: () =>
+          config.beforeConfigResponse
+            ? Effect.promise(config.beforeConfigResponse).pipe(Effect.as(configEntries))
+            : Effect.succeed(configEntries),
         reference: () => Effect.succeed({ location: location(config), data: [] }),
         agent: (ctx) =>
           Effect.succeed({

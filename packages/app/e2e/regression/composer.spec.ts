@@ -131,6 +131,8 @@ test("SC03 keeps a target draft and attachments after its Shell closes and resto
   await expectSessionTitle(page, "Target B")
   await expect(main.locator('[data-component="composer-editor"]')).toHaveText("Final target draft B")
   await expect(main.locator('[data-component="composer-attachments"]')).toContainText("target.txt")
+  await expect(main.locator('[data-action="composer-model"]')).toHaveText("Target model")
+  await expect(main.locator('[data-action="composer-submit"]')).toBeEnabled()
   await main.locator('[data-component="composer-editor"]').press("Enter")
   await expect.poll(() => prompts.length).toBe(1)
   expect(prompts[0]).toMatchObject({
@@ -146,6 +148,65 @@ test("SC03 keeps a target draft and attachments after its Shell closes and resto
   expect(effects).toEqual([])
   expect(workspace.directory).not.toBe(targetDirectory)
 })
+
+for (const [scheme, width] of [
+  ["light", 390],
+  ["light", 1440],
+  ["dark", 390],
+  ["dark", 1440],
+] as const) {
+  test(`keeps a ${scheme} ${width}px draft editable and Send disabled until its model configuration is ready`, async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.emulateMedia({ colorScheme: scheme })
+    const started = Promise.withResolvers<void>()
+    const configuration = Promise.withResolvers<void>()
+    const creates: Schema.JsonObject[] = []
+    const prompts: { sessionID: string; body: unknown }[] = []
+
+    try {
+      const view = await openDraft(page, {
+        name: "Composer readiness",
+        provider: provider({ id: "ready-model", name: "Ready model" }),
+        beforeConfigResponse: () => {
+          started.resolve()
+
+          return configuration.promise
+        },
+        onSessionCreate: (body) => void creates.push(body),
+        onPrompt: (prompt) => void prompts.push(prompt),
+      })
+
+      await started.promise
+      await expect(page.locator("html")).toHaveAttribute("data-color-scheme", scheme)
+      await view.editor.fill("Keep this draft while loading")
+      await expect(page.locator('[data-action="composer-model"]')).toBeHidden()
+      await expect(page.locator('[data-action="composer-submit"]')).toBeDisabled()
+      await view.editor.press("Enter")
+      await expect(view.editor).toHaveText("Keep this draft while loading")
+      expect(creates).toEqual([])
+      expect(prompts).toEqual([])
+      await page.screenshot({ path: testInfo.outputPath("composer-loading.png") })
+      configuration.resolve()
+      await expect(page.locator('[data-action="composer-model"]')).toHaveText("Ready model")
+      await expect(page.locator('[data-action="composer-submit"]')).toBeEnabled()
+      await page.screenshot({ path: testInfo.outputPath("composer-ready.png") })
+      await view.editor.press("Enter")
+      await expect.poll(() => prompts.length).toBe(1)
+      expect(creates).toHaveLength(1)
+      expect(prompts[0]?.sessionID).toBe(creates[0]?.id)
+      expect(prompts[0]).toMatchObject({
+        body: {
+          text: "Keep this draft while loading",
+          metadata: { model: { providerID: "aigcfroge", modelID: "ready-model" } },
+        },
+      })
+    } finally {
+      configuration.resolve()
+    }
+  })
+}
 
 test("SC03 recovers target history and keeps source Find and root navigation isolated", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 })

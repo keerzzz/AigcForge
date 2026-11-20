@@ -705,6 +705,7 @@ test("a shell command cannot wait in the queue, as in the TUI", async ({ page })
     if (new URL(request.url()).pathname.endsWith(`/${sessionID}/shell`)) shells.push(request.url())
   })
 
+  await expect(page.locator('[data-action="composer-model"]')).toHaveText("Queue Model")
   await view.input.pressSequentially("!")
   await view.input.pressSequentially("git status")
   await view.input.press("Enter")
