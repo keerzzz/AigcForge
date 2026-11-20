@@ -1597,12 +1597,10 @@ function proposal(messages: readonly SessionMessage.Info[], id: string) {
 
 const readBody = (response: Response) =>
   Effect.gen(function* () {
-    if (response.status !== 200)
-      yield* Effect.logError("Command asset HTTP response failed", {
-        status: response.status,
-        detail: (yield* Effect.promise(() => response.clone().text())).slice(0, 512),
-      })
-    expect(response.status).toBe(200)
+    expect(
+      response.status,
+      response.status === 200 ? undefined : yield* Effect.promise(() => response.clone().text()),
+    ).toBe(200)
     return yield* Effect.promise<unknown>(() => response.json())
   })
 

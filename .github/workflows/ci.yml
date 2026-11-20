@@ -122,10 +122,17 @@ jobs:
             turbo-${{ runner.os }}-${{ hashFiles('turbo.json', '**/package.json') }}-
             turbo-${{ runner.os }}-
 
+      - name: Check Command revisions on Windows
+        if: runner.os == 'Windows'
+        timeout-minutes: 5
+        run: GITHUB_ACTIONS=false bun run --cwd packages/server test test/command-asset.test.ts --test-name-pattern "uses strict selected Command revisions across Session Locations" --rerun-each 10
+        env:
+          AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER: "true"
+
       - name: Check concurrent snapshots on Windows
         if: runner.os == 'Windows'
         timeout-minutes: 5
-        run: GITHUB_ACTIONS=false bun --cwd packages/core test test/snapshot.test.ts --test-name-pattern "captures concurrently from independent processes" --rerun-each 10
+        run: GITHUB_ACTIONS=false bun run --cwd packages/core test test/snapshot.test.ts --test-name-pattern "captures concurrently from independent processes" --rerun-each 10
         env:
           AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER: "true"
 

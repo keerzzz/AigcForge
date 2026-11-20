@@ -191,7 +191,8 @@ describe("Snapshot", () => {
               Logger.CurrentLoggers,
               new Set([
                 Logger.make((entry) => {
-                  if (entry.message[0] === "failed to capture snapshot") logged.push(entry.message)
+                  if (Array.isArray(entry.message) && entry.message[0] === "failed to capture snapshot")
+                    logged.push(entry.message)
                 }),
               ]),
             ),
