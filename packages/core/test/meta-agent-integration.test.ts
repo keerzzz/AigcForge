@@ -2927,7 +2927,11 @@ for (const failure of ["non_direct", "tree_change", "index_drift", "target_drift
             await git(directory, "add", "--", "other.txt")
           })
         yield* Deferred.succeed(releaseShell, undefined)
-        yield* awaitWithTimeout(fixture.llm.wait(count + 3), "MC07 no_code_change drift shell did not finish")
+        yield* awaitWithTimeout(
+          fixture.llm.wait(count + 3),
+          "MC07 no_code_change drift shell did not finish",
+          "10 seconds",
+        )
         if (failure === "index_drift")
           yield* Effect.promise(() =>
             git(directory, "update-index", "--cacheinfo", `100755,${link.artifact.blob},artifact.txt`),
