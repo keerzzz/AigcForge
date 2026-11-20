@@ -12,8 +12,13 @@ import { useLanguage } from "@/runtime/i18n/language"
 import { useData } from "@/runtime/server/current"
 import { useServerSDK } from "@/runtime/server/client"
 import { useSessionContent } from "../content-context"
+import type { SessionModel } from "../model"
 
-export function SessionGoalDock(props: { sessionID: string; readonly?: boolean }) {
+export function SessionGoalDock(props: {
+  sessionID: string
+  readonly?: boolean
+  view: SessionModel["layout"]["view"]
+}) {
   const language = useLanguage()
   const data = useData()
   const server = useServerSDK()
@@ -68,6 +73,22 @@ export function SessionGoalDock(props: { sessionID: string; readonly?: boolean }
     const goals = data.session.goal.list(props.sessionID)
 
     return goals?.find((goal) => goal.status === "active") ?? goals?.[0]
+  })
+
+  const visibleGoal = createMemo(() => {
+    const current = goal()
+
+    if (!current || (current.status !== "cancelled" && current.status !== "completed")) return current
+    const dismissed = props.view().goal.dismissed()
+
+    if (
+      current.id === dismissed?.id &&
+      current.revision === dismissed.revision &&
+      current.updatedAt === dismissed.updatedAt
+    )
+      return undefined
+
+    return current
   })
 
   // Reconnecting releases the previous view's busy state while keeping its edit draft.
@@ -140,14 +161,14 @@ export function SessionGoalDock(props: { sessionID: string; readonly?: boolean }
   }
 
   return (
-    <Show when={goal() || error()}>
+    <Show when={visibleGoal() || error()}>
       <DockTray
         data-component="session-goal-dock"
         role="region"
         aria-label={language.t("session.goalDock.title")}
-        class="mb-2 p-3 text-13-regular leading-[var(--line-height-base)]"
+        class="group/goal mb-2 p-3 text-13-regular leading-[var(--line-height-base)]"
       >
-        <Show when={goal()}>
+        <Show when={visibleGoal()}>
           {(current) => (
             <>
               <div class="flex min-h-7 items-start gap-2">
@@ -171,6 +192,28 @@ export function SessionGoalDock(props: { sessionID: string; readonly?: boolean }
                     <p class="mt-1 break-words text-v2-text-text-base">{current().objective}</p>
                   </Show>
                 </div>
+                <Show when={current().status === "cancelled" || current().status === "completed"}>
+                  <IconButton
+                    type="button"
+                    size="small"
+                    variant="ghost"
+                    icon={<Icon name="close" size="small" />}
+                    class="hover-reveal shrink-0 group-hover/goal:opacity-100 group-focus-within/goal:opacity-100"
+                    aria-label={language.t("common.close")}
+                    title={language.t("common.close")}
+                    onClick={(event) => {
+                      const composer = event.currentTarget
+                        .closest('[data-slot="session-chat-panel"], [data-component="session-content-panel"]')
+                        ?.querySelector<HTMLElement>('[data-component="composer-editor"]')
+                      props.view().goal.dismiss({
+                        id: current().id,
+                        revision: current().revision,
+                        updatedAt: current().updatedAt,
+                      })
+                      composer?.focus()
+                    }}
+                  />
+                </Show>
                 <Show
                   when={
                     !props.readonly && !editing() && (current().status === "active" || current().status === "paused")

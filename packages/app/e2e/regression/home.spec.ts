@@ -248,7 +248,7 @@ async function openHome(
 test("the session menu opens from row actions or context input and renames, exports, and deletes a Home session", async ({
   page,
 }) => {
-  await openHome(page)
+  await openHome(page, { sessions: fixture.sessions.map((session) => ({ ...session, mode: "coding" })) })
 
   const target = row(page, fixture.expected.targetTitle)
 
@@ -268,7 +268,13 @@ test("the session menu opens from row actions or context input and renames, expo
   const box = await target.boundingBox()
   await target.click({ button: "right", position: { x: 48, y: 12 } })
   await expect(page).toHaveURL("/")
-  await expect(page.getByRole("menuitem")).toHaveText(["Rename", "Export…", "Delete…"])
+  await expect(page.getByRole("menuitem")).toHaveText([
+    "Rename",
+    "Fork from message",
+    "Copy Session ID",
+    "Export…",
+    "Delete…",
+  ])
   const menu = await page.locator('[data-component="menu-v2-content"]').boundingBox()
   expect(Math.abs((menu?.x ?? 0) - (box?.x ?? 0) - 48)).toBeLessThan(4)
   await page.keyboard.press("Escape")
@@ -277,8 +283,28 @@ test("the session menu opens from row actions or context input and renames, expo
   await expect(more).toHaveCSS("opacity", "1")
   await more.click()
   await expect(page).toHaveURL("/")
-  await expect(page.getByRole("menuitem")).toHaveText(["Rename", "Export…", "Delete…"])
+  await expect(page.getByRole("menuitem")).toHaveText([
+    "Rename",
+    "Fork from message",
+    "Copy Session ID",
+    "Export…",
+    "Delete…",
+  ])
 
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"])
+  await page.getByRole("menuitem", { name: "Copy Session ID", exact: true }).click()
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(fixture.targetID)
+  await expect(page).toHaveURL("/")
+  await more.click()
+  await page.getByRole("menuitem", { name: "Fork from message", exact: true }).click()
+  const fork = page.getByRole("dialog", { name: "Fork from message", exact: true })
+  await expect(fork.getByRole("textbox")).toBeFocused()
+  await fork.locator(`[data-slot="list-item"][data-key="${fixture.expected.targetMessageIDs.at(-1)}"]`).click()
+  await expect(fork).toContainText(fixture.targetID)
+  await expect(fork.getByText(fixture.expected.targetTitle, { exact: true })).toBeVisible()
+  await fork.getByRole("button", { name: "Confirm fork", exact: true }).press("Escape")
+  await expect(fork).toBeHidden()
+  await more.click()
   await page.getByRole("menuitem", { name: "Rename" }).click()
   const title = page.locator('[data-component="home-session-rename"]')
   await expect(title).toBeFocused()
