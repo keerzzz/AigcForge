@@ -103,7 +103,15 @@ jobs:
 
       - name: Install ripgrep on Windows
         if: runner.os == 'Windows'
-        run: choco install ripgrep --yes --no-progress
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP "ripgrep.zip"
+          Invoke-WebRequest -Uri "https://github.com/BurntSushi/ripgrep/releases/download/15.1.0/ripgrep-15.1.0-x86_64-pc-windows-msvc.zip" -OutFile $archive
+          Expand-Archive -LiteralPath $archive -DestinationPath (Join-Path $env:RUNNER_TEMP "ripgrep") -Force
+          $ripgrepDirectory = Join-Path $env:RUNNER_TEMP "ripgrep/ripgrep-15.1.0-x86_64-pc-windows-msvc"
+          & (Join-Path $ripgrepDirectory "rg.exe") --version
+          if ($LASTEXITCODE -ne 0) { throw "ripgrep verification failed: $LASTEXITCODE" }
+          Add-Content -Path $env:GITHUB_PATH -Value $ripgrepDirectory
 
       - name: Cache Turbo
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
