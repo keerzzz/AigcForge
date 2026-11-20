@@ -371,6 +371,48 @@ export function createHomeSessionsController(home: HomeController, surface: "hom
     }
   }
 
+  const fork = async (server: ServerConnection.Key, session: SessionInfo) => {
+    const conn = home.server.list().find((item) => ServerConnection.key(item) === server)
+    const ctx = conn ? home.server.context(conn) : undefined
+
+    if (!conn || !ctx) return
+    const owner = ctx.sdk.api
+
+    try {
+      const [{ DialogFork }] = await Promise.all([
+        import("@/session/commands/fork-dialog"),
+        ctx.data.session.message.sync(session.id),
+      ])
+
+      if (home.server.context(conn) !== ctx || ctx.sdk.api !== owner) return
+      void dialog.show(() => <DialogFork source={{ server: conn, session, scope: ctx.sdk.scope }} />)
+    } catch (cause) {
+      if (home.server.context(conn) !== ctx || ctx.sdk.api !== owner) return
+      showToast({
+        title: language.t("common.requestFailed"),
+        description: errorMessage(cause, language.t("common.requestFailed")),
+      })
+    }
+  }
+
+  const copySessionID = async (session: SessionInfo) => {
+    try {
+      await (platform.writeClipboardText?.(session.id) ?? navigator.clipboard.writeText(session.id))
+      showToast({
+        variant: "success",
+        icon: "circle-check",
+        title: language.t("common.copied"),
+        description: session.id,
+      })
+    } catch (cause) {
+      showToast({
+        variant: "error",
+        title: language.t("toast.session.copyID.failed.title"),
+        description: errorMessage(cause, language.t("toast.session.copyID.failed.description")),
+      })
+    }
+  }
+
   const remove = async (server: ServerConnection.Key, session: SessionInfo) => {
     const conn = home.server.list().find((item) => ServerConnection.key(item) === server)
     const ctx = conn ? home.server.context(conn) : undefined
@@ -519,6 +561,8 @@ export function createHomeSessionsController(home: HomeController, surface: "hom
         })
       },
       rename,
+      fork,
+      copyID: copySessionID,
       export: exportSession,
       showDelete: (server: ServerConnection.Key, session: SessionInfo) =>
         dialog.show(() => <DeleteDialog server={server} session={session} />),

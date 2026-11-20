@@ -3,8 +3,8 @@ import { createStore } from "solid-js/store"
 import { useNavigate } from "@solidjs/router"
 import { useSessionParams } from "../content-context"
 import type { SessionForkInput, SessionInfo } from "@aigcfroge/client/promise"
-import { useData } from "@/runtime/server/current"
-import { useComposerState } from "@/composer/persistence"
+import { ServerProvider, useData } from "@/runtime/server/current"
+import { ComposerPersistenceProvider, useComposerState } from "@/composer/persistence"
 import { useDialog } from "@aigcfroge/ui/context/dialog"
 import { Dialog, DialogBody, DialogHeader, DialogTitle } from "@aigcfroge/ui/dialog"
 import { Button } from "@aigcfroge/ui/button"
@@ -14,14 +14,36 @@ import { useLanguage } from "@/runtime/i18n/language"
 import { useServerSDK } from "@/runtime/server/client"
 import { base64Encode } from "@aigcfroge/util/encode"
 import { extractPromptContext, extractPromptFromMessage } from "@/composer/prompt"
-import { useWorkspaceLocation } from "@/workspaces/location"
+import { LocationProvider, useWorkspaceLocation } from "@/workspaces/location"
 import { useServer } from "@/runtime/server/current"
 import { sessionHref } from "@/shell/routes/session"
+import { ServerConnection } from "@/runtime/server/registry"
+import type { ServerScope } from "@/runtime/server/scope"
 
 type ForkableMessage = { id: string; text: string; time: string }
 
-export const DialogFork: Component = () => {
+export const DialogFork: Component<{
+  source?: { server: ServerConnection.Any; session: SessionInfo; scope: ServerScope }
+}> = (props) => (
+  <Show when={props.source} fallback={<DialogForkContent />} keyed>
+    {(source) => (
+      <ServerProvider conn={source.server}>
+        <LocationProvider directory={source.session.location.directory}>
+          <ComposerPersistenceProvider
+            scope={() => ({ dir: base64Encode(source.session.location.directory), id: source.session.id })}
+            target={() => ({ server: ServerConnection.key(source.server), scope: source.scope })}
+          >
+            <DialogForkContent sessionID={source.session.id} />
+          </ComposerPersistenceProvider>
+        </LocationProvider>
+      </ServerProvider>
+    )}
+  </Show>
+)
+
+function DialogForkContent(props: { sessionID?: string }) {
   const params = useSessionParams()
+  const sourceID = () => props.sessionID ?? params.id
   const navigate = useNavigate()
   const data = useData()
   const serverSDK = useServerSDK()
@@ -49,10 +71,12 @@ export const DialogFork: Component = () => {
   })
 
   const messages = createMemo((): ForkableMessage[] => {
-    if (!params.id) return []
+    const sessionID = sourceID()
+
+    if (!sessionID) return []
 
     return data.session.message
-      .list(params.id)
+      .list(sessionID)
       .flatMap((message) =>
         message.type === "user" && message.text
           ? [
@@ -68,8 +92,9 @@ export const DialogFork: Component = () => {
   })
 
   const handleSelect = async (item: ForkableMessage | undefined) => {
-    if (!item || state.pending || !params.id) return
-    const sessionID = params.id
+    const sessionID = sourceID()
+
+    if (!item || state.pending || !sessionID) return
     const owner = serverSDK.api
     const directory = location().directory
     const attempt = ++generation
@@ -78,7 +103,7 @@ export const DialogFork: Component = () => {
       !disposed &&
       attempt === generation &&
       owner === serverSDK.api &&
-      params.id === sessionID &&
+      sourceID() === sessionID &&
       location().directory === directory
 
     setState("pending", true)
@@ -158,7 +183,7 @@ export const DialogFork: Component = () => {
     const preview = state.preview
 
     if (!preview || state.pending || preview.info.controller?.kind === "child") return
-    const sessionID = params.id
+    const sessionID = sourceID()
 
     if (sessionID !== preview.info.id) return
     const message = data.session.message.get(sessionID, preview.messageID)
@@ -173,7 +198,7 @@ export const DialogFork: Component = () => {
       !disposed &&
       attempt === generation &&
       owner === serverSDK.api &&
-      params.id === sessionID &&
+      sourceID() === sessionID &&
       location().directory === directory &&
       state.preview === preview
 

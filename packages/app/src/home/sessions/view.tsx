@@ -76,6 +76,8 @@ export type HomeSessionsViewProps = {
   onOpenSession: (session: SessionInfo, options?: OpenSessionOptions) => void
   onArchiveSession: (session: SessionInfo) => Promise<void>
   onRenameSession: (server: ServerConnection.Key, session: SessionInfo, title: string) => Promise<boolean>
+  onForkSession: (server: ServerConnection.Key, session: SessionInfo) => Promise<void>
+  onCopySessionID: (session: SessionInfo) => Promise<void>
   onExportSession: (server: ServerConnection.Key, session: SessionInfo) => Promise<void>
   onDeleteSession: (server: ServerConnection.Key, session: SessionInfo) => void
   onSetHoverTarget: (element: HTMLElement) => void
@@ -571,6 +573,8 @@ export type HomeSessionRowProps = Pick<
   | "onOpenSession"
   | "onArchiveSession"
   | "onRenameSession"
+  | "onForkSession"
+  | "onCopySessionID"
   | "onExportSession"
   | "onDeleteSession"
 > & {
@@ -911,6 +915,13 @@ export function HomeSessionRow(props: HomeSessionRowProps) {
             }}
           >
             <Menu.Item onSelect={openEditor}>{props.language.t("common.rename")}</Menu.Item>
+            <Menu.Item onSelect={() => void props.onForkSession(props.server, props.record.session)}>
+              {props.language.t("command.session.fork")}
+            </Menu.Item>
+            <Menu.Separator />
+            <Menu.Item onSelect={() => void props.onCopySessionID(props.record.session)}>
+              {props.language.t("command.session.copyID")}
+            </Menu.Item>
             <Menu.Item onSelect={() => void props.onExportSession(props.server, props.record.session)}>
               {props.language.t("common.export")}…
             </Menu.Item>

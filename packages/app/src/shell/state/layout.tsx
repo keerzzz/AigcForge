@@ -102,6 +102,9 @@ const sessionViewSchema = Persistence.struct({
   reviewFile: Schema.optional(Schema.String),
   pendingMessage: Schema.optional(Schema.String),
   pendingMessageAt: Schema.optional(Schema.Finite),
+  dismissedGoal: Schema.optional(
+    Schema.Struct({ id: Schema.String, revision: Schema.Finite, updatedAt: Schema.Finite }),
+  ),
 })
 
 export const layoutSchema = Persistence.struct({
@@ -517,6 +520,15 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
         const key = createSessionKeyReader(sessionKey, ensureKey)
 
         return {
+          goal: {
+            dismissed: () => store.sessionView[key()]?.dismissedGoal,
+            dismiss(value: NonNullable<typeof sessionViewSchema.Type.dismissedGoal>) {
+              const session = key()
+              const current = store.sessionView[session]
+              setStore("sessionView", session, { ...current, scroll: current?.scroll ?? {}, dismissedGoal: value })
+              prune(usage.active ?? session)
+            },
+          },
           scroll(tab: string) {
             return scroll.scroll(key(), tab)
           },

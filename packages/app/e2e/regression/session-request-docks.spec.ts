@@ -1434,7 +1434,7 @@ test("task dock reloads durable rows after SSH sign-in replaces the client", asy
 
 test("Goal dock preserves edits, confirms exact evidence and cancels without rewriting independent tasks", async ({
   page,
-}) => {
+}, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   const id = "ses_goal_dock_lifecycle"
   const goalID = "gol_goal_dock_lifecycle"
@@ -1531,6 +1531,7 @@ test("Goal dock preserves edits, confirms exact evidence and cancels without rew
   })
   await mockWorkspace(page, {
     name: "GoalDock",
+    seed: { theme: { id: "oc-2", scheme: "dark" } },
     directory: location,
     project: { id: identity.projectID },
     goals,
@@ -1645,6 +1646,18 @@ test("Goal dock preserves edits, confirms exact evidence and cancels without rew
     body: { expectedRevision: 2, evidenceIDs: ["evidence_goal_dock_check"], evidenceSetDigest: "a".repeat(64) },
   })
   await expect(dock.getByRole("button", { name: "Edit Goal", exact: true })).toHaveCount(0)
+  await dock.hover()
+  const closeGoal = dock.getByRole("button", { name: "Close", exact: true })
+  await expect(closeGoal).toHaveCSS("opacity", "1")
+  const completedMutations = mutations.length
+  await closeGoal.click()
+  await expect(dock).toBeHidden()
+  await page.reload()
+  await expect(composer).toBeEditable()
+  await expect(dock).toBeHidden()
+  expect(mutations).toHaveLength(completedMutations)
+  expect(goals[0]?.status).toBe("completed")
+  await transport.waitForConnection()
 
   const next: SessionGoalInfo = {
     ...initial,
@@ -1666,10 +1679,20 @@ test("Goal dock preserves edits, confirms exact evidence and cancels without rew
     data: { sessionID: id, goal: next },
   })
   await expect(dock.getByText(next.objective, { exact: true })).toBeVisible()
+  await expect(closeGoal).toHaveCount(0)
   await dock.getByRole("button", { name: "Cancel Goal", exact: true }).click()
   await expect(dock.getByRole("status")).toHaveText("Cancelled")
   await expect(dock.getByText(next.objective, { exact: true })).toBeVisible()
   expect(mutations.at(-1)).toEqual({ action: "cancel", sessionID: id, goalID: next.id, body: { expectedRevision: 1 } })
+  const cancelledMutations = mutations.length
+  await closeGoal.focus()
+  await expect(closeGoal).toHaveCSS("opacity", "1")
+  await page.screenshot({ path: testInfo.outputPath("cancelled-goal-close.png") })
+  await closeGoal.press("Enter")
+  await expect(dock).toBeHidden()
+  await expect(composer).toBeFocused()
+  expect(mutations).toHaveLength(cancelledMutations)
+  expect(goals.find((goal) => goal.id === next.id)?.status).toBe("cancelled")
   await expect(page.getByRole("listitem", { name: "Task: Keep the independent task", exact: true })).toContainText(
     "In progress",
   )

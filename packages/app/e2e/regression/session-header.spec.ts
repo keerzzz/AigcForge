@@ -865,6 +865,131 @@ test.describe("session menu commands", () => {
     await expect(fork).toBeHidden()
   })
 
+  for (const server of [SERVER, REMOTE_SERVER]) {
+    test(`sidebar copy and fork target the selected row on ${server}`, async ({ page }, testInfo) => {
+      const sourceID = "ses_sidebar_menu_source"
+      const targetID = "ses_sidebar_menu_target"
+      const promptID = "msg_sidebar_menu_prompt"
+      const remote = server === REMOTE_SERVER
+      const text = remote ? "Selected remote row prompt" : "Selected local row prompt"
+      const forks: string[] = []
+      const prompts: unknown[] = []
+      await mockWorkspace(page, {
+        name: "Sidebar menus",
+        sessions: [
+          { id: sourceID, title: "Local main source", mode: "coding" },
+          { id: targetID, title: "Local row target", mode: "coding" },
+        ],
+        pageMessages: (id) => ({
+          items:
+            id === targetID
+              ? [{ id: promptID, type: "user", text: "Selected local row prompt", time: { created: 1 } }]
+              : [],
+        }),
+        onSessionFork: () => {
+          forks.push(SERVER)
+        },
+        onPrompt: (body) => {
+          prompts.push(body)
+        },
+      })
+      await mockRemoteServer(page, {
+        directory: "/remote/sidebar-menus",
+        sessions: [
+          session({ id: sourceID, directory: "/remote/sidebar-menus", title: "Remote main source", mode: "coding" }),
+          session({ id: targetID, directory: "/remote/sidebar-menus", title: "Remote row target", mode: "coding" }),
+        ],
+        pageMessages: (id) => ({
+          items:
+            id === targetID
+              ? [{ id: promptID, type: "user", text: "Selected remote row prompt", time: { created: 1 } }]
+              : [],
+        }),
+        onSessionFork: () => {
+          forks.push(REMOTE_SERVER)
+        },
+        onPrompt: (body) => {
+          prompts.push(body)
+        },
+      })
+      await seed(page, {
+        projects: { [REMOTE_SERVER]: [{ worktree: "/remote/sidebar-menus", expanded: true }] },
+        tabs: [sourceID, targetID, { session: sourceID, server: REMOTE_SERVER }],
+      })
+      await page.goto(sessionHref(sourceID, server))
+      await expectSessionTitle(page, remote ? "Remote main source" : "Local main source")
+      const main = page.locator('[data-slot="session-chat-panel"]')
+      const editor = main.locator('[data-component="composer-editor"]')
+      await expect(editor).toBeEditable()
+      await editor.fill("Retain the main session draft")
+      await page
+        .locator('[data-slot="session-review-toggle"]')
+        .getByRole("button", { name: "Projects", exact: true })
+        .click()
+      const sidebar = page.locator("#shell-project-sidebar")
+      const row = sidebar.locator(
+        `[data-component="home-session-row-container"][data-session-id="${targetID}"][data-session-server="${server}"]`,
+      )
+      await expect(
+        row.getByRole("button", { name: remote ? "Remote row target" : "Local row target", exact: true }),
+      ).toBeVisible()
+      const more = row.getByRole("button", { name: "More options", exact: true })
+      await row.hover()
+      await expect(more).toHaveCSS("opacity", "1")
+      const bounds = await row.boundingBox()
+      await more.click()
+      const options = page.getByRole("menu")
+      await expect(options.getByRole("menuitem")).toHaveText([
+        "Rename",
+        "Fork from message",
+        "Copy Session ID",
+        "Export…",
+        "Delete…",
+      ])
+      await page.screenshot({ path: testInfo.outputPath("sidebar-session-menu.png") })
+      await options.getByRole("menuitem", { name: "Copy Session ID", exact: true }).click()
+      await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe(targetID)
+      await expect(page).toHaveURL(sessionHref(sourceID, server))
+      expect(await row.boundingBox()).toEqual(bounds)
+      await more.click()
+      await options.getByRole("menuitem", { name: "Fork from message", exact: true }).click()
+      const fork = page.getByRole("dialog", { name: "Fork from message", exact: true })
+      await expect(fork.getByRole("button", { name: new RegExp(text) })).toBeVisible()
+      await expect(fork.getByText(remote ? "Selected local row prompt" : "Selected remote row prompt")).toHaveCount(0)
+      await fork.getByRole("button", { name: new RegExp(text) }).click()
+      await expect(fork).toContainText(targetID)
+      await expect(fork.getByText(remote ? "Remote row target" : "Local row target", { exact: true })).toBeVisible()
+      const response = page.waitForResponse(
+        (response) =>
+          response.request().method() === "POST" &&
+          new URL(response.url()).origin === server &&
+          new URL(response.url()).pathname === `/api/session/${targetID}/fork`,
+      )
+      await fork.getByRole("button", { name: "Confirm fork", exact: true }).click()
+      const result = await response
+      expect(result.ok()).toBe(true)
+      const created = (await result.json()).data
+      await expect(page).toHaveURL(sessionHref(created.id, server))
+      await expect(editor).toHaveText(text)
+      expect(result.request().postDataJSON()).toEqual({
+        before: promptID,
+        expectedSource: {
+          sourceSessionID: targetID,
+          mode: "coding",
+          agent: "build",
+          model: { providerID: "mock-provider", id: "mock-model" },
+        },
+      })
+      expect(forks).toEqual([server])
+      expect(prompts).toEqual([])
+      await tabs(page)
+        .filter({ hasText: remote ? "Remote main source" : "Local main source" })
+        .click()
+      await expectSessionTitle(page, remote ? "Remote main source" : "Local main source")
+      await expect(editor).toHaveText("Retain the main session draft")
+    })
+  }
+
   for (const item of [
     { id: "session.undo", key: "U", menu: undefined },
     { id: "session.redo", key: "R", menu: undefined },

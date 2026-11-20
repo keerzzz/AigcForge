@@ -294,6 +294,8 @@ function ProjectSessions(props: {
       onRevealLocations={sessions.location.sync}
       onArchiveSession={sessions.session.archive}
       onRenameSession={sessions.session.rename}
+      onForkSession={sessions.session.fork}
+      onCopySessionID={sessions.session.copyID}
       onExportSession={sessions.session.export}
       onDeleteSession={sessions.session.showDelete}
       rowUI={rowUI}
