@@ -122,6 +122,13 @@ jobs:
             turbo-${{ runner.os }}-${{ hashFiles('turbo.json', '**/package.json') }}-
             turbo-${{ runner.os }}-
 
+      - name: Check concurrent snapshots on Windows
+        if: runner.os == 'Windows'
+        timeout-minutes: 5
+        run: GITHUB_ACTIONS=false bun --cwd packages/core test test/snapshot.test.ts --test-name-pattern "captures concurrently from independent processes" --rerun-each 10
+        env:
+          AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER: "true"
+
       - name: Run unit tests
         timeout-minutes: ${{ runner.os == 'Windows' && 90 || 40 }}
         run: GITHUB_ACTIONS=false bun turbo test --concurrency=1
