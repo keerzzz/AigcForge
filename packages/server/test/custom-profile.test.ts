@@ -492,3 +492,135 @@ it.live("borrows profile references by Location and distinguishes disabled compo
     )
   }),
 )
+
+it.live("deletes Custom Profiles and all seven asset kinds at Location scope with CAS without a Session", () =>
+  Effect.gen(function* () {
+    const test = yield* setup([
+      {
+        directory: "project",
+        path: ".aigcfroge/agents/helper.md",
+        content:
+          "---\nkind: agent\nname: helper\ndescription: Helper agent\nconfig: |\n  mode: subagent\n---\nHelp carefully.\n",
+      },
+      {
+        directory: "project",
+        path: ".aigcfroge/prompts/review.md",
+        content: "---\nkind: prompt\nname: review\ndescription: Review prompt\n---\nReview {{CODE}}.\n",
+      },
+      {
+        directory: "project",
+        path: ".aigcfroge/skills/check/SKILL.md",
+        content: "---\nname: check\ndescription: Check skill\n---\nCheck outputs.\n",
+      },
+      {
+        directory: "project",
+        path: ".aigcfroge/commands/audit.md",
+        content: "---\nkind: command\nname: audit\ndescription: Audit command\ninvocation: /audit\n---\nRun audit.\n",
+      },
+      {
+        directory: "project",
+        path: ".aigcfroge/workflows/flow.yaml",
+        content:
+          'kind: workflow\nname: flow\ndescription: Review flow\nversion: "1"\ntriggers: [manual]\nsteps:\n  - id: step1\n    name: Step 1\n    agent: helper\n    next: END\n',
+      },
+      {
+        directory: "project",
+        path: ".aigcfroge/mcps/docs.md",
+        content:
+          '---\nkind: mcp\nname: docs\ndescription: Docs MCP\ncommand: npx\nargs:\n  - docs-mcp\n---\n{"transport":"stdio"}\n',
+      },
+      {
+        directory: "project",
+        path: ".aigcfroge/plugins/lint.plugin.yaml",
+        content:
+          'kind: plugin\nname: lint\ndescription: Lint plugin\nversion: "1.0.0"\nsource:\n  type: mcp\n  mcp:\n    name: docs\n',
+      },
+    ])
+
+    const created = yield* test.request(`${test.root}/apply`, { body: { candidate, overwrite: false } })
+    expect(created.status).toBe(200)
+    const saved = Schema.decodeUnknownSync(CustomProfile.Info)(yield* Effect.promise(() => created.json()))
+
+    expect(
+      (yield* test.request(`${test.root}/delete`, {
+        body: { relativePath: saved.relativePath, baseRevision: saved.revision },
+        authenticated: false,
+      })).status,
+    ).toBe(401)
+    expect(
+      (yield* test.request(`${test.root}/delete`, {
+        body: { relativePath: saved.relativePath, baseRevision: "b".repeat(64) },
+      })).status,
+    ).toBe(409)
+    expect(
+      (yield* test.request(`${test.root}/delete`, {
+        body: { relativePath: saved.relativePath, baseRevision: saved.revision },
+        directory: test.other,
+      })).status,
+    ).toBe(404)
+    const removedProfile = yield* test.request(`${test.root}/delete`, {
+      body: { relativePath: saved.relativePath, baseRevision: saved.revision },
+    })
+    expect(removedProfile.status).toBe(200)
+    expect(yield* Effect.promise(() => removedProfile.json())).toMatchObject({
+      relativePath: saved.relativePath,
+      referencingProfiles: [],
+    })
+
+    const listAsset = (route: string) =>
+      Effect.gen(function* () {
+        const res = yield* test.request(route)
+        expect(res.status).toBe(200)
+        return Schema.decodeUnknownSync(
+          Schema.Struct({
+            assets: Schema.Array(Schema.Struct({ relativePath: Schema.String, revision: Schema.String })),
+            target: Schema.optional(Schema.Struct({ scope: Schema.String, root: Schema.String })),
+          }),
+        )(yield* Effect.promise(() => res.json()))
+      })
+
+    for (const kind of ["agent-asset", "workflow-asset", "mcp-asset", "plugin-asset"] as const) {
+      const listed = yield* listAsset(`/${kind}`)
+      expect(listed.assets).toHaveLength(1)
+      const item = listed.assets[0]
+      expect(
+        (yield* test.request(`/${kind}/delete`, {
+          body: { relativePath: item.relativePath, baseRevision: "b".repeat(64) },
+        })).status,
+      ).toBe(409)
+      expect(
+        (yield* test.request(`/${kind}/delete`, {
+          body: { relativePath: item.relativePath, baseRevision: item.revision },
+        })).status,
+      ).toBe(200)
+      expect((yield* listAsset(`/${kind}`)).assets).toHaveLength(0)
+    }
+
+    for (const kind of ["prompt-asset", "skill-asset", "command-asset"] as const) {
+      const listed = yield* listAsset(`/${kind}?scope=location`)
+      expect(listed.assets).toHaveLength(1)
+      expect(listed.target?.scope).toBe("location")
+      const item = listed.assets[0]
+      expect(
+        (yield* test.request(`/${kind}/delete`, {
+          body: {
+            relativePath: item.relativePath,
+            baseRevision: item.revision,
+            target: { scope: "location", root: path.join(test.other, ".aigcfroge") },
+          },
+        })).status,
+      ).toBe(400)
+      expect(
+        (yield* test.request(`/${kind}/delete`, {
+          body: { relativePath: item.relativePath, baseRevision: "b".repeat(64), target: listed.target },
+        })).status,
+      ).toBe(409)
+      expect(
+        (yield* test.request(`/${kind}/delete`, {
+          body: { relativePath: item.relativePath, baseRevision: item.revision, target: listed.target },
+        })).status,
+      ).toBe(200)
+      expect((yield* listAsset(`/${kind}?scope=location`)).assets).toHaveLength(0)
+    }
+  }),
+)

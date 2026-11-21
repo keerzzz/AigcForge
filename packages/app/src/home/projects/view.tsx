@@ -1,3 +1,4 @@
+import { pathKey } from "@/workspaces/path-key"
 import { createMemo, For, type JSX, onCleanup, Show, splitProps } from "solid-js"
 import { createStore } from "solid-js/store"
 import { Popover } from "@kobalte/core/popover"
@@ -85,7 +86,13 @@ export type HomeProjectsViewProps = {
 
 export function HomeProjectsView(props: HomeProjectsViewProps) {
   const [state, setState] = createStore({ open: false })
-  const selected = createMemo(() => props.projects.find((project) => project.worktree === props.selection.directory))
+  const selected = createMemo(() =>
+    props.projects.find((project) =>
+      [project.worktree, ...(project.sandboxes ?? [])].some(
+        (directory) => !!props.selection.directory && pathKey(directory) === pathKey(props.selection.directory),
+      ),
+    ),
+  )
 
   const server = createMemo(() =>
     props.servers.find((server) => ServerConnection.key(server) === props.selection.server),

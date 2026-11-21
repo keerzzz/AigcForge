@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto"
+import path from "node:path"
 import { describe, expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
 import { Agent } from "../src/agent.js"
@@ -7,6 +9,30 @@ import { Location } from "../src/location.js"
 import { AbsolutePath } from "../src/schema.js"
 
 describe("Composition Schema", () => {
+  test("consumer identity preserves the original POSIX basename and SHA-256 semantics", () => {
+    const cases = [
+      ["reviewer", "team/reviewer.md"],
+      ["Code Reviewer", "team/code-reviewer.md"],
+      ["审查员", "team/审查员.md"],
+      ["审查员", "team\\reviewer.md"],
+      ["审查员", "/.md/"],
+      ["审查员", "team/名.md/"],
+      ["", ""],
+      [" A_1 ", "other.md"],
+    ]
+    for (const [name, relativePath] of cases) {
+      const trimmed = name.trim()
+      const basename = path.posix
+        .basename(relativePath, ".md")
+        .replaceAll(/[^a-zA-Z0-9_-]/g, "_")
+        .replace(/^_+|_+$/g, "")
+      const original = /^[a-zA-Z0-9_-]+$/.test(trimmed)
+        ? trimmed
+        : basename || createHash("sha256").update(`${relativePath}:${name}`).digest("hex").slice(0, 12)
+      expect(Composition.consumerKeyForAgent(name, relativePath)).toBe(`agents/${original}`)
+    }
+  })
+
   const agentRef = {
     kind: "agent" as const,
     relativePath: "reviewer.md",

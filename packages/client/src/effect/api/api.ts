@@ -3191,12 +3191,25 @@ export type PromptAssetDeleteOperation<E = never> = (
   input: PromptAssetDeleteInput,
 ) => Effect.Effect<PromptAssetDeleteOutput, E>
 
+export type PromptAssetRemoveInput = {
+  readonly directory?: string | undefined
+  readonly workspace?: string | undefined
+  readonly relativePath: string
+  readonly baseRevision?: string | undefined
+  readonly target?: AssetPlacement.Target | undefined
+}
+export type PromptAssetRemoveOutput = void
+export type PromptAssetRemoveOperation<E = never> = (
+  input: PromptAssetRemoveInput,
+) => Effect.Effect<PromptAssetRemoveOutput, E>
+
 export interface PromptAssetApi<E = never> {
   readonly list: PromptAssetListOperation<E>
   readonly content: PromptAssetContentOperation<E>
   readonly inspect: PromptAssetInspectOperation<E>
   readonly apply: PromptAssetApplyOperation<E>
   readonly delete: PromptAssetDeleteOperation<E>
+  readonly remove: PromptAssetRemoveOperation<E>
 }
 
 export type SkillAssetListInput = {
@@ -3262,12 +3275,25 @@ export type SkillAssetDeleteOperation<E = never> = (
   input: SkillAssetDeleteInput,
 ) => Effect.Effect<SkillAssetDeleteOutput, E>
 
+export type SkillAssetRemoveInput = {
+  readonly directory?: string | undefined
+  readonly workspace?: string | undefined
+  readonly relativePath: string
+  readonly baseRevision?: string | undefined
+  readonly target?: AssetPlacement.Target | undefined
+}
+export type SkillAssetRemoveOutput = void
+export type SkillAssetRemoveOperation<E = never> = (
+  input: SkillAssetRemoveInput,
+) => Effect.Effect<SkillAssetRemoveOutput, E>
+
 export interface SkillAssetApi<E = never> {
   readonly list: SkillAssetListOperation<E>
   readonly content: SkillAssetContentOperation<E>
   readonly inspect: SkillAssetInspectOperation<E>
   readonly apply: SkillAssetApplyOperation<E>
   readonly delete: SkillAssetDeleteOperation<E>
+  readonly remove: SkillAssetRemoveOperation<E>
 }
 
 export type McpAssetListInput = {
@@ -3312,11 +3338,21 @@ export type McpAssetDeleteInput = {
 export type McpAssetDeleteOutput = void
 export type McpAssetDeleteOperation<E = never> = (input: McpAssetDeleteInput) => Effect.Effect<McpAssetDeleteOutput, E>
 
+export type McpAssetRemoveInput = {
+  readonly directory?: string | undefined
+  readonly workspace?: string | undefined
+  readonly relativePath: string
+  readonly baseRevision?: string | undefined
+}
+export type McpAssetRemoveOutput = void
+export type McpAssetRemoveOperation<E = never> = (input: McpAssetRemoveInput) => Effect.Effect<McpAssetRemoveOutput, E>
+
 export interface McpAssetApi<E = never> {
   readonly list: McpAssetListOperation<E>
   readonly content: McpAssetContentOperation<E>
   readonly apply: McpAssetApplyOperation<E>
   readonly delete: McpAssetDeleteOperation<E>
+  readonly remove: McpAssetRemoveOperation<E>
 }
 
 export type CommandAssetListInput = {
@@ -3384,12 +3420,25 @@ export type CommandAssetDeleteOperation<E = never> = (
   input: CommandAssetDeleteInput,
 ) => Effect.Effect<CommandAssetDeleteOutput, E>
 
+export type CommandAssetRemoveInput = {
+  readonly directory?: string | undefined
+  readonly workspace?: string | undefined
+  readonly relativePath: string
+  readonly baseRevision?: string | undefined
+  readonly target?: AssetPlacement.Target | undefined
+}
+export type CommandAssetRemoveOutput = void
+export type CommandAssetRemoveOperation<E = never> = (
+  input: CommandAssetRemoveInput,
+) => Effect.Effect<CommandAssetRemoveOutput, E>
+
 export interface CommandAssetApi<E = never> {
   readonly list: CommandAssetListOperation<E>
   readonly content: CommandAssetContentOperation<E>
   readonly inspect: CommandAssetInspectOperation<E>
   readonly apply: CommandAssetApplyOperation<E>
   readonly delete: CommandAssetDeleteOperation<E>
+  readonly remove: CommandAssetRemoveOperation<E>
 }
 
 export type AgentAssetListInput = {
@@ -3438,11 +3487,23 @@ export type AgentAssetDeleteOperation<E = never> = (
   input: AgentAssetDeleteInput,
 ) => Effect.Effect<AgentAssetDeleteOutput, E>
 
+export type AgentAssetRemoveInput = {
+  readonly directory?: string | undefined
+  readonly workspace?: string | undefined
+  readonly relativePath: string
+  readonly baseRevision?: string | undefined
+}
+export type AgentAssetRemoveOutput = void
+export type AgentAssetRemoveOperation<E = never> = (
+  input: AgentAssetRemoveInput,
+) => Effect.Effect<AgentAssetRemoveOutput, E>
+
 export interface AgentAssetApi<E = never> {
   readonly list: AgentAssetListOperation<E>
   readonly content: AgentAssetContentOperation<E>
   readonly apply: AgentAssetApplyOperation<E>
   readonly delete: AgentAssetDeleteOperation<E>
+  readonly remove: AgentAssetRemoveOperation<E>
 }
 
 export type PluginAssetListInput = {
@@ -3494,11 +3555,23 @@ export type PluginAssetDeleteOperation<E = never> = (
   input: PluginAssetDeleteInput,
 ) => Effect.Effect<PluginAssetDeleteOutput, E>
 
+export type PluginAssetRemoveInput = {
+  readonly directory?: string | undefined
+  readonly workspace?: string | undefined
+  readonly relativePath: string
+  readonly baseRevision?: string | undefined
+}
+export type PluginAssetRemoveOutput = void
+export type PluginAssetRemoveOperation<E = never> = (
+  input: PluginAssetRemoveInput,
+) => Effect.Effect<PluginAssetRemoveOutput, E>
+
 export interface PluginAssetApi<E = never> {
   readonly list: PluginAssetListOperation<E>
   readonly content: PluginAssetContentOperation<E>
   readonly apply: PluginAssetApplyOperation<E>
   readonly delete: PluginAssetDeleteOperation<E>
+  readonly remove: PluginAssetRemoveOperation<E>
 }
 
 export type WorkflowAssetListInput = {
@@ -3549,11 +3622,23 @@ export type WorkflowAssetDeleteOperation<E = never> = (
   input: WorkflowAssetDeleteInput,
 ) => Effect.Effect<WorkflowAssetDeleteOutput, E>
 
+export type WorkflowAssetRemoveInput = {
+  readonly directory?: string | undefined
+  readonly workspace?: string | undefined
+  readonly relativePath: string
+  readonly baseRevision?: string | undefined
+}
+export type WorkflowAssetRemoveOutput = void
+export type WorkflowAssetRemoveOperation<E = never> = (
+  input: WorkflowAssetRemoveInput,
+) => Effect.Effect<WorkflowAssetRemoveOutput, E>
+
 export interface WorkflowAssetApi<E = never> {
   readonly list: WorkflowAssetListOperation<E>
   readonly content: WorkflowAssetContentOperation<E>
   readonly apply: WorkflowAssetApplyOperation<E>
   readonly delete: WorkflowAssetDeleteOperation<E>
+  readonly remove: WorkflowAssetRemoveOperation<E>
 }
 
 export type CustomProfileListInput = {
@@ -3603,11 +3688,23 @@ export type CustomProfileDeleteOperation<E = never> = (
   input: CustomProfileDeleteInput,
 ) => Effect.Effect<CustomProfileDeleteOutput, E>
 
+export type CustomProfileRemoveInput = {
+  readonly directory?: string | undefined
+  readonly workspace?: string | undefined
+  readonly relativePath: string
+  readonly baseRevision?: string | undefined
+}
+export type CustomProfileRemoveOutput = CustomProfile.DeleteResult
+export type CustomProfileRemoveOperation<E = never> = (
+  input: CustomProfileRemoveInput,
+) => Effect.Effect<CustomProfileRemoveOutput, E>
+
 export interface CustomProfileApi<E = never> {
   readonly list: CustomProfileListOperation<E>
   readonly content: CustomProfileContentOperation<E>
   readonly apply: CustomProfileApplyOperation<E>
   readonly delete: CustomProfileDeleteOperation<E>
+  readonly remove: CustomProfileRemoveOperation<E>
 }
 
 export type CustomCompositionPlanInput = {

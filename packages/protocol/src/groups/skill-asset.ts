@@ -124,6 +124,21 @@ export const SkillAssetGroup = HttpApiGroup.make("skill-asset")
       }),
     ),
   )
+  .add(
+    HttpApiEndpoint.post("skill-asset.remove", `${root}/delete`, {
+      query: Schema.Struct(WorkspaceRoutingQueryFields),
+      payload: SkillAssetDeletePayload,
+      success: described(Schema.Void, "Deleted"),
+      error: [InvalidRequestError, ConflictError],
+    }).annotateMerge(
+      OpenApi.annotations({
+        identifier: "skill-asset.remove",
+        summary: "Delete skill-asset asset at Location",
+        description:
+          "Delete a skill asset at the current Location or selected owner by relative path with baseRevision CAS.",
+      }),
+    ),
+  )
   .annotateMerge(
     OpenApi.annotations({
       title: "skill-asset",

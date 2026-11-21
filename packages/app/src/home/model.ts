@@ -39,7 +39,13 @@ export function createHomeController(input: { mode?: Accessor<ProductMode.ID | u
   const projects = createMemo(() => focusedServerCtx()?.projects.list() ?? [])
   const recentlyClosed = createMemo(() => focusedServerCtx()?.projects.recentlyClosed() ?? [])
   const homedir = createMemo(() => focusedSync()?.data.path.home ?? "")
-  const selectedProject = createMemo(() => projects().find((project) => project.worktree === selection().directory))
+  const selectedProject = createMemo(() =>
+    projects().find((project) =>
+      [project.worktree, ...(project.sandboxes ?? [])].some(
+        (directory) => !!selection().directory && pathKey(directory) === pathKey(selection().directory!),
+      ),
+    ),
+  )
 
   const newSessionProject = createMemo(
     () =>
@@ -90,7 +96,9 @@ export function createHomeController(input: { mode?: Accessor<ProductMode.ID | u
       global
         .ensureServerCtx(conn)
         .projects.list()
-        .some((project) => pathKey(project.worktree) === pathKey(directory))
+        .some((project) =>
+          [project.worktree, ...(project.sandboxes ?? [])].some((value) => pathKey(value) === pathKey(directory)),
+        )
     )
       return
     setSelection({ server: current.server })

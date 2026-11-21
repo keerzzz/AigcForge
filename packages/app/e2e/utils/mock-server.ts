@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test"
+import type { Page, Route } from "@playwright/test"
 import type {
   AigcForgeEvent,
   AgentInfo,
@@ -10,6 +10,12 @@ import type {
   WorkflowAssetInfo,
   AgentAssetInfo,
   AgentAssetSummary,
+  CommandAssetInfo,
+  MCPAssetInfo,
+  PluginAssetBridgeEntry,
+  PluginAssetInfo,
+  PromptAssetInfo,
+  SkillAssetInfo,
   MetaAgentRead,
   MetaAgentMemoryRecord,
   SessionInstanceCacheDiagnostics,
@@ -53,6 +59,7 @@ import { LegacyDelegationState } from "@aigcfroge/protocol/groups/delegation"
 import {
   CustomProfileApplyPayload,
   CustomProfileContentQuery,
+  CustomProfileDeletePayload,
   CustomProfileListQuery,
 } from "@aigcfroge/protocol/groups/custom-profile"
 import { DateTime, Duration, Effect, Layer, Option, Predicate, Schema } from "effect"
@@ -217,6 +224,25 @@ export interface MockServerConfig {
     directory: string
     body: typeof CustomProfileApplyPayload.Type
   }) => (MockAnswer & { disconnect?: boolean }) | Promise<MockAnswer & { disconnect?: boolean }>
+  onProfileRemove?: (input: {
+    directory: string
+    body: typeof CustomProfileDeletePayload.Type
+  }) => MockAnswer | Promise<MockAnswer>
+  onCompositionHealth?: (input: { directory: string; path: string }) => MockAnswer | Promise<MockAnswer>
+  onCompositionReferences?: (input: {
+    directory: string
+    kind: string
+    path: string
+    scope?: string
+    targetRoot?: string
+  }) => MockAnswer | Promise<MockAnswer>
+  onAssetRemove?: (input: {
+    kind: "agent" | "prompt" | "skill" | "command" | "workflow" | "mcp" | "plugin"
+    directory: string
+    relativePath: string
+    baseRevision?: string
+    target?: { scope: string; root: string }
+  }) => void | InvalidRequestError | ConflictError | Promise<void | InvalidRequestError | ConflictError>
   onCompositionPlan?: (input: {
     directory: string
     body: Composition.CompositionInput
@@ -310,6 +336,12 @@ export interface MockServerConfig {
   onWorkflowRead?: (input: { sessionID: string; runID?: string }) => InvalidRequestError | undefined
   workflowAssets?: Resolvable<WorkflowAssetInfo[]>
   agentAssets?: Resolvable<(AgentAssetSummary & AgentAssetInfo)[]>
+  promptAssets?: Resolvable<PromptAssetInfo[]>
+  skillAssets?: Resolvable<SkillAssetInfo[]>
+  commandAssets?: Resolvable<CommandAssetInfo[]>
+  mcpAssets?: Resolvable<MCPAssetInfo[]>
+  pluginAssets?: Resolvable<PluginAssetInfo[]>
+  pluginBridged?: Resolvable<PluginAssetBridgeEntry[]>
   onWorkflowAction?: (
     action: "run" | "cancelRun" | "cancelStep" | "retryStep",
     input: {
@@ -625,80 +657,97 @@ export async function mockAigcForgeServer(page: Page, config: MockServerConfig) 
   const transport = createMockServerHandler(config, emit)
   page.on("close", () => void transport.dispose())
 
+  const handleRoute = async (route: Route) => {
+    const url = new URL(route.request().url())
+
+    if (!answers(page, server, url)) return route.fallback()
+
+    // Production serves the UI and API from one origin; leave app assets to Vite.
+    if (
+      !url.pathname.startsWith("/api/") &&
+      !/^\/(?:memory|agent-task|delegation|agent-asset|prompt-asset|skill-asset|command-asset|workflow-asset|mcp-asset|plugin-asset|custom-composition|custom-profile|schedule)(?:\/|$)/.test(
+        url.pathname,
+      ) &&
+      !/^\/session\/[^/]+\/(?:task(?:\/.*)?|identity|composition|meta|project-memory(?:\/[^/]+)?|cache-diagnostics|workflow(?:\/.*)?|work-artifact\/apply)$/.test(
+        url.pathname,
+      )
+    )
+      return route.fallback()
+
+    if (route.request().method() === "OPTIONS") {
+      return route.fulfill({ status: 204, headers: corsHeaders })
+    }
+
+    const password = config.password === undefined ? undefined : resolve(config.password)
+
+    if (
+      password !== undefined &&
+      (await route.request().headerValue("authorization")) !== `Basic ${btoa(`aigcfroge:${password}`)}`
+    ) {
+      return route.fulfill({
+        status: 401,
+        headers: corsHeaders,
+        json: Schema.encodeSync(MockUnauthorized)(new MockUnauthorized({ message: "Authentication required" })),
+      })
+    }
+
+    const directory = url.searchParams.get("directory") ?? url.searchParams.get("location[directory]")
+
+    if (config.strictDirectory && directory && !ownedDirectories(config).has(directory)) {
+      return route.fulfill({ status: 500, headers: corsHeaders, json: { name: "InvalidDirectory" } })
+    }
+
+    const body = route.request().postDataBuffer()
+
+    const response = await transport.handler(
+      new Request(url, {
+        method: route.request().method(),
+        headers: route.request().headers(),
+        body: body ? Uint8Array.from(body) : undefined,
+      }),
+    )
+
+    const payload = Buffer.from(await response.arrayBuffer())
+
+    // The handler committed its normal state, but this scenario loses the HTTP reply.
+    if (response.headers.get("x-aigcfroge-mock-disconnect") === "true") return route.abort("connectionclosed")
+
+    // A handler's 404 carries a tagged error; a route the mock does not define must not reach the app server, whose
+    // SPA fallback would answer HTML 200. Answer 501 and fail the test from the route handler.
+    if (response.status === 404 && !payload.toString().includes('"_tag"')) {
+      const request = `${route.request().method()} ${url.pathname}`
+      await route.fulfill({
+        status: 501,
+        headers: corsHeaders,
+        json: { name: "MockUnsupported", message: `The mock server has no route for ${request}` },
+      })
+      throw new Error(`Unmocked API request: ${request} (add it to e2e/utils/mock-server.ts)`)
+    }
+
+    return route.fulfill({
+      status: response.status,
+      headers: { ...Object.fromEntries(response.headers), ...corsHeaders },
+      body: payload,
+    })
+  }
+
+  // Context routes provide empty defaults after any asset-specific page fixtures have had their chance.
+  await page.context().route(/\/(?:prompt|skill|command|mcp|plugin)-asset(?:\/|\?|$)/, handleRoute)
   await page.route(
-    /\/api\/|\/(?:memory|agent-task|delegation|agent-asset|workflow-asset|custom-composition|custom-profile|schedule)(?:\/|\?|$)|\/session\/[^/?]+\/(?:task(?:\/[^?]*)?|identity|composition|meta|project-memory(?:\/[^/?]+)?|cache-diagnostics|workflow(?:\/[^?]*)?|work-artifact\/apply)(?:\?|$)/,
-    async (route) => {
-      const url = new URL(route.request().url())
-
-      if (!answers(page, server, url)) return route.fallback()
-
-      // Production serves the UI and API from one origin; leave app assets to Vite.
+    /\/api\/|\/(?:memory|agent-task|delegation|agent-asset|prompt-asset|skill-asset|command-asset|workflow-asset|mcp-asset|plugin-asset|custom-composition|custom-profile|schedule)(?:\/|\?|$)|\/session\/[^/?]+\/(?:task(?:\/[^?]*)?|identity|composition|meta|project-memory(?:\/[^/?]+)?|cache-diagnostics|workflow(?:\/[^?]*)?|work-artifact\/apply)(?:\?|$)/,
+    (route) => {
+      // Earlier proposal fixtures keep their asset routes unless this server supplies that kind's inventory.
+      const resource = new URL(route.request().url()).pathname.split("/")[1]
       if (
-        !url.pathname.startsWith("/api/") &&
-        !/^\/(?:memory|agent-task|delegation|agent-asset|workflow-asset|custom-composition|custom-profile|schedule)(?:\/|$)/.test(
-          url.pathname,
-        ) &&
-        !/^\/session\/[^/]+\/(?:task(?:\/.*)?|identity|composition|meta|project-memory(?:\/[^/]+)?|cache-diagnostics|workflow(?:\/.*)?|work-artifact\/apply)$/.test(
-          url.pathname,
-        )
+        (resource === "prompt-asset" && config.promptAssets === undefined) ||
+        (resource === "skill-asset" && config.skillAssets === undefined) ||
+        (resource === "command-asset" && config.commandAssets === undefined) ||
+        (resource === "mcp-asset" && config.mcpAssets === undefined) ||
+        (resource === "plugin-asset" && config.pluginAssets === undefined)
       )
         return route.fallback()
 
-      if (route.request().method() === "OPTIONS") {
-        return route.fulfill({ status: 204, headers: corsHeaders })
-      }
-
-      const password = config.password === undefined ? undefined : resolve(config.password)
-
-      if (
-        password !== undefined &&
-        (await route.request().headerValue("authorization")) !== `Basic ${btoa(`aigcfroge:${password}`)}`
-      ) {
-        return route.fulfill({
-          status: 401,
-          headers: corsHeaders,
-          json: Schema.encodeSync(MockUnauthorized)(new MockUnauthorized({ message: "Authentication required" })),
-        })
-      }
-
-      const directory = url.searchParams.get("directory") ?? url.searchParams.get("location[directory]")
-
-      if (config.strictDirectory && directory && !ownedDirectories(config).has(directory)) {
-        return route.fulfill({ status: 500, headers: corsHeaders, json: { name: "InvalidDirectory" } })
-      }
-
-      const body = route.request().postDataBuffer()
-
-      const response = await transport.handler(
-        new Request(url, {
-          method: route.request().method(),
-          headers: route.request().headers(),
-          body: body ? Uint8Array.from(body) : undefined,
-        }),
-      )
-
-      const payload = Buffer.from(await response.arrayBuffer())
-
-      // The handler committed its normal state, but this scenario loses the HTTP reply.
-      if (response.headers.get("x-aigcfroge-mock-disconnect") === "true") return route.abort("connectionclosed")
-
-      // A handler's 404 carries a tagged error; a route the mock does not define must not reach the app server, whose
-      // SPA fallback would answer HTML 200. Answer 501 and fail the test from the route handler.
-      if (response.status === 404 && !payload.toString().includes('"_tag"')) {
-        const request = `${route.request().method()} ${url.pathname}`
-        await route.fulfill({
-          status: 501,
-          headers: corsHeaders,
-          json: { name: "MockUnsupported", message: `The mock server has no route for ${request}` },
-        })
-        throw new Error(`Unmocked API request: ${request} (add it to e2e/utils/mock-server.ts)`)
-      }
-
-      return route.fulfill({
-        status: response.status,
-        headers: { ...Object.fromEntries(response.headers), ...corsHeaders },
-        body: payload,
-      })
+      return handleRoute(route)
     },
   )
 
@@ -1331,12 +1380,224 @@ function mockHandlers(
           })
         }),
       )
+      .handleRaw("profileRemove", (ctx) =>
+        Effect.gen(function* () {
+          const body = yield* Effect.orDie(
+            ctx.request.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(CustomProfileDeletePayload))),
+          )
+          const directory =
+            new URL(ctx.request.url, "http://localhost").searchParams.get("directory") ?? config.directory
+          const handler = config.onProfileRemove
+
+          if (handler) {
+            const answer = yield* Effect.promise(() => Promise.resolve(handler({ directory, body })))
+
+            return HttpServerResponse.jsonUnsafe(answer.body, { status: answer.status })
+          }
+
+          return HttpServerResponse.jsonUnsafe({ relativePath: body.relativePath, referencingProfiles: [] })
+        }),
+      )
+      .handleRaw("compositionHealth", (ctx) =>
+        Effect.gen(function* () {
+          const url = new URL(ctx.request.url, "http://localhost")
+          const directory = url.searchParams.get("directory") ?? config.directory
+          const path = url.searchParams.get("path") ?? ""
+          const handler = config.onCompositionHealth
+
+          if (handler) {
+            const answer = yield* Effect.promise(() => Promise.resolve(handler({ directory, path })))
+
+            return HttpServerResponse.jsonUnsafe(answer.body, { status: answer.status })
+          }
+
+          return HttpServerResponse.jsonUnsafe({ status: "healthy", diagnostics: [], staleRevisions: [] })
+        }),
+      )
+      .handleRaw("compositionReferences", (ctx) =>
+        Effect.gen(function* () {
+          const url = new URL(ctx.request.url, "http://localhost")
+          const directory = url.searchParams.get("directory") ?? config.directory
+          const kind = url.searchParams.get("kind") ?? ""
+          const path = url.searchParams.get("path") ?? ""
+          const scope = url.searchParams.get("scope") ?? undefined
+          const targetRoot = url.searchParams.get("targetRoot") ?? undefined
+          const handler = config.onCompositionReferences
+
+          if (handler) {
+            const answer = yield* Effect.promise(() =>
+              Promise.resolve(handler({ directory, kind, path, scope, targetRoot })),
+            )
+
+            return HttpServerResponse.jsonUnsafe(answer.body, { status: answer.status })
+          }
+
+          return HttpServerResponse.jsonUnsafe({ profiles: [], snapshots: [], snapshotsComplete: true })
+        }),
+      )
       .handle("agent-asset.list", () => Effect.succeed({ assets: resolve(config.agentAssets ?? []), invalid: [] }))
       .handle("agent-asset.content", ({ query }) =>
         Effect.gen(function* () {
           const asset = resolve(config.agentAssets ?? []).find((asset) => asset.relativePath === query.path)
           if (!asset) return yield* new InvalidRequestError({ message: "Agent asset not found" })
           return asset
+        }),
+      )
+      .handle("agent-asset.remove", ({ query, payload }) =>
+        Effect.gen(function* () {
+          const result = yield* Effect.promise(() =>
+            Promise.resolve(
+              config.onAssetRemove?.({
+                kind: "agent",
+                directory: query.directory ?? config.directory,
+                relativePath: payload.relativePath,
+                baseRevision: payload.baseRevision,
+              }),
+            ),
+          )
+          if (result) return yield* result
+          return undefined
+        }),
+      )
+      .handle("prompt-asset.list", ({ query }) =>
+        Effect.succeed({
+          assets: resolve(config.promptAssets ?? []).filter(
+            (asset) => !query.scope || !asset.target || asset.target.scope === query.scope,
+          ),
+          invalid: [],
+          ...(query.scope
+            ? {
+                target: {
+                  scope: query.scope,
+                  root:
+                    query.scope === "global"
+                      ? "/global/.aigcfroge/prompts"
+                      : `${query.directory ?? config.directory}/.aigcfroge/prompts`,
+                },
+              }
+            : {}),
+        }),
+      )
+      .handle("prompt-asset.content", ({ query }) =>
+        Effect.gen(function* () {
+          const asset = resolve(config.promptAssets ?? []).find(
+            (asset) =>
+              asset.relativePath === query.path &&
+              (!query.scope || !asset.target || asset.target.scope === query.scope),
+          )
+          if (!asset) return yield* new InvalidRequestError({ message: "Prompt asset not found" })
+          return asset
+        }),
+      )
+      .handle("prompt-asset.remove", ({ query, payload }) =>
+        Effect.gen(function* () {
+          const result = yield* Effect.promise(() =>
+            Promise.resolve(
+              config.onAssetRemove?.({
+                kind: "prompt",
+                directory: query.directory ?? config.directory,
+                relativePath: payload.relativePath,
+                baseRevision: payload.baseRevision,
+                target: payload.target,
+              }),
+            ),
+          )
+          if (result) return yield* result
+          return undefined
+        }),
+      )
+      .handle("skill-asset.list", ({ query }) =>
+        Effect.succeed({
+          assets: resolve(config.skillAssets ?? []).filter(
+            (asset) => !query.scope || !asset.target || asset.target.scope === query.scope,
+          ),
+          invalid: [],
+          ...(query.scope
+            ? {
+                target: {
+                  scope: query.scope,
+                  root:
+                    query.scope === "global"
+                      ? "/global/.aigcfroge/skills"
+                      : `${query.directory ?? config.directory}/.aigcfroge/skills`,
+                },
+              }
+            : {}),
+        }),
+      )
+      .handle("skill-asset.content", ({ query }) =>
+        Effect.gen(function* () {
+          const asset = resolve(config.skillAssets ?? []).find(
+            (asset) =>
+              asset.relativePath === query.path &&
+              (!query.scope || !asset.target || asset.target.scope === query.scope),
+          )
+          if (!asset) return yield* new InvalidRequestError({ message: "Skill asset not found" })
+          return asset
+        }),
+      )
+      .handle("skill-asset.remove", ({ query, payload }) =>
+        Effect.gen(function* () {
+          const result = yield* Effect.promise(() =>
+            Promise.resolve(
+              config.onAssetRemove?.({
+                kind: "skill",
+                directory: query.directory ?? config.directory,
+                relativePath: payload.relativePath,
+                baseRevision: payload.baseRevision,
+                target: payload.target,
+              }),
+            ),
+          )
+          if (result) return yield* result
+          return undefined
+        }),
+      )
+      .handle("command-asset.list", ({ query }) =>
+        Effect.succeed({
+          assets: resolve(config.commandAssets ?? []).filter(
+            (asset) => !query.scope || !asset.target || asset.target.scope === query.scope,
+          ),
+          invalid: [],
+          ...(query.scope
+            ? {
+                target: {
+                  scope: query.scope,
+                  root:
+                    query.scope === "global"
+                      ? "/global/.aigcfroge/commands"
+                      : `${query.directory ?? config.directory}/.aigcfroge/commands`,
+                },
+              }
+            : {}),
+        }),
+      )
+      .handle("command-asset.content", ({ query }) =>
+        Effect.gen(function* () {
+          const asset = resolve(config.commandAssets ?? []).find(
+            (asset) =>
+              asset.relativePath === query.path &&
+              (!query.scope || !asset.target || asset.target.scope === query.scope),
+          )
+          if (!asset) return yield* new InvalidRequestError({ message: "Command asset not found" })
+          return asset
+        }),
+      )
+      .handle("command-asset.remove", ({ query, payload }) =>
+        Effect.gen(function* () {
+          const result = yield* Effect.promise(() =>
+            Promise.resolve(
+              config.onAssetRemove?.({
+                kind: "command",
+                directory: query.directory ?? config.directory,
+                relativePath: payload.relativePath,
+                baseRevision: payload.baseRevision,
+                target: payload.target,
+              }),
+            ),
+          )
+          if (result) return yield* result
+          return undefined
         }),
       )
       .handle("workflow-asset.list", () =>
@@ -1358,6 +1619,95 @@ function mockHandlers(
           if (!asset) return yield* new InvalidRequestError({ message: "Workflow asset not found" })
 
           return asset
+        }),
+      )
+      .handle("workflow-asset.remove", ({ query, payload }) =>
+        Effect.gen(function* () {
+          const result = yield* Effect.promise(() =>
+            Promise.resolve(
+              config.onAssetRemove?.({
+                kind: "workflow",
+                directory: query.directory ?? config.directory,
+                relativePath: payload.relativePath,
+                baseRevision: payload.baseRevision,
+              }),
+            ),
+          )
+          if (result) return yield* result
+          return undefined
+        }),
+      )
+      .handle("mcp-asset.list", () =>
+        Effect.succeed({
+          assets: resolve(config.mcpAssets ?? []).map((asset) => ({
+            kind: asset.kind,
+            name: asset.name,
+            description: asset.description,
+            relativePath: asset.relativePath,
+            revision: asset.revision,
+          })),
+          invalid: [],
+        }),
+      )
+      .handle("mcp-asset.content", ({ query }) =>
+        Effect.gen(function* () {
+          const asset = resolve(config.mcpAssets ?? []).find((asset) => asset.relativePath === query.path)
+          if (!asset) return yield* new InvalidRequestError({ message: "MCP asset not found" })
+          return asset
+        }),
+      )
+      .handle("mcp-asset.remove", ({ query, payload }) =>
+        Effect.gen(function* () {
+          const result = yield* Effect.promise(() =>
+            Promise.resolve(
+              config.onAssetRemove?.({
+                kind: "mcp",
+                directory: query.directory ?? config.directory,
+                relativePath: payload.relativePath,
+                baseRevision: payload.baseRevision,
+              }),
+            ),
+          )
+          if (result) return yield* result
+          return undefined
+        }),
+      )
+      .handle("plugin-asset.list", () =>
+        Effect.succeed({
+          assets: resolve(config.pluginAssets ?? []).map((asset) => ({
+            kind: asset.kind,
+            name: asset.name,
+            description: asset.description,
+            relativePath: asset.relativePath,
+            revision: asset.revision,
+            source: asset.source?.type,
+            toolCount: 0,
+          })),
+          invalid: [],
+          bridged: resolve(config.pluginBridged ?? []),
+        }),
+      )
+      .handle("plugin-asset.content", ({ query }) =>
+        Effect.gen(function* () {
+          const asset = resolve(config.pluginAssets ?? []).find((asset) => asset.relativePath === query.path)
+          if (!asset) return yield* new InvalidRequestError({ message: "Plugin asset not found" })
+          return asset
+        }),
+      )
+      .handle("plugin-asset.remove", ({ query, payload }) =>
+        Effect.gen(function* () {
+          const result = yield* Effect.promise(() =>
+            Promise.resolve(
+              config.onAssetRemove?.({
+                kind: "plugin",
+                directory: query.directory ?? config.directory,
+                relativePath: payload.relativePath,
+                baseRevision: payload.baseRevision,
+              }),
+            ),
+          )
+          if (result) return yield* result
+          return undefined
         }),
       )
       .handle("memory.list", () => memoryRead())

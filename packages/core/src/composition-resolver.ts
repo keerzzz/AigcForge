@@ -1,10 +1,8 @@
-import path from "path"
 import { Context, DateTime, Effect, Layer, Option, Result, Schema } from "effect"
 import { Composition } from "@aigcfroge/schema/composition"
 import { CredentialScan } from "@aigcfroge/schema/credential-scan"
 import { computeMaxConcurrency, validateGraph } from "@aigcfroge/schema/workflow-asset"
 import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { Hash } from "@aigcfroge/util/hash"
 import { Agent } from "./agent"
 import { AgentAsset } from "./agent-asset"
 import { AgentAssetBridge } from "./agent/asset-bridge"
@@ -294,7 +292,7 @@ export const layer = Layer.effect(
                 )
                 return []
               }
-              const consumerKey = makeConsumerKey(asset.name, asset.relativePath)
+              const consumerKey = Composition.consumerKeyForAgent(asset.name, asset.relativePath)
               if (allowedConsumers.has(consumerKey)) {
                 report(
                   new Composition.Diagnostic({
@@ -1018,17 +1016,6 @@ function containsCredentialField(value: Schema.Json): boolean {
       CredentialScan.containsSecret(`${name.toUpperCase()}=00000000000000000000`) ||
       containsCredentialField(entry),
   )
-}
-
-function makeConsumerKey(name: string, relativePath: string) {
-  const trimmed = name.trim()
-  if (/^[a-zA-Z0-9_-]+$/.test(trimmed)) return `agents/${trimmed}`
-  const sanitized = path.posix
-    .basename(relativePath, ".md")
-    .replaceAll(/[^a-zA-Z0-9_-]/g, "_")
-    .replace(/^_+|_+$/g, "")
-  if (sanitized) return `agents/${sanitized}`
-  return `agents/${Hash.sha256(`${relativePath}:${name}`).slice(0, 12)}`
 }
 
 export const locationLayer = layer

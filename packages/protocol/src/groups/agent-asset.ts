@@ -95,6 +95,20 @@ export const AgentAssetGroup = HttpApiGroup.make("agent-asset")
       }),
     ),
   )
+  .add(
+    HttpApiEndpoint.post("agent-asset.remove", `${root}/delete`, {
+      query: Schema.Struct(WorkspaceRoutingQueryFields),
+      payload: AgentAssetDeletePayload,
+      success: described(Schema.Void, "Deleted"),
+      error: [InvalidRequestError, ConflictError],
+    }).annotateMerge(
+      OpenApi.annotations({
+        identifier: "agent-asset.remove",
+        summary: "Delete agent-asset asset at Location",
+        description: "Delete an agent asset at the current Location by relative path with baseRevision CAS.",
+      }),
+    ),
+  )
   .annotateMerge(
     OpenApi.annotations({
       title: "agent-asset",

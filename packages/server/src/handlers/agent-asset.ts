@@ -89,6 +89,15 @@ export const AgentAssetHandler = HttpApiBuilder.group(Api, "agent-asset", (handl
           ),
         ),
       )
+      .handle("agent-asset.remove", ({ payload }) =>
+        scope.atLocation(
+          AgentAssetService.Service.use((service) =>
+            service
+              .delete({ relativePath: payload.relativePath, baseRevision: payload.baseRevision ?? null })
+              .pipe(Effect.mapError(agentAssetWriteError)),
+          ),
+        ),
+      )
   }),
 )
 

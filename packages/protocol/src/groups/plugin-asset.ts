@@ -97,6 +97,20 @@ export const PluginAssetGroup = HttpApiGroup.make("plugin-asset")
       }),
     ),
   )
+  .add(
+    HttpApiEndpoint.post("plugin-asset.remove", `${root}/delete`, {
+      query: Schema.Struct(WorkspaceRoutingQueryFields),
+      payload: PluginAssetDeletePayload,
+      success: described(Schema.Void, "Deleted"),
+      error: [InvalidRequestError, ConflictError],
+    }).annotateMerge(
+      OpenApi.annotations({
+        identifier: "plugin-asset.remove",
+        summary: "Delete plugin-asset asset at Location",
+        description: "Delete a plugin asset at the current Location by relative path with baseRevision CAS.",
+      }),
+    ),
+  )
   .annotateMerge(
     OpenApi.annotations({
       title: "plugin-asset",

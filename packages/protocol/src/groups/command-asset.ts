@@ -126,6 +126,21 @@ export const CommandAssetGroup = HttpApiGroup.make("command-asset")
       }),
     ),
   )
+  .add(
+    HttpApiEndpoint.post("command-asset.remove", `${root}/delete`, {
+      query: Schema.Struct(WorkspaceRoutingQueryFields),
+      payload: CommandAssetDeletePayload,
+      success: described(Schema.Void, "Deleted"),
+      error: [InvalidRequestError, ConflictError],
+    }).annotateMerge(
+      OpenApi.annotations({
+        identifier: "command-asset.remove",
+        summary: "Delete command-asset asset at Location",
+        description:
+          "Delete a Command asset at the current Location or selected owner by relative path with baseRevision CAS.",
+      }),
+    ),
+  )
   .annotateMerge(
     OpenApi.annotations({
       title: "command-asset",
