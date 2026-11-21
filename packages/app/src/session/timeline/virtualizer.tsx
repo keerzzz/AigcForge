@@ -750,6 +750,8 @@ export function createTimelineVirtualizer(input: Input) {
     input.onUserScroll(event.currentTarget)
 
     if (upwardKeys.has(key)) input.onUnpin()
+    // Absolute edge navigation also clears the virtualizer's deferred iOS compensation.
+    if (key === "home" || key === "end") virtualizer.scrollToOffset(key === "home" ? 0 : virtualizer.getTotalSize())
   }
 
   // Following resumes by arriving at the end, either by scrolling there or by content shrinking

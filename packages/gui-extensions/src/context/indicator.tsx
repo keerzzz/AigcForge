@@ -73,6 +73,10 @@ export function SessionContextUsage(props: {
 
   const openContext = () => {
     if (!props.session.id) return
+    if (layout.narrow()) {
+      layout.open(`${ctx.id}:main`, props.session)
+      return
+    }
     layout.toggle(`${ctx.id}:main`, props.session)
   }
 

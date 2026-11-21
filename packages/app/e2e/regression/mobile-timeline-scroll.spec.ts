@@ -791,6 +791,9 @@ for (const device of ["Pixel 7", "iPhone 13"]) {
                 }),
               )
               .toBe(true)
+            await scroller.blur()
+            await expect(scroller).not.toBeFocused()
+            await expect(hidden).toHaveCount(1)
             await anchor.evaluate((element) => {
               const root = element.closest<HTMLElement>("[data-scrollable]")!
               root.scrollTop += element.getBoundingClientRect().top - root.getBoundingClientRect().top - 8
