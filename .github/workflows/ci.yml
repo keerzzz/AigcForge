@@ -227,15 +227,20 @@ jobs:
           performance_candidate=$(git rev-parse HEAD)
           performance_base=$(git rev-parse HEAD^1)
           performance_output="$RUNNER_TEMP/session-performance"
+          performance_spec="e2e/performance/timeline/session-tab-switch-benchmark.spec.ts"
+          performance_harness="$performance_output/session-tab-switch-benchmark.spec.ts"
           mkdir -p "$performance_output"
-          printf 'base=%s\ncandidate=%s\n' "$performance_base" "$performance_candidate" > "$performance_output/revisions.txt"
-          trap 'git checkout --detach "$performance_candidate"' EXIT
+          cp "$performance_spec" "$performance_harness"
+          printf 'base=%s\ncandidate=%s\nharness_blob=%s\n' "$performance_base" "$performance_candidate" "$(git hash-object "$performance_spec")" > "$performance_output/revisions.txt"
+          trap 'git restore -- "$performance_spec"; git checkout --detach "$performance_candidate"' EXIT
           for performance_variant in base candidate; do
             if [ "$performance_variant" = base ]; then
               git checkout --detach "$performance_base"
             else
               git checkout --detach "$performance_candidate"
             fi
+            # Both app revisions use the same scenario setup and measurements.
+            cp "$performance_harness" "$performance_spec"
             bun install --frozen-lockfile --ignore-scripts
             AIGCFROGE_PERFORMANCE_RUN_ID="$performance_variant" bunx playwright test \
               e2e/performance/timeline/session-tab-switch-benchmark.spec.ts \
@@ -243,6 +248,7 @@ jobs:
               --reporter=line,./e2e/performance/tab-switch-reporter.ts \
               --output="$performance_output/$performance_variant" \
               | tee "$performance_output/$performance_variant.log"
+            git restore -- "$performance_spec"
           done
 
       - name: Upload session performance evidence

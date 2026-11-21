@@ -4,6 +4,7 @@ import { expectSessionTitle } from "../../utils/waits"
 import { benchmark, benchmarkDiagnostics, expect } from "../benchmark"
 import { fixture, installStressSessionTabs, installTimelineSettings } from "../../utils/session-fixture"
 import { sessionHref } from "../../utils/app"
+import { openSidePanel } from "../../utils/side-panel"
 import { expected, messages } from "../../utils/markdown-sessions"
 import { workload } from "./session-tab-switch.fixture"
 import { createReviewDiffs } from "./timeline-test-helpers"
@@ -133,13 +134,11 @@ async function switchSession(page: Page, sessionID: string, title: string) {
 }
 
 async function openReviewPane(page: Page) {
-  await page.getByRole("button", { name: "Toggle review" }).click()
-  await expect(page.locator("#review-panel")).toBeVisible()
-  await page.waitForFunction(() => {
-    const text = document.querySelector("#review-panel")?.textContent ?? ""
-
-    return text.includes("generated-000.ts") && text.includes("+3")
-  })
+  await openSidePanel(page, "Review")
+  const review = page.locator("#session-side-panel-review-tabpanel")
+  await expect(review).toBeVisible()
+  await expect(review).toContainText("generated-000.ts")
+  await expect(review).toContainText("+3")
   await page.locator('[data-slot="session-chat-panel"]').evaluate(async (panel) => {
     await Promise.all(panel.getAnimations().map((animation) => animation.finished))
   })
