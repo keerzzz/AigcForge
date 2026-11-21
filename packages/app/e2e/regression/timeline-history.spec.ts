@@ -99,6 +99,74 @@ test.describe("timeline history", () => {
     await expect(navigation.getByRole("button", { name: "Jump to latest", exact: true })).toBeEnabled()
   })
 
+  for (const choice of ["input", "latest"] as const) {
+    test(`status bar keeps a newer ${choice} choice after an older input page returns`, async ({ page }) => {
+      const first = userMessage([userText("Earlier input before many model steps.")], { id: "msg_0000_prior" })
+      const current = userMessage([userText("Current input after those model steps.")], {
+        id: "msg_0050_current",
+        created: 1700000050000,
+      })
+      const latest = userMessage([userText("Latest input in the loaded history.")], {
+        id: "msg_0060_latest",
+        created: 1700000060000,
+      })
+      const steps = (count: number, offset: number, parentID: string) =>
+        Array.from({ length: count }, (_, index) =>
+          assistantMessage([textPart(`prt_page_${offset + index}`, `Recorded model step ${offset + index}.`)], {
+            id: `msg_${String(offset + index).padStart(4, "0")}_step`,
+            parentID,
+            created: 1700000000000 + (offset + index) * 1000,
+          }),
+        )
+      const messages = [
+        first,
+        ...steps(45, 1, first.id),
+        current,
+        ...steps(9, 51, current.id),
+        latest,
+        ...steps(29, 61, latest.id),
+      ]
+      const arrived = Promise.withResolvers<void>()
+      const released = Promise.withResolvers<void>()
+      await setupTimeline(page, {
+        messages,
+        pageMessages: pageMessagesFrom({ [sessionID]: messages }),
+        beforeMessagesResponse: async (input) => {
+          if (!input.before) return
+          arrived.resolve()
+          await released.promise
+        },
+      })
+      const navigation = page.getByRole("contentinfo").getByRole("navigation", { name: "Session inputs" })
+      const picker = navigation.getByRole("button", { name: "Session inputs", exact: true })
+      const inputs = page.getByRole("dialog", { name: "Session inputs", exact: true })
+      await picker.click()
+      await expect(inputs.getByRole("listitem")).toHaveCount(2)
+      await inputs.getByTitle(current.text, { exact: true }).click()
+      await expect(page).toHaveURL(/#message-msg_0050_current$/)
+      try {
+        await navigation.getByRole("button", { name: "Previous input", exact: true }).click()
+        await arrived.promise
+        if (choice === "input") {
+          await picker.click()
+          await inputs.getByTitle(latest.text, { exact: true }).click()
+          await expect(page).toHaveURL(/#message-msg_0060_latest$/)
+        }
+        if (choice === "latest") {
+          await navigation.getByRole("button", { name: "Jump to latest", exact: true }).click()
+          await expect(page).toHaveURL(new RegExp(`${sessionID}$`))
+        }
+        released.resolve()
+        await expect(navigation.getByRole("button", { name: "Previous input", exact: true })).toBeEnabled()
+        await expect(page).toHaveURL(choice === "input" ? /#message-msg_0060_latest$/ : new RegExp(`${sessionID}$`))
+        await picker.click()
+        await expect(inputs.getByTitle(latest.text, { exact: true })).toHaveAttribute("aria-current", "true")
+      } finally {
+        released.resolve()
+      }
+    })
+  }
+
   test("status bar pages session inputs and preserves the draft and history selection during delivery", async ({
     page,
   }, testInfo) => {

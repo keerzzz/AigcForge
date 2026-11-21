@@ -28,6 +28,7 @@ export function SessionFooterNavigation(props: {
   const [state, setState] = createStore({ open: false, loading: false, failed: false })
   const lifetime = new AbortController()
   onCleanup(() => lifetime.abort())
+  let choiceVersion = 0
   const data = props.session.shared.data
   const messages = props.session.history.visibleUserMessages
   const more = () => data.session.message.more(props.session.identity.sessionID())
@@ -55,6 +56,7 @@ export function SessionFooterNavigation(props: {
       }),
   )
   const choose = (message: SessionMessageUser) => {
+    choiceVersion++
     props.timeline.actions.selectMessage(message)
     setState("open", false)
   }
@@ -66,6 +68,8 @@ export function SessionFooterNavigation(props: {
 
     if (!id) return
     const first = messages()[0]?.id
+    const choice = choiceVersion
+    const messageID = props.timeline.activeMessage()
     setState({ loading: true, failed: false })
 
     try {
@@ -74,6 +78,8 @@ export function SessionFooterNavigation(props: {
         await data.session.message.loadMore(id, { signal: lifetime.signal })
 
         if (lifetime.signal.aborted || !owner.current()) return
+        // A newer picker, latest, or keyboard selection owns navigation; the page still hydrates history.
+        if (previous && (choice !== choiceVersion || messageID !== props.timeline.activeMessage())) return
         if (previous) {
           const position = previous.id
             ? messages().findIndex((message) => message.id === previous.id)
@@ -214,7 +220,10 @@ export function SessionFooterNavigation(props: {
                   class="session-input-latest"
                   aria-label={language.t("session.messages.jumpToLatest")}
                   disabled={props.timeline.view.pinned()}
-                  onClick={props.timeline.actions.resume}
+                  onClick={() => {
+                    choiceVersion++
+                    props.timeline.actions.resume()
+                  }}
                 >
                   <Icon name="arrow-down-to-line" size="small" />
                 </Button>
