@@ -3,7 +3,7 @@ import { useNavigate } from "@solidjs/router"
 import { ProductMode } from "@aigcfroge/schema/product-mode"
 import { Icon } from "@aigcfroge/ui/icon"
 import { type IconName } from "@aigcfroge/ui/icons/catalog"
-import { IconButton } from "@aigcfroge/ui/icon-button"
+import { Button } from "@aigcfroge/ui/button"
 import { Tooltip } from "@aigcfroge/ui/tooltip"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useGlobal } from "@/runtime/server/runtime"
@@ -27,6 +27,7 @@ export function ModeNavigation() {
   const layout = useLayout()
   const tabs = useTabs()
   const global = useGlobal()
+  const opened = layout.navigation.opened
 
   const current = createMemo(() => {
     const route = layout.route()
@@ -53,31 +54,48 @@ export function ModeNavigation() {
     mode === "custom" ? language.t("home.sessions.mode.custom") : language.t(`newSession.mode.${mode}`)
 
   return (
-    <nav aria-label={language.t("mode.navigation.label")} class="flex shrink-0 [app-region:no-drag]">
-      <div class="mode-navigation-rail flex w-11 flex-col items-center gap-1 pt-[var(--shell-top-inset,8px)]">
+    <div class="mode-navigation [app-region:no-drag]" data-opened={opened()}>
+      <nav
+        id="global-mode-navigation"
+        aria-label={language.t("mode.navigation.label")}
+        aria-hidden={!opened()}
+        inert={!opened()}
+        class="mode-navigation-rail"
+      >
         <For each={ProductMode.ID.literals}>
           {(mode) => (
             <Tooltip value={label(mode)} placement="right">
-              <IconButton
+              <Button
                 type="button"
                 variant="ghost-muted"
                 size="large"
-                icon={
-                  <>
-                    <Icon name={icons[mode]} size="large" />
-                    <span data-slot="active-indicator" aria-hidden="true" />
-                  </>
-                }
+                class="mode-navigation-item"
                 aria-label={label(mode)}
                 aria-current={current() === mode ? "page" : undefined}
-                state={current() === mode ? "pressed" : undefined}
                 onClick={() => navigate(ModeRoute.href(mode))}
-              />
+              >
+                <Icon name={icons[mode]} size="large" />
+                <span data-slot="active-indicator" aria-hidden="true" />
+              </Button>
             </Tooltip>
           )}
         </For>
-      </div>
-    </nav>
+      </nav>
+      <Tooltip value={language.t(opened() ? "mode.navigation.collapse" : "mode.navigation.expand")} placement="right">
+        <Button
+          type="button"
+          variant="ghost-muted"
+          size="large"
+          class="mode-navigation-toggle"
+          aria-label={language.t(opened() ? "mode.navigation.collapse" : "mode.navigation.expand")}
+          aria-expanded={opened()}
+          aria-controls="global-mode-navigation"
+          onClick={() => layout.navigation.toggle()}
+        >
+          <Icon name={opened() ? "chevron-left" : "chevron-right"} size="large" />
+        </Button>
+      </Tooltip>
+    </div>
   )
 }
 

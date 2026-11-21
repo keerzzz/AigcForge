@@ -15,6 +15,7 @@ import {
 import { formatKeybind } from "@/shell/commands/command"
 import { SettingsList } from "@/settings/list"
 import { SettingsRow } from "@/settings/row"
+import { useLayout } from "@/shell/state/layout"
 import { createShellOptions, type ShellSettingsController } from "./controllers"
 import "@/settings/settings.css"
 
@@ -193,6 +194,7 @@ export const SettingsGeneral: Component = () => {
   const platform = usePlatform()
   const settings = useSettings()
   const mobile = createMediaQuery("(max-width: 767px)")
+  const layout = useLayout()
   const desktop = createMemo(() => platform.platform === "desktop")
 
   const [pinchZoom, { mutate: setPinchZoom }] = createResource(
@@ -230,7 +232,6 @@ export const SettingsGeneral: Component = () => {
           </div>
         </SettingsRow>
 
-        <TerminalPlacementSetting />
         <FollowUpBehaviorSetting />
 
         <Show when={desktop()}>
@@ -243,8 +244,6 @@ export const SettingsGeneral: Component = () => {
             </div>
           </SettingsRow>
         </Show>
-
-        <ExtensionSettingsSections page="general" section="general" />
 
         <Show when={mobile()}>
           <SettingsRow
@@ -277,6 +276,24 @@ export const SettingsGeneral: Component = () => {
       </div>
       <div class="settings-tab-body settings-tab-body--sectioned">
         <GeneralSection />
+
+        <section class="settings-section" aria-label={language.t("settings.general.section.sidebar")}>
+          <h3 class="settings-section-title">{language.t("settings.general.section.sidebar")}</h3>
+          <SettingsList>
+            <SettingsRow
+              title={language.t("settings.general.row.navigationVisible.title")}
+              description={language.t("settings.general.row.navigationVisible.description")}
+            >
+              <div data-action="settings-navigation-visible">
+                <Switch hideLabel checked={layout.navigation.opened()} onChange={layout.navigation.setOpened}>
+                  {language.t("settings.general.row.navigationVisible.title")}
+                </Switch>
+              </div>
+            </SettingsRow>
+            <TerminalPlacementSetting />
+            <ExtensionSettingsSections page="general" section="general" />
+          </SettingsList>
+        </section>
 
         <section class="settings-section" aria-label={language.t("settings.timeline.title")}>
           <h3 class="settings-section-title">{language.t("settings.timeline.title")}</h3>

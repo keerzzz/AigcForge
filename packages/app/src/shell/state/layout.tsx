@@ -108,6 +108,7 @@ const sessionViewSchema = Persistence.struct({
 })
 
 export const layoutSchema = Persistence.struct({
+  navigationOpened: Persistence.optional(Schema.Boolean),
   sidebar: Persistence.struct({
     opened: Schema.Boolean,
     width: Schema.Finite,
@@ -197,6 +198,7 @@ type SessionKeyUsage = { active: string | undefined; pruned: boolean; used: Map<
 
 export function initialLayout(server?: ServerConnection.Key): typeof layoutSchema.Type {
   return {
+    navigationOpened: true,
     sidebar: { opened: false, width: DEFAULT_SIDEBAR_WIDTH, workspaces: {}, workspacesDefault: false },
     terminal: { height: DEFAULT_DOCK_HEIGHT, opened: false },
     review: { panelOpened: false },
@@ -405,6 +407,15 @@ export const { use: useLayout, provider: LayoutProvider } = createSimpleContext(
         },
         resize(width: number) {
           setStore("sidebar", "width", width)
+        },
+      },
+      navigation: {
+        opened: createMemo(() => store.navigationOpened ?? true),
+        setOpened(opened: boolean) {
+          setStore("navigationOpened", opened)
+        },
+        toggle() {
+          setStore("navigationOpened", (opened) => !opened)
         },
       },
       fileTree: {

@@ -16,6 +16,14 @@ type Entry<Tab> = {
 }
 
 export const clientSettings: Entry<SettingsRootTab>[] = [
+  {
+    tab: "general",
+    label: "settings.general.row.navigationVisible.title",
+    description: "settings.general.row.navigationVisible.description",
+    section: "settings.general.section.sidebar",
+    target: "settings-navigation-visible",
+    keywords: "navigation sidebar show hide expand collapse labels",
+  },
   { tab: "general", label: "settings.tab.preferences" },
   { tab: "appearance", label: "settings.general.section.appearance" },
   { tab: "notifications", label: "settings.tab.notifications" },

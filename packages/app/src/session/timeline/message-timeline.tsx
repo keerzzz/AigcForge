@@ -471,11 +471,12 @@ function MessageTimelineView(
             }}
           >
             <div
-              class={`flex h-9 items-center gap-2 pt-3 text-[13px] font-[530] leading-text-compact ${turnPadding()}`}
+              class={`flex h-9 items-center gap-2 text-[13px] font-[530] leading-text-compact ${turnPadding()}`}
             >
               <Show when={showWorking()}>
-                <div data-component="session-working" role="status">
-                  <TextShimmer text={language.t("session.timeline.working")} active />
+                <div data-component="session-working" role="status" class="inline-flex min-h-6 items-center gap-2">
+                  <Icon name="settings-gear" size="normal" class="session-working-gear" />
+                  <TextShimmer text={language.t("session.timeline.working")} active={false} />
                 </div>
               </Show>
               <Show when={backgroundHintPresence.present()}>

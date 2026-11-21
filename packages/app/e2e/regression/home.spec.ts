@@ -1206,7 +1206,7 @@ test("global mode navigation drives Home and New without changing an existing dr
   const navigation = page.getByRole("navigation", { name: "Modes", exact: true })
   await expect(navigation.getByRole("button")).toHaveCount(5)
   await expect(navigation.getByRole("button", { name: "Modes", exact: true })).toHaveCount(0)
-  await expect(navigation).toHaveCSS("width", "44px")
+  await expect(navigation).toHaveCSS("width", "56px")
   const rail = await navigation.boundingBox()
   expect(rail?.x).toBe(await navigation.evaluate((element) => element.parentElement?.getBoundingClientRect().x))
   expect(rail?.height).toBeGreaterThan(200)
@@ -1224,8 +1224,17 @@ test("global mode navigation drives Home and New without changing an existing dr
     const button = navigation.getByRole("button", { name: mode.label, exact: true })
     await expect(button.locator("svg use")).toHaveAttribute("href", `#aigcfroge-v2-icon-rail-${mode.id}`)
     await expect(button.locator("svg")).toHaveAttribute("width", "20")
-    await expect(button).toHaveCSS("width", "40px")
-    await expect(button).toHaveCSS("height", "40px")
+    await expect(button).toHaveCSS("width", "44px")
+    await expect(button).toHaveCSS("height", "44px")
+    const center = await button.evaluate((element) => {
+      const button = element.getBoundingClientRect()
+      const icon = element.querySelector("svg")!.getBoundingClientRect()
+      return {
+        x: icon.x + icon.width / 2 - button.x - button.width / 2,
+        y: icon.y + icon.height / 2 - button.y - button.height / 2,
+      }
+    })
+    expect(center).toEqual({ x: 0, y: 0 })
     const strokes = page.locator(`#aigcfroge-v2-icon-rail-${mode.id} [stroke="currentColor"]`)
     expect(await strokes.count()).toBeGreaterThan(0)
     for (const stroke of await strokes.all()) await expect(stroke).toHaveCSS("stroke-width", "1.25px")
@@ -1245,7 +1254,7 @@ test("global mode navigation drives Home and New without changing an existing dr
     const button = navigation.getByRole("button", { name: mode.label, exact: true })
     const indicator = button.locator('[data-slot="active-indicator"]')
     await expect(indicator).toHaveCSS("opacity", "1")
-    await expect(indicator).toHaveCSS("width", "2px")
+    await expect(indicator).toHaveCSS("width", "1px")
     await expect(indicator).toHaveCSS("height", "20px")
     expect(await button.boundingBox()).toEqual(geometry.get(mode.id))
     await page.locator('[data-action="home-new-session"]').click()
@@ -1277,6 +1286,28 @@ test("global mode navigation drives Home and New without changing an existing dr
       `Keep ${draft.label.toLowerCase()} draft`,
     )
   }
+
+  const toggle = page.getByRole("button", { name: "Collapse navigation", exact: true })
+  const main = page.getByRole("main")
+  const width = await main.evaluate((element) => element.getBoundingClientRect().width)
+  await toggle.click()
+  const restore = page.getByRole("button", { name: "Expand navigation", exact: true })
+  await expect(restore).toHaveAttribute("aria-expanded", "false")
+  await expect(navigation).toHaveCount(0)
+  await expect(page.locator("#global-mode-navigation")).toHaveJSProperty("inert", true)
+  await expect.poll(() => main.evaluate((element) => element.getBoundingClientRect().width)).toBe(width + 56)
+  await page.reload()
+  await expect(restore).toBeVisible()
+  await expect(navigation).toHaveCount(0)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await restore.focus()
+  await page.keyboard.press("Enter")
+  await expect(navigation).toBeVisible()
+  await expect(page.locator("#global-mode-navigation")).toHaveJSProperty("inert", false)
+  await expect(toggle).toHaveAttribute("aria-expanded", "true")
+  await navigation.getByRole("button", { name: "Coding", exact: true }).click()
+  await expectPath(page, "/mode/coding")
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
 test("Home requires a selected session mode before offering New", async ({ page }) => {

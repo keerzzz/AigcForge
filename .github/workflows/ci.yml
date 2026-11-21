@@ -181,6 +181,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 2
 
       - name: Setup Bun
         uses: ./.github/actions/setup-bun
@@ -213,6 +214,45 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         working-directory: packages/app
         run: bunx playwright install chromium
+
+      - name: Compare base and candidate session performance
+        if: github.event_name == 'pull_request' && runner.os == 'Linux'
+        working-directory: packages/app
+        timeout-minutes: 15
+        env:
+          CI: true
+          AIGCFROGE_PERFORMANCE: "1"
+          PLAYWRIGHT_BUILD: "1"
+        run: |
+          performance_candidate=$(git rev-parse HEAD)
+          performance_base=$(git rev-parse HEAD^1)
+          performance_output="$RUNNER_TEMP/session-performance"
+          mkdir -p "$performance_output"
+          printf 'base=%s\ncandidate=%s\n' "$performance_base" "$performance_candidate" > "$performance_output/revisions.txt"
+          trap 'git checkout --detach "$performance_candidate"' EXIT
+          for performance_variant in base candidate; do
+            if [ "$performance_variant" = base ]; then
+              git checkout --detach "$performance_base"
+            else
+              git checkout --detach "$performance_candidate"
+            fi
+            bun install --frozen-lockfile --ignore-scripts
+            AIGCFROGE_PERFORMANCE_RUN_ID="$performance_variant" bunx playwright test \
+              e2e/performance/timeline/session-tab-switch-benchmark.spec.ts \
+              --workers=1 --repeat-each=3 --retries=0 \
+              --reporter=line,./e2e/performance/tab-switch-reporter.ts \
+              --output="$performance_output/$performance_variant" \
+              | tee "$performance_output/$performance_variant.log"
+          done
+
+      - name: Upload session performance evidence
+        if: always() && github.event_name == 'pull_request' && runner.os == 'Linux'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: session-performance-${{ github.run_attempt }}
+          if-no-files-found: ignore
+          retention-days: 7
+          path: ${{ runner.temp }}/session-performance
 
       - name: Run app e2e tests against production build
         run: bun --cwd packages/app test:e2e:built

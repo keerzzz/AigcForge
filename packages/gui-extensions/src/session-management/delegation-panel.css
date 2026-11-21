@@ -1018,3 +1018,104 @@
     transform: rotate(360deg);
   }
 }
+
+[data-component="session-delegation-panel"][data-view="task-details"] {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  container-type: inline-size;
+
+  [data-slot="task-detail-title"] {
+    margin: 0;
+    color: var(--v2-text-text-base);
+    font-size: 15px;
+    font-weight: 600;
+    line-height: var(--line-height-base);
+    overflow-wrap: anywhere;
+  }
+
+  [data-slot="task-toolbar"] {
+    margin: 0;
+  }
+
+  [data-slot="task-metadata"],
+  [data-slot="task-form-actions"] {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  [data-slot="delegation-row"] {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  [data-slot="task-disclosure"] {
+    margin: 0;
+    min-width: 0;
+    border-top: 1px solid var(--v2-border-border-weak);
+    padding-block-start: 8px;
+  }
+
+  [data-slot="task-disclosure"] > [data-slot="collapsible-trigger"] {
+    min-height: 32px;
+  }
+
+  [data-slot="task-disclosure"] [data-slot="collapsible-content"] {
+    padding-block: 8px;
+  }
+
+  [data-slot="delegation-turn"] [aria-pressed="true"] {
+    background: var(--v2-overlay-simple-overlay-pressed);
+    color: var(--v2-text-text-base);
+  }
+
+  [data-slot="delegation-turn"] [data-component="button-v2"] {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    height: auto;
+    min-height: 32px;
+    text-align: start;
+  }
+
+  [data-slot="delegation-turn"] time {
+    width: 100%;
+    color: var(--v2-text-text-muted);
+    font-size: 11px;
+    line-height: var(--line-height-compact);
+  }
+
+  [data-status="failed"] {
+    color: var(--v2-state-fg-danger);
+  }
+
+  [data-status="completed"] {
+    color: var(--v2-state-fg-success);
+  }
+
+  [data-slot="task-error"] {
+    color: var(--v2-state-fg-danger);
+  }
+
+  [data-component="markdown"] {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    user-select: text;
+  }
+}
+
+@media (pointer: coarse) {
+  [data-component="session-delegation-panel"][data-view="task-details"] [data-component="button-v2"],
+  [data-component="session-delegation-panel"][data-view="task-details"] [data-component="icon-button-v2"] {
+    min-height: 44px;
+  }
+
+  [data-component="session-delegation-panel"][data-view="task-details"] [data-component="icon-button-v2"] {
+    min-width: 44px;
+  }
+}

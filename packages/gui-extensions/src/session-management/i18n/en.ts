@@ -238,6 +238,7 @@ export default {
   "session.dispatchMonitor.unloadedDependency": "Task not loaded yet",
   "session.dispatchMonitor.technical": "Technical details",
   "session.taskDetails.title": "Task details",
+  "session.taskDetails.technical": "Technical details",
   "session.taskDetails.back": "Back to collaborations",
   "session.taskDetails.openError": "Could not open Task details",
   "session.taskDetails.taskMissing": "This Task is no longer present. Its recorded dispatches remain available.",
