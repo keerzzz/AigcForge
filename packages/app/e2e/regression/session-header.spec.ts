@@ -2866,7 +2866,7 @@ test.describe("session management", () => {
   }
 
   for (const scenario of ["metrics", "step", "step-error"] as const) {
-    test(`MC09 Context keeps the newest same-session ${scenario} response`, async ({ page }) => {
+    test(`MC09 Context keeps the newest same-session ${scenario} response`, async ({ page }, testInfo) => {
       const sessionID = "ses_context_requests"
       const started = Promise.withResolvers<void>()
       const released = Promise.withResolvers<void>()
@@ -3171,6 +3171,7 @@ test.describe("session management", () => {
         await expect(total("Total Cost")).toHaveText("Total Cost$1.25")
         await expect(page.getByText("Current physical request result", { exact: true })).toHaveCount(1)
 
+        await page.screenshot({ path: testInfo.outputPath("session-token-usage-desktop.png") })
         await page.setViewportSize({ width: 390, height: 844 })
         await page.getByRole("tab", { name: "Session", exact: true }).click()
         const viewUsage = page.getByRole("contentinfo").getByRole("button", { name: "View context usage", exact: true })
@@ -3188,6 +3189,7 @@ test.describe("session management", () => {
             }),
           )
           .toBe(true)
+        await page.screenshot({ path: testInfo.outputPath("session-token-usage-mobile.png") })
 
         return
       }

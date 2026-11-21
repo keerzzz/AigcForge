@@ -80,10 +80,9 @@ export function ShellFooter() {
     if (route.type === "session") return ctx?.data.session.get(route.sessionId)?.location
     if (tab?.type === "draft") return { directory: tab.directory }
     const selected = layout.home.selection().directory
-    const project =
-      route.type === "mode" && route.mode === "custom"
-        ? ctx?.projects.list().find((item) => item.worktree === selected)
-        : resolveNewSessionProject(ctx?.projects.list() ?? [], selected, ctx?.projects.last())
+
+    if (route.type === "mode" && route.mode === "custom") return selected ? { directory: selected } : undefined
+    const project = resolveNewSessionProject(ctx?.projects.list() ?? [], selected, ctx?.projects.last())
 
     return project ? { directory: project.worktree } : undefined
   })

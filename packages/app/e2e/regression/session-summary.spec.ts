@@ -17,6 +17,9 @@ for (const custom of [false, true]) {
     const trigger = page.getByRole("button", { name: "Session details", exact: true })
     const summary = page.getByRole("dialog", { name: "Session details", exact: true })
     await expect(page.locator('[data-component="composer-editor"]')).toBeEditable()
+    await expect(
+      page.locator(`[data-timeline-row="UserMessage"][data-message-id="${fixture.expected.sourceMessageIDs.at(-1)}"]`),
+    ).toBeInViewport()
     await expect(trigger).toBeEnabled()
     await trigger.hover()
     const tooltip = page.getByRole("tooltip")

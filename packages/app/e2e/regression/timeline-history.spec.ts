@@ -101,7 +101,7 @@ test.describe("timeline history", () => {
 
   test("status bar pages session inputs and preserves the draft and history selection during delivery", async ({
     page,
-  }) => {
+  }, testInfo) => {
     const errors = trackPageErrors(page)
     await page.setViewportSize({ width: 1096, height: 899 })
     const messages = Array.from({ length: 24 }, (_, index) => {
@@ -161,6 +161,7 @@ test.describe("timeline history", () => {
           }),
         )
         .toBe(true)
+      await page.screenshot({ path: testInfo.outputPath(`session-input-picker-${width}.png`) })
     }
     await page.setViewportSize({ width: 1096, height: 899 })
     await popup.getByRole("button", { name: /^1 Input 1:/ }).click()

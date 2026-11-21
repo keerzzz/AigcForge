@@ -14,11 +14,12 @@ const serverKey = ServerConnection.Key.make
 test.each([
   ["selected", "recent", "selected"],
   ["missing", "recent", "recent"],
+  ["first-sandbox", "recent", "first"],
   [undefined, "missing", "first"],
 ])("new-session location prefers selection %s then recent %s", (selected, recent, expected) => {
   expect(
     resolveNewSessionProject(
-      [{ worktree: "first" }, { worktree: "recent" }, { worktree: "selected" }],
+      [{ worktree: "first", sandboxes: ["first-sandbox"] }, { worktree: "recent" }, { worktree: "selected" }],
       selected,
       recent,
     )?.worktree,

@@ -598,7 +598,7 @@ export function HomeSessionRow(props: HomeSessionRowProps) {
   let longPressTimer: ReturnType<typeof setTimeout> | undefined
   let longPressStart: { x: number; y: number } | undefined
   let suppressClick = false
-  let menuInteractedOutside = false
+  let restoreMenuFocus = true
 
   // Focus targets are looked up by session ID: session store updates recreate
   // row components, so instance refs can point at detached nodes by the time
@@ -621,6 +621,7 @@ export function HomeSessionRow(props: HomeSessionRowProps) {
   onCleanup(clearLongPress)
 
   const openMenu = (element: HTMLElement, clientX: number, clientY: number) => {
+    restoreMenuFocus = true
     const bounds = (
       element.closest<HTMLElement>('[data-component="home-session-row-container"]') ?? element
     ).getBoundingClientRect()
@@ -899,23 +900,25 @@ export function HomeSessionRow(props: HomeSessionRowProps) {
         <Menu.Portal>
           <Menu.Content
             onInteractOutside={() => {
-              menuInteractedOutside = true
+              restoreMenuFocus = false
             }}
             onCloseAutoFocus={(event) => {
               // The trigger is an invisible positioning span, so Kobalte's
               // default close focus restore has no useful target. Skip the
-              // row focus when the rename editor owns focus or the user
-              // dismissed the menu by interacting elsewhere.
+              // row focus when another control takes focus, including the
+              // fork dialog, rename editor, or an outside interaction.
               event.preventDefault()
-              const outside = menuInteractedOutside
-              menuInteractedOutside = false
-
-              if (outside || editor()) return
+              if (!restoreMenuFocus || editor()) return
               requestAnimationFrame(() => rowButton()?.focus())
             }}
           >
             <Menu.Item onSelect={openEditor}>{props.language.t("common.rename")}</Menu.Item>
-            <Menu.Item onSelect={() => void props.onForkSession(props.server, props.record.session)}>
+            <Menu.Item
+              onSelect={() => {
+                restoreMenuFocus = false
+                void props.onForkSession(props.server, props.record.session)
+              }}
+            >
               {props.language.t("command.session.fork")}
             </Menu.Item>
             <Menu.Separator />

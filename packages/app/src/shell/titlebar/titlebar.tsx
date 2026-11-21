@@ -592,6 +592,8 @@ export function Titlebar() {
                     <MobileDrawer
                       open={mobileTabs.open}
                       onOpenChange={(open) => setMobileTabs("open", open)}
+                      // A closing panel can return focus after this drawer starts opening.
+                      closeOnOutsideFocus={false}
                       onContentPresentChange={(present) => {
                         setMobileTabs("present", present)
 

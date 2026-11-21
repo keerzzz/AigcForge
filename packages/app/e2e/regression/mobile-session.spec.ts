@@ -204,13 +204,17 @@ for (const position of ["top", "bottom"] as const) {
     // The view resets to Session whenever the routed session changes, including through Home.
     const trigger = page.locator('[data-slot="mobile-tabs-trigger"]')
 
-    const openTabs = async () => {
+    const openTabs = async (returnFocus?: Locator) => {
+      const target = await returnFocus?.elementHandle()
       await trigger.click()
+      // A closing More drawer can return focus after the Tabs drawer starts opening.
+      await target?.focus()
+      await expect(drawer).toHaveAttribute("data-open", "")
       await expect(drawer).not.toHaveAttribute("data-transitioning")
     }
 
-    const openTab = async (title: string) => {
-      await openTabs()
+    const openTab = async (title: string, returnFocus?: Locator) => {
+      await openTabs(returnFocus)
       await drawer.locator('[data-slot="tab-link"]').filter({ hasText: title }).click()
       await expect(drawer).toBeHidden()
       await expect(trigger).toContainText(title)
@@ -219,7 +223,7 @@ for (const position of ["top", "bottom"] as const) {
     await more.click()
     await views.getByRole("button", { name: "Usage", exact: true }).click()
     await expect(page.getByText("Total Cost", { exact: true })).toBeVisible()
-    await openTab(fixture.expected.sourceTitle)
+    await openTab(fixture.expected.sourceTitle, more)
     await expect(picker).toHaveText("Session")
     await more.click()
     await views.getByRole("button", { name: "Files", exact: true }).click()

@@ -1339,10 +1339,9 @@ test("MP03 Task dock and notice open the exact saved operation without reading l
     .filter({ hasText: "Task request" })
 
   await notice.getByRole("button", { name: "View Task details", exact: true }).click()
-  const technical = dispatch.getByRole("button", { name: "Technical details", exact: true })
   await expect(technical).toHaveAttribute("aria-expanded", "false")
   await technical.click()
-  await dispatch.getByRole("button", { name: "Input", exact: true }).click()
+  await dispatch.getByRole("button", { name: "Sent input", exact: true }).click()
   await expect(dispatch.getByText("Exact saved dispatch prompt", { exact: true })).toBeVisible()
   await expect(dispatch).toContainText("msg_mp03_other_input")
   await expect(dispatch).toContainText("evt_mp03_task_result")

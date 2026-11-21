@@ -285,7 +285,11 @@ export const SettingsGeneral: Component = () => {
               description={language.t("settings.general.row.navigationVisible.description")}
             >
               <div data-action="settings-navigation-visible">
-                <Switch hideLabel checked={layout.navigation.opened()} onChange={layout.navigation.setOpened}>
+                <Switch
+                  hideLabel
+                  checked={layout.navigation.opened()}
+                  onChange={(opened) => layout.navigation.setOpened(opened)}
+                >
                   {language.t("settings.general.row.navigationVisible.title")}
                 </Switch>
               </div>
