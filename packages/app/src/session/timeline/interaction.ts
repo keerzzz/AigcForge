@@ -46,7 +46,11 @@ export function createSessionTimelineInteraction(session: SessionModel) {
   // The single source of truth for "follow the newest content". The virtualizer pins and unpins
   // it from scroll geometry; everything else only expresses explicit intent.
   const pinned = () => state.follow.sessionKey !== session.identity.sessionKey() || state.follow.pinned
-  const pin = () => setState("follow", { sessionKey: session.identity.sessionKey(), pinned: true })
+  const pin = () => {
+    // Programmatic geometry can reach the bottom of a short history without revoking the reader's selection.
+    if (state.messageID && messageMark === scrollMark) return
+    setState("follow", { sessionKey: session.identity.sessionKey(), pinned: true })
+  }
 
   const unpin = () => {
     if (!scroller || scroller.scrollHeight - scroller.clientHeight <= 1) return
@@ -151,6 +155,7 @@ export function createSessionTimelineInteraction(session: SessionModel) {
     follow: {
       unpin,
       toBottom: () => {
+        setState("messageID", undefined)
         pin()
         scrollToEnd()
       },
@@ -171,6 +176,12 @@ export function createSessionTimelineInteraction(session: SessionModel) {
     if (scroller) scheduleScrollState(scroller)
   }
 
+  const selectMessage = (message: SessionMessageUser) => {
+    setState("follow", { sessionKey: session.identity.sessionKey(), pinned: false })
+    setActiveMessage(message)
+    scrollToMessage(message, "auto")
+  }
+
   const navigateMessage = (offset: number) => {
     const messages = visibleUserMessages()
 
@@ -187,8 +198,7 @@ export function createSessionTimelineInteraction(session: SessionModel) {
       return
     }
 
-    unpin()
-    scrollToMessage(messages[target], "auto")
+    selectMessage(messages[target])
   }
 
   // A gesture inside a nested scrollable region scrolls that region, not the timeline.
@@ -270,7 +280,7 @@ export function createSessionTimelineInteraction(session: SessionModel) {
     on(
       () => visibleUserMessages().at(-1)?.id,
       (lastID, previousID) => {
-        if (lastID && previousID && lastID > previousID) setState("messageID", undefined)
+        if (pinned() && lastID && previousID && lastID > previousID) setState("messageID", undefined)
       },
       { defer: true },
     ),
@@ -371,6 +381,7 @@ export function createSessionTimelineInteraction(session: SessionModel) {
   return {
     actions: {
       navigateMessage,
+      selectMessage,
       revealMessage: (id: string, partID?: string) => revealMessage(id, partID),
       resume,
       setActiveMessage,
@@ -378,6 +389,7 @@ export function createSessionTimelineInteraction(session: SessionModel) {
     lastUserMessage: timeline.lastUserMessage,
     resource: timeline.resource,
     ready: timeline.ready,
+    activeMessage: () => state.messageID,
     scroll: state.scroll,
     scroller: () => state.refs.scroller,
     view: {

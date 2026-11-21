@@ -1,9 +1,30 @@
 import { describe, expect, test } from "bun:test"
 import type { SessionInfo } from "@aigcfroge/client/promise"
-import { closeHomeProject, errorMessage, projectForSession, toggleHomeProjectSelection } from "./helpers"
+import {
+  closeHomeProject,
+  errorMessage,
+  projectForSession,
+  resolveNewSessionProject,
+  toggleHomeProjectSelection,
+} from "./helpers"
 import { ServerConnection } from "@/runtime/server/registry"
 
 const serverKey = ServerConnection.Key.make
+
+test.each([
+  ["selected", "recent", "selected"],
+  ["missing", "recent", "recent"],
+  [undefined, "missing", "first"],
+])("new-session location prefers selection %s then recent %s", (selected, recent, expected) => {
+  expect(
+    resolveNewSessionProject(
+      [{ worktree: "first" }, { worktree: "recent" }, { worktree: "selected" }],
+      selected,
+      recent,
+    )?.worktree,
+  ).toBe(expected)
+  expect(resolveNewSessionProject([], selected, recent)).toBeUndefined()
+})
 
 const session = (input: Partial<SessionInfo> & Pick<SessionInfo, "id"> & { directory: string }) =>
   ({

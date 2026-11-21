@@ -1,0 +1,158 @@
+.shell-footer {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 8px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 4px 8px max(4px, env(safe-area-inset-bottom, 0px));
+  background: var(--v2-background-bg-deep);
+  color: var(--v2-text-text-base);
+  font-size: 13px;
+  line-height: var(--line-height-compact);
+  font-variant-numeric: tabular-nums;
+}
+
+.shell-footer [data-component="button-v2"] {
+  min-height: 32px;
+  height: 32px;
+  line-height: var(--line-height-compact);
+}
+.shell-footer-toggle {
+  width: 32px;
+  flex-shrink: 0;
+  padding: 0;
+}
+.shell-footer-environment {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.shell-footer-connection {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.shell-footer-server {
+  max-width: 16ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shell-footer-status {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--v2-state-fg-danger);
+}
+.shell-footer-status[data-state="connected"] {
+  background: var(--v2-state-fg-success);
+}
+.shell-footer-status[data-state="reconnecting"] {
+  background: var(--v2-state-fg-warning);
+}
+.shell-footer-state,
+.shell-footer-position {
+  color: var(--v2-text-text-muted);
+  white-space: nowrap;
+}
+.shell-footer-location {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.shell-footer-project {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shell-footer-branch {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 16ch;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.shell-footer-branch > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shell-footer-navigation,
+.shell-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.shell-footer-location-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: min(480px, calc(100vw - 40px));
+}
+.shell-footer-location-detail code {
+  user-select: text;
+  overflow-wrap: anywhere;
+}
+.shell-footer-location-detail button {
+  align-self: flex-start;
+}
+
+@media (max-width: 1100px) {
+  .shell-footer-state {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .shell-footer-server {
+    max-width: 12ch;
+  }
+  .shell-footer-branch {
+    max-width: 12ch;
+  }
+}
+@media (max-width: 767px) {
+  .shell-footer {
+    flex-wrap: wrap;
+    column-gap: 4px;
+    row-gap: 0;
+  }
+  .shell-footer-environment {
+    flex-basis: calc(100% - 40px);
+  }
+  .shell-footer-location {
+    flex: 1;
+    justify-content: flex-start;
+  }
+  .shell-footer-navigation {
+    flex: 1 0 140px;
+  }
+  .shell-footer-navigation:empty,
+  .shell-footer-actions:empty {
+    display: none;
+  }
+  .shell-footer [data-component="button-v2"] {
+    min-height: 36px;
+    height: 36px;
+  }
+}
+
+.shell-footer-status[data-state="connecting"] {
+  background: var(--v2-state-fg-warning);
+}
+.shell-footer-actions > [hidden] {
+  display: none;
+}

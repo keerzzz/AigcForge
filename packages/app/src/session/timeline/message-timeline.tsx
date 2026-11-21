@@ -34,6 +34,7 @@ import { SessionAncestorTrail, SessionProjectMenu, SessionTitleHeader } from "..
 import { SessionCompositionSummary } from "../composition-summary"
 import { SessionHeaderSpacer } from "@/session/header/session-header"
 import { SessionRunningMenu } from "@/session/header/session-running-menu"
+import { useShellFooter } from "@/shell/footer"
 
 type BlockingTask = { type: "shell" | "subagent"; partID: string; id?: string; label?: string }
 
@@ -132,6 +133,7 @@ function MessageTimelineView(
     pending: TimelineController["pending"]
   },
 ) {
+  const footer = useShellFooter()
   const language = useLanguage()
   const command = useCommand()
   const server = useServer()
@@ -470,9 +472,7 @@ function MessageTimelineView(
               "md:max-w-session md:mx-auto": props.centered,
             }}
           >
-            <div
-              class={`flex h-9 items-center gap-2 text-[13px] font-[530] leading-text-compact ${turnPadding()}`}
-            >
+            <div class={`flex h-9 items-center gap-2 text-[13px] font-[530] leading-text-compact ${turnPadding()}`}>
               <Show when={showWorking()}>
                 <div data-component="session-working" role="status" class="inline-flex min-h-6 items-center gap-2">
                   <Icon name="settings-gear" size="normal" class="session-working-gear" />
@@ -667,23 +667,25 @@ function MessageTimelineView(
                 {(_id) => (
                   <div class="shrink-0 flex items-center gap-2">
                     {props.search}
-                    <Show when={props.view && props.screen ? { view: props.view, screen: props.screen } : undefined}>
-                      {(mounted) => (
-                        <ExtensionSlot
-                          at="session.header"
-                          input={{
-                            get session() {
-                              return mounted().view
-                            },
-                            get screen() {
-                              return mounted().screen
-                            },
-                            get active() {
-                              return props.active !== false
-                            },
-                          }}
-                        />
-                      )}
+                    <Show when={!footer?.actions()}>
+                      <Show when={props.view && props.screen ? { view: props.view, screen: props.screen } : undefined}>
+                        {(mounted) => (
+                          <ExtensionSlot
+                            at="session.header"
+                            input={{
+                              get session() {
+                                return mounted().view
+                              },
+                              get screen() {
+                                return mounted().screen
+                              },
+                              get active() {
+                                return props.active !== false
+                              },
+                            }}
+                          />
+                        )}
+                      </Show>
                     </Show>
                     <SessionHeaderSpacer visible={props.reserveReviewToggle} />
                   </div>

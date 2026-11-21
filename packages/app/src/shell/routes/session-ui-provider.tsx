@@ -212,7 +212,11 @@ export function SessionUIProvider(
       onCommunication={(reference) => data.session.communication.get(reference.sessionID, reference.communicationID)}
       onOpenCommunication={content?.openCommunication}
     >
-      <MarkdownProvider readImage={readImage()} openSession={openReferencedSession}>
+      <MarkdownProvider
+        readImage={readImage()}
+        openSession={openReferencedSession}
+        sessionTitle={(id) => data.session.get(id)?.title}
+      >
         <LocalProvider>{props.children}</LocalProvider>
       </MarkdownProvider>
     </DataProvider>

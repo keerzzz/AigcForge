@@ -197,7 +197,7 @@ export function SessionTodoDock(props: {
             <For each={tasks()}>
               {(task) => (
                 <li
-                  class="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 text-13-regular [&>[data-component=checkbox]]:flex-[1_1_16ch] [&_[data-component=checkbox]]:min-w-0 [&_[data-slot=checkbox-checkbox-content]]:min-w-0"
+                  class="flex min-h-8 items-center justify-between gap-2 text-13-regular [&>[data-component=checkbox]]:flex-1 [&_[data-component=checkbox]]:min-w-0 [&_[data-slot=checkbox-checkbox-content]]:min-w-0 [&_[data-slot=checkbox-checkbox-label]]:min-w-0 [&_[data-slot=checkbox-checkbox-label]]:leading-4"
                   aria-label={language.t("session.tasks.item", { name: task.content })}
                 >
                   <Checkbox
@@ -209,7 +209,8 @@ export function SessionTodoDock(props: {
                     }
                   >
                     <span
-                      class="[overflow-wrap:anywhere]"
+                      class="block min-w-0 truncate"
+                      title={task.content}
                       classList={{
                         "line-through text-text-weak": task.status === "completed" || task.status === "cancelled",
                       }}
@@ -217,7 +218,7 @@ export function SessionTodoDock(props: {
                       {task.content}
                     </span>
                   </Checkbox>
-                  <span class="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-2 text-text-weak">
+                  <span class="ml-auto flex shrink-0 items-center justify-end gap-2 text-text-weak">
                     <span>{language.t(`session.tasks.status.${task.status}`)}</span>
                     <Show when={props.onOpenTask}>
                       <Button

@@ -13,6 +13,7 @@ import { useI18n } from "@aigcfroge/ui/context/i18n"
 import { File } from "@aigcfroge/session-ui/file"
 import { Markdown } from "@aigcfroge/session-ui/markdown"
 import type { SessionMessageInfo } from "@aigcfroge/client/promise"
+import { TokenUsage } from "@aigcfroge/schema/token-usage"
 import { createKeyed, useExtension, usePanel, type MountedSession } from "../sdk"
 import { catalogModel, syncCatalog } from "./catalog"
 import { fetchSessionExport, sessionExportFilename } from "./export"
@@ -21,9 +22,9 @@ import { sessionContextUsage } from "./usage"
 
 function Stat(props: { label: string; value: JSX.Element }) {
   return (
-    <div class="flex flex-col gap-1">
-      <div class="text-12-regular text-text-weak">{props.label}</div>
-      <div class="text-12-medium text-text-strong">{props.value}</div>
+    <div class="flex min-w-0 flex-col gap-1">
+      <div class="text-12-regular text-v2-text-text-muted">{props.label}</div>
+      <div class="min-w-0 break-words text-13-medium text-text-strong tabular-nums">{props.value}</div>
     </div>
   )
 }
@@ -219,26 +220,33 @@ export default function SessionContextTab(props: { session: MountedSession }) {
 
     if (!current) return
     const entry = catalogModel(props.session, current.model)
+    const limit = entry?.model?.limit.context
 
     return {
       message: current.message,
       tokens: current.tokens,
       providerLabel: entry?.provider.name ?? current.model.providerID,
       modelLabel: entry?.model?.name ?? current.model.id,
-      limit: entry?.model?.limit.context,
+      limit,
       input: current.tokens?.input,
       total: current.total,
-      usage:
-        current.total !== undefined && entry?.model?.limit.context
-          ? Math.round((current.total / entry.model.limit.context) * 100)
-          : null,
+      usage: current.total !== undefined && limit ? Math.round((current.total / limit) * 100) : null,
+      remaining: current.total !== undefined && limit !== undefined ? Math.max(0, limit - current.total) : undefined,
     }
   })
 
   const formatter = createMemo(() => createSessionContextFormatter(i18n.locale()))
 
   const cost = createMemo(() => {
-    return usd().format(info()?.cost ?? 0)
+    const value = info()?.cost
+
+    return value === undefined ? "—" : usd().format(value)
+  })
+
+  const cumulativeTokens = createMemo(() => {
+    const tokens = info()?.tokens
+
+    return tokens ? TokenUsage.total(tokens) : undefined
   })
 
   const counts = createMemo(() => {
@@ -280,25 +288,39 @@ export default function SessionContextTab(props: { session: MountedSession }) {
     return c.modelLabel
   })
 
-  const stats = [
-    { label: "stats.session", value: () => info()?.title ?? (props.session.id || "—") },
-    { label: "stats.messages", value: () => counts().all.toLocaleString(i18n.locale()) },
-    { label: "stats.provider", value: providerLabel },
-    { label: "stats.model", value: modelLabel },
-    { label: "stats.limit", value: () => formatter().number(context()?.limit) },
+  const requestStats = [
     { label: "stats.totalTokens", value: () => formatter().number(context()?.total) },
+    { label: "stats.limit", value: () => formatter().number(context()?.limit) },
     { label: "stats.usage", value: () => formatter().percent(context()?.usage) },
+    { label: "stats.remainingTokens", value: () => formatter().number(context()?.remaining) },
     { label: "stats.inputTokens", value: () => formatter().number(context()?.input) },
     { label: "stats.outputTokens", value: () => formatter().number(context()?.tokens?.output) },
     { label: "stats.reasoningTokens", value: () => formatter().number(context()?.tokens?.reasoning) },
+    { label: "stats.cacheReadTokens", value: () => formatter().number(context()?.tokens?.cache.read) },
+    { label: "stats.cacheWriteTokens", value: () => formatter().number(context()?.tokens?.cache.write) },
+    { label: "stats.provider", value: providerLabel },
+    { label: "stats.model", value: modelLabel },
+  ]
+
+  const cumulativeStats = [
+    { label: "stats.totalTokens", value: () => formatter().number(cumulativeTokens()) },
+    { label: "stats.inputTokens", value: () => formatter().number(info()?.tokens?.input) },
+    { label: "stats.outputTokens", value: () => formatter().number(info()?.tokens?.output) },
+    { label: "stats.reasoningTokens", value: () => formatter().number(info()?.tokens?.reasoning) },
+    { label: "stats.cacheReadTokens", value: () => formatter().number(info()?.tokens?.cache.read) },
+    { label: "stats.cacheWriteTokens", value: () => formatter().number(info()?.tokens?.cache.write) },
+    { label: "stats.totalCost", value: cost },
     {
-      label: "stats.cacheTokens",
-      value: () =>
-        `${formatter().number(context()?.tokens?.cache.read)} / ${formatter().number(context()?.tokens?.cache.write)}`,
+      label: "stats.missingUsageAttempts",
+      value: () => formatter().number(info()?.missingUsageAttempts),
     },
+  ]
+
+  const stats = [
+    { label: "stats.session", value: () => info()?.title ?? (props.session.id || "—") },
+    { label: "stats.messages", value: () => counts().all.toLocaleString(i18n.locale()) },
     { label: "stats.userMessages", value: () => counts().user.toLocaleString(i18n.locale()) },
     { label: "stats.assistantMessages", value: () => counts().assistant.toLocaleString(i18n.locale()) },
-    { label: "stats.totalCost", value: cost },
     { label: "stats.sessionCreated", value: () => formatter().time(info()?.time.created) },
     { label: "stats.lastActivity", value: () => formatter().time(context()?.message.time.created) },
   ] satisfies { label: string; value: () => JSX.Element }[]
@@ -391,10 +413,45 @@ export default function SessionContextTab(props: { session: MountedSession }) {
       }}
       onScroll={handleScroll}
     >
-      <div data-slot="session-usage-content" class="px-4 pt-4 pb-6 flex flex-col gap-6 md:px-6 md:pb-10 md:gap-10">
-        <div class="grid grid-cols-1 @[32rem]:grid-cols-2 gap-4">
-          <For each={stats}>{(stat) => <Stat label={ctx.t(stat.label)} value={stat.value()} />}</For>
-        </div>
+      <div data-slot="session-usage-content" class="px-4 pt-4 pb-6 flex flex-col gap-6 md:px-6 md:pb-10">
+        <section aria-label={ctx.t("usage.latest.title")} class="flex min-w-0 flex-col gap-3">
+          <h3 class="text-13-medium text-text-strong">{ctx.t("usage.latest.title")}</h3>
+          <p class="text-12-regular text-v2-text-text-muted">{ctx.t("usage.latest.scope")}</p>
+          <div class="grid grid-cols-2 gap-4">
+            <For each={requestStats}>{(stat) => <Stat label={ctx.t(stat.label)} value={stat.value()} />}</For>
+          </div>
+        </section>
+        <section aria-label={ctx.t("usage.session.title")} class="flex min-w-0 flex-col gap-3">
+          <h3 class="text-13-medium text-text-strong">{ctx.t("usage.session.title")}</h3>
+          <p class="text-12-regular text-v2-text-text-muted">{ctx.t("usage.session.scope")}</p>
+          <div class="grid grid-cols-2 gap-4">
+            <For each={cumulativeStats}>{(stat) => <Stat label={ctx.t(stat.label)} value={stat.value()} />}</For>
+          </div>
+          <Show when={info()?.missingUsageAttempts}>
+            <p class="text-12-regular text-v2-text-text-muted">{ctx.t("usage.session.partial")}</p>
+          </Show>
+          <Show when={info()?.unknownPriceAttempts}>
+            <p class="text-12-regular text-v2-text-text-muted">{ctx.t("usage.session.partialCost")}</p>
+          </Show>
+          <Show
+            when={info() && (info()?.missingUsageAttempts === undefined || info()?.unknownPriceAttempts === undefined)}
+          >
+            <p class="text-12-regular text-v2-text-text-muted">{ctx.t("usage.session.coverageUnknown")}</p>
+          </Show>
+        </section>
+        <section aria-label={ctx.t("usage.session.info")} class="min-w-0">
+          <Collapsible variant="ghost">
+            <Collapsible.Trigger type="button">
+              <Collapsible.Arrow />
+              {ctx.t("usage.session.info")}
+            </Collapsible.Trigger>
+            <Collapsible.Content>
+              <div class="grid grid-cols-1 @[32rem]:grid-cols-2 gap-4 pt-2">
+                <For each={stats}>{(stat) => <Stat label={ctx.t(stat.label)} value={stat.value()} />}</For>
+              </div>
+            </Collapsible.Content>
+          </Collapsible>
+        </section>
         <section aria-label={ctx.t("recorded.title")} class="min-w-0">
           <Collapsible variant="ghost">
             <Collapsible.Trigger type="button">

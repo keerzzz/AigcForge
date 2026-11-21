@@ -2,7 +2,7 @@ import { useGlobal, useServerCtx } from "@/runtime/server/runtime"
 import { type HomeProjectSelection, useLayout } from "@/shell/state/layout"
 import { ServerConnection, useServers } from "@/runtime/server/registry"
 import { useTabs } from "@/shell/tabs/tabs"
-import { toggleHomeProjectSelection } from "@/shell/layout/helpers"
+import { resolveNewSessionProject, toggleHomeProjectSelection } from "@/shell/layout/helpers"
 import { createEffect, createMemo, on, startTransition, type Accessor } from "solid-js"
 import type { SessionInfo } from "@aigcfroge/client/promise"
 import { pathKey } from "@/workspaces/path-key"
@@ -41,11 +41,8 @@ export function createHomeController(input: { mode?: Accessor<ProductMode.ID | u
   const homedir = createMemo(() => focusedSync()?.data.path.home ?? "")
   const selectedProject = createMemo(() => projects().find((project) => project.worktree === selection().directory))
 
-  const newSessionProject = createMemo(
-    () =>
-      selectedProject() ??
-      projects().find((project) => project.worktree === focusedServerCtx()?.projects.last()) ??
-      projects()[0],
+  const newSessionProject = createMemo(() =>
+    resolveNewSessionProject(projects(), selection().directory, focusedServerCtx()?.projects.last()),
   )
 
   createEffect(

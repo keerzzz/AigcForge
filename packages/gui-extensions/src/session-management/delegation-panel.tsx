@@ -1058,7 +1058,7 @@ function DelegationContent(props: Props & { server: ServerRef }) {
                               >
                                 <span data-slot="monitor-row-copy">
                                   <span data-slot="monitor-row-title">
-                                    <strong>{nodeTitle(item)}</strong>
+                                    <strong title={nodeTitle(item)}>{nodeTitle(item)}</strong>
                                     <span>{nodeStatus(item)}</span>
                                   </span>
                                   <Show when={item.kind === "task" ? item.operation : undefined}>
@@ -1103,6 +1103,7 @@ function DelegationContent(props: Props & { server: ServerRef }) {
                                       tabIndex={-1}
                                     >
                                       <p data-slot="monitor-detail-owner">{nodeOwner(node())}</p>
+                                      <p data-slot="monitor-description">{nodeTitle(node())}</p>
                                       <Show when={node().kind === "delegation" && waitingForInput(node())}>
                                         <p data-slot="monitor-evidence">
                                           {ctx.t("session.dispatchMonitor.waitingForInput")}

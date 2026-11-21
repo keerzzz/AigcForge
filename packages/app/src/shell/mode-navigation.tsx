@@ -81,20 +81,6 @@ export function ModeNavigation() {
           )}
         </For>
       </nav>
-      <Tooltip value={language.t(opened() ? "mode.navigation.collapse" : "mode.navigation.expand")} placement="right">
-        <Button
-          type="button"
-          variant="ghost-muted"
-          size="large"
-          class="mode-navigation-toggle"
-          aria-label={language.t(opened() ? "mode.navigation.collapse" : "mode.navigation.expand")}
-          aria-expanded={opened()}
-          aria-controls="global-mode-navigation"
-          onClick={() => layout.navigation.toggle()}
-        >
-          <Icon name={opened() ? "chevron-left" : "chevron-right"} size="large" />
-        </Button>
-      </Tooltip>
     </div>
   )
 }

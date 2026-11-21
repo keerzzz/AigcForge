@@ -1,3 +1,4 @@
+import { resolveNewSessionProject } from "@/shell/layout/helpers"
 import { createEffect, createMemo, createResource, Match, Show, Switch, untrack } from "solid-js"
 import { createStore, unwrap } from "solid-js/store"
 import { Dynamic } from "solid-js/web"
@@ -431,10 +432,11 @@ export function Titlebar() {
 
                   const projects = conn ? global.ensureServerCtx(conn).projects : undefined
 
-                  const project =
-                    projects?.list().find((item) => item.worktree === selection.directory) ??
-                    projects?.list().find((item) => item.worktree === projects.last()) ??
-                    projects?.list()[0]
+                  const project = resolveNewSessionProject(
+                    projects?.list() ?? [],
+                    selection.directory,
+                    projects?.last(),
+                  )
 
                   if (conn && project) {
                     if (mode === "custom") {

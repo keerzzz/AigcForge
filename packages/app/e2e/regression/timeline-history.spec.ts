@@ -5,7 +5,7 @@ import type {
   SessionMessageInfo,
 } from "@aigcfroge/client/promise"
 import { expect, test, type Page } from "@playwright/test"
-import { seed, sessionHref } from "../utils/app"
+import { pageMessagesFrom, seed, sessionHref } from "../utils/app"
 import { trackPageErrors } from "../utils/errors"
 import { fixture, installTimelineSettings, mockStressTimeline } from "../utils/session-fixture"
 import {
@@ -16,6 +16,7 @@ import {
   status,
   textPart,
   userMessage,
+  userText,
   makeEvent,
   session,
 } from "../utils/timeline"
@@ -24,6 +25,182 @@ import { expectSessionTitle } from "../utils/waits"
 test.use({ serviceWorkers: "block" })
 
 test.describe("timeline history", () => {
+  test("status bar previous input crosses pages that contain only model steps", async ({ page }) => {
+    const first = userMessage([userText("Earlier input before many model steps.")], { id: "msg_0000_prior" })
+    const current = userMessage([userText("Current input after those model steps.")], {
+      id: "msg_0050_current",
+      created: 1700000050000,
+    })
+    const steps = (count: number, offset: number, parentID: string) =>
+      Array.from({ length: count }, (_, index) =>
+        assistantMessage([textPart(`prt_page_${offset + index}`, `Recorded model step ${offset + index}.`)], {
+          id: `msg_${String(offset + index).padStart(4, "0")}_step`,
+          parentID,
+          created: 1700000000000 + (offset + index) * 1000,
+        }),
+      )
+    const messages = [first, ...steps(45, 1, first.id), current, ...steps(39, 51, current.id)]
+    await setupTimeline(page, { messages, pageMessages: pageMessagesFrom({ [sessionID]: messages }) })
+    const navigation = page.getByRole("contentinfo").getByRole("navigation", { name: "Session inputs" })
+    await navigation.getByRole("button", { name: "Session inputs", exact: true }).click()
+    const inputs = page.getByRole("dialog", { name: "Session inputs", exact: true })
+    await expect(inputs.getByTitle("Current input after those model steps.", { exact: true })).toBeVisible()
+    await expect(inputs.getByRole("listitem")).toHaveCount(1)
+    await page.keyboard.press("Escape")
+    await expect(navigation.getByRole("button", { name: "Previous input", exact: true })).toBeEnabled()
+    await navigation.getByRole("button", { name: "Previous input", exact: true }).click()
+    await expect(page).toHaveURL(/#message-msg_0000_prior$/)
+    await expect(navigation.getByRole("button", { name: "Session inputs", exact: true })).toHaveText(
+      "Session inputs1/2",
+    )
+    await expect(page.locator('[data-timeline-row="UserMessage"][data-message-id="msg_0000_prior"]')).toBeVisible()
+  })
+
+  test("status bar preserves an explicit input selection when the original history fits the viewport", async ({
+    page,
+  }) => {
+    const first = userMessage([userText("First short input.")], { id: "msg_short_first" })
+    const second = userMessage([userText("Second short input.")], { id: "msg_short_second", created: 1700000002000 })
+    const timeline = await setupTimeline(page, {
+      messages: [
+        first,
+        assistantMessage([textPart("prt_short_first", "First short result.")], {
+          id: "msg_short_result_first",
+          parentID: first.id,
+        }),
+        second,
+        assistantMessage([textPart("prt_short_second", "Second short result.")], {
+          id: "msg_short_result_second",
+          parentID: second.id,
+          created: 1700000003000,
+        }),
+      ],
+    })
+    const navigation = page.getByRole("contentinfo").getByRole("navigation", { name: "Session inputs" })
+    const picker = navigation.getByRole("button", { name: "Session inputs", exact: true })
+    await expect(picker).toHaveText("Session inputs2/2")
+    await picker.click()
+    await page
+      .getByRole("dialog", { name: "Session inputs", exact: true })
+      .getByRole("button", { name: /^1 First short input/ })
+      .click()
+    await expect(picker).toHaveText("Session inputs1/2")
+    const inboxID = "msg_short_third"
+    await timeline.send([
+      makeEvent("session.inbox.enqueued", {
+        sessionID,
+        inboxID,
+        item: { type: "user", delivery: "steer", payload: { text: "New incoming content. ".repeat(150) } },
+      }),
+      makeEvent("session.inbox.delivered", { sessionID, inboxID }),
+    ])
+    await expect(picker).toHaveText("Session inputs1/3")
+    await expect(page).toHaveURL(/#message-msg_short_first$/)
+    await expect(navigation.getByRole("button", { name: "Jump to latest", exact: true })).toBeEnabled()
+  })
+
+  test("status bar pages session inputs and preserves the draft and history selection during delivery", async ({
+    page,
+  }) => {
+    const errors = trackPageErrors(page)
+    await page.setViewportSize({ width: 1096, height: 899 })
+    const messages = Array.from({ length: 24 }, (_, index) => {
+      const id = `msg_input_${String(index).padStart(4, "0")}`
+
+      return [
+        userMessage(
+          [
+            userText(
+              `Input ${index + 1}: review the existing session process. ` +
+                "检查会话步骤与任务委派https://example.test/".repeat(12),
+            ),
+          ],
+          { id, created: 1700000000000 + index * 2000 },
+        ),
+        assistantMessage(
+          [
+            textPart(
+              `prt_result_${index}`,
+              `Result for input ${index + 1}.\n\n` + "Recorded process detail. ".repeat(30),
+            ),
+          ],
+          { id: `msg_result_${String(index).padStart(4, "0")}`, parentID: id, created: 1700000001000 + index * 2000 },
+        ),
+      ]
+    }).flat()
+    const timeline = await setupTimeline(page, { messages, pageMessages: pageMessagesFrom({ [sessionID]: messages }) })
+    const footer = page.getByRole("contentinfo", { name: "Workspace status" })
+    const navigation = footer.getByRole("navigation", { name: "Session inputs" })
+    const picker = navigation.getByRole("button", { name: /^Session inputs/ })
+    const prompt = page.getByRole("textbox", { name: "Prompt", exact: true })
+    await expect(picker).toBeEnabled()
+    await prompt.fill("Keep this unsent draft.")
+    await picker.click()
+    const popup = page.getByRole("dialog", { name: "Session inputs", exact: true })
+    await expect(popup.getByText("Earlier inputs have not been loaded yet.")).toBeVisible()
+    await popup.getByRole("button", { name: "Load earlier inputs", exact: true }).click()
+    await expect(popup.getByRole("listitem")).toHaveCount(24)
+    await expect(popup.getByText("Earlier inputs have not been loaded yet.")).toHaveCount(0)
+    for (const width of [1096, 390]) {
+      await page.setViewportSize({ width, height: 899 })
+      await expect
+        .poll(() =>
+          popup.evaluate((element) => {
+            const bounds = element.getBoundingClientRect()
+
+            return (
+              element.scrollWidth <= element.clientWidth &&
+              bounds.left >= 0 &&
+              bounds.right <= innerWidth &&
+              Array.from(element.querySelectorAll("li button, li time")).every((item) => {
+                const row = item.getBoundingClientRect()
+
+                return row.left >= bounds.left && row.right <= bounds.right
+              })
+            )
+          }),
+        )
+        .toBe(true)
+    }
+    await page.setViewportSize({ width: 1096, height: 899 })
+    await popup.getByRole("button", { name: /^1 Input 1:/ }).click()
+    await expect(page).toHaveURL(/#message-msg_input_0000$/)
+    await expect(page.locator('[data-message-id="msg_input_0000"][data-timeline-row="UserMessage"]')).toBeVisible()
+    await expect(picker).toHaveText("Session inputs1/24")
+    await expect(prompt).toHaveText("Keep this unsent draft.")
+    await expect(navigation.getByRole("button", { name: "Previous input", exact: true })).toBeDisabled()
+
+    const inboxID = "msg_input_0024"
+    await timeline.send([
+      makeEvent("session.inbox.enqueued", {
+        sessionID,
+        inboxID,
+        item: { type: "user", delivery: "steer", payload: { text: "A newly delivered input." } },
+      }),
+      makeEvent("session.inbox.delivered", { sessionID, inboxID }),
+    ])
+    await expect(picker).toHaveText("Session inputs1/25")
+    await expect(page).toHaveURL(/#message-msg_input_0000$/)
+    await expect(page.locator('[data-message-id="msg_input_0000"][data-timeline-row="UserMessage"]')).toBeVisible()
+    await expect(prompt).toHaveText("Keep this unsent draft.")
+    await navigation.getByRole("button", { name: "Next input", exact: true }).click()
+    await expect(page).toHaveURL(/#message-msg_input_0001$/)
+    await navigation.getByRole("button", { name: "Jump to latest", exact: true }).click()
+    await expect(page).toHaveURL(new RegExp(`${sessionID}$`))
+    await expect(picker).toHaveText("Session inputs25/25")
+    await expect(navigation.getByRole("button", { name: "Jump to latest", exact: true })).toBeDisabled()
+    await page.setViewportSize({ width: 390, height: 844 })
+    await expect(picker).toBeVisible()
+    await expect(footer.getByRole("button", { name: "View context usage", exact: true })).toBeVisible()
+    await picker.click()
+    await expect(popup.getByRole("listitem")).toHaveCount(25)
+    await popup.getByRole("button", { name: /^1 Input 1:/ }).click()
+    await expect(page).toHaveURL(/#message-msg_input_0000$/)
+    await expect(prompt).toHaveText("Keep this unsent draft.")
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    expect(errors).toEqual([])
+  })
+
   test("keeps logical groups and durable attempts distinct through reload and an Idle failure", async ({
     page,
   }, testInfo) => {

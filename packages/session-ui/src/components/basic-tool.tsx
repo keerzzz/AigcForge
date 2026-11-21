@@ -247,11 +247,8 @@ export function BasicTool(props: BasicToolProps) {
                 <div data-slot="basic-tool-tool-info-structured">
                   <div data-slot="basic-tool-tool-info-main">
                     <span data-slot="basic-tool-tool-icon" aria-hidden="true">
-                      <Icon name={props.icon} size="small" />
-                    </span>
-                    <span data-slot="basic-tool-tool-progress" aria-hidden="true">
-                      <Show when={pending()}>
-                        <SessionProgressIndicatorV2 width={14} height={14} />
+                      <Show when={pending()} fallback={<Icon name={props.icon} size="small" />}>
+                        <SessionProgressIndicatorV2 width={18} height={18} />
                       </Show>
                     </span>
                     <span

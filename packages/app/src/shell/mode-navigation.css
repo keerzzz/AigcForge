@@ -17,7 +17,7 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding-block: var(--shell-top-inset, 8px) 60px;
+  padding-block: var(--shell-top-inset, 8px) 8px;
   padding-inline: 6px;
   transition:
     transform 160ms ease-out,
@@ -69,28 +69,6 @@
 
 .mode-navigation-rail [aria-current="page"] [data-slot="icon-svg"] {
   --icon-active-fill: 0.12;
-}
-
-.mode-navigation [data-component="button-v2"].mode-navigation-toggle {
-  position: absolute;
-  bottom: var(--shell-bottom-inset, 8px);
-  left: 6px;
-  z-index: 10;
-}
-
-.mode-navigation[data-opened="false"] [data-component="button-v2"].mode-navigation-toggle {
-  left: 0;
-  width: 24px;
-  border: 1px solid var(--v2-border-border-base);
-  border-left: 0;
-  border-radius: 0 8px 8px 0;
-  background: var(--v2-background-bg-base);
-}
-
-@media (pointer: coarse) {
-  .mode-navigation[data-opened="false"] [data-component="button-v2"].mode-navigation-toggle {
-    width: 44px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

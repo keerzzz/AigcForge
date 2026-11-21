@@ -5,6 +5,19 @@ import { isProjectDirectory } from "@/workspaces/paths"
 import type { ServerConnection } from "@/runtime/server/registry"
 import type { HomeProjectSelection } from "@/shell/state/layout"
 
+/** The same new-session location used by Home, the titlebar, and the status bar. */
+export function resolveNewSessionProject<T extends { worktree: string }>(
+  projects: readonly T[],
+  selected?: string,
+  last?: string,
+) {
+  return (
+    projects.find((project) => project.worktree === selected) ??
+    projects.find((project) => project.worktree === last) ??
+    projects[0]
+  )
+}
+
 export function compareSessionTime(a: SessionInfo, b: SessionInfo) {
   const updated = (b.time.updated ?? b.time.created) - (a.time.updated ?? a.time.created)
 
