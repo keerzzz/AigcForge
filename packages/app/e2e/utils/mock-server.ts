@@ -664,6 +664,17 @@ export async function mockAigcForgeServer(page: Page, config: MockServerConfig) 
 
       if (!answers(page, server, url)) return route.fallback()
 
+      // Earlier proposal fixtures keep their asset routes unless this server supplies that kind's inventory.
+      const resource = url.pathname.split("/")[1]
+      if (
+        (resource === "prompt-asset" && config.promptAssets === undefined) ||
+        (resource === "skill-asset" && config.skillAssets === undefined) ||
+        (resource === "command-asset" && config.commandAssets === undefined) ||
+        (resource === "mcp-asset" && config.mcpAssets === undefined) ||
+        (resource === "plugin-asset" && config.pluginAssets === undefined)
+      )
+        return route.fallback()
+
       // Production serves the UI and API from one origin; leave app assets to Vite.
       if (
         !url.pathname.startsWith("/api/") &&
