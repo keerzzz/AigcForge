@@ -89,6 +89,19 @@ export const PromptAssetHandler = HttpApiBuilder.group(Api, "prompt-asset", (han
           ),
         ),
       )
+      .handle("prompt-asset.remove", ({ payload }) =>
+        scope.atLocation(
+          PromptAssetService.Service.use((service) =>
+            service
+              .delete({
+                relativePath: payload.relativePath,
+                baseRevision: payload.baseRevision ?? null,
+                ...(payload.target === undefined ? {} : { target: payload.target }),
+              })
+              .pipe(Effect.mapError(promptAssetWriteError)),
+          ),
+        ),
+      )
   }),
 )
 

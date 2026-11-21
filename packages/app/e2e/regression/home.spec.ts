@@ -629,6 +629,7 @@ test("B06 exposes explicit builtin roots on Custom and requires a selected proje
     onSessionCreate: (input) => void creates.push(input),
   })
   await selectGlobalMode(page, "Custom")
+  await page.getByRole("tab", { name: "Compose", exact: true }).click()
   const composition = page.getByRole("region", { name: "Custom composition", exact: true })
   await expect(composition).toBeVisible()
   await expect(page.locator('[data-component="home-workspace-context"]')).toHaveCount(0)
@@ -640,6 +641,7 @@ test("B06 exposes explicit builtin roots on Custom and requires a selected proje
   await composition.getByRole("button", { name: "Meta", exact: true }).click()
   await expect(composition.getByRole("button", { name: "Meta", exact: true })).toHaveAttribute("aria-pressed", "true")
   await page.locator('[data-component="home-project-row"]').filter({ hasText: fixture.project.name }).click()
+  await page.getByRole("tab", { name: "Compose", exact: true }).click()
   await expect(
     page.locator('[data-component="home-workspace-context"]').getByText(fixture.directory, { exact: true }),
   ).toBeVisible()
@@ -685,8 +687,9 @@ test("B06 preserves the reviewed builtin root and chosen model through explicit 
   })
   await page.goto("/")
   await selectGlobalMode(page, "Custom")
-  const composition = page.getByRole("region", { name: "Custom composition", exact: true })
   await page.locator('[data-component="home-project-row"]').filter({ hasText: "Builtin Adoption" }).click()
+  await page.getByRole("tab", { name: "Compose", exact: true }).click()
+  const composition = page.getByRole("region", { name: "Custom composition", exact: true })
   const model = composition.getByRole("group", { name: "Composition model", exact: true }).getByRole("button")
   await expect(model).toBeEnabled()
   await model.click()
@@ -795,11 +798,13 @@ test("B06 discards a late preview after the selected project changes and starts 
   })
   await page.goto("/")
   await selectGlobalMode(page, "Custom")
-  const composition = page.getByRole("region", { name: "Custom composition", exact: true })
   await page.locator('[data-component="home-project-row"]').filter({ hasText: "Source A" }).click()
+  await page.getByRole("tab", { name: "Compose", exact: true }).click()
+  const composition = page.getByRole("region", { name: "Custom composition", exact: true })
   await composition.getByRole("button", { name: "Preview composition", exact: true }).click()
   await entered.promise
   await page.locator('[data-component="home-project-row"]').filter({ hasText: "Source B" }).click()
+  await page.getByRole("tab", { name: "Compose", exact: true }).click()
   await expect(composition.getByText(nextDirectory, { exact: true })).toBeVisible()
   await expect(composition.getByRole("button", { name: "Create session", exact: true })).toHaveCount(0)
   await composition.getByRole("button", { name: "Plan", exact: true }).click()
@@ -853,8 +858,9 @@ test("B06 preserves creation ACK after canonical readback fails and retries only
   })
   await page.goto("/")
   await selectGlobalMode(page, "Custom")
-  const composition = page.getByRole("region", { name: "Custom composition", exact: true })
   await page.locator('[data-component="home-project-row"]').filter({ hasText: "Builtin Readback" }).click()
+  await page.getByRole("tab", { name: "Compose", exact: true }).click()
+  const composition = page.getByRole("region", { name: "Custom composition", exact: true })
   await composition.getByRole("button", { name: "Preview composition", exact: true }).click()
   await composition.getByRole("button", { name: "Create session", exact: true }).click()
   await expect(composition.getByRole("alert")).toContainText("Readback unavailable")
@@ -907,8 +913,9 @@ test("B06 retries a lost start reply with the same confirmation and adopts exact
 
   await page.goto("/")
   await selectGlobalMode(page, "Custom")
-  const composition = page.getByRole("region", { name: "Custom composition", exact: true })
   await page.locator('[data-component="home-project-row"]').filter({ hasText: "Builtin Lost Reply" }).click()
+  await page.getByRole("tab", { name: "Compose", exact: true }).click()
+  const composition = page.getByRole("region", { name: "Custom composition", exact: true })
   await composition.getByRole("button", { name: "Preview composition", exact: true }).click()
   await composition.getByRole("button", { name: "Create session", exact: true }).click()
   await expect(composition.getByRole("button", { name: "Retry confirmation", exact: true })).toBeEnabled()
@@ -976,8 +983,9 @@ test("B06 releases a rejected stale confirmation for a new preview without creat
 
   await page.goto("/")
   await selectGlobalMode(page, "Custom")
-  const composition = page.getByRole("region", { name: "Custom composition", exact: true })
   await page.locator('[data-component="home-project-row"]').filter({ hasText: "Builtin Stale Confirmation" }).click()
+  await page.getByRole("tab", { name: "Compose", exact: true }).click()
+  const composition = page.getByRole("region", { name: "Custom composition", exact: true })
   await composition.getByRole("button", { name: "Preview composition", exact: true }).click()
   await expect(
     composition
@@ -1097,7 +1105,7 @@ test("Home Custom selection opens the composition through list and titlebar New"
   await selectHomeSessionMode(page, "Custom")
   await page.locator('[data-action="home-new-session"]').click()
   await expectPath(page, "/mode/custom")
-  await expect(page.getByRole("region", { name: "Custom composition", exact: true })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Start a Custom task", exact: true })).toBeVisible()
   await page.goto("/")
   await expect(homeSessionMode(page)).toHaveText("Custom")
   await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click()
@@ -1238,7 +1246,7 @@ test("global mode navigation drives Home and New without changing an existing dr
   await expect(homeSessionMode(page)).toHaveText("Custom")
   await expect(row(page, "Home custom session")).toBeVisible()
   await page.locator('[data-action="home-new-session"]').click()
-  await expect(page.getByRole("region", { name: "Custom composition", exact: true })).toBeVisible()
+  await expect(page.getByRole("region", { name: "Start a Custom task", exact: true })).toBeVisible()
   await expectPath(page, "/mode/custom")
   expect(creates).toEqual([])
 

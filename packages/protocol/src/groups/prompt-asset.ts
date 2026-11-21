@@ -127,6 +127,21 @@ export const PromptAssetGroup = HttpApiGroup.make("prompt-asset")
       }),
     ),
   )
+  .add(
+    HttpApiEndpoint.post("prompt-asset.remove", `${root}/delete`, {
+      query: Schema.Struct(WorkspaceRoutingQueryFields),
+      payload: PromptAssetDeletePayload,
+      success: described(Schema.Void, "Deleted"),
+      error: [InvalidRequestError, ConflictError],
+    }).annotateMerge(
+      OpenApi.annotations({
+        identifier: "prompt-asset.remove",
+        summary: "Delete prompt asset at Location",
+        description:
+          "Delete a Prompt asset at the current Location or selected owner by relative path with baseRevision CAS.",
+      }),
+    ),
+  )
   .annotateMerge(
     OpenApi.annotations({
       title: "prompt-asset",

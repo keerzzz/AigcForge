@@ -34,6 +34,7 @@ import metaStyles from "./meta-agent-panel.css?inline"
 import workflowStyles from "./workflow-run-panel.css?inline"
 import artifactStyles from "./work-artifact-panel.css?inline"
 import sessionStyles from "./session-panel.css?inline"
+import compositionStyles from "./composition-panel.css?inline"
 
 const setup: Setup<typeof definition> = (ctx) => {
   ctx.add(Style, delegationStyles)
@@ -41,11 +42,13 @@ const setup: Setup<typeof definition> = (ctx) => {
   ctx.add(Style, workflowStyles)
   ctx.add(Style, artifactStyles)
   ctx.add(Style, sessionStyles)
+  ctx.add(Style, compositionStyles)
   const Collaborations = lazy(() => import("./delegation-panel"))
   const Meta = lazy(() => import("./meta-agent-panel"))
   const Workflow = lazy(() => import("./workflow-run-panel"))
   const Artifacts = lazy(() => import("./work-artifact-panel"))
   const SessionContent = lazy(() => import("./session-panel"))
+  const Composition = lazy(() => import("./composition-panel"))
 
   const [draftAgents, setDraftAgents] = createStore<
     Record<string, { owner: symbol; read: () => string | undefined } | undefined>
@@ -71,7 +74,7 @@ const setup: Setup<typeof definition> = (ctx) => {
     }
 
     try {
-      await stored.update((draft) => {
+      stored.update((draft) => {
         draft.target = { serverID: input.target.server.id, sessionID: input.target.id }
         draft.taskID = undefined
         draft.workerSessionID = undefined
@@ -80,7 +83,7 @@ const setup: Setup<typeof definition> = (ctx) => {
 
       if (ctx.signal.aborted) return
 
-      await ctx.stores.collaboration(input.source).update((draft) => {
+      ctx.stores.collaboration(input.source).update((draft) => {
         draft.view = "advanced"
       })
 
@@ -221,12 +224,12 @@ const setup: Setup<typeof definition> = (ctx) => {
       const child = isChildSession(info)
 
       if (child)
-        await ctx.stores.collaboration(input.source).update((draft) => {
+        ctx.stores.collaboration(input.source).update((draft) => {
           draft.view = undefined
         })
 
       if (ctx.signal.aborted) return
-      await ctx.stores.views(input.source).update((draft) => {
+      ctx.stores.views(input.source).update((draft) => {
         if (child) draft.selected = { serverID: input.target.server.id, sessionID: input.target.id }
 
         const saved = draft.targets.find(
@@ -299,7 +302,7 @@ const setup: Setup<typeof definition> = (ctx) => {
           server.attempt !== attempt
         )
           return
-        openSession({
+        await openSession({
           source,
           target: ctx.sessions.target({ server, sessionID: reference.sessionID }),
           interaction: "readonly",
@@ -331,7 +334,7 @@ const setup: Setup<typeof definition> = (ctx) => {
       if (!source || !target || source.key !== link.session?.key) return
 
       try {
-        await ctx.stores.collaboration(source).update((draft) => {
+        ctx.stores.collaboration(source).update((draft) => {
           draft.view = undefined
           draft.source = undefined
           draft.task = {
@@ -343,7 +346,7 @@ const setup: Setup<typeof definition> = (ctx) => {
         })
 
         if (ctx.signal.aborted) return
-        await ctx.stores.views(source).update((draft) => {
+        ctx.stores.views(source).update((draft) => {
           draft.selected = undefined
         })
 
@@ -377,7 +380,7 @@ const setup: Setup<typeof definition> = (ctx) => {
       if (!source || !target || source.key !== link.session?.key) return
 
       try {
-        await ctx.stores.meta(source).update((draft) => {
+        ctx.stores.meta(source).update((draft) => {
           draft.target = { serverID: target.server.id, sessionID: target.sessionID }
           draft.communicationID = target.communicationID
           draft.taskID = undefined
@@ -385,7 +388,7 @@ const setup: Setup<typeof definition> = (ctx) => {
         })
 
         if (ctx.signal.aborted) return
-        await ctx.stores.collaboration(source).update((draft) => {
+        ctx.stores.collaboration(source).update((draft) => {
           draft.view = "advanced"
         })
 
@@ -406,12 +409,12 @@ const setup: Setup<typeof definition> = (ctx) => {
     match(link) {
       return !!link.sessionID && !!link.session && ctx.sessions.current()?.key === link.session.key
     },
-    open(link) {
+    async open(link) {
       const source = ctx.sessions.current()
 
       if (!source || !link.sessionID || source.key !== link.session?.key) return
 
-      openSession({
+      await openSession({
         source,
         target: ctx.sessions.target({ server: source.server, sessionID: link.sessionID }),
         interaction: "readonly",
@@ -565,6 +568,7 @@ const setup: Setup<typeof definition> = (ctx) => {
     { id: "subagents", icon: "subagent", bind: "mod+alt+a", View: Collaborations },
     { id: "workflow", icon: "branch", bind: "mod+alt+w", View: Workflow },
     { id: "artifacts", icon: "file-tree", bind: "mod+alt+f", View: Artifacts },
+    { id: "composition", icon: "brain", bind: "mod+alt+t", View: Composition },
   ] as const
 
   modules.forEach((module, index) => {
@@ -579,19 +583,24 @@ const setup: Setup<typeof definition> = (ctx) => {
       label(state) {
         const running = () => {
           const session = state.session
+
           if (!session.server.connected) return 0
           const data = session.server.data.session
           const status = (id?: string) => executionStatus(session.server, id)
+
           if (module.id === "subagents")
             return data
               .family(session.id)
               .filter((id) => data.get(id)?.parentID === session.id && status(id) === "running").length
+
           if (module.id !== "collaborations") return 0
+
           return (
             (data.delegation.list(session.id) ?? []).filter((value) => delegationRunning(value, status)).length +
             (data.task.operation.list(session.id) ?? []).filter((value) => operationRunning(value, status)).length
           )
         }
+
         return (
           <span data-component="session-management-tab">
             <Icon name={module.icon} size="small" />
@@ -617,10 +626,12 @@ const setup: Setup<typeof definition> = (ctx) => {
       dom: { tab: `session-side-panel-${panelID}-tab`, panel: `session-side-panel-${panelID}-tabpanel` },
     }
 
-    const enabled = () => ctx.stores.display.value[module.id]
+    const enabled = () => ctx.stores.display.value[module.id] !== false
 
     const available = (session: SessionRef) => {
       const info = session.server.data.session.get(session.id)
+
+      if (module.id === "composition") return info?.mode === "custom"
 
       if (module.id === "workflow")
         return (
@@ -657,7 +668,7 @@ const setup: Setup<typeof definition> = (ctx) => {
               module.id === "collaborations" || module.id === "subagents"
                 ? (input) => {
                     if (module.id === "collaborations" && input.id === "advanced") {
-                      void ctx.stores.collaboration(input.session).update((draft) => {
+                      ctx.stores.collaboration(input.session).update((draft) => {
                         draft.view = "advanced"
                       })
 
@@ -702,7 +713,7 @@ const setup: Setup<typeof definition> = (ctx) => {
               const source = controller.source
               const sessionID = info.parentID
 
-              void ctx.stores.workflow(input.session).update((draft) => {
+              ctx.stores.workflow(input.session).update((draft) => {
                 if (draft.source) return
                 draft.source = { sessionID, runID: source.runID, stepRunID: source.stepRunID, inputID: source.inputID }
               })
@@ -717,11 +728,13 @@ const setup: Setup<typeof definition> = (ctx) => {
               }) => {
                 const session = props.session
                 const source = input.source
-                const panel =
-                  source.kind === "workflow" ? "workflow" : source.kind === "subagent" ? "subagents" : "collaborations"
+
+                const panel = ({ workflow: "workflow", subagent: "subagents", task: "collaborations" } as const)[
+                  source.kind
+                ]
 
                 if (source.kind === "workflow")
-                  await ctx.stores.workflow(session).update((draft) => {
+                  ctx.stores.workflow(session).update((draft) => {
                     draft.source = {
                       sessionID: input.sessionID,
                       runID: source.runID,
@@ -731,7 +744,7 @@ const setup: Setup<typeof definition> = (ctx) => {
                   })
 
                 if (source.kind !== "workflow")
-                  await ctx.stores.collaboration(session).update((draft) => {
+                  ctx.stores.collaboration(session).update((draft) => {
                     draft.view = undefined
                     draft.task = undefined
                     draft.source = { sessionID: input.sessionID, source, serverID: input.server?.id }
@@ -740,7 +753,7 @@ const setup: Setup<typeof definition> = (ctx) => {
                 if (ctx.signal.aborted) return
 
                 if (panel === "collaborations" || panel === "subagents")
-                  await ctx.stores.views(session).update((draft) => {
+                  ctx.stores.views(session).update((draft) => {
                     draft.selected = undefined
                   })
 
@@ -782,7 +795,7 @@ const setup: Setup<typeof definition> = (ctx) => {
                         pendingAgent={pendingAgent}
                         openSource={(input) => void openSource(input)}
                         onBack={() =>
-                          void ctx.stores.collaboration(props.session).update((draft) => {
+                          ctx.stores.collaboration(props.session).update((draft) => {
                             draft.view = undefined
                           })
                         }
@@ -819,6 +832,18 @@ const setup: Setup<typeof definition> = (ctx) => {
                   </Suspense>
                 )
 
+              if (module.id === "composition")
+                return (
+                  <Suspense>
+                    <Composition
+                      session={props.session}
+                      active={frame.visible()}
+                      openSession={openSession}
+                      openPanel={(targetPanel) => ctx.layout.open(`${ctx.id}:${targetPanel}`, props.session)}
+                    />
+                  </Suspense>
+                )
+
               return (
                 <Suspense>
                   <module.View session={props.session} screen={props.screen} active={frame.visible()} />
@@ -842,21 +867,20 @@ const setup: Setup<typeof definition> = (ctx) => {
         order: 50 + index,
         run: async () => {
           if (module.id === "subagents")
-            await ctx.stores.views(session).update((draft) => {
+            ctx.stores.views(session).update((draft) => {
               draft.selected = undefined
             })
 
-          if (module.id === "collaborations")
-            await Promise.all([
-              ctx.stores.views(session).update((draft) => {
-                draft.selected = undefined
-              }),
-              ctx.stores.collaboration(session).update((draft) => {
-                draft.view = undefined
-                draft.task = undefined
-                draft.source = undefined
-              }),
-            ])
+          if (module.id === "collaborations") {
+            ctx.stores.views(session).update((draft) => {
+              draft.selected = undefined
+            })
+            ctx.stores.collaboration(session).update((draft) => {
+              draft.view = undefined
+              draft.task = undefined
+              draft.source = undefined
+            })
+          }
 
           if (ctx.signal.aborted) return
           ctx.layout.open(`${ctx.id}:${module.id}`, session)
@@ -885,21 +909,20 @@ const setup: Setup<typeof definition> = (ctx) => {
           if (!current) return
 
           if (module.id === "subagents")
-            await ctx.stores.views(current).update((draft) => {
+            ctx.stores.views(current).update((draft) => {
               draft.selected = undefined
             })
 
-          if (module.id === "collaborations")
-            await Promise.all([
-              ctx.stores.views(current).update((draft) => {
-                draft.selected = undefined
-              }),
-              ctx.stores.collaboration(current).update((draft) => {
-                draft.view = undefined
-                draft.task = undefined
-                draft.source = undefined
-              }),
-            ])
+          if (module.id === "collaborations") {
+            ctx.stores.views(current).update((draft) => {
+              draft.selected = undefined
+            })
+            ctx.stores.collaboration(current).update((draft) => {
+              draft.view = undefined
+              draft.task = undefined
+              draft.source = undefined
+            })
+          }
 
           if (ctx.signal.aborted) return
           ctx.layout.open(`${ctx.id}:${module.id}`, current)
@@ -916,13 +939,15 @@ const setup: Setup<typeof definition> = (ctx) => {
       return ctx.t("settings.title")
     },
     get entries() {
-      return (["collaborations", "subagents", "meta", "workflow", "artifacts"] as const).map((module) => ({
-        id: `show-${module}`,
-        title: ctx.t(`show.${module}`),
-      }))
+      return (["collaborations", "subagents", "meta", "workflow", "artifacts", "composition"] as const).map(
+        (module) => ({
+          id: `show-${module}`,
+          title: ctx.t(`show.${module}`),
+        }),
+      )
     },
     render: () => (
-      <For each={["collaborations", "subagents", "meta", "workflow", "artifacts"] as const}>
+      <For each={["collaborations", "subagents", "meta", "workflow", "artifacts", "composition"] as const}>
         {(module) => (
           <div data-component="settings-row">
             <div data-slot="settings-row-copy">
@@ -931,7 +956,7 @@ const setup: Setup<typeof definition> = (ctx) => {
             <div data-slot="settings-row-control">
               <Switch
                 aria-label={ctx.t(`show.${module}`)}
-                checked={ctx.stores.display.value[module]}
+                checked={ctx.stores.display.value[module] !== false}
                 onChange={(checked) =>
                   ctx.stores.display.update((draft) => {
                     draft[module] = checked

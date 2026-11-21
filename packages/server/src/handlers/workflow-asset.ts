@@ -79,6 +79,15 @@ export const WorkflowAssetHandler = HttpApiBuilder.group(Api, "workflow-asset", 
           ),
         ),
       )
+      .handle("workflow-asset.remove", ({ payload }) =>
+        scope.atLocation(
+          WorkflowAssetService.Service.use((service) =>
+            service
+              .delete({ relativePath: payload.relativePath, baseRevision: payload.baseRevision ?? null })
+              .pipe(Effect.mapError(workflowAssetWriteError)),
+          ),
+        ),
+      )
   }),
 )
 

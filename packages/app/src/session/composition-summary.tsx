@@ -1,12 +1,15 @@
 import type { SessionInfo } from "@aigcfroge/client/promise"
 import { Button } from "@aigcfroge/ui/button"
-import { createMemo, For, Show } from "solid-js"
+import { useNavigate } from "@solidjs/router"
+import { createMemo, For, onCleanup, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useServerSDK, type ServerConnectionStatus } from "@/runtime/server/client"
 import type { ServerApi } from "@/runtime/server/api"
 import { useLocal } from "@/providers/models/selection"
 import { useData } from "@/runtime/server/current"
+import { stageComposeDraftFromSnapshot } from "@/home/custom/handoff"
+import { ModeRoute } from "@/shell/routes/mode"
 
 export function SessionCompositionSummary(props: { session: SessionInfo }) {
   const sdk = useServerSDK()
@@ -42,9 +45,16 @@ function CompositionSummary(props: {
 }) {
   const language = useLanguage()
   const data = useData()
+  const sdk = useServerSDK()
+  const navigate = useNavigate()
 
   const composition = useLocal().composition
   const [state, setState] = createStore({ open: false })
+  const lifecycle = { active: true, syncRead: 0 }
+
+  onCleanup(() => {
+    lifecycle.active = false
+  })
 
   const modelLabel = (model: SessionInfo["model"]) => {
     if (!model) return language.t("home.custom.model.default")
@@ -74,9 +84,67 @@ function CompositionSummary(props: {
   const root = () => adopted()?.data.root
   const profile = () => (adopted()?.profilePath ? adopted() : undefined)
 
+  const configuredCount = createMemo(() => {
+    const value = adopted()
+
+    if (!value) return 0
+
+    return (value.data.root ? 1 : 0) + (value.data.executors?.length ?? 0)
+  })
+
+  const frozenBindingsCount = createMemo(() => {
+    const bindings = adopted()?.data.bindings
+
+    if (!bindings) return 0
+
+    return Object.values(bindings).reduce(
+      (sum, bundle) => sum + bundle.prompts.length + bundle.skills.length + bundle.commands.length,
+      0,
+    )
+  })
+
+  // Strictly separated from configured SnapshotV2 roles: counts real execution records from live owners.
+  const actualExecutionCount = createMemo(() => {
+    const id = props.owner.sessionID
+    const ops = data.session.task.operation.list(id)?.length ?? 0
+    const delegations = (data.session.delegation.list(id) ?? []).reduce(
+      (sum, entry) => sum + Math.max(1, entry.participants.length),
+      0,
+    )
+    const workflowSteps = data.session.workflow.get(id)?.steps.length ?? 0
+    const children = data.session.family(id).filter((childID) => data.session.get(childID)?.parentID === id).length
+
+    return ops + delegations + workflowSteps + children
+  })
+
+  function syncExecutionParticipants() {
+    if (!state.open || props.owner.status !== "connected") return
+    const id = props.owner.sessionID
+    const read = ++lifecycle.syncRead
+    void Promise.allSettled([
+      data.session.readback(id, { children: true }),
+      data.session.workflow.sync(id),
+      data.session.delegation.sync(id),
+      data.session.task.sync(id),
+      data.session.task.operation.sync(id),
+    ]).then(() => {
+      if (!lifecycle.active || read !== lifecycle.syncRead) return
+    })
+  }
+
   function load() {
-    if (!state.open || composition.loading() || props.owner.status !== "connected") return
-    composition.load()
+    if (!state.open || props.owner.status !== "connected") return
+
+    if (!composition.loading()) composition.load()
+    syncExecutionParticipants()
+  }
+
+  function editInWorkspace() {
+    const value = adopted()
+
+    if (!value) return
+    stageComposeDraftFromSnapshot(sdk.scope, props.owner.directory, value)
+    navigate(ModeRoute.href("custom"))
   }
 
   return (
@@ -86,7 +154,15 @@ function CompositionSummary(props: {
         const open = event.currentTarget.open
         setState("open", open)
 
-        if (open && !snapshot()) load()
+        if (!open) return
+
+        if (!snapshot()) {
+          load()
+
+          return
+        }
+
+        syncExecutionParticipants()
       }}
     >
       <summary
@@ -123,39 +199,64 @@ function CompositionSummary(props: {
         </Show>
         <Show when={adopted()}>
           {(value) => (
-            <section class="flex min-w-0 flex-col gap-1" aria-label={language.t("session.composition.agents.title")}>
-              <h3 class="font-medium">{language.t("session.composition.agents.title")}</h3>
-              <Show when={value().data.orchestrator}>
-                {(agent) => (
-                  <p class="min-w-0 break-words">
-                    <span class="text-v2-text-text-muted">{language.t("home.custom.root.label")}: </span>
-                    <bdi>{agent().name}</bdi>
-                  </p>
-                )}
-              </Show>
-              <Show
-                when={(value().data.executors?.length ?? 0) > 0}
-                fallback={<p class="text-v2-text-text-muted">{language.t("session.composition.agents.empty")}</p>}
-              >
-                <ul class="flex min-w-0 flex-col gap-2">
-                  <For each={value().data.executors}>
-                    {(executor) => (
-                      <li class="flex min-w-0 flex-col gap-1">
-                        <p class="break-words">
-                          <span class="text-v2-text-text-muted">
-                            {language.t("session.composition.agents.executor")}:{" "}
-                          </span>
-                          <bdi>{executor.info.name}</bdi>
-                        </p>
-                        <bdi class="break-all text-v2-text-text-muted">{executor.relativePath}</bdi>
-                        <code class="break-all">{executor.revision}</code>
-                        <p class="break-words text-v2-text-text-muted">{modelLabel(executor.info.model)}</p>
-                      </li>
-                    )}
-                  </For>
-                </ul>
-              </Show>
-            </section>
+            <>
+              <div class="flex flex-wrap gap-x-3 gap-y-1 text-v2-text-text-muted">
+                <span>{language.t("session.composition.configuredCount", { count: configuredCount() })}</span>
+                <span>{language.t("session.composition.actualCount", { count: actualExecutionCount() })}</span>
+                <Show when={frozenBindingsCount() > 0}>
+                  <span>{language.t("session.composition.bindingsSummary", { count: frozenBindingsCount() })}</span>
+                </Show>
+                <Show when={value().data.workflow}>
+                  {(wf) => (
+                    <span>
+                      {language.t("session.composition.workflowSummary", {
+                        name: wf().name,
+                        steps: wf().steps.length,
+                      })}
+                    </span>
+                  )}
+                </Show>
+                <Show when={(value().data.mcp?.bindings.length ?? 0) > 0}>
+                  <span>
+                    {language.t("session.composition.mcpSummary", { count: value().data.mcp?.bindings.length ?? 0 })}
+                  </span>
+                </Show>
+              </div>
+              <section class="flex min-w-0 flex-col gap-1" aria-label={language.t("session.composition.agents.title")}>
+                <h3 class="font-medium">{language.t("session.composition.agents.title")}</h3>
+                <Show when={value().data.orchestrator}>
+                  {(agent) => (
+                    <p class="min-w-0 break-words">
+                      <span class="text-v2-text-text-muted">{language.t("home.custom.root.label")}: </span>
+                      <bdi>{agent().name}</bdi>
+                    </p>
+                  )}
+                </Show>
+                <Show
+                  when={(value().data.executors?.length ?? 0) > 0}
+                  fallback={<p class="text-v2-text-text-muted">{language.t("session.composition.agents.empty")}</p>}
+                >
+                  <ul class="flex min-w-0 flex-col gap-2">
+                    <For each={value().data.executors}>
+                      {(executor) => (
+                        <li class="flex min-w-0 flex-col gap-1">
+                          <p class="break-words">
+                            <span class="text-v2-text-text-muted">
+                              {language.t("session.composition.agents.executor")}:{" "}
+                            </span>
+                            <bdi>{executor.info.name}</bdi>
+                          </p>
+                          <bdi class="break-all text-v2-text-text-muted">{executor.relativePath}</bdi>
+                          <code class="break-all">{executor.revision}</code>
+                          <p class="break-words text-v2-text-text-muted">{modelLabel(executor.info.model)}</p>
+                        </li>
+                      )}
+                    </For>
+                  </ul>
+                </Show>
+              </section>
+              <p class="text-v2-text-text-muted">{language.t("session.composition.livePermissionsNote")}</p>
+            </>
           )}
         </Show>
         <Show when={profile()}>
@@ -184,15 +285,22 @@ function CompositionSummary(props: {
         <Show when={composition.error()}>
           <p role="alert">{composition.error()}</p>
         </Show>
-        <Button
-          type="button"
-          size="small"
-          variant="ghost"
-          disabled={composition.loading() || props.owner.status !== "connected"}
-          onClick={() => void load()}
-        >
-          {language.t("session.composition.reload")}
-        </Button>
+        <div class="flex flex-wrap gap-1.5">
+          <Button
+            type="button"
+            size="small"
+            variant="ghost"
+            disabled={composition.loading() || props.owner.status !== "connected"}
+            onClick={() => void load()}
+          >
+            {language.t("session.composition.reload")}
+          </Button>
+          <Show when={adopted()}>
+            <Button type="button" size="small" variant="ghost" onClick={editInWorkspace}>
+              {language.t("session.composition.editInWorkspace")}
+            </Button>
+          </Show>
+        </div>
       </div>
     </details>
   )

@@ -200,6 +200,7 @@ test("MA03 selects an asset root and executor, saves their references, and reads
 
   await customMode.click()
   await page.locator('[data-component="home-project-row"]').filter({ hasText: "Custom Agent Adoption" }).click()
+  await page.getByRole("tab", { name: "组合工作页", exact: true }).click()
   const composition = page.getByRole("region", { name: "自定义组合", exact: true })
   const definitions = composition.getByRole("region", { name: "智能体定义", exact: true })
   await definitions
@@ -339,9 +340,10 @@ test("B06 saves a captured root without a Session, reselects after reload, and a
   })
   await page.goto("/")
   await selectGlobalMode(page, "Custom")
+  await page.locator('[data-component="home-project-row"]').filter({ hasText: "Profile Adoption" }).click()
+  await page.getByRole("tab", { name: "Compose", exact: true }).click()
   const composition = page.getByRole("region", { name: "Custom composition", exact: true })
   const profile = page.getByRole("region", { name: "Custom profiles", exact: true })
-  await page.locator('[data-component="home-project-row"]').filter({ hasText: "Profile Adoption" }).click()
   await profile.getByRole("textbox", { name: "Profile name", exact: true }).fill(saved.name)
   await profile.getByRole("textbox", { name: "Profile description", exact: true }).fill(saved.description)
   await profile.getByRole("textbox", { name: "Profile path", exact: true }).fill(saved.relativePath)
@@ -450,9 +452,10 @@ test("B06 keeps a save ACK after content readback fails and retries only reading
   })
   await page.goto("/")
   await selectGlobalMode(page, "Custom")
+  await page.locator('[data-component="home-project-row"]').filter({ hasText: "Profile Readback" }).click()
+  await page.getByRole("tab", { name: "Compose", exact: true }).click()
   const composition = page.getByRole("region", { name: "Custom composition", exact: true })
   const profile = page.getByRole("region", { name: "Custom profiles", exact: true })
-  await page.locator('[data-component="home-project-row"]').filter({ hasText: "Profile Readback" }).click()
   await composition.getByRole("button", { name: "Preview composition", exact: true }).click()
   await profile.getByRole("textbox", { name: "Profile name", exact: true }).fill(saved.name)
   await profile.getByRole("textbox", { name: "Profile description", exact: true }).fill(saved.description)
@@ -502,9 +505,10 @@ test("B06 recovers a lost save reply by comparing the target content and catalog
   })
   await page.goto("/")
   await selectGlobalMode(page, "Custom")
+  await page.locator('[data-component="home-project-row"]').filter({ hasText: "Profile Lost Reply" }).click()
+  await page.getByRole("tab", { name: "Compose", exact: true }).click()
   const composition = page.getByRole("region", { name: "Custom composition", exact: true })
   const profile = page.getByRole("region", { name: "Custom profiles", exact: true })
-  await page.locator('[data-component="home-project-row"]').filter({ hasText: "Profile Lost Reply" }).click()
   await composition.getByRole("button", { name: "Meta", exact: true }).click()
   await composition.getByRole("button", { name: "Preview composition", exact: true }).click()
   await profile.getByRole("textbox", { name: "Profile name", exact: true }).fill(saved.name)
@@ -589,8 +593,9 @@ test("B06 preserves edits on CAS conflict and explicitly overwrites the current 
   })
   await page.goto("/")
   await selectGlobalMode(page, "Custom")
-  const profile = page.getByRole("region", { name: "Custom profiles", exact: true })
   await page.locator('[data-component="home-project-row"]').filter({ hasText: "Profile Conflict" }).click()
+  await page.getByRole("tab", { name: "Compose", exact: true }).click()
+  const profile = page.getByRole("region", { name: "Custom profiles", exact: true })
   await profile.getByRole("group", { name: "Saved profiles", exact: true }).getByRole("button").click()
   await page.getByRole("option", { name: `${initial.name} (${initial.relativePath})`, exact: true }).click()
   await expect(profile.getByRole("textbox", { name: "Profile name", exact: true })).toHaveValue(initial.name)
@@ -636,7 +641,7 @@ test("B06 overwrites a conflicting legal path alias with the captured Build cand
     profiles,
     onCompositionPlan: () => CustomCompositionFixture.planAnswer(CustomCompositionFixture.plan("build")),
     onProfileContent(input) {
-      reads.push(input.path)
+      if (writes.length > 0) reads.push(input.path)
 
       return CustomProfileFixture.infoAnswer(profiles[0])
     },
@@ -659,9 +664,10 @@ test("B06 overwrites a conflicting legal path alias with the captured Build cand
   })
   await page.goto("/")
   await selectGlobalMode(page, "Custom")
+  await page.locator('[data-component="home-project-row"]').filter({ hasText: "Profile Alias" }).click()
+  await page.getByRole("tab", { name: "Compose", exact: true }).click()
   const composition = page.getByRole("region", { name: "Custom composition", exact: true })
   const profile = page.getByRole("region", { name: "Custom profiles", exact: true })
-  await page.locator('[data-component="home-project-row"]').filter({ hasText: "Profile Alias" }).click()
   await composition.getByRole("button", { name: "Preview composition", exact: true }).click()
   await profile.getByRole("textbox", { name: "Profile name", exact: true }).fill(updated.name)
   await profile.getByRole("textbox", { name: "Profile path", exact: true }).fill(alias)
@@ -722,9 +728,10 @@ test("B06 rereads before Profile preview and preserves the editor when the saved
   })
   await page.goto("/")
   await selectGlobalMode(page, "Custom")
+  await page.locator('[data-component="home-project-row"]').filter({ hasText: "Profile Drift" }).click()
+  await page.getByRole("tab", { name: "Compose", exact: true }).click()
   const composition = page.getByRole("region", { name: "Custom composition", exact: true })
   const profile = page.getByRole("region", { name: "Custom profiles", exact: true })
-  await page.locator('[data-component="home-project-row"]').filter({ hasText: "Profile Drift" }).click()
   await profile.getByRole("group", { name: "Saved profiles", exact: true }).getByRole("button").click()
   await page.getByRole("option", { name: `${initial.name} (${initial.relativePath})`, exact: true }).click()
   await expect(profile.getByRole("textbox", { name: "Profile description", exact: true })).toHaveValue(
@@ -777,9 +784,10 @@ test("B06 preserves the Profile creation ACK through failed canonical readback a
   })
   await page.goto("/")
   await selectGlobalMode(page, "Custom")
+  await page.locator('[data-component="home-project-row"]').filter({ hasText: "Profile Created Readback" }).click()
+  await page.getByRole("tab", { name: "Compose", exact: true }).click()
   const composition = page.getByRole("region", { name: "Custom composition", exact: true })
   const profile = page.getByRole("region", { name: "Custom profiles", exact: true })
-  await page.locator('[data-component="home-project-row"]').filter({ hasText: "Profile Created Readback" }).click()
   await profile.getByRole("group", { name: "Saved profiles", exact: true }).getByRole("button").click()
   await page.getByRole("option", { name: `${saved.name} (${saved.relativePath})`, exact: true }).click()
   await profile.getByRole("button", { name: "Preview saved profile", exact: true }).click()
@@ -834,9 +842,10 @@ test("B06 retries a lost Profile start reply with the exact captured input, dige
 
   await page.goto("/")
   await selectGlobalMode(page, "Custom")
+  await page.locator('[data-component="home-project-row"]').filter({ hasText: "Profile Start Lost Reply" }).click()
+  await page.getByRole("tab", { name: "Compose", exact: true }).click()
   const composition = page.getByRole("region", { name: "Custom composition", exact: true })
   const profile = page.getByRole("region", { name: "Custom profiles", exact: true })
-  await page.locator('[data-component="home-project-row"]').filter({ hasText: "Profile Start Lost Reply" }).click()
   await profile.getByRole("group", { name: "Saved profiles", exact: true }).getByRole("button").click()
   await page.getByRole("option", { name: `${saved.name} (${saved.relativePath})`, exact: true }).click()
   await profile.getByRole("button", { name: "Preview saved profile", exact: true }).click()
@@ -874,7 +883,7 @@ test("B06 discards an old Location's late Profile read and adopts only the newly
   const held = Promise.withResolvers<void>()
   const release = Promise.withResolvers<void>()
   const finished = Promise.withResolvers<void>()
-  const reads: string[] = []
+  const phase = { preview: false }
   const plans: { directory: string; body: Composition.CompositionInput }[] = []
   const starts: { directory: string; body: Composition.StartInput }[] = []
   await mockWorkspace(page, {
@@ -888,9 +897,8 @@ test("B06 discards an old Location's late Profile read and adopts only the newly
     sessions: [],
     onProfileList: (input) => CustomProfileFixture.listAnswer([input.directory === directory ? first : second]),
     async onProfileContent(input) {
-      reads.push(input.directory)
-
-      if (input.directory === directory && reads.filter((item) => item === directory).length === 2) {
+      if (input.directory === directory && phase.preview) {
+        phase.preview = false
         held.resolve()
         await release.promise
         finished.resolve()
@@ -925,9 +933,11 @@ test("B06 discards an old Location's late Profile read and adopts only the newly
 
   try {
     await page.locator('[data-component="home-project-row"]').filter({ hasText: "Profile owner A" }).click()
+    await page.getByRole("tab", { name: "Compose", exact: true }).click()
     await profile.getByRole("group", { name: "Saved profiles", exact: true }).getByRole("button").click()
     await page.getByRole("option", { name: `${first.name} (${first.relativePath})`, exact: true }).click()
     await expect(profile.getByRole("button", { name: "Preview saved profile", exact: true })).toBeEnabled()
+    phase.preview = true
     await profile.getByRole("button", { name: "Preview saved profile", exact: true }).click()
     await held.promise
 
@@ -941,6 +951,7 @@ test("B06 discards an old Location's late Profile read and adopts only the newly
 
     await page.locator('[data-component="home-project-row"]').filter({ hasText: "Profile owner B" }).click()
     await canceled
+    await page.getByRole("tab", { name: "Compose", exact: true }).click()
     await expect(composition.getByText(nextDirectory, { exact: true })).toBeVisible()
     await profile.getByRole("group", { name: "Saved profiles", exact: true }).getByRole("button").click()
     await page.getByRole("option", { name: `${second.name} (${second.relativePath})`, exact: true }).click()

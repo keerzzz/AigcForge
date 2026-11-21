@@ -99,6 +99,25 @@ export const CustomProfileHandler = HttpApiBuilder.group(Api, "custom-profile", 
           }),
         ),
       )
+      .handle("custom-profile.remove", ({ payload }) =>
+        atLocation(
+          Effect.gen(function* () {
+            const profiles = yield* CustomProfileService.Service
+            return yield* profiles
+              .delete({
+                relativePath: payload.relativePath,
+                baseRevision: payload.baseRevision ?? null,
+              })
+              .pipe(
+                Effect.mapError((error) =>
+                  error instanceof CustomProfileService.NotFoundError
+                    ? notFound(`Profile not found: ${error.relativePath}`)
+                    : applyError(error),
+                ),
+              )
+          }),
+        ),
+      )
   }),
 )
 

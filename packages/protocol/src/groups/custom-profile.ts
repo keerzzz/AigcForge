@@ -94,6 +94,21 @@ export const CustomProfileGroup = HttpApiGroup.make("custom-profile")
       }),
     ),
   )
+  .add(
+    HttpApiEndpoint.post("custom-profile.remove", `${root}/delete`, {
+      query: Schema.Struct(WorkspaceRoutingQueryFields),
+      payload: CustomProfileDeletePayload,
+      success: described(CustomProfile.DeleteResult, "Delete result with referencing profiles"),
+      error: [InvalidRequestError, ConflictError, ApiNotFoundError, UnknownError],
+    }).annotateMerge(
+      OpenApi.annotations({
+        identifier: "custom-profile.remove",
+        summary: "Delete custom profile at Location",
+        description:
+          "Delete a custom profile at the current Location by relative path with baseRevision CAS without requiring a Session.",
+      }),
+    ),
+  )
   .annotateMerge(
     OpenApi.annotations({
       title: "custom-profile",
