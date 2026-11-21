@@ -69,6 +69,8 @@ export function createSessionTimelineInteraction(session: SessionModel) {
 
   let scrollMark = 0
   let messageMark = 0
+  // Picker, keyboard, hash and scroll navigation share one intent version.
+  let navigationVersion = 0
   let scrollStateFrame: number | undefined
   let scrollStateTarget: HTMLDivElement | undefined
   let fillFrame: number | undefined
@@ -111,6 +113,7 @@ export function createSessionTimelineInteraction(session: SessionModel) {
   }
 
   const setActiveMessage = (message: SessionMessageUser | undefined) => {
+    navigationVersion++
     messageMark = scrollMark
     setState("messageID", message?.id)
   }
@@ -155,6 +158,7 @@ export function createSessionTimelineInteraction(session: SessionModel) {
     follow: {
       unpin,
       toBottom: () => {
+        navigationVersion++
         setState("messageID", undefined)
         pin()
         scrollToEnd()
@@ -168,6 +172,7 @@ export function createSessionTimelineInteraction(session: SessionModel) {
   })
 
   const resume = () => {
+    navigationVersion++
     setState("messageID", undefined)
     pin()
     scrollToEnd()
@@ -208,6 +213,7 @@ export function createSessionTimelineInteraction(session: SessionModel) {
     const nested = element?.closest("[data-scrollable]")
 
     if (nested && nested !== scroller) return
+    navigationVersion++
     scrollMark += 1
   }
 
@@ -390,6 +396,7 @@ export function createSessionTimelineInteraction(session: SessionModel) {
     resource: timeline.resource,
     ready: timeline.ready,
     activeMessage: () => state.messageID,
+    navigationVersion: () => navigationVersion,
     scroll: state.scroll,
     scroller: () => state.refs.scroller,
     view: {

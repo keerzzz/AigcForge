@@ -99,7 +99,7 @@ test.describe("timeline history", () => {
     await expect(navigation.getByRole("button", { name: "Jump to latest", exact: true })).toBeEnabled()
   })
 
-  for (const choice of ["input", "latest"] as const) {
+  for (const choice of ["input", "latest", "keyboard"] as const) {
     test(`status bar keeps a newer ${choice} choice after an older input page returns`, async ({ page }) => {
       const first = userMessage([userText("Earlier input before many model steps.")], { id: "msg_0000_prior" })
       const current = userMessage([userText("Current input after those model steps.")], {
@@ -156,11 +156,26 @@ test.describe("timeline history", () => {
           await navigation.getByRole("button", { name: "Jump to latest", exact: true }).click()
           await expect(page).toHaveURL(new RegExp(`${sessionID}$`))
         }
+        if (choice === "keyboard") {
+          const mac = await page.evaluate(() => /(Mac|iPod|iPhone|iPad)/.test(navigator.platform))
+          await page.keyboard.press(`${mac ? "Meta" : "Control"}+Alt+]`)
+          await expect(page).toHaveURL(/#message-msg_0060_latest$/)
+          await page.keyboard.press(`${mac ? "Meta" : "Control"}+Alt+[`)
+          await expect(page).toHaveURL(/#message-msg_0050_current$/)
+        }
         released.resolve()
         await expect(navigation.getByRole("button", { name: "Previous input", exact: true })).toBeEnabled()
-        await expect(page).toHaveURL(choice === "input" ? /#message-msg_0060_latest$/ : new RegExp(`${sessionID}$`))
+        await expect(page).toHaveURL(
+          choice === "keyboard"
+            ? /#message-msg_0050_current$/
+            : choice === "input"
+              ? /#message-msg_0060_latest$/
+              : new RegExp(`${sessionID}$`),
+        )
         await picker.click()
-        await expect(inputs.getByTitle(latest.text, { exact: true })).toHaveAttribute("aria-current", "true")
+        await expect(
+          inputs.getByTitle(choice === "keyboard" ? current.text : latest.text, { exact: true }),
+        ).toHaveAttribute("aria-current", "true")
       } finally {
         released.resolve()
       }
