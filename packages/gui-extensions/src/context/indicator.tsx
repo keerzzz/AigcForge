@@ -73,7 +73,7 @@ export function SessionContextUsage(props: {
 
   const openContext = () => {
     if (!props.session.id) return
-    layout.open(`${ctx.id}:main`, props.session)
+    layout.toggle(`${ctx.id}:main`, props.session)
   }
 
   const circle = () => (

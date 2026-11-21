@@ -211,10 +211,11 @@ for (const copy of [
       seed: { tabs: [], locale: copy.locale },
     })
     await page.goto("/")
-    await page
+    const work = page
       .getByRole("navigation", { name: copy.modes, exact: true })
       .getByRole("button", { name: copy.work, exact: true })
-      .click()
+    await work.click()
+    await expect(work).toHaveAttribute("aria-current", "page")
     await page.getByRole("button", { name: copy.hub, exact: true }).click()
     const hub = page.getByRole("region", { name: copy.hub, exact: true })
     await expect(hub.getByText("Saved Hub result 中文", { exact: true })).toBeVisible()
