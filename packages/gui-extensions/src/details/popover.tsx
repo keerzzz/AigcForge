@@ -1,4 +1,5 @@
 import { Popover } from "@kobalte/core/popover"
+import { useSessionControlsExpanded } from "@aigcfroge/session-ui/context/controls"
 import { Icon } from "@aigcfroge/ui/icon"
 import { IconButton } from "@aigcfroge/ui/icon-button"
 import { Keybind } from "@aigcfroge/ui/keybind"
@@ -70,6 +71,7 @@ export function DetailsHeader(props: {
 }
 
 function DetailsPopover(props: ParentProps<{ active: boolean; open: boolean; onOpenChange: (open: boolean) => void }>) {
+  const expanded = useSessionControlsExpanded()
   const ctx = useExtension()
   const keybinds = ctx.keybinds
 
@@ -90,11 +92,19 @@ function DetailsPopover(props: ParentProps<{ active: boolean; open: boolean; onO
   const keybind = () => [...keybinds.keybind(`${ctx.id}.toggle`)]
 
   return (
-    <Popover open={props.open} placement="bottom-end" gutter={8} overflowPadding={16} onOpenChange={props.onOpenChange}>
+    <Popover
+      open={props.open}
+      placement={expanded() ? "top-end" : "bottom-end"}
+      gutter={8}
+      overflowPadding={16}
+      onOpenChange={props.onOpenChange}
+    >
       {/* Match the button's vertical bounds; the 8px gutter plus 4px content padding gives a 12px card gap. */}
-      <Popover.Anchor class="pointer-events-none absolute end-3 top-2.5 h-7 w-0" aria-hidden="true" />
+      <Show when={!expanded()}>
+        <Popover.Anchor class="pointer-events-none absolute end-3 top-2.5 h-7 w-0" aria-hidden="true" />
+      </Show>
       <Tooltip
-        placement="bottom"
+        placement={expanded() ? "top" : "bottom"}
         value={
           <>
             {ctx.t("tooltip")}

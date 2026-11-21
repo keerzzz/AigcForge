@@ -34,6 +34,7 @@ import { createSessionTimelineInteraction } from "./timeline/interaction"
 import { MessageTimeline } from "./timeline/message-timeline"
 import { TimelineSearchBar } from "./timeline/search-bar"
 import { createTimelineSearchController } from "./timeline/search-controller"
+import { SessionFooterNavigation } from "./footer-navigation"
 
 /** One conversation implementation for the routed view and target views in source panels. */
 export function createSessionContent(input: {
@@ -159,6 +160,18 @@ export function createSessionContent(input: {
     ),
     messages: () => (
       <>
+        <Show when={!embedded && input.visible() && input.session.identity.sessionID()}>
+          <Show when={input.session.identity.sessionKey()} keyed>
+            {(_key) => (
+              <SessionFooterNavigation
+                session={input.session}
+                timeline={timeline}
+                view={input.view}
+                screen={input.screen}
+              />
+            )}
+          </Show>
+        </Show>
         <Show when={timeline.resource.error}>
           {(error) => {
             throw error()

@@ -4,6 +4,7 @@ import { Collapsible } from "@aigcfroge/ui/collapsible"
 import { Icon } from "@aigcfroge/ui/icon"
 import { IconButton } from "@aigcfroge/ui/icon-button"
 import { Badge } from "@aigcfroge/ui/badge"
+import { Markdown } from "@aigcfroge/session-ui/markdown"
 import { errorMessage } from "@aigcfroge/util/error"
 import { For, Show, createMemo, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
@@ -279,7 +280,11 @@ function TaskDetailsContent(props: Props) {
   }
 
   return (
-    <section data-component="session-delegation-panel" aria-label={ctx.t("session.taskDetails.title")}>
+    <section
+      data-component="session-delegation-panel"
+      data-view="task-details"
+      aria-label={ctx.t("session.taskDetails.title")}
+    >
       <div data-slot="task-toolbar">
         <div class="flex min-w-0 items-center gap-2">
           <IconButton
@@ -298,25 +303,12 @@ function TaskDetailsContent(props: Props) {
           <h3>{ctx.t("session.taskDetails.title")}</h3>
         </div>
       </div>
-      <p data-slot="task-row-content">{title()}</p>
+      <p data-slot="task-detail-title">{title()}</p>
       <div data-slot="task-metadata">
-        <Show when={taskID()}>
-          {(id) => (
-            <Collapsible variant="ghost">
-              <Collapsible.Trigger type="button">
-                <Collapsible.Arrow />
-                <span>{ctx.t("session.collaboration.details")}</span>
-              </Collapsible.Trigger>
-              <Collapsible.Content class="min-w-0 pb-2">
-                <code>{id()}</code>
-              </Collapsible.Content>
-            </Collapsible>
-          )}
-        </Show>
         <Show when={task()}>
           {(item) => (
             <>
-              <Badge>{ctx.t(`session.tasks.status.${item().status}`)}</Badge>
+              <Badge data-status={item().status}>{ctx.t(`session.tasks.status.${item().status}`)}</Badge>
               <Badge>{ctx.t(`session.tasks.priority.${item().priority}`)}</Badge>
             </>
           )}
@@ -357,67 +349,7 @@ function TaskDetailsContent(props: Props) {
         <p data-slot="task-empty">{ctx.t("session.taskDetails.taskMissing")}</p>
       </Show>
 
-      <section aria-label={ctx.t("session.taskDetails.dependencies")}>
-        <h4 data-slot="collaboration-group-heading">{ctx.t("session.taskDetails.dependencies")}</h4>
-        <Show
-          when={task()?.dependsOn?.length}
-          fallback={<p data-slot="task-empty">{ctx.t("session.taskDetails.noDependencies")}</p>}
-        >
-          <ul data-slot="task-list">
-            <For each={task()?.dependsOn}>
-              {(id) => (
-                <li data-slot="task-dependency">
-                  <Button
-                    type="button"
-                    size="small"
-                    variant="ghost"
-                    disabled={!server()}
-                    onClick={() => {
-                      const current = server()
-
-                      if (current)
-                        ctx.sessions.openTask({
-                          source: props.session,
-                          target: { server: current, sourceSessionID: sourceID(), taskID: id },
-                        })
-                    }}
-                  >
-                    {tasks()?.find((item) => item.id === id)?.content ?? id}
-                  </Button>
-                  <Icon name="outline-arrow-right" size="small" />
-                  <span>{title()}</span>
-                </li>
-              )}
-            </For>
-          </ul>
-        </Show>
-      </section>
-
       <section aria-label={ctx.t("session.taskDetails.operations")}>
-        <h4 data-slot="collaboration-group-heading">{ctx.t("session.taskDetails.operations")}</h4>
-        <Show
-          when={operations()?.length}
-          fallback={<p data-slot="task-empty">{ctx.t("session.taskDetails.noOperations")}</p>}
-        >
-          <ul data-slot="task-list">
-            <For each={operations()}>
-              {(item) => (
-                <li data-slot="delegation-turn">
-                  <Button
-                    type="button"
-                    size="small"
-                    variant="ghost"
-                    aria-pressed={operationID() === item.operationID}
-                    onClick={() => setState({ selected: item.operationID, result: undefined, error: "" })}
-                  >
-                    {ctx.t(`session.operation.phase.${item.phase}`)}
-                    <code>{item.operationID}</code>
-                  </Button>
-                </li>
-              )}
-            </For>
-          </ul>
-        </Show>
         <Show when={operation()}>
           {(selected) => (
             <article
@@ -428,58 +360,63 @@ function TaskDetailsContent(props: Props) {
                 <span>{ctx.t(`session.operation.phase.${selected().phase}`)}</span>
                 <span>{sourceAgent()}</span>
                 <span>{ctx.t(`session.operation.source.${selected().source.type}`)}</span>
+                <Show when={selected().sourceSettlement}>
+                  {(settlement) => <span>{ctx.t(`session.operation.taskUpdate.${settlement()}`)}</span>}
+                </Show>
               </div>
-              <p data-slot="task-metadata">
-                {ctx.t("session.operation.created", { time: time(selected().createdAt) })}
-              </p>
-              <p data-slot="task-metadata">
-                {ctx.t("session.operation.updated", { time: time(selected().updatedAt) })}
-              </p>
-              <Show when={selected().predecessorID}>
-                {(id) => (
-                  <div data-slot="task-form-actions">
-                    <span>{ctx.t("session.operation.predecessor")}</span>
-                    <Button
-                      type="button"
-                      size="small"
-                      variant="ghost"
-                      onClick={() => setState({ selected: id(), result: undefined, error: "" })}
-                    >
-                      <code>{id()}</code>
-                    </Button>
-                  </div>
+              <Show when={selected().error}>
+                {(error) => (
+                  <p data-slot="task-error" role="status">
+                    {error().message}
+                  </p>
                 )}
               </Show>
-              <ol data-slot="operation-flow" aria-label={ctx.t("session.operation.flow")}>
-                <li>
-                  <span>{ctx.t("session.operation.input")}</span>
-                  <code>{selected().inputID}</code>
-                </li>
-                <Show when={selected().admission}>
-                  {(admission) => (
-                    <li>
-                      <span>{ctx.t("session.operation.admitted")}</span>
-                      <code>{admission().eventID}</code>
-                    </li>
-                  )}
-                </Show>
-                <Show when={selected().result}>
-                  {(result) => (
-                    <li>
-                      <span>{ctx.t("session.operation.result")}</span>
-                      <code>{result().resultEventID ?? result().inputID}</code>
-                    </li>
-                  )}
-                </Show>
-                <Show when={selected().sourceSettlement}>
-                  {(settlement) => (
-                    <li>
-                      <span>{ctx.t("session.operation.sourceTaskUpdate")}</span>
-                      <span>{ctx.t(`session.operation.taskUpdate.${settlement()}`)}</span>
-                    </li>
-                  )}
-                </Show>
-              </ol>
+              <Show when={selected().result}>
+                {(result) => (
+                  <section aria-label={ctx.t("session.operation.result")}>
+                    <h4 data-slot="collaboration-group-heading">{ctx.t("session.operation.result")}</h4>
+                    <Button type="button" size="small" variant="ghost" onClick={() => openSession(result().sessionID)}>
+                      {ctx.t("session.collaboration.openResult")}
+                    </Button>
+                    <Show
+                      when={result().text !== undefined}
+                      fallback={
+                        <>
+                          <Button
+                            type="button"
+                            size="small"
+                            variant="ghost"
+                            disabled={resultRead.loading || !owner()}
+                            onClick={() => setState("result", selected().operationID)}
+                          >
+                            {ctx.t("session.operation.readResultText")}
+                          </Button>
+                          <Show when={state.result === selected().operationID}>
+                            <Show when={resultRead.loading}>
+                              <p data-slot="task-progress">{ctx.t("session.operation.resultLoading")}</p>
+                            </Show>
+                            <Show when={!resultRead.loading && !resultMessages().length}>
+                              <p data-slot="task-empty">{ctx.t("session.operation.resultUnavailable")}</p>
+                            </Show>
+                            <For each={resultMessages()}>
+                              {(message) => (
+                                <Markdown
+                                  text={message.content
+                                    .filter((content) => content.type === "text")
+                                    .map((content) => content.text)
+                                    .join("\n")}
+                                />
+                              )}
+                            </For>
+                          </Show>
+                        </>
+                      }
+                    >
+                      <Markdown text={result().text ?? ""} />
+                    </Show>
+                  </section>
+                )}
+              </Show>
               <div data-slot="task-form-actions">
                 <Show when={selected().targetSessionID}>
                   {(id) => (
@@ -566,134 +503,229 @@ function TaskDetailsContent(props: Props) {
                   </Button>
                 </Show>
               </div>
-              <Collapsible variant="ghost" data-slot="delegation-result" defaultOpen>
+              <Collapsible variant="ghost" data-slot="task-disclosure">
                 <Collapsible.Trigger type="button">
                   <Collapsible.Arrow />
-                  <span>{ctx.t("session.operation.input")}</span>
+                  <span>{ctx.t("session.taskDetails.technical")}</span>
                 </Collapsible.Trigger>
-                <Collapsible.Content class="min-w-0 pb-2">
+                <Collapsible.Content>
                   <div data-slot="task-metadata">
-                    <code>{selected().inputID}</code>
-                    <span>{ctx.t(`session.operation.delivery.${selected().request.delivery}`)}</span>
+                    <code>{taskID()}</code>
+                    <code>{selected().operationID}</code>
                   </div>
-                  <pre>{selected().request.prompt}</pre>
-                </Collapsible.Content>
-              </Collapsible>
-              <Show when={selected().error}>
-                {(error) => (
-                  <p data-slot="task-error" role="status">
-                    <code>{error().code}</code> {error().message}
+                  <Show when={selected().error}>
+                    {(error) => (
+                      <p data-slot="task-metadata">
+                        <code>{error().code}</code>
+                      </p>
+                    )}
+                  </Show>
+                  <p data-slot="task-metadata">
+                    {ctx.t("session.operation.created", { time: time(selected().createdAt) })}
                   </p>
-                )}
-              </Show>
-              <Show when={selected().result}>
-                {(result) => (
-                  <section aria-label={ctx.t("session.operation.result")}>
-                    <h4 data-slot="collaboration-group-heading">{ctx.t("session.operation.result")}</h4>
-                    <div data-slot="task-metadata">
-                      <code>{result().sessionID}</code>
-                      <code>{result().inputID}</code>
-                    </div>
-                    <Show when={result().resultEventID}>
-                      {(id) => (
-                        <p data-slot="task-metadata">
+                  <p data-slot="task-metadata">
+                    {ctx.t("session.operation.updated", { time: time(selected().updatedAt) })}
+                  </p>
+                  <Show when={selected().predecessorID}>
+                    {(id) => (
+                      <div data-slot="task-form-actions">
+                        <span>{ctx.t("session.operation.predecessor")}</span>
+                        <Button
+                          type="button"
+                          size="small"
+                          variant="ghost"
+                          onClick={() => setState({ selected: id(), result: undefined, error: "" })}
+                        >
                           <code>{id()}</code>
-                        </p>
-                      )}
-                    </Show>
-                    <Show when={result().sharedInputs?.length}>
-                      <div data-slot="task-metadata">
-                        <span>{ctx.t("session.operation.sharedInputs")}</span>
-                        <For each={result().sharedInputs}>{(id) => <code>{id}</code>}</For>
+                        </Button>
                       </div>
-                    </Show>
-                    <Button type="button" size="small" variant="ghost" onClick={() => openSession(result().sessionID)}>
-                      {ctx.t("session.collaboration.openResult")}
-                    </Button>
-                    <Show
-                      when={result().text !== undefined}
-                      fallback={
-                        <>
-                          <Button
-                            type="button"
-                            size="small"
-                            variant="ghost"
-                            disabled={resultRead.loading || !owner()}
-                            onClick={() => setState("result", selected().operationID)}
-                          >
-                            {ctx.t("session.operation.readResultText")}
-                          </Button>
-                          <Show when={state.result === selected().operationID}>
-                            <Show when={resultRead.loading}>
-                              <p data-slot="task-progress">{ctx.t("session.operation.resultLoading")}</p>
-                            </Show>
-                            <Show when={!resultRead.loading && !resultMessages().length}>
-                              <p data-slot="task-empty">{ctx.t("session.operation.resultUnavailable")}</p>
-                            </Show>
-                            <For each={resultMessages()}>
-                              {(message) => (
-                                <pre data-slot="delegation-full-result">
-                                  {message.content
-                                    .filter((content) => content.type === "text")
-                                    .map((content) => content.text)
-                                    .join("\n")}
-                                </pre>
-                              )}
-                            </For>
-                          </Show>
-                        </>
-                      }
-                    >
-                      <pre data-slot="delegation-full-result">{result().text}</pre>
-                    </Show>
-                  </section>
-                )}
-              </Show>
-              <Show when={selected().result}>
-                <section aria-label={ctx.t("session.operation.consumers")}>
-                  <h4 data-slot="collaboration-group-heading">{ctx.t("session.operation.consumers")}</h4>
-                  <ul data-slot="task-list">
-                    <For
-                      each={selected().consumers}
-                      fallback={<p data-slot="task-empty">{ctx.t("session.operation.noConsumers")}</p>}
-                    >
-                      {(consumer) => (
-                        <li data-slot="task-row">
-                          <div data-slot="task-row-content">
-                            <Button
-                              type="button"
-                              size="small"
-                              variant="ghost"
-                              disabled={!server() || data()?.session.deleted(consumer.consumerSessionID)}
-                              onClick={() =>
-                                ctx.sessions.open({
-                                  source: props.session,
-                                  server: server(),
-                                  sessionID: consumer.consumerSessionID,
-                                  reveal: consumer.assistantMessageID,
-                                })
-                              }
-                            >
-                              {ctx.t("session.operation.consumerStep")}
-                            </Button>
-                            <div data-slot="task-metadata">
-                              <code>{consumer.consumerSessionID}</code>
-                              <code>{consumer.assistantMessageID}</code>
-                              <code>{consumer.eventID}</code>
-                            </div>
-                            <p data-slot="task-metadata">{ctx.t("session.operation.resultDigest")}</p>
-                            <code>{consumer.resultDigest}</code>
-                          </div>
+                    )}
+                  </Show>
+                  <ol data-slot="operation-flow" aria-label={ctx.t("session.operation.flow")}>
+                    <li>
+                      <span>{ctx.t("session.operation.input")}</span>
+                      <code>{selected().inputID}</code>
+                    </li>
+                    <Show when={selected().admission}>
+                      {(admission) => (
+                        <li>
+                          <span>{ctx.t("session.operation.admitted")}</span>
+                          <code>{admission().eventID}</code>
                         </li>
                       )}
-                    </For>
-                  </ul>
-                </section>
-              </Show>
+                    </Show>
+                    <Show when={selected().result}>
+                      {(result) => (
+                        <li>
+                          <span>{ctx.t("session.operation.result")}</span>
+                          <code>{result().resultEventID ?? result().inputID}</code>
+                        </li>
+                      )}
+                    </Show>
+                    <Show when={selected().sourceSettlement}>
+                      {(settlement) => (
+                        <li>
+                          <span>{ctx.t("session.operation.sourceTaskUpdate")}</span>
+                          <span>{ctx.t(`session.operation.taskUpdate.${settlement()}`)}</span>
+                        </li>
+                      )}
+                    </Show>
+                  </ol>
+                  <Collapsible variant="ghost" data-slot="delegation-result">
+                    <Collapsible.Trigger type="button">
+                      <Collapsible.Arrow />
+                      <span>{ctx.t("session.operation.input")}</span>
+                    </Collapsible.Trigger>
+                    <Collapsible.Content class="min-w-0 pb-2">
+                      <div data-slot="task-metadata">
+                        <code>{selected().inputID}</code>
+                        <span>{ctx.t(`session.operation.delivery.${selected().request.delivery}`)}</span>
+                      </div>
+                      <pre>{selected().request.prompt}</pre>
+                    </Collapsible.Content>
+                  </Collapsible>
+                  <Show when={selected().result}>
+                    {(result) => (
+                      <>
+                        <div data-slot="task-metadata">
+                          <code>{result().sessionID}</code>
+                          <code>{result().inputID}</code>
+                        </div>
+                        <Show when={result().resultEventID}>
+                          {(id) => (
+                            <p data-slot="task-metadata">
+                              <code>{id()}</code>
+                            </p>
+                          )}
+                        </Show>
+                        <Show when={result().sharedInputs?.length}>
+                          <div data-slot="task-metadata">
+                            <span>{ctx.t("session.operation.sharedInputs")}</span>
+                            <For each={result().sharedInputs}>{(id) => <code>{id}</code>}</For>
+                          </div>
+                        </Show>
+                      </>
+                    )}
+                  </Show>
+                  <Show when={selected().result}>
+                    <section aria-label={ctx.t("session.operation.consumers")}>
+                      <h4 data-slot="collaboration-group-heading">{ctx.t("session.operation.consumers")}</h4>
+                      <ul data-slot="task-list">
+                        <For
+                          each={selected().consumers}
+                          fallback={<p data-slot="task-empty">{ctx.t("session.operation.noConsumers")}</p>}
+                        >
+                          {(consumer) => (
+                            <li data-slot="task-row">
+                              <div data-slot="task-row-content">
+                                <Button
+                                  type="button"
+                                  size="small"
+                                  variant="ghost"
+                                  disabled={!server() || data()?.session.deleted(consumer.consumerSessionID)}
+                                  onClick={() =>
+                                    ctx.sessions.open({
+                                      source: props.session,
+                                      server: server(),
+                                      sessionID: consumer.consumerSessionID,
+                                      reveal: consumer.assistantMessageID,
+                                    })
+                                  }
+                                >
+                                  {ctx.t("session.operation.consumerStep")}
+                                </Button>
+                                <div data-slot="task-metadata">
+                                  <code>{consumer.consumerSessionID}</code>
+                                  <code>{consumer.assistantMessageID}</code>
+                                  <code>{consumer.eventID}</code>
+                                </div>
+                                <p data-slot="task-metadata">{ctx.t("session.operation.resultDigest")}</p>
+                                <code>{consumer.resultDigest}</code>
+                              </div>
+                            </li>
+                          )}
+                        </For>
+                      </ul>
+                    </section>
+                  </Show>
+                </Collapsible.Content>
+              </Collapsible>
             </article>
           )}
         </Show>
       </section>
+      <Collapsible variant="ghost" data-slot="task-disclosure">
+        <Collapsible.Trigger type="button">
+          <Collapsible.Arrow />
+          <span>{ctx.t("session.taskDetails.operations")}</span>
+        </Collapsible.Trigger>
+        <Collapsible.Content>
+          <Show
+            when={operations()?.length}
+            fallback={<p data-slot="task-empty">{ctx.t("session.taskDetails.noOperations")}</p>}
+          >
+            <ul data-slot="task-list">
+              <For each={operations()}>
+                {(item) => (
+                  <li data-slot="delegation-turn">
+                    <Button
+                      type="button"
+                      size="small"
+                      variant="ghost"
+                      aria-pressed={operationID() === item.operationID}
+                      onClick={() => setState({ selected: item.operationID, result: undefined, error: "" })}
+                    >
+                      {ctx.t(`session.operation.phase.${item.phase}`)}
+                      <span>{ctx.t(`session.operation.source.${item.source.type}`)}</span>
+                      <time dateTime={time(item.createdAt)}>{time(item.createdAt)}</time>
+                    </Button>
+                  </li>
+                )}
+              </For>
+            </ul>
+          </Show>
+        </Collapsible.Content>
+      </Collapsible>
+      <Collapsible variant="ghost" data-slot="task-disclosure">
+        <Collapsible.Trigger type="button">
+          <Collapsible.Arrow />
+          <span>{ctx.t("session.taskDetails.dependencies")}</span>
+        </Collapsible.Trigger>
+        <Collapsible.Content>
+          <Show
+            when={task()?.dependsOn?.length}
+            fallback={<p data-slot="task-empty">{ctx.t("session.taskDetails.noDependencies")}</p>}
+          >
+            <ul data-slot="task-list">
+              <For each={task()?.dependsOn}>
+                {(id) => (
+                  <li data-slot="task-dependency">
+                    <Button
+                      type="button"
+                      size="small"
+                      variant="ghost"
+                      disabled={!server()}
+                      onClick={() => {
+                        const current = server()
+
+                        if (current)
+                          ctx.sessions.openTask({
+                            source: props.session,
+                            target: { server: current, sourceSessionID: sourceID(), taskID: id },
+                          })
+                      }}
+                    >
+                      {tasks()?.find((item) => item.id === id)?.content ?? id}
+                    </Button>
+                    <Icon name="outline-arrow-right" size="small" />
+                    <span>{title()}</span>
+                  </li>
+                )}
+              </For>
+            </ul>
+          </Show>
+        </Collapsible.Content>
+      </Collapsible>
       <Show when={task()?.outputDigest}>
         {(text) => (
           <Collapsible variant="ghost" data-slot="delegation-result">
@@ -702,7 +734,7 @@ function TaskDetailsContent(props: Props) {
               <span>{ctx.t("session.tasks.savedOutput")}</span>
             </Collapsible.Trigger>
             <Collapsible.Content class="min-w-0 pb-2">
-              <pre>{text()}</pre>
+              <Markdown text={text()} />
             </Collapsible.Content>
           </Collapsible>
         )}

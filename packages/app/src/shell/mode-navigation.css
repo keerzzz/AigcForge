@@ -1,44 +1,91 @@
-.mode-navigation-rail [data-component="icon-button-v2"][data-size="large"] {
+.mode-navigation {
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: 56px;
+  flex-shrink: 0;
+  transition: width 160ms ease-out;
+}
+
+.mode-navigation[data-opened="false"] {
+  width: 0;
+}
+
+.mode-navigation-rail {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: flex;
+  width: 56px;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding-block: var(--shell-top-inset, 8px) 8px;
+  padding-inline: 6px;
+  transition:
+    transform 160ms ease-out,
+    visibility 160ms;
+}
+
+.mode-navigation[data-opened="false"] .mode-navigation-rail {
+  transform: translateX(-100%);
+  visibility: hidden;
+}
+
+.mode-navigation [data-component="button-v2"] {
+  position: relative;
+  display: flex;
+  width: 44px;
+  min-height: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   border-radius: 8px;
+  line-height: var(--line-height-compact);
+}
+
+.mode-navigation [data-slot="icon-svg"] {
+  flex-shrink: 0;
+}
+
+.mode-navigation-rail [aria-current="page"] {
+  background: var(--v2-overlay-simple-overlay-pressed);
+  color: var(--v2-icon-icon-accent);
 }
 
 .mode-navigation-rail [data-slot="active-indicator"] {
   position: absolute;
   pointer-events: none;
-  inset-inline-start: -2px;
-  top: 50%;
-  width: 2px;
-  height: 20px;
+  inset-inline-start: 0;
+  inset-block: 12px;
+  width: 1px;
   border-radius: 1px;
-  background-color: var(--v2-icon-icon-accent);
+  background: var(--v2-icon-icon-accent);
   opacity: 0;
-  transform: translateY(-50%) scaleY(0.6);
-  transform-origin: center;
-  transition:
-    opacity 150ms ease,
-    transform 150ms ease;
 }
 
 .mode-navigation-rail [aria-current="page"] [data-slot="active-indicator"] {
   opacity: 1;
-  transform: translateY(-50%) scaleY(1);
 }
 
 .mode-navigation-rail [aria-current="page"] [data-slot="icon-svg"] {
   --icon-active-fill: 0.12;
 }
 
-@media (forced-colors: active) {
-  .mode-navigation-rail [data-slot="active-indicator"] {
-    background-color: CanvasText;
+@media (prefers-reduced-motion: reduce) {
+  .mode-navigation,
+  .mode-navigation-rail {
+    transition: none;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
+@media (forced-colors: active) {
+  .mode-navigation-rail [aria-current="page"] {
+    color: Highlight;
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
+  }
+
   .mode-navigation-rail [data-slot="active-indicator"] {
-    transition: none;
+    background: Highlight;
   }
 }

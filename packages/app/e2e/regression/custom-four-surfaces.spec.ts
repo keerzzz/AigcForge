@@ -982,6 +982,13 @@ test("Surface 4: Session Detail separates adopted Snapshot from actual participa
   // Edit in Compose workspace stages snapshot into Compose tab without mutating current session.
   await adoptedSummary.getByRole("button", { name: "Edit in Compose workspace", exact: true }).click()
   await expectPath(page, "/mode/custom")
+  const footerLocation = page.getByRole("contentinfo").getByRole("button", { name: /^New session location/ })
+  await expect(footerLocation).toContainText("sandbox")
+  await footerLocation.click()
+  await expect(page.getByRole("dialog", { name: "New session location", exact: true }).locator("code")).toHaveText(
+    directory,
+  )
+  await page.keyboard.press("Escape")
   await expect(page.getByRole("tab", { name: /^Compose(?: Unsaved edits)?$/ })).toHaveAttribute("aria-selected", "true")
   await expect(page.getByRole("region", { name: "Custom composition", exact: true })).toBeVisible()
   const compose = page.getByRole("region", { name: "Custom composition", exact: true })

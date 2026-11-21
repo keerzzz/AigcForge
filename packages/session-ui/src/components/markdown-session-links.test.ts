@@ -1,6 +1,6 @@
 import { GlobalRegistrator } from "@happy-dom/global-registrator"
 import { afterAll, beforeAll, expect, test } from "bun:test"
-import { markSessionLinks, setupSessionLinks } from "./markdown-session-links"
+import { markSessionLinks, setupSessionLinks, updateSessionLinkTitles } from "./markdown-session-links"
 
 const first = "ses_0123456789abcdefghijklmnop"
 
@@ -53,4 +53,31 @@ test("delegates keyboard-activated clicks to the latest rendered ID", () => {
   dispose()
   root.querySelector("button")?.click()
   expect(opened).toEqual([first, second])
+})
+
+test("refreshes known titles and retains IDs, inline code, and unrelated selected content", () => {
+  const root = document.createElement("div")
+  root.innerHTML = `<p>Keep this text. ${first} and <code>${second}</code>.</p>`
+  markSessionLinks(root)
+  const links = [...root.querySelectorAll<HTMLButtonElement>("button[data-session-id]")]
+  const prose = root.querySelector("p")!.firstChild
+  const code = links[1].querySelector("code")
+  const opened: string[] = []
+  const dispose = setupSessionLinks(root, () => (id) => opened.push(id))
+
+  updateSessionLinkTitles(root, (id) => (id === first ? "委派测试" : undefined))
+  expect(links.map((link) => link.textContent)).toEqual(["委派测试", second])
+  expect(links[0].title).toContain(first)
+  links[0].click()
+  expect(opened).toEqual([first])
+
+  updateSessionLinkTitles(root, () => "重命名后的会话")
+  expect(links.map((link) => link.textContent)).toEqual(["重命名后的会话", "重命名后的会话"])
+  expect(links[1].querySelector("code")).toBe(code)
+  expect(root.querySelector("p")!.firstChild).toBe(prose)
+  expect([...root.querySelectorAll("button")]).toEqual(links)
+
+  updateSessionLinkTitles(root, () => " ")
+  expect(links.map((link) => link.textContent)).toEqual([first, second])
+  dispose()
 })

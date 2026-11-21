@@ -45,7 +45,7 @@ import {
 } from "../context/markdown"
 import { createMarkdownImages } from "./markdown-image"
 import { createImagePreview } from "./image-preview"
-import { markSessionLinks, setupSessionLinks } from "./markdown-session-links"
+import { markSessionLinks, setupSessionLinks, updateSessionLinkTitles } from "./markdown-session-links"
 
 type RenderedBlock =
   | (MarkdownCacheEntry & { key: string; mode: Exclude<Block["mode"], "code"> })
@@ -787,6 +787,8 @@ export function Markdown(
     if (!linkCleanup) linkCleanup = setupLocalLinks(container, () => markdown?.openLocalFile)
 
     if (!sessionLinkCleanup) sessionLinkCleanup = setupSessionLinks(container, () => markdown?.openSession)
+
+    updateSessionLinkTitles(container, (id) => markdown?.sessionTitle?.(id))
 
     if (!faviconCleanup) faviconCleanup = setupExternalLinkFavicons(container)
     container.toggleAttribute("data-local-links", !!markdown?.openLocalFile)

@@ -39,6 +39,7 @@ describe("layout persistence", () => {
   test("restores shipped defaults for missing and invalid fields", () => {
     const defaults = decode({})
     expect(defaults).toEqual({
+      navigationOpened: true,
       sidebar: { opened: false, width: 344, workspaces: {}, workspacesDefault: false },
       terminal: { height: 280, opened: false },
       review: { panelOpened: false },
@@ -51,6 +52,7 @@ describe("layout persistence", () => {
     })
     expect(
       decode({
+        navigationOpened: "bad",
         sidebar: { width: "bad" },
         terminal: null,
         session: { width: undefined },

@@ -1,0 +1,83 @@
+.session-input-navigation {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+.session-input-arrow,
+.session-input-latest {
+  width: 28px;
+  flex-shrink: 0;
+  padding: 0;
+}
+.session-input-selector {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+.session-input-popover[data-component="popover-content"] {
+  width: min(480px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+}
+.session-input-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  width: 100%;
+}
+.session-input-picker p {
+  color: var(--v2-text-text-muted);
+  font-size: 13px;
+  line-height: var(--line-height-base);
+}
+.session-input-picker ol {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(50vh, 360px);
+  overflow-y: auto;
+}
+.session-input-picker .session-input-option {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 36px;
+  height: 36px;
+  gap: 8px;
+  padding: 4px 8px;
+  font-size: 13px;
+  line-height: var(--line-height-compact);
+  text-align: start;
+}
+.session-input-option[aria-current="true"] {
+  background: var(--v2-overlay-simple-overlay-pressed);
+  color: var(--v2-text-text-base);
+}
+.session-input-number {
+  min-width: 2ch;
+  color: var(--v2-text-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.session-input-summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.session-input-option time {
+  flex-shrink: 0;
+  color: var(--v2-text-text-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+@media (max-width: 767px) {
+  .session-input-selector > span:first-child {
+    display: none;
+  }
+  .session-input-option time {
+    font-size: 11px;
+  }
+}

@@ -110,6 +110,9 @@ for (const device of ["Pixel 7", "iPhone 13"]) {
       const heights = await Promise.all(
         rows.map((row) => row.evaluate((element) => element.getBoundingClientRect().height)),
       )
+      const imageHeights = await Promise.all(
+        images.map((image) => image.evaluate((element) => element.getBoundingClientRect().height)),
+      )
 
       const before = await reading.anchor.evaluate((element) => element.getBoundingClientRect().top)
       const bounds = (await reading.scroller.boundingBox())!
@@ -122,9 +125,16 @@ for (const device of ["Pixel 7", "iPhone 13"]) {
 
       for (const [index, row] of rows.entries()) {
         await expect(images[index]).toHaveJSProperty("naturalHeight", 600)
+        // Responsive images can render smaller than their intrinsic 600px height.
         await expect
-          .poll(() => row.evaluate((element) => element.getBoundingClientRect().height))
-          .toBe(heights[index] + 600)
+          .poll(async () => {
+            const size = await Promise.all([
+              row.evaluate((element) => element.getBoundingClientRect().height),
+              images[index].evaluate((element) => element.getBoundingClientRect().height),
+            ])
+            return size[0] - heights[index] - (size[1] - imageHeights[index])
+          })
+          .toBeCloseTo(0, 1)
       }
 
       await testInfo.attach("images-held.png", { body: await page.screenshot(), contentType: "image/png" })
@@ -483,7 +493,9 @@ for (const device of ["Pixel 7", "iPhone 13"]) {
           growsBeforeDrag ? 1200 : handoff.key === "latest" ? 800 : 80,
         )
         await expect(timeline.locator('[data-orientation="vertical"][data-visible="false"]')).toHaveCount(1)
-        const latest = page.getByRole("button", { name: "Jump to latest", exact: true })
+        const latest = page
+          .locator('[data-slot="session-chat-panel"]')
+          .getByRole("button", { name: "Jump to latest", exact: true })
 
         if (handoff.key === "latest") await expect(latest.locator("..")).toHaveCSS("opacity", "1")
 
@@ -691,6 +703,8 @@ for (const device of ["Pixel 7", "iPhone 13"]) {
           const first = scroller.locator('[data-timeline-row="UserMessage"]')
           await expect(first).toBeInViewport()
           const start = await first.evaluate((element) => element.getBoundingClientRect().top)
+          const anchor = page.getByText(detach === "scroll" ? "Part 47." : "Reading 20.", { exact: true })
+          const readingPositions: number[] = []
 
           // Measure the history before exercising a gesture across the virtual window.
           if (detach === "scroll")
@@ -698,6 +712,13 @@ for (const device of ["Pixel 7", "iPhone 13"]) {
               await scroller.evaluate((element) => (element.scrollTop += 300))
               await page.screenshot()
               await expect(hidden).toHaveCount(1)
+              if (await anchor.count())
+                readingPositions.push(
+                  await anchor.evaluate((element) => {
+                    const root = element.closest<HTMLElement>("[data-scrollable]")!
+                    return root.scrollTop + element.getBoundingClientRect().top - root.getBoundingClientRect().top
+                  }),
+                )
             }
 
           if (detach === "stream") await expect(hidden).toHaveCount(1)
@@ -745,16 +766,43 @@ for (const device of ["Pixel 7", "iPhone 13"]) {
             await expect(hidden).toHaveCount(1)
           }
 
-          const anchor = page.getByText(detach === "scroll" ? "Part 47." : "Reading 20.", { exact: true })
           const unloaded = page.getByAltText("Delayed image", { exact: true })
           const imageRow = scroller.locator("[data-timeline-key]", { has: unloaded })
           // Native momentum ends at different rows across devices. Reading-position
           // compensation applies to earlier content entirely above the visible fold.
-          if (detach === "scroll")
+          if (detach === "scroll") {
+            await scroller.press("Home")
+            await expect(first).toBeInViewport()
+            await expect
+              .poll(() => first.evaluate((element) => element.getBoundingClientRect().top))
+              .toBeCloseTo(start, 0)
+            // Reestablish the measured reading position after device-dependent native momentum.
+            expect(readingPositions.length).toBeGreaterThan(0)
+            await scroller.evaluate((root, top) => (root.scrollTop = top - 8), readingPositions.at(-1)!)
+            await expect(anchor).toBeInViewport()
+            await expect
+              .poll(() =>
+                imageRow.evaluate((row) => {
+                  const content = row.querySelector<HTMLElement>("[data-index]")!
+                  return (
+                    content.style.minHeight === "" &&
+                    Math.abs(row.getBoundingClientRect().height - content.offsetHeight) < 0.5
+                  )
+                }),
+              )
+              .toBe(true)
+            await scroller.blur()
+            await expect(scroller).not.toBeFocused()
+            await expect(hidden).toHaveCount(1)
+            await anchor.evaluate((element) => {
+              const root = element.closest<HTMLElement>("[data-scrollable]")!
+              root.scrollTop += element.getBoundingClientRect().top - root.getBoundingClientRect().top - 8
+            })
             await imageRow.evaluate((row) => {
               const root = row.closest<HTMLElement>("[data-scrollable]")!
               root.scrollTop += Math.max(0, row.getBoundingClientRect().bottom - root.getBoundingClientRect().top + 1)
             })
+          }
           await expect
             .poll(() =>
               imageRow.evaluate(
@@ -777,7 +825,9 @@ for (const device of ["Pixel 7", "iPhone 13"]) {
             )
             .toBeGreaterThan(300)
           await page.screenshot()
-          expect(await anchor.evaluate((element) => element.getBoundingClientRect().top)).toBeCloseTo(before, 0)
+          await expect
+            .poll(() => anchor.evaluate((element) => element.getBoundingClientRect().top))
+            .toBeCloseTo(before, 0)
           await scroller.press("Home")
           await expect(first).toBeInViewport()
           await scroller.blur()

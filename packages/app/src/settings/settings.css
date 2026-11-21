@@ -207,7 +207,7 @@
   align-items: center;
   justify-content: flex-start;
   gap: 24px;
-  padding-block: 80px calc(80px + var(--settings-bottom-inset, 0px));
+  padding-block: 48px calc(48px + var(--settings-bottom-inset, 0px));
   color: var(--v2-text-text-muted);
   font-size: 13px;
   font-weight: 440;
@@ -239,42 +239,38 @@
 }
 
 .settings-about-wordmark {
-  width: 178px;
-  height: 32px;
+  width: 240px;
+  max-width: 100%;
+  height: auto;
   flex-shrink: 0;
-  opacity: 0.2;
-  color: var(--v2-text-text-muted);
+  color: var(--v2-text-text-base);
   fill: currentColor;
 }
 
-.settings-about-letter-shadow {
-  opacity: 0.3;
-}
-
-.settings-about-faint,
-.settings-about-credits {
-  color: var(--v2-text-text-faint);
-}
-
-.settings-about-legal {
-  width: 109.2px;
-  height: 19.2px;
-}
-
-.settings-about-copyright {
-  display: flex;
+.settings-about-details {
   width: 100%;
-  flex-shrink: 0;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
+  margin: 0;
+  text-align: start;
 }
 
-.settings-about-anomaly-brush {
-  width: 126.72px;
-  height: 48.384px;
-  flex-shrink: 0;
-  pointer-events: none;
+.settings-about-details > div {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) minmax(0, 2fr);
+  align-items: baseline;
+  gap: 16px;
+  padding-block: 12px;
+  border-bottom: 1px solid var(--v2-border-border-weak);
+}
+
+.settings-about-details dt {
+  color: var(--v2-text-text-muted);
+}
+
+.settings-about-details dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--v2-text-text-base);
+  overflow-wrap: anywhere;
 }
 
 .settings-about-content a {

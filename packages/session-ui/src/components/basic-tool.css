@@ -56,10 +56,13 @@
   }
 
   [data-slot="basic-tool-tool-info"] {
+    display: flex;
+    align-items: center;
     flex: 0 1 auto;
     min-width: 0;
     max-width: 100%;
     font-size: 13px;
+    line-height: var(--line-height-compact);
   }
 
   [data-slot="basic-tool-tool-icon"] {
@@ -91,18 +94,10 @@
 
   [data-slot="basic-tool-tool-info-main"] {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 8px;
     min-width: 0;
     overflow: hidden;
-  }
-
-  [data-slot="basic-tool-tool-progress"] {
-    display: inline-flex;
-    align-self: center;
-    width: 14px;
-    height: 14px;
-    flex-shrink: 0;
   }
 
   [data-slot="basic-tool-tool-title"] {

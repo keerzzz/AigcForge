@@ -459,12 +459,13 @@ export function ScrollView(props: ScrollViewProps) {
         viewportRef.scrollBy({ top: -scrollAmount, behavior: "smooth" })
         break
       case "home":
+        // Edge jumps must reach their target while virtual rows are being measured.
         e.preventDefault()
-        viewportRef.scrollTo({ top: 0, behavior: "smooth" })
+        viewportRef.scrollTo({ top: 0, behavior: "auto" })
         break
       case "end":
         e.preventDefault()
-        viewportRef.scrollTo({ top: viewportRef.scrollHeight, behavior: "smooth" })
+        viewportRef.scrollTo({ top: viewportRef.scrollHeight, behavior: "auto" })
         break
       case "up":
         e.preventDefault()

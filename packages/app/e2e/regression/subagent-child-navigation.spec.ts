@@ -413,18 +413,14 @@ test("keeps the parent title anchored when opening a subagent", async ({ page })
 
     const title = page.locator("[data-session-title]").getByRole("heading", { name: parentTitle })
 
+    await expect(title).toBeInViewport()
+    const start = { value: 0 }
     await expect
-      .poll(() =>
-        title.evaluate((element) => {
-          const range = document.createRange()
-
-          range.selectNodeContents(element)
-
-          return range.getBoundingClientRect().width
-        }),
-      )
+      .poll(async () => {
+        start.value = await titleInlineStart(title)
+        return start.value
+      })
       .toBeGreaterThan(0)
-    const start = await titleInlineStart(title)
 
     await page.getByRole("button", { name: "Used 1 Agent", exact: true }).click()
     await page.locator(`a[href="${sessionHref(childID)}"]`).click()
@@ -438,12 +434,12 @@ test("keeps the parent title anchored when opening a subagent", async ({ page })
     const breadcrumb = page.locator('[data-slot="session-title-parent"]')
 
     await expect(breadcrumb).toHaveText(parentTitle)
-    await expect.poll(() => titleInlineStart(breadcrumb)).toBeCloseTo(start, 0)
+    await expect.poll(() => titleInlineStart(breadcrumb)).toBeCloseTo(start.value, 0)
     await breadcrumb.click()
     await expectSessionTitle(page, parentTitle)
     await expect
       .poll(() => titleInlineStart(page.locator("[data-session-title]").getByRole("heading", { name: parentTitle })))
-      .toBeCloseTo(start, 0)
+      .toBeCloseTo(start.value, 0)
   }
 })
 
@@ -771,9 +767,12 @@ test("keeps the active nested session visible in a narrow desktop header", async
   await expect(header.locator('[data-slot="session-title-ancestor"]')).toHaveText([parentTitle, childTitle])
   await expect(heading).toBeInViewport()
   await expect(separator).toBeInViewport()
-  const bounds = await heading.boundingBox()
-  expect(bounds).not.toBeNull()
-  expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(820)
+  await expect
+    .poll(async () => {
+      const bounds = await heading.boundingBox()
+      return bounds ? bounds.x + bounds.width : Infinity
+    })
+    .toBeLessThanOrEqual(820)
 
   await page.evaluate(() => document.documentElement.setAttribute("dir", "rtl"))
   await expect(heading).toBeInViewport()

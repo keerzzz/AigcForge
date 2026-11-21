@@ -563,8 +563,19 @@ test.describe("Working", () => {
     await expect(working).toHaveRole("status")
     await expect(shimmer).toHaveAttribute("aria-label", "Working")
     await expect(working).toBeInViewport()
-    await expect(shimmer).toHaveAttribute("data-active", "true")
+    await expect(shimmer).toHaveAttribute("data-active", "false")
     await expect(shimmer).toHaveCSS("line-height", "16px")
+    await expect(working.locator("svg use")).toHaveAttribute("href", "#aigcfroge-v2-icon-settings-gear")
+    const centers = await working.evaluate((element) => {
+      const row = element.parentElement!.getBoundingClientRect()
+      const content = element.getBoundingClientRect()
+      const icon = element.querySelector("svg")!.getBoundingClientRect()
+      return {
+        content: content.y + content.height / 2 - row.y - row.height / 2,
+        icon: icon.y + icon.height / 2 - row.y - row.height / 2,
+      }
+    })
+    expect(centers).toEqual({ content: 0, icon: 0 })
     await expect(page.locator('[data-timeline-row="Thinking"]')).toHaveCount(0)
 
     await timeline.send(stepStarted(assistantMessage([], { completed: false })))
@@ -646,7 +657,7 @@ test.describe("Working", () => {
       await expect(page.locator('[data-component="collapsed-tool-group"]')).toHaveCount(0)
       await expect(working.locator('[data-component="text-shimmer"]')).toHaveAttribute("aria-label", "Working")
       await expect(working).toBeVisible()
-      await expect(working.locator('[data-component="text-shimmer"]')).toHaveAttribute("data-active", "true")
+      await expect(working.locator('[data-component="text-shimmer"]')).toHaveAttribute("data-active", "false")
     })
   }
 
@@ -685,7 +696,7 @@ test.describe("Working", () => {
     await expect(working).toBeVisible()
 
     await timeline.send(partUpdated(toolPart("prt_read_four", "read", "completed", { path: "src/four.ts" })))
-    await expect(shimmer).toHaveAttribute("data-active", "false")
+    await expect(shimmer).toHaveAttribute("data-active", "true")
     await expect(working).toBeVisible()
   })
 

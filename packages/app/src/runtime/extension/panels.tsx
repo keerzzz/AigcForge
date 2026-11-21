@@ -197,21 +197,25 @@ export function createRegion(input: {
     ][0]?.key
   })
 
+  // A retained region can switch sessions without changing its selected tab key.
   // The effect's own value marks its first run: the selection the region mounts with, stored or fallback.
   createEffect(
-    on(active, (key, _, restored: boolean = true) => {
-      const entry = key ? byKey().get(key) : undefined
+    on(
+      () => [active(), input.view().visit] as const,
+      ([key], _, restored: boolean = true) => {
+        const entry = key ? byKey().get(key) : undefined
 
-      if (entry)
-        entry.provider.focus?.(
-          panelInput(input.view, input.screen, {
-            tab: entry.tab,
-            restored,
-          }),
-        )
+        if (entry)
+          entry.provider.focus?.(
+            panelInput(input.view, input.screen, {
+              tab: entry.tab,
+              restored,
+            }),
+          )
 
-      return false
-    }),
+        return false
+      },
+    ),
   )
 
   // Hidden tabs keep their place in the strip for selection, focus, and close, but draw no trigger.

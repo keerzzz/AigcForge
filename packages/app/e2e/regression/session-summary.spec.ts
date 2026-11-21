@@ -17,6 +17,9 @@ for (const custom of [false, true]) {
     const trigger = page.getByRole("button", { name: "Session details", exact: true })
     const summary = page.getByRole("dialog", { name: "Session details", exact: true })
     await expect(page.locator('[data-component="composer-editor"]')).toBeEditable()
+    await expect(
+      page.locator(`[data-timeline-row="UserMessage"][data-message-id="${fixture.expected.sourceMessageIDs.at(-1)}"]`),
+    ).toBeInViewport()
     await expect(trigger).toBeEnabled()
     await trigger.hover()
     const tooltip = page.getByRole("tooltip")
@@ -263,7 +266,7 @@ for (const direction of ["ltr", "rtl"] as const) {
         .toBeGreaterThanOrEqual(12)
     }
 
-    await expectAlignedWithHeader(page, direction)
+    await expectAlignedWithTrigger(page, direction)
 
     const mcp = summary.getByRole("button", { name: "MCP", exact: true })
     const submenu = page.getByRole("dialog", { name: "MCP", exact: true })
@@ -306,7 +309,7 @@ for (const direction of ["ltr", "rtl"] as const) {
 
     await page.getByRole("button", { name: "Toggle review", exact: true }).click()
     await trigger.click()
-    await expectAlignedWithHeader(page, direction)
+    await expectAlignedWithTrigger(page, direction)
     expect(warnings).toEqual([])
   })
 }
@@ -701,17 +704,19 @@ function ownerWarnings(page: Page) {
   return warnings
 }
 
-async function expectAlignedWithHeader(page: Page, direction: "ltr" | "rtl") {
+async function expectAlignedWithTrigger(page: Page, direction: "ltr" | "rtl") {
+  // The footer trigger owns alignment; the popup keeps a 16px inset at the window edge.
   const summary = page.getByRole("dialog", { name: "Session details", exact: true })
   await expect(summary).toBeVisible()
   await expect
     .poll(async () => {
-      const header = (await page.locator("[data-session-title]").boundingBox())!
+      const trigger = (await page.getByRole("button", { name: "Session details", exact: true }).boundingBox())!
       const panel = (await summary.boundingBox())!
+      const width = await page.evaluate(() => innerWidth)
 
       return direction === "ltr"
-        ? Math.abs(header.x + header.width - panel.x - panel.width - 12)
-        : Math.abs(panel.x - header.x - 12)
+        ? Math.abs(Math.min(trigger.x + trigger.width, width - 16) - panel.x - panel.width)
+        : Math.abs(panel.x - Math.max(trigger.x, 16))
     })
     .toBeLessThanOrEqual(1)
 }

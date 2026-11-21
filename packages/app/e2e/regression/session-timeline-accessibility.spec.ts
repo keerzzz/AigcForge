@@ -23,9 +23,9 @@ test("space activates a focused timeline button instead of scrolling", async ({ 
   await expect
     .poll(() => scroller.evaluate((element) => element.scrollHeight - element.clientHeight))
     .toBeGreaterThan(300)
-  await trigger.scrollIntoViewIfNeeded()
   await scroller.hover()
   await page.mouse.wheel(0, -100)
+  await trigger.evaluate((element) => element.scrollIntoView({ block: "center" }))
   await expect
     .poll(() => scroller.evaluate((element) => element.scrollHeight - element.clientHeight - element.scrollTop))
     .toBeGreaterThan(50)

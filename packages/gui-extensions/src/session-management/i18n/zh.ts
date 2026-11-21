@@ -238,6 +238,7 @@ export default {
   "session.schedule.saving": "正在保存定时安排…",
   "session.schedule.invalid": "请检查内容、时间、时区和执行会话。",
   "session.taskDetails.title": "任务详情",
+  "session.taskDetails.technical": "技术详情",
   "session.taskDetails.back": "返回任务委派",
   "session.taskDetails.openError": "无法打开任务详情",
   "session.taskDetails.taskMissing": "此任务已不存在，已有委派记录仍可查看。",

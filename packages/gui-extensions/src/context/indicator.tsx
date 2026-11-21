@@ -1,6 +1,8 @@
 import { Show, createMemo, type ComponentProps, type JSX } from "solid-js"
 import { ProgressCircle } from "@aigcfroge/ui/progress-circle"
 import { IconButton } from "@aigcfroge/ui/icon-button"
+import { Button } from "@aigcfroge/ui/button"
+import { useSessionControlsExpanded } from "@aigcfroge/session-ui/context/controls"
 import { Tooltip } from "@aigcfroge/ui/tooltip"
 import { useI18n } from "@aigcfroge/ui/context/i18n"
 import { useExtension, type MountedSession } from "../sdk"
@@ -25,6 +27,7 @@ export function SessionContextUsage(props: {
   const ctx = useExtension()
   const layout = ctx.layout
   const i18n = useI18n()
+  const expanded = useSessionControlsExpanded()
   syncCatalog(() => props.session)
 
   const variant = createMemo(() => props.variant ?? "button")
@@ -63,11 +66,17 @@ export function SessionContextUsage(props: {
   const formatter = createMemo(() => createSessionContextFormatter(i18n.locale()))
 
   const cost = createMemo(() => {
-    return usd().format(info()?.cost ?? 0)
+    const value = info()?.cost
+
+    return value === undefined ? "—" : usd().format(value)
   })
 
   const openContext = () => {
     if (!props.session.id) return
+    if (layout.narrow()) {
+      layout.open(`${ctx.id}:main`, props.session)
+      return
+    }
     layout.toggle(`${ctx.id}:main`, props.session)
   }
 
@@ -103,18 +112,39 @@ export function SessionContextUsage(props: {
 
   return (
     <Show when={props.session.id}>
-      <Tooltip value={tooltipValue()} placement={props.placement ?? "top"} shift={-8}>
+      <Tooltip value={tooltipValue()} placement={expanded() ? "top" : (props.placement ?? "top")} shift={-8}>
         <Show
           when={variant() === "indicator"}
           fallback={
-            <IconButton
-              type="button"
-              variant="ghost-muted"
-              size="large"
-              icon={compactCircle()}
-              onClick={openContext}
-              aria-label={ctx.t("usage.view")}
-            />
+            <Show
+              when={expanded()}
+              fallback={
+                <IconButton
+                  type="button"
+                  variant="ghost-muted"
+                  size="large"
+                  icon={compactCircle()}
+                  onClick={openContext}
+                  aria-label={ctx.t("usage.view")}
+                />
+              }
+            >
+              <Button
+                type="button"
+                variant="ghost-muted"
+                size="small"
+                onClick={openContext}
+                aria-label={ctx.t("usage.view")}
+                class="flex items-center gap-2 whitespace-nowrap text-13-regular tabular-nums"
+              >
+                <span>
+                  {ctx.t("usage.usage")} {formatter().percent(context()?.usage)}
+                </span>
+                <span>
+                  {ctx.t("usage.cost")} {cost()}
+                </span>
+              </Button>
+            </Show>
           }
         >
           {circle()}

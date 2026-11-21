@@ -50,8 +50,21 @@ function sessionButton(id: string) {
   button.className = "markdown-session-link"
   button.dataset.sessionId = id
   button.textContent = id
+  button.title = id
 
   return button
+}
+
+/** Update only link labels; retain the message DOM, selection, and navigation identity. */
+export function updateSessionLinkTitles(root: HTMLElement, title: (id: string) => string | undefined) {
+  root.querySelectorAll<HTMLButtonElement>("button[data-session-id]").forEach((button) => {
+    const id = button.dataset.sessionId!
+    const label = title(id)?.trim() || id
+    const text = button.querySelector("code") ?? button
+
+    if (text.textContent !== label) text.textContent = label
+    button.title = label === id ? id : `${label}\n${id}`
+  })
 }
 
 export function setupSessionLinks(root: HTMLElement, open: () => ((id: string) => void) | undefined) {

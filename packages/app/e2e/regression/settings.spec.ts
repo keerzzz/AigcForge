@@ -34,8 +34,6 @@ const sandboxes = Array.from({ length: 12 }, (_, index) => `${directory}/workspa
 const override =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Crect width='16' height='16' fill='red'/%3E%3C/svg%3E"
 
-const contributors = "https://api.github.com/repos/anomalyco/aigcfroge/contributors?anon=1&per_page=1"
-
 test.use({ serviceWorkers: "block" })
 
 // One project with 12 worktrees, each with one session, and a configured zsh shell.
@@ -69,6 +67,21 @@ async function openProject(page: Page, name = "Settings demo") {
   await settings.getByRole("button", { name, exact: true }).click()
   await expect(settings.getByRole("button", { name: "Back to projects", exact: true })).toBeVisible()
 }
+
+test("sidebar preferences hide and restore global navigation through reload", async ({ page }) => {
+  const { settings } = await open(page)
+  const sidebars = settings.getByRole("region", { name: "Sidebars", exact: true })
+  const visible = sidebars.getByRole("switch", { name: "Show global navigation", exact: true })
+  await expect(visible).toBeChecked()
+  await visible.focus()
+  await page.keyboard.press("Space")
+  await expect(page.getByRole("navigation", { name: "Modes", exact: true })).toHaveCount(0)
+  await page.reload()
+  await expect(visible).not.toBeChecked()
+  await page.getByRole("button", { name: "Expand navigation", exact: true }).click()
+  await expect(visible).toBeChecked()
+  await expect(page.getByRole("navigation", { name: "Modes", exact: true })).toBeVisible()
+})
 
 const patched = (page: Page) =>
   page.waitForRequest(
@@ -1705,45 +1718,29 @@ test.describe("pages open before slow data", () => {
     await expect(settings.getByRole("switch", { name: "demo-mcp" })).toBeChecked()
   })
 
-  for (const fails of [false, true]) {
-    test(`about ${fails ? "keeps its fallback when contributors fail" : "updates contributors later"}`, async ({
-      page,
-    }) => {
-      const { settings } = await open(page)
-      const gate = Promise.withResolvers<void>()
-      await page.route(contributors, async (route) => {
-        await gate.promise
-
-        if (fails) return route.abort("failed")
-        await route.fulfill({
-          json: [],
-          headers: {
-            "access-control-allow-origin": "*",
-            "access-control-expose-headers": "Link",
-            Link: `<${contributors}&page=1004>; rel="last"`,
-          },
-        })
-      })
-      const requested = page.waitForRequest(contributors)
-      await settings.getByRole("tab", { name: "About", exact: true }).click()
-      await requested
-      await expect(settings.getByText("Released under the MIT License", { exact: true })).toBeVisible()
-      await expect(settings.getByRole("link", { name: "935 others", exact: true })).toBeVisible()
-      await expect(settings.getByRole("button", { name: "Back to app" })).toBeVisible()
-
-      const website = settings.getByRole("link", { name: "www.aigcfroge.ai", exact: true })
-      await website.focus()
-
-      const settled = fails
-        ? page.waitForEvent("requestfailed", (request) => request.url() === contributors)
-        : page.waitForResponse(contributors)
-
-      gate.resolve()
-      await settled
-      await expect(settings.getByRole("link", { name: fails ? "935 others" : "988 others", exact: true })).toBeVisible()
-      await expect(website).toBeFocused()
-    })
-  }
+  test("about identifies AigcForge, its repository, maintainers and upstream", async ({ page }) => {
+    const { settings } = await open(page)
+    await settings.getByRole("tab", { name: "About", exact: true }).click()
+    await expect(settings.getByText("Released under the MIT License", { exact: true })).toBeVisible()
+    await expect(settings.getByRole("link", { name: "keerzzz/AigcForge", exact: true })).toHaveAttribute(
+      "href",
+      "https://github.com/keerzzz/AigcForge",
+    )
+    await expect(settings.getByRole("link", { name: "keerzzz", exact: true })).toHaveAttribute(
+      "href",
+      "https://github.com/keerzzz",
+    )
+    await expect(settings.getByRole("link", { name: "View project contributors", exact: true })).toHaveAttribute(
+      "href",
+      "https://github.com/keerzzz/AigcForge/graphs/contributors",
+    )
+    await expect(settings.getByRole("link", { name: "OpenCode", exact: true })).toHaveAttribute(
+      "href",
+      "https://github.com/anomalyco/opencode",
+    )
+    await expect(settings.getByRole("button", { name: "Third-party notices", exact: true })).toBeVisible()
+    await expect(settings.getByRole("button", { name: "Back to app" })).toBeVisible()
+  })
 })
 
 test("worktrees follow inventory events, wait for session counts, and delete by project", async ({ page }) => {

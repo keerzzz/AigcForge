@@ -1,9 +1,10 @@
 import type { Page } from "@playwright/test"
+import { base64Encode } from "@aigcfroge/util/encode"
 import { mockAigcForgeServer } from "../../utils/mock-server"
 import { expectSessionTitle } from "../../utils/waits"
 import { benchmark, benchmarkDiagnostics, expect } from "../benchmark"
 import { fixture, installStressSessionTabs, installTimelineSettings } from "../../utils/session-fixture"
-import { sessionHref } from "../../utils/app"
+import { seed, sessionHref } from "../../utils/app"
 import { expected, messages } from "../../utils/markdown-sessions"
 import { workload } from "./session-tab-switch.fixture"
 import { createReviewDiffs } from "./timeline-test-helpers"
@@ -18,6 +19,7 @@ const scenarios = [
 ] as const
 
 const viewport = { width: 1440, height: 900 }
+const resizedViewport = { width: 1096, height: 900 }
 
 const reviewDiffs = createReviewDiffs()
 
@@ -25,18 +27,29 @@ benchmark.use({ viewport, video: "off", trace: "off", serviceWorkers: "block", t
 
 scenarios.forEach((scenario) => {
   benchmark(`tab switch: ${scenario.cache}, review ${scenario.review}`, async ({ page, report }, testInfo) => {
-    const requests = await prepareSessionTabs(page)
-
-    if (scenario.review === "open") await openReviewPane(page)
+    const reviewOpen = scenario.review !== "closed"
+    const requests = await prepareSessionTabs(page, reviewOpen)
+    const chat = page.locator('[data-slot="session-chat-panel"]')
+    const initialTimelineWidth = await chat.evaluate((panel) => panel.getBoundingClientRect().width)
 
     if (scenario.cache === "warm") {
       await switchSession(page, fixture.targetID, fixture.expected.targetTitle)
+      await expectReviewPane(page, reviewOpen)
       await expectReadyTimeline(page, fixture.targetID)
+      expect(await chat.evaluate((panel) => panel.getBoundingClientRect().width)).toBeCloseTo(initialTimelineWidth, 1)
       await switchSession(page, fixture.sourceID, fixture.expected.sourceTitle)
     }
 
-    if (scenario.review === "resized") await openReviewPane(page)
+    if (scenario.review === "resized") {
+      // Both cached sessions retain Review; resize while the destination is inactive.
+      await page.setViewportSize(resizedViewport)
+      await expect
+        .poll(() => chat.evaluate((panel) => panel.getBoundingClientRect().width))
+        .toBeLessThan(initialTimelineWidth)
+    }
+    await expectReviewPane(page, reviewOpen)
     await expectReadyTimeline(page, fixture.sourceID)
+    const switchedTimelineWidth = await chat.evaluate((panel) => panel.getBoundingClientRect().width)
     await benchmarkDiagnostics(page).startTrace()
     const requestsBefore = requests.length
 
@@ -46,13 +59,17 @@ scenarios.forEach((scenario) => {
       lastID: expected[fixture.targetID].lastID,
       requiredPartID: expected[fixture.targetID].answerID,
       href: sessionHref(fixture.targetID),
-      switch: () => switchSession(page, fixture.targetID, fixture.expected.targetTitle),
+      switch: async () => {
+        await switchSession(page, fixture.targetID, fixture.expected.targetTitle)
+        await expectReviewPane(page, reviewOpen)
+      },
     })
 
     expect(result.firstCorrectObservedMs).not.toBeNull()
     expect(result.stableObservedMs).not.toBeNull()
     expect(requests).toHaveLength(requestsBefore + (scenario.cache === "cold" ? 1 : 0))
     await expectReadyTimeline(page, fixture.targetID)
+    expect(await chat.evaluate((panel) => panel.getBoundingClientRect().width)).toBeCloseTo(switchedTimelineWidth, 1)
     report(
       {
         ...result,
@@ -63,7 +80,10 @@ scenarios.forEach((scenario) => {
       {
         ...scenario,
         ...workload,
-        viewport,
+        viewport: page.viewportSize(),
+        preparedViewport: viewport,
+        warmedTimelineWidth: scenario.cache === "warm" ? initialTimelineWidth : undefined,
+        switchedTimelineWidth,
         browserVersion: page.context().browser()!.version(),
         serviceWorkers: "blocked",
         reviewFiles: scenario.review === "closed" ? 0 : reviewDiffs.length,
@@ -81,7 +101,7 @@ scenarios.forEach((scenario) => {
   })
 })
 
-async function prepareSessionTabs(page: Page) {
+async function prepareSessionTabs(page: Page, reviewOpen: boolean) {
   const requests: string[] = []
   page.on("request", (request) => {
     if (request.method() !== "GET") return
@@ -102,8 +122,22 @@ async function prepareSessionTabs(page: Page) {
     })
   await installTimelineSettings(page)
   await installStressSessionTabs(page)
+  await seed(page, {
+    panes: Object.fromEntries([fixture.sourceID, fixture.targetID].map((id) => [id, { review: reviewOpen }])),
+    storage: {
+      "aigcfroge.global.dat:layout": {
+        sessionTabs: Object.fromEntries(
+          [fixture.sourceID, fixture.targetID].map((id) => [
+            `local\u0000${base64Encode(fixture.directory)}/${id}`,
+            reviewOpen ? { all: ["review:changes"], active: "review:changes" } : { all: [] },
+          ]),
+        ),
+      },
+    },
+  })
   await page.goto(sessionHref(fixture.sourceID))
   await expectSessionTitle(page, fixture.expected.sourceTitle)
+  await expectReviewPane(page, reviewOpen)
   await expectReadyTimeline(page, fixture.sourceID)
   await expect(page.locator(`[data-timeline-part-id="${expected[fixture.targetID].answerID}"]`)).toHaveCount(0)
   expect(requests).toEqual([fixture.sourceID])
@@ -132,14 +166,21 @@ async function switchSession(page: Page, sessionID: string, title: string) {
   await expectSessionTitle(page, title)
 }
 
-async function openReviewPane(page: Page) {
-  await page.getByRole("button", { name: "Toggle review" }).click()
-  await expect(page.locator("#review-panel")).toBeVisible()
-  await page.waitForFunction(() => {
-    const text = document.querySelector("#review-panel")?.textContent ?? ""
-
-    return text.includes("generated-000.ts") && text.includes("+3")
-  })
+async function expectReviewPane(page: Page, open: boolean) {
+  await expect(page.getByRole("button", { name: "Toggle review", exact: true })).toHaveAttribute(
+    "aria-expanded",
+    String(open),
+  )
+  const review = page.locator("#session-side-panel-review-tabpanel")
+  if (!open) {
+    await expect(review).toBeHidden()
+    return
+  }
+  await expect(page.locator("#session-side-panel-review-tab")).toHaveAttribute("aria-selected", "true")
+  await expect(review).toBeVisible()
+  await expect(review).toContainText("generated-000.ts")
+  await expect(review).toContainText("+3")
+  await expect(review.locator('[data-component="file"][data-mode="diff"]')).toBeVisible()
   await page.locator('[data-slot="session-chat-panel"]').evaluate(async (panel) => {
     await Promise.all(panel.getAnimations().map((animation) => animation.finished))
   })

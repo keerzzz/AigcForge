@@ -28,6 +28,57 @@ import { attachSession, openAdvanced, openSidePanel } from "../utils/side-panel"
 
 const tabs = (page: Page) => page.locator('[data-slot="titlebar-tabs"] a')
 
+test("status bar follows the main location and preserves navigation controls across work surfaces", async ({
+  page,
+}) => {
+  const next = fixture.directory + "/next-workspace"
+  await mockStressTimeline(page, {
+    projects: [fixture.project, { ...fixture.project, id: "proj_footer_next", worktree: next, name: "Next workspace" }],
+  })
+  await seed(page, {
+    projects: {
+      local: [
+        { worktree: fixture.directory, expanded: true },
+        { worktree: next, expanded: true },
+      ],
+    },
+    lastProject: { local: next },
+    tabs: [fixture.sourceID],
+    storage: {
+      "aigcfroge.global.dat:layout": {
+        home: { sessionMode: "coding", selection: { server: SERVER, directory: next } },
+      },
+    },
+  })
+  await page.goto(sessionHref(fixture.sourceID))
+  const footer = page.getByRole("contentinfo", { name: "Workspace status" })
+  await expect(footer.getByRole("button", { name: /^Main session location/ })).toContainText("SmokeProject")
+  await footer.getByRole("button", { name: "Collapse navigation", exact: true }).click()
+  await expect(page.locator("#global-mode-navigation")).toHaveAttribute("aria-hidden", "true")
+  await expect(footer.getByRole("button", { name: "Expand navigation", exact: true })).toBeVisible()
+  await page.getByRole("button", { name: "Home", exact: true }).click()
+  const location = footer.getByRole("button", { name: /^New session location/ })
+  await expect(location).toContainText("next-workspace")
+  await expect(footer.getByRole("navigation", { name: "Session inputs", exact: true })).toHaveCount(0)
+  await expect(footer.getByRole("button", { name: "View context usage", exact: true })).toHaveCount(0)
+  await location.click()
+  await expect(page.getByRole("dialog", { name: "New session location", exact: true }).locator("code")).toHaveText(next)
+  await page.keyboard.press("Escape")
+  await page.getByRole("button", { name: "Settings", exact: true }).click()
+  await expect(page).toHaveURL(/\/settings(?:\?|$)/)
+  await expect(footer).toBeVisible()
+  await expect(location).toContainText("next-workspace")
+  await page.getByRole("button", { name: "Home", exact: true }).click()
+  await expect(page).toHaveURL(/\/$/)
+  await expect(location).toContainText("next-workspace")
+  await page.getByRole("banner").getByRole("button", { name: "New session", exact: true }).click()
+  await expect(page).toHaveURL(/\/new-session\?draftId=/)
+  await expect(footer.getByRole("button", { name: /^Draft location/ })).toContainText("next-workspace")
+  await expect(footer.getByRole("navigation", { name: "Session inputs", exact: true })).toHaveCount(0)
+  await footer.getByRole("button", { name: "Expand navigation", exact: true }).click()
+  await expect(page.locator("#global-mode-navigation")).toHaveAttribute("aria-hidden", "false")
+})
+
 for (const direction of ["ltr", "rtl"] as const) {
   test(`session header groups controls and exposes session details in ${direction}`, async ({ page }, testInfo) => {
     const work = homeModeSessions(0).find((item) => item.id === "ses_home_mode_work_case")
@@ -136,7 +187,7 @@ for (const direction of ["ltr", "rtl"] as const) {
     const filePanel = page.locator("#file-tree-panel")
     const sidePanel = page.locator("#session-side-panel-tabs")
     const exposedSide = page.locator('#session-side-panel-tabs:not([aria-hidden="true"][inert])')
-    const details = header.getByRole("button", { name: "Session details", exact: true })
+    const details = page.getByRole("contentinfo").getByRole("button", { name: "Session details", exact: true })
     await expect(header.getByRole("heading")).toHaveText(fixture.expected.targetTitle)
     await expect(
       header.getByRole("button", { name: /^(Skill|Command|Prompt|Agent|MCP|Plugin|Workflow) proposals$/ }),
@@ -219,13 +270,13 @@ for (const direction of ["ltr", "rtl"] as const) {
       await expect(header.locator('[data-slot="session-title-child"]')).toHaveCSS("padding-right", "4px")
       await expect
         .poll(async () => {
-          const [icon, title, menu, navigationBounds, sidebar, summary] = await Promise.all(
-            [project, header.locator('[data-slot="session-title-child"]'), more, navigation, review, details].map(
-              (control) => control.boundingBox(),
+          const [icon, title, menu, navigationBounds, sidebar] = await Promise.all(
+            [project, header.locator('[data-slot="session-title-child"]'), more, navigation, review].map((control) =>
+              control.boundingBox(),
             ),
           )
 
-          if (!icon || !title || !menu || !navigationBounds || !sidebar || !summary || !titleBounds) return false
+          if (!icon || !title || !menu || !navigationBounds || !sidebar || !titleBounds) return false
 
           if (Math.abs(title.y - titleBounds.y) > 0.5 || Math.abs(title.height - titleBounds.height) > 0.5) return false
 
@@ -236,12 +287,10 @@ for (const direction of ["ltr", "rtl"] as const) {
           return direction === "ltr"
             ? Math.abs(title.x - icon.x - icon.width - 2) <= 0.5 &&
                 Math.abs(menu.x - title.x - title.width - 2) <= 0.5 &&
-                menu.x + menu.width <= summary.x &&
-                summary.x + summary.width <= navigationBounds.x
+                menu.x + menu.width <= navigationBounds.x
             : Math.abs(icon.x - title.x - title.width - 2) <= 0.5 &&
                 Math.abs(title.x - menu.x - menu.width - 2) <= 0.5 &&
-                sidebar.x + sidebar.width <= summary.x &&
-                summary.x + summary.width <= menu.x
+                sidebar.x + sidebar.width <= menu.x
         })
         .toBe(true)
     }
@@ -2817,7 +2866,7 @@ test.describe("session management", () => {
   }
 
   for (const scenario of ["metrics", "step", "step-error"] as const) {
-    test(`MC09 Context keeps the newest same-session ${scenario} response`, async ({ page }) => {
+    test(`MC09 Context keeps the newest same-session ${scenario} response`, async ({ page }, testInfo) => {
       const sessionID = "ses_context_requests"
       const started = Promise.withResolvers<void>()
       const released = Promise.withResolvers<void>()
@@ -2898,7 +2947,16 @@ test.describe("session management", () => {
 
       const workspace = await openSession(page, {
         name: "Context requests",
-        sessions: [{ id: sessionID, title: "Context requests", cost: 0.37 }],
+        sessions: [
+          {
+            id: sessionID,
+            title: "Context requests",
+            cost: 0.37,
+            tokens: { input: 1000, output: 250, reasoning: 50, cache: { read: 2000, write: 100 } },
+            missingUsageAttempts: scenario === "metrics" ? 2 : undefined,
+            unknownPriceAttempts: scenario === "metrics" ? 1 : undefined,
+          },
+        ],
         pageMessages: () => ({ items: scenario === "metrics" ? [latest] : [] }),
         provider: {
           all: [
@@ -2934,6 +2992,13 @@ test.describe("session management", () => {
       })
 
       await page.getByRole("button", { name: "View context usage", exact: true }).click()
+      if (scenario !== "metrics") {
+        const totals = page.getByRole("region", { name: "Session totals", exact: true })
+        await expect(totals.getByText("Requests Without Usage", { exact: true }).locator("..")).toHaveText(
+          "Requests Without Usage—",
+        )
+        await expect(totals).toContainText("Historical records do not report request coverage.")
+      }
       const usage = page.getByRole("region", { name: "Recorded usage", exact: true })
       const recorded = usage.getByRole("button", { name: "Recorded usage", exact: true })
       await expect(recorded).toHaveAttribute("aria-expanded", "false")
@@ -2979,7 +3044,20 @@ test.describe("session management", () => {
 
       if (scenario === "metrics") {
         const context = page.locator('[data-slot="session-usage-content"]')
-        const stat = (label: string) => context.getByText(label, { exact: true }).locator("..")
+        const latestUsage = context.getByRole("region", { name: "Latest model request", exact: true })
+        const sessionUsage = context.getByRole("region", { name: "Session totals", exact: true })
+        const stat = (label: string) => latestUsage.getByText(label, { exact: true }).locator("..")
+        const total = (label: string) => sessionUsage.getByText(label, { exact: true }).locator("..")
+
+        await expect(total("Total Tokens")).toHaveText("Total Tokens3,400")
+        await expect(total("Input Tokens")).toHaveText("Input Tokens1,000")
+        await expect(total("Output Tokens")).toHaveText("Output Tokens250")
+        await expect(total("Reasoning Tokens")).toHaveText("Reasoning Tokens50")
+        await expect(total("Cache Read Tokens")).toHaveText("Cache Read Tokens2,000")
+        await expect(total("Cache Write Tokens")).toHaveText("Cache Write Tokens100")
+        await expect(total("Requests Without Usage")).toHaveText("Requests Without Usage2")
+        await expect(sessionUsage).toContainText("Some requests have no recorded token usage.")
+        await expect(sessionUsage).toContainText("Some requests have no recorded price.")
 
         const rawMessages = context.getByRole("region", { name: "Raw messages", exact: true })
         const rawToggle = rawMessages.getByRole("button", { name: "Raw messages", exact: true })
@@ -3000,7 +3078,7 @@ test.describe("session management", () => {
         await expect(stat("Context Limit")).toHaveText("Context Limit1,000")
         await expect(stat("Total Tokens")).toHaveText("Total Tokens—")
         await expect(stat("Usage")).toHaveText("Usage—")
-        await expect(stat("Total Cost")).toHaveText("Total Cost$0.37")
+        await expect(total("Total Cost")).toHaveText("Total Cost$0.37")
         await expect(page.getByText("Current physical request result", { exact: true })).toHaveCount(1)
 
         await workspace.push([
@@ -3018,8 +3096,32 @@ test.describe("session management", () => {
         await expect(stat("Input Tokens")).toHaveText("Input Tokens100")
         await expect(stat("Output Tokens")).toHaveText("Output Tokens30")
         await expect(stat("Reasoning Tokens")).toHaveText("Reasoning Tokens10")
-        await expect(stat("Cache Tokens (read/write)")).toHaveText("Cache Tokens (read/write)100 / 10")
-        await expect(stat("Total Cost")).toHaveText("Total Cost$0.37")
+        await expect(stat("Cache Read Tokens")).toHaveText("Cache Read Tokens100")
+        await expect(stat("Cache Write Tokens")).toHaveText("Cache Write Tokens10")
+        await expect(stat("Remaining Context")).toHaveText("Remaining Context750")
+        await expect(total("Total Tokens")).toHaveText("Total Tokens3,400")
+        await expect(total("Total Cost")).toHaveText("Total Cost$0.37")
+        await workspace.push([
+          {
+            id: "evt_context_session_usage",
+            type: SessionEvent.UsageUpdated.type,
+            created: 1900,
+            location: { directory: workspace.directory },
+            data: {
+              sessionID,
+              tokens: { input: 1500, output: 400, reasoning: 80, cache: { read: 2600, write: 120 } },
+              cost: 1.25,
+              missingUsageAttempts: 0,
+              unknownPriceAttempts: 0,
+            },
+          },
+        ])
+        await expect(total("Total Tokens")).toHaveText("Total Tokens4,700")
+        await expect(total("Total Cost")).toHaveText("Total Cost$1.25")
+        await expect(total("Requests Without Usage")).toHaveText("Requests Without Usage0")
+        await expect(sessionUsage).not.toContainText("Some requests have no recorded token usage.")
+        await expect(sessionUsage).not.toContainText("Some requests have no recorded price.")
+        await expect(stat("Total Tokens")).toHaveText("Total Tokens250")
         await expect(page.getByText("Current physical request result", { exact: true })).toHaveCount(1)
 
         const ended = (seq: number) =>
@@ -3066,8 +3168,28 @@ test.describe("session management", () => {
         await expect(usage.getByRole("alert")).toHaveCount(0)
         await expect(stat("Total Tokens")).toHaveText("Total Tokens250")
         await expect(stat("Model")).toHaveText("ModelCurrent physical model")
-        await expect(stat("Total Cost")).toHaveText("Total Cost$0.37")
+        await expect(total("Total Cost")).toHaveText("Total Cost$1.25")
         await expect(page.getByText("Current physical request result", { exact: true })).toHaveCount(1)
+
+        await page.screenshot({ path: testInfo.outputPath("session-token-usage-desktop.png") })
+        await page.setViewportSize({ width: 390, height: 844 })
+        await page.getByRole("tab", { name: "Session", exact: true }).click()
+        const viewUsage = page.getByRole("contentinfo").getByRole("button", { name: "View context usage", exact: true })
+        await expect(viewUsage).toBeVisible()
+        await viewUsage.click()
+        await expect(latestUsage).toBeVisible()
+        await expect(sessionUsage).toBeVisible()
+        await expect(total("Total Tokens")).toHaveText("Total Tokens4,700")
+        await expect
+          .poll(() =>
+            latestUsage.evaluate((element) => {
+              const bounds = element.getBoundingClientRect()
+
+              return element.scrollWidth <= element.clientWidth && bounds.left >= 0 && bounds.right <= innerWidth
+            }),
+          )
+          .toBe(true)
+        await page.screenshot({ path: testInfo.outputPath("session-token-usage-mobile.png") })
 
         return
       }
