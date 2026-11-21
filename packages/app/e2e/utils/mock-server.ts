@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test"
+import type { Page, Route } from "@playwright/test"
 import type {
   AigcForgeEvent,
   AgentInfo,
@@ -657,15 +657,87 @@ export async function mockAigcForgeServer(page: Page, config: MockServerConfig) 
   const transport = createMockServerHandler(config, emit)
   page.on("close", () => void transport.dispose())
 
+  const handleRoute = async (route: Route) => {
+    const url = new URL(route.request().url())
+
+    if (!answers(page, server, url)) return route.fallback()
+
+    // Production serves the UI and API from one origin; leave app assets to Vite.
+    if (
+      !url.pathname.startsWith("/api/") &&
+      !/^\/(?:memory|agent-task|delegation|agent-asset|prompt-asset|skill-asset|command-asset|workflow-asset|mcp-asset|plugin-asset|custom-composition|custom-profile|schedule)(?:\/|$)/.test(
+        url.pathname,
+      ) &&
+      !/^\/session\/[^/]+\/(?:task(?:\/.*)?|identity|composition|meta|project-memory(?:\/[^/]+)?|cache-diagnostics|workflow(?:\/.*)?|work-artifact\/apply)$/.test(
+        url.pathname,
+      )
+    )
+      return route.fallback()
+
+    if (route.request().method() === "OPTIONS") {
+      return route.fulfill({ status: 204, headers: corsHeaders })
+    }
+
+    const password = config.password === undefined ? undefined : resolve(config.password)
+
+    if (
+      password !== undefined &&
+      (await route.request().headerValue("authorization")) !== `Basic ${btoa(`aigcfroge:${password}`)}`
+    ) {
+      return route.fulfill({
+        status: 401,
+        headers: corsHeaders,
+        json: Schema.encodeSync(MockUnauthorized)(new MockUnauthorized({ message: "Authentication required" })),
+      })
+    }
+
+    const directory = url.searchParams.get("directory") ?? url.searchParams.get("location[directory]")
+
+    if (config.strictDirectory && directory && !ownedDirectories(config).has(directory)) {
+      return route.fulfill({ status: 500, headers: corsHeaders, json: { name: "InvalidDirectory" } })
+    }
+
+    const body = route.request().postDataBuffer()
+
+    const response = await transport.handler(
+      new Request(url, {
+        method: route.request().method(),
+        headers: route.request().headers(),
+        body: body ? Uint8Array.from(body) : undefined,
+      }),
+    )
+
+    const payload = Buffer.from(await response.arrayBuffer())
+
+    // The handler committed its normal state, but this scenario loses the HTTP reply.
+    if (response.headers.get("x-aigcfroge-mock-disconnect") === "true") return route.abort("connectionclosed")
+
+    // A handler's 404 carries a tagged error; a route the mock does not define must not reach the app server, whose
+    // SPA fallback would answer HTML 200. Answer 501 and fail the test from the route handler.
+    if (response.status === 404 && !payload.toString().includes('"_tag"')) {
+      const request = `${route.request().method()} ${url.pathname}`
+      await route.fulfill({
+        status: 501,
+        headers: corsHeaders,
+        json: { name: "MockUnsupported", message: `The mock server has no route for ${request}` },
+      })
+      throw new Error(`Unmocked API request: ${request} (add it to e2e/utils/mock-server.ts)`)
+    }
+
+    return route.fulfill({
+      status: response.status,
+      headers: { ...Object.fromEntries(response.headers), ...corsHeaders },
+      body: payload,
+    })
+  }
+
+  // Context routes provide empty defaults after any asset-specific page fixtures have had their chance.
+  await page.context().route(/\/(?:prompt|skill|command|mcp|plugin)-asset(?:\/|\?|$)/, handleRoute)
   await page.route(
     /\/api\/|\/(?:memory|agent-task|delegation|agent-asset|prompt-asset|skill-asset|command-asset|workflow-asset|mcp-asset|plugin-asset|custom-composition|custom-profile|schedule)(?:\/|\?|$)|\/session\/[^/?]+\/(?:task(?:\/[^?]*)?|identity|composition|meta|project-memory(?:\/[^/?]+)?|cache-diagnostics|workflow(?:\/[^?]*)?|work-artifact\/apply)(?:\?|$)/,
-    async (route) => {
-      const url = new URL(route.request().url())
-
-      if (!answers(page, server, url)) return route.fallback()
-
+    (route) => {
       // Earlier proposal fixtures keep their asset routes unless this server supplies that kind's inventory.
-      const resource = url.pathname.split("/")[1]
+      const resource = new URL(route.request().url()).pathname.split("/")[1]
       if (
         (resource === "prompt-asset" && config.promptAssets === undefined) ||
         (resource === "skill-asset" && config.skillAssets === undefined) ||
@@ -675,73 +747,7 @@ export async function mockAigcForgeServer(page: Page, config: MockServerConfig) 
       )
         return route.fallback()
 
-      // Production serves the UI and API from one origin; leave app assets to Vite.
-      if (
-        !url.pathname.startsWith("/api/") &&
-        !/^\/(?:memory|agent-task|delegation|agent-asset|prompt-asset|skill-asset|command-asset|workflow-asset|mcp-asset|plugin-asset|custom-composition|custom-profile|schedule)(?:\/|$)/.test(
-          url.pathname,
-        ) &&
-        !/^\/session\/[^/]+\/(?:task(?:\/.*)?|identity|composition|meta|project-memory(?:\/[^/]+)?|cache-diagnostics|workflow(?:\/.*)?|work-artifact\/apply)$/.test(
-          url.pathname,
-        )
-      )
-        return route.fallback()
-
-      if (route.request().method() === "OPTIONS") {
-        return route.fulfill({ status: 204, headers: corsHeaders })
-      }
-
-      const password = config.password === undefined ? undefined : resolve(config.password)
-
-      if (
-        password !== undefined &&
-        (await route.request().headerValue("authorization")) !== `Basic ${btoa(`aigcfroge:${password}`)}`
-      ) {
-        return route.fulfill({
-          status: 401,
-          headers: corsHeaders,
-          json: Schema.encodeSync(MockUnauthorized)(new MockUnauthorized({ message: "Authentication required" })),
-        })
-      }
-
-      const directory = url.searchParams.get("directory") ?? url.searchParams.get("location[directory]")
-
-      if (config.strictDirectory && directory && !ownedDirectories(config).has(directory)) {
-        return route.fulfill({ status: 500, headers: corsHeaders, json: { name: "InvalidDirectory" } })
-      }
-
-      const body = route.request().postDataBuffer()
-
-      const response = await transport.handler(
-        new Request(url, {
-          method: route.request().method(),
-          headers: route.request().headers(),
-          body: body ? Uint8Array.from(body) : undefined,
-        }),
-      )
-
-      const payload = Buffer.from(await response.arrayBuffer())
-
-      // The handler committed its normal state, but this scenario loses the HTTP reply.
-      if (response.headers.get("x-aigcfroge-mock-disconnect") === "true") return route.abort("connectionclosed")
-
-      // A handler's 404 carries a tagged error; a route the mock does not define must not reach the app server, whose
-      // SPA fallback would answer HTML 200. Answer 501 and fail the test from the route handler.
-      if (response.status === 404 && !payload.toString().includes('"_tag"')) {
-        const request = `${route.request().method()} ${url.pathname}`
-        await route.fulfill({
-          status: 501,
-          headers: corsHeaders,
-          json: { name: "MockUnsupported", message: `The mock server has no route for ${request}` },
-        })
-        throw new Error(`Unmocked API request: ${request} (add it to e2e/utils/mock-server.ts)`)
-      }
-
-      return route.fulfill({
-        status: response.status,
-        headers: { ...Object.fromEntries(response.headers), ...corsHeaders },
-        body: payload,
-      })
+      return handleRoute(route)
     },
   )
 
