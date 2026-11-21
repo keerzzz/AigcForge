@@ -1,7 +1,7 @@
 import type { AigcForgeEvent, SessionMessageInfo } from "@aigcfroge/client/promise"
 import { expect, test, type Locator, type Page } from "@playwright/test"
 import { base64Encode } from "@aigcfroge/util/encode"
-import { SERVER, holdRoute, project, provider, session, workspaceKey } from "../utils/app"
+import { SERVER, holdRoute, project, provider, session, sessionHref, workspaceKey } from "../utils/app"
 import { mockAigcForgeServer } from "../utils/mock-server"
 import { fileDiff, fileNode, openSession } from "../utils/workspace"
 import { expectSessionTitle } from "../utils/waits"
@@ -20,15 +20,26 @@ for (const stored of [
   }) => {
     const directory = "C:/AigcForge/ReviewActiveOnly"
     const id = "ses_review_active_only"
+    const target = "ses_review_restored_target"
     const key = `local\u0000${base64Encode(directory)}/${id}`
     await openSession(page, {
       name: "ReviewActiveOnly",
       directory,
-      sessions: [{ id, title: "Active Review" }],
+      sessions: [
+        { id, title: "Active Review" },
+        { id: target, title: "Restored Review target" },
+      ],
       vcsDiff: [fileDiff("alpha.ts")],
       seed: {
-        panes: { [id]: { review: true } },
-        storage: { "aigcfroge.global.dat:layout": { sessionTabs: { [key]: stored } } },
+        panes: { [id]: { review: true }, [target]: { review: true } },
+        storage: {
+          "aigcfroge.global.dat:layout": {
+            sessionTabs: {
+              [key]: stored,
+              [`local\u0000${base64Encode(directory)}/${target}`]: stored,
+            },
+          },
+        },
       },
     })
     const tab = page.locator("#session-side-panel-review-tab")
@@ -42,6 +53,13 @@ for (const stored of [
       )
 
     await expect.poll(state).toEqual({ all: [...stored.all, "review:changes"], active: "review:changes" })
+    await page.locator(`[data-slot="titlebar-tabs"] a[href="${sessionHref(target)}"]`).click()
+    await expectSessionTitle(page, "Restored Review target")
+    await expect(tab).toHaveAttribute("aria-selected", "true")
+    await expect(page.locator('[data-slot="session-review-v2-file-name"]')).toHaveText("alpha.ts")
+    await page.locator(`[data-slot="titlebar-tabs"] a[href="${sessionHref(id)}"]`).click()
+    await expectSessionTitle(page, "Active Review")
+    await expect(tab).toHaveAttribute("aria-selected", "true")
     await page.reload()
     await expectSessionTitle(page, "Active Review")
     await expect(tab).toHaveAttribute("aria-selected", "true")
