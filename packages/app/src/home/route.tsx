@@ -61,9 +61,17 @@ export function Home() {
         onScroll={(event) => scroll.viewport.update(event.currentTarget.scrollTop)}
         onWheel={scroll.viewport.containOuterWheel}
       >
-        <div data-component="home-workspace-grid">
+        <div data-component="home-workspace-grid" data-mode={home.mode.workspace()}>
           <Show when={!mobile()}>
-            <HomeProjects projects={projects} scroll={scroll} />
+            <Show
+              when={home.mode.workspace() === "custom"}
+              fallback={<HomeProjects projects={projects} scroll={scroll} />}
+            >
+              <div data-component="custom-home-navigation">
+                <HomeProjects projects={projects} scroll={scroll} />
+                <HomeSessions sessions={sessions} search={search} scroll={scroll} />
+              </div>
+            </Show>
           </Show>
           <div class="flex min-h-0 min-w-0 flex-col">
             <Show when={home.mode.workspace() === "custom" ? home.project.selected() : home.project.newSession()}>
@@ -145,7 +153,9 @@ export function Home() {
                 </>
               )}
             </Show>
-            <HomeSessions sessions={sessions} search={search} scroll={scroll} />
+            <Show when={home.mode.workspace() !== "custom" || mobile()}>
+              <HomeSessions sessions={sessions} search={search} scroll={scroll} />
+            </Show>
           </div>
           <HomeWorkSummary home={home} sessions={sessions} />
         </div>

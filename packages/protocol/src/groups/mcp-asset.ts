@@ -95,6 +95,20 @@ export const McpAssetGroup = HttpApiGroup.make("mcp-asset")
       }),
     ),
   )
+  .add(
+    HttpApiEndpoint.post("mcp-asset.remove", `${root}/delete`, {
+      query: Schema.Struct(WorkspaceRoutingQueryFields),
+      payload: McpAssetDeletePayload,
+      success: described(Schema.Void, "Deleted"),
+      error: [InvalidRequestError, ConflictError],
+    }).annotateMerge(
+      OpenApi.annotations({
+        identifier: "mcp-asset.remove",
+        summary: "Delete mcp-asset asset at Location",
+        description: "Delete an MCP asset at the current Location by relative path with baseRevision CAS.",
+      }),
+    ),
+  )
   .annotateMerge(
     OpenApi.annotations({
       title: "mcp-asset",

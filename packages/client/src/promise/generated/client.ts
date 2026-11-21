@@ -333,6 +333,8 @@ import type {
   PromptAssetApplyOutput,
   PromptAssetDeleteInput,
   PromptAssetDeleteOutput,
+  PromptAssetRemoveInput,
+  PromptAssetRemoveOutput,
   SkillAssetListInput,
   SkillAssetListOutput,
   SkillAssetContentInput,
@@ -343,6 +345,8 @@ import type {
   SkillAssetApplyOutput,
   SkillAssetDeleteInput,
   SkillAssetDeleteOutput,
+  SkillAssetRemoveInput,
+  SkillAssetRemoveOutput,
   McpAssetListInput,
   McpAssetListOutput,
   McpAssetContentInput,
@@ -351,6 +355,8 @@ import type {
   McpAssetApplyOutput,
   McpAssetDeleteInput,
   McpAssetDeleteOutput,
+  McpAssetRemoveInput,
+  McpAssetRemoveOutput,
   CommandAssetListInput,
   CommandAssetListOutput,
   CommandAssetContentInput,
@@ -361,6 +367,8 @@ import type {
   CommandAssetApplyOutput,
   CommandAssetDeleteInput,
   CommandAssetDeleteOutput,
+  CommandAssetRemoveInput,
+  CommandAssetRemoveOutput,
   AgentAssetListInput,
   AgentAssetListOutput,
   AgentAssetContentInput,
@@ -369,6 +377,8 @@ import type {
   AgentAssetApplyOutput,
   AgentAssetDeleteInput,
   AgentAssetDeleteOutput,
+  AgentAssetRemoveInput,
+  AgentAssetRemoveOutput,
   PluginAssetListInput,
   PluginAssetListOutput,
   PluginAssetContentInput,
@@ -377,6 +387,8 @@ import type {
   PluginAssetApplyOutput,
   PluginAssetDeleteInput,
   PluginAssetDeleteOutput,
+  PluginAssetRemoveInput,
+  PluginAssetRemoveOutput,
   WorkflowAssetListInput,
   WorkflowAssetListOutput,
   WorkflowAssetContentInput,
@@ -385,6 +397,8 @@ import type {
   WorkflowAssetApplyOutput,
   WorkflowAssetDeleteInput,
   WorkflowAssetDeleteOutput,
+  WorkflowAssetRemoveInput,
+  WorkflowAssetRemoveOutput,
   CustomProfileListInput,
   CustomProfileListOutput,
   CustomProfileContentInput,
@@ -393,6 +407,8 @@ import type {
   CustomProfileApplyOutput,
   CustomProfileDeleteInput,
   CustomProfileDeleteOutput,
+  CustomProfileRemoveInput,
+  CustomProfileRemoveOutput,
   CustomCompositionPlanInput,
   CustomCompositionPlanOutput,
   CustomCompositionStartInput,
@@ -29445,6 +29461,19 @@ export function make(options: ClientOptions) {
           },
           requestOptions,
         ),
+      remove: (input: PromptAssetRemoveInput, requestOptions?: RequestOptions) =>
+        request<PromptAssetRemoveOutput>(
+          {
+            method: "POST",
+            path: `/prompt-asset/delete`,
+            query: { directory: input["directory"], workspace: input["workspace"] },
+            body: { relativePath: input["relativePath"], baseRevision: input["baseRevision"], target: input["target"] },
+            successStatus: 200,
+            declaredStatuses: [400, 401, 404, 409],
+            empty: true,
+          },
+          requestOptions,
+        ),
     },
     "skill-asset": {
       list: (input?: SkillAssetListInput, requestOptions?: RequestOptions) =>
@@ -29525,6 +29554,19 @@ export function make(options: ClientOptions) {
           },
           requestOptions,
         ),
+      remove: (input: SkillAssetRemoveInput, requestOptions?: RequestOptions) =>
+        request<SkillAssetRemoveOutput>(
+          {
+            method: "POST",
+            path: `/skill-asset/delete`,
+            query: { directory: input["directory"], workspace: input["workspace"] },
+            body: { relativePath: input["relativePath"], baseRevision: input["baseRevision"], target: input["target"] },
+            successStatus: 200,
+            declaredStatuses: [400, 401, 404, 409],
+            empty: true,
+          },
+          requestOptions,
+        ),
     },
     "mcp-asset": {
       list: (input?: McpAssetListInput, requestOptions?: RequestOptions) =>
@@ -29569,6 +29611,19 @@ export function make(options: ClientOptions) {
           {
             method: "POST",
             path: `/session/${encodeURIComponent(input.sessionID)}/mcp-asset/delete`,
+            query: { directory: input["directory"], workspace: input["workspace"] },
+            body: { relativePath: input["relativePath"], baseRevision: input["baseRevision"] },
+            successStatus: 200,
+            declaredStatuses: [400, 401, 404, 409],
+            empty: true,
+          },
+          requestOptions,
+        ),
+      remove: (input: McpAssetRemoveInput, requestOptions?: RequestOptions) =>
+        request<McpAssetRemoveOutput>(
+          {
+            method: "POST",
+            path: `/mcp-asset/delete`,
             query: { directory: input["directory"], workspace: input["workspace"] },
             body: { relativePath: input["relativePath"], baseRevision: input["baseRevision"] },
             successStatus: 200,
@@ -29657,6 +29712,19 @@ export function make(options: ClientOptions) {
           },
           requestOptions,
         ),
+      remove: (input: CommandAssetRemoveInput, requestOptions?: RequestOptions) =>
+        request<CommandAssetRemoveOutput>(
+          {
+            method: "POST",
+            path: `/command-asset/delete`,
+            query: { directory: input["directory"], workspace: input["workspace"] },
+            body: { relativePath: input["relativePath"], baseRevision: input["baseRevision"], target: input["target"] },
+            successStatus: 200,
+            declaredStatuses: [400, 401, 404, 409],
+            empty: true,
+          },
+          requestOptions,
+        ),
     },
     "agent-asset": {
       list: (input?: AgentAssetListInput, requestOptions?: RequestOptions) =>
@@ -29701,6 +29769,19 @@ export function make(options: ClientOptions) {
           {
             method: "POST",
             path: `/session/${encodeURIComponent(input.sessionID)}/agent-asset/delete`,
+            query: { directory: input["directory"], workspace: input["workspace"] },
+            body: { relativePath: input["relativePath"], baseRevision: input["baseRevision"] },
+            successStatus: 200,
+            declaredStatuses: [400, 401, 404, 409],
+            empty: true,
+          },
+          requestOptions,
+        ),
+      remove: (input: AgentAssetRemoveInput, requestOptions?: RequestOptions) =>
+        request<AgentAssetRemoveOutput>(
+          {
+            method: "POST",
+            path: `/agent-asset/delete`,
             query: { directory: input["directory"], workspace: input["workspace"] },
             body: { relativePath: input["relativePath"], baseRevision: input["baseRevision"] },
             successStatus: 200,
@@ -29761,6 +29842,19 @@ export function make(options: ClientOptions) {
           },
           requestOptions,
         ),
+      remove: (input: PluginAssetRemoveInput, requestOptions?: RequestOptions) =>
+        request<PluginAssetRemoveOutput>(
+          {
+            method: "POST",
+            path: `/plugin-asset/delete`,
+            query: { directory: input["directory"], workspace: input["workspace"] },
+            body: { relativePath: input["relativePath"], baseRevision: input["baseRevision"] },
+            successStatus: 200,
+            declaredStatuses: [400, 401, 404, 409],
+            empty: true,
+          },
+          requestOptions,
+        ),
     },
     "workflow-asset": {
       list: (input?: WorkflowAssetListInput, requestOptions?: RequestOptions) =>
@@ -29813,6 +29907,19 @@ export function make(options: ClientOptions) {
           },
           requestOptions,
         ),
+      remove: (input: WorkflowAssetRemoveInput, requestOptions?: RequestOptions) =>
+        request<WorkflowAssetRemoveOutput>(
+          {
+            method: "POST",
+            path: `/workflow-asset/delete`,
+            query: { directory: input["directory"], workspace: input["workspace"] },
+            body: { relativePath: input["relativePath"], baseRevision: input["baseRevision"] },
+            successStatus: 200,
+            declaredStatuses: [400, 401, 404, 409],
+            empty: true,
+          },
+          requestOptions,
+        ),
     },
     "custom-profile": {
       list: (input?: CustomProfileListInput, requestOptions?: RequestOptions) =>
@@ -29857,6 +29964,19 @@ export function make(options: ClientOptions) {
           {
             method: "POST",
             path: `/session/${encodeURIComponent(input.sessionID)}/custom-profile/delete`,
+            query: { directory: input["directory"], workspace: input["workspace"] },
+            body: { relativePath: input["relativePath"], baseRevision: input["baseRevision"] },
+            successStatus: 200,
+            declaredStatuses: [400, 401, 404, 409, 500],
+            empty: false,
+          },
+          requestOptions,
+        ),
+      remove: (input: CustomProfileRemoveInput, requestOptions?: RequestOptions) =>
+        request<CustomProfileRemoveOutput>(
+          {
+            method: "POST",
+            path: `/custom-profile/delete`,
             query: { directory: input["directory"], workspace: input["workspace"] },
             body: { relativePath: input["relativePath"], baseRevision: input["baseRevision"] },
             successStatus: 200,

@@ -9,6 +9,7 @@ class Display extends Schema.Class<Display>("SessionManagement.Display")({
   meta: Schema.Boolean,
   workflow: Schema.Boolean,
   artifacts: Schema.Boolean,
+  composition: Schema.optional(Schema.Boolean),
 }) {}
 
 class SessionTarget extends Schema.Class<SessionTarget>("SessionManagement.SessionTarget")({
@@ -27,6 +28,7 @@ export default Extension.define({
       meta: true,
       workflow: true,
       artifacts: true,
+      composition: true,
     }),
     meta: Store.session(Schema.Struct(MetaDraft.fields), { keyword: "" }),
     collaboration: Store.session(Schema.Struct(CollaborationDraft.fields), {}),

@@ -335,6 +335,8 @@ import type {
   PromptAssetApplyOutput,
   PromptAssetDeleteInput,
   PromptAssetDeleteOutput,
+  PromptAssetRemoveInput,
+  PromptAssetRemoveOutput,
   SkillAssetListInput,
   SkillAssetListOutput,
   SkillAssetContentInput,
@@ -345,6 +347,8 @@ import type {
   SkillAssetApplyOutput,
   SkillAssetDeleteInput,
   SkillAssetDeleteOutput,
+  SkillAssetRemoveInput,
+  SkillAssetRemoveOutput,
   McpAssetListInput,
   McpAssetListOutput,
   McpAssetContentInput,
@@ -353,6 +357,8 @@ import type {
   McpAssetApplyOutput,
   McpAssetDeleteInput,
   McpAssetDeleteOutput,
+  McpAssetRemoveInput,
+  McpAssetRemoveOutput,
   CommandAssetListInput,
   CommandAssetListOutput,
   CommandAssetContentInput,
@@ -363,6 +369,8 @@ import type {
   CommandAssetApplyOutput,
   CommandAssetDeleteInput,
   CommandAssetDeleteOutput,
+  CommandAssetRemoveInput,
+  CommandAssetRemoveOutput,
   AgentAssetListInput,
   AgentAssetListOutput,
   AgentAssetContentInput,
@@ -371,6 +379,8 @@ import type {
   AgentAssetApplyOutput,
   AgentAssetDeleteInput,
   AgentAssetDeleteOutput,
+  AgentAssetRemoveInput,
+  AgentAssetRemoveOutput,
   PluginAssetListInput,
   PluginAssetListOutput,
   PluginAssetContentInput,
@@ -379,6 +389,8 @@ import type {
   PluginAssetApplyOutput,
   PluginAssetDeleteInput,
   PluginAssetDeleteOutput,
+  PluginAssetRemoveInput,
+  PluginAssetRemoveOutput,
   WorkflowAssetListInput,
   WorkflowAssetListOutput,
   WorkflowAssetContentInput,
@@ -387,6 +399,8 @@ import type {
   WorkflowAssetApplyOutput,
   WorkflowAssetDeleteInput,
   WorkflowAssetDeleteOutput,
+  WorkflowAssetRemoveInput,
+  WorkflowAssetRemoveOutput,
   CustomProfileListInput,
   CustomProfileListOutput,
   CustomProfileContentInput,
@@ -395,6 +409,8 @@ import type {
   CustomProfileApplyOutput,
   CustomProfileDeleteInput,
   CustomProfileDeleteOutput,
+  CustomProfileRemoveInput,
+  CustomProfileRemoveOutput,
   CustomCompositionPlanInput,
   CustomCompositionPlanOutput,
   CustomCompositionStartInput,
@@ -2933,12 +2949,43 @@ const EndpointPromptAssetDelete = (raw: RawClient["prompt-asset"]) => (input: Pr
     }),
   )
 
+type PromptAssetRemoveRequest = Parameters<RawClient["prompt-asset"]["prompt-asset.remove"]>[0]
+const EndpointPromptAssetRemovePayload = SchemaParser.makeEffect(
+  Schema.make<Schema.ConstraintDecoder<PromptAssetRemoveRequest["payload"]>>(
+    Schema.Union(
+      Array.from(ClientApi.groups["prompt-asset"].endpoints["prompt-asset.remove"].payload.values()).flatMap(
+        (entry) => entry.schemas,
+      ),
+    ).ast,
+  ),
+)
+const EndpointPromptAssetRemove = (raw: RawClient["prompt-asset"]) => (input: PromptAssetRemoveInput) =>
+  preserveEffect<PromptAssetRemoveOutput>()(
+    Effect.gen(function* () {
+      const payload = yield* EndpointPromptAssetRemovePayload(
+        { relativePath: input["relativePath"], baseRevision: input["baseRevision"], target: input["target"] },
+        {
+          parseOptions: Context.getOrElse(
+            ClientApi.groups["prompt-asset"].endpoints["prompt-asset.remove"].annotations,
+            HttpApi.PayloadParseOptions,
+            () => ({}),
+          ),
+        },
+      ).pipe(Effect.mapError((issue) => new ClientError({ cause: issue })))
+      return yield* raw["prompt-asset.remove"]({
+        query: { directory: input["directory"], workspace: input["workspace"] },
+        payload,
+      }).pipe(Effect.mapError(mapClientError))
+    }),
+  )
+
 const adaptGroupPromptAsset = (raw: RawClient["prompt-asset"]) => ({
   list: EndpointPromptAssetList(raw),
   content: EndpointPromptAssetContent(raw),
   inspect: EndpointPromptAssetInspect(raw),
   apply: EndpointPromptAssetApply(raw),
   delete: EndpointPromptAssetDelete(raw),
+  remove: EndpointPromptAssetRemove(raw),
 })
 
 const EndpointSkillAssetList = (raw: RawClient["skill-asset"]) => (input?: SkillAssetListInput) =>
@@ -3063,12 +3110,43 @@ const EndpointSkillAssetDelete = (raw: RawClient["skill-asset"]) => (input: Skil
     }),
   )
 
+type SkillAssetRemoveRequest = Parameters<RawClient["skill-asset"]["skill-asset.remove"]>[0]
+const EndpointSkillAssetRemovePayload = SchemaParser.makeEffect(
+  Schema.make<Schema.ConstraintDecoder<SkillAssetRemoveRequest["payload"]>>(
+    Schema.Union(
+      Array.from(ClientApi.groups["skill-asset"].endpoints["skill-asset.remove"].payload.values()).flatMap(
+        (entry) => entry.schemas,
+      ),
+    ).ast,
+  ),
+)
+const EndpointSkillAssetRemove = (raw: RawClient["skill-asset"]) => (input: SkillAssetRemoveInput) =>
+  preserveEffect<SkillAssetRemoveOutput>()(
+    Effect.gen(function* () {
+      const payload = yield* EndpointSkillAssetRemovePayload(
+        { relativePath: input["relativePath"], baseRevision: input["baseRevision"], target: input["target"] },
+        {
+          parseOptions: Context.getOrElse(
+            ClientApi.groups["skill-asset"].endpoints["skill-asset.remove"].annotations,
+            HttpApi.PayloadParseOptions,
+            () => ({}),
+          ),
+        },
+      ).pipe(Effect.mapError((issue) => new ClientError({ cause: issue })))
+      return yield* raw["skill-asset.remove"]({
+        query: { directory: input["directory"], workspace: input["workspace"] },
+        payload,
+      }).pipe(Effect.mapError(mapClientError))
+    }),
+  )
+
 const adaptGroupSkillAsset = (raw: RawClient["skill-asset"]) => ({
   list: EndpointSkillAssetList(raw),
   content: EndpointSkillAssetContent(raw),
   inspect: EndpointSkillAssetInspect(raw),
   apply: EndpointSkillAssetApply(raw),
   delete: EndpointSkillAssetDelete(raw),
+  remove: EndpointSkillAssetRemove(raw),
 })
 
 const EndpointMcpAssetList = (raw: RawClient["mcp-asset"]) => (input?: McpAssetListInput) =>
@@ -3125,11 +3203,20 @@ const EndpointMcpAssetDelete = (raw: RawClient["mcp-asset"]) => (input: McpAsset
     }).pipe(Effect.mapError(mapClientError)),
   )
 
+const EndpointMcpAssetRemove = (raw: RawClient["mcp-asset"]) => (input: McpAssetRemoveInput) =>
+  preserveEffect<McpAssetRemoveOutput>()(
+    raw["mcp-asset.remove"]({
+      query: { directory: input["directory"], workspace: input["workspace"] },
+      payload: { relativePath: input["relativePath"], baseRevision: input["baseRevision"] },
+    }).pipe(Effect.mapError(mapClientError)),
+  )
+
 const adaptGroupMcpAsset = (raw: RawClient["mcp-asset"]) => ({
   list: EndpointMcpAssetList(raw),
   content: EndpointMcpAssetContent(raw),
   apply: EndpointMcpAssetApply(raw),
   delete: EndpointMcpAssetDelete(raw),
+  remove: EndpointMcpAssetRemove(raw),
 })
 
 const EndpointCommandAssetList = (raw: RawClient["command-asset"]) => (input?: CommandAssetListInput) =>
@@ -3254,12 +3341,43 @@ const EndpointCommandAssetDelete = (raw: RawClient["command-asset"]) => (input: 
     }),
   )
 
+type CommandAssetRemoveRequest = Parameters<RawClient["command-asset"]["command-asset.remove"]>[0]
+const EndpointCommandAssetRemovePayload = SchemaParser.makeEffect(
+  Schema.make<Schema.ConstraintDecoder<CommandAssetRemoveRequest["payload"]>>(
+    Schema.Union(
+      Array.from(ClientApi.groups["command-asset"].endpoints["command-asset.remove"].payload.values()).flatMap(
+        (entry) => entry.schemas,
+      ),
+    ).ast,
+  ),
+)
+const EndpointCommandAssetRemove = (raw: RawClient["command-asset"]) => (input: CommandAssetRemoveInput) =>
+  preserveEffect<CommandAssetRemoveOutput>()(
+    Effect.gen(function* () {
+      const payload = yield* EndpointCommandAssetRemovePayload(
+        { relativePath: input["relativePath"], baseRevision: input["baseRevision"], target: input["target"] },
+        {
+          parseOptions: Context.getOrElse(
+            ClientApi.groups["command-asset"].endpoints["command-asset.remove"].annotations,
+            HttpApi.PayloadParseOptions,
+            () => ({}),
+          ),
+        },
+      ).pipe(Effect.mapError((issue) => new ClientError({ cause: issue })))
+      return yield* raw["command-asset.remove"]({
+        query: { directory: input["directory"], workspace: input["workspace"] },
+        payload,
+      }).pipe(Effect.mapError(mapClientError))
+    }),
+  )
+
 const adaptGroupCommandAsset = (raw: RawClient["command-asset"]) => ({
   list: EndpointCommandAssetList(raw),
   content: EndpointCommandAssetContent(raw),
   inspect: EndpointCommandAssetInspect(raw),
   apply: EndpointCommandAssetApply(raw),
   delete: EndpointCommandAssetDelete(raw),
+  remove: EndpointCommandAssetRemove(raw),
 })
 
 const EndpointAgentAssetList = (raw: RawClient["agent-asset"]) => (input?: AgentAssetListInput) =>
@@ -3316,11 +3434,20 @@ const EndpointAgentAssetDelete = (raw: RawClient["agent-asset"]) => (input: Agen
     }).pipe(Effect.mapError(mapClientError)),
   )
 
+const EndpointAgentAssetRemove = (raw: RawClient["agent-asset"]) => (input: AgentAssetRemoveInput) =>
+  preserveEffect<AgentAssetRemoveOutput>()(
+    raw["agent-asset.remove"]({
+      query: { directory: input["directory"], workspace: input["workspace"] },
+      payload: { relativePath: input["relativePath"], baseRevision: input["baseRevision"] },
+    }).pipe(Effect.mapError(mapClientError)),
+  )
+
 const adaptGroupAgentAsset = (raw: RawClient["agent-asset"]) => ({
   list: EndpointAgentAssetList(raw),
   content: EndpointAgentAssetContent(raw),
   apply: EndpointAgentAssetApply(raw),
   delete: EndpointAgentAssetDelete(raw),
+  remove: EndpointAgentAssetRemove(raw),
 })
 
 const EndpointPluginAssetList = (raw: RawClient["plugin-asset"]) => (input?: PluginAssetListInput) =>
@@ -3377,11 +3504,20 @@ const EndpointPluginAssetDelete = (raw: RawClient["plugin-asset"]) => (input: Pl
     }).pipe(Effect.mapError(mapClientError)),
   )
 
+const EndpointPluginAssetRemove = (raw: RawClient["plugin-asset"]) => (input: PluginAssetRemoveInput) =>
+  preserveEffect<PluginAssetRemoveOutput>()(
+    raw["plugin-asset.remove"]({
+      query: { directory: input["directory"], workspace: input["workspace"] },
+      payload: { relativePath: input["relativePath"], baseRevision: input["baseRevision"] },
+    }).pipe(Effect.mapError(mapClientError)),
+  )
+
 const adaptGroupPluginAsset = (raw: RawClient["plugin-asset"]) => ({
   list: EndpointPluginAssetList(raw),
   content: EndpointPluginAssetContent(raw),
   apply: EndpointPluginAssetApply(raw),
   delete: EndpointPluginAssetDelete(raw),
+  remove: EndpointPluginAssetRemove(raw),
 })
 
 const EndpointWorkflowAssetList = (raw: RawClient["workflow-asset"]) => (input?: WorkflowAssetListInput) =>
@@ -3438,11 +3574,20 @@ const EndpointWorkflowAssetDelete = (raw: RawClient["workflow-asset"]) => (input
     }).pipe(Effect.mapError(mapClientError)),
   )
 
+const EndpointWorkflowAssetRemove = (raw: RawClient["workflow-asset"]) => (input: WorkflowAssetRemoveInput) =>
+  preserveEffect<WorkflowAssetRemoveOutput>()(
+    raw["workflow-asset.remove"]({
+      query: { directory: input["directory"], workspace: input["workspace"] },
+      payload: { relativePath: input["relativePath"], baseRevision: input["baseRevision"] },
+    }).pipe(Effect.mapError(mapClientError)),
+  )
+
 const adaptGroupWorkflowAsset = (raw: RawClient["workflow-asset"]) => ({
   list: EndpointWorkflowAssetList(raw),
   content: EndpointWorkflowAssetContent(raw),
   apply: EndpointWorkflowAssetApply(raw),
   delete: EndpointWorkflowAssetDelete(raw),
+  remove: EndpointWorkflowAssetRemove(raw),
 })
 
 const EndpointCustomProfileList = (raw: RawClient["custom-profile"]) => (input?: CustomProfileListInput) =>
@@ -3498,11 +3643,20 @@ const EndpointCustomProfileDelete = (raw: RawClient["custom-profile"]) => (input
     }).pipe(Effect.mapError(mapClientError)),
   )
 
+const EndpointCustomProfileRemove = (raw: RawClient["custom-profile"]) => (input: CustomProfileRemoveInput) =>
+  preserveEffect<CustomProfileRemoveOutput>()(
+    raw["custom-profile.remove"]({
+      query: { directory: input["directory"], workspace: input["workspace"] },
+      payload: { relativePath: input["relativePath"], baseRevision: input["baseRevision"] },
+    }).pipe(Effect.mapError(mapClientError)),
+  )
+
 const adaptGroupCustomProfile = (raw: RawClient["custom-profile"]) => ({
   list: EndpointCustomProfileList(raw),
   content: EndpointCustomProfileContent(raw),
   apply: EndpointCustomProfileApply(raw),
   delete: EndpointCustomProfileDelete(raw),
+  remove: EndpointCustomProfileRemove(raw),
 })
 
 type CustomCompositionPlanRequest = Parameters<RawClient["custom-composition"]["custom-composition.plan"]>[0]

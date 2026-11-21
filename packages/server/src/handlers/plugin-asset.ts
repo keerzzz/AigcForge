@@ -90,6 +90,15 @@ export const PluginAssetHandler = HttpApiBuilder.group(Api, "plugin-asset", (han
           ),
         ),
       )
+      .handle("plugin-asset.remove", ({ payload }) =>
+        scope.atLocation(
+          PluginAssetService.Service.use((service) =>
+            service
+              .delete({ relativePath: payload.relativePath, baseRevision: payload.baseRevision ?? null })
+              .pipe(Effect.mapError(pluginAssetWriteError)),
+          ),
+        ),
+      )
   }),
 )
 

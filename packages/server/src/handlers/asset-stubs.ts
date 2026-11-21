@@ -95,6 +95,19 @@ export const SkillAssetHandler = HttpApiBuilder.group(Api, "skill-asset", (handl
           ),
         ),
       )
+      .handle("skill-asset.remove", ({ payload }) =>
+        scope.atLocation(
+          SkillAssetService.Service.use((service) =>
+            service
+              .delete({
+                relativePath: payload.relativePath,
+                baseRevision: payload.baseRevision ?? null,
+                ...(payload.target === undefined ? {} : { target: payload.target }),
+              })
+              .pipe(Effect.mapError(skillAssetWriteError)),
+          ),
+        ),
+      )
   }),
 )
 

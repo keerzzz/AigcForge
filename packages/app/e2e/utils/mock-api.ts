@@ -33,11 +33,45 @@ import { LocationQuery } from "@aigcfroge/protocol/groups/location"
 import { WorkspaceRoutingQuery, WorkspaceRoutingQueryFields } from "@aigcfroge/protocol/middleware/workspace-routing"
 import { LegacyDelegationState } from "@aigcfroge/protocol/groups/delegation"
 import { QueryBoolean } from "@aigcfroge/protocol/groups/query"
-import { AgentAssetContentQuery, AgentAssetListQuery } from "@aigcfroge/protocol/groups/agent-asset"
-import { WorkflowAssetContentQuery, WorkflowAssetListQuery } from "@aigcfroge/protocol/groups/workflow-asset"
+import {
+  AgentAssetContentQuery,
+  AgentAssetDeletePayload,
+  AgentAssetListQuery,
+} from "@aigcfroge/protocol/groups/agent-asset"
+import {
+  CommandAssetContentQuery,
+  CommandAssetDeletePayload,
+  CommandAssetListQuery,
+} from "@aigcfroge/protocol/groups/command-asset"
+import {
+  CustomCompositionHealthQuery,
+  CustomCompositionReferencesQuery,
+} from "@aigcfroge/protocol/groups/custom-composition"
+import { McpAssetContentQuery, McpAssetDeletePayload, McpAssetListQuery } from "@aigcfroge/protocol/groups/mcp-asset"
+import {
+  PluginAssetContentQuery,
+  PluginAssetDeletePayload,
+  PluginAssetListQuery,
+} from "@aigcfroge/protocol/groups/plugin-asset"
+import {
+  PromptAssetContentQuery,
+  PromptAssetDeletePayload,
+  PromptAssetListQuery,
+} from "@aigcfroge/protocol/groups/prompt-asset"
+import {
+  SkillAssetContentQuery,
+  SkillAssetDeletePayload,
+  SkillAssetListQuery,
+} from "@aigcfroge/protocol/groups/skill-asset"
+import {
+  WorkflowAssetContentQuery,
+  WorkflowAssetDeletePayload,
+  WorkflowAssetListQuery,
+} from "@aigcfroge/protocol/groups/workflow-asset"
 import {
   CustomProfileApplyPayload,
   CustomProfileContentQuery,
+  CustomProfileDeletePayload,
   CustomProfileListQuery,
 } from "@aigcfroge/protocol/groups/custom-profile"
 
@@ -160,6 +194,14 @@ const Group = HttpApiGroup.make("mock")
     }),
   )
   .add(
+    HttpApiEndpoint.post("profileRemove", "/custom-profile/delete", {
+      query: WorkspaceRoutingQuery,
+      payload: CustomProfileDeletePayload,
+      success: Json,
+      error: [InvalidRequestError, ConflictError, ApiNotFoundError, Unsupported],
+    }),
+  )
+  .add(
     HttpApiEndpoint.post("compositionPlan", "/custom-composition/plan", {
       query: WorkspaceRoutingQuery,
       payload: Composition.CompositionInput,
@@ -175,6 +217,20 @@ const Group = HttpApiGroup.make("mock")
       error: [InvalidRequestError, ConflictError, CompositionResolveError, Unsupported],
     }),
   )
+  .add(
+    HttpApiEndpoint.get("compositionHealth", "/custom-composition/health", {
+      query: CustomCompositionHealthQuery,
+      success: Json,
+      error: [InvalidRequestError, Unsupported],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.get("compositionReferences", "/custom-composition/references", {
+      query: CustomCompositionReferencesQuery,
+      success: Json,
+      error: [InvalidRequestError, ConflictError, Unsupported],
+    }),
+  )
   .add(HttpApiEndpoint.get("agent-asset.list", "/agent-asset", { query: AgentAssetListQuery, success: Json }))
   .add(
     HttpApiEndpoint.get("agent-asset.content", "/agent-asset/content", {
@@ -183,12 +239,108 @@ const Group = HttpApiGroup.make("mock")
       error: TaskErrors,
     }),
   )
+  .add(
+    HttpApiEndpoint.post("agent-asset.remove", "/agent-asset/delete", {
+      query: WorkspaceRoutingQuery,
+      payload: AgentAssetDeletePayload,
+      success: Schema.Void,
+      error: [InvalidRequestError, ConflictError],
+    }),
+  )
+  .add(HttpApiEndpoint.get("prompt-asset.list", "/prompt-asset", { query: PromptAssetListQuery, success: Json }))
+  .add(
+    HttpApiEndpoint.get("prompt-asset.content", "/prompt-asset/content", {
+      query: PromptAssetContentQuery,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("prompt-asset.remove", "/prompt-asset/delete", {
+      query: WorkspaceRoutingQuery,
+      payload: PromptAssetDeletePayload,
+      success: Schema.Void,
+      error: [InvalidRequestError, ConflictError],
+    }),
+  )
+  .add(HttpApiEndpoint.get("skill-asset.list", "/skill-asset", { query: SkillAssetListQuery, success: Json }))
+  .add(
+    HttpApiEndpoint.get("skill-asset.content", "/skill-asset/content", {
+      query: SkillAssetContentQuery,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("skill-asset.remove", "/skill-asset/delete", {
+      query: WorkspaceRoutingQuery,
+      payload: SkillAssetDeletePayload,
+      success: Schema.Void,
+      error: [InvalidRequestError, ConflictError],
+    }),
+  )
+  .add(HttpApiEndpoint.get("command-asset.list", "/command-asset", { query: CommandAssetListQuery, success: Json }))
+  .add(
+    HttpApiEndpoint.get("command-asset.content", "/command-asset/content", {
+      query: CommandAssetContentQuery,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("command-asset.remove", "/command-asset/delete", {
+      query: WorkspaceRoutingQuery,
+      payload: CommandAssetDeletePayload,
+      success: Schema.Void,
+      error: [InvalidRequestError, ConflictError],
+    }),
+  )
   .add(HttpApiEndpoint.get("workflow-asset.list", "/workflow-asset", { query: WorkflowAssetListQuery, success: Json }))
   .add(
     HttpApiEndpoint.get("workflow-asset.content", "/workflow-asset/content", {
       query: WorkflowAssetContentQuery,
       success: Json,
       error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("workflow-asset.remove", "/workflow-asset/delete", {
+      query: WorkspaceRoutingQuery,
+      payload: WorkflowAssetDeletePayload,
+      success: Schema.Void,
+      error: [InvalidRequestError, ConflictError],
+    }),
+  )
+  .add(HttpApiEndpoint.get("mcp-asset.list", "/mcp-asset", { query: McpAssetListQuery, success: Json }))
+  .add(
+    HttpApiEndpoint.get("mcp-asset.content", "/mcp-asset/content", {
+      query: McpAssetContentQuery,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("mcp-asset.remove", "/mcp-asset/delete", {
+      query: WorkspaceRoutingQuery,
+      payload: McpAssetDeletePayload,
+      success: Schema.Void,
+      error: [InvalidRequestError, ConflictError],
+    }),
+  )
+  .add(HttpApiEndpoint.get("plugin-asset.list", "/plugin-asset", { query: PluginAssetListQuery, success: Json }))
+  .add(
+    HttpApiEndpoint.get("plugin-asset.content", "/plugin-asset/content", {
+      query: PluginAssetContentQuery,
+      success: Json,
+      error: TaskErrors,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("plugin-asset.remove", "/plugin-asset/delete", {
+      query: WorkspaceRoutingQuery,
+      payload: PluginAssetDeletePayload,
+      success: Schema.Void,
+      error: [InvalidRequestError, ConflictError],
     }),
   )
   .add(HttpApiEndpoint.get("memory.list", "/memory", { success: Json, error: TaskErrors }))

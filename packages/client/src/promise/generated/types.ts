@@ -18869,6 +18869,28 @@ export type PromptAssetDeleteInput = {
 
 export type PromptAssetDeleteOutput = void
 
+export type PromptAssetRemoveInput = {
+  readonly directory?: { readonly directory?: string | undefined; readonly workspace?: string | undefined }["directory"]
+  readonly workspace?: { readonly directory?: string | undefined; readonly workspace?: string | undefined }["workspace"]
+  readonly relativePath: {
+    readonly relativePath: string
+    readonly baseRevision?: string | null
+    readonly target?: { readonly scope: "project" | "global" | "location"; readonly root: string }
+  }["relativePath"]
+  readonly baseRevision?: {
+    readonly relativePath: string
+    readonly baseRevision?: string | null
+    readonly target?: { readonly scope: "project" | "global" | "location"; readonly root: string }
+  }["baseRevision"]
+  readonly target?: {
+    readonly relativePath: string
+    readonly baseRevision?: string | null
+    readonly target?: { readonly scope: "project" | "global" | "location"; readonly root: string }
+  }["target"]
+}
+
+export type PromptAssetRemoveOutput = void
+
 export type SkillAssetListInput = {
   readonly directory?: {
     readonly directory?: string | undefined
@@ -19046,6 +19068,28 @@ export type SkillAssetDeleteInput = {
 
 export type SkillAssetDeleteOutput = void
 
+export type SkillAssetRemoveInput = {
+  readonly directory?: { readonly directory?: string | undefined; readonly workspace?: string | undefined }["directory"]
+  readonly workspace?: { readonly directory?: string | undefined; readonly workspace?: string | undefined }["workspace"]
+  readonly relativePath: {
+    readonly relativePath: string
+    readonly baseRevision?: string | null
+    readonly target?: { readonly scope: "project" | "global" | "location"; readonly root: string }
+  }["relativePath"]
+  readonly baseRevision?: {
+    readonly relativePath: string
+    readonly baseRevision?: string | null
+    readonly target?: { readonly scope: "project" | "global" | "location"; readonly root: string }
+  }["baseRevision"]
+  readonly target?: {
+    readonly relativePath: string
+    readonly baseRevision?: string | null
+    readonly target?: { readonly scope: "project" | "global" | "location"; readonly root: string }
+  }["target"]
+}
+
+export type SkillAssetRemoveOutput = void
+
 export type McpAssetListInput = {
   readonly directory?: {
     readonly directory?: string | undefined
@@ -19142,6 +19186,15 @@ export type McpAssetDeleteInput = {
 }
 
 export type McpAssetDeleteOutput = void
+
+export type McpAssetRemoveInput = {
+  readonly directory?: { readonly directory?: string | undefined; readonly workspace?: string | undefined }["directory"]
+  readonly workspace?: { readonly directory?: string | undefined; readonly workspace?: string | undefined }["workspace"]
+  readonly relativePath: { readonly relativePath: string; readonly baseRevision?: string | undefined }["relativePath"]
+  readonly baseRevision?: { readonly relativePath: string; readonly baseRevision?: string | undefined }["baseRevision"]
+}
+
+export type McpAssetRemoveOutput = void
 
 export type CommandAssetListInput = {
   readonly directory?: {
@@ -19314,6 +19367,28 @@ export type CommandAssetDeleteInput = {
 
 export type CommandAssetDeleteOutput = void
 
+export type CommandAssetRemoveInput = {
+  readonly directory?: { readonly directory?: string | undefined; readonly workspace?: string | undefined }["directory"]
+  readonly workspace?: { readonly directory?: string | undefined; readonly workspace?: string | undefined }["workspace"]
+  readonly relativePath: {
+    readonly relativePath: string
+    readonly baseRevision?: string
+    readonly target?: { readonly scope: "project" | "global" | "location"; readonly root: string }
+  }["relativePath"]
+  readonly baseRevision?: {
+    readonly relativePath: string
+    readonly baseRevision?: string
+    readonly target?: { readonly scope: "project" | "global" | "location"; readonly root: string }
+  }["baseRevision"]
+  readonly target?: {
+    readonly relativePath: string
+    readonly baseRevision?: string
+    readonly target?: { readonly scope: "project" | "global" | "location"; readonly root: string }
+  }["target"]
+}
+
+export type CommandAssetRemoveOutput = void
+
 export type AgentAssetListInput = {
   readonly directory?: {
     readonly directory?: string | undefined
@@ -19405,6 +19480,15 @@ export type AgentAssetDeleteInput = {
 
 export type AgentAssetDeleteOutput = void
 
+export type AgentAssetRemoveInput = {
+  readonly directory?: { readonly directory?: string | undefined; readonly workspace?: string | undefined }["directory"]
+  readonly workspace?: { readonly directory?: string | undefined; readonly workspace?: string | undefined }["workspace"]
+  readonly relativePath: { readonly relativePath: string; readonly baseRevision?: string | undefined }["relativePath"]
+  readonly baseRevision?: { readonly relativePath: string; readonly baseRevision?: string | undefined }["baseRevision"]
+}
+
+export type AgentAssetRemoveOutput = void
+
 export type PluginAssetListInput = {
   readonly directory?: {
     readonly directory?: string | undefined
@@ -19493,6 +19577,15 @@ export type PluginAssetDeleteInput = {
 
 export type PluginAssetDeleteOutput = void
 
+export type PluginAssetRemoveInput = {
+  readonly directory?: { readonly directory?: string | undefined; readonly workspace?: string | undefined }["directory"]
+  readonly workspace?: { readonly directory?: string | undefined; readonly workspace?: string | undefined }["workspace"]
+  readonly relativePath: { readonly relativePath: string; readonly baseRevision?: string }["relativePath"]
+  readonly baseRevision?: { readonly relativePath: string; readonly baseRevision?: string }["baseRevision"]
+}
+
+export type PluginAssetRemoveOutput = void
+
 export type WorkflowAssetListInput = {
   readonly directory?: {
     readonly directory?: string | undefined
@@ -19580,6 +19673,15 @@ export type WorkflowAssetDeleteInput = {
 }
 
 export type WorkflowAssetDeleteOutput = void
+
+export type WorkflowAssetRemoveInput = {
+  readonly directory?: { readonly directory?: string | undefined; readonly workspace?: string | undefined }["directory"]
+  readonly workspace?: { readonly directory?: string | undefined; readonly workspace?: string | undefined }["workspace"]
+  readonly relativePath: { readonly relativePath: string; readonly baseRevision?: string | undefined }["relativePath"]
+  readonly baseRevision?: { readonly relativePath: string; readonly baseRevision?: string | undefined }["baseRevision"]
+}
+
+export type WorkflowAssetRemoveOutput = void
 
 export type CustomProfileListInput = {
   readonly directory?: {
@@ -19841,6 +19943,15 @@ export type CustomProfileDeleteInput = {
 }
 
 export type CustomProfileDeleteOutput = CustomProfileDeleteResult
+
+export type CustomProfileRemoveInput = {
+  readonly directory?: { readonly directory?: string | undefined; readonly workspace?: string | undefined }["directory"]
+  readonly workspace?: { readonly directory?: string | undefined; readonly workspace?: string | undefined }["workspace"]
+  readonly relativePath: { readonly relativePath: string; readonly baseRevision?: string | undefined }["relativePath"]
+  readonly baseRevision?: { readonly relativePath: string; readonly baseRevision?: string | undefined }["baseRevision"]
+}
+
+export type CustomProfileRemoveOutput = CustomProfileDeleteResult
 
 export type CustomCompositionPlanInput = {
   readonly directory?: { readonly directory?: string | undefined; readonly workspace?: string | undefined }["directory"]

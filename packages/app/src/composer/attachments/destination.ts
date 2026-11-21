@@ -2,6 +2,8 @@ import type { Accessor } from "solid-js"
 import { useServer } from "@/runtime/server/current"
 import { useServerSDK } from "@/runtime/server/client"
 import { authTokenFromCredentials } from "@/runtime/server/api"
+import type { ServerApi } from "@/runtime/server/api"
+import type { ServerConnection } from "@/runtime/server/registry"
 import { uuid } from "@/runtime/persistence/uuid"
 import { useWorkspaceLocation } from "@/workspaces/location"
 import type { ComposerControls } from "../adapter"
@@ -24,22 +26,27 @@ export function useAttachmentDestination(controls: Accessor<ComposerControls>) {
   return (): AttachmentDestination => ({
     input: controls().model.selection.current()?.capabilities.input ?? { image: false, pdf: false },
     local: server.isLocal,
-    upload: async (file, report, signal) => {
-      const api = sdk.api
-      const saved = { ...location().ref }
-      const http = { ...server.conn.http }
-      const info = await api.server.info({ signal })
-      // One directory per upload keeps the original filename without collisions; the server
-      // normalizes the separators and returns the resolved path.
-      const url = new URL("/api/experimental/fs/write", http.url)
-      url.searchParams.set("location[directory]", saved.directory)
-
-      if (saved.workspaceID) url.searchParams.set("location[workspaceID]", saved.workspaceID)
-      url.searchParams.set("path", `${info.paths.tmp}/uploads/${uuid()}/${file.name}`)
-
-      return write(url, file, http.password, report, signal)
-    },
+    upload: (file, report, signal) =>
+      uploadAttachment(sdk.api, { ...server.conn.http }, { ...location().ref }, file, report, signal),
   })
+}
+
+/** Uploads to a captured server and Location, shared by Composer and Custom task input. */
+export async function uploadAttachment(
+  api: ServerApi,
+  http: ServerConnection.HttpBase,
+  location: { directory: string; workspaceID?: string },
+  file: File,
+  report: (loaded: number) => void,
+  signal: AbortSignal,
+) {
+  const info = await api.server.info({ signal })
+  signal.throwIfAborted()
+  const url = new URL("/api/experimental/fs/write", http.url)
+  url.searchParams.set("location[directory]", location.directory)
+  if (location.workspaceID) url.searchParams.set("location[workspaceID]", location.workspaceID)
+  url.searchParams.set("path", `${info.paths.tmp}/uploads/${uuid()}/${file.name}`)
+  return write(url, file, http.password, report, signal)
 }
 
 // fetch cannot report upload progress and Chromium only streams request bodies over HTTP/2, so

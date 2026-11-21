@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
+import { unwrap } from "solid-js/store"
 import { createData, type CreateDataInput } from "../src/solid"
 import { AigcForge, type AigcForgeEvent, type SessionInboxCompaction, type SessionInboxInfo } from "../src/promise"
 
@@ -13,7 +14,7 @@ test("admits compaction before model setup and serializes the following prompt",
   expect(fixture.data.session.status(sessionID)).toBe("idle")
 
   const prompt = fixture.data.session.prompt({ sessionID, text: "Follow up" })
-  expect(fixture.data.session.message.list(sessionID)).toMatchObject([{ type: "user", text: "Follow up" }])
+  expect(unwrap(fixture.data.session.message.list(sessionID))).toMatchObject([{ type: "user", text: "Follow up" }])
   await wait(() => fixture.calls.length === 1)
   expect(fixture.calls).toEqual(["model"])
   fixture.model.resolve()
@@ -97,7 +98,9 @@ test.each(["started", "cancelled", "failed"])(
     await request
     expect(fixture.data.session.pending.list(sessionID)).toEqual([])
     if (kind === "started") {
-      expect(fixture.data.session.message.list(sessionID)).toMatchObject([{ type: "compaction", status: "running" }])
+      expect(unwrap(fixture.data.session.message.list(sessionID))).toMatchObject([
+        { type: "compaction", status: "running" },
+      ])
       const model = { providerID: "demo", id: "model" }
       const providerState = { responseId: "summary-response" }
       const tokens = { input: 10, output: 4, reasoning: 0, cache: { read: 3, write: 0 } }
@@ -113,6 +116,7 @@ test.each(["started", "cancelled", "failed"])(
         },
         messages: [],
       }
+      const expected = structuredClone({ model, providerState, providerContext, cost: 0.01, tokens })
       fixture.emit({
         ...event,
         type: "session.compaction.ended",
@@ -129,16 +133,12 @@ test.each(["started", "cancelled", "failed"])(
         },
       })
       // The live fold carries the provider window and request usage so the label matches a reloaded session.
-      expect(fixture.data.session.message.list(sessionID)).toMatchObject([
+      expect(unwrap(fixture.data.session.message.list(sessionID))).toMatchObject([
         {
           type: "compaction",
           status: "completed",
           summary: "Summary",
-          model,
-          providerState,
-          providerContext,
-          cost: 0.01,
-          tokens,
+          ...expected,
         },
       ])
     }
@@ -158,7 +158,7 @@ test.each(["model", "compact"])("rolls back a rejected %s RPC and releases the f
   expect(await failed).toBeInstanceOf(Error)
   await prompt
   expect(fixture.data.session.pending.list(sessionID).map((row) => row.type)).toEqual(["user"])
-  expect(fixture.data.session.message.list(sessionID)).toMatchObject([{ type: "user", text: "Follow up" }])
+  expect(unwrap(fixture.data.session.message.list(sessionID))).toMatchObject([{ type: "user", text: "Follow up" }])
 })
 
 test.each(["proposed", "canonical", "existing"])(
@@ -201,7 +201,7 @@ test("uses a fresh control ID when the known pending compaction starts during mo
   expect(await proposed.promise).not.toBe("msg_existing")
   expect(await result).toEqual(item(await proposed.promise))
   expect(fixture.data.session.pending.list(sessionID)).toEqual([item(await proposed.promise)])
-  expect(fixture.data.session.message.list(sessionID)).toMatchObject([
+  expect(unwrap(fixture.data.session.message.list(sessionID))).toMatchObject([
     { id: "msg_existing", type: "compaction", status: "running" },
   ])
 })
@@ -228,7 +228,9 @@ test.each(["compaction", "canonical compaction", "user"])(
     expect(await result).toBeInstanceOf(Error)
     expect(fixture.data.session.pending.list(sessionID)).toEqual([durable])
     if (type === "user")
-      expect(fixture.data.session.message.list(sessionID)).toMatchObject([{ id, type: "user", text: "Follow up" }])
+      expect(unwrap(fixture.data.session.message.list(sessionID))).toMatchObject([
+        { id, type: "user", text: "Follow up" },
+      ])
   },
 )
 
@@ -236,13 +238,15 @@ test("keeps one event listener and removes it when the data owner is disposed du
   using fixture = setup()
   const gate = Promise.withResolvers<void>()
   const first = fixture.data.session.prompt({ sessionID, text: "First", gate: gate.promise })
+  const rejected = first.catch((error: unknown) => error)
   const compact = fixture.data.session.compact({ sessionID })
   expect(fixture.listeners.size).toBe(1)
   fixture.dispose()
   expect(fixture.listeners.size).toBe(0)
   gate.resolve()
   fixture.response.resolve(Response.json({ data: item("msg_canonical") }))
-  await Promise.all([first, compact])
+  const [error] = await Promise.all([rejected, compact])
+  expect(error).toMatchObject({ reason: "Transport", message: "Transport: Session admission owner changed" })
   expect(fixture.listeners.size).toBe(0)
 })
 
@@ -307,7 +311,7 @@ test.each(["gate", "prepare"])(
     await Promise.all([compact, following])
     expect(fixture.calls).toEqual(["model", "compact", "model", "prompt"])
     expect(prepared.at(-1)).toBe("following")
-    expect(fixture.data.session.message.list(sessionID)).toMatchObject([{ type: "user", text: "Follow up" }])
+    expect(unwrap(fixture.data.session.message.list(sessionID))).toMatchObject([{ type: "user", text: "Follow up" }])
   },
 )
 

@@ -89,6 +89,19 @@ export const CommandAssetHandler = HttpApiBuilder.group(Api, "command-asset", (h
           ),
         ),
       )
+      .handle("command-asset.remove", ({ payload }) =>
+        scope.atLocation(
+          CommandAssetService.Service.use((service) =>
+            service
+              .delete({
+                relativePath: payload.relativePath,
+                baseRevision: payload.baseRevision ?? null,
+                ...(payload.target === undefined ? {} : { target: payload.target }),
+              })
+              .pipe(Effect.mapError(commandAssetWriteError)),
+          ),
+        ),
+      )
   }),
 )
 

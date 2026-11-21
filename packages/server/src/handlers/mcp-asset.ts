@@ -79,6 +79,15 @@ export const McpAssetHandler = HttpApiBuilder.group(Api, "mcp-asset", (handlers)
           ),
         ),
       )
+      .handle("mcp-asset.remove", ({ payload }) =>
+        scope.atLocation(
+          MCPAssetService.Service.use((service) =>
+            service
+              .delete({ relativePath: payload.relativePath, baseRevision: payload.baseRevision ?? null })
+              .pipe(Effect.mapError(mcpAssetWriteError)),
+          ),
+        ),
+      )
   }),
 )
 

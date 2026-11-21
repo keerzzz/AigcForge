@@ -95,6 +95,20 @@ export const WorkflowAssetGroup = HttpApiGroup.make("workflow-asset")
       }),
     ),
   )
+  .add(
+    HttpApiEndpoint.post("workflow-asset.remove", `${root}/delete`, {
+      query: Schema.Struct(WorkspaceRoutingQueryFields),
+      payload: WorkflowAssetDeletePayload,
+      success: described(Schema.Void, "Deleted"),
+      error: [InvalidRequestError, ConflictError],
+    }).annotateMerge(
+      OpenApi.annotations({
+        identifier: "workflow-asset.remove",
+        summary: "Delete workflow-asset asset at Location",
+        description: "Delete a workflow asset at the current Location by relative path with baseRevision CAS.",
+      }),
+    ),
+  )
   .annotateMerge(
     OpenApi.annotations({
       title: "workflow-asset",
