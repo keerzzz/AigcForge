@@ -11,6 +11,8 @@
 
   [data-slot="session-content-heading"] {
     display: flex;
+    flex-direction: row;
+    flex-shrink: 0;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
@@ -44,10 +46,11 @@
     color: var(--v2-text-text-muted);
     overflow-wrap: anywhere;
 
-    > [data-slot="collapsible-trigger"] {
+    [data-slot="collapsible-trigger"] {
+      margin-inline-start: auto;
       width: fit-content;
       height: auto;
-      min-height: calc(var(--spacing) * 6);
+      min-height: calc(var(--spacing) * 8);
       gap: var(--spacing);
       color: inherit;
       line-height: var(--line-height-base);
@@ -73,26 +76,52 @@
     margin-block-start: var(--spacing);
   }
 
-  [data-slot="session-content-status-line"] {
+  [data-slot="session-content-summary"] {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
     gap: calc(var(--spacing) * 2);
-    color: var(--v2-text-text-muted);
-    margin-block-start: var(--spacing);
   }
 
-  [data-slot="task-running-indicator"] {
-    width: calc(var(--spacing) * 2);
-    height: calc(var(--spacing) * 2);
-    flex-shrink: 0;
-    border: 1px solid var(--v2-border-border-base);
-    border-radius: 50%;
-  }
+  [data-slot="session-content-status-line"] {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing);
+    padding: var(--spacing) calc(var(--spacing) * 2);
+    border-radius: var(--radius-sm);
+    --session-status-color: var(--v2-text-text-muted);
+    color: var(--v2-text-text-base);
+    background: var(--v2-background-bg-layer-02);
+    line-height: var(--line-height-compact);
 
-  :is([data-state="running"], [data-state="busy"], [data-state="active"]) [data-slot="task-running-indicator"] {
-    background: var(--v2-text-text-base);
-    animation: delegation-working 1.4s ease-in-out infinite;
+    [data-slot="icon-svg"] {
+      color: var(--session-status-color);
+    }
+
+    &[data-state="completed"] {
+      --session-status-color: var(--v2-state-fg-success);
+      background: var(--v2-state-bg-success);
+    }
+
+    &[data-state="running"] {
+      --session-status-color: var(--v2-state-fg-info);
+      background: var(--v2-state-bg-info);
+
+      [data-slot="icon-svg"] {
+        animation: session-content-working 1.4s linear infinite;
+      }
+    }
+
+    &[data-state="waiting"] {
+      --session-status-color: var(--v2-state-fg-warning);
+      background: var(--v2-state-bg-warning);
+    }
+
+    &[data-state="failed"],
+    &[data-state="disconnected"] {
+      --session-status-color: var(--v2-state-fg-danger);
+      background: var(--v2-state-bg-danger);
+    }
   }
 
   [data-slot="session-content-body"] {
@@ -128,7 +157,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-component="session-content-panel"] [data-slot="task-running-indicator"] {
+  [data-component="session-content-panel"] [data-slot="session-content-status-line"] [data-slot="icon-svg"] {
     animation: none;
+  }
+}
+
+@keyframes session-content-working {
+  to {
+    transform: rotate(360deg);
   }
 }

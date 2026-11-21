@@ -946,7 +946,10 @@ async function setup(
   page: Page,
   events?: () => AigcForgeEvent[],
   nestedDepth: 0 | 1 | 2 = 0,
-  input: Pick<WorkspaceInput, "pageMessages" | "permissions" | "sessionPermissions" | "sessions" | "seed"> = {},
+  input: Pick<
+    WorkspaceInput,
+    "pageMessages" | "permissions" | "sessionPermissions" | "sessions" | "seed" | "sessionStatus"
+  > = {},
 ) {
   const workspace = await mockWorkspace(page, {
     name: "SubagentNavigation",
@@ -962,6 +965,7 @@ async function setup(
     ],
     pageMessages: input.pageMessages ?? ((sessionID) => ({ items: sessionID === parentID ? parentMessages() : [] })),
     permissions: input.permissions,
+    sessionStatus: input.sessionStatus,
     sessionPermissions: input.sessionPermissions,
     events,
     eventRetry: events ? 16 : undefined,
@@ -1082,3 +1086,109 @@ function parentMessages(): SessionMessageInfo[] {
     },
   ]
 }
+
+test("child heading uses saved outcome only while execution is idle", async ({ page }, testInfo) => {
+  const cases = [
+    {
+      id: "ses_status_success",
+      title: "已完成的调查任务",
+      outcome: "succeeded",
+      expected: "Completed",
+      state: "completed",
+    },
+    { id: "ses_status_failure", title: "Failed investigation", outcome: "failed", expected: "Failed", state: "failed" },
+    {
+      id: "ses_status_interrupted",
+      title: "Interrupted investigation",
+      outcome: "interrupted",
+      expected: "Interrupted",
+      state: "interrupted",
+    },
+    { id: "ses_status_idle", title: "Unstarted investigation", expected: "Idle", state: "idle" },
+    {
+      id: "ses_status_running",
+      title: "Very long running investigation into server reconnection and navigation across deeply nested sessions",
+      outcome: "succeeded",
+      expected: "Running",
+      state: "running",
+    },
+    {
+      id: "ses_status_waiting",
+      title: "Waiting investigation",
+      outcome: "succeeded",
+      expected: "Waiting for input",
+      state: "waiting",
+    },
+  ]
+  await setup(page, undefined, 0, {
+    sessions: [
+      { id: parentID, title: parentTitle },
+      ...cases.map((item) => ({ id: item.id, title: item.title, parentID, outcome: item.outcome })),
+    ],
+    pageMessages: (id) => ({
+      items:
+        id === parentID
+          ? parentMessages().map((message) =>
+              message.type !== "assistant"
+                ? message
+                : {
+                    ...message,
+                    content: cases.flatMap((item, index) =>
+                      message.content.flatMap((part) =>
+                        part.type !== "tool" || part.state.status !== "completed"
+                          ? []
+                          : [
+                              {
+                                ...part,
+                                id: `call_status_${index}`,
+                                state: { ...part.state, metadata: { sessionID: item.id } },
+                              },
+                            ],
+                      ),
+                    ),
+                  },
+            )
+          : [],
+    }),
+    sessionStatus: { ses_status_running: { type: "running" }, ses_status_waiting: { type: "running" } },
+    sessionPermissions: {
+      ses_status_waiting: [
+        { id: "per_status_waiting", sessionID: "ses_status_waiting", action: "read", resources: ["src/status.ts"] },
+      ],
+    },
+    seed: { tabs: [parentID], theme: { id: "oc-2", scheme: "dark" } },
+  })
+  await page.goto(sessionHref(parentID))
+  await expectSessionTitle(page, parentTitle)
+  await openSidePanel(page, "Subagents")
+  for (const item of cases) {
+    const card = page.getByRole("article", { name: `Subagent: ${item.id}`, exact: true })
+    await expect(card).toBeVisible()
+    await card.getByRole("button", { name: item.title, exact: true }).click()
+    const panel = page.locator('[data-component="session-content-panel"]')
+    const status = panel.locator('[data-slot="session-content-status-line"]')
+    await expect(status).toHaveAttribute("data-state", item.state)
+    await expect(status.getByText(item.expected, { exact: true })).toBeVisible()
+    await expect(status.locator('[data-slot="icon-svg"]')).toHaveCount(1)
+    await expectSessionMetadata(panel, item.id)
+    if (item.state === "running")
+      expect(
+        await panel.locator('[data-slot="session-content-heading"]').evaluate((element) => {
+          const box = element.getBoundingClientRect()
+          return Array.from(element.querySelectorAll("h3, button, [data-slot=session-content-status-line]")).every(
+            (child) => {
+              const bounds = child.getBoundingClientRect()
+              return (
+                bounds.left >= box.left &&
+                bounds.right <= box.right &&
+                bounds.top >= box.top &&
+                bounds.bottom <= box.bottom
+              )
+            },
+          )
+        }),
+      ).toBe(true)
+    await page.screenshot({ path: testInfo.outputPath(`${item.state}-heading.png`) })
+    await panel.getByRole("button", { name: "Back to subagents", exact: true }).click()
+  }
+})

@@ -351,6 +351,7 @@ export function ActiveSessionComposerRegion(props: {
         <Show when={props.session.identity.sessionID()} keyed>
           {(sessionID) => (
             <SessionGoalDock
+              view={props.session.layout.view}
               sessionID={sessionID}
               readonly={props.model.region.child() || props.model.region.readonly?.()}
             />

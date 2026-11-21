@@ -4,6 +4,7 @@ import type { LineComment } from "./comments"
 
 let createCommentSessionForTest: typeof import("./comments").createCommentSessionForTest
 
+// Cold Windows runs load the composer's dependency graph during this setup.
 beforeAll(async () => {
   mock.module("@solidjs/router", () => ({
     useNavigate: () => () => undefined,
@@ -13,7 +14,7 @@ beforeAll(async () => {
   }))
   const mod = await import("./comments")
   createCommentSessionForTest = mod.createCommentSessionForTest
-})
+}, 30_000)
 
 function line(file: string, id: string, time: number): LineComment {
   return {

@@ -2,7 +2,7 @@ import { $ } from "bun"
 import { describe, expect } from "bun:test"
 import fs from "fs/promises"
 import path from "path"
-import { Deferred, Effect, Fiber, Layer } from "effect"
+import { Deferred, Effect, Fiber, Layer, Logger } from "effect"
 import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
 import { Git } from "@aigcfroge/core/git"
 import { Global } from "@aigcfroge/util/global"
@@ -185,8 +185,21 @@ describe("Snapshot", () => {
                   ),
               )
             }).pipe(Effect.provide(snapshotLayer(tmp.path, project)))
-          const results = yield* Effect.all([writer(0), writer(1), writer(2)], { concurrency: "unbounded" })
-          expect(results.flat().every((tree) => tree !== undefined)).toBe(true)
+          const logged: unknown[] = []
+          const results = yield* Effect.all([writer(0), writer(1), writer(2)], { concurrency: "unbounded" }).pipe(
+            Effect.provideService(
+              Logger.CurrentLoggers,
+              new Set([
+                Logger.make((entry) => {
+                  if (Array.isArray(entry.message) && entry.message[0] === "failed to capture snapshot")
+                    logged.push(entry.message)
+                }),
+              ]),
+            ),
+          )
+          const captured = results.flat().every((tree) => tree !== undefined)
+          if (!captured) console.error("SNAPSHOT_CAPTURE_FAILURE", JSON.stringify({ results, logged }))
+          expect(captured).toBe(true)
         }),
       (tmp) => Effect.promise(() => tmp[Symbol.asyncDispose]()),
     ),
