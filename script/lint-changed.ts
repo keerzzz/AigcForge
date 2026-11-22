@@ -1,7 +1,14 @@
 import { ChangedLines } from "@aigcfroge/script/changed-lines"
 
-const { addedLinesOfFile, findBadBunCwdRun, isCommandGateExempt, normalizePath, parseAddedLines, resolveBaseline } =
-  ChangedLines
+const {
+  addedLinesOfFile,
+  findBadBunCwdRun,
+  isCommandGateExempt,
+  isIgnoredOnly,
+  normalizePath,
+  parseAddedLines,
+  resolveBaseline,
+} = ChangedLines
 
 const guardedRules = [
   "typescript/no-unsafe-type-assertion",
@@ -81,7 +88,10 @@ const [stdout, stderr, exitCode] = await Promise.all([
   lint.exited,
 ])
 
-if (exitCode !== 0) {
+// oxlint exits 1 when every input is excluded by ignorePatterns, which is the
+// normal outcome for a version-only or docs-only change. That is not a lint
+// failure, so the empty report is treated as a pass instead of a red build.
+if (exitCode !== 0 && !isIgnoredOnly(stdout)) {
   process.stderr.write(stderr)
   process.stderr.write(stdout)
   process.exit(exitCode)
