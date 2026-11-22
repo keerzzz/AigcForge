@@ -50,7 +50,6 @@
 curl -fsSL https://aigcfroge.ai/install | bash
 
 # Διαχειριστές πακέτων
-npm i -g aigcfroge-ai@latest        # ή bun/pnpm/yarn
 scoop install aigcfroge             # Windows
 choco install aigcfroge             # Windows
 brew install anomalyco/tap/aigcfroge # macOS και Linux (προτείνεται, πάντα ενημερωμένο)

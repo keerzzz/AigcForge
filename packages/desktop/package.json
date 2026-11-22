@@ -1,7 +1,7 @@
 {
   "name": "@aigcfroge/desktop",
   "private": true,
-  "version": "2.0.26",
+  "version": "0.0.8",
   "type": "module",
   "license": "MIT",
   "homepage": "https://aigcfroge.ai",

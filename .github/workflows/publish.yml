@@ -21,6 +21,10 @@ on:
         description: "Override version (optional)"
         required: false
         type: string
+      release_notes:
+        description: "Reviewed release notes for the draft body (optional; generated when empty)"
+        required: false
+        type: string
       release_mode:
         description: "Build and verify desktop Draft assets without public release."
         required: true
@@ -138,6 +142,7 @@ jobs:
           GH_TOKEN: ${{ steps.committer.outputs.token }}
           AIGCFROGE_BUMP: ${{ inputs.bump }}
           AIGCFROGE_VERSION: ${{ needs.guard.outputs.version }}
+          AIGCFROGE_RELEASE_NOTES: ${{ inputs.release_notes }}
           AIGCFROGE_RELEASE_NOTES_STRICT: "true"
           GH_REPO: ${{ (github.ref_name == 'beta' && 'keerzzz/AigcForge-beta') || github.repository }}
     outputs:

@@ -21,6 +21,15 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
 })
 const version = positionals[0] ?? "patch"
+const model = (() => {
+  const raw = process.env.AIGCFROGE_RELEASE_MODEL?.trim()
+  if (!raw) return undefined
+  const [providerID, rest] = raw.split("/")
+  if (!providerID || !rest) throw new Error("AIGCFROGE_RELEASE_MODEL must be provider/model or provider/model#variant")
+  const [id, variant] = rest.split("#")
+  if (!id) throw new Error("AIGCFROGE_RELEASE_MODEL is missing a model id")
+  return { providerID, id, ...(variant ? { variant } : {}) }
+})()
 
 if (values.help) {
   console.log(`Usage: ./script/release.ts [major|minor|patch|version]
@@ -32,16 +41,16 @@ editor, and asks for confirmation before triggering the release workflow.
 The editor is selected from $VISUAL, then $EDITOR, and defaults to vim.
 
 Options:
-  -f, --from <tag>   Previous release tag (default: latest stable V2 tag)
+  -f, --from <tag>   Previous release tag (default: newest stable v* tag)
   -t, --to <ref>     Ending ref (default: HEAD)
       --print        Print the generated review and exit without releasing`)
   process.exit(0)
 }
 
 const input = ["major", "minor", "patch"].includes(version)
-  ? ["-f", `bump=${version}`]
+  ? ["-f", `bump=${version}`, "-f", "release_mode=desktop-draft"]
   : /^\d+\.\d+\.\d+(?:[-.][0-9A-Za-z.-]+)?$/.test(version)
-    ? ["-f", `version=${version}`]
+    ? ["-f", `version=${version}`, "-f", "release_mode=desktop-draft"]
     : undefined
 
 if (!input || positionals.length > 1 || (!values.print && (values.from || values.to !== "HEAD"))) {
@@ -54,11 +63,10 @@ process.chdir(root)
 
 console.log("\n=== Generating changelog ===\n")
 await rm(review, { force: true })
-await $`git fetch origin "+refs/tags/v2.*:refs/tags/v2.*"`
-const base =
-  values.from ??
-  (await $`git tag --list "v2.*" --sort=-version:refname`.text()).split("\n").find((tag) => /^v2\.\d+\.\d+$/.test(tag))
-if (!base) throw new Error("No stable V2 release tag was found")
+// Releases use plain `v<major>.<minor>.<patch>` tags. The base comes from the
+// remote tag list because local tags can survive a rewritten release history.
+const base = values.from ?? (await latestStableTag())
+if (!base) throw new Error("No stable release tag was found")
 console.log(`Comparing ${base}..${values.to}`)
 await generateReview(base, values.to)
 
@@ -93,8 +101,18 @@ if (answer?.trim().toLowerCase() !== "y" && answer?.trim().toLowerCase() !== "ye
   process.exit(0)
 }
 
-await $`gh workflow run publish.yml --ref v2 ${input} -f release_notes=${releaseNotes}`
-console.log(`Triggered the ${version} release`)
+await $`gh workflow run publish.yml --ref main ${input} -f ${"release_notes=" + releaseNotes}`
+console.log(`Triggered the ${version} draft release; publish it from the draft when the assets verify`)
+
+async function latestStableTag() {
+  const tags = await $`git ls-remote --tags origin "refs/tags/v*"`.quiet().text()
+  return tags
+    .split("\n")
+    .map((line) => line.slice(line.indexOf("refs/tags/") + "refs/tags/".length))
+    .filter((tag) => /^v\d+\.\d+\.\d+$/.test(tag))
+    .sort((left, right) => Bun.semver.order(left.slice(1), right.slice(1)))
+    .at(-1)
+}
 
 async function generateReview(base: string, head: string) {
   const endpoint = await Service.ensure()
@@ -112,14 +130,18 @@ async function generateReview(base: string, head: string) {
   const session = await client.session.create({
     title: `Review ${version} release`,
     location: { directory: root },
-    model: { providerID: "aigcfroge", id: "gpt-5.6-sol", variant: "low" },
+    // The reviewer inherits the maintainer's configured default model unless
+    // AIGCFROGE_RELEASE_MODEL selects one as provider/model#variant.
+    ...(model ? { model } : {}),
+    // The review only needs to read the range, so it keeps an explicit allowlist
+    // instead of inheriting the maintainer's interactive permissions.
     permissions: [
       { action: "*", resource: "*", effect: "deny" },
       { action: "read", resource: "*", effect: "allow" },
       { action: "glob", resource: "*", effect: "allow" },
       { action: "grep", resource: "*", effect: "allow" },
-      { action: "shell", resource: "git *", effect: "allow" },
-      { action: "shell", resource: "gh *", effect: "allow" },
+      { action: "bash", resource: "git *", effect: "allow" },
+      { action: "bash", resource: "gh *", effect: "allow" },
     ],
   })
 

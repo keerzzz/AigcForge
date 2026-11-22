@@ -50,7 +50,6 @@
 curl -fsSL https://aigcfroge.ai/install | bash
 
 # Менеджери пакетів
-npm i -g aigcfroge-ai@latest        # або bun/pnpm/yarn
 scoop install aigcfroge             # Windows
 choco install aigcfroge             # Windows
 brew install anomalyco/tap/aigcfroge # macOS і Linux (рекомендовано, завжди актуально)
