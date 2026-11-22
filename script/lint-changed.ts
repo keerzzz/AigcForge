@@ -4,8 +4,8 @@ const {
   addedLinesOfFile,
   findBadBunCwdRun,
   isCommandGateExempt,
-  isIgnoredOnly,
   normalizePath,
+  passesIncrementalLint,
   parseAddedLines,
   resolveBaseline,
 } = ChangedLines
@@ -89,9 +89,14 @@ const [stdout, stderr, exitCode] = await Promise.all([
 ])
 
 // oxlint exits 1 when every input is excluded by ignorePatterns, which is the
-// normal outcome for a version-only or docs-only change. That is not a lint
-// failure, so the empty report is treated as a pass instead of a red build.
-if (exitCode !== 0 && !isIgnoredOnly(stdout)) {
+// normal outcome for a version-only or docs-only change. Its report is prefixed
+// with a human notice, so stop here before the JSON parse below can see it.
+if (passesIncrementalLint(exitCode, stdout)) {
+  console.log("Incremental lint passed: all changed JavaScript or TypeScript files are ignored")
+  process.exit(0)
+}
+
+if (exitCode !== 0) {
   process.stderr.write(stderr)
   process.stderr.write(stdout)
   process.exit(exitCode)

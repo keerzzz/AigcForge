@@ -212,3 +212,12 @@ export function isIgnoredOnly(output: string): boolean {
   if (!("diagnostics" in parsed) || !Array.isArray(parsed.diagnostics)) return false
   return parsed.diagnostics.length === 0
 }
+
+/**
+ * Whether an oxlint run should be reported as a pass. The ignored-only case
+ * exits non-zero with an empty report, and that is the only non-zero exit that
+ * is not a failure; every other non-zero exit still fails the gate.
+ */
+export function passesIncrementalLint(exitCode: number, stdout: string): boolean {
+  return exitCode !== 0 && isIgnoredOnly(stdout)
+}

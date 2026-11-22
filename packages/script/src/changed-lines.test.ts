@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { ChangedLines } from "./changed-lines"
 
-const { findBadBunCwdRun, isCommandGateExempt, isIgnoredOnly, parseAddedLines } = ChangedLines
+const { findBadBunCwdRun, isCommandGateExempt, isIgnoredOnly, parseAddedLines, passesIncrementalLint } = ChangedLines
 
 const added = (...lines: number[]) => new Set(lines)
 
@@ -174,5 +174,33 @@ describe("isIgnoredOnly", () => {
     expect(isIgnoredOnly("")).toBe(false)
     expect(isIgnoredOnly(notice)).toBe(false)
     expect(isIgnoredOnly("not json {")).toBe(false)
+  })
+})
+
+describe("passesIncrementalLint", () => {
+  const notice = "No files found to lint. Please check your paths and ignore patterns.\n"
+  const report = (files: number, diagnostics: unknown[] = []) =>
+    JSON.stringify({ diagnostics, number_of_files: files })
+
+  // The gate must pass exactly the ignored-only run: a version-only or docs-only
+  // change has nothing to lint, and oxlint signals that with exit 1.
+  test("an ignored-only run passes even though oxlint exited non-zero", () => {
+    expect(passesIncrementalLint(1, notice + report(0))).toBe(true)
+  })
+
+  test("a successful run is not re-classified as ignored-only", () => {
+    expect(passesIncrementalLint(0, notice + report(0))).toBe(false)
+  })
+
+  test("a failing run that actually linted files still fails", () => {
+    expect(passesIncrementalLint(1, notice + report(1))).toBe(false)
+  })
+
+  test("a failing run carrying diagnostics still fails", () => {
+    expect(passesIncrementalLint(1, notice + report(0, [{ message: "boom" }]))).toBe(false)
+  })
+
+  test("a failing run without a JSON report still fails", () => {
+    expect(passesIncrementalLint(1, "boom")).toBe(false)
   })
 })
