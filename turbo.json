@@ -44,6 +44,10 @@
     "@aigcfroge/httpapi-codegen#test": {
       "outputs": []
     },
+    "@aigcfroge/script#test": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/script/lint-changed.ts"],
+      "outputs": []
+    },
     "@aigcfroge/server#test": {
       "dependsOn": ["^build"],
       "outputs": []

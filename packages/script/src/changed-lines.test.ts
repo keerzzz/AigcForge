@@ -1,9 +1,18 @@
-import { describe, expect, test } from "bun:test"
+import { afterEach, describe, expect, test } from "bun:test"
+import { $ } from "bun"
+import { mkdtemp, rm, symlink } from "node:fs/promises"
+import os from "node:os"
+import path from "node:path"
 import { ChangedLines } from "./changed-lines"
 
 const { findBadBunCwdRun, isCommandGateExempt, isIgnoredOnly, parseAddedLines } = ChangedLines
 
 const added = (...lines: number[]) => new Set(lines)
+const directories: string[] = []
+
+afterEach(async () => {
+  await Promise.all(directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })))
+})
 
 describe("parseAddedLines", () => {
   test("collects added lines per file from a unified=0 diff", () => {
@@ -174,5 +183,70 @@ describe("isIgnoredOnly", () => {
     expect(isIgnoredOnly("")).toBe(false)
     expect(isIgnoredOnly(notice)).toBe(false)
     expect(isIgnoredOnly("not json {")).toBe(false)
+  })
+})
+
+describe("lint-changed script", () => {
+  test.each([
+    {
+      name: "passes a version-only change with no source files",
+      file: undefined,
+      content: "",
+      exitCode: 0,
+      output: "no changed JavaScript or TypeScript files",
+    },
+    {
+      name: "passes when an untracked declaration is the only source input",
+      file: "generated.d.ts",
+      content: "export declare const generated: string\n",
+      exitCode: 0,
+      output: "all changed JavaScript or TypeScript files are ignored",
+    },
+    {
+      name: "passes a lintable source without violations",
+      file: "source.ts",
+      content: "export const value = 1\n",
+      exitCode: 0,
+      output: "Incremental lint passed: 1 changed files",
+    },
+    {
+      name: "rejects a new guarded lint violation",
+      file: "source.ts",
+      content: "const unused = 1\n",
+      exitCode: 1,
+      output: "eslint(no-unused-vars)",
+    },
+  ])("$name", async (input) => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "aigcforge-lint-changed-"))
+    directories.push(root)
+    await Bun.write(path.join(root, ".gitignore"), "node_modules\n")
+    await Bun.write(path.join(root, ".oxlintrc.json"), JSON.stringify({ ignorePatterns: ["**/*.d.ts"] }))
+    await Bun.write(path.join(root, "package.json"), JSON.stringify({ version: "0.0.8" }))
+    await $`git -C ${root} init -b main`.quiet()
+    await $`git -C ${root} config user.email lint-test@example.invalid`.quiet()
+    await $`git -C ${root} config user.name lint-test`.quiet()
+    await $`git -C ${root} add .`.quiet()
+    await $`git -C ${root} commit -m initial`.quiet()
+    await symlink(path.resolve(import.meta.dir, "../../../node_modules"), path.join(root, "node_modules"), "junction")
+    await Bun.write(path.join(root, "package.json"), JSON.stringify({ version: "0.0.9" }))
+    if (input.file) await Bun.write(path.join(root, input.file), input.content)
+
+    const child = Bun.spawn(
+      [process.execPath, path.resolve(import.meta.dir, "../../../script/lint-changed.ts"), "HEAD"],
+      {
+        cwd: root,
+        stdout: "pipe",
+        stderr: "pipe",
+      },
+    )
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(child.stdout).text(),
+      new Response(child.stderr).text(),
+      child.exited,
+    ])
+    expect({ exitCode, output: stdout + stderr }).toEqual({
+      exitCode: input.exitCode,
+      output: expect.stringContaining(input.output),
+    })
   })
 })
