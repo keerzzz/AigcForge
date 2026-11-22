@@ -88,10 +88,14 @@ const [stdout, stderr, exitCode] = await Promise.all([
   lint.exited,
 ])
 
-// oxlint exits 1 when every input is excluded by ignorePatterns, which is the
-// normal outcome for a version-only or docs-only change. That is not a lint
-// failure, so the empty report is treated as a pass instead of a red build.
-if (exitCode !== 0 && !isIgnoredOnly(stdout)) {
+// oxlint prefixes its ignored-only report with a human notice. Finish here so
+// parseOutput never receives that non-JSON prefix.
+if (exitCode !== 0 && isIgnoredOnly(stdout)) {
+  console.log("Incremental lint passed: all changed JavaScript or TypeScript files are ignored")
+  process.exit(0)
+}
+
+if (exitCode !== 0) {
   process.stderr.write(stderr)
   process.stderr.write(stdout)
   process.exit(exitCode)

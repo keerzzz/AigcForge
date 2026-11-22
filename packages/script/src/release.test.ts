@@ -261,8 +261,8 @@ describe("version commit integrity", () => {
     const repo = await repository()
     expect(await Release.manifests(repo.root)).toEqual([
       "package.json",
-      "packages/app/package.json",
-      "packages/sdk/js/package.json",
+      path.join("packages", "app", "package.json"),
+      path.join("packages", "sdk", "js", "package.json"),
     ])
     const commit = await Release.commitCandidate(repo.root, repo.base, "0.0.3")
     expect(await Release.verifyVersionCommit(repo.root, repo.base, commit, "0.0.3")).toHaveLength(3)
