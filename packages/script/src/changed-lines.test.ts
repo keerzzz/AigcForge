@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { ChangedLines } from "./changed-lines"
 
-const { findBadBunCwdRun, isCommandGateExempt, parseAddedLines } = ChangedLines
+const { findBadBunCwdRun, isCommandGateExempt, isIgnoredOnly, parseAddedLines } = ChangedLines
 
 const added = (...lines: number[]) => new Set(lines)
 
@@ -148,5 +148,31 @@ describe("isCommandGateExempt", () => {
     expect(isCommandGateExempt("docs/testing.md")).toBe(false)
     expect(isCommandGateExempt("AGENTS.md")).toBe(false)
     expect(isCommandGateExempt("packages/app/README.md")).toBe(false)
+  })
+})
+
+describe("isIgnoredOnly", () => {
+  // oxlint prints a human notice before the JSON report and exits 1 when every
+  // input is excluded, which happens for a version-only or docs-only change.
+  const notice = "No files found to lint. Please check your paths and ignore patterns.\n"
+  const report = (files: number, diagnostics: unknown[] = []) =>
+    JSON.stringify({ diagnostics, number_of_files: files, number_of_rules: 128 })
+
+  test("an empty report behind the notice is not a lint failure", () => {
+    expect(isIgnoredOnly(notice + report(0))).toBe(true)
+  })
+
+  test("a report that linted files still fails, even with no diagnostics", () => {
+    expect(isIgnoredOnly(notice + report(1))).toBe(false)
+  })
+
+  test("a report carrying diagnostics is never treated as ignored-only", () => {
+    expect(isIgnoredOnly(notice + report(0, [{ message: "boom" }]))).toBe(false)
+  })
+
+  test("output without a JSON report is not ignored-only", () => {
+    expect(isIgnoredOnly("")).toBe(false)
+    expect(isIgnoredOnly(notice)).toBe(false)
+    expect(isIgnoredOnly("not json {")).toBe(false)
   })
 })

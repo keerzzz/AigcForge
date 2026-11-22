@@ -1,7 +1,14 @@
 import { ChangedLines } from "@aigcfroge/script/changed-lines"
 
-const { addedLinesOfFile, findBadBunCwdRun, isCommandGateExempt, normalizePath, parseAddedLines, resolveBaseline } =
-  ChangedLines
+const {
+  addedLinesOfFile,
+  findBadBunCwdRun,
+  isCommandGateExempt,
+  isIgnoredOnly,
+  normalizePath,
+  parseAddedLines,
+  resolveBaseline,
+} = ChangedLines
 
 const guardedRules = [
   "typescript/no-unsafe-type-assertion",
@@ -146,25 +153,6 @@ function parseOutput(input: string): unknown {
   } catch (error) {
     throw new Error("oxlint returned invalid JSON", { cause: error })
   }
-}
-
-/**
- * True when oxlint linted nothing because every input matched an ignore pattern.
- * It prefixes the JSON report with a human line, so only the report is parsed.
- */
-function isIgnoredOnly(output: string) {
-  const start = output.indexOf("{")
-  if (start === -1) return false
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(output.slice(start))
-  } catch {
-    return false
-  }
-  if (!parsed || typeof parsed !== "object") return false
-  if (!("number_of_files" in parsed) || parsed.number_of_files !== 0) return false
-  if (!("diagnostics" in parsed) || !Array.isArray(parsed.diagnostics)) return false
-  return parsed.diagnostics.length === 0
 }
 
 function isDiagnostic(value: unknown): value is Diagnostic {
