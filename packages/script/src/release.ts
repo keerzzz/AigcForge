@@ -620,8 +620,15 @@ export async function automatic(root: string, github: GitHub, input: Plan, autom
   if (tip !== input.sha)
     return new Plan({ ...input, mode: "skip", reason: "superseded main CI; wait for the current tip" })
   version(pkg.version)
+  // A version ahead of the newest release normally means an earlier candidate is
+  // still building. Left silent, a permanently stale root version disables every
+  // future release, so the skip names the mismatch that has to be reconciled.
   if (semver.gt(pkg.version, latest.tag_name.slice(1)))
-    return new Plan({ ...input, mode: "skip", reason: "an earlier version candidate is not published yet" })
+    return new Plan({
+      ...input,
+      mode: "skip",
+      reason: `root version ${pkg.version} is ahead of the latest release ${latest.tag_name.slice(1)}; publish or reconcile it before the next release`,
+    })
   if (pkg.version !== latest.tag_name.slice(1))
     throw new Failure({ reason: "Root version is behind the latest release" })
   const base = await github.tagCommit(pkg.version)

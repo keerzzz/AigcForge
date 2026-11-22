@@ -50,7 +50,6 @@
 curl -fsSL https://aigcfroge.ai/install | bash
 
 # Các trình quản lý gói (Package managers)
-npm i -g aigcfroge-ai@latest        # hoặc bun/pnpm/yarn
 scoop install aigcfroge             # Windows
 choco install aigcfroge             # Windows
 brew install anomalyco/tap/aigcfroge # macOS và Linux (khuyên dùng, luôn cập nhật)

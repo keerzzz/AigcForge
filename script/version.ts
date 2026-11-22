@@ -25,6 +25,9 @@ output.push(`repo=${process.env.GH_REPO}`)
 if (process.env.GITHUB_OUTPUT) await Bun.write(process.env.GITHUB_OUTPUT, output.join("\n"))
 
 async function releaseNotes(source: string, strict: boolean) {
+  // A reviewed changelog from `bun script/release.ts` replaces the generated commit list.
+  const reviewed = process.env.AIGCFROGE_RELEASE_NOTES?.trim()
+  if (reviewed) return reviewed
   const fallback = await $`bun script/raw-changelog.ts --to ${source}`.quiet().nothrow()
   const text =
     fallback.exitCode === 0

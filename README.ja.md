@@ -50,7 +50,6 @@
 curl -fsSL https://aigcfroge.ai/install | bash
 
 # パッケージマネージャー
-npm i -g aigcfroge-ai@latest        # bun/pnpm/yarn でもOK
 scoop install aigcfroge             # Windows
 choco install aigcfroge             # Windows
 brew install anomalyco/tap/aigcfroge # macOS と Linux（推奨。常に最新）

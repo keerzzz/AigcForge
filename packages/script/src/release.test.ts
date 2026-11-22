@@ -179,6 +179,29 @@ describe("release intent", () => {
     ).toThrow("mode")
   })
 
+  test("manual draft releases require an explicit mode from main", () => {
+    const plan = Release.route(
+      "workflow_dispatch",
+      new Release.Event({ inputs: { release_mode: "desktop-draft", bump: "patch" } }),
+      "publish",
+      "owner/repo",
+      "refs/heads/main",
+      source,
+    )
+    expect(plan.mode).toBe("desktop-draft")
+    expect(plan.reason).toBe("manual")
+    expect(() =>
+      Release.route(
+        "workflow_dispatch",
+        new Release.Event({ inputs: { release_mode: "desktop-draft" } }),
+        "publish",
+        "owner/repo",
+        "refs/heads/v2",
+        source,
+      ),
+    ).toThrow("main")
+  })
+
   test("invalid automation modes fail rather than silently enabling publishing", () => {
     expect(() => Release.route("workflow_run", event(), "yes", "owner/repo", "refs/heads/main", source)).toThrow(
       "off, draft, or publish",
@@ -373,6 +396,35 @@ describe("change selection", () => {
     const head = (await $`git -C ${repo.root} rev-parse HEAD`.quiet().text()).trim()
     const client = github(() => Response.json([pull()]))
     expect((await Release.changesSince(repo.root, client, repo.base, head)).kind).toBe("none")
+  })
+})
+
+describe("automatic planning", () => {
+  test("a root version ahead of the latest release names the mismatch instead of skipping silently", async () => {
+    const repo = await repository()
+    await Bun.write(
+      path.join(repo.root, "package.json"),
+      JSON.stringify({ version: "2.0.26", workspaces: { packages: ["packages/*", "packages/sdk/js"] } }, null, 2) +
+        "\n",
+    )
+    await $`git -C ${repo.root} add package.json`.quiet()
+    await $`git -C ${repo.root} commit -m "chore: bump root"`.quiet()
+    const head = (await $`git -C ${repo.root} rev-parse HEAD`.quiet().text()).trim()
+    await $`git -C ${repo.root} update-ref refs/remotes/origin/main ${head}`.quiet()
+    const client = github((url) => {
+      if (url.pathname.endsWith("/latest")) return Response.json(release({ draft: false, tag_name: "v0.0.8" }))
+      return Response.json([pull({ merge_commit_sha: head })])
+    })
+    const plan = await Release.automatic(
+      repo.root,
+      client,
+      new Release.Plan({ mode: "prepare", sha: head, version: "", reason: "trusted main CI" }),
+      "publish",
+      "release-app[bot]",
+    )
+    expect(plan.mode).toBe("skip")
+    expect(plan.reason).toContain("2.0.26")
+    expect(plan.reason).toContain("0.0.8")
   })
 })
 
