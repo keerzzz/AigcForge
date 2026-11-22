@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
   "name": "@aigcfroge/plugin-browser",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "AigcForge's desktop browser plugin",
   "type": "module",
   "license": "MIT",

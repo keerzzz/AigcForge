@@ -32,7 +32,7 @@
     },
     "packages/ai": {
       "name": "@aigcfroge/ai",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@aigcfroge/schema": "workspace:*",
         "@aws-sdk/credential-providers": "3.1057.0",
@@ -54,7 +54,7 @@
     },
     "packages/app": {
       "name": "@aigcfroge/app",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@aigcfroge/client": "workspace:*",
         "@aigcfroge/gui-extensions": "workspace:*",
@@ -112,7 +112,7 @@
     },
     "packages/cli": {
       "name": "@aigcfroge/cli",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "bin": {
         "aigcfroge": "./bin/aigcfroge.cjs",
         "aigcfroge2": "./bin/aigcfroge2.cjs",
@@ -180,7 +180,7 @@
     },
     "packages/client": {
       "name": "@aigcfroge/client",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@aigcfroge/protocol": "workspace:*",
         "@aigcfroge/schema": "workspace:*",
@@ -205,7 +205,7 @@
     },
     "packages/codemode": {
       "name": "@aigcfroge/codemode",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "acorn": "8.15.0",
         "effect": "catalog:",
@@ -218,7 +218,7 @@
     },
     "packages/core": {
       "name": "@aigcfroge/core",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@agentclientprotocol/sdk": "catalog:",
         "@ai-sdk/cohere": "3.0.27",
@@ -288,7 +288,7 @@
     },
     "packages/desktop": {
       "name": "@aigcfroge/desktop",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@zip.js/zip.js": "2.7.62",
         "electron-context-menu": "5.0.0",
@@ -335,7 +335,7 @@
     },
     "packages/gui-extensions": {
       "name": "@aigcfroge/gui-extensions",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@aigcfroge/client": "workspace:*",
         "@aigcfroge/plugin-browser": "workspace:*",
@@ -384,7 +384,7 @@
     },
     "packages/http-recorder": {
       "name": "@aigcfroge/http-recorder",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@effect/platform-node-shared": "catalog:",
       },
@@ -403,7 +403,7 @@
     },
     "packages/httpapi-codegen": {
       "name": "@aigcfroge/httpapi-codegen",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "effect": "catalog:",
         "prettier": "3.6.2",
@@ -416,7 +416,7 @@
     },
     "packages/latex": {
       "name": "@aigcfroge/latex",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@aigcfroge/plugin": "workspace:*",
         "@opentui/core": "catalog:",
@@ -430,7 +430,7 @@
     },
     "packages/merman": {
       "name": "@aigcfroge/merman",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@aigcfroge/plugin": "workspace:*",
         "@opentui/core": "catalog:",
@@ -445,7 +445,7 @@
     },
     "packages/plugin": {
       "name": "@aigcfroge/plugin",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@ai-sdk/provider": "3.0.8",
         "@aigcfroge/ai": "workspace:*",
@@ -482,7 +482,7 @@
     },
     "packages/plugin-browser": {
       "name": "@aigcfroge/plugin-browser",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@aigcfroge/plugin": "workspace:*",
         "@aigcfroge/schema": "workspace:*",
@@ -497,7 +497,7 @@
     },
     "packages/protocol": {
       "name": "@aigcfroge/protocol",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@aigcfroge/schema": "workspace:*",
         "effect": "catalog:",
@@ -512,7 +512,7 @@
     },
     "packages/schema": {
       "name": "@aigcfroge/schema",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@standard-schema/spec": "catalog:",
         "effect": "catalog:",
@@ -526,7 +526,7 @@
     },
     "packages/script": {
       "name": "@aigcfroge/script",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "effect": "catalog:",
         "semver": "^7.6.3",
@@ -538,7 +538,7 @@
     },
     "packages/server": {
       "name": "@aigcfroge/server",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@aigcfroge/core": "workspace:*",
         "@aigcfroge/protocol": "workspace:*",
@@ -563,7 +563,7 @@
     },
     "packages/session-ui": {
       "name": "@aigcfroge/session-ui",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@aigcfroge/client": "workspace:*",
         "@aigcfroge/schema": "workspace:*",
@@ -599,7 +599,7 @@
     },
     "packages/simulation": {
       "name": "@aigcfroge/simulation",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@aigcfroge/ai": "workspace:*",
         "@aigcfroge/core": "workspace:*",
@@ -619,7 +619,7 @@
     },
     "packages/storybook": {
       "name": "@aigcfroge/storybook",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "devDependencies": {
         "@aigcfroge/client": "workspace:*",
         "@aigcfroge/session-ui": "workspace:*",
@@ -649,7 +649,7 @@
     },
     "packages/theme": {
       "name": "@aigcfroge/theme",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@opentui/core": "catalog:",
         "effect": "catalog:",
@@ -663,7 +663,7 @@
     },
     "packages/tui": {
       "name": "@aigcfroge/tui",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@aigcfroge/client": "workspace:*",
         "@aigcfroge/core": "workspace:*",
@@ -697,7 +697,7 @@
     },
     "packages/ui": {
       "name": "@aigcfroge/ui",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@kitlangton/solid-motion": "0.2.2",
         "@kobalte/core": "catalog:",
@@ -733,7 +733,7 @@
     },
     "packages/util": {
       "name": "@aigcfroge/util",
-      "version": "0.0.8",
+      "version": "0.0.9",
       "dependencies": {
         "@effect/opentelemetry": "catalog:",
         "@effect/platform-node": "catalog:",
