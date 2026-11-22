@@ -191,3 +191,24 @@ const COMMAND_GATE_EXEMPT_PATHS = /^(?:docs\/technical-debt\.md|docs\/plan\/)/
 export function isCommandGateExempt(path: string): boolean {
   return COMMAND_GATE_EXEMPT_PATHS.test(normalizePath(path))
 }
+
+/**
+ * Whether oxlint linted nothing because every input matched an ignore pattern.
+ * A version-only or docs-only change has no lintable file, and oxlint reports
+ * that as an empty result with a non-zero exit, which is not a lint failure.
+ * oxlint prefixes the JSON report with a human line, so only the report parses.
+ */
+export function isIgnoredOnly(output: string): boolean {
+  const start = output.indexOf("{")
+  if (start === -1) return false
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(output.slice(start))
+  } catch {
+    return false
+  }
+  if (!parsed || typeof parsed !== "object") return false
+  if (!("number_of_files" in parsed) || parsed.number_of_files !== 0) return false
+  if (!("diagnostics" in parsed) || !Array.isArray(parsed.diagnostics)) return false
+  return parsed.diagnostics.length === 0
+}
