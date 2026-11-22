@@ -179,8 +179,7 @@ describe("isIgnoredOnly", () => {
 
 describe("passesIncrementalLint", () => {
   const notice = "No files found to lint. Please check your paths and ignore patterns.\n"
-  const report = (files: number, diagnostics: unknown[] = []) =>
-    JSON.stringify({ diagnostics, number_of_files: files })
+  const report = (files: number, diagnostics: unknown[] = []) => JSON.stringify({ diagnostics, number_of_files: files })
 
   // The gate must pass exactly the ignored-only run: a version-only or docs-only
   // change has nothing to lint, and oxlint signals that with exit 1.
