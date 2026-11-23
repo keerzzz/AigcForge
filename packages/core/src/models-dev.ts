@@ -93,9 +93,12 @@ function nativePackage(provider: SourceProvider, model?: SourceModel) {
   )
 }
 
+const RETIRED_CATALOG_PROVIDERS = new Set(["opencode", "opencode-go"])
+
 function normalize(input: Record<string, SourceProvider>): readonly Snapshot[] {
   const providers: Snapshot[] = []
   for (const item of Object.values(input)) {
+    if (RETIRED_CATALOG_PROVIDERS.has(item.id)) continue
     const providerID = Provider.ID.make(item.id)
     const packageName = nativePackage(item)
     const info = {
@@ -301,9 +304,9 @@ const Cache = Schema.Struct({
   digest: Schema.optional(Schema.String),
   body: CatalogJson,
 })
-const defaultSource = "https://models.aigcfroge.ai"
+const defaultSource = "https://models.dev"
 
-// Bundled snapshot of https://models.aigcfroge.ai/api.json, committed at
+// Bundled snapshot of https://models.dev/api.json, committed at
 // packages/core/src/models-dev/snapshot.txt and refreshed via
 // `bun run script/update-models-snapshot.ts`. Decoded and normalized once per
 // isolate: the snapshot is a multi-MB module-level constant and one isolate can

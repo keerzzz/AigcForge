@@ -34,7 +34,6 @@ import {
   Fireworks,
   Google,
   Meta,
-  AigcForgeZen,
   OpenAI,
   OpenAICompatible,
   OpenRouter,
@@ -149,7 +148,6 @@ describe("public exports", () => {
     expect(OpenRouter.model).toBeFunction()
     expect(OpenRouter.experimental.evaluation).toBeFunction()
     expect(TypeSafeAI.experimental.evaluation).toBeFunction()
-    expect(AigcForgeZen.experimental.evaluation).toBeFunction()
     expect(VercelAIGateway.experimental.evaluation).toBeFunction()
     expect(XAI.model).toBeFunction()
     expect(XAI.provider.responses).toBe(XAI.responses)

@@ -234,7 +234,7 @@ function ProviderPicker(props: { directory?: string; onSelect: (provider: string
     filter: "",
   })
 
-  const featured = ["aigcfroge-go", "aigcfroge", "anthropic", "openai", "google", "openrouter", "vercel"]
+  const featured = ["anthropic", "openai", "google", "openrouter", "vercel"]
   const custom = () => ({ id: CUSTOM_ID, name: language.t("dialog.provider.custom.label") })
 
   // Only a stored credential hides a provider: environment and config connections can still be

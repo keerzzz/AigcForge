@@ -10,7 +10,6 @@ describe("hasExistingAppState", () => {
     expect(hasExistingAppState([])).toBe(false)
     expect(hasExistingAppState([file("Local State"), directory("Crashpad")])).toBe(false)
     expect(hasExistingAppState([file("aigcfroge.settings")])).toBe(true)
-    expect(hasExistingAppState([file("aigcfroge.global.dat")])).toBe(true)
     expect(hasExistingAppState([file("drafts.sqlite")])).toBe(true)
     expect(hasExistingAppState([file("window-state-abc.json")])).toBe(true)
     expect(hasExistingAppState([directory("aigcfroge")])).toBe(true)

@@ -92,27 +92,14 @@ test("remote access route is random, stable once created, hidden, and forgotten 
   }
 })
 
-test("reading a config with remote access stored as a boolean repairs it in place and keeps other settings", async () => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-service-remote-legacy-"))
+test("reading a config with structured remote access keeps the route and other settings", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-service-remote-"))
   const layer = Global.layerWith({ config: path.join(root, "config"), state: path.join(root, "state") })
   const run = <A, E>(effect: Effect.Effect<A, E, Global.Service | FileSystem.FileSystem>) =>
     Effect.runPromise(effect.pipe(Effect.provide(layer), Effect.provide(NodeFileSystem.layer)))
   const file = path.join(root, "config", ServiceConfig.filename())
   try {
     await fs.mkdir(path.dirname(file), { recursive: true })
-
-    await Bun.write(file, JSON.stringify({ remote: true, password: "kept", env: { A: "1" } }))
-    const enabled = await run(ServiceConfig.read())
-    const route = enabled.remote?.route ?? ""
-    expect(route).toMatch(/^[0-9a-f]{16}$/)
-    expect(enabled).toEqual({ remote: { route }, password: "kept", env: { A: "1" } })
-    expect(await Bun.file(file).json()).toEqual(enabled)
-    expect(await run(ServiceConfig.read())).toEqual(enabled)
-
-    await Bun.write(file, JSON.stringify({ remote: false, password: "kept" }))
-    expect(await run(ServiceConfig.read())).toEqual({ password: "kept" })
-    expect(await Bun.file(file).json()).toEqual({ password: "kept" })
-
     const current = JSON.stringify({ remote: { route: "0123456789abcdef" }, password: "kept" })
     await Bun.write(file, current)
     expect(await run(ServiceConfig.read())).toEqual({ remote: { route: "0123456789abcdef" }, password: "kept" })
@@ -190,67 +177,6 @@ test("service filenames share release channels and identify preview channels", (
   expect(ServiceConfig.versionBelongsToChannel("0.0.0-preview-a-1234.2", "preview-a")).toBe(true)
   expect(ServiceConfig.versionBelongsToChannel("0.0.0-preview-a-other-1234", "preview-a")).toBe(false)
   expect(ServiceConfig.versionBelongsToChannel("1.2.3", "preview-a")).toBe(false)
-})
-
-test("service config migrates from the hashed channel filename", async () => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-service-config-migration-"))
-  const legacy = path.join(root, ServiceConfig.legacyFilename("preview-a")!)
-  const target = path.join(root, ServiceConfig.filename("preview-a"))
-  try {
-    await fs.writeFile(legacy, JSON.stringify({ hostname: "127.0.0.2", port: 4098 }))
-    await Effect.runPromise(ServiceConfig.migrateConfig(legacy, target).pipe(Effect.provide(NodeFileSystem.layer)))
-    expect(await Bun.file(target).json()).toEqual({ hostname: "127.0.0.2", port: 4098 })
-
-    await fs.writeFile(target, JSON.stringify({ port: 4099 }))
-    await Effect.runPromise(ServiceConfig.migrateConfig(legacy, target).pipe(Effect.provide(NodeFileSystem.layer)))
-    expect(await Bun.file(target).json()).toEqual({ port: 4099 })
-  } finally {
-    await fs.rm(root, { recursive: true, force: true })
-  }
-})
-
-test("preview registration migration never moves stable discovery", async () => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-service-migration-"))
-  const legacy = path.join(root, "service.json")
-  const target = path.join(root, ServiceConfig.filename("preview-a"))
-  try {
-    await fs.writeFile(
-      legacy,
-      JSON.stringify({ id: "old-preview", version: "0.0.0-preview-a-1234", url: "http://localhost:4096", pid: 1 }),
-    )
-    await Effect.runPromise(
-      ServiceConfig.migrateRegistration(legacy, target, "preview-a", "0.0.0-preview-a-5678").pipe(
-        Effect.provide(NodeFileSystem.layer),
-      ),
-    )
-    expect(await Bun.file(legacy).exists()).toBe(true)
-    expect(await Bun.file(target).json()).toMatchObject({ id: "old-preview" })
-
-    await fs.rm(target)
-    await fs.writeFile(legacy, JSON.stringify({ id: "stable", version: "1.2.3", url: "http://localhost:4096", pid: 1 }))
-    await Effect.runPromise(
-      ServiceConfig.migrateRegistration(legacy, target, "preview-a", "0.0.0-preview-a-5678").pipe(
-        Effect.provide(NodeFileSystem.layer),
-      ),
-    )
-    expect(await Bun.file(legacy).exists()).toBe(true)
-    expect(await Bun.file(target).exists()).toBe(false)
-
-    await fs.writeFile(
-      legacy,
-      JSON.stringify({ id: "old-preview", version: "0.0.0-preview-a-1234", url: "http://localhost:4096", pid: 1 }),
-    )
-    await fs.writeFile(target, JSON.stringify({ id: "current-preview" }))
-    await Effect.runPromise(
-      ServiceConfig.migrateRegistration(legacy, target, "preview-a", "0.0.0-preview-a-5678").pipe(
-        Effect.provide(NodeFileSystem.layer),
-      ),
-    )
-    expect(await Bun.file(legacy).exists()).toBe(true)
-    expect(await Bun.file(target).json()).toMatchObject({ id: "current-preview" })
-  } finally {
-    await fs.rm(root, { recursive: true, force: true })
-  }
 })
 
 it.effect("deleting a managed service registration stops its owner", () =>

@@ -9,8 +9,8 @@ describe("test harness network guard", () => {
   test("refuses requests to hosts other than loopback", async () => {
     const violations: string[] = []
     const refused = refuseNetwork(violations)
-    await expect(refused("https://models.aigcfroge.ai/api.json")).rejects.toThrow(
-      "test attempted network request: GET https://models.aigcfroge.ai/api.json — provide an explicit HttpClient or disable the fetch",
+    await expect(refused("https://models.dev/api.json")).rejects.toThrow(
+      "test attempted network request: GET https://models.dev/api.json — provide an explicit HttpClient or disable the fetch",
     )
     await expect(refused(new Request("https://example.invalid/", { method: "POST" }))).rejects.toThrow(
       "test attempted network request: POST https://example.invalid/",

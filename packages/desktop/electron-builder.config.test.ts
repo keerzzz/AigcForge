@@ -47,20 +47,7 @@ test.each(channels)("channel identity for $channel", async ({ channel, appId }) 
 
   for (const fpm of [config.deb?.fpm, config.rpm?.fpm]) {
     expect(fpm).toContainEqual(expect.stringContaining(`/usr/share/metainfo/${appId}.metainfo.xml`))
-    expect(
-      fpm?.some((entry) =>
-        entry.endsWith("aigcfroge-desktop.desktop=/usr/share/applications/aigcfroge-desktop.desktop"),
-      ),
-    ).toBe(channel === "prod")
   }
-})
-
-test("legacy Linux launcher stays hidden", async () => {
-  const desktop = await Bun.file(path.join(import.meta.dirname, "resources/linux/aigcfroge-desktop.desktop")).text()
-  expect(desktop).toContain("Exec=/opt/AigcForge/ai.aigcfroge.desktop %U")
-  expect(desktop).toContain("Icon=ai.aigcfroge.desktop")
-  expect(desktop).toContain("StartupWMClass=ai.aigcfroge.desktop")
-  expect(desktop).toContain("NoDisplay=true")
 })
 
 test("shared packaging defaults", async () => {

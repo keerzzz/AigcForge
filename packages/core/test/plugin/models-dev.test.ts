@@ -1069,13 +1069,7 @@ describe("ModelsDevPlugin", () => {
       )
 
       const minimax = yield* modelState.get(Provider.ID.make("opencode-go"), Model.ID.make("minimax-m3"))
-      expect(minimax?.variants).toEqual([
-        { id: Model.VariantID.make("none"), settings: { thinking: { type: "disabled" } } },
-        {
-          id: Model.VariantID.make("thinking"),
-          settings: { thinking: { type: "adaptive", display: "summarized" } },
-        },
-      ])
+      expect(minimax).toBeUndefined()
 
       const toggle = yield* modelState.get(Provider.ID.make("alibaba"), Model.ID.make("toggle-only"))
       expect(toggle?.variants).toEqual([

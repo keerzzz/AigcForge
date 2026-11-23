@@ -24,11 +24,10 @@ type Polling = {
   attempt?: Authorization
 }
 
-// AigcForge Go and AigcForge Zen both bill through the AigcForge Console, so the
-// Console sign-in is the connection method for both providers.
-export const CONSOLE_INTEGRATION = "aigcfroge"
+// Proprietary Console billing/sign-in is retired; keep empty set so all providers use generic auth flows.
+export const CONSOLE_INTEGRATION = ""
 
-export const CONSOLE_PROVIDERS = new Set(["aigcfroge", "aigcfroge-go"])
+export const CONSOLE_PROVIDERS = new Set<string>()
 
 export function consoleIntegration(provider: string) {
   return CONSOLE_PROVIDERS.has(provider) ? CONSOLE_INTEGRATION : provider

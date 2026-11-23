@@ -15,13 +15,6 @@ const rootDir = path.resolve(packageDir, "../..")
 
 const signScript = path.join(rootDir, "script", "sign-windows.ps1")
 
-// The Electron 42 packaging update briefly installed Linux launchers/icons under
-// "aigcfroge-desktop". Keep that hidden desktop entry around so existing GNOME/KDE
-// pins still resolve after the canonical app id changes back to ai.aigcfroge.desktop.
-const legacyDesktopEntry = path.join(packageDir, "resources", "linux", "aigcfroge-desktop.desktop")
-
-const legacyDesktopEntryFpm = `${legacyDesktopEntry}=/usr/share/applications/aigcfroge-desktop.desktop`
-
 const metainfoFpm = (appId: string) =>
   `${path.join(packageDir, "resources", `${appId}.metainfo.xml`)}=/usr/share/metainfo/${appId}.metainfo.xml`
 
@@ -215,8 +208,8 @@ function getConfig() {
           repo: "AigcForge",
           channel: "latest",
         },
-        deb: { fpm: [metainfoFpm(appId), legacyDesktopEntryFpm] },
-        rpm: { packageName: "aigcfroge", fpm: [metainfoFpm(appId), legacyDesktopEntryFpm] },
+        deb: { fpm: [metainfoFpm(appId)] },
+        rpm: { packageName: "aigcfroge", fpm: [metainfoFpm(appId)] },
       }
     }
   }

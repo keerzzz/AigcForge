@@ -38,12 +38,10 @@ import {
 } from "../util/form"
 
 const INTEGRATION_PRIORITY: Record<string, number> = {
-  "aigcfroge-go": 0,
-  aigcfroge: 1,
-  openai: 2,
-  "github-copilot": 3,
-  anthropic: 4,
-  google: 5,
+  openai: 0,
+  "github-copilot": 1,
+  anthropic: 2,
+  google: 3,
 }
 
 type ConnectMethod = Exclude<IntegrationInfo["methods"][number], { type: "env" }>

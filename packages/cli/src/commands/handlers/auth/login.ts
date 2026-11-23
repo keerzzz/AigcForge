@@ -18,12 +18,10 @@ import {
 } from "./shared"
 
 const integrationPriority = new Map([
-  ["aigcfroge-go", 0],
-  ["aigcfroge", 1],
-  ["openai", 2],
-  ["github-copilot", 3],
-  ["anthropic", 4],
-  ["google", 5],
+  ["openai", 0],
+  ["github-copilot", 1],
+  ["anthropic", 2],
+  ["google", 3],
 ])
 
 export default Runtime.handler(

@@ -2,7 +2,7 @@ import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
 import { HttpClientRequest } from "effect/http"
 import { Evaluation, EvaluationClient } from "../src/experimental.js"
-import { AigcForgeZen, OpenRouter, TypeSafeAI, VercelAIGateway } from "../src/providers.js"
+import { OpenRouter, TypeSafeAI, VercelAIGateway } from "../src/providers.js"
 import { it } from "./lib/effect.js"
 import { dynamicResponse } from "./lib/http.js"
 
@@ -110,45 +110,6 @@ describe("experimental Evaluation", () => {
                 )
               }),
             ),
-          ),
-        ),
-      ),
-    ),
-  )
-
-  it.effect("configures the AigcForge Zen System One endpoint", () =>
-    Evaluation.run({
-      model: AigcForgeZen.configure({ apiKey: "zen-key", baseURL: "https://zen.test/v1" }).experimental.evaluation(
-        "jev-1.13",
-      ),
-      state: "hello",
-      questions: { greeting: { type: "boolean", instructions: "Is this a greeting?" } },
-    }).pipe(
-      Effect.tap((response) =>
-        Effect.sync(() => {
-          expect(response.answers.greeting.probability).toBe(0.99)
-          expect(response.usage?.providerMetadata).toEqual({
-            aigcfroge: { input_tokens: 10, output_tokens: 2 },
-          })
-        }),
-      ),
-      Effect.provide(
-        EvaluationClient.layer.pipe(
-          Layer.provide(
-            dynamicResponse((input) => {
-              expect(input.request.url).toBe("https://zen.test/v1/systemone")
-              expect(input.request.headers.authorization).toBe("Bearer zen-key")
-              return Effect.succeed(
-                input.respond(
-                  JSON.stringify({
-                    model: "jev-1.13.0",
-                    answers: { greeting: { type: "noul", noul: 0.99 } },
-                    usage: { input_tokens: 10, output_tokens: 2 },
-                  }),
-                  { headers: { "content-type": "application/json" } },
-                ),
-              )
-            }),
           ),
         ),
       ),

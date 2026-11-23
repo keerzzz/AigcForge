@@ -29,11 +29,6 @@ const keys = ["disabled", "remote", "hostname", "port", "password", "cors", "env
 type Key = (typeof keys)[number]
 
 const decodeInfo = Schema.decodeUnknownEffect(Schema.fromJsonString(Info))
-// Earlier builds stored remote access as a boolean.
-const decodeLegacy = Schema.decodeUnknownOption(
-  Schema.fromJsonString(Schema.Struct({ ...Info.fields, remote: Schema.Boolean })),
-)
-const decodeRegistration = Schema.decodeUnknownEffect(Schema.fromJsonString(Service.Info))
 
 export function filename(channel = AIGCFROGE_CHANNEL) {
   if (channel === "latest" || channel === "dev" || channel === "beta" || channel === "next") return "service.json"
@@ -44,11 +39,6 @@ export function defaultPort(channel = AIGCFROGE_CHANNEL) {
   if (channel === "latest" || channel === "dev" || channel === "beta" || channel === "next") return 0xc0de
   if (channel === "local") return 0xc0df
   return 10_000 + (Number.parseInt(Hash.fast(channel).slice(0, 8), 16) % 50_000)
-}
-
-export function legacyFilename(channel = AIGCFROGE_CHANNEL) {
-  if (channel === "latest" || channel === "local") return
-  return `service-${Hash.fast(channel)}.json`
 }
 
 export function versionBelongsToChannel(
@@ -62,29 +52,6 @@ export function versionBelongsToChannel(
   if (!version.startsWith(prefix)) return false
   return /^\d+(?:\.\d+)?$/.test(version.slice(prefix.length))
 }
-
-export const migrateRegistration = Effect.fnUntraced(function* (
-  legacy: string,
-  file: string,
-  channel = AIGCFROGE_CHANNEL,
-  installedVersion = AIGCFROGE_VERSION,
-) {
-  const fs = yield* FileSystem.FileSystem
-  const text = yield* fs.readFileString(legacy).pipe(Effect.option)
-  if (Option.isNone(text)) return
-  const registration = yield* decodeRegistration(text.value).pipe(Effect.option)
-  if (Option.isNone(registration)) return
-  if (!versionBelongsToChannel(registration.value.version, channel, installedVersion)) return
-  yield* fs.writeFileString(file, text.value, { flag: "wx", mode: 0o600 }).pipe(Effect.ignore)
-})
-
-export const migrateConfig = Effect.fnUntraced(function* (legacy: string, file: string) {
-  const fs = yield* FileSystem.FileSystem
-  const text = yield* fs.readFileString(legacy).pipe(Effect.option)
-  if (Option.isNone(text)) return
-  if (Option.isNone(yield* decodeInfo(text.value).pipe(Effect.option))) return
-  yield* fs.writeFileString(file, text.value, { flag: "wx", mode: 0o600 }).pipe(Effect.ignore)
-})
 
 function configKey(key: string): Key {
   if (
@@ -104,23 +71,15 @@ const paths = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem
   const global = yield* Global.Service
   const name = filename()
-  const legacy = legacyFilename()
-  const file = path.join(global.state, name)
   return {
     fs,
-    file,
-    legacyConfigFile: legacy ? path.join(global.config, legacy) : undefined,
-    legacyRegistrationFiles: [
-      ...(legacy ? [path.join(global.state, legacy)] : []),
-      ...(name !== "service.json" && AIGCFROGE_CHANNEL !== "local" ? [path.join(global.state, "service.json")] : []),
-    ],
+    file: path.join(global.state, name),
     configFile: path.join(global.config, name),
   }
 })
 
 export const options = Effect.fnUntraced(function* (input: { readonly checkVersion?: boolean } = {}) {
-  const { file, legacyRegistrationFiles } = yield* paths
-  yield* Effect.forEach(legacyRegistrationFiles, (legacy) => migrateRegistration(legacy, file))
+  const { file } = yield* paths
   return {
     file,
     version: input.checkVersion ? AIGCFROGE_VERSION : undefined,
@@ -130,19 +89,11 @@ export const options = Effect.fnUntraced(function* (input: { readonly checkVersi
 })
 
 export const read = Effect.fn("cli.service-config.read")(function* () {
-  const { fs, configFile, legacyConfigFile } = yield* paths
-  if (legacyConfigFile) yield* migrateConfig(legacyConfigFile, configFile)
+  const { fs, configFile } = yield* paths
   const text = yield* fs.readFileString(configFile).pipe(Effect.option)
   if (Option.isNone(text)) return {} as Info
   const info = yield* decodeInfo(text.value).pipe(Effect.option)
-  if (Option.isSome(info)) return info.value
-  const legacy = decodeLegacy(text.value)
-  if (Option.isNone(legacy)) return {} as Info
-  // Repair the file in place so every reader sees the same route.
-  const { remote: enabled, ...rest } = legacy.value
-  const repaired: Info = enabled ? { ...rest, remote: { route: route() } } : rest
-  yield* write(repaired)
-  return repaired
+  return Option.isSome(info) ? info.value : ({} as Info)
 })
 
 // 64 random bits as 16 hex characters, a valid DNS label.
