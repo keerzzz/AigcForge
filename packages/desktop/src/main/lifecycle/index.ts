@@ -8,11 +8,10 @@ import { emitIpcEvent } from "../ipc-events"
 import { DesktopLogging, scoped } from "../native/logging"
 import { DesktopStorage } from "../storage"
 import { safeWebContentsURL } from "../windows/state"
-import { getLastFocusedWindow, getWindowByID, makeMainWindows, setAppQuitting, setRelaunchHandler } from "../windows"
+import { getLastFocusedWindow, makeMainWindows, setAppQuitting, setRelaunchHandler } from "../windows"
 import { marks } from "./marks"
 import { initializeFirstLaunchOnboarding } from "./onboarding"
 import { Shutdown } from "./shutdown"
-import { consoleReturnWindow } from "./deep-link"
 
 export interface Interface {
   readonly relaunch: () => void
@@ -22,7 +21,7 @@ export interface Interface {
   readonly restoreWindows: () => BrowserWindow[]
 }
 
-export class Service extends Context.Service<Service, Interface>()("aigcfroge/desktop/ApplicationLifecycle") {}
+export class Service extends Context.Service<Service, Interface>()("omnixa/desktop/ApplicationLifecycle") {}
 
 const runtime = Layer.effect(
   Service,
@@ -48,14 +47,7 @@ const runtime = Layer.effect(
       if (!urls.length) return
       pendingDeepLinks.push(...urls)
 
-      const target = urls.flatMap((url) => {
-        const id = consoleReturnWindow(url)
-        const win = id ? getWindowByID(id) : null
-
-        return win ? [win] : []
-      })[0]
-
-      const win = target ?? getLastFocusedWindow()
+      const win = getLastFocusedWindow()
 
       if (win) emitIpcEvent(win.webContents, new DeepLinksOpened({ urls }))
 
@@ -77,7 +69,7 @@ const runtime = Layer.effect(
     }
 
     const secondInstance = (_event: Event, argv: string[]) => {
-      const urls = argv.filter((arg) => arg.startsWith("aigcfroge://"))
+      const urls = argv.filter((arg) => arg.startsWith("omnixa://"))
 
       if (urls.length) {
         runFork(Effect.logInfo("deep link received via second-instance", { urls }))

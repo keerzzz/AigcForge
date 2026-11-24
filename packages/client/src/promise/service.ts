@@ -9,7 +9,7 @@ import { decide, fallback, headers, probeResult, same } from "../service-probe.j
 export * from "../service.js"
 export { headers }
 
-// Find, start, and stop the local aigcfroge background service.
+// Find, start, and stop the local omnixa background service.
 //
 // The registration file is the complete discovery contract. This module is
 // intentionally implemented with Node APIs so Promise clients do not need
@@ -38,7 +38,7 @@ export async function ensure(options: EnsureOptions = {}): Promise<Endpoint> {
     options.onStart?.(reason, previousVersion)
   }
   const spawnContender = async () => {
-    const [command, ...args] = options.command ?? ["aigcfroge", "serve", "--service"]
+    const [command, ...args] = options.command ?? ["omnixa", "serve", "--service"]
     if (command === undefined) throw new Error("Missing service command")
     try {
       return spawnServiceContender(command, args, await PtyHandoff.environment(options.file ?? fallback(), options.env))

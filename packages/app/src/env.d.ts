@@ -1,8 +1,8 @@
 interface ImportMetaEnv {
-  readonly VITE_AIGCFROGE_SERVER_MODE?: "none" | "origin"
-  readonly VITE_AIGCFROGE_SERVER_HOST: string
-  readonly VITE_AIGCFROGE_SERVER_PORT: string
-  readonly VITE_AIGCFROGE_CHANNEL?: "local" | "dev" | "beta" | "prod"
+  readonly VITE_OMNIXA_SERVER_MODE?: "none" | "origin"
+  readonly VITE_OMNIXA_SERVER_HOST: string
+  readonly VITE_OMNIXA_SERVER_PORT: string
+  readonly VITE_OMNIXA_CHANNEL?: "local" | "dev" | "beta" | "prod"
 
   readonly VITE_SENTRY_DSN?: string
   readonly VITE_SENTRY_ENVIRONMENT?: string

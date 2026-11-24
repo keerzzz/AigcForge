@@ -4,7 +4,7 @@ import { Context, Effect, Option, Schema } from "effect"
 import { Config } from "../config"
 import { Verifier } from "../session/verifier"
 import { SystemContext } from "./index"
-import { Document, type Entry } from "@aigcfroge/schema/config"
+import { Document, type Entry } from "@omnixa/schema/config"
 
 const DEFAULT_ENABLED = false
 
@@ -38,7 +38,7 @@ export interface CodegraphInterface {
  * codegraph MCP client; the source degrades to no-injection when this service
  * is absent (L2 兜底矩阵: 无 codegraph MCP -> 不注入，基线不变).
  */
-export class Codegraph extends Context.Service<Codegraph, CodegraphInterface>()("@aigcfroge/v2/Codegraph") {}
+export class Codegraph extends Context.Service<Codegraph, CodegraphInterface>()("@omnixa/v2/Codegraph") {}
 
 const renderCallers = (callers: readonly string[]) =>
   callers.length === 0

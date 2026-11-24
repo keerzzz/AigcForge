@@ -1,5 +1,5 @@
 import { Tooltip } from "./tooltip"
-import { Keybind } from "@aigcfroge/ui/keybind"
+import { Keybind } from "@omnixa/ui/keybind"
 
 const docs = `### Overview
 Floating tooltip built on Kobalte's tooltip primitive.

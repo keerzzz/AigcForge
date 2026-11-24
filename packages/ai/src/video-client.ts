@@ -10,7 +10,7 @@ import {
 
 export type Interface = MediaClient.Interface<VideoRequestFor, VideoEvent, VideoResponse>
 
-export class VideoClientService extends Context.Service<VideoClientService, Interface>()("@aigcfroge/VideoClient") {}
+export class VideoClientService extends Context.Service<VideoClientService, Interface>()("@omnixa/VideoClient") {}
 export const Service = VideoClientService
 export type Service = VideoClientService
 

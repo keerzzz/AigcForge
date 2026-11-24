@@ -1,6 +1,6 @@
 export * as McpInstructions from "./instructions.js"
 
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Context, Effect, Layer, Schema } from "effect"
 import { Permission } from "../permission.js"
 import { McpTool } from "../tool/mcp.js"
@@ -58,7 +58,7 @@ export interface Interface {
   readonly load: (permissions: Permission.Ruleset) => Effect.Effect<Instructions.List>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/McpInstructions") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/McpInstructions") {}
 
 export const layer = Layer.effect(
   Service,

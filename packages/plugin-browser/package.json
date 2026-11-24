@@ -1,13 +1,13 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@aigcfroge/plugin-browser",
+  "name": "@omnixa/plugin-browser",
   "version": "0.0.9",
-  "description": "AigcForge's desktop browser plugin",
+  "description": "Omnixa's desktop browser plugin",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/anomalyco/aigcfroge.git",
+    "url": "git+https://github.com/keerzzz/AigcForge.git",
     "directory": "packages/plugin-browser"
   },
   "publishConfig": {
@@ -27,8 +27,8 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@aigcfroge/plugin": "workspace:*",
-    "@aigcfroge/schema": "workspace:*",
+    "@omnixa/plugin": "workspace:*",
+    "@omnixa/schema": "workspace:*",
     "effect": "catalog:"
   },
   "devDependencies": {

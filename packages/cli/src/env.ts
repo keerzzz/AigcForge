@@ -4,11 +4,11 @@ import { Config } from "effect"
 // these instead of touching process.env so the full surface stays visible,
 // typed, and redacted where secret.
 
-// The aigcfroge server password: sent by clients connecting to an explicit
+// The omnixa server password: sent by clients connecting to an explicit
 // --server, and adopted by a manually run or standalone server. The legacy
 // name is still honored.
-export const password = Config.Redacted("AIGCFROGE_PASSWORD").pipe(
-  Config.orElse(() => Config.Redacted("AIGCFROGE_SERVER_PASSWORD")),
+export const password = Config.Redacted("OMNIXA_PASSWORD").pipe(
+  Config.orElse(() => Config.Redacted("OMNIXA_SERVER_PASSWORD")),
   Config.withDefault(undefined),
 )
 
@@ -16,7 +16,7 @@ export function session() {
   return Object.fromEntries(
     Object.entries(process.env).filter(
       (entry): entry is [string, string] =>
-        entry[1] !== undefined && entry[0] !== "AIGCFROGE_PASSWORD" && entry[0] !== "AIGCFROGE_SERVER_PASSWORD",
+        entry[1] !== undefined && entry[0] !== "OMNIXA_PASSWORD" && entry[0] !== "OMNIXA_SERVER_PASSWORD",
     ),
   )
 }

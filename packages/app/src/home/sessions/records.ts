@@ -1,9 +1,9 @@
-import type { SessionInfo } from "@aigcfroge/client/promise"
+import type { SessionInfo } from "@omnixa/client/promise"
 import type { LocalProject } from "@/shell/state/layout"
-import { displayName } from "@aigcfroge/ui/project-avatar"
+import { displayName } from "@omnixa/ui/project-avatar"
 import { compareSessionTime } from "@/shell/layout/helpers"
 import { pathKey } from "@/workspaces/path-key"
-import { getFilename } from "@aigcfroge/util/path"
+import { getFilename } from "@omnixa/util/path"
 
 export type HomeSessionRecord = {
   session: SessionInfo

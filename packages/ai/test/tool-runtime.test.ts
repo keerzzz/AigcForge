@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { Content } from "@aigcfroge/schema/tool"
+import { Content } from "@omnixa/schema/tool"
 import { Effect, Schema, Stream } from "effect"
 import {
   GenerationOptions,

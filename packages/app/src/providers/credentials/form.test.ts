@@ -58,7 +58,7 @@ describe("validateCustomProvider", () => {
       credentialAction: "keep",
       credentialID: "",
       definition: {
-        package: "@aigcfroge/ai/providers/openai-compatible",
+        package: "@omnixa/ai/providers/openai-compatible",
         name: "Custom Provider",
         env: ["CUSTOM_PROVIDER_KEY"],
         settings: {
@@ -113,9 +113,9 @@ describe("validateCustomProvider", () => {
   })
 
   test.each([
-    ["chat", "@aigcfroge/ai/providers/openai-compatible"],
-    ["responses", "@aigcfroge/ai/providers/openai-compatible/responses"],
-    ["messages", "@aigcfroge/ai/providers/anthropic-compatible"],
+    ["chat", "@omnixa/ai/providers/openai-compatible"],
+    ["responses", "@omnixa/ai/providers/openai-compatible/responses"],
+    ["messages", "@omnixa/ai/providers/anthropic-compatible"],
   ] as const)("uses the native %s package and keeps a blank key", (protocol, packageName) => {
     const result = validateCustomProvider({
       form: {

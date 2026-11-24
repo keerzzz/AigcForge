@@ -1,9 +1,9 @@
-import { Agent } from "@aigcfroge/core/agent"
+import { Agent } from "@omnixa/core/agent"
 import { Effect } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
 import { Api } from "../api"
 import { response } from "../location"
-import { AgentNotFoundError } from "@aigcfroge/protocol/errors"
+import { AgentNotFoundError } from "@omnixa/protocol/errors"
 
 export const AgentHandler = HttpApiBuilder.group(Api, "server.agent", (handlers) =>
   handlers

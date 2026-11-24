@@ -1,14 +1,14 @@
 import { describe, expect } from "bun:test"
 import path from "path"
 import { Effect, Layer, Schema } from "effect"
-import { AgentAsset as SchemaAgentAsset } from "@aigcfroge/schema/agent-asset"
-import { AgentAssetService } from "@aigcfroge/core/agent-asset-service"
-import { AgentAsset } from "@aigcfroge/core/agent-asset"
-import { FileMutation } from "@aigcfroge/core/file-mutation"
-import { LocationMutation } from "@aigcfroge/core/location-mutation"
-import { ConfigMarkdown } from "@aigcfroge/core/config/markdown"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Location } from "@aigcfroge/core/location"
+import { AgentAsset as SchemaAgentAsset } from "@omnixa/schema/agent-asset"
+import { AgentAssetService } from "@omnixa/core/agent-asset-service"
+import { AgentAsset } from "@omnixa/core/agent-asset"
+import { FileMutation } from "@omnixa/core/file-mutation"
+import { LocationMutation } from "@omnixa/core/location-mutation"
+import { ConfigMarkdown } from "@omnixa/core/config/markdown"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Location } from "@omnixa/core/location"
 import { tempLocationLayer } from "./fixture/location"
 import { hostEnvironmentLayer } from "./fixture/environment"
 import { NodeFileSystem } from "@effect/platform-node"
@@ -75,7 +75,7 @@ describe("AgentAssetService permission warnings", () => {
 
       const fs = yield* FSUtil.Service
       const location = yield* Location.Service
-      const persisted = yield* fs.readFileString(path.join(location.directory, ".aigcfroge", "agents", "reviewer.md"))
+      const persisted = yield* fs.readFileString(path.join(location.directory, ".omnixa", "agents", "reviewer.md"))
       const decoded = ConfigMarkdown.parseOption(persisted)
       expect(decoded?.data.config).toBe(value.config)
       expect(decoded?.content).toBe(value.source)

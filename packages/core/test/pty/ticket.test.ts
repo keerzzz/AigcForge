@@ -1,9 +1,9 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Pty } from "@aigcfroge/core/pty"
-import { PtyTicket } from "@aigcfroge/core/pty/ticket"
-import { Workspace } from "@aigcfroge/core/workspace"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Pty } from "@omnixa/core/pty"
+import { PtyTicket } from "@omnixa/core/pty/ticket"
+import { Workspace } from "@omnixa/core/workspace"
 import { testEffect } from "../lib/effect"
 
 const it = testEffect(LayerNode.compile(PtyTicket.node))

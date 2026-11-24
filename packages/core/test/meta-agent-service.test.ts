@@ -1,22 +1,22 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer, Schema } from "effect"
-import { Composition } from "@aigcfroge/schema/composition"
-import { SessionIdentity } from "@aigcfroge/schema/session-identity"
-import { CompositionDigest } from "@aigcfroge/core/composition/digest"
-import { Database } from "@aigcfroge/core/database/database"
-import { MetaAgent } from "@aigcfroge/schema/meta-agent"
-import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
-import { MetaAgentSessionTable } from "@aigcfroge/core/meta-agent/sql"
+import { Composition } from "@omnixa/schema/composition"
+import { SessionIdentity } from "@omnixa/schema/session-identity"
+import { CompositionDigest } from "@omnixa/core/composition/digest"
+import { Database } from "@omnixa/core/database/database"
+import { MetaAgent } from "@omnixa/schema/meta-agent"
+import { MetaAgentService } from "@omnixa/core/meta-agent/service"
+import { MetaAgentSessionTable } from "@omnixa/core/meta-agent/sql"
 import { and, eq } from "drizzle-orm"
-import { SessionSchema } from "@aigcfroge/core/session/schema"
-import { SessionTable } from "@aigcfroge/core/session/sql"
-import { SessionComposition } from "@aigcfroge/core/session/composition"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
-import { Agent } from "@aigcfroge/core/agent"
-import { Model } from "@aigcfroge/core/model"
-import { Project } from "@aigcfroge/core/project"
-import { Provider } from "@aigcfroge/core/provider"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { SessionSchema } from "@omnixa/core/session/schema"
+import { SessionTable } from "@omnixa/core/session/sql"
+import { SessionComposition } from "@omnixa/core/session/composition"
+import { ProjectTable } from "@omnixa/core/project/sql"
+import { Agent } from "@omnixa/core/agent"
+import { Model } from "@omnixa/core/model"
+import { Project } from "@omnixa/core/project"
+import { Provider } from "@omnixa/core/provider"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { testEffect } from "./lib/effect"
 import { tempGlobalLayer } from "./fixture/global"
 import { withEnv } from "./fixture/env"
@@ -115,7 +115,7 @@ describe("MetaAgentService coordination", () => {
 
   for (const name of ["share", "read"] as const) {
     it.live(`MP01 checks a Custom Meta's adopted root, digest and ${name} catalog`, () =>
-      withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+      withEnv({ OMNIXA_CUSTOM_MODE: "true" }, () =>
         Effect.gen(function* () {
           const fixture = yield* coordinationFixture
           const composition = yield* SessionComposition.Service

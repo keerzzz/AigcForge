@@ -1,16 +1,16 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { DelegationID, ParticipantID, TurnID } from "@aigcfroge/schema/delegation-id"
-import { SessionID } from "@aigcfroge/schema/session-id"
+import { DelegationID, ParticipantID, TurnID } from "@omnixa/schema/delegation-id"
+import { SessionID } from "@omnixa/schema/session-id"
 import { foldDelegation } from "../src/delegation/fold"
 import { DelegationEvent } from "../src/delegation/event"
-import { Event } from "@aigcfroge/schema/event"
+import { Event } from "@omnixa/schema/event"
 import {
   DelegationAggregateMismatchError,
   DelegationCorruptedEventError,
   DelegationSequenceError,
   RevisionDigest,
-} from "@aigcfroge/schema/delegation"
+} from "@omnixa/schema/delegation"
 
 function makeEvent<D extends Event.Definition>(
   def: D,

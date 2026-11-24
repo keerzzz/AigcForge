@@ -1,6 +1,6 @@
 // @ts-nocheck
-import { Button } from "@aigcfroge/ui/button"
-import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { Button } from "@omnixa/ui/button"
+import { useDialog } from "@omnixa/ui/context/dialog"
 import { createSignal, onMount } from "solid-js"
 import { DialogSelectModelUnpaid } from "./unpaid"
 
@@ -19,7 +19,7 @@ function SelectModelWithoutProviders() {
   const models = names.map((name, index) => ({
     id: name.toLowerCase().replaceAll(" ", "-"),
     name,
-    provider: { id: "aigcfroge", name: "AigcForge" },
+    provider: { id: "omnixa", name: "Omnixa" },
     cost: { input: 0, output: 0 },
     limit: { context: 128_000 },
     capabilities: {

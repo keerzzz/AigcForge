@@ -13,7 +13,7 @@ function requireVersion(version: string) {
 
 export function discoverScript() {
   return `cli=""
-if [ -z "$cli" ] && [ -x "$HOME/.aigcfroge/bin/aigcfroge" ]; then cli="$HOME/.aigcfroge/bin/aigcfroge"; fi
+if [ -z "$cli" ] && [ -x "$HOME/.omnixa/bin/omnixa" ]; then cli="$HOME/.omnixa/bin/omnixa"; fi
 if [ -n "$cli" ]; then printf '%s\\n' "$cli"; fi
 `
 }
@@ -38,12 +38,19 @@ export function parseVersion(output: string) {
   return version
 }
 
-/** The managed CLI installer also configures the user's shell PATH. */
-export function installScript(input: { version: string; binary?: string }) {
+/** Stages a local Linux CLI before replacing the managed executable. */
+export function installScript(input: { version: string; binary: string }) {
   const version = requireVersion(input.version)
 
   return `set -eu
-curl -fsSL https://raw.githubusercontent.com/anomalyco/aigcfroge/v2/install | bash -s -- ${input.binary ? `--binary ${input.binary}` : `--version ${quote(version)}`}
-test "$("$HOME/.aigcfroge/bin/aigcfroge" --version | awk '{print $NF}' | sed 's/^v//')" = ${quote(version)}
+umask 077
+destination="$HOME/.omnixa/bin/omnixa"
+mkdir -p "$(dirname "$destination")"
+stage=$(mktemp -d "$(dirname "$destination")/.install-XXXXXX")
+trap 'rm -rf "$stage"' EXIT
+cp ${input.binary} "$stage/omnixa"
+chmod 755 "$stage/omnixa"
+test "$("$stage/omnixa" --version | awk '{print $NF}' | sed 's/^v//')" = ${quote(version)}
+mv "$stage/omnixa" "$destination"
 `
 }

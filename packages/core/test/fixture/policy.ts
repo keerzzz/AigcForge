@@ -1,7 +1,7 @@
-import { ConfigPolicyPlugin } from "@aigcfroge/core/config/plugin/policy"
-import { Mcp } from "@aigcfroge/core/mcp/index"
-import { Skill } from "@aigcfroge/core/skill"
-import { ID } from "@aigcfroge/schema/event"
+import { ConfigPolicyPlugin } from "@omnixa/core/config/plugin/policy"
+import { Mcp } from "@omnixa/core/mcp/index"
+import { Skill } from "@omnixa/core/skill"
+import { ID } from "@omnixa/schema/event"
 import { Effect, Stream } from "effect"
 import { host, noProviders } from "../plugin/host"
 

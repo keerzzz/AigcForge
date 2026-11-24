@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
 import { NodeFileSystem } from "@effect/platform-node"
 import { AppNodeBuilder } from "../src/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Global } from "@aigcfroge/util/global"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Global } from "@omnixa/util/global"
 import { Bus } from "../src/bus"
 import { Agent } from "../src/agent"
 import { AgentAsset } from "../src/agent-asset"
@@ -15,14 +15,14 @@ import {
 } from "../src/agent/asset-bridge"
 import { Model } from "../src/model"
 import { Provider } from "../src/provider"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Location } from "../src/location"
 import { AbsolutePath } from "../src/schema"
 import { location } from "./fixture/location"
 
 const globalLayer = Layer.succeed(
   Global.Service,
-  Global.Service.of(Global.make({ data: "/data", config: "/config", tmp: "/tmp/aigcfroge" })),
+  Global.Service.of(Global.make({ data: "/data", config: "/config", tmp: "/tmp/omnixa" })),
 )
 import { tmpdir } from "./fixture/tmpdir"
 import fs from "fs/promises"
@@ -175,7 +175,7 @@ describe("AgentAssetBridge - registerAgentAssetTransform", () => {
   test("transforms Agent state by injecting AgentAsset candidates", async () => {
     const tmp = await tmpdir()
     try {
-      const agentsDir = path.join(tmp.path, ".aigcfroge", "agents")
+      const agentsDir = path.join(tmp.path, ".omnixa", "agents")
       await fs.mkdir(agentsDir, { recursive: true })
       await fs.writeFile(
         path.join(agentsDir, "writer.md"),
@@ -275,7 +275,7 @@ Write updated docs.
   test("never overrides an already-registered agent (built-in permissions survive)", async () => {
     const tmp = await tmpdir()
     try {
-      const agentsDir = path.join(tmp.path, ".aigcfroge", "agents")
+      const agentsDir = path.join(tmp.path, ".omnixa", "agents")
       await fs.mkdir(agentsDir, { recursive: true })
       // A user/LLM authored asset that squats on a built-in agent id and carries
       // no permission ruleset — the exact shape that would strip a fail-closed

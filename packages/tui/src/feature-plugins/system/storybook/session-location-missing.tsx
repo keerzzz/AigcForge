@@ -1,4 +1,4 @@
-import type { Plugin } from "@aigcfroge/plugin/tui"
+import type { Plugin } from "@omnixa/plugin/tui"
 import { useTerminalDimensions } from "@opentui/solid"
 import { TextAttributes } from "@opentui/core"
 import { createSignal } from "solid-js"
@@ -7,7 +7,7 @@ import { SessionLocationUnavailable } from "../../../routes/session/location-mis
 import type { Story } from "./index"
 import { StoryFooter } from "./footer"
 
-const directory = "/Users/kit/code/open-source/aigcfroge-workerd-profile"
+const directory = "/Users/kit/code/open-source/omnixa-workerd-profile"
 
 function SessionLocationMissingStory(props: { context: Plugin.Context }) {
   const dimensions = useTerminalDimensions()
@@ -18,9 +18,9 @@ function SessionLocationMissingStory(props: { context: Plugin.Context }) {
       <DialogWorkspaces
         projectID="fixture-project"
         initialDirectories={[
-          { directory: "/Users/kit/code/open-source/aigcfroge" },
+          { directory: "/Users/kit/code/open-source/omnixa" },
           {
-            directory: "/Users/kit/code/open-source/aigcfroge-instruction-rename",
+            directory: "/Users/kit/code/open-source/omnixa-instruction-rename",
             strategy: "git_worktree",
           },
         ]}

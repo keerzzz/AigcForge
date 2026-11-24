@@ -1,34 +1,34 @@
-import type { FileSystem } from "@aigcfroge/core/filesystem"
+import type { FileSystem } from "@omnixa/core/filesystem"
 import { describe, expect } from "bun:test"
 import { eq } from "drizzle-orm"
 import path from "path"
 import { chmod, mkdir, readdir, rm } from "fs/promises"
 import { Cause, Context, Deferred, Duration, Effect, Exit, Fiber, Layer, LayerMap, Queue, Scope } from "effect"
-import { Worktree } from "@aigcfroge/schema/worktree"
-import { Workspace } from "@aigcfroge/schema/workspace"
-import { Bus } from "@aigcfroge/core/bus"
-import { Config } from "@aigcfroge/core/config"
-import { Database } from "@aigcfroge/core/database/database"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Instance } from "@aigcfroge/core/instance"
-import { Location } from "@aigcfroge/core/location"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
-import type { LocationServices } from "@aigcfroge/core/location-services"
-import { ProductModePolicy } from "@aigcfroge/core/product-mode-policy"
-import { Project } from "@aigcfroge/core/project"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Session } from "@aigcfroge/core/session"
-import { SessionEvent } from "@aigcfroge/core/session/event"
-import { SessionExecution } from "@aigcfroge/core/session/execution"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { SessionMove } from "@aigcfroge/core/session/move"
-import { SessionProjector } from "@aigcfroge/core/session/projector"
-import { SessionRunner } from "@aigcfroge/core/session/runner/index"
-import { SessionTable } from "@aigcfroge/core/session/sql"
-import { SessionStore } from "@aigcfroge/core/session/store"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
-import { Global } from "@aigcfroge/util/global"
+import { Worktree } from "@omnixa/schema/worktree"
+import { Workspace } from "@omnixa/schema/workspace"
+import { Bus } from "@omnixa/core/bus"
+import { Config } from "@omnixa/core/config"
+import { Database } from "@omnixa/core/database/database"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Instance } from "@omnixa/core/instance"
+import { Location } from "@omnixa/core/location"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
+import type { LocationServices } from "@omnixa/core/location-services"
+import { ProductModePolicy } from "@omnixa/core/product-mode-policy"
+import { Project } from "@omnixa/core/project"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Session } from "@omnixa/core/session"
+import { SessionEvent } from "@omnixa/core/session/event"
+import { SessionExecution } from "@omnixa/core/session/execution"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { SessionMove } from "@omnixa/core/session/move"
+import { SessionProjector } from "@omnixa/core/session/projector"
+import { SessionRunner } from "@omnixa/core/session/runner/index"
+import { SessionTable } from "@omnixa/core/session/sql"
+import { SessionStore } from "@omnixa/core/session/store"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
+import { Global } from "@omnixa/util/global"
 import { tempGlobalLayer } from "./fixture/global"
 import { createLegacySession, offlineModels } from "./fixture/models"
 import { tmpdirScoped } from "./fixture/tmpdir"
@@ -364,10 +364,7 @@ describe("Session.move", () => {
           yield* Effect.promise(() => Promise.all([mkdir(source), mkdir(destination)]))
           if (broken)
             yield* Effect.promise(() =>
-              Bun.write(
-                path.join(source, "aigcfroge.json"),
-                JSON.stringify({ instructions: ["{file:./missing.txt}"] }),
-              ),
+              Bun.write(path.join(source, "omnixa.json"), JSON.stringify({ instructions: ["{file:./missing.txt}"] })),
             )
           const session = yield* Session.Service
           const execution = yield* SessionExecution.Service
@@ -426,7 +423,7 @@ describe("Session.move", () => {
           const destination = AbsolutePath.make(path.join(tmp.path, "destination"))
           yield* Effect.promise(() => Promise.all([mkdir(source.directory), mkdir(destination)]))
           const config = JSON.stringify({ instructions: ["{file:./missing.txt}"] })
-          if (!broken) yield* Effect.promise(() => Bun.write(path.join(source.directory, "aigcfroge.json"), config))
+          if (!broken) yield* Effect.promise(() => Bun.write(path.join(source.directory, "omnixa.json"), config))
           const selectedID = Session.ID.create()
           const replacements: LayerNode.Replacements = [
             Global.node.replace(tempGlobalLayer),

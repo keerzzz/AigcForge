@@ -1,8 +1,8 @@
 export * as Form from "./form.js"
 
-import { Form } from "@aigcfroge/schema/form"
+import { Form } from "@omnixa/schema/form"
 import { Cache, Context, Deferred, Duration, Effect, Exit, Layer, Option, Schema } from "effect"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Bus } from "./bus.js"
 
 const RETENTION = Duration.minutes(10)
@@ -32,7 +32,7 @@ export type Answer = typeof Answer.Type
 export const Reply = Form.Reply
 export type Reply = typeof Reply.Type
 
-export { Event } from "@aigcfroge/schema/form"
+export { Event } from "@omnixa/schema/form"
 
 export class NotFoundError extends Schema.TaggedError<NotFoundError>()("Form.NotFoundError", {
   id: ID,
@@ -93,7 +93,7 @@ export interface Interface {
   readonly cancel: (id: ID, options?: CancelOptions) => Effect.Effect<void, AlreadySettledError | NotFoundError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Form") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Form") {}
 
 interface Entry {
   readonly form: Info

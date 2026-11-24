@@ -1,6 +1,6 @@
-@import "@aigcfroge/ui/styles/tailwind";
-@import "@aigcfroge/session-ui/styles";
-@import "@aigcfroge/ui/styles/tokens";
+@import "@omnixa/ui/styles/tailwind";
+@import "@omnixa/session-ui/styles";
+@import "@omnixa/ui/styles/tokens";
 @import "tw-animate-css";
 
 @font-face {

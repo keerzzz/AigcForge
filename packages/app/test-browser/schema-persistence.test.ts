@@ -142,13 +142,13 @@ describe("schema-backed persistence", () => {
       await root.state[3].promise
       expect(root.state[0]).toEqual({ enabled: true, label: "desktop" })
       expect(storage.values.has("undefined:old-schema")).toBe(false)
-      expect(JSON.parse(storage.values.get("aigcfroge.global.dat:schema-desktop")!)).toEqual({
+      expect(JSON.parse(storage.values.get("omnixa.global.dat:schema-desktop")!)).toEqual({
         enabled: true,
         label: "desktop",
       })
       root.state[1]("label", "changed")
       flushPersisted()
-      expect(JSON.parse(storage.values.get("aigcfroge.global.dat:schema-desktop")!)).toEqual({
+      expect(JSON.parse(storage.values.get("omnixa.global.dat:schema-desktop")!)).toEqual({
         enabled: true,
         label: "changed",
       })
@@ -255,7 +255,7 @@ describe("schema-backed persistence", () => {
 
   test("cross-window updates use the same migration and validation boundary", async () => {
     const target = { ...Persist.global("schema-sync-channel"), sync: true }
-    const channel = new BroadcastChannel(`aigcfroge.persist:${target.storage}:${target.key}`)
+    const channel = new BroadcastChannel(`omnixa.persist:${target.storage}:${target.key}`)
     const received = Promise.withResolvers<void>()
     const values: unknown[] = []
 

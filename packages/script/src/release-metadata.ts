@@ -18,11 +18,11 @@ export class Metadata extends Schema.Class<Metadata>("ReleaseMetadata.Metadata")
 
 export const names = ["latest.yml", "latest-linux.yml", "latest-linux-arm64.yml", "latest-mac.yml"] as const
 const expected = [
-  "aigcfroge-desktop-win-x64.exe",
-  "aigcfroge-desktop-win-arm64.exe",
-  "aigcfroge-desktop-linux-x86_64.AppImage",
-  "aigcfroge-desktop-linux-arm64.AppImage",
-  "aigcfroge-desktop-mac-arm64.zip",
+  "omnixa-desktop-win-x64.exe",
+  "omnixa-desktop-win-arm64.exe",
+  "omnixa-desktop-linux-x86_64.AppImage",
+  "omnixa-desktop-linux-arm64.AppImage",
+  "omnixa-desktop-mac-arm64.zip",
 ]
 
 export function parse(content: string) {

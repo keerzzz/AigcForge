@@ -67,16 +67,15 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     },
     integrations: (integrations) => {
       return integrations.filter(
-        (i) =>
-          i.name !== "Breadcrumbs" && !(import.meta.env.AIGCFROGE_CHANNEL === "prod" && i.name === "GlobalHandlers"),
+        (i) => i.name !== "Breadcrumbs" && !(import.meta.env.OMNIXA_CHANNEL === "prod" && i.name === "GlobalHandlers"),
       )
     },
   })
 }
 
-if (root instanceof HTMLElement && root.dataset.aigcfrogeMounted === undefined) {
+if (root instanceof HTMLElement && root.dataset.omnixaMounted === undefined) {
   // Lazy chunks can import the entry chunk back under a distinct URL, so claim the root before async startup.
-  root.dataset.aigcfrogeMounted = ""
+  root.dataset.omnixaMounted = ""
   void loadInitialLocale().then((locale) => {
     const auth = authFromToken(new URLSearchParams(location.search).get("auth_token"))
     clearAuthToken()

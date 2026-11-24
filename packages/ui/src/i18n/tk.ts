@@ -65,16 +65,6 @@ export const dict: Record<string, string> = {
   "ui.sessionTurn.retry.attempt": "synanyş # {{attempt}}",
   "ui.sessionTurn.retry.attemptLine": "{{line}} - # {{attempt}} synanyşyň",
   "ui.sessionTurn.retry.geminiHot": "Gemini häzir aşa ýüklenen",
-  "ui.sessionTurn.error.freeUsageExceeded": "Mugt ulanyşdan geçdi",
-  "ui.sessionTurn.error.addCredits": "Karz goşuň",
-  "dialog.usageExceeded.freeTier.title": "Mugt çäk ýetdi",
-  "dialog.usageExceeded.freeTier.description":
-    "Iň oňat açyk çeşme modellerine ygtybarly girmek üçin aýda 10 $ töläp, AigcForge Go-a ýazylyň.",
-  "dialog.usageExceeded.freeTier.actionLabel": "Abuna ýazylyň",
-  "dialog.usageExceeded.accountRateLimit.title": "Çäklendirildi",
-  "dialog.usageExceeded.accountRateLimit.description":
-    "Ulanyş çägine ýetdi. Indi bu modeli ulanmagy dowam etdirmek üçin, bar bolan balansyňyzdan peýdalanmagy üpjün ediň",
-  "dialog.usageExceeded.accountRateLimit.actionLabel": "Sazlamalary açyň",
   "ui.sessionTurn.status.delegating": "Iş tabşyrmak",
   "ui.sessionTurn.status.planning": "Indiki ädimleri meýilleşdirmek",
   "ui.sessionTurn.status.gatheringContext": "Gözleg",

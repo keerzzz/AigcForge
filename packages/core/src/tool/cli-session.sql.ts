@@ -2,7 +2,7 @@ import { sqliteTable, text, index, uniqueIndex } from "drizzle-orm/sqlite-core"
 import { SessionTable } from "../session/sql"
 import { Timestamps } from "../database/schema.sql"
 import { SessionSchema } from "../session/schema"
-import type { ParticipantID } from "@aigcfroge/schema/delegation-id"
+import type { ParticipantID } from "@omnixa/schema/delegation-id"
 
 /**
  * Tracks external CLI session IDs for resume capability.

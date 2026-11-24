@@ -2,12 +2,12 @@ export * as TestWebSearch from "./websearch"
 
 import { Context, Deferred, Effect, Layer } from "effect"
 import { HttpClientError, HttpClientRequest, HttpClientResponse } from "effect/http"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Bus } from "@aigcfroge/core/bus"
-import { KV } from "@aigcfroge/core/kv"
-import { WebSearch } from "@aigcfroge/core/websearch"
-import type { Session } from "@aigcfroge/schema/session"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Bus } from "@omnixa/core/bus"
+import { KV } from "@omnixa/core/kv"
+import { WebSearch } from "@omnixa/core/websearch"
+import type { Session } from "@omnixa/schema/session"
 
 export interface Interface extends WebSearch.Interface {
   readonly queries: readonly WebSearch.Input[]

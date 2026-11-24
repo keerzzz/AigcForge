@@ -20,14 +20,8 @@ export default {
   "error.input":
     "Xost yoki SSH ulanish buyrug'ini kiriting. Masofaviy buyruqlar va qo'llab-quvvatlanmaydigan SSH parametrlariga ruxsat berilmaydi.",
   "error.connection": "SSH ulanishini o‘rnatib bo‘lmadi. Tarmoq va SSH konfiguratsiyasini tekshiring.",
-  "error.platform":
-    "Bu masofaviy platforma qo‘llab-quvvatlanmaydi. Avtomatik sozlash uchun hozirda x64 yoki arm64 da Linux yoki macOS kerak.",
   "error.version": "Masofaviy xizmat ulanishdan oldin ushbu ish stoli versiyasiga mos kelishi kerak.",
-  "error.install":
-    "Masofaviy serverni o‘rnatib bo‘lmadi. Ulanishni, disk maydonini va tar o'rnatilganligini tekshiring.",
-  "error.unpublished":
-    "Ushbu ish stoli versiyasida chop etilgan masofaviy server mavjud emas. Dasturiy tuzilmalar uchun V2 ni xostga oʻrnating va ishga tushiring, soʻngra qayta urinib koʻring.",
-  "error.service": "SSH ulandi, lekin AigcForge serveri tayyor emas.",
+  "error.service": "SSH ulandi, lekin Omnixa serveri tayyor emas.",
   "error.host-key":
     "Uy egasining shaxsini tekshirib bo‘lmadi. SSH ma'lum xostlarini yangilashdan oldin uning barmoq izini tekshiring.",
   "error.ssh-missing":

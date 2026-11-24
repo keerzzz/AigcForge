@@ -1,15 +1,15 @@
-import type { AigcForgeEvent, PermissionRequest, SessionMessageInfo } from "@aigcfroge/client/promise"
-import { timelinePresets } from "@aigcfroge/session-ui/timeline/detail"
+import type { OmnixaEvent, PermissionRequest, SessionMessageInfo } from "@omnixa/client/promise"
+import { timelinePresets } from "@omnixa/session-ui/timeline/detail"
 import { expect, test, type Locator, type Page } from "@playwright/test"
 import { expectPath, SERVER, sessionHref } from "../utils/app"
 import { currentSession, type MockCommunicationMutation } from "../utils/mock-server"
-import { InvalidRequestError } from "@aigcfroge/protocol/errors"
+import { InvalidRequestError } from "@omnixa/protocol/errors"
 import { assistantMessage, session, sessionID, setupTimeline, textPart, toolPart, userMessage } from "../utils/timeline"
 import { expectSessionTitle } from "../utils/waits"
 import { mockWorkspace, type WorkspaceInput } from "../utils/workspace"
 import { openSidePanel } from "../utils/side-panel"
 
-const directory = "C:/AigcForge/SubagentNavigation"
+const directory = "C:/Omnixa/SubagentNavigation"
 
 const projectID = "proj_subagentnavigation"
 
@@ -326,7 +326,7 @@ test("SC03 views a real child beside its parent, reuses the view, and closes wit
 })
 
 test("subagent details remain read only for a coordinating Meta parent", async ({ page }, testInfo) => {
-  const directory = "C:/AigcForge/SubagentInstructions"
+  const directory = "C:/Omnixa/SubagentInstructions"
   const childResponse = "The child keeps its own conversation."
   const parentDraft = "Keep the parent's draft while inspecting the child."
   const requests: MockCommunicationMutation[] = []
@@ -887,7 +887,7 @@ test("keeps the parent tab selected while a loaded child session resolves", asyn
 })
 
 test("shows the not found fallback when the viewed session is deleted", async ({ page }) => {
-  const events: AigcForgeEvent[] = []
+  const events: OmnixaEvent[] = []
   await setup(page, () => events.splice(0, 1))
   await openChildFromParent(page)
   await expectSessionTitle(page, taskDescription)
@@ -943,7 +943,7 @@ test.describe("session ID links", () => {
 
 async function setup(
   page: Page,
-  events?: () => AigcForgeEvent[],
+  events?: () => OmnixaEvent[],
   nestedDepth: 0 | 1 | 2 = 0,
   input: Pick<
     WorkspaceInput,
@@ -1063,7 +1063,7 @@ function parentMessages(): SessionMessageInfo[] {
       id: assistantID,
       type: "assistant",
       time: { created: 1700000001000, completed: 1700000002000 },
-      model: { id: "claude-opus-4-6", providerID: "aigcfroge" },
+      model: { id: "claude-opus-4-6", providerID: "omnixa" },
       agent: "build",
       cost: 0.01,
       tokens: { input: 100, output: 200, reasoning: 0, cache: { read: 0, write: 0 } },

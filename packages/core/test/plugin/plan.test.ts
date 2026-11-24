@@ -1,21 +1,21 @@
 import { describe, expect } from "bun:test"
-import { Message, ToolFailure } from "@aigcfroge/ai"
-import { DateTime, Effect, Option, Stream, Types } from "effect"
-import type { SessionContext } from "@aigcfroge/plugin/effect/session"
-import type { ToolHooks } from "@aigcfroge/plugin/effect/tool"
-import { Agent } from "@aigcfroge/core/agent"
-import { Environment } from "@aigcfroge/core/environment/index"
-import { Event } from "@aigcfroge/schema/event"
-import { Model } from "@aigcfroge/core/model"
-import { PlanPlugin } from "@aigcfroge/core/plugin/plan"
-import { Permission } from "@aigcfroge/core/permission"
-import { Provider } from "@aigcfroge/core/provider"
-import { Session } from "@aigcfroge/core/session"
-import { SessionEvent } from "@aigcfroge/core/session/event"
-import { SessionInbox } from "@aigcfroge/core/session/inbox"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { Tool } from "@aigcfroge/schema/tool"
-import { Global } from "@aigcfroge/util/global"
+import { Message, ToolFailure } from "@omnixa/ai"
+import { DateTime, Effect, Option, Schema, Stream, Types } from "effect"
+import type { SessionContext } from "@omnixa/plugin/effect/session"
+import type { ToolHooks } from "@omnixa/plugin/effect/tool"
+import { Agent } from "@omnixa/core/agent"
+import { Environment } from "@omnixa/core/environment/index"
+import { Event } from "@omnixa/schema/event"
+import { Model } from "@omnixa/core/model"
+import { PlanPlugin } from "@omnixa/core/plugin/plan"
+import { Permission } from "@omnixa/core/permission"
+import { Provider } from "@omnixa/core/provider"
+import { Session } from "@omnixa/core/session"
+import { SessionEvent } from "@omnixa/core/session/event"
+import { SessionInbox } from "@omnixa/core/session/inbox"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { Tool } from "@omnixa/schema/tool"
+import { Global } from "@omnixa/util/global"
 import path from "path"
 import { it } from "../lib/effect"
 import { host } from "./host"
@@ -24,12 +24,16 @@ const sessionID = Session.ID.make("ses_plan_test")
 const plan = Agent.ID.make("plan")
 const build = Agent.ID.make("build")
 const home = "/home/plan-test"
-const planDirectory = path.join(home, ".aigcfroge", "plan")
+const planDirectory = path.join(home, ".omnixa", "plan")
 
 const agentSelected = (agent: Agent.ID, previous: Agent.ID): SessionEvent.AgentSelected => ({
   id: Event.ID.create(),
   created: 0,
-  durable: { aggregateID: sessionID, seq: Event.Seq.make(0), version: Event.Version.make(1) },
+  durable: {
+    aggregateID: sessionID,
+    seq: Event.Seq.make(0),
+    version: Schema.decodeUnknownSync(SessionEvent.AgentSelected.fields.durable.fields.version)(1),
+  },
   type: "session.agent.selected",
   data: { sessionID, agent, previous },
 })

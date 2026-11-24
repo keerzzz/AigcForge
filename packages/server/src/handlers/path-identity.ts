@@ -1,4 +1,4 @@
-import { PathIdentity } from "@aigcfroge/core/path-identity"
+import { PathIdentity } from "@omnixa/core/path-identity"
 import { HttpApiBuilder } from "effect/http-api"
 import { Api } from "../api"
 

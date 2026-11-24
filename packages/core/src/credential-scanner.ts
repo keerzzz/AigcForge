@@ -1,5 +1,5 @@
 import { Context, Effect, Layer } from "effect"
-import { CredentialScan, SECRET_PATTERN_LIST } from "@aigcfroge/schema/credential-scan"
+import { CredentialScan, SECRET_PATTERN_LIST } from "@omnixa/schema/credential-scan"
 
 type Hit = {
   type: (typeof SECRET_PATTERN_LIST)[number]["type"]
@@ -73,7 +73,7 @@ export interface Interface {
   readonly scan: (text: string) => Effect.Effect<CredentialScan.ScanResult>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/CredentialScanner") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/CredentialScanner") {}
 
 export const layer = Layer.effect(
   Service,

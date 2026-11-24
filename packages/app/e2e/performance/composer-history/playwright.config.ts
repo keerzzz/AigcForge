@@ -8,7 +8,7 @@ export default defineConfig({
   retries: 0,
   timeout: 60_000,
   reporter: "line",
-  outputDir: process.env.AIGCFROGE_HISTORY_OUTPUT,
+  outputDir: process.env.OMNIXA_HISTORY_OUTPUT,
   use: { baseURL: "http://127.0.0.1:4783", viewport: { width: 1440, height: 900 }, trace: "off", video: "off" },
   webServer: {
     cwd: fileURLToPath(new URL("../../../", import.meta.url)),

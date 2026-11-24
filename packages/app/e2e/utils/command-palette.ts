@@ -1,13 +1,13 @@
 import { expect, type Locator, type Page } from "@playwright/test"
-import type { ProductMode } from "@aigcfroge/schema/product-mode"
+import type { ProductMode } from "@omnixa/schema/product-mode"
 import { NO_PROVIDER, project, sessionHref } from "./app"
-import { mockAigcForgeServer } from "./mock-server"
+import { mockOmnixaServer } from "./mock-server"
 import { APP_READY_TIMEOUT } from "./waits"
 
 export const paletteSession = {
   id: "ses_command_palette",
   projectID: "proj_command_palette",
-  directory: "C:/AigcForge/CommandPalette",
+  directory: "C:/Omnixa/CommandPalette",
   title: "Palette fixture session",
   time: { created: 1700000000000, updated: 1700000000000 },
 }
@@ -31,7 +31,7 @@ export function commandOption(dialog: Locator, title: string) {
 }
 
 export async function openCommandPalette(page: Page, home = false, mode?: ProductMode.ID) {
-  const mock = await mockAigcForgeServer(page, {
+  const mock = await mockOmnixaServer(page, {
     directory: paletteSession.directory,
     project: project({ id: paletteSession.projectID, directory: paletteSession.directory, name: "command-palette" }),
     provider: NO_PROVIDER,

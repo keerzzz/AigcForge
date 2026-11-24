@@ -3,12 +3,12 @@ import path from "path"
 import { NodeFileSystem } from "@effect/platform-node"
 import { Context, Effect, Layer, Schema } from "effect"
 import { FetchHttpClient } from "effect/http"
-import { Composition } from "@aigcfroge/schema/composition"
-import { Model } from "@aigcfroge/schema/model"
-import { CrossSpawnSpawner } from "@aigcfroge/util/cross-spawn-spawner"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Global } from "@aigcfroge/util/global"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Composition } from "@omnixa/schema/composition"
+import { Model } from "@omnixa/schema/model"
+import { CrossSpawnSpawner } from "@omnixa/util/cross-spawn-spawner"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Global } from "@omnixa/util/global"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { Agent } from "../src/agent"
 import { AgentAsset } from "../src/agent-asset"
 import { App } from "../src/app"
@@ -230,25 +230,22 @@ const writeFixture = (directory: string) =>
     const fs = yield* FSUtil.Service
     yield* Effect.forEach(
       Object.entries({
-        ".aigcfroge/agents/coder.md": markdown({ kind: "agent", name: "coder", description: "Coder" }, "Coder body"),
-        ".aigcfroge/agents/reviewer.md": markdown(
+        ".omnixa/agents/coder.md": markdown({ kind: "agent", name: "coder", description: "Coder" }, "Coder body"),
+        ".omnixa/agents/reviewer.md": markdown(
           { kind: "agent", name: "reviewer", description: "Reviewer" },
           "Reviewer body",
         ),
-        ".aigcfroge/prompts/system.md": markdown(
+        ".omnixa/prompts/system.md": markdown(
           { kind: "prompt", name: "system", description: "System prompt" },
           "Prompt body",
         ),
-        ".aigcfroge/skills/git/SKILL.md": markdown(
-          { kind: "skill", name: "git", description: "Git skill" },
-          "Skill body",
-        ),
-        ".aigcfroge/commands/check.md": markdown(
+        ".omnixa/skills/git/SKILL.md": markdown({ kind: "skill", name: "git", description: "Git skill" }, "Skill body"),
+        ".omnixa/commands/check.md": markdown(
           { kind: "command", name: "check", description: "Check files", invocation: "/check", args: "<files>" },
           "Command body",
         ),
-        ".aigcfroge/workflows/review.yaml": workflow(),
-        ".aigcfroge/mcps/servers/probe.md": markdown(
+        ".omnixa/workflows/review.yaml": workflow(),
+        ".omnixa/mcps/servers/probe.md": markdown(
           { kind: "mcp", name: "probe", description: "Probe server", command: "node", args: ["server.js"] },
           '{"material":"must stay out of plan"}',
         ),
@@ -395,7 +392,7 @@ const sourceFixture = Effect.gen(function* () {
           fs.writeWithDirs(
             path.join(
               owner.directory,
-              owner.scope === "global" ? asset.family : `.aigcfroge/${asset.family}`,
+              owner.scope === "global" ? asset.family : `.omnixa/${asset.family}`,
               "shared.md",
             ),
             markdown(asset.value, asset.body),
@@ -960,7 +957,7 @@ describe("CompositionResolver freeze", () => {
           }),
         )
       }).pipe(Effect.provide(fullLayer(directory.path, trackedAssetLayers(reads))))
-      expect(yield* fs.exists(path.join(directory.path, ".aigcfroge/agents"))).toBe(false)
+      expect(yield* fs.exists(path.join(directory.path, ".omnixa/agents"))).toBe(false)
     }),
   )
 
@@ -1024,8 +1021,8 @@ describe("CompositionResolver freeze", () => {
           }),
         )
       }).pipe(Effect.provide(fullLayer(directory.path)))
-      expect(yield* fs.exists(path.join(directory.path, ".aigcfroge/agents"))).toBe(false)
-      expect(yield* fs.exists(path.join(directory.path, ".aigcfroge/custom-profiles"))).toBe(false)
+      expect(yield* fs.exists(path.join(directory.path, ".omnixa/agents"))).toBe(false)
+      expect(yield* fs.exists(path.join(directory.path, ".omnixa/custom-profiles"))).toBe(false)
     }),
   )
 
@@ -1272,7 +1269,7 @@ describe("CompositionResolver freeze", () => {
           }),
         )
         yield* fs.writeWithDirs(
-          path.join(directory.path, ".aigcfroge/agents/root-collision.md"),
+          path.join(directory.path, ".omnixa/agents/root-collision.md"),
           markdown({ kind: "agent", name: "Build", description: "Conflicting root name" }, "A real user asset."),
         )
         yield* assets.reload()
@@ -1318,7 +1315,7 @@ describe("CompositionResolver freeze", () => {
       yield* writeFixture(directory.path)
       yield* Effect.forEach(["primary", "all"] as const, (mode) =>
         fs.writeWithDirs(
-          path.join(directory.path, ".aigcfroge/agents", `root-${mode}.md`),
+          path.join(directory.path, ".omnixa/agents", `root-${mode}.md`),
           markdown(
             {
               kind: "agent",
@@ -1415,7 +1412,7 @@ describe("CompositionResolver freeze", () => {
       const directory = yield* tmpdirScoped()
       const fs = yield* FSUtil.Service
       yield* writeFixture(directory.path)
-      const file = path.join(directory.path, ".aigcfroge/agents/root.md")
+      const file = path.join(directory.path, ".omnixa/agents/root.md")
       const write = (config: unknown, body = "Original asset root.") =>
         fs.writeWithDirs(
           file,
@@ -1502,7 +1499,7 @@ describe("CompositionResolver freeze", () => {
           "asset-root-secret-fixture",
         )
         yield* fs.writeWithDirs(
-          path.join(directory.path, ".aigcfroge/agents/meta-root.md"),
+          path.join(directory.path, ".omnixa/agents/meta-root.md"),
           markdown(
             {
               kind: "agent",
@@ -1563,7 +1560,7 @@ describe("CompositionResolver freeze", () => {
         const cardB = { ...cardA, protocol: "Exact live B\n" }
         const writeCard = (card: unknown) =>
           fs.writeWithDirs(
-            path.join(directory.path, ".aigcfroge/agents/coder.md"),
+            path.join(directory.path, ".omnixa/agents/coder.md"),
             markdown(
               {
                 kind: "agent",
@@ -1627,7 +1624,7 @@ describe("CompositionResolver freeze", () => {
           (request) =>
             Effect.gen(function* () {
               yield* fs.writeWithDirs(
-                path.join(directory.path, ".aigcfroge/agents/coder.md"),
+                path.join(directory.path, ".omnixa/agents/coder.md"),
                 markdown(
                   {
                     kind: "agent",
@@ -1673,7 +1670,7 @@ describe("CompositionResolver freeze", () => {
         },
       }
       yield* fs.writeWithDirs(
-        path.join(directory.path, ".aigcfroge/agents/coder.md"),
+        path.join(directory.path, ".omnixa/agents/coder.md"),
         markdown(
           {
             kind: "agent",
@@ -1794,7 +1791,7 @@ describe("CompositionResolver freeze", () => {
       const fs = yield* FSUtil.Service
       yield* writeFixture(directory.path)
       yield* fs.writeWithDirs(
-        path.join(directory.path, ".aigcfroge/agents/coder.md"),
+        path.join(directory.path, ".omnixa/agents/coder.md"),
         markdown(
           {
             kind: "agent",
@@ -1934,7 +1931,7 @@ describe("CompositionResolver freeze", () => {
         const resolver = yield* CompositionResolver.Service
         const assets = yield* AgentAsset.Service
         yield* fs.writeWithDirs(
-          path.join(directory.path, ".aigcfroge/agents/unselected.md"),
+          path.join(directory.path, ".omnixa/agents/unselected.md"),
           markdown({ kind: "agent", name: "unselected", description: "Not in the pool" }, "Unselected body"),
         )
         yield* assets.reload()
@@ -2050,7 +2047,7 @@ describe("CompositionResolver freeze", () => {
         const encoded = structuredClone(Schema.encodeSync(Composition.SnapshotV2)(frozen))
         yield* Effect.forEach(
           Object.entries({
-            ".aigcfroge/agents/coder.md": markdown(
+            ".omnixa/agents/coder.md": markdown(
               {
                 kind: "agent",
                 name: "coder",
@@ -2059,19 +2056,19 @@ describe("CompositionResolver freeze", () => {
               },
               "Changed agent body",
             ),
-            ".aigcfroge/prompts/system.md": markdown(
+            ".omnixa/prompts/system.md": markdown(
               { kind: "prompt", name: "system", description: "Changed prompt" },
               "Changed prompt body",
             ),
-            ".aigcfroge/skills/git/SKILL.md": markdown(
+            ".omnixa/skills/git/SKILL.md": markdown(
               { kind: "skill", name: "git", description: "Changed skill" },
               "Changed skill body",
             ),
-            ".aigcfroge/commands/check.md": markdown(
+            ".omnixa/commands/check.md": markdown(
               { kind: "command", name: "check", description: "Changed command", invocation: "/changed" },
               "Changed command body",
             ),
-            ".aigcfroge/workflows/review.yaml": workflow([
+            ".omnixa/workflows/review.yaml": workflow([
               { id: "entry", name: "Changed", agent: "coder", input: {}, next: "END" },
             ]),
           }),
@@ -2108,7 +2105,7 @@ describe("CompositionResolver freeze", () => {
         expect(Schema.encodeSync(Composition.SnapshotV2)(frozen)).toEqual(encoded)
         const current = yield* currentInput
         yield* fs.writeWithDirs(
-          path.join(directory.path, ".aigcfroge/agents/coder.md"),
+          path.join(directory.path, ".omnixa/agents/coder.md"),
           markdown(
             { kind: "agent", name: "coder", description: "Invalid config", config: "steps: nope" },
             "Invalid configuration",
@@ -2120,7 +2117,7 @@ describe("CompositionResolver freeze", () => {
           .pipe(Effect.flip)
         expect(invalid.code).toBe("invalid_composition_plan")
         expect(invalid.diagnostics?.map((diagnostic) => diagnostic.code)).toContain("invalid_agent_config")
-        yield* fs.remove(path.join(directory.path, ".aigcfroge/prompts/system.md"))
+        yield* fs.remove(path.join(directory.path, ".omnixa/prompts/system.md"))
         yield* prompts.reload()
         const missing = yield* resolver.freeze(new Composition.FreezeInput({ input: current })).pipe(Effect.flip)
         expect(missing.code).toBe("invalid_composition_plan")
@@ -2521,11 +2518,11 @@ describe("CompositionResolver read-only preview", () => {
       const fs = yield* FSUtil.Service
       yield* writeFixture(directory.path)
       yield* fs.writeWithDirs(
-        path.join(directory.path, ".aigcfroge/agents/meta.md"),
+        path.join(directory.path, ".omnixa/agents/meta.md"),
         markdown({ kind: "agent", name: "meta", description: "Root" }, "Root body"),
       )
       yield* fs.writeWithDirs(
-        path.join(directory.path, ".aigcfroge/agents/spaced.md"),
+        path.join(directory.path, ".omnixa/agents/spaced.md"),
         markdown({ kind: "agent", name: " coder ", description: "Collision" }, "Collision body"),
       )
       yield* Effect.forEach(
@@ -2535,7 +2532,7 @@ describe("CompositionResolver read-only preview", () => {
         ],
         (asset) =>
           fs.writeWithDirs(
-            path.join(directory.path, ".aigcfroge/agents", asset.path),
+            path.join(directory.path, ".omnixa/agents", asset.path),
             markdown({ kind: "agent", name: asset.name, description: asset.name }, "Agent body"),
           ),
         { discard: true },
@@ -2544,7 +2541,7 @@ describe("CompositionResolver read-only preview", () => {
         Array.from({ length: 16 }, (_, index) => `member-${index}`),
         (name) =>
           fs.writeWithDirs(
-            path.join(directory.path, ".aigcfroge/agents", `${name}.md`),
+            path.join(directory.path, ".omnixa/agents", `${name}.md`),
             markdown({ kind: "agent", name, description: name }, `${name} body`),
           ),
         { discard: true },
@@ -2712,7 +2709,7 @@ describe("CompositionResolver read-only preview", () => {
       yield* writeFixture(directory.path)
       yield* Effect.forEach(["one", "two"], (owner) =>
         fs.writeWithDirs(
-          path.join(directory.path, `.aigcfroge/skills/${owner}/review/SKILL.md`),
+          path.join(directory.path, `.omnixa/skills/${owner}/review/SKILL.md`),
           markdown({ kind: "skill", name: `review-${owner}`, description: `${owner} review` }, `${owner} body`),
         ),
       )
@@ -2780,7 +2777,7 @@ describe("CompositionResolver read-only preview", () => {
       yield* writeFixture(directory.path)
       yield* Effect.forEach(["one", "two"], (owner) =>
         fs.writeWithDirs(
-          path.join(directory.path, `.aigcfroge/skills/${owner}/review/SKILL.md`),
+          path.join(directory.path, `.omnixa/skills/${owner}/review/SKILL.md`),
           markdown({ kind: "skill", name: `review-${owner}`, description: `${owner} review` }, `${owner} body`),
         ),
       )
@@ -2842,7 +2839,7 @@ describe("CompositionResolver read-only preview", () => {
           (steps) =>
             Effect.gen(function* () {
               yield* fs.writeWithDirs(
-                path.join(directory.path, ".aigcfroge/workflows/review.yaml"),
+                path.join(directory.path, ".omnixa/workflows/review.yaml"),
                 AssetYaml.stringify({
                   kind: "workflow",
                   name: "review",
@@ -2868,7 +2865,7 @@ describe("CompositionResolver read-only preview", () => {
             }),
         )
         yield* fs.writeWithDirs(
-          path.join(directory.path, ".aigcfroge/workflows/review.yaml"),
+          path.join(directory.path, ".omnixa/workflows/review.yaml"),
           AssetYaml.stringify({
             kind: "workflow",
             name: "review",
@@ -2929,7 +2926,7 @@ describe("CompositionResolver read-only preview", () => {
         const prefixed = yield* resolver.resolve(
           new Composition.TemporaryInput({
             ...input,
-            agents: [new Composition.AgentRef({ ...input.agents[0], relativePath: ".aigcfroge/agents/coder.md" })],
+            agents: [new Composition.AgentRef({ ...input.agents[0], relativePath: ".omnixa/agents/coder.md" })],
             workflow: undefined,
             bindings: {},
           }),
@@ -3041,7 +3038,7 @@ describe("CompositionResolver read-only preview", () => {
         })
         const original = yield* resolver.resolve(profileInput)
         yield* fs.writeWithDirs(
-          path.join(directory.path, ".aigcfroge/prompts/system.md"),
+          path.join(directory.path, ".omnixa/prompts/system.md"),
           markdown({ kind: "prompt", name: "system", description: "Updated prompt" }, "Updated prompt body"),
         )
         yield* prompts.reload()
@@ -3070,7 +3067,7 @@ describe("CompositionResolver read-only preview", () => {
         expect(current.digest).not.toBe(original.digest)
         expect((yield* resolver.checkHealth(repaired.relativePath)).status).toBe("healthy")
 
-        yield* fs.writeWithDirs(path.join(directory.path, ".aigcfroge/prompts/system.md"), "invalid frontmatter")
+        yield* fs.writeWithDirs(path.join(directory.path, ".omnixa/prompts/system.md"), "invalid frontmatter")
         yield* prompts.reload()
         const broken = yield* resolver.checkHealth(repaired.relativePath)
         expect(broken.status).toBe("broken")
@@ -3088,7 +3085,7 @@ describe("CompositionResolver read-only preview", () => {
         Effect.gen(function* () {
           yield* writeFixture(directory.path)
           yield* fs.writeWithDirs(
-            path.join(directory.path, ".aigcfroge/agents/coder.md"),
+            path.join(directory.path, ".omnixa/agents/coder.md"),
             markdown({ kind: "agent", name: "coder", description: `Location ${index}` }, `Location ${index} body`),
           )
           return yield* Effect.gen(function* () {

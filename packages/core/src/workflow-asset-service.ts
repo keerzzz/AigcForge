@@ -2,10 +2,10 @@ export * as WorkflowAssetService from "./workflow-asset-service"
 
 import path from "path"
 import { Context, Effect, Layer, Option, Schema } from "effect"
-import { Candidate, StepDef, validateGraph } from "@aigcfroge/schema/workflow-asset"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Hash } from "@aigcfroge/util/hash"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { Candidate, StepDef, validateGraph } from "@omnixa/schema/workflow-asset"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Hash } from "@omnixa/util/hash"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { FileMutation } from "./file-mutation"
 import { LocationMutation } from "./location-mutation"
 import { WorkflowAsset } from "./workflow-asset"
@@ -122,7 +122,7 @@ export interface Interface {
   readonly delete: (input: DeleteInput) => Effect.Effect<void, DeleteError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/WorkflowAssetService") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/WorkflowAssetService") {}
 
 export const locationLayer = Layer.effect(
   Service,

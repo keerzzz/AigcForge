@@ -1,17 +1,17 @@
 import { expect } from "bun:test"
 import path from "path"
 import { Cause, Effect, Exit, Layer, Result, Schema, Stream } from "effect"
-import { LLMClient } from "@aigcfroge/ai"
-import { TestLLM } from "@aigcfroge/ai/testing"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
-import { Document, Info } from "@aigcfroge/schema/config"
+import { LLMClient } from "@omnixa/ai"
+import { TestLLM } from "@omnixa/ai/testing"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
+import { Document, Info } from "@omnixa/schema/config"
 import { ConfigMeta } from "../src/config/meta"
 import { Config } from "../src/config"
 import { AppNodeBuilder } from "../src/effect/app-node-builder"
 import { LayerNodePlatform } from "../src/effect/app-node-platform"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Global } from "@aigcfroge/util/global"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Global } from "@omnixa/util/global"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Plugin } from "../src/plugin"
 import { PluginHooks } from "../src/plugin/hooks"
 import { PluginInternal } from "../src/plugin/internal"
@@ -30,7 +30,7 @@ import { Agent } from "../src/agent"
 import { Mcp } from "../src/mcp"
 import { Database } from "../src/database/database"
 import { ProjectTable } from "../src/project/sql"
-import { Project } from "@aigcfroge/schema/project"
+import { Project } from "@omnixa/schema/project"
 import { SessionSchema } from "../src/session/schema"
 import { SessionEvent } from "../src/session/event"
 import { Session } from "../src/session"
@@ -456,7 +456,7 @@ sessionTest.live(
           info: Provider.Info.make({
             ...Provider.Info.empty(providerID),
             activation: "enabled",
-            package: "@aigcfroge/ai/providers/openai/responses",
+            package: "@omnixa/ai/providers/openai/responses",
           }),
           models: [Model.Info.make(Model.Info.default(providerID, model.id))],
         },

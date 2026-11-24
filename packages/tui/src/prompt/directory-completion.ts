@@ -1,11 +1,11 @@
-import type { KeymapCommand } from "@aigcfroge/plugin/tui/context"
-import type { AigcForgeClient } from "@aigcfroge/client"
+import type { KeymapCommand } from "@omnixa/plugin/tui/context"
+import type { OmnixaClient } from "@omnixa/client"
 import path from "path"
 import { displaySlice, promptOffsetWidth } from "./display"
 import { parseSlashHead } from "./parse"
 
 export async function directoryAutocomplete(
-  file: Pick<AigcForgeClient["file"], "list">,
+  file: Pick<OmnixaClient["file"], "list">,
   location: { directory: string },
   query: string,
   home: string,

@@ -1,10 +1,10 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Location } from "@aigcfroge/core/location"
-import { Project } from "@aigcfroge/core/project"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Workspace } from "@aigcfroge/core/workspace"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Location } from "@omnixa/core/location"
+import { Project } from "@omnixa/core/project"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Workspace } from "@omnixa/core/workspace"
 import { testEffect } from "./lib/effect"
 
 const workspaceID = Workspace.ID.make("wrk_test")

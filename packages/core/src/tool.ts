@@ -1,11 +1,11 @@
 export * as Tool from "./tool.js"
-export { CallID, Content, Error, FileContent, TextContent } from "@aigcfroge/schema/tool"
-export type { Context, Metadata, Namespace, Options, Result } from "@aigcfroge/schema/tool"
+export { CallID, Content, Error, FileContent, TextContent } from "@omnixa/schema/tool"
+export type { Context, Metadata, Namespace, Options, Result } from "@omnixa/schema/tool"
 
-import { ToolDefinition, type ToolCall } from "@aigcfroge/ai"
-import { Tool } from "@aigcfroge/schema/tool"
+import { ToolDefinition, type ToolCall } from "@omnixa/ai"
+import { Tool } from "@omnixa/schema/tool"
 import { Cause, Context, Effect, Layer, Ref, Result, Schema, SchemaIssue, Types } from "effect"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import type { Agent } from "./agent.js"
 import { CodeModeCatalog } from "./codemode/catalog.js"
 import { CodeModeTool } from "./codemode/tool.js"
@@ -84,7 +84,7 @@ export interface Snapshot {
   }) => Effect.Effect<NormalizedResult, Tool.Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Tool") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Tool") {}
 
 /** Reuse the normal post-execution pipeline when recovering an already executed tool. */
 export const finalizeResult = Effect.fn("Tool.finalizeResult")(function* (

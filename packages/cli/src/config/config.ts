@@ -1,13 +1,13 @@
 export * as Config from "./config"
 
-import { Global } from "@aigcfroge/util/global"
-import { Flock } from "@aigcfroge/util/flock"
+import { Global } from "@omnixa/util/global"
+import { Flock } from "@omnixa/util/flock"
 import { Context, Effect, FileSystem, Layer, Option, Schema } from "effect"
 import { produce, type Draft } from "immer"
 import { applyEdits, modify, parse, type ParseError } from "jsonc-parser"
 import path from "path"
 import { ConfigMigration } from "./migrate"
-import { Info, normalizeLegacyTabs, SchemaURL } from "./schema"
+import { Info, normalizeLegacyTabs } from "./schema"
 
 export * from "./schema"
 
@@ -17,7 +17,7 @@ export interface Interface {
   readonly update: (update: (draft: Draft<Info>) => void) => Effect.Effect<Info, Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/cli/config/Config") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/cli/config/Config") {}
 
 const decode = Schema.decodeUnknownOption(Info)
 const decodeRecord = Schema.decodeUnknownOption(Schema.Record(Schema.String, Schema.Unknown))
@@ -29,8 +29,8 @@ export const layer = Layer.effect(
     const fs = yield* FileSystem.FileSystem
     const global = yield* Global.Service
     const file = path.join(global.config, "cli.json")
-    const content = process.env.AIGCFROGE_CLI_CONFIG_CONTENT
-      ? Option.getOrUndefined(decode(parseRecord(process.env.AIGCFROGE_CLI_CONFIG_CONTENT)))
+    const content = process.env.OMNIXA_CLI_CONFIG_CONTENT
+      ? Option.getOrUndefined(decode(parseRecord(process.env.OMNIXA_CLI_CONFIG_CONTENT)))
       : undefined
 
     const readJson = Effect.fnUntraced(function* () {
@@ -89,9 +89,7 @@ export const layer = Layer.effect(
           const next = produce(current, update)
           const edits = changes(current, next)
           if (!edits.length) return current
-          const text = yield* fs
-            .readFileString(file)
-            .pipe(Effect.orElseSucceed(() => JSON.stringify({ $schema: SchemaURL }, null, 2)))
+          const text = yield* fs.readFileString(file).pipe(Effect.orElseSucceed(() => "{}"))
           const updated = edits.reduce(
             (text, edit) =>
               applyEdits(

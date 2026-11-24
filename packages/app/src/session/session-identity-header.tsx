@@ -1,14 +1,9 @@
-import type { SessionInfo } from "@aigcfroge/client/promise"
-import { Icon } from "@aigcfroge/ui/icon"
-import { IconButton } from "@aigcfroge/ui/icon-button"
-import { Menu } from "@aigcfroge/ui/menu"
-import {
-  displayName,
-  getProjectAvatarSource,
-  getProjectAvatarVariant,
-  ProjectAvatar,
-} from "@aigcfroge/ui/project-avatar"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
+import type { SessionInfo } from "@omnixa/client/promise"
+import { Icon } from "@omnixa/ui/icon"
+import { IconButton } from "@omnixa/ui/icon-button"
+import { Menu } from "@omnixa/ui/menu"
+import { displayName, getProjectAvatarSource, getProjectAvatarVariant, ProjectAvatar } from "@omnixa/ui/project-avatar"
+import { Tooltip } from "@omnixa/ui/tooltip"
 import { createResizeObserver } from "@solid-primitives/resize-observer"
 import { useNavigate } from "@solidjs/router"
 import { createMemo, For, Show, type ParentProps } from "solid-js"

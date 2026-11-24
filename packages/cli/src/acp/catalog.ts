@@ -1,10 +1,10 @@
-import type { AigcForgeClient, AigcForgeEvent } from "@aigcfroge/client/effect"
-import type { Agent } from "@aigcfroge/schema/agent"
-import type { Command } from "@aigcfroge/schema/command"
-import { Model } from "@aigcfroge/schema/model"
-import type { ModelGroup } from "@aigcfroge/schema/model-group"
-import type { ProductMode } from "@aigcfroge/schema/product-mode"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import type { OmnixaClient, OmnixaEvent } from "@omnixa/client/effect"
+import type { Agent } from "@omnixa/schema/agent"
+import type { Command } from "@omnixa/schema/command"
+import { Model } from "@omnixa/schema/model"
+import type { ModelGroup } from "@omnixa/schema/model-group"
+import type { ProductMode } from "@omnixa/schema/product-mode"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Cause, Deferred, Effect, Exit, Schedule, Semaphore, Stream, SubscriptionRef } from "effect"
 import { ACPError } from "./error"
 
@@ -52,9 +52,9 @@ type Entry = {
   loadedGeneration: number
 }
 
-const reloadOn = new Set<AigcForgeEvent["type"]>(["model.updated", "agent.updated", "command.updated"])
+const reloadOn = new Set<OmnixaEvent["type"]>(["model.updated", "agent.updated", "command.updated"])
 
-export const make = Effect.fnUntraced(function* (client: AigcForgeClient) {
+export const make = Effect.fnUntraced(function* (client: OmnixaClient) {
   const scope = yield* Effect.scope
   const entries = new Map<string, Deferred.Deferred<Entry, ACPError.CatalogError>>()
   const connected = yield* Deferred.make<void>()
@@ -143,7 +143,7 @@ export const make = Effect.fnUntraced(function* (client: AigcForgeClient) {
 const poll = Schedule.spaced("25 millis").pipe(Schedule.upTo({ duration: "5 seconds" }))
 
 // A cold Location lists no plugins until activation finishes, and providers may still discover models after that.
-const load = Effect.fn("cli.acp.catalog.load")(function* (client: AigcForgeClient, cwd: string) {
+const load = Effect.fn("cli.acp.catalog.load")(function* (client: OmnixaClient, cwd: string) {
   yield* client.plugin
     .list({ location: { directory: cwd } })
     .pipe(Effect.repeat({ until: (plugins) => plugins.data.length > 0, schedule: poll }), Effect.ignore)
@@ -152,7 +152,7 @@ const load = Effect.fn("cli.acp.catalog.load")(function* (client: AigcForgeClien
   )
 })
 
-const read = Effect.fnUntraced(function* (client: AigcForgeClient, cwd: string) {
+const read = Effect.fnUntraced(function* (client: OmnixaClient, cwd: string) {
   const location = { directory: cwd }
   const [modelResult, defaultResult, agentResult, commandResult] = yield* Effect.all(
     [

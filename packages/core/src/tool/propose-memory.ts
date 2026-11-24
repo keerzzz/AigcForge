@@ -1,9 +1,9 @@
 export * as ProposeMemoryTool from "./propose-memory.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
 import { Effect, Schema } from "effect"
-import { PersonalMemory as PersonalMemorySchema } from "@aigcfroge/schema/personal-memory"
+import { PersonalMemory as PersonalMemorySchema } from "@omnixa/schema/personal-memory"
 import { Permission } from "../permission.js"
 import { PersonalMemory } from "../session/personal-memory.js"
 
@@ -43,7 +43,7 @@ export const Output = Schema.Struct({
 })
 
 export const Plugin = {
-  id: "aigcfroge.tool.memory_propose",
+  id: "omnixa.tool.memory_propose",
   effect: Effect.fn("ProposeMemoryTool.Plugin")(function* (ctx: Context) {
     const memories = yield* PersonalMemory.Service
     const permission = yield* Permission.Service

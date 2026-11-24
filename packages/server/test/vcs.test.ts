@@ -1,7 +1,7 @@
 import path from "node:path"
 import { $ } from "bun"
 import { describe, expect } from "bun:test"
-import { SdkPlugins } from "@aigcfroge/core/plugin/sdk"
+import { SdkPlugins } from "@omnixa/core/plugin/sdk"
 import { Effect, Layer, Schedule } from "effect"
 import { tmpdir } from "../../core/test/fixture/tmpdir"
 import { it } from "../../core/test/lib/effect"
@@ -12,7 +12,7 @@ it.live(
   "initializes Git in a markerless project and refreshes its location",
   () =>
     Effect.gen(function* () {
-      const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("aigcfroge-vcs-init-")))
+      const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("omnixa-vcs-init-")))
       yield* Effect.promise(() => Bun.write(path.join(tmp.path, "hello.txt"), "hello\n"))
       const server = yield* startServer(path.join(tmp.path, "config"))
       const url = new URL("/api/vcs/init", server.base)
@@ -68,7 +68,7 @@ it.live(
   "does not create a project directory while initializing Git",
   () =>
     Effect.gen(function* () {
-      const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("aigcfroge-vcs-missing-")))
+      const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("omnixa-vcs-missing-")))
       const server = yield* startServer(path.join(tmp.path, "config"))
       const directory = path.join(tmp.path, "absent")
       const url = new URL("/api/vcs/init", server.base)
@@ -84,7 +84,7 @@ it.live(
   "accepts an explicit Git provider and rejects unknown providers without initializing",
   () =>
     Effect.gen(function* () {
-      const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("aigcfroge-vcs-provider-")))
+      const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("omnixa-vcs-provider-")))
       const server = yield* startServer(path.join(tmp.path, "config"))
       const url = new URL("/api/vcs/init", server.base)
       url.searchParams.set("location[directory]", tmp.path)
@@ -107,7 +107,7 @@ it.live(
 
 it.live("returns 501 when a registered VCS provider has no initializer", () =>
   Effect.gen(function* () {
-    const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("aigcfroge-vcs-no-init-")))
+    const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("omnixa-vcs-no-init-")))
     const handler = yield* ServerFetch.make(
       {
         database: { path: ":memory:" },
@@ -147,7 +147,7 @@ it.live("returns 501 when a registered VCS provider has no initializer", () =>
         ],
       },
     )
-    const url = new URL("http://aigcfroge.local/api/vcs/init")
+    const url = new URL("http://omnixa.local/api/vcs/init")
     url.searchParams.set("location[directory]", tmp.path)
     url.searchParams.set("provider", "read-only")
     const response = yield* Effect.promise(() => handler(new Request(url, { method: "POST" })))
@@ -168,7 +168,7 @@ describeHg("Mercurial initialization", () => {
     "initializes and serves an untracked-file diff through the Hg provider",
     () =>
       Effect.gen(function* () {
-        const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("aigcfroge-vcs-hg-init-")))
+        const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("omnixa-vcs-hg-init-")))
         yield* Effect.promise(() => Bun.write(path.join(tmp.path, "hello.txt"), "hello\n"))
         const server = yield* startServer(path.join(tmp.path, "config"))
         const url = new URL("/api/vcs/init", server.base)
@@ -210,11 +210,11 @@ it.live(
   "serves lazy review bases, committed diffs, and unavailable-base errors",
   () =>
     Effect.gen(function* () {
-      const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("aigcfroge-vcs-endpoint-")))
+      const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("omnixa-vcs-endpoint-")))
       yield* Effect.promise(async () => {
         await $`git init -b main`.cwd(tmp.path).quiet()
         await $`git config commit.gpgsign false`.cwd(tmp.path).quiet()
-        await $`git config user.email test@aigcfroge.test`.cwd(tmp.path).quiet()
+        await $`git config user.email test@omnixa.test`.cwd(tmp.path).quiet()
         await $`git config user.name Test`.cwd(tmp.path).quiet()
         await Bun.write(path.join(tmp.path, "file.txt"), "base\n")
         await $`git add .`.cwd(tmp.path).quiet()
@@ -277,7 +277,7 @@ it.live(
 
 it.live("maps a failing base provider to HTTP 503 instead of null metadata", () =>
   Effect.gen(function* () {
-    const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("aigcfroge-vcs-failure-")))
+    const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("omnixa-vcs-failure-")))
     const handler = yield* ServerFetch.make(
       {
         database: { path: ":memory:" },
@@ -319,7 +319,7 @@ it.live("maps a failing base provider to HTTP 503 instead of null metadata", () 
         ],
       },
     )
-    const url = new URL("http://aigcfroge.local/api/vcs/base")
+    const url = new URL("http://omnixa.local/api/vcs/base")
     url.searchParams.set("location[directory]", tmp.path)
     const response = yield* Effect.promise(() => handler(new Request(url))).pipe(
       Effect.filterOrFail((response) => response.status === 503),

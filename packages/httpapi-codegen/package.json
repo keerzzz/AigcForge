@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@aigcfroge/httpapi-codegen",
+  "name": "@omnixa/httpapi-codegen",
   "version": "0.0.9",
   "private": true,
   "type": "module",

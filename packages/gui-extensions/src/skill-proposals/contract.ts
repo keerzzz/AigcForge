@@ -1,10 +1,10 @@
-import { AgentAsset } from "@aigcfroge/schema/agent-asset"
-import { CommandAsset } from "@aigcfroge/schema/command-asset"
-import { MCPAsset } from "@aigcfroge/schema/mcp-asset"
-import { PluginAsset } from "@aigcfroge/schema/plugin-asset"
-import { PromptAsset } from "@aigcfroge/schema/prompt-asset"
-import { SkillAsset } from "@aigcfroge/schema/skill-asset"
-import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
+import { AgentAsset } from "@omnixa/schema/agent-asset"
+import { CommandAsset } from "@omnixa/schema/command-asset"
+import { MCPAsset } from "@omnixa/schema/mcp-asset"
+import { PluginAsset } from "@omnixa/schema/plugin-asset"
+import { PromptAsset } from "@omnixa/schema/prompt-asset"
+import { SkillAsset } from "@omnixa/schema/skill-asset"
+import { WorkflowAsset } from "@omnixa/schema/workflow-asset"
 import { Schema } from "effect"
 
 export class Input extends Schema.Class<Input>("SkillProposal.Input")({

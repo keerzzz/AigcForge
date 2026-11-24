@@ -9,11 +9,11 @@ test.skipIf(process.platform !== "win32")(
     const { getMakeNsisPath } = await import("app-builder-lib/out/toolsets/windows")
     const config = (await import("../electron-builder.config")).default
     const compiler = await getMakeNsisPath(config.toolsets?.nsis, config.nsis?.customNsisBinary)
-    const dir = await mkdtemp(path.join(os.tmpdir(), "aigcfroge-installer-"))
+    const dir = await mkdtemp(path.join(os.tmpdir(), "omnixa-installer-"))
 
     const run = async (cmd: string[]) => {
       const result = Bun.spawn(cmd, {
-        env: { ...process.env, ...compiler.env, AIGCFROGE_INSTALLER_TEST_ROOT: dir },
+        env: { ...process.env, ...compiler.env, OMNIXA_INSTALLER_TEST_ROOT: dir },
         stdout: "pipe",
         stderr: "pipe",
       })
@@ -35,7 +35,7 @@ test.skipIf(process.platform !== "win32")(
         "-NoProfile",
         "-NonInteractive",
         "-Command",
-        `(Get-Acl -LiteralPath (Join-Path $env:AIGCFROGE_INSTALLER_TEST_ROOT '${file}')).Sddl`,
+        `(Get-Acl -LiteralPath (Join-Path $env:OMNIXA_INSTALLER_TEST_ROOT '${file}')).Sddl`,
       ])
 
     try {

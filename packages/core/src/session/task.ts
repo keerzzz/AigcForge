@@ -4,14 +4,14 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm"
 import { EffectDrizzleQueryError } from "drizzle-orm/effect-core/errors"
 import { Cause, Context, DateTime, Effect, Layer, Option, Schema, Semaphore } from "effect"
 import { SqlError, UniqueViolation } from "effect/sql/SqlError"
-import { Permission } from "@aigcfroge/schema/permission"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
-import { SessionTask } from "@aigcfroge/schema/session-task"
-import { SessionTaskEvent } from "@aigcfroge/schema/session-task-event"
+import { Permission } from "@omnixa/schema/permission"
+import { SessionMessage } from "@omnixa/schema/session-message"
+import { SessionTask } from "@omnixa/schema/session-task"
+import { SessionTaskEvent } from "@omnixa/schema/session-task-event"
 import { Database } from "../database/database"
 import { Bus } from "../bus"
 import { Identifier } from "../id/id"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { nextRun } from "./schedule"
 import { ScheduleTask } from "./schedule-task"
 import { TaskDag } from "./dag"
@@ -22,9 +22,9 @@ import { WorkflowRunTable, WorkflowStepRunTable } from "../workflow/sql"
 import { SessionInputResult } from "./input-result"
 import { DelegationReceipt } from "../delegation/receipt"
 import { TaskOperation, OperationConflictError } from "./task-operation"
-import type { Location } from "@aigcfroge/schema/location"
-import type { ProductMode } from "@aigcfroge/schema/product-mode"
-import type { SessionGoalID } from "@aigcfroge/schema/session-goal-id"
+import type { Location } from "@omnixa/schema/location"
+import type { ProductMode } from "@omnixa/schema/product-mode"
+import type { SessionGoalID } from "@omnixa/schema/session-goal-id"
 
 export { OperationConflictError }
 export {
@@ -46,7 +46,7 @@ export {
   OperationNewRootTarget,
   OperationExistingRootTarget,
   TaskCoordination,
-} from "@aigcfroge/schema/session-task"
+} from "@omnixa/schema/session-task"
 
 export const Info = SessionTask.Info
 export type Info = typeof Info.Type
@@ -372,7 +372,7 @@ export interface Interface {
   }) => Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionTask") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/SessionTask") {}
 
 type TaskRow = typeof TaskTable.$inferSelect
 

@@ -1,7 +1,7 @@
 export * as TodoWriteTool from "./todowrite.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
 import { Effect, Schema } from "effect"
 import { Permission } from "../permission.js"
 import { SessionTodo } from "../session/todo.js"
@@ -22,7 +22,7 @@ export const Output = Schema.Struct({
 const toModelContent = (todos: ReadonlyArray<SessionTodo.Info>) => JSON.stringify(todos, null, 2)
 
 export const Plugin = {
-  id: "aigcfroge.tool.todowrite",
+  id: "omnixa.tool.todowrite",
   effect: Effect.fn("TodoWriteTool.Plugin")(function* (ctx: Context) {
     const todos = yield* SessionTodo.Service
     const permission = yield* Permission.Service

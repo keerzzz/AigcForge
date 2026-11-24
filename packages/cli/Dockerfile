@@ -5,12 +5,12 @@ ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=${BUN_RUNTIME_TRANSPILER_CACHE_PATH}
 RUN apk add --no-cache libgcc libstdc++ ripgrep
 
 FROM base AS build-amd64
-COPY dist/cli-linux-x64-baseline-musl/bin/aigcfroge /usr/local/bin/aigcfroge
+COPY dist/cli-linux-x64-baseline-musl/bin/omnixa /usr/local/bin/omnixa
 
 FROM base AS build-arm64
-COPY dist/cli-linux-arm64-musl/bin/aigcfroge /usr/local/bin/aigcfroge
+COPY dist/cli-linux-arm64-musl/bin/omnixa /usr/local/bin/omnixa
 
 ARG TARGETARCH
 FROM build-${TARGETARCH}
-RUN ln -s aigcfroge /usr/local/bin/aigcfroge2 && aigcfroge --version && aigcfroge2 --version
-ENTRYPOINT ["aigcfroge"]
+RUN ln -s omnixa /usr/local/bin/omnixa2 && omnixa --version && omnixa2 --version
+ENTRYPOINT ["omnixa"]

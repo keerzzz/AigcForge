@@ -1,11 +1,11 @@
-import { PersistentPty } from "@aigcfroge/core/persistent-pty"
-import { PtyTicket } from "@aigcfroge/core/pty/ticket"
-import { ForbiddenError, PtyNotFoundError, ServiceUnavailableError } from "@aigcfroge/protocol/errors"
+import { PersistentPty } from "@omnixa/core/persistent-pty"
+import { PtyTicket } from "@omnixa/core/pty/ticket"
+import { ForbiddenError, PtyNotFoundError, ServiceUnavailableError } from "@omnixa/protocol/errors"
 import {
   PTY_CONNECT_TICKET_QUERY,
   PTY_CONNECT_TOKEN_HEADER,
   PTY_CONNECT_TOKEN_HEADER_VALUE,
-} from "@aigcfroge/protocol/groups/persistent-pty"
+} from "@omnixa/protocol/groups/persistent-pty"
 import { Effect, Queue } from "effect"
 import { HttpServerRequest, HttpServerResponse } from "effect/http"
 import { HttpApiBuilder, HttpApiSchema } from "effect/http-api"
@@ -222,4 +222,4 @@ const mapTerminalError = <A>(effect: Effect.Effect<A, PersistentPty.NotFoundErro
   )
 
 const unavailable = (error: PersistentPty.UnavailableError) =>
-  new ServiceUnavailableError({ message: error.message, service: "aigcfroge-pty" })
+  new ServiceUnavailableError({ message: error.message, service: "omnixa-pty" })

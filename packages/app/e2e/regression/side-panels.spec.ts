@@ -7,15 +7,15 @@ import type {
   SessionMessageInfo,
   SessionGoalInfo,
   SessionCommunicationMessage,
-  AigcForgeEvent,
+  OmnixaEvent,
   ScheduleRule,
   ScheduleOccurrence,
-} from "@aigcfroge/client/promise"
-import { ApiNotFoundError, ConflictError, InvalidRequestError } from "@aigcfroge/protocol/errors"
-import { SessionCommunication } from "@aigcfroge/schema/session-communication"
-import { SessionGoal } from "@aigcfroge/schema/session-goal"
-import { SessionTask } from "@aigcfroge/schema/session-task"
-import { base64Encode } from "@aigcfroge/util/encode"
+} from "@omnixa/client/promise"
+import { ApiNotFoundError, ConflictError, InvalidRequestError } from "@omnixa/protocol/errors"
+import { SessionCommunication } from "@omnixa/schema/session-communication"
+import { SessionGoal } from "@omnixa/schema/session-goal"
+import { SessionTask } from "@omnixa/schema/session-task"
+import { base64Encode } from "@omnixa/util/encode"
 import { Match, Schema } from "effect"
 import { AgentAssets } from "../utils/agent-asset"
 import { CommandAssets } from "../utils/command-asset"
@@ -423,7 +423,7 @@ test("restores the old Meta tab as task delegation and preserves explicit advanc
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 1600, height: 900 })
-  const directory = "C:/AigcForge/MetaTabMigration"
+  const directory = "C:/Omnixa/MetaTabMigration"
   const sessionID = "ses_meta_tab_migration"
   const rootID = "ses_meta_tab_reference"
   const rootTitle = "Independent reference session"
@@ -462,7 +462,7 @@ test("restores the old Meta tab as task delegation and preserves explicit advanc
   await side.getByRole("button", { name: "Back to collaborations", exact: true }).click()
   await seed(page, {
     storage: {
-      "aigcfroge.global.dat:layout": {
+      "omnixa.global.dat:layout": {
         sessionTabs: {
           [`local\u0000${base64Encode(directory)}/${sessionID}`]: {
             all: ["session-management:meta", "session-management:collaborations", rootKey],
@@ -503,7 +503,7 @@ test("restores the old Meta tab as task delegation and preserves explicit advanc
 
   await seed(page, {
     storage: {
-      "aigcfroge.global.dat:layout": {
+      "omnixa.global.dat:layout": {
         sessionTabs: {
           [`local\u0000${base64Encode(directory)}/${sessionID}`]: {
             all: ["session-management:advanced", "session-management:collaborations", rootKey],
@@ -523,7 +523,7 @@ test("restores the old Meta tab as task delegation and preserves explicit advanc
 
   await seed(page, {
     storage: {
-      "aigcfroge.global.dat:extension.session-management.display": JSON.stringify({
+      "omnixa.global.dat:extension.session-management.display": JSON.stringify({
         collaborations: false,
         meta: false,
         workflow: false,
@@ -1133,7 +1133,7 @@ test("management panels keep singleton tabs, drafts, order, and selection throug
 test("MP03 Goals keep drafts in the Meta right panel and submit exact revisions and evidence", async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   const sessionID = "ses_mp03_goal"
-  const directory = "C:/AigcForge/MP03Goals"
+  const directory = "C:/Omnixa/MP03Goals"
   const count = { steps: 0, attempts: 0, recordedTokens: 0, sharedTokens: 0, unknownAttempts: 0, pendingAttempts: 0 }
 
   const initial: SessionGoalInfo = {
@@ -1383,7 +1383,7 @@ test("MP03 Communications retain exact replies across SSE, failed acknowledgemen
 }) => {
   test.setTimeout(120_000)
   await page.setViewportSize({ width: 1600, height: 900 })
-  const directory = "C:/AigcForge/MP03Communications"
+  const directory = "C:/Omnixa/MP03Communications"
   const firstID = "ses_mp03_communication_a"
   const middleID = "ses_mp03_communication_b"
   const thirdID = "ses_mp03_communication_c"
@@ -1461,7 +1461,7 @@ test("MP03 Communications retain exact replies across SSE, failed acknowledgemen
     scope: message.contentSource.scope,
   })
 
-  const enqueue = (message: SessionCommunicationMessage, seq: number): AigcForgeEvent => ({
+  const enqueue = (message: SessionCommunicationMessage, seq: number): OmnixaEvent => ({
     id: `evt_mp03_enqueue_${message.id}`,
     type: "session.inbox.enqueued",
     created: Number(message.createdAt),
@@ -1798,7 +1798,7 @@ test("MP03 Communication details keep the target server and the source layout th
   const sourceID = "ses_mp03_communication_layout"
   const targetID = "ses_mp03_same_communication_target"
   const actorID = "ses_mp03_same_communication_actor"
-  const localDirectory = "C:/AigcForge/MP03CommunicationLayout"
+  const localDirectory = "C:/Omnixa/MP03CommunicationLayout"
   const remoteDirectory = "/home/mp03-communication-target"
 
   const initial: SessionCommunicationMessage = {
@@ -2041,7 +2041,7 @@ test("MP03 Schedule keeps the saved target through revision edits and separates 
   await page.setViewportSize({ width: 1600, height: 900 })
   const sessionID = "ses_mp03_schedule"
   const targetID = "ses_mp03_schedule_target"
-  const directory = "C:/AigcForge/MP03Schedule"
+  const directory = "C:/Omnixa/MP03Schedule"
   const dueAt = Date.parse("2026-11-14T03:00:00Z")
 
   const rule: ScheduleRule = {
@@ -2305,7 +2305,7 @@ test("Files navigation keeps durable tabs and persists explicit preview mode acr
 }, testInfo) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   const title = "File navigation"
-  const directory = "C:/AigcForge/FileNavigation"
+  const directory = "C:/Omnixa/FileNavigation"
 
   await openSession(page, {
     name: "FileNavigation",
@@ -2314,7 +2314,7 @@ test("Files navigation keeps durable tabs and persists explicit preview mode acr
     fileList: (path) =>
       path ? [] : ["alpha.txt", "beta.txt", "gamma.txt", "delta.txt"].map((name) => fileNode(directory, name)),
     fileContent: (path) => `contents:${path}`,
-    seed: { storage: { "aigcfroge.global.dat:review-panel-v2": { sidebarOpened: false } } },
+    seed: { storage: { "omnixa.global.dat:review-panel-v2": { sidebarOpened: false } } },
   })
 
   const side = page.locator("#review-panel")
@@ -2437,7 +2437,7 @@ test("resource display preferences preserve file order and terminal while hidden
 }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   const title = "Resource display preferences"
-  const directory = "C:/AigcForge/ResourceDisplay"
+  const directory = "C:/Omnixa/ResourceDisplay"
 
   const workspace = await openSession(page, {
     name: title,
@@ -2470,7 +2470,7 @@ test("resource display preferences preserve file order and terminal while hidden
     }),
     seed: {
       settings: { general: { showFileTree: true } },
-      storage: { "aigcfroge.global.dat:layout": { fileTree: { opened: true, width: 240, tab: "all" } } },
+      storage: { "omnixa.global.dat:layout": { fileTree: { opened: true, width: 240, tab: "all" } } },
     },
   })
 
@@ -2635,12 +2635,12 @@ test("review and terminal follow the session tab and stay mounted", async ({ pag
   expect(pty.sockets).toHaveLength(1)
   expect(pty.sockets[0]!.url.searchParams.get("location[directory]")).toBe(directory)
   expect(pty.sockets[0]!.url.searchParams.get("ticket")).toBe("e2e-ticket")
-  expect(pty.tokens[0]?.headers["x-aigcfroge-ticket"]).toBe("1")
+  expect(pty.tokens[0]?.headers["x-omnixa-ticket"]).toBe("1")
 
   await expect
     .poll(() =>
       page.evaluate(
-        (key) => JSON.parse(localStorage.getItem("aigcfroge.window.browser.dat:tabs.panes") ?? "{}")[key]?.review,
+        (key) => JSON.parse(localStorage.getItem("omnixa.window.browser.dat:tabs.panes") ?? "{}")[key]?.review,
         tabKey(a.id),
       ),
     )
@@ -2736,7 +2736,7 @@ test("long file and management tabs keep close buttons reachable while the side 
   page,
 }, testInfo) => {
   await page.setViewportSize({ width: 1680, height: 900 })
-  const directory = "C:/AigcForge/LongSideTabTitles"
+  const directory = "C:/Omnixa/LongSideTabTitles"
   const sessionID = "ses_long_side_tab_titles"
   const filename = "a-very-long-file-name-that-must-keep-its-close-button-reachable-while-the-side-panel-narrows.ts"
 
@@ -2769,7 +2769,7 @@ test("long file and management tabs keep close buttons reachable while the side 
     }),
     seed: {
       panes: { [sessionID]: { sessionWidth: 450 } },
-      storage: { "aigcfroge.global.dat:review-panel-v2": { sidebarOpened: false } },
+      storage: { "omnixa.global.dat:review-panel-v2": { sidebarOpened: false } },
     },
   })
 
@@ -3278,7 +3278,7 @@ for (const item of [
     await page.setViewportSize({ width: 1440, height: 900 })
     const a = { id: "ses_menu_" + item.kind + "_a", title: item.name + " Alpha", mode: "coding" }
     const b = { id: "ses_menu_" + item.kind + "_b", title: item.name + " Beta", mode: "chat" }
-    const target = { scope: "location" as const, root: "/proposal-menu/.aigcfroge/" + item.kind + "s" }
+    const target = { scope: "location" as const, root: "/proposal-menu/.omnixa/" + item.kind + "s" }
     const history = item.assets.history("menu_" + item.kind)
 
     const api = await SkillAssets.mock(page, {
@@ -3358,7 +3358,7 @@ test("SC06 asset draft freezes the exact cross-server side response and Location
   const localDirectory = "/local/sc06-assets"
   const remoteDirectory = "/remote/sc06-assets"
   const location = { directory: remoteDirectory + "/nested", workspaceID: "wrk_sc06_asset_capture" }
-  const model = { id: "sc06-asset-model", providerID: "aigcfroge" }
+  const model = { id: "sc06-asset-model", providerID: "omnixa" }
   const assistantID = "msg_sc06_remote_selected"
   const firstText = "SC06 remote captured response, first paragraph."
   const secondText = "SC06 remote captured response, final paragraph."
@@ -3404,7 +3404,7 @@ test("SC06 asset draft freezes the exact cross-server side response and Location
   const writes: unknown[] = []
   const remoteStatus = { [id]: { type: "idle" } }
   const localStatus = { [id]: { type: "idle" }, [otherID]: { type: "idle" }, [unfinishedID]: { type: "idle" } }
-  const target = { scope: "project" as const, root: remoteDirectory + "/.aigcfroge/skills" }
+  const target = { scope: "project" as const, root: remoteDirectory + "/.omnixa/skills" }
   const body = SkillAssets.body("CapturedReview")
 
   const api = await SkillAssets.mock(page, {
@@ -3688,7 +3688,7 @@ test.describe("basic Skill proposal panel", () => {
     await page.setViewportSize({ width: 1440, height: 900 })
     const sessionID = "ses_skill_gui_fresh"
     const body = SkillAssets.body()
-    const target = { scope: "project" as const, root: "/skill/.aigcfroge/skills" }
+    const target = { scope: "project" as const, root: "/skill/.omnixa/skills" }
     const result = SkillAssets.info("a", undefined, target)
 
     const skills: SkillInfo[] = [
@@ -3697,7 +3697,7 @@ test.describe("basic Skill proposal panel", () => {
         name: result.name,
         description: result.description,
         content: result.content,
-        path: "/another/.aigcfroge/skills/Review.md",
+        path: "/another/.omnixa/skills/Review.md",
       },
     ]
 
@@ -3799,7 +3799,7 @@ test.describe("basic Skill proposal panel", () => {
     await page.setViewportSize({ width: 1440, height: 900 })
     const sessionID = "ses_skill_gui_targets"
     const location = { directory: "/skill/targets/nested", workspaceID: "wrk_skill_targets" }
-    const project = { scope: "project" as const, root: "/skill/targets/.aigcfroge/skills" }
+    const project = { scope: "project" as const, root: "/skill/targets/.omnixa/skills" }
     const shared = { scope: "global" as const, root: "/skill/config/skills" }
     const moved = { scope: "global" as const, root: "/skill/config/moved/skills" }
     const current = SkillAssets.info("b", "Current global content", moved)
@@ -3922,7 +3922,7 @@ test.describe("basic Skill proposal panel", () => {
     test("does not revive a canceled confirmation after late inspect: " + scenario, async ({ page }) => {
       await page.setViewportSize({ width: 1440, height: 900 })
       const sessionID = "ses_skill_inspect_" + scenario.replaceAll(/[- ]/g, "_")
-      const project = { scope: "project" as const, root: "/skill/inspect/.aigcfroge/skills" }
+      const project = { scope: "project" as const, root: "/skill/inspect/.omnixa/skills" }
       const shared = { scope: "global" as const, root: "/skill/inspect/global/skills" }
       const stale = { scope: "project" as const, root: "/skill/inspect/stale/skills" }
       const current = { scope: "project" as const, root: "/skill/inspect/current/skills" }
@@ -4035,7 +4035,7 @@ test.describe("basic Skill proposal panel", () => {
     test("drops a late " + scenario + " reply after selecting another skill target", async ({ page }) => {
       await page.setViewportSize({ width: 1440, height: 900 })
       const sessionID = "ses_skill_target_late_" + scenario
-      const project = { scope: "project" as const, root: "/skill/late/.aigcfroge/skills" }
+      const project = { scope: "project" as const, root: "/skill/late/.omnixa/skills" }
       const shared = { scope: "global" as const, root: "/skill/late/global/skills" }
       const current = SkillAssets.info("b", "Earlier project content", project)
       const reply = Promise.withResolvers<SkillAssets.Reply>()
@@ -4417,7 +4417,7 @@ test.describe("basic Skill proposal panel", () => {
   test("requires a separate replacement confirmation for every current revision", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     const sessionID = "ses_skill_gui_overwrite"
-    const target = { scope: "location" as const, root: "/skill/overwrite/.aigcfroge/skills" }
+    const target = { scope: "location" as const, root: "/skill/overwrite/.omnixa/skills" }
     const current = { value: SkillAssets.info("b", "Peer content B", target) }
     const result = SkillAssets.info("e", undefined, target)
 
@@ -4526,7 +4526,7 @@ test.describe("basic Skill proposal panel", () => {
       const sessionID =
         scenario === "placement-collision" ? "ses_collision.md" : "ses_skill_block_" + scenario.replaceAll("-", "_")
 
-      const target = { scope: "location" as const, root: "/skill/blocked/.aigcfroge/skills" }
+      const target = { scope: "location" as const, root: "/skill/blocked/.omnixa/skills" }
 
       const info = {
         ...SkillAssets.info("b", undefined, target),
@@ -4660,7 +4660,7 @@ test.describe("basic Skill proposal panel", () => {
     const a = "ses_skill_gui_pending_a"
     const b = "ses_skill_gui_pending_b"
     const reply = Promise.withResolvers<SkillAssets.Reply>()
-    const target = { scope: "location" as const, root: "/skill/pending/.aigcfroge/skills" }
+    const target = { scope: "location" as const, root: "/skill/pending/.omnixa/skills" }
 
     const api = await SkillAssets.mock(page, {
       apply: () => reply.promise,
@@ -4710,7 +4710,7 @@ test.describe("Command proposal panel", () => {
     await page.setViewportSize({ width: 1440, height: 900 })
     const sessionID = "ses_command_gui"
     const body = CommandAssets.body()
-    const target = { scope: "location" as const, root: "/command/gui/.aigcfroge/commands" }
+    const target = { scope: "location" as const, root: "/command/gui/.omnixa/commands" }
     const result = CommandAssets.info("a", undefined, target)
     const commands = [{ name: "review-alias", description: body.description }]
     const used: { sessionID: string; body: unknown }[] = []
@@ -4805,7 +4805,7 @@ test.describe("Command proposal panel", () => {
   }) => {
     const sessionID = "ses_command_gui_replace"
     const body = CommandAssets.body()
-    const target = { scope: "location" as const, root: "/command/replace/.aigcfroge/commands" }
+    const target = { scope: "location" as const, root: "/command/replace/.omnixa/commands" }
     const current = CommandAssets.info("b", "Peer source", target)
 
     const api = await CommandAssets.mock(page, {
@@ -4849,7 +4849,7 @@ test.describe("Command proposal panel", () => {
     page,
   }) => {
     const sessionID = "ses_command_gui_delete"
-    const target = { scope: "location" as const, root: "/command/delete/.aigcfroge/commands" }
+    const target = { scope: "location" as const, root: "/command/delete/.omnixa/commands" }
     const result = CommandAssets.info("a", undefined, target)
 
     const api = await CommandAssets.mock(page, {
@@ -4892,7 +4892,7 @@ test.describe("Command proposal panel", () => {
     await page.setViewportSize({ width: 1440, height: 900 })
     const sessionID = "ses_command_gui_targets"
     const location = { directory: "/command/targets/nested", workspaceID: "wrk_command_targets" }
-    const project = { scope: "project" as const, root: "/command/targets/.aigcfroge/commands" }
+    const project = { scope: "project" as const, root: "/command/targets/.omnixa/commands" }
     const shared = { scope: "global" as const, root: "/command/config/commands" }
     const moved = { scope: "global" as const, root: "/command/config/moved/commands" }
     const current = CommandAssets.info("b", "Current global source\r\n$ARGUMENTS stays literal.", moved)
@@ -5041,7 +5041,7 @@ test.describe("Command proposal panel", () => {
     test("ignores a late Command inspection after " + scenario, async ({ page }) => {
       await page.setViewportSize({ width: 1440, height: 900 })
       const sessionID = "ses_command_inspect_" + scenario.replaceAll(/[- ]/g, "_")
-      const project = { scope: "project" as const, root: "/command/inspect/.aigcfroge/commands" }
+      const project = { scope: "project" as const, root: "/command/inspect/.omnixa/commands" }
       const shared = { scope: "global" as const, root: "/command/inspect/global/commands" }
       const stale = { scope: "project" as const, root: "/command/inspect/stale/commands" }
       const current = { scope: "project" as const, root: "/command/inspect/current/commands" }
@@ -5153,7 +5153,7 @@ test.describe("Command proposal panel", () => {
       await page.setViewportSize({ width: 1440, height: 900 })
       const sessionID = "ses_command_late_" + scenario.replaceAll(" ", "_")
       const location = { directory: "/command/late/nested", workspaceID: "wrk_command_late" }
-      const project = { scope: "project" as const, root: "/command/late/.aigcfroge/commands" }
+      const project = { scope: "project" as const, root: "/command/late/.omnixa/commands" }
       const shared = { scope: "global" as const, root: "/command/late/global/commands" }
       const current = CommandAssets.info("b", "Earlier Project source", project)
       const late = Promise.withResolvers<SkillAssets.Reply>()
@@ -5307,7 +5307,7 @@ test.describe("Command proposal panel", () => {
       const beta =
         change === "server" ? alpha : { ...CommandAssets.body("BetaCommand"), source: "Source for the Beta owner." }
 
-      const target = { scope: "project" as const, root: "/command/owner/.aigcfroge/commands" }
+      const target = { scope: "project" as const, root: "/command/owner/.omnixa/commands" }
       const first = CommandAssets.history("alpha", alpha, { ...CommandAssets.facts("AlphaCommand.md"), target })
 
       const next = CommandAssets.history("beta", beta, {
@@ -5589,7 +5589,7 @@ test.describe("Command proposal panel", () => {
   test("requires a separate Command replacement confirmation for every current global revision", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     const sessionID = "ses_command_revisions"
-    const project = { scope: "project" as const, root: "/command/revisions/.aigcfroge/commands" }
+    const project = { scope: "project" as const, root: "/command/revisions/.omnixa/commands" }
     const target = { scope: "global" as const, root: "/command/revisions/global/commands" }
     const current = { value: CommandAssets.info("b", "Peer source B\r\n$ARGUMENTS", target) }
     const candidate = { ...CommandAssets.body(), relativePath: "Review.md" }
@@ -5683,11 +5683,11 @@ test.describe("Command proposal panel", () => {
           ? "ses_command_collision.md"
           : "ses_command_block_" + scenario.replaceAll("-", "_")
 
-      const target = { scope: "project" as const, root: "/command/blocked/.aigcfroge/commands" }
+      const target = { scope: "project" as const, root: "/command/blocked/.omnixa/commands" }
 
       const responseTarget = Match.value(scenario).pipe(
         Match.when("wrong-scope", () => ({ ...target, scope: "global" as const })),
-        Match.when("wrong-root", () => ({ ...target, root: "/command/other/.aigcfroge/commands" })),
+        Match.when("wrong-root", () => ({ ...target, root: "/command/other/.omnixa/commands" })),
         Match.orElse(() => target),
       )
 
@@ -5763,7 +5763,7 @@ test.describe("Command proposal panel", () => {
       await page.setViewportSize({ width: 1440, height: 900 })
       const sessionID = "ses_command_delete_" + failure
       const location = { directory: "/command/delete/nested", workspaceID: "wrk_command_delete" }
-      const target = { scope: "project" as const, root: "/command/delete/.aigcfroge/commands" }
+      const target = { scope: "project" as const, root: "/command/delete/.omnixa/commands" }
       const changed = { scope: "project" as const, root: "/command/delete/changed/commands" }
       const saved = CommandAssets.info("a", undefined, target)
 
@@ -5821,7 +5821,7 @@ test.describe("Command proposal panel", () => {
       async ({ page }, testInfo) => {
         await page.setViewportSize({ width: 600, height: 900 })
         const sessionID = "ses_command_narrow_" + scheme
-        const project = { scope: "project" as const, root: "/command/narrow/.aigcfroge/commands" }
+        const project = { scope: "project" as const, root: "/command/narrow/.omnixa/commands" }
         const target = { scope: "global" as const, root: "/command/narrow/config/commands" }
         const source = "\uFEFF# Literal command\r\n\r\n" + "Keep $ARGUMENTS, $HOME and 中文 exactly.\r\n".repeat(70)
         const body = { ...CommandAssets.body(), args: "", source }
@@ -5879,7 +5879,7 @@ test.describe("Prompt proposal panel", () => {
     await page.setViewportSize({ width: 1440, height: 900 })
     const sessionID = "ses_prompt_gui"
     const body = PromptAssets.body()
-    const target = PromptAssets.target("project", "/prompt/project/.aigcfroge/prompts")
+    const target = PromptAssets.target("project", "/prompt/project/.omnixa/prompts")
     const result = PromptAssets.info("a", undefined, target)
     const used: { sessionID: string; body: unknown }[] = []
     const commands: unknown[] = []
@@ -6011,7 +6011,7 @@ test.describe("Prompt proposal panel", () => {
     await page.setViewportSize({ width: 1440, height: 900 })
     const sessionID = "ses_prompt_inactive_caret"
     const body = PromptAssets.body()
-    const target = PromptAssets.target("project", "/prompt/inactive/.aigcfroge/prompts")
+    const target = PromptAssets.target("project", "/prompt/inactive/.omnixa/prompts")
     const result = PromptAssets.info("a", undefined, target)
     const used: unknown[] = []
     const content = Promise.withResolvers<SkillAssets.Reply>()
@@ -6068,7 +6068,7 @@ test.describe("Prompt proposal panel", () => {
   test("uses the displayed Prompt revision for replacement through the narrow dark keyboard flow", async ({ page }) => {
     await page.setViewportSize({ width: 600, height: 900 })
     const sessionID = "ses_prompt_replace"
-    const target = PromptAssets.target("location", "/prompt/legacy/.aigcfroge/prompts")
+    const target = PromptAssets.target("location", "/prompt/legacy/.omnixa/prompts")
     const current = PromptAssets.info("b", "Peer template", target)
     const used: unknown[] = []
 
@@ -6134,7 +6134,7 @@ test.describe("Prompt proposal panel", () => {
     await page.setViewportSize({ width: 1440, height: 900 })
     const sessionID = "ses_prompt_global_revisions"
     const location = { directory: "/prompt/global/nested", workspaceID: "wrk_prompt_global" }
-    const project = PromptAssets.target("project", "/prompt/global/.aigcfroge/prompts")
+    const project = PromptAssets.target("project", "/prompt/global/.omnixa/prompts")
     const target = PromptAssets.target("global", "/prompt/config/prompts")
     const saved = PromptAssets.info("e", undefined, target)
     const current = { value: PromptAssets.info("b", "Peer template B\r\n$ARGUMENTS", target) }
@@ -6339,8 +6339,8 @@ test.describe("Prompt proposal panel", () => {
     test("blocks Prompt replacement after inconsistent " + scenario, async ({ page }) => {
       await page.setViewportSize({ width: 1440, height: 900 })
       const sessionID = "ses_prompt_cas_" + scenario
-      const target = PromptAssets.target("project", "/prompt/cas/.aigcfroge/prompts")
-      const wrong = PromptAssets.target("project", "/prompt/other/.aigcfroge/prompts")
+      const target = PromptAssets.target("project", "/prompt/cas/.omnixa/prompts")
+      const wrong = PromptAssets.target("project", "/prompt/other/.omnixa/prompts")
       const current = PromptAssets.info("b", "Peer template", target)
       const used: unknown[] = []
 
@@ -6403,7 +6403,7 @@ test.describe("Prompt proposal panel", () => {
     test("blocks insertion when the saved readback is " + scenario, async ({ page }) => {
       await page.setViewportSize({ width: 1440, height: 900 })
       const sessionID = "ses_prompt_read_" + scenario
-      const target = PromptAssets.target("project", "/prompt/readback/.aigcfroge/prompts")
+      const target = PromptAssets.target("project", "/prompt/readback/.omnixa/prompts")
       const used: unknown[] = []
 
       const api = await PromptAssets.mock(page, {
@@ -6418,7 +6418,7 @@ test.describe("Prompt proposal panel", () => {
             Match.when("changed", () => ({ status: 200, json: PromptAssets.info("b", undefined, target) })),
             Match.when("same-sha-wrong-root", () => ({
               status: 200,
-              json: PromptAssets.info("a", undefined, PromptAssets.target("project", "/other/.aigcfroge/prompts")),
+              json: PromptAssets.info("a", undefined, PromptAssets.target("project", "/other/.omnixa/prompts")),
             })),
             Match.when("same-sha-wrong-scope", () => ({
               status: 200,
@@ -6468,7 +6468,7 @@ test.describe("Prompt proposal panel", () => {
     test("ignores a late Prompt inspection after " + scenario, async ({ page }) => {
       await page.setViewportSize({ width: 1440, height: 900 })
       const sessionID = "ses_prompt_inspect_" + scenario.replaceAll(/[- ]/g, "_")
-      const project = PromptAssets.target("project", "/prompt/inspect/.aigcfroge/prompts")
+      const project = PromptAssets.target("project", "/prompt/inspect/.omnixa/prompts")
       const shared = PromptAssets.target("global", "/prompt/inspect/global/prompts")
       const stale = PromptAssets.target("project", "/prompt/inspect/stale/prompts")
       const current = PromptAssets.target("project", "/prompt/inspect/current/prompts")
@@ -6570,7 +6570,7 @@ test.describe("Prompt proposal panel", () => {
       await page.setViewportSize({ width: 1440, height: 900 })
       const sessionID = "ses_prompt_late_" + scenario
       const location = { directory: "/prompt/late/nested", workspaceID: "wrk_prompt_late" }
-      const project = PromptAssets.target("project", "/prompt/late/.aigcfroge/prompts")
+      const project = PromptAssets.target("project", "/prompt/late/.omnixa/prompts")
       const shared = PromptAssets.target("global", "/prompt/late/global/prompts")
       const current = PromptAssets.info("b", "Earlier Project template", project)
       const late = Promise.withResolvers<SkillAssets.Reply>()
@@ -6680,7 +6680,7 @@ test.describe("Prompt proposal panel", () => {
       const directory = "/prompt/owner/nested"
       const a = "ses_prompt_owner_" + change
       const b = change === "server" ? a : a + "_next"
-      const target = PromptAssets.target("project", "/prompt/owner/.aigcfroge/prompts")
+      const target = PromptAssets.target("project", "/prompt/owner/.omnixa/prompts")
       const alpha = PromptAssets.body()
 
       const beta =
@@ -6881,7 +6881,7 @@ test.describe("Prompt proposal panel", () => {
     await page.setViewportSize({ width: 1440, height: 900 })
     const a = "ses_prompt_pending_a"
     const b = "ses_prompt_pending_b"
-    const target = PromptAssets.target("project", "/prompt/pending/.aigcfroge/prompts")
+    const target = PromptAssets.target("project", "/prompt/pending/.omnixa/prompts")
     const reply = Promise.withResolvers<SkillAssets.Reply>()
     const used: unknown[] = []
 

@@ -1,5 +1,5 @@
 import path from "path"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import { Effect, Layer } from "effect"
 import { tmpdir } from "./tmpdir"
 

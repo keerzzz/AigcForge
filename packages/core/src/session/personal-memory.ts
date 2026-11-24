@@ -2,9 +2,9 @@ export * as PersonalMemory from "./personal-memory"
 
 import { and, desc, eq, or } from "drizzle-orm"
 import { Context, Effect, Layer } from "effect"
-import { PersonalMemory as PersonalMemorySchema } from "@aigcfroge/schema/personal-memory"
+import { PersonalMemory as PersonalMemorySchema } from "@omnixa/schema/personal-memory"
 import { Database } from "../database/database"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { Bus } from "../bus"
 import { PersonalMemoryTable } from "./personal-memory.sql"
 
@@ -79,7 +79,7 @@ export interface Interface {
   readonly remove: (id: PersonalMemorySchema.ID) => Effect.Effect<PersonalMemorySchema.Info | undefined>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/PersonalMemory") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/PersonalMemory") {}
 
 export const layer = Layer.effect(
   Service,

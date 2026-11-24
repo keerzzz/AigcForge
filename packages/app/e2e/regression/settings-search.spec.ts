@@ -2,14 +2,14 @@ import { expect, test, type Page } from "@playwright/test"
 import en from "../../src/runtime/i18n/en"
 import { clientSettings } from "../../src/settings/search-catalog"
 import { NO_PROVIDER, REMOTE_SERVER, project, type SeedInput } from "../utils/app"
-import { mockAigcForgeServer } from "../utils/mock-server"
+import { mockOmnixaServer } from "../utils/mock-server"
 import { openSettings } from "../utils/workspace"
 
-const directory = "/projects/aigcfroge"
+const directory = "/projects/omnixa"
 
 test.use({ viewport: { width: 1280, height: 900 }, serviceWorkers: "block" })
 
-// `count` replaces the single "AigcForge" project with "AigcForge 00".."AigcForge NN".
+// `count` replaces the single "Omnixa" project with "Omnixa 00".."Omnixa NN".
 async function open(page: Page, input: { count?: number; seed?: SeedInput } = {}) {
   const projects =
     input.count === undefined
@@ -18,14 +18,14 @@ async function open(page: Page, input: { count?: number; seed?: SeedInput } = {}
           project({
             id: `proj_search_${index}`,
             directory: `${directory}-${index}`,
-            name: `AigcForge ${String(index).padStart(2, "0")}`,
+            name: `Omnixa ${String(index).padStart(2, "0")}`,
           }),
         )
 
   await page.route("https://api.github.com/**", (route) => route.fulfill({ json: [] }))
 
   const { settings } = await openSettings(page, {
-    name: "AigcForge",
+    name: "Omnixa",
     directory,
     project: { icon: { color: "orange" } },
     provider: NO_PROVIDER,
@@ -46,7 +46,7 @@ async function open(page: Page, input: { count?: number; seed?: SeedInput } = {}
 
   // Readiness includes the server-backed project inventory, not just the settings shell.
   if (input.count === 0) return view
-  await view.search.fill("AigcForge")
+  await view.search.fill("Omnixa")
   await expect(view.results.getByRole("option")).toHaveCount(input.count ?? (input.seed?.servers ? 2 : 1))
   await view.search.clear()
 
@@ -252,7 +252,7 @@ for (const count of [0, 7, 8]) {
     const view = await open(page, { count })
     await view.settings.getByRole("tab", { name: "Projects", exact: true }).click()
     const search = view.settings.getByRole("searchbox", { name: "Search projects", exact: true })
-    const projects = view.settings.getByRole("button", { name: /^AigcForge / })
+    const projects = view.settings.getByRole("button", { name: /^Omnixa / })
 
     if (count === 0) {
       await expect(view.settings.getByText("No projects yet", { exact: true })).toBeVisible()
@@ -273,16 +273,16 @@ for (const count of [0, 7, 8]) {
       return
     }
 
-    await search.fill("  FORGE 06  ")
+    await search.fill("  NIXA 06  ")
     await expect(projects).toHaveCount(1)
-    await expect(projects).toHaveAccessibleName("AigcForge 06")
+    await expect(projects).toHaveAccessibleName("Omnixa 06")
     await search.fill("missing-project")
     await expect(projects).toHaveCount(0)
     await view.settings.getByRole("button", { name: "Clear", exact: true }).click()
     await expect(projects).toHaveCount(count)
-    await search.fill("AigcForge 06")
+    await search.fill("Omnixa 06")
     await projects.click()
-    await expect(view.settings.getByRole("heading", { name: "AigcForge 06", exact: true })).toBeVisible()
+    await expect(view.settings.getByRole("heading", { name: "Omnixa 06", exact: true })).toBeVisible()
   })
 }
 
@@ -300,25 +300,25 @@ test("all indexed client controls resolve to visible production controls", async
 
 test("project results keep the query, selection, and scroll position on return", async ({ page }) => {
   const view = await open(page, { count: 30 })
-  await view.search.fill("AigcForge 25 name")
+  await view.search.fill("Omnixa 25 name")
   const name = view.results.getByRole("option")
   await expect(name).toHaveText("Project nameGeneral")
   await name.click()
   await expect(view.search).toHaveCount(0)
-  await expect(view.settings.getByRole("textbox", { name: "Project name", exact: true })).toHaveValue("AigcForge 25")
+  await expect(view.settings.getByRole("textbox", { name: "Project name", exact: true })).toHaveValue("Omnixa 25")
   await page.keyboard.press("Escape")
   await expect(view.search).toBeFocused()
-  await expect(view.search).toHaveValue("AigcForge 25 name")
+  await expect(view.search).toHaveValue("Omnixa 25 name")
   await expect(name).toHaveAttribute("aria-selected", "true")
 
-  await view.search.fill("AigcForge")
+  await view.search.fill("Omnixa")
   await expect(view.results.getByRole("option")).toHaveCount(30)
-  const target = view.results.getByRole("option", { name: /^AigcForge 25,/ })
+  const target = view.results.getByRole("option", { name: /^Omnixa 25,/ })
   await target.scrollIntoViewIfNeeded()
   await expect.poll(() => view.viewport.evaluate((list) => list.scrollTop)).toBeGreaterThan(0)
   const scroll = await view.viewport.evaluate((list) => list.scrollTop)
   await target.click()
-  await expect(view.settings.getByRole("heading", { name: "AigcForge 25", exact: true })).toBeVisible()
+  await expect(view.settings.getByRole("heading", { name: "Omnixa 25", exact: true })).toBeVisible()
   await view.settings.getByRole("button", { name: "Back to settings", exact: true }).click()
   await expect(view.search).toBeFocused()
   await expect(target).toHaveAttribute("aria-selected", "true")
@@ -336,10 +336,10 @@ test("IME confirmation does not activate a search result", async ({ page }) => {
 })
 
 test("multi-server results navigate to the named server and keep the query on return", async ({ page }) => {
-  await mockAigcForgeServer(page, {
+  await mockOmnixaServer(page, {
     server: REMOTE_SERVER,
-    directory: "/remote/aigcfroge",
-    project: project({ id: "proj_search_remote", directory: "/remote/aigcfroge", name: "AigcForge" }),
+    directory: "/remote/omnixa",
+    project: project({ id: "proj_search_remote", directory: "/remote/omnixa", name: "Omnixa" }),
     provider: NO_PROVIDER,
     sessions: [],
     pageMessages: () => ({ items: [] }),
@@ -350,7 +350,7 @@ test("multi-server results navigate to the named server and keep the query on re
       servers: [{ url: REMOTE_SERVER, name: "Build server" }],
       projects: {
         local: [{ worktree: directory, expanded: true }],
-        [REMOTE_SERVER]: [{ worktree: "/remote/aigcfroge", expanded: true }],
+        [REMOTE_SERVER]: [{ worktree: "/remote/omnixa", expanded: true }],
       },
     },
   })
@@ -363,9 +363,9 @@ test("multi-server results navigate to the named server and keep the query on re
   await expect(view.settings.getByRole("tab", { name: "MCPs", exact: true })).toHaveAttribute("aria-selected", "true")
   await view.settings.getByRole("button", { name: "Back to settings", exact: true }).click()
   await expect(view.search).toHaveValue("MCPs")
-  await view.search.fill("Build server AigcForge name")
+  await view.search.fill("Build server Omnixa name")
   await expect(view.results.getByRole("option")).toHaveCount(1)
   await view.results.getByRole("option").click()
   await expect(view.settings.getByRole("button", { name: "Build server", exact: true })).toBeVisible()
-  await expect(view.settings.getByRole("textbox", { name: "Project name", exact: true })).toHaveValue("AigcForge")
+  await expect(view.settings.getByRole("textbox", { name: "Project name", exact: true })).toHaveValue("Omnixa")
 })

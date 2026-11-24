@@ -1,25 +1,25 @@
 import path from "path"
 import { describe, expect } from "bun:test"
 import { Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect"
-import { Agent } from "@aigcfroge/core/agent"
-import { Bus } from "@aigcfroge/core/bus"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Location } from "@aigcfroge/core/location"
-import { Permission } from "@aigcfroge/core/permission"
-import { PermissionEffective } from "@aigcfroge/core/permission/effective"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
-import { AgentPlugin } from "@aigcfroge/core/plugin/agent"
-import { PlanPlugin } from "@aigcfroge/core/plugin/plan"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Global } from "@aigcfroge/util/global"
+import { Agent } from "@omnixa/core/agent"
+import { Bus } from "@omnixa/core/bus"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Location } from "@omnixa/core/location"
+import { Permission } from "@omnixa/core/permission"
+import { PermissionEffective } from "@omnixa/core/permission/effective"
+import { ProductMode } from "@omnixa/schema/product-mode"
+import { AgentPlugin } from "@omnixa/core/plugin/agent"
+import { PlanPlugin } from "@omnixa/core/plugin/plan"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Global } from "@omnixa/util/global"
 import { location } from "./fixture/location"
 import { testEffect } from "./lib/effect"
 import { agentHost, host } from "./plugin/host"
 
 const testLocation = location({ directory: AbsolutePath.make("/project") })
 const locationLayer = Layer.succeed(Location.Service, Location.Service.of(testLocation))
-const global = Global.make({ data: "/data", config: "/config", tmp: "/tmp/aigcfroge" })
+const global = Global.make({ data: "/data", config: "/config", tmp: "/tmp/omnixa" })
 const globalLayer = Layer.succeed(Global.Service, Global.Service.of(global))
 
 const it = testEffect(

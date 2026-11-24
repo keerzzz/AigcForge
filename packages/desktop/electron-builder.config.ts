@@ -15,13 +15,6 @@ const rootDir = path.resolve(packageDir, "../..")
 
 const signScript = path.join(rootDir, "script", "sign-windows.ps1")
 
-// The Electron 42 packaging update briefly installed Linux launchers/icons under
-// "aigcfroge-desktop". Keep that hidden desktop entry around so existing GNOME/KDE
-// pins still resolve after the canonical app id changes back to ai.aigcfroge.desktop.
-const legacyDesktopEntry = path.join(packageDir, "resources", "linux", "aigcfroge-desktop.desktop")
-
-const legacyDesktopEntryFpm = `${legacyDesktopEntry}=/usr/share/applications/aigcfroge-desktop.desktop`
-
 const metainfoFpm = (appId: string) =>
   `${path.join(packageDir, "resources", `${appId}.metainfo.xml`)}=/usr/share/metainfo/${appId}.metainfo.xml`
 
@@ -43,7 +36,7 @@ function macSignOptions(options: CustomMacSignOptions): CustomMacSignOptions {
     optionsForFile: (file) => {
       const defaults = options.optionsForFile?.(file)
 
-      if (file !== path.join(options.app, "Contents/Resources/aigcfroge-cli")) return defaults ?? {}
+      if (file !== path.join(options.app, "Contents/Resources/omnixa-cli")) return defaults ?? {}
 
       // The Bun CLI loads bun-pty's native library; Electron and its helpers do not need this exception.
       return { ...defaults, entitlements: path.join(packageDir, "resources/entitlements.cli.plist") }
@@ -52,7 +45,7 @@ function macSignOptions(options: CustomMacSignOptions): CustomMacSignOptions {
 }
 
 const channel = (() => {
-  const raw = process.env.AIGCFROGE_CHANNEL
+  const raw = process.env.OMNIXA_CHANNEL
 
   if (raw === "dev" || raw === "beta" || raw === "prod") return raw
 
@@ -62,20 +55,20 @@ const channel = (() => {
 })()
 
 const APP_IDS = {
-  dev: "ai.aigcfroge.desktop.dev",
-  beta: "ai.aigcfroge.desktop.beta",
-  prod: "ai.aigcfroge.desktop",
+  dev: "ai.omnixa.desktop.dev",
+  beta: "ai.omnixa.desktop.beta",
+  prod: "ai.omnixa.desktop",
 } as const
 
 const getBase = (appId: string): Configuration => ({
-  artifactName: "aigcfroge-desktop-${os}-${arch}.${ext}",
+  artifactName: "omnixa-desktop-${os}-${arch}.${ext}",
   directories: {
     output: "dist",
     buildResources: "resources",
   },
   // Linux launchers are .desktop files, so this is the desktop file name,
-  // not just the app id. For prod, app id "ai.aigcfroge.desktop" becomes
-  // "ai.aigcfroge.desktop.desktop".
+  // not just the app id. For prod, app id "ai.omnixa.desktop" becomes
+  // "ai.omnixa.desktop.desktop".
   // https://developer.gnome.org/documentation/guidelines/maintainer/integrating.html
   // https://www.electron.build/docs/linux/
   extraMetadata: {
@@ -84,7 +77,7 @@ const getBase = (appId: string): Configuration => ({
   files: [
     "out/**/*",
     "resources/**/*",
-    "!resources/aigcfroge-cli*",
+    "!resources/omnixa-cli*",
     // Log export imports Zip.js as ESM. Keep index.js and lib, including its inline worker.
     "!**/node_modules/@zip.js/zip.js/dist{,/**/*}",
     "!**/node_modules/@zip.js/zip.js/{index.cjs,index.min.js,index-fflate.js,deno.json,eslint.config.mjs}",
@@ -104,19 +97,19 @@ const getBase = (appId: string): Configuration => ({
     {
       from: "resources/",
       to: "",
-      filter: ["aigcfroge-cli", "aigcfroge-cli.exe", "aigcfroge-cli.version"],
+      filter: ["omnixa-cli", "omnixa-cli.exe", "omnixa-cli.version"],
     },
   ],
   afterPack: async (context) => {
     const cli = path.join(
       context.packager.getResourcesDir(context.appOutDir),
-      context.electronPlatformName === "win32" ? "aigcfroge-cli.exe" : "aigcfroge-cli",
+      context.electronPlatformName === "win32" ? "omnixa-cli.exe" : "omnixa-cli",
     )
 
     const file = await stat(cli)
 
     if (!file.isFile() || file.size === 0) throw new Error(`Bundled CLI must be a non-empty file: ${cli}`)
-    const version = path.join(path.dirname(cli), "aigcfroge-cli.version")
+    const version = path.join(path.dirname(cli), "omnixa-cli.version")
 
     if ((await stat(version)).size === 0) throw new Error(`Bundled CLI version must be a non-empty file: ${version}`)
   },
@@ -138,8 +131,8 @@ const getBase = (appId: string): Configuration => ({
     target: ["dmg", "zip"],
   },
   protocols: {
-    name: "AigcForge",
-    schemes: ["aigcfroge"],
+    name: "Omnixa",
+    schemes: ["omnixa"],
   },
   win: {
     icon: `resources/icons/icon.ico`,
@@ -180,9 +173,9 @@ function getConfig() {
       return {
         ...base,
         appId,
-        productName: "AigcForge Dev",
+        productName: "Omnixa Dev",
         deb: { fpm: [metainfoFpm(appId)] },
-        rpm: { packageName: "aigcfroge-dev", fpm: [metainfoFpm(appId)] },
+        rpm: { packageName: "omnixa-dev", fpm: [metainfoFpm(appId)] },
       }
     }
 
@@ -190,16 +183,10 @@ function getConfig() {
       return {
         ...base,
         appId,
-        productName: "AigcForge Beta",
-        protocols: { name: "AigcForge Beta", schemes: ["aigcfroge"] },
-        publish: {
-          provider: "github",
-          owner: "keerzzz",
-          repo: "AigcForge-beta",
-          channel: "latest",
-        },
+        productName: "Omnixa Beta",
+        protocols: { name: "Omnixa Beta", schemes: ["omnixa"] },
         deb: { fpm: [metainfoFpm(appId)] },
-        rpm: { packageName: "aigcfroge-beta", fpm: [metainfoFpm(appId)] },
+        rpm: { packageName: "omnixa-beta", fpm: [metainfoFpm(appId)] },
       }
     }
 
@@ -207,16 +194,16 @@ function getConfig() {
       return {
         ...base,
         appId,
-        productName: "AigcForge",
-        protocols: { name: "AigcForge", schemes: ["aigcfroge"] },
+        productName: "Omnixa",
+        protocols: { name: "Omnixa", schemes: ["omnixa"] },
         publish: {
           provider: "github",
           owner: "keerzzz",
           repo: "AigcForge",
           channel: "latest",
         },
-        deb: { fpm: [metainfoFpm(appId), legacyDesktopEntryFpm] },
-        rpm: { packageName: "aigcfroge", fpm: [metainfoFpm(appId), legacyDesktopEntryFpm] },
+        deb: { fpm: [metainfoFpm(appId)] },
+        rpm: { packageName: "omnixa", fpm: [metainfoFpm(appId)] },
       }
     }
   }

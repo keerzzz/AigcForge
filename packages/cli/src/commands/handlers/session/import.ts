@@ -1,7 +1,7 @@
-import { AigcForge } from "@aigcfroge/client"
-import { Service } from "@aigcfroge/client/effect/service"
-import { Session } from "@aigcfroge/schema/session"
-import { SessionTransfer } from "@aigcfroge/schema/session-transfer"
+import { Omnixa } from "@omnixa/client"
+import { Service } from "@omnixa/client/effect/service"
+import { Session } from "@omnixa/schema/session"
+import { SessionTransfer } from "@omnixa/schema/session-transfer"
 import { Effect, Option, Schema } from "effect"
 import { EOL } from "node:os"
 import path from "node:path"
@@ -29,7 +29,7 @@ export default Runtime.handler(
       server: Option.getOrUndefined(input.server),
       standalone: input.standalone,
     })
-    const client = AigcForge.make({
+    const client = Omnixa.make({
       baseUrl: server.endpoint.url,
       headers: Service.headers(server.endpoint),
     })

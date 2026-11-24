@@ -24,9 +24,9 @@ export function ready(data: Data): ServerReadyData {
 
 /** The Basic credential for a request to the sidecar origin, or undefined for any other URL. */
 export function authorization(sidecar: Data | undefined, url: string) {
-  if (!sidecar?.password || !URL.canParse(url)) return
+  if (!sidecar?.password || !URL.canParse(url)) return undefined
 
-  if (new URL(url).origin !== sidecar.url) return
+  if (new URL(url).origin !== sidecar.url) return undefined
 
-  return `Basic ${Buffer.from(`aigcfroge:${sidecar.password}`).toString("base64")}`
+  return `Basic ${Buffer.from(`omnixa:${sidecar.password}`).toString("base64")}`
 }

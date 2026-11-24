@@ -1,4 +1,4 @@
-import { comparablePath } from "@aigcfroge/util/path"
+import { comparablePath } from "@omnixa/util/path"
 
 export type PathKey = string & { _brand: "PathKey" }
 

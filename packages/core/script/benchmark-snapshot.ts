@@ -1,9 +1,9 @@
 /**
  * Snapshot benchmark + robustness probe.
  *
- *   bun run script/benchmark-snapshot.ts [--fixtures small,medium,large,aigcfroge] [--iterations 10] [--json out.json]
+ *   bun run script/benchmark-snapshot.ts [--fixtures small,medium,large,omnixa] [--iterations 10] [--json out.json]
  *
- * Fixtures are generated once under $TMPDIR/aigcfroge-snapshot-bench and reset before each run.
+ * Fixtures are generated once under $TMPDIR/omnixa-snapshot-bench and reset before each run.
  * Every timed scenario also reports how many git processes it spawned.
  */
 import { $ } from "bun"
@@ -16,8 +16,8 @@ import { Git } from "../src/git"
 import { Location } from "../src/location"
 import { AbsolutePath, RelativePath } from "../src/schema"
 import { Snapshot } from "../src/snapshot"
-import { Global } from "@aigcfroge/util/global"
-import { AppProcess } from "@aigcfroge/util/process"
+import { Global } from "@omnixa/util/global"
+import { AppProcess } from "@omnixa/util/process"
 
 const args = process.argv.slice(2)
 const flag = (name: string) => {
@@ -25,9 +25,9 @@ const flag = (name: string) => {
   return index === -1 ? undefined : args[index + 1]
 }
 const iterations = Number(flag("iterations") ?? 10)
-const selected = (flag("fixtures") ?? "small,medium,large,aigcfroge").split(",")
+const selected = (flag("fixtures") ?? "small,medium,large,omnixa").split(",")
 const jsonOut = flag("json")
-const root = path.join(process.env.SNAPSHOT_BENCH_ROOT ?? os.tmpdir(), "aigcfroge-snapshot-bench")
+const root = path.join(process.env.SNAPSHOT_BENCH_ROOT ?? os.tmpdir(), "omnixa-snapshot-bench")
 
 type Fixture = { name: string; tracked: number; ignored: number; dirs: number }
 const fixtures: Record<string, Fixture> = {
@@ -64,12 +64,12 @@ async function generate(fixture: Fixture) {
   return dir
 }
 
-async function cloneAigcfroge() {
-  const dir = path.join(root, "fixtures", "aigcfroge")
+async function cloneOmnixa() {
+  const dir = path.join(root, "fixtures", "omnixa")
   if (await Bun.file(path.join(dir, ".bench-ready")).exists()) return dir
   await fs.rm(dir, { recursive: true, force: true })
   const source = (await $`git rev-parse --show-toplevel`.cwd(import.meta.dir).text()).trim()
-  console.error(`cloning ${source} into fixture aigcfroge`)
+  console.error(`cloning ${source} into fixture omnixa`)
   await $`git clone --quiet --local --no-hardlinks ${source} ${dir}`.quiet()
   // A realistic ignored dependency tree without paying for a full install.
   await writeMany(
@@ -87,7 +87,7 @@ async function gitInit(dir: string) {
   await $`git init -q`.cwd(dir).quiet()
   await Bun.write(path.join(dir, ".git", "info", "exclude"), ".bench-ready\n")
   await $`git -c core.fsmonitor=false add -A`.cwd(dir).quiet()
-  await $`git -c user.email=bench@aigcfroge.test -c user.name=Bench commit -q --no-gpg-sign -m initial`.cwd(dir).quiet()
+  await $`git -c user.email=bench@omnixa.test -c user.name=Bench commit -q --no-gpg-sign -m initial`.cwd(dir).quiet()
 }
 
 async function reset(dir: string) {
@@ -378,7 +378,7 @@ async function probes() {
 await fs.mkdir(root, { recursive: true })
 for (const name of selected) {
   if (name === "probes") continue
-  const dir = name === "aigcfroge" ? await cloneAigcfroge() : await generate(fixtures[name]!)
+  const dir = name === "omnixa" ? await cloneOmnixa() : await generate(fixtures[name])
   await bench(name, dir)
 }
 if (selected.includes("probes") || !flag("fixtures")) await probes()

@@ -1,18 +1,18 @@
 import { describe, expect } from "bun:test"
 import { Deferred, Duration, Effect, Layer, LayerMap, Stream } from "effect"
 import { TestClock } from "effect/testing"
-import { define } from "@aigcfroge/plugin/effect/plugin"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Global } from "@aigcfroge/util/global"
-import { Command } from "@aigcfroge/core/command"
-import { ConfigPluginSource } from "@aigcfroge/core/config/plugin/source"
-import { Instance } from "@aigcfroge/core/instance"
-import { LocationServiceMap } from "@aigcfroge/core/location-services"
-import { Location } from "@aigcfroge/core/location"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { SdkPlugins } from "@aigcfroge/core/plugin/sdk"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { define } from "@omnixa/plugin/effect/plugin"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Global } from "@omnixa/util/global"
+import { Command } from "@omnixa/core/command"
+import { ConfigPluginSource } from "@omnixa/core/config/plugin/source"
+import { Instance } from "@omnixa/core/instance"
+import { LocationServiceMap } from "@omnixa/core/location-services"
+import { Location } from "@omnixa/core/location"
+import { Plugin } from "@omnixa/core/plugin"
+import { SdkPlugins } from "@omnixa/core/plugin/sdk"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { Database } from "../../src/database/database"
 import { Bus } from "../../src/bus"
 import { tempGlobalLayer } from "../fixture/global"
@@ -111,7 +111,7 @@ describe("PluginSupervisor", () => {
       expect(state.instance).toBeUndefined()
       // Builtins stay active: the duplicate is a plugin failure, not a generation defect.
       expect(
-        state.inventory.some((plugin) => plugin.id?.startsWith("aigcfroge.") && plugin.state.status === "active"),
+        state.inventory.some((plugin) => plugin.id?.startsWith("omnixa.") && plugin.state.status === "active"),
       ).toBe(true)
     }),
   )
@@ -202,11 +202,8 @@ describe("PluginSupervisor", () => {
     }),
   )
 
-  for (const targets of [
-    ["aigcfroge.config.policy", "aigcfroge.provider.aigcfroge", "aigcfroge.config.agent"],
-    ["*"],
-  ]) {
-    it.effect(`keeps policy enforcement and the Console connection through plugin removals: ${targets}`, () =>
+  for (const targets of [["omnixa.config.policy", "omnixa.config.agent"], ["*"]]) {
+    it.effect(`keeps policy enforcement through plugin removals: ${targets}`, () =>
       Effect.gen(function* () {
         source.operations = targets.map((target) => ({ type: "remove", target }))
         const directory = yield* tmpdirScoped()
@@ -220,10 +217,9 @@ describe("PluginSupervisor", () => {
           Effect.provide(locations.get(Location.Ref.make({ directory: AbsolutePath.make(directory.path) }))),
         )
         const status = (id: string) => inventory.find((plugin) => plugin.id === id)?.state.status
-        expect(status("aigcfroge.config.policy")).toBe("active")
-        expect(status("aigcfroge.provider.aigcfroge")).toBe("active")
+        expect(status("omnixa.config.policy")).toBe("active")
         // Removals still apply to everything else, including instance and builtin plugins.
-        expect(status("aigcfroge.config.agent")).toBeUndefined()
+        expect(status("omnixa.config.agent")).toBeUndefined()
         expect(inventory.some((plugin) => plugin.id === id)).toBe(targets[0] !== "*")
       }).pipe(
         Effect.ensuring(

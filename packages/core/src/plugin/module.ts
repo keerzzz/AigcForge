@@ -1,9 +1,9 @@
 export * as PluginModule from "./module.js"
 
-import type { Plugin } from "@aigcfroge/plugin/effect/plugin"
-import { Host } from "@aigcfroge/plugin/host"
-import { createPluginSources } from "@aigcfroge/plugin/source"
-import { Npm } from "@aigcfroge/util/npm"
+import type { Plugin } from "@omnixa/plugin/effect/plugin"
+import { Host } from "@omnixa/plugin/host"
+import { createPluginSources } from "@omnixa/plugin/source"
+import { Npm } from "@omnixa/util/npm"
 import { Deferred, Effect, FiberSet, PubSub, Schema, Stream } from "effect"
 import path from "path"
 import { stat } from "node:fs/promises"

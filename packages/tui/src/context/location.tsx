@@ -1,4 +1,4 @@
-import type { LocationGetOutput, LocationRef } from "@aigcfroge/client"
+import type { LocationGetOutput, LocationRef } from "@omnixa/client"
 import { createContext, createMemo, createSignal, onCleanup, useContext, type ParentProps } from "solid-js"
 import { useClient } from "./client"
 import { useData } from "./data"

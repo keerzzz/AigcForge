@@ -1,32 +1,32 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer, Schema } from "effect"
-import { Composition } from "@aigcfroge/schema/composition"
-import { SessionIdentity } from "@aigcfroge/schema/session-identity"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
-import { Agent } from "@aigcfroge/schema/agent"
-import { PermissionTier } from "@aigcfroge/schema/permission-tier"
-import { Schedule } from "@aigcfroge/schema/schedule"
-import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
-import { AgentAsset } from "@aigcfroge/core/agent-asset"
-import { CommandAsset } from "@aigcfroge/core/command-asset"
-import { Git } from "@aigcfroge/core/git"
-import { MCPAsset } from "@aigcfroge/core/mcp-asset"
-import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
-import { Permission } from "@aigcfroge/core/permission"
-import { PluginAsset } from "@aigcfroge/core/plugin-asset"
-import { PromptAsset } from "@aigcfroge/core/prompt-asset"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Session } from "@aigcfroge/core/session"
-import { WorkArtifact } from "@aigcfroge/core/session/artifact"
-import { SessionComposition } from "@aigcfroge/core/session/composition"
-import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
-import { SessionIdentityProjection } from "@aigcfroge/core/session/session-identity"
-import { SessionStore } from "@aigcfroge/core/session/store"
-import { Workspace } from "@aigcfroge/core/workspace"
-import { SkillAsset } from "@aigcfroge/core/skill-asset"
+import { Composition } from "@omnixa/schema/composition"
+import { SessionIdentity } from "@omnixa/schema/session-identity"
+import { ProductMode } from "@omnixa/schema/product-mode"
+import { Agent } from "@omnixa/schema/agent"
+import { PermissionTier } from "@omnixa/schema/permission-tier"
+import { Schedule } from "@omnixa/schema/schedule"
+import { WorkflowAsset } from "@omnixa/schema/workflow-asset"
+import { AgentAsset } from "@omnixa/core/agent-asset"
+import { CommandAsset } from "@omnixa/core/command-asset"
+import { Git } from "@omnixa/core/git"
+import { MCPAsset } from "@omnixa/core/mcp-asset"
+import { MetaAgentService } from "@omnixa/core/meta-agent/service"
+import { Permission } from "@omnixa/core/permission"
+import { PluginAsset } from "@omnixa/core/plugin-asset"
+import { PromptAsset } from "@omnixa/core/prompt-asset"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Session } from "@omnixa/core/session"
+import { WorkArtifact } from "@omnixa/core/session/artifact"
+import { SessionComposition } from "@omnixa/core/session/composition"
+import { ScheduleService } from "@omnixa/core/session/schedule-service"
+import { SessionIdentityProjection } from "@omnixa/core/session/session-identity"
+import { SessionStore } from "@omnixa/core/session/store"
+import { Workspace } from "@omnixa/core/workspace"
+import { SkillAsset } from "@omnixa/core/skill-asset"
 // Schema WorkflowAsset uses the unaliased name in this test; the core owner needs the collision alias.
-import { WorkflowAsset as WorkflowAssetOwner } from "@aigcfroge/core/workflow-asset"
-import { WorkflowRun } from "@aigcfroge/core/workflow/workflow-run"
+import { WorkflowAsset as WorkflowAssetOwner } from "@omnixa/core/workflow-asset"
+import { WorkflowRun } from "@omnixa/core/workflow/workflow-run"
 import { testEffect } from "./lib/effect"
 
 const sessionInfo = (input: {
@@ -46,13 +46,13 @@ const sessionInfo = (input: {
     version: "dev",
     projectID: "proj_identity",
     ...(input.agent === null ? {} : { agent: input.agent ?? "build" }),
-    ...(input.model === null ? {} : { model: input.model ?? { id: "gpt-test", providerID: "aigcfroge" } }),
+    ...(input.model === null ? {} : { model: input.model ?? { id: "gpt-test", providerID: "omnixa" } }),
     cost: 0,
     tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
     time: { created: 1_700_000_000_000, updated: 1_700_000_000_000 },
     title: "Identity fixture",
     location: {
-      directory: "/tmp/aigcfroge-identity-fixture",
+      directory: "/tmp/omnixa-identity-fixture",
       ...(input.workspaceID ? { workspaceID: input.workspaceID } : {}),
     },
     permissionTier: input.permissionTier ?? PermissionTier.Default,
@@ -243,7 +243,7 @@ describe("SessionIdentityProjection", () => {
         reasons: [{ code: SessionIdentity.ReasonCodes.metaNotSelected, severity: "info" }],
         selection: { agent: Agent.ID.make("build") },
       })
-      expect(identity.model).toEqual({ status: "ready", value: { providerID: "aigcfroge", modelID: "gpt-test" } })
+      expect(identity.model).toEqual({ status: "ready", value: { providerID: "omnixa", modelID: "gpt-test" } })
     }),
   )
 
@@ -252,7 +252,7 @@ describe("SessionIdentityProjection", () => {
       const projection = yield* SessionIdentityProjection.Service
       const identity = yield* projection.project(Session.ID.make("ses_identity_fixture"))
 
-      expect(identity.location.directory).toBe(AbsolutePath.make("/tmp/aigcfroge-identity-fixture"))
+      expect(identity.location.directory).toBe(AbsolutePath.make("/tmp/omnixa-identity-fixture"))
       expect(identity.location.workspaceID).toBe(Workspace.ID.make("wrk_identity_fixture"))
     }),
   )
@@ -449,7 +449,7 @@ describe("SessionIdentityProjection: git-backed coding detail", () => {
   const itRepo = testEffect(
     projectionLayer({
       repo: {
-        directory: "/tmp/aigcfroge-worktree",
+        directory: "/tmp/omnixa-worktree",
         branch: "feature/x",
       },
     }),
@@ -465,7 +465,7 @@ describe("SessionIdentityProjection: git-backed coding detail", () => {
       }
       expect(identity.detail.detail.vcs.branch).toEqual({ status: "ready", value: "feature/x" })
       // The repo root, which is NOT the session directory (sessions may live in a subdirectory).
-      expect(identity.detail.detail.vcs.worktree).toEqual({ status: "ready", value: "/tmp/aigcfroge-worktree" })
+      expect(identity.detail.detail.vcs.worktree).toEqual({ status: "ready", value: "/tmp/omnixa-worktree" })
     }),
   )
 })

@@ -2,7 +2,7 @@ import { describe, expect } from "bun:test"
 import { Cause, DateTime, Effect, Exit, Layer, Option, Schema } from "effect"
 import path from "path"
 import { eq } from "drizzle-orm"
-import { MetaAgent } from "@aigcfroge/schema/meta-agent"
+import { MetaAgent } from "@omnixa/schema/meta-agent"
 import { MetaAgentMemory } from "../src/agent/meta/memory"
 import { Database } from "../src/database/database"
 import { MetaAgentService } from "../src/meta-agent/service"
@@ -15,15 +15,15 @@ import { SessionSchema } from "../src/session/schema"
 import { ControllerConflictError } from "../src/session/error.js"
 import { CorrectionExtractor } from "../src/session/correction-extractor.js"
 import { ConfigMeta } from "../src/config/meta.js"
-import { Document, Info } from "@aigcfroge/schema/config"
+import { Document, Info } from "@omnixa/schema/config"
 import { SessionTable } from "../src/session/sql"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import { it } from "./lib/effect"
 import { tmpdir } from "./fixture/tmpdir"
 
 const globalLayer = Layer.succeed(
   Global.Service,
-  Global.Service.of(Global.make({ data: "/data", config: "/config", tmp: "/tmp/aigcfroge" })),
+  Global.Service.of(Global.make({ data: "/data", config: "/config", tmp: "/tmp/omnixa" })),
 )
 
 const sessionID = SessionSchema.ID.make("ses_memory")

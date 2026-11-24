@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test"
 import path from "node:path"
-import { AIGCFROGE_VERSION } from "../src/version"
-import type { FormFields } from "@aigcfroge/client"
+import { OMNIXA_VERSION } from "../src/version"
+import type { FormFields } from "@omnixa/client"
 
-const consoleForm = [
-  { type: "string", key: "server", hidden: true, format: "uri", default: "https://aigcfroge.ai/console" },
+const serverForm = [
+  { type: "string", key: "server", hidden: true, format: "uri", default: "https://auth.example.com/console" },
 ] satisfies FormFields
 
 describe("auth command", () => {
@@ -27,15 +27,15 @@ describe("auth command", () => {
     expect(auth.stdout).toContain("switch the active account for an integration")
     expect(auth.stdout).not.toMatch(/^  connect\s/m)
     expect(list.exitCode).toBe(0)
-    expect(list.stdout).toContain("aigcfroge auth list [flags]")
+    expect(list.stdout).toContain("omnixa auth list [flags]")
     expect(list.stdout).toContain("--format")
     expect(login.exitCode).toBe(0)
-    expect(login.stdout).toContain("aigcfroge auth login [flags] [<target>]")
+    expect(login.stdout).toContain("omnixa auth login [flags] [<target>]")
     expect(login.stdout).toContain("Integration ID, name, or well-known provider URL")
     expect(login.stdout).toContain("--method")
     expect(login.stdout).toContain("--answer")
     expect(logout.exitCode).toBe(0)
-    expect(logout.stdout).toContain("aigcfroge auth logout [flags] [<target>] [<credential>]")
+    expect(logout.stdout).toContain("omnixa auth logout [flags] [<target>] [<credential>]")
   })
 
   test("lists stored and environment connections", async () => {
@@ -73,36 +73,6 @@ describe("auth command", () => {
       },
     ])
     expect(requests.indexOf("/api/model/default")).toBeLessThan(requests.indexOf("/api/integration"))
-  })
-
-  test("lists AigcForge Go before Zen and preserves the remaining integration order", async () => {
-    using server = authServer((request, url) => {
-      if (url.pathname === "/api/integration") {
-        return Response.json(
-          located(
-            [
-              { id: "aigcfroge", name: "AigcForge Zen" },
-              { id: "anthropic", name: "Anthropic" },
-              { id: "aigcfroge-go", name: "AigcForge Go" },
-            ].map((integration) => ({
-              ...integration,
-              methods: [],
-              connections: [{ type: "env", name: "TEST_API_KEY" }],
-            })),
-          ),
-        )
-      }
-      return new Response("Not found", { status: 404 })
-    })
-
-    const result = await cli(["auth", "list", "--server", server.url.toString()])
-    expect({ exitCode: result.exitCode, stderr: result.stderr }).toEqual({ exitCode: 0, stderr: "" })
-    expect(
-      result.stdout
-        .trim()
-        .split("\n")
-        .map((line) => line.split(/\s{2,}/)[0]),
-    ).toEqual(["AigcForge Go", "AigcForge Zen", "Anthropic"])
   })
 
   test("runs command authentication without interactive input", async () => {
@@ -144,16 +114,16 @@ describe("auth command", () => {
   test.each([
     { id: "openai", method: "browser", form: undefined, args: [], answer: undefined },
     {
-      id: "aigcfroge",
+      id: "example",
       method: "device",
-      form: consoleForm,
+      form: serverForm,
       args: [],
-      answer: { server: "https://aigcfroge.ai/console" },
+      answer: { server: "https://auth.example.com/console" },
     },
     {
-      id: "aigcfroge",
+      id: "example",
       method: "device",
-      form: consoleForm,
+      form: serverForm,
       args: ["--answer", "server=https://staging.example.com/console"],
       answer: { server: "https://staging.example.com/console" },
     },
@@ -323,7 +293,7 @@ function authServer(fetch: (request: Request, url: URL) => Response | Promise<Re
 }
 
 function status() {
-  return Response.json({ version: AIGCFROGE_VERSION, pid: process.pid, urls: [], paths: { tmp: "/tmp/aigcfroge" } })
+  return Response.json({ version: OMNIXA_VERSION, pid: process.pid, urls: [], paths: { tmp: "/tmp/omnixa" } })
 }
 
 function located<T>(data: T) {

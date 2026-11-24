@@ -1,14 +1,11 @@
 import { $ } from "bun"
-import { chmod, copyFile, mkdtemp, rm } from "node:fs/promises"
-import { tmpdir } from "node:os"
+import { chmod, copyFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
-
-const CLI_VERSION = "dev"
 
 export type Channel = "dev" | "beta" | "prod"
 
 export function resolveChannel(): Channel {
-  const raw = Bun.env.AIGCFROGE_CHANNEL
+  const raw = Bun.env.OMNIXA_CHANNEL
 
   if (raw === "dev" || raw === "beta" || raw === "prod") return raw
 
@@ -20,43 +17,43 @@ export function resolveChannel(): Channel {
 export const CLI_BINARIES: Array<{ target: string; package: string; os: string; cpu: string }> = [
   {
     target: "aarch64-apple-darwin",
-    package: "@aigcfroge/cli-darwin-arm64",
+    package: "@omnixa/cli-darwin-arm64",
     os: "darwin",
     cpu: "arm64",
   },
   {
     target: "x86_64-apple-darwin",
-    package: "@aigcfroge/cli-darwin-x64-baseline",
+    package: "@omnixa/cli-darwin-x64-baseline",
     os: "darwin",
     cpu: "x64",
   },
   {
     target: "aarch64-pc-windows-msvc",
-    package: "@aigcfroge/cli-windows-arm64",
+    package: "@omnixa/cli-windows-arm64",
     os: "win32",
     cpu: "arm64",
   },
   {
     target: "x86_64-pc-windows-msvc",
-    package: "@aigcfroge/cli-windows-x64-baseline",
+    package: "@omnixa/cli-windows-x64-baseline",
     os: "win32",
     cpu: "x64",
   },
   {
     target: "x86_64-unknown-linux-gnu",
-    package: "@aigcfroge/cli-linux-x64-baseline",
+    package: "@omnixa/cli-linux-x64-baseline",
     os: "linux",
     cpu: "x64",
   },
   {
     target: "aarch64-unknown-linux-gnu",
-    package: "@aigcfroge/cli-linux-arm64",
+    package: "@omnixa/cli-linux-arm64",
     os: "linux",
     cpu: "arm64",
   },
 ]
 
-export const CLI_TARGET = Bun.env.AIGCFROGE_CLI_TARGET
+export const CLI_TARGET = Bun.env.OMNIXA_CLI_TARGET
 
 function nativeTarget() {
   const { platform, arch } = process
@@ -77,23 +74,15 @@ export function getCurrentCli(target = CLI_TARGET ?? nativeTarget()) {
   return binaryConfig
 }
 
-export async function downloadCliToResources(version = CLI_VERSION, dest = windowsify("resources/aigcfroge-cli")) {
-  const cli = getCurrentCli()
-  const directory = await mkdtemp(join(tmpdir(), "aigcfroge-cli-"))
-
-  try {
-    await $`bun install --no-save --cwd ${directory} ${`${cli.package}@${version}`} ${`--os=${cli.os}`} ${`--cpu=${cli.cpu}`}`
-    await copyCliToResources(join(directory, "node_modules", cli.package), dest)
-  } finally {
-    await rm(directory, { recursive: true, force: true })
-  }
-
-  console.log(`Copied ${cli.package}@${version} to ${dest}`)
+export function downloadCliToResources(version = "dev", dest = windowsify("resources/omnixa-cli")) {
+  throw new Error(
+    `Bundled CLI download ${version} to ${dest} is disabled: no supported project-owned download source is configured. Set OMNIXA_CLI_DIST to a locally built distribution for packaging, or use the CLI source in desktop development.`,
+  )
 }
 
-export async function copyBuiltCliToResources(root: string, dest = windowsify("resources/aigcfroge-cli")) {
+export async function copyBuiltCliToResources(root: string, dest = windowsify("resources/omnixa-cli")) {
   const cli = getCurrentCli()
-  const directory = cli.package.replace("@aigcfroge/", "")
+  const directory = cli.package.replace("@omnixa/", "")
   await copyCliToResources(join(root, directory), dest)
 }
 
@@ -102,7 +91,7 @@ export async function copyBuiltCliToResources(root: string, dest = windowsify("r
 // 200 MB binary on first launch.
 async function copyCliToResources(pkg: string, dest: string) {
   const cli = getCurrentCli()
-  await copyFile(join(pkg, "bin", cli.os === "win32" ? "aigcfroge.exe" : "aigcfroge"), dest)
+  await copyFile(join(pkg, "bin", cli.os === "win32" ? "omnixa.exe" : "omnixa"), dest)
   await prepareCli(dest)
   const manifest = (await Bun.file(join(pkg, "package.json")).json()) as { version?: string }
 
@@ -111,7 +100,7 @@ async function copyCliToResources(pkg: string, dest: string) {
 }
 
 export function versionFile(cli: string) {
-  return join(dirname(cli), "aigcfroge-cli.version")
+  return join(dirname(cli), "omnixa-cli.version")
 }
 
 async function prepareCli(dest: string) {

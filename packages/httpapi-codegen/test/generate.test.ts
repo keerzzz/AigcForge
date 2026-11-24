@@ -217,7 +217,7 @@ describe("HttpApiCodegen.generate", () => {
         )
         const make: (options: {
           readonly baseUrl: string
-        }) => Effect.Effect<ClassPayloadClient, never, HttpClient.HttpClient> = emitted.module.AigcForge.make
+        }) => Effect.Effect<ClassPayloadClient, never, HttpClient.HttpClient> = emitted.module.Omnixa.make
         const requests: Array<{ method: string; query: Record<string, string>; body: unknown }> = []
         const httpClient = HttpClient.make((request) => {
           if (request.body._tag !== "Uint8Array") return Effect.die(new Error("Expected a JSON payload"))
@@ -232,7 +232,7 @@ describe("HttpApiCodegen.generate", () => {
         })
         const save = {
           groupID: Model.GroupID.make("primary"),
-          target: { scope: "project", path: AbsolutePath.make("/workspace/aigcfroge.jsonc") },
+          target: { scope: "project", path: AbsolutePath.make("/workspace/omnixa.jsonc") },
           expectedDigest: null,
           patch: { set: { name: "Primary" } },
         } satisfies (typeof ModelGroup.SaveInput)["~type.make.in"]
@@ -291,7 +291,7 @@ describe("HttpApiCodegen.generate", () => {
           )
           const make: (options: {
             readonly baseUrl: string
-          }) => Effect.Effect<ClassPayloadClient, never, HttpClient.HttpClient> = emitted.module.AigcForge.make
+          }) => Effect.Effect<ClassPayloadClient, never, HttpClient.HttpClient> = emitted.module.Omnixa.make
           const requests: Array<{ query: Record<string, string>; body: unknown }> = []
           const httpClient = HttpClient.make((request) => {
             if (request.body._tag !== "Uint8Array") return Effect.die(new Error("Expected a JSON payload"))
@@ -436,27 +436,27 @@ describe("HttpApiCodegen.generate", () => {
         {
           schema: SessionCommunication.ID,
           name: "SessionCommunication.ID",
-          import: 'import type { SessionCommunication } from "@aigcfroge/schema/session-communication"',
+          import: 'import type { SessionCommunication } from "@omnixa/schema/session-communication"',
         },
         {
           schema: SessionCommunication.Send,
           name: "SessionCommunication.Send",
-          import: 'import type { SessionCommunication } from "@aigcfroge/schema/session-communication"',
+          import: 'import type { SessionCommunication } from "@omnixa/schema/session-communication"',
         },
         {
           schema: SessionCommunication.Receipt,
           name: "SessionCommunication.Receipt",
-          import: 'import type { SessionCommunication } from "@aigcfroge/schema/session-communication"',
+          import: 'import type { SessionCommunication } from "@omnixa/schema/session-communication"',
         },
         {
           schema: SessionCommunication.Message,
           name: "SessionCommunication.Message",
-          import: 'import type { SessionCommunication } from "@aigcfroge/schema/session-communication"',
+          import: 'import type { SessionCommunication } from "@omnixa/schema/session-communication"',
         },
         {
           schema: SessionCommunication.Page,
           name: "SessionCommunication.Page",
-          import: 'import type { SessionCommunication } from "@aigcfroge/schema/session-communication"',
+          import: 'import type { SessionCommunication } from "@omnixa/schema/session-communication"',
         },
       ],
     }).files[0]?.content
@@ -552,15 +552,15 @@ describe("HttpApiCodegen.generate", () => {
     const output = emitEffectShape(compile(api(HttpApiEndpoint.get("events", "/event", { success: Schema.Unknown }))), {
       outputTypes: {
         "session.events": {
-          name: "AigcForgeEvent",
-          import: 'import type { AigcForgeEvent } from "@example/protocol/event"',
+          name: "OmnixaEvent",
+          import: 'import type { OmnixaEvent } from "@example/protocol/event"',
         },
       },
     })
     const source = output.files[0]?.content
 
-    expect(source).toContain('import type { AigcForgeEvent } from "@example/protocol/event"')
-    expect(source).toContain("export type SessionEventsOutput = AigcForgeEvent")
+    expect(source).toContain('import type { OmnixaEvent } from "@example/protocol/event"')
+    expect(source).toContain("export type SessionEventsOutput = OmnixaEvent")
   })
 
   test("rejects authoritative Effect types colliding with generated aliases", () => {
@@ -805,7 +805,7 @@ describe("HttpApiCodegen.generate", () => {
     await using emitted = await emittedModule(output)
     const methods: Array<string> = []
 
-    const client = emitted.module.AigcForge.make({
+    const client = emitted.module.Omnixa.make({
       baseUrl: "https://example.com",
       fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
         methods.push(init?.method ?? "GET")
@@ -1493,7 +1493,7 @@ describe("HttpApiCodegen.generate", () => {
     )
     await using emitted = await emittedModule(output)
     let request: Request | undefined
-    const client = emitted.module.AigcForge.make({
+    const client = emitted.module.Omnixa.make({
       baseUrl: "https://example.com/base?tenant=one#fragment",
       fetch: async (input: RequestInfo | URL) => {
         request = input instanceof Request ? input : new Request(input)
@@ -1518,7 +1518,7 @@ describe("HttpApiCodegen.generate", () => {
       ),
     )
     await using emitted = await emittedModule(output)
-    const client = emitted.module.AigcForge.make({
+    const client = emitted.module.Omnixa.make({
       baseUrl: "https://example.com",
       fetch: async () => new Response(null, { status: 204 }),
     })
@@ -1539,7 +1539,7 @@ describe("HttpApiCodegen.generate", () => {
     )
     await using emitted = await emittedModule(output)
     let request: Request | undefined
-    const client = emitted.module.AigcForge.make({
+    const client = emitted.module.Omnixa.make({
       baseUrl: "https://example.com",
       fetch: async (input: RequestInfo | URL) => {
         request = input instanceof Request ? input : new Request(input)
@@ -1570,7 +1570,7 @@ describe("HttpApiCodegen.generate", () => {
     )
     await using emitted = await emittedModule(output)
     let request: Request | undefined
-    const client = emitted.module.AigcForge.make({
+    const client = emitted.module.Omnixa.make({
       baseUrl: "https://example.com",
       fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
         request = input instanceof Request ? input : new Request(input, init)
@@ -1602,7 +1602,7 @@ describe("HttpApiCodegen.generate", () => {
     )
     await using emitted = await emittedModule(output)
     let request: Request | undefined
-    const client = emitted.module.AigcForge.make({
+    const client = emitted.module.Omnixa.make({
       baseUrl: "https://example.com",
       fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
         request = input instanceof Request ? input : new Request(input, init)
@@ -1610,9 +1610,9 @@ describe("HttpApiCodegen.generate", () => {
       },
     })
 
-    await client.session.configure({ payload: { type: "local", command: ["aigcfroge"] } })
+    await client.session.configure({ payload: { type: "local", command: ["omnixa"] } })
 
-    expect(await request?.json()).toEqual({ type: "local", command: ["aigcfroge"] })
+    expect(await request?.json()).toEqual({ type: "local", command: ["omnixa"] })
   })
 
   test("serializes explicit null query values", async () => {
@@ -1628,7 +1628,7 @@ describe("HttpApiCodegen.generate", () => {
     )
     await using emitted = await emittedModule(output)
     let request: Request | undefined
-    const client = emitted.module.AigcForge.make({
+    const client = emitted.module.Omnixa.make({
       baseUrl: "https://example.com",
       fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
         request = input instanceof Request ? input : new Request(input, init)
@@ -1654,7 +1654,7 @@ describe("HttpApiCodegen.generate", () => {
       ),
     )
     await using emitted = await emittedModule(output)
-    const client = emitted.module.AigcForge.make({
+    const client = emitted.module.Omnixa.make({
       baseUrl: "https://example.com",
       fetch: async () => Response.json({ _tag: "Missing", message: "gone" }, { status: 404 }),
     })
@@ -1681,7 +1681,7 @@ describe("HttpApiCodegen.generate", () => {
     await using emitted = await emittedModule(output)
     let requests = 0
     let url: string | undefined
-    const client = emitted.module.AigcForge.make({
+    const client = emitted.module.Omnixa.make({
       baseUrl: "https://example.com",
       fetch: async (input: RequestInfo | URL) => {
         requests++
@@ -1749,7 +1749,7 @@ describe("HttpApiCodegen.generate", () => {
     expect(accepts(valid)).toBe(true)
     for (const value of malformed) {
       expect(accepts(value)).toBe(false)
-      const client = emitted.module.AigcForge.make({
+      const client = emitted.module.Omnixa.make({
         baseUrl: "https://example.com",
         fetch: async () =>
           new Response("data: " + JSON.stringify(value) + "\n\n", {
@@ -1765,7 +1765,7 @@ describe("HttpApiCodegen.generate", () => {
         value,
       })
     }
-    const client = emitted.module.AigcForge.make({
+    const client = emitted.module.Omnixa.make({
       baseUrl: "https://example.com",
       fetch: async () =>
         new Response("data: " + JSON.stringify(valid) + "\n\n", {
@@ -1777,7 +1777,7 @@ describe("HttpApiCodegen.generate", () => {
       value: valid,
     })
     expect(source).not.toContain("yield JSON.parse(data) as")
-    expect(source).not.toMatch(/from ["'](?:effect|@aigcfroge\/(?:protocol|schema))/)
+    expect(source).not.toMatch(/from ["'](?:effect|@omnixa\/(?:protocol|schema))/)
   })
 
   test("validates emitted SSE length checks against native encoded objects, strings, and arrays", async () => {
@@ -1802,7 +1802,7 @@ describe("HttpApiCodegen.generate", () => {
         )
         await using emitted = await emittedModule(output)
         for (const value of fixture.values) {
-          const client = emitted.module.AigcForge.make({
+          const client = emitted.module.Omnixa.make({
             baseUrl: "https://example.com",
             fetch: async () =>
               new Response("data: " + JSON.stringify(value) + "\n\n", {
@@ -1841,7 +1841,7 @@ describe("HttpApiCodegen.generate", () => {
       null,
       [],
     ]) {
-      const client = emitted.module.AigcForge.make({
+      const client = emitted.module.Omnixa.make({
         baseUrl: "https://example.com",
         fetch: async () =>
           new Response("data: " + JSON.stringify(value) + "\n\n", {
@@ -1875,7 +1875,7 @@ describe("HttpApiCodegen.generate", () => {
       null,
       [],
     ]) {
-      const client = emitted.module.AigcForge.make({
+      const client = emitted.module.Omnixa.make({
         baseUrl: "https://example.com",
         fetch: async () =>
           new Response("data: " + JSON.stringify(value) + "\n\n", {
@@ -1902,7 +1902,7 @@ describe("HttpApiCodegen.generate", () => {
     )
     await using emitted = await emittedModule(output)
     for (const value of [{ a: "x" }, { b: "x" }, { a: "x", b: "x" }, { a: 1 }, {}, null, []]) {
-      const client = emitted.module.AigcForge.make({
+      const client = emitted.module.Omnixa.make({
         baseUrl: "https://example.com",
         fetch: async () =>
           new Response("data: " + JSON.stringify(value) + "\n\n", {
@@ -1948,7 +1948,7 @@ describe("HttpApiCodegen.generate", () => {
     const start = bytes.indexOf(new TextEncoder().encode("\u2603")[0]!)
     const boundaries = [start + 1, start + 2, bytes.length - 1, bytes.length]
     const counts = { requests: 0, activity: 0, cancelled: 0 }
-    const client = emitted.module.AigcForge.make({
+    const client = emitted.module.Omnixa.make({
       baseUrl: "https://example.com",
       fetch: async () => {
         counts.requests++
@@ -1973,7 +1973,7 @@ describe("HttpApiCodegen.generate", () => {
     await iterator.return!()
     expect(counts).toEqual({ requests: 1, activity: boundaries.length, cancelled: 1 })
     const failure = new Error("reader failed")
-    const failing = emitted.module.AigcForge.make({
+    const failing = emitted.module.Omnixa.make({
       baseUrl: "https://example.com",
       fetch: async () =>
         new Response(
@@ -1990,7 +1990,7 @@ describe("HttpApiCodegen.generate", () => {
       reason: "Transport",
       cause: failure,
     })
-    const malformed = emitted.module.AigcForge.make({
+    const malformed = emitted.module.Omnixa.make({
       baseUrl: "https://example.com",
       fetch: async () => new Response("data: {not-json}\n\n", { headers: { "content-type": "text/event-stream" } }),
     })

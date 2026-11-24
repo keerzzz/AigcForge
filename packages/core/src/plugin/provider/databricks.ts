@@ -1,8 +1,8 @@
 import { Effect } from "effect"
-import { define } from "@aigcfroge/plugin/effect/plugin"
+import { define } from "@omnixa/plugin/effect/plugin"
 
 export const DatabricksPlugin = define({
-  id: "aigcfroge.provider.databricks",
+  id: "omnixa.provider.databricks",
   effect: Effect.fn(function* (ctx) {
     yield* ctx.integration.transform((editor) => {
       // models.dev also lists DATABRICKS_HOST, which only fills the base URL template.

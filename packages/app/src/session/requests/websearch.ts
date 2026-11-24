@@ -1,7 +1,7 @@
-import type { FormInfo, FormOption, SessionFormReplyInput, FormStringField } from "@aigcfroge/client/promise"
+import type { FormInfo, FormOption, SessionFormReplyInput, FormStringField } from "@omnixa/client/promise"
 import { createEffect, createMemo, createResource, on, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
-import type { AigcForgeEventStream } from "@/runtime/server/client"
+import type { OmnixaEventStream } from "@/runtime/server/client"
 
 export function webSearchProviderField(form: FormInfo) {
   return form.fields.find(
@@ -15,7 +15,7 @@ export function createWebSearchRequest(input: {
   request: () => FormInfo | undefined
   providers: (sessionID: string) => Promise<FormOption[]>
   reply: (input: SessionFormReplyInput) => Promise<unknown>
-  events: Pick<AigcForgeEventStream, "listen">
+  events: Pick<OmnixaEventStream, "listen">
 }) {
   const [store, setStore] = createStore({
     selected: "random",
@@ -106,7 +106,7 @@ export async function replyWebSearch(input: {
   selection: string | false
   signal: AbortSignal
   reply: (input: SessionFormReplyInput) => Promise<unknown>
-  events: Pick<AigcForgeEventStream, "listen">
+  events: Pick<OmnixaEventStream, "listen">
 }) {
   if (input.signal.aborted) return
 

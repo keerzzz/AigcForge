@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 
-import { Script } from "@aigcfroge/script"
-import { Release } from "@aigcfroge/script/release"
+import { Script } from "@omnixa/script"
+import { Release } from "@omnixa/script/release"
 import { $ } from "bun"
 
 const output = [`version=${Script.version}`]
 const sha = (await $`git rev-parse HEAD`.quiet().text()).trim()
-const strict = process.env.AIGCFROGE_RELEASE_NOTES_STRICT === "true"
+const strict = process.env.OMNIXA_RELEASE_NOTES_STRICT === "true"
 
 if (!Script.preview) {
   const github = new Release.GitHub(process.env.GH_REPO ?? "keerzzz/AigcForge", process.env.GH_TOKEN ?? "")
@@ -26,7 +26,7 @@ if (process.env.GITHUB_OUTPUT) await Bun.write(process.env.GITHUB_OUTPUT, output
 
 async function releaseNotes(source: string, strict: boolean) {
   // A reviewed changelog from `bun script/release.ts` replaces the generated commit list.
-  const reviewed = process.env.AIGCFROGE_RELEASE_NOTES?.trim()
+  const reviewed = process.env.OMNIXA_RELEASE_NOTES?.trim()
   if (reviewed) return reviewed
   const fallback = await $`bun script/raw-changelog.ts --to ${source}`.quiet().nothrow()
   const text =

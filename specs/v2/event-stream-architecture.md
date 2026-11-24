@@ -26,14 +26,14 @@ Core owns event meaning, publication, persistence, typed observation, durable lo
 
 Server owns public event selection, wire encoding, bounded connection delivery, and subscriber lifecycle.
 
-Protocol continues to own the `AigcForgeEvent` SSE contract. Generated Promise and Effect clients remain unchanged.
+Protocol continues to own the `OmnixaEvent` SSE contract. Generated Promise and Effect clients remain unchanged.
 
 ## Context
 
 Before this change, every `/api/event` connection called `EventV2.liveBounded`. Each call registered a Core callback listener and allocated a dropping queue of raw event payloads. Every HTTP connection then independently performed:
 
 1. Public-event filtering.
-2. `AigcForgeEvent` schema encoding.
+2. `OmnixaEvent` schema encoding.
 3. `JSON.stringify`.
 4. SSE framing.
 5. UTF-8 encoding.
@@ -170,7 +170,7 @@ Keeping current clients connected would create a silent gap. Permanently termina
 Protocol remains unchanged:
 
 ```ts
-HttpApiSchema.StreamSse({ data: AigcForgeEvent })
+HttpApiSchema.StreamSse({ data: OmnixaEvent })
 ```
 
 The raw handler continues to own:
@@ -210,7 +210,7 @@ Results on Apple Silicon with Bun 1.3.14:
 
 The benchmark isolates the repeated encoding boundary. It does not claim to measure socket throughput, client decoding, or downstream HTTP buffering. Queue offers and socket writes remain proportional to connected clients.
 
-An experiment replacing direct schema encoding plus `JSON.stringify` with `Schema.fromJsonString(AigcForgeEvent)` was discarded: the one-client median regressed from approximately 9.5 ms to 38.8 ms with substantially higher variance.
+An experiment replacing direct schema encoding plus `JSON.stringify` with `Schema.fromJsonString(OmnixaEvent)` was discarded: the one-client median regressed from approximately 9.5 ms to 38.8 ms with substantially higher variance.
 
 ## Verification
 

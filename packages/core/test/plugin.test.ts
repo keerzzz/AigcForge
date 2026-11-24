@@ -2,31 +2,31 @@ import { expect } from "bun:test"
 import path from "path"
 import { Clock, Deferred, Effect, Schema } from "effect"
 import { TestClock } from "effect/testing"
-import { Command } from "@aigcfroge/core/command"
-import { Bus } from "@aigcfroge/core/bus"
-import { Credential } from "@aigcfroge/core/credential"
-import { Config } from "@aigcfroge/core/config"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Integration } from "@aigcfroge/core/integration"
-import { Mcp } from "@aigcfroge/core/mcp/index"
-import { Global } from "@aigcfroge/util/global"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginModule } from "@aigcfroge/core/plugin/module"
-import { PluginInternal } from "@aigcfroge/core/plugin/internal"
-import { AssetPublication } from "@aigcfroge/core/asset-publication"
-import { Database } from "@aigcfroge/core/database/database"
-import { Location } from "@aigcfroge/core/location"
-import { Project } from "@aigcfroge/core/project"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
-import { SessionTable } from "@aigcfroge/core/session/sql"
-import { Tool } from "@aigcfroge/core/tool"
-import { Session } from "@aigcfroge/core/session"
-import { SessionSchema } from "@aigcfroge/core/session/schema"
-import { ModelGroup } from "@aigcfroge/schema/model-group"
-import { Watcher } from "@aigcfroge/core/filesystem/watcher"
-import { fromPromise } from "@aigcfroge/plugin/promise/adapter"
-import { AigcForgeEvent } from "../../protocol/src/groups/event"
+import { Command } from "@omnixa/core/command"
+import { Bus } from "@omnixa/core/bus"
+import { Credential } from "@omnixa/core/credential"
+import { Config } from "@omnixa/core/config"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Integration } from "@omnixa/core/integration"
+import { Mcp } from "@omnixa/core/mcp/index"
+import { Global } from "@omnixa/util/global"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginModule } from "@omnixa/core/plugin/module"
+import { PluginInternal } from "@omnixa/core/plugin/internal"
+import { AssetPublication } from "@omnixa/core/asset-publication"
+import { Database } from "@omnixa/core/database/database"
+import { Location } from "@omnixa/core/location"
+import { Project } from "@omnixa/core/project"
+import { ProjectTable } from "@omnixa/core/project/sql"
+import { SessionTable } from "@omnixa/core/session/sql"
+import { Tool } from "@omnixa/core/tool"
+import { Session } from "@omnixa/core/session"
+import { SessionSchema } from "@omnixa/core/session/schema"
+import { ModelGroup } from "@omnixa/schema/model-group"
+import { Watcher } from "@omnixa/core/filesystem/watcher"
+import { fromPromise } from "@omnixa/plugin/promise/adapter"
+import { OmnixaEvent } from "../../protocol/src/groups/event"
 import { awaitWithTimeout, pollWithTimeout, testEffect } from "./lib/effect"
 import { PluginTestLayer } from "./plugin/fixture"
 import { executeTool, toolIdentity } from "./lib/tool"
@@ -54,7 +54,7 @@ capturedPluginTest.live("retains asset source services through the real internal
     const location = yield* Location.Service
     const sessionID = SessionSchema.ID.create()
     const internal = yield* PluginInternal.list()
-    const plugin = internal.pre.find((plugin) => plugin.id === "aigcfroge.tool.list_assets")
+    const plugin = internal.pre.find((plugin) => plugin.id === "omnixa.tool.list_assets")
     if (!plugin) return yield* Effect.die("Missing internal list_assets plugin")
     yield* plugins.activate([{ ...plugin, revision: "capture-test" }])
     yield* db
@@ -530,7 +530,7 @@ capturedPluginTest.live("reads canonical model groups through the Promise plugin
         const response = await ctx.model.group.definition.get({ groupID: "fixture-missing-group" })
         const payload = {
           groupID: "fixture-missing-group",
-          target: { scope: "global" as const, path: "/fixture/aigcfroge.jsonc" },
+          target: { scope: "global" as const, path: "/fixture/omnixa.jsonc" },
           expectedDigest: null,
         }
         await expect(
@@ -620,7 +620,7 @@ it.live("encodes Promise plugin events and closes independent subscriptions", ()
     const payload = { integrationID: Integration.ID.make("raw-fixture"), credentialID: null, extra: "host-only" }
     const event = yield* bus.publish(Credential.Event.Switched, payload)
     expect(event.data).toHaveProperty("extra", "host-only")
-    const encoded = yield* Schema.encodeUnknownEffect(AigcForgeEvent)(event)
+    const encoded = yield* Schema.encodeUnknownEffect(OmnixaEvent)(event)
     expect(encoded).toHaveProperty("data", { integrationID: payload.integrationID, credentialID: null })
     const received = yield* awaitWithTimeout(
       Effect.promise(() => first),
@@ -630,7 +630,7 @@ it.live("encodes Promise plugin events and closes independent subscriptions", ()
       { done: false, value: encoded },
       { done: false, value: encoded },
     ])
-    expect(Schema.is(Schema.toEncoded(AigcForgeEvent))(received[1]?.value)).toBe(true)
+    expect(Schema.is(Schema.toEncoded(OmnixaEvent))(received[1]?.value)).toBe(true)
 
     const aborted = nextEvent(subscriptions.raw, isSwitched)
     controller.abort()
@@ -652,7 +652,7 @@ it.live("encodes Promise plugin events and closes independent subscriptions", ()
       ),
     ).toEqual({
       done: false,
-      value: yield* Schema.encodeUnknownEffect(AigcForgeEvent)(continued),
+      value: yield* Schema.encodeUnknownEffect(OmnixaEvent)(continued),
     })
 
     const pending = nextEvent(subscriptions.canonical, isSwitched)

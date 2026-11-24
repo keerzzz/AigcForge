@@ -1,6 +1,6 @@
 import { bundledLanguagesInfo } from "shiki"
-import { getFilename } from "@aigcfroge/util/path"
-import type { PromptFileAttachment } from "@aigcfroge/client/promise"
+import { getFilename } from "@omnixa/util/path"
+import type { PromptFileAttachment } from "@omnixa/client/promise"
 
 export function attached(file: PromptFileAttachment) {
   if (file.mention) return false

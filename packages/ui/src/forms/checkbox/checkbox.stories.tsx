@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { Icon } from "@aigcfroge/ui/icon"
+import { Icon } from "@omnixa/ui/icon"
 import { Checkbox } from "./checkbox"
 
 const docs = `### Overview

@@ -20,10 +20,10 @@ body:
       required: false
 
   - type: input
-    id: aigcfroge-version
+    id: omnixa-version
     attributes:
-      label: Aigcfroge version
-      description: What version of Aigcfroge are you using?
+      label: Omnixa version
+      description: What version of Omnixa are you using?
     validations:
       required: false
 

@@ -1,5 +1,5 @@
-import { Agent } from "@aigcfroge/schema/agent"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { Agent } from "@omnixa/schema/agent"
+import { ProductMode } from "@omnixa/schema/product-mode"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/http-api"
 import { ApiVcsApplyError } from "../errors.js"

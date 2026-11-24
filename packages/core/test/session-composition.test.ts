@@ -1,13 +1,13 @@
 import { describe, expect } from "bun:test"
 import { eq } from "drizzle-orm"
 import { Effect, Layer, Schema } from "effect"
-import { Agent } from "@aigcfroge/schema/agent"
-import { Composition } from "@aigcfroge/schema/composition"
-import { Model } from "@aigcfroge/schema/model"
-import { Project } from "@aigcfroge/schema/project"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
-import { Session } from "@aigcfroge/schema/session"
-import { Global } from "@aigcfroge/util/global"
+import { Agent } from "@omnixa/schema/agent"
+import { Composition } from "@omnixa/schema/composition"
+import { Model } from "@omnixa/schema/model"
+import { Project } from "@omnixa/schema/project"
+import { AbsolutePath } from "@omnixa/schema/schema"
+import { Session } from "@omnixa/schema/session"
+import { Global } from "@omnixa/util/global"
 import { CompositionDigest } from "../src/composition/digest"
 import { CompositionConsumerView } from "../src/composition/consumer-view"
 import { Database } from "../src/database/database"
@@ -18,7 +18,7 @@ import { testEffect } from "./lib/effect"
 
 const globalLayer = Layer.succeed(
   Global.Service,
-  Global.Service.of(Global.make({ data: "/data", config: "/config", tmp: "/tmp/aigcfroge" })),
+  Global.Service.of(Global.make({ data: "/data", config: "/config", tmp: "/tmp/omnixa" })),
 )
 const databaseLayer = Database.layer({ path: ":memory:" }).pipe(Layer.provide(globalLayer))
 const it = testEffect(SessionComposition.layer.pipe(Layer.provideMerge(databaseLayer)))

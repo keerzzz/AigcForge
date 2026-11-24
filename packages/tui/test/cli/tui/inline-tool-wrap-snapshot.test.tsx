@@ -27,25 +27,25 @@ const tools: readonly ToolFixture[] = [
   {
     icon: "✱",
     label:
-      'Grep "AIGCFROGE.*DB|database|sqlite|drizzle|dev.*db|data.*dir|xdg|APPDATA" in packages/aigcfroge/src (151 matches)',
+      'Grep "OMNIXA.*DB|database|sqlite|drizzle|dev.*db|data.*dir|xdg|APPDATA" in packages/omnixa/src (151 matches)',
   },
   {
     icon: "✱",
-    label: 'Glob "**/*db*" in packages/aigcfroge (6 matches)',
+    label: 'Glob "**/*db*" in packages/omnixa (6 matches)',
   },
   {
     icon: "→",
-    label: "Read packages/aigcfroge/src/storage/db.ts [offset=1, limit=130]",
+    label: "Read packages/omnixa/src/storage/db.ts [offset=1, limit=130]",
   },
   {
     icon: "→",
-    label: "Read packages/aigcfroge/src/index.ts [offset=1, limit=100]",
+    label: "Read packages/omnixa/src/index.ts [offset=1, limit=100]",
     error: "No LSP server available for this file type.",
   },
   {
     icon: "✱",
     label:
-      'Grep "export const AIGCFROGE_DB|AIGCFROGE_DB|AIGCFROGE_DEV|Global\\.Path\\.data|data =" in packages/aigcfroge/src (115 matches)',
+      'Grep "export const OMNIXA_DB|OMNIXA_DB|OMNIXA_DEV|Global\\.Path\\.data|data =" in packages/omnixa/src (115 matches)',
   },
 ] as const
 

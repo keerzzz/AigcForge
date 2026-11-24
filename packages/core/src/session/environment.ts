@@ -1,7 +1,7 @@
 export * as SessionEnvironment from "./environment.js"
 
 import { Context, Effect, Layer } from "effect"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 import { SessionSchema } from "./schema.js"
 
 export type Variables = Readonly<Record<string, string>>
@@ -12,7 +12,7 @@ export interface Interface {
   readonly clear: (sessionID: SessionSchema.ID) => Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionEnvironment") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/SessionEnvironment") {}
 
 const layer = Layer.sync(Service, () => {
   const environments = new Map<SessionSchema.ID, Variables>()

@@ -116,7 +116,7 @@ describe("Google Vertex providers", () => {
             accessToken: "vertex-token",
             project: "vertex-project",
             providerOptions: {
-              labels: { component: "aigcfroge", environment: "test" },
+              labels: { component: "omnixa", environment: "test" },
             },
           }).model("gemini-3.5-flash"),
           prompt: "Say hello.",
@@ -124,7 +124,7 @@ describe("Google Vertex providers", () => {
       )
 
       expect(prepared.body).toMatchObject({
-        labels: { component: "aigcfroge", environment: "test" },
+        labels: { component: "omnixa", environment: "test" },
       })
     }),
   )

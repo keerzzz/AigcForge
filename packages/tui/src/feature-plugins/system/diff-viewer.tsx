@@ -1,8 +1,8 @@
 /** @jsxImportSource @opentui/solid */
-import type { FileDiffInfo, LocationRef } from "@aigcfroge/client"
-import type { Vcs } from "@aigcfroge/schema/vcs"
-import { Plugin } from "@aigcfroge/plugin/tui"
-import type { KeymapCommand, Route } from "@aigcfroge/plugin/tui/context"
+import type { FileDiffInfo, LocationRef } from "@omnixa/client"
+import type { Vcs } from "@omnixa/schema/vcs"
+import { Plugin } from "@omnixa/plugin/tui"
+import type { KeymapCommand, Route } from "@omnixa/plugin/tui/context"
 import {
   MouseButton,
   TextAttributes,
@@ -1231,7 +1231,7 @@ function Commands(props: { context: Plugin.Context }) {
 }
 
 export default Plugin.define({
-  id: "aigcfroge.diffs",
+  id: "omnixa.diffs",
   setup(context) {
     context.ui.router.register({
       name: ROUTE,

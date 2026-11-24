@@ -4,7 +4,7 @@ import {
   flushPersisted,
   type NamespaceStorage,
   type Platform,
-} from "@aigcfroge/app/desktop"
+} from "@omnixa/app/desktop"
 import type { ElectronAPI } from "../api-types"
 import { onBeforeDispose } from "../ipc-client"
 

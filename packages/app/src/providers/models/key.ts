@@ -1,5 +1,5 @@
 import { Schema } from "effect"
-import type { ModelSelection } from "@aigcfroge/client/promise"
+import type { ModelSelection } from "@omnixa/client/promise"
 
 export const ModelKey = Schema.Union([
   Schema.Struct({

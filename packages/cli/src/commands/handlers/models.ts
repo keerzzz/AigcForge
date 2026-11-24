@@ -1,5 +1,5 @@
-import { AigcForge } from "@aigcfroge/client"
-import { Service } from "@aigcfroge/client/effect/service"
+import { Omnixa } from "@omnixa/client"
+import { Service } from "@omnixa/client/effect/service"
 import { Effect, Option } from "effect"
 import { EOL } from "node:os"
 import { Commands } from "../commands"
@@ -13,7 +13,7 @@ export default Runtime.handler(
       server: Option.getOrUndefined(input.server),
       standalone: input.standalone,
     })
-    const client = AigcForge.make({
+    const client = Omnixa.make({
       baseUrl: server.endpoint.url,
       headers: Service.headers(server.endpoint),
     })

@@ -1,10 +1,10 @@
 export * as Skill from "./skill.js"
 
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import type { FSUtil } from "@aigcfroge/util/fs-util"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import type { FSUtil } from "@omnixa/util/fs-util"
 import path from "path"
 import { Context, Effect, Layer, Types } from "effect"
-import { Skill } from "@aigcfroge/schema/skill"
+import { Skill } from "@omnixa/schema/skill"
 import { Bus } from "./bus.js"
 import { Permission } from "./permission.js"
 import { State } from "./state.js"
@@ -28,7 +28,7 @@ export type ID = Skill.ID
 export const Name = Skill.Name
 export type Name = Skill.Name
 
-export { Event } from "@aigcfroge/schema/skill"
+export { Event } from "@omnixa/schema/skill"
 
 export const available = (skills: ReadonlyArray<Info>, permissions: Permission.Ruleset) =>
   skills.filter((skill) => Permission.evaluate("skill", skill.id, permissions).effect !== "deny")
@@ -84,7 +84,7 @@ export interface Interface extends State.Transformable<Editor> {
   readonly list: () => Effect.Effect<Info[]>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Skill") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Skill") {}
 
 const layer = Layer.effect(
   Service,

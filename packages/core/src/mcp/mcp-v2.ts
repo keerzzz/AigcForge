@@ -21,7 +21,7 @@ export interface Interface {
   readonly callTool: (input: { name: string; args: Record<string, unknown> }) => Effect.Effect<unknown>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/Mcp") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/Mcp") {}
 
 /** No-op layer for when MCP is not configured. */
 export const noopLayer = Layer.succeed(

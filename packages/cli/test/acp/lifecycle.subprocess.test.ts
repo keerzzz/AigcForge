@@ -12,7 +12,7 @@ describe("acp lifecycle subprocess", () => {
   // The private server is found with `pgrep`, which Windows lacks.
   const testOutsideWindows = process.platform === "win32" ? test.skip : test
   testOutsideWindows(
-    "exits when the private server process dies (https://github.com/anomalyco/aigcfroge/issues/51716)",
+    "exits when the private server process dies (https://github.com/anomalyco/omnixa/issues/51716)",
     async () => {
       await using fixture = await createAcpFixture()
       const acp = fixture.spawn()
@@ -31,7 +31,7 @@ describe("acp lifecycle subprocess", () => {
       const exited = await Promise.race([acp.exited, timeout.promise]).finally(() => clearTimeout(timer))
       expect(exited).toBe(1)
       await acp[Symbol.asyncDispose]()
-      expect(acp.stderr()).toContain("aigcfroge acp: server exited unexpectedly (signal SIGKILL)")
+      expect(acp.stderr()).toContain("omnixa acp: server exited unexpectedly (signal SIGKILL)")
     },
     60_000,
   )

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { Skill } from "@aigcfroge/schema/skill"
+import { Skill } from "@omnixa/schema/skill"
 import type { ImageAttachmentPart, Prompt } from "@/composer/state"
 import type { FileSelection } from "@/workspaces/files/model"
 import { buildPromptRequest } from "./request"

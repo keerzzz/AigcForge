@@ -1,6 +1,6 @@
 import type { CancelNotification, PromptRequest, PromptResponse, RequestError } from "@agentclientprotocol/sdk"
-import type { AigcForgeClient, AigcForgeEvent } from "@aigcfroge/client/effect"
-import { TokenUsage } from "@aigcfroge/schema/token-usage"
+import type { OmnixaClient, OmnixaEvent } from "@omnixa/client/effect"
+import { TokenUsage } from "@omnixa/schema/token-usage"
 import {
   Cause,
   Context,
@@ -37,13 +37,13 @@ export interface Interface {
 }
 
 /** Core acknowledges an interrupt before its cleanup settles, and its shell tool waits 3s before SIGKILL. */
-export const CancelDrainTimeout = Context.Reference<Duration.Input>("@aigcfroge/cli/acp/Turn/CancelDrainTimeout", {
+export const CancelDrainTimeout = Context.Reference<Duration.Input>("@omnixa/cli/acp/Turn/CancelDrainTimeout", {
   defaultValue: () => "5 seconds",
 })
 
 type Subscription = {
   readonly scope: Scope.Closeable
-  readonly events: Queue.Dequeue<AigcForgeEvent, unknown>
+  readonly events: Queue.Dequeue<OmnixaEvent, unknown>
   readonly askQueue: Queue.Queue<Effect.Effect<void, ACPError.Error | RequestError>>
   readonly settled: Map<string, Deferred.Deferred<void>>
 }
@@ -57,7 +57,7 @@ type Turn = {
 }
 
 export const make = Effect.fnUntraced(function* (input: {
-  readonly client: AigcForgeClient
+  readonly client: OmnixaClient
   readonly connection: ACPConnection.Interface
   readonly sessions: ACPSessions.Interface
   readonly catalog: ACPCatalog.Interface

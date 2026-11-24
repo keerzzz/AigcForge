@@ -1,7 +1,7 @@
-import { AigcForge, type MigrationV1StatusOutput } from "@aigcfroge/client/promise"
-import { useLanguage } from "@aigcfroge/app/desktop"
-import { Loader } from "@aigcfroge/ui/loader"
-import { showToast, toaster, Toast } from "@aigcfroge/ui/toast"
+import { Omnixa, type MigrationV1StatusOutput } from "@omnixa/client/promise"
+import { useLanguage } from "@omnixa/app/desktop"
+import { Loader } from "@omnixa/ui/loader"
+import { showToast, toaster, Toast } from "@omnixa/ui/toast"
 import { createRoot, createSignal, onCleanup, onMount } from "solid-js"
 import type { ServerReadyData } from "../shared/ipc-contract"
 
@@ -83,7 +83,7 @@ export function MigrationStatus(props: { server: ServerReadyData }) {
     if (abort.signal.aborted) return
 
     // The main process credentials sidecar requests; see `wireRendererHeaders`.
-    const client = AigcForge.make({ baseUrl: props.server.url })
+    const client = Omnixa.make({ baseUrl: props.server.url })
 
     void (async () => {
       while (true) {

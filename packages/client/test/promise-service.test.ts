@@ -59,7 +59,7 @@ test("adds configured environment variables with native promises", async () => {
     file: registration,
     version: "test",
     command: fixture.command("environment"),
-    env: { AIGCFROGE_SERVICE_ENV_TEST: "configured" },
+    env: { OMNIXA_SERVICE_ENV_TEST: "configured" },
   })
   const info = await Bun.file(registration).json()
   fixture.track(info.pid)
@@ -77,7 +77,7 @@ test("passes the prepared handoff to the replacement server", async () => {
     file: registration,
     version: "test",
     command: fixture.command("environment"),
-    env: { AIGCFROGE_PTY_HANDOFF: "must-not-inherit" },
+    env: { OMNIXA_PTY_HANDOFF: "must-not-inherit" },
   })
   const replacement = await Bun.file(registration).json()
   fixture.track(replacement.pid)

@@ -1,12 +1,12 @@
-import { SessionMessage } from "@aigcfroge/schema/session-message"
-import { SessionInbox } from "@aigcfroge/schema/session-inbox"
-import { PromptInput } from "@aigcfroge/schema/prompt-input"
-import { Session } from "@aigcfroge/schema/session"
-import { SessionConsultation } from "@aigcfroge/schema/session-consultation"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
-import { SessionStats } from "@aigcfroge/schema/session-stats"
-import { InstructionEntry } from "@aigcfroge/schema/instruction-entry"
-import { Project } from "@aigcfroge/schema/project"
+import { SessionMessage } from "@omnixa/schema/session-message"
+import { SessionInbox } from "@omnixa/schema/session-inbox"
+import { PromptInput } from "@omnixa/schema/prompt-input"
+import { Session } from "@omnixa/schema/session"
+import { SessionConsultation } from "@omnixa/schema/session-consultation"
+import { ProductMode } from "@omnixa/schema/product-mode"
+import { SessionStats } from "@omnixa/schema/session-stats"
+import { InstructionEntry } from "@omnixa/schema/instruction-entry"
+import { Project } from "@omnixa/schema/project"
 import {
   AbsolutePath,
   DateTimeUtcFromMillis,
@@ -15,8 +15,8 @@ import {
   RelativePath,
   optional,
   statics,
-} from "@aigcfroge/schema/schema"
-import { Event } from "@aigcfroge/schema/event"
+} from "@omnixa/schema/schema"
+import { Event } from "@omnixa/schema/event"
 import { Context, Effect, Result, Schema, SchemaGetter, SchemaParser, Struct } from "effect"
 import { Base64Url } from "effect/encoding"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiMiddleware, HttpApiSchema, OpenApi } from "effect/http-api"
@@ -38,17 +38,22 @@ import {
   UnknownError,
   UnsupportedProductModeError,
 } from "../errors.js"
-import { Agent } from "@aigcfroge/schema/agent"
-import { Skill } from "@aigcfroge/schema/skill"
-import { Model } from "@aigcfroge/schema/model"
-import { Permission } from "@aigcfroge/schema/permission"
-import { Location } from "@aigcfroge/schema/location"
-import { SessionEvent } from "@aigcfroge/schema/session-event"
-import { SessionTaskEvent } from "@aigcfroge/schema/session-task-event"
-import { EventLog } from "@aigcfroge/schema/event-log"
-import { FileDiff } from "@aigcfroge/schema/file-diff"
-import { Form } from "@aigcfroge/schema/form"
+import { Agent } from "@omnixa/schema/agent"
+import { Skill } from "@omnixa/schema/skill"
+import { Model } from "@omnixa/schema/model"
+import { Permission } from "@omnixa/schema/permission"
+import { Location } from "@omnixa/schema/location"
+import { SessionEvent } from "@omnixa/schema/session-event"
+import { SessionTaskEvent } from "@omnixa/schema/session-task-event"
+import { EventLog } from "@omnixa/schema/event-log"
+import { FileDiff } from "@omnixa/schema/file-diff"
+import { Form } from "@omnixa/schema/form"
 import { PublicSessionMessage } from "./message.js"
+
+export const SessionLogItem = Schema.Union([SessionEvent.Durable, SessionTaskEvent.Durable, EventLog.Synced]).annotate({
+  identifier: "SessionLogItem",
+})
+export type SessionLogItem = typeof SessionLogItem.Type
 
 const ParentIDFilter = Schema.Union([
   Session.ID,
@@ -333,7 +338,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
           identifier: "session.active",
           summary: "List active sessions",
           description:
-            "Retrieve foreground Session drains currently owned by this AigcForge process. Sessions absent from the result are inactive.",
+            "Retrieve foreground Session drains currently owned by this Omnixa process. Sessions absent from the result are inactive.",
         }),
       ),
     )
@@ -804,9 +809,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
           follow: BooleanFromString.pipe(Schema.optional),
         },
         success: HttpApiSchema.StreamSse({
-          data: Schema.Union([SessionEvent.Durable, SessionTaskEvent.Durable, EventLog.Synced]).annotate({
-            identifier: "SessionLogItem",
-          }),
+          data: SessionLogItem,
         }),
         error: SessionNotFoundError,
       }).annotateMerge(
@@ -824,7 +827,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
         query: { resume: BooleanFromString.pipe(Schema.optional) },
         success: Schema.Struct({
           interrupted: Schema.Boolean.annotate({
-            description: "Whether an active execution owned by this AigcForge process was interrupted.",
+            description: "Whether an active execution owned by this Omnixa process was interrupted.",
           }),
         }).annotate({ identifier: "SessionInterruptResponse" }),
         error: SessionNotFoundError,
@@ -835,7 +838,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S, FormI ext
             identifier: "session.interrupt",
             summary: "Interrupt session execution",
             description:
-              "Interrupt active execution owned by this AigcForge process. Returns interrupted=true when an active execution was interrupted and false for the idle no-op. When resume=true, execution resumes pending steering input and next-in-line control items (manual compaction, moves) while queued prompts remain parked.",
+              "Interrupt active execution owned by this Omnixa process. Returns interrupted=true when an active execution was interrupted and false for the idle no-op. When resume=true, execution resumes pending steering input and next-in-line control items (manual compaction, moves) while queued prompts remain parked.",
           }),
         ),
     )

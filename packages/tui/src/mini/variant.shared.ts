@@ -3,13 +3,13 @@
 // Variants are provider-specific reasoning effort levels (e.g., "high", "max").
 // Resolution priority: CLI --variant flag > valid session history > saved preference.
 //
-// The saved variant persists across sessions in ~/.local/state/aigcfroge/model.json
+// The saved variant persists across sessions in ~/.local/state/omnixa/model.json
 // so your last-used variant sticks. Cycling (ctrl+t) updates both the active
 // variant and the persisted file.
 import { createSession, sessionVariant, type RunSession, type SessionMessages } from "./session.shared"
 import type { RunInput, RunProvider } from "./types"
 import { cycleModelVariant, isModelGroup, normalizeModelVariant } from "../model-preference"
-import type { ModelGroupCurrent } from "@aigcfroge/client/promise"
+import type { ModelGroupCurrent } from "@omnixa/client/promise"
 
 export function modelInfo(
   providers: RunProvider[] | undefined,

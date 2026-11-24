@@ -1,4 +1,4 @@
-import type { SessionInfo } from "@aigcfroge/client"
+import type { SessionInfo } from "@omnixa/client"
 
 /** Plain text preserves the server and Session identity on terminal and external clients. */
 export function sessionReferenceText(session: Pick<SessionInfo, "id" | "title">, server: string) {

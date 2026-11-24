@@ -10,7 +10,7 @@ import path from "node:path"
 import { mkdtempSync } from "node:fs"
 import os from "node:os"
 
-const outdir = mkdtempSync(path.join(os.tmpdir(), "aigcfroge-workerd-probe-"))
+const outdir = mkdtempSync(path.join(os.tmpdir(), "omnixa-workerd-probe-"))
 const result = await Bun.build({
   entrypoints: [path.join(import.meta.dir, "../src/workerd.ts")],
   conditions: ["workerd"],

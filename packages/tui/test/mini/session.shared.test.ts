@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, mock, spyOn, test } from "bun:test"
-import { AigcForge, type SessionMessageUser } from "@aigcfroge/client/promise"
+import { Omnixa, type SessionMessageUser } from "@omnixa/client/promise"
 import {
   createSession,
   resolveCurrentSession,
@@ -30,7 +30,7 @@ function userMessage(id: string, text: string, input: Partial<SessionMessageUser
 
 describe("run session shared", () => {
   test("adopts the durable Group and keeps physical history variants separate", async () => {
-    const sdk = AigcForge.make({ baseUrl: "https://aigcfroge.test" })
+    const sdk = Omnixa.make({ baseUrl: "https://omnixa.test" })
     const group = { type: "group" as const, groupID: "fallback" }
     spyOn(sdk.message, "list").mockResolvedValue({ data: [userMessage("msg-group", "Hello")], cursor: {} })
     spyOn(sdk.session, "get").mockResolvedValue({
@@ -220,7 +220,7 @@ describe("run session shared", () => {
   })
 
   test("restores current prompt history from stored text and file references", async () => {
-    const client = AigcForge.make({ baseUrl: "https://aigcfroge.test" })
+    const client = Omnixa.make({ baseUrl: "https://omnixa.test" })
     spyOn(client.message, "list").mockImplementation(() =>
       Promise.resolve({
         data: [

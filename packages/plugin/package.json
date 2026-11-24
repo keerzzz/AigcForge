@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@aigcfroge/plugin",
+  "name": "@omnixa/plugin",
   "version": "0.0.9",
   "type": "module",
   "license": "MIT",
@@ -29,21 +29,21 @@
   ],
   "dependencies": {
     "@ai-sdk/provider": "3.0.8",
-    "@aigcfroge/ai": "workspace:*",
-    "@aigcfroge/client": "workspace:*",
-    "@aigcfroge/protocol": "workspace:*",
-    "@aigcfroge/schema": "workspace:*",
-    "@aigcfroge/util": "workspace:*",
+    "@omnixa/ai": "workspace:*",
+    "@omnixa/client": "workspace:*",
+    "@omnixa/protocol": "workspace:*",
+    "@omnixa/schema": "workspace:*",
+    "@omnixa/util": "workspace:*",
     "effect": "catalog:"
   },
   "peerDependencies": {
-    "@aigcfroge/theme": "workspace:*",
+    "@omnixa/theme": "workspace:*",
     "@opentui/core": ">=0.5.17",
     "@opentui/solid": ">=0.5.17",
     "solid-js": ">=1.9.0"
   },
   "peerDependenciesMeta": {
-    "@aigcfroge/theme": {
+    "@omnixa/theme": {
       "optional": true
     },
     "@opentui/core": {
@@ -57,7 +57,7 @@
     }
   },
   "devDependencies": {
-    "@aigcfroge/theme": "workspace:*",
+    "@omnixa/theme": "workspace:*",
     "@opentui/core": "catalog:",
     "@opentui/solid": "catalog:",
     "@tsconfig/bun": "catalog:",

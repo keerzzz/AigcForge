@@ -1,22 +1,22 @@
 import { describe, expect, test } from "bun:test"
-import { Message, Media, LanguageModel } from "@aigcfroge/ai"
-import { OpenAIChat } from "@aigcfroge/ai/protocols/openai-chat"
-import { Model } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { SessionProviderContext } from "@aigcfroge/core/session/provider-context"
-import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
-import { SessionAttempt } from "@aigcfroge/schema/session-attempt"
-import { SessionID } from "@aigcfroge/schema/session-id"
-import { Event } from "@aigcfroge/schema/event"
-import type { ModelSource } from "@aigcfroge/schema/model-source"
-import { AgentAttachment, Base64, FileAttachment, SkillAttachment } from "@aigcfroge/schema/prompt"
-import { Skill } from "@aigcfroge/schema/skill"
-import { toLLMMessages } from "@aigcfroge/core/session/runner/to-llm-message"
-import { Agent } from "@aigcfroge/core/agent"
-import { Shell } from "@aigcfroge/schema/shell"
-import { Location } from "@aigcfroge/schema/location"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
+import { Message, Media, LanguageModel } from "@omnixa/ai"
+import { OpenAIChat } from "@omnixa/ai/protocols/openai-chat"
+import { Model } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { SessionProviderContext } from "@omnixa/core/session/provider-context"
+import { SessionRunnerModel } from "@omnixa/core/session/runner/model"
+import { SessionAttempt } from "@omnixa/schema/session-attempt"
+import { SessionID } from "@omnixa/schema/session-id"
+import { Event } from "@omnixa/schema/event"
+import type { ModelSource } from "@omnixa/schema/model-source"
+import { AgentAttachment, Base64, FileAttachment, SkillAttachment } from "@omnixa/schema/prompt"
+import { Skill } from "@omnixa/schema/skill"
+import { toLLMMessages } from "@omnixa/core/session/runner/to-llm-message"
+import { Agent } from "@omnixa/core/agent"
+import { Shell } from "@omnixa/schema/shell"
+import { Location } from "@omnixa/schema/location"
+import { AbsolutePath } from "@omnixa/schema/schema"
 import { DateTime, Struct } from "effect"
 import path from "path"
 import { pathToFileURL } from "url"
@@ -1098,15 +1098,15 @@ Earlier work
     ])
   })
 
-  test("replays flat state under an AigcForge hosted model's route key", () => {
-    const aigcfroge = Model.Ref.make({ id: Model.ID.make("claude-fable-5"), providerID: Provider.ID.aigcfroge })
+  test("replays flat state under an Omnixa hosted model's route key", () => {
+    const omnixa = Model.Ref.make({ id: Model.ID.make("claude-fable-5"), providerID: Provider.ID.omnixa })
     const messages = toLLMMessages(
       [
         SessionMessage.Assistant.make({
-          id: id("assistant-aigcfroge-reasoning"),
+          id: id("assistant-omnixa-reasoning"),
           type: "assistant",
           agent: build,
-          model: aigcfroge,
+          model: omnixa,
           content: [
             SessionMessage.AssistantReasoning.make({
               type: "reasoning",
@@ -1117,9 +1117,9 @@ Earlier work
           time: { created, completed: created },
         }),
       ].map((message) => receipted(message)),
-      aigcfroge,
+      omnixa,
       "anthropic",
-      proofFor(aigcfroge),
+      proofFor(omnixa),
     )
 
     expect(messages[0]?.content).toEqual([

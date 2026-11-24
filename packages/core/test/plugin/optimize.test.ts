@@ -1,22 +1,22 @@
 import { describe, expect, test } from "bun:test"
-import { LanguageModel, SystemPart } from "@aigcfroge/ai"
-import { OpenAIChat } from "@aigcfroge/ai/protocols"
-import { Agent } from "@aigcfroge/core/agent"
-import { Database } from "@aigcfroge/core/database/database"
-import { Location } from "@aigcfroge/core/location"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
-import { PluginHost } from "@aigcfroge/core/plugin/host"
-import { OptimizePlugin } from "@aigcfroge/core/plugin/optimize"
-import { Session } from "@aigcfroge/core/session"
-import { SessionComposition } from "@aigcfroge/core/session/composition"
-import { SessionModelRequest } from "@aigcfroge/core/session/model-request"
-import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
-import { SessionTable } from "@aigcfroge/core/session/sql"
-import { SessionSystemPrompt } from "@aigcfroge/core/session/system-prompt"
-import type { SessionHooks } from "@aigcfroge/plugin/effect/session"
-import { Model } from "@aigcfroge/schema/model"
-import { Provider } from "@aigcfroge/core/provider"
+import { LanguageModel, SystemPart } from "@omnixa/ai"
+import { OpenAIChat } from "@omnixa/ai/protocols"
+import { Agent } from "@omnixa/core/agent"
+import { Database } from "@omnixa/core/database/database"
+import { Location } from "@omnixa/core/location"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginHooks } from "@omnixa/core/plugin/hooks"
+import { PluginHost } from "@omnixa/core/plugin/host"
+import { OptimizePlugin } from "@omnixa/core/plugin/optimize"
+import { Session } from "@omnixa/core/session"
+import { SessionComposition } from "@omnixa/core/session/composition"
+import { SessionModelRequest } from "@omnixa/core/session/model-request"
+import { SessionRunnerModel } from "@omnixa/core/session/runner/model"
+import { SessionTable } from "@omnixa/core/session/sql"
+import { SessionSystemPrompt } from "@omnixa/core/session/system-prompt"
+import type { SessionHooks } from "@omnixa/plugin/effect/session"
+import { Model } from "@omnixa/schema/model"
+import { Provider } from "@omnixa/core/provider"
 import { Effect } from "effect"
 import { testEffect } from "../lib/effect"
 import { CompositionFixture } from "../lib/composition"
@@ -65,11 +65,11 @@ const context = (id: string, system = fallback): SessionHooks["context"] => ({
 describe("OptimizePlugin", () => {
   test("enables prompt plugins without model-specific tool optimization", () => {
     expect(OptimizePlugin.Plugins.map((plugin) => plugin.id)).toEqual([
-      "aigcfroge.prompt.openai",
-      "aigcfroge.prompt.anthropic",
-      "aigcfroge.prompt.kimi",
-      "aigcfroge.prompt.arcee",
-      "aigcfroge.prompt.meta",
+      "omnixa.prompt.openai",
+      "omnixa.prompt.anthropic",
+      "omnixa.prompt.kimi",
+      "omnixa.prompt.arcee",
+      "omnixa.prompt.meta",
     ])
   })
 
@@ -269,7 +269,7 @@ describe("OptimizePlugin", () => {
         SessionSystemPrompt.render(PROMPT_GPT, Object.keys(event.tools)),
         "Project instructions",
       ])
-      expect(event.system[0]?.text).not.toContain("${AIGCFROGE_TOOL_GUIDANCE}")
+      expect(event.system[0]?.text).not.toContain("${OMNIXA_TOOL_GUIDANCE}")
       expect(Object.keys(event.tools).sort()).toEqual(["edit", "glob", "grep", "patch", "read", "shell", "write"])
     }),
   )

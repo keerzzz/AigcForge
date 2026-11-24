@@ -14,8 +14,8 @@ import path from "path"
 import { heapStats } from "bun:jsc"
 import { Effect, Layer, Logger, Scope } from "effect"
 import { FetchHttpClient } from "effect/http"
-import { Global } from "@aigcfroge/util/global"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Global } from "@omnixa/util/global"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { AppNodeBuilder } from "../src/effect/app-node-builder"
 import { Bus } from "../src/bus"
 import { Database } from "../src/database/database"
@@ -73,7 +73,7 @@ const median = (values: ReadonlyArray<number>) => {
   return sorted.length % 2 === 0 ? ((sorted[middle - 1] ?? 0) + upper) / 2 : upper
 }
 
-const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-location-memory-")))
+const root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), "omnixa-location-memory-")))
 const globalLayer = Global.layerWith({
   home: path.join(root, "home"),
   data: path.join(root, "data"),
@@ -230,7 +230,7 @@ if (jsonPath) {
     jsonPath,
     JSON.stringify(
       {
-        revision: process.env.AIGCFROGE_BENCH_REVISION,
+        revision: process.env.OMNIXA_BENCH_REVISION,
         bun: Bun.version,
         bunRevision: Bun.revision,
         locationCount,

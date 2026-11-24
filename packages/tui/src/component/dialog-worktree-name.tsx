@@ -1,5 +1,5 @@
 import { InputRenderable, TextAttributes } from "@opentui/core"
-import { Slug } from "@aigcfroge/core/util/slug"
+import { Slug } from "@omnixa/core/util/slug"
 import { createSignal, onMount } from "solid-js"
 import { Keymap } from "../context/keymap"
 import { useTheme } from "../context/theme"

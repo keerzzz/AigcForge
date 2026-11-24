@@ -1,20 +1,20 @@
-import type { AigcForgeClient, AigcForgeEvent } from "@aigcfroge/client"
-import { createClientConnection, createPersistentPtyClient } from "@aigcfroge/client/solid"
+import type { OmnixaClient, OmnixaEvent } from "@omnixa/client"
+import { createClientConnection, createPersistentPtyClient } from "@omnixa/client/solid"
 import { createGlobalEmitter } from "@solid-primitives/event-bus"
 import { onCleanup } from "solid-js"
 import { createSimpleContext } from "./helper"
 import { useLog } from "./log"
 
 type ManagedService = {
-  reconnect: (signal: AbortSignal) => Promise<{ api: AigcForgeClient; url?: string }>
+  reconnect: (signal: AbortSignal) => Promise<{ api: OmnixaClient; url?: string }>
   restart: () => Promise<void>
 }
 
-type ClientEventMap = { [Type in AigcForgeEvent["type"]]: Extract<AigcForgeEvent, { type: Type }> }
+type ClientEventMap = { [Type in OmnixaEvent["type"]]: Extract<OmnixaEvent, { type: Type }> }
 
 export const { use: useClient, provider: ClientProvider } = createSimpleContext({
   name: "Client",
-  init: (props: { api: AigcForgeClient; url?: string; service?: ManagedService }) => {
+  init: (props: { api: OmnixaClient; url?: string; service?: ManagedService }) => {
     const log = useLog({ component: "client" })
     const service = props.service
     const events = createGlobalEmitter<ClientEventMap>()

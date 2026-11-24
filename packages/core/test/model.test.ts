@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { Model } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
+import { Model } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
 
 const decode = Schema.decodeUnknownSync(Model.Ref)
 

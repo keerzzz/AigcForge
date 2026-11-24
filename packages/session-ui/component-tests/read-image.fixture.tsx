@@ -1,8 +1,8 @@
 import { createMemo, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { render } from "solid-js/web"
-import { DialogProvider } from "@aigcfroge/ui/context/dialog"
-import { AigcForge } from "@aigcfroge/client/promise"
+import { DialogProvider } from "@omnixa/ui/context/dialog"
+import { Omnixa } from "@omnixa/client/promise"
 import { readLocalImage } from "../../app/src/runtime/server/image"
 import { MarkdownProvider } from "../src/context/markdown"
 import { CurrentSessionProviders } from "../src/storybook/current-session-story"
@@ -14,9 +14,9 @@ export function mountReadImage(options: { path: string; grouped: boolean; runnin
   host.dataset.testid = "read-image-fixture"
   document.body.appendChild(host)
   render(() => {
-    const api = AigcForge.make({
+    const api = Omnixa.make({
       baseUrl: location.origin,
-      headers: { Authorization: `Basic ${btoa("aigcfroge:fixture")}` },
+      headers: { Authorization: `Basic ${btoa("omnixa:fixture")}` },
     })
 
     const [state, setState] = createStore({ open: true, visible: true, running: !!options.running, appended: false })

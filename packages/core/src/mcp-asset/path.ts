@@ -2,7 +2,7 @@ export * as MCPAssetPath from "./path"
 
 import { Effect, Schema } from "effect"
 import path from "path"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { LocationMutation } from "../location-mutation"
 import { MCPS_DIR } from "../constants"
 

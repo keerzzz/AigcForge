@@ -1,6 +1,6 @@
 export * as CompositionCatalog from "./composition-catalog"
 
-import { Composition } from "@aigcfroge/schema/composition"
+import { Composition } from "@omnixa/schema/composition"
 import { Result } from "effect"
 import path from "path"
 import { SkillFile } from "../config/plugin/skill-file"

@@ -1,9 +1,9 @@
 export * as TaskSpawnTool from "./taskspawn.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
 import { Effect, Schema } from "effect"
-import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task"
+import { SessionTask as SessionTaskSchema } from "@omnixa/schema/session-task"
 import { Permission } from "../permission.js"
 import { SessionTask } from "../session/task.js"
 
@@ -37,7 +37,7 @@ export const Output = Schema.Struct({
 const toModelContent = (tasks: ReadonlyArray<SessionTask.Info>) => JSON.stringify(tasks, null, 2)
 
 export const Plugin = {
-  id: "aigcfroge.tool.task_spawn",
+  id: "omnixa.tool.task_spawn",
   effect: Effect.fn("TaskSpawnTool.Plugin")(function* (ctx: Context) {
     const tasks = yield* SessionTask.Service
     const permission = yield* Permission.Service

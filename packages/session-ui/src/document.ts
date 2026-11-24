@@ -1,4 +1,4 @@
-import type { FileDiffInfo, SessionMessageInfo, SessionStatus } from "@aigcfroge/client/promise"
+import type { FileDiffInfo, SessionMessageInfo, SessionStatus } from "@omnixa/client/promise"
 
 export type SessionDocument = {
   sessionID: string

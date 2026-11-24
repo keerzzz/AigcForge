@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { extensionEnabled } from "@aigcfroge/gui-extensions/sdk/bridge"
+import { extensionEnabled } from "@omnixa/gui-extensions/sdk/bridge"
 import details from "../../../../gui-extensions/src/details/index"
 import context from "../../../../gui-extensions/src/context/index"
 import { openDatabase } from "../storage/database"

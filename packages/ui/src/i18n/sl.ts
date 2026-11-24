@@ -94,16 +94,6 @@ export const dict: Record<string, string> = {
   "ui.sessionTurn.retry.attempt": "poskus #{{attempt}}",
   "ui.sessionTurn.retry.attemptLine": "{{line}} - poskus #{{attempt}}",
   "ui.sessionTurn.retry.geminiHot": "Gemini je trenutno preobremenjen",
-  "ui.sessionTurn.error.freeUsageExceeded": "Brezplačna uporaba je presežena",
-  "ui.sessionTurn.error.addCredits": "Dodajte kredite",
-  "dialog.usageExceeded.freeTier.title": "Brezplačna omejitev je dosežena",
-  "dialog.usageExceeded.freeTier.description":
-    "Naročite se na AigcForge Go za zanesljiv dostop do najboljših odprtokodnih modelov za 10 $/mesec.",
-  "dialog.usageExceeded.freeTier.actionLabel": "Naročite se",
-  "dialog.usageExceeded.accountRateLimit.title": "Dosežena omejitev",
-  "dialog.usageExceeded.accountRateLimit.description":
-    "Omejitev uporabe je dosežena. Če želite zdaj še naprej uporabljati ta model, omogočite uporabo iz razpoložljivega stanja",
-  "dialog.usageExceeded.accountRateLimit.actionLabel": "Odprite nastavitve",
   "ui.sessionTurn.status.delegating": "Delegiranje dela",
   "ui.sessionTurn.status.planning": "Načrtovanje naslednjih korakov",
   "ui.sessionTurn.status.gatheringContext": "Raziskovanje",

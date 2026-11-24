@@ -1,4 +1,4 @@
-import type { FileDiffInfo } from "@aigcfroge/client/promise"
+import type { FileDiffInfo } from "@omnixa/client/promise"
 import { Contract, type SessionRef, type SessionScreen } from "../sdk"
 
 export type ChangeKind = "add" | "del" | "mix"

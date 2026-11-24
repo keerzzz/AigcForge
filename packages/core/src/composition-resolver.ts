@@ -1,8 +1,8 @@
 import { Context, DateTime, Effect, Layer, Option, Result, Schema } from "effect"
-import { Composition } from "@aigcfroge/schema/composition"
-import { CredentialScan } from "@aigcfroge/schema/credential-scan"
-import { computeMaxConcurrency, validateGraph } from "@aigcfroge/schema/workflow-asset"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { Composition } from "@omnixa/schema/composition"
+import { CredentialScan } from "@omnixa/schema/credential-scan"
+import { computeMaxConcurrency, validateGraph } from "@omnixa/schema/workflow-asset"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Agent } from "./agent"
 import { AgentAsset } from "./agent-asset"
 import { AgentAssetBridge } from "./agent/asset-bridge"
@@ -32,7 +32,7 @@ export interface Interface {
   readonly checkHealth: (profilePath: string) => Effect.Effect<Composition.Health, CustomProfile.NotFoundError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/CompositionResolver") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/CompositionResolver") {}
 
 export const layer = Layer.effect(
   Service,

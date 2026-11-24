@@ -1,6 +1,6 @@
 import type { SessionUpdate } from "@agentclientprotocol/sdk"
-import type { AigcForgeClient } from "@aigcfroge/client/effect"
-import type { SessionMessage } from "@aigcfroge/schema/session-message"
+import type { OmnixaClient } from "@omnixa/client/effect"
+import type { SessionMessage } from "@omnixa/schema/session-message"
 import { Effect, Option, Stream } from "effect"
 import type { Capabilities } from "./capabilities"
 import { ACPClient } from "./client"
@@ -13,7 +13,7 @@ import { ACPTranslate } from "./translate"
 import { completedToolUpdate, errorToolUpdate, pendingToolCall, runningToolUpdate } from "./tool"
 
 export function history(
-  client: AigcForgeClient,
+  client: OmnixaClient,
   connection: ACPConnection.Interface,
   attached: Attached,
   capabilities: Capabilities,

@@ -10,7 +10,7 @@ import {
 
 export type Interface = MediaClient.Interface<ImageRequestFor, ImageEvent, ImageResponse>
 
-export class ImageClientService extends Context.Service<ImageClientService, Interface>()("@aigcfroge/ImageClient") {}
+export class ImageClientService extends Context.Service<ImageClientService, Interface>()("@omnixa/ImageClient") {}
 export const Service = ImageClientService
 export type Service = ImageClientService
 

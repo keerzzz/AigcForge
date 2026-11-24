@@ -33,7 +33,7 @@ export interface Interface {
   readonly which: (pkg: string, bin?: string) => Effect.Effect<string | undefined>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Npm") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Npm") {}
 
 const illegal = process.platform === "win32" ? new Set(["<", ">", ":", '"', "|", "?", "*"]) : undefined
 

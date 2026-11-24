@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@aigcfroge/script",
+  "name": "@omnixa/script",
   "version": "0.0.9",
   "type": "module",
   "license": "MIT",

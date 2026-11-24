@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { Script } from "@aigcfroge/script"
+import { Script } from "@omnixa/script"
 
 await import("./prebuild")
 

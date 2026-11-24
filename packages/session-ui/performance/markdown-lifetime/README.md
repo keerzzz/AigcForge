@@ -2,7 +2,7 @@
 
 This manual browser benchmark bundles the production `Markdown` component,
 cache, sanitizer, and worker with Vite's production mode. It does not connect to
-an AigcForge server or use user data. Run from `packages/session-ui`.
+an Omnixa server or use user data. Run from `packages/session-ui`.
 
 Set `MARKDOWN_BUILD_DIR` and `MARKDOWN_RESULTS_DIR` to absolute artifact directories:
 
@@ -40,7 +40,7 @@ the renderer probe operation is unchanged.
 
 Use `MARKDOWN_ASSERT_DISPOSAL=1` to assert that the abandoned result is not cached.
 Use `MARKDOWN_RETAINED=1` in separate runs for a post-GC retention check; do not mix
-these samples with natural-GC heap measurements. `AIGCFROGE_PERFORMANCE_TRACE_DIR`
+these samples with natural-GC heap measurements. `OMNIXA_PERFORMANCE_TRACE_DIR`
 enables the repository's Chrome trace collector. `MARKDOWN_SCREENSHOT` optionally
 captures each final scenario after timing. All artifacts belong outside Git.
 

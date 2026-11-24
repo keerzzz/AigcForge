@@ -94,8 +94,8 @@ jobs:
 
       - name: Configure git identity
         run: |
-          git config --global user.email "bot@aigcfroge.ai"
-          git config --global user.name "aigcfroge"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "omnixa"
 
       - name: Install ripgrep on Linux
         if: runner.os == 'Linux'
@@ -127,20 +127,20 @@ jobs:
         timeout-minutes: 5
         run: GITHUB_ACTIONS=false bun run --cwd packages/server test test/command-asset.test.ts --test-name-pattern "uses strict selected Command revisions across Session Locations" --rerun-each 10
         env:
-          AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER: "true"
+          OMNIXA_EXPERIMENTAL_DISABLE_FILEWATCHER: "true"
 
       - name: Check concurrent snapshots on Windows
         if: runner.os == 'Windows'
         timeout-minutes: 5
         run: GITHUB_ACTIONS=false bun run --cwd packages/core test test/snapshot.test.ts --test-name-pattern "captures concurrently from independent processes" --rerun-each 10
         env:
-          AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER: "true"
+          OMNIXA_EXPERIMENTAL_DISABLE_FILEWATCHER: "true"
 
       - name: Run unit tests
         timeout-minutes: ${{ runner.os == 'Windows' && 90 || 40 }}
         run: GITHUB_ACTIONS=false bun turbo test --concurrency=1
         env:
-          AIGCFROGE_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || 'false' }}
+          OMNIXA_EXPERIMENTAL_DISABLE_FILEWATCHER: ${{ runner.os == 'Windows' && 'true' || 'false' }}
 
       - name: Verify codemode package contents
         if: runner.os == 'Linux'
@@ -221,7 +221,6 @@ jobs:
         timeout-minutes: 15
         env:
           CI: true
-          AIGCFROGE_PERFORMANCE: "1"
           PLAYWRIGHT_BUILD: "1"
         run: |
           performance_candidate=$(git rev-parse HEAD)
@@ -239,10 +238,21 @@ jobs:
             else
               git checkout --detach "$performance_candidate"
             fi
-            # Both app revisions use the same scenario setup and measurements.
-            cp "$performance_harness" "$performance_spec"
+            # Keep one scenario; adapt its identities to the historical base's owners.
+            performance_brand=$(bun -e 'console.log((await Bun.file("../../package.json").json()).name)')
+            if [ "$performance_brand" = aigcfroge ]; then
+              sed -e 's|@omnixa/|@aigcfroge/|g' \
+                -e 's/mockOmnixaServer/mockAigcForgeServer/g' \
+                -e 's/OMNIXA_/AIGCFROGE_/g' \
+                -e 's/omnixa\.global\.dat/aigcfroge.global.dat/g' \
+                "$performance_harness" > "$performance_spec"
+            else
+              cp "$performance_harness" "$performance_spec"
+            fi
+            printf '%s_harness_blob=%s\n' "$performance_variant" "$(git hash-object "$performance_spec")" >> "$performance_output/revisions.txt"
             bun install --frozen-lockfile --ignore-scripts
-            AIGCFROGE_PERFORMANCE_RUN_ID="$performance_variant" bunx playwright test \
+            env "${performance_brand^^}_PERFORMANCE_RUN_ID=$performance_variant" bunx playwright test \
+              --config e2e/performance/playwright.config.ts \
               e2e/performance/timeline/session-tab-switch-benchmark.spec.ts \
               --workers=1 --repeat-each=3 --retries=0 \
               --reporter=line,./e2e/performance/tab-switch-reporter.ts \

@@ -1,18 +1,18 @@
 import path from "node:path"
 import { expect } from "bun:test"
-import { TestLLM } from "@aigcfroge/ai/testing"
-import { Agent } from "@aigcfroge/core/agent"
-import { PluginAsset } from "@aigcfroge/core/plugin-asset"
-import { PluginAssetService } from "@aigcfroge/core/plugin-asset-service"
-import { McpConnection } from "@aigcfroge/core/mcp/connection"
-import { Model } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
-import { Session } from "@aigcfroge/core/session"
-import { SessionInputResult } from "@aigcfroge/core/session/input-result"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { ProposePluginAssetTool } from "@aigcfroge/core/tool/propose-plugin-asset"
-import { BaseRevision, Candidate, Info, InvalidEntry, Summary, BridgeEntry } from "@aigcfroge/schema/plugin-asset"
-import { Hash } from "@aigcfroge/util/hash"
+import { TestLLM } from "@omnixa/ai/testing"
+import { Agent } from "@omnixa/core/agent"
+import { PluginAsset } from "@omnixa/core/plugin-asset"
+import { PluginAssetService } from "@omnixa/core/plugin-asset-service"
+import { McpConnection } from "@omnixa/core/mcp/connection"
+import { Model } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
+import { Session } from "@omnixa/core/session"
+import { SessionInputResult } from "@omnixa/core/session/input-result"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { ProposePluginAssetTool } from "@omnixa/core/tool/propose-plugin-asset"
+import { BaseRevision, Candidate, Info, InvalidEntry, Summary, BridgeEntry } from "@omnixa/schema/plugin-asset"
+import { Hash } from "@omnixa/util/hash"
 import { Context, Effect, Layer, Option, Schema } from "effect"
 import { withEnv } from "../../core/test/fixture/env"
 import { awaitWithTimeout, pollWithTimeout, testEffect } from "../../core/test/lib/effect"
@@ -43,10 +43,10 @@ const listResponse = Schema.Struct({
   bridged: Schema.Array(BridgeEntry),
 })
 const setup = (files: readonly { relativePath: string; content: string }[] = []) =>
-  AssetHttpFixture.setup({ prefix: "aigcfroge-plugin-http-", assetDirectory: ".aigcfroge/plugins", model, files })
+  AssetHttpFixture.setup({ prefix: "omnixa-plugin-http-", assetDirectory: ".omnixa/plugins", model, files })
 
 it.live("persists plugin proposal facts and round-trips original YAML with explicit CAS", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
     Effect.gen(function* () {
       const fixture = yield* setup()
       const session = yield* fixture.sessions.create({
@@ -102,7 +102,7 @@ it.live("persists plugin proposal facts and round-trips original YAML with expli
         ["exists", "nameConflict", "pathConflict", "relativePath", "revision", "truncated"].toSorted(),
       )
       const candidate = Candidate.make({ ...input, relativePath: "review.plugin.yaml" })
-      const target = path.join(fixture.directory, ".aigcfroge/plugins/review.plugin.yaml")
+      const target = path.join(fixture.directory, ".omnixa/plugins/review.plugin.yaml")
       expect(yield* Effect.promise(() => Bun.file(target).exists())).toBe(false)
       expect(
         (yield* fixture.request(`/session/${session.id}/plugin-asset/apply`, {
@@ -187,7 +187,7 @@ it.live("persists plugin proposal facts and round-trips original YAML with expli
 )
 
 it.live("rejects identity and target drift and reports invalid plugin files", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
     Effect.gen(function* () {
       const fixture = yield* setup([{ relativePath: "broken.plugin.yaml", content: "invalid: [" }])
       const session = yield* fixture.sessions.create({
@@ -206,7 +206,7 @@ it.live("rejects identity and target drift and reports invalid plugin files", ()
       }
       expect(
         yield* Effect.promise(() =>
-          Bun.file(path.join(fixture.directory, ".aigcfroge/plugins/review.plugin.yaml")).exists(),
+          Bun.file(path.join(fixture.directory, ".omnixa/plugins/review.plugin.yaml")).exists(),
         ),
       ).toBe(false)
       expect(Schema.decodeUnknownSync(listResponse)(yield* readBody(yield* fixture.request("/plugin-asset")))).toEqual({
@@ -230,7 +230,7 @@ it.live("rejects identity and target drift and reports invalid plugin files", ()
 )
 
 it.live("disabled creation leaves explicit deletion available", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
     Effect.gen(function* () {
       const fixture = yield* setup([{ relativePath: "review.plugin.yaml", content }])
       const session = yield* fixture.sessions.create({
@@ -256,7 +256,7 @@ it.live("disabled creation leaves explicit deletion available", () =>
       ).toBe(200)
       expect(
         yield* Effect.promise(() =>
-          Bun.file(path.join(fixture.directory, ".aigcfroge/plugins/review.plugin.yaml")).exists(),
+          Bun.file(path.join(fixture.directory, ".omnixa/plugins/review.plugin.yaml")).exists(),
         ),
       ).toBe(false)
     }),

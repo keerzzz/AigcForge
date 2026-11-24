@@ -1,6 +1,6 @@
 import { createContext, onCleanup, useContext } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
-import type { Bridge, BridgeMenubarItem } from "@aigcfroge/gui-extensions/sdk/bridge"
+import type { Bridge, BridgeMenubarItem } from "@omnixa/gui-extensions/sdk/bridge"
 
 /** MenubarItem contributions from main extensions, for the in-app menu on Windows and Linux. */
 export function createMenubarItems(bridge: Bridge | undefined) {

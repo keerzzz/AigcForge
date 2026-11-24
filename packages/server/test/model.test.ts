@@ -8,10 +8,10 @@ import { startServer } from "./fixture/server"
 
 it.live("waits for plugin initialization before listing models", () =>
   Effect.gen(function* () {
-    const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("aigcfroge-model-endpoint-")))
+    const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("omnixa-model-endpoint-")))
     yield* Effect.promise(() =>
       fs.writeFile(
-        path.join(tmp.path, "aigcfroge.json"),
+        path.join(tmp.path, "omnixa.json"),
         JSON.stringify({
           providers: {
             custom: {

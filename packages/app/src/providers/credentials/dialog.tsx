@@ -7,16 +7,16 @@ import type {
   ProviderDefinitionTargetRevision,
   ProviderDiscoveryPreviewInput,
   ProviderDiscoveryRead,
-} from "@aigcfroge/client/promise"
-import { Button } from "@aigcfroge/ui/button"
-import { Checkbox } from "@aigcfroge/ui/checkbox"
-import { Collapsible } from "@aigcfroge/ui/collapsible"
-import { useDialog } from "@aigcfroge/ui/context/dialog"
-import { Icon } from "@aigcfroge/ui/icon"
-import { IconButton } from "@aigcfroge/ui/icon-button"
-import { Select } from "@aigcfroge/ui/select"
-import { Switch } from "@aigcfroge/ui/switch"
-import { TextField } from "@aigcfroge/ui/text-field"
+} from "@omnixa/client/promise"
+import { Button } from "@omnixa/ui/button"
+import { Checkbox } from "@omnixa/ui/checkbox"
+import { Collapsible } from "@omnixa/ui/collapsible"
+import { useDialog } from "@omnixa/ui/context/dialog"
+import { Icon } from "@omnixa/ui/icon"
+import { IconButton } from "@omnixa/ui/icon-button"
+import { Select } from "@omnixa/ui/select"
+import { Switch } from "@omnixa/ui/switch"
+import { TextField } from "@omnixa/ui/text-field"
 import { Match, Predicate } from "effect"
 import { batch, createEffect, createMemo, For, on, onCleanup, Show, untrack } from "solid-js"
 import { createStore, produce, reconcile } from "solid-js/store"
@@ -1546,7 +1546,7 @@ export function CustomProviderForm(
           </Show>
           <Show when={completed()}>
             <Button type="button" variant="neutral" onClick={() => void refreshCatalog()} disabled={state.loading}>
-              {language.t("provider.connect.console.refresh")}
+              {language.t("provider.discovery.refresh")}
             </Button>
           </Show>
           <Button type="button" variant="ghost" onClick={() => dialog.close()}>

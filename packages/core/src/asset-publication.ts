@@ -1,10 +1,10 @@
 import path from "node:path"
 import { Effect, Schema, Struct } from "effect"
-import { Asset } from "@aigcfroge/schema/asset"
-import { AssetPublication } from "@aigcfroge/schema/asset-publication"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
-import type { FSUtil } from "@aigcfroge/util/fs-util"
-import type { Global } from "@aigcfroge/util/global"
+import { Asset } from "@omnixa/schema/asset"
+import { AssetPublication } from "@omnixa/schema/asset-publication"
+import { AbsolutePath } from "@omnixa/schema/schema"
+import type { FSUtil } from "@omnixa/util/fs-util"
+import type { Global } from "@omnixa/util/global"
 import { AssetPlacement } from "./asset-placement.js"
 import { AgentAsset } from "./agent-asset.js"
 import { CommandAsset } from "./command-asset.js"
@@ -18,7 +18,7 @@ import type { LocationMutation } from "./location-mutation.js"
 import type { Skill } from "./skill.js"
 import { AGENTS_DIR, MCPS_DIR, WORKFLOWS_DIR, PLUGINS_DIR } from "./constants.js"
 
-export { Publication, Json } from "@aigcfroge/schema/asset-publication"
+export { Publication, Json } from "@omnixa/schema/asset-publication"
 
 export interface Sources {
   readonly fs: FSUtil.Interface

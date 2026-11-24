@@ -1,4 +1,4 @@
-/** Connection details for a local AigcForge service. */
+/** Connection details for a local Omnixa service. */
 export type Endpoint = {
   /** Base URL of the service. */
   readonly url: string
@@ -13,7 +13,7 @@ export type Endpoint = {
   }
 }
 
-/** Options used to discover the local AigcForge service. */
+/** Options used to discover the local Omnixa service. */
 export type DiscoverOptions = {
   /** Absolute registration file path. Defaults to the XDG state directory. */
   readonly file?: string
@@ -24,9 +24,9 @@ export type DiscoverOptions = {
 /** Reason ensuring the service requires a new process. */
 export type EnsureReason = "missing" | "version-mismatch"
 
-/** Options used to ensure the local AigcForge service is running. */
+/** Options used to ensure the local Omnixa service is running. */
 export type EnsureOptions = DiscoverOptions & {
-  /** Service command and arguments. Defaults to `aigcfroge serve --service`. */
+  /** Service command and arguments. Defaults to `omnixa serve --service`. */
   readonly command?: ReadonlyArray<string>
   /** Environment variables added to the inherited service process environment. */
   readonly env?: Readonly<Record<string, string>>
@@ -34,7 +34,7 @@ export type EnsureOptions = DiscoverOptions & {
   readonly onStart?: (reason: EnsureReason, previousVersion?: string) => void
 }
 
-/** Options used to stop the local AigcForge service. */
+/** Options used to stop the local Omnixa service. */
 export type StopOptions = {
   /** Absolute registration file path. Defaults to the XDG state directory. */
   readonly file?: string
@@ -46,7 +46,7 @@ export type StopOptions = {
 export type Info = {
   /** Unique service instance identifier. */
   readonly id?: string
-  /** AigcForge version served by the process. */
+  /** Omnixa version served by the process. */
   readonly version?: string
   /** Base URL advertised by the service. */
   readonly url: string

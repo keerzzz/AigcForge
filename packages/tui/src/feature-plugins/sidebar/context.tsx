@@ -1,4 +1,4 @@
-import { Plugin } from "@aigcfroge/plugin/tui"
+import { Plugin } from "@omnixa/plugin/tui"
 import { createMemo, Show } from "solid-js"
 import { contextUsage } from "../../util/session"
 
@@ -42,7 +42,7 @@ export function SidebarContext(props: { context: Plugin.Context; sessionID: stri
 }
 
 export default Plugin.define({
-  id: "aigcfroge.sidebar.context",
+  id: "omnixa.sidebar.context",
   setup(context) {
     context.ui.slot({
       append: "sidebar.content",

@@ -1,9 +1,9 @@
-import { markdown } from "@aigcfroge/ui/storybook/fixtures"
+import { markdown } from "@omnixa/ui/storybook/fixtures"
 import { createSignal, onCleanup } from "solid-js"
 import { Markdown } from "./markdown"
 
 export default {
-  title: "AigcForge/Conversation/Markdown response",
+  title: "Omnixa/Conversation/Markdown response",
   id: "components-markdown",
   component: Markdown,
   parameters: {
@@ -91,7 +91,7 @@ export const StreamingInlineCode = {
 
 const externalLinkChunks = [
   "1. ",
-  "[#540](https://github.com/anomalyco/aigcfroge/pull/540)",
+  "[#540](https://github.com/anomalyco/omnixa/pull/540)",
   ": Batch access-policy reads.\n2. ",
   "[Stack Overflow](https://stackoverflow.com/questions/123)",
   ": Favicon from a public site.\n3. ",

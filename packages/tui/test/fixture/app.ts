@@ -1,7 +1,7 @@
 import { createTestRenderer } from "@opentui/core/testing"
 import { Effect, Exit, FileSystem } from "effect"
 import path from "node:path"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import type { TuiInput } from "../../src/app"
 import type { Config } from "../../src/config"
 import { tmpdir } from "./fixture"

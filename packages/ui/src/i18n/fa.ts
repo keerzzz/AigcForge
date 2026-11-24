@@ -65,16 +65,6 @@ export const dict: Record<string, string> = {
   "ui.sessionTurn.retry.attempt": "تلاش #{{attempt}}",
   "ui.sessionTurn.retry.attemptLine": "{{line}} - تلاش #{{attempt}}",
   "ui.sessionTurn.retry.geminiHot": "جمینی در حال حاضر خیلی داغ است",
-  "ui.sessionTurn.error.freeUsageExceeded": "استفاده رایگان بیش از حد است",
-  "ui.sessionTurn.error.addCredits": "اعتبار اضافه کنید",
-  "dialog.usageExceeded.freeTier.title": "به حد مجاز رایگان رسیده است",
-  "dialog.usageExceeded.freeTier.description":
-    "برای دسترسی مطمئن به بهترین مدل‌های منبع باز، با قیمت 10 دلار در ماه در AigcForge Go مشترک شوید.",
-  "dialog.usageExceeded.freeTier.actionLabel": "مشترک شوید",
-  "dialog.usageExceeded.accountRateLimit.title": "به حد مجاز رفتن رسید",
-  "dialog.usageExceeded.accountRateLimit.description":
-    "به حد مجاز استفاده رسیده است. برای ادامه استفاده از این مدل اکنون، استفاده را از موجودی موجود خود فعال کنید",
-  "dialog.usageExceeded.accountRateLimit.actionLabel": "تنظیمات را باز کنید",
   "ui.sessionTurn.status.delegating": "تفویض کار",
   "ui.sessionTurn.status.planning": "برنامه ریزی مراحل بعدی",
   "ui.sessionTurn.status.gatheringContext": "کاوش",

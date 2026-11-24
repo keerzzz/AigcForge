@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { Session } from "@aigcfroge/schema/v2/session"
+import { Session } from "@omnixa/schema/v2/session"
 import { DateTime, Schema } from "effect"
 import { Agent } from "../src/agent.js"
 import { Project } from "../src/project.js"

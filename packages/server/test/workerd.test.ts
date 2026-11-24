@@ -15,13 +15,13 @@ it.live("boots the workerd profile over durable object storage", () =>
       config: { content: "{}" },
     })
 
-    const unauthorized = yield* Effect.promise(() => handler(new Request("http://aigcfroge.local/api/info")))
+    const unauthorized = yield* Effect.promise(() => handler(new Request("http://omnixa.local/api/info")))
     expect(unauthorized.status).toBe(401)
 
     const status = yield* Effect.promise(() =>
       handler(
-        new Request("http://aigcfroge.local/api/info", {
-          headers: { authorization: `Basic ${btoa("aigcfroge:secret")}` },
+        new Request("http://omnixa.local/api/info", {
+          headers: { authorization: `Basic ${btoa("omnixa:secret")}` },
         }),
       ),
     )

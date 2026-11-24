@@ -3,8 +3,8 @@ export * as ProviderDefinition from "./definition.js"
 import { Cause, Context, Effect, Option, RcMap, Schema, type LayerMap } from "effect"
 import { isDeepStrictEqual } from "node:util"
 import { SqlError } from "effect/sql/SqlError"
-import { ConfigProvider } from "@aigcfroge/schema/config/provider"
-import { ProviderDefinition } from "@aigcfroge/schema/provider-definition"
+import { ConfigProvider } from "@omnixa/schema/config/provider"
+import { ProviderDefinition } from "@omnixa/schema/provider-definition"
 import { Config } from "../config.js"
 import { ConfigProviderFile } from "../config/provider-file.js"
 import { Credential } from "../credential.js"
@@ -26,7 +26,7 @@ export {
   RemoveResult,
   decodeSave,
   decodeRemove,
-} from "@aigcfroge/schema/provider-definition"
+} from "@omnixa/schema/provider-definition"
 
 export class UnavailableError extends Schema.TaggedError<UnavailableError>()("ProviderDefinition.Unavailable", {
   message: Schema.String,

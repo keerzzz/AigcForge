@@ -6,13 +6,12 @@ import { marks } from "../lifecycle/marks"
 import { openDatabase } from "./database"
 import { setStorageSnapshotProvider } from "./snapshot"
 import { createDraftStore } from "./drafts"
-import { importLegacyStores } from "./legacy"
 import { createStateStore } from "./state"
 import { readEnableState } from "../extension/enable-state"
 
 export type Interface = ReturnType<typeof make>
 
-export class Service extends Context.Service<Service, Interface>()("aigcfroge/desktop/DesktopStorage") {}
+export class Service extends Context.Service<Service, Interface>()("omnixa/desktop/DesktopStorage") {}
 
 export const layer = Layer.effect(
   Service,
@@ -25,14 +24,6 @@ export const layer = Layer.effect(
       runFork(Effect.logError("storage flush failed", { error })),
     )
 
-    yield* importLegacyStores(storage.db, userData).pipe(
-      Effect.tap((result) =>
-        result.removed.length === 0
-          ? Effect.void
-          : Effect.logInfo("imported legacy store files", { imported: result.imported, files: result.removed }),
-      ),
-      Effect.catch((error) => Effect.logWarning("failed to import legacy store files", { error })),
-    )
     const wire = (_event: Electron.Event | undefined, win: BrowserWindow) => win.on("session-end", storage.flush)
     app.on("before-quit", storage.flush)
     app.on("browser-window-created", wire)

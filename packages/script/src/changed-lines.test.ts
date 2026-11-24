@@ -102,7 +102,7 @@ describe("findBadBunCwdRun", () => {
   })
 
   test("a Windows path is rejected", () => {
-    const bad = "bun --cwd C:\\Users\\aigcfroge\\pkg run test"
+    const bad = "bun --cwd C:\\Users\\omnixa\\pkg run test"
     expect(findBadBunCwdRun(added(1), bad)).toHaveLength(1)
   })
 
@@ -217,7 +217,7 @@ describe("lint-changed script", () => {
       output: "eslint(no-unused-vars)",
     },
   ])("$name", async (input) => {
-    const root = await mkdtemp(path.join(os.tmpdir(), "aigcforge-lint-changed-"))
+    const root = await mkdtemp(path.join(os.tmpdir(), "omnixa-lint-changed-"))
     directories.push(root)
     await Bun.write(path.join(root, ".gitignore"), "node_modules\n")
     await Bun.write(path.join(root, ".oxlintrc.json"), JSON.stringify({ ignorePatterns: ["**/*.d.ts"] }))

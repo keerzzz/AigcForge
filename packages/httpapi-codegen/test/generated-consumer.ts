@@ -1,9 +1,9 @@
 import { Effect, Stream } from "effect"
 import { HttpClient } from "effect/http"
-import { ClientError, AigcForge } from "./generated"
+import { ClientError, Omnixa } from "./generated"
 import { Missing } from "./fixture"
 
-export const program = AigcForge.make().pipe(
+export const program = Omnixa.make().pipe(
   Effect.map((client) => {
     const health = client.session.health()
     const list = client.session.list()
@@ -14,7 +14,7 @@ export const program = AigcForge.make().pipe(
       sessionID: "session",
       dryRun: true,
       traceID: "trace",
-      payload: { type: "local", command: ["aigcfroge"] },
+      payload: { type: "local", command: ["omnixa"] },
     })
     const status = client.status()
     const subscribe = client.event.subscribe()

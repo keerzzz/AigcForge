@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { fileURLToPath } from "node:url"
 import type { ModelSelection } from "@/providers/models/selection"
-import type { SessionMessageUser } from "@aigcfroge/client/promise"
-import { Skill } from "@aigcfroge/schema/skill"
+import type { SessionMessageUser } from "@omnixa/client/promise"
+import { Skill } from "@omnixa/schema/skill"
 import type { ActiveComposerAdapter, ComposerControls, ComposerSession, NewSessionComposerAdapter } from "./adapter"
 import { createMemoryComposerState, type Prompt } from "./state"
 import { createComposerSubmit } from "./submit"
@@ -642,7 +642,7 @@ async function runSelectionKeepers(pattern: string) {
     ],
     {
       cwd: fileURLToPath(new URL("../../", import.meta.url)),
-      env: { ...process.env, AIGCFROGE_COMPOSER_SELECTION_BROWSER_TEST: "1" },
+      env: { ...process.env, OMNIXA_COMPOSER_SELECTION_BROWSER_TEST: "1" },
       stdout: "pipe",
       stderr: "pipe",
     },

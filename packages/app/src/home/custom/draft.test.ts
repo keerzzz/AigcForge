@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
-import { Composition } from "@aigcfroge/schema/composition"
-import { CustomProfile } from "@aigcfroge/schema/custom-profile"
-import type { CompositionSnapshotV2 } from "@aigcfroge/client/promise"
+import { Composition } from "@omnixa/schema/composition"
+import { CustomProfile } from "@omnixa/schema/custom-profile"
+import type { CompositionSnapshotV2 } from "@omnixa/client/promise"
 import {
   buildFirstPromptPayload,
   buildProfileCandidate,
@@ -71,7 +71,7 @@ describe("custom workspace draft helpers", () => {
               kind: "prompt" as const,
               relativePath: "lead.md",
               revision: revA,
-              target: { scope: "project" as const, root: "/repo/.aigcfroge/prompts" },
+              target: { scope: "project" as const, root: "/repo/.omnixa/prompts" },
             },
           ],
           skills: [],
@@ -84,7 +84,7 @@ describe("custom workspace draft helpers", () => {
               kind: "skill" as const,
               relativePath: "audit/SKILL.md",
               revision: revB,
-              target: { scope: "global" as const, root: "/home/.aigcfroge/skills" },
+              target: { scope: "global" as const, root: "/home/.omnixa/skills" },
             },
           ],
           commands: [
@@ -92,7 +92,7 @@ describe("custom workspace draft helpers", () => {
               kind: "command" as const,
               relativePath: "check.md",
               revision: revC,
-              target: { scope: "location" as const, root: "/repo/.aigcfroge/commands" },
+              target: { scope: "location" as const, root: "/repo/.omnixa/commands" },
             },
           ],
         },
@@ -295,7 +295,7 @@ describe("custom workspace draft helpers", () => {
                 relativePath: "review.md",
                 revision: revB,
                 content: "Review.",
-                target: { scope: "project", root: "/repo/.aigcfroge/prompts" },
+                target: { scope: "project", root: "/repo/.omnixa/prompts" },
               },
             ],
             skills: [],

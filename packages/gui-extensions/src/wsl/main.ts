@@ -22,9 +22,9 @@ const setup: MainSetup<typeof definition> = (ctx) => {
 
   // Development builds of the desktop app can build the Linux CLI from this checkout.
   const local =
-    packaged || !process.env.AIGCFROGE_DESKTOP_WSL_CLI_BUILD || !process.env.AIGCFROGE_DESKTOP_WSL_CLI_OUTPUT
+    packaged || !process.env.OMNIXA_DESKTOP_WSL_CLI_BUILD || !process.env.OMNIXA_DESKTOP_WSL_CLI_OUTPUT
       ? undefined
-      : { script: process.env.AIGCFROGE_DESKTOP_WSL_CLI_BUILD, output: process.env.AIGCFROGE_DESKTOP_WSL_CLI_OUTPUT }
+      : { script: process.env.OMNIXA_DESKTOP_WSL_CLI_BUILD, output: process.env.OMNIXA_DESKTOP_WSL_CLI_OUTPUT }
 
   const log = <Data extends Readonly<Record<string, unknown>>>(level: "info" | "error", message: string, data: Data) =>
     desktopLog.write(level, `[wsl] ${message}`, data)
@@ -72,7 +72,7 @@ const setup: MainSetup<typeof definition> = (ctx) => {
     installWsl: () => controller.installWsl(),
     installDistro: (input) => controller.installDistro(input.name),
     probeAddable: (input) => controller.probeAddable(input.distros),
-    installAigcfroge: (input) => controller.installAigcfroge(input.name),
+    installOmnixa: (input) => controller.installOmnixa(input.name),
     addServer: (input) => controller.addServer(input.distro),
     removeServer: (input) => controller.removeServer(input.id),
     startServer: (input) => controller.startServer(input.id),

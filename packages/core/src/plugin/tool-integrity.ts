@@ -1,8 +1,8 @@
 export * as ToolIntegrityPlugin from "./tool-integrity.js"
 
-import { define } from "@aigcfroge/plugin/effect/plugin"
+import { define } from "@omnixa/plugin/effect/plugin"
 import { Context, Effect, Layer, Option, Schema } from "effect"
-import { Tool } from "@aigcfroge/schema/tool"
+import { Tool } from "@omnixa/schema/tool"
 import { DoomLoop } from "../session/doom-loop.js"
 import { ReferenceChecker } from "../session/reference-checker.js"
 import { Verifier } from "../session/verifier.js"
@@ -12,7 +12,7 @@ import { PatchTool } from "../tool/plugin/patch.js"
 import { normalizeContent } from "../tool/runtime.js"
 
 export const Plugin = define({
-  id: "aigcfroge.tool-integrity",
+  id: "omnixa.tool-integrity",
   effect: Effect.fn("ToolIntegrityPlugin.activate")(function* (ctx) {
     const services = yield* Layer.build(Layer.mergeAll(DoomLoop.layer, ReferenceChecker.layer, Verifier.layer))
     const doom = Context.get(services, DoomLoop.Service)

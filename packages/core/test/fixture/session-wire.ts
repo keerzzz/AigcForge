@@ -5,17 +5,17 @@ import {
   HttpOptions,
   LLMEvent,
   LLMRequest,
-} from "@aigcfroge/ai"
-import { OpenAIResponses } from "@aigcfroge/ai/protocols"
-import { Framing, LLMClient, Protocol, RequestExecutor, Route } from "@aigcfroge/ai/route"
+} from "@omnixa/ai"
+import { OpenAIResponses } from "@omnixa/ai/protocols"
+import { Framing, LLMClient, Protocol, RequestExecutor, Route } from "@omnixa/ai/route"
 import type {
   CheckpointRequest,
   CompactionRequest,
   EndpointCompactOptions,
   LLMClientShape,
   TriggerCompactOptions,
-} from "@aigcfroge/ai/route"
-import { TestLLM } from "@aigcfroge/ai/testing"
+} from "@omnixa/ai/route"
+import { TestLLM } from "@omnixa/ai/testing"
 import { Context, Effect, Layer, Schema, Stream } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 
@@ -44,7 +44,7 @@ export const route = Route.make({
   }),
 })
 
-const header = "x-aigcfroge-test-wire"
+const header = "x-omnixa-test-wire"
 
 export const layer = Layer.effect(
   LLMClient.Service,

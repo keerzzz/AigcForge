@@ -1,4 +1,4 @@
-import type { FormInfo, PermissionRequest, SessionInfo } from "@aigcfroge/client/promise"
+import type { FormInfo, PermissionRequest, SessionInfo } from "@omnixa/client/promise"
 
 function sessionTreeRequest<T>(
   session: SessionInfo[],

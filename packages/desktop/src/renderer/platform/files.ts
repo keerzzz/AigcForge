@@ -1,4 +1,4 @@
-import type { Platform } from "@aigcfroge/app/desktop"
+import type { Platform } from "@omnixa/app/desktop"
 import type { ElectronAPI } from "../api-types"
 
 type DesktopOS = Extract<Platform, { platform: "desktop" }>["os"]

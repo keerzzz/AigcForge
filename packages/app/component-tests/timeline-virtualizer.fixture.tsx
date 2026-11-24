@@ -1,4 +1,4 @@
-import { TimelineRow } from "@aigcfroge/session-ui/timeline/projection"
+import { TimelineRow } from "@omnixa/session-ui/timeline/projection"
 import { onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
 import { render } from "solid-js/web"

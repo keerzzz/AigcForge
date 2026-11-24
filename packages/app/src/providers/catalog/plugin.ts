@@ -1,4 +1,4 @@
-import type { PluginInfo } from "@aigcfroge/client"
+import type { PluginInfo } from "@omnixa/client"
 
 export function pluginLabel(plugin: PluginInfo) {
   if (plugin.id) return plugin.id

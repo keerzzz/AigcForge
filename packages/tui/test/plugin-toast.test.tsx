@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import type { Route } from "@aigcfroge/plugin/tui/context"
+import type { Route } from "@omnixa/plugin/tui/context"
 import { createPluginContext, type Registry, type usePluginHost } from "../src/plugin/api"
 
 type Host = ReturnType<typeof usePluginHost>

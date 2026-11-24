@@ -1,6 +1,6 @@
-import { Environment } from "@aigcfroge/core/environment/index"
-import { CrossSpawnSpawner } from "@aigcfroge/util/cross-spawn-spawner"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Environment } from "@omnixa/core/environment/index"
+import { CrossSpawnSpawner } from "@omnixa/util/cross-spawn-spawner"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { Effect, Layer } from "effect"
 import { ChildProcess, ChildProcessSpawner } from "effect/process"
 

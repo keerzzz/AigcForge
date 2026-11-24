@@ -2,9 +2,9 @@ export * as InstructionContext from "./instruction-context"
 
 import { Array, Effect, Layer, Schema } from "effect"
 import { isAbsolute, join, relative, sep } from "path"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Flag } from "./flag/flag"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import { Location } from "./location"
 import { AbsolutePath } from "./schema"
 import { SystemContext } from "./system-context/index"
@@ -43,7 +43,7 @@ export const layer = Layer.effectDiscard(
       const insideProject =
         fromProject === "" || (fromProject !== ".." && !fromProject.startsWith(`..${sep}`) && !isAbsolute(fromProject))
       const discovered = new Set(
-        (Flag.AIGCFROGE_DISABLE_PROJECT_CONFIG || !insideProject
+        (Flag.OMNIXA_DISABLE_PROJECT_CONFIG || !insideProject
           ? []
           : yield* fs.up({
               targets: ["AGENTS.md"],

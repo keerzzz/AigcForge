@@ -17,7 +17,7 @@ type Handoff = {
   readonly sender: (clientId: number) => WebContents | undefined
 }
 
-export class IpcPortHandoff extends Context.Service<IpcPortHandoff, Handoff>()("aigcfroge/desktop/IpcPortHandoff") {}
+export class IpcPortHandoff extends Context.Service<IpcPortHandoff, Handoff>()("omnixa/desktop/IpcPortHandoff") {}
 
 // Messages cross the port by structured clone, like Effect's worker protocol: no serialization
 // layer, so binary payloads stay binary and nothing is packed into a shared buffer. Electron's

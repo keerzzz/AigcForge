@@ -1,9 +1,9 @@
 export * as ApprovalPresence from "./approval-presence"
 
 import { Context, Effect, Layer, Schema } from "effect"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { ProductMode } from "@omnixa/schema/product-mode"
 import { Location } from "../location.js"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 import type * as Scope from "effect/Scope"
 
 export const DEFAULT_TTL_MS = 300_000
@@ -58,7 +58,7 @@ export interface Interface {
   readonly ttlMs: number
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/ApprovalPresence") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/ApprovalPresence") {}
 
 export const make = (ttlMs: number) =>
   Layer.effect(

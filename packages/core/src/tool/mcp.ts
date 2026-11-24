@@ -1,9 +1,9 @@
 export * as McpTool from "./mcp.js"
 
-import { ToolFailure } from "@aigcfroge/ai"
-import { McpEvent } from "@aigcfroge/schema/mcp-event"
+import { ToolFailure } from "@omnixa/ai"
+import { McpEvent } from "@omnixa/schema/mcp-event"
 import { Context, Effect, Fiber, type JsonSchema, Layer, PubSub, Semaphore, Stream } from "effect"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Bus } from "../bus.js"
 
 import { Mcp } from "../mcp/index.js"
@@ -21,7 +21,7 @@ export interface Interface {
   readonly flush: Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/McpTool") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/McpTool") {}
 
 export const layer = Layer.effect(
   Service,

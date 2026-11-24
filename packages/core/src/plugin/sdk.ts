@@ -1,8 +1,8 @@
 export * as SdkPlugins from "./sdk.js"
 
-import type { Plugin } from "@aigcfroge/plugin/effect/plugin"
+import type { Plugin } from "@omnixa/plugin/effect/plugin"
 import { Context, Effect, Layer } from "effect"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 import { Bus } from "../bus.js"
 import type { Generation } from "../plugin.js"
 
@@ -23,7 +23,7 @@ export interface Interface {
   readonly all: () => readonly Generation[]
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SdkPlugins") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/SdkPlugins") {}
 
 export const layer = Layer.effect(
   Service,

@@ -1,15 +1,15 @@
-import { Instance } from "@aigcfroge/core/instance/service"
-import { Session } from "@aigcfroge/core/session"
+import { Instance } from "@omnixa/core/instance/service"
+import { Session } from "@omnixa/core/session"
 import { Effect, Layer } from "effect"
 import { HttpRouter } from "effect/http"
 import { HttpApiMiddleware } from "effect/http-api"
-import { LocationNotFoundError, InvalidRequestError, SessionNotFoundError } from "@aigcfroge/protocol/errors"
+import { LocationNotFoundError, InvalidRequestError, SessionNotFoundError } from "@omnixa/protocol/errors"
 import { locationErrors, sessionInfo, type LocationServices } from "../location"
 
 export class SessionLocationMiddleware extends HttpApiMiddleware.Service<
   SessionLocationMiddleware,
   { provides: LocationServices }
->()("@aigcfroge/HttpApiSessionLocation", {
+>()("@omnixa/HttpApiSessionLocation", {
   error: [InvalidRequestError, SessionNotFoundError, LocationNotFoundError],
 }) {}
 

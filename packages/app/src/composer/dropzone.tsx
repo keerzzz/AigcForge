@@ -1,4 +1,4 @@
-import { Icon } from "@aigcfroge/ui/icon"
+import { Icon } from "@omnixa/ui/icon"
 import { Show, createMemo } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLanguage } from "@/runtime/i18n/language"

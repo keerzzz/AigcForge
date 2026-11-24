@@ -1,14 +1,14 @@
 export * as ProposeAgentAssetTool from "./propose-agent-asset.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
 import { Effect, Schema } from "effect"
-import { AgentAsset } from "@aigcfroge/schema/agent-asset"
+import { AgentAsset } from "@omnixa/schema/agent-asset"
 import { Agent } from "../agent.js"
 import { Config } from "../config.js"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Global } from "@aigcfroge/util/global"
-import { optional } from "@aigcfroge/schema/schema"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Global } from "@omnixa/util/global"
+import { optional } from "@omnixa/schema/schema"
 import { AgentAssetService } from "../agent-asset-service.js"
 import { ConfigAgentPlugin } from "../config/plugin/agent.js"
 import { Flag } from "../flag/flag.js"
@@ -50,9 +50,9 @@ export const Output = Schema.Struct({
 })
 
 export const Plugin = {
-  id: "aigcfroge.tool.propose_agent_asset",
+  id: "omnixa.tool.propose_agent_asset",
   effect: Effect.fn("ProposeAgentAssetTool.Plugin")(function* (ctx: Context) {
-    if (!Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET) return
+    if (!Flag.OMNIXA_EXPERIMENTAL_CHAT_ASSET) return
 
     const service = yield* AgentAssetService.Service
     const agents = yield* Agent.Service

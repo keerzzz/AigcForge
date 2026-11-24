@@ -1,10 +1,10 @@
 import { registerCustomTheme } from "@pierre/diffs"
-import { AigcForgeTheme } from "./marked-theme"
+import { OmnixaTheme } from "./marked-theme"
 
 let registered = false
 
-export function registerAigcForgeTheme() {
+export function registerOmnixaTheme() {
   if (registered) return
   registered = true
-  registerCustomTheme("AigcForge", () => Promise.resolve(AigcForgeTheme))
+  registerCustomTheme("Omnixa", () => Promise.resolve(OmnixaTheme))
 }

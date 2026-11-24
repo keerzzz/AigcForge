@@ -2,18 +2,18 @@ import { getSharedHighlighter } from "@pierre/diffs"
 import { bundledLanguages, type BundledLanguage } from "shiki"
 import { createSimpleContext } from "./helper"
 import { createMarkdownParser } from "./marked-parser"
-import { registerAigcForgeTheme } from "./marked-theme-register"
+import { registerOmnixaTheme } from "./marked-theme-register"
 
-export { AigcForgeTheme } from "./marked-theme"
+export { OmnixaTheme } from "./marked-theme"
 
-registerAigcForgeTheme()
+registerOmnixaTheme()
 
 export const { use: useMarked, provider: MarkedProvider } = createSimpleContext({
   name: "Marked",
   init: () =>
     createMarkdownParser(async (code, language) => {
       const highlighter = await getSharedHighlighter({
-        themes: ["AigcForge"],
+        themes: ["Omnixa"],
         langs: [],
         preferredHighlighter: "shiki-wasm",
       })
@@ -24,7 +24,7 @@ export const { use: useMarked, provider: MarkedProvider } = createSimpleContext(
 
       return highlighter.codeToHtml(code, {
         lang: name,
-        theme: "AigcForge",
+        theme: "Omnixa",
         tabindex: false,
       })
     }),

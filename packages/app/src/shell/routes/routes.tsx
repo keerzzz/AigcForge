@@ -1,5 +1,5 @@
 import { Navigate, Route, useParams } from "@solidjs/router"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { ProductMode } from "@omnixa/schema/product-mode"
 import { createMemo, lazy, Show, Suspense, type ParentProps } from "solid-js"
 import { Home } from "@/home/route"
 import { ServerProvider } from "@/runtime/server/current"
@@ -12,7 +12,7 @@ import Shell from "@/shell/shell"
 import { requireServerKey } from "./session"
 import { ExtensionAttachment } from "@/runtime/extension/root"
 
-export const File = lazy(() => import("@aigcfroge/session-ui/file").then((module) => ({ default: module.File })))
+export const File = lazy(() => import("@omnixa/session-ui/file").then((module) => ({ default: module.File })))
 
 const loadSessionRoute = () => Promise.all([import("@/session/route"), File.preload()]).then(([module]) => module)
 

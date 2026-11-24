@@ -1,46 +1,46 @@
 import path from "node:path"
 import { eq } from "drizzle-orm"
 import { expect } from "bun:test"
-import { AigcForge } from "@aigcfroge/client"
-import { Bus } from "@aigcfroge/core/bus"
-import { InvalidRequestError } from "@aigcfroge/protocol/errors"
-import { Database } from "@aigcfroge/core/database/database"
-import { EventTable } from "@aigcfroge/core/event/sql"
-import { Location } from "@aigcfroge/core/location"
-import { LocationServiceMap } from "@aigcfroge/core/location-services"
-import { Session } from "@aigcfroge/core/session"
-import { RootController } from "@aigcfroge/schema/session"
-import { MetaAgentMemory } from "@aigcfroge/core/agent/meta/memory"
-import { WorkArtifact } from "@aigcfroge/core/session/artifact"
-import { SessionGoal } from "@aigcfroge/core/session/goal"
-import { ArtifactCondition } from "@aigcfroge/schema/session-goal"
-import { SessionInbox } from "@aigcfroge/core/session/inbox"
-import { SessionInputResult } from "@aigcfroge/core/session/input-result"
-import { ScheduleTask } from "@aigcfroge/core/session/schedule-task"
-import { ScheduleTable } from "@aigcfroge/core/session/schedule.sql"
-import { SessionInboxTable, SessionMessageTable, SessionTable, TaskOperationTable } from "@aigcfroge/core/session/sql"
-import { SessionTask } from "@aigcfroge/core/session/task"
-import { SessionIdentityProjection } from "@aigcfroge/core/session/session-identity"
-import { Event } from "@aigcfroge/schema/event"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
-import { Agent } from "@aigcfroge/schema/agent"
-import { Model } from "@aigcfroge/core/model"
-import { Project } from "@aigcfroge/schema/project"
-import { Provider } from "@aigcfroge/core/provider"
-import { SessionEvent } from "@aigcfroge/schema/session-event"
-import { SessionTaskEvent } from "@aigcfroge/schema/session-task-event"
-import { SessionIdentity } from "@aigcfroge/schema/session-identity"
+import { Omnixa } from "@omnixa/client"
+import { Bus } from "@omnixa/core/bus"
+import { InvalidRequestError } from "@omnixa/protocol/errors"
+import { Database } from "@omnixa/core/database/database"
+import { EventTable } from "@omnixa/core/event/sql"
+import { Location } from "@omnixa/core/location"
+import { LocationServiceMap } from "@omnixa/core/location-services"
+import { Session } from "@omnixa/core/session"
+import { RootController } from "@omnixa/schema/session"
+import { MetaAgentMemory } from "@omnixa/core/agent/meta/memory"
+import { WorkArtifact } from "@omnixa/core/session/artifact"
+import { SessionGoal } from "@omnixa/core/session/goal"
+import { ArtifactCondition } from "@omnixa/schema/session-goal"
+import { SessionInbox } from "@omnixa/core/session/inbox"
+import { SessionInputResult } from "@omnixa/core/session/input-result"
+import { ScheduleTask } from "@omnixa/core/session/schedule-task"
+import { ScheduleTable } from "@omnixa/core/session/schedule.sql"
+import { SessionInboxTable, SessionMessageTable, SessionTable, TaskOperationTable } from "@omnixa/core/session/sql"
+import { SessionTask } from "@omnixa/core/session/task"
+import { SessionIdentityProjection } from "@omnixa/core/session/session-identity"
+import { Event } from "@omnixa/schema/event"
+import { AbsolutePath } from "@omnixa/schema/schema"
+import { Agent } from "@omnixa/schema/agent"
+import { Model } from "@omnixa/core/model"
+import { Project } from "@omnixa/schema/project"
+import { Provider } from "@omnixa/core/provider"
+import { SessionEvent } from "@omnixa/schema/session-event"
+import { SessionTaskEvent } from "@omnixa/schema/session-task-event"
+import { SessionIdentity } from "@omnixa/schema/session-identity"
 import {
   OperationExistingRootTarget,
   OperationID,
   OperationInfo,
   OperationNewRootTarget,
   OperationRequest,
-} from "@aigcfroge/schema/session-task"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
-import { Workspace } from "@aigcfroge/schema/workspace"
-import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
-import { Hash } from "@aigcfroge/util/hash"
+} from "@omnixa/schema/session-task"
+import { SessionMessage } from "@omnixa/schema/session-message"
+import { Workspace } from "@omnixa/schema/workspace"
+import { WorkflowAsset } from "@omnixa/schema/workflow-asset"
+import { Hash } from "@omnixa/util/hash"
 import { Context, DateTime, Deferred, Effect, Fiber, Layer, Queue, Schema, Scope, Stream } from "effect"
 import { HttpEffect, HttpRouter, HttpServer } from "effect/http"
 import { tmpdirScoped } from "../../core/test/fixture/tmpdir"
@@ -73,14 +73,14 @@ const boot = (directory: string, options: ServerOptions = {}) =>
       input: { body?: unknown; directory?: string; authenticated?: boolean; method?: string } = {},
     ) =>
       Effect.promise(() => {
-        const url = new URL(route, "http://aigcfroge.local")
+        const url = new URL(route, "http://omnixa.local")
         url.searchParams.set("directory", input.directory ?? directory)
         return handler(
           new Request(url, {
             method: input.method ?? (input.body === undefined ? "GET" : "POST"),
             headers: {
               "content-type": "application/json",
-              ...(input.authenticated === false ? {} : { authorization: `Basic ${btoa("aigcfroge:secret")}` }),
+              ...(input.authenticated === false ? {} : { authorization: `Basic ${btoa("omnixa:secret")}` }),
             },
             body: input.body === undefined ? undefined : JSON.stringify(input.body),
           }),
@@ -93,9 +93,9 @@ const boot = (directory: string, options: ServerOptions = {}) =>
         yield* Effect.promise(() => response.json()),
       ).data.id
     })
-    const api = AigcForge.make({
-      baseUrl: "http://aigcfroge.local",
-      headers: { authorization: `Basic ${btoa("aigcfroge:secret")}` },
+    const api = Omnixa.make({
+      baseUrl: "http://omnixa.local",
+      headers: { authorization: `Basic ${btoa("omnixa:secret")}` },
       fetch: Object.assign((input: string | URL | Request, init?: RequestInit) => handler(new Request(input, init)), {
         preconnect: fetch.preconnect,
       }),
@@ -149,7 +149,7 @@ it.live("MP01 identity uses the stored Location graph and the selected Agent thr
         info: Provider.Info.make({
           ...Provider.Info.empty(Provider.ID.make("fixture")),
           activation: "enabled",
-          package: "@aigcfroge/ai/providers/openai/responses",
+          package: "@omnixa/ai/providers/openai/responses",
         }),
         models: [Model.Info.default(Provider.ID.make("fixture"), Model.ID.make("fixture"))],
       },
@@ -312,7 +312,7 @@ it.live(
             info: Provider.Info.make({
               ...Provider.Info.empty(Provider.ID.make("fixture")),
               activation: "enabled",
-              package: "@aigcfroge/ai/providers/openai/responses",
+              package: "@omnixa/ai/providers/openai/responses",
             }),
             models: [Model.Info.default(Provider.ID.make("fixture"), Model.ID.make("fixture"))],
           },
@@ -735,7 +735,7 @@ it.live("MP04 artifact HTTP apply records the exact producer after the Location 
           ...Provider.Info.empty(Provider.ID.make("fixture")),
           name: "Fixture",
           activation: "enabled",
-          package: "@aigcfroge/ai/providers/openai/responses",
+          package: "@omnixa/ai/providers/openai/responses",
         }),
         models: [Model.Info.default(Provider.ID.make("fixture"), Model.ID.make("fixture"))],
       },
@@ -871,7 +871,7 @@ it.live("MC09 Meta reads preserve unknown recorded statistics and project facts 
         info: Provider.Info.make({
           ...Provider.Info.empty(Provider.ID.make("fixture")),
           activation: "enabled",
-          package: "@aigcfroge/ai/providers/openai/responses",
+          package: "@omnixa/ai/providers/openai/responses",
         }),
         models: [Model.Info.default(Provider.ID.make("fixture"), Model.ID.make("fixture"))],
       },
@@ -975,7 +975,7 @@ it.live("serves legacy todos from Task state with ownership checks and no read s
 
 it.live("serves all six task operations through the generated Promise client without losing concurrent appends", () =>
   Effect.gen(function* () {
-    const directory = (yield* tmpdirScoped("aigcfroge-task-%2F-")).path
+    const directory = (yield* tmpdirScoped("omnixa-task-%2F-")).path
     const test = yield* boot(directory)
     const sessionID = yield* test.session
     expect(yield* Effect.promise(() => test.tasks.get({ sessionID, directory }))).toEqual([])
@@ -1048,7 +1048,7 @@ it.live("serves all six task operations through the generated Promise client wit
 
 it.live("publishes persisted Task writes and runtime progress through authenticated SSE and the generated client", () =>
   Effect.gen(function* () {
-    const directory = (yield* tmpdirScoped("aigcfroge-task-sse-")).path
+    const directory = (yield* tmpdirScoped("omnixa-task-sse-")).path
     const test = yield* boot(directory)
     const sessionID = yield* test.session
     expect((yield* test.request("/api/event", { authenticated: false })).status).toBe(401)

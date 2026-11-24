@@ -1,23 +1,23 @@
 export * as ServerWorkerd from "./workerd"
 
 import { Effect, Layer } from "effect"
-import { ConfigPluginSource } from "@aigcfroge/core/config/plugin/source"
-import { Database } from "@aigcfroge/core/database/database"
-import { sqliteLayer } from "@aigcfroge/core/database/sqlite.workerd"
-import type { DurableObjectStorage } from "@aigcfroge/core/database/sqlite.workerd"
-import { EnvironmentUnavailable } from "@aigcfroge/core/environment/unavailable"
-import { FileSystem } from "@aigcfroge/core/filesystem"
-import { FileSystemSearch } from "@aigcfroge/core/filesystem/search"
-import { Pty } from "@aigcfroge/core/pty"
-import { Snapshot } from "@aigcfroge/core/snapshot"
-import { Vcs } from "@aigcfroge/core/vcs"
-import { CrossSpawnSpawner } from "@aigcfroge/util/cross-spawn-spawner"
-import type { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { ConfigPluginSource } from "@omnixa/core/config/plugin/source"
+import { Database } from "@omnixa/core/database/database"
+import { sqliteLayer } from "@omnixa/core/database/sqlite.workerd"
+import type { DurableObjectStorage } from "@omnixa/core/database/sqlite.workerd"
+import { EnvironmentUnavailable } from "@omnixa/core/environment/unavailable"
+import { FileSystem } from "@omnixa/core/filesystem"
+import { FileSystemSearch } from "@omnixa/core/filesystem/search"
+import { Pty } from "@omnixa/core/pty"
+import { Snapshot } from "@omnixa/core/snapshot"
+import { Vcs } from "@omnixa/core/vcs"
+import { CrossSpawnSpawner } from "@omnixa/util/cross-spawn-spawner"
+import type { LayerNode } from "@omnixa/util/effect/layer-node"
 import { ServerFetch } from "./fetch"
 import type { ServerOptions } from "./options"
 
 /**
- * The workerd runtime profile: boots aigcfroge core and server inside a
+ * The workerd runtime profile: boots omnixa core and server inside a
  * Cloudflare Durable Object, with every intentionally-local service replaced
  * or disabled.
  *
@@ -36,11 +36,11 @@ import type { ServerOptions } from "./options"
  * (see `script/workerd-probe.ts`).
  */
 export interface Options {
-  /** Durable Object storage whose SQLite database backs the aigcfroge database. */
+  /** Durable Object storage whose SQLite database backs the omnixa database. */
   readonly storage: DurableObjectStorage
   readonly app?: ServerOptions["app"]
   readonly password?: string
-  /** Inline aigcfroge config content (JSON), same as `ServerOptions.config.content`. */
+  /** Inline omnixa config content (JSON), same as `ServerOptions.config.content`. */
   readonly config?: { readonly content?: string }
   /** models.dev catalog options; the bundled snapshot is the boot-time floor either way. */
   readonly models?: ServerOptions["models"]

@@ -14,7 +14,7 @@ for (const theme of ["light", "dark"]) {
       await expect(logo.locator("g[mask]")).toHaveCount(0)
       await expect(shimmer).toHaveCSS("color", "rgb(255, 255, 255)")
       await expect(shimmer).toHaveCSS("mix-blend-mode", "screen")
-      await expect(base).toHaveAttribute("aria-label", "AigcForge")
+      await expect(base).toHaveAttribute("aria-label", "Omnixa")
       await expect(base.locator("path")).toHaveAttribute("fill", "currentColor")
 
       await logo.evaluate((element) => {

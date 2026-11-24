@@ -1,44 +1,44 @@
 import fs from "node:fs/promises"
 import path from "node:path"
 import { expect } from "bun:test"
-import { Agent } from "@aigcfroge/core/agent"
-import { AgentAsset } from "@aigcfroge/core/agent-asset"
-import { Bus } from "@aigcfroge/core/bus"
-import { CompositionDigest } from "@aigcfroge/core/composition/digest"
-import { Database } from "@aigcfroge/core/database/database"
-import { DelegationService } from "@aigcfroge/core/delegation/service"
-import { CustomProfile } from "@aigcfroge/core/custom-profile"
-import { Command } from "@aigcfroge/core/command"
-import { Environment } from "@aigcfroge/core/environment/index"
-import { EventSequenceTable, EventTable } from "@aigcfroge/core/event/sql"
-import { LayerNodePlatform } from "@aigcfroge/core/effect/app-node-platform"
-import { LocationServiceMap } from "@aigcfroge/core/location-services"
-import { McpConnection } from "@aigcfroge/core/mcp/connection"
-import { MetaAgentSessionTable } from "@aigcfroge/core/meta-agent/sql"
-import { Model } from "@aigcfroge/core/model"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { Provider } from "@aigcfroge/core/provider"
-import { Session } from "@aigcfroge/core/session"
-import { SessionEvent } from "@aigcfroge/core/session/event"
-import { SessionInbox } from "@aigcfroge/core/session/inbox"
-import { SessionComposition } from "@aigcfroge/core/session/composition"
-import { SessionSchema } from "@aigcfroge/core/session/schema"
-import { Workspace } from "@aigcfroge/core/workspace"
-import { WorkspaceDriver } from "@aigcfroge/core/workspace/driver"
+import { Agent } from "@omnixa/core/agent"
+import { AgentAsset } from "@omnixa/core/agent-asset"
+import { Bus } from "@omnixa/core/bus"
+import { CompositionDigest } from "@omnixa/core/composition/digest"
+import { Database } from "@omnixa/core/database/database"
+import { DelegationService } from "@omnixa/core/delegation/service"
+import { CustomProfile } from "@omnixa/core/custom-profile"
+import { Command } from "@omnixa/core/command"
+import { Environment } from "@omnixa/core/environment/index"
+import { EventSequenceTable, EventTable } from "@omnixa/core/event/sql"
+import { LayerNodePlatform } from "@omnixa/core/effect/app-node-platform"
+import { LocationServiceMap } from "@omnixa/core/location-services"
+import { McpConnection } from "@omnixa/core/mcp/connection"
+import { MetaAgentSessionTable } from "@omnixa/core/meta-agent/sql"
+import { Model } from "@omnixa/core/model"
+import { Plugin } from "@omnixa/core/plugin"
+import { Provider } from "@omnixa/core/provider"
+import { Session } from "@omnixa/core/session"
+import { SessionEvent } from "@omnixa/core/session/event"
+import { SessionInbox } from "@omnixa/core/session/inbox"
+import { SessionComposition } from "@omnixa/core/session/composition"
+import { SessionSchema } from "@omnixa/core/session/schema"
+import { Workspace } from "@omnixa/core/workspace"
+import { WorkspaceDriver } from "@omnixa/core/workspace/driver"
 import {
   SessionCompositionSnapshotTable,
   SessionInboxTable,
   SessionMessageTable,
   SessionTable,
-} from "@aigcfroge/core/session/sql"
-import { AssetYaml } from "@aigcfroge/core/util/asset-yaml"
-import { CompositionResolveError } from "@aigcfroge/protocol/errors"
-import { CustomCompositionReferencesResponse } from "@aigcfroge/protocol/groups/custom-composition"
-import { AssetPlacement } from "@aigcfroge/schema/asset-placement"
-import { Composition } from "@aigcfroge/schema/composition"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
-import { decodeProfile, Info, Revision } from "@aigcfroge/schema/custom-profile"
-import { Hash } from "@aigcfroge/util/hash"
+} from "@omnixa/core/session/sql"
+import { AssetYaml } from "@omnixa/core/util/asset-yaml"
+import { CompositionResolveError } from "@omnixa/protocol/errors"
+import { CustomCompositionReferencesResponse } from "@omnixa/protocol/groups/custom-composition"
+import { AssetPlacement } from "@omnixa/schema/asset-placement"
+import { Composition } from "@omnixa/schema/composition"
+import { AbsolutePath } from "@omnixa/schema/schema"
+import { decodeProfile, Info, Revision } from "@omnixa/schema/custom-profile"
+import { Hash } from "@omnixa/util/hash"
 import { Context, DateTime, Deferred, Effect, Layer, Schema } from "effect"
 import { HttpEffect, HttpRouter, HttpServer } from "effect/http"
 import { LLMClient } from "../../ai/src"
@@ -58,24 +58,24 @@ const reference = <K extends Composition.AllowedKind>(kind: K, relativePath: str
 })
 
 const agent = {
-  path: ".aigcfroge/agents/pool/coder.md",
+  path: ".omnixa/agents/pool/coder.md",
   content: "---\nkind: agent\nname: coder\ndescription: Coder agent\n---\nYou write code.\n",
 }
 const prompt = {
-  path: ".aigcfroge/prompts/shared/precise.md",
+  path: ".omnixa/prompts/shared/precise.md",
   content: "---\nkind: prompt\nname: precise\ndescription: Precise prompt\n---\nBe precise.\n",
 }
 const skill = {
-  path: ".aigcfroge/skills/review/SKILL.md",
+  path: ".omnixa/skills/review/SKILL.md",
   content: "---\nname: review\ndescription: Review changes\n---\nInspect the actual diff.\n",
 }
 const command = {
-  path: ".aigcfroge/commands/check.md",
+  path: ".omnixa/commands/check.md",
   content:
     "---\nkind: command\nname: check\ndescription: Check changes\ninvocation: check\nargs: target\n---\nCheck $ARGUMENTS.\n",
 }
 const workflow = {
-  path: ".aigcfroge/workflows/review.yaml",
+  path: ".omnixa/workflows/review.yaml",
   content: AssetYaml.stringify({
     kind: "workflow",
     name: "review",
@@ -85,7 +85,7 @@ const workflow = {
   }),
 }
 const mcp = {
-  path: ".aigcfroge/mcps/probe.md",
+  path: ".omnixa/mcps/probe.md",
   content: "---\nkind: mcp\nname: probe\ndescription: Probe server\ncommand: bun\n---\nProbe metadata.\n",
 }
 const refs = {
@@ -127,7 +127,7 @@ const setup = (
   initializeProject = false,
 ) =>
   Effect.gen(function* () {
-    const tmp = yield* tmpdirScoped("aigcfroge-composition-%2F-http-")
+    const tmp = yield* tmpdirScoped("omnixa-composition-%2F-http-")
     const directory = path.join(tmp.path, "project")
     const other = path.join(tmp.path, "other")
     yield* Effect.promise(() => Promise.all([fs.mkdir(directory), fs.mkdir(other)]))
@@ -141,7 +141,7 @@ const setup = (
           command,
           workflow,
           mcp,
-          { path: ".aigcfroge/custom-profiles/healthy.yaml", content: profileContent },
+          { path: ".omnixa/custom-profiles/healthy.yaml", content: profileContent },
           ...extraFiles,
         ].map((file) => ({ ...file, directory })),
         ...otherFiles.map((file) => ({ ...file, directory: other })),
@@ -169,7 +169,7 @@ const setup = (
             content: JSON.stringify({
               model: "test/test-model",
               providers: {
-                test: { package: "@aigcfroge/ai/providers/openai/responses", models: { "test-model": {} } },
+                test: { package: "@omnixa/ai/providers/openai/responses", models: { "test-model": {} } },
               },
             }),
           },
@@ -196,7 +196,7 @@ const setup = (
           info: Provider.Info.make({
             ...Provider.Info.empty(defaultModel.providerID),
             activation: "enabled",
-            package: "@aigcfroge/ai/providers/openai/responses",
+            package: "@omnixa/ai/providers/openai/responses",
           }),
           models: [Model.Info.make(Model.Info.default(defaultModel.providerID, defaultModel.id))],
         },
@@ -219,7 +219,7 @@ const setup = (
       } = {},
     ) =>
       Effect.promise(() => {
-        const url = new URL(route, "http://aigcfroge.local")
+        const url = new URL(route, "http://omnixa.local")
         url.searchParams.set("directory", input.directory ?? directory)
         if (input.workspace !== undefined) url.searchParams.set("workspace", input.workspace)
         return handler(
@@ -227,7 +227,7 @@ const setup = (
             method: input.body === undefined ? "GET" : "POST",
             headers: {
               "content-type": "application/json",
-              ...(input.authenticated === false ? {} : { authorization: `Basic ${btoa("aigcfroge:secret")}` }),
+              ...(input.authenticated === false ? {} : { authorization: `Basic ${btoa("omnixa:secret")}` }),
               ...input.headers,
             },
             body: input.body === undefined ? undefined : JSON.stringify(input.body),
@@ -368,10 +368,10 @@ const health = Effect.fnUntraced(function* (
 })
 
 it.live("saves a captured builtin root without a Session and explicitly adopts the saved Profile over HTTP", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "true", AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+  withEnv({ OMNIXA_CUSTOM_MODE: "true", OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
     Effect.gen(function* () {
       const rootAsset = {
-        path: ".aigcfroge/agents/roots/release.md",
+        path: ".omnixa/agents/roots/release.md",
         content: `---\n${AssetYaml.stringify({
           kind: "agent",
           name: "release-root",
@@ -424,7 +424,7 @@ it.live("saves a captured builtin root without a Session and explicitly adopts t
       expect(saved.profile.root).toEqual(selected.input.root)
       expect(saved.profile.agents).toEqual([])
       const bytes = yield* Effect.promise(() =>
-        Bun.file(path.join(test.other, ".aigcfroge/custom-profiles/team/build.yaml")).text(),
+        Bun.file(path.join(test.other, ".omnixa/custom-profiles/team/build.yaml")).text(),
       )
       expect(saved.revision).toBe(Revision.make(Hash.sha256(Buffer.from(bytes))))
       const listed = yield* test.request("/custom-profile?search=Saved", { directory: test.other })
@@ -569,7 +569,7 @@ it.live("saves a captured builtin root without a Session and explicitly adopts t
 )
 
 it.live("rejects saved Profile and builtin root drift over HTTP without Session residue", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "true", AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+  withEnv({ OMNIXA_CUSTOM_MODE: "true", OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
     Effect.gen(function* () {
       const test = yield* setup()
       const selected = yield* plan(
@@ -696,7 +696,7 @@ it.live("rejects saved Profile and builtin root drift over HTTP without Session 
 )
 
 it.live("plans and adopts each selected builtin root over HTTP with an empty user inventory", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+  withEnv({ OMNIXA_CUSTOM_MODE: "true" }, () =>
     Effect.gen(function* () {
       const test = yield* setup()
       const database = Context.get(test.context, Database.Service)
@@ -817,7 +817,7 @@ it.live("plans and adopts each selected builtin root over HTTP with an empty use
 it.live(
   "rejects stale builtin root confirmation over HTTP without Session residue",
   () =>
-    withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+    withEnv({ OMNIXA_CUSTOM_MODE: "true" }, () =>
       Effect.gen(function* () {
         const test = yield* setup()
         const preview = yield* plan(
@@ -856,7 +856,7 @@ it.live(
 )
 
 it.live("keeps rejected builtin root credentials out of the HTTP Plan", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+  withEnv({ OMNIXA_CUSTOM_MODE: "true" }, () =>
     Effect.gen(function* () {
       const test = yield* setup()
       const location = yield* test.readyLocation(test.other)
@@ -888,7 +888,7 @@ it.live("keeps rejected builtin root credentials out of the HTTP Plan", () =>
 )
 
 it.live("plans and freezes cold Locations through production plugin activation", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+  withEnv({ OMNIXA_CUSTOM_MODE: "true" }, () =>
     Effect.gen(function* () {
       const planning = yield* setup([], [], {}, false)
       const planned = yield* planning.request("/custom-composition/plan", { body: temporary })
@@ -925,7 +925,7 @@ it.live("plans and freezes cold Locations through production plugin activation",
 )
 
 it.live("plans real assets and capabilities without sessions, model calls, snapshots, or MCP connections", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+  withEnv({ OMNIXA_CUSTOM_MODE: "true" }, () =>
     Effect.gen(function* () {
       const test = yield* setup()
       const before = yield* storedState(test)
@@ -974,7 +974,7 @@ it.live("plans real assets and capabilities without sessions, model calls, snaps
 )
 
 it.live("returns profile freshness and missing-asset diagnostics from the current owner state", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+  withEnv({ OMNIXA_CUSTOM_MODE: "true" }, () =>
     Effect.gen(function* () {
       const test = yield* setup()
       const before = yield* storedState(test)
@@ -993,7 +993,7 @@ it.live("returns profile freshness and missing-asset diagnostics from the curren
           currentRevision: Composition.Revision.make(Hash.sha256(Buffer.from(content))),
           target: new AssetPlacement.Target({
             scope: "location",
-            root: AbsolutePath.make(path.join(test.directory, ".aigcfroge/prompts")),
+            root: AbsolutePath.make(path.join(test.directory, ".omnixa/prompts")),
           }),
         }),
       ])
@@ -1017,7 +1017,7 @@ it.live("returns profile freshness and missing-asset diagnostics from the curren
 )
 
 it.live("gates planning while profiles, health and references remain readable without custom capability headers", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "false", AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
+  withEnv({ OMNIXA_CUSTOM_MODE: "false", OMNIXA_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
     Effect.gen(function* () {
       const test = yield* setup()
       const before = yield* storedState(test)
@@ -1040,7 +1040,7 @@ it.live("gates planning while profiles, health and references remain readable wi
       expect(yield* Effect.promise(() => references.json())).toMatchObject({
         profiles: [{ name: "Healthy", relativePath: "healthy.yaml" }],
       })
-      expect((yield* withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () => plan(test, input))).valid).toBe(true)
+      expect((yield* withEnv({ OMNIXA_CUSTOM_MODE: "true" }, () => plan(test, input))).valid).toBe(true)
       expect(yield* test.llm.requests()).toEqual([])
       expect(yield* storedState(test)).toEqual(before)
     }),
@@ -1048,9 +1048,9 @@ it.live("gates planning while profiles, health and references remain readable wi
 )
 
 it.live("maps malformed requests and routing failures without turning composition diagnostics into HTTP errors", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+  withEnv({ OMNIXA_CUSTOM_MODE: "true" }, () =>
     Effect.gen(function* () {
-      const test = yield* setup([{ path: ".aigcfroge/custom-profiles/invalid.yaml", content: "name: Invalid\n" }])
+      const test = yield* setup([{ path: ".omnixa/custom-profiles/invalid.yaml", content: "name: Invalid\n" }])
       const before = yield* storedState(test)
       yield* Effect.forEach(
         [
@@ -1178,7 +1178,7 @@ it.live("maps malformed requests and routing failures without turning compositio
 )
 
 it.live("routes identical profile and asset paths to their owning Location", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+  withEnv({ OMNIXA_CUSTOM_MODE: "true" }, () =>
     Effect.gen(function* () {
       const otherAgent = {
         ...agent,
@@ -1195,7 +1195,7 @@ it.live("routes identical profile and asset paths to their owning Location", () 
       })
       const test = yield* setup(
         [],
-        [otherAgent, { path: ".aigcfroge/custom-profiles/healthy.yaml", content: AssetYaml.stringify(otherProfile) }],
+        [otherAgent, { path: ".omnixa/custom-profiles/healthy.yaml", content: AssetYaml.stringify(otherProfile) }],
       )
       const before = yield* storedState(test)
       const input = yield* profileInput(test)
@@ -1225,7 +1225,7 @@ it.live("routes identical profile and asset paths to their owning Location", () 
 )
 
 it.live("rejects unavailable MCP starts and upgrades without executing or publishing Session events", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+  withEnv({ OMNIXA_CUSTOM_MODE: "true" }, () =>
     Effect.gen(function* () {
       const test = yield* setup()
       const marker = path.join(test.directory, "mcp-started.txt")
@@ -1242,7 +1242,7 @@ it.live("rejects unavailable MCP starts and upgrades without executing or publis
         ],
       })
       yield* Effect.promise(() =>
-        Bun.write(path.join(test.directory, ".aigcfroge/custom-profiles/mcp.yaml"), AssetYaml.stringify(profile)),
+        Bun.write(path.join(test.directory, ".omnixa/custom-profiles/mcp.yaml"), AssetYaml.stringify(profile)),
       )
       const profiles = Context.get(test.location, CustomProfile.Service)
       yield* profiles.reload()
@@ -1294,7 +1294,7 @@ it.live("rejects unavailable MCP starts and upgrades without executing or publis
 )
 
 it.live("commits Custom roots and snapshots atomically and adopts exact frozen retries", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+  withEnv({ OMNIXA_CUSTOM_MODE: "true" }, () =>
     Effect.gen(function* () {
       const test = yield* setup()
       const composition = yield* profileInput(test)
@@ -1364,7 +1364,7 @@ it.live("commits Custom roots and snapshots atomically and adopts exact frozen r
       ])
       expect(observed).toEqual([{ session: true, snapshot: true }])
 
-      yield* Effect.promise(() => fs.unlink(path.join(test.directory, ".aigcfroge/custom-profiles/healthy.yaml")))
+      yield* Effect.promise(() => fs.unlink(path.join(test.directory, ".omnixa/custom-profiles/healthy.yaml")))
       const profiles = Context.get(test.location, CustomProfile.Service)
       yield* profiles.reload()
       const retried = yield* lifecycleResult(
@@ -1422,7 +1422,7 @@ it.live("commits Custom roots and snapshots atomically and adopts exact frozen r
 )
 
 it.live("leaves no Session, snapshot, inbox, message, or event residue after invalid starts", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+  withEnv({ OMNIXA_CUSTOM_MODE: "true" }, () =>
     Effect.gen(function* () {
       const test = yield* setup()
       const before = yield* storedState(test)
@@ -1467,7 +1467,7 @@ it.live("leaves no Session, snapshot, inbox, message, or event residue after inv
 )
 
 it.live("upgrades idle ordinary Sessions into independent Custom roots while preserving the source", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+  withEnv({ OMNIXA_CUSTOM_MODE: "true" }, () =>
     Effect.gen(function* () {
       const test = yield* setup()
       const source = yield* createSession(test, { title: "Ordinary source", metadata: { source: "upgrade" } })
@@ -1520,7 +1520,7 @@ it.live("upgrades idle ordinary Sessions into independent Custom roots while pre
 )
 
 it.live("upgrades ordinary Sessions whose stored directory has an equivalent route spelling", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+  withEnv({ OMNIXA_CUSTOM_MODE: "true" }, () =>
     Effect.gen(function* () {
       const test = yield* setup()
       const alias = AbsolutePath.make(`${test.directory}${path.sep}.`)
@@ -1545,7 +1545,7 @@ it.live("upgrades ordinary Sessions whose stored directory has an equivalent rou
 )
 
 it.live("executes frozen Custom command templates through HTTP after their source is deleted", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+  withEnv({ OMNIXA_CUSTOM_MODE: "true" }, () =>
     Effect.gen(function* () {
       const test = yield* setup()
       const root = yield* lifecycleResult(
@@ -1565,7 +1565,7 @@ it.live("executes frozen Custom command templates through HTTP after their sourc
       expect(state.inbox).toMatchObject([
         { session_id: root.session.id, type: "user", delivery: "queue", payload: { text: "Check $& $$." } },
       ])
-      yield* withEnv({ AIGCFROGE_CUSTOM_MODE: "false" }, () =>
+      yield* withEnv({ OMNIXA_CUSTOM_MODE: "false" }, () =>
         Effect.gen(function* () {
           const disabled = yield* test.request(`/api/session/${root.session.id}/command`, {
             body: { name: "check", text: "blocked" },
@@ -1580,7 +1580,7 @@ it.live("executes frozen Custom command templates through HTTP after their sourc
 )
 
 it.live("rejects foreign Locations, unauthenticated upgrades, and Custom upgrade sources without writes", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+  withEnv({ OMNIXA_CUSTOM_MODE: "true" }, () =>
     Effect.gen(function* () {
       const memory = Environment.makeMemoryDriver()
       const test = yield* setup([], [], {
@@ -1646,7 +1646,7 @@ it.live("rejects foreign Locations, unauthenticated upgrades, and Custom upgrade
 )
 
 it.live("enforces frozen root and child agent selections through ordinary Session endpoints", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+  withEnv({ OMNIXA_CUSTOM_MODE: "true" }, () =>
     Effect.gen(function* () {
       const test = yield* setup()
       const root = yield* lifecycleResult(
@@ -1730,7 +1730,7 @@ it.live("enforces frozen root and child agent selections through ordinary Sessio
 )
 
 it.live("blocks Custom lifecycle, admission, and execution through HTTP while the kill switch is off", () =>
-  withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+  withEnv({ OMNIXA_CUSTOM_MODE: "true" }, () =>
     Effect.gen(function* () {
       const test = yield* setup()
       const root = yield* lifecycleResult(
@@ -1740,7 +1740,7 @@ it.live("blocks Custom lifecycle, admission, and execution through HTTP while th
       const source = yield* createSession(test)
       const before = yield* storedState(test)
       const published = yield* observedSessionEvents(test)
-      yield* withEnv({ AIGCFROGE_CUSTOM_MODE: "false" }, () =>
+      yield* withEnv({ OMNIXA_CUSTOM_MODE: "false" }, () =>
         Effect.forEach(
           [
             { route: "/custom-composition/start", body: { composition: temporary } },
@@ -1800,7 +1800,7 @@ it.live("blocks Custom lifecycle, admission, and execution through HTTP while th
 it.live(
   "finds immutable snapshot references after asset deletion and Session movement, without Custom execution",
   () =>
-    withEnv({ AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+    withEnv({ OMNIXA_CUSTOM_MODE: "true" }, () =>
       Effect.gen(function* () {
         const memory = Environment.makeMemoryDriver()
         const test = yield* setup(
@@ -1860,9 +1860,9 @@ it.live(
             }
             expect(Object.values(targets).map((target) => target.scope)).toEqual([scope, scope, scope])
             if (scope === "location")
-              expect(targets.prompt.root).toBe(AbsolutePath.make(path.join(selectedDirectory, ".aigcfroge/prompts")))
+              expect(targets.prompt.root).toBe(AbsolutePath.make(path.join(selectedDirectory, ".omnixa/prompts")))
             if (scope === "project")
-              expect(targets.prompt.root).toBe(AbsolutePath.make(path.join(test.directory, ".aigcfroge/prompts")))
+              expect(targets.prompt.root).toBe(AbsolutePath.make(path.join(test.directory, ".omnixa/prompts")))
             const contents = {
               prompt: `${prompt.content.trimEnd()}\n${scope} owner.\n`,
               skill: `${skill.content.trimEnd()}\n${scope} owner.\n`,
@@ -1955,10 +1955,10 @@ it.live(
         expect(aliasTarget).toEqual(
           new AssetPlacement.Target({
             scope: "location",
-            root: AbsolutePath.make(path.join(test.directory, ".aigcfroge/prompts")),
+            root: AbsolutePath.make(path.join(test.directory, ".omnixa/prompts")),
           }),
         )
-        expect(aliasTarget.root).not.toBe(path.join(aliasDirectory, ".aigcfroge/prompts"))
+        expect(aliasTarget.root).not.toBe(path.join(aliasDirectory, ".omnixa/prompts"))
         const aliasContent =
           "---\nkind: prompt\nname: alias-retained\ndescription: Retained alias prompt\n---\nFrozen alias prompt.\n"
         const aliasRef = reference("prompt", "aliases/retained.md", aliasContent)
@@ -2018,7 +2018,7 @@ it.live(
                   requestedCapabilities: [],
                 }),
               )
-              const filename = path.join(test.directory, ".aigcfroge/custom-profiles", candidate.relativePath)
+              const filename = path.join(test.directory, ".omnixa/custom-profiles", candidate.relativePath)
               yield* Effect.promise(() => Bun.write(filename, content))
               return { relativePath: candidate.relativePath, content, filename }
             }),
@@ -2093,7 +2093,7 @@ it.live(
         )
         const before = yield* storedState(test)
         const published = yield* observedSessionEvents(test)
-        yield* withEnv({ AIGCFROGE_CUSTOM_MODE: "false" }, () =>
+        yield* withEnv({ OMNIXA_CUSTOM_MODE: "false" }, () =>
           Effect.gen(function* () {
             const query = `/custom-composition/references?${new URLSearchParams({ kind: "prompt", path: " shared\\precise.md " })}`
             const response = yield* test.request(query, { directory: `${test.directory}/.` })
@@ -2161,7 +2161,7 @@ it.live(
                 kind: "prompt",
                 path: aliasRef.relativePath,
                 scope: "location",
-                targetRoot: path.join(aliasDirectory, ".aigcfroge/prompts"),
+                targetRoot: path.join(aliasDirectory, ".omnixa/prompts"),
               })}`,
               { directory: aliasDirectory },
             )

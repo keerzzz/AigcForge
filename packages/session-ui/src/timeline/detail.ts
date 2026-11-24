@@ -1,7 +1,7 @@
-import type { SessionMessageAssistant, SessionMessageInfo } from "@aigcfroge/client/promise"
-import { SessionTask } from "@aigcfroge/schema/session-task"
-import { SessionGoalID } from "@aigcfroge/schema/session-goal-id"
-import { SessionCommunication } from "@aigcfroge/schema/session-communication"
+import type { SessionMessageAssistant, SessionMessageInfo } from "@omnixa/client/promise"
+import { SessionTask } from "@omnixa/schema/session-task"
+import { SessionGoalID } from "@omnixa/schema/session-goal-id"
+import { SessionCommunication } from "@omnixa/schema/session-communication"
 import { Option, Schema } from "effect"
 import { shellResultFailed } from "../message/current-tool-state"
 

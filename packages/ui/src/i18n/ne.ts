@@ -67,16 +67,6 @@ export const dict: Record<string, string> = {
   "ui.sessionTurn.retry.attempt": "प्रयास #{{attempt}}",
   "ui.sessionTurn.retry.attemptLine": "{{line}} - प्रयास #{{attempt}}",
   "ui.sessionTurn.retry.geminiHot": "मिथुन अहिले धेरै तातो छ",
-  "ui.sessionTurn.error.freeUsageExceeded": "नि:शुल्क प्रयोग नाघ्यो",
-  "ui.sessionTurn.error.addCredits": "क्रेडिटहरू थप्नुहोस्",
-  "dialog.usageExceeded.freeTier.title": "नि: शुल्क सीमा पुग्यो",
-  "dialog.usageExceeded.freeTier.description":
-    "उत्कृष्ट खुला स्रोत मोडेलहरूमा भरपर्दो पहुँचका लागि $10/महिनामा AigcForge Go को सदस्यता लिनुहोस्।",
-  "dialog.usageExceeded.freeTier.actionLabel": "सदस्यता लिनुहोस्",
-  "dialog.usageExceeded.accountRateLimit.title": "जाने सीमा पुग्यो",
-  "dialog.usageExceeded.accountRateLimit.description":
-    "उपयोग सीमा पुग्यो। अहिले यो मोडेल प्रयोग जारी राख्न, आफ्नो उपलब्ध ब्यालेन्सबाट उपयोग सक्षम गर्नुहोस्",
-  "dialog.usageExceeded.accountRateLimit.actionLabel": "सेटिङ्हरू खोल्नुहोस्",
   "ui.sessionTurn.status.delegating": "काम प्रत्यायोजन गर्ने",
   "ui.sessionTurn.status.planning": "अर्को चरणहरू योजना",
   "ui.sessionTurn.status.gatheringContext": "अन्वेषण गर्दै",

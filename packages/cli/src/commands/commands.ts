@@ -10,7 +10,7 @@ export const PrintLogs = GlobalFlag.Setting("print-logs")({
   ),
 })
 
-declare const AIGCFROGE_CLI_NAME: string | undefined
+declare const OMNIXA_CLI_NAME: string | undefined
 
 const ServerParams = {
   standalone: Flag.Boolean("standalone").pipe(
@@ -35,13 +35,13 @@ const PermissionParams = {
   ),
 }
 
-const Root = Spec.make(typeof AIGCFROGE_CLI_NAME === "string" ? AIGCFROGE_CLI_NAME : "aigcfroge", {
-  description: "AigcForge command line interface",
+const Root = Spec.make(typeof OMNIXA_CLI_NAME === "string" ? OMNIXA_CLI_NAME : "omnixa", {
+  description: "Omnixa command line interface",
   params: {
     ...ServerParams,
     ...PermissionParams,
     directory: Argument.String("directory").pipe(
-      Argument.withDescription("Directory to start AigcForge in"),
+      Argument.withDescription("Directory to start Omnixa in"),
       Argument.optional,
     ),
     continue: Flag.Boolean("continue").pipe(
@@ -58,7 +58,7 @@ const Root = Spec.make(typeof AIGCFROGE_CLI_NAME === "string" ? AIGCFROGE_CLI_NA
   },
   commands: [
     Spec.make("upgrade", {
-      description: "Upgrade AigcForge to the latest or a specific version",
+      description: "Upgrade Omnixa to the latest or a specific version",
       aliases: ["update"],
       params: {
         target: Argument.String("target").pipe(
@@ -73,7 +73,7 @@ const Root = Spec.make(typeof AIGCFROGE_CLI_NAME === "string" ? AIGCFROGE_CLI_NA
       },
     }),
     Spec.make("uninstall", {
-      description: "Uninstall AigcForge, keeping session data, configuration, and state",
+      description: "Uninstall Omnixa, keeping session data, configuration, and state",
       params: {
         dryRun: Flag.Boolean("dry-run").pipe(
           Flag.withDescription("Show what would be removed without removing"),
@@ -374,7 +374,7 @@ const Root = Spec.make(typeof AIGCFROGE_CLI_NAME === "string" ? AIGCFROGE_CLI_NA
       },
     }),
     Spec.make("run", {
-      description: "Run AigcForge with a message",
+      description: "Run Omnixa with a message",
       params: {
         ...ServerParams,
         message: Argument.String("message").pipe(

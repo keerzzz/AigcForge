@@ -1,4 +1,4 @@
-import { Switch } from "@aigcfroge/ui/switch"
+import { Switch } from "@omnixa/ui/switch"
 import { useExtension } from "../sdk"
 import type definition from "./index"
 

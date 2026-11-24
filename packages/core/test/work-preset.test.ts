@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { WorkPreset } from "@aigcfroge/schema/work-preset"
+import { WorkPreset } from "@omnixa/schema/work-preset"
 import { WorkPresetRegistry } from "../src/session/work-preset"
 
 const CATEGORIES = ["it-development", "video-creation", "academic", "general-office"] as const

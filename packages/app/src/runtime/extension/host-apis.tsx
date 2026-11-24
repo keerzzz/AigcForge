@@ -16,11 +16,10 @@ import { createStore, produce, type Store } from "solid-js/store"
 import { createTabComposerState } from "@/composer/persistence"
 import { createComposerEditorActions } from "@/composer/editor/actions"
 import type { Schema } from "effect"
-import { useDialog } from "@aigcfroge/ui/context/dialog"
-import { base64Encode } from "@aigcfroge/util/encode"
+import { useDialog } from "@omnixa/ui/context/dialog"
+import { base64Encode } from "@omnixa/util/encode"
 import {
   Panel,
-  type Build,
   type Layout,
   type MountedSession,
   type OpenOptions,
@@ -34,7 +33,7 @@ import {
   type StorageScope,
   type StoreFrom,
   type StoreOptions,
-} from "@aigcfroge/gui-extensions/sdk"
+} from "@omnixa/gui-extensions/sdk"
 import { usePlatform } from "@/runtime/platform/platform"
 import { same } from "@/runtime/persistence/equality"
 import { Persist, persisted, removePersisted } from "@/runtime/persistence/storage"
@@ -257,13 +256,16 @@ export function createHostApis() {
             forceFocus: (enabled) => platform.setForceFocus?.(enabled) ?? Promise.resolve(),
           }
         : undefined,
-    build: () => ({
-      version: platform.version ?? "",
-      // SAFETY: the build sets VITE_AIGCFROGE_CHANNEL to one of the release channels, or leaves it unset locally.
-      channel: (import.meta.env.VITE_AIGCFROGE_CHANNEL ?? "local") as Build["channel"],
-      platform: platform.platform,
-      packaged: platform.extensions?.packaged ?? false,
-    }),
+    build: () => {
+      const channel = import.meta.env.VITE_OMNIXA_CHANNEL
+      return {
+        version: platform.version ?? "",
+        channel:
+          channel === "local" || channel === "dev" || channel === "beta" || channel === "prod" ? channel : "local",
+        platform: platform.platform,
+        packaged: platform.extensions?.packaged ?? false,
+      }
+    },
     locale: () => ({
       locale: language.intl,
       direction: language.direction,

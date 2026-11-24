@@ -1,5 +1,5 @@
-import type { IntegrationOAuthMethodRegistration } from "@aigcfroge/plugin/effect/integration"
-import { define } from "@aigcfroge/plugin/effect/plugin"
+import type { IntegrationOAuthMethodRegistration } from "@omnixa/plugin/effect/integration"
+import { define } from "@omnixa/plugin/effect/plugin"
 import { Clock, Effect, Option, Schema } from "effect"
 import { App } from "../../app.js"
 import { Credential } from "../../credential.js"
@@ -51,7 +51,7 @@ const device = (app: App.Info) =>
         {
           method: "POST",
           headers: headers(app),
-          body: new URLSearchParams({ client_id: clientID, scope, referrer: "aigcfroge" }).toString(),
+          body: new URLSearchParams({ client_id: clientID, scope, referrer: "omnixa" }).toString(),
         },
         Device,
       ).pipe(
@@ -74,7 +74,7 @@ const device = (app: App.Info) =>
   }) satisfies IntegrationOAuthMethodRegistration
 
 export const XAIPlugin = define({
-  id: "aigcfroge.provider.xai",
+  id: "omnixa.provider.xai",
   effect: Effect.fn(function* (ctx) {
     const credentials = yield* Credential.Service
     yield* Effect.forEach(

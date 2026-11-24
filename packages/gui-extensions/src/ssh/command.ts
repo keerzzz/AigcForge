@@ -3,16 +3,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/process"
 import { RemoteCli } from "./remote-cli"
 
 export class SshFailure extends Schema.TaggedError<SshFailure>()("SshFailure", {
-  code: Schema.Literals([
-    "input",
-    "connection",
-    "platform",
-    "version",
-    "install",
-    "service",
-    "unpublished",
-    "ssh-missing",
-  ]),
+  code: Schema.Literals(["input", "connection", "version", "service", "unpublished", "ssh-missing"]),
   detail: Schema.String,
 }) {
   constructor(code: SshFailure["code"], detail = "") {
@@ -236,7 +227,7 @@ export function commandFailureDetail(code: number | null, output: { stdout: stri
   // The CLI may report failures on stdout. Never include its private bootstrap
   // response in diagnostic text, even if shutdown fails after printing it.
   const stdout = output.stdout
-    .replace(/AIGCFROGE_SSH_REGISTRATION_BEGIN[\s\S]*?(?:AIGCFROGE_SSH_REGISTRATION_END|$)/g, "")
+    .replace(/OMNIXA_SSH_REGISTRATION_BEGIN[\s\S]*?(?:OMNIXA_SSH_REGISTRATION_END|$)/g, "")
     .trim()
 
   return [output.stderr.trim(), stdout].filter(Boolean).join("\n") || JSON.stringify({ exitCode: code })

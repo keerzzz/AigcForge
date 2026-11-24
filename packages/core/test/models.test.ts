@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test"
-import { Money } from "@aigcfroge/schema/money"
+import { Money } from "@omnixa/schema/money"
 import { Effect, Fiber, Layer, Ref, Scope, Stream } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNodePlatform } from "@aigcfroge/util/effect/app-node-platform"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Bus } from "@aigcfroge/core/bus"
-import { KV } from "@aigcfroge/core/kv"
-import { Model } from "@aigcfroge/core/model"
-import { bodyDigest, ModelsDev } from "@aigcfroge/core/models-dev"
-import { Provider } from "@aigcfroge/core/provider"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNodePlatform } from "@omnixa/util/effect/app-node-platform"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Bus } from "@omnixa/core/bus"
+import { KV } from "@omnixa/core/kv"
+import { Model } from "@omnixa/core/model"
+import { bodyDigest, ModelsDev } from "@omnixa/core/models-dev"
+import { Provider } from "@omnixa/core/provider"
 import { it } from "./lib/effect"
 
 const cacheKey = "models-dev:catalog"
@@ -49,7 +49,7 @@ const fixtureSnapshot = [
       id: Provider.ID.make("acme"),
       name: "Acme",
       activation: "auto",
-      package: "@aigcfroge/ai/providers/openai-compatible",
+      package: "@omnixa/ai/providers/openai-compatible",
     },
     models: [
       {
@@ -120,7 +120,7 @@ const fixture2Snapshot = [
       id: Provider.ID.make("beta"),
       name: "Beta",
       activation: "auto",
-      package: "@aigcfroge/ai/providers/openai-compatible",
+      package: "@omnixa/ai/providers/openai-compatible",
     },
     models: [
       {
@@ -294,14 +294,14 @@ describe("ModelsDev Service", () => {
         cache,
         ModelsDev.Service.use((service) => service.get()),
       )
-      expect(result[0]?.info.package).toBe("@aigcfroge/ai/providers/openai-compatible")
-      expect(result[0]?.models[0]?.package).toBe("@aigcfroge/ai/providers/openai")
-      expect(result[1]?.info.package).toBe("@aigcfroge/ai/providers/cloudflare-workers-ai")
+      expect(result[0]?.info.package).toBe("@omnixa/ai/providers/openai-compatible")
+      expect(result[0]?.models[0]?.package).toBe("@omnixa/ai/providers/openai")
+      expect(result[1]?.info.package).toBe("@omnixa/ai/providers/cloudflare-workers-ai")
       expect(result[1]?.info.settings).toBeUndefined()
-      expect(result[2]?.info.package).toBe("@aigcfroge/ai/providers/azure/responses")
+      expect(result[2]?.info.package).toBe("@omnixa/ai/providers/azure/responses")
       expect(result[2]?.models.find((model) => model.id === "gpt-5")?.package).toBeUndefined()
       expect(result[2]?.models.find((model) => model.id === "custom-chat")?.package).toBe(
-        "@aigcfroge/ai/providers/azure/chat",
+        "@omnixa/ai/providers/azure/chat",
       )
     }),
   )
@@ -379,7 +379,7 @@ describe("ModelsDev Service", () => {
       yield* ModelsDev.Service.use((service) => service.get()).pipe(
         Effect.provide(buildLayer(state, cache, { url: "", fetch: true, snapshot: false })),
       )
-      expect((yield* Ref.get(state)).calls[0]?.url).toBe("https://models.aigcfroge.ai/api.json")
+      expect((yield* Ref.get(state)).calls[0]?.url).toBe("https://models.dev/api.json")
     }),
   )
 
@@ -444,7 +444,7 @@ describe("ModelsDev Service", () => {
       const final = yield* Ref.get(state)
       expect(final.calls.length).toBe(1)
       expect(final.calls[0].url).toContain("/api.json")
-      expect(final.calls[0].userAgent).toContain("/aigcfroge")
+      expect(final.calls[0].userAgent).toContain("/omnixa")
     }),
   )
 

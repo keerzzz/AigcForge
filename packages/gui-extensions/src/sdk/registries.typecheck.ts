@@ -1,6 +1,6 @@
 // Type-level contract of the registries, checked by `bun typecheck`. Nothing imports this file. Each `@ts-expect-error`
 // fails the typecheck if its line stops being an error.
-import type { SessionFork } from "@aigcfroge/schema/session-fork"
+import type { SessionFork } from "@omnixa/schema/session-fork"
 import {
   Extension,
   MenuItem,

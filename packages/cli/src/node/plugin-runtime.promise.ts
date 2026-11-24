@@ -9,9 +9,9 @@ import {
   Provider,
   Reference,
   Skill,
-} from "@aigcfroge/plugin"
+} from "@omnixa/plugin"
 
-const key = Symbol.for("aigcfroge.plugin.v2.promise")
+const key = Symbol.for("omnixa.plugin.v2.promise")
 ;(globalThis as typeof globalThis & { [key]?: unknown })[key] = {
   Agent,
   Command,

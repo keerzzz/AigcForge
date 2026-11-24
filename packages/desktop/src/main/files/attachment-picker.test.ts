@@ -23,7 +23,7 @@ describe("attachment size limit", () => {
   })
 
   test("reads an approved file and rejects an oversized one before allocating its contents", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "aigcfroge-attachment-"))
+    const directory = await mkdtemp(join(tmpdir(), "omnixa-attachment-"))
     const file = join(directory, "example.txt")
     const oversized = join(directory, "oversized.txt")
 

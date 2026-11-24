@@ -12,7 +12,7 @@ import {
   type StyledText,
 } from "@opentui/core"
 import { MermaidSyntaxError } from "./diagnostics.js"
-import type { AigcForgeDiagramPalette } from "./palette.js"
+import type { OmnixaDiagramPalette } from "./palette.js"
 import { DiagramCanvasSizeError } from "./core/canvas.js"
 import { detectMermaidDiagram } from "./detect.js"
 import { drawFlowchartDiagramGrid } from "./flowchart/drawing.js"
@@ -56,7 +56,7 @@ export interface MermaidMarkdownRendererOptions {
   layoutMaxWidth?: number
   /** Gantt-specific terminal rendering options. */
   gantt?: Omit<GanttDiagramRenderOptions, "layoutMaxWidth">
-  colors?: Partial<Record<keyof AigcForgeDiagramPalette, ColorInput>>
+  colors?: Partial<Record<keyof OmnixaDiagramPalette, ColorInput>>
 }
 
 function color(value: ColorInput | undefined): RGBA | undefined {

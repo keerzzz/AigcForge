@@ -1,5 +1,5 @@
-import { ProviderIcon } from "@aigcfroge/ui/provider-icon"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { ProviderIcon } from "@omnixa/ui/provider-icon"
+import { Tooltip } from "@omnixa/ui/tooltip"
 import { Show } from "solid-js"
 
 export function TimelineSeparator(props: {

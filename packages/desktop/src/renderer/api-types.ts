@@ -1,5 +1,5 @@
-import type { DesktopMenuAction } from "@aigcfroge/app/desktop-menu"
-import type { DesktopNativeBundle } from "@aigcfroge/app/i18n/desktop-native"
+import type { DesktopMenuAction } from "@omnixa/app/desktop-menu"
+import type { DesktopNativeBundle } from "@omnixa/app/i18n/desktop-native"
 import type { WindowBootstrap } from "../shared/window-bootstrap"
 import type {
   ClipboardImage,

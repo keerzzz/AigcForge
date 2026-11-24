@@ -10,7 +10,7 @@ describe("CLI frontend import boundaries", () => {
     const imports: string[] = []
     for await (const file of glob.scan({ cwd: path.join(root, "packages/cli") })) {
       const source = await Bun.file(path.join(root, "packages/cli", file)).text()
-      if (/["']@aigcfroge\/core(?:\/[^"']*)?["']/.test(source)) imports.push(file)
+      if (/["']@omnixa\/core(?:\/[^"']*)?["']/.test(source)) imports.push(file)
     }
     expect(imports).toEqual([])
   })
@@ -20,15 +20,15 @@ describe("CLI frontend import boundaries", () => {
     const imports: string[] = []
     for await (const file of glob.scan({ cwd: path.join(root, "packages/cli") })) {
       const source = await Bun.file(path.join(root, "packages/cli", file)).text()
-      if (/["']@aigcfroge\/client(?:\/promise(?:\/[^"']*)?|\/service)?["']/.test(source)) imports.push(file)
+      if (/["']@omnixa\/client(?:\/promise(?:\/[^"']*)?|\/service)?["']/.test(source)) imports.push(file)
     }
     expect(imports).toEqual([])
   })
 
   test("exposes only the intentional package entrypoints", async () => {
-    const run = await import("@aigcfroge/cli/run")
-    const mini = await import("@aigcfroge/tui/mini")
-    const tool = await import("@aigcfroge/tui/mini/tool")
+    const run = await import("@omnixa/cli/run")
+    const mini = await import("@omnixa/tui/mini")
+    const tool = await import("@omnixa/tui/mini/tool")
     const cli = await Bun.file(path.join(root, "packages/cli/package.json")).json()
 
     expect(Object.keys(run).sort()).toEqual(["runNonInteractive", "runV1Bridge"])
@@ -69,7 +69,7 @@ describe("CLI frontend import boundaries", () => {
     const imports: string[] = []
     for await (const file of glob.scan({ cwd: path.join(root, "packages/tui/src/mini") })) {
       const source = await Bun.file(path.join(root, "packages/tui/src/mini", file)).text()
-      if (/["']@aigcfroge\/(?:core|server|cli)(?:\/[^"']*)?["']/.test(source)) imports.push(file)
+      if (/["']@omnixa\/(?:core|server|cli)(?:\/[^"']*)?["']/.test(source)) imports.push(file)
     }
     expect(imports).toEqual([])
 

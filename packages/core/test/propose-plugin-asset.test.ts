@@ -1,15 +1,15 @@
 import path from "node:path"
 import { expect } from "bun:test"
 import { NodeFileSystem } from "@effect/platform-node"
-import { Candidate } from "@aigcfroge/schema/plugin-asset"
-import { Environment } from "@aigcfroge/core/environment/index"
-import { FileMutation } from "@aigcfroge/core/file-mutation"
-import { Location } from "@aigcfroge/core/location"
-import { LocationMutation } from "@aigcfroge/core/location-mutation"
-import { PluginAsset } from "@aigcfroge/core/plugin-asset"
-import { PluginAssetService } from "@aigcfroge/core/plugin-asset-service"
-import { ProposePluginAssetTool } from "@aigcfroge/core/tool/propose-plugin-asset"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { Candidate } from "@omnixa/schema/plugin-asset"
+import { Environment } from "@omnixa/core/environment/index"
+import { FileMutation } from "@omnixa/core/file-mutation"
+import { Location } from "@omnixa/core/location"
+import { LocationMutation } from "@omnixa/core/location-mutation"
+import { PluginAsset } from "@omnixa/core/plugin-asset"
+import { PluginAssetService } from "@omnixa/core/plugin-asset-service"
+import { ProposePluginAssetTool } from "@omnixa/core/tool/propose-plugin-asset"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Effect, Layer, Schema } from "effect"
 import { systemError } from "effect/PlatformError"
 import { hostEnvironmentLayer } from "./fixture/environment"
@@ -52,9 +52,7 @@ it.live("uses the real registry short path and round-trips the original plugin d
     expect(saved.content).toBe(content)
     expect(saved.source).toEqual({ type: "mcp", mcp: { name: "review-server" } })
     expect(saved.hooks).toEqual([{ event: "PreToolUse", command: "node review.cjs" }])
-    expect(yield* fs.readFileString(path.join(location.directory, ".aigcfroge/plugins/review.plugin.yaml"))).toBe(
-      content,
-    )
+    expect(yield* fs.readFileString(path.join(location.directory, ".omnixa/plugins/review.plugin.yaml"))).toBe(content)
     expect(yield* registry.getByPath("review.plugin.yaml")).toEqual(saved)
     expect(yield* service.propose(candidate())).toEqual({ ...proposed, exists: true, revision: saved.revision })
     expect(yield* ProposePluginAssetTool.propose(candidate(), service)).toEqual({
@@ -114,14 +112,14 @@ it.live("rolls back a new file that would duplicate another registry name", () =
     const registry = yield* PluginAsset.Service
     const fs = yield* FSUtil.Service
     const location = yield* Location.Service
-    const original = path.join(location.directory, ".aigcfroge/plugins/original.plugin.yaml")
+    const original = path.join(location.directory, ".omnixa/plugins/original.plugin.yaml")
     yield* fs.writeWithDirs(original, content)
     yield* registry.reload()
     expect((yield* service.propose(candidate())).nameConflict).toBe(true)
     expect(
       yield* service.apply({ candidate: candidate(), baseRevision: null, overwrite: false }).pipe(Effect.flip),
     ).toBeInstanceOf(PluginAssetService.ReadbackMismatchError)
-    expect(yield* fs.exists(path.join(location.directory, ".aigcfroge/plugins/review.plugin.yaml"))).toBe(false)
+    expect(yield* fs.exists(path.join(location.directory, ".omnixa/plugins/review.plugin.yaml"))).toBe(false)
     expect(yield* fs.readFileString(original)).toBe(content)
     expect(yield* registry.listInvalid()).toEqual([])
     expect((yield* registry.list()).map((asset) => asset.relativePath)).toEqual(["original.plugin.yaml"])
@@ -135,7 +133,7 @@ it.live("propagates a proposal read failure without inventing new-file facts", (
     const fs = yield* FSUtil.Service
     const location = yield* Location.Service
     const saved = yield* service.apply({ candidate: candidate(), baseRevision: null, overwrite: false })
-    const target = path.join(location.directory, ".aigcfroge/plugins/review.plugin.yaml")
+    const target = path.join(location.directory, ".omnixa/plugins/review.plugin.yaml")
     const failure = systemError({
       _tag: "PermissionDenied",
       module: "FileSystem",
@@ -171,7 +169,7 @@ for (const existing of [false, true]) {
         const fs = yield* FSUtil.Service
         const files = yield* FileMutation.Service
         const location = yield* Location.Service
-        const target = path.join(location.directory, ".aigcfroge/plugins/review.plugin.yaml")
+        const target = path.join(location.directory, ".omnixa/plugins/review.plugin.yaml")
         const saved = existing
           ? yield* service.apply({ candidate: candidate(), baseRevision: null, overwrite: false })
           : undefined
@@ -230,7 +228,7 @@ it.live("reports a rollback write failure and leaves the unconfirmed replacement
     const files = yield* FileMutation.Service
     const location = yield* Location.Service
     const saved = yield* service.apply({ candidate: candidate(), baseRevision: null, overwrite: false })
-    const target = path.join(location.directory, ".aigcfroge/plugins/review.plugin.yaml")
+    const target = path.join(location.directory, ".omnixa/plugins/review.plugin.yaml")
     const replacement = candidate(content.replace('"1.0.0"', '"2.0.0"'))
     const calls = { writes: 0, reloads: 0 }
     const injected = yield* faultService({
@@ -273,7 +271,7 @@ it.live("preserves an external overwrite that arrives before the first written-c
     const files = yield* FileMutation.Service
     const location = yield* Location.Service
     const saved = yield* service.apply({ candidate: candidate(), baseRevision: null, overwrite: false })
-    const target = path.join(location.directory, ".aigcfroge/plugins/review.plugin.yaml")
+    const target = path.join(location.directory, ".omnixa/plugins/review.plugin.yaml")
     const replacement = candidate(content.replace('"1.0.0"', '"2.0.0"'))
     const external = content.replace('"1.0.0"', '"3.0.0"')
     const calls = { writes: 0 }
@@ -307,7 +305,7 @@ it.live("restores deleted plugin bytes and reloads the registry after a transien
     const fs = yield* FSUtil.Service
     const location = yield* Location.Service
     const saved = yield* service.apply({ candidate: candidate(), baseRevision: null, overwrite: false })
-    const target = path.join(location.directory, ".aigcfroge/plugins/review.plugin.yaml")
+    const target = path.join(location.directory, ".omnixa/plugins/review.plugin.yaml")
     const calls = { reloads: 0 }
     const injected = yield* faultService({
       reload: () =>
@@ -339,7 +337,7 @@ it.live("preserves a file recreated by an external writer before deletion rollba
     const fs = yield* FSUtil.Service
     const location = yield* Location.Service
     const saved = yield* service.apply({ candidate: candidate(), baseRevision: null, overwrite: false })
-    const target = path.join(location.directory, ".aigcfroge/plugins/review.plugin.yaml")
+    const target = path.join(location.directory, ".omnixa/plugins/review.plugin.yaml")
     const external = content.replace('"1.0.0"', '"3.0.0"')
     const calls = { reloads: 0 }
     const injected = yield* faultService({
@@ -405,7 +403,7 @@ for (const scenario of [
       const value = candidate(scenario.raw)
       const saved = yield* service.apply({ candidate: value, baseRevision: null, overwrite: false })
       expect(saved.content).toBe(scenario.raw)
-      expect(yield* fs.readFile(path.join(location.directory, ".aigcfroge/plugins", saved.relativePath))).toEqual(
+      expect(yield* fs.readFile(path.join(location.directory, ".omnixa/plugins", saved.relativePath))).toEqual(
         new TextEncoder().encode(scenario.raw),
       )
       expect((yield* registry.getByPath(saved.relativePath)).content).toBe(scenario.raw)

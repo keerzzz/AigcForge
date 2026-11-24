@@ -1,10 +1,10 @@
-import type { Data } from "@aigcfroge/client/solid"
+import type { Data } from "@omnixa/client/solid"
 import type {
   SessionExecutorPreference,
   SessionController,
   SessionMessageUser,
   SessionInfo,
-} from "@aigcfroge/client/promise"
+} from "@omnixa/client/promise"
 import type { Accessor } from "solid-js"
 import type { ModelSelection } from "@/providers/models/selection"
 import type { ServerSDK } from "@/runtime/server/client"

@@ -1,6 +1,6 @@
 import { Effect } from "effect"
-import { Npm } from "@aigcfroge/util/npm"
-import { importModule, resolveModule } from "@aigcfroge/util/runtime-import"
+import { Npm } from "@omnixa/util/npm"
+import { importModule, resolveModule } from "@omnixa/util/runtime-import"
 
 export const loadSDKFactory = Effect.fnUntraced(function* (npm: Npm.Interface, packageName: string) {
   const installedPath = packageName.startsWith("file://")

@@ -13,7 +13,7 @@ export interface Interface {
   readonly load: () => Effect.Effect<SystemContext.SystemContextValue>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SystemContextRegistry") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/SystemContextRegistry") {}
 
 export const layer = Layer.effect(
   Service,

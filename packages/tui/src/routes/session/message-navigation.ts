@@ -1,4 +1,4 @@
-import type { SessionMessageInfo } from "@aigcfroge/client"
+import type { SessionMessageInfo } from "@omnixa/client"
 
 type MessageChild = {
   readonly id?: string

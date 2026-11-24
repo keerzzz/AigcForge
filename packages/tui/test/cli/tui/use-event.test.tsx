@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/solid */
 import { describe, expect, test } from "bun:test"
-import type { AigcForgeClient, AigcForgeEvent } from "@aigcfroge/client"
+import type { OmnixaClient, OmnixaEvent } from "@omnixa/client"
 import { testRender } from "@opentui/solid"
 import { onMount } from "solid-js"
 import { ClientProvider, useClient } from "../../../src/context/client"
@@ -17,14 +17,14 @@ async function wait(fn: () => boolean, timeout = 2000) {
   }
 }
 
-function event(payload: AigcForgeEvent, input: { directory: string }): AigcForgeEvent {
+function event(payload: OmnixaEvent, input: { directory: string }): OmnixaEvent {
   return {
     ...payload,
     location: { directory: input.directory },
   }
 }
 
-function vcs(branch: string): AigcForgeEvent {
+function vcs(branch: string): OmnixaEvent {
   return {
     id: `evt_vcs_${branch}`,
     created: 0,
@@ -35,7 +35,7 @@ function vcs(branch: string): AigcForgeEvent {
   }
 }
 
-function update(version: string): AigcForgeEvent {
+function update(version: string): OmnixaEvent {
   return {
     id: `evt_update_${version}`,
     created: 0,
@@ -46,10 +46,10 @@ function update(version: string): AigcForgeEvent {
   }
 }
 
-async function mount(reconnect?: (signal: AbortSignal) => Promise<{ api: AigcForgeClient }>, log?: LogSink) {
+async function mount(reconnect?: (signal: AbortSignal) => Promise<{ api: OmnixaClient }>, log?: LogSink) {
   const events = createEventStream()
   const calls = createFetch(undefined, events)
-  const seen: AigcForgeEvent[] = []
+  const seen: OmnixaEvent[] = []
   const directories: Array<string | undefined> = []
   let client!: ReturnType<typeof useClient>
   let done!: () => void
@@ -78,7 +78,7 @@ async function mount(reconnect?: (signal: AbortSignal) => Promise<{ api: AigcFor
 }
 
 function Probe(props: {
-  seen: AigcForgeEvent[]
+  seen: OmnixaEvent[]
   directories: Array<string | undefined>
   onReady: (ctx: { client: ReturnType<typeof useClient> }) => void
 }) {

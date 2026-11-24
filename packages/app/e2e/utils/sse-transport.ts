@@ -1,5 +1,16 @@
 import type { Page } from "@playwright/test"
-import type { AigcForgeEvent } from "@aigcfroge/client/promise"
+import type { JsonValue, OmnixaEvent } from "@omnixa/client/promise"
+import type { Schema } from "effect"
+
+type ReadonlyDto<Value> = unknown extends Value
+  ? Value
+  : [JsonValue] extends [Value]
+    ? Schema.Json | Extract<Value, undefined>
+    : Value extends object
+      ? { readonly [Key in keyof Value]: ReadonlyDto<Value[Key]> }
+      : Value
+
+export type SseEvent = ReadonlyDto<OmnixaEvent>
 
 export type SseConnectionRecord = {
   id: number
@@ -28,7 +39,7 @@ export type SseEventOptions = {
   marker?: string
 }
 
-export type SseTransport<T extends AigcForgeEvent> = {
+export type SseTransport<T extends SseEvent> = {
   server: string
   waitForConnection(options?: { after?: number; timeout?: number }): Promise<SseConnectionRecord>
   send(payload: T, options?: SseEventOptions): Promise<SseDeliveryAcknowledgement>
@@ -57,7 +68,7 @@ type BrowserTransport = Window & {
 
 // `keepalive` (default true) writes an SSE comment every 15 s like the real server, so long scenarios do not trip the
 // client's stall watchdog. Set it to false only to test that watchdog.
-export async function installSseTransport<T extends AigcForgeEvent = AigcForgeEvent>(
+export async function installSseTransport<T extends SseEvent = SseEvent>(
   page: Page,
   options: { server: string; retry?: number; keepalive?: boolean },
 ): Promise<SseTransport<T>> {

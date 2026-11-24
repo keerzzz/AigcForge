@@ -9,7 +9,7 @@ import { Composition } from "./composition.js"
  * bindings" and "this session's agent is not in the frozen pool" into one `undefined` is what let
  * an unknown agent fall through to the cross-consumer flat arrays — the exact leak D5-A closes.
  *
- * Owned here (not in `@aigcfroge/core`) so the app composer can resolve the same consumer catalog
+ * Owned here (not in `@omnixa/core`) so the app composer can resolve the same consumer catalog
  * for the slash popover without deep-importing core; core re-exports this module unchanged.
  */
 export type Scope =

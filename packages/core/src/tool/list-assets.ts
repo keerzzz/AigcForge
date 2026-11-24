@@ -1,13 +1,13 @@
 export * as ListAssetsTool from "./list-assets.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Effect, Option, Schema } from "effect"
 import path from "node:path"
 import { Location } from "../location.js"
 import { LocationMutation } from "../location-mutation.js"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import { SessionStore } from "../session/store.js"
 import { Skill } from "../skill.js"
 
@@ -15,21 +15,21 @@ export const name = "list_assets"
 
 export const description = `List available chat mode assets (prompts, skills, MCP configs, commands, agents, workflows, plugins) in the current project.
 
-Each asset entry includes its kind, name, and relative path in the .aigcfroge/ directory.
+Each asset entry includes its kind, name, and relative path in the .omnixa/ directory.
 The agent can then use "read" to view the full content of an asset by its relative path.
 
 Usage:
 - \`kind\` (optional): filter by asset type (e.g. "prompt", "skill", "mcp", "command", "agent", "workflow", "plugin"). If omitted, returns all asset types.`
 
 const KIND_DIRS: Record<string, { dir: string }> = {
-  prompt: { dir: ".aigcfroge/prompts" },
-  skill: { dir: ".aigcfroge/skills" },
-  mcp: { dir: ".aigcfroge/mcps" },
-  command: { dir: ".aigcfroge/commands" },
-  agent: { dir: ".aigcfroge/agents" },
-  workflow: { dir: ".aigcfroge/workflows" },
-  plugin: { dir: ".aigcfroge/plugins" },
-  "custom-profile": { dir: ".aigcfroge/custom-profiles" },
+  prompt: { dir: ".omnixa/prompts" },
+  skill: { dir: ".omnixa/skills" },
+  mcp: { dir: ".omnixa/mcps" },
+  command: { dir: ".omnixa/commands" },
+  agent: { dir: ".omnixa/agents" },
+  workflow: { dir: ".omnixa/workflows" },
+  plugin: { dir: ".omnixa/plugins" },
+  "custom-profile": { dir: ".omnixa/custom-profiles" },
 }
 
 export const Input = Schema.Struct({
@@ -62,7 +62,7 @@ const toModelContent = (assets: ReadonlyArray<{ kind: string; name: string; rela
 }
 
 export const Plugin = {
-  id: "aigcfroge.tool.list_assets",
+  id: "omnixa.tool.list_assets",
   effect: Effect.fn("ListAssetsTool.Plugin")(function* (ctx: Context) {
     const location = yield* Location.Service
     const fs = yield* FSUtil.Service
@@ -86,11 +86,11 @@ export const Plugin = {
                   message: `Failed to list assets: Location root is not a directory: ${location.directory}`,
                 })
               const owner = yield* fs
-                .stat(path.join(location.directory, ".aigcfroge"))
+                .stat(path.join(location.directory, ".omnixa"))
                 .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
               if (owner && owner.type !== "Directory")
                 return yield* new ToolFailure({
-                  message: `Failed to list assets: Asset root is not a directory: ${path.join(location.directory, ".aigcfroge")}`,
+                  message: `Failed to list assets: Asset root is not a directory: ${path.join(location.directory, ".omnixa")}`,
                 })
               const all = (yield* Effect.forEach(Object.entries(KIND_DIRS), ([kind, config]) =>
                 fs.readDirectory(path.join(location.directory, config.dir)).pipe(

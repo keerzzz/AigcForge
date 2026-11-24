@@ -1,4 +1,4 @@
-import { Project } from "@aigcfroge/schema/project"
+import { Project } from "@omnixa/schema/project"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { Authorization } from "../middleware/authorization.js"

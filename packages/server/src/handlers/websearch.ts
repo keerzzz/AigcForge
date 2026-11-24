@@ -1,5 +1,5 @@
-import { WebSearch } from "@aigcfroge/core/websearch"
-import { InvalidRequestError, ServiceUnavailableError } from "@aigcfroge/protocol/errors"
+import { WebSearch } from "@omnixa/core/websearch"
+import { InvalidRequestError, ServiceUnavailableError } from "@omnixa/protocol/errors"
 import { Effect } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
 import { Api } from "../api"

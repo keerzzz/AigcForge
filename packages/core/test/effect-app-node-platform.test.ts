@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { WebSocketTransport } from "@aigcfroge/ai/route"
-import { WebSocketConstructor } from "@aigcfroge/core/effect/websocket-constructor"
+import { WebSocketTransport } from "@omnixa/ai/route"
+import { WebSocketConstructor } from "@omnixa/core/effect/websocket-constructor"
 import { Effect } from "effect"
 import { Headers } from "effect/http"
 import { Socket } from "effect/socket"

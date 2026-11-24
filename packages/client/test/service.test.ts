@@ -67,7 +67,7 @@ test("adds configured environment variables when starting a service", async () =
       file: registration,
       version: "test",
       command: fixture.command("environment"),
-      env: { AIGCFROGE_SERVICE_ENV_TEST: "configured" },
+      env: { OMNIXA_SERVICE_ENV_TEST: "configured" },
     }),
   )
   const info = await Bun.file(registration).json()

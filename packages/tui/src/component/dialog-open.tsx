@@ -1,5 +1,5 @@
 import { batch, createEffect, createMemo, createResource, createSignal, onCleanup, Show } from "solid-js"
-import type { AigcForgeEvent, SessionInfo } from "@aigcfroge/client"
+import type { OmnixaEvent, SessionInfo } from "@omnixa/client"
 import path from "path"
 import { useTerminalDimensions } from "@opentui/solid"
 import { dialogWidth, useDialog } from "../ui/dialog"
@@ -19,7 +19,7 @@ import { truncateFilePath } from "../ui/file-path"
 import { useToast } from "../ui/toast"
 import { errorMessage } from "../util/error"
 import { stringWidth } from "../util/string-width"
-import { withTimestampedFallback } from "@aigcfroge/util/session-title-fallback"
+import { withTimestampedFallback } from "@omnixa/util/session-title-fallback"
 import { sessionStatusGutter } from "./dialog-session-list"
 import { Spinner } from "./spinner"
 import { projectName } from "../util/project"
@@ -53,7 +53,7 @@ export function DialogOpen(props: { sessions: SessionInfo[]; onLoad: (sessions: 
   })
   const [recent] = createResource(() => {
     // A late read must not overwrite deletion or placement facts observed in flight.
-    const changed = new Map<string, Extract<AigcForgeEvent, { type: "session.deleted" | "session.moved" }>>()
+    const changed = new Map<string, Extract<OmnixaEvent, { type: "session.deleted" | "session.moved" }>>()
     const unsubscribe = client.event.listen((message) => {
       const event = message.details
       if (event.type === "session.deleted" || event.type === "session.moved") changed.set(event.data.sessionID, event)
@@ -482,7 +482,7 @@ export function DialogOpen(props: { sessions: SessionInfo[]; onLoad: (sessions: 
   )
 }
 
-export function moveOpenSession(session: SessionInfo, event: Extract<AigcForgeEvent, { type: "session.moved" }>) {
+export function moveOpenSession(session: SessionInfo, event: Extract<OmnixaEvent, { type: "session.moved" }>) {
   return {
     ...session,
     location: event.data.location,

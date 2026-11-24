@@ -1,5 +1,5 @@
-import type { IntegrationOAuthMethodRegistration } from "@aigcfroge/plugin/effect/integration"
-import { define } from "@aigcfroge/plugin/effect/plugin"
+import type { IntegrationOAuthMethodRegistration } from "@omnixa/plugin/effect/integration"
+import { define } from "@omnixa/plugin/effect/plugin"
 import { Clock, Deferred, Effect, Option, Schedule, Schema, Semaphore, Stream } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 import type { Server } from "node:http"
@@ -112,7 +112,7 @@ const oauth = {
 } satisfies IntegrationOAuthMethodRegistration
 
 export const DigitalOceanPlugin = define({
-  id: "aigcfroge.provider.digitalocean",
+  id: "omnixa.provider.digitalocean",
   effect: Effect.fn(function* (ctx) {
     const bus = yield* Bus.Service
     const http = HttpClient.filterStatusOk(yield* HttpClient.HttpClient)

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { SessionMessageUser } from "@aigcfroge/client/promise"
+import type { SessionMessageUser } from "@omnixa/client/promise"
 import { extractPromptContext, extractPromptFromMessage } from "./prompt"
 import { buildPromptRequest } from "./request"
 import { contextItemKey } from "./schema"

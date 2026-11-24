@@ -1,10 +1,10 @@
 import { createEffect, createMemo, createSignal, on, onCleanup, Show } from "solid-js"
-import type { SessionStatus } from "@aigcfroge/client/promise"
-import { useI18n } from "@aigcfroge/ui/context/i18n"
-import { Card } from "@aigcfroge/ui/card"
-import { Icon } from "@aigcfroge/ui/icon"
-import { TextShimmer } from "@aigcfroge/ui/text-shimmer"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
+import type { SessionStatus } from "@omnixa/client/promise"
+import { useI18n } from "@omnixa/ui/context/i18n"
+import { Card } from "@omnixa/ui/card"
+import { Icon } from "@omnixa/ui/icon"
+import { TextShimmer } from "@omnixa/ui/text-shimmer"
+import { Tooltip } from "@omnixa/ui/tooltip"
 import { SessionErrorMessage } from "./session-error"
 
 export function SessionRetry(props: { status: SessionStatus; show?: boolean }) {

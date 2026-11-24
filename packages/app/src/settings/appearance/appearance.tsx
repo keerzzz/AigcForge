@@ -1,6 +1,6 @@
 import { Component } from "solid-js"
-import { Select } from "@aigcfroge/ui/select"
-import { TextInput } from "@aigcfroge/ui/text-input"
+import { Select } from "@omnixa/ui/select"
+import { TextInput } from "@omnixa/ui/text-input"
 import { useLanguage } from "@/runtime/i18n/language"
 import { ExternalLink } from "@/runtime/platform/external-link"
 import { SettingsList } from "@/settings/list"
@@ -107,7 +107,7 @@ export const SettingsAppearance: Component = () => {
               description={
                 <>
                   {language.t("settings.general.row.theme.description")}{" "}
-                  <ExternalLink class="settings-link" href="https://aigcfroge.ai/docs/themes/">
+                  <ExternalLink class="settings-link" href="https://github.com/keerzzz/AigcForge#readme">
                     {language.t("common.learnMore")}
                   </ExternalLink>
                 </>

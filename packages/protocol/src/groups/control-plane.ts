@@ -1,5 +1,5 @@
-import { AbsolutePath } from "@aigcfroge/schema/schema"
-import { Session } from "@aigcfroge/schema/session"
+import { AbsolutePath } from "@omnixa/schema/schema"
+import { Session } from "@omnixa/schema/session"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/http-api"
 import { Authorization } from "../middleware/authorization.js"

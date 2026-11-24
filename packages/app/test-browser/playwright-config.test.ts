@@ -35,9 +35,9 @@ test.each([
     )
     expect(config.webServer.reuseExistingServer).toBe(!built)
     expect(config.webServer.env).toEqual({
-      VITE_AIGCFROGE_TEST_FIXTURES: "1",
-      VITE_AIGCFROGE_SERVER_HOST: built ? "127.0.0.1" : "127.0.0.2",
-      VITE_AIGCFROGE_SERVER_PORT: built ? "4321" : "4322",
+      VITE_OMNIXA_TEST_FIXTURES: "1",
+      VITE_OMNIXA_SERVER_HOST: built ? "127.0.0.1" : "127.0.0.2",
+      VITE_OMNIXA_SERVER_PORT: built ? "4321" : "4322",
     })
   },
   30_000,

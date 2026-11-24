@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 import { unwrap } from "solid-js/store"
 import { createData, type CreateDataInput } from "../src/solid"
-import { AigcForge, type AigcForgeEvent, type SessionInboxCompaction, type SessionInboxInfo } from "../src/promise"
+import { Omnixa, type OmnixaEvent, type SessionInboxCompaction, type SessionInboxInfo } from "../src/promise"
 
 test("admits compaction before model setup and serializes the following prompt", async () => {
   using fixture = setup()
@@ -365,8 +365,8 @@ function setup(override?: (request: Request) => Promise<Response | undefined>) {
   const proposals: string[] = []
   const pending: SessionInboxInfo[] = []
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
       const overridden = await override?.(request)
@@ -406,7 +406,7 @@ function setup(override?: (request: Request) => Promise<Response | undefined>) {
     }),
     dispose,
   }))
-  const emit = (details: AigcForgeEvent) => listeners.forEach((listener) => listener({ name: details.type, details }))
+  const emit = (details: OmnixaEvent) => listeners.forEach((listener) => listener({ name: details.type, details }))
   return {
     data: root.data,
     api,

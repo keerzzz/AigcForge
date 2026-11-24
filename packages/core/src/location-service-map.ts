@@ -1,7 +1,7 @@
 import { Context, Effect, Exit, Layer, LayerMap, RcMap } from "effect"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Node } from "@aigcfroge/util/effect/app-node"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Node } from "@omnixa/util/effect/app-node"
+import { AbsolutePath } from "@omnixa/schema/schema"
 import path from "path"
 import { Location } from "./location.js"
 import type { Instance } from "./instance.js"
@@ -9,7 +9,7 @@ import type { Instance } from "./instance.js"
 export class Service extends Context.Service<
   Service,
   LayerMap.LayerMap<Location.Ref, Instance.Services, Instance.Error>
->()("@aigcfroge/example/LocationServiceMap") {
+>()("@omnixa/example/LocationServiceMap") {
   static get(ref: Location.Ref) {
     return Layer.unwrap(Effect.map(Service, (locations) => locations.get(ref)))
   }

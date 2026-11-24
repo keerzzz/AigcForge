@@ -3,17 +3,17 @@ import { Component, ComponentProps, createEffect, createMemo, For, JSX, Show, Su
 import { createStore } from "solid-js/store"
 import { createMediaQuery } from "@solid-primitives/media"
 import { useLocal, type ModelSelection } from "@/providers/models/selection"
-import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { useDialog } from "@omnixa/ui/context/dialog"
 import { popularProviders } from "@/providers/catalog/providers"
-import { Button } from "@aigcfroge/ui/button"
-import { Badge } from "@aigcfroge/ui/badge"
-import { Dialog, DialogBody, DialogHeader, DialogTitleGroup } from "@aigcfroge/ui/dialog"
-import { Icon } from "@aigcfroge/ui/icon"
-import { IconButton } from "@aigcfroge/ui/icon-button"
-import { ScrollView } from "@aigcfroge/ui/scroll-view"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
-import { Menu } from "@aigcfroge/ui/menu"
-import { TextInput } from "@aigcfroge/ui/text-input"
+import { Button } from "@omnixa/ui/button"
+import { Badge } from "@omnixa/ui/badge"
+import { Dialog, DialogBody, DialogHeader, DialogTitleGroup } from "@omnixa/ui/dialog"
+import { Icon } from "@omnixa/ui/icon"
+import { IconButton } from "@omnixa/ui/icon-button"
+import { ScrollView } from "@omnixa/ui/scroll-view"
+import { Tooltip } from "@omnixa/ui/tooltip"
+import { Menu } from "@omnixa/ui/menu"
+import { TextInput } from "@omnixa/ui/text-input"
 import { ModelTooltip } from "./tooltip"
 import { useLanguage } from "@/runtime/i18n/language"
 import { ExternalLink } from "@/runtime/platform/external-link"
@@ -25,14 +25,9 @@ import { createMenuDismissController } from "@/shell/commands/menu-dismiss"
 import { createEventListener } from "@solid-primitives/event-listener"
 import { matchesModelSearch } from "./search"
 import { selectionKey } from "./key"
-import type { ModelGroupCurrent } from "@aigcfroge/client/promise"
+import type { ModelGroupCurrent } from "@omnixa/client/promise"
 import { SettingsList } from "@/settings/list"
-import {
-  CONSOLE_GROUP_KEY,
-  consoleModelGroup,
-  ProviderModelIcon,
-  ProviderModelSections,
-} from "@/providers/models/provider-group"
+import { ProviderModelIcon, ProviderModelSections } from "@/providers/models/provider-group"
 import "@/settings/settings.css"
 import "./select-dialog.css"
 
@@ -102,14 +97,9 @@ const ModelList: Component<{
   const models = createMemo(() => controller.models(store.search))
   const modelGroupOptions = () => controller.modelGroups(store.search)
   const modelGroups = createMemo(() => controller.groups(models()))
-  const managed = createMemo(() => consoleModelGroup(controller.all()))
   const expanded = (provider: string) => store.search.length > 0 || !store.collapsed[provider]
-  const managedIDs = createMemo(() => new Set(managed()?.providers.map((provider) => provider.id) ?? []))
 
-  const visibleModels = () =>
-    models().filter(
-      (item) => expanded(item.provider.id) && (!managedIDs().has(item.provider.id) || expanded(CONSOLE_GROUP_KEY)),
-    )
+  const visibleModels = () => models().filter((item) => expanded(item.provider.id))
 
   let scrollRef: HTMLDivElement | undefined
 
@@ -294,7 +284,6 @@ const ModelList: Component<{
           >
             <ProviderModelSections
               groups={modelGroups()}
-              managed={managed()}
               expanded={expanded}
               disabled={store.search.length > 0}
               onExpandedChange={(key, value) => setStore("collapsed", key, !value)}

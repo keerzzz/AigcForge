@@ -1,6 +1,6 @@
 import { createMemo, lazy, onCleanup, Show, Suspense, type ParentProps } from "solid-js"
-import { extensionEnabled } from "@aigcfroge/gui-extensions/sdk/bridge"
-import type { Definition } from "@aigcfroge/gui-extensions/sdk"
+import { extensionEnabled } from "@omnixa/gui-extensions/sdk/bridge"
+import type { Definition } from "@omnixa/gui-extensions/sdk"
 import { builtins } from "./builtins"
 import { createInstalled } from "./installed"
 import { createMenubarItems, MenubarItemsProvider } from "./menubar-items"

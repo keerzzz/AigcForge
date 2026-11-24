@@ -13,6 +13,7 @@ afterEach(async () => {
 // operations in order; downloads record whether a differential download was allowed and installs record the staged
 // version they would apply. `seen` records every state the updater published.
 async function setup(input?: {
+  disabled?: boolean
   currentVersion?: string
   ready?: { version: string }
   /** The release each platform check finds, in order; the last one repeats. "offline" fails the check. */
@@ -30,41 +31,43 @@ async function setup(input?: {
 
   const dependencies: Dependencies = {
     currentVersion: input?.currentVersion ?? "1.0.0",
-    platform: {
-      checkForUpdate: Effect.try({
-        try: () => {
-          calls.push("check")
-          const version = checks[Math.min(cursor.check++, checks.length - 1)] ?? "2.0.0"
+    platform: input?.disabled
+      ? undefined
+      : {
+          checkForUpdate: Effect.try({
+            try: () => {
+              calls.push("check")
+              const version = checks[Math.min(cursor.check++, checks.length - 1)] ?? "2.0.0"
 
-          if (version === "offline") throw new Error("offline")
+              if (version === "offline") throw new Error("offline")
 
-          return input?.external
-            ? { mode: "external" as const, version, url: `https://files.test/${version}.dmg` }
-            : { mode: "restart" as const, version }
-        },
-        catch: (error) => error,
-      }),
-      stageUpdate: (options) =>
-        Effect.tryPromise(async () => {
-          calls.push(options.differential ? "download" : "download:full")
-          await input?.stage?.()
-        }),
-      installAndRestart: Effect.suspend(() => {
-        calls.push(`install:${store.ready?.version}`)
-
-        return Effect.tryPromise({
-          try: () => input?.install?.() ?? new Promise<void>(() => {}),
-          catch: (error) => error,
-        })
-      }),
-      externalInstall: input?.external
-        ? (url) =>
+              return input?.external
+                ? { mode: "external" as const, version, url: `https://files.test/${version}.dmg` }
+                : { mode: "restart" as const, version }
+            },
+            catch: (error) => error,
+          }),
+          stageUpdate: (options) =>
             Effect.tryPromise(async () => {
-              calls.push(`external:${url}`)
-              await input.open?.()
+              calls.push(options.differential ? "download" : "download:full")
+              await input?.stage?.()
+            }),
+          installAndRestart: Effect.suspend(() => {
+            calls.push(`install:${store.ready?.version}`)
+
+            return Effect.tryPromise({
+              try: () => input?.install?.() ?? new Promise<void>(() => {}),
+              catch: (error) => error,
             })
-        : undefined,
-    },
+          }),
+          externalInstall: input?.external
+            ? (url) =>
+                Effect.tryPromise(async () => {
+                  calls.push(`external:${url}`)
+                  await input.open?.()
+                })
+            : undefined,
+        },
     restart: (handoff) =>
       Effect.suspend(() => {
         calls.push("prepare")
@@ -103,6 +106,15 @@ async function setup(input?: {
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 describe("updater", () => {
+  test("keeps an unsupported platform disabled without claiming it is up to date", async () => {
+    const app = await setup({ disabled: true })
+    await app.start()
+    expect(app.state()).toEqual({ status: "disabled" })
+    expect(await app.check()).toEqual({ status: "disabled" })
+    await expect(app.install()).rejects.toThrow("Update is not ready to install")
+    expect(app.calls).toEqual([])
+  })
+
   // The launch check, then one silent re-check per further entry in `checks`. `rechecks` lists the states the
   // re-checks published: a ready or offered update never leaves the screen while one runs.
   test.each([

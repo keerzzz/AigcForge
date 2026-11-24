@@ -178,7 +178,7 @@ export const makeMainWindows = Effect.fn("Window.make")(function* () {
     let revealed = !!early
 
     const focusForTests = () => {
-      if (app.isPackaged || process.env.AIGCFROGE_TEST_ONBOARDING !== "1") return
+      if (app.isPackaged || process.env.OMNIXA_TEST_ONBOARDING !== "1") return
 
       if (process.platform === "darwin") app.focus({ steal: true })
       win.focus()

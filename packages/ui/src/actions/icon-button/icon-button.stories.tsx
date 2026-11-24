@@ -1,6 +1,6 @@
 import { For } from "solid-js"
 import { IconButton } from "./icon-button"
-import { Icon } from "@aigcfroge/ui/icon"
+import { Icon } from "@omnixa/ui/icon"
 
 const docs = `### Overview
 Square icon-only button with visual variants and three sizes.

@@ -1,10 +1,10 @@
 export * as WorkflowExecution from "./execution.js"
 
 import { Cause, Context, Effect, Exit, Layer, Option, Schema } from "effect"
-import { Composition } from "@aigcfroge/schema/composition"
-import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
-import { Node, makeGlobalNode } from "@aigcfroge/util/effect/app-node"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Composition } from "@omnixa/schema/composition"
+import { WorkflowAsset } from "@omnixa/schema/workflow-asset"
+import { Node, makeGlobalNode } from "@omnixa/util/effect/app-node"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { CompositionDigest } from "../composition/digest.js"
 import { CompositionResolver } from "../composition-resolver.js"
 import { Bus } from "../bus.js"
@@ -126,7 +126,7 @@ export interface Interface {
   readonly reconcilePending: Effect.Effect<readonly Session.ID[], Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/WorkflowExecution") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/WorkflowExecution") {}
 
 class BatchAbort extends Schema.TaggedError<BatchAbort>()("WorkflowExecution.BatchAbort", {
   category: WorkflowAsset.ErrorCategory,

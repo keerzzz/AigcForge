@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 import { createData, type CreateDataInput } from "../src/solid"
-import { AigcForge, type AigcForgeEvent, type SessionInboxItem } from "../src/promise"
+import { Omnixa, type OmnixaEvent, type SessionInboxItem } from "../src/promise"
 
 const item: SessionInboxItem = {
   id: "msg_remote",
@@ -14,8 +14,8 @@ const item: SessionInboxItem = {
 
 function fixture(fetch: (request: Request) => Promise<Response>) {
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: (input, init) => fetch(input instanceof Request ? input : new Request(input, init)),
   })
   return createRoot((dispose) => ({
@@ -30,12 +30,12 @@ function fixture(fetch: (request: Request) => Promise<Response>) {
         },
       },
     }),
-    emit: (event: AigcForgeEvent) => listeners.forEach((listener) => listener({ name: event.type, details: event })),
+    emit: (event: OmnixaEvent) => listeners.forEach((listener) => listener({ name: event.type, details: event })),
     dispose,
   }))
 }
 
-const enqueued: AigcForgeEvent = {
+const enqueued: OmnixaEvent = {
   id: "evt_enqueued",
   type: "session.inbox.enqueued",
   created: 1,

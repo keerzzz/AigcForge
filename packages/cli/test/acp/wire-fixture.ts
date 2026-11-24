@@ -17,17 +17,17 @@ import {
   type RequestPermissionResponse,
   type SessionNotification,
 } from "@agentclientprotocol/sdk"
-import { AigcForge } from "@aigcfroge/client/effect"
-import type { AigcForgeEventEncoded } from "@aigcfroge/protocol/groups/event"
-import type { Agent } from "@aigcfroge/schema/agent"
-import type { Command } from "@aigcfroge/schema/command"
-import { Form } from "@aigcfroge/schema/form"
-import type { Location } from "@aigcfroge/schema/location"
-import type { Model } from "@aigcfroge/schema/model"
-import type { Plugin } from "@aigcfroge/schema/plugin"
-import type { Session } from "@aigcfroge/schema/session"
-import type { SessionMessage } from "@aigcfroge/schema/session-message"
-import type { TokenUsage } from "@aigcfroge/schema/token-usage"
+import { Omnixa } from "@omnixa/client/effect"
+import type { OmnixaEventEncoded } from "@omnixa/protocol/groups/event"
+import type { Agent } from "@omnixa/schema/agent"
+import type { Command } from "@omnixa/schema/command"
+import { Form } from "@omnixa/schema/form"
+import type { Location } from "@omnixa/schema/location"
+import type { Model } from "@omnixa/schema/model"
+import type { Plugin } from "@omnixa/schema/plugin"
+import type { Session } from "@omnixa/schema/session"
+import type { SessionMessage } from "@omnixa/schema/session-message"
+import type { TokenUsage } from "@omnixa/schema/token-usage"
 import type { BunRequest } from "bun"
 import { createTwoFilesPatch } from "diff"
 import { Duration, Effect, Exit, Logger, Option, Schema, Scope } from "effect"
@@ -36,7 +36,7 @@ import { ACP } from "../../src/acp/agent"
 import { ACPTurn } from "../../src/acp/turn"
 
 // The fake server sends and stores the wire form of each value.
-type AigcForgeEvent = AigcForgeEventEncoded
+type OmnixaEvent = OmnixaEventEncoded
 type AgentInfo = typeof Agent.Info.Encoded
 type CommandInfo = typeof Command.Info.Encoded
 type LocationRef = typeof Location.PublicRef.Encoded
@@ -46,12 +46,12 @@ type PluginInfo = typeof Plugin.Info.Encoded
 type SessionInfo = typeof Session.Info.Encoded
 type SessionMessageInfo = typeof SessionMessage.Info.Encoded
 type TokenUsageInfo = typeof TokenUsage.Info.Encoded
-type DurableEvent = Extract<AigcForgeEvent, { durable: unknown }>
-type EphemeralEvent = Exclude<AigcForgeEvent, DurableEvent>
-type EventData<Type extends AigcForgeEvent["type"]> = Extract<AigcForgeEvent, { type: Type }>["data"]
+type DurableEvent = Extract<OmnixaEvent, { durable: unknown }>
+type EphemeralEvent = Exclude<OmnixaEvent, DurableEvent>
+type EventData<Type extends OmnixaEvent["type"]> = Extract<OmnixaEvent, { type: Type }>["data"]
 type AssistantMessage = Extract<SessionMessageInfo, { type: "assistant" }>
 
-type Events = ReadonlyArray<AigcForgeEvent> | void
+type Events = ReadonlyArray<OmnixaEvent> | void
 type Hook<Input> = (input: Input) => Events | Promise<Events>
 
 type ServerRequest = {
@@ -263,9 +263,9 @@ export function tokens(value = 1): TokenUsageInfo {
   return { input: value, output: value, reasoning: 0, cache: { read: 0, write: 0 } }
 }
 
-// The fake server stamps ids and sequence numbers when it sends an event. The wire form types every version as a
-// number, so the client's decode is what rejects an event sent under the wrong version.
-function durable(version: number) {
+// The fake server stamps ids and sequence numbers when it sends an event.
+// Preserve the declared durable version; current events use both version 1 and version 2.
+function durable<const VersionNumber extends number>(version: VersionNumber) {
   return <Type extends DurableEvent["type"]>(type: Type, data: EventData<Type>) => ({
     id: "",
     created: 0,
@@ -297,7 +297,7 @@ export const interrupted = (sessionID: string) =>
 export const failed = (sessionID: string, error: EventData<"session.execution.failed">["error"]) =>
   durableEvent("session.execution.failed", { sessionID, error })
 
-export function turn(sessionID: string, inboxID: string, ...events: AigcForgeEvent[]): AigcForgeEvent[] {
+export function turn(sessionID: string, inboxID: string, ...events: OmnixaEvent[]): OmnixaEvent[] {
   return [delivered(sessionID, inboxID), ...events, succeeded(sessionID)]
 }
 
@@ -430,7 +430,7 @@ export async function startWire(options: WireOptions = {}) {
   const logs: Array<Pick<Logger.Options<unknown>, "message" | "cause">> = []
   const agentScope = Scope.makeUnsafe()
   const agentConnection = await Effect.runPromise(
-    AigcForge.make({ baseUrl: server.url }).pipe(
+    Omnixa.make({ baseUrl: server.url }).pipe(
       Effect.provide(FetchHttpClient.layer),
       Effect.flatMap((client) => ACP.connect(client, ndJsonStream(agentToClient.writable, clientToAgent.readable))),
       Scope.provide(agentScope),
@@ -444,7 +444,7 @@ export async function startWire(options: WireOptions = {}) {
   const clientStream = ndJsonStream(clientToAgent.writable, agentToClient.readable)
   const connection = client({ name: "test" })
     .onNotification("session/update", (ctx) => handled(updates, ctx.params))
-    .onNotification("aigcfroge/session/child_update", Schema.decodeUnknownSync(ChildUpdate), (ctx) =>
+    .onNotification("omnixa/session/child_update", Schema.decodeUnknownSync(ChildUpdate), (ctx) =>
       handled(childUpdates, ctx.params),
     )
     .onRequest("session/request_permission", (ctx) => {
@@ -508,7 +508,7 @@ export async function startWire(options: WireOptions = {}) {
         ...(capabilities.elicitation ? { elicitation: { form: {} } } : {}),
         ...(capabilities.compaction !== undefined ? { session: { compaction: capabilities.compaction } } : {}),
         _meta: {
-          ...(capabilities.childSessionUpdates ? { "aigcfroge/child-session-updates": true } : {}),
+          ...(capabilities.childSessionUpdates ? { "omnixa/child-session-updates": true } : {}),
           ...(capabilities.terminalAuth ? { "terminal-auth": true } : {}),
         },
       },
@@ -576,7 +576,7 @@ function startServer(options: WireOptions, changed: () => void) {
     commands: [reviewCommand],
     plugins: [
       {
-        id: "aigcfroge.models.dev",
+        id: "omnixa.models.dev",
         source: { type: "builtin" },
         features: { server: true },
         state: { status: "active" },
@@ -606,7 +606,7 @@ function startServer(options: WireOptions, changed: () => void) {
     cancelledForms,
     repliedForms,
     mcp,
-    send(...events: ReadonlyArray<AigcForgeEvent>) {
+    send(...events: ReadonlyArray<OmnixaEvent>) {
       events.forEach((event) => {
         const seq = ++counter.events
         const stamped = {

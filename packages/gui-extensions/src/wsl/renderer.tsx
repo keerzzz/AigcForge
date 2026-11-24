@@ -1,4 +1,4 @@
-import { showToast } from "@aigcfroge/ui/toast"
+import { showToast } from "@omnixa/ui/toast"
 import { lazy, onCleanup, Suspense } from "solid-js"
 import { createStore } from "solid-js/store"
 import { MenuItem, onIdle, Server, Style, type ServerEntry, type ServerState, type Setup } from "../sdk"

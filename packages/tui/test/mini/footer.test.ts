@@ -18,7 +18,7 @@ import type {
 import { createTuiResolvedConfig } from "../fixture/tui-runtime"
 import { tmpdir } from "../fixture/fixture"
 import { createFooterApiFixture } from "./fixture/footer-api"
-import { getAigcForgeTheme } from "../../src/theme"
+import { getOmnixaTheme } from "../../src/theme"
 
 function progress(input: Partial<StreamCommit> = {}): StreamCommit {
   return {
@@ -281,10 +281,10 @@ test.each(["timer", "output", "close", "panel"] as const)(
       await app.renderOnce()
       expect(app.renderer.root.findDescendantById("mini-startup")).toBeUndefined()
       const rows = app.externalOutput.take().flatMap((event) => event.rows)
-      expect(rows.filter((row) => row.includes("oc mini"))).toEqual(["\u25aa oc mini vtest \u00b7 /project"])
+      expect(rows.filter((row) => row.includes("omnixa mini"))).toEqual(["\u25aa omnixa mini vtest \u00b7 /project"])
       if (finish === "output")
         expect(rows.findIndex((row) => row.includes("first output"))).toBeGreaterThan(
-          rows.findIndex((row) => row.includes("oc mini")),
+          rows.findIndex((row) => row.includes("omnixa mini")),
         )
       if (finish !== "panel") expect(app.renderer.currentFocusedEditor).toBe(editor)
       app.footer.finishStartup()
@@ -450,8 +450,8 @@ test.each([false, true])("production footer preserves wrapped input and status o
 
 test("explicit theme refresh reloads custom colors without a palette event", async () => {
   await using tmp = await tmpdir()
-  const previous = process.env.AIGCFROGE_CONFIG_DIR
-  process.env.AIGCFROGE_CONFIG_DIR = tmp.path
+  const previous = process.env.OMNIXA_CONFIG_DIR
+  process.env.OMNIXA_CONFIG_DIR = tmp.path
   const app = await setup({ mono: false, theme: { name: "mini-refresh", mode: "dark" } })
   app.renderer.getPalette = async () => {
     throw new Error("no OSC response")
@@ -463,8 +463,8 @@ test("explicit theme refresh reloads custom colors without a palette event", asy
       await Bun.write(
         path.join(tmp.path, "themes", "mini-refresh.json"),
         JSON.stringify({
-          base: { ...getAigcForgeTheme().base, text: { ...getAigcForgeTheme().base.text, base: color } },
-          dark: { hue: getAigcForgeTheme().dark.hue },
+          base: { ...getOmnixaTheme().base, text: { ...getOmnixaTheme().base.text, base: color } },
+          dark: { hue: getOmnixaTheme().dark.hue },
         }),
       )
       await app.footer.refreshTheme()
@@ -480,8 +480,8 @@ test("explicit theme refresh reloads custom colors without a palette event", asy
   } finally {
     app.footer.destroy()
     app.renderer.destroy()
-    if (previous === undefined) delete process.env.AIGCFROGE_CONFIG_DIR
-    else process.env.AIGCFROGE_CONFIG_DIR = previous
+    if (previous === undefined) delete process.env.OMNIXA_CONFIG_DIR
+    else process.env.OMNIXA_CONFIG_DIR = previous
   }
 })
 

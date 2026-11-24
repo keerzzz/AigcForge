@@ -3,8 +3,8 @@ import type {
   SessionMessageAssistantTool,
   SessionMessageUser,
   ModelSelection,
-} from "@aigcfroge/client/promise"
-import type { SessionReference } from "@aigcfroge/schema/session-reference"
+} from "@omnixa/client/promise"
+import type { SessionReference } from "@omnixa/schema/session-reference"
 import { Match, Switch, type ComponentProps } from "solid-js"
 import type {
   SessionResponseActionInput,

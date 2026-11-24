@@ -1,8 +1,8 @@
 import { net, session, type WebContents } from "electron"
-import type { RpcClient } from "@aigcfroge/client/effect/api"
-import type { Session } from "@aigcfroge/schema/session"
-import { Browser } from "@aigcfroge/plugin-browser/rpc"
-import { BrowserProxy } from "@aigcfroge/plugin-browser/proxy"
+import type { RpcClient } from "@omnixa/client/effect/api"
+import type { Session } from "@omnixa/schema/session"
+import { Browser } from "@omnixa/plugin-browser/rpc"
+import { BrowserProxy } from "@omnixa/plugin-browser/proxy"
 import { Effect } from "effect"
 import { Base64 } from "effect/encoding"
 
@@ -59,7 +59,7 @@ export const createBrowserNetwork = Effect.fn("BrowserNetwork.create")(function*
           auth.scheme !== "basic" ||
           auth.host !== proxy.host ||
           auth.port !== proxy.port ||
-          auth.realm !== "AigcForge Browser Proxy"
+          auth.realm !== "Omnixa Browser Proxy"
         )
           return
         event.preventDefault()

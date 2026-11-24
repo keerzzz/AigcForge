@@ -2,11 +2,11 @@ export * as McpCredentialBindingStore from "./store"
 
 import { Context, Effect, Layer, Schema } from "effect"
 import { and, eq, isNotNull, isNull } from "drizzle-orm"
-import { McpScope } from "@aigcfroge/schema/mcp-scope"
+import { McpScope } from "@omnixa/schema/mcp-scope"
 import { Database } from "../../database/database.js"
 import { Bus } from "../../bus.js"
 import { Location } from "../../location.js"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { BindingEvent } from "./event.js"
 import { McpCredentialBindingTable } from "./sql.js"
 
@@ -188,7 +188,7 @@ interface Interface {
   ) => Effect.Effect<Info, CrossLocationRefError | DanglingRefError | RevokedRefError | StateError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/McpCredentialBindingStore") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/McpCredentialBindingStore") {}
 
 export const layer = Layer.effect(
   Service,

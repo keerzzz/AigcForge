@@ -1,9 +1,9 @@
 export * as TaskTool from "./task.js"
 
-import { ToolFailure } from "@aigcfroge/ai"
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { DelegationID, ParticipantID, TurnID } from "@aigcfroge/schema/delegation-id"
-import { Delegation } from "@aigcfroge/schema/delegation"
+import { ToolFailure } from "@omnixa/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { DelegationID, ParticipantID, TurnID } from "@omnixa/schema/delegation-id"
+import { Delegation } from "@omnixa/schema/delegation"
 import { Cause, Effect, Option, Schema } from "effect"
 import { and, eq } from "drizzle-orm"
 import { Agent } from "../../agent.js"
@@ -33,9 +33,9 @@ import { SessionHistory } from "../../session/history.js"
 import { SessionInputResultTable } from "../../session/sql.js"
 import { SessionTask } from "../../session/task.js"
 import { WorkflowExecution } from "../../workflow/execution.js"
-import { Composition } from "@aigcfroge/schema/composition"
-import { ExecutorBinding } from "@aigcfroge/schema/session"
-import { Tool } from "@aigcfroge/schema/tool"
+import { Composition } from "@omnixa/schema/composition"
+import { ExecutorBinding } from "@omnixa/schema/session"
+import { Tool } from "@omnixa/schema/tool"
 import {
   OperationID,
   OperationInfo,
@@ -44,19 +44,19 @@ import {
   OperationRequest,
   OperationTarget,
   OperationToolSource,
-} from "@aigcfroge/schema/session-task"
-import { SessionInbox } from "@aigcfroge/schema/session-inbox"
-import { optional } from "@aigcfroge/schema/schema"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Hash } from "@aigcfroge/util/hash"
+} from "@omnixa/schema/session-task"
+import { SessionInbox } from "@omnixa/schema/session-inbox"
+import { optional } from "@omnixa/schema/schema"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Hash } from "@omnixa/util/hash"
 import { Verifier } from "../../session/verifier.js"
 import { VerificationRouter } from "../../session/verification-router.js"
 
 export const name = "task"
 
 const backgroundEnabled = () =>
-  process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS === "1" ||
-  process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS === "true"
+  process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS === "1" ||
+  process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS === "true"
 
 export const Input = Schema.Struct({
   description: Schema.String.annotate({ description: "A short 3-5 word description of the task" }),
@@ -120,7 +120,7 @@ export const Input = Schema.Struct({
   }),
   background: Schema.optionalKey(Schema.Boolean).annotate({
     description:
-      "Run in the background and receive an automatic completion notification. Requires AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS; otherwise this option is ignored. Do not poll.",
+      "Run in the background and receive an automatic completion notification. Requires OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS; otherwise this option is ignored. Do not poll.",
   }),
   attended: Schema.optionalKey(Schema.Boolean).annotate({
     description:
@@ -292,7 +292,7 @@ const commandPermissions = {
 const toToolFailure = (error: { readonly message: string }) => new ToolFailure({ message: error.message, error })
 
 export const Plugin = {
-  id: "aigcfroge.tool.task",
+  id: "omnixa.tool.task",
   effect: Effect.fn("TaskTool.Plugin")(function* (ctx: Context) {
     const sessions = yield* Session.Service
     const agents = yield* Agent.Service

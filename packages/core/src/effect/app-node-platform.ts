@@ -1,7 +1,7 @@
-import { LLMClient, RequestExecutor } from "@aigcfroge/ai/route"
+import { LLMClient, RequestExecutor } from "@omnixa/ai/route"
 import { Socket } from "effect/socket"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
-import { httpClient } from "@aigcfroge/util/effect/app-node-platform"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
+import { httpClient } from "@omnixa/util/effect/app-node-platform"
 import { WebSocketConstructor } from "./websocket-constructor.js"
 
 export const requestExecutor = makeGlobalNode({

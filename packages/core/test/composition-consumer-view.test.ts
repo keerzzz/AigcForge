@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { Composition } from "@aigcfroge/schema/composition"
-import { Agent } from "@aigcfroge/schema/agent"
-import { CompositionConsumerView } from "@aigcfroge/core/composition/consumer-view"
+import { Composition } from "@omnixa/schema/composition"
+import { Agent } from "@omnixa/schema/agent"
+import { CompositionConsumerView } from "@omnixa/core/composition/consumer-view"
 
 // D5-A consumer scoping. The load-bearing property is negative: inside a scoped graph, a session
 // that cannot be mapped to a consumer must see NOTHING, never the flat `data.*` arrays — those span

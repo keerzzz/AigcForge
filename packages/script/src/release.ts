@@ -165,11 +165,11 @@ export function marker(input: Candidate) {
   version(input.previous)
   if (!Number.isSafeInteger(input.issue) || input.issue < 1)
     throw new Failure({ reason: "Invalid release tracking issue" })
-  return `<!-- aigcforge-desktop-release ${JSON.stringify(input)} -->`
+  return `<!-- omnixa-desktop-release ${JSON.stringify(input)} -->`
 }
 
 export function candidate(body: string | null) {
-  const matches = [...(body ?? "").matchAll(/<!-- aigcforge-desktop-release (\{[^\n]*\}) -->/g)]
+  const matches = [...(body ?? "").matchAll(/<!-- omnixa-desktop-release (\{[^\n]*\}) -->/g)]
   if (matches.length !== 1) throw new Failure({ reason: "Expected one managed release candidate marker" })
   const result = json(Candidate, matches[0][1], "release candidate")
   marker(result)

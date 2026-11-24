@@ -7,12 +7,12 @@ import path from "path"
 import { AbsolutePath } from "./schema.js"
 import { Bus } from "./bus.js"
 import { Database } from "./database/database.js"
-import { Worktree } from "@aigcfroge/schema/worktree"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { Worktree } from "@omnixa/schema/worktree"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Git } from "./git.js"
-import { AppProcess } from "@aigcfroge/util/process"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
-import { Hash } from "@aigcfroge/util/hash"
+import { AppProcess } from "@omnixa/util/process"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
+import { Hash } from "@omnixa/util/hash"
 import { ProjectSchema } from "./project/schema.js"
 import { ProjectTable, upsertProject } from "./project/sql.js"
 import { WorktreeTable } from "./worktree/sql.js"
@@ -68,7 +68,7 @@ export interface Interface {
   readonly resolve: (input: AbsolutePath) => Effect.Effect<Resolved>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Project") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Project") {}
 
 function fromRow(row: typeof ProjectTable.$inferSelect): Info {
   const icon =
@@ -255,7 +255,7 @@ const layer = Layer.effect(
     })
 
     const cached = Effect.fnUntraced(function* (dir: string) {
-      return yield* fs.readFileString(path.join(dir, "aigcfroge")).pipe(
+      return yield* fs.readFileString(path.join(dir, "omnixa")).pipe(
         Effect.map((value) => value.trim()),
         Effect.map((value) => (value ? ID.make(value) : undefined)),
         Effect.orElseSucceed(() => undefined),

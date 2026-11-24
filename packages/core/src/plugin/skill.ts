@@ -2,36 +2,36 @@
 
 export * as SkillPlugin from "./skill.js"
 
-import { define, type Context } from "@aigcfroge/plugin/effect/plugin"
-import { Document } from "@aigcfroge/schema/config"
+import { define, type Context } from "@omnixa/plugin/effect/plugin"
+import { Document } from "@omnixa/schema/config"
 import { Effect } from "effect"
 import { AbsolutePath } from "../schema.js"
 import { Skill } from "../skill.js"
 import { Config } from "../config.js"
 import os from "os"
-import aigcfrogeContent from "./skill/aigcfroge.md" with { type: "text" }
+import omnixaContent from "./skill/omnixa.md" with { type: "text" }
 import reportContent from "./skill/report.md" with { type: "text" }
 
-export const AigcfrogeContent = aigcfrogeContent
+export const OmnixaContent = omnixaContent
 export const ReportContent = reportContent
 
-export const AigcfrogeDescription =
-  "Use this skill for any question about AigcForge itself, including how AigcForge works, using or configuring it, migrating from V1 to V2, troubleshooting it, developing plugins or integrations, using the AigcForge SDK, clients, server, or API, and contributing to the AigcForge codebase. Also use it for AigcForge agents, commands, skills, tools, permissions, MCP servers, providers, models, themes, keybinds, formatters, the CLI, TUI, desktop app, and web app."
+export const OmnixaDescription =
+  "Use this skill for any question about Omnixa itself, including how Omnixa works, using or configuring it, migrating from V1 to V2, troubleshooting it, developing plugins or integrations, using the Omnixa SDK, clients, server, or API, and contributing to the Omnixa codebase. Also use it for Omnixa agents, commands, skills, tools, permissions, MCP servers, providers, models, themes, keybinds, formatters, the CLI, TUI, desktop app, and web app."
 const REPORT_DESCRIPTION =
-  "Use when the user wants to report an aigcfroge issue or bug. Collect standard diagnostics, add user-specific reproduction context, and publish the issue with GitHub CLI."
+  "Use when the user wants to report an omnixa issue or bug. Collect standard diagnostics, add user-specific reproduction context, and publish the issue with GitHub CLI."
 
 export const Plugin = define({
-  id: "aigcfroge.skill",
+  id: "omnixa.skill",
   effect: Effect.fn(function* (ctx) {
     const reportContent = yield* reportContentWithDiagnostics(ctx.app)
     yield* ctx.skill.transform((editor) => {
       editor.add(
         Skill.Info.make({
-          id: Skill.ID.make("aigcfroge"),
-          name: Skill.Name.make("AigcForge"),
-          description: AigcfrogeDescription,
-          path: AbsolutePath.make("/builtin/aigcfroge.md"),
-          content: AigcfrogeContent,
+          id: Skill.ID.make("omnixa"),
+          name: Skill.Name.make("Omnixa"),
+          description: OmnixaDescription,
+          path: AbsolutePath.make("/builtin/omnixa.md"),
+          content: OmnixaContent,
         }),
       )
       editor.add(
@@ -58,7 +58,7 @@ const reportContentWithDiagnostics = Effect.fn("SkillPlugin.reportContentWithDia
     "",
     "These values were captured when the built-in report skill was registered. Verify them before publishing.",
     "",
-    `- aigcfroge version: ${app.version}`,
+    `- omnixa version: ${app.version}`,
     `- install/channel: ${app.channel}`,
     `- OS: ${os.type()} ${os.release()} (${os.platform()} ${os.arch()})`,
     `- Terminal: ${terminal()}`,

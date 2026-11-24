@@ -2,9 +2,9 @@ export * as InstructionEntry from "./instruction-entry.js"
 
 import { and, asc, eq, isNotNull, isNull, ne, or } from "drizzle-orm"
 import { Context, Effect, Layer, Schema } from "effect"
-import { InstructionEntry } from "@aigcfroge/schema/instruction-entry"
+import { InstructionEntry } from "@omnixa/schema/instruction-entry"
 import { Database } from "../database/database.js"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Instructions } from "../instructions/index.js"
 import { SessionSchema } from "./schema.js"
 import { InstructionEntryTable } from "./sql.js"
@@ -78,7 +78,7 @@ export interface Interface {
   readonly load: (sessionID: SessionSchema.ID) => Effect.Effect<Instructions.List>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/InstructionEntry") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/InstructionEntry") {}
 
 const renderValue = (value: Schema.Json) => (typeof value === "string" ? value : JSON.stringify(value, null, 2))
 

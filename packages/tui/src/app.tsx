@@ -1,9 +1,9 @@
 import { render, useRenderer, useTerminalDimensions } from "@opentui/solid"
 import { registerOpencodeSpinner } from "./component/register-spinner"
 import { Effect, Latch } from "effect"
-import { Service, type Endpoint } from "@aigcfroge/client/effect/service"
-import { AigcForge, type SessionInfo } from "@aigcfroge/client"
-import { Global } from "@aigcfroge/util/global"
+import { Service, type Endpoint } from "@omnixa/client/effect/service"
+import { Omnixa, type SessionInfo } from "@omnixa/client"
+import { Global } from "@omnixa/util/global"
 import { ClipboardProvider, useClipboard } from "./context/clipboard"
 import { LogProvider, type LogSink } from "./context/log"
 import { ExitProvider, useExit } from "./context/exit"
@@ -82,11 +82,11 @@ import { PromptHistoryProvider } from "./prompt/history"
 import { FrecencyProvider } from "./prompt/frecency"
 import { PromptStashProvider } from "./prompt/stash"
 import { Toast, ToastProvider, useToast } from "./ui/toast"
-import { isFallbackTitle } from "@aigcfroge/util/session-title-fallback"
+import { isFallbackTitle } from "@omnixa/util/session-title-fallback"
 import { parse } from "./util/model"
 import { isModelGroup } from "./model-preference"
 import { ArgsProvider, useArgs, type Args } from "./context/args"
-import { openUrl } from "@aigcfroge/util/open"
+import { openUrl } from "@omnixa/util/open"
 import { PromptRefProvider, usePromptRef } from "./context/prompt"
 import { Config, ConfigProvider, useConfig } from "./config"
 import { newSessionLocation } from "./config/new-session-location"
@@ -156,13 +156,13 @@ const appBindingCommands = [
   "variant.cycle",
   "variant.list",
   "provider.connect",
-  "aigcfroge.settings",
-  "aigcfroge.status",
-  "aigcfroge.update",
+  "omnixa.settings",
+  "omnixa.status",
+  "omnixa.update",
   "server.pair",
   "service.restart",
   "location.reload",
-  "aigcfroge.debug",
+  "omnixa.debug",
   "theme.switch",
   "theme.switch_mode",
   "theme.mode.lock",
@@ -211,7 +211,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
     terminalSuspend: process.platform !== "win32",
   })
   const options = { baseUrl: input.server.endpoint.url, headers: Service.headers(input.server.endpoint) }
-  const api = AigcForge.make(options)
+  const api = Omnixa.make(options)
   const location = yield* Effect.tryPromise(() => api.file.list({ location: { directory: process.cwd() } })).pipe(
     Effect.map((response) => response.location),
     Effect.catch(() => Effect.tryPromise(() => api.location.get())),
@@ -225,7 +225,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
         reconnect: async (signal: AbortSignal) => {
           const endpoint = await managed.reconnect(signal)
           const next = { baseUrl: endpoint.url, headers: Service.headers(endpoint) }
-          return { api: AigcForge.make(next), url: endpoint.url }
+          return { api: Omnixa.make(next), url: endpoint.url }
         },
         restart: managed.restart,
       }
@@ -253,8 +253,8 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
             Effect.sync(() => destroyRenderer(renderer)),
           )
         }
-        if (process.env.AIGCFROGE_DRIVE) {
-          const { Drive } = yield* Effect.promise(() => import("@aigcfroge/simulation/frontend"))
+        if (process.env.OMNIXA_DRIVE) {
+          const { Drive } = yield* Effect.promise(() => import("@omnixa/simulation/frontend"))
           return yield* Drive.create(options, input.app.version)
         }
         return yield* Effect.acquireRelease(
@@ -327,21 +327,21 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                             >
                               <TuiStartupProvider
                                 value={{
-                                  initialRoute: process.env.AIGCFROGE_STORY
+                                  initialRoute: process.env.OMNIXA_STORY
                                     ? {
                                         type: "plugin",
-                                        id: "aigcfroge.storybook",
+                                        id: "omnixa.storybook",
                                         name: "storybook",
-                                        // AIGCFROGE_STORY=1 opens the index; any other value opens that story.
+                                        // OMNIXA_STORY=1 opens the index; any other value opens that story.
                                         data:
-                                          process.env.AIGCFROGE_STORY === "1"
+                                          process.env.OMNIXA_STORY === "1"
                                             ? undefined
-                                            : { story: process.env.AIGCFROGE_STORY },
+                                            : { story: process.env.OMNIXA_STORY },
                                       }
-                                    : process.env.AIGCFROGE_ROUTE
-                                      ? JSON.parse(process.env.AIGCFROGE_ROUTE)
+                                    : process.env.OMNIXA_ROUTE
+                                      ? JSON.parse(process.env.OMNIXA_ROUTE)
                                       : undefined,
-                                  skipInitialLoading: Boolean(process.env.AIGCFROGE_FAST_BOOT),
+                                  skipInitialLoading: Boolean(process.env.OMNIXA_FAST_BOOT),
                                 }}
                               >
                                 <ClipboardProvider value={clipboard}>
@@ -596,23 +596,23 @@ function App() {
     if (!terminalTitleEnabled()) return
 
     if (route.data.type === "home") {
-      renderer.setTerminalTitle("AigcForge")
+      renderer.setTerminalTitle("Omnixa")
       return
     }
 
     if (route.data.type === "session") {
       const title = session?.title
       if (!title || isFallbackTitle(title)) {
-        renderer.setTerminalTitle("AigcForge")
+        renderer.setTerminalTitle("Omnixa")
         return
       }
 
-      renderer.setTerminalTitle(`OC | ${title.length > 40 ? title.slice(0, 37) + "…" : title}`)
+      renderer.setTerminalTitle(`Omnixa | ${title.length > 40 ? title.slice(0, 37) + "…" : title}`)
       return
     }
 
     if (route.data.type === "plugin") {
-      renderer.setTerminalTitle(`OC | ${route.data.name}`)
+      renderer.setTerminalTitle(`Omnixa | ${route.data.name}`)
     }
   })
 
@@ -952,7 +952,7 @@ function App() {
         category: "Integration",
       },
       {
-        name: "aigcfroge.settings",
+        name: "omnixa.settings",
         title: "Open settings",
         suggested: true,
         slash: { name: "settings" },
@@ -962,7 +962,7 @@ function App() {
         category: "System",
       },
       {
-        name: "aigcfroge.status",
+        name: "omnixa.status",
         title: "View status",
         slash: { name: "status" },
         run: () => {
@@ -973,8 +973,8 @@ function App() {
       ...(updater.open
         ? [
             {
-              name: "aigcfroge.update",
-              title: "Update AigcForge",
+              name: "omnixa.update",
+              title: "Update Omnixa",
               slash: { name: "update" },
               run: () => updater.open?.("manual"),
               category: "System",
@@ -1028,7 +1028,7 @@ function App() {
         category: "System",
       },
       {
-        name: "aigcfroge.debug",
+        name: "omnixa.debug",
         title: "View debug info",
         slash: { name: "debug" },
         run: () => {
@@ -1080,7 +1080,7 @@ function App() {
         name: "docs.open",
         title: "Open docs",
         run: () => {
-          openUrl("https://aigcfroge.ai/docs").catch(() => {})
+          openUrl("https://github.com/keerzzz/AigcForge#readme").catch(() => {})
           dialog.clear()
         },
         category: "System",
@@ -1380,7 +1380,7 @@ function App() {
           <PaneResizeHandle resize={tabsResize} left={tabsResize.size() - 1} />
         </Show>
       </box>
-      <Show when={devtools() && !(route.data.type === "plugin" && route.data.id === "aigcfroge.stats")}>
+      <Show when={devtools() && !(route.data.type === "plugin" && route.data.id === "omnixa.stats")}>
         <DevToolsBar />
       </Show>
       <Show when={!startup.skipInitialLoading}>

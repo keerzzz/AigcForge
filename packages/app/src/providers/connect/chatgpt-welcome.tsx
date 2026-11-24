@@ -1,7 +1,7 @@
-import { Button } from "@aigcfroge/ui/button"
-import { useDialog } from "@aigcfroge/ui/context/dialog"
-import { Dialog, DialogTitle } from "@aigcfroge/ui/dialog"
-import { ProviderIcon } from "@aigcfroge/ui/provider-icon"
+import { Button } from "@omnixa/ui/button"
+import { useDialog } from "@omnixa/ui/context/dialog"
+import { Dialog, DialogTitle } from "@omnixa/ui/dialog"
+import { ProviderIcon } from "@omnixa/ui/provider-icon"
 import { useLanguage } from "@/runtime/i18n/language"
 import { ExternalLink } from "@/runtime/platform/external-link"
 

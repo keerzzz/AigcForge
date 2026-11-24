@@ -1,8 +1,8 @@
-import type { LocationGetOutput, AigcForgeClient } from "@aigcfroge/client/promise"
-import type { Data } from "@aigcfroge/client/solid"
+import type { LocationGetOutput, OmnixaClient } from "@omnixa/client/promise"
+import type { Data } from "@omnixa/client/solid"
 
 export async function createWorktree(input: {
-  api: Pick<AigcForgeClient, "location" | "worktree">
+  api: Pick<OmnixaClient, "location" | "worktree">
   data: Pick<Data, "location">
   directory: string
   project?: LocationGetOutput["project"]

@@ -1,5 +1,5 @@
-import { useDialog } from "@aigcfroge/ui/context/dialog"
-import { showToast } from "@aigcfroge/ui/toast"
+import { useDialog } from "@omnixa/ui/context/dialog"
+import { showToast } from "@omnixa/ui/toast"
 import { createContext, createEffect, createSignal, For, onCleanup, Show, untrack, useContext } from "solid-js"
 import type { ParentProps } from "solid-js"
 import { HomeProjectsView, type HomeProjectsViewProps } from "@/home/projects/view"

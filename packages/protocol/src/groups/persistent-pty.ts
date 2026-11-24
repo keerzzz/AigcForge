@@ -1,7 +1,7 @@
-import { PersistentPty } from "@aigcfroge/schema/persistent-pty"
-import { Pty } from "@aigcfroge/schema/pty"
-import { PtyTicket } from "@aigcfroge/schema/pty-ticket"
-import { Session } from "@aigcfroge/schema/session"
+import { PersistentPty } from "@omnixa/schema/persistent-pty"
+import { Pty } from "@omnixa/schema/pty"
+import { PtyTicket } from "@omnixa/schema/pty-ticket"
+import { Session } from "@omnixa/schema/session"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema, OpenApi } from "effect/http-api"
 import { ForbiddenError, InvalidRequestError, PtyNotFoundError, ServiceUnavailableError } from "../errors.js"
@@ -108,7 +108,7 @@ export const PersistentPtyGroup = HttpApiGroup.make("server.experimental")
       OpenApi.annotations({
         identifier: "persistentPty.connect",
         summary: "Connect to a persistent PTY",
-        description: "Stream persistent PTY output through the AigcForge server.",
+        description: "Stream persistent PTY output through the Omnixa server.",
         transform: (operation) => ({
           ...operation,
           "x-websocket": true,

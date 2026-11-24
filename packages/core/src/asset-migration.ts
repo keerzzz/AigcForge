@@ -2,10 +2,10 @@ export * as AssetMigration from "./asset-migration"
 
 import path from "path"
 import { Effect } from "effect"
-import { Document, type Entry } from "@aigcfroge/schema/config"
+import { Document, type Entry } from "@omnixa/schema/config"
 import { ConfigMarkdown } from "./config/markdown"
 import { Model } from "./model"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 
 /** Project-local legacy source that can be parsed into an owned chat asset. */
 export interface LegacyFile {
@@ -55,9 +55,9 @@ export const legacyAgentFiles = Effect.fnUntraced(function* (fs: FSUtil.Interfac
   return files.map((file) => ({ path: file, fallbackName: path.basename(file, ".agent.md") }) satisfies LegacyFile)
 })
 
-/** Legacy singular command directory; plural `.aigcfroge/commands` is handled lazily by CommandAsset.loadDir. */
+/** Legacy singular command directory; plural `.omnixa/commands` is handled lazily by CommandAsset.loadDir. */
 export const legacyCommandFiles = Effect.fnUntraced(function* (fs: FSUtil.Interface, directory: string) {
-  const root = path.resolve(directory, ".aigcfroge/command")
+  const root = path.resolve(directory, ".omnixa/command")
   const files = yield* fs
     .scan("**/*.md", { cwd: root, absolute: true, include: "file", dot: true })
     .pipe(Effect.orElseSucceed(() => [] as string[]))

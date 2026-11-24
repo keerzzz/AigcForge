@@ -7,7 +7,7 @@ const server: ServerConnection.HttpBase = {
 }
 
 const info = (version = "1.2.3") =>
-  Response.json({ version, pid: 1, urls: [server.url], paths: { tmp: "/tmp/aigcfroge" } })
+  Response.json({ version, pid: 1, urls: [server.url], paths: { tmp: "/tmp/omnixa" } })
 
 function abortFromInput(input: RequestInfo | URL, init?: RequestInit) {
   if (init?.signal) return init.signal
@@ -30,7 +30,7 @@ describe("checkServerHealth", () => {
 
     expect(await checkServerHealth({ ...server, password }, fetch)).toEqual({ healthy: true, version: "2.0.0" })
     expect(requests).toEqual([
-      { path: "/api/info", authorization: password ? `Basic ${btoa(`aigcfroge:${password}`)}` : null },
+      { path: "/api/info", authorization: password ? `Basic ${btoa(`omnixa:${password}`)}` : null },
     ])
   })
 

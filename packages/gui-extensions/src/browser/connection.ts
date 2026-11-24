@@ -1,4 +1,4 @@
-import type { Browser } from "@aigcfroge/plugin-browser/rpc"
+import type { Browser } from "@omnixa/plugin-browser/rpc"
 import type { IpcClient } from "../sdk"
 import type { BrowserPane, PaneEvent } from "./ipc"
 

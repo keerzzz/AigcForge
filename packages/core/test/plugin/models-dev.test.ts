@@ -1,21 +1,21 @@
 import path from "path"
 import { describe, expect } from "bun:test"
-import { Money } from "@aigcfroge/schema/money"
+import { Money } from "@omnixa/schema/money"
 import { Context, Effect, Exit, Layer, Scope } from "effect"
 import { TestClock } from "effect/testing"
-import { Integration } from "@aigcfroge/core/integration"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Bus } from "@aigcfroge/core/bus"
-import { Location } from "@aigcfroge/core/location"
-import { Model } from "@aigcfroge/core/model"
-import { ModelsDev } from "@aigcfroge/core/models-dev"
-import { ModelsDevPlugin } from "@aigcfroge/core/plugin/models-dev"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginHost } from "@aigcfroge/core/plugin/host"
-import { ProviderPlugins } from "@aigcfroge/core/plugin/provider"
-import { Provider } from "@aigcfroge/core/provider"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Integration } from "@omnixa/core/integration"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Bus } from "@omnixa/core/bus"
+import { Location } from "@omnixa/core/location"
+import { Model } from "@omnixa/core/model"
+import { ModelsDev } from "@omnixa/core/models-dev"
+import { ModelsDevPlugin } from "@omnixa/core/plugin/models-dev"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginHost } from "@omnixa/core/plugin/host"
+import { ProviderPlugins } from "@omnixa/core/plugin/provider"
+import { Provider } from "@omnixa/core/provider"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { withEnv } from "../fixture/env"
 import { location } from "../fixture/location"
 import { testEffect } from "../lib/effect"
@@ -75,7 +75,7 @@ const richSnapshot = (name = "Acme") => {
         id: providerID,
         name,
         activation: "auto",
-        package: "@aigcfroge/ai/providers/openai-compatible",
+        package: "@omnixa/ai/providers/openai-compatible",
         settings: { baseURL: "https://api.acme.test/v1", thinking: { type: "adaptive", display: "summarized" } },
         headers: { "x-acme": "provider" },
         body: { service_tier: "default", tags: ["stable"] },
@@ -336,7 +336,7 @@ describe("ModelsDevPlugin", () => {
                 id: providerID,
                 name: "Acme",
                 activation: "auto",
-                package: "@aigcfroge/ai/providers/openai-compatible",
+                package: "@omnixa/ai/providers/openai-compatible",
               },
               environment: [],
               models: [
@@ -393,7 +393,7 @@ describe("ModelsDevPlugin", () => {
             id: providerID,
             name: "Acme",
             activation: "auto",
-            package: "@aigcfroge/ai/providers/openai-compatible",
+            package: "@omnixa/ai/providers/openai-compatible",
             settings: { baseURL: "https://api.acme.test/v1" },
             headers: { "x-acme": "provider" },
           },
@@ -472,7 +472,7 @@ describe("ModelsDevPlugin", () => {
                 id: providerID,
                 name: "Acme",
                 activation: "auto",
-                package: "@aigcfroge/ai/providers/openai-compatible",
+                package: "@omnixa/ai/providers/openai-compatible",
                 settings: { baseURL: "https://api.acme.test/v1" },
               },
               environment: [],
@@ -524,7 +524,7 @@ describe("ModelsDevPlugin", () => {
                   providerID,
                   name: "GPT-5.4 Fast",
                   family: Model.Family.make("gpt"),
-                  package: "@aigcfroge/ai/providers/openai-compatible",
+                  package: "@omnixa/ai/providers/openai-compatible",
                   settings: { baseURL: "https://api.acme.test/v1" },
                   headers: { "x-mode": "fast" },
                   body: { service_tier: "priority" },
@@ -587,7 +587,7 @@ describe("ModelsDevPlugin", () => {
         modelID: "gpt-5.4",
         providerID: "acme",
         name: "GPT-5.4 Fast",
-        package: "@aigcfroge/ai/providers/openai-compatible",
+        package: "@omnixa/ai/providers/openai-compatible",
         settings: { baseURL: "https://api.acme.test/v1" },
         headers: { "x-mode": "fast" },
         body: { service_tier: "priority" },
@@ -652,7 +652,7 @@ describe("ModelsDevPlugin", () => {
             id: providerID,
             name: "Acme",
             activation: "auto",
-            package: "@aigcfroge/ai/providers/openai-compatible",
+            package: "@omnixa/ai/providers/openai-compatible",
           },
           environment: [],
           models: [
@@ -763,7 +763,7 @@ describe("ModelsDevPlugin", () => {
                         id: providerID,
                         name: "Acme",
                         activation: "auto",
-                        package: "@aigcfroge/ai/providers/openai-compatible",
+                        package: "@omnixa/ai/providers/openai-compatible",
                         settings: { baseURL: "https://${ACME_HOST}/${UNDECLARED_HOST}/v1" },
                       },
                       environment: ["ACME_HOST", "ACME_MODEL_PATH", "ACME_API_KEY"],
@@ -815,7 +815,7 @@ describe("ModelsDevPlugin", () => {
           id: providerID,
           name: "Acme",
           activation: "auto",
-          package: "@aigcfroge/ai/providers/openai-compatible",
+          package: "@omnixa/ai/providers/openai-compatible",
         },
         environment: [],
         models: [
@@ -908,8 +908,8 @@ describe("ModelsDevPlugin", () => {
       expect(yield* integrations.get(Integration.ID.make("google-vertex"))).toBeDefined()
       expect(yield* integrations.get(Integration.ID.make("azure-cognitive-services"))).toBeUndefined()
       expect(yield* integrations.get(Integration.ID.make("google-vertex-anthropic"))).toBeUndefined()
-      expect(ProviderPlugins.map((plugin) => plugin.id)).not.toContain("aigcfroge.provider.azure.cognitive.services")
-      expect(ProviderPlugins.map((plugin) => plugin.id)).not.toContain("aigcfroge.provider.google.vertex.anthropic")
+      expect(ProviderPlugins.map((plugin) => plugin.id)).not.toContain("omnixa.provider.azure.cognitive.services")
+      expect(ProviderPlugins.map((plugin) => plugin.id)).not.toContain("omnixa.provider.google.vertex.anthropic")
     }),
   )
 
@@ -934,7 +934,7 @@ describe("ModelsDevPlugin", () => {
                     id: Provider.ID.make("cloudflare-workers-ai"),
                     name: "Cloudflare Workers AI",
                     activation: "auto",
-                    package: "@aigcfroge/ai/providers/cloudflare-workers-ai",
+                    package: "@omnixa/ai/providers/cloudflare-workers-ai",
                   },
                   environment: ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_KEY"],
                   models: [],
@@ -944,7 +944,7 @@ describe("ModelsDevPlugin", () => {
                     id: Provider.ID.make("google-vertex"),
                     name: "Google Vertex",
                     activation: "auto",
-                    package: "@aigcfroge/ai/providers/google-vertex",
+                    package: "@omnixa/ai/providers/google-vertex",
                   },
                   environment: ["GOOGLE_VERTEX_PROJECT", "GOOGLE_VERTEX_LOCATION", "GOOGLE_APPLICATION_CREDENTIALS"],
                   models: [],
@@ -1069,13 +1069,7 @@ describe("ModelsDevPlugin", () => {
       )
 
       const minimax = yield* modelState.get(Provider.ID.make("opencode-go"), Model.ID.make("minimax-m3"))
-      expect(minimax?.variants).toEqual([
-        { id: Model.VariantID.make("none"), settings: { thinking: { type: "disabled" } } },
-        {
-          id: Model.VariantID.make("thinking"),
-          settings: { thinking: { type: "adaptive", display: "summarized" } },
-        },
-      ])
+      expect(minimax).toBeUndefined()
 
       const toggle = yield* modelState.get(Provider.ID.make("alibaba"), Model.ID.make("toggle-only"))
       expect(toggle?.variants).toEqual([

@@ -10,13 +10,13 @@ import {
   SERVER,
   sessionHref,
 } from "../utils/app"
-import { mockAigcForgeServer } from "../utils/mock-server"
+import { mockOmnixaServer } from "../utils/mock-server"
 import { installSseTransport } from "../utils/sse-transport"
-import type { PersonalMemoryInfo } from "@aigcfroge/client/promise"
-import { InvalidRequestError } from "@aigcfroge/protocol/errors"
+import type { PersonalMemoryInfo } from "@omnixa/client/promise"
+import { InvalidRequestError } from "@omnixa/protocol/errors"
 import type { Schema } from "effect"
-import { SessionTask } from "@aigcfroge/schema/session-task"
-import { Composition } from "@aigcfroge/schema/composition"
+import { SessionTask } from "@omnixa/schema/session-task"
+import { Composition } from "@omnixa/schema/composition"
 import { CustomCompositionFixture } from "../utils/custom-composition"
 import { MockNotFound } from "../utils/mock-api"
 import {
@@ -406,7 +406,7 @@ test("adding a project to a signed-out server re-pairs it, then continues at the
   // The saved address rejects the new token, so saving moves the server to the link's address.
   const paired = "http://127.0.0.1:4098"
   await mockRemoteServer(page, { name: "Remote", password: "old-password" })
-  await mockAigcForgeServer(page, {
+  await mockOmnixaServer(page, {
     server: paired,
     directory: "/remote/paired",
     project: project({ id: "proj_paired", directory: "/remote/paired" }),
@@ -434,7 +434,7 @@ test("adding a project to a signed-out server re-pairs it, then continues at the
 
 test("a server whose saved password changes works with the new password", async ({ page }) => {
   const accepted = { password: "old-password" }
-  await mockAigcForgeServer(page, {
+  await mockOmnixaServer(page, {
     server: REMOTE_SERVER,
     directory: "/remote/project",
     project: project({ id: "proj_remote", directory: "/remote/project" }),
@@ -447,7 +447,7 @@ test("a server whose saved password changes works with the new password", async 
   // Saved with the password the server accepts until the test changes it.
   await seed(page, {
     storage: {
-      "aigcfroge.global.dat:server": {
+      "omnixa.global.dat:server": {
         list: [{ type: "http", displayName: "Remote", http: { url: REMOTE_SERVER, password: "old-password" } }],
       },
     },
@@ -466,7 +466,7 @@ test("a server whose saved password changes works with the new password", async 
   await page.getByRole("menuitem", { name: "Edit", exact: true }).click()
   const editor = page.getByRole("dialog", { name: "Edit server" })
   await editor.getByPlaceholder("password").fill("new-password")
-  // The server now rejects the old password, as after `aigcfroge service set password`.
+  // The server now rejects the old password, as after `omnixa service set password`.
   accepted.password = "new-password"
   await editor.getByRole("button", { name: "Save", exact: true }).click()
   await expect(editor).toHaveCount(0)
@@ -477,10 +477,10 @@ test("a server whose saved password changes works with the new password", async 
   await expect(picker.getByText("Unable to read this folder")).toHaveCount(0)
 })
 
-const recovery = "C:/AigcForge/Worktrees/project-menu-recovery"
+const recovery = "C:/Omnixa/Worktrees/project-menu-recovery"
 
 const worktree =
-  "C:/AigcForge/Worktrees/project-42/long-folder-name-for-checking-wrapped-worktree-paths/another-long-folder-name"
+  "C:/Omnixa/Worktrees/project-42/long-folder-name-for-checking-wrapped-worktree-paths/another-long-folder-name"
 
 for (const state of [
   { name: "local", directory: fixture.directory, icon: "monitor" },
@@ -541,7 +541,7 @@ for (const state of [
         await expect(header.getByRole("button", { name: "More options", exact: true })).toBeVisible()
       }
 
-      await expect(trigger.locator("use")).toHaveAttribute("href", `#aigcfroge-v2-icon-${state.icon}`)
+      await expect(trigger.locator("use")).toHaveAttribute("href", `#omnixa-v2-icon-${state.icon}`)
       await trigger.click()
       await expect(menu.getByRole("menuitem")).toHaveText([name, state.directory, "Edit project"])
       await expect(pathItem).toBeDisabled()
@@ -617,7 +617,7 @@ test("the project menu path arrow has a glyph when the page has an older icon sp
         response,
         body: (await response.text()).replace(
           '<div id="root"',
-          '<svg id="aigcfroge-v2-icon-sprite" width="0" height="0" aria-hidden="true"><symbol id="aigcfroge-v2-icon-monitor" viewBox="0 0 16 16"><path d="M1 1h14v14H1z"/></symbol></svg><div id="root"',
+          '<svg id="omnixa-v2-icon-sprite" width="0" height="0" aria-hidden="true"><symbol id="omnixa-v2-icon-monitor" viewBox="0 0 16 16"><path d="M1 1h14v14H1z"/></symbol></svg><div id="root"',
         ),
       })
     },
@@ -636,7 +636,7 @@ test("the project menu path arrow has a glyph when the page has an older icon sp
   await expect
     .poll(() => arrow.locator("svg").evaluate((element: SVGSVGElement) => element.getBBox().width))
     .toBeGreaterThan(0)
-  await expect(page.locator("#aigcfroge-v2-icon-sprite")).toHaveCount(1)
+  await expect(page.locator("#omnixa-v2-icon-sprite")).toHaveCount(1)
 })
 
 test("B06 exposes explicit builtin roots on Custom and requires a selected project before preview", async ({
@@ -720,7 +720,7 @@ test("B06 preserves the reviewed builtin root and chosen model through explicit 
   const model = composition.getByRole("group", { name: "Composition model", exact: true }).getByRole("button")
   await expect(model).toBeEnabled()
   await model.click()
-  await page.getByRole("option", { name: "Selected model (aigcfroge)", exact: true }).click()
+  await page.getByRole("option", { name: "Selected model (omnixa)", exact: true }).click()
   await composition.getByRole("button", { name: "Preview composition", exact: true }).click()
   await expect(composition.getByRole("heading", { name: "Composition preview", exact: true })).toBeVisible()
   await expect(
@@ -729,13 +729,13 @@ test("B06 preserves the reviewed builtin root and chosen model through explicit 
       .getByText(CustomCompositionFixture.revision, { exact: true }),
   ).toBeVisible()
   await expect(composition.getByText("Built-in", { exact: true })).toBeVisible()
-  await expect(composition.locator("dl").getByText("Selected model (aigcfroge)", { exact: true })).toBeVisible()
+  await expect(composition.locator("dl").getByText("Selected model (omnixa)", { exact: true })).toBeVisible()
   await expect(composition.getByText("Permissions are checked for each operation.", { exact: true })).toBeVisible()
   expect(starts).toEqual([])
   expect(prompts).toEqual([])
   await composition.getByRole("button", { name: "Cancel", exact: true }).click()
   await expect(composition.getByRole("heading", { name: "Composition preview", exact: true })).toHaveCount(0)
-  await expect(model).toHaveText("Selected model (aigcfroge)")
+  await expect(model).toHaveText("Selected model (omnixa)")
   await composition.getByRole("button", { name: "Preview composition", exact: true }).click()
   await expect(composition.getByRole("button", { name: "Create session", exact: true })).toBeEnabled()
   await composition.getByRole("button", { name: "Create session", exact: true }).press("Enter")
@@ -769,7 +769,7 @@ test("B06 preserves the reviewed builtin root and chosen model through explicit 
   expect(starts[0]).toMatchObject({
     composition: value.input,
     expectedPlanDigest: value.digest,
-    model: { id: "selected", providerID: "aigcfroge" },
+    model: { id: "selected", providerID: "omnixa" },
   })
   expect(prompts).toEqual([])
   expect(creates).toEqual([])
@@ -1231,7 +1231,7 @@ test("global mode navigation drives Home and New without changing an existing dr
 
   for (const mode of modes) {
     const button = navigation.getByRole("button", { name: mode.label, exact: true })
-    await expect(button.locator("svg use")).toHaveAttribute("href", `#aigcfroge-v2-icon-rail-${mode.id}`)
+    await expect(button.locator("svg use")).toHaveAttribute("href", `#omnixa-v2-icon-rail-${mode.id}`)
     await expect(button.locator("svg")).toHaveAttribute("width", "20")
     await expect(button).toHaveCSS("width", "44px")
     await expect(button).toHaveCSS("height", "44px")
@@ -1244,7 +1244,7 @@ test("global mode navigation drives Home and New without changing an existing dr
       }
     })
     expect(center).toEqual({ x: 0, y: 0 })
-    const strokes = page.locator(`#aigcfroge-v2-icon-rail-${mode.id} [stroke="currentColor"]`)
+    const strokes = page.locator(`#omnixa-v2-icon-rail-${mode.id} [stroke="currentColor"]`)
     expect(await strokes.count()).toBeGreaterThan(0)
     for (const stroke of await strokes.all()) await expect(stroke).toHaveCSS("stroke-width", "1.25px")
     geometry.set(mode.id, await button.boundingBox())

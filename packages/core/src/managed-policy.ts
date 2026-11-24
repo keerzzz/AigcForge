@@ -1,13 +1,13 @@
 export * as ManagedPolicy from "./managed-policy.js"
 
-import { Document, type Entry } from "@aigcfroge/schema/config"
+import { Document, type Entry } from "@omnixa/schema/config"
 import { isDeepStrictEqual } from "node:util"
 import { Wildcard } from "./util/wildcard.js"
-import { ConfigPolicy } from "@aigcfroge/schema/config/policy"
+import { ConfigPolicy } from "@omnixa/schema/config/policy"
 import { Context, Effect, Layer, PubSub, Stream } from "effect"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 
-/** Policy statements the connected AigcForge Console compiled for whoever it authenticated. */
+/** Policy statements the connected Omnixa Console compiled for whoever it authenticated. */
 export interface State {
   readonly statements: ReadonlyArray<ConfigPolicy.Info>
   /** Organization name for denial messages, when the connection knows it. */
@@ -22,7 +22,7 @@ export interface Interface {
   readonly set: (state: State) => Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/ManagedPolicy") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/ManagedPolicy") {}
 
 export const layer = Layer.effect(
   Service,

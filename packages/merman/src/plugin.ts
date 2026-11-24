@@ -1,14 +1,14 @@
-import { Plugin } from "@aigcfroge/plugin/tui"
+import { Plugin } from "@omnixa/plugin/tui"
 import { createMermaidCodeBlockRenderer } from "./markdown.js"
-import { resolveAigcForgeDiagramPalette } from "./palette.js"
+import { resolveOmnixaDiagramPalette } from "./palette.js"
 
 export default Plugin.define({
-  id: "aigcfroge.merman",
+  id: "omnixa.merman",
   setup(context) {
     context.markdown.registerCodeBlockRenderer(
       "mermaid",
       createMermaidCodeBlockRenderer(context.renderer, () => ({
-        colors: resolveAigcForgeDiagramPalette(context.theme, context.themeMode),
+        colors: resolveOmnixaDiagramPalette(context.theme, context.themeMode),
       })),
     )
   },

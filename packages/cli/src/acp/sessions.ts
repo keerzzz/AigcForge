@@ -1,9 +1,9 @@
 import { isDeepStrictEqual } from "node:util"
 import type { McpServer, SessionConfigOption } from "@agentclientprotocol/sdk"
-import type { AigcForgeClient, AigcForgeEvent } from "@aigcfroge/client/effect"
-import { Mcp } from "@aigcfroge/schema/mcp"
-import type { Session } from "@aigcfroge/schema/session"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import type { OmnixaClient, OmnixaEvent } from "@omnixa/client/effect"
+import { Mcp } from "@omnixa/schema/mcp"
+import type { Session } from "@omnixa/schema/session"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Cause, Deferred, Effect, Exit, Queue, Ref, Scope, Stream } from "effect"
 import type { ACPCatalog, Catalog } from "./catalog"
 import { ACPClient } from "./client"
@@ -71,14 +71,14 @@ type Entry = {
 }
 
 type SelectedEvent = Extract<
-  AigcForgeEvent,
+  OmnixaEvent,
   {
     type: "session.model.selected" | "session.agent.selected" | "session.executor.selected"
   }
 >
 
 export const make = Effect.fnUntraced(function* (input: {
-  readonly client: AigcForgeClient
+  readonly client: OmnixaClient
   readonly connection: ACPConnection.Interface
   readonly catalog: ACPCatalog.Interface
 }) {

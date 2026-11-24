@@ -1,10 +1,10 @@
 export * as PlanPlugin from "./plan.js"
 
-import { Message, ToolFailure } from "@aigcfroge/ai"
-import { define } from "@aigcfroge/plugin/effect/plugin"
-import { Agent } from "@aigcfroge/schema/agent"
-import type { SessionEvent } from "@aigcfroge/schema/session-event"
-import { Global } from "@aigcfroge/util/global"
+import { Message, ToolFailure } from "@omnixa/ai"
+import { define } from "@omnixa/plugin/effect/plugin"
+import { Agent } from "@omnixa/schema/agent"
+import type { SessionEvent } from "@omnixa/schema/session-event"
+import { Global } from "@omnixa/util/global"
 import { Effect, Stream } from "effect"
 import path from "path"
 import { Permission } from "../permission.js"
@@ -25,10 +25,10 @@ You are NO LONGER in Plan mode. The previous Plan restrictions no longer apply. 
 </system-reminder>`
 
 export const Plugin = define({
-  id: "aigcfroge.plan",
+  id: "omnixa.plan",
   effect: Effect.fn(function* (ctx) {
     const global = yield* Global.Service
-    const directory = path.join(global.home, ".aigcfroge", "plan")
+    const directory = path.join(global.home, ".omnixa", "plan")
     const enterReminder = enter(directory)
     yield* ctx.agent.transform((editor) => {
       editor.update(plan, (item) => {

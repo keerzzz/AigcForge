@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from "@solidjs/router"
 import { batch, createEffect, on } from "solid-js"
 import { createStore } from "solid-js/store"
-import { createSimpleContext } from "@aigcfroge/ui/context"
+import { createSimpleContext } from "@omnixa/ui/context"
 import { useLayout, type LayoutRoute } from "@/shell/state/layout"
 import { useCommand } from "@/shell/commands/command"
 import { createSettingsPages } from "@/runtime/extension/settings-pages"

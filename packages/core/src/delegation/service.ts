@@ -6,7 +6,7 @@ import path from "path"
 import { and, desc, eq, gt, inArray, isNull } from "drizzle-orm"
 import { Database } from "../database/database"
 import { Bus } from "../bus"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 import { KeyedMutex } from "../effect/keyed-mutex"
 import {
   Delegation,
@@ -15,17 +15,17 @@ import {
   type ParticipantRole,
   type ReviewFinding,
   type ReviewVerdict,
-} from "@aigcfroge/schema/delegation"
-import { DelegationID, ParticipantID, TurnID } from "@aigcfroge/schema/delegation-id"
-import { Session } from "@aigcfroge/schema/session"
+} from "@omnixa/schema/delegation"
+import { DelegationID, ParticipantID, TurnID } from "@omnixa/schema/delegation-id"
+import { Session } from "@omnixa/schema/session"
 import { DelegationEvent } from "./event"
 import { DelegationProjector } from "./projector"
 import { foldDelegation, type DelegationFoldState } from "./fold"
 import { assertTransition, canAdvancePhase } from "./state"
 import { SessionMessageTable, SessionTable, TaskTable } from "../session/sql"
 import { SessionInputResult } from "../session/input-result"
-import { Permission } from "@aigcfroge/schema/permission"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
+import { Permission } from "@omnixa/schema/permission"
+import { SessionMessage } from "@omnixa/schema/session-message"
 import { DelegationFold } from "./fold"
 import { DelegationReceipt } from "./receipt"
 import { KV } from "../kv"
@@ -37,8 +37,8 @@ import { softExpiryMs } from "./presentation"
 import { sameExecutor } from "../session/error"
 import { MetaAgentService } from "../meta-agent/service"
 import { fromRow } from "../session/info"
-import { Schedule } from "@aigcfroge/schema/schedule"
-import { Agent } from "@aigcfroge/schema/agent"
+import { Schedule } from "@omnixa/schema/schedule"
+import { Agent } from "@omnixa/schema/agent"
 import { ScheduleOccurrenceTable } from "../session/schedule.sql"
 
 export const ArtifactEvidence = DelegationReceipt.ArtifactEvidence
@@ -221,7 +221,7 @@ export interface Interface {
   readonly reconcileResume: (input: { readonly delegationID: DelegationID.ID }) => Effect.Effect<number, ServiceError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/DelegationService") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/DelegationService") {}
 
 export const layer = Layer.effect(
   Service,

@@ -2,15 +2,15 @@ export * as WorktreeStrategies from "./strategies.js"
 
 import { Context, Effect, Layer } from "effect"
 import path from "path"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { Global } from "@aigcfroge/util/global"
-import { Worktree } from "@aigcfroge/schema/worktree"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import { Global } from "@omnixa/util/global"
+import { Worktree } from "@omnixa/schema/worktree"
 import { AbsolutePath } from "../schema.js"
 import { Git } from "../git.js"
 import { Location } from "../location.js"
 import { State } from "../state.js"
 import { WorktreeGit } from "./git.js"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 
 export interface Strategy {
   readonly id: Worktree.StrategyID
@@ -37,7 +37,7 @@ export interface Interface extends State.Transformable<Editor> {
   }
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/WorktreeStrategies") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/WorktreeStrategies") {}
 
 const layer = Layer.effect(
   Service,

@@ -1,19 +1,19 @@
 export * as ConfigAgentPlugin from "./agent.js"
 
-import { define } from "@aigcfroge/plugin/effect/plugin"
-import { Document, Info, type Entry } from "@aigcfroge/schema/config"
-import { ConfigAgent } from "@aigcfroge/schema/config/agent"
-import { AgentAsset } from "@aigcfroge/schema/agent-asset"
+import { define } from "@omnixa/plugin/effect/plugin"
+import { Document, Info, type Entry } from "@omnixa/schema/config"
+import { ConfigAgent } from "@omnixa/schema/config/agent"
+import { AgentAsset } from "@omnixa/schema/agent-asset"
 import path from "path"
 import { Effect, Option, PubSub, Schema, Stream } from "effect"
 import { Agent } from "../../agent.js"
 import { Model } from "../../model.js"
 import { Config } from "../../config.js"
 import { ConfigMarkdown } from "../markdown.js"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { ConfigAgentV1 } from "../../v1/config/agent.js"
 import { ConfigMigrateV1 } from "../../v1/config/migrate.js"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import { Permission } from "../../permission.js"
 import type { FileAccess } from "../../file-access.js"
 import type { ReadTool } from "../../tool/plugin/read.js"
@@ -36,7 +36,7 @@ const pathActions = ["external_directory", "read", "edit"] as const satisfies re
 const agentKeys = new Set(["variant", ...Object.keys(ConfigAgent.Info.fields)])
 
 export const Plugin = define({
-  id: "aigcfroge.config.agent",
+  id: "omnixa.config.agent",
   effect: Effect.fn(function* (ctx) {
     const config = yield* Config.Service
     const fs = yield* FSUtil.Service

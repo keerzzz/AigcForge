@@ -4,7 +4,7 @@ import { HttpServer } from "effect/http"
 import fs from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import { AigcForge } from "../../client/src/promise/index"
+import { Omnixa } from "../../client/src/promise/index"
 import { it } from "../../core/test/lib/effect"
 import { ServerProcess } from "../src/process"
 
@@ -15,7 +15,7 @@ live(
   () =>
     Effect.gen(function* () {
       const directory = yield* Effect.acquireRelease(
-        Effect.promise(() => fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-pty-transport-"))),
+        Effect.promise(() => fs.mkdtemp(path.join(os.tmpdir(), "omnixa-pty-transport-"))),
         (directory) => Effect.promise(() => fs.rm(directory, { recursive: true, force: true })),
       )
       const server = yield* ServerProcess.start<never, never>({
@@ -29,7 +29,7 @@ live(
         fs: { filewatcher: false },
       })
       const base = HttpServer.formatAddress(server.address)
-      const client = AigcForge.make({ baseUrl: base, headers: { authorization: `Basic ${btoa("aigcfroge:secret")}` } })
+      const client = Omnixa.make({ baseUrl: base, headers: { authorization: `Basic ${btoa("omnixa:secret")}` } })
       const location = { directory }
       const terminal = yield* Effect.acquireRelease(
         Effect.promise(() =>
@@ -47,7 +47,7 @@ live(
       )
       yield* Effect.promise(async () => {
         const open = async () => {
-          const token = await client.pty.connect.token({ location, ptyID: terminal.data.id, "x-aigcfroge-ticket": "1" })
+          const token = await client.pty.connect.token({ location, ptyID: terminal.data.id, "x-omnixa-ticket": "1" })
           const url = new URL(`/api/pty/${terminal.data.id}/connect`, base)
           url.protocol = "ws:"
           url.searchParams.set("location[directory]", directory)

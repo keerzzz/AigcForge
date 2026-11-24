@@ -1,13 +1,8 @@
 import type { LocalProject } from "@/shell/state/layout"
 import type { ServerConnection } from "@/runtime/server/registry"
 import { useSessionTabAvatarState } from "@/shell/layout/project-avatar-state"
-import {
-  displayName,
-  getProjectAvatarSource,
-  getProjectAvatarVariant,
-  ProjectAvatar,
-} from "@aigcfroge/ui/project-avatar"
-import { SessionProgressIndicatorV2 } from "@aigcfroge/session-ui/v2/session-progress-indicator-v2"
+import { displayName, getProjectAvatarSource, getProjectAvatarVariant, ProjectAvatar } from "@omnixa/ui/project-avatar"
+import { SessionProgressIndicatorV2 } from "@omnixa/session-ui/v2/session-progress-indicator-v2"
 import { Show } from "solid-js"
 
 export function SessionTabAvatar(props: {

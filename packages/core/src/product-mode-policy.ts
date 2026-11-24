@@ -1,7 +1,7 @@
 export * as ProductModePolicy from "./product-mode-policy"
 
 import { Effect, Schema } from "effect"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { ProductMode } from "@omnixa/schema/product-mode"
 import { Flag } from "./flag/flag"
 
 export const CAPABILITY_CUSTOM_V1 = ProductMode.CAPABILITY_CUSTOM_V1
@@ -38,11 +38,11 @@ export function isCustomCapable(header: string | undefined | null): boolean {
  * V2Session.resume, and the SessionRunner drain all assert it directly.
  */
 export function isCustomModeEnabled(): boolean {
-  return Flag.AIGCFROGE_CUSTOM_MODE
+  return Flag.OMNIXA_CUSTOM_MODE
 }
 
 export const CUSTOM_MODE_DISABLED_MESSAGE =
-  "Custom mode is disabled on this server. Set AIGCFROGE_CUSTOM_MODE=true to enable it."
+  "Custom mode is disabled on this server. Set OMNIXA_CUSTOM_MODE=true to enable it."
 
 export function isModeSupported(mode: string | undefined, header?: string | null): boolean {
   const resolved = mode ?? ProductMode.Default

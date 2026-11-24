@@ -2,7 +2,7 @@ export * as GrantEvent from "./event"
 
 import { Effect, Schema } from "effect"
 import { Bus } from "../bus"
-import { Event } from "@aigcfroge/schema/event"
+import { Event } from "@omnixa/schema/event"
 
 export const Updated = Bus.durable({
   type: "grant.updated",

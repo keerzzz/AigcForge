@@ -1,11 +1,11 @@
 export * as RpcRuntime from "./rpc-runtime.js"
 
-import type { Rpc } from "@aigcfroge/schema/rpc"
-import type { AigcForgeEvent } from "@aigcfroge/protocol/groups/event"
-import { RpcError, RpcInternalError } from "@aigcfroge/protocol/errors"
+import type { Rpc } from "@omnixa/schema/rpc"
+import type { OmnixaEvent } from "@omnixa/protocol/groups/event"
+import { RpcError, RpcInternalError } from "@omnixa/protocol/errors"
 import { Effect, Schema } from "effect"
 
-type RpcEvent = Extract<AigcForgeEvent, { type: `rpc.${string}` }>
+type RpcEvent = Extract<OmnixaEvent, { type: `rpc.${string}` }>
 
 export function read(schema: Rpc.Method["output"], value: unknown) {
   // Standard Schema results have already been parsed by the server.

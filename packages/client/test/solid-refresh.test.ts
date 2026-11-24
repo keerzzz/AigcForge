@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createData, settleMs, type CreateDataInput } from "../src/solid"
-import { AigcForge, type AigcForgeEvent, type SessionInfo, type SessionTaskInfo } from "../src/promise"
+import { Omnixa, type OmnixaEvent, type SessionInfo, type SessionTaskInfo } from "../src/promise"
 
 test("config and authored-provider reads refresh only after an owner loads them", async () => {
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
@@ -10,8 +10,8 @@ test("config and authored-provider reads refresh only after an owner loads them"
   const location = { directory: "/project" }
   let model = "provider/first"
   let definitionDigest = "first"
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
       const url = new URL(request.url)
@@ -25,7 +25,7 @@ test("config and authored-provider reads refresh only after an owner loads them"
             targets: [
               {
                 scope: "global",
-                path: "/config/aigcfroge.jsonc",
+                path: "/config/omnixa.jsonc",
                 digest: definitionDigest,
                 preferred: true,
                 writable: true,
@@ -53,7 +53,7 @@ test("config and authored-provider reads refresh only after an owner loads them"
     }),
     dispose,
   }))
-  const event: AigcForgeEvent = { id: "evt_config", created: 1, type: "config.updated", location, data: {} }
+  const event: OmnixaEvent = { id: "evt_config", created: 1, type: "config.updated", location, data: {} }
   try {
     await setup.data.location.sync()
     listeners.forEach((listener) => listener({ name: event.type, details: event }))
@@ -75,7 +75,7 @@ test("config and authored-provider reads refresh only after an owner loads them"
     expect(setup.data.location.provider.definition.list()?.targets[0]?.digest).toBe("second")
 
     definitionDigest = "third"
-    const credential: AigcForgeEvent = { id: "evt_credential", created: 2, type: "credential.updated", data: {} }
+    const credential: OmnixaEvent = { id: "evt_credential", created: 2, type: "credential.updated", data: {} }
     listeners.forEach((listener) => listener({ name: credential.type, details: credential }))
     await setup.data.location.provider.definition.sync()
     expect(requests.filter((path) => path === "/api/provider/definition")).toHaveLength(3)
@@ -98,8 +98,8 @@ test("event refreshes report failures, remain retryable, and preserve explicit r
     time: { created: 0, updated: 0, idle: 2 },
     location: { directory: "/project" },
   }
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async () => {
       state.requests++
       if (state.offline) throw new TypeError("Failed to fetch")
@@ -124,7 +124,7 @@ test("event refreshes report failures, remain retryable, and preserve explicit r
     }),
     dispose,
   }))
-  const event: AigcForgeEvent = {
+  const event: OmnixaEvent = {
     id: "evt_refresh_failure",
     created: 2,
     type: "session.viewed",
@@ -155,8 +155,8 @@ test.each(["reconnecting", "disposed"] as const)("background reads respect %s ow
   const pending = Promise.withResolvers<Response>()
   const errors: unknown[] = []
   const state = { requests: 0 }
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: () => {
       state.requests++
       return pending.promise
@@ -178,7 +178,7 @@ test.each(["reconnecting", "disposed"] as const)("background reads respect %s ow
     }),
     dispose,
   }))
-  const event: AigcForgeEvent = {
+  const event: OmnixaEvent = {
     id: "evt_refresh_owner",
     type: "command.updated",
     location: { directory: "/project" },
@@ -202,8 +202,8 @@ test("a burst of mcp.status.changed events refetches the server list once it set
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
   const requests: string[] = []
   const location = { directory: "/project" }
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
       requests.push(new URL(request.url).pathname)
@@ -228,7 +228,7 @@ test("a burst of mcp.status.changed events refetches the server list once it set
     await setup.data.location.mcp.server.sync()
     expect(requests.filter((path) => path === "/api/mcp")).toHaveLength(1)
     for (const server of ["a", "b", "c", "d", "e"]) {
-      const event: AigcForgeEvent = {
+      const event: OmnixaEvent = {
         id: `evt_${server}`,
         created: 1,
         type: "mcp.status.changed",
@@ -248,8 +248,8 @@ test("a burst of mcp.status.changed events refetches the server list once it set
 test("invalidations that land before a queued reload starts are absorbed by it", async () => {
   const pending: Array<PromiseWithResolvers<Response>> = []
   const location = { directory: "/project" }
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: () => {
       const deferred = Promise.withResolvers<Response>()
       pending.push(deferred)
@@ -409,7 +409,7 @@ function taskSnapshot(revision: number): SessionTaskInfo {
   }
 }
 
-function taskUpdated(revision: number): AigcForgeEvent {
+function taskUpdated(revision: number): OmnixaEvent {
   return {
     id: `evt_tasks_${revision}`,
     created: revision,
@@ -424,8 +424,8 @@ function taskRefreshFixture(
 ) {
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
   const requests: Request[] = []
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
       requests.push(request.clone())
@@ -446,7 +446,7 @@ function taskRefreshFixture(
       },
     }),
     requests,
-    emit: (details: AigcForgeEvent) => listeners.forEach((listener) => listener({ name: details.type, details })),
+    emit: (details: OmnixaEvent) => listeners.forEach((listener) => listener({ name: details.type, details })),
     dispose,
   }))
 }
@@ -473,7 +473,7 @@ test("an old API's session read resolves without projecting into its replacement
     executorPreference: { agent: "explore" },
     time: { created: 1, updated: 3 },
   }
-  const owner = AigcForge.make({
+  const owner = Omnixa.make({
     baseUrl: "http://owner.local",
     fetch: (input, init) => {
       requests.push((input instanceof Request ? input : new Request(input, init)).url)
@@ -481,7 +481,7 @@ test("an old API's session read resolves without projecting into its replacement
       return response.promise
     },
   })
-  const replacement = AigcForge.make({
+  const replacement = Omnixa.make({
     baseUrl: "http://replacement.local",
     fetch: async (input, init) => {
       requests.push((input instanceof Request ? input : new Request(input, init)).url)

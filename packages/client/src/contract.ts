@@ -1,1 +1,1 @@
-export { ClientApi, effectOmitEndpoints, groupNames, promiseOmitEndpoints } from "@aigcfroge/protocol/client"
+export { ClientApi, effectOmitEndpoints, groupNames, promiseOmitEndpoints } from "@omnixa/protocol/client"

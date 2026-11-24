@@ -1,4 +1,4 @@
-import type { JsonValue, SessionMessageAssistant, SessionMessageAssistantTool } from "@aigcfroge/client/promise"
+import type { JsonValue, SessionMessageAssistant, SessionMessageAssistantTool } from "@omnixa/client/promise"
 import { Option, Predicate, Schema } from "effect"
 
 const decodeInput = Schema.decodeUnknownOption(Schema.fromJsonString(Schema.Record(Schema.String, Schema.MutableJson)))

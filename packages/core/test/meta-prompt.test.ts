@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test"
-import { MetaPrompt } from "@aigcfroge/core/agent/meta/meta-prompt"
-import { AgentPlugin } from "@aigcfroge/core/plugin/agent"
+import { MetaPrompt } from "@omnixa/core/agent/meta/meta-prompt"
+import { AgentPlugin } from "@omnixa/core/plugin/agent"
 
 describe("fillSubagentsList adopted catalogs", () => {
   const previous = [

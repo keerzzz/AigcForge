@@ -1,5 +1,5 @@
-import type { SessionMessageAssistant, SessionMessageInfo } from "@aigcfroge/client/promise"
-import { TokenUsage } from "@aigcfroge/schema/token-usage"
+import type { SessionMessageAssistant, SessionMessageInfo } from "@omnixa/client/promise"
+import { TokenUsage } from "@omnixa/schema/token-usage"
 
 /** The latest physical request's context, independent of a Step's accumulated billing receipts. */
 export function sessionContextUsage(messages: readonly SessionMessageInfo[]) {

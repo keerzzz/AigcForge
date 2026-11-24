@@ -1,4 +1,4 @@
-import { Plugin } from "@aigcfroge/plugin/tui"
+import { Plugin } from "@omnixa/plugin/tui"
 import { useTerminalDimensions } from "@opentui/solid"
 import { createSignal, For, type JSX } from "solid-js"
 import { StoryFooter } from "./footer"
@@ -134,7 +134,7 @@ function StorybookIndex(props: { context: Plugin.Context }) {
 }
 
 export default Plugin.define({
-  id: "aigcfroge.storybook",
+  id: "omnixa.storybook",
   setup(context) {
     context.ui.router.register({
       name: "storybook",

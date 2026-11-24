@@ -7,11 +7,11 @@ import {
   Same,
   type Result,
   Unknown,
-} from "@aigcfroge/schema/path-identity"
+} from "@omnixa/schema/path-identity"
 import { Context, Effect, Layer, Option } from "effect"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { AbsolutePath } from "./schema"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 
 export {
   CompareInput,
@@ -23,13 +23,13 @@ export {
   Same,
   Unknown,
   UnknownReason,
-} from "@aigcfroge/schema/path-identity"
+} from "@omnixa/schema/path-identity"
 
 export interface Interface {
   readonly compare: (input: CompareInput) => Effect.Effect<Result>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/PathIdentity") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/PathIdentity") {}
 
 export const layer = Layer.effect(
   Service,

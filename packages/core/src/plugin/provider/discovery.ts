@@ -1,11 +1,11 @@
 export * as ProviderDiscoveryPlugin from "./discovery.js"
 
-import { define } from "@aigcfroge/plugin/effect/plugin"
+import { define } from "@omnixa/plugin/effect/plugin"
 import { Effect, Stream } from "effect"
 import { ProviderDiscovery } from "../../provider/discovery.js"
 
 export const Plugin = define({
-  id: "aigcfroge.provider.discovery",
+  id: "omnixa.provider.discovery",
   effect: Effect.fn(function* (ctx) {
     const discovery = yield* ProviderDiscovery.Service
     yield* discovery.start()

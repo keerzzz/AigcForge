@@ -1,26 +1,26 @@
 #!/usr/bin/env bun
 
-import { ensurePluginRuntime } from "@aigcfroge/plugin/runtime"
+import { ensurePluginRuntime } from "@omnixa/plugin/runtime"
 import { NodeRuntime, NodeServices } from "@effect/platform-node"
 import { Cause, Effect } from "effect"
 import { getErrorReported } from "effect/Runtime"
 import { Commands } from "./commands/commands"
 import { Runtime } from "./framework/runtime"
-import { Observability } from "@aigcfroge/util/observability"
+import { Observability } from "@omnixa/util/observability"
 import { Updater } from "./services/updater"
-import { AIGCFROGE_ARTIFACT, AIGCFROGE_CHANNEL, AIGCFROGE_LOCAL, AIGCFROGE_VERSION } from "./version"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Global } from "@aigcfroge/util/global"
-import { AppProcess } from "@aigcfroge/util/process"
+import { OMNIXA_ARTIFACT, OMNIXA_CHANNEL, OMNIXA_LOCAL, OMNIXA_VERSION } from "./version"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Global } from "@omnixa/util/global"
+import { AppProcess } from "@omnixa/util/process"
 import { Config } from "./config"
-import { Npm } from "@aigcfroge/util/npm"
-import { EffectFlock } from "@aigcfroge/util/effect-flock"
+import { Npm } from "@omnixa/util/npm"
+import { EffectFlock } from "@omnixa/util/effect-flock"
 import { Heap } from "./heap"
 import { CpuProfile } from "./cpu-profile"
 
 ensurePluginRuntime()
 
-if (process.env.AIGCFROGE_SSH_ASKPASS_PORT) {
+if (process.env.OMNIXA_SSH_ASKPASS_PORT) {
   const { askpass } = await import("./ssh-askpass")
   process.exit(await Effect.runPromise(askpass.pipe(Effect.provide(NodeServices.layer))))
 }
@@ -102,12 +102,12 @@ Effect.gen(function* () {
     }),
   )
   yield* Effect.logInfo("cli starting", {
-    version: AIGCFROGE_VERSION,
-    channel: AIGCFROGE_CHANNEL,
-    local: AIGCFROGE_LOCAL,
+    version: OMNIXA_VERSION,
+    channel: OMNIXA_CHANNEL,
+    local: OMNIXA_LOCAL,
     args: process.argv.slice(2),
   })
-  return yield* Runtime.run(Commands, Handlers, { version: AIGCFROGE_VERSION })
+  return yield* Runtime.run(Commands, Handlers, { version: OMNIXA_VERSION })
 }).pipe(
   Effect.catchCause((cause) =>
     Effect.logError("cli process failed", {
@@ -122,7 +122,7 @@ Effect.gen(function* () {
     LayerNode.compile(LayerNode.group([Global.node, AppProcess.node, Npm.node, EffectFlock.node]), {
       replacements: [
         Global.node.replace(
-          Global.layerWith(process.env.AIGCFROGE_CONFIG_DIR ? { config: process.env.AIGCFROGE_CONFIG_DIR } : {}),
+          Global.layerWith(process.env.OMNIXA_CONFIG_DIR ? { config: process.env.OMNIXA_CONFIG_DIR } : {}),
         ),
       ],
     }),
@@ -131,9 +131,9 @@ Effect.gen(function* () {
     Observability.layer({
       endpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
       headers: process.env.OTEL_EXPORTER_OTLP_HEADERS,
-      client: process.env.AIGCFROGE_CLIENT ?? AIGCFROGE_ARTIFACT,
-      version: AIGCFROGE_VERSION,
-      channel: AIGCFROGE_CHANNEL,
+      client: process.env.OMNIXA_CLIENT ?? OMNIXA_ARTIFACT,
+      version: OMNIXA_VERSION,
+      channel: OMNIXA_CHANNEL,
     }),
   ),
   Effect.provide(NodeServices.layer),

@@ -8,7 +8,7 @@ if (process.argv[2] !== "serve") {
   plugin({
     name: "vite-tui-entry",
     setup(build) {
-      build.module("@aigcfroge/tui", () => ({ loader: "object", exports: { run } }))
+      build.module("@omnixa/tui", () => ({ loader: "object", exports: { run } }))
     },
   })
 }

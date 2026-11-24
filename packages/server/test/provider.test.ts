@@ -1,6 +1,6 @@
 import { expect } from "bun:test"
-import { SdkPlugins } from "@aigcfroge/core/plugin/sdk"
-import { Plugin } from "@aigcfroge/plugin/effect"
+import { SdkPlugins } from "@omnixa/core/plugin/sdk"
+import { Plugin } from "@omnixa/plugin/effect"
 import { Context, Deferred, Effect, Fiber, Layer } from "effect"
 import { HttpEffect, HttpRouter, HttpServer } from "effect/http"
 import { tmpdirScoped } from "../../core/test/fixture/tmpdir"
@@ -11,7 +11,7 @@ it.live(
   "provider reads stay nonblocking while authentication discovery waits for plugins",
   () =>
     Effect.gen(function* () {
-      const tmp = yield* tmpdirScoped("aigcfroge-provider-endpoints-")
+      const tmp = yield* tmpdirScoped("omnixa-provider-endpoints-")
       const started = yield* Deferred.make<void>()
       const release = yield* Deferred.make<void>()
       const context = yield* Layer.build(
@@ -27,7 +27,7 @@ it.live(
               providers: {
                 custom: {
                   name: "Configured Custom Provider",
-                  package: "@aigcfroge/ai/providers/openai-compatible",
+                  package: "@omnixa/ai/providers/openai-compatible",
                   settings: { apiKey: "secret" },
                   models: { chat: {} },
                 },
@@ -52,12 +52,12 @@ it.live(
         .pipe(HttpEffect.toWebHandlerWith(context))
       const request = (method: "GET" | "POST", route: string) =>
         Effect.promise((signal) => {
-          const url = new URL(route, "http://aigcfroge.local")
+          const url = new URL(route, "http://omnixa.local")
           url.searchParams.set("location[directory]", tmp.path)
           return handler(
             new Request(url, {
               method,
-              headers: { authorization: `Basic ${btoa("aigcfroge:secret")}` },
+              headers: { authorization: `Basic ${btoa("omnixa:secret")}` },
               signal,
             }),
           )
@@ -81,7 +81,7 @@ it.live(
       const discovered = yield* Fiber.join(integrations)
       expect(discovered.status).toBe(200)
       expect(yield* Effect.promise(() => discovered.json())).toMatchObject({
-        data: expect.arrayContaining([expect.objectContaining({ id: "aigcfroge" })]),
+        data: expect.arrayContaining([expect.objectContaining({ id: "openai" })]),
       })
     }),
   15_000,

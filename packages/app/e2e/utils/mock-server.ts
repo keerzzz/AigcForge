@@ -1,6 +1,5 @@
 import type { Page, Route } from "@playwright/test"
 import type {
-  AigcForgeEvent,
   AgentInfo,
   SessionMessageInfo,
   SessionForkInput,
@@ -31,37 +30,38 @@ import type {
   SessionCommunicationCapability,
   ScheduleRule,
   ScheduleOccurrence,
-} from "@aigcfroge/client/promise"
-import { Composition } from "@aigcfroge/schema/composition"
-import { CustomProfile } from "@aigcfroge/schema/custom-profile"
-import { Permission } from "@aigcfroge/schema/permission"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
-import { Event } from "@aigcfroge/schema/event"
-import { SessionTask } from "@aigcfroge/schema/session-task"
-import { SessionGoal } from "@aigcfroge/schema/session-goal"
-import { SessionCommunication } from "@aigcfroge/schema/session-communication"
-import { Schedule } from "@aigcfroge/schema/schedule"
-import { Session } from "@aigcfroge/schema/session"
-import { SessionConsultation } from "@aigcfroge/schema/session-consultation"
-import { WorkContract } from "@aigcfroge/schema/work-contract"
-import { Model } from "@aigcfroge/schema/model"
-import { ModelGroup } from "@aigcfroge/schema/model-group"
-import { ProviderDefinition } from "@aigcfroge/schema/provider-definition"
-import { ProviderDiscovery } from "@aigcfroge/schema/provider-discovery"
-import { ModelSource } from "@aigcfroge/schema/model-source"
-import { MetaAgent } from "@aigcfroge/schema/meta-agent"
-import { SessionTaskEvent } from "@aigcfroge/schema/session-task-event"
-import { Worktree } from "@aigcfroge/schema/worktree"
-import { ApiNotFoundError, ConflictError, InvalidRequestError } from "@aigcfroge/protocol/errors"
-import type { SessionInstanceGroup } from "@aigcfroge/protocol/groups/session-instance"
-import { WorkspaceRoutingQuery } from "@aigcfroge/protocol/middleware/workspace-routing"
-import { LegacyDelegationState } from "@aigcfroge/protocol/groups/delegation"
+} from "@omnixa/client/promise"
+import { Composition } from "@omnixa/schema/composition"
+import { CustomProfile } from "@omnixa/schema/custom-profile"
+import { Permission } from "@omnixa/schema/permission"
+import { ProductMode } from "@omnixa/schema/product-mode"
+import { Event } from "@omnixa/schema/event"
+import { SessionTask } from "@omnixa/schema/session-task"
+import { SessionGoal } from "@omnixa/schema/session-goal"
+import { SessionCommunication } from "@omnixa/schema/session-communication"
+import { Schedule } from "@omnixa/schema/schedule"
+import { Session } from "@omnixa/schema/session"
+import { SessionConsultation } from "@omnixa/schema/session-consultation"
+import { WorkContract } from "@omnixa/schema/work-contract"
+import { Model } from "@omnixa/schema/model"
+import { ModelGroup } from "@omnixa/schema/model-group"
+import { Integration } from "@omnixa/schema/integration"
+import { ProviderDefinition } from "@omnixa/schema/provider-definition"
+import { ProviderDiscovery } from "@omnixa/schema/provider-discovery"
+import { ModelSource } from "@omnixa/schema/model-source"
+import { MetaAgent } from "@omnixa/schema/meta-agent"
+import { SessionTaskEvent } from "@omnixa/schema/session-task-event"
+import { Worktree } from "@omnixa/schema/worktree"
+import { ApiNotFoundError, ConflictError, InvalidRequestError } from "@omnixa/protocol/errors"
+import type { SessionInstanceGroup } from "@omnixa/protocol/groups/session-instance"
+import { WorkspaceRoutingQuery } from "@omnixa/protocol/middleware/workspace-routing"
+import { LegacyDelegationState } from "@omnixa/protocol/groups/delegation"
 import {
   CustomProfileApplyPayload,
   CustomProfileContentQuery,
   CustomProfileDeletePayload,
   CustomProfileListQuery,
-} from "@aigcfroge/protocol/groups/custom-profile"
+} from "@omnixa/protocol/groups/custom-profile"
 import { DateTime, Duration, Effect, Layer, Option, Predicate, Schema } from "effect"
 import { HttpRouter, HttpServer, HttpServerResponse } from "effect/http"
 import { HttpApiBuilder, HttpApiEndpoint, HttpApiSchema } from "effect/http-api"
@@ -76,7 +76,7 @@ import {
   MockUnauthorized,
   MockUnsupported,
 } from "./mock-api"
-import { installSseTransport } from "./sse-transport"
+import { installSseTransport, type SseEvent } from "./sse-transport"
 
 type Resolvable<T> = T | (() => T)
 
@@ -176,7 +176,7 @@ export interface MockServerConfig {
   ) =>
     | Schema.Codec.Encoded<typeof ProviderDefinition.RemoveResult>
     | Promise<Schema.Codec.Encoded<typeof ProviderDefinition.RemoveResult>>
-  onConnectKey?: (input: { integrationID: string; body: unknown }) => void
+  onConnectKey?: (input: { integrationID: string; body: unknown }) => void | MockAnswer | Promise<void | MockAnswer>
   // Terminal shells the settings offer (`/api/config/shell`).
   shells?: unknown[]
   // Background shell commands (`GET /api/shell`).
@@ -382,7 +382,7 @@ export interface MockServerConfig {
   onTaskRead?: (input: MockTaskScope) => void | InvalidRequestError | Promise<void | InvalidRequestError>
   // Runs before a single-row mutation, so scenarios can observe or hold its request at the API boundary.
   onTaskMutation?: (input: MockTaskMutation) => void | Promise<void>
-  events?: () => AigcForgeEvent[]
+  events?: () => SseEvent[]
   eventRetry?: number
   // Idle event streams send a comment every 15 s like the real server. Set false only to test the client's stall watchdog.
   keepalive?: boolean
@@ -399,9 +399,20 @@ export interface MockServerConfig {
   // Connect/disconnect record the server's new status in that workspace (`connected`/`disabled`); the hook may return
   // another status (for example `{ status: "failed", error }`). Unknown servers answer 404.
   onMcpAction?: (input: { server: string; action: "connect" | "disconnect"; directory: string }) => void | MockMcpStatus
-  // Starts an OAuth attempt (POST .../connect/oauth) and returns its authorization URL; the attempt then stays pending.
+  // Starts an OAuth attempt (POST .../connect/oauth) and returns its authorization URL.
   // Without it, OAuth connects answer 501 MockUnsupported.
-  onIntegrationOAuth?: (input: { integrationID: string; directory: string; body: unknown }) => { url: string }
+  onIntegrationOAuth?: (input: { integrationID: string; directory: string; body: unknown }) => {
+    url: string
+    mode?: "auto" | "code"
+    instructions?: string
+  }
+  // A failed provider callback is terminal; replacing only its HTTP response leaves the attempt pending.
+  onIntegrationOAuthComplete?: (input: {
+    integrationID: string
+    attemptID: string
+    directory: string
+    body: unknown
+  }) => void | (MockAnswer & { failed?: string }) | Promise<void | (MockAnswer & { failed?: string })>
   plugins?: Resolvable<unknown[]>
   skills?: Resolvable<unknown[]>
   // Replaces the `/api/worktree` inventory, which defaults to the directory plus project sandboxes.
@@ -501,7 +512,7 @@ type MockStreamWindow = Window & {
   __mockServerStreams?: Record<string, MockStream>
 }
 
-export async function mockAigcForgeServer(page: Page, config: MockServerConfig) {
+export async function mockOmnixaServer(page: Page, config: MockServerConfig) {
   const server = config.server ?? SERVER
 
   mockedOrigins(page).add(server)
@@ -598,7 +609,7 @@ export async function mockAigcForgeServer(page: Page, config: MockServerConfig) 
 
   // Delivers events on this server's mock stream; buffered until the app connects.
   // An origin served by an SSE transport receives the events as one burst on its active connection.
-  const push = (payloads: readonly AigcForgeEvent[]) =>
+  const push = (payloads: readonly SseEvent[]) =>
     page.evaluate<void, { server: string; payloads: readonly unknown[] }>(
       ({ server, payloads }) => {
         // SAFETY: only the init script, `installSseTransport`, and benchmarks write these globals, in the declared shapes.
@@ -615,7 +626,7 @@ export async function mockAigcForgeServer(page: Page, config: MockServerConfig) 
     )
 
   // Server-side events the mock publishes itself; delivery failures other than a missing document fail the test.
-  const emit = (events: AigcForgeEvent[]) =>
+  const emit = (events: SseEvent[]) =>
     void push(events).catch((cause: unknown) => {
       if (page.isClosed() || retryableDelivery(cause)) return
       throw cause
@@ -623,7 +634,7 @@ export async function mockAigcForgeServer(page: Page, config: MockServerConfig) 
 
   if (config.events) {
     // Batches stay queued until the page accepts them; failures other than a missing document fail the test.
-    const pending: AigcForgeEvent[] = []
+    const pending: SseEvent[] = []
     const pump = { busy: false, pending }
 
     const timer = setInterval(() => {
@@ -682,7 +693,7 @@ export async function mockAigcForgeServer(page: Page, config: MockServerConfig) 
 
     if (
       password !== undefined &&
-      (await route.request().headerValue("authorization")) !== `Basic ${btoa(`aigcfroge:${password}`)}`
+      (await route.request().headerValue("authorization")) !== `Basic ${btoa(`omnixa:${password}`)}`
     ) {
       return route.fulfill({
         status: 401,
@@ -710,7 +721,7 @@ export async function mockAigcForgeServer(page: Page, config: MockServerConfig) 
     const payload = Buffer.from(await response.arrayBuffer())
 
     // The handler committed its normal state, but this scenario loses the HTTP reply.
-    if (response.headers.get("x-aigcfroge-mock-disconnect") === "true") return route.abort("connectionclosed")
+    if (response.headers.get("x-omnixa-mock-disconnect") === "true") return route.abort("connectionclosed")
 
     // A handler's 404 carries a tagged error; a route the mock does not define must not reach the app server, whose
     // SPA fallback would answer HTML 200. Answer 501 and fail the test from the route handler.
@@ -821,7 +832,7 @@ export async function mockServers(page: Page, servers: Record<string, Omit<MockS
           keepalive: config.keepalive,
         })
 
-        const mock = await mockAigcForgeServer(page, { ...config, server: origin })
+        const mock = await mockOmnixaServer(page, { ...config, server: origin })
 
         return [origin, { transport, pty: mock.pty }] as const
       }),
@@ -830,7 +841,7 @@ export async function mockServers(page: Page, servers: Record<string, Omit<MockS
 }
 
 // `emit` publishes the events a real server sends after a mutation (without a page, nothing is published).
-export function createMockServerHandler(config: MockServerConfig, emit: (events: AigcForgeEvent[]) => void = () => {}) {
+export function createMockServerHandler(config: MockServerConfig, emit: (events: SseEvent[]) => void = () => {}) {
   const pty = createPty(config)
 
   const web = HttpRouter.toWebHandler(
@@ -845,7 +856,8 @@ export function createMockServerHandler(config: MockServerConfig, emit: (events:
           pty,
           emit,
           mcp: new Map<string, MockMcpStatus>(),
-          attempts: new Map<string, number>(),
+          attempts: new Map<string, { integrationID: string; status: Integration.AttemptStatus }>(),
+          oauthAttempts: 0,
         }),
       ),
       Layer.provide(HttpServer.layerServices),
@@ -1028,10 +1040,11 @@ function mockHandlers(
     consultationCreates: number
     tasks: SessionTask.Info[]
     pty: ReturnType<typeof createPty>
-    emit: (events: AigcForgeEvent[]) => void
-    // MCP status overrides by `<directory>\n<server>`, and OAuth attempt creation times by attempt ID.
+    emit: (events: SseEvent[]) => void
+    // MCP status overrides by `<directory>\n<server>`, and OAuth attempts by attempt ID.
     mcp: Map<string, MockMcpStatus>
-    attempts: Map<string, number>
+    attempts: Map<string, { integrationID: string; status: Integration.AttemptStatus }>
+    oauthAttempts: number
   },
 ) {
   const noContent = Effect.succeed(HttpApiSchema.NoContent.make())
@@ -1376,7 +1389,7 @@ function mockHandlers(
 
           return HttpServerResponse.jsonUnsafe(answer.body, {
             status: answer.status,
-            headers: answer.disconnect ? { "x-aigcfroge-mock-disconnect": "true" } : undefined,
+            headers: answer.disconnect ? { "x-omnixa-mock-disconnect": "true" } : undefined,
           })
         }),
       )
@@ -1471,8 +1484,8 @@ function mockHandlers(
                   scope: query.scope,
                   root:
                     query.scope === "global"
-                      ? "/global/.aigcfroge/prompts"
-                      : `${query.directory ?? config.directory}/.aigcfroge/prompts`,
+                      ? "/global/.omnixa/prompts"
+                      : `${query.directory ?? config.directory}/.omnixa/prompts`,
                 },
               }
             : {}),
@@ -1518,8 +1531,8 @@ function mockHandlers(
                   scope: query.scope,
                   root:
                     query.scope === "global"
-                      ? "/global/.aigcfroge/skills"
-                      : `${query.directory ?? config.directory}/.aigcfroge/skills`,
+                      ? "/global/.omnixa/skills"
+                      : `${query.directory ?? config.directory}/.omnixa/skills`,
                 },
               }
             : {}),
@@ -1565,8 +1578,8 @@ function mockHandlers(
                   scope: query.scope,
                   root:
                     query.scope === "global"
-                      ? "/global/.aigcfroge/commands"
-                      : `${query.directory ?? config.directory}/.aigcfroge/commands`,
+                      ? "/global/.omnixa/commands"
+                      : `${query.directory ?? config.directory}/.omnixa/commands`,
                 },
               }
             : {}),
@@ -1933,7 +1946,7 @@ function mockHandlers(
 
           return HttpServerResponse.jsonUnsafe(answer.body, {
             status: answer.status,
-            headers: answer.disconnect ? { "x-aigcfroge-mock-disconnect": "true" } : undefined,
+            headers: answer.disconnect ? { "x-omnixa-mock-disconnect": "true" } : undefined,
           })
         }),
       )
@@ -2045,13 +2058,72 @@ function mockHandlers(
           return HttpServerResponse.jsonUnsafe(answer.body, { status: answer.status })
         }),
       )
+      .handleRaw("integrationConnect", (ctx) =>
+        Effect.gen(function* () {
+          const body = yield* ctx.request.json.pipe(Effect.orDie)
+          const answer = yield* Effect.promise(() =>
+            Promise.resolve(config.onConnectKey?.({ integrationID: ctx.params.integrationID, body })),
+          )
+
+          if (answer) return HttpServerResponse.jsonUnsafe(answer.body, { status: answer.status })
+
+          return HttpServerResponse.empty({ status: 204 })
+        }),
+      )
+      .handleRaw("integrationOAuthComplete", (ctx) =>
+        Effect.gen(function* () {
+          const attempt = state.attempts.get(ctx.params.attemptID)
+
+          if (!attempt || attempt.integrationID !== ctx.params.integrationID)
+            return HttpServerResponse.jsonUnsafe(
+              {
+                _tag: "IntegrationAttemptNotFoundError",
+                integrationID: ctx.params.integrationID,
+                attemptID: ctx.params.attemptID,
+                message: `OAuth attempt not found: ${ctx.params.attemptID}`,
+              },
+              { status: 404 },
+            )
+          if (attempt.status.status !== "pending") return HttpServerResponse.empty({ status: 204 })
+          const complete = config.onIntegrationOAuthComplete
+
+          if (!complete) return yield* unsupported("complete OAuth connections", "onIntegrationOAuthComplete")
+          const body = yield* ctx.request.json.pipe(Effect.orDie)
+          const answer = yield* Effect.promise(() =>
+            Promise.resolve(
+              complete({
+                integrationID: ctx.params.integrationID,
+                attemptID: ctx.params.attemptID,
+                directory: requestDirectory(config, ctx.request),
+                body,
+              }),
+            ),
+          )
+
+          if (state.attempts.get(ctx.params.attemptID) === attempt) {
+            if (!answer)
+              state.attempts.set(ctx.params.attemptID, {
+                ...attempt,
+                status: { status: "complete", time: attempt.status.time },
+              })
+            if (answer && answer.failed !== undefined)
+              state.attempts.set(ctx.params.attemptID, {
+                ...attempt,
+                status: { status: "failed", message: answer.failed, time: attempt.status.time },
+              })
+          }
+          if (answer) return HttpServerResponse.jsonUnsafe(answer.body, { status: answer.status })
+
+          return HttpServerResponse.empty({ status: 204 })
+        }),
+      )
       .handleAll({
         info: () =>
           Effect.succeed({
             version: "2.0.0",
             pid: 1,
             urls: config.server ? [config.server] : [],
-            paths: { tmp: "/tmp/aigcfroge" },
+            paths: { tmp: "/tmp/omnixa" },
           }),
         config: () =>
           config.beforeConfigResponse
@@ -2197,10 +2269,6 @@ function mockHandlers(
               connections: [],
             },
           }),
-        integrationConnect: (ctx) =>
-          Effect.sync(() => config.onConnectKey?.({ integrationID: ctx.params.integrationID, body: ctx.payload })).pipe(
-            Effect.andThen(noContent),
-          ),
         integrationOAuthConnect: (ctx) => {
           const start = config.onIntegrationOAuth
 
@@ -2209,8 +2277,13 @@ function mockHandlers(
           return Effect.sync(() => {
             const directory = requestDirectory(config, ctx.request)
             const created = Date.now()
-            const attemptID = `con_mock_${state.attempts.size + 1}`
-            state.attempts.set(attemptID, created)
+            const time = { created, expires: created + 600_000 }
+            state.oauthAttempts += 1
+            const attemptID = `con_mock_${state.oauthAttempts}`
+            state.attempts.set(attemptID, {
+              integrationID: ctx.params.integrationID,
+              status: { status: "pending", time },
+            })
             const started = start({ integrationID: ctx.params.integrationID, directory, body: ctx.payload })
 
             return {
@@ -2218,24 +2291,32 @@ function mockHandlers(
               data: {
                 attemptID,
                 url: started.url,
-                instructions: "",
-                mode: "auto",
-                time: { created, expires: created + 600_000 },
+                instructions: started.instructions ?? "",
+                mode: started.mode ?? "auto",
+                time,
               },
             }
           })
         },
         integrationOAuthStatus: (ctx) =>
           Effect.suspend(() => {
-            const created = state.attempts.get(ctx.params.attemptID)
+            const attempt = state.attempts.get(ctx.params.attemptID)
 
-            if (created === undefined) return Effect.fail(new MockNotFound({ message: "OAuth attempt not found" }))
+            if (!attempt || attempt.integrationID !== ctx.params.integrationID)
+              return Effect.fail(new MockNotFound({ message: "OAuth attempt not found" }))
 
             return Effect.succeed({
               location: location(config, requestDirectory(config, ctx.request)),
-              data: { status: "pending", time: { created, expires: created + 600_000 } },
+              data: attempt.status,
             })
           }),
+        integrationOAuthCancel: (ctx) =>
+          Effect.sync(() => {
+            const attempt = state.attempts.get(ctx.params.attemptID)
+
+            if (attempt?.integrationID === ctx.params.integrationID && attempt.status.status === "pending")
+              state.attempts.delete(ctx.params.attemptID)
+          }).pipe(Effect.andThen(noContent)),
         credentialRemove: () => noContent,
         command: (ctx) =>
           Effect.sync(() => ({

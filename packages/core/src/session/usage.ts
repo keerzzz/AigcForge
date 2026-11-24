@@ -1,11 +1,11 @@
 export * as SessionUsage from "./usage.js"
 
-import type { Usage } from "@aigcfroge/ai"
-import { Money } from "@aigcfroge/schema/money"
-import type { TokenUsage } from "@aigcfroge/schema/token-usage"
-import type { Model } from "@aigcfroge/schema/model"
-import type { ModelSource } from "@aigcfroge/schema/model-source"
-import type { SessionAttempt } from "@aigcfroge/schema/session-attempt"
+import type { Usage } from "@omnixa/ai"
+import { Money } from "@omnixa/schema/money"
+import type { TokenUsage } from "@omnixa/schema/token-usage"
+import type { Model } from "@omnixa/schema/model"
+import type { ModelSource } from "@omnixa/schema/model-source"
+import type { SessionAttempt } from "@omnixa/schema/session-attempt"
 
 const finite = (value: number) => (Number.isFinite(value) ? value : 0)
 const safe = (value: number | undefined) => Math.max(0, finite(value ?? 0))

@@ -1,4 +1,4 @@
-import { Plugin } from "@aigcfroge/plugin/tui"
+import { Plugin } from "@omnixa/plugin/tui"
 import { useTerminalDimensions } from "@opentui/solid"
 import { batch, createSignal, For, Show } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
@@ -30,18 +30,18 @@ import type { Story } from "./index"
 type FixtureStatus = ReturnType<SessionTabsController["status"]>
 
 const FIXTURE_TABS = [
-  { sessionID: "fixture-1", title: "Implement session tabs", project: "aigcfroge" },
-  { sessionID: "fixture-2", title: "Investigate rendering", project: "aigcfroge" },
-  { sessionID: "fixture-3", title: "A deliberately long session title for truncation", project: "aigcfroge-slack" },
-  { sessionID: "fixture-4", title: "Fix provider state", project: "aigcfroge" },
-  { sessionID: "fixture-5", title: "Review animation", project: "aigcfroge-slack" },
-  { sessionID: "fixture-6", title: "Untitled behavior", project: "aigcfroge-drive" },
-  { sessionID: "fixture-7", title: "Queue follow-up work", project: "aigcfroge" },
-  { sessionID: "fixture-8", title: "Check narrow layout", project: "aigcfroge-drive" },
-  { sessionID: "fixture-9", title: "Profile terminal output", project: "aigcfroge" },
-  { sessionID: "fixture-10", title: "Handle permission", project: "aigcfroge-slack" },
-  { sessionID: "fixture-11", title: "Run focused tests", project: "aigcfroge" },
-  { sessionID: "fixture-12", title: "Prepare review", project: "aigcfroge-drive" },
+  { sessionID: "fixture-1", title: "Implement session tabs", project: "omnixa" },
+  { sessionID: "fixture-2", title: "Investigate rendering", project: "omnixa" },
+  { sessionID: "fixture-3", title: "A deliberately long session title for truncation", project: "omnixa-slack" },
+  { sessionID: "fixture-4", title: "Fix provider state", project: "omnixa" },
+  { sessionID: "fixture-5", title: "Review animation", project: "omnixa-slack" },
+  { sessionID: "fixture-6", title: "Untitled behavior", project: "omnixa-drive" },
+  { sessionID: "fixture-7", title: "Queue follow-up work", project: "omnixa" },
+  { sessionID: "fixture-8", title: "Check narrow layout", project: "omnixa-drive" },
+  { sessionID: "fixture-9", title: "Profile terminal output", project: "omnixa" },
+  { sessionID: "fixture-10", title: "Handle permission", project: "omnixa-slack" },
+  { sessionID: "fixture-11", title: "Run focused tests", project: "omnixa" },
+  { sessionID: "fixture-12", title: "Prepare review", project: "omnixa-drive" },
 ]
 
 const FIXTURE_STATUSES: Record<string, FixtureStatus> = {

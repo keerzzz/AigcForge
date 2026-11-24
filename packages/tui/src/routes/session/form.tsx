@@ -9,9 +9,9 @@ import {
   type ScrollBoxRenderable,
   type TextareaRenderable,
 } from "@opentui/core"
-import { openUrl } from "@aigcfroge/util/open"
+import { openUrl } from "@omnixa/util/open"
 import { useTheme } from "../../context/theme"
-import type { FormAnswer, FormField, FormValue } from "@aigcfroge/client"
+import type { FormAnswer, FormField, FormValue } from "@omnixa/client"
 import { useData, type FormWithLocation } from "../../context/data"
 import { useClipboard } from "../../context/clipboard"
 import { SplitBorder } from "../../ui/border"

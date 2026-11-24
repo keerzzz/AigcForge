@@ -2,14 +2,14 @@ export * as PromptAssetService from "./prompt-asset-service"
 
 import path from "path"
 import { Context, Effect, Layer, Option, Schema } from "effect"
-import { Candidate, Inspection, Revision } from "@aigcfroge/schema/prompt-asset"
+import { Candidate, Inspection, Revision } from "@omnixa/schema/prompt-asset"
 import { PromptAsset } from "./prompt-asset"
 import { FileMutation } from "./file-mutation"
 import { PromptAssetPath } from "./prompt-asset/path"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { LocationMutation } from "./location-mutation"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { Hash } from "@aigcfroge/util/hash"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import { Hash } from "@omnixa/util/hash"
 import { Bus } from "./bus"
 import { yamlEscape } from "./util/yaml-escape"
 import { AssetPlacement } from "./asset-placement"
@@ -153,7 +153,7 @@ export interface Interface {
   readonly delete: (input: DeleteInput) => Effect.Effect<void, DeleteError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/PromptAssetService") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/PromptAssetService") {}
 
 export const locationLayer = Layer.effect(
   Service,

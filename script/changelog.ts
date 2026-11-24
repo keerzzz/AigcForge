@@ -35,7 +35,7 @@ Options:
   -t, --to <ref>         Ending ref (default: HEAD)
       --model <name>     Model in provider/model or provider/model#variant form
       --variant <name>   Variant for a model without #variant (default: low)
-      --quiet            Suppress aigcfroge command output unless it fails
+      --quiet            Suppress omnixa command output unless it fails
       --print            Print the generated UPCOMING_CHANGELOG.md after success
   -h, --help             Show this help message
 
@@ -65,7 +65,7 @@ if (inputExit !== 0) {
   process.exit(inputExit)
 }
 
-const template = await Bun.file(path.join(root, ".aigcfroge/command/changelog.md")).text()
+const template = await Bun.file(path.join(root, ".omnixa/command/changelog.md")).text()
 const marker = "!`bun script/raw-changelog.ts $ARGUMENTS`"
 if (!template.includes(marker)) throw new Error("Changelog template is missing its structured input marker")
 const prompt = template.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, "").replace(marker, () => input)

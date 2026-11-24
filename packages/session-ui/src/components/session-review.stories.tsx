@@ -21,7 +21,7 @@ function ReviewStory(props: { split?: boolean }) {
 }
 
 export default {
-  title: "AigcForge/Review/Changed files",
+  title: "Omnixa/Review/Changed files",
   id: "components-session-review",
   component: SessionReview,
   parameters: {
@@ -84,7 +84,7 @@ export const InteractiveComments = { render: () => <InteractiveCommentsStory /> 
 
 const gitDiffs = [
   {
-    // AigcForge 93e1f383dd79683af4fc5ad139cea0516603c838, unchanged git-show output.
+    // Omnixa 93e1f383dd79683af4fc5ad139cea0516603c838, unchanged git-show output.
     file: "packages/session-ui/src/components/file.tsx",
     additions: 1,
     deletions: 1,
@@ -104,7 +104,7 @@ index 704971b014..4876731cbd 100644
 `,
   },
   {
-    // AigcForge 497a24c17d, unchanged git-show output.
+    // Omnixa 497a24c17d, unchanged git-show output.
     file: "packages/core/src/session/runner/retry.ts",
     additions: 1,
     deletions: 1,
@@ -131,7 +131,7 @@ export const InlineChanges = {
     <CurrentSessionProviders document={editThenTestDocument}>
       <div class="mx-auto h-screen min-h-[620px] w-full max-w-[1100px] overflow-hidden bg-background-base">
         <SessionReview
-          title="AigcForge Git history"
+          title="Omnixa Git history"
           diffs={gitDiffs}
           open={gitDiffs.map((diff) => diff.file)}
           split={args.split}

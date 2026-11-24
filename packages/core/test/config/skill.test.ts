@@ -2,23 +2,23 @@ import fs from "fs/promises"
 import path from "path"
 import { describe, expect, test } from "bun:test"
 import { Deferred, Effect, Fiber, Layer, Schema, Stream } from "effect"
-import { Config } from "@aigcfroge/core/config"
-import { Directory, Document, type Entry, Info } from "@aigcfroge/schema/config"
-import { ConfigSkillPlugin } from "@aigcfroge/core/config/plugin/skill"
-import { ConfigCompatibilityPlugin } from "@aigcfroge/core/config/plugin/compatibility"
-import { SkillFile } from "@aigcfroge/core/config/plugin/skill-file"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Watcher } from "@aigcfroge/core/filesystem/watcher"
-import { Bus } from "@aigcfroge/core/bus"
-import { Credential } from "@aigcfroge/core/credential"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Global } from "@aigcfroge/util/global"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Location } from "@aigcfroge/core/location"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Skill } from "@aigcfroge/core/skill"
-import { SkillDiscovery } from "@aigcfroge/core/skill/discovery"
-import { WellKnown } from "@aigcfroge/core/wellknown"
+import { Config } from "@omnixa/core/config"
+import { Directory, Document, type Entry, Info } from "@omnixa/schema/config"
+import { ConfigSkillPlugin } from "@omnixa/core/config/plugin/skill"
+import { ConfigCompatibilityPlugin } from "@omnixa/core/config/plugin/compatibility"
+import { SkillFile } from "@omnixa/core/config/plugin/skill-file"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Watcher } from "@omnixa/core/filesystem/watcher"
+import { Bus } from "@omnixa/core/bus"
+import { Credential } from "@omnixa/core/credential"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Global } from "@omnixa/util/global"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Location } from "@omnixa/core/location"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Skill } from "@omnixa/core/skill"
+import { SkillDiscovery } from "@omnixa/core/skill/discovery"
+import { WellKnown } from "@omnixa/core/wellknown"
 import { emptyCredentialNode, emptyWellknownNode } from "../fixture/config-nodes"
 import { tmpdir } from "../fixture/tmpdir"
 import { location } from "../fixture/location"
@@ -128,7 +128,7 @@ describe("SkillFile.parse", () => {
     expect(parse("disable-model-invocation: yes")).toMatchObject({ skill: { autoinvoke: false } })
     expect(parse("disable-model-invocation: false")).not.toMatchObject({ skill: { autoinvoke: expect.anything() } })
     expect(parse("disable-model-invocation: maybe")).not.toMatchObject({ skill: { autoinvoke: expect.anything() } })
-    expect(parse("disable-model-invocation: true\nmetadata:\n  aigcfroge/autoinvoke: true")).toMatchObject({
+    expect(parse("disable-model-invocation: true\nmetadata:\n  omnixa/autoinvoke: true")).toMatchObject({
       skill: { autoinvoke: true },
     })
   })
@@ -143,7 +143,7 @@ describe("SkillFile.parse", () => {
 name: Manual
 description: Manual only
 metadata:
-  aigcfroge/autoinvoke: false
+  omnixa/autoinvoke: false
 ---
 # manual`,
       ),
@@ -179,14 +179,14 @@ describe("ConfigSkillPlugin.Plugin", () => {
         Effect.gen(function* () {
           const claude = path.join(tmp.path, "claude")
           const agents = path.join(tmp.path, "agents")
-          const aigcfroge = path.join(tmp.path, "aigcfroge")
+          const omnixa = path.join(tmp.path, "omnixa")
           const home = path.join(tmp.path, "home")
           const directory = path.join(tmp.path, "project")
           const expected = [
             path.join(claude, "skills"),
             path.join(agents, "skills"),
-            path.join(aigcfroge, "skill"),
-            path.join(aigcfroge, "skills"),
+            path.join(omnixa, "skill"),
+            path.join(omnixa, "skills"),
             path.join(home, "shared"),
             path.join(directory, "relative"),
           ]
@@ -194,7 +194,7 @@ describe("ConfigSkillPlugin.Plugin", () => {
 
           yield* startEntries(
             [
-              new Directory({ type: "directory", path: AbsolutePath.make(aigcfroge) }),
+              new Directory({ type: "directory", path: AbsolutePath.make(omnixa) }),
               new Document({ type: "document", info: decode({ skills: ["~/shared", "./relative"] }) }),
             ],
             directory,

@@ -1,5 +1,5 @@
-import { AigcForge, type SessionInfo } from "@aigcfroge/client"
-import { Service } from "@aigcfroge/client/effect/service"
+import { Omnixa, type SessionInfo } from "@omnixa/client"
+import { Service } from "@omnixa/client/effect/service"
 import { Effect, Option, Stream } from "effect"
 import { EOL } from "node:os"
 import { Commands } from "../../commands"
@@ -14,7 +14,7 @@ const handler = Effect.fn("cli.session.list")(function* (
     server: Option.getOrUndefined(input.server),
     standalone: input.standalone,
   })
-  const client = AigcForge.make({ baseUrl: server.endpoint.url, headers: Service.headers(server.endpoint) })
+  const client = Omnixa.make({ baseUrl: server.endpoint.url, headers: Service.headers(server.endpoint) })
   const location = yield* Effect.tryPromise({
     try: (signal) => client.location.get({ location: { directory: process.cwd() } }, { signal }),
     catch: (cause) => cause,
@@ -59,8 +59,8 @@ const handler = Effect.fn("cli.session.list")(function* (
     return
   }
 
-  const { AppProcess } = yield* Effect.promise(() => import("@aigcfroge/util/process"))
-  const { LayerNode } = yield* Effect.promise(() => import("@aigcfroge/util/effect/layer-node"))
+  const { AppProcess } = yield* Effect.promise(() => import("@omnixa/util/process"))
+  const { LayerNode } = yield* Effect.promise(() => import("@omnixa/util/effect/layer-node"))
   const { ChildProcess } = yield* Effect.promise(() => import("effect/process"))
   yield* Effect.gen(function* () {
     const processService = yield* AppProcess.Service

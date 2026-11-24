@@ -1,5 +1,5 @@
-import { Location } from "@aigcfroge/schema/location"
-import { Reference } from "@aigcfroge/schema/reference"
+import { Location } from "@omnixa/schema/location"
+import { Reference } from "@omnixa/schema/reference"
 import { Schema, Struct } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { LocationQuery, locationQueryOpenApi } from "./location.js"

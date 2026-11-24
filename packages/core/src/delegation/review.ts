@@ -10,8 +10,8 @@ import {
   type DeliveryStatus,
   type Info as DelegationInfo,
   type RevisionDigest,
-} from "@aigcfroge/schema/delegation"
-import type { ParticipantID, TurnID } from "@aigcfroge/schema/delegation-id"
+} from "@omnixa/schema/delegation"
+import type { ParticipantID, TurnID } from "@omnixa/schema/delegation-id"
 
 /**
  * Gerrit-style sticky approval copyability matrix (G3).

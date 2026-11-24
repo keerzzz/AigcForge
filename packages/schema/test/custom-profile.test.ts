@@ -68,7 +68,7 @@ describe("CustomProfile Schema", () => {
         {
           ...validProfile.bindings["agents/reviewer"].prompts[0],
           kind: "prompt" as const,
-          target: { scope: "project" as const, root: "/project/.aigcfroge/prompts" },
+          target: { scope: "project" as const, root: "/project/.omnixa/prompts" },
         },
       ],
       skills: [
@@ -83,7 +83,7 @@ describe("CustomProfile Schema", () => {
           kind: "command" as const,
           relativePath: "release.md",
           revision: "d".repeat(64),
-          target: { scope: "location" as const, root: "/project/child/.aigcfroge/commands" },
+          target: { scope: "location" as const, root: "/project/child/.omnixa/commands" },
         },
       ],
     }
@@ -102,7 +102,7 @@ describe("CustomProfile Schema", () => {
   })
 
   test("Profile rejects unsupported Agent, Workflow and MCP targets over both decoding boundaries", () => {
-    const target = { scope: "project", root: "/project/.aigcfroge/assets" }
+    const target = { scope: "project", root: "/project/.omnixa/assets" }
     const profiles = [
       { ...validProfile, agents: [{ ...validProfile.agents[0], target }] },
       {

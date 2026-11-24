@@ -50,7 +50,7 @@ describe("ProviderDiscovery", () => {
       providerID: "relay",
       definition: {
         type: "stored",
-        target: { scope: "project", path: "/project/aigcfroge.jsonc" },
+        target: { scope: "project", path: "/project/omnixa.jsonc" },
         expectedDigest: "file-one",
         patch: {
           set: { settings: { baseURL: "https://relay.example/gateway/v1" } },
@@ -65,7 +65,7 @@ describe("ProviderDiscovery", () => {
       definition: {
         type: "new",
         definition: {
-          package: "@aigcfroge/ai/providers/openai-compatible",
+          package: "@omnixa/ai/providers/openai-compatible",
           settings: { baseURL: "https://relay.example/v1" },
         },
       },

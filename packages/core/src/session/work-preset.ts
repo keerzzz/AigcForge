@@ -1,7 +1,7 @@
 export * as WorkPresetRegistry from "./work-preset"
 
-import { WorkPreset } from "@aigcfroge/schema/work-preset"
-import { Hash } from "@aigcfroge/util/hash"
+import { WorkPreset } from "@omnixa/schema/work-preset"
+import { Hash } from "@omnixa/util/hash"
 
 const DEFINITIONS: ReadonlyArray<Omit<WorkPreset.Preset, "revision">> = [
   {

@@ -1,7 +1,7 @@
-import { Icon } from "@aigcfroge/ui/icon"
-import { Switch } from "@aigcfroge/ui/switch"
-import { Tabs } from "@aigcfroge/ui/tabs"
-import { Button } from "@aigcfroge/ui/button"
+import { Icon } from "@omnixa/ui/icon"
+import { Switch } from "@omnixa/ui/switch"
+import { Tabs } from "@omnixa/ui/tabs"
+import { Button } from "@omnixa/ui/button"
 import { useQuery } from "@tanstack/solid-query"
 import {
   type Component,
@@ -367,7 +367,7 @@ export const ProjectSettingsExtensions: Component<{
                 kind="skills"
                 empty={projectSkills().length === 0}
                 action={
-                  <ExternalLink class="settings-extension-link" href="https://aigcfroge.ai/docs/skills/">
+                  <ExternalLink class="settings-extension-link" href="https://github.com/keerzzz/AigcForge#readme">
                     {language.t("settings.extensions.addSkills")}
                   </ExternalLink>
                 }

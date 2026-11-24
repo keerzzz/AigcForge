@@ -1,18 +1,18 @@
 import { describe, expect, test } from "bun:test"
 import { SqliteClient } from "@effect/sql-sqlite-bun"
-import { EffectDrizzleSqlite } from "@aigcfroge/core/database/drizzle"
-import { Database } from "@aigcfroge/core/database/database"
-import { DatabaseMigration } from "@aigcfroge/core/database/migration"
-import { V1Migration } from "@aigcfroge/core/database/v1-migration"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { SessionSchema } from "@aigcfroge/core/session/schema"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
-import { PermissionTier } from "@aigcfroge/schema/permission-tier"
-import { SessionTable } from "@aigcfroge/core/session/sql"
-import { Project } from "@aigcfroge/core/project"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Global } from "@aigcfroge/util/global"
+import { EffectDrizzleSqlite } from "@omnixa/core/database/drizzle"
+import { Database } from "@omnixa/core/database/database"
+import { DatabaseMigration } from "@omnixa/core/database/migration"
+import { V1Migration } from "@omnixa/core/database/v1-migration"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { SessionSchema } from "@omnixa/core/session/schema"
+import { ProductMode } from "@omnixa/schema/product-mode"
+import { PermissionTier } from "@omnixa/schema/permission-tier"
+import { SessionTable } from "@omnixa/core/session/sql"
+import { Project } from "@omnixa/core/project"
+import { ProjectTable } from "@omnixa/core/project/sql"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Global } from "@omnixa/util/global"
 import { Effect, Fiber, Layer, Logger, Schedule, Schema, Scope } from "effect"
 import { eq, sql } from "drizzle-orm"
 import type { SqlClient } from "effect/sql/SqlClient"
@@ -937,7 +937,7 @@ describe("V1Migration database workflow", () => {
 
   test("imports previous V2 sessions and messages containing apostrophes", async () => {
     await using tmp = await tmpdir()
-    const filename = path.join(tmp.path, "aigcfroge-next.db")
+    const filename = path.join(tmp.path, "omnixa-next.db")
     const sqlite = await import("bun:sqlite")
     const source = new sqlite.Database(filename)
     source.run(`
@@ -1055,7 +1055,7 @@ describe("V1Migration database workflow", () => {
 
   test("imports previous V2 databases missing newer nullable columns", async () => {
     await using tmp = await tmpdir()
-    const filename = path.join(tmp.path, "aigcfroge-next.db")
+    const filename = path.join(tmp.path, "omnixa-next.db")
     const sqlite = await import("bun:sqlite")
     const source = new sqlite.Database(filename)
     source.run(`

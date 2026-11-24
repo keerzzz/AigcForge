@@ -2,28 +2,28 @@ import { describe, expect, test } from "bun:test"
 import { Cause, Context, DateTime, Deferred, Effect, Exit, Fiber, Layer, Option, Schema, Stream } from "effect"
 import { SqlError, ConnectionError } from "effect/sql/SqlError"
 import { FetchHttpClient, HttpClient } from "effect/http"
-import { AIClient, LLM, ModelID } from "@aigcfroge/ai"
-import { Config } from "@aigcfroge/core/config"
-import { Bus } from "@aigcfroge/core/bus"
-import { ConfigProviderPlugin } from "@aigcfroge/core/config/plugin/provider"
-import { ConfigPolicyPlugin } from "@aigcfroge/core/config/plugin/policy"
-import { Credential } from "@aigcfroge/core/credential"
-import { Integration } from "@aigcfroge/core/integration"
-import { KV } from "@aigcfroge/core/kv"
-import { ManagedPolicy } from "@aigcfroge/core/managed-policy"
-import { Model } from "@aigcfroge/core/model"
-import { ModelResolver } from "@aigcfroge/core/model-resolver"
-import { ModelsDev } from "@aigcfroge/core/models-dev"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginHost } from "@aigcfroge/core/plugin/host"
-import { Provider } from "@aigcfroge/core/provider"
-import { ProviderDiscovery } from "@aigcfroge/core/provider/discovery"
-import { ProviderDiscoveryHTTP } from "@aigcfroge/core/provider/discovery-http"
-import { SessionUsage } from "@aigcfroge/core/session/usage"
-import { isRecord } from "@aigcfroge/core/util/record"
-import { ConfigProvider } from "@aigcfroge/schema/config/provider"
-import { Document, Info } from "@aigcfroge/schema/config"
-import { Money } from "@aigcfroge/schema/money"
+import { AIClient, LLM, ModelID } from "@omnixa/ai"
+import { Config } from "@omnixa/core/config"
+import { Bus } from "@omnixa/core/bus"
+import { ConfigProviderPlugin } from "@omnixa/core/config/plugin/provider"
+import { ConfigPolicyPlugin } from "@omnixa/core/config/plugin/policy"
+import { Credential } from "@omnixa/core/credential"
+import { Integration } from "@omnixa/core/integration"
+import { KV } from "@omnixa/core/kv"
+import { ManagedPolicy } from "@omnixa/core/managed-policy"
+import { Model } from "@omnixa/core/model"
+import { ModelResolver } from "@omnixa/core/model-resolver"
+import { ModelsDev } from "@omnixa/core/models-dev"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginHost } from "@omnixa/core/plugin/host"
+import { Provider } from "@omnixa/core/provider"
+import { ProviderDiscovery } from "@omnixa/core/provider/discovery"
+import { ProviderDiscoveryHTTP } from "@omnixa/core/provider/discovery-http"
+import { SessionUsage } from "@omnixa/core/session/usage"
+import { isRecord } from "@omnixa/core/util/record"
+import { ConfigProvider } from "@omnixa/schema/config/provider"
+import { Document, Info } from "@omnixa/schema/config"
+import { Money } from "@omnixa/schema/money"
 import { awaitWithTimeout, testEffect } from "./lib/effect"
 import { makePluginTestLayerWith } from "./plugin/fixture"
 
@@ -50,7 +50,7 @@ const server = (fetch: (request: Request) => Response | Promise<Response>) =>
 
 const definition = (baseURL: string, extra: Record<string, unknown> = {}) =>
   Schema.decodeUnknownSync(ConfigProvider.Info)({
-    package: "@aigcfroge/ai/providers/openai-compatible",
+    package: "@omnixa/ai/providers/openai-compatible",
     settings: { baseURL },
     models: { managed: { modelID: "api-model" } },
     ...extra,
@@ -489,8 +489,8 @@ describe("ProviderDiscovery connection ownership", () => {
       expect(yield* (yield* Model.Service).get(providerID, modelID)).toBeDefined()
       phase = "ready"
       for (const packageName of [
-        "@aigcfroge/ai/providers/openai-compatible/responses",
-        "@aigcfroge/ai/providers/openai-compatible-responses",
+        "@omnixa/ai/providers/openai-compatible/responses",
+        "@omnixa/ai/providers/openai-compatible-responses",
       ]) {
         const preview = yield* ctx.discovery.preview({
           providerID,
@@ -600,7 +600,7 @@ describe("ProviderDiscovery connection ownership", () => {
       expect(JSON.stringify(second.status.identity)).not.toContain("account-a")
       yield* configure(
         definition(`${running.url}gateway/v1`, {
-          package: "@aigcfroge/ai/providers/openai/chat",
+          package: "@omnixa/ai/providers/openai/chat",
           settings: {
             baseURL: `${running.url}gateway/v1`,
             organization: "org-default",
@@ -617,7 +617,7 @@ describe("ProviderDiscovery connection ownership", () => {
       expect(new URL(native.status.identity!.listURL).searchParams.get("limit")).toBe("10")
       yield* configure(
         definition(`${running.url}gateway/v1`, {
-          package: "@aigcfroge/ai/providers/openai/chat",
+          package: "@omnixa/ai/providers/openai/chat",
           settings: {
             baseURL: `${running.url}gateway/v1`,
             organization: "org-default",
@@ -1003,7 +1003,7 @@ describe("P5 Magpie standard protocols", () => {
         })
         const ctx = yield* setup(
           definition(`${running.url}v1`, {
-            package: `@aigcfroge/ai/providers/${item.package}`,
+            package: `@omnixa/ai/providers/${item.package}`,
             discovery: { list: { protocol: "openai", url: `${running.url}v1/models` } },
             models: { managed: { modelID: "group/fast", limit: { output: 100 } } },
           }),

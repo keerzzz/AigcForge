@@ -1,21 +1,21 @@
 import { Effect } from "effect"
 import { Model } from "../../model.js"
-import { define } from "@aigcfroge/plugin/effect/plugin"
+import { define } from "@omnixa/plugin/effect/plugin"
 
 export const OpenRouterPlugin = define({
-  id: "aigcfroge.provider.openrouter",
+  id: "omnixa.provider.openrouter",
   effect: Effect.fn(function* (ctx) {
     yield* ctx.provider.transform((evt) => {
       for (const item of evt.list()) {
-        if (item.provider.package !== "@aigcfroge/ai/providers/openrouter") continue
+        if (item.provider.package !== "@omnixa/ai/providers/openrouter") continue
         evt.update(item.provider.id, (provider) => {
-          provider.headers = { ...provider.headers, "HTTP-Referer": "https://aigcfroge.ai/", "X-Title": "aigcfroge" }
+          provider.headers = { ...provider.headers, "HTTP-Referer": "https://omnixa.ai/", "X-Title": "omnixa" }
         })
       }
     })
     yield* ctx.model.transform((models) => {
       for (const item of models.provider.list()) {
-        if (item.provider.package !== "@aigcfroge/ai/providers/openrouter") continue
+        if (item.provider.package !== "@omnixa/ai/providers/openrouter") continue
         for (const modelID of [Model.ID.make("gpt-5-chat-latest"), Model.ID.make("openai/gpt-5-chat")]) {
           if (!models.get(item.provider.id, modelID)) continue
           models.update(item.provider.id, modelID, (model) => {

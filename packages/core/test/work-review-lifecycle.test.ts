@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { WorkReview } from "@aigcfroge/schema/work-review"
-import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
-import { WorkReviewMachine } from "@aigcfroge/core/session/work-review"
+import { WorkReview } from "@omnixa/schema/work-review"
+import { WorkflowAsset } from "@omnixa/schema/workflow-asset"
+import { WorkReviewMachine } from "@omnixa/core/session/work-review"
 
 /**
  * S9A Work review-lifecycle — implemented against the approved contract

@@ -1,5 +1,5 @@
 import { NodeServices } from "@effect/platform-node"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import { expect, test } from "bun:test"
 import { Effect, Exit, FileSystem } from "effect"
 import { Command } from "effect/cli"
@@ -11,7 +11,7 @@ import { it } from "../../core/test/lib/effect"
 it.live("service CORS config persists multiple origins and preserves other settings on set and unset", () =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem
-    const root = yield* fs.makeTempDirectoryScoped({ prefix: "aigcfroge-cors-" })
+    const root = yield* fs.makeTempDirectoryScoped({ prefix: "omnixa-cors-" })
     const config = path.join(root, "config")
     const state = path.join(root, "state")
     const file = path.join(config, ServiceConfig.filename())
@@ -44,7 +44,7 @@ it.live("service CORS config persists multiple origins and preserves other setti
 it.live("service CORS config rejects empty lists, invalid origins, and extra arguments without changing config", () =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem
-    const root = yield* fs.makeTempDirectoryScoped({ prefix: "aigcfroge-cors-invalid-" })
+    const root = yield* fs.makeTempDirectoryScoped({ prefix: "omnixa-cors-invalid-" })
     const config = path.join(root, "config")
     const state = path.join(root, "state")
     const file = path.join(config, ServiceConfig.filename())

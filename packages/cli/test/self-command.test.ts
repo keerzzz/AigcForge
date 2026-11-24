@@ -10,30 +10,30 @@ test.each([
     name: "paired literal defines",
     args: [
       "--define",
-      `AIGCFROGE_VERSION:${JSON.stringify(identity.version)}`,
+      `OMNIXA_VERSION:${JSON.stringify(identity.version)}`,
       "--define",
-      `AIGCFROGE_CHANNEL:${JSON.stringify(identity.channel)}`,
+      `OMNIXA_CHANNEL:${JSON.stringify(identity.channel)}`,
       "--define",
-      `AIGCFROGE_ARTIFACT:${JSON.stringify(identity.artifact)}`,
+      `OMNIXA_ARTIFACT:${JSON.stringify(identity.artifact)}`,
     ],
-    env: { AIGCFROGE_VERSION: undefined, AIGCFROGE_CHANNEL: undefined, AIGCFROGE_ARTIFACT: undefined },
+    env: { OMNIXA_VERSION: undefined, OMNIXA_CHANNEL: undefined, OMNIXA_ARTIFACT: undefined },
   },
   {
     name: "Desktop compact environment defines",
     args: [
       "run",
-      "--define=AIGCFROGE_VERSION=process.env.AIGCFROGE_VERSION",
-      "--define=AIGCFROGE_CHANNEL=process.env.AIGCFROGE_CHANNEL",
-      "--define=AIGCFROGE_ARTIFACT=process.env.AIGCFROGE_ARTIFACT",
+      "--define=OMNIXA_VERSION=process.env.OMNIXA_VERSION",
+      "--define=OMNIXA_CHANNEL=process.env.OMNIXA_CHANNEL",
+      "--define=OMNIXA_ARTIFACT=process.env.OMNIXA_ARTIFACT",
     ],
     env: {
-      AIGCFROGE_VERSION: identity.version,
-      AIGCFROGE_CHANNEL: identity.channel,
-      AIGCFROGE_ARTIFACT: identity.artifact,
+      OMNIXA_VERSION: identity.version,
+      OMNIXA_CHANNEL: identity.channel,
+      OMNIXA_ARTIFACT: identity.artifact,
     },
   },
 ])("Bun selfCommand preserves compile-time CLI identity in child processes: $name", async (scenario) => {
-  const root = await mkdtemp(path.join(os.tmpdir(), "aigcfroge-self-command-"))
+  const root = await mkdtemp(path.join(os.tmpdir(), "omnixa-self-command-"))
 
   try {
     const entry = path.join(root, "self-command.ts")
@@ -42,9 +42,9 @@ test.each([
       `import { selfCommand } from ${JSON.stringify(path.join(import.meta.dir, "../src/util/process.ts"))}
 const version = await import(${JSON.stringify(path.join(import.meta.dir, "../src/version.ts"))})
 const identity = {
-  version: version.AIGCFROGE_VERSION,
-  channel: version.AIGCFROGE_CHANNEL,
-  artifact: version.AIGCFROGE_ARTIFACT,
+  version: version.OMNIXA_VERSION,
+  channel: version.OMNIXA_CHANNEL,
+  artifact: version.OMNIXA_ARTIFACT,
 }
 
 if (process.argv.includes("--child")) {

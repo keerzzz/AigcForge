@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import type { FormField, FormValue } from "@aigcfroge/client"
+import type { FormField, FormValue } from "@omnixa/client"
 import {
   formCustom,
   formDisplayValue,

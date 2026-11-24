@@ -1,7 +1,7 @@
-import { Database } from "@aigcfroge/core/database/database"
-import { Project } from "@aigcfroge/core/project"
-import { upsertProject } from "@aigcfroge/core/project/sql"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { Database } from "@omnixa/core/database/database"
+import { Project } from "@omnixa/core/project"
+import { upsertProject } from "@omnixa/core/project/sql"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 import { Effect, Layer } from "effect"
 
 export const globalProjectNode = makeGlobalNode({

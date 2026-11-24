@@ -50,7 +50,6 @@ jobs:
       - name: Review PR semantics
         timeout-minutes: 10
         env:
-          AIGCFROGE_API_KEY: ${{ secrets.AIGCFROGE_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
@@ -58,8 +57,8 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AI_MODEL: ${{ vars.AI_ROBOT_MODEL || vars.AI_MODEL }}
-          AIGCFROGE_DISABLE_PROJECT_CONFIG: "true"
-          AIGCFROGE_CONFIG_CONTENT: |
+          OMNIXA_DISABLE_PROJECT_CONFIG: "true"
+          OMNIXA_CONFIG_CONTENT: |
             {
               "permission": {
                 "*": "deny",
@@ -94,7 +93,7 @@ jobs:
             }
           PR_TITLE: ${{ steps.pr-details.outputs.title }}
         run: |
-          if [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$OPENAI_API_KEY" ] && [ -z "$DEEPSEEK_API_KEY" ] && [ -z "$AIGCFROGE_API_KEY" ] && [ -z "$OPENROUTER_API_KEY" ] && [ -z "$GOOGLE_GENERATIVE_AI_API_KEY" ]; then
+          if [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$OPENAI_API_KEY" ] && [ -z "$DEEPSEEK_API_KEY" ] && [ -z "$OPENROUTER_API_KEY" ] && [ -z "$GOOGLE_GENERATIVE_AI_API_KEY" ]; then
             echo "::notice::No LLM API key configured in GitHub Secrets. Skipping PR review."
             exit 0
           fi
@@ -130,9 +129,6 @@ jobs:
             else
               MODEL="openrouter/anthropic/claude-3.5-sonnet"
             fi
-          elif [ -n "$AIGCFROGE_API_KEY" ]; then
-            echo "::error::Configure a supported provider API key and AI_MODEL for V2 review. AIGCFROGE_API_KEY alone has no V2 provider mapping."
-            exit 1
           fi
 
           echo "Using model: $MODEL"

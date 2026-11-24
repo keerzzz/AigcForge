@@ -1,12 +1,7 @@
-import { Session } from "@aigcfroge/core/session"
-import type { SessionComposition } from "@aigcfroge/core/session/composition"
-import type { Snapshot } from "@aigcfroge/core/snapshot"
-import {
-  InvalidRequestError,
-  MessageNotFoundError,
-  SessionNotFoundError,
-  UnknownError,
-} from "@aigcfroge/protocol/errors"
+import { Session } from "@omnixa/core/session"
+import type { SessionComposition } from "@omnixa/core/session/composition"
+import type { Snapshot } from "@omnixa/core/snapshot"
+import { InvalidRequestError, MessageNotFoundError, SessionNotFoundError, UnknownError } from "@omnixa/protocol/errors"
 import { Effect } from "effect"
 
 export function missingSession(error: Session.NotFoundError) {

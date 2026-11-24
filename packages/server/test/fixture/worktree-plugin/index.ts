@@ -1,4 +1,4 @@
-import { Plugin, Worktree } from "@aigcfroge/plugin"
+import { Plugin, Worktree } from "@omnixa/plugin"
 
 export default Plugin.define({
   id: "test.worktree",

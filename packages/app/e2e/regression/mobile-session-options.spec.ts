@@ -9,7 +9,7 @@ for (const scheme of ["light", "dark"] as const) {
       await page.setViewportSize({ width: 390, height: 844 })
       await mockStressTimeline(page)
       await page.addInitScript((scheme) => {
-        localStorage.setItem("aigcfroge-color-scheme", scheme)
+        localStorage.setItem("omnixa-color-scheme", scheme)
         localStorage.setItem("settings.v3", JSON.stringify({ general: { mobileTitlebarPosition: "bottom" } }))
       }, scheme)
       await openWithDirection(page, sessionHref(fixture.targetID), direction)

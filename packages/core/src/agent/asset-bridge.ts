@@ -6,14 +6,14 @@ import { Effect, Layer, Option, Schema, Scope, Stream } from "effect"
 import { Model } from "../model.js"
 import { Agent } from "../agent"
 import { AgentAsset } from "../agent-asset"
-import { ConfigAgent } from "@aigcfroge/schema/config/agent"
+import { ConfigAgent } from "@omnixa/schema/config/agent"
 import { Bus } from "../bus"
 import { Watcher } from "../filesystem/watcher"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Location } from "../location"
 import { AGENTS_DIR } from "../constants"
 import { AgentProtocol } from "./protocol.js"
-import { isRecord } from "@aigcfroge/ai/utils/record"
+import { isRecord } from "@omnixa/ai/utils/record"
 
 export function parseAgentAssetConfig(rawConfig?: string): ConfigAgent.Info | undefined {
   if (!rawConfig) return undefined

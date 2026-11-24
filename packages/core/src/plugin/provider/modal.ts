@@ -1,5 +1,5 @@
 import { Effect, Semaphore, Stream } from "effect"
-import { define } from "@aigcfroge/plugin/effect/plugin"
+import { define } from "@omnixa/plugin/effect/plugin"
 import { Bus } from "../../bus.js"
 import { IntegrationConnection } from "../../integration/connection.js"
 import { Credential } from "../../credential.js"
@@ -11,7 +11,7 @@ import type { PluginInternal } from "../internal.js"
 const providerID = Provider.ID.make("modal")
 
 export const ModalPlugin = define({
-  id: "aigcfroge.provider.modal",
+  id: "omnixa.provider.modal",
   effect: Effect.fn(function* (ctx) {
     const providers = yield* Provider.Service
     const bus = yield* Bus.Service

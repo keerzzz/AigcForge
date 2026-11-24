@@ -20,14 +20,8 @@ export default {
   "error.input":
     "Masukkan host atau perintah koneksi SSH. Perintah jarak jauh dan opsi SSH yang tidak didukung tidak diizinkan.",
   "error.connection": "Tidak dapat membuat koneksi SSH. Periksa jaringan dan konfigurasi SSH Anda.",
-  "error.platform":
-    "Platform jarak jauh ini tidak didukung. Pengaturan otomatis saat ini memerlukan Linux atau macOS pada x64 atau arm64.",
   "error.version": "Layanan jarak jauh harus cocok dengan versi Desktop ini sebelum terhubung.",
-  "error.install":
-    "Tidak dapat menginstal server jarak jauh. Periksa konektivitas, ruang disk, dan pastikan tar sudah terpasang.",
-  "error.unpublished":
-    "Versi Desktop ini tidak memiliki server jarak jauh yang diterbitkan. Untuk build pengembangan, pasang dan jalankan V2 di host, lalu coba lagi.",
-  "error.service": "SSH terhubung, tetapi server AigcForge tidak siap.",
+  "error.service": "SSH terhubung, tetapi server Omnixa tidak siap.",
   "error.host-key":
     "Identitas host tidak dapat diverifikasi. Verifikasi sidik jarinya sebelum memperbarui host SSH yang dikenal.",
   "error.ssh-missing": "OpenSSH tidak ditemukan. Pasang klien OpenSSH dan pastikan ssh tersedia di PATH.",

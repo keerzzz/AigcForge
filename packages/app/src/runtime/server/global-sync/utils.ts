@@ -1,6 +1,6 @@
-import type { AgentListOutput, ModelListOutput, ProviderListOutput } from "@aigcfroge/client/promise"
+import type { AgentListOutput, ModelListOutput, ProviderListOutput } from "@omnixa/client/promise"
 import type { Agent, Project, Provider, ProviderListResponse } from "@/runtime/server/types"
-import type { Project as CurrentProject } from "@aigcfroge/client/promise"
+import type { Project as CurrentProject } from "@omnixa/client/promise"
 import { unwrap } from "solid-js/store"
 import { Option, Schema } from "effect"
 import { fromSelection } from "@/providers/models/key"

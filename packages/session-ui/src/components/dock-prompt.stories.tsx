@@ -1,8 +1,8 @@
-import { Button } from "@aigcfroge/ui/button"
+import { Button } from "@omnixa/ui/button"
 import { DockPrompt } from "./dock-prompt"
 
 export default {
-  title: "AigcForge/Requests/Prompt frame",
+  title: "Omnixa/Requests/Prompt frame",
   id: "components-dock-prompt",
   component: DockPrompt,
   parameters: {

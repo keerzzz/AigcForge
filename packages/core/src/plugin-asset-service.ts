@@ -2,10 +2,10 @@ export * as PluginAssetService from "./plugin-asset-service"
 
 import path from "path"
 import { Context, Effect, Layer, Option, Schema } from "effect"
-import type { Candidate } from "@aigcfroge/schema/plugin-asset"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Hash } from "@aigcfroge/util/hash"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import type { Candidate } from "@omnixa/schema/plugin-asset"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Hash } from "@omnixa/util/hash"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { FileMutation } from "./file-mutation"
 import { LocationMutation } from "./location-mutation"
 import { PluginAsset } from "./plugin-asset"
@@ -120,7 +120,7 @@ export interface Interface {
   readonly delete: (input: DeleteInput) => Effect.Effect<void, DeleteError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/PluginAssetService") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/PluginAssetService") {}
 
 export const locationLayer = Layer.effect(
   Service,

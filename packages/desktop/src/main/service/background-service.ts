@@ -13,7 +13,7 @@ export interface Interface {
   readonly reconnect: Effect.Effect<SidecarCredentials.Data>
 }
 
-export class Service extends Context.Service<Service, Interface>()("aigcfroge/desktop/BackgroundService") {}
+export class Service extends Context.Service<Service, Interface>()("omnixa/desktop/BackgroundService") {}
 
 export const layer = Layer.effect(
   Service,
@@ -34,18 +34,18 @@ const connect = Effect.fn("BackgroundService.connect")(function* (mode: "initial
   const path = yield* Path.Path
   const desktopCli = yield* DesktopCli.Service
   const runFork = Effect.runForkWith(yield* Effect.context<FileSystem.FileSystem | Path.Path>())
-  const isolated = !app.isPackaged && process.env.AIGCFROGE_DESKTOP_ISOLATED_SERVER === "1"
+  const isolated = !app.isPackaged && process.env.OMNIXA_DESKTOP_ISOLATED_SERVER === "1"
   const cli = yield* desktopCli.resolve
   const version = mode === "initial" ? cli.version : undefined
 
   if (isolated) process.env.XDG_STATE_HOME = app.getPath("userData")
-  const client = yield* Effect.promise(() => import("@aigcfroge/client/service"))
+  const client = yield* Effect.promise(() => import("@omnixa/client/service"))
 
   const ensure = () =>
     client.Service.ensure({
       file:
-        isolated && process.env.AIGCFROGE_DESKTOP_SERVER_CHANNEL === "local"
-          ? path.join(app.getPath("userData"), "aigcfroge", "service-local.json")
+        isolated && process.env.OMNIXA_DESKTOP_SERVER_CHANNEL === "local"
+          ? path.join(app.getPath("userData"), "omnixa", "service-local.json")
           : undefined,
       version,
       // A fixed port makes a second contender fail to bind and back off; port 0 never collides, so two

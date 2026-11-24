@@ -67,16 +67,6 @@ export const dict: Record<string, string> = {
   "ui.sessionTurn.retry.attempt": "kísérlet #{{attempt}}",
   "ui.sessionTurn.retry.attemptLine": "{{line}} – #{{attempt}} kísérlet",
   "ui.sessionTurn.retry.geminiHot": "a Gemini jelenleg túlterhelt",
-  "ui.sessionTurn.error.freeUsageExceeded": "Az ingyenes használat túllépve",
-  "ui.sessionTurn.error.addCredits": "Adjon hozzá krediteket",
-  "dialog.usageExceeded.freeTier.title": "Elérte a szabad korlátot",
-  "dialog.usageExceeded.freeTier.description":
-    "Iratkozzon fel az AigcForge Go szolgáltatásra havi 10 dollárért, hogy megbízható hozzáférést kapjon a legjobb nyílt forráskódú modellekhez.",
-  "dialog.usageExceeded.freeTier.actionLabel": "Iratkozz fel",
-  "dialog.usageExceeded.accountRateLimit.title": "Elérte a Go korlátját",
-  "dialog.usageExceeded.accountRateLimit.description":
-    "Elérte a használati korlátot. A modell használatának folytatásához engedélyezze a használatot a rendelkezésre álló egyenlegéből",
-  "dialog.usageExceeded.accountRateLimit.actionLabel": "Beállítások megnyitása",
   "ui.sessionTurn.status.delegating": "Munka delegálása",
   "ui.sessionTurn.status.planning": "A következő lépések tervezése",
   "ui.sessionTurn.status.gatheringContext": "Feltárása",

@@ -20,14 +20,8 @@ export default {
   "error.input":
     "Ange ett värd- eller SSH-anslutningskommando. Fjärrkommandon och SSH-alternativ som inte stöds är inte tillåtna.",
   "error.connection": "Det gick inte att upprätta SSH-anslutningen. Kontrollera ditt nätverk och SSH-konfiguration.",
-  "error.platform":
-    "Denna fjärrplattform stöds inte. Automatisk installation kräver för närvarande Linux eller macOS på x64 eller arm64.",
   "error.version": "Fjärrtjänsten måste matcha den här skrivbordsversionen innan du ansluter.",
-  "error.install":
-    "Det gick inte att installera fjärrservern. Kontrollera anslutning, diskutrymme och att tar är installerat.",
-  "error.unpublished":
-    "Den här skrivbordsversionen har ingen publicerad fjärrserver. För utvecklingsbyggen, installera och starta V2 på värden och försök sedan igen.",
-  "error.service": "SSH ansluten, men AigcForge-servern blev inte klar.",
+  "error.service": "SSH ansluten, men Omnixa-servern blev inte klar.",
   "error.host-key":
     "Värdens identitet kunde inte verifieras. Verifiera dess fingeravtryck innan du uppdaterar dina kända SSH-värdar.",
   "error.ssh-missing":

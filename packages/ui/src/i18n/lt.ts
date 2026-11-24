@@ -67,16 +67,6 @@ export const dict: Record<string, string> = {
   "ui.sessionTurn.retry.attempt": "bandymas #{{attempt}}",
   "ui.sessionTurn.retry.attemptLine": "{{line}} – bandymas #{{attempt}}",
   "ui.sessionTurn.retry.geminiHot": "Gemini šiuo metu per daug apkrautas",
-  "ui.sessionTurn.error.freeUsageExceeded": "Viršytas nemokamas naudojimas",
-  "ui.sessionTurn.error.addCredits": "Pridėkite kreditų",
-  "dialog.usageExceeded.freeTier.title": "Pasiektas nemokamas limitas",
-  "dialog.usageExceeded.freeTier.description":
-    "Prenumeruokite AigcForge Go už 10 USD per mėnesį ir gaukite patikimą prieigą prie geriausių atvirojo kodo modelių.",
-  "dialog.usageExceeded.freeTier.actionLabel": "Prenumeruoti",
-  "dialog.usageExceeded.accountRateLimit.title": "Pasiektas Go limitas",
-  "dialog.usageExceeded.accountRateLimit.description":
-    "Pasiektas naudojimo limitas. Jei norite toliau naudoti šį modelį dabar, įgalinkite naudojimą iš turimo balanso",
-  "dialog.usageExceeded.accountRateLimit.actionLabel": "Atidaryti nustatymus",
   "ui.sessionTurn.status.delegating": "Darbų delegavimas",
   "ui.sessionTurn.status.planning": "Kitų žingsnių planavimas",
   "ui.sessionTurn.status.gatheringContext": "Tyrinėjant",

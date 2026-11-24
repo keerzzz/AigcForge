@@ -4,7 +4,7 @@ const current = aws.getCallerIdentityOutput({})
 const partition = aws.getPartitionOutput({})
 const region = aws.getRegionOutput({})
 
-const tableBucketName = `aigcfroge-${$app.stage}-lake`
+const tableBucketName = `omnixa-${$app.stage}-lake`
 const glueCatalogName = "s3tablescatalog"
 const glueCatalogArn = $interpolate`arn:${partition.partition}:glue:${region.region}:${current.accountId}:catalog`
 const glueS3TablesCatalogArn = $interpolate`${glueCatalogArn}/${glueCatalogName}`
@@ -52,17 +52,17 @@ const s3TablesCatalog = new aws.cloudcontrol.Resource(
 )
 
 const athenaResultsBucket = new aws.s3.Bucket("LakeAthenaResults", {
-  bucket: `aigcfroge-${$app.stage}-lake-athena-results`,
+  bucket: `omnixa-${$app.stage}-lake-athena-results`,
   forceDestroy: $app.stage !== "production",
 })
 
 const firehoseErrorBucket = new aws.s3.Bucket("LakeFirehoseErrors", {
-  bucket: `aigcfroge-${$app.stage}-lake-firehose-errors`,
+  bucket: `omnixa-${$app.stage}-lake-firehose-errors`,
   forceDestroy: $app.stage !== "production",
 })
 
 const athenaWorkgroup = new aws.athena.Workgroup("LakeAthenaWorkgroup", {
-  name: `aigcfroge-${$app.stage}-lake-workgroup`,
+  name: `omnixa-${$app.stage}-lake-workgroup`,
   forceDestroy: $app.stage !== "production",
   configuration: {
     enforceWorkgroupConfiguration: true,
@@ -160,7 +160,7 @@ const firehosePolicy = new aws.iam.RolePolicy("LakeFirehosePolicy", {
 const firehose = new aws.kinesis.FirehoseDeliveryStream(
   "LakeFirehose",
   {
-    name: `aigcfroge-${$app.stage}-lake-ingest`,
+    name: `omnixa-${$app.stage}-lake-ingest`,
     destination: "iceberg",
     icebergConfiguration: {
       appendOnly: true,

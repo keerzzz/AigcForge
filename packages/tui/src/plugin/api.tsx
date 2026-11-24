@@ -1,4 +1,4 @@
-import { PluginContextProvider } from "@aigcfroge/plugin/tui"
+import { PluginContextProvider } from "@omnixa/plugin/tui"
 import { createRoot, createUniqueId, getOwner, onCleanup, runWithOwner, untrack, type JSX } from "solid-js"
 import type {
   Context,
@@ -9,7 +9,7 @@ import type {
   SlotMap,
   SlotPath,
   Toast,
-} from "@aigcfroge/plugin/tui/context"
+} from "@omnixa/plugin/tui/context"
 import type { Placement, PlacementKind } from "./structure"
 import { infoStringToFiletype, type MarkdownCodeBlockRenderer } from "@opentui/core"
 import { useRenderer } from "@opentui/solid"

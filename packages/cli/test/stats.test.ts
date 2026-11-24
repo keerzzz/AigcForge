@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { ClientError, type SessionStatsInfo } from "@aigcfroge/client"
+import { ClientError, type SessionStatsInfo } from "@omnixa/client"
 import { Effect } from "effect"
 import { renderStats, request } from "../src/commands/handlers/stats"
 
@@ -37,7 +37,7 @@ const stats: SessionStatsInfo = {
 describe("stats rendering", () => {
   test("keeps the default card shareable", () => {
     const output = renderStats(stats, options())
-    expect(output).toContain("aigcfroge stats · 2026 so far · all projects")
+    expect(output).toContain("omnixa stats · 2026 so far · all projects")
     expect(output).toContain("activity")
     expect(output).toMatch(/Mo .*(?:\r?\n){2}Tu/)
     expect(output).toMatch(/Su .*(?:\r?\n){2}   less/)
@@ -70,7 +70,7 @@ describe("stats rendering", () => {
     expect(output).toContain("tool")
     expect(output).toContain("calls")
     expect(output).toContain("cached input        32.3%")
-    expect(output).not.toContain("aigcfroge stats")
+    expect(output).not.toContain("omnixa stats")
     expect(output).not.toContain("activity")
   })
 
@@ -99,7 +99,7 @@ describe("stats rendering", () => {
     expect(output).toContain("+1 more tool")
   })
 
-  test("uses the AigcForge palette in color mode", () => {
+  test("uses the Omnixa palette in color mode", () => {
     const output = renderStats(stats, options({ color: true }))
     expect(output).toContain("\x1b[1;36m")
     expect(output).not.toContain("38;5;45")

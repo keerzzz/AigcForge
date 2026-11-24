@@ -1,6 +1,6 @@
 import { For, Show, createMemo, createResource } from "solid-js"
-import { Icon } from "@aigcfroge/ui/icon"
-import { Button } from "@aigcfroge/ui/button"
+import { Icon } from "@omnixa/ui/icon"
+import { Button } from "@omnixa/ui/button"
 import { useLanguage } from "@/runtime/i18n/language"
 import { sessionTitle } from "@/session/title"
 import { sessionPermissionRequest, sessionFormRequest } from "@/session/requests/session-request-tree"

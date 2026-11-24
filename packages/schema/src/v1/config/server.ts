@@ -10,7 +10,7 @@ export const Server = Schema.Struct({
   hostname: optional(Schema.String).annotate({ description: "Hostname to listen on" }),
   mdns: optional(Schema.Boolean).annotate({ description: "Enable mDNS service discovery" }),
   mdnsDomain: optional(Schema.String).annotate({
-    description: "Custom domain name for mDNS service (default: aigcfroge.local)",
+    description: "Custom domain name for mDNS service (default: omnixa.local)",
   }),
   cors: optional(Schema.Array(Schema.String)).annotate({
     description: "Additional domains to allow for CORS",

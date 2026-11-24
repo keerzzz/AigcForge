@@ -19,13 +19,10 @@ export default {
   "stage.incompatible": "Server update required",
   "error.input": "Enter a host or SSH connection command. Remote commands and unsupported SSH options aren’t allowed.",
   "error.connection": "Could not establish the SSH connection. Check your network and SSH configuration.",
-  "error.platform":
-    "This remote platform is not supported. Automatic setup currently requires Linux or macOS on x64 or arm64.",
   "error.version": "The remote service must match this Desktop version before connecting.",
-  "error.install": "Could not install the remote server. Check connectivity, disk space, and that tar is installed.",
   "error.unpublished":
-    "This Desktop version has no published remote server. For development builds, install and start V2 on the host, then retry.",
-  "error.service": "SSH connected, but the AigcForge server did not become ready.",
+    "Automatic SSH installation is unavailable. Install and start a compatible Omnixa CLI on the host, then reconnect.",
+  "error.service": "SSH connected, but the Omnixa server did not become ready.",
   "error.host-key":
     "The host’s identity could not be verified. Verify its fingerprint before updating your SSH known hosts.",
   "error.ssh-missing": "OpenSSH was not found. Install an OpenSSH client and ensure ssh is available on PATH.",

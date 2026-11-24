@@ -1,7 +1,7 @@
 export * as KBSQL from "./kb.sql"
 
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core"
-import { KBNote } from "@aigcfroge/schema/kb-note"
+import { KBNote } from "@omnixa/schema/kb-note"
 import { Timestamps } from "../database/schema.sql"
 
 /**

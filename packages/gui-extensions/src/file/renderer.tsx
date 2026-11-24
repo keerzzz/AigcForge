@@ -1,8 +1,8 @@
-import { showToast } from "@aigcfroge/ui/toast"
+import { showToast } from "@omnixa/ui/toast"
 import { batch, createMemo, lazy, on, onCleanup, Show, Suspense, type ParentProps } from "solid-js"
 import { createStore, produce } from "solid-js/store"
-import { Icon } from "@aigcfroge/ui/icon"
-import { encodeFilePath, getFilename } from "@aigcfroge/util/path"
+import { Icon } from "@omnixa/ui/icon"
+import { encodeFilePath, getFilename } from "@omnixa/util/path"
 import {
   createKeyed,
   bindExtension,
@@ -23,7 +23,7 @@ import {
   type Setup,
   onIdle,
 } from "../sdk"
-import { artifactKind } from "@aigcfroge/util/artifact"
+import { artifactKind } from "@omnixa/util/artifact"
 import { resolveArtifactPath } from "./artifact"
 import { FileContext, type FileShared } from "./context"
 import type { OpenApp } from "./apps"

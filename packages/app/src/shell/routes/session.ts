@@ -1,4 +1,4 @@
-import { base64Encode } from "@aigcfroge/util/encode"
+import { base64Encode } from "@omnixa/util/encode"
 import { ServerConnection } from "@/runtime/server/registry"
 import { decode64 } from "@/runtime/persistence/base64"
 import { useNavigate } from "@solidjs/router"

@@ -27,8 +27,8 @@ import {
   type VersionNegotiationOptions,
 } from "@modelcontextprotocol/client"
 import { Cause, Clock, Duration, Effect, Exit, Schedule, Schema } from "effect"
-import { ConfigMCP } from "@aigcfroge/schema/config/mcp"
-import type { Session } from "@aigcfroge/schema/session"
+import { ConfigMCP } from "@omnixa/schema/config/mcp"
+import type { Session } from "@omnixa/schema/session"
 import { McpStdio } from "./stdio.js"
 
 const DEFAULT_STARTUP_TIMEOUT = 30_000
@@ -149,7 +149,7 @@ export const connect = Effect.fnUntraced(function* (
   // Remote only. A provider with no stored token and a no-op redirect ends in UnauthorizedError → needs_auth.
   authProvider?: OAuthClientProvider,
   elicitation?: ElicitationHandler,
-  clientInfo: Implementation = { name: "aigcfroge", version: "unknown" },
+  clientInfo: Implementation = { name: "omnixa", version: "unknown" },
 ) {
   // The SDK takes list-changed handlers at construction, but consumers register after connect. On a
   // modern connection the SDK opens the subscriptions/listen stream behind these itself.
@@ -187,7 +187,7 @@ export const connect = Effect.fnUntraced(function* (
       capabilities: {
         ...(elicitation ? { elicitation: { form: { applyDefaults: true }, url: {} } } : {}),
         // Legacy era only: roots are deprecated as of 2026-07-28 and modern servers cannot request them.
-        // Some legacy servers refuse to run without one (https://github.com/anomalyco/aigcfroge/issues/2308).
+        // Some legacy servers refuse to run without one (https://github.com/anomalyco/omnixa/issues/2308).
         roots: {},
       },
       versionNegotiation: negotiation(config.protocol),
@@ -252,7 +252,7 @@ export const connect = Effect.fnUntraced(function* (
         args,
         cwd: config.cwd ? path.resolve(directory, config.cwd) : directory,
         environment: {
-          ...(command === "aigcfroge" ? { BUN_BE_BUN: "1" } : {}),
+          ...(command === "omnixa" ? { BUN_BE_BUN: "1" } : {}),
           ...config.environment,
         },
       })
@@ -355,7 +355,7 @@ export const connect = Effect.fnUntraced(function* (
             {
               name: input.name,
               arguments: input.args ?? {},
-              ...(input.sessionID === undefined ? {} : { _meta: { "ai.aigcfroge/sessionID": input.sessionID } }),
+              ...(input.sessionID === undefined ? {} : { _meta: { "ai.omnixa/sessionID": input.sessionID } }),
             },
             // Requesting progress keeps long calls alive under the SDK's timeout; execution is the hard wall.
             { signal, timeout: execution, onprogress: () => {} },

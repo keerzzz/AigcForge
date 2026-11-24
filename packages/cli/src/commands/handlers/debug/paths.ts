@@ -1,6 +1,6 @@
 import { EOL } from "os"
 import { Effect, Option } from "effect"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import { Commands } from "../../commands"
 import { Runtime } from "../../../framework/runtime"
 import { databasePath } from "../../../database-path"

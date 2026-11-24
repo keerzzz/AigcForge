@@ -1,5 +1,5 @@
-import type { SkillApi } from "@aigcfroge/client/effect/api"
-import { Skill } from "@aigcfroge/schema/skill"
+import type { SkillApi } from "@omnixa/client/effect/api"
+import { Skill } from "@omnixa/schema/skill"
 import type { Effect, Types } from "effect"
 import type { Transform } from "./registration.js"
 

@@ -1,6 +1,6 @@
 import { onCleanup, Show } from "solid-js"
 import { makeEventListener } from "@solid-primitives/event-listener"
-import { SessionReview } from "@aigcfroge/session-ui/session-review"
+import { SessionReview } from "@omnixa/session-ui/session-review"
 import { createKeyed, useExtension, type MountedSession } from "../sdk"
 import type Review from "./index"
 import type { ReviewModel } from "./model"

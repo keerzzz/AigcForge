@@ -1,9 +1,9 @@
 export * as CompositionReference from "./reference"
 
 import { Result } from "effect"
-import { Composition } from "@aigcfroge/schema/composition"
-import { AssetPlacement } from "@aigcfroge/schema/asset-placement"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
+import { Composition } from "@omnixa/schema/composition"
+import { AssetPlacement } from "@omnixa/schema/asset-placement"
+import { AbsolutePath } from "@omnixa/schema/schema"
 import { AgentAssetPath } from "../agent-asset/path"
 import { PromptAssetPath } from "../prompt-asset/path"
 import { SkillAssetPath } from "../skill-asset/path"

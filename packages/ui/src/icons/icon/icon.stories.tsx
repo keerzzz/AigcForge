@@ -2,7 +2,7 @@ import { For, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { Icon, type IconProps } from "./icon"
 import { iconNames } from "../catalog"
-import { Button } from "@aigcfroge/ui/button"
+import { Button } from "@omnixa/ui/button"
 
 const names = iconNames() satisfies IconProps["name"][]
 

@@ -1,22 +1,22 @@
 // Bun Snapshot v1, https://bun.sh/docs/test/snapshots
 
 exports[`TUI inline tool wrapping snapshots consecutive grep, glob, and read rows at a narrow width 1`] = `
-"   ✱ Grep "AIGCFROGE.*DB|database|sqlite|drizzle|dev.*db|data.
-     *dir|xdg|APPDATA" in packages/aigcfroge/src (151 matches)
-   ✱ Glob "**/*db*" in packages/aigcfroge (6 matches)
-   → Read packages/aigcfroge/src/storage/db.ts [offset=1, limit=130]
-   → Read packages/aigcfroge/src/index.ts [offset=1, limit=100]
-   ✱ Grep "export const AIGCFROGE_DB|AIGCFROGE_DB|AIGCFROGE_DEV|Global\\.
-     Path\\.data|data =" in packages/aigcfroge/src (115 matches)"
+"   ✱ Grep "OMNIXA.*DB|database|sqlite|drizzle|dev.*db|data.
+     *dir|xdg|APPDATA" in packages/omnixa/src (151 matches)
+   ✱ Glob "**/*db*" in packages/omnixa (6 matches)
+   → Read packages/omnixa/src/storage/db.ts [offset=1, limit=130]
+   → Read packages/omnixa/src/index.ts [offset=1, limit=100]
+   ✱ Grep "export const OMNIXA_DB|OMNIXA_DB|OMNIXA_DEV|Global\\.Path\\.
+     data|data =" in packages/omnixa/src (115 matches)"
 `;
 
 exports[`TUI inline tool wrapping snapshots expanded tool errors under the tool text 1`] = `
-"   ✱ Grep "AIGCFROGE.*DB|database|sqlite|drizzle|dev.*db|data.
-     *dir|xdg|APPDATA" in packages/aigcfroge/src (151 matches)
-   ✱ Glob "**/*db*" in packages/aigcfroge (6 matches)
-   → Read packages/aigcfroge/src/storage/db.ts [offset=1, limit=130]
-   → Read packages/aigcfroge/src/index.ts [offset=1, limit=100]
+"   ✱ Grep "OMNIXA.*DB|database|sqlite|drizzle|dev.*db|data.
+     *dir|xdg|APPDATA" in packages/omnixa/src (151 matches)
+   ✱ Glob "**/*db*" in packages/omnixa (6 matches)
+   → Read packages/omnixa/src/storage/db.ts [offset=1, limit=130]
+   → Read packages/omnixa/src/index.ts [offset=1, limit=100]
      No LSP server available for this file type.
-   ✱ Grep "export const AIGCFROGE_DB|AIGCFROGE_DB|AIGCFROGE_DEV|Global\\.
-     Path\\.data|data =" in packages/aigcfroge/src (115 matches)"
+   ✱ Grep "export const OMNIXA_DB|OMNIXA_DB|OMNIXA_DEV|Global\\.Path\\.
+     data|data =" in packages/omnixa/src (115 matches)"
 `;

@@ -1,4 +1,4 @@
-import type { WorkflowAssetInfo } from "@aigcfroge/client/promise"
+import type { WorkflowAssetInfo } from "@omnixa/client/promise"
 import { expect, test } from "@playwright/test"
 import { project, provider, REMOTE_SERVER, SERVER, session, sessionHref } from "../utils/app"
 import { mockServers } from "../utils/mock-server"
@@ -78,7 +78,7 @@ test("Workflow reloads its selected definition after SSH sign-in replaces the cl
   await openSidePanel(page, "Workflow run")
   const firstList = await listed
   expect(firstList.status()).toBe(200)
-  expect(await firstList.request().headerValue("authorization")).toBe("Basic " + btoa("aigcfroge:ssh-1"))
+  expect(await firstList.request().headerValue("authorization")).toBe("Basic " + btoa("omnixa:ssh-1"))
   const panel = page.getByRole("region", { name: "Workflow run", exact: true })
   const selection = panel.getByRole("group", { name: "Workflow definition", exact: true }).getByRole("button")
   const definition = panel.locator(".workflow-definition")
@@ -108,7 +108,7 @@ test("Workflow reloads its selected definition after SSH sign-in replaces the cl
       new URL(response.url()).origin === REMOTE_SERVER &&
       new URL(response.url()).pathname === "/workflow-asset" &&
       new URL(response.url()).searchParams.get("directory") === directory &&
-      response.request().headers()["authorization"] === "Basic " + btoa("aigcfroge:ssh-2"),
+      response.request().headers()["authorization"] === "Basic " + btoa("omnixa:ssh-2"),
   )
 
   const reread = page.waitForResponse(
@@ -118,7 +118,7 @@ test("Workflow reloads its selected definition after SSH sign-in replaces the cl
       new URL(response.url()).pathname === "/workflow-asset/content" &&
       new URL(response.url()).searchParams.get("path") === next.relativePath &&
       new URL(response.url()).searchParams.get("directory") === directory &&
-      response.request().headers()["authorization"] === "Basic " + btoa("aigcfroge:ssh-2"),
+      response.request().headers()["authorization"] === "Basic " + btoa("omnixa:ssh-2"),
   )
 
   // SSH sign-in rebuilds this client's connection while retaining the Session, directory, and selected definition path.

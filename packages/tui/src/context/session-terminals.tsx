@@ -1,4 +1,4 @@
-import type { PersistentPtyInfo } from "@aigcfroge/client"
+import type { PersistentPtyInfo } from "@omnixa/client"
 import { createSignal, onCleanup } from "solid-js"
 import { createSimpleContext } from "./helper"
 import { useClient } from "./client"

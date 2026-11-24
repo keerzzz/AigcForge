@@ -1,9 +1,9 @@
-import { Flag } from "@aigcfroge/core/flag/flag"
-import { AssetPlacement } from "@aigcfroge/core/asset-placement"
-import { SkillAsset } from "@aigcfroge/core/skill-asset"
-import { SkillAssetService } from "@aigcfroge/core/skill-asset-service"
-import { ConflictError, InvalidRequestError } from "@aigcfroge/protocol/errors"
-import { Info, InvalidEntry, Summary } from "@aigcfroge/schema/skill-asset"
+import { Flag } from "@omnixa/core/flag/flag"
+import { AssetPlacement } from "@omnixa/core/asset-placement"
+import { SkillAsset } from "@omnixa/core/skill-asset"
+import { SkillAssetService } from "@omnixa/core/skill-asset-service"
+import { ConflictError, InvalidRequestError } from "@omnixa/protocol/errors"
+import { Info, InvalidEntry, Summary } from "@omnixa/schema/skill-asset"
 import { HttpApiBuilder } from "effect/http-api"
 import { Effect, Schema } from "effect"
 import { Api } from "../api"
@@ -58,7 +58,7 @@ export const SkillAssetHandler = HttpApiBuilder.group(Api, "skill-asset", (handl
         scope.atSessionLocation(
           params.sessionID,
           Effect.gen(function* () {
-            if (!Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET)
+            if (!Flag.OMNIXA_EXPERIMENTAL_CHAT_ASSET)
               return yield* new InvalidRequestError({
                 message: "Skill asset creation is not enabled",
                 kind: "disabled",

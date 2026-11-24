@@ -1,4 +1,4 @@
-import { showToast } from "@aigcfroge/ui/toast"
+import { showToast } from "@omnixa/ui/toast"
 import {
   batch,
   createMemo,
@@ -12,7 +12,7 @@ import {
   untrack,
 } from "solid-js"
 import { createStore } from "solid-js/store"
-import type { FileDiffInfo } from "@aigcfroge/client/promise"
+import type { FileDiffInfo } from "@omnixa/client/promise"
 import {
   Command,
   createKeyed,

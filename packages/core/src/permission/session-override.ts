@@ -3,11 +3,11 @@ export * as SessionPermissionOverride from "./session-override"
 import { Clock, Context, Effect, Layer, Schema } from "effect"
 import { SessionSchema } from "../session/schema"
 import { SessionStore } from "../session/store"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { NotFoundError } from "../session/error"
 import { Bus } from "../bus"
 import { statics } from "../schema"
-import { Identifier } from "@aigcfroge/schema/identifier"
+import { Identifier } from "@omnixa/schema/identifier"
 
 // break-glass 租约时长（计划 §4.1）：每次 enable/renew 写入 60 秒，
 // 过期后读取即视为关闭并清理。
@@ -44,7 +44,7 @@ export interface Interface {
   readonly clear: () => Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionPermissionOverride") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/SessionPermissionOverride") {}
 
 export const layer = Layer.effect(
   Service,

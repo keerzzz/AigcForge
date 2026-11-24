@@ -17,13 +17,7 @@ export function sshName(config: Pick<SshConfig, "name" | "target">) {
 }
 
 export function isSshConnecting(stage: SshItem["stage"]) {
-  return (
-    stage === "connecting" ||
-    stage === "checking" ||
-    stage === "downloading" ||
-    stage === "uploading" ||
-    stage === "starting"
-  )
+  return stage === "connecting" || stage === "checking" || stage === "starting"
 }
 
 /** Another window answering the challenge reads as connecting here, not as a prompt of its own. */

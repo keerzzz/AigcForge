@@ -1,4 +1,4 @@
-import type { SessionMessageInfo, SessionMessageUser } from "@aigcfroge/client/promise"
+import type { SessionMessageInfo, SessionMessageUser } from "@omnixa/client/promise"
 
 export function selectSessionUserMessages(messages: SessionMessageInfo[]) {
   return messages.filter((message): message is SessionMessageUser => message.type === "user")

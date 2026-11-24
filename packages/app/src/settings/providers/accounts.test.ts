@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import type { IntegrationInfo } from "@aigcfroge/client/promise"
+import type { IntegrationInfo } from "@omnixa/client/promise"
 import { activeProviderAccount, providerAccounts } from "./accounts"
 
 const integration = (connections: IntegrationInfo["connections"]): IntegrationInfo => ({

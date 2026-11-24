@@ -1,13 +1,13 @@
-import { useDialog } from "@aigcfroge/ui/context/dialog"
-import { Button } from "@aigcfroge/ui/button"
-import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from "@aigcfroge/ui/dialog"
-import { Divider } from "@aigcfroge/ui/divider"
-import { Loader } from "@aigcfroge/ui/loader"
-import { RadioGroup, RadioItem } from "@aigcfroge/ui/radio"
-import { TextInput } from "@aigcfroge/ui/text-input"
+import { useDialog } from "@omnixa/ui/context/dialog"
+import { Button } from "@omnixa/ui/button"
+import { Dialog, DialogBody, DialogFooter, DialogHeader, DialogTitle } from "@omnixa/ui/dialog"
+import { Divider } from "@omnixa/ui/divider"
+import { Loader } from "@omnixa/ui/loader"
+import { RadioGroup, RadioItem } from "@omnixa/ui/radio"
+import { TextInput } from "@omnixa/ui/text-input"
 import { createMemo, For, Show } from "solid-js"
 import { createStore } from "solid-js/store"
-import { showToast } from "@aigcfroge/ui/toast"
+import { showToast } from "@omnixa/ui/toast"
 import { useExtension, type Context, type IpcClient } from "../sdk"
 import type { Wsl, WslServersState } from "./contract"
 import { useWslAddServerProbes } from "./probes"
@@ -357,8 +357,8 @@ function useWslAddServerController(props: DialogWslServerProps) {
 
     if (!distro || !action) return
 
-    if (action === "install-aigcfroge") {
-      await run(() => api().installAigcfroge({ name: distro }))
+    if (action === "install-omnixa") {
+      await run(() => api().installOmnixa({ name: distro }))
 
       return
     }
@@ -483,7 +483,7 @@ function unavailable(error: string): WslServersState {
     installed: [],
     online: [],
     distroProbes: {},
-    aigcfrogeChecks: {},
+    omnixaChecks: {},
     pendingRestart: false,
     servers: [],
     job: null,

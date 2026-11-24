@@ -2,10 +2,10 @@ import { spyOn } from "bun:test"
 import type {
   LocationRef,
   ModelListOutput,
-  AigcForgeClient,
+  OmnixaClient,
   ProviderListOutput,
   ModelGroupRead,
-} from "@aigcfroge/client/promise"
+} from "@omnixa/client/promise"
 
 export function catalogProvider(id: string, name: string): ProviderListOutput["data"][number] {
   return {
@@ -44,7 +44,7 @@ export function catalogModel(input: {
 }
 
 export function stubCatalogLists(
-  sdk: AigcForgeClient,
+  sdk: OmnixaClient,
   input: {
     location?: LocationRef
     providers?: ProviderListOutput["data"]

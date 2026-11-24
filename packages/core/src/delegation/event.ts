@@ -1,3 +1,3 @@
-export * as DelegationEvent from "@aigcfroge/schema/delegation-event"
+export * as DelegationEvent from "@omnixa/schema/delegation-event"
 
-export * from "@aigcfroge/schema/delegation-event"
+export * from "@omnixa/schema/delegation-event"

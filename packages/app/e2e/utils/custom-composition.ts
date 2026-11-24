@@ -1,5 +1,5 @@
-import { Composition } from "@aigcfroge/schema/composition"
-import { CompositionResolveError } from "@aigcfroge/protocol/errors"
+import { Composition } from "@omnixa/schema/composition"
+import { CompositionResolveError } from "@omnixa/protocol/errors"
 import { Schema } from "effect"
 import { T0 } from "./app"
 
@@ -80,7 +80,7 @@ export function startAnswer(
       projectID,
       mode: "custom",
       agent: root?.id,
-      model: input.model ?? { id: "test", providerID: "aigcfroge" },
+      model: input.model ?? { id: "test", providerID: "omnixa" },
       cost: 0,
       tokens: { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } },
       time: { created: T0, updated: T0 },

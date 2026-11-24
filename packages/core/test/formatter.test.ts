@@ -2,16 +2,16 @@ import fs from "fs/promises"
 import path from "path"
 import { describe, expect } from "bun:test"
 import { Deferred, Effect, Fiber } from "effect"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Bus } from "@aigcfroge/core/bus"
-import { Database } from "@aigcfroge/core/database/database"
-import { LocationServiceMap } from "@aigcfroge/core/location-services"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { SdkPlugins } from "@aigcfroge/core/plugin/sdk"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Info } from "@aigcfroge/schema/config"
-import { Global } from "@aigcfroge/util/global"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Bus } from "@omnixa/core/bus"
+import { Database } from "@omnixa/core/database/database"
+import { LocationServiceMap } from "@omnixa/core/location-services"
+import { Plugin } from "@omnixa/core/plugin"
+import { SdkPlugins } from "@omnixa/core/plugin/sdk"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Info } from "@omnixa/schema/config"
+import { Global } from "@omnixa/util/global"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { Formatter } from "../src/formatter"
 import { Location } from "../src/location"
 import { tempGlobalLayer } from "./fixture/global"
@@ -41,7 +41,7 @@ function withFormatter<A, E, R>(
 ) {
   return withTemp((directory) =>
     Effect.promise(() =>
-      fs.writeFile(path.join(directory, "aigcfroge.json"), JSON.stringify({ formatter: configured })),
+      fs.writeFile(path.join(directory, "omnixa.json"), JSON.stringify({ formatter: configured })),
     ).pipe(
       Effect.andThen(
         Effect.gen(function* () {
@@ -66,7 +66,7 @@ function append(expression: string) {
 const markdown = { command: append("'md'"), extensions: [".md"] }
 const project = { command: append("'project'"), extensions: [".project"] }
 
-// Writes formatter config layers from lowest to highest priority: global, project, then project .aigcfroge.
+// Writes formatter config layers from lowest to highest priority: global, project, then project .omnixa.
 function withLayers<A, E, R>(
   layers: ConfigInput["formatter"][],
   body: (formatter: Formatter.Interface, directory: string) => Effect.Effect<A, E, R>,
@@ -75,11 +75,11 @@ function withLayers<A, E, R>(
     Effect.gen(function* () {
       const global = yield* Global.Service
       yield* Effect.promise(async () => {
-        await fs.mkdir(path.join(directory, ".aigcfroge"))
+        await fs.mkdir(path.join(directory, ".omnixa"))
         const files = [
-          path.join(global.config, "aigcfroge.jsonc"),
-          path.join(directory, "aigcfroge.json"),
-          path.join(directory, ".aigcfroge", "aigcfroge.jsonc"),
+          path.join(global.config, "omnixa.jsonc"),
+          path.join(directory, "omnixa.json"),
+          path.join(directory, ".omnixa", "omnixa.jsonc"),
         ]
         await Promise.all(layers.map((formatter, index) => fs.writeFile(files[index], JSON.stringify({ formatter }))))
       })

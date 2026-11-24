@@ -1,8 +1,8 @@
 export * as ReminderCreateTool from "./reminder-create.js"
 
 import { createHash } from "crypto"
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
 import { DateTime, Effect, Schema } from "effect"
 import { Permission } from "../permission.js"
 import { ScheduleService } from "../session/schedule-service.js"
@@ -60,7 +60,7 @@ export const Output = Schema.Struct({
 })
 
 export const Plugin = {
-  id: "aigcfroge.tool.reminder_create",
+  id: "omnixa.tool.reminder_create",
   effect: Effect.fn("ReminderCreateTool.Plugin")(function* (ctx: Context) {
     const schedules = yield* ScheduleService.Service
     const permission = yield* Permission.Service

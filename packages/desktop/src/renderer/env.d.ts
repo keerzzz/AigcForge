@@ -2,12 +2,12 @@ import type { ElectronNative } from "../preload/types"
 
 declare global {
   interface ImportMetaEnv {
-    readonly AIGCFROGE_TEST_ONBOARDING: boolean
+    readonly OMNIXA_TEST_ONBOARDING: boolean
   }
 
   interface Window {
     electron: ElectronNative
-    __AIGCFROGE__?: {
+    __OMNIXA__?: {
       deepLinks?: string[]
     }
   }

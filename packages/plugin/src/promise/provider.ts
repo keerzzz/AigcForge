@@ -1,7 +1,7 @@
-import type { ProviderApi } from "@aigcfroge/client/promise/api"
-import type { Model } from "@aigcfroge/schema/model"
-import type { Provider } from "@aigcfroge/schema/provider"
-import type { ConnectionInfo } from "@aigcfroge/client"
+import type { ProviderApi } from "@omnixa/client/promise/api"
+import type { Model } from "@omnixa/schema/model"
+import type { Provider } from "@omnixa/schema/provider"
+import type { ConnectionInfo } from "@omnixa/client"
 import type { Transform } from "./registration.js"
 import type { DeepMutable } from "./types.js"
 

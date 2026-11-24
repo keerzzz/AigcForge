@@ -1,8 +1,8 @@
 export * as InstancePlugins from "./instance.js"
 
-import type { Plugin } from "@aigcfroge/plugin/effect/plugin"
+import type { Plugin } from "@omnixa/plugin/effect/plugin"
 import { Context, Layer } from "effect"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import type { Generation } from "../plugin.js"
 
 /**
@@ -22,7 +22,7 @@ export interface Interface {
   readonly all: () => readonly Generation[]
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/InstancePlugins") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/InstancePlugins") {}
 
 export const node = makeLocationNode({
   service: Service,

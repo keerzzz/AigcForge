@@ -1,13 +1,13 @@
-import { Session } from "@aigcfroge/core/session"
-import { SessionStats } from "@aigcfroge/core/session/stats"
-import { SessionTitle } from "@aigcfroge/core/session/title"
-import { SessionTransfer } from "@aigcfroge/core/session/transfer"
-import { InstructionEntry } from "@aigcfroge/core/session/instruction-entry"
-import { Form } from "@aigcfroge/core/form"
+import { Session } from "@omnixa/core/session"
+import { SessionStats } from "@omnixa/core/session/stats"
+import { SessionTitle } from "@omnixa/core/session/title"
+import { SessionTransfer } from "@omnixa/core/session/transfer"
+import { InstructionEntry } from "@omnixa/core/session/instruction-entry"
+import { Form } from "@omnixa/core/form"
 import { DateTime, Effect, Stream } from "effect"
 import { HttpApiBuilder, HttpApiSchema } from "effect/http-api"
 import { Api } from "../api"
-import { SessionsCursor } from "@aigcfroge/protocol/groups/session"
+import { SessionsCursor } from "@omnixa/protocol/groups/session"
 import {
   ConflictError,
   CommandExecutionError,
@@ -22,8 +22,8 @@ import {
   SessionBusyError,
   SkillNotFoundError,
   UnsupportedProductModeError,
-} from "@aigcfroge/protocol/errors"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+} from "@omnixa/protocol/errors"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { locationErrors } from "../location"
 import {
   failedMessageDecode,

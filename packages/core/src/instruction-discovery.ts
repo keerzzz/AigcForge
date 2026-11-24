@@ -1,7 +1,7 @@
 export * as InstructionDiscovery from "./instruction-discovery.js"
 
 import { Context, Effect, Layer, Schema, Types } from "effect"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { createPatch } from "diff"
 import { Bus } from "./bus.js"
 import { Instructions } from "./instructions/index.js"
@@ -50,7 +50,7 @@ export const Options = Schema.Struct({
 })
 export type Options = typeof Options.Type
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/InstructionDiscovery") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/InstructionDiscovery") {}
 
 export const layer = (options?: Options) =>
   Layer.effect(

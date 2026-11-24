@@ -1,6 +1,6 @@
 export * as ModalModels from "./models.js"
 
-import { Money } from "@aigcfroge/schema/money"
+import { Money } from "@omnixa/schema/money"
 import { Option, Schema } from "effect"
 import { Model } from "../model.js"
 import { Provider } from "../provider.js"
@@ -107,7 +107,7 @@ function build(id: Model.ID, remote: RemoteModel, baseURL: string, previous?: Mo
       remote.interleaved === undefined
         ? previous?.compatibility
         : (Model.compatibility(remote.interleaved) ?? previous?.compatibility),
-    package: "@aigcfroge/ai/providers/openai-compatible",
+    package: "@omnixa/ai/providers/openai-compatible",
     settings: Provider.mergeOverlay(previous?.settings, { baseURL, provider: providerID }),
     headers: previous?.headers,
     body: previous?.body,

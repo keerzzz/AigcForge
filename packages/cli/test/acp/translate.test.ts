@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
-import { AigcForgeEvent, type AigcForgeEventEncoded } from "@aigcfroge/protocol/groups/event"
-import { Session } from "@aigcfroge/schema/session"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
+import { OmnixaEvent, type OmnixaEventEncoded } from "@omnixa/protocol/groups/event"
+import { Session } from "@omnixa/schema/session"
+import { SessionMessage } from "@omnixa/schema/session-message"
 import { Schema } from "effect"
 import path from "node:path"
 import { ACPReplay } from "../../src/acp/replay"
@@ -32,10 +32,10 @@ const ctx: ACPTranslate.TurnContext = {
   childUpdates: false,
   compaction: false,
 }
-const decodeEvent = Schema.decodeUnknownSync(AigcForgeEvent)
+const decodeEvent = Schema.decodeUnknownSync(OmnixaEvent)
 const decodeMessage = Schema.decodeUnknownSync(SessionMessage.Info)
 
-const live = (...events: AigcForgeEventEncoded[]) => [delivered(root, "msg_input"), ...events]
+const live = (...events: OmnixaEventEncoded[]) => [delivered(root, "msg_input"), ...events]
 const usage = (input: number, output: number, reasoning = 0, read = 0, write = 0) => ({
   input,
   output,
@@ -54,10 +54,10 @@ const compaction = {
 }
 const marker = (value: Record<string, unknown>) => ({
   sessionUpdate: "session_info_update",
-  _meta: { "aigcfroge/compaction": { messageId: "msg_compact", reason: "manual", ...value } },
+  _meta: { "omnixa/compaction": { messageId: "msg_compact", reason: "manual", ...value } },
 })
 const childMeta = (id: string, parentID: string, depth: number, title: string) => ({
-  "aigcfroge/child-session": { id, parentID, depth, title },
+  "omnixa/child-session": { id, parentID, depth, title },
 })
 const compactionMessage = (input: Record<string, unknown>) => ({
   id: "msg_compaction",
@@ -70,7 +70,7 @@ const compactionMessage = (input: Record<string, unknown>) => ({
 type Row = {
   readonly name: string
   readonly ctx?: Partial<ACPTranslate.TurnContext>
-  readonly events?: AigcForgeEventEncoded[]
+  readonly events?: OmnixaEventEncoded[]
   readonly messages?: unknown[]
   readonly expected: object
 }
@@ -492,7 +492,7 @@ const rows: Row[] = [
       updates: [
         {
           _meta: {
-            "aigcfroge/compaction": { status: "failed", messageId: "msg_2", reason: "auto", error: providerError },
+            "omnixa/compaction": { status: "failed", messageId: "msg_2", reason: "auto", error: providerError },
           },
         },
       ],
@@ -508,8 +508,8 @@ const rows: Row[] = [
     ),
     expected: {
       updates: [
-        { _meta: { "aigcfroge/compaction": { status: "started" }, ...childMeta("ses_child", root, 1, "Explore") } },
-        { _meta: { "aigcfroge/compaction": { status: "completed" }, ...childMeta("ses_child", root, 1, "Explore") } },
+        { _meta: { "omnixa/compaction": { status: "started" }, ...childMeta("ses_child", root, 1, "Explore") } },
+        { _meta: { "omnixa/compaction": { status: "completed" }, ...childMeta("ses_child", root, 1, "Explore") } },
       ],
     },
   },
@@ -569,7 +569,7 @@ const rows: Row[] = [
       updates: [
         {
           sessionUpdate: "session_info_update",
-          _meta: { "aigcfroge/compaction": { status: "completed", messageId: "msg_compaction", reason: "auto" } },
+          _meta: { "omnixa/compaction": { status: "completed", messageId: "msg_compaction", reason: "auto" } },
         },
       ],
     },
@@ -627,7 +627,7 @@ function translate(row: Row) {
   }
 }
 
-function run(events: ReadonlyArray<AigcForgeEventEncoded>, context = ctx) {
+function run(events: ReadonlyArray<OmnixaEventEncoded>, context = ctx) {
   return events.reduce<{
     state: ACPTranslate.TurnState
     outputs: ACPTranslate.Output[]

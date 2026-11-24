@@ -31,11 +31,7 @@ export type ProjectAvatarVariant = (typeof PROJECT_AVATAR_VARIANTS)[number]
 // "outline" is a neutral, muted style (e.g. recently closed projects) and is not part of the color rotation.
 export type ProjectAvatarStyle = ProjectAvatarVariant | "outline"
 
-const AIGCFROGE_PROJECT_ID = "4b0ea68d7af9a6031a7ffda7ad66e0cb83315750"
-
-export function getProjectAvatarSource(id?: string, icon?: { color?: string; url?: string; override?: string }) {
-  if (id === AIGCFROGE_PROJECT_ID) return "https://aigcfroge.ai/favicon.svg"
-
+export function getProjectAvatarSource(_id?: string, icon?: { color?: string; url?: string; override?: string }) {
   if (icon?.override) return icon.override
 
   if (icon?.color) return undefined

@@ -39,7 +39,7 @@ describe("desktop attachment files", () => {
     const events: string[] = []
     const files = createDesktopFiles({ ...fileApi(events), openBrowser: async () => false }, "macos")
 
-    expect(await files.openBrowser("https://aigcfroge.ai/console")).toBe(false)
+    expect(await files.openBrowser("https://omnixa.ai/console")).toBe(false)
     await files.writeClipboardText("ses_123")
     expect(events).toEqual(["clipboard:ses_123"])
   })

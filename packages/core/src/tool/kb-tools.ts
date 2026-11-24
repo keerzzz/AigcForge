@@ -1,10 +1,10 @@
 export * as KBTools from "./kb-tools.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
 import { Effect, Schema } from "effect"
-import { KBNote } from "@aigcfroge/schema/kb-note"
-import { Global } from "@aigcfroge/util/global"
+import { KBNote } from "@omnixa/schema/kb-note"
+import { Global } from "@omnixa/util/global"
 import { Location } from "../location.js"
 import { Permission } from "../permission.js"
 import { KBService } from "../session/kb-service.js"
@@ -13,7 +13,7 @@ import { Tool } from "../tool.js"
 /**
  * Knowledge base tools (Phase D): create/search/read/update/delete/
  * list_dangling. The `.md` file mirror lands in <config>/knowledge-base
- * (global scope) or <directory>/.aigcfroge/knowledge-base (project scope).
+ * (global scope) or <directory>/.omnixa/knowledge-base (project scope).
  */
 
 export const kbCreateName = "kb_create"
@@ -33,7 +33,7 @@ const NoteInput = Schema.Struct({
 })
 
 export const Plugin = {
-  id: "aigcfroge.tool.kb_tools",
+  id: "omnixa.tool.kb_tools",
   effect: Effect.fn("KBTools.Plugin")(function* (ctx: Context) {
     const kb = yield* KBService.Service
     const location = yield* Location.Service

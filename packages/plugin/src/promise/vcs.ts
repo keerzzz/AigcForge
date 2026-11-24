@@ -1,6 +1,6 @@
-import type { VcsApi } from "@aigcfroge/client/promise/api"
-import type { FileDiff } from "@aigcfroge/schema/file-diff"
-import type { Vcs } from "@aigcfroge/schema/vcs"
+import type { VcsApi } from "@omnixa/client/promise/api"
+import type { FileDiff } from "@omnixa/schema/file-diff"
+import type { Vcs } from "@omnixa/schema/vcs"
 import type { Transform } from "./registration.js"
 
 export interface VcsScope {

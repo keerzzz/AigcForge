@@ -2,8 +2,8 @@ import { Context, Duration, Effect, Fiber, Layer, Schema, Stream } from "effect"
 import type { PlatformError } from "effect/PlatformError"
 import { ChildProcess } from "effect/process"
 import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner"
-import { CrossSpawnSpawner } from "@aigcfroge/util/cross-spawn-spawner"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { CrossSpawnSpawner } from "@omnixa/util/cross-spawn-spawner"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 
 export class AppProcessError extends Schema.TaggedError<AppProcessError>()("AppProcessError", {
   command: Schema.String,
@@ -50,7 +50,7 @@ export type Interface = ChildProcessSpawner["Service"] & {
   ) => Stream.Stream<string, AppProcessError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/AppProcess") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/AppProcess") {}
 
 export const requireSuccess = (result: RunResult): Effect.Effect<RunResult, AppProcessError> =>
   result.exitCode === 0

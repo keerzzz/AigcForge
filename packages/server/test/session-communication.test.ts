@@ -1,12 +1,12 @@
 import { expect } from "bun:test"
 import { Effect, Layer, Schema } from "effect"
-import { Agent } from "@aigcfroge/core/agent"
-import { Location } from "@aigcfroge/core/location"
-import { Model } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { MetaAgent } from "@aigcfroge/schema/meta-agent"
-import { SessionCommunication } from "@aigcfroge/schema/session-communication"
+import { Agent } from "@omnixa/core/agent"
+import { Location } from "@omnixa/core/location"
+import { Model } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { MetaAgent } from "@omnixa/schema/meta-agent"
+import { SessionCommunication } from "@omnixa/schema/session-communication"
 import { useOfflineCatalog } from "../../core/test/fixture/models"
 import { testEffect } from "../../core/test/lib/effect"
 import { AssetHttpFixture } from "./fixture/asset-http"
@@ -16,7 +16,7 @@ const model = Model.Ref.make({ id: Model.ID.make("communication-http"), provider
 const setup = Effect.fnUntraced(function* () {
   const fixture = yield* AssetHttpFixture.setup({
     prefix: "communication-http-",
-    assetDirectory: ".aigcfroge",
+    assetDirectory: ".omnixa",
     files: [],
     model,
   })
@@ -25,7 +25,7 @@ const setup = Effect.fnUntraced(function* () {
       info: Provider.Info.make({
         ...Provider.Info.empty(model.providerID),
         activation: "enabled",
-        package: "@aigcfroge/ai/providers/openai/responses",
+        package: "@omnixa/ai/providers/openai/responses",
       }),
       models: [Model.Info.make(Model.Info.default(model.providerID, model.id))],
     },

@@ -1,9 +1,9 @@
 import { Effect, Schema } from "effect"
-import { CommandAsset } from "@aigcfroge/schema/command-asset"
-import { PromptAsset } from "@aigcfroge/schema/prompt-asset"
-import { AbsolutePath, AigcForge, AssetPlacement, Session, SkillAsset, type AppApi } from "../src/effect"
+import { CommandAsset } from "@omnixa/schema/command-asset"
+import { PromptAsset } from "@omnixa/schema/prompt-asset"
+import { AbsolutePath, Omnixa, AssetPlacement, Session, SkillAsset, type AppApi } from "../src/effect"
 import type {
-  AigcForgeClient,
+  OmnixaClient,
   CommandAssetApplyInput,
   CommandAssetApplyOutput,
   CommandAssetContentInput,
@@ -42,10 +42,10 @@ import type {
 } from "../src/promise"
 import type { DiscoverOptions } from "../src/service"
 
-type EffectClient = Effect.Success<ReturnType<typeof AigcForge.make>>
+type EffectClient = Effect.Success<ReturnType<typeof Omnixa.make>>
 
 declare const effectClient: EffectClient
-declare const promiseClient: AigcForgeClient
+declare const promiseClient: OmnixaClient
 
 const exactVersion: DiscoverOptions = { version: "2.0.0" }
 const compatibleVersion: DiscoverOptions = { version: (version) => version.startsWith("2.") }
@@ -94,7 +94,7 @@ const skillCandidate = {
   tags: [],
   relativePath: "review.md",
 }
-const skillTarget = { scope: "project" as const, root: "/tmp/project/.aigcfroge/skills" }
+const skillTarget = { scope: "project" as const, root: "/tmp/project/.omnixa/skills" }
 const canonicalCandidate = SkillAsset.Candidate.make(skillCandidate)
 const canonicalTarget = AssetPlacement.Target.make({ ...skillTarget, root: AbsolutePath.make(skillTarget.root) })
 
@@ -191,7 +191,7 @@ const commandCandidate = {
   source: "",
   relativePath: "review-command.md",
 }
-const commandTarget = { scope: "global" as const, root: "/tmp/config/aigcfroge/commands" }
+const commandTarget = { scope: "global" as const, root: "/tmp/config/omnixa/commands" }
 const canonicalCommandCandidate = Schema.decodeUnknownSync(CommandAsset.Candidate)(commandCandidate)
 const canonicalCommandTarget = AssetPlacement.Target.make({
   ...commandTarget,
@@ -333,7 +333,7 @@ const promptCandidate = {
   template: "\uFEFF \tReview {{CODE}}, $ARGUMENTS, $HOME and 中文.\r\n\r\nKeep trailing space. \t\r\n",
   relativePath: "review-prompt.md",
 }
-const promptTarget = { scope: "global" as const, root: "/tmp/config/aigcfroge/prompts" }
+const promptTarget = { scope: "global" as const, root: "/tmp/config/omnixa/prompts" }
 const canonicalPromptCandidate = Schema.decodeUnknownSync(PromptAsset.Candidate)(promptCandidate)
 const canonicalPromptTarget = AssetPlacement.Target.make({
   ...promptTarget,

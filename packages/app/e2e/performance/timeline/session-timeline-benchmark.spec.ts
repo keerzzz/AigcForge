@@ -1,11 +1,7 @@
 import type { Page } from "@playwright/test"
-import type {
-  SessionConsultationRead,
-  SessionConsultationReference,
-  SessionMessageInfo,
-} from "@aigcfroge/client/promise"
+import type { SessionConsultationRead, SessionConsultationReference, SessionMessageInfo } from "@omnixa/client/promise"
 import { createHash } from "node:crypto"
-import { base64Encode } from "@aigcfroge/util/encode"
+import { base64Encode } from "@omnixa/util/encode"
 import { pageMessagesFrom, provider, SERVER, T0, workspaceKey } from "../../utils/app"
 import { openSidePanel } from "../../utils/side-panel"
 import { installSseTransport } from "../../utils/sse-transport"
@@ -85,7 +81,7 @@ benchmark.describe("performance: session timeline streaming", () => {
     const minimal = process.env.TIMELINE_MINIMAL === "1"
     const profileCPU = process.env.TIMELINE_CPU_PROFILE === "1"
     const profileVisual = !minimal && profileCPU && process.env.TIMELINE_VISUAL_PROFILE !== "0"
-    const model = { id: "claude-opus-4-6", providerID: "aigcfroge" }
+    const model = { id: "claude-opus-4-6", providerID: "omnixa" }
 
     const targets = [
       { id: "ses_sc07_benchmark_main", label: "Source", title: "SC07 streaming source" },
@@ -918,7 +914,7 @@ async function installReviewPaneProbe(page: Page, input: { file: string }) {
       samples,
       start: () => {
         started = performance.now()
-        performance.mark("aigcfroge.review-pane.click")
+        performance.mark("omnixa.review-pane.click")
         sample()
       },
       stop: () => {

@@ -7,14 +7,14 @@ import { Project } from "../project"
 import { Provider } from "../provider"
 import { Model } from "../model"
 import { optional, statics } from "../schema"
-import { Identifier } from "@aigcfroge/schema/identifier"
+import { Identifier } from "@omnixa/schema/identifier"
 import { NonNegativeInt } from "../schema"
 import { NamedError } from "../util/error"
 import { SessionSchema } from "../session/schema"
 import { Workspace } from "../workspace"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
-import { PermissionTier } from "@aigcfroge/schema/permission-tier"
-import { SessionInput } from "@aigcfroge/schema/session-input"
+import { ProductMode } from "@omnixa/schema/product-mode"
+import { PermissionTier } from "@omnixa/schema/permission-tier"
+import { SessionInput } from "@omnixa/schema/session-input"
 
 const Timestamp = Schema.Finite.check(Schema.isGreaterThanOrEqualTo(0))
 

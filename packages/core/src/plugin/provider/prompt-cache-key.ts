@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { define } from "@aigcfroge/plugin/effect/plugin"
+import { define } from "@omnixa/plugin/effect/plugin"
 import { Provider } from "../../provider.js"
 
 // Chat-completions `prompt_cache_key` body support for catalog providers
@@ -23,7 +23,7 @@ const providerIDs = [
 ] as const
 
 export const PromptCacheKeyPlugin = define({
-  id: "aigcfroge.provider.prompt-cache-key",
+  id: "omnixa.provider.prompt-cache-key",
   effect: Effect.fn(function* (ctx) {
     yield* ctx.model.transform((models) => {
       for (const id of providerIDs) {

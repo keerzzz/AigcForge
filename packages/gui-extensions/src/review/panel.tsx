@@ -1,6 +1,6 @@
 import { createMemo, createResource, createSignal, Show, type JSX } from "solid-js"
 import { Dynamic } from "solid-js/web"
-import type { FileDiffInfo } from "@aigcfroge/client/promise"
+import type { FileDiffInfo } from "@omnixa/client/promise"
 import {
   SESSION_REVIEW_V2_SIDEBAR_WIDTH_MAX,
   SESSION_REVIEW_V2_SIDEBAR_WIDTH_MIN,
@@ -8,9 +8,9 @@ import {
   SessionReviewV2Sidebar,
   SessionReviewV2SidebarToggle,
   type SessionReviewExpandMode,
-} from "@aigcfroge/session-ui/v2/session-review-v2"
-import { SessionReviewFilePreviewV2 } from "@aigcfroge/session-ui/v2/session-review-file-preview-v2"
-import { DiffChanges } from "@aigcfroge/ui/diff-changes"
+} from "@omnixa/session-ui/v2/session-review-v2"
+import { SessionReviewFilePreviewV2 } from "@omnixa/session-ui/v2/session-review-file-preview-v2"
+import { DiffChanges } from "@omnixa/ui/diff-changes"
 import type {
   SessionReviewComment,
   SessionReviewCommentActions,
@@ -19,7 +19,7 @@ import type {
   SessionReviewDiffStyle,
   SessionReviewFocus,
   SessionReviewLineComment,
-} from "@aigcfroge/session-ui/session-review"
+} from "@omnixa/session-ui/session-review"
 import { useExtension, usePanel, type MountedSession, type PanelSidebar, type SessionScreen } from "../sdk"
 import type Review from "./index"
 import {

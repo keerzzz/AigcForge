@@ -1,6 +1,6 @@
-import { useDialog } from "@aigcfroge/ui/context/dialog"
-import { useI18n } from "@aigcfroge/ui/context/i18n"
-import { ImagePreview } from "@aigcfroge/ui/image-preview"
+import { useDialog } from "@omnixa/ui/context/dialog"
+import { useI18n } from "@omnixa/ui/context/i18n"
+import { ImagePreview } from "@omnixa/ui/image-preview"
 
 export function createImagePreview() {
   const dialog = useDialog()

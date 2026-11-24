@@ -1,13 +1,13 @@
 export * as PluginHooks from "./hooks.js"
 
-import type { AISDKHooks } from "@aigcfroge/plugin/effect/aisdk"
-import type { SessionHooks } from "@aigcfroge/plugin/effect/session"
-import type { ShellHooks } from "@aigcfroge/plugin/effect/shell"
-import type { ToolFailures, ToolHooks } from "@aigcfroge/plugin/effect/tool"
-import type { ModelHookOptions } from "@aigcfroge/plugin/effect/registration"
-import type { PermissionHooks } from "@aigcfroge/plugin/effect/permission"
+import type { AISDKHooks } from "@omnixa/plugin/effect/aisdk"
+import type { SessionHooks } from "@omnixa/plugin/effect/session"
+import type { ShellHooks } from "@omnixa/plugin/effect/shell"
+import type { ToolFailures, ToolHooks } from "@omnixa/plugin/effect/tool"
+import type { ModelHookOptions } from "@omnixa/plugin/effect/registration"
+import type { PermissionHooks } from "@omnixa/plugin/effect/permission"
 import { Context, Effect, Layer, Scope } from "effect"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { State } from "../state.js"
 
 export interface Domains {
@@ -58,7 +58,7 @@ export interface Interface {
   ) => Effect.Effect<Domains[Domain][Name], Failures[Domain][Name]>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/PluginHooks") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/PluginHooks") {}
 
 const layer = Layer.effect(
   Service,

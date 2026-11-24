@@ -2,7 +2,7 @@ import { castDraft, produce, type WritableDraft } from "immer"
 import { DateTime, Effect, Match, pipe, Schema } from "effect"
 import { SessionEvent } from "./event.js"
 import { SessionMessage } from "./message.js"
-import { SessionAttempt } from "@aigcfroge/schema/session-attempt"
+import { SessionAttempt } from "@omnixa/schema/session-attempt"
 import { Bus } from "../bus.js"
 import { isDeepStrictEqual } from "node:util"
 

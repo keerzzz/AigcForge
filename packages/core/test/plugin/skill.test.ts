@@ -1,10 +1,10 @@
 import { describe, expect } from "bun:test"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Config } from "@aigcfroge/core/config"
-import { Document, Info } from "@aigcfroge/schema/config"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Config } from "@omnixa/core/config"
+import { Document, Info } from "@omnixa/schema/config"
 import { Effect, Layer, Stream } from "effect"
-import { SkillPlugin } from "@aigcfroge/core/plugin/skill"
-import { Skill } from "@aigcfroge/core/skill"
+import { SkillPlugin } from "@omnixa/core/plugin/skill"
+import { Skill } from "@omnixa/core/skill"
 import { testEffect } from "../lib/effect"
 import { host } from "./host"
 
@@ -37,19 +37,19 @@ describe("SkillPlugin.Plugin", () => {
 
       expect(skills).toContainEqual(
         expect.objectContaining({
-          id: "aigcfroge",
-          name: "AigcForge",
-          description: expect.stringContaining("any question about AigcForge itself"),
+          id: "omnixa",
+          name: "Omnixa",
+          description: expect.stringContaining("any question about Omnixa itself"),
         }),
       )
       expect(skills).toContainEqual(
         expect.objectContaining({
           id: "report",
           name: "Report",
-          description: expect.stringContaining("aigcfroge issue"),
+          description: expect.stringContaining("omnixa issue"),
         }),
       )
-      expect(report?.content).toContain("- aigcfroge version: 1.2.3")
+      expect(report?.content).toContain("- omnixa version: 1.2.3")
       expect(report?.content).toContain("- install/channel: beta")
     }),
   )

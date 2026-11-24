@@ -1,7 +1,7 @@
 import { describe, expect } from "bun:test"
-import { Composition } from "@aigcfroge/schema/composition"
-import { Global } from "@aigcfroge/util/global"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Composition } from "@omnixa/schema/composition"
+import { Global } from "@omnixa/util/global"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { Effect, Layer, Result, Schema } from "effect"
 import { Agent } from "../src/agent"
 import { App } from "../src/app"
@@ -52,7 +52,7 @@ const it = testEffect(
     {
       replacements: [
         Global.node.replace(
-          Layer.succeed(Global.Service, Global.make({ data: "/data", config: "/config", tmp: "/tmp/aigcfroge" })),
+          Layer.succeed(Global.Service, Global.make({ data: "/data", config: "/config", tmp: "/tmp/omnixa" })),
         ),
         App.node.replace(App.layer({ version: hostVersion })),
         Location.node.replace(Layer.succeed(Location.Service, location({ directory }))),

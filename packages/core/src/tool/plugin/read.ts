@@ -1,10 +1,10 @@
 export * as ReadTool from "./read.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
+import type { Context } from "@omnixa/plugin/effect/plugin"
 import { basename, dirname, join } from "path"
-import { ToolFailure } from "@aigcfroge/ai"
+import { ToolFailure } from "@omnixa/ai"
 import { Effect, Schema } from "effect"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Location } from "../../location.js"
 import { FileAccess } from "../../file-access.js"
 import { SessionInstructions } from "../../session/instructions.js"
@@ -27,7 +27,7 @@ export const Input = LocationInput
 const Output = Schema.Union([ReadToolFileSystem.FileContent, ReadToolFileSystem.TextPage, ReadToolFileSystem.ListPage])
 
 export const Plugin = {
-  id: "aigcfroge.tool.read",
+  id: "omnixa.tool.read",
   effect: Effect.fn("ReadTool.Plugin")(function* (ctx: Context) {
     const reader = yield* ReadToolFileSystem.Service
     const access = yield* FileAccess.Service

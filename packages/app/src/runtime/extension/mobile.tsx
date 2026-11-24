@@ -1,14 +1,14 @@
 import { createMemo, For, lazy, Show, Suspense, type JSX } from "solid-js"
 import { createStore } from "solid-js/store"
-import { Tabs } from "@aigcfroge/ui/tabs"
-import { Icon } from "@aigcfroge/ui/icon"
+import { Tabs } from "@omnixa/ui/tabs"
+import { Icon } from "@omnixa/ui/icon"
 import {
   Panel,
   type PanelSidebar,
   type PanelTab,
   type MountedSession,
   type SessionScreen,
-} from "@aigcfroge/gui-extensions/sdk"
+} from "@omnixa/gui-extensions/sdk"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useExtensionHost } from "./host"
 import { panelKey } from "./panel-keys"

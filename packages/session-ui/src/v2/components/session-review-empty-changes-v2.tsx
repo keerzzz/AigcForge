@@ -1,5 +1,5 @@
-import { useI18n } from "@aigcfroge/ui/context/i18n"
-import { Icon } from "@aigcfroge/ui/icon"
+import { useI18n } from "@omnixa/ui/context/i18n"
+import { Icon } from "@omnixa/ui/icon"
 import "./session-review-v2.css"
 
 export function SessionReviewEmptyChangesV2() {

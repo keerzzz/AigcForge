@@ -1,4 +1,4 @@
-import type { HttpRecorder } from "@aigcfroge/http-recorder"
+import type { HttpRecorder } from "@omnixa/http-recorder"
 import { describe } from "bun:test"
 import { Effect } from "effect"
 import type { LanguageModel } from "../src/index.js"

@@ -1,9 +1,9 @@
 export * as ProposeNoteTool from "./propose-note.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
 import { Effect, Schema } from "effect"
-import { KBNote } from "@aigcfroge/schema/kb-note"
+import { KBNote } from "@omnixa/schema/kb-note"
 import { KBLink } from "../kb/link.js"
 import { Permission } from "../permission.js"
 import { KBService } from "../session/kb-service.js"
@@ -43,7 +43,7 @@ export const Output = Schema.Struct({
 })
 
 export const Plugin = {
-  id: "aigcfroge.tool.propose_note",
+  id: "omnixa.tool.propose_note",
   effect: Effect.fn("ProposeNoteTool.Plugin")(function* (ctx: Context) {
     const kb = yield* KBService.Service
     const permission = yield* Permission.Service

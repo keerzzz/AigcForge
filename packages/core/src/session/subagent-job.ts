@@ -1,8 +1,8 @@
 export * as SubagentJob from "./subagent-job.js"
 
 import { Context, Effect, Layer, Scope } from "effect"
-import { Node } from "@aigcfroge/util/effect/app-node"
-import type { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Node } from "@omnixa/util/effect/app-node"
+import type { LayerNode } from "@omnixa/util/effect/layer-node"
 import { Job } from "../job.js"
 import { Session } from "../session.js"
 import { SubagentCompletion } from "./subagent-completion.js"
@@ -15,7 +15,7 @@ export interface Interface {
   notify: (recovery: Recovery, startedAt: number) => Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SubagentJob") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/SubagentJob") {}
 
 const make: Effect.Effect<Interface, never, Session.Service | Job.Service | Scope.Scope> = Effect.gen(function* () {
   const sessions = yield* Session.Service

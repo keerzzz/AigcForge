@@ -1,7 +1,7 @@
 export * as SessionTodo from "./todo"
 
 import { Context, Effect, Layer, Schema } from "effect"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { SessionSchema } from "./schema"
 import { SessionTask } from "./task"
 
@@ -53,7 +53,7 @@ export interface Interface {
   readonly get: (sessionID: SessionSchema.ID) => Effect.Effect<ReadonlyArray<Info>>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionTodo") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/SessionTodo") {}
 
 const toTask = (todo: WriteItem): typeof SessionTask.WriteInfo.Type => ({
   content: todo.content,

@@ -8,9 +8,7 @@ import { collectFiles } from "./files"
 export async function buildAppArchive(channel: string, options?: { skipBuild?: boolean }) {
   if (options?.skipBuild) return AppArchive.encode([])
   const root = path.resolve(import.meta.dirname, "../../app")
-  await $`bun run build`
-    .cwd(root)
-    .env({ ...process.env, AIGCFROGE_CHANNEL: channel, VITE_AIGCFROGE_SERVER_MODE: "origin" })
+  await $`bun run build`.cwd(root).env({ ...process.env, OMNIXA_CHANNEL: channel, VITE_OMNIXA_SERVER_MODE: "origin" })
   return AppArchive.encode(
     await Promise.all(
       (await collectFiles(path.join(root, "dist")))

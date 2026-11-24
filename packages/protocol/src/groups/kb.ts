@@ -1,4 +1,4 @@
-import { KBNote } from "@aigcfroge/schema/kb-note"
+import { KBNote } from "@omnixa/schema/kb-note"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { InvalidRequestError } from "../errors.js"

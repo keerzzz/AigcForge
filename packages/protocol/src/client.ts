@@ -5,13 +5,12 @@ import type { Context } from "effect"
 import { HttpApiMiddleware } from "effect/http-api"
 import type { EventGroup } from "./groups/event.js"
 
-class LocationMiddleware extends HttpApiMiddleware.Service<LocationMiddleware>()(
-  "@aigcfroge/client/LocationMiddleware",
-  { error: [LocationNotFoundError] },
-) {}
+class LocationMiddleware extends HttpApiMiddleware.Service<LocationMiddleware>()("@omnixa/client/LocationMiddleware", {
+  error: [LocationNotFoundError],
+}) {}
 
 class SessionLocationMiddleware extends HttpApiMiddleware.Service<SessionLocationMiddleware>()(
-  "@aigcfroge/client/SessionLocationMiddleware",
+  "@omnixa/client/SessionLocationMiddleware",
   { error: [InvalidRequestError, SessionNotFoundError, LocationNotFoundError] },
 ) {}
 

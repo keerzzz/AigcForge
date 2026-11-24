@@ -1,12 +1,12 @@
-import { createData } from "@aigcfroge/client/solid"
-import type { LocationRef } from "@aigcfroge/client"
-import type { Plugin } from "@aigcfroge/plugin/tui"
+import { createData } from "@omnixa/client/solid"
+import type { LocationRef } from "@omnixa/client"
+import type { Plugin } from "@omnixa/plugin/tui"
 import { createStore } from "solid-js/store"
 import { createSimpleContext } from "./helper"
 import { useClient } from "./client"
 
-export { locationKey } from "@aigcfroge/client/solid"
-export type { FormWithLocation } from "@aigcfroge/client/solid"
+export { locationKey } from "@omnixa/client/solid"
+export type { FormWithLocation } from "@omnixa/client/solid"
 
 export const { use: useData, provider: DataProvider } = createSimpleContext({
   name: "Data",

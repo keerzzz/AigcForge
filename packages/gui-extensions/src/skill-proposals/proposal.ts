@@ -26,15 +26,15 @@ import type {
   WorkflowAssetApplyOutput,
   WorkflowAssetContentOutput,
   WorkflowAssetListOutput,
-} from "@aigcfroge/client/promise"
-import { AgentAsset } from "@aigcfroge/schema/agent-asset"
-import { AssetPlacement } from "@aigcfroge/schema/asset-placement"
-import { CommandAsset } from "@aigcfroge/schema/command-asset"
-import { MCPAsset } from "@aigcfroge/schema/mcp-asset"
-import { PluginAsset } from "@aigcfroge/schema/plugin-asset"
-import { PromptAsset } from "@aigcfroge/schema/prompt-asset"
-import { SkillAsset } from "@aigcfroge/schema/skill-asset"
-import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
+} from "@omnixa/client/promise"
+import { AgentAsset } from "@omnixa/schema/agent-asset"
+import { AssetPlacement } from "@omnixa/schema/asset-placement"
+import { CommandAsset } from "@omnixa/schema/command-asset"
+import { MCPAsset } from "@omnixa/schema/mcp-asset"
+import { PluginAsset } from "@omnixa/schema/plugin-asset"
+import { PromptAsset } from "@omnixa/schema/prompt-asset"
+import { SkillAsset } from "@omnixa/schema/skill-asset"
+import { WorkflowAsset } from "@omnixa/schema/workflow-asset"
 import { Match, Option, Predicate, Schema, type Types } from "effect"
 import { SkillProposalContract } from "./contract"
 import { candidateKey } from "./index"
@@ -615,7 +615,7 @@ export function native(
   // Explicit targets were checked at readback; only legacy replies derive their owner from the Session Location.
   // ConfigSkillPlugin.refresh and SkillFile.id decide the native winner and ID.
   const path =
-    (asset.target?.root ?? location.directory.replace(/[\\/]+$/, "") + "/.aigcfroge/skills")
+    (asset.target?.root ?? location.directory.replace(/[\\/]+$/, "") + "/.omnixa/skills")
       .replaceAll("\\", "/")
       .replace(/\/+$/, "") +
     "/" +

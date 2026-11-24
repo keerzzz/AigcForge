@@ -1,8 +1,8 @@
 export * as AgentFileLoader from "./file-loader"
 
 import { Context, Effect, Layer, Option } from "effect"
-import { Agent } from "@aigcfroge/schema/agent"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { Agent } from "@omnixa/schema/agent"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Location } from "../location"
 import matter from "gray-matter"
 import { AgentProtocol } from "./protocol.js"
@@ -33,7 +33,7 @@ export interface Interface {
   readonly loadFile: (filePath: string) => Effect.Effect<FileAgent | undefined>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/AgentFileLoader") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/AgentFileLoader") {}
 
 /**
  * Parse a raw .agent.md string into a FileAgent.

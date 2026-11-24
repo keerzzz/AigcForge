@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
-import { nextRun } from "@aigcfroge/core/session/schedule"
+import { nextRun } from "@omnixa/core/session/schedule"
 import { testEffect } from "./lib/effect"
 import { withEnv } from "./fixture/env"
 

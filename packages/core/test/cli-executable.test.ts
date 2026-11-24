@@ -1,7 +1,7 @@
 import fs from "node:fs"
 import path from "node:path"
 import { describe, expect, test } from "bun:test"
-import { CliExecutable } from "@aigcfroge/core/tool/cli-executable"
+import { CliExecutable } from "@omnixa/core/tool/cli-executable"
 import { tmpdir } from "./fixture/tmpdir"
 
 async function withTmp<T>(use: (directory: string) => T): Promise<T> {

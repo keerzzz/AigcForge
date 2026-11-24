@@ -2,7 +2,7 @@ export * as DelegationFold from "./fold"
 
 import { Option, Schema } from "effect"
 import { createHash } from "node:crypto"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
+import { SessionMessage } from "@omnixa/schema/session-message"
 import { DelegationEvent } from "./event"
 import {
   Delegation,
@@ -15,9 +15,9 @@ import {
   DelegationCorruptedEventError,
   DelegationAggregateMismatchError,
   DelegationSequenceError,
-} from "@aigcfroge/schema/delegation"
-import { Event } from "@aigcfroge/schema/event"
-import { DelegationID, type ParticipantID, type TurnID } from "@aigcfroge/schema/delegation-id"
+} from "@omnixa/schema/delegation"
+import { Event } from "@omnixa/schema/event"
+import { DelegationID, type ParticipantID, type TurnID } from "@omnixa/schema/delegation-id"
 import { canComplete, type RevisionRecord } from "./review"
 import { canAdvancePhase, canTransition } from "./state"
 

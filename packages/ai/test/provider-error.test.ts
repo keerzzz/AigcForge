@@ -204,7 +204,7 @@ describe("provider error classification", () => {
     ).toBe("ContentPolicy")
   })
 
-  test("recovers policy codes that AigcForge Zen preserves only in its message label", () => {
+  test("recovers policy codes that Omnixa Zen preserves only in its message label", () => {
     // Zen drops upstream codes outside its allow-list and replaces the type, but
     // `Protocol.errorMessage` keeps the original code as a `[code]` prefix.
     const zen = {
@@ -263,7 +263,7 @@ describe("provider error classification", () => {
     expect(classifyProviderFailure({ message: "Payment Required", status: 402 })._tag).toBe("QuotaExceeded")
   })
 
-  test("classifies AigcForge Zen account limits as quota rather than throttling", () => {
+  test("classifies Omnixa Zen account limits as quota rather than throttling", () => {
     const typed = (type: string, message: string) => ({ type: "error", error: { type, message } })
     const substituted = (message: string) => ({
       error: { type: "server_error", message: `Upstream request failed: ${message}` },

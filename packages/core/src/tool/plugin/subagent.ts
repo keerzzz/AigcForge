@@ -1,8 +1,8 @@
 export * as SubagentTool from "./subagent.js"
 
-import { ToolFailure } from "@aigcfroge/ai"
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import type { SessionHooks } from "@aigcfroge/plugin/effect/session"
+import { ToolFailure } from "@omnixa/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import type { SessionHooks } from "@omnixa/plugin/effect/session"
 import { Effect, Predicate, Schema } from "effect"
 import { Agent } from "../../agent.js"
 import { Config } from "../../config.js"
@@ -67,7 +67,7 @@ export const description = [
 ].join("\n")
 
 export const Plugin = {
-  id: "aigcfroge.tool.subagent",
+  id: "omnixa.tool.subagent",
   effect: Effect.fn("SubagentTool.Plugin")(function* (ctx: Context) {
     const sessions = yield* Session.Service
     const jobs = yield* Job.Service

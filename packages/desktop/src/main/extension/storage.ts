@@ -1,4 +1,4 @@
-import type { MainStoreFrom, Mutable, Storage } from "@aigcfroge/gui-extensions/sdk/main"
+import type { MainStoreFrom, Mutable, Storage } from "@omnixa/gui-extensions/sdk/main"
 import { Option, Schema } from "effect"
 import type { StateStore } from "../storage/state"
 import type { SettingsStore } from "../storage/store"

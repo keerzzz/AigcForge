@@ -1,12 +1,12 @@
 export * as WellKnownPlugin from "./plugin.js"
 
-import { define } from "@aigcfroge/plugin/effect/plugin"
+import { define } from "@omnixa/plugin/effect/plugin"
 import { Effect, Stream } from "effect"
 import { Bus } from "../bus.js"
 import { WellKnown } from "../wellknown.js"
 
 export const Plugin = define({
-  id: "aigcfroge.wellknown",
+  id: "omnixa.wellknown",
   effect: Effect.fn(function* (ctx) {
     const bus = yield* Bus.Service
     const wellknown = yield* WellKnown.Service

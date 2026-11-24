@@ -1,6 +1,6 @@
 import type { ClientCapabilities } from "@agentclientprotocol/sdk"
 
-export const ChildSessionUpdates = "aigcfroge/child-session-updates"
+export const ChildSessionUpdates = "omnixa/child-session-updates"
 
 export type Capabilities = ReturnType<typeof parse>
 

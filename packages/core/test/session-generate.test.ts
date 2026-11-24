@@ -8,48 +8,48 @@ import {
   SystemPart,
   ToolDefinition,
   type LLMRequest,
-} from "@aigcfroge/ai"
-import { OpenAIChat } from "@aigcfroge/ai/protocols"
-import type { StreamOptions } from "@aigcfroge/ai/route"
-import { Agent } from "@aigcfroge/core/agent"
-import { Database } from "@aigcfroge/core/database/database"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { llmClient } from "@aigcfroge/core/effect/app-node-platform"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Bus } from "@aigcfroge/core/bus"
-import { EventTable } from "@aigcfroge/core/event/sql"
-import { InstructionDiscovery } from "@aigcfroge/core/instruction-discovery"
-import { Instance } from "@aigcfroge/core/instance/service"
-import { Instructions } from "@aigcfroge/core/instructions/index"
-import { InstructionBuiltIns } from "@aigcfroge/core/instructions/builtins"
-import { Location } from "@aigcfroge/core/location"
-import { McpInstructions } from "@aigcfroge/core/mcp/instructions"
-import { ID } from "@aigcfroge/core/model"
-import { Project } from "@aigcfroge/core/project"
-import { Provider } from "@aigcfroge/core/provider"
-import { ReferenceInstructions } from "@aigcfroge/core/reference/instructions"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { SessionEvent } from "@aigcfroge/core/session/event"
-import { SessionContext } from "@aigcfroge/core/session/context"
-import { SessionGenerate } from "@aigcfroge/core/session/generate"
-import { InstructionState } from "@aigcfroge/core/session/instruction-state"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { SessionProjector } from "@aigcfroge/core/session/projector"
-import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
-import { SessionSchema } from "@aigcfroge/core/session/schema"
+} from "@omnixa/ai"
+import { OpenAIChat } from "@omnixa/ai/protocols"
+import type { StreamOptions } from "@omnixa/ai/route"
+import { Agent } from "@omnixa/core/agent"
+import { Database } from "@omnixa/core/database/database"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { llmClient } from "@omnixa/core/effect/app-node-platform"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Bus } from "@omnixa/core/bus"
+import { EventTable } from "@omnixa/core/event/sql"
+import { InstructionDiscovery } from "@omnixa/core/instruction-discovery"
+import { Instance } from "@omnixa/core/instance/service"
+import { Instructions } from "@omnixa/core/instructions/index"
+import { InstructionBuiltIns } from "@omnixa/core/instructions/builtins"
+import { Location } from "@omnixa/core/location"
+import { McpInstructions } from "@omnixa/core/mcp/instructions"
+import { ID } from "@omnixa/core/model"
+import { Project } from "@omnixa/core/project"
+import { Provider } from "@omnixa/core/provider"
+import { ReferenceInstructions } from "@omnixa/core/reference/instructions"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { SessionEvent } from "@omnixa/core/session/event"
+import { SessionContext } from "@omnixa/core/session/context"
+import { SessionGenerate } from "@omnixa/core/session/generate"
+import { InstructionState } from "@omnixa/core/session/instruction-state"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { SessionProjector } from "@omnixa/core/session/projector"
+import { SessionRunnerModel } from "@omnixa/core/session/runner/model"
+import { SessionSchema } from "@omnixa/core/session/schema"
 import {
   InstructionBlobTable,
   InstructionStateTable,
   SessionMessageTable,
   SessionInboxTable,
   SessionTable,
-} from "@aigcfroge/core/session/sql"
-import { SessionStore } from "@aigcfroge/core/session/store"
-import { SkillInstructions } from "@aigcfroge/core/skill/instructions"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
-import { PluginSupervisor } from "@aigcfroge/core/plugin/supervisor"
-import { Tool } from "@aigcfroge/core/tool"
+} from "@omnixa/core/session/sql"
+import { SessionStore } from "@omnixa/core/session/store"
+import { SkillInstructions } from "@omnixa/core/skill/instructions"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginHooks } from "@omnixa/core/plugin/hooks"
+import { PluginSupervisor } from "@omnixa/core/plugin/supervisor"
+import { Tool } from "@omnixa/core/tool"
 import { asc, eq } from "drizzle-orm"
 import { Effect, Layer, Schema, Stream } from "effect"
 import { testEffect } from "./lib/effect"
@@ -299,7 +299,7 @@ it.effect("uses the selected Agent request headers and body for transient genera
     expect(requests).toHaveLength(1)
     expect(requests[0]?.http?.headers).toMatchObject({
       "X-Agent": "generate",
-      "x-aigcfroge-session-id": sessionID,
+      "x-omnixa-session-id": sessionID,
     })
     expect(requests[0]?.http?.body).toEqual(request.body)
     expect(requests[0]?.generation?.temperature).toBeUndefined()

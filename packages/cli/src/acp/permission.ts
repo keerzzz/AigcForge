@@ -1,9 +1,9 @@
 import type { PermissionOption, SessionUpdate } from "@agentclientprotocol/sdk"
-import type { AigcForgeClient, AigcForgeEvent } from "@aigcfroge/client/effect"
-import { FileDiff } from "@aigcfroge/schema/file-diff"
-import type { Permission } from "@aigcfroge/schema/permission"
-import type { Session } from "@aigcfroge/schema/session"
-import { Patch } from "@aigcfroge/util/patch"
+import type { OmnixaClient, OmnixaEvent } from "@omnixa/client/effect"
+import { FileDiff } from "@omnixa/schema/file-diff"
+import type { Permission } from "@omnixa/schema/permission"
+import type { Session } from "@omnixa/schema/session"
+import { Patch } from "@omnixa/util/patch"
 import { applyPatch, parsePatch, reversePatch, structuredPatch, type StructuredPatch } from "diff"
 import { Effect, Option, Schema } from "effect"
 import { ACPChild } from "./child"
@@ -21,12 +21,12 @@ import {
   type ToolInput,
 } from "./tool"
 
-type PermissionEvent = Extract<AigcForgeEvent, { type: "permission.asked" }>
+type PermissionEvent = Extract<OmnixaEvent, { type: "permission.asked" }>
 type Tool = { readonly id: string; readonly name: string; readonly input: ToolInput }
 type Preview = ReturnType<typeof diff>
 
 type Input = {
-  readonly client: AigcForgeClient
+  readonly client: OmnixaClient
   readonly connection: ACPConnection.Interface
   readonly event: PermissionEvent
   readonly sessionID: Session.ID

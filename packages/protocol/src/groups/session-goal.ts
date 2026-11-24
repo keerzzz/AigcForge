@@ -1,5 +1,5 @@
-import { SessionGoal } from "@aigcfroge/schema/session-goal"
-import { Session } from "@aigcfroge/schema/session"
+import { SessionGoal } from "@omnixa/schema/session-goal"
+import { Session } from "@omnixa/schema/session"
 import { Context, Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiMiddleware, OpenApi } from "effect/http-api"
 import { ConflictError, InvalidRequestError, SessionNotFoundError } from "../errors.js"

@@ -9,7 +9,7 @@ import type {
   SessionMessageInfo,
   SessionMessageUser,
   SessionStatus,
-} from "@aigcfroge/client/promise"
+} from "@omnixa/client/promise"
 import type { SessionDocument } from "../document"
 import type { SessionUserPresentation } from "../timeline/session-timeline"
 
@@ -371,7 +371,7 @@ export const fileChangeLoadingDocument = document(
           args: {
             path: "packages/app/src/components/empty-session.tsx",
             oldString: "No messages yet",
-            newString: "Ask AigcForge to start working",
+            newString: "Ask Omnixa to start working",
           },
         }),
       ],
@@ -394,7 +394,7 @@ export const fileChangeRunningDocument = document(
           args: {
             path: "packages/app/src/components/empty-session.tsx",
             oldString: "No messages yet",
-            newString: "Ask AigcForge to start working",
+            newString: "Ask Omnixa to start working",
           },
         }),
       ],
@@ -521,10 +521,10 @@ export const expandedShellDocument = document([
         offset: 52_300,
         args: {
           command:
-            "aigcfroge2 api get /openapi.json > /private/var/folders/j/gd69b2|16y91666jzf3p9g22asdasc0000gn/T/aigcfroge/temp/tes",
+            "omnixa2 api get /openapi.json > /private/var/folders/j/gd69b2|16y91666jzf3p9g22asdasc0000gn/T/omnixa/temp/tes",
         },
         output:
-          '{"location":{"directory":"/Users/usrnk1","project":{"id":"global","directory":"/","canonical":"/"}},"data":[{"id":"aigcfroge","name":"AigcForge","description":"Use this skill for any question about AigcForge itself, including how AigcForge works, using or configuring it, migrating from V1 to V2, troubleshooting it, developing plugins or integrations, using the AigcForge SDK, clients, server, or API, and contributing to the AigcForge codebase."}]}',
+          '{"location":{"directory":"/Users/usrnk1","project":{"id":"global","directory":"/","canonical":"/"}},"data":[{"id":"omnixa","name":"Omnixa","description":"Use this skill for any question about Omnixa itself, including how Omnixa works, using or configuring it, migrating from V1 to V2, troubleshooting it, developing plugins or integrations, using the Omnixa SDK, clients, server, or API, and contributing to the Omnixa codebase."}]}',
         metadata: { exit: 0 },
       }),
     ],
@@ -802,9 +802,9 @@ export const loadedResourcesDocument = document([
         id: "tool_loaded_file",
         name: "read",
         offset: 80_100,
-        args: { path: "C:/workspaces/aigcfroge/packages/cli/AGENTS.md" },
+        args: { path: "C:/workspaces/omnixa/packages/cli/AGENTS.md" },
         output: "Project instructions loaded.",
-        metadata: { loaded: ["C:/workspaces/aigcfroge/packages/cli/AGENTS.md"] },
+        metadata: { loaded: ["C:/workspaces/omnixa/packages/cli/AGENTS.md"] },
       }),
       completedTool({
         id: "tool_skill_rtl",

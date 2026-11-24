@@ -17,6 +17,6 @@ if (process.versions.bun !== expectedBunVersion) {
   console.warn(`Warning: Bun version ${process.versions.bun} differs from expected ${expectedBunVersion}`);
 }
 '
-if [ "$AIGCFROGE_SKIP_TYPECHECK" != "1" ]; then
+if [ "$OMNIXA_SKIP_TYPECHECK" != "1" ]; then
   bun typecheck
 fi

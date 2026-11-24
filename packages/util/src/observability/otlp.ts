@@ -42,19 +42,19 @@ function resourceAttributes() {
   }
 }
 
-export function resource(app: App = { client: "aigcfroge", version: "unknown", channel: "local" }): {
+export function resource(app: App = { client: "omnixa", version: "unknown", channel: "local" }): {
   serviceName: string
   serviceVersion: string
   attributes: Record<string, string>
 } {
   return {
-    serviceName: "aigcfroge",
+    serviceName: "omnixa",
     serviceVersion: app.version,
     attributes: {
       ...resourceAttributes(),
       "deployment.environment.name": app.channel,
-      "aigcfroge.client": app.client,
-      "aigcfroge.run": runID(),
+      "omnixa.client": app.client,
+      "omnixa.run": runID(),
       "service.instance.id": runID(),
     },
   }

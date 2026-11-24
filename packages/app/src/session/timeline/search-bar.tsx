@@ -1,5 +1,5 @@
-import { Icon } from "@aigcfroge/ui/icon"
-import "@aigcfroge/ui/text-input.css"
+import { Icon } from "@omnixa/ui/icon"
+import "@omnixa/ui/text-input.css"
 import { Show } from "solid-js"
 import type { TimelineSearchController } from "./search-controller"
 import "./search-bar.css"

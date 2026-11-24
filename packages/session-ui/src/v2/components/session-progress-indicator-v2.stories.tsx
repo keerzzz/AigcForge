@@ -2,10 +2,10 @@ import { SessionProgressIndicatorV2 } from "./session-progress-indicator-v2"
 import { createSignal, onCleanup, onMount } from "solid-js"
 import { For, Show } from "solid-js"
 import { createStore } from "solid-js/store"
-import { Icon } from "@aigcfroge/ui/icon"
-import { Button } from "@aigcfroge/ui/button"
-import { IconButton } from "@aigcfroge/ui/icon-button"
-import { useTheme, oc2Theme } from "@aigcfroge/ui/theme"
+import { Icon } from "@omnixa/ui/icon"
+import { Button } from "@omnixa/ui/button"
+import { IconButton } from "@omnixa/ui/icon-button"
+import { useTheme, oc2Theme } from "@omnixa/ui/theme"
 import { BasicTool } from "../../components/basic-tool"
 
 const docs = `### Overview
@@ -26,7 +26,7 @@ Single-arc vector indicator for actual in-progress session state.
 `
 
 export default {
-  title: "AigcForge/Status/Session progress",
+  title: "Omnixa/Status/Session progress",
   id: "components-session-progress-indicator-v2",
   component: SessionProgressIndicatorV2,
   tags: ["autodocs"],

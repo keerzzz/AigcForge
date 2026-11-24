@@ -3,9 +3,9 @@ export * as DelegationSql from "./sql"
 import { sqliteTable, text, integer, index, uniqueIndex } from "drizzle-orm/sqlite-core"
 import { Timestamps } from "../database/schema.sql"
 import { SessionTable } from "../session/sql"
-import type { ID as DelegationID, ParticipantID, TurnID } from "@aigcfroge/schema/delegation-id"
-import type { SessionID } from "@aigcfroge/schema/session-id"
-import type { Session } from "@aigcfroge/schema/session"
+import type { ID as DelegationID, ParticipantID, TurnID } from "@omnixa/schema/delegation-id"
+import type { SessionID } from "@omnixa/schema/session-id"
+import type { Session } from "@omnixa/schema/session"
 import type {
   DelegationStatus,
   ParticipantRole,
@@ -15,7 +15,7 @@ import type {
   TurnStatus,
   DeliveryIntent,
   RevisionDigest,
-} from "@aigcfroge/schema/delegation"
+} from "@omnixa/schema/delegation"
 
 export const DelegationTable = sqliteTable(
   "delegation",

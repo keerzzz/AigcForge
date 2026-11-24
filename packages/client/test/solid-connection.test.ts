@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 import { createClientConnection } from "../src/solid"
-import { AigcForge, type AigcForgeEvent } from "../src/promise"
+import { Omnixa, type OmnixaEvent } from "../src/promise"
 
 const connected = { id: "evt_connected", created: 1, type: "server.connected", data: {} }
 
@@ -15,8 +15,8 @@ function server(onStart?: () => void) {
     error: (reason: Error) => void
     aborted: boolean
   }[] = []
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
       let controller!: ReadableStreamDefaultController<Uint8Array>
@@ -48,7 +48,7 @@ function server(onStart?: () => void) {
 }
 
 function setup(input: ReturnType<typeof server>, idleTimeout: number) {
-  const events: AigcForgeEvent[] = []
+  const events: OmnixaEvent[] = []
   return createRoot((dispose) => ({
     events,
     dispose,
@@ -191,7 +191,7 @@ test.each(["managed", "explicit"] as const)(
     const delivered = Promise.withResolvers<void>()
     const first = server(() => firstStarted.resolve())
     const next = server(() => nextStarted.resolve())
-    const events: AigcForgeEvent[] = []
+    const events: OmnixaEvent[] = []
     const ctx = createRoot((dispose) => ({
       dispose,
       connection: createClientConnection(first.api, {
@@ -215,7 +215,7 @@ test.each(["managed", "explicit"] as const)(
       await firstStarted.promise
       first.streams[0].write(`data: ${JSON.stringify(connected)}\n\n`)
       await firstConnected.promise
-      const old: Extract<AigcForgeEvent, { type: "task.updated" }> = {
+      const old: Extract<OmnixaEvent, { type: "task.updated" }> = {
         id: "evt_previous_owner",
         created: 2,
         type: "task.updated",

@@ -9,7 +9,8 @@ import { make } from "./machine"
 const setup: MainSetup<typeof definition> = async (ctx) => {
   const build = ctx.build
   const lifecycle = ctx.lifecycle
-  const enabled = build.packaged && build.channel !== "dev"
+  // The current release workflow publishes only the production GitHub update manifests.
+  const enabled = build.packaged && build.channel === "prod"
   // Holds no resources, so it needs no cleanup.
   const context = logContext(ctx.log.write)
   const runPromise = Effect.runPromiseWith(context)
@@ -18,7 +19,10 @@ const setup: MainSetup<typeof definition> = async (ctx) => {
 
   // electron-updater loads only in packaged builds that update, after the first window is up.
   const platform = enabled
-    ? await import("./platform").then((module) => runPromise(module.make(build.channel)))
+    ? await (async () => {
+        const { make } = await import("./platform")
+        return runPromise(make(build.channel))
+      })()
     : undefined
 
   if (ctx.scope.signal.aborted) return
@@ -104,11 +108,8 @@ const setup: MainSetup<typeof definition> = async (ctx) => {
       label: ctx.t("menu.check"),
       after: "about",
       enabled: () => enabled,
-      run(window) {
-        // Beta builds check in the focused window, which can offer the stable installer.
-        if (build.channel !== "beta") return void runFork(show)
-
-        if (window) provider.emit("check", null, window.id)
+      run() {
+        void runFork(show)
       },
     }),
   )

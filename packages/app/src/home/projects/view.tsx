@@ -7,19 +7,14 @@ import { isSortable, useSortable } from "@dnd-kit/solid/sortable"
 import { AutoScroller, Feedback, PointerActivationConstraints } from "@dnd-kit/dom"
 import { RestrictToVerticalAxis } from "@dnd-kit/abstract/modifiers"
 import { RestrictToElement } from "@dnd-kit/dom/modifiers"
-import { ScrollView } from "@aigcfroge/ui/scroll-view"
-import {
-  displayName,
-  getProjectAvatarSource,
-  getProjectAvatarVariant,
-  ProjectAvatar,
-} from "@aigcfroge/ui/project-avatar"
-import { Icon } from "@aigcfroge/ui/icon"
-import { IconButton } from "@aigcfroge/ui/icon-button"
-import { Button } from "@aigcfroge/ui/button"
-import { Spinner } from "@aigcfroge/ui/spinner"
-import { Menu } from "@aigcfroge/ui/menu"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { ScrollView } from "@omnixa/ui/scroll-view"
+import { displayName, getProjectAvatarSource, getProjectAvatarVariant, ProjectAvatar } from "@omnixa/ui/project-avatar"
+import { Icon } from "@omnixa/ui/icon"
+import { IconButton } from "@omnixa/ui/icon-button"
+import { Button } from "@omnixa/ui/button"
+import { Spinner } from "@omnixa/ui/spinner"
+import { Menu } from "@omnixa/ui/menu"
+import { Tooltip } from "@omnixa/ui/tooltip"
 import type { HomeProjectSelection, LocalProject } from "@/shell/state/layout"
 import { ServerConnection } from "@/runtime/server/registry"
 import { useLanguage } from "@/runtime/i18n/language"

@@ -12,7 +12,7 @@ const build = await Bun.build({
   format: "esm",
   packages: "external",
 })
-if (!build.success) throw new AggregateError(build.logs, "Failed to build @aigcfroge/http-recorder")
+if (!build.success) throw new AggregateError(build.logs, "Failed to build @omnixa/http-recorder")
 
 await Promise.all(
   (await readdir("dist", { recursive: true }))

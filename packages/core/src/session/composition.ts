@@ -3,20 +3,20 @@ export * as SessionComposition from "./composition"
 import { Context, Effect, Layer, Option, Result, Schema } from "effect"
 import { and, asc, eq, getTableColumns, inArray, sql } from "drizzle-orm"
 import path from "path"
-import { Agent } from "@aigcfroge/schema/agent"
+import { Agent } from "@omnixa/schema/agent"
 import { Database } from "../database/database"
-import { Composition } from "@aigcfroge/schema/composition"
-import { AssetPlacement } from "@aigcfroge/schema/asset-placement"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { Composition } from "@omnixa/schema/composition"
+import { AssetPlacement } from "@omnixa/schema/asset-placement"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 import { CompositionConsumerView } from "../composition/consumer-view"
 import { CompositionDigest } from "../composition/digest"
 import { CompositionReference } from "../composition/reference"
 import { Location } from "../location"
 import { EventTable } from "../event/sql"
 import { SessionEvent } from "./event"
-import { Event } from "@aigcfroge/schema/event"
+import { Event } from "@omnixa/schema/event"
 import type { SessionSchema } from "./schema"
-import type { ModelGroup } from "@aigcfroge/schema/model-group"
+import type { ModelGroup } from "@omnixa/schema/model-group"
 import { SessionCompositionSnapshotTable, SessionTable } from "./sql"
 
 type QueryHandle = Pick<Database.Interface["db"], "insert">
@@ -122,7 +122,7 @@ export interface Interface {
   ) => Effect.Effect<Selection, Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionComposition") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/SessionComposition") {}
 
 export const insertSnapshot = Effect.fn("SessionComposition.insertSnapshot")(function* (
   db: QueryHandle,

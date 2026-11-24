@@ -1,6 +1,6 @@
 import { createMemo, createResource, onMount, type Accessor } from "solid-js"
-import type { ColorScheme } from "@aigcfroge/ui/theme/context"
-import { useTheme } from "@aigcfroge/ui/theme/context"
+import type { ColorScheme } from "@omnixa/ui/theme/context"
+import { useTheme } from "@omnixa/ui/theme/context"
 import {
   monoDefault,
   monoFontFamily,

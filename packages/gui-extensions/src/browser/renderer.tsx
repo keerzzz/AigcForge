@@ -1,5 +1,5 @@
-import { showToast } from "@aigcfroge/ui/toast"
-import { Icon } from "@aigcfroge/ui/icon"
+import { showToast } from "@omnixa/ui/toast"
+import { Icon } from "@omnixa/ui/icon"
 import { createMemo, createSignal, getOwner, lazy, onCleanup, runWithOwner, Show, Suspense } from "solid-js"
 import {
   Command,

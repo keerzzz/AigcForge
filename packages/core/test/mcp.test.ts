@@ -9,34 +9,34 @@ import {
   Server,
   WebStandardStreamableHTTPServerTransport,
 } from "@modelcontextprotocol/server"
-import { Document, Event, Info } from "@aigcfroge/schema/config"
-import { ConfigMCP } from "@aigcfroge/schema/config/mcp"
-import { McpEvent } from "@aigcfroge/schema/mcp-event"
-import { ConfigPolicy } from "@aigcfroge/schema/config/policy"
-import { ManagedPolicy } from "@aigcfroge/core/managed-policy"
-import { Config } from "@aigcfroge/core/config"
-import { ConfigMcpPlugin } from "@aigcfroge/core/config/plugin/mcp"
-import { Credential } from "@aigcfroge/core/credential"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Bus } from "@aigcfroge/core/bus"
-import { ID, type Payload } from "@aigcfroge/schema/event"
-import { Form } from "@aigcfroge/core/form"
-import { Integration } from "@aigcfroge/core/integration"
-import { Environment } from "@aigcfroge/core/environment/index"
-import { EnvironmentUnavailable } from "@aigcfroge/core/environment/unavailable"
-import { Location } from "@aigcfroge/core/location"
-import { Mcp } from "@aigcfroge/core/mcp/index"
-import { McpClient } from "@aigcfroge/core/mcp/client"
-import { McpStdio } from "@aigcfroge/core/mcp/stdio"
-import { Permission } from "@aigcfroge/core/permission"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Session } from "@aigcfroge/core/session"
-import { State } from "@aigcfroge/core/state"
-import { McpTool } from "@aigcfroge/core/tool/mcp"
-import { McpResourceTools } from "@aigcfroge/core/tool/plugin/mcp-resource"
-import { Tool } from "@aigcfroge/core/tool"
-import { ToolOutput } from "@aigcfroge/core/tool-output"
+import { Document, Event, Info } from "@omnixa/schema/config"
+import { ConfigMCP } from "@omnixa/schema/config/mcp"
+import { McpEvent } from "@omnixa/schema/mcp-event"
+import { ConfigPolicy } from "@omnixa/schema/config/policy"
+import { ManagedPolicy } from "@omnixa/core/managed-policy"
+import { Config } from "@omnixa/core/config"
+import { ConfigMcpPlugin } from "@omnixa/core/config/plugin/mcp"
+import { Credential } from "@omnixa/core/credential"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Bus } from "@omnixa/core/bus"
+import { ID, type Payload } from "@omnixa/schema/event"
+import { Form } from "@omnixa/core/form"
+import { Integration } from "@omnixa/core/integration"
+import { Environment } from "@omnixa/core/environment/index"
+import { EnvironmentUnavailable } from "@omnixa/core/environment/unavailable"
+import { Location } from "@omnixa/core/location"
+import { Mcp } from "@omnixa/core/mcp/index"
+import { McpClient } from "@omnixa/core/mcp/client"
+import { McpStdio } from "@omnixa/core/mcp/stdio"
+import { Permission } from "@omnixa/core/permission"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Session } from "@omnixa/core/session"
+import { State } from "@omnixa/core/state"
+import { McpTool } from "@omnixa/core/tool/mcp"
+import { McpResourceTools } from "@omnixa/core/tool/plugin/mcp-resource"
+import { Tool } from "@omnixa/core/tool"
+import { ToolOutput } from "@omnixa/core/tool-output"
 import {
   Context,
   Deferred,
@@ -55,7 +55,7 @@ import {
 import { TestClock } from "effect/testing"
 import { ChildProcess, ChildProcessSpawner } from "effect/process"
 import { ExitCode, makeHandle, ProcessId } from "effect/process/ChildProcessSpawner"
-import { Image } from "@aigcfroge/core/image"
+import { Image } from "@omnixa/core/image"
 import { advance, drain } from "./lib/clock"
 import { testEffect } from "./lib/effect"
 import { registerIntegrationPolicy } from "./fixture/policy"
@@ -189,7 +189,7 @@ function resourceServer(
             state.toolCalls.push({
               name: request.params.name,
               arguments: request.params.arguments,
-              sessionID: request.params._meta?.["ai.aigcfroge/sessionID"],
+              sessionID: request.params._meta?.["ai.omnixa/sessionID"],
               progressToken: request.params._meta?.progressToken,
             })
             return Promise.resolve({ content: [] })
@@ -998,9 +998,9 @@ for (const entry of [
   { name: "direct tools", query: "", codemode: false, expected: "" },
   {
     name: "existing query",
-    query: "?source=aigcfroge",
+    query: "?source=omnixa",
     codemode: undefined,
-    expected: "?source=aigcfroge&codemode=false",
+    expected: "?source=omnixa&codemode=false",
   },
   { name: "explicit remote code mode", query: "?codemode=true", codemode: undefined, expected: "?codemode=true" },
   { name: "explicit remote opt-out", query: "?codemode=false", codemode: undefined, expected: "?codemode=false" },
@@ -1455,7 +1455,7 @@ it.live("discovers and reads MCP resources through Code Mode", () =>
         })
 
       // The SDK walks every page, so one call returns the full catalog.
-      const listed = yield* run('return await tools.aigcfroge.list_mcp_resources({ server: "resources" })')
+      const listed = yield* run('return await tools.omnixa.list_mcp_resources({ server: "resources" })')
       expect(JSON.parse(listed.output.output)).toEqual({
         resources: [
           { server: "resources", name: "Guide", uri: "docs://guide" },
@@ -1470,9 +1470,9 @@ it.live("discovers and reads MCP resources through Code Mode", () =>
 
       // Omitting the server lists every server, so the model can find which one owns a URI.
       assertion = yield* Deferred.make<Permission.AssertInput>()
-      const everywhere = yield* run("return await tools.aigcfroge.list_mcp_resources({})")
+      const everywhere = yield* run("return await tools.omnixa.list_mcp_resources({})")
       expect(yield* Deferred.await(assertion)).toMatchObject({
-        action: "aigcfroge_list_mcp_resources",
+        action: "omnixa_list_mcp_resources",
         resources: ["resources"],
         save: ["resources"],
       })
@@ -1489,7 +1489,7 @@ it.live("discovers and reads MCP resources through Code Mode", () =>
 
       // A server may declare resources without implementing template listing.
       server.state.templatesUnsupported = true
-      const untemplated = yield* run('return await tools.aigcfroge.list_mcp_resources({ server: "resources" })')
+      const untemplated = yield* run('return await tools.omnixa.list_mcp_resources({ server: "resources" })')
       expect(JSON.parse(untemplated.output.output)).toEqual({
         resources: [
           { server: "resources", name: "Guide", uri: "docs://guide" },
@@ -1501,7 +1501,7 @@ it.live("discovers and reads MCP resources through Code Mode", () =>
 
       assertion = yield* Deferred.make<Permission.AssertInput>()
       const read = yield* run(
-        'const resource = await tools.aigcfroge.read_mcp_resource({ server: "resources", uri: "docs://readme" }); return resource.contents.filter(part => part.type === "text").map(part => part.text).join("\\n")',
+        'const resource = await tools.omnixa.read_mcp_resource({ server: "resources", uri: "docs://readme" }); return resource.contents.filter(part => part.type === "text").map(part => part.text).join("\\n")',
       )
       expect(read.content).toEqual([
         { type: "text", text: "hello" },
@@ -1509,14 +1509,14 @@ it.live("discovers and reads MCP resources through Code Mode", () =>
       ])
       expect(read.metadata?.toolCalls).toMatchObject([
         {
-          tool: "aigcfroge.read_mcp_resource",
+          tool: "omnixa.read_mcp_resource",
           status: "completed",
           input: { server: "resources", uri: "docs://readme" },
         },
       ])
       expect(server.state.resourceReads).toEqual(["docs://readme"])
       expect(yield* Deferred.await(assertion)).toEqual({
-        action: "aigcfroge_read_mcp_resource",
+        action: "omnixa_read_mcp_resource",
         resources: ["resources:docs://readme"],
         save: ["resources:*"],
         metadata: { server: "resources", uri: "docs://readme" },
@@ -1527,7 +1527,7 @@ it.live("discovers and reads MCP resources through Code Mode", () =>
 
       server.state.contents = [{ uri: "docs://readme", text: "line\n".repeat(20_000), mimeType: "text/plain" }]
       const large = yield* run(
-        'const resource = await tools.aigcfroge.read_mcp_resource({ server: "resources", uri: "docs://readme" }); return resource.contents[0].text',
+        'const resource = await tools.omnixa.read_mcp_resource({ server: "resources", uri: "docs://readme" }); return resource.contents[0].text',
       )
       const bounded = yield* ToolOutput.Service.use((output) => output.truncate(large)).pipe(
         Effect.provide(AppNodeBuilder.build(ToolOutput.node)),
@@ -1542,29 +1542,29 @@ it.live("discovers and reads MCP resources through Code Mode", () =>
       // An empty contents array means the resource exists without content, not that it is missing.
       server.state.contents = []
       const empty = yield* run(
-        'return await tools.aigcfroge.read_mcp_resource({ server: "resources", uri: "docs://empty" })',
+        'return await tools.omnixa.read_mcp_resource({ server: "resources", uri: "docs://empty" })',
       )
       expect(empty.metadata?.error).toBeUndefined()
       expect(JSON.parse(empty.output.output)).toEqual({ server: "resources", uri: "docs://empty", contents: [] })
       server.state.missing = ["docs://gone"]
       const gone = yield* run(
-        'return await tools.aigcfroge.read_mcp_resource({ server: "resources", uri: "docs://gone" })',
+        'return await tools.omnixa.read_mcp_resource({ server: "resources", uri: "docs://gone" })',
       )
       expect(gone.metadata?.error).toBe(true)
       expect(gone.output.output).toContain("Unable to read MCP resource resources:docs://gone")
       expect(gone.output.output).toContain("Resource not found")
       const missing = yield* run(
-        'return await tools.aigcfroge.read_mcp_resource({ server: "missing", uri: "docs://readme" })',
+        'return await tools.omnixa.read_mcp_resource({ server: "missing", uri: "docs://readme" })',
       )
       expect(missing.metadata?.error).toBe(true)
       expect(missing.output.output).toContain("MCP server not found: missing")
 
       const reads = server.state.resourceReads.length
       decision = Effect.fail(
-        new Permission.BlockedError({ rules: [], permission: "aigcfroge_read_mcp_resource", resources: ["*"] }),
+        new Permission.BlockedError({ rules: [], permission: "omnixa_read_mcp_resource", resources: ["*"] }),
       )
       const denied = yield* run(
-        'return await tools.aigcfroge.read_mcp_resource({ server: "resources", uri: "docs://denied" })',
+        'return await tools.omnixa.read_mcp_resource({ server: "resources", uri: "docs://denied" })',
       )
       expect(denied.metadata?.error).toBe(true)
       expect(server.state.resourceReads).toHaveLength(reads)

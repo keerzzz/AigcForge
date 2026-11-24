@@ -1,10 +1,10 @@
-import { useFilteredList } from "@aigcfroge/ui/hooks"
-import { Button } from "@aigcfroge/ui/button"
-import { useDialog } from "@aigcfroge/ui/context/dialog"
-import { Dialog, DialogBody, DialogHeader, DialogTitle } from "@aigcfroge/ui/dialog"
-import { Switch } from "@aigcfroge/ui/switch"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
-import { type Component, createEffect, createMemo, For, onCleanup, Show, untrack } from "solid-js"
+import { useFilteredList } from "@omnixa/ui/hooks"
+import { Button } from "@omnixa/ui/button"
+import { useDialog } from "@omnixa/ui/context/dialog"
+import { Dialog, DialogBody, DialogHeader, DialogTitle } from "@omnixa/ui/dialog"
+import { Switch } from "@omnixa/ui/switch"
+import { Tooltip } from "@omnixa/ui/tooltip"
+import { type Component, createEffect, For, onCleanup, Show, untrack } from "solid-js"
 import { createStore } from "solid-js/store"
 
 import { Schema } from "effect"
@@ -19,7 +19,7 @@ import { popularProviders } from "@/providers/catalog/providers"
 import { Persist, persisted } from "@/runtime/persistence/storage"
 import { SettingsList } from "@/settings/list"
 import { SettingsRow } from "@/settings/row"
-import { CONSOLE_GROUP_KEY, consoleModelGroup, ProviderModelSections } from "@/providers/models/provider-group"
+import { ProviderModelSections } from "@/providers/models/provider-group"
 import { SettingsSearchEmpty } from "@/settings/search-empty"
 import { SettingsSearchField } from "@/settings/search-field"
 import { SettingsModelGroups } from "./groups"
@@ -129,15 +129,8 @@ export const SettingsModels: Component<{
     },
   })
 
-  const managed = createMemo(() => consoleModelGroup(models.list()))
   const searching = () => list.filter().length > 0
   const expanded = (key: string) => searching() || !store.collapsed[key]
-
-  const setProviderVisibility = (providerID: string, visible: boolean) =>
-    models
-      .list()
-      .filter((item) => item.provider.id === providerID)
-      .forEach((item) => models.setVisibility({ providerID, modelID: item.id }, visible))
 
   function ModelRows(props: { items: ModelItem[] }) {
     return (
@@ -198,7 +191,6 @@ export const SettingsModels: Component<{
     if (!section?.isConnected) return
 
     // Expand only the path to the target so the saved layout of other providers is kept.
-    if (managed()?.providers.some((item) => item.id === provider)) setStore("collapsed", CONSOLE_GROUP_KEY, false)
     setStore("collapsed", provider, false)
     requestAnimationFrame(() => {
       const panel = section.closest<HTMLElement>(".settings-panel")
@@ -212,9 +204,7 @@ export const SettingsModels: Component<{
         section.scrollIntoView({ block: "start" })
       }
 
-      section
-        .querySelector<HTMLElement>(".provider-model-group-trigger, .settings-models-group-trigger")
-        ?.focus({ preventScroll: true })
+      section.querySelector<HTMLElement>(".settings-models-group-trigger")?.focus({ preventScroll: true })
       props.onReveal?.()
     })
   })
@@ -267,11 +257,9 @@ export const SettingsModels: Component<{
           >
             <ProviderModelSections
               groups={list.grouped.latest}
-              managed={managed()}
               expanded={expanded}
               disabled={searching()}
               onExpandedChange={(key, value) => setStore("collapsed", key, !value)}
-              onSetVisibility={setProviderVisibility}
               ref={(providerID, element) => sections.set(providerID, element)}
               rows={(items) => <ModelRows items={items} />}
             />

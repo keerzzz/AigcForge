@@ -2,14 +2,14 @@ export * as AgentAssetService from "./agent-asset-service"
 
 import path from "path"
 import { Context, Effect, Layer, Option, Schema } from "effect"
-import { AgentAsset as SchemaAgentAsset } from "@aigcfroge/schema/agent-asset"
+import { AgentAsset as SchemaAgentAsset } from "@omnixa/schema/agent-asset"
 import { AgentAsset } from "./agent-asset"
 import { FileMutation } from "./file-mutation"
 import { AgentAssetPath } from "./agent-asset/path"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { LocationMutation } from "./location-mutation"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { Hash } from "@aigcfroge/util/hash"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import { Hash } from "@omnixa/util/hash"
 import { KeyedMutex } from "./effect/keyed-mutex"
 import { PermissionEffective } from "./permission/effective"
 import { parseAgentAssetConfig } from "./agent/asset-bridge"
@@ -148,7 +148,7 @@ export interface Interface {
   readonly delete: (input: DeleteInput) => Effect.Effect<void, DeleteError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/AgentAssetService") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/AgentAssetService") {}
 
 export const locationLayer = Layer.effect(
   Service,

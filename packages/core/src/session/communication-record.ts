@@ -1,6 +1,6 @@
 import { Effect, Schema } from "effect"
-import { SessionCommunication } from "@aigcfroge/schema/session-communication"
-import { Hash } from "@aigcfroge/util/hash"
+import { SessionCommunication } from "@omnixa/schema/session-communication"
+import { Hash } from "@omnixa/util/hash"
 import { CompositionDigest } from "../composition/digest.js"
 import type { Database } from "../database/database.js"
 import { KVTable } from "../kv/sql.js"

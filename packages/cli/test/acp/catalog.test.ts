@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { AigcForge } from "@aigcfroge/client/effect"
-import { Model } from "@aigcfroge/schema/model"
+import { Omnixa } from "@omnixa/client/effect"
+import { Model } from "@omnixa/schema/model"
 import { Effect } from "effect"
 import { FetchHttpClient } from "effect/http"
 import { ACPCatalog } from "../../src/acp/catalog"
@@ -44,7 +44,7 @@ describe("acp catalog and config options over the wire", () => {
       },
     })
     const value = await Effect.runPromise(
-      AigcForge.make({ baseUrl: acp.server.url }).pipe(
+      Omnixa.make({ baseUrl: acp.server.url }).pipe(
         Effect.flatMap(ACPCatalog.make),
         Effect.flatMap((catalog) => catalog.get("/workspace")),
         Effect.scoped,

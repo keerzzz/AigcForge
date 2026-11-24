@@ -1,7 +1,7 @@
 export * as BrowserTools from "./tools.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { Tool } from "@aigcfroge/schema/tool"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { Tool } from "@omnixa/schema/tool"
 import { Effect, Result, Schema } from "effect"
 import { Base64 } from "effect/encoding"
 import type { BrowserConnection } from "./connection.js"

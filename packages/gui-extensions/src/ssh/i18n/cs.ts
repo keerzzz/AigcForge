@@ -20,14 +20,8 @@ export default {
   "error.input":
     "Zadejte hostitele nebo příkaz pro připojení SSH. Vzdálené příkazy a nepodporované volby SSH nejsou povoleny.",
   "error.connection": "Připojení SSH se nepodařilo navázat. Zkontrolujte síť a konfiguraci SSH.",
-  "error.platform":
-    "Tato vzdálená platforma není podporována. Automatické nastavení nyní vyžaduje Linux nebo macOS na architektuře x64 či arm64.",
   "error.version": "Vzdálená služba musí před připojením odpovídat této verzi aplikace Desktop.",
-  "error.install":
-    "Vzdálený server se nepodařilo nainstalovat. Zkontrolujte připojení, místo na disku a instalaci programu tar.",
-  "error.unpublished":
-    "Pro tuto verzi aplikace Desktop není publikován vzdálený server. U vývojových sestavení nainstalujte a spusťte V2 na hostiteli a zkuste to znovu.",
-  "error.service": "SSH se připojilo, ale server AigcForge nebyl připraven.",
+  "error.service": "SSH se připojilo, ale server Omnixa nebyl připraven.",
   "error.host-key":
     "Identitu hostitele se nepodařilo ověřit. Před aktualizací známých hostitelů SSH ověřte jeho otisk.",
   "error.ssh-missing":

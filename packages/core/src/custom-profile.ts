@@ -3,19 +3,19 @@ export * as CustomProfile from "./custom-profile"
 import { AssetYaml } from "./util/asset-yaml"
 import { Context, Effect, Layer, Option, Result, Schema, Scope, Stream } from "effect"
 import path from "path"
-import { Composition } from "@aigcfroge/schema/composition"
-import { AssetPlacement } from "@aigcfroge/schema/asset-placement"
+import { Composition } from "@omnixa/schema/composition"
+import { AssetPlacement } from "@omnixa/schema/asset-placement"
 import { CompositionReference } from "./composition/reference"
-import { CustomProfile } from "@aigcfroge/schema/custom-profile"
+import { CustomProfile } from "@omnixa/schema/custom-profile"
 import { Bus } from "./bus"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { KeyedMutex } from "./effect/keyed-mutex"
 import { Location } from "./location"
-import { Hash } from "@aigcfroge/util/hash"
+import { Hash } from "@omnixa/util/hash"
 import { Watcher } from "./filesystem/watcher"
 import { CUSTOM_PROFILES_DIR } from "./constants"
 import { CustomProfilePath } from "./custom-profile/path"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 
 export { CUSTOM_PROFILES_DIR }
 
@@ -63,7 +63,7 @@ export interface Interface {
   readonly reload: () => Effect.Effect<void, FSUtil.Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/CustomProfile") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/CustomProfile") {}
 
 function loadDir(
   fs: FSUtil.Interface,

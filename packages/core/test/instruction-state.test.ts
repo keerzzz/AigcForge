@@ -1,25 +1,25 @@
 import { describe, expect } from "bun:test"
 import { and, asc, eq } from "drizzle-orm"
 import { Effect, Schema } from "effect"
-import { Database } from "@aigcfroge/core/database/database"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Bus } from "@aigcfroge/core/bus"
-import { Event } from "@aigcfroge/schema/event"
-import { EventTable } from "@aigcfroge/core/event/sql"
-import { Instructions } from "@aigcfroge/core/instructions/index"
-import { Project } from "@aigcfroge/core/project"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { InstructionState } from "@aigcfroge/core/session/instruction-state"
-import { SessionProjector } from "@aigcfroge/core/session/projector"
-import { SessionSchema } from "@aigcfroge/core/session/schema"
+import { Database } from "@omnixa/core/database/database"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Bus } from "@omnixa/core/bus"
+import { Event } from "@omnixa/schema/event"
+import { EventTable } from "@omnixa/core/event/sql"
+import { Instructions } from "@omnixa/core/instructions/index"
+import { Project } from "@omnixa/core/project"
+import { ProjectTable } from "@omnixa/core/project/sql"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { InstructionState } from "@omnixa/core/session/instruction-state"
+import { SessionProjector } from "@omnixa/core/session/projector"
+import { SessionSchema } from "@omnixa/core/session/schema"
 import {
   InstructionBlobTable,
   InstructionStateTable,
   SessionMessageTable,
   SessionTable,
-} from "@aigcfroge/core/session/sql"
+} from "@omnixa/core/session/sql"
 import { testEffect } from "./lib/effect"
 
 const it = testEffect(

@@ -14,7 +14,7 @@ import { SessionTimeline } from "./session-timeline"
 import { ToolDisplay } from "../tools/tool-renderer"
 
 export default {
-  title: "AigcForge/Work/File changes",
+  title: "Omnixa/Work/File changes",
   id: "current-session-file-changes",
   component: SessionTimeline,
   parameters: {

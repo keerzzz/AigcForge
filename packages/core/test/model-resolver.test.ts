@@ -1,18 +1,18 @@
 import { describe, expect } from "bun:test"
-import { LLM, LanguageModel, Message } from "@aigcfroge/ai"
-import { OpenAIChat } from "@aigcfroge/ai/protocols"
-import { compileRequest } from "@aigcfroge/ai/route/client"
+import { LLM, LanguageModel, Message } from "@omnixa/ai"
+import { OpenAIChat } from "@omnixa/ai/protocols"
+import { compileRequest } from "@omnixa/ai/route/client"
 import { ConfigProvider, Effect, Layer } from "effect"
 import { Headers } from "effect/http"
-import { AISDKNative } from "@aigcfroge/core/aisdk-native"
-import { Credential } from "@aigcfroge/core/credential"
-import { Integration } from "@aigcfroge/core/integration"
-import { Compatibility, ID, Info, Model, VariantID } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
-import { Variant } from "@aigcfroge/core/variant"
-import { ModelResolver } from "@aigcfroge/core/model-resolver"
-import { AISDK } from "@aigcfroge/core/aisdk"
-import { Npm } from "@aigcfroge/util/npm"
+import { AISDKNative } from "@omnixa/core/aisdk-native"
+import { Credential } from "@omnixa/core/credential"
+import { Integration } from "@omnixa/core/integration"
+import { Compatibility, ID, Info, Model, VariantID } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
+import { Variant } from "@omnixa/core/variant"
+import { ModelResolver } from "@omnixa/core/model-resolver"
+import { AISDK } from "@omnixa/core/aisdk"
+import { Npm } from "@omnixa/util/npm"
 import { it } from "./lib/effect"
 
 interface ModelOptions {
@@ -337,13 +337,13 @@ describe("ModelResolver", () => {
         settings: { baseURL: "https://mistral.example.com/v1" },
         headers: { "cf-access-token": "access-token" },
       }),
-      model("@aigcfroge/ai/providers/mistral", {
+      model("@omnixa/ai/providers/mistral", {
         providerID: Provider.ID.make("gateway"),
         settings: { baseURL: "https://native-mistral.example.com/v1" },
         headers: { "cf-access-token": "access-token" },
       }),
       ...["baseten", "cloudflare-ai-gateway", "cloudflare-workers-ai", "deepseek", "fireworks"].map((name) =>
-        model(`@aigcfroge/ai/providers/${name}`, {
+        model(`@omnixa/ai/providers/${name}`, {
           providerID: Provider.ID.make("gateway"),
           settings: { baseURL: `https://${name}.example.com/v1` },
           headers: { "cf-access-token": "access-token" },
@@ -586,7 +586,7 @@ describe("ModelResolver", () => {
 
   it.effect("sends xAI Responses effort variants with reasoning summaries", () =>
     Effect.gen(function* () {
-      const base = model("@aigcfroge/ai/providers/xai", { providerID: Provider.ID.make("xai"), modelID: "grok-4.6" })
+      const base = model("@omnixa/ai/providers/xai", { providerID: Provider.ID.make("xai"), modelID: "grok-4.6" })
       const catalog = Info.make({
         ...base,
         variants: Variant.resolve(base, [{ type: "effort", values: ["low", "high"] }]),
@@ -814,7 +814,7 @@ describe("ModelResolver", () => {
   it.effect("applies plugin-projected OpenAI endpoint and headers", () =>
     Effect.gen(function* () {
       const resolved = yield* ModelResolver.fromCatalogModel(
-        model("@aigcfroge/ai/providers/openai", {
+        model("@omnixa/ai/providers/openai", {
           settings: { baseURL: "https://chatgpt.com/backend-api/codex" },
           headers: { "chatgpt-account-id": "acct_123" },
           body: {},
@@ -864,7 +864,7 @@ describe("ModelResolver", () => {
   it.effect("does not route native OpenAI-compatible packages to the codex backend", () =>
     Effect.gen(function* () {
       const resolved = yield* ModelResolver.fromCatalogModel(
-        model("@aigcfroge/ai/providers/openai-compatible", {
+        model("@omnixa/ai/providers/openai-compatible", {
           settings: { baseURL: "https://compatible.example/v1" },
         }),
         Credential.OAuth.make({
@@ -937,7 +937,7 @@ describe("ModelResolver", () => {
         }),
       )
       const resolved = yield* ModelResolver.fromCatalogModel(
-        model("@aigcfroge/ai/providers/custom", {
+        model("@omnixa/ai/providers/custom", {
           settings: { region: "test" },
           headers: { "x-package": "header" },
           body: { custom: true },
@@ -945,7 +945,7 @@ describe("ModelResolver", () => {
         undefined,
         {
           loadPackage: (specifier) => {
-            expect(specifier).toBe("@aigcfroge/ai/providers/custom")
+            expect(specifier).toBe("@omnixa/ai/providers/custom")
             return Effect.succeed({
               model: (modelID, settings) => {
                 expect(modelID).toBe("api-test-model")
@@ -980,14 +980,14 @@ describe("ModelResolver", () => {
         expires: Date.now() + 60_000,
       })
       const packages = [
-        ["@aigcfroge/ai/providers/google-vertex", "accessToken"],
-        ["@aigcfroge/ai/providers/google-vertex/gemini", "accessToken"],
-        ["@aigcfroge/ai/providers/google-vertex/interactions", "accessToken"],
-        ["@aigcfroge/ai/providers/google-vertex/chat", "accessToken"],
-        ["@aigcfroge/ai/providers/google-vertex/responses", "accessToken"],
-        ["@aigcfroge/ai/providers/google-vertex/messages", "accessToken"],
-        ["@aigcfroge/ai/providers/anthropic", "authToken"],
-        ["@aigcfroge/ai/providers/anthropic-compatible", "authToken"],
+        ["@omnixa/ai/providers/google-vertex", "accessToken"],
+        ["@omnixa/ai/providers/google-vertex/gemini", "accessToken"],
+        ["@omnixa/ai/providers/google-vertex/interactions", "accessToken"],
+        ["@omnixa/ai/providers/google-vertex/chat", "accessToken"],
+        ["@omnixa/ai/providers/google-vertex/responses", "accessToken"],
+        ["@omnixa/ai/providers/google-vertex/messages", "accessToken"],
+        ["@omnixa/ai/providers/anthropic", "authToken"],
+        ["@omnixa/ai/providers/anthropic-compatible", "authToken"],
       ] as const
 
       yield* Effect.forEach(packages, ([specifier, key]) =>
@@ -1011,7 +1011,7 @@ describe("ModelResolver", () => {
       const packages = [
         [
           "@ai-sdk/openai",
-          "@aigcfroge/ai/providers/openai",
+          "@omnixa/ai/providers/openai",
           {
             reasoningEffort: "xhigh",
             reasoningSummary: "auto",
@@ -1025,55 +1025,50 @@ describe("ModelResolver", () => {
         ],
         [
           "@ai-sdk/anthropic",
-          "@aigcfroge/ai/providers/anthropic",
+          "@omnixa/ai/providers/anthropic",
           { thinking: { type: "adaptive", display: "summarized" }, effort: "high" },
           { thinking: { type: "adaptive", display: "summarized" }, effort: "high" },
         ],
-        [
-          "@ai-sdk/cerebras",
-          "@aigcfroge/ai/providers/cerebras",
-          { reasoningEffort: "high" },
-          { reasoningEffort: "high" },
-        ],
+        ["@ai-sdk/cerebras", "@omnixa/ai/providers/cerebras", { reasoningEffort: "high" }, { reasoningEffort: "high" }],
         [
           "@ai-sdk/deepinfra",
-          "@aigcfroge/ai/providers/deepinfra",
+          "@omnixa/ai/providers/deepinfra",
           { reasoningEffort: "none" },
           { reasoningEffort: "none" },
         ],
         [
           "@ai-sdk/openai-compatible",
-          "@aigcfroge/ai/providers/openai-compatible",
+          "@omnixa/ai/providers/openai-compatible",
           { reasoningEffort: "high" },
           { reasoningEffort: "high" },
         ],
         [
           "@ai-sdk/google",
-          "@aigcfroge/ai/providers/google",
+          "@omnixa/ai/providers/google",
           { thinkingConfig: { thinkingLevel: "high" } },
           { thinkingConfig: { thinkingLevel: "high" } },
         ],
         [
           "@ai-sdk/google-vertex",
-          "@aigcfroge/ai/providers/google-vertex",
+          "@omnixa/ai/providers/google-vertex",
           { thinkingConfig: { thinkingLevel: "high" } },
           { thinkingConfig: { thinkingLevel: "high" } },
         ],
         [
           "@openrouter/ai-sdk-provider",
-          "@aigcfroge/ai/providers/openrouter",
+          "@omnixa/ai/providers/openrouter",
           { reasoning: { effort: "high" } },
           { reasoning: { effort: "high" } },
         ],
         [
           "@ai-sdk/groq",
-          "@aigcfroge/ai/providers/groq",
+          "@omnixa/ai/providers/groq",
           { reasoningEffort: "high", parallelToolCalls: false },
           { reasoningEffort: "high", parallelToolCalls: false },
         ],
         [
           "@ai-sdk/mistral",
-          "@aigcfroge/ai/providers/mistral",
+          "@omnixa/ai/providers/mistral",
           {
             safePrompt: true,
             documentImageLimit: 4,
@@ -1091,11 +1086,11 @@ describe("ModelResolver", () => {
         ],
         [
           "@ai-sdk/togetherai",
-          "@aigcfroge/ai/providers/togetherai",
+          "@omnixa/ai/providers/togetherai",
           { reasoningEffort: "high" },
           { reasoningEffort: "high" },
         ],
-        ["@ai-sdk/xai", "@aigcfroge/ai/providers/xai", { reasoningEffort: "high" }, { reasoningEffort: "high" }],
+        ["@ai-sdk/xai", "@omnixa/ai/providers/xai", { reasoningEffort: "high" }, { reasoningEffort: "high" }],
       ] as const
 
       yield* Effect.forEach(packages, ([catalogPackage, nativePackage, sourceOptions, providerOptions]) =>
@@ -1134,25 +1129,25 @@ describe("ModelResolver", () => {
   it.effect("never loads the AI SDK for packages with native implementations", () =>
     Effect.gen(function* () {
       const packages = [
-        ["@ai-sdk/alibaba", "@aigcfroge/ai/providers/alibaba/chat", "api-model"],
-        ["@ai-sdk/anthropic", "@aigcfroge/ai/providers/anthropic", "api-model"],
-        ["@ai-sdk/amazon-bedrock", "@aigcfroge/ai/providers/amazon-bedrock", "api-model"],
-        ["@ai-sdk/amazon-bedrock/mantle", "@aigcfroge/ai/providers/amazon-bedrock/mantle/chat", "openai.gpt-oss-120b"],
-        ["@ai-sdk/azure", "@aigcfroge/ai/providers/azure/responses", "api-model"],
-        ["@ai-sdk/cerebras", "@aigcfroge/ai/providers/cerebras", "api-model"],
-        ["@ai-sdk/deepinfra", "@aigcfroge/ai/providers/deepinfra", "api-model"],
-        ["@ai-sdk/google", "@aigcfroge/ai/providers/google", "api-model"],
-        ["@ai-sdk/google-vertex", "@aigcfroge/ai/providers/google-vertex", "api-model"],
-        ["@ai-sdk/google-vertex/anthropic", "@aigcfroge/ai/providers/google-vertex/messages", "claude-sonnet-4-6"],
-        ["@ai-sdk/groq", "@aigcfroge/ai/providers/groq", "api-model"],
-        ["@ai-sdk/mistral", "@aigcfroge/ai/providers/mistral", "api-model"],
-        ["@ai-sdk/openai", "@aigcfroge/ai/providers/openai", "api-model"],
-        ["@ai-sdk/openai-compatible", "@aigcfroge/ai/providers/openai-compatible", "api-model"],
-        ["@openrouter/ai-sdk-provider", "@aigcfroge/ai/providers/openrouter", "api-model"],
-        ["@ai-sdk/togetherai", "@aigcfroge/ai/providers/togetherai", "api-model"],
-        ["@ai-sdk/gateway", "@aigcfroge/ai/providers/vercel-ai-gateway", "openai/gpt-5.4"],
-        ["@ai-sdk/xai", "@aigcfroge/ai/providers/xai", "api-model"],
-        ["ai-gateway-provider", "@aigcfroge/ai/providers/cloudflare-ai-gateway", "xai/grok-4.6"],
+        ["@ai-sdk/alibaba", "@omnixa/ai/providers/alibaba/chat", "api-model"],
+        ["@ai-sdk/anthropic", "@omnixa/ai/providers/anthropic", "api-model"],
+        ["@ai-sdk/amazon-bedrock", "@omnixa/ai/providers/amazon-bedrock", "api-model"],
+        ["@ai-sdk/amazon-bedrock/mantle", "@omnixa/ai/providers/amazon-bedrock/mantle/chat", "openai.gpt-oss-120b"],
+        ["@ai-sdk/azure", "@omnixa/ai/providers/azure/responses", "api-model"],
+        ["@ai-sdk/cerebras", "@omnixa/ai/providers/cerebras", "api-model"],
+        ["@ai-sdk/deepinfra", "@omnixa/ai/providers/deepinfra", "api-model"],
+        ["@ai-sdk/google", "@omnixa/ai/providers/google", "api-model"],
+        ["@ai-sdk/google-vertex", "@omnixa/ai/providers/google-vertex", "api-model"],
+        ["@ai-sdk/google-vertex/anthropic", "@omnixa/ai/providers/google-vertex/messages", "claude-sonnet-4-6"],
+        ["@ai-sdk/groq", "@omnixa/ai/providers/groq", "api-model"],
+        ["@ai-sdk/mistral", "@omnixa/ai/providers/mistral", "api-model"],
+        ["@ai-sdk/openai", "@omnixa/ai/providers/openai", "api-model"],
+        ["@ai-sdk/openai-compatible", "@omnixa/ai/providers/openai-compatible", "api-model"],
+        ["@openrouter/ai-sdk-provider", "@omnixa/ai/providers/openrouter", "api-model"],
+        ["@ai-sdk/togetherai", "@omnixa/ai/providers/togetherai", "api-model"],
+        ["@ai-sdk/gateway", "@omnixa/ai/providers/vercel-ai-gateway", "openai/gpt-5.4"],
+        ["@ai-sdk/xai", "@omnixa/ai/providers/xai", "api-model"],
+        ["ai-gateway-provider", "@omnixa/ai/providers/cloudflare-ai-gateway", "xai/grok-4.6"],
       ] as const
 
       yield* Effect.forEach(packages, ([catalogPackage, nativePackage, modelID]) =>
@@ -1200,7 +1195,7 @@ describe("ModelResolver", () => {
         credential,
         {
           loadPackage: (specifier) => {
-            expect(specifier).toBe("@aigcfroge/ai/providers/google-vertex/messages")
+            expect(specifier).toBe("@omnixa/ai/providers/google-vertex/messages")
             return Effect.succeed({
               model: (modelID, settings) => {
                 expect(modelID).toBe("claude-sonnet-4-6")
@@ -1227,8 +1222,8 @@ describe("ModelResolver", () => {
     ModelResolver.fromCatalogModel(
       model(Provider.aisdk("@openrouter/ai-sdk-provider"), {
         settings: {
-          appName: "AigcForge",
-          appUrl: "https://aigcfroge.ai",
+          appName: "Omnixa",
+          appUrl: "https://omnixa.ai",
           extraBody: { transforms: ["middle-out"], provider: { sort: "price" } },
         },
         headers: { "X-OpenRouter-Title": "Custom" },
@@ -1240,7 +1235,7 @@ describe("ModelResolver", () => {
           Effect.succeed({
             model: (modelID, settings) => {
               expect(settings.headers).toEqual({
-                "HTTP-Referer": "https://aigcfroge.ai",
+                "HTTP-Referer": "https://omnixa.ai",
                 "X-OpenRouter-Title": "Custom",
               })
               expect(settings.body).toEqual({
@@ -1331,7 +1326,7 @@ describe("ModelResolver", () => {
         }),
       )
       const workers = yield* ModelResolver.fromCatalogModel(
-        model("@aigcfroge/ai/providers/cloudflare-workers-ai", {
+        model("@omnixa/ai/providers/cloudflare-workers-ai", {
           modelID: "@cf/meta/llama-3.1-8b-instruct",
         }),
         Credential.Key.make({
@@ -1520,7 +1515,7 @@ describe("ModelResolver", () => {
         _tag: "SessionRunnerModel.ModelConfigurationError",
         providerID: "azure",
         modelID: "test-model",
-        package: "@aigcfroge/ai/providers/azure/responses",
+        package: "@omnixa/ai/providers/azure/responses",
         detail: "Azure requires resourceName or baseURL",
       })
       expect(failure.message).toBe("Cannot initialize azure/test-model: Azure requires resourceName or baseURL")
@@ -1529,7 +1524,7 @@ describe("ModelResolver", () => {
 
   it.effect("distinguishes unexpected constructor failures from configuration errors", () =>
     Effect.gen(function* () {
-      const failure = yield* ModelResolver.fromCatalogModel(model("@aigcfroge/ai/providers/custom"), undefined, {
+      const failure = yield* ModelResolver.fromCatalogModel(model("@omnixa/ai/providers/custom"), undefined, {
         loadPackage: () =>
           Effect.succeed({
             model: () => {
@@ -1548,7 +1543,7 @@ describe("ModelResolver", () => {
 
   it.effect("reports package load and AISDK initialization failures with their causes", () =>
     Effect.gen(function* () {
-      const load = yield* ModelResolver.fromCatalogModel(model("@aigcfroge/ai/providers/custom"), undefined, {
+      const load = yield* ModelResolver.fromCatalogModel(model("@omnixa/ai/providers/custom"), undefined, {
         loadPackage: (specifier) =>
           Effect.fail(
             new Provider.LoadError({ package: specifier, cause: new Error(`Provider package ${specifier} is broken`) }),
@@ -1557,7 +1552,7 @@ describe("ModelResolver", () => {
       expect(load).toMatchObject({
         _tag: "SessionRunnerModel.ModelInitializationError",
         phase: "load",
-        detail: "Provider package @aigcfroge/ai/providers/custom is broken",
+        detail: "Provider package @omnixa/ai/providers/custom is broken",
       })
 
       const init = yield* ModelResolver.fromCatalogModel(model(Provider.aisdk("@ai-sdk/perplexity")), undefined, {
@@ -1601,7 +1596,7 @@ describe("ModelResolver", () => {
   it.effect("reports whether a catalog model declares a provider package", () =>
     Effect.sync(() => {
       expect(ModelResolver.hasPackage(model(Provider.aisdk("@ai-sdk/openai")))).toBe(true)
-      expect(ModelResolver.hasPackage(model("@aigcfroge/ai/providers/custom"))).toBe(true)
+      expect(ModelResolver.hasPackage(model("@omnixa/ai/providers/custom"))).toBe(true)
       expect(ModelResolver.hasPackage(model(undefined))).toBe(false)
     }),
   )

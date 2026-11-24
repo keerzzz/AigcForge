@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test"
 import { RGBA } from "@opentui/core"
 import { blendColor } from "./core/color/style.js"
-import { createAigcForgeDiagramPalette, resolveAigcForgeDiagramPalette } from "./palette.js"
+import { createOmnixaDiagramPalette, resolveOmnixaDiagramPalette } from "./palette.js"
 
 type Rgb = readonly [number, number, number]
 
 const rgb = (value: Rgb) => RGBA.fromInts(...value)
 
-describe("AigcForge diagram palette", () => {
+describe("Omnixa diagram palette", () => {
   test.each([
     {
       name: "dark theme",
@@ -39,7 +39,7 @@ describe("AigcForge diagram palette", () => {
       soft: RGBA.fromInts(180, 100, 40),
       clear: RGBA.fromInts(240, 160, 80),
     }
-    const palette = createAigcForgeDiagramPalette({
+    const palette = createOmnixaDiagramPalette({
       text: primary,
       subdued: rgb(subdued),
       info,
@@ -94,7 +94,7 @@ describe("AigcForge diagram palette", () => {
       background: { base: rgb([250, 250, 250]) },
       categorical: [accent],
     }
-    const palette = resolveAigcForgeDiagramPalette(theme, mode)
+    const palette = resolveOmnixaDiagramPalette(theme, mode)
 
     expect(palette.group).toBe(accent[soft])
     expect(palette.noteBorder).toBe(accent[soft])

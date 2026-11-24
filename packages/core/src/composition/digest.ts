@@ -1,9 +1,9 @@
 export * as CompositionDigest from "./digest"
 
-import { ToolDefinition } from "@aigcfroge/ai"
+import { ToolDefinition } from "@omnixa/ai"
 import { Result, Schema } from "effect"
-import { Composition } from "@aigcfroge/schema/composition"
-import { Hash } from "@aigcfroge/util/hash"
+import { Composition } from "@omnixa/schema/composition"
+import { Hash } from "@omnixa/util/hash"
 import type { Tool } from "../tool"
 import { Producer } from "../plugin/service"
 

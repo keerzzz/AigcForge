@@ -1,13 +1,13 @@
 import { expect } from "bun:test"
 import { Effect, Layer, Schema } from "effect"
-import { Model } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
-import { DeliveryTable, ScheduleTable } from "@aigcfroge/core/session/schedule.sql"
-import { SessionInboxTable } from "@aigcfroge/core/session/sql"
-import { InvalidRequestError } from "@aigcfroge/protocol/errors"
-import { Schedule } from "@aigcfroge/schema/schedule"
-import { Session } from "@aigcfroge/schema/session"
-import { SessionIdentity } from "@aigcfroge/schema/session-identity"
+import { Model } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
+import { DeliveryTable, ScheduleTable } from "@omnixa/core/session/schedule.sql"
+import { SessionInboxTable } from "@omnixa/core/session/sql"
+import { InvalidRequestError } from "@omnixa/protocol/errors"
+import { Schedule } from "@omnixa/schema/schedule"
+import { Session } from "@omnixa/schema/session"
+import { SessionIdentity } from "@omnixa/schema/session-identity"
 import { useOfflineCatalog } from "../../core/test/fixture/models"
 import { pollWithTimeout, testEffect } from "../../core/test/lib/effect"
 import { AssetHttpFixture } from "./fixture/asset-http"
@@ -15,7 +15,7 @@ import { AssetHttpFixture } from "./fixture/asset-http"
 const it = testEffect(Layer.empty)
 const model = Model.Ref.make({ id: Model.ID.make("schedule-fixture"), providerID: Provider.ID.make("test") })
 const setup = () =>
-  AssetHttpFixture.setup({ prefix: "aigcfroge-schedule-http-", assetDirectory: ".aigcfroge", files: [], model })
+  AssetHttpFixture.setup({ prefix: "omnixa-schedule-http-", assetDirectory: ".omnixa", files: [], model })
 
 it.live("AC17 serves Schedule rules and the six retained reminder endpoints without a model call", () =>
   Effect.gen(function* () {
@@ -140,7 +140,7 @@ it.live("AC01 rejects Build root coordination and caller-supplied legacy child t
         info: Provider.Info.make({
           ...Provider.Info.empty(model.providerID),
           activation: "enabled",
-          package: "@aigcfroge/ai/providers/openai/responses",
+          package: "@omnixa/ai/providers/openai/responses",
         }),
         models: [Model.Info.make(Model.Info.default(model.providerID, model.id))],
       },

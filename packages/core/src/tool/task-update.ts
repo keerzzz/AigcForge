@@ -1,10 +1,10 @@
 export * as TaskUpdateTool from "./task-update.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
 import { Effect, Schema } from "effect"
 // Alias required: SessionTask (domain service) collides with SessionTask (schema).
-import { SessionTask as SessionTaskSchema } from "@aigcfroge/schema/session-task"
+import { SessionTask as SessionTaskSchema } from "@omnixa/schema/session-task"
 import { Permission } from "../permission.js"
 import { SessionTask } from "../session/task.js"
 
@@ -38,7 +38,7 @@ export const Output = Schema.Struct({
 const toModelContent = (task: SessionTask.Info) => JSON.stringify(task, null, 2)
 
 export const Plugin = {
-  id: "aigcfroge.tool.task_update",
+  id: "omnixa.tool.task_update",
   effect: Effect.fn("TaskUpdateTool.Plugin")(function* (ctx: Context) {
     const tasks = yield* SessionTask.Service
     const permission = yield* Permission.Service

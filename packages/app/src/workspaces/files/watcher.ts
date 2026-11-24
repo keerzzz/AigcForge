@@ -1,7 +1,7 @@
 import type { FileNode } from "@/runtime/server/types"
-import type { AigcForgeEvent } from "@aigcfroge/client/promise"
+import type { OmnixaEvent } from "@omnixa/client/promise"
 
-type WatcherEvent = Extract<AigcForgeEvent, { type: "filesystem.changed" }>
+type WatcherEvent = Extract<OmnixaEvent, { type: "filesystem.changed" }>
 
 type WatcherOps = {
   normalize: (input: string) => string

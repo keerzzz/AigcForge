@@ -3,11 +3,11 @@ import { Context, Effect, Layer, Stream } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/http"
 import { ChildProcess } from "effect/process"
 import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner"
-import { CrossSpawnSpawner } from "@aigcfroge/util/cross-spawn-spawner"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
-import { httpClient } from "@aigcfroge/util/effect/app-node-platform"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Global } from "@aigcfroge/util/global"
+import { CrossSpawnSpawner } from "@omnixa/util/cross-spawn-spawner"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
+import { httpClient } from "@omnixa/util/effect/app-node-platform"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Global } from "@omnixa/util/global"
 import { which } from "../util/which.js"
 
 export namespace RipgrepBinary {
@@ -26,7 +26,7 @@ export namespace RipgrepBinary {
     readonly filepath: Effect.Effect<string, Error>
   }
 
-  export class Service extends Context.Service<Service, Interface>()("@aigcfroge/RipgrepBinary") {}
+  export class Service extends Context.Service<Service, Interface>()("@omnixa/RipgrepBinary") {}
 
   export const layer = Layer.effect(
     Service,

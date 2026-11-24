@@ -1,13 +1,13 @@
 export * as SessionTransfer from "./transfer.js"
 
-import { SessionTransfer } from "@aigcfroge/schema/session-transfer"
-import { Tool } from "@aigcfroge/schema/tool"
-import { Skill } from "@aigcfroge/schema/skill"
+import { SessionTransfer } from "@omnixa/schema/session-transfer"
+import { Tool } from "@omnixa/schema/tool"
+import { Skill } from "@omnixa/schema/skill"
 import { eq } from "drizzle-orm"
 import { Clock, Context, DateTime, Effect, Layer, Schema } from "effect"
 import { map } from "effect/Array"
 import path from "path"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 import { App } from "../app.js"
 import { Bus } from "../bus.js"
 import { Database } from "../database/database.js"
@@ -41,7 +41,7 @@ export interface Interface {
   }) => Effect.Effect<Session.Info, ImportConflictError | Session.NotFoundError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionTransfer") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/SessionTransfer") {}
 
 const layer = Layer.effect(
   Service,

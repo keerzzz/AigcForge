@@ -1,6 +1,6 @@
 import { createMemo, type JSX } from "solid-js"
-import { Button } from "@aigcfroge/ui/button"
-import { Switch } from "@aigcfroge/ui/switch"
+import { Button } from "@omnixa/ui/button"
+import { Switch } from "@omnixa/ui/switch"
 import { useExtension } from "../sdk"
 import { updaterAction } from "./action"
 import type { UpdaterState } from "./contract"

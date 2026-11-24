@@ -1,10 +1,10 @@
 import { createSignal, Show } from "solid-js"
 import { render } from "solid-js/web"
-import { DialogProvider } from "@aigcfroge/ui/context/dialog"
+import { DialogProvider } from "@omnixa/ui/context/dialog"
 import { Markdown } from "../src/components/markdown"
 import { preloadMarkdown } from "../src/components/markdown-cache"
 import { MarkdownProvider } from "../src/context/markdown"
-import { AigcForge } from "@aigcfroge/client/promise"
+import { Omnixa } from "@omnixa/client/promise"
 import { readLocalImage } from "../../app/src/runtime/server/image"
 
 export {
@@ -16,7 +16,12 @@ export {
 
 export { renderMermaidSvg } from "../src/components/markdown-mermaid"
 
-export { MarkdownWorkerDisposedError } from "../src/components/markdown-worker"
+export {
+  disposeStreamingCode,
+  highlightStreamingCode,
+  MarkdownWorkerDisposedError,
+  parseMarkdown,
+} from "../src/components/markdown-worker"
 
 export { preloadMarkdown }
 
@@ -34,9 +39,9 @@ export async function mountMarkdown(options: {
   host.dataset.testid = "markdown-fixture"
   document.body.appendChild(host)
   render(() => {
-    const api = AigcForge.make({
+    const api = Omnixa.make({
       baseUrl: location.origin,
-      headers: { Authorization: `Basic ${btoa("aigcfroge:fixture")}` },
+      headers: { Authorization: `Basic ${btoa("omnixa:fixture")}` },
     })
 
     const [text, setText] = createSignal(options.text)

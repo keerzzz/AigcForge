@@ -1,6 +1,6 @@
 export * as IntegrationConnection from "./connection.js"
 
-import { Connection } from "@aigcfroge/schema/connection"
+import { Connection } from "@omnixa/schema/connection"
 
 export const CredentialInfo = Connection.CredentialInfo
 export type CredentialInfo = Connection.CredentialInfo

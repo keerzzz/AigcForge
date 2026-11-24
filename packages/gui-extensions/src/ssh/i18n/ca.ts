@@ -20,14 +20,8 @@ export default {
   "error.input":
     "Introduïu un host o una ordre de connexió SSH. Les ordres remotes i les opcions SSH no admeses no es permeten.",
   "error.connection": "No s'ha pogut establir la connexió SSH. Comproveu la vostra xarxa i la configuració de SSH.",
-  "error.platform":
-    "Aquesta plataforma remota no és compatible. Actualment, la configuració automàtica requereix Linux o macOS a x64 o arm64.",
   "error.version": "El servei remot ha de coincidir amb aquesta versió d'escriptori abans de connectar-se.",
-  "error.install":
-    "No s'ha pogut instal·lar el servidor remot. Comproveu la connectivitat, l'espai en disc i que el tar està instal·lat.",
-  "error.unpublished":
-    "Aquesta versió d'escriptori no té cap servidor remot publicat. Per a les compilacions de desenvolupament, instal·leu i inicieu la V2 a l'amfitrió i, a continuació, torneu-ho a provar.",
-  "error.service": "SSH s'ha connectat, però el servidor AigcForge no està preparat.",
+  "error.service": "SSH s'ha connectat, però el servidor Omnixa no està preparat.",
   "error.host-key":
     "No s'ha pogut verificar la identitat de l'amfitrió. Verifiqueu la seva empremta digital abans d'actualitzar els vostres amfitrions coneguts SSH.",
   "error.ssh-missing":

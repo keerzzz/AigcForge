@@ -1,4 +1,4 @@
-import type { SessionInfo, SessionMessageAssistant, SessionMessageInfo, ShellInfo } from "@aigcfroge/client/promise"
+import type { SessionInfo, SessionMessageAssistant, SessionMessageInfo, ShellInfo } from "@omnixa/client/promise"
 import { createMemo } from "solid-js"
 
 type Task =

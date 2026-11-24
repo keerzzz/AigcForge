@@ -1,10 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Predicate } from "effect"
-import type {
-  SessionMessageAssistant,
-  SessionMessageAssistantTool,
-  SessionMessageInfo,
-} from "@aigcfroge/client/promise"
+import type { SessionMessageAssistant, SessionMessageAssistantTool, SessionMessageInfo } from "@omnixa/client/promise"
 import { storyDocument, storyTool } from "../storybook/current-session-scenarios"
 import { timelinePresets } from "./detail"
 import { createTimelineProjection, Timeline, TimelineRow } from "./projection"
@@ -1378,7 +1374,7 @@ describe("current session timeline rows", () => {
         id: "msg_idle",
         type: "idle",
         outcome: "failed",
-        error: { type: "provider.no-route", message: "Model unavailable: aigcfroge/gpt-5.2" },
+        error: { type: "provider.no-route", message: "Model unavailable: omnixa/gpt-5.2" },
         time: { created: 2 },
       },
       {
@@ -1395,7 +1391,7 @@ describe("current session timeline rows", () => {
       new TimelineRow.Error({
         userMessageID: "msg_user",
         messageID: "msg_idle",
-        text: "Model unavailable: aigcfroge/gpt-5.2",
+        text: "Model unavailable: omnixa/gpt-5.2",
       }),
     )
 

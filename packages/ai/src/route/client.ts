@@ -258,7 +258,7 @@ const unsupportedCompaction = (request: LLMRequest, mechanism: string | undefine
   })
 }
 
-export class LLMClientService extends Context.Service<LLMClientService, Interface>()("@aigcfroge/LLMClient") {}
+export class LLMClientService extends Context.Service<LLMClientService, Interface>()("@omnixa/LLMClient") {}
 export const Service = LLMClientService
 export type Service = LLMClientService
 

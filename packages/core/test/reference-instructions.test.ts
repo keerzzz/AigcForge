@@ -1,9 +1,9 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Reference } from "@aigcfroge/core/reference"
-import { ReferenceInstructions } from "@aigcfroge/core/reference/instructions"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Reference } from "@omnixa/core/reference"
+import { ReferenceInstructions } from "@omnixa/core/reference/instructions"
 import { it } from "./lib/effect"
 import { readInitial, readUpdate } from "./lib/instructions"
 

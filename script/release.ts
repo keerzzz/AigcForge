@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 
 import { $ } from "bun"
-import { AigcForge } from "@aigcfroge/client"
-import { Service } from "@aigcfroge/client/service"
+import { Omnixa } from "@omnixa/client"
+import { Service } from "@omnixa/client/service"
 import { rm } from "fs/promises"
 import path from "path"
 import { parseArgs } from "util"
@@ -22,12 +22,12 @@ const { values, positionals } = parseArgs({
 })
 const version = positionals[0] ?? "patch"
 const model = (() => {
-  const raw = process.env.AIGCFROGE_RELEASE_MODEL?.trim()
+  const raw = process.env.OMNIXA_RELEASE_MODEL?.trim()
   if (!raw) return undefined
   const [providerID, rest] = raw.split("/")
-  if (!providerID || !rest) throw new Error("AIGCFROGE_RELEASE_MODEL must be provider/model or provider/model#variant")
+  if (!providerID || !rest) throw new Error("OMNIXA_RELEASE_MODEL must be provider/model or provider/model#variant")
   const [id, variant] = rest.split("#")
-  if (!id) throw new Error("AIGCFROGE_RELEASE_MODEL is missing a model id")
+  if (!id) throw new Error("OMNIXA_RELEASE_MODEL is missing a model id")
   return { providerID, id, ...(variant ? { variant } : {}) }
 })()
 
@@ -70,7 +70,7 @@ if (!base) throw new Error("No stable release tag was found")
 console.log(`Comparing ${base}..${values.to}`)
 await generateReview(base, values.to)
 
-if (!(await Bun.file(review).exists())) throw new Error("AigcForge did not create RELEASE_REVIEW.md")
+if (!(await Bun.file(review).exists())) throw new Error("Omnixa did not create RELEASE_REVIEW.md")
 if (values.print) {
   process.stdout.write(await Bun.file(review).text())
   process.exit(0)
@@ -116,7 +116,7 @@ async function latestStableTag() {
 
 async function generateReview(base: string, head: string) {
   const endpoint = await Service.ensure()
-  const client = AigcForge.make({
+  const client = Omnixa.make({
     baseUrl: endpoint.url,
     headers: Service.headers(endpoint),
     fetch: ((request: RequestInfo | URL, init?: RequestInit) =>
@@ -125,13 +125,13 @@ async function generateReview(base: string, head: string) {
   const controller = new AbortController()
   const events = client.event.subscribe({ signal: controller.signal })[Symbol.asyncIterator]()
   const connected = await events.next()
-  if (connected.done) throw new Error("AigcForge event stream disconnected")
+  if (connected.done) throw new Error("Omnixa event stream disconnected")
 
   const session = await client.session.create({
     title: `Review ${version} release`,
     location: { directory: root },
     // The reviewer inherits the maintainer's configured default model unless
-    // AIGCFROGE_RELEASE_MODEL selects one as provider/model#variant.
+    // OMNIXA_RELEASE_MODEL selects one as provider/model#variant.
     ...(model ? { model } : {}),
     // The review only needs to read the range, so it keeps an explicit allowlist
     // instead of inheriting the maintainer's interactive permissions.
@@ -148,12 +148,12 @@ async function generateReview(base: string, head: string) {
   const completed = (async () => {
     while (true) {
       const next = await events.next()
-      if (next.done) throw new Error("AigcForge event stream disconnected during release review")
+      if (next.done) throw new Error("Omnixa event stream disconnected during release review")
       if (!("sessionID" in next.value.data) || next.value.data.sessionID !== session.id) continue
       if (next.value.type === "session.execution.succeeded") return
       if (next.value.type === "session.execution.failed") throw new Error(next.value.data.error.message)
       if (next.value.type === "session.execution.interrupted")
-        throw new Error(`AigcForge release review was interrupted: ${next.value.data.reason}`)
+        throw new Error(`Omnixa release review was interrupted: ${next.value.data.reason}`)
     }
   })()
 
@@ -163,7 +163,7 @@ async function generateReview(base: string, head: string) {
     const messages = await client.message.list({ sessionID: session.id, limit: 100, order: "desc" })
     const response = messages.data.find((message) => message.type === "assistant")
     const text = response?.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("\n")
-    if (!text) throw new Error("AigcForge did not return a release review")
+    if (!text) throw new Error("Omnixa did not return a release review")
     await Bun.write(review, text)
   } finally {
     controller.abort()
@@ -194,7 +194,7 @@ you can now do and why it matters. Vary the sentence openings, and leave contrib
 sections. For example:
 
 - **Reopen Closed Tabs**: Right-click the new-session button in the tab bar to bring back a session you closed by
-  mistake. ([#123](https://github.com/anomalyco/aigcfroge/pull/123))
+  mistake. ([#123](https://github.com/keerzzz/AigcForge/pull/123))
 
 Every highlight must also appear in the detailed sections that follow. Use "###" for Highlights and each release section,
 "####" for Improvements and Bug fixes, and never use "#" or "##" headings in the changelog, since each release is filed

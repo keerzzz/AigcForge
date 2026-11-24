@@ -2,7 +2,7 @@ import { expect, test } from "bun:test"
 import fs from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import { AIGCFROGE_VERSION } from "../src/version"
+import { OMNIXA_VERSION } from "../src/version"
 
 const info = {
   id: "ses_export_test",
@@ -43,7 +43,7 @@ const sanitizedTransfer = {
 }
 
 const status = () =>
-  Response.json({ version: AIGCFROGE_VERSION, pid: process.pid, urls: [], paths: { tmp: "/tmp/aigcfroge" } })
+  Response.json({ version: OMNIXA_VERSION, pid: process.pid, urls: [], paths: { tmp: "/tmp/omnixa" } })
 
 function run(args: string[], stdin?: string) {
   const child = Bun.spawn([process.execPath, "run", "src/index.ts", ...args], {
@@ -151,7 +151,7 @@ test("export reports a missing session without a stack trace", async () => {
 })
 
 test("import validates a file and sends it to the resolved location", async () => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-import-"))
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "omnixa-import-"))
   const file = path.join(root, "session.json")
   await fs.writeFile(file, JSON.stringify(transfer))
   let imported: unknown
@@ -200,7 +200,7 @@ test("import validates a file and sends it to the resolved location", async () =
 })
 
 test("import reports an existing session without a stack trace", async () => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-import-conflict-"))
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "omnixa-import-conflict-"))
   const file = path.join(root, "session.json")
   await fs.writeFile(file, JSON.stringify(transfer))
   const server = Bun.serve({

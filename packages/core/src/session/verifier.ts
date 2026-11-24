@@ -2,8 +2,8 @@ export * as Verifier from "./verifier"
 
 import { ChildProcess } from "effect/process"
 import { Context, DateTime, Duration, Effect, Layer, Ref, Schema, Semaphore } from "effect"
-import { AppProcess } from "@aigcfroge/util/process"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { AppProcess } from "@omnixa/util/process"
+import { FSUtil } from "@omnixa/util/fs-util"
 import path from "path"
 import { Config } from "../config"
 import { Bus } from "../bus"
@@ -13,7 +13,7 @@ import type { Agent } from "../agent"
 import { SessionSchema } from "./schema"
 import { CorrectionStore } from "./correction-store"
 import { SessionEvent } from "./event"
-import { Document, type Entry } from "@aigcfroge/schema/config"
+import { Document, type Entry } from "@omnixa/schema/config"
 import { Instructions } from "../instructions"
 
 const settings = (documents: readonly Entry[]) =>
@@ -80,7 +80,7 @@ export interface Interface {
   readonly verify: (input: Input) => Effect.Effect<Report>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/Verifier") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/Verifier") {}
 
 // Existing tool consumers use this display helper; runtime discovery uses actual manifests below.
 export const packageDirectory = (file: string): string | undefined => {

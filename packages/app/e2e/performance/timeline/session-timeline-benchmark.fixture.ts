@@ -1,20 +1,20 @@
-import { base64Encode } from "@aigcfroge/util/encode"
+import { base64Encode } from "@omnixa/util/encode"
 import type {
-  AigcForgeEvent,
+  OmnixaEvent,
   FileDiffInfo,
   SessionMessageAssistant,
   SessionMessageAssistantTool,
   SessionMessageInfo,
   SessionMessageToolStateCompleted,
-} from "@aigcfroge/client/promise"
+} from "@omnixa/client/promise"
 import type { Page } from "@playwright/test"
-import { mockAigcForgeServer } from "../../utils/mock-server"
+import { mockOmnixaServer } from "../../utils/mock-server"
 import { expectAppVisible, expectSessionTitle } from "../../utils/waits"
-import { validateTimelineEvent } from "../../utils/timeline"
+import { validateTimelineEvent, type EventPayload } from "../../utils/timeline"
 import { expect } from "../benchmark"
 import { createTwoFilesPatch } from "diff"
 
-const directory = "C:/AigcForge/TimelineStateRegression"
+const directory = "C:/Omnixa/TimelineStateRegression"
 
 const projectID = "proj_timeline_state_regression"
 
@@ -33,9 +33,7 @@ export const textPartID = `${assistantMessageID}:text:0`
 
 const title = "Timeline collapse state regression"
 
-const model = { providerID: "aigcfroge", modelID: "claude-opus-4-6", variant: "max" }
-
-type EventPayload = AigcForgeEvent
+const model = { providerID: "omnixa", modelID: "claude-opus-4-6", variant: "max" }
 
 const userMessage = {
   id: userMessageID,
@@ -129,7 +127,7 @@ export async function setupTimelineBenchmark(
     assistantMessage,
   ]
 
-  await mockAigcForgeServer(page, {
+  await mockOmnixaServer(page, {
     directory,
     project: project(),
     provider: provider(),
@@ -395,7 +393,7 @@ export function timelineEvent<
     | "session.text.ended"
     | "session.step.completed"
     | "session.execution.succeeded",
->(type: Type, data: Extract<AigcForgeEvent, { type: Type }>["data"], durable = false): AigcForgeEvent {
+>(type: Type, data: Extract<OmnixaEvent, { type: Type }>["data"], durable = false): EventPayload {
   eventSequence++
 
   const event = {
@@ -555,12 +553,12 @@ function provider() {
   return {
     all: [
       {
-        id: "aigcfroge",
-        name: "AigcForge",
+        id: "omnixa",
+        name: "Omnixa",
         models: { "claude-opus-4-6": { id: "claude-opus-4-6", name: "Claude Opus 4.6", limit: { context: 200_000 } } },
       },
     ],
-    connected: ["aigcfroge"],
-    default: { providerID: "aigcfroge", modelID: "claude-opus-4-6" },
+    connected: ["omnixa"],
+    default: { providerID: "omnixa", modelID: "claude-opus-4-6" },
   }
 }

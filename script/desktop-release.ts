@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
-import { Release } from "@aigcfroge/script/release"
-import { ReleaseMetadata } from "@aigcfroge/script/release-metadata"
+import { Release } from "@omnixa/script/release"
+import { ReleaseMetadata } from "@omnixa/script/release-metadata"
 import { $ } from "bun"
 import { Schema } from "effect"
 import path from "node:path"
@@ -20,25 +20,25 @@ async function main() {
       Release.route(
         required("GITHUB_EVENT_NAME"),
         event,
-        process.env.AIGCFROGE_DESKTOP_AUTOMATION ?? "off",
+        process.env.OMNIXA_DESKTOP_AUTOMATION ?? "off",
         repo,
         required("GITHUB_REF"),
         (await $`git rev-parse HEAD`.quiet().text()).trim(),
       ),
-      process.env.AIGCFROGE_DESKTOP_AUTOMATION ?? "off",
-      process.env.AIGCFROGE_RELEASE_BOT ?? "",
+      process.env.OMNIXA_DESKTOP_AUTOMATION ?? "off",
+      process.env.OMNIXA_RELEASE_BOT ?? "",
     )
     console.log(JSON.stringify(plan))
     if (process.env.GITHUB_OUTPUT)
       await Bun.write(process.env.GITHUB_OUTPUT, `mode=${plan.mode}\nsha=${plan.sha}\nversion=${plan.version}\n`)
     return
   }
-  const source = Release.sha(required("AIGCFROGE_RELEASE_SHA"))
-  const version = Release.version(required("AIGCFROGE_VERSION"))
+  const source = Release.sha(required("OMNIXA_RELEASE_SHA"))
+  const version = Release.version(required("OMNIXA_VERSION"))
   if ((await $`git rev-parse HEAD`.quiet().text()).trim() !== source)
     throw new Release.Failure({ reason: "Release checkout does not match its pinned source SHA" })
   if (command === "prepare") {
-    await prepare(github, source, version, required("AIGCFROGE_RELEASE_BOT"))
+    await prepare(github, source, version, required("OMNIXA_RELEASE_BOT"))
     return
   }
   if (command !== "verify" && command !== "publish")
@@ -57,7 +57,7 @@ async function main() {
   )
   console.log(`Verified ${result.platforms} targets and ${result.assets} release assets`)
   if (command === "publish") {
-    if (process.env.AIGCFROGE_DESKTOP_AUTOMATION !== "publish")
+    if (process.env.OMNIXA_DESKTOP_AUTOMATION !== "publish")
       throw new Release.Failure({ reason: "Automatic public releases are not enabled" })
     await github.publish(version, source)
     console.log(`Published v${version} from ${source}`)
@@ -126,7 +126,7 @@ async function prepare(github: Release.GitHub, source: string, target: string, b
     : (await github.list(`/repos/${github.repo}/issues?state=all`, Release.Issue)).filter(
         (issue) =>
           issue.title === `Prepare desktop release v${target}` &&
-          issue.body?.includes("<!-- aigcforge-release-tracking -->"),
+          issue.body?.includes("<!-- omnixa-release-tracking -->"),
       )
   if (matches.length > 1 || matches.some((issue) => issue.user.login !== bot))
     throw new Release.Failure({ reason: "Release tracking issue ownership is ambiguous" })
@@ -136,7 +136,7 @@ async function prepare(github: Release.GitHub, source: string, target: string, b
       Release.Issue,
       await github.request(`/repos/${github.repo}/issues`, "POST", {
         title: `Prepare desktop release v${target}`,
-        body: "<!-- aigcforge-release-tracking -->\nPrepare a version-only desktop release PR. Closing this issue means version preparation, not public release or installation verification, is complete.",
+        body: "<!-- omnixa-release-tracking -->\nPrepare a version-only desktop release PR. Closing this issue means version preparation, not public release or installation verification, is complete.",
       }),
       "created release issue",
     )

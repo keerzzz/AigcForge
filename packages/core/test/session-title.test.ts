@@ -8,32 +8,32 @@ import {
   SystemPart,
   TransportError,
   type LLMRequest,
-} from "@aigcfroge/ai"
-import { OpenAIChat } from "@aigcfroge/ai/protocols"
-import { Agent } from "@aigcfroge/core/agent"
-import { Database } from "@aigcfroge/core/database/database"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { llmClient } from "@aigcfroge/core/effect/app-node-platform"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Bus } from "@aigcfroge/core/bus"
-import { SessionEvent } from "@aigcfroge/core/session/event"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { SessionProjector } from "@aigcfroge/core/session/projector"
-import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
-import { SessionTable } from "@aigcfroge/core/session/sql"
-import { SessionStore } from "@aigcfroge/core/session/store"
-import { SessionTitle } from "@aigcfroge/core/session/title"
-import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
-import { PluginSupervisor } from "@aigcfroge/core/plugin/supervisor"
-import { Location } from "@aigcfroge/core/location"
-import { Session } from "@aigcfroge/core/session"
-import { Project } from "@aigcfroge/core/project"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
-import { App } from "@aigcfroge/core/app"
-import { Model } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Money } from "@aigcfroge/schema/money"
+} from "@omnixa/ai"
+import { OpenAIChat } from "@omnixa/ai/protocols"
+import { Agent } from "@omnixa/core/agent"
+import { Database } from "@omnixa/core/database/database"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { llmClient } from "@omnixa/core/effect/app-node-platform"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Bus } from "@omnixa/core/bus"
+import { SessionEvent } from "@omnixa/core/session/event"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { SessionProjector } from "@omnixa/core/session/projector"
+import { SessionRunnerModel } from "@omnixa/core/session/runner/model"
+import { SessionTable } from "@omnixa/core/session/sql"
+import { SessionStore } from "@omnixa/core/session/store"
+import { SessionTitle } from "@omnixa/core/session/title"
+import { PluginHooks } from "@omnixa/core/plugin/hooks"
+import { PluginSupervisor } from "@omnixa/core/plugin/supervisor"
+import { Location } from "@omnixa/core/location"
+import { Session } from "@omnixa/core/session"
+import { Project } from "@omnixa/core/project"
+import { ProjectTable } from "@omnixa/core/project/sql"
+import { App } from "@omnixa/core/app"
+import { Model } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Money } from "@omnixa/schema/money"
 import { Deferred, Effect, Fiber, Layer, Stream } from "effect"
 import { testEffect } from "./lib/effect"
 
@@ -232,7 +232,7 @@ it.effect("uses the title Agent request rather than the Session Agent request", 
     expect(requests).toHaveLength(1)
     expect(requests[0]?.http?.headers).toMatchObject({
       "X-Agent": "title",
-      "x-aigcfroge-session-id": sessionID,
+      "x-omnixa-session-id": sessionID,
     })
     expect(requests[0]?.http?.body).toEqual(request.body)
     expect(requests[0]?.generation?.temperature).toBeUndefined()
@@ -254,13 +254,13 @@ it.effect("generates a title from the sole user message and renames the session"
 
     expect(requests).toHaveLength(1)
     expect(requests[0]?.http?.headers).toEqual({
-      "x-aigcfroge-session-id": sessionID,
+      "x-omnixa-session-id": sessionID,
       "x-session-affinity": sessionID,
       "X-Session-Id": sessionID,
       "User-Agent": App.useragent(App.make()),
-      "x-aigcfroge-project": Project.ID.global,
-      "x-aigcfroge-session": sessionID,
-      "x-aigcfroge-client": "aigcfroge",
+      "x-omnixa-project": Project.ID.global,
+      "x-omnixa-session": sessionID,
+      "x-omnixa-client": "omnixa",
     })
     expect(requests[0]?.promptCacheKey).toBe(sessionID)
     expect(requests[0]?.tools).toEqual([])

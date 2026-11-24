@@ -1,25 +1,20 @@
 import { Predicate, Schema, SchemaGetter } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/http-api"
-import { Pty } from "@aigcfroge/schema/pty"
-import { Session } from "@aigcfroge/schema/session"
-import { SessionConsultation } from "@aigcfroge/schema/session-consultation"
-import { Model } from "@aigcfroge/schema/model"
-import { ModelGroup } from "@aigcfroge/schema/model-group"
-import { ProviderDefinition } from "@aigcfroge/schema/provider-definition"
-import { ProviderDiscovery } from "@aigcfroge/schema/provider-discovery"
-import { Composition } from "@aigcfroge/schema/composition"
-import { SessionTask } from "@aigcfroge/schema/session-task"
-import { SessionGoal } from "@aigcfroge/schema/session-goal"
-import { SessionCommunication } from "@aigcfroge/schema/session-communication"
-import { PositiveInt } from "@aigcfroge/schema/schema"
-import { Schedule } from "@aigcfroge/schema/schedule"
-import { Worktree } from "@aigcfroge/schema/worktree"
-import {
-  ApiNotFoundError,
-  CompositionResolveError,
-  ConflictError,
-  InvalidRequestError,
-} from "@aigcfroge/protocol/errors"
+import { Pty } from "@omnixa/schema/pty"
+import { Session } from "@omnixa/schema/session"
+import { SessionConsultation } from "@omnixa/schema/session-consultation"
+import { Model } from "@omnixa/schema/model"
+import { ModelGroup } from "@omnixa/schema/model-group"
+import { ProviderDefinition } from "@omnixa/schema/provider-definition"
+import { ProviderDiscovery } from "@omnixa/schema/provider-discovery"
+import { Composition } from "@omnixa/schema/composition"
+import { SessionTask } from "@omnixa/schema/session-task"
+import { SessionGoal } from "@omnixa/schema/session-goal"
+import { SessionCommunication } from "@omnixa/schema/session-communication"
+import { PositiveInt } from "@omnixa/schema/schema"
+import { Schedule } from "@omnixa/schema/schedule"
+import { Worktree } from "@omnixa/schema/worktree"
+import { ApiNotFoundError, CompositionResolveError, ConflictError, InvalidRequestError } from "@omnixa/protocol/errors"
 import {
   SessionInstanceTaskWriteInfo,
   SessionPaths,
@@ -27,53 +22,53 @@ import {
   WorkflowCancelRunPayload,
   WorkflowCancelStepPayload,
   WorkflowRetryStepPayload,
-} from "@aigcfroge/protocol/groups/session-instance"
-import { MemoryGroup } from "@aigcfroge/protocol/groups/memory"
-import { LocationQuery } from "@aigcfroge/protocol/groups/location"
-import { WorkspaceRoutingQuery, WorkspaceRoutingQueryFields } from "@aigcfroge/protocol/middleware/workspace-routing"
-import { LegacyDelegationState } from "@aigcfroge/protocol/groups/delegation"
-import { QueryBoolean } from "@aigcfroge/protocol/groups/query"
+} from "@omnixa/protocol/groups/session-instance"
+import { MemoryGroup } from "@omnixa/protocol/groups/memory"
+import { LocationQuery } from "@omnixa/protocol/groups/location"
+import { WorkspaceRoutingQuery, WorkspaceRoutingQueryFields } from "@omnixa/protocol/middleware/workspace-routing"
+import { LegacyDelegationState } from "@omnixa/protocol/groups/delegation"
+import { QueryBoolean } from "@omnixa/protocol/groups/query"
 import {
   AgentAssetContentQuery,
   AgentAssetDeletePayload,
   AgentAssetListQuery,
-} from "@aigcfroge/protocol/groups/agent-asset"
+} from "@omnixa/protocol/groups/agent-asset"
 import {
   CommandAssetContentQuery,
   CommandAssetDeletePayload,
   CommandAssetListQuery,
-} from "@aigcfroge/protocol/groups/command-asset"
+} from "@omnixa/protocol/groups/command-asset"
 import {
   CustomCompositionHealthQuery,
   CustomCompositionReferencesQuery,
-} from "@aigcfroge/protocol/groups/custom-composition"
-import { McpAssetContentQuery, McpAssetDeletePayload, McpAssetListQuery } from "@aigcfroge/protocol/groups/mcp-asset"
+} from "@omnixa/protocol/groups/custom-composition"
+import { McpAssetContentQuery, McpAssetDeletePayload, McpAssetListQuery } from "@omnixa/protocol/groups/mcp-asset"
 import {
   PluginAssetContentQuery,
   PluginAssetDeletePayload,
   PluginAssetListQuery,
-} from "@aigcfroge/protocol/groups/plugin-asset"
+} from "@omnixa/protocol/groups/plugin-asset"
 import {
   PromptAssetContentQuery,
   PromptAssetDeletePayload,
   PromptAssetListQuery,
-} from "@aigcfroge/protocol/groups/prompt-asset"
+} from "@omnixa/protocol/groups/prompt-asset"
 import {
   SkillAssetContentQuery,
   SkillAssetDeletePayload,
   SkillAssetListQuery,
-} from "@aigcfroge/protocol/groups/skill-asset"
+} from "@omnixa/protocol/groups/skill-asset"
 import {
   WorkflowAssetContentQuery,
   WorkflowAssetDeletePayload,
   WorkflowAssetListQuery,
-} from "@aigcfroge/protocol/groups/workflow-asset"
+} from "@omnixa/protocol/groups/workflow-asset"
 import {
   CustomProfileApplyPayload,
   CustomProfileContentQuery,
   CustomProfileDeletePayload,
   CustomProfileListQuery,
-} from "@aigcfroge/protocol/groups/custom-profile"
+} from "@omnixa/protocol/groups/custom-profile"
 
 // Handlers answer plain fixture data: undefined properties are dropped, and other non-JSON values become null.
 const Json = Schema.Json.pipe(
@@ -610,6 +605,26 @@ const Group = HttpApiGroup.make("mock")
       params: { integrationID: Schema.String, attemptID: Schema.String },
       success: Json,
       error: MockNotFound.pipe(HttpApiSchema.status(404)),
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post(
+      "integrationOAuthComplete",
+      "/api/integration/:integrationID/connect/oauth/:attemptID/complete",
+      {
+        params: { integrationID: Schema.String, attemptID: Schema.String },
+        query: LocationQuery,
+        payload: JsonPayload,
+        success: NoContent,
+        error: Unsupported,
+      },
+    ),
+  )
+  .add(
+    HttpApiEndpoint.delete("integrationOAuthCancel", "/api/integration/:integrationID/connect/oauth/:attemptID", {
+      params: { integrationID: Schema.String, attemptID: Schema.String },
+      query: LocationQuery,
+      success: NoContent,
     }),
   )
   .add(

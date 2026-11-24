@@ -2,11 +2,11 @@ export * as WorkflowRun from "./workflow-run"
 
 import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm"
 import { Context, DateTime, Effect, Layer, Option, Schema } from "effect"
-import { Composition } from "@aigcfroge/schema/composition"
-import type { Session as SessionSchema } from "@aigcfroge/schema/session"
-import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
-import { Permission } from "@aigcfroge/schema/permission"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { Composition } from "@omnixa/schema/composition"
+import type { Session as SessionSchema } from "@omnixa/schema/session"
+import { WorkflowAsset } from "@omnixa/schema/workflow-asset"
+import { Permission } from "@omnixa/schema/permission"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 import { computeDigest } from "../composition/digest"
 import { Database } from "../database/database"
 import { Bus } from "../bus"
@@ -269,7 +269,7 @@ export interface Interface {
   ) => Effect.Effect<WorkflowAsset.WorkflowRunInfo, WorkflowNotFoundError | InvalidStateTransitionError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/WorkflowRun") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/WorkflowRun") {}
 
 const makeRunID = Schema.decodeUnknownSync(WorkflowAsset.WorkflowRunID)
 const makeStepRunID = Schema.decodeUnknownSync(WorkflowAsset.StepRunID)

@@ -1,33 +1,33 @@
 import { expect, test } from "bun:test"
-import { GenerationOptions, LLMClient, LLMEvent, LanguageModel, ToolDefinition, type LLMRequest } from "@aigcfroge/ai"
-import { OpenAIChat } from "@aigcfroge/ai/protocols"
-import { Database } from "@aigcfroge/core/database/database"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { llmClient } from "@aigcfroge/core/effect/app-node-platform"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Bus } from "@aigcfroge/core/bus"
-import { EventTable } from "@aigcfroge/core/event/sql"
-import { SessionCompaction } from "@aigcfroge/core/session/compaction"
-import type { SessionContext } from "@aigcfroge/core/session/context"
-import { SessionEvent } from "@aigcfroge/core/session/event"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { SessionModelRequest } from "@aigcfroge/core/session/model-request"
-import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
-import { SessionProjector } from "@aigcfroge/core/session/projector"
-import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
-import { SessionTable } from "@aigcfroge/core/session/sql"
-import { SessionStore } from "@aigcfroge/core/session/store"
-import { Session } from "@aigcfroge/core/session"
-import { Location } from "@aigcfroge/core/location"
-import { Project } from "@aigcfroge/core/project"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
-import { App } from "@aigcfroge/core/app"
-import { Agent } from "@aigcfroge/core/agent"
-import { Provider } from "@aigcfroge/core/provider"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Money } from "@aigcfroge/schema/money"
-import { Skill } from "@aigcfroge/schema/skill"
-import { Shell } from "@aigcfroge/schema/shell"
+import { GenerationOptions, LLMClient, LLMEvent, LanguageModel, ToolDefinition, type LLMRequest } from "@omnixa/ai"
+import { OpenAIChat } from "@omnixa/ai/protocols"
+import { Database } from "@omnixa/core/database/database"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { llmClient } from "@omnixa/core/effect/app-node-platform"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Bus } from "@omnixa/core/bus"
+import { EventTable } from "@omnixa/core/event/sql"
+import { SessionCompaction } from "@omnixa/core/session/compaction"
+import type { SessionContext } from "@omnixa/core/session/context"
+import { SessionEvent } from "@omnixa/core/session/event"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { SessionModelRequest } from "@omnixa/core/session/model-request"
+import { PluginHooks } from "@omnixa/core/plugin/hooks"
+import { SessionProjector } from "@omnixa/core/session/projector"
+import { SessionRunnerModel } from "@omnixa/core/session/runner/model"
+import { SessionTable } from "@omnixa/core/session/sql"
+import { SessionStore } from "@omnixa/core/session/store"
+import { Session } from "@omnixa/core/session"
+import { Location } from "@omnixa/core/location"
+import { Project } from "@omnixa/core/project"
+import { ProjectTable } from "@omnixa/core/project/sql"
+import { App } from "@omnixa/core/app"
+import { Agent } from "@omnixa/core/agent"
+import { Provider } from "@omnixa/core/provider"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Money } from "@omnixa/schema/money"
+import { Skill } from "@omnixa/schema/skill"
+import { Shell } from "@omnixa/schema/shell"
 import { DateTime, Effect, Fiber, Layer, Schema, Stream } from "effect"
 import { asc, eq } from "drizzle-orm"
 import { testEffect } from "./lib/effect"
@@ -401,7 +401,7 @@ it.effect("uses the context Agent request for summary compaction", () =>
     expect(requests).toHaveLength(1)
     expect(requests[0]?.http?.headers).toMatchObject({
       "X-Agent": "compaction",
-      "x-aigcfroge-session-id": session.id,
+      "x-omnixa-session-id": session.id,
     })
     expect(requests[0]?.http?.body).toEqual(request.body)
     expect(requests[0]?.generation?.temperature).toBeUndefined()
@@ -509,15 +509,15 @@ it.effect("manual compaction summarizes short context instead of no-op", () =>
     expect(requests).toHaveLength(1)
     expect(requests[0]?.promptCacheKey).toBe(parentID)
     expect(requests[0]?.http?.headers).toEqual({
-      "x-aigcfroge-session-id": session.id,
-      "x-aigcfroge-parent-session-id": parentID,
+      "x-omnixa-session-id": session.id,
+      "x-omnixa-parent-session-id": parentID,
       "x-session-affinity": parentID,
       "X-Session-Id": parentID,
       "x-parent-session-id": parentID,
       "User-Agent": App.useragent(App.make()),
-      "x-aigcfroge-project": Project.ID.global,
-      "x-aigcfroge-session": parentID,
-      "x-aigcfroge-client": "aigcfroge",
+      "x-omnixa-project": Project.ID.global,
+      "x-omnixa-session": parentID,
+      "x-omnixa-client": "omnixa",
     })
     expect(requests[0]?.generation).toEqual(GenerationOptions.make({ maxTokens: 20_000 }))
     expect(JSON.stringify(requests[0]?.messages)).toContain("Manual compaction should include this short conversation.")

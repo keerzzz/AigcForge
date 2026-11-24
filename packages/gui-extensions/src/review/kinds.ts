@@ -1,4 +1,4 @@
-import type { FileDiffInfo } from "@aigcfroge/client/promise"
+import type { FileDiffInfo } from "@omnixa/client/promise"
 import type { ChangeKind } from "./contract"
 
 export type RenderDiff = FileDiffInfo

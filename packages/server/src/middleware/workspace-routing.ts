@@ -1,16 +1,16 @@
 import path from "node:path"
-import { Environment } from "@aigcfroge/core/environment/index"
-import { Location } from "@aigcfroge/core/location"
-import { LocationServiceMap } from "@aigcfroge/core/location-services"
-import { Workspace } from "@aigcfroge/core/workspace"
-import { ApiNotFoundError, InvalidRequestError } from "@aigcfroge/protocol/errors"
+import { Environment } from "@omnixa/core/environment/index"
+import { Location } from "@omnixa/core/location"
+import { LocationServiceMap } from "@omnixa/core/location-services"
+import { Workspace } from "@omnixa/core/workspace"
+import { ApiNotFoundError, InvalidRequestError } from "@omnixa/protocol/errors"
 import {
   InstanceContext,
   WorkspaceRouteContext,
   WorkspaceRouting,
   WorkspaceRoutingQuery,
-} from "@aigcfroge/protocol/middleware/workspace-routing"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
+} from "@omnixa/protocol/middleware/workspace-routing"
+import { AbsolutePath } from "@omnixa/schema/schema"
 import { Context, Effect, Layer, Schema } from "effect"
 import { HttpServerRequest } from "effect/http"
 
@@ -35,7 +35,7 @@ export const workspaceRoutingLayer = Layer.effect(
         )
         const directory =
           query.directory ||
-          (request.headers["x-aigcfroge-directory"] ? decode(request.headers["x-aigcfroge-directory"]) : process.cwd())
+          (request.headers["x-omnixa-directory"] ? decode(request.headers["x-omnixa-directory"]) : process.cwd())
         if (directory.includes("\0"))
           return yield* new InvalidRequestError({ message: "Invalid directory", field: "directory" })
         const workspaceID = query.workspace

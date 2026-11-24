@@ -1,23 +1,23 @@
 import { describe, expect } from "bun:test"
 import { asc } from "drizzle-orm"
 import { Effect, Layer } from "effect"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Bus } from "@aigcfroge/core/bus"
-import { Database } from "@aigcfroge/core/database/database"
-import { Project } from "@aigcfroge/core/project"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Session } from "@aigcfroge/core/session"
-import { SessionTable, TaskTable } from "@aigcfroge/core/session/sql"
-import { SessionTask } from "@aigcfroge/core/session/task"
-import { SessionTodo } from "@aigcfroge/core/session/todo"
-import { Global } from "@aigcfroge/util/global"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Bus } from "@omnixa/core/bus"
+import { Database } from "@omnixa/core/database/database"
+import { Project } from "@omnixa/core/project"
+import { ProjectTable } from "@omnixa/core/project/sql"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Session } from "@omnixa/core/session"
+import { SessionTable, TaskTable } from "@omnixa/core/session/sql"
+import { SessionTask } from "@omnixa/core/session/task"
+import { SessionTodo } from "@omnixa/core/session/todo"
+import { Global } from "@omnixa/util/global"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { testEffect } from "./lib/effect"
 
 const globalLayer = Layer.succeed(
   Global.Service,
-  Global.Service.of(Global.make({ data: "/data", config: "/config", tmp: "/tmp/aigcfroge" })),
+  Global.Service.of(Global.make({ data: "/data", config: "/config", tmp: "/tmp/omnixa" })),
 )
 const databaseLayer = Database.layer().pipe(Layer.provide(globalLayer))
 const busNodeLayer = AppNodeBuilder.build(LayerNode.group([Database.node, Bus.node]), [

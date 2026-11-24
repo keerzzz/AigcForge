@@ -1,13 +1,13 @@
 export * as PtyEnvironment from "./pty-environment"
 
 import { Context, Effect, Layer } from "effect"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 
 export interface Interface {
   readonly get: (input: { directory: string; cwd: string }) => Effect.Effect<Record<string, string>>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/ServerPtyEnvironment") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/ServerPtyEnvironment") {}
 
 export const layer = Layer.succeed(
   Service,

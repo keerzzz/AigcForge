@@ -1,22 +1,22 @@
 import { describe, expect } from "bun:test"
 import path from "path"
 import { Effect, Layer } from "effect"
-import { LanguageModel } from "@aigcfroge/ai"
-import { OpenAIChat } from "@aigcfroge/ai/protocols/openai-chat"
-import { TestLLM } from "@aigcfroge/ai/testing"
-import { Agent } from "@aigcfroge/core/agent"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNodePlatform } from "@aigcfroge/core/effect/app-node-platform"
-import { Watcher } from "@aigcfroge/core/filesystem/watcher"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
-import { Model } from "@aigcfroge/core/model"
-import { Plugin } from "@aigcfroge/core/plugin/service"
-import { Provider } from "@aigcfroge/core/provider"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Session } from "@aigcfroge/core/session"
-import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Global } from "@aigcfroge/util/global"
+import { LanguageModel } from "@omnixa/ai"
+import { OpenAIChat } from "@omnixa/ai/protocols/openai-chat"
+import { TestLLM } from "@omnixa/ai/testing"
+import { Agent } from "@omnixa/core/agent"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNodePlatform } from "@omnixa/core/effect/app-node-platform"
+import { Watcher } from "@omnixa/core/filesystem/watcher"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
+import { Model } from "@omnixa/core/model"
+import { Plugin } from "@omnixa/core/plugin/service"
+import { Provider } from "@omnixa/core/provider"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Session } from "@omnixa/core/session"
+import { SessionRunnerModel } from "@omnixa/core/session/runner/model"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Global } from "@omnixa/util/global"
 import { tempGlobalLayer } from "../fixture/global"
 import { offlineModels } from "../fixture/models"
 import { tmpdirScoped } from "../fixture/tmpdir"
@@ -138,7 +138,7 @@ function project(
     const definition = { description: "Review code", template: "Review $ARGUMENTS: !`printf ready`", ...command }
     yield* Effect.promise(() =>
       Bun.write(
-        path.join(tmp.path, "aigcfroge.json"),
+        path.join(tmp.path, "omnixa.json"),
         JSON.stringify({
           agents: { general: { model: "test/child" } },
           ...(format === "markdown" ? {} : { commands: { review: definition } }),
@@ -148,7 +148,7 @@ function project(
     if (format === "markdown")
       yield* Effect.promise(() =>
         Bun.write(
-          path.join(tmp.path, ".aigcfroge/commands/review.md"),
+          path.join(tmp.path, ".omnixa/commands/review.md"),
           [
             "---",
             "description: Review code",

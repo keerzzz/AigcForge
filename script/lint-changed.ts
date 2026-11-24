@@ -1,4 +1,4 @@
-import { ChangedLines } from "@aigcfroge/script/changed-lines"
+import { ChangedLines } from "@omnixa/script/changed-lines"
 
 const {
   addedLinesOfFile,

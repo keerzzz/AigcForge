@@ -1,10 +1,10 @@
 export * as PermissionEffective from "./effective"
 
-import { Permission } from "@aigcfroge/schema/permission"
-import { PermissionTier } from "@aigcfroge/schema/permission-tier"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { Permission } from "@omnixa/schema/permission"
+import { PermissionTier } from "@omnixa/schema/permission-tier"
+import { ProductMode } from "@omnixa/schema/product-mode"
 import { Wildcard } from "../util/wildcard"
-import { PermissionV1 } from "@aigcfroge/schema/v1/permission"
+import { PermissionV1 } from "@omnixa/schema/v1/permission"
 import type { SessionSchema } from "../session/schema"
 
 // 档位化判定所需输入，由调用方从 Session / Agent / override service / saved

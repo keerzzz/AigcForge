@@ -1,9 +1,9 @@
 export * as CorrectionStore from "./correction-store"
 
 import { Context, Effect, Exit, Layer, Option, Ref, Schema } from "effect"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { Document, type Entry } from "@aigcfroge/schema/config"
-import { Event } from "@aigcfroge/schema/event"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import { Document, type Entry } from "@omnixa/schema/config"
+import { Event } from "@omnixa/schema/event"
 import { Bus } from "../bus"
 import { Config } from "../config"
 import { KeyedMutex } from "../effect/keyed-mutex"
@@ -191,7 +191,7 @@ export interface Interface {
   readonly enabled: boolean
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/CorrectionStore") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/CorrectionStore") {}
 
 const ADVISORY_WARNING = (correct: string) =>
   `ℹ️ [纠正提醒] 此路径已纠正，正确值是 ${correct}。如确需使用旧值请忽略此提醒。`

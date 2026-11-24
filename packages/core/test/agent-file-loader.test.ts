@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { parseAgentFile } from "@aigcfroge/core/agent/file-loader"
+import { parseAgentFile } from "@omnixa/core/agent/file-loader"
 
 const MINIMAL_AGENT = `\
 ---

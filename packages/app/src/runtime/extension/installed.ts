@@ -1,6 +1,6 @@
 import { createMemo, createResource, onCleanup } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
-import type { Bridge, Installed } from "@aigcfroge/gui-extensions/sdk/bridge"
+import type { Bridge, Installed } from "@omnixa/gui-extensions/sdk/bridge"
 
 /** Saved enable preferences and manager metadata; activation and blocked-dependency status belong to the host. */
 export function createInstalled(bridge: Bridge | undefined) {

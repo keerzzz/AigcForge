@@ -1,22 +1,22 @@
 import path from "node:path"
 import { mkdir, rm } from "node:fs/promises"
 import { expect } from "bun:test"
-import { TestLLM } from "@aigcfroge/ai/testing"
-import { Agent } from "@aigcfroge/core/agent"
-import { Environment } from "@aigcfroge/core/environment/index"
-import { Watcher } from "@aigcfroge/core/filesystem/watcher"
-import { Location } from "@aigcfroge/core/location"
-import { Model } from "@aigcfroge/core/model"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { Provider } from "@aigcfroge/core/provider"
-import { Session } from "@aigcfroge/core/session"
-import { SessionInputResult } from "@aigcfroge/core/session/input-result"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { Command } from "@aigcfroge/core/command"
-import { CommandAsset } from "@aigcfroge/core/command-asset"
-import { CommandAssetService } from "@aigcfroge/core/command-asset-service"
-import { ProposeCommandAssetTool } from "@aigcfroge/core/tool/propose-command-asset"
-import { AssetPlacement } from "@aigcfroge/schema/asset-placement"
+import { TestLLM } from "@omnixa/ai/testing"
+import { Agent } from "@omnixa/core/agent"
+import { Environment } from "@omnixa/core/environment/index"
+import { Watcher } from "@omnixa/core/filesystem/watcher"
+import { Location } from "@omnixa/core/location"
+import { Model } from "@omnixa/core/model"
+import { Plugin } from "@omnixa/core/plugin"
+import { Provider } from "@omnixa/core/provider"
+import { Session } from "@omnixa/core/session"
+import { SessionInputResult } from "@omnixa/core/session/input-result"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { Command } from "@omnixa/core/command"
+import { CommandAsset } from "@omnixa/core/command-asset"
+import { CommandAssetService } from "@omnixa/core/command-asset-service"
+import { ProposeCommandAssetTool } from "@omnixa/core/tool/propose-command-asset"
+import { AssetPlacement } from "@omnixa/schema/asset-placement"
 import {
   BaseRevision,
   Candidate,
@@ -25,10 +25,10 @@ import {
   InvalidEntry,
   Revision,
   Summary,
-} from "@aigcfroge/schema/command-asset"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
-import { Workspace } from "@aigcfroge/schema/workspace"
-import { Hash } from "@aigcfroge/util/hash"
+} from "@omnixa/schema/command-asset"
+import { AbsolutePath } from "@omnixa/schema/schema"
+import { Workspace } from "@omnixa/schema/workspace"
+import { Hash } from "@omnixa/util/hash"
 import { Context, Deferred, Effect, Layer, Option, Schema } from "effect"
 import { withEnv } from "../../core/test/fixture/env"
 import { initRepo } from "../../core/test/fixture/git"
@@ -62,8 +62,8 @@ const setup = (
 ) => {
   const watchers = AssetHttpFixture.observeWatchers(reportObservation)
   return AssetHttpFixture.setup({
-    prefix: "aigcfroge-command-http-",
-    assetDirectory: ".aigcfroge/commands",
+    prefix: "omnixa-command-http-",
+    assetDirectory: ".omnixa/commands",
     model,
     files,
     prepare,
@@ -80,10 +80,10 @@ const setup = (
 }
 
 it.live("persists Project Command proposal facts and keeps legacy HTTP writes and native Session consumption", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
     Effect.gen(function* () {
       const fixture = yield* setup()
-      const target = path.join(fixture.directory, ".aigcfroge/commands/review-command.md")
+      const target = path.join(fixture.directory, ".omnixa/commands/review-command.md")
       const session = yield* fixture.sessions.create({
         title: "Command review",
         mode: "chat",
@@ -125,7 +125,7 @@ it.live("persists Project Command proposal facts and keeps legacy HTTP writes an
         pathConflict: false,
         target: Schema.decodeUnknownSync(AssetPlacement.Target)({
           scope: "project",
-          root: path.join(fixture.directory, ".aigcfroge/commands"),
+          root: path.join(fixture.directory, ".omnixa/commands"),
         }),
       })
       expect(proposed.metadata).toEqual({ ...Schema.encodeSync(Inspection)(proposed.facts), truncated: false })
@@ -164,9 +164,7 @@ it.live("persists Project Command proposal facts and keeps legacy HTTP writes an
       ).toBe(409)
       expect(yield* Effect.promise(() => Bun.file(target).exists())).toBe(false)
       expect(
-        yield* Effect.promise(() =>
-          Bun.file(path.join(fixture.other, ".aigcfroge/commands/review-command.md")).exists(),
-        ),
+        yield* Effect.promise(() => Bun.file(path.join(fixture.other, ".omnixa/commands/review-command.md")).exists()),
       ).toBe(false)
 
       const added = yield* nativeReady(fixture, input.description)
@@ -343,7 +341,7 @@ it.live("persists Project Command proposal facts and keeps legacy HTTP writes an
 it.live(
   "persists a Project Command Inspection from a Git child without writing or migrating legacy sources",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
       Effect.gen(function* () {
         const legacySource = "---\ndescription: Existing singular Command\n---\nKeep legacy $ARGUMENTS bytes.\n"
         const configuration = JSON.stringify({
@@ -351,11 +349,11 @@ it.live(
         })
         const fixture = yield* setup([], async (directory) => {
           await prepareProject(directory)
-          await rm(path.join(directory, ".aigcfroge"), { recursive: true })
-          const legacy = path.join(directory, "packages/first/.aigcfroge/command/from-file.md")
+          await rm(path.join(directory, ".omnixa"), { recursive: true })
+          const legacy = path.join(directory, "packages/first/.omnixa/command/from-file.md")
           await mkdir(path.dirname(legacy), { recursive: true })
           await Bun.write(legacy, legacySource)
-          await Bun.write(path.join(directory, "aigcfroge.json"), configuration)
+          await Bun.write(path.join(directory, "omnixa.json"), configuration)
         })
         const directory = path.join(fixture.directory, "packages/first")
         const local = yield* fixture.locations.contextEffect(locationRefForRoute({ directory }))
@@ -366,8 +364,8 @@ it.live(
         expect(fixture.directory).toBe(location.project.directory)
         expect(location.workspaceID).toBeUndefined()
         const absent = [
-          path.join(fixture.directory, ".aigcfroge"),
-          path.join(directory, ".aigcfroge/commands"),
+          path.join(fixture.directory, ".omnixa"),
+          path.join(directory, ".omnixa/commands"),
           path.join(fixture.global.config, "commands"),
         ]
         yield* Effect.forEach(absent, (root) =>
@@ -375,10 +373,10 @@ it.live(
             expect(yield* isDirectory(environment, root)).toBe(false)
           }),
         )
-        const marker = path.join(directory, ".aigcfroge/.command-asset-migration-v1")
+        const marker = path.join(directory, ".omnixa/.command-asset-migration-v1")
         expect(yield* Effect.promise(() => Bun.file(marker).exists())).toBe(false)
         const originals = yield* Effect.forEach(
-          [path.join(fixture.directory, "aigcfroge.json"), path.join(directory, ".aigcfroge/command/from-file.md")],
+          [path.join(fixture.directory, "omnixa.json"), path.join(directory, ".omnixa/command/from-file.md")],
           (file) => Effect.promise(() => Bun.file(file).arrayBuffer()).pipe(Effect.map((bytes) => ({ file, bytes }))),
         )
         const session = yield* fixture.sessions.create({
@@ -423,7 +421,7 @@ it.live(
           revision: null,
           nameConflict: false,
           pathConflict: false,
-          target: { scope: "project", root: path.join(fixture.directory, ".aigcfroge/commands") },
+          target: { scope: "project", root: path.join(fixture.directory, ".omnixa/commands") },
           truncated: false,
         })
         expect(saved.metadata).not.toHaveProperty("candidate")
@@ -464,7 +462,7 @@ it.live(
 )
 
 it.live("keeps Command HTTP creation disabled when the existing asset flag is off", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
     Effect.gen(function* () {
       const fixture = yield* setup()
       const session = yield* fixture.sessions.create({
@@ -478,7 +476,7 @@ it.live("keeps Command HTTP creation disabled when the existing asset flag is of
       ).toBe(400)
       expect(
         yield* Effect.promise(() =>
-          Bun.file(path.join(fixture.directory, ".aigcfroge/commands/review-command.md")).exists(),
+          Bun.file(path.join(fixture.directory, ".omnixa/commands/review-command.md")).exists(),
         ),
       ).toBe(false)
     }),
@@ -486,7 +484,7 @@ it.live("keeps Command HTTP creation disabled when the existing asset flag is of
 )
 
 it.live("reports Command name conflicts and rolls the attempted HTTP write back", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
     Effect.gen(function* () {
       const content = `---\nkind: command\nname: review-command\ndescription: Existing command\ninvocation: /review-command\n---\nExisting $ARGUMENTS.`
       const fixture = yield* setup([{ relativePath: "other.md", content }])
@@ -504,18 +502,18 @@ it.live("reports Command name conflicts and rolls the attempted HTTP write back"
       ).toBe(409)
       expect(
         yield* Effect.promise(() =>
-          Bun.file(path.join(fixture.directory, ".aigcfroge/commands/review-command.md")).exists(),
+          Bun.file(path.join(fixture.directory, ".omnixa/commands/review-command.md")).exists(),
         ),
       ).toBe(false)
       expect(
-        yield* Effect.promise(() => Bun.file(path.join(fixture.directory, ".aigcfroge/commands/other.md")).text()),
+        yield* Effect.promise(() => Bun.file(path.join(fixture.directory, ".omnixa/commands/other.md")).text()),
       ).toBe(content)
     }),
   ),
 )
 
 it.live("keeps legacy Command name derivation, JSON omissions and unconditional delete", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
     Effect.gen(function* () {
       const fixture = yield* setup()
       const session = yield* fixture.sessions.create({
@@ -549,7 +547,7 @@ it.live("keeps legacy Command name derivation, JSON omissions and unconditional 
       const applied = Schema.decodeUnknownSync(Info)(body)
       expect(applied.relativePath).toBe("review-command.md")
       expect(applied.source).toBe(candidate.source)
-      const file = path.join(fixture.directory, ".aigcfroge/commands", applied.relativePath)
+      const file = path.join(fixture.directory, ".omnixa/commands", applied.relativePath)
       const bytes = yield* Effect.promise(() => Bun.file(file).arrayBuffer())
       expect(Hash.sha256(Buffer.from(bytes))).toBe(applied.revision)
       expect(
@@ -592,7 +590,7 @@ it.live("keeps legacy Command name derivation, JSON omissions and unconditional 
 it.live(
   "selects Command HTTP owners while keeping omitted reads at the original Session Location",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
       Effect.gen(function* () {
         const fixture = yield* setup([], prepareProject)
         const directory = path.join(fixture.directory, "packages/first")
@@ -604,9 +602,9 @@ it.live(
           model,
         })
         const owners = [
-          { scope: "project", root: path.join(fixture.directory, ".aigcfroge/commands") },
+          { scope: "project", root: path.join(fixture.directory, ".omnixa/commands") },
           { scope: "global", root: path.join(fixture.global.config, "commands") },
-          { scope: "location", root: path.join(directory, ".aigcfroge/commands") },
+          { scope: "location", root: path.join(directory, ".omnixa/commands") },
         ] as const
         const saved = yield* Effect.forEach(owners, (owner) =>
           Effect.gen(function* () {
@@ -723,7 +721,7 @@ it.live(
 it.live(
   "keeps Command inspection and mutations bound to the original authenticated Session Location",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
       Effect.gen(function* () {
         const fixture = yield* setup([], prepareProject)
         const directory = path.join(fixture.directory, "packages/first")
@@ -743,7 +741,7 @@ it.live(
           model,
         })
         const candidate = Candidate.make({ ...input, relativePath: "review-command.md" })
-        const target = { scope: "project", root: path.join(fixture.directory, ".aigcfroge/commands") }
+        const target = { scope: "project", root: path.join(fixture.directory, ".omnixa/commands") }
         yield* Effect.forEach(
           [
             { endpoint: "inspect", body: { candidate, scope: "project" } },
@@ -781,7 +779,8 @@ it.live(
                 resource: workspaceSession.id,
               })
               const directoryAsSession = yield* fixture.request(
-                `/session/${encodeURIComponent(directory)}/command-asset/${operation.endpoint}`,
+                // Reach Session ID validation without exceeding the router's parameter limit.
+                `/session/${encodeURIComponent(path.parse(directory).root)}/command-asset/${operation.endpoint}`,
                 {
                   directory,
                   body: operation.body,
@@ -860,7 +859,7 @@ it.live(
           })).status,
         ).toBe(401)
         yield* Effect.forEach(
-          [target.root, path.join(directory, ".aigcfroge/commands"), path.join(fixture.global.config, "commands")],
+          [target.root, path.join(directory, ".omnixa/commands"), path.join(fixture.global.config, "commands")],
           (root) =>
             Effect.gen(function* () {
               expect(yield* Effect.promise(() => Bun.file(path.join(root, candidate.relativePath)).exists())).toBe(
@@ -880,7 +879,7 @@ it.live(
 it.live(
   "rejects mismatched Command target scope and root before revision comparison",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
       Effect.gen(function* () {
         const fixture = yield* setup([], prepareProject)
         const directory = path.join(fixture.directory, "packages/first")
@@ -892,14 +891,14 @@ it.live(
           model,
         })
         const candidate = Candidate.make({ ...input, relativePath: "review-command.md" })
-        const root = path.join(fixture.directory, ".aigcfroge/commands")
+        const root = path.join(fixture.directory, ".omnixa/commands")
         yield* Effect.forEach(
           [
             { scope: "global", root },
             { scope: "location", root },
-            { scope: "project", root: path.join(directory, ".aigcfroge/commands") },
-            { scope: "project", root: path.join(fixture.other, ".aigcfroge/commands") },
-            { scope: "project", root: path.join(fixture.directory, ".aigcfroge/skills") },
+            { scope: "project", root: path.join(directory, ".omnixa/commands") },
+            { scope: "project", root: path.join(fixture.other, ".omnixa/commands") },
+            { scope: "project", root: path.join(fixture.directory, ".omnixa/skills") },
           ],
           (target) =>
             Effect.forEach(
@@ -929,7 +928,7 @@ it.live(
             ),
         )
         yield* Effect.forEach(
-          [root, path.join(directory, ".aigcfroge/commands"), path.join(fixture.global.config, "commands")],
+          [root, path.join(directory, ".omnixa/commands"), path.join(fixture.global.config, "commands")],
           (owner) =>
             Effect.gen(function* () {
               expect(yield* Effect.promise(() => Bun.file(path.join(owner, candidate.relativePath)).exists())).toBe(
@@ -947,7 +946,7 @@ it.live(
 it.live(
   "uses strict selected Command revisions across Session Locations without changing legacy delete",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
       Effect.gen(function* () {
         const fixture = yield* setup([], prepareProject)
         const sessions = yield* Effect.forEach(["first", "second"], (name) =>
@@ -962,7 +961,7 @@ it.live(
         const first = sessions[0]
         const second = sessions[1]
         if (!first || !second) return yield* Effect.die(new Error("Both Command Session owners are required"))
-        const target = { scope: "project", root: path.join(fixture.directory, ".aigcfroge/commands") }
+        const target = { scope: "project", root: path.join(fixture.directory, ".omnixa/commands") }
         const candidate = Candidate.make({ ...input, relativePath: "review-command.md" })
         const body = yield* readBody(
           yield* fixture.request(`/session/${first.id}/command-asset/apply`, {
@@ -1058,7 +1057,7 @@ it.live(
 it.live(
   "keeps selected Command reads and deletion available when creation is disabled",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
       Effect.gen(function* () {
         const content =
           "---\nkind: command\nname: review-command\ndescription: Reviewed before disabling creation\ninvocation: /review-command\n---\nReview $ARGUMENTS."
@@ -1080,7 +1079,7 @@ it.live(
         )
         expect(inspected).toMatchObject({
           exists: true,
-          target: { scope: "project", root: path.join(fixture.directory, ".aigcfroge/commands") },
+          target: { scope: "project", root: path.join(fixture.directory, ".omnixa/commands") },
         })
         const file = path.join(inspected.target.root, candidate.relativePath)
         expect(Schema.encodeSync(BaseRevision)(inspected.revision)).toBe(
@@ -1124,20 +1123,20 @@ it.live(
   [
     { label: "Project commands exists", scope: "project", missing: "none" },
     { label: "Project commands is missing", scope: "project", missing: "commands" },
-    { label: "Project .aigcfroge is missing", scope: "project", missing: "config" },
+    { label: "Project .omnixa is missing", scope: "project", missing: "config" },
     { label: "global commands is missing", scope: "global", missing: "commands" },
   ] as const
 ).forEach((initial) => {
   it.live(
     `refreshes native Commands in two real Locations through create, replace and delete when ${initial.label}`,
     () =>
-      withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+      withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
         Effect.gen(function* () {
           const fixture = yield* setup([], async (directory) => {
             await prepareProject(directory)
             if (initial.scope === "global") await prepareProject(path.join(path.dirname(directory), "other"))
             if (initial.scope === "project" && initial.missing !== "none")
-              await rm(path.join(directory, initial.missing === "config" ? ".aigcfroge" : ".aigcfroge/commands"), {
+              await rm(path.join(directory, initial.missing === "config" ? ".omnixa" : ".omnixa/commands"), {
                 recursive: true,
               })
           })
@@ -1145,7 +1144,7 @@ it.live(
           const root =
             initial.scope === "global"
               ? path.join(fixture.global.config, "commands")
-              : path.join(fixture.directory, ".aigcfroge/commands")
+              : path.join(fixture.directory, ".omnixa/commands")
           expect(yield* isDirectory(environment, root)).toBe(initial.missing === "none")
           if (initial.missing === "config") expect(yield* isDirectory(environment, path.dirname(root))).toBe(false)
           const directories = [
@@ -1209,7 +1208,7 @@ it.live(
             fixture,
             directories,
             initial.missing === "config"
-              ? { type: "entries", path: fixture.directory, names: [".aigcfroge"] }
+              ? { type: "entries", path: fixture.directory, names: [".omnixa"] }
               : { type: "directory", path: path.dirname(root) },
           )
           const createdEvents = fixture.watchers.events.length
@@ -1245,7 +1244,7 @@ it.live(
               ).toEqual(applied)
               expect(
                 yield* Effect.promise(() =>
-                  Bun.file(path.join(directory, ".aigcfroge/commands/review-command.md")).exists(),
+                  Bun.file(path.join(directory, ".omnixa/commands/review-command.md")).exists(),
                 ),
               ).toBe(false)
             }),
@@ -1330,7 +1329,7 @@ it.live(
 it.live(
   "keeps Project Command source above global and consumes the global fallback in the original Session",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
       Effect.gen(function* () {
         const fixture = yield* setup([], prepareProject)
         const directories = [
@@ -1381,7 +1380,7 @@ it.live(
         )
         expect(Schema.encodeSync(AssetPlacement.Target)(project.target)).toEqual({
           scope: "project",
-          root: path.join(fixture.directory, ".aigcfroge/commands"),
+          root: path.join(fixture.directory, ".omnixa/commands"),
         })
         expect(Schema.encodeSync(AssetPlacement.Target)(global.target)).toEqual({
           scope: "global",

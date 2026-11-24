@@ -1,5 +1,5 @@
-import { Config } from "@aigcfroge/core/config"
-import { ShellSelect } from "@aigcfroge/core/shell/select"
+import { Config } from "@omnixa/core/config"
+import { ShellSelect } from "@omnixa/core/shell/select"
 import { Effect } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
 import { Api } from "../api"

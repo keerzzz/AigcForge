@@ -1,10 +1,10 @@
 import { Effect } from "effect"
-import { define } from "@aigcfroge/plugin/effect/plugin"
-import { Npm } from "@aigcfroge/util/npm"
+import { define } from "@omnixa/plugin/effect/plugin"
+import { Npm } from "@omnixa/util/npm"
 import { loadSDKFactory } from "./sdk-factory.js"
 
 export const DynamicProviderPlugin = define({
-  id: "aigcfroge.provider.dynamic",
+  id: "omnixa.provider.dynamic",
   effect: Effect.fn(function* (ctx) {
     const npm = yield* Npm.Service
     yield* ctx.aisdk.hook(

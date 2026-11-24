@@ -6,5 +6,5 @@ export default defineConfig({
   root: fileURLToPath(new URL(".", import.meta.url)),
   publicDir: fileURLToPath(new URL("../../../public", import.meta.url)),
   plugins: [app],
-  build: { target: "esnext", outDir: process.env.AIGCFROGE_HISTORY_BUILD, emptyOutDir: true },
+  build: { target: "esnext", outDir: process.env.OMNIXA_HISTORY_BUILD, emptyOutDir: true },
 })

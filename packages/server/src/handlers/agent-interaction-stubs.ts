@@ -1,4 +1,4 @@
-import { InvalidRequestError } from "@aigcfroge/protocol/errors"
+import { InvalidRequestError } from "@omnixa/protocol/errors"
 import { HttpApiBuilder } from "effect/http-api"
 import { Effect } from "effect"
 import { Api } from "../api"

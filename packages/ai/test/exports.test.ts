@@ -17,9 +17,9 @@ import {
   TranscriptionClient,
   Video,
   VideoClient,
-} from "@aigcfroge/ai"
-import { Route, Protocol, RequestExecutor, WebSocketTransport } from "@aigcfroge/ai/route"
-import { Provider as ProviderSubpath } from "@aigcfroge/ai/provider"
+} from "@omnixa/ai"
+import { Route, Protocol, RequestExecutor, WebSocketTransport } from "@omnixa/ai/route"
+import { Provider as ProviderSubpath } from "@omnixa/ai/provider"
 import {
   AssemblyAI,
   Baseten,
@@ -34,7 +34,6 @@ import {
   Fireworks,
   Google,
   Meta,
-  AigcForgeZen,
   OpenAI,
   OpenAICompatible,
   OpenRouter,
@@ -45,7 +44,7 @@ import {
   VercelAIGateway,
   XAI,
   ZAI,
-} from "@aigcfroge/ai/providers"
+} from "@omnixa/ai/providers"
 import {
   OpenAIChat,
   OpenAICompatibleChat,
@@ -53,10 +52,10 @@ import {
   OpenAIResponses,
   OpenResponses,
   OpenResponsesChannel,
-} from "@aigcfroge/ai/protocols"
-import * as AnthropicMessages from "@aigcfroge/ai/protocols/anthropic-messages"
-import { TestLLM } from "@aigcfroge/ai/testing"
-import { Evaluation, EvaluationClient } from "@aigcfroge/ai/experimental"
+} from "@omnixa/ai/protocols"
+import * as AnthropicMessages from "@omnixa/ai/protocols/anthropic-messages"
+import { TestLLM } from "@omnixa/ai/testing"
+import { Evaluation, EvaluationClient } from "@omnixa/ai/experimental"
 
 describe("public exports", () => {
   test("modality, provider, and protocol entrypoints load first in a fresh process", async () => {
@@ -127,7 +126,7 @@ describe("public exports", () => {
   })
 
   test("provider barrels expose user-facing facades", async () => {
-    const { OpenAICompatibleResponses } = await import("@aigcfroge/ai/providers")
+    const { OpenAICompatibleResponses } = await import("@omnixa/ai/providers")
 
     expect(OpenAI.model).toBeFunction()
     expect(OpenAI.provider.responses).toBe(OpenAI.responses)
@@ -149,7 +148,6 @@ describe("public exports", () => {
     expect(OpenRouter.model).toBeFunction()
     expect(OpenRouter.experimental.evaluation).toBeFunction()
     expect(TypeSafeAI.experimental.evaluation).toBeFunction()
-    expect(AigcForgeZen.experimental.evaluation).toBeFunction()
     expect(VercelAIGateway.experimental.evaluation).toBeFunction()
     expect(XAI.model).toBeFunction()
     expect(XAI.provider.responses).toBe(XAI.responses)

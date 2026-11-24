@@ -5,10 +5,10 @@ import { unwrap } from "solid-js/store"
 import { isServer } from "solid-js/web"
 import { createData, type CreateDataInput } from "../src/solid"
 import {
-  AigcForge,
+  Omnixa,
   ClientError,
   type ModelInfo,
-  type AigcForgeEvent,
+  type OmnixaEvent,
   type Project,
   type SessionInfo,
   type SessionIdentityIdentity,
@@ -48,8 +48,8 @@ test("executor selection events preserve the CPU ref and transcript while invali
   }
   const started = Promise.withResolvers<void>()
   const release = Promise.withResolvers<SessionInfo>()
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async () => {
       started.resolve()
       return Response.json({ data: await release.promise })
@@ -74,7 +74,7 @@ test("executor selection events preserve the CPU ref and transcript while invali
     setup.data.session.invalidate(initial.id)
     const read = setup.data.session.sync(initial.id)
     await started.promise
-    const event: AigcForgeEvent = {
+    const event: OmnixaEvent = {
       id: "evt_executor",
       type: "session.executor.selected",
       created: 5,
@@ -102,8 +102,8 @@ test("executor selection events preserve the CPU ref and transcript while invali
 
 test("uses the configured initial window and retains normal cursor page sizes", async () => {
   const requests: { limit: string | null; cursor: string | null }[] = []
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async (input, init) => {
       const url = new URL((input instanceof Request ? input : new Request(input, init)).url)
       const cursor = url.searchParams.get("cursor")
@@ -187,7 +187,7 @@ test.each(
     started.resolve()
     return release.promise
   })
-  const replacement = AigcForge.make({
+  const replacement = Omnixa.make({
     baseUrl: "http://replacement.local",
     fetch: (input, init) => {
       replacementRequests.push(input instanceof Request ? input : new Request(input, init))
@@ -618,8 +618,8 @@ test("reconciles a stale running tool when execution settles", async () => {
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
   let completed = false
   let requests = 0
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async () => {
       requests++
       return Response.json({
@@ -665,7 +665,7 @@ test("reconciles a stale running tool when execution settles", async () => {
   try {
     await setup.data.session.message.sync("ses_refresh")
     completed = true
-    const interrupted: AigcForgeEvent = {
+    const interrupted: OmnixaEvent = {
       id: "evt_interrupted",
       created: 3,
       type: "session.execution.interrupted",
@@ -693,8 +693,8 @@ test("revalidates after an event overtakes an active session read", async () => 
   const gate = new Promise<void>((resolve) => (release = resolve))
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
   let requests = 0
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
       if (!request.url.endsWith("/api/session/ses_refresh")) throw new Error(`Unexpected request: ${request.url}`)
@@ -708,9 +708,9 @@ test("revalidates after an event overtakes an active session read", async () => 
   })
   const event: CreateDataInput["event"] = {
     on:
-      <Type extends AigcForgeEvent["type"]>(
+      <Type extends OmnixaEvent["type"]>(
         _type: Type,
-        _handler: (event: Extract<AigcForgeEvent, { type: Type }>) => void,
+        _handler: (event: Extract<OmnixaEvent, { type: Type }>) => void,
       ) =>
       () => {},
     listen(handler) {
@@ -729,7 +729,7 @@ test("revalidates after an event overtakes an active session read", async () => 
     const initial = setup.data.session.sync("ses_refresh")
     await wait(() => requests === 1)
 
-    const viewed: AigcForgeEvent = {
+    const viewed: OmnixaEvent = {
       id: "evt_viewed",
       created: 2,
       type: "session.viewed",
@@ -753,8 +753,8 @@ test("preserves a live session rename across concurrent session and family reads
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
   let requests = 0
   const stale = { ...session(0), title: undefined }
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
       if (!request.url.endsWith(`/api/session/${stale.id}`)) return Response.json({ data: [], cursor: {} })
@@ -781,7 +781,7 @@ test("preserves a live session rename across concurrent session and family reads
   try {
     const initial = setup.data.session.sync(stale.id, { children: true })
     await wait(() => requests === 1)
-    const event: AigcForgeEvent = {
+    const event: OmnixaEvent = {
       id: "evt_renamed",
       created: 1,
       type: "session.renamed",
@@ -845,7 +845,7 @@ test.each([
   const started = Promise.withResolvers<void>()
   const release = Promise.withResolvers<Response>()
   const replacementRequests: Request[] = []
-  const replacement = AigcForge.make({
+  const replacement = Omnixa.make({
     baseUrl: "http://replacement.local",
     fetch: async (input, init) => {
       replacementRequests.push(input instanceof Request ? input : new Request(input, init))
@@ -939,7 +939,7 @@ test("a queued Session reload captures the API when its load starts", async () =
     started.resolve()
     return release.promise
   })
-  const replacement = AigcForge.make({
+  const replacement = Omnixa.make({
     baseUrl: "http://replacement.local",
     fetch: (input, init) => {
       replacementRequests.push(input instanceof Request ? input : new Request(input, init))
@@ -1002,7 +1002,7 @@ test.skipIf(isServer).each(["API replaced", "disposed", "model event", "executor
     const published = Promise.withResolvers<void>()
     const observation = { fired: false }
     const replacementRequests: Request[] = []
-    const replacement = AigcForge.make({
+    const replacement = Omnixa.make({
       baseUrl: "http://replacement.local",
       fetch: async (input, init) => {
         replacementRequests.push(input instanceof Request ? input : new Request(input, init))
@@ -1385,7 +1385,7 @@ test.each([
     await started.promise
     if (change === "invalidated") setup.data.session.identity.invalidate(initial.id)
     if (change === "API replaced")
-      setup.owner.api = AigcForge.make({ baseUrl: "http://replacement.local", fetch: async () => Response.json(fresh) })
+      setup.owner.api = Omnixa.make({ baseUrl: "http://replacement.local", fetch: async () => Response.json(fresh) })
     if (change === "Location changed")
       setup.data.session.remember({ ...initial, location: { directory: "/canonical" } })
     if (change === "workspace changed")
@@ -1546,8 +1546,8 @@ test("updates authoritative cached project metadata from live events", async () 
     sandboxes: [],
   }
   let requests = 0
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
       if (!request.url.endsWith("/api/project")) throw new Error(`Unexpected request: ${request.url}`)
@@ -1571,7 +1571,7 @@ test("updates authoritative cached project metadata from live events", async () 
     await setup.data.project.sync()
     expect(setup.data.project.get(original.id)).toEqual(original)
 
-    const updated: AigcForgeEvent = {
+    const updated: OmnixaEvent = {
       id: "evt_project_renamed",
       created: 2,
       type: "project.updated",
@@ -1589,7 +1589,7 @@ test("updates authoritative cached project metadata from live events", async () 
     expect(setup.data.project.get(unrelated.id)).toEqual(unrelated)
     expect(requests).toBe(1)
 
-    const reset: AigcForgeEvent = {
+    const reset: OmnixaEvent = {
       id: "evt_project_name_reset",
       created: 3,
       type: "project.updated",
@@ -1620,8 +1620,8 @@ test("adopts cached directory-project sessions when their repository is resolved
     location: { directory: "/unknown-alias" },
     subpath: "app",
   }
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
       if (!request.url.endsWith("/api/session/ses_uncached")) throw new Error(`Unexpected request: ${request.url}`)
@@ -1671,7 +1671,7 @@ test("adopts cached directory-project sessions when their repository is resolved
       { id: "directory-root", canonical: "/repo" },
       { id: "directory-nested", canonical: "/repo/app" },
     ]) {
-      const updated: AigcForgeEvent = {
+      const updated: OmnixaEvent = {
         id: `evt_${project.id}`,
         created: 0,
         type: "project.updated",
@@ -1680,7 +1680,7 @@ test("adopts cached directory-project sessions when their repository is resolved
       listeners.forEach((listener) => listener({ name: updated.type, details: updated }))
     }
 
-    const resolved: AigcForgeEvent = {
+    const resolved: OmnixaEvent = {
       id: "evt_repository_resolved",
       created: 1,
       type: "worktree.resolved",
@@ -1714,8 +1714,8 @@ test("adopts cached directory-project sessions when their repository is resolved
 test("refreshes global credential events across every loaded location", async () => {
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
   const requests: URL[] = []
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
       const url = new URL(request.url)
@@ -1759,7 +1759,7 @@ test("refreshes global credential events across every loaded location", async ()
     const references = locations.map((location) => setup.data.location.reference.list(location))
     requests.length = 0
 
-    const updated: AigcForgeEvent = {
+    const updated: OmnixaEvent = {
       id: "evt_credential.updated",
       created: 1,
       type: "credential.updated",
@@ -1774,7 +1774,7 @@ test("refreshes global credential events across every loaded location", async ()
     requests.length = 0
 
     for (const credentialID of ["credential", null]) {
-      const switched: AigcForgeEvent = {
+      const switched: OmnixaEvent = {
         id: `evt_credential.switched.${credentialID}`,
         created: 2,
         type: "credential.switched",
@@ -1805,8 +1805,8 @@ for (const resource of ["provider", "model"] as const) {
     const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
     const requests: URL[] = []
     const current = { name: "Before" }
-    const api = AigcForge.make({
-      baseUrl: "http://aigcfroge.local",
+    const api = Omnixa.make({
+      baseUrl: "http://omnixa.local",
       fetch: async (input, init) => {
         const request = input instanceof Request ? input : new Request(input, init)
         const url = new URL(request.url)
@@ -1853,7 +1853,7 @@ for (const resource of ["provider", "model"] as const) {
       const untouchedLocation = setup.data.location[resource].list(other)
       requests.length = 0
       current.name = "After"
-      const event: AigcForgeEvent = {
+      const event: OmnixaEvent = {
         id: `evt_${resource}_updated`,
         created: 1,
         type: `${resource}.updated`,
@@ -1881,8 +1881,8 @@ test("revalidates model discovery when an update overtakes an in-flight model li
   const release = Promise.withResolvers<void>()
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
   let requests = 0
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
       if (new URL(request.url).pathname !== "/api/model") throw new Error(`Unexpected request: ${request.url}`)
@@ -1916,7 +1916,7 @@ test("revalidates model discovery when an update overtakes an in-flight model li
   try {
     const initial = setup.data.location.model.sync()
     await started.promise
-    const event: AigcForgeEvent = {
+    const event: OmnixaEvent = {
       id: "evt_models_discovered",
       created: 1,
       type: "model.updated",
@@ -1937,8 +1937,8 @@ test("revalidates model discovery when an update overtakes an in-flight model li
 test("refreshes references for the location an update names", async () => {
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
   const requests: URL[] = []
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
       const url = new URL(request.url)
@@ -1974,7 +1974,7 @@ test("refreshes references for the location an update names", async () => {
     await Promise.all([setup.data.location.reference.sync(), setup.data.location.reference.sync(other)])
     requests.length = 0
 
-    const updated: AigcForgeEvent = {
+    const updated: OmnixaEvent = {
       id: "evt_reference.updated",
       created: 1,
       type: "reference.updated",
@@ -1996,8 +1996,8 @@ test("preserves sibling catalogs through location preload, branch, shell, and we
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
   const location = { directory: "/project", project: { id: "project", directory: "/project", canonical: "/project" } }
   const requests: string[] = []
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async (input, init) => {
       const pathname = new URL((input instanceof Request ? input : new Request(input, init)).url).pathname
       requests.push(pathname)
@@ -2030,7 +2030,7 @@ test("preserves sibling catalogs through location preload, branch, shell, and we
     }),
     dispose,
   }))
-  const emit = (details: AigcForgeEvent) => listeners.forEach((listener) => listener({ name: details.type, details }))
+  const emit = (details: OmnixaEvent) => listeners.forEach((listener) => listener({ name: details.type, details }))
   const shell = {
     id: "sh_first",
     status: "running" as const,
@@ -2087,8 +2087,8 @@ test("preserves sibling catalogs through location preload, branch, shell, and we
 
 test("reports optimistic sessions as creating until the request settles", async () => {
   const release = Promise.withResolvers<void>()
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
       if (!request.url.endsWith("/api/session")) throw new Error(`Unexpected request: ${request.url}`)
@@ -2118,8 +2118,8 @@ test("reports optimistic sessions as creating until the request settles", async 
 
 test("loads bounded message pages", async () => {
   const requests: URL[] = []
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
       const url = new URL(request.url)
@@ -2246,7 +2246,7 @@ test.each(["API replaced", "invalidated", "evicted", "deleted", "disposed", "new
       }
       return Response.json({ data: [], cursor: {} })
     })
-    const replacement = AigcForge.make({
+    const replacement = Omnixa.make({
       baseUrl: "http://replacement.local",
       fetch: async (input, init) => {
         const request = input instanceof Request ? input : new Request(input, init)
@@ -2341,8 +2341,8 @@ test.each(["success", "failure", "cancel", "cancel-retry", "cancel-page", "join-
     const controller = new AbortController()
     const requests: URL[] = []
     const publications: string[][] = []
-    const api = AigcForge.make({
-      baseUrl: "http://aigcfroge.local",
+    const api = Omnixa.make({
+      baseUrl: "http://omnixa.local",
       fetch: async (input, init) => {
         const url = new URL(input instanceof Request ? input.url : String(input))
         requests.push(url)
@@ -2475,7 +2475,7 @@ test.each([
         sessionID: "ses_refresh",
         reason: "user",
         ...(type === "session.execution.failed"
-          ? { error: { type: "provider.no-route", message: "Model unavailable: aigcfroge/gpt-5.2" } }
+          ? { error: { type: "provider.no-route", message: "Model unavailable: omnixa/gpt-5.2" } }
           : {}),
       },
     })
@@ -2485,7 +2485,7 @@ test.each([
         id: "msg_activity",
         type: "idle",
         outcome: "failed",
-        error: { type: "provider.no-route", message: "Model unavailable: aigcfroge/gpt-5.2" },
+        error: { type: "provider.no-route", message: "Model unavailable: omnixa/gpt-5.2" },
         time: { created: 2 },
       })
     }
@@ -2940,7 +2940,7 @@ test.each(["workflow", "cache"] as const)(
       setup.data.session.remember(session(0))
       const read = setup.data.session[name].sync("ses_refresh")
       await started.promise
-      setup.owner.api = AigcForge.make({ baseUrl: "http://replacement.local", fetch: async () => Response.json(next) })
+      setup.owner.api = Omnixa.make({ baseUrl: "http://replacement.local", fetch: async () => Response.json(next) })
       setup.data.session.remember({ ...session(0), location: { directory: "/canonical" } })
       const replacement = setup.data.session[name].sync("ses_refresh")
       expect(setup.data.session[name].get("ses_refresh")).toBeUndefined()
@@ -2975,7 +2975,7 @@ test.each(["invalidated", "API replaced", "deleted", "evicted", "disposed"] as c
       await started.promise
       if (change === "invalidated") setup.data.session.delegation.invalidate("ses_refresh")
       if (change === "API replaced")
-        setup.owner.api = AigcForge.make({
+        setup.owner.api = Omnixa.make({
           baseUrl: "http://replacement.local",
           fetch: async () => Response.json([fresh]),
         })
@@ -3324,7 +3324,7 @@ test.each(
     pending.push(held)
     await started.promise
     if (change === "API replaced")
-      setup.owner.api = AigcForge.make({ baseUrl: "http://replacement.local", fetch: async () => Response.json([]) })
+      setup.owner.api = Omnixa.make({ baseUrl: "http://replacement.local", fetch: async () => Response.json([]) })
     if (change === "Location changed")
       setup.data.session.remember({ ...session(0), location: { directory: "/canonical" } })
     if (change === "workspace changed")
@@ -3546,7 +3546,7 @@ test("a reserved operation reads the server source row without duplicating it on
     setup.data.session.remember(session(0))
     await setup.data.session.message.sync(operation.sourceSessionID)
     snapshots.rows = [row]
-    const event: AigcForgeEvent = {
+    const event: OmnixaEvent = {
       id: "evt_reserved_task_source",
       type: "task.operation.reserved",
       created: 3,
@@ -3685,7 +3685,7 @@ test.each(
       kind === "goal" ? setup.data.session.goal.sync("ses_refresh") : setup.data.session.schedule.sync("ses_refresh")
     await started.promise
     if (change === "api replaced")
-      setup.owner.api = AigcForge.make({
+      setup.owner.api = Omnixa.make({
         baseUrl: "http://replacement.local",
         fetch: async () => Response.json(kind === "goal" ? { data: [] } : []),
       })
@@ -4145,7 +4145,7 @@ test.each(["api replaced", "Location moved", "evicted", "deleted", "disposed"] a
       reads.push(setup.data.session.communication.sync("ses_refresh"))
       await started.promise
       if (change === "api replaced")
-        setup.owner.api = AigcForge.make({
+        setup.owner.api = Omnixa.make({
           baseUrl: "http://replacement.local",
           fetch: async () =>
             Response.json({
@@ -4193,7 +4193,7 @@ function communicationInfo(input: Partial<SessionCommunicationMessage> = {}): Se
   }
 }
 
-function communicationEvent(value: SessionCommunicationMessage): AigcForgeEvent {
+function communicationEvent(value: SessionCommunicationMessage): OmnixaEvent {
   return {
     id: "evt_communication_enqueued",
     type: "session.inbox.enqueued",
@@ -4326,8 +4326,8 @@ function taskFixture(
 ) {
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
   const requests: Request[] = []
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
       requests.push(request.clone())
@@ -4350,7 +4350,7 @@ function taskFixture(
     }),
     owner,
     requests,
-    emit: (details: AigcForgeEvent) => listeners.forEach((listener) => listener({ name: details.type, details })),
+    emit: (details: OmnixaEvent) => listeners.forEach((listener) => listener({ name: details.type, details })),
     dispose,
   }))
 }
@@ -4434,7 +4434,7 @@ test("physical attempt SSE preserves logical selection, exact observations and a
         started: 4,
       },
     })
-    const sent: AigcForgeEvent = {
+    const sent: OmnixaEvent = {
       id: "evt_b_sent",
       type: "session.attempt.observed",
       created: 5,
@@ -4466,7 +4466,7 @@ test("physical attempt SSE preserves logical selection, exact observations and a
       created: 9,
       data: { ...identity, delta: "Actual B output" },
     })
-    const terminal: AigcForgeEvent = {
+    const terminal: OmnixaEvent = {
       id: "evt_attempt_b_end",
       type: "session.attempt.ended",
       created: 10,
@@ -4574,7 +4574,7 @@ test("the original model group resource refreshes only observed Location reads a
     return Response.json({ location, data: [] })
   })
   try {
-    const event: AigcForgeEvent = { id: "evt_group_config", type: "config.updated", created: 1, location, data: {} }
+    const event: OmnixaEvent = { id: "evt_group_config", type: "config.updated", created: 1, location, data: {} }
     setup.emit(event)
     expect(setup.requests.filter((request) => new URL(request.url).pathname === "/api/model/group")).toHaveLength(0)
     await setup.data.location.model.group.definition.sync(location)
@@ -4610,8 +4610,8 @@ function activityFixture(
   http?: (request: Request) => Response | Promise<Response>,
 ) {
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async (input, init) => {
       const request = input instanceof Request ? input : new Request(input, init)
       const path = new URL(request.url).pathname
@@ -4634,7 +4634,7 @@ function activityFixture(
         },
       },
     }),
-    emit: (details: AigcForgeEvent) => listeners.forEach((listener) => listener({ name: details.type, details })),
+    emit: (details: OmnixaEvent) => listeners.forEach((listener) => listener({ name: details.type, details })),
     dispose,
   }))
 }
@@ -4652,8 +4652,8 @@ for (const mode of ["chat", undefined] as const)
     const received = Promise.withResolvers<unknown>()
     const release = Promise.withResolvers<void>()
     const canonical = { ...session(0), mode: "work" as const, agent: "build" }
-    const api = AigcForge.make({
-      baseUrl: "http://aigcfroge.local",
+    const api = Omnixa.make({
+      baseUrl: "http://omnixa.local",
       fetch: async (input, init) => {
         const request = input instanceof Request ? input : new Request(input, init)
         if (!request.url.endsWith("/api/session")) throw new Error(`Unexpected request: ${request.url}`)
@@ -4710,14 +4710,14 @@ test.each([
     time: { created: 1 },
     payload: { text: "Keep the original owner" },
   }
-  const owner = AigcForge.make({
+  const owner = Omnixa.make({
     baseUrl: "http://owner.local",
     fetch: async (input, init) => {
       requests.push((input instanceof Request ? input : new Request(input, init)).url)
       return Response.json({ data: admitted })
     },
   })
-  const replacement = AigcForge.make({
+  const replacement = Omnixa.make({
     baseUrl: "http://replacement.local",
     fetch: async (input, init) => {
       replacementRequests.push((input instanceof Request ? input : new Request(input, init)).url)
@@ -4771,7 +4771,7 @@ test("an old API's rejected prompt cannot retract a retry owned by its replaceme
   const retryGate = Promise.withResolvers<void>()
   const requests: string[] = []
   const input = { sessionID: "ses_owner_retry", id: "msg_owner_retry", text: "Keep the retry" }
-  const owner = AigcForge.make({
+  const owner = Omnixa.make({
     baseUrl: "http://owner.local",
     fetch: (input, init) => {
       requests.push((input instanceof Request ? input : new Request(input, init)).url)
@@ -4779,7 +4779,7 @@ test("an old API's rejected prompt cannot retract a retry owned by its replaceme
       return response.promise
     },
   })
-  const replacement = AigcForge.make({
+  const replacement = Omnixa.make({
     baseUrl: "http://replacement.local",
     fetch: async (request, init) => {
       requests.push((request instanceof Request ? request : new Request(request, init)).url)

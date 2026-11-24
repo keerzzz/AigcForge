@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/solid */
 import { expect, test } from "bun:test"
-import type { AigcForgeEvent } from "@aigcfroge/client"
+import type { OmnixaEvent } from "@omnixa/client"
 import { testRender } from "@opentui/solid"
 import { mkdirSync, watch } from "fs"
 import path from "path"
@@ -198,7 +198,7 @@ async function renderSessionTabs(
     setSessionTime(sessionID: string, time: { idle?: number; viewed?: number }) {
       sessionTimes[sessionID] = time
     },
-    emit: (event: AigcForgeEvent) => events.emit({ ...event, location: { directory } }),
+    emit: (event: OmnixaEvent) => events.emit({ ...event, location: { directory } }),
     focus: () => app.renderer.emit("focus"),
     blur: () => app.renderer.emit("blur"),
     flush: () => storage.flush(),
@@ -215,7 +215,7 @@ async function renderSessionTabs(
   }
 }
 
-function admitted(sessionID: string, inboxID: string): AigcForgeEvent {
+function admitted(sessionID: string, inboxID: string): OmnixaEvent {
   return {
     id: `evt_${inboxID}`,
     created: Date.now(),
@@ -232,17 +232,19 @@ function admitted(sessionID: string, inboxID: string): AigcForgeEvent {
 test("loads persisted tab metadata concurrently on connect", async () => {
   let release!: () => void
   const sessionGate = new Promise<void>((resolve) => (release = resolve))
-  const setup = await renderSessionTabs("first", {
+  const setup = await renderSessionTabs("ses_first", {
     home: true,
-    persisted: ["first", "second"],
+    persisted: ["ses_first", "ses_second"],
     sessionGate,
   })
 
   try {
     await wait(() => setup.sessions.length === 2)
-    expect(setup.sessions.toSorted()).toEqual(["first", "second"])
+    expect(setup.sessions.toSorted()).toEqual(["ses_first", "ses_second"])
     release()
-    await wait(() => setup.data.session.get("first") !== undefined && setup.data.session.get("second") !== undefined)
+    await wait(
+      () => setup.data.session.get("ses_first") !== undefined && setup.data.session.get("ses_second") !== undefined,
+    )
   } finally {
     release()
     await setup.destroy()
@@ -251,10 +253,10 @@ test("loads persisted tab metadata concurrently on connect", async () => {
 
 test("loads VCS metadata for each persisted tab location", async () => {
   const other = `${directory}/other-worktree`
-  const setup = await renderSessionTabs("first", {
+  const setup = await renderSessionTabs("ses_first", {
     home: true,
-    persisted: ["first", "second"],
-    sessionDirectories: { second: other },
+    persisted: ["ses_first", "ses_second"],
+    sessionDirectories: { ses_second: other },
   })
 
   try {
@@ -266,16 +268,18 @@ test("loads VCS metadata for each persisted tab location", async () => {
 })
 
 test("opens a background tab without changing the current session", async () => {
-  const setup = await renderSessionTabs("first")
+  const setup = await renderSessionTabs("ses_first")
 
   try {
-    await wait(() => setup.tabs.current() === "first" && setup.tabs.tabs().some((tab) => tab.sessionID === "first"))
-    setup.tabs.open("background")
-    await wait(() => setup.tabs.tabs().some((tab) => tab.sessionID === "background"))
+    await wait(
+      () => setup.tabs.current() === "ses_first" && setup.tabs.tabs().some((tab) => tab.sessionID === "ses_first"),
+    )
+    setup.tabs.open("ses_background")
+    await wait(() => setup.tabs.tabs().some((tab) => tab.sessionID === "ses_background"))
 
-    expect(setup.tabs.current()).toBe("first")
-    setup.tabs.move("background", 0)
-    await wait(() => setup.tabs.tabs()[0]?.sessionID === "background")
+    expect(setup.tabs.current()).toBe("ses_first")
+    setup.tabs.move("ses_background", 0)
+    await wait(() => setup.tabs.tabs()[0]?.sessionID === "ses_background")
   } finally {
     await setup.destroy()
   }
@@ -283,15 +287,15 @@ test("opens a background tab without changing the current session", async () => 
 
 test("loads location metadata when an open session moves", async () => {
   const destination = `${directory}/moved-worktree`
-  const setup = await renderSessionTabs("first")
+  const setup = await renderSessionTabs("ses_first")
 
   try {
     // server.connected loads the default location on its own, so also wait for the session and its tab:
     // a move that arrives before either has loaded is dropped.
     await wait(
       () =>
-        setup.data.session.get("first") !== undefined &&
-        setup.tabs.tabs().some((tab) => tab.sessionID === "first") &&
+        setup.data.session.get("ses_first") !== undefined &&
+        setup.tabs.tabs().some((tab) => tab.sessionID === "ses_first") &&
         setup.locations.includes(directory) &&
         setup.vcsLocations.includes(directory),
     )
@@ -299,15 +303,15 @@ test("loads location metadata when an open session moves", async () => {
       id: "evt_moved",
       created: 1,
       type: "session.moved",
-      durable: { aggregateID: "first", seq: 1, version: 1 },
+      durable: { aggregateID: "ses_first", seq: 1, version: 1 },
       data: {
-        sessionID: "first",
+        sessionID: "ses_first",
         location: { directory: destination },
         projectID: "project",
       },
     })
 
-    await wait(() => setup.data.session.get("first")?.location.directory === destination)
+    await wait(() => setup.data.session.get("ses_first")?.location.directory === destination)
     await wait(() => setup.locations.includes(destination))
     await wait(() => setup.vcsLocations.includes(destination))
   } finally {
@@ -316,37 +320,37 @@ test("loads location metadata when an open session moves", async () => {
 })
 
 test("keeps each visited session open", async () => {
-  const setup = await renderSessionTabs("first", { persisted: ["first"] })
+  const setup = await renderSessionTabs("ses_first", { persisted: ["ses_first"] })
 
   try {
     await wait(() => setup.tabs.tabs().length === 1)
-    setup.route.navigate({ type: "session", sessionID: "second" })
-    await wait(() => setup.tabs.tabs().some((tab) => tab.sessionID === "second"))
-    setup.route.navigate({ type: "session", sessionID: "third" })
-    await wait(() => setup.tabs.tabs().some((tab) => tab.sessionID === "third"))
+    setup.route.navigate({ type: "session", sessionID: "ses_second" })
+    await wait(() => setup.tabs.tabs().some((tab) => tab.sessionID === "ses_second"))
+    setup.route.navigate({ type: "session", sessionID: "ses_third" })
+    await wait(() => setup.tabs.tabs().some((tab) => tab.sessionID === "ses_third"))
 
-    expect(setup.tabs.tabs().map((tab) => tab.sessionID)).toEqual(["first", "second", "third"])
+    expect(setup.tabs.tabs().map((tab) => tab.sessionID)).toEqual(["ses_first", "ses_second", "ses_third"])
   } finally {
     await setup.destroy()
   }
 })
 
 test("lists closed tabs newest first and reopens a selected entry", async () => {
-  const setup = await renderSessionTabs("first", { persisted: ["first", "second", "third"] })
+  const setup = await renderSessionTabs("ses_first", { persisted: ["ses_first", "ses_second", "ses_third"] })
   try {
     await wait(() => setup.tabs.tabs().length === 3)
-    setup.tabs.close("second")
+    setup.tabs.close("ses_second")
     await wait(() => setup.tabs.tabs().length === 2)
-    setup.tabs.close("third")
+    setup.tabs.close("ses_third")
     await wait(() => setup.tabs.tabs().length === 1)
-    expect(setup.tabs.recentlyClosed().map((tab) => tab.sessionID)).toEqual(["third", "second"])
-    setup.tabs.reopen("second")
-    await wait(() => setup.tabs.tabs().some((tab) => tab.sessionID === "second"))
-    expect(setup.tabs.current()).toBe("second")
-    expect(setup.tabs.recentlyClosed().map((tab) => tab.sessionID)).toEqual(["third"])
+    expect(setup.tabs.recentlyClosed().map((tab) => tab.sessionID)).toEqual(["ses_third", "ses_second"])
+    setup.tabs.reopen("ses_second")
+    await wait(() => setup.tabs.tabs().some((tab) => tab.sessionID === "ses_second"))
+    expect(setup.tabs.current()).toBe("ses_second")
+    expect(setup.tabs.recentlyClosed().map((tab) => tab.sessionID)).toEqual(["ses_third"])
     setup.tabs.reopen()
     await wait(() => setup.tabs.tabs().length === 3)
-    expect(setup.tabs.current()).toBe("third")
+    expect(setup.tabs.current()).toBe("ses_third")
     expect(setup.tabs.recentlyClosed()).toEqual([])
   } finally {
     await setup.destroy()
@@ -354,19 +358,19 @@ test("lists closed tabs newest first and reopens a selected entry", async () => 
 })
 
 test("stores session tabs for the current working directory by default", async () => {
-  const setup = await renderSessionTabs("first")
+  const setup = await renderSessionTabs("ses_first")
 
   try {
     const file = path.join(setup.state, "test", "tui", "tabs.json")
     await wait(async () => {
       if (!(await Bun.file(file).exists())) return false
       const stored = await Bun.file(file).json()
-      return stored.cwd[directory]?.tabs.some((tab: { sessionID: string }) => tab.sessionID === "first")
+      return stored.cwd[directory]?.tabs.some((tab: { sessionID: string }) => tab.sessionID === "ses_first")
     })
     const stored = await Bun.file(file).json()
     expect(stored.global).toEqual({ tabs: [], unread: {} })
     expect(Object.keys(stored.cwd)).toEqual([directory])
-    expect(stored.cwd[directory].tabs.map((tab: { sessionID: string }) => tab.sessionID)).toEqual(["first"])
+    expect(stored.cwd[directory].tabs.map((tab: { sessionID: string }) => tab.sessionID)).toEqual(["ses_first"])
     expect(stored.cwd[directory].unread).toEqual({})
   } finally {
     await setup.destroy()
@@ -374,107 +378,107 @@ test("stores session tabs for the current working directory by default", async (
 })
 
 test("keeps scroll anchors for open session tabs", async () => {
-  const setup = await renderSessionTabs("first")
+  const setup = await renderSessionTabs("ses_first")
 
   try {
-    await wait(() => setup.tabs.current() === "first")
-    await wait(() => setup.tabs.tabs().some((tab) => tab.sessionID === "first"))
+    await wait(() => setup.tabs.current() === "ses_first")
+    await wait(() => setup.tabs.tabs().some((tab) => tab.sessionID === "ses_first"))
     const target = { type: "part" as const, ref: { messageID: "msg_1", partID: "text:0" } }
-    setup.tabs.setScrollAnchor("first", { target, screenY: -3 })
-    expect(setup.tabs.scrollAnchor("first")).toEqual({ target, screenY: -3 })
+    setup.tabs.setScrollAnchor("ses_first", { target, screenY: -3 })
+    expect(setup.tabs.scrollAnchor("ses_first")).toEqual({ target, screenY: -3 })
     const group = { type: "group" as const, groupID: "group-1" }
-    setup.tabs.setScrollAnchor("first", { target: group, screenY: -3 })
-    expect(setup.tabs.scrollAnchor("first")?.target).toEqual(group)
-    setup.tabs.setGroupExpanded("first", group.groupID, true)
-    expect(setup.tabs.groupExpanded("first", group.groupID)).toBe(true)
-    setup.tabs.setGroupExpanded("first", group.groupID, false)
-    expect(setup.tabs.groupExpanded("first", group.groupID)).toBe(false)
+    setup.tabs.setScrollAnchor("ses_first", { target: group, screenY: -3 })
+    expect(setup.tabs.scrollAnchor("ses_first")?.target).toEqual(group)
+    setup.tabs.setGroupExpanded("ses_first", group.groupID, true)
+    expect(setup.tabs.groupExpanded("ses_first", group.groupID)).toBe(true)
+    setup.tabs.setGroupExpanded("ses_first", group.groupID, false)
+    expect(setup.tabs.groupExpanded("ses_first", group.groupID)).toBe(false)
 
-    setup.tabs.close("first")
-    await wait(() => setup.tabs.tabs().every((tab) => tab.sessionID !== "first"))
-    expect(setup.tabs.scrollAnchor("first")).toBeUndefined()
-    expect(setup.tabs.groupExpanded("first", group.groupID)).toBeUndefined()
+    setup.tabs.close("ses_first")
+    await wait(() => setup.tabs.tabs().every((tab) => tab.sessionID !== "ses_first"))
+    expect(setup.tabs.scrollAnchor("ses_first")).toBeUndefined()
+    expect(setup.tabs.groupExpanded("ses_first", group.groupID)).toBeUndefined()
   } finally {
     await setup.destroy()
   }
 })
 
 test("keeps parent and subagent scroll anchors independent", async () => {
-  const setup = await renderSessionTabs("root", {
-    persisted: ["root"],
-    sessionParents: { child: "root" },
+  const setup = await renderSessionTabs("ses_root", {
+    persisted: ["ses_root"],
+    sessionParents: { ses_child: "ses_root" },
   })
 
   try {
-    await wait(() => setup.data.session.get("child") !== undefined)
+    await wait(() => setup.data.session.get("ses_child") !== undefined)
     const parent = {
       target: { type: "part" as const, ref: { messageID: "msg_parent", partID: "message" } },
       screenY: -3,
     }
     const child = { target: { type: "part" as const, ref: { messageID: "msg_child", partID: "message" } }, screenY: -5 }
-    setup.tabs.setScrollAnchor("root", parent)
+    setup.tabs.setScrollAnchor("ses_root", parent)
 
     // A short subagent transcript is at the bottom, so it saves no anchor.
-    setup.tabs.setScrollAnchor("child", undefined)
-    expect(setup.tabs.scrollAnchor("root")).toEqual(parent)
-    expect(setup.tabs.scrollAnchor("child")).toBeUndefined()
+    setup.tabs.setScrollAnchor("ses_child", undefined)
+    expect(setup.tabs.scrollAnchor("ses_root")).toEqual(parent)
+    expect(setup.tabs.scrollAnchor("ses_child")).toBeUndefined()
 
-    setup.tabs.setScrollAnchor("child", child)
-    expect(setup.tabs.scrollAnchor("root")).toEqual(parent)
-    expect(setup.tabs.scrollAnchor("child")).toEqual(child)
+    setup.tabs.setScrollAnchor("ses_child", child)
+    expect(setup.tabs.scrollAnchor("ses_root")).toEqual(parent)
+    expect(setup.tabs.scrollAnchor("ses_child")).toEqual(child)
 
-    setup.tabs.setScrollAnchor("root", undefined)
-    expect(setup.tabs.scrollAnchor("child")).toEqual(child)
+    setup.tabs.setScrollAnchor("ses_root", undefined)
+    expect(setup.tabs.scrollAnchor("ses_child")).toEqual(child)
 
-    setup.tabs.close("root")
+    setup.tabs.close("ses_root")
     await wait(() => setup.tabs.tabs().length === 0)
-    setup.route.navigate({ type: "session", sessionID: "root" })
-    await wait(() => setup.tabs.tabs().some((tab) => tab.sessionID === "root"))
-    expect(setup.tabs.scrollAnchor("root")).toBeUndefined()
-    expect(setup.tabs.scrollAnchor("child")).toBeUndefined()
+    setup.route.navigate({ type: "session", sessionID: "ses_root" })
+    await wait(() => setup.tabs.tabs().some((tab) => tab.sessionID === "ses_root"))
+    expect(setup.tabs.scrollAnchor("ses_root")).toBeUndefined()
+    expect(setup.tabs.scrollAnchor("ses_child")).toBeUndefined()
   } finally {
     await setup.destroy()
   }
 })
 
 test("derives unread state from server session times", async () => {
-  const setup = await renderSessionTabs("first", {
+  const setup = await renderSessionTabs("ses_first", {
     home: true,
-    persisted: ["first", "second"],
-    sessionTimes: { second: { idle: 2 } },
+    persisted: ["ses_first", "ses_second"],
+    sessionTimes: { ses_second: { idle: 2 } },
   })
   try {
-    await wait(() => setup.tabs.status("second").unread === "activity")
-    expect(setup.tabs.status("first").unread).toBeUndefined()
+    await wait(() => setup.tabs.status("ses_second").unread === "activity")
+    expect(setup.tabs.status("ses_first").unread).toBeUndefined()
   } finally {
     await setup.destroy()
   }
 })
 
 test("marks unread failed sessions with error styling", async () => {
-  const setup = await renderSessionTabs("first", {
+  const setup = await renderSessionTabs("ses_first", {
     home: true,
-    persisted: ["first", "second"],
-    sessionTimes: { first: { idle: 2 }, second: { idle: 2 } },
-    sessionOutcomes: { second: "failed" },
+    persisted: ["ses_first", "ses_second"],
+    sessionTimes: { ses_first: { idle: 2 }, ses_second: { idle: 2 } },
+    sessionOutcomes: { ses_second: "failed" },
   })
   try {
-    await wait(() => setup.tabs.status("second").unread === "error")
-    expect(setup.tabs.status("first").unread).toBe("activity")
+    await wait(() => setup.tabs.status("ses_second").unread === "error")
+    expect(setup.tabs.status("ses_first").unread).toBe("activity")
   } finally {
     await setup.destroy()
   }
 })
 
 test("acknowledges viewed sessions even when tabs are disabled", async () => {
-  const setup = await renderSessionTabs("first", {
+  const setup = await renderSessionTabs("ses_first", {
     tabsEnabled: false,
-    sessionTimes: { first: { idle: 2 } },
+    sessionTimes: { ses_first: { idle: 2 } },
   })
   try {
     setup.focus()
-    await setup.data.session.sync("first")
-    await wait(() => setup.views.includes("first"))
+    await setup.data.session.sync("ses_first")
+    await wait(() => setup.views.includes("ses_first"))
     expect(setup.tabs.tabs()).toEqual([])
   } finally {
     await setup.destroy()
@@ -482,7 +486,7 @@ test("acknowledges viewed sessions even when tabs are disabled", async () => {
 })
 
 test("empties legacy persisted unread records for rollback compatibility", async () => {
-  const setup = await renderSessionTabs("first", { persisted: ["first"] })
+  const setup = await renderSessionTabs("ses_first", { persisted: ["ses_first"] })
   try {
     const file = path.join(setup.state, "test", "tui", "tabs.json")
     // Normalize rewrites the active scope; legacy values must not survive, but older clients require the field.
@@ -496,48 +500,48 @@ test("empties legacy persisted unread records for rollback compatibility", async
 })
 
 test("refreshes server session times after terminal events", async () => {
-  const setup = await renderSessionTabs("first", { home: true, persisted: ["first"] })
+  const setup = await renderSessionTabs("ses_first", { home: true, persisted: ["ses_first"] })
   try {
     // Terminal events refresh only already-loaded sessions, so ensure the initial sync landed.
-    await wait(() => setup.data.session.get("first") !== undefined)
-    setup.setSessionTime("first", { idle: 2 })
+    await wait(() => setup.data.session.get("ses_first") !== undefined)
+    setup.setSessionTime("ses_first", { idle: 2 })
     setup.emit({
       id: "evt_done_first",
       created: 2,
       type: "session.execution.succeeded",
-      durable: { aggregateID: "first", seq: 1, version: 1 },
-      data: { sessionID: "first" },
+      durable: { aggregateID: "ses_first", seq: 1, version: 1 },
+      data: { sessionID: "ses_first" },
     })
-    await wait(() => setup.tabs.status("first").unread === "activity")
+    await wait(() => setup.tabs.status("ses_first").unread === "activity")
   } finally {
     await setup.destroy()
   }
 })
 
 test("views a selected unread session only while focused", async () => {
-  const setup = await renderSessionTabs("first", {
+  const setup = await renderSessionTabs("ses_first", {
     home: true,
-    persisted: ["first"],
-    sessionTimes: { first: { idle: 2 } },
+    persisted: ["ses_first"],
+    sessionTimes: { ses_first: { idle: 2 } },
   })
   try {
     setup.blur()
-    setup.route.navigate({ type: "session", sessionID: "first" })
-    await wait(() => setup.tabs.current() === "first" && setup.tabs.status("first").unread === "activity")
+    setup.route.navigate({ type: "session", sessionID: "ses_first" })
+    await wait(() => setup.tabs.current() === "ses_first" && setup.tabs.status("ses_first").unread === "activity")
     await Bun.sleep(20)
     expect(setup.views).toEqual([])
 
     setup.focus()
-    await wait(() => setup.views.includes("first"))
+    await wait(() => setup.views.includes("ses_first"))
     setup.emit({
       id: "evt_viewed_first",
       created: 3,
       type: "session.viewed",
-      durable: { aggregateID: "first", seq: 2, version: 1 },
-      data: { sessionID: "first", idle: 2 },
+      durable: { aggregateID: "ses_first", seq: 2, version: 1 },
+      data: { sessionID: "ses_first", idle: 2 },
     })
-    await wait(() => setup.tabs.status("first").unread === undefined)
-    expect(setup.views).toEqual(["first"])
+    await wait(() => setup.tabs.status("ses_first").unread === undefined)
+    expect(setup.views).toEqual(["ses_first"])
     expect(setup.viewWatermarks).toEqual([2])
   } finally {
     await setup.destroy()
@@ -545,28 +549,28 @@ test("views a selected unread session only while focused", async () => {
 })
 
 test("does not acknowledge an unread session until focus is confirmed", async () => {
-  const setup = await renderSessionTabs("first", { sessionTimes: { first: { idle: 2 } } })
+  const setup = await renderSessionTabs("ses_first", { sessionTimes: { ses_first: { idle: 2 } } })
   try {
-    await wait(() => setup.tabs.status("first").unread === "activity")
+    await wait(() => setup.tabs.status("ses_first").unread === "activity")
     await Bun.sleep(20)
     expect(setup.views).toEqual([])
 
     setup.focus()
-    await wait(() => setup.views.includes("first"))
+    await wait(() => setup.views.includes("ses_first"))
   } finally {
     await setup.destroy()
   }
 })
 
 test("retries a failed view acknowledgement", async () => {
-  const setup = await renderSessionTabs("first", {
-    sessionTimes: { first: { idle: 2 } },
+  const setup = await renderSessionTabs("ses_first", {
+    sessionTimes: { ses_first: { idle: 2 } },
     viewFailures: 1,
   })
   try {
     setup.focus()
     await wait(() => setup.views.length === 2)
-    expect(setup.views).toEqual(["first", "first"])
+    expect(setup.views).toEqual(["ses_first", "ses_first"])
     expect(setup.viewWatermarks).toEqual([2, 2])
   } finally {
     await setup.destroy()
@@ -574,47 +578,47 @@ test("retries a failed view acknowledgement", async () => {
 })
 
 test("ignores subagent unread state on the root tab", async () => {
-  const setup = await renderSessionTabs("root", {
+  const setup = await renderSessionTabs("ses_root", {
     home: true,
-    persisted: ["root"],
-    sessionParents: { child: "root" },
-    sessionTimes: { child: { idle: 2 } },
+    persisted: ["ses_root"],
+    sessionParents: { ses_child: "ses_root" },
+    sessionTimes: { ses_child: { idle: 2 } },
   })
   try {
-    await wait(() => setup.data.session.get("child") !== undefined)
-    expect(setup.tabs.status("root").unread).toBeUndefined()
+    await wait(() => setup.data.session.get("ses_child") !== undefined)
+    expect(setup.tabs.status("ses_root").unread).toBeUndefined()
 
-    setup.route.navigate({ type: "session", sessionID: "root" })
+    setup.route.navigate({ type: "session", sessionID: "ses_root" })
     await Bun.sleep(20)
     expect(setup.views).toEqual([])
 
     // A background subagent completion wakes the parent; the parent's own idle transition
     // then carries the unread signal and is the only state acknowledged.
     setup.focus()
-    setup.setSessionTime("root", { idle: 3 })
+    setup.setSessionTime("ses_root", { idle: 3 })
     setup.emit({
       id: "evt_done_root",
       created: 3,
       type: "session.execution.succeeded",
-      durable: { aggregateID: "root", seq: 1, version: 1 },
-      data: { sessionID: "root" },
+      durable: { aggregateID: "ses_root", seq: 1, version: 1 },
+      data: { sessionID: "ses_root" },
     })
-    await wait(() => setup.views.includes("root"))
-    expect(setup.views).toEqual(["root"])
+    await wait(() => setup.views.includes("ses_root"))
+    expect(setup.views).toEqual(["ses_root"])
   } finally {
     await setup.destroy()
   }
 })
 
 test("distinguishes family questions and permissions without clearing them on selection", async () => {
-  const setup = await renderSessionTabs("root", {
+  const setup = await renderSessionTabs("ses_root", {
     home: true,
-    persisted: ["root"],
-    sessionParents: { child: "root" },
+    persisted: ["ses_root"],
+    sessionParents: { ses_child: "ses_root" },
   })
   try {
-    await wait(() => setup.data.session.get("child") !== undefined)
-    expect(setup.tabs.status("root").attention).toBe(false)
+    await wait(() => setup.data.session.get("ses_child") !== undefined)
+    expect(setup.tabs.status("ses_root").attention).toBe(false)
 
     setup.emit({
       id: "evt_question",
@@ -623,42 +627,42 @@ test("distinguishes family questions and permissions without clearing them on se
       data: {
         form: {
           id: "frm_question",
-          sessionID: "child",
+          sessionID: "ses_child",
           title: "Choose an approach",
           fields: [{ key: "approach", type: "string", title: "Approach" }],
         },
       },
     })
-    await wait(() => setup.tabs.status("root").attention === "question")
+    await wait(() => setup.tabs.status("ses_root").attention === "question")
 
-    setup.tabs.select("root")
-    await wait(() => setup.tabs.current() === "root")
-    expect(setup.tabs.status("root").attention).toBe("question")
+    setup.tabs.select("ses_root")
+    await wait(() => setup.tabs.current() === "ses_root")
+    expect(setup.tabs.status("ses_root").attention).toBe("question")
 
     setup.emit({
       id: "evt_permission",
       created: 2,
       type: "permission.asked",
-      data: { id: "per_command", sessionID: "root", action: "shell", resources: ["bun run test"] },
+      data: { id: "per_command", sessionID: "ses_root", action: "shell", resources: ["bun run test"] },
     })
-    await wait(() => setup.tabs.status("root").attention === "permission")
-    expect(setup.tabs.status("child").attention).toBe("permission")
+    await wait(() => setup.tabs.status("ses_root").attention === "permission")
+    expect(setup.tabs.status("ses_child").attention).toBe("permission")
 
     setup.emit({
       id: "evt_permission_reply",
       created: 3,
       type: "permission.replied",
-      data: { sessionID: "root", requestID: "per_command", reply: "once" },
+      data: { sessionID: "ses_root", requestID: "per_command", reply: "once" },
     })
-    await wait(() => setup.tabs.status("root").attention === "question")
+    await wait(() => setup.tabs.status("ses_root").attention === "question")
 
     setup.emit({
       id: "evt_question_reply",
       created: 4,
       type: "form.replied",
-      data: { sessionID: "child", id: "frm_question", answer: {} },
+      data: { sessionID: "ses_child", id: "frm_question", answer: {} },
     })
-    await wait(() => setup.tabs.status("root").attention === false)
+    await wait(() => setup.tabs.status("ses_root").attention === false)
   } finally {
     await setup.destroy()
   }
@@ -671,10 +675,10 @@ test("concurrent TUIs do not alternate shared tab titles from divergent session 
   let untitled: Awaited<ReturnType<typeof renderSessionTabs>> | undefined
 
   try {
-    titled = await renderSessionTabs("shared", { state, title: "Generated title" })
-    untitled = await renderSessionTabs("shared", { state })
+    titled = await renderSessionTabs("ses_shared", { state, title: "Generated title" })
+    untitled = await renderSessionTabs("ses_shared", { state })
     const file = path.join(state, "test", "tui", "tabs.json")
-    await titled.data.session.sync("shared")
+    await titled.data.session.sync("ses_shared")
     await wait(async () => {
       if (!(await Bun.file(file).exists())) return false
       return (await Bun.file(file).json()).cwd[directory]?.tabs[0]?.title === "Generated title"
@@ -694,7 +698,7 @@ test("concurrent TUIs do not alternate shared tab titles from divergent session 
       pending.add(read)
     })
     try {
-      await untitled.data.session.sync("shared")
+      await untitled.data.session.sync("ses_shared")
       await Bun.sleep(500)
     } finally {
       watcher.close()
@@ -713,18 +717,18 @@ test("closing a tab is not undone by another TUI viewing the same session", asyn
   const clients: Awaited<ReturnType<typeof renderSessionTabs>>[] = []
 
   try {
-    const first = await renderSessionTabs("shared", { state: temporary.path })
+    const first = await renderSessionTabs("ses_shared", { state: temporary.path })
     clients.push(first)
-    const second = await renderSessionTabs("shared", { state: temporary.path })
+    const second = await renderSessionTabs("ses_shared", { state: temporary.path })
     clients.push(second)
-    await wait(() => first.tabs.tabs().some((tab) => tab.sessionID === "shared"), 2_000, "first tab to open")
-    await wait(() => second.tabs.tabs().some((tab) => tab.sessionID === "shared"), 2_000, "second tab to open")
+    await wait(() => first.tabs.tabs().some((tab) => tab.sessionID === "ses_shared"), 2_000, "first tab to open")
+    await wait(() => second.tabs.tabs().some((tab) => tab.sessionID === "ses_shared"), 2_000, "second tab to open")
     await Promise.all([first.flush(), second.flush()])
     first.tabs.close()
     await wait(() => first.route.data.type === "home", 2_000, "first client to navigate home")
     await first.flush()
     await wait(
-      () => !second.tabs.tabs().some((tab) => tab.sessionID === "shared"),
+      () => !second.tabs.tabs().some((tab) => tab.sessionID === "ses_shared"),
       2_000,
       "second client to observe close",
     )
@@ -735,11 +739,15 @@ test("closing a tab is not undone by another TUI viewing the same session", asyn
 
     second.route.navigate({ type: "home" })
     await wait(() => second.route.data.type === "home", 2_000, "second client to navigate home")
-    second.route.navigate({ type: "session", sessionID: "shared" })
-    await wait(() => second.tabs.tabs().some((tab) => tab.sessionID === "shared"), 2_000, "second client to reopen tab")
+    second.route.navigate({ type: "session", sessionID: "ses_shared" })
+    await wait(
+      () => second.tabs.tabs().some((tab) => tab.sessionID === "ses_shared"),
+      2_000,
+      "second client to reopen tab",
+    )
     await second.flush()
     await wait(
-      () => first.tabs.tabs().some((tab) => tab.sessionID === "shared"),
+      () => first.tabs.tabs().some((tab) => tab.sessionID === "ses_shared"),
       2_000,
       "first client to observe reopen",
     )
@@ -749,68 +757,70 @@ test("closing a tab is not undone by another TUI viewing the same session", asyn
 })
 
 test("user prompt admissions pulse an already-busy background tab", async () => {
-  const setup = await renderSessionTabs("background", { persisted: ["background"] })
+  const setup = await renderSessionTabs("ses_background", { persisted: ["ses_background"] })
 
   try {
-    await wait(() => setup.tabs.tabs().some((tab) => tab.sessionID === "background"))
-    setup.route.navigate({ type: "session", sessionID: "active" })
-    await wait(() => setup.tabs.current() === "active" && setup.tabs.tabs().length === 2)
+    await wait(() => setup.tabs.tabs().some((tab) => tab.sessionID === "ses_background"))
+    setup.route.navigate({ type: "session", sessionID: "ses_active" })
+    await wait(() => setup.tabs.current() === "ses_active" && setup.tabs.tabs().length === 2)
 
     setup.emit({
       id: "evt_context",
       created: Date.now(),
       type: "session.inbox.enqueued",
-      durable: { aggregateID: "background", seq: 0, version: 1 },
+      durable: { aggregateID: "ses_background", seq: 0, version: 1 },
       data: {
-        sessionID: "background",
+        sessionID: "ses_background",
         inboxID: "msg_context",
         item: { type: "synthetic", payload: { text: "editor context" }, delivery: "steer" },
       },
     })
     await Bun.sleep(20)
-    expect(setup.tabs.status("background").promptPulse).toBe(0)
+    expect(setup.tabs.status("ses_background").promptPulse).toBe(0)
 
-    setup.emit(admitted("background", "msg_1"))
-    await wait(() => setup.tabs.status("background").promptPulse === 1 && setup.tabs.status("background").busy)
+    setup.emit(admitted("ses_background", "msg_1"))
+    await wait(() => setup.tabs.status("ses_background").promptPulse === 1 && setup.tabs.status("ses_background").busy)
 
-    setup.emit(admitted("background", "msg_2"))
-    await wait(() => setup.tabs.status("background").promptPulse === 2)
+    setup.emit(admitted("ses_background", "msg_2"))
+    await wait(() => setup.tabs.status("ses_background").promptPulse === 2)
 
-    setup.emit(admitted("active", "msg_3"))
+    setup.emit(admitted("ses_active", "msg_3"))
     await Bun.sleep(20)
-    expect(setup.tabs.status("active").promptPulse).toBe(0)
-    expect(setup.tabs.status("background")).toMatchObject({ promptPulse: 2, busy: true })
+    expect(setup.tabs.status("ses_active").promptPulse).toBe(0)
+    expect(setup.tabs.status("ses_background")).toMatchObject({ promptPulse: 2, busy: true })
   } finally {
     await setup.destroy()
   }
 })
 
 test("tracks a temporary new session tab across close and creation", async () => {
-  const setup = await renderSessionTabs("first", { persisted: ["first"] })
+  const setup = await renderSessionTabs("ses_first", { persisted: ["ses_first"] })
 
   try {
-    await wait(() => setup.tabs.current() === "first")
-    setup.route.navigate({ type: "session", sessionID: "second" })
-    await wait(() => setup.tabs.current() === "second" && setup.tabs.tabs().length === 2)
-    setup.route.navigate({ type: "session", sessionID: "first" })
-    await wait(() => setup.tabs.current() === "first")
+    await wait(() => setup.tabs.current() === "ses_first")
+    setup.route.navigate({ type: "session", sessionID: "ses_second" })
+    await wait(() => setup.tabs.current() === "ses_second" && setup.tabs.tabs().length === 2)
+    setup.route.navigate({ type: "session", sessionID: "ses_first" })
+    await wait(() => setup.tabs.current() === "ses_first")
 
     setup.route.navigate({ type: "home" })
     await wait(() => setup.tabs.newTab() && setup.tabs.current() === undefined)
-    expect(setup.tabs.tabs().map((tab) => tab.sessionID)).toEqual(["first", "second"])
+    expect(setup.tabs.tabs().map((tab) => tab.sessionID)).toEqual(["ses_first", "ses_second"])
     setup.tabs.close()
     await wait(() => setup.route.data.type === "session")
 
-    expect(setup.route.data).toEqual({ type: "session", sessionID: "first" })
+    expect(setup.route.data).toEqual({ type: "session", sessionID: "ses_first" })
 
     setup.route.navigate({ type: "home" })
     await wait(() => setup.tabs.newTab())
-    setup.route.navigate({ type: "session", sessionID: "third" })
+    setup.route.navigate({ type: "session", sessionID: "ses_third" })
     expect(setup.tabs.newTab()).toBe(true)
-    await wait(() => setup.tabs.current() === "third" && setup.tabs.tabs().some((tab) => tab.sessionID === "third"))
+    await wait(
+      () => setup.tabs.current() === "ses_third" && setup.tabs.tabs().some((tab) => tab.sessionID === "ses_third"),
+    )
 
     expect(setup.tabs.newTab()).toBe(false)
-    expect(setup.tabs.tabs().find((tab) => tab.sessionID === "third")?.title).toBe(NEW_SESSION_TAB_TITLE)
+    expect(setup.tabs.tabs().find((tab) => tab.sessionID === "ses_third")?.title).toBe(NEW_SESSION_TAB_TITLE)
   } finally {
     await setup.destroy()
   }
@@ -818,17 +828,17 @@ test("tracks a temporary new session tab across close and creation", async () =>
 
 test("add opens the new session tab in the resolved server launch directory", async () => {
   const launchDirectory = `${directory}/server`
-  const setup = await renderSessionTabs("first", {
+  const setup = await renderSessionTabs("ses_first", {
     launchDirectory,
-    sessionDirectories: { first: `${directory}/worktree` },
+    sessionDirectories: { ses_first: `${directory}/worktree` },
   })
 
   try {
-    await wait(() => setup.tabs.current() === "first" && setup.data.session.get("first") !== undefined)
+    await wait(() => setup.tabs.current() === "ses_first" && setup.data.session.get("ses_first") !== undefined)
     setup.tabs.add()
     expect(setup.route.data).toEqual({ type: "home", location: { directory: launchDirectory } })
     await wait(() => setup.tabs.newTab())
-    expect(setup.tabs.tabs().map((tab) => tab.sessionID)).toEqual(["first"])
+    expect(setup.tabs.tabs().map((tab) => tab.sessionID)).toEqual(["ses_first"])
   } finally {
     await setup.destroy()
   }
@@ -836,13 +846,13 @@ test("add opens the new session tab in the resolved server launch directory", as
 
 test("add inherits the current session location when configured", async () => {
   const worktree = `${directory}/worktree`
-  const setup = await renderSessionTabs("first", {
+  const setup = await renderSessionTabs("ses_first", {
     newLocation: "inherit",
-    sessionDirectories: { first: worktree },
+    sessionDirectories: { ses_first: worktree },
   })
 
   try {
-    await wait(() => setup.tabs.current() === "first" && setup.data.session.get("first") !== undefined)
+    await wait(() => setup.tabs.current() === "ses_first" && setup.data.session.get("ses_first") !== undefined)
     setup.tabs.add()
     expect(setup.route.data).toEqual({ type: "home", location: { directory: worktree } })
   } finally {

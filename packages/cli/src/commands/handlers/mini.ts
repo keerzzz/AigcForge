@@ -3,8 +3,8 @@ import { Commands } from "../commands"
 import { Runtime } from "../../framework/runtime"
 import { ServerConnection } from "../../services/server-connection"
 import { Config } from "../../config"
-import { resolve } from "@aigcfroge/tui/config"
-import { Global } from "@aigcfroge/util/global"
+import { resolve } from "@omnixa/tui/config"
+import { Global } from "@omnixa/util/global"
 
 export default Runtime.handler(Commands.commands.mini, (input) =>
   Effect.gen(function* () {

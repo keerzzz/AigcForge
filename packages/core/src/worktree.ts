@@ -4,10 +4,10 @@ import { Context, Effect, Layer, Schema } from "effect"
 import { and, asc, desc, eq, isNull, sql } from "drizzle-orm"
 import path from "path"
 import { AbsolutePath } from "./schema.js"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Git } from "./git.js"
-import { Node } from "@aigcfroge/util/effect/app-node"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Node } from "@omnixa/util/effect/app-node"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { Slug } from "./util/slug.js"
 import { Bus } from "./bus.js"
 import { Database } from "./database/database.js"
@@ -15,19 +15,19 @@ import { Location } from "./location.js"
 import type { FileSystem } from "./filesystem.js"
 import { LocationServiceMap } from "./location-service-map.js"
 import { Project } from "./project.js"
-import { Worktree } from "@aigcfroge/schema/worktree"
+import { Worktree } from "@omnixa/schema/worktree"
 import { WorktreeTable } from "./worktree/sql.js"
 import { canonical, DirectoryUnavailableError } from "./worktree/directory.js"
 import type { EffectDrizzleSqlite } from "./database/drizzle.js"
 import { ProjectTable } from "./project/sql.js"
-import { AppProcess } from "@aigcfroge/util/process"
+import { AppProcess } from "@omnixa/util/process"
 import { ChildProcess } from "effect/process"
 import { WorktreeStrategies } from "./worktree/strategies.js"
 
 export type { Strategy, Editor } from "./worktree/strategies.js"
 
 export { DirectoryUnavailableError } from "./worktree/directory.js"
-export { OperationError } from "@aigcfroge/schema/worktree"
+export { OperationError } from "@omnixa/schema/worktree"
 
 export const StrategyID = Worktree.StrategyID
 export type StrategyID = typeof StrategyID.Type
@@ -101,7 +101,7 @@ export interface Interface {
   ) => Effect.Effect<void, Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Worktree") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Worktree") {}
 
 const layer = Layer.effect(
   Service,
@@ -241,8 +241,8 @@ const layer = Layer.effect(
             ChildProcess.make(windows ? command : "bash", windows ? [] : ["-lc", command], {
               cwd: result.directory,
               env: {
-                AIGCFROGE_WORKTREE_BASE: sourceDirectory,
-                AIGCFROGE_WORKTREE_PATH: result.directory,
+                OMNIXA_WORKTREE_BASE: sourceDirectory,
+                OMNIXA_WORKTREE_PATH: result.directory,
               },
               extendEnv: true,
               stdin: "ignore",

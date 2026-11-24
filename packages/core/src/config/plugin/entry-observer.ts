@@ -1,9 +1,9 @@
 export * as ConfigEntryObserver from "./entry-observer.js"
 
-import type { EventDomain } from "@aigcfroge/plugin/effect/event"
+import type { EventDomain } from "@omnixa/plugin/effect/event"
 import { Effect, Stream } from "effect"
 import { Config } from "../../config.js"
-import type { Entry } from "@aigcfroge/schema/config"
+import type { Entry } from "@omnixa/schema/config"
 
 export const observe = Effect.fnUntraced(function* (
   config: Config.Interface,

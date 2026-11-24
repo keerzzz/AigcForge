@@ -1,20 +1,20 @@
 import path from "node:path"
 import { mkdir } from "node:fs/promises"
 import { expect } from "bun:test"
-import { TestLLM } from "@aigcfroge/ai/testing"
-import { Agent } from "@aigcfroge/core/agent"
-import { Model } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
-import { Session } from "@aigcfroge/core/session"
-import { SessionInputResult } from "@aigcfroge/core/session/input-result"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { Service } from "@aigcfroge/core/prompt-asset"
-import { PromptAssetService } from "@aigcfroge/core/prompt-asset-service"
-import { ProposePromptAssetTool } from "@aigcfroge/core/tool/propose-prompt-asset"
-import { ApiNotFoundError, InvalidRequestError } from "@aigcfroge/protocol/errors"
-import { AssetPlacement } from "@aigcfroge/schema/asset-placement"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
-import { Workspace } from "@aigcfroge/schema/workspace"
+import { TestLLM } from "@omnixa/ai/testing"
+import { Agent } from "@omnixa/core/agent"
+import { Model } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
+import { Session } from "@omnixa/core/session"
+import { SessionInputResult } from "@omnixa/core/session/input-result"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { Service } from "@omnixa/core/prompt-asset"
+import { PromptAssetService } from "@omnixa/core/prompt-asset-service"
+import { ProposePromptAssetTool } from "@omnixa/core/tool/propose-prompt-asset"
+import { ApiNotFoundError, InvalidRequestError } from "@omnixa/protocol/errors"
+import { AssetPlacement } from "@omnixa/schema/asset-placement"
+import { AbsolutePath } from "@omnixa/schema/schema"
+import { Workspace } from "@omnixa/schema/workspace"
 import {
   BaseRevision,
   Candidate,
@@ -24,8 +24,8 @@ import {
   Revision,
   Summary,
   Template,
-} from "@aigcfroge/schema/prompt-asset"
-import { Hash } from "@aigcfroge/util/hash"
+} from "@omnixa/schema/prompt-asset"
+import { Hash } from "@omnixa/util/hash"
 import { Context, Effect, Layer, Option, Schema } from "effect"
 import { withEnv } from "../../core/test/fixture/env"
 import { initRepo } from "../../core/test/fixture/git"
@@ -63,8 +63,8 @@ const setup = (
   prepare?: (directory: string) => Promise<void>,
 ) =>
   AssetHttpFixture.setup({
-    prefix: "aigcfroge-prompt-http-",
-    assetDirectory: ".aigcfroge/prompts",
+    prefix: "omnixa-prompt-http-",
+    assetDirectory: ".omnixa/prompts",
     model,
     files,
     prepare,
@@ -79,7 +79,7 @@ const setup = (
 it.live(
   "persists canonical Project Prompt inspection metadata from a real child Session without saving or sending the template",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
       Effect.gen(function* () {
         const fixture = yield* setup([], prepareProject)
         const directory = path.join(fixture.directory, "packages/first")
@@ -96,7 +96,7 @@ it.live(
             revision: null,
             nameConflict: false,
             pathConflict: false,
-            target: { scope: "project", root: path.join(fixture.directory, ".aigcfroge/prompts") },
+            target: { scope: "project", root: path.join(fixture.directory, ".omnixa/prompts") },
           }),
         )
         const session = yield* fixture.sessions.create({
@@ -150,11 +150,7 @@ it.live(
           admitted.data.id,
         ])
         yield* Effect.forEach(
-          [
-            expected.target.root,
-            path.join(directory, ".aigcfroge/prompts"),
-            path.join(fixture.global.config, "prompts"),
-          ],
+          [expected.target.root, path.join(directory, ".omnixa/prompts"), path.join(fixture.global.config, "prompts")],
           (root) =>
             Effect.gen(function* () {
               expect(yield* Effect.promise(() => Bun.file(path.join(root, candidate.relativePath)).exists())).toBe(
@@ -171,12 +167,12 @@ it.live(
 it.live(
   "persists Prompt facts through the real runner and round trips HTTP content before explicit Session consumption",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
       Effect.gen(function* () {
         const fixture = yield* setup()
         expect(Option.isSome(fixture.assets)).toBe(true)
         expect(Option.isSome(fixture.assetService)).toBe(true)
-        const target = path.join(fixture.directory, ".aigcfroge/prompts/review-prompt.md")
+        const target = path.join(fixture.directory, ".omnixa/prompts/review-prompt.md")
         const session = yield* fixture.sessions.create({
           title: "Prompt review",
           mode: "chat",
@@ -330,7 +326,7 @@ it.live(
 )
 
 it.live("keeps Prompt HTTP creation disabled under the existing asset flag", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
     Effect.gen(function* () {
       const fixture = yield* setup()
       const session = yield* fixture.sessions.create({
@@ -346,7 +342,7 @@ it.live("keeps Prompt HTTP creation disabled under the existing asset flag", () 
       ).toMatchObject({ kind: "disabled", message: "Prompt asset creation is not enabled" })
       expect(
         yield* Effect.promise(() =>
-          Bun.file(path.join(fixture.directory, ".aigcfroge/prompts/review-prompt.md")).exists(),
+          Bun.file(path.join(fixture.directory, ".omnixa/prompts/review-prompt.md")).exists(),
         ),
       ).toBe(false)
     }),
@@ -354,7 +350,7 @@ it.live("keeps Prompt HTTP creation disabled under the existing asset flag", () 
 )
 
 it.live("reports Prompt name conflicts and rolls the attempted HTTP write back", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
     Effect.gen(function* () {
       const content = "---\nkind: prompt\nname: review-prompt\ndescription: Existing prompt\n---\nExisting template."
       const fixture = yield* setup([{ relativePath: "other.md", content }])
@@ -371,11 +367,11 @@ it.live("reports Prompt name conflicts and rolls the attempted HTTP write back",
       ).toBe(409)
       expect(
         yield* Effect.promise(() =>
-          Bun.file(path.join(fixture.directory, ".aigcfroge/prompts/review-prompt.md")).exists(),
+          Bun.file(path.join(fixture.directory, ".omnixa/prompts/review-prompt.md")).exists(),
         ),
       ).toBe(false)
       expect(
-        yield* Effect.promise(() => Bun.file(path.join(fixture.directory, ".aigcfroge/prompts/other.md")).text()),
+        yield* Effect.promise(() => Bun.file(path.join(fixture.directory, ".omnixa/prompts/other.md")).text()),
       ).toBe(content)
       const inspected = yield* readInspection(
         yield* fixture.request(`/session/${session.id}/prompt-asset/inspect`, {
@@ -388,7 +384,7 @@ it.live("reports Prompt name conflicts and rolls the attempted HTTP write back",
         revision: null,
         nameConflict: true,
         pathConflict: false,
-        target: { scope: "project", root: path.join(fixture.directory, ".aigcfroge/prompts") },
+        target: { scope: "project", root: path.join(fixture.directory, ".omnixa/prompts") },
       })
       expect(
         (yield* fixture.request(`/session/${session.id}/prompt-asset/apply`, {
@@ -407,7 +403,7 @@ it.live("reports Prompt name conflicts and rolls the attempted HTTP write back",
 it.live(
   "excludes empty and oversized external Prompt bodies from the valid catalog and returns typed content 404",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
       Effect.gen(function* () {
         const fixture = yield* setup([
           {
@@ -445,7 +441,7 @@ it.live(
         )
         expect(selected.target).toEqual({
           scope: "project",
-          root: AbsolutePath.make(path.join(fixture.directory, ".aigcfroge/prompts")),
+          root: AbsolutePath.make(path.join(fixture.directory, ".omnixa/prompts")),
         })
         expect(selected.assets).toEqual(catalog.assets)
         expect(selected.invalid).toEqual(catalog.invalid)
@@ -468,7 +464,7 @@ it.live(
 )
 
 it.live("keeps legacy Prompt name derivation, JSON omissions and unconditional delete", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
     Effect.gen(function* () {
       const fixture = yield* setup()
       const session = yield* fixture.sessions.create({
@@ -500,7 +496,7 @@ it.live("keeps legacy Prompt name derivation, JSON omissions and unconditional d
       const applied = Schema.decodeUnknownSync(Info)(body)
       expect(applied.relativePath).toBe("review-prompt.md")
       expect(applied.template).toBe(candidate.template)
-      const file = path.join(fixture.directory, ".aigcfroge/prompts", applied.relativePath)
+      const file = path.join(fixture.directory, ".omnixa/prompts", applied.relativePath)
       const bytes = yield* Effect.promise(() => Bun.file(file).arrayBuffer())
       expect(Hash.sha256(Buffer.from(bytes))).toBe(applied.revision)
 
@@ -562,7 +558,7 @@ it.live("keeps legacy Prompt name derivation, JSON omissions and unconditional d
 it.live(
   "round trips exact selected Prompt templates and consumes only the explicitly submitted owner in the original Session",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
       Effect.gen(function* () {
         const fixture = yield* setup([], prepareProject)
         const directory = path.join(fixture.directory, "packages/first")
@@ -574,9 +570,9 @@ it.live(
           model,
         })
         const owners = [
-          { scope: "project", root: path.join(fixture.directory, ".aigcfroge/prompts") },
+          { scope: "project", root: path.join(fixture.directory, ".omnixa/prompts") },
           { scope: "global", root: path.join(fixture.global.config, "prompts") },
-          { scope: "location", root: path.join(directory, ".aigcfroge/prompts") },
+          { scope: "location", root: path.join(directory, ".omnixa/prompts") },
         ] as const
         const saved = yield* Effect.forEach(owners, (owner) =>
           Effect.gen(function* () {
@@ -738,7 +734,7 @@ it.live(
 it.live(
   "keeps Prompt inspection and mutations bound to the original authenticated Session Location",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
       Effect.gen(function* () {
         const fixture = yield* setup([], prepareProject)
         const directory = path.join(fixture.directory, "packages/first")
@@ -758,7 +754,7 @@ it.live(
           model,
         })
         const candidate = Candidate.make({ ...input, relativePath: "review-prompt.md" })
-        const target = { scope: "project", root: path.join(fixture.directory, ".aigcfroge/prompts") }
+        const target = { scope: "project", root: path.join(fixture.directory, ".omnixa/prompts") }
         yield* Effect.forEach(
           [
             { endpoint: "inspect", body: { candidate, scope: "project" } },
@@ -813,7 +809,8 @@ it.live(
                 data: { message: `Workspace not found: ${unknownWorkspaceID}` },
               })
               const directoryAsSession = yield* fixture.request(
-                `/session/${encodeURIComponent(directory)}/prompt-asset/${operation.endpoint}`,
+                // Reach Session ID validation without exceeding the router's parameter limit.
+                `/session/${encodeURIComponent(path.parse(directory).root)}/prompt-asset/${operation.endpoint}`,
                 {
                   directory,
                   body: operation.body,
@@ -889,7 +886,7 @@ it.live(
           })).status,
         ).toBe(401)
         yield* Effect.forEach(
-          [target.root, path.join(directory, ".aigcfroge/prompts"), path.join(fixture.global.config, "prompts")],
+          [target.root, path.join(directory, ".omnixa/prompts"), path.join(fixture.global.config, "prompts")],
           (root) =>
             Effect.gen(function* () {
               expect(yield* Effect.promise(() => Bun.file(path.join(root, candidate.relativePath)).exists())).toBe(
@@ -909,7 +906,7 @@ it.live(
 it.live(
   "rejects mismatched Prompt target scope and root before revision comparison",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
       Effect.gen(function* () {
         const fixture = yield* setup([], prepareProject)
         const directory = path.join(fixture.directory, "packages/first")
@@ -921,14 +918,14 @@ it.live(
           model,
         })
         const candidate = Candidate.make({ ...input, relativePath: "review-prompt.md" })
-        const root = path.join(fixture.directory, ".aigcfroge/prompts")
+        const root = path.join(fixture.directory, ".omnixa/prompts")
         yield* Effect.forEach(
           [
             { scope: "global", root },
             { scope: "location", root },
-            { scope: "project", root: path.join(directory, ".aigcfroge/prompts") },
-            { scope: "project", root: path.join(fixture.other, ".aigcfroge/prompts") },
-            { scope: "project", root: path.join(fixture.directory, ".aigcfroge/skills") },
+            { scope: "project", root: path.join(directory, ".omnixa/prompts") },
+            { scope: "project", root: path.join(fixture.other, ".omnixa/prompts") },
+            { scope: "project", root: path.join(fixture.directory, ".omnixa/skills") },
           ],
           (target) =>
             Effect.forEach(
@@ -955,7 +952,7 @@ it.live(
             ),
         )
         yield* Effect.forEach(
-          [root, path.join(directory, ".aigcfroge/prompts"), path.join(fixture.global.config, "prompts")],
+          [root, path.join(directory, ".omnixa/prompts"), path.join(fixture.global.config, "prompts")],
           (owner) =>
             Effect.gen(function* () {
               expect(yield* Effect.promise(() => Bun.file(path.join(owner, candidate.relativePath)).exists())).toBe(
@@ -973,7 +970,7 @@ it.live(
 it.live(
   "uses strict selected Prompt revisions across Session Locations without changing legacy delete",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
       Effect.gen(function* () {
         const fixture = yield* setup([], prepareProject)
         const sessions = yield* Effect.forEach(["first", "second"], (name) =>
@@ -988,7 +985,7 @@ it.live(
         const first = sessions[0]
         const second = sessions[1]
         if (!first || !second) return yield* Effect.die(new Error("Both Prompt Session owners are required"))
-        const target = { scope: "project", root: path.join(fixture.directory, ".aigcfroge/prompts") }
+        const target = { scope: "project", root: path.join(fixture.directory, ".omnixa/prompts") }
         const candidate = Schema.decodeUnknownSync(Candidate)({
           ...input,
           name: " Ｒｅｖｉｅｗ ",
@@ -1098,7 +1095,7 @@ it.live(
 it.live(
   "keeps selected Prompt reads and deletion available when creation is disabled",
   () =>
-    withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
+    withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
       Effect.gen(function* () {
         const content =
           "---\nkind: prompt\nname: review-prompt\ndescription: Reviewed before disabling creation\n---\nReview $ARGUMENTS."
@@ -1120,7 +1117,7 @@ it.live(
         )
         expect(inspected).toMatchObject({
           exists: true,
-          target: { scope: "project", root: path.join(fixture.directory, ".aigcfroge/prompts") },
+          target: { scope: "project", root: path.join(fixture.directory, ".omnixa/prompts") },
         })
         const file = path.join(inspected.target.root, candidate.relativePath)
         expect(Schema.encodeSync(BaseRevision)(inspected.revision)).toBe(

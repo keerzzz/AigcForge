@@ -3,17 +3,17 @@ export * as KBService from "./kb-service"
 import path from "path"
 import { and, asc, desc, eq, like, or, sql } from "drizzle-orm"
 import { Cause, Context, Effect, Layer, Schema } from "effect"
-import { KBNote } from "@aigcfroge/schema/kb-note"
+import { KBNote } from "@omnixa/schema/kb-note"
 import { Database } from "../database/database"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { FileMutation } from "../file-mutation"
 import { KeyedMutex } from "../effect/keyed-mutex"
 import { Bus } from "../bus"
 import { AbsolutePath } from "../schema"
 import { Location } from "../location"
 import { Environment } from "../environment/index"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import { KBLink } from "../kb/link"
 import { KBLinkTable, KBNoteTable } from "./kb.sql"
 
@@ -116,7 +116,7 @@ export interface Interface {
   readonly syncFromDirectory: (dir: string, scope: KBNote.NoteScope) => Effect.Effect<number, SyncDirectoryError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/KBService") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/KBService") {}
 
 export const layer = Layer.effect(
   Service,
@@ -262,13 +262,13 @@ export const layer = Layer.effect(
     })
 
     // ADR-14 §2: global notes live in <config>/knowledge-base/, project notes
-    // in <directory>/.aigcfroge/knowledge-base/ — the `.md` file is the
+    // in <directory>/.omnixa/knowledge-base/ — the `.md` file is the
     // content source of truth. Every mirror path is resolved and asserted to
     // stay inside its knowledge-base directory (FSUtil.contains): a title
     // that slipped past schema validation is a programming error — die loudly
     // (Clean Logs: no title in the message).
     const mirrorDir = (baseDir: string, scope: KBNote.NoteScope) =>
-      scope === "global" ? `${baseDir}/knowledge-base` : `${baseDir}/.aigcfroge/knowledge-base`
+      scope === "global" ? `${baseDir}/knowledge-base` : `${baseDir}/.omnixa/knowledge-base`
 
     const create = Effect.fn("KBService.create")(
       (input: {
@@ -802,7 +802,7 @@ export const node = LayerNode.make({
 // 收敛兜底（不是正确性依赖）：把磁盘上的 .md 重新导入索引，弥补历史遗留的半状态。
 // 必须 forkIn(scope) —— Layer.effectDiscard 的 effect 跑在 layer 构建期，直接 await
 // 会让服务端启动阻塞在一次文件系统扫描上。
-// **已知局限**：只扫 global 目录。project 作用域的镜像在 <directory>/.aigcfroge/
+// **已知局限**：只扫 global 目录。project 作用域的镜像在 <directory>/.omnixa/
 // knowledge-base 下，启动时并不存在「当前项目」这一概念（目录由每个 Location 决定），
 // 所以 project 侧的收敛需要挂在 Location 建立时而非进程启动时，属独立改动。
 export const startupLayer = Layer.effectDiscard(

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { Card, CardActions, CardDescription, CardTitle } from "./card"
-import { Button } from "@aigcfroge/ui/button"
+import { Button } from "@omnixa/ui/button"
 
 const docs = `### Overview
 Surface container for grouping related content and actions.

@@ -4,7 +4,7 @@ import {
   getProjectAvatarVariant,
   ProjectAvatar,
   type ProjectAvatarProps,
-} from "@aigcfroge/ui/project-avatar"
+} from "@omnixa/ui/project-avatar"
 import { splitProps } from "solid-js"
 import type { LocalProject } from "@/shell/state/layout"
 

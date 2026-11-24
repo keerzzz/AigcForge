@@ -1,13 +1,13 @@
 import { Show } from "solid-js"
 import { createStore } from "solid-js/store"
-import { Button } from "@aigcfroge/ui/button"
-import { timelinePresets, type TimelineDetail } from "@aigcfroge/session-ui/timeline/detail"
+import { Button } from "@omnixa/ui/button"
+import { timelinePresets, type TimelineDetail } from "@omnixa/session-ui/timeline/detail"
 import { SettingsList } from "./list"
 import { TimelineDetailControl } from "./timeline-detail"
 import "./settings.css"
 
 export default {
-  title: "AigcForge/Settings/Timeline detail",
+  title: "Omnixa/Settings/Timeline detail",
   id: "settings-timeline-detail",
 }
 

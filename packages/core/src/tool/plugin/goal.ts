@@ -1,9 +1,9 @@
 export * as GoalTool from "./goal.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import { ToolFailure } from "@aigcfroge/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
 import { Effect, Schema } from "effect"
-import { Hash } from "@aigcfroge/util/hash"
+import { Hash } from "@omnixa/util/hash"
 import { MetaAgentService } from "../../meta-agent/service.js"
 import { Permission } from "../../permission.js"
 import { SessionGoal } from "../../session/goal.js"
@@ -23,7 +23,7 @@ export const Input = Schema.Union([
 export const Output = Schema.Struct({ data: Schema.Array(SessionGoal.Info) })
 
 export const Plugin = {
-  id: "aigcfroge.tool.goal",
+  id: "omnixa.tool.goal",
   effect: Effect.fn("GoalTool.Plugin")(function* (ctx: Context) {
     const goals = yield* SessionGoal.Service
     const metas = yield* MetaAgentService.Service

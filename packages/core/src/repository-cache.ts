@@ -7,13 +7,13 @@
  */
 import path from "path"
 import { Clock, Context, Duration, Effect, Layer, Option, Schema } from "effect"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Git } from "./git.js"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import { Repository } from "./repository.js"
 import { AbsolutePath } from "./schema.js"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
-import { EffectFlock } from "@aigcfroge/util/effect-flock"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
+import { EffectFlock } from "@omnixa/util/effect-flock"
 import { KV } from "./kv.js"
 
 const Refresh = Schema.Struct({
@@ -91,7 +91,7 @@ export interface Interface {
   readonly ensure: (input: EnsureInput) => Effect.Effect<Result, Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/RepositoryCache") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/RepositoryCache") {}
 
 export function isError(error: unknown): error is Error {
   return (

@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test"
-import { AIError, HttpContext, InvalidRequestError, TransportError } from "@aigcfroge/ai"
+import { AIError, HttpContext, InvalidRequestError, TransportError } from "@omnixa/ai"
 import type {
   ChannelObservation,
   WebSocketChannelExchange,
   WebSocketConnection,
   WebSocketConnector,
-} from "@aigcfroge/ai/route"
-import { SessionModelTransport } from "@aigcfroge/core/session/model-transport"
-import type { SessionProviderContext } from "@aigcfroge/core/session/provider-context"
-import { Provider } from "@aigcfroge/schema/provider"
-import { Session } from "@aigcfroge/schema/session"
+} from "@omnixa/ai/route"
+import { SessionModelTransport } from "@omnixa/core/session/model-transport"
+import type { SessionProviderContext } from "@omnixa/core/session/provider-context"
+import { Provider } from "@omnixa/schema/provider"
+import { Session } from "@omnixa/schema/session"
 import { Cause, Deferred, Effect, Fiber, Metric, Queue, Stream } from "effect"
 import { TestClock } from "effect/testing"
 import { Headers } from "effect/http"
@@ -1206,7 +1206,7 @@ describe("SessionModelTransport", () => {
         yield* collect(executor, exchange("third", { headers: { authorization: "secret-two" } }))
 
         const snapshots = yield* Metric.snapshot
-        const lifecycle = snapshots.filter((item) => item.id === "aigcfroge_session_websocket_events_total")
+        const lifecycle = snapshots.filter((item) => item.id === "omnixa_session_websocket_events_total")
         const names = new Set(lifecycle.map((item) => item.attributes?.event))
         expect(Array.from(names)).toEqual(
           expect.arrayContaining(["connect", "reuse", "rotation", "reconnect", "send", "terminal"]),

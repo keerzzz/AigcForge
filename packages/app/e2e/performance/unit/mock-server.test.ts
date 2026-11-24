@@ -1,15 +1,15 @@
 import { expect, test } from "bun:test"
 import type { Page, Route } from "@playwright/test"
-import { createMockServerHandler, mockAigcForgeServer } from "../../utils/mock-server"
+import { createMockServerHandler, mockOmnixaServer } from "../../utils/mock-server"
 import { Schema } from "effect"
-import { Session } from "@aigcfroge/schema/session"
-import { ParticipantID } from "@aigcfroge/schema/delegation-id"
+import { Session } from "@omnixa/schema/session"
+import { ParticipantID } from "@omnixa/schema/delegation-id"
 import type {
   SessionCreateInput,
   SessionForkInput,
   SessionSelectExecutorInput,
   SessionSwitchAgentInput,
-} from "@aigcfroge/client/promise"
+} from "@omnixa/client/promise"
 
 type SessionRequestBody =
   | SessionCreateInput
@@ -157,7 +157,7 @@ test("Meta mock selection keeper: creation, activation and forks preserve actual
 test("serves an empty config document list for composer defaults", async () => {
   const server = createMockServerHandler({
     provider: {},
-    directory: "C:/AigcForge",
+    directory: "C:/Omnixa",
     project: {},
     sessions: [],
     pageMessages: () => ({ items: [] }),
@@ -165,7 +165,7 @@ test("serves an empty config document list for composer defaults", async () => {
 
   try {
     const response = await server.handler(
-      new Request("http://localhost/api/config?location%5Bdirectory%5D=C%3A%2FAigcForge"),
+      new Request("http://localhost/api/config?location%5Bdirectory%5D=C%3A%2FOmnixa"),
     )
 
     expect(response.status).toBe(200)
@@ -191,9 +191,9 @@ test("applies message latency after a list response gate is released", async () 
     },
   } as unknown as Page
 
-  await mockAigcForgeServer(page, {
+  await mockOmnixaServer(page, {
     provider: {},
-    directory: "C:/AigcForge",
+    directory: "C:/Omnixa",
     project: {},
     sessions: [{ id: "session" }],
     messageDelay: 25,
@@ -249,9 +249,9 @@ test("routes requests through the HttpApi contract", async () => {
     },
   } as unknown as Page
 
-  await mockAigcForgeServer(page, {
+  await mockOmnixaServer(page, {
     provider: {},
-    directory: "C:/AigcForge",
+    directory: "C:/Omnixa",
     project: {},
     sessions: [],
     pageMessages: () => ({ items: [] }),

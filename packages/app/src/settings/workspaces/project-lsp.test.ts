@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test"
-import type { ConfigEntry } from "@aigcfroge/client/promise"
+import type { ConfigEntry } from "@omnixa/client/promise"
 import { configuredLanguageServers } from "./project-lsp"
 
 const global: ConfigEntry = {
   type: "document",
-  path: "/config/aigcfroge.json",
+  path: "/config/omnixa.json",
   info: {
     lsp: {
       typescript: { command: ["typescript-language-server", "--stdio"], extensions: [".ts", ".tsx"] },
@@ -18,10 +18,10 @@ describe("configuredLanguageServers", () => {
     expect(
       configuredLanguageServers([
         global,
-        { type: "directory", path: "/project/.aigcfroge" },
+        { type: "directory", path: "/project/.omnixa" },
         {
           type: "document",
-          path: "/project/aigcfroge.jsonc",
+          path: "/project/omnixa.jsonc",
           info: {
             lsp: {
               typescript: { disabled: true },

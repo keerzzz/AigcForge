@@ -1,18 +1,6 @@
-<p align="center">
-  <a href="https://aigcfroge.ai">
-    <picture>
-      <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="AigcForge logo">
-    </picture>
-  </a>
-</p>
+# Omnixa
+
 <p align="center">El agente de programación con IA de código abierto.</p>
-<p align="center">
-  <a href="https://aigcfroge.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/aigcfroge-ai"><img alt="npm" src="https://img.shields.io/npm/v/aigcfroge-ai?style=flat-square" /></a>
-  <a href="https://github.com/anomalyco/aigcfroge/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/anomalyco/aigcfroge/publish.yml?style=flat-square&branch=dev" /></a>
-</p>
 
 <p align="center">
   <a href="README.md">English</a> |
@@ -39,66 +27,28 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![AigcForge Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://aigcfroge.ai)
-
 ---
 
 ### Instalación
 
-```bash
-# YOLO
-curl -fsSL https://aigcfroge.ai/install | bash
-
-# Gestores de paquetes
-scoop install aigcfroge             # Windows
-choco install aigcfroge             # Windows
-brew install anomalyco/tap/aigcfroge # macOS y Linux (recomendado, siempre al día)
-brew install aigcfroge              # macOS y Linux (fórmula oficial de brew, se actualiza menos)
-sudo pacman -S aigcfroge            # Arch Linux (Stable)
-paru -S aigcfroge-bin               # Arch Linux (Latest from AUR)
-mise use -g aigcfroge               # cualquier sistema
-nix run nixpkgs#aigcfroge           # o github:anomalyco/aigcfroge para la rama dev más reciente
-```
-
-> [!TIP]
-> Elimina versiones anteriores a 0.1.x antes de instalar.
-
-### App de escritorio (BETA)
-
-AigcForge también está disponible como aplicación de escritorio. Descárgala directamente desde la [página de releases](https://github.com/anomalyco/aigcfroge/releases) o desde [aigcfroge.ai/download](https://aigcfroge.ai/download).
-
-| Plataforma            | Descarga                            |
-| --------------------- | ----------------------------------- |
-| macOS (Apple Silicon) | `aigcfroge-desktop-mac-arm64.dmg`   |
-| macOS (Intel)         | `aigcfroge-desktop-mac-x64.dmg`     |
-| Windows               | `aigcfroge-desktop-windows-x64.exe` |
-| Linux                 | `.deb`, `.rpm`, o AppImage          |
+Instala un binario CLI compilado localmente desde este repositorio:
 
 ```bash
-# macOS (Homebrew)
-brew install --cask aigcfroge-desktop
-# Windows (Scoop)
-scoop bucket add extras; scoop install extras/aigcfroge-desktop
+./install --binary /absolute/path/to/omnixa
+"$HOME/.omnixa/bin/omnixa" --version
 ```
 
-#### Directorio de instalación
+El directorio de instalación es `$HOME/.omnixa/bin`. La instalación remota y las actualizaciones automáticas de la CLI requieren configurar `OMNIXA_UPDATE_URL`.
 
-El script de instalación respeta el siguiente orden de prioridad para la ruta de instalación:
+### App de escritorio
 
-1. `$AIGCFROGE_INSTALL_DIR` - Directorio de instalación personalizado
-2. `$XDG_BIN_DIR` - Ruta compatible con la especificación XDG Base Directory
-3. `$HOME/bin` - Directorio binario estándar del usuario (si existe o se puede crear)
-4. `$HOME/.aigcfroge/bin` - Alternativa por defecto
+Destino de las versiones de escritorio: [keerzzz/AigcForge](https://github.com/keerzzz/AigcForge/releases).
 
-```bash
-# Ejemplos
-AIGCFROGE_INSTALL_DIR=/usr/local/bin curl -fsSL https://aigcfroge.ai/install | bash
-XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://aigcfroge.ai/install | bash
-```
+Compilación y empaquetado local desde la misma fuente: [packages/desktop/README.md](packages/desktop/README.md).
 
 ### Agentes
 
-AigcForge incluye dos agentes integrados que puedes alternar con la tecla `Tab`.
+Omnixa incluye dos agentes integrados que puedes alternar con la tecla `Tab`.
 
 - **build** - Por defecto, agente con acceso completo para tareas de desarrollo
 - **plan** - Agente de solo lectura para análisis y exploración de código
@@ -109,20 +59,20 @@ AigcForge incluye dos agentes integrados que puedes alternar con la tecla `Tab`.
 Además, incluye un subagente **general** para búsquedas complejas y tareas de varios pasos.
 Se usa internamente y se puede invocar con `@general` en los mensajes.
 
-Más información sobre [agentes](https://aigcfroge.ai/docs/agents).
+Más información sobre [agentes](packages/core/README.md).
 
 ### Documentación
 
-Para más información sobre cómo configurar AigcForge, [**ve a nuestra documentación**](https://aigcfroge.ai/docs).
+Para más información sobre cómo configurar Omnixa, [**ve a nuestra documentación**](specs/v2/README.md).
 
 ### Contribuir
 
-Si te interesa contribuir a AigcForge, lee nuestras [docs de contribución](./CONTRIBUTING.md) antes de enviar un pull request.
+Si te interesa contribuir a Omnixa, lee nuestras [docs de contribución](./CONTRIBUTING.md) antes de enviar un pull request.
 
-### Proyectos basados en AigcForge
+### Proyectos basados en Omnixa
 
-Si estás trabajando en un proyecto basado en AigcForge y usas "aigcfroge" como parte del nombre, por ejemplo, "aigcfroge-dashboard" u "aigcfroge-mobile", agrega una nota en tu README para aclarar que no está hecho por el equipo de AigcForge y que no está afiliado con nosotros de ninguna manera.
+Si estás trabajando en un proyecto basado en Omnixa y usas "omnixa" como parte del nombre, por ejemplo, "omnixa-dashboard" u "omnixa-mobile", agrega una nota en tu README para aclarar que no está hecho por el equipo de Omnixa y que no está afiliado con nosotros de ninguna manera.
 
 ---
 
-**Únete a nuestra comunidad** [Discord](https://discord.gg/aigcfroge) | [X.com](https://x.com/aigcfroge)
+Based on [OpenCode](https://github.com/anomalyco/opencode), under the [MIT license](LICENSE).

@@ -1,6 +1,6 @@
-import { Service, type Endpoint, type EnsureOptions } from "@aigcfroge/client/effect/service"
-import { ClientError, isUnauthorizedError, AigcForge } from "@aigcfroge/client/promise"
-import { AIGCFROGE_VERSION } from "../version"
+import { Service, type Endpoint, type EnsureOptions } from "@omnixa/client/effect/service"
+import { ClientError, isUnauthorizedError, Omnixa } from "@omnixa/client/promise"
+import { OMNIXA_VERSION } from "../version"
 import { Effect, Redacted } from "effect"
 import { Env } from "../env"
 import { ServiceConfig } from "./service-config"
@@ -25,18 +25,16 @@ export const resolve = Effect.fn("cli.server-connection.resolve")(function* (arg
     const password = yield* Env.password
     const endpoint = {
       url: args.server,
-      auth: password
-        ? { type: "basic" as const, username: "aigcfroge", password: Redacted.value(password) }
-        : undefined,
+      auth: password ? { type: "basic" as const, username: "omnixa", password: Redacted.value(password) } : undefined,
     } satisfies Endpoint
-    const client = AigcForge.make({ baseUrl: endpoint.url, headers: Service.headers(endpoint) })
+    const client = Omnixa.make({ baseUrl: endpoint.url, headers: Service.headers(endpoint) })
     const health = yield* Effect.tryPromise({
       try: () => client.server.info({ signal: AbortSignal.timeout(5_000) }),
       catch: (cause) => connectError(endpoint, cause),
     })
-    if (health.version !== AIGCFROGE_VERSION)
+    if (health.version !== OMNIXA_VERSION)
       process.stderr.write(
-        `Warning: Server at ${endpoint.url} has version ${health.version}; this client is ${AIGCFROGE_VERSION}. Continuing anyway.\n`,
+        `Warning: Server at ${endpoint.url} has version ${health.version}; this client is ${OMNIXA_VERSION}. Continuing anyway.\n`,
       )
     return { endpoint } satisfies Resolved
   }
@@ -69,7 +67,7 @@ export const shutdownPersistentPty = Effect.fn("cli.server-connection.shutdown-p
 ) {
   const endpoint = yield* Service.discover({ ...options, version: undefined })
   if (!endpoint) return
-  const client = AigcForge.make({ baseUrl: endpoint.url, headers: Service.headers(endpoint) })
+  const client = Omnixa.make({ baseUrl: endpoint.url, headers: Service.headers(endpoint) })
   yield* Effect.tryPromise(() => client.experimental.persistentPty.shutdown())
 })
 
@@ -89,7 +87,7 @@ function connectError(endpoint: Endpoint, cause: unknown) {
   if (isUnauthorizedError(cause)) {
     return new Error(
       endpoint.auth === undefined
-        ? `Server at ${endpoint.url} requires a password; set AIGCFROGE_PASSWORD`
+        ? `Server at ${endpoint.url} requires a password; set OMNIXA_PASSWORD`
         : `Server at ${endpoint.url} rejected the password`,
       { cause },
     )

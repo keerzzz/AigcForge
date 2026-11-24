@@ -2,7 +2,7 @@ import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
 import os from "os"
 import path from "path"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Location } from "../src/location"
 import { LocationMutation } from "../src/location-mutation"
 import { PromptAsset } from "../src/prompt-asset"
@@ -21,7 +21,7 @@ describe("MCPAsset", () => {
   it.live("loads mcp assets and isolates from skill and prompt with same filename", () =>
     Effect.gen(function* () {
       const fs = yield* FSUtil.Service
-      const tmpDir = yield* fs.makeTempDirectory({ directory: os.tmpdir(), prefix: "aigcfroge-mcp-test-" })
+      const tmpDir = yield* fs.makeTempDirectory({ directory: os.tmpdir(), prefix: "omnixa-mcp-test-" })
       const locationDir = AbsolutePath.make(tmpDir)
 
       const locationLayer = Layer.succeed(
@@ -45,9 +45,9 @@ describe("MCPAsset", () => {
         const skillService = yield* SkillAsset.Service
         const promptService = yield* PromptAsset.Service
 
-        const mcpDir = path.resolve(tmpDir, ".aigcfroge/mcps")
-        const skillDir = path.resolve(tmpDir, ".aigcfroge/skills")
-        const promptDir = path.resolve(tmpDir, ".aigcfroge/prompts")
+        const mcpDir = path.resolve(tmpDir, ".omnixa/mcps")
+        const skillDir = path.resolve(tmpDir, ".omnixa/skills")
+        const promptDir = path.resolve(tmpDir, ".omnixa/prompts")
 
         yield* fs.makeDirectory(mcpDir, { recursive: true })
         yield* fs.makeDirectory(skillDir, { recursive: true })

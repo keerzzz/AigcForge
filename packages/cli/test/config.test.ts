@@ -1,6 +1,6 @@
 import { NodeFileSystem } from "@effect/platform-node"
-import { Flock } from "@aigcfroge/util/flock"
-import { Global } from "@aigcfroge/util/global"
+import { Flock } from "@omnixa/util/flock"
+import { Global } from "@omnixa/util/global"
 import { Effect, FileSystem, Option, Schema } from "effect"
 import { expect, test } from "bun:test"
 import { parse } from "jsonc-parser"
@@ -35,7 +35,7 @@ test("generates reusable keybind schemas and preserves descriptions and numeric 
   )
 })
 
-test("includes the published schema when creating cli.json", async () => {
+test("creates cli.json without unpublished schema metadata", async () => {
   await using directory = await tmpdir()
 
   const config = await run(
@@ -48,14 +48,14 @@ test("includes the published schema when creating cli.json", async () => {
     }),
   )
 
-  expect(config).toEqual({ $schema: "https://aigcfroge.ai/v2/cli.json", animations: false })
+  expect(config).toEqual({ animations: false })
   expect(await Bun.file(path.join(directory.path, "cli.json")).json()).toEqual(config)
 })
 
-test("preserves the schema in an existing cli.json", async () => {
+test("preserves an explicit schema in an existing cli.json", async () => {
   await using directory = await tmpdir()
   const file = path.join(directory.path, "cli.json")
-  await Bun.write(file, JSON.stringify({ $schema: "https://aigcfroge.ai/v2/cli.json", animations: true }))
+  await Bun.write(file, JSON.stringify({ $schema: "https://schemas.example.test/cli.json", animations: true }))
 
   const config = await run(
     directory.path,
@@ -67,14 +67,14 @@ test("preserves the schema in an existing cli.json", async () => {
     }),
   )
 
-  expect(config).toEqual({ $schema: "https://aigcfroge.ai/v2/cli.json", animations: false })
+  expect(config).toEqual({ $schema: "https://schemas.example.test/cli.json", animations: false })
   expect(await Bun.file(file).json()).toEqual(config)
 })
 
 test("merges inline CLI config content over the global config", async () => {
   await using directory = await tmpdir()
   const file = path.join(directory.path, "cli.json")
-  const previous = process.env.AIGCFROGE_CLI_CONFIG_CONTENT
+  const previous = process.env.OMNIXA_CLI_CONFIG_CONTENT
   await Bun.write(
     file,
     JSON.stringify({
@@ -84,7 +84,7 @@ test("merges inline CLI config content over the global config", async () => {
       animations: true,
     }),
   )
-  process.env.AIGCFROGE_CLI_CONFIG_CONTENT = JSON.stringify({
+  process.env.OMNIXA_CLI_CONFIG_CONTENT = JSON.stringify({
     tabs: { enabled: false },
     keybinds: { "help.show": false },
     plugins: ["inline"],
@@ -111,8 +111,8 @@ test("merges inline CLI config content over the global config", async () => {
     expect(result.updated).toMatchObject({ animations: false, mouse: false })
     expect(await Bun.file(file).json()).toMatchObject({ animations: true, mouse: false })
   } finally {
-    if (previous === undefined) delete process.env.AIGCFROGE_CLI_CONFIG_CONTENT
-    else process.env.AIGCFROGE_CLI_CONFIG_CONTENT = previous
+    if (previous === undefined) delete process.env.OMNIXA_CLI_CONFIG_CONTENT
+    else process.env.OMNIXA_CLI_CONFIG_CONTENT = previous
   }
 })
 
@@ -134,148 +134,6 @@ test("reads the legacy tabs toggle without rewriting it", async () => {
 
   expect(config.tabs).toEqual({ mode: "off" })
   expect(await Bun.file(file).json()).toEqual({ tabs: { enabled: false }, animations: false })
-})
-
-test("migrates tui and kv config into cli.json", async () => {
-  await using directory = await tmpdir()
-  await Bun.write(
-    path.join(directory.path, "tui.json"),
-    JSON.stringify({
-      theme: "legacy",
-      keybinds: {
-        leader: "ctrl+o",
-        app_exit: "ctrl+q",
-        app_heap_snapshot: "ctrl+h",
-        input_paste: { key: "ctrl+v", preventDefault: false },
-        session_delete: false,
-        "dialog.select.next": "ctrl+n",
-      },
-      leader_timeout: 500,
-      scroll_speed: 2,
-      scroll_acceleration: { enabled: true },
-      diff_style: "stacked",
-      mouse: false,
-    }),
-  )
-  await Bun.write(
-    path.join(directory.path, "kv.json"),
-    JSON.stringify({
-      theme_mode_lock: "light",
-      attention_sound_pack: "custom.pack",
-      diff_wrap_mode: "none",
-      diff_viewer_show_file_tree: false,
-      diff_viewer_single_patch: true,
-      diff_viewer_view: "split",
-      terminal_title_enabled: false,
-      file_context_enabled: false,
-      paste_summary_enabled: false,
-      sidebar: "hide",
-      scrollbar_visible: true,
-      thinking_mode: "show",
-      exploration_grouping: false,
-      dismissed_getting_started: true,
-      animations_enabled: false,
-      skipped_version: "9.9.9",
-      which_key_layout: "overlay",
-    }),
-  )
-
-  const config = await run(
-    directory.path,
-    Effect.gen(function* () {
-      const service = yield* Config.Service
-      return yield* service.get()
-    }),
-  )
-
-  expect(config).toMatchObject({
-    $schema: "https://aigcfroge.ai/v2/cli.json",
-    theme: { name: "legacy", mode: "light" },
-    keybinds: {
-      leader: "ctrl+o",
-      "app.exit": "ctrl+q",
-      "prompt.paste": { key: "ctrl+v", preventDefault: false },
-      "session.delete": false,
-      "dialog.select.next": "ctrl+n",
-    },
-    leader: { timeout: 500 },
-    scroll: { speed: 2, acceleration: true },
-    attention: { sound_pack: "custom.pack" },
-    diffs: { wrap: "none", tree: false, single: true, view: "split" },
-    terminal: { title: false },
-    prompt: { editor: false, paste: "full" },
-    session: { sidebar: "hide", scrollbar: true, thinking: "show", grouping: "none" },
-    animations: false,
-    mouse: false,
-  })
-  expect(config).not.toHaveProperty("skipped_version")
-  expect(config).not.toHaveProperty("which_key")
-  expect(config).not.toHaveProperty("hints")
-  expect((await Bun.file(path.join(directory.path, "cli.json")).json()).keybinds).toEqual({
-    leader: "ctrl+o",
-    "app.exit": "ctrl+q",
-    "prompt.paste": { key: "ctrl+v", preventDefault: false },
-    "session.delete": false,
-    "dialog.select.next": "ctrl+n",
-  })
-  expect(await Bun.file(path.join(directory.path, "cli.json")).exists()).toBe(true)
-  expect(await Bun.file(path.join(directory.path, "tui.json")).exists()).toBe(true)
-  expect(await Bun.file(path.join(directory.path, "kv.json")).exists()).toBe(true)
-})
-
-test("migrates before the first update and does not remigrate afterward", async () => {
-  await using directory = await tmpdir()
-  await Bun.write(path.join(directory.path, "tui.json"), JSON.stringify({ theme: "legacy" }))
-
-  const config = await run(
-    directory.path,
-    Effect.gen(function* () {
-      const service = yield* Config.Service
-      yield* service.update((draft) => {
-        draft.animations = false
-        draft.mouse = false
-      })
-      yield* Effect.promise(() =>
-        Bun.write(path.join(directory.path, "tui.json"), JSON.stringify({ theme: "changed" })),
-      )
-      return yield* service.get()
-    }),
-  )
-
-  expect(config).toEqual({
-    $schema: "https://aigcfroge.ai/v2/cli.json",
-    theme: { name: "legacy" },
-    animations: false,
-    mouse: false,
-  })
-  expect(await Bun.file(path.join(directory.path, "cli.json")).json()).toEqual({
-    $schema: "https://aigcfroge.ai/v2/cli.json",
-    theme: { name: "legacy" },
-    animations: false,
-    mouse: false,
-  })
-})
-
-test("preserves legacy cursor settings", async () => {
-  await using directory = await tmpdir()
-  await Bun.write(
-    path.join(directory.path, "tui.json"),
-    JSON.stringify({ cursor: { style: "underline", blinking: false } }),
-  )
-
-  const config = await run(
-    directory.path,
-    Effect.gen(function* () {
-      const service = yield* Config.Service
-      return yield* service.get()
-    }),
-  )
-
-  expect(config.cursor).toEqual({ style: "underline", blinking: false })
-  expect((await Bun.file(path.join(directory.path, "cli.json")).json()).cursor).toEqual({
-    style: "underline",
-    blinking: false,
-  })
 })
 
 test("migrates legacy keybind names in an existing cli.json", async () => {
@@ -489,24 +347,24 @@ test("updates effective duplicate canonical keybinds", async () => {
   const file = path.join(directory.path, "cli.json")
   await Bun.write(
     file,
-    `{"keybinds":{"session.delete":"first","session.delete":"last","aigcfroge.settings":"off","aigcfroge.settings":"on"}}`,
+    `{"keybinds":{"session.delete":"first","session.delete":"last","omnixa.settings":"off","omnixa.settings":"on"}}`,
   )
 
   const config = await run(
     directory.path,
     Effect.gen(function* () {
       const service = yield* Config.Service
-      expect((yield* service.get()).keybinds).toEqual({ "session.delete": "last", "aigcfroge.settings": "on" })
+      expect((yield* service.get()).keybinds).toEqual({ "session.delete": "last", "omnixa.settings": "on" })
       return yield* service.update((draft) => {
-        draft.keybinds = { ...draft.keybinds, "session.delete": "changed", "aigcfroge.settings": "changed" }
+        draft.keybinds = { ...draft.keybinds, "session.delete": "changed", "omnixa.settings": "changed" }
       })
     }),
   )
 
-  expect(config.keybinds).toEqual({ "session.delete": "changed", "aigcfroge.settings": "changed" })
+  expect(config.keybinds).toEqual({ "session.delete": "changed", "omnixa.settings": "changed" })
   expect(parse(await Bun.file(file).text()).keybinds).toEqual({
     "session.delete": "changed",
-    "aigcfroge.settings": "changed",
+    "omnixa.settings": "changed",
   })
 })
 

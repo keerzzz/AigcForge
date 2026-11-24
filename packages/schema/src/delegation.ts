@@ -119,7 +119,7 @@ export const ReviewFinding = Schema.Struct({
 export type ReviewFinding = typeof ReviewFinding.Type
 
 export const ReviewEnvelope = Schema.Struct({
-  kind: Schema.Literal("aigcfroge.review.v1"),
+  kind: Schema.Literal("omnixa.review.v1"),
   reviewed_revision_digest: RevisionDigest,
   verdict: ReviewVerdict,
   findings: Schema.Array(ReviewFinding).check(Schema.isMaxLength(100)),

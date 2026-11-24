@@ -1,12 +1,12 @@
 export * as ConfigFormatterPlugin from "./formatter.js"
 
-import { define } from "@aigcfroge/plugin/effect/plugin"
-import type { Entry } from "@aigcfroge/schema/config"
-import type { ConfigFormatter } from "@aigcfroge/schema/config/formatter"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Global } from "@aigcfroge/util/global"
-import { Npm } from "@aigcfroge/util/npm"
-import { AppProcess } from "@aigcfroge/util/process"
+import { define } from "@omnixa/plugin/effect/plugin"
+import type { Entry } from "@omnixa/schema/config"
+import type { ConfigFormatter } from "@omnixa/schema/config/formatter"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Global } from "@omnixa/util/global"
+import { Npm } from "@omnixa/util/npm"
+import { AppProcess } from "@omnixa/util/process"
 import { Effect } from "effect"
 import { Config } from "../../config.js"
 import { Formatter } from "../../formatter.js"
@@ -15,7 +15,7 @@ import { Location } from "../../location.js"
 import { ConfigEntryObserver } from "./entry-observer.js"
 
 export const Plugin = define({
-  id: "aigcfroge.config.formatter",
+  id: "omnixa.config.formatter",
   effect: Effect.fn(function* (ctx) {
     const config = yield* Config.Service
     const formatter = yield* Formatter.Service

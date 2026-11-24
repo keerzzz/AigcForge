@@ -1,7 +1,7 @@
-import type { IntegrationOAuthMethodRegistration } from "@aigcfroge/plugin/effect/integration"
-import { define } from "@aigcfroge/plugin/effect/plugin"
-import type { SessionRequest } from "@aigcfroge/plugin/effect/session"
-import type { ModelSource } from "@aigcfroge/schema/model-source"
+import type { IntegrationOAuthMethodRegistration } from "@omnixa/plugin/effect/integration"
+import { define } from "@omnixa/plugin/effect/plugin"
+import type { SessionRequest } from "@omnixa/plugin/effect/session"
+import type { ModelSource } from "@omnixa/schema/model-source"
 import { DateTime, Deferred, Effect, Option, Schema, Semaphore, Stream } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/http"
 import type { Server } from "node:http"
@@ -235,7 +235,7 @@ const headless = (app: App.Info) =>
   }) satisfies IntegrationOAuthMethodRegistration
 
 export const OpenAIPlugin = define({
-  id: "aigcfroge.provider.openai",
+  id: "omnixa.provider.openai",
   effect: Effect.fn(function* (ctx) {
     const bus = yield* Bus.Service
     const credentials = yield* Credential.Service
@@ -297,7 +297,7 @@ export const OpenAIPlugin = define({
         })
         if (!chatgpt) return
         provider.headers = Provider.mergeHeaders(provider.headers, {
-          originator: "aigcfroge",
+          originator: "omnixa",
           "x-codex-beta-features": "remote_compaction_v2",
           ...(typeof account === "string" ? { "chatgpt-account-id": account } : {}),
         })
@@ -407,7 +407,7 @@ export const OpenAIPlugin = define({
           const session = yield* ctx.session
             .get({ sessionID: evt.sessionID })
             .pipe(Effect.orElseSucceed(() => undefined))
-          evt.headers.originator = "aigcfroge"
+          evt.headers.originator = "omnixa"
           // ChatGPT routes its prompt cache on this header, so children share the parent's.
           evt.headers["session-id"] = session ? SessionAffinity.get(session) : evt.sessionID
         }),
@@ -588,7 +588,7 @@ function authorizeURL(redirect: string, pkce: Pkce, state: string) {
     id_token_add_organizations: "true",
     codex_cli_simplified_flow: "true",
     state,
-    originator: "aigcfroge",
+    originator: "omnixa",
   })}`
 }
 

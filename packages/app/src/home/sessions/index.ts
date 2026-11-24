@@ -1,5 +1,5 @@
-import type { SessionInfo, SessionListInput, SessionsResponse } from "@aigcfroge/client/promise"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
+import type { SessionInfo, SessionListInput, SessionsResponse } from "@omnixa/client/promise"
+import { ProductMode } from "@omnixa/schema/product-mode"
 import { pathKey } from "@/workspaces/path-key"
 import { SESSION_RECENT_LIMIT, SESSION_RECENT_WINDOW } from "@/runtime/server/global-sync/types"
 import { compareSessionMessageTime } from "./records"

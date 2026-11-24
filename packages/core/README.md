@@ -1,3 +1,3 @@
-# @aigcfroge/core
+# @omnixa/core
 
-Core runtime services for AigcForge.
+Core runtime services for Omnixa.

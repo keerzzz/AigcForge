@@ -1,4 +1,4 @@
-# AigcForge V2 架构入口
+# Omnixa V2 架构入口
 
 本文件按职责导航，不替代源码合同、[V2 规格](specs/v2/README.md)或[共享底座决定](docs/research/upstream-v2-sync/2026-10-29-shared-foundation-decision.md)。执行首读见 [CLAUDE.md](CLAUDE.md)，工程边界见 [AGENTS.md](AGENTS.md)，产品职责见 [DESIGN.md](DESIGN.md)，验证见 [docs/testing.md](docs/testing.md)。
 
@@ -62,7 +62,7 @@
 
 ### 会话内容挂载与咨询归属（目标合同）
 
-2026-11-10的[SC00任务单](/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/2026-11-10-session-surfaces-task-sheet.md)固定拟新增SDK接缝与咨询操作；当前实现由各片源码及工件接受。
+2026-11-10的[SC00任务单](docs/research/upstream-v2-sync/2026-11-10-session-surfaces-task-sheet.md)固定拟新增SDK接缝与咨询操作；当前实现由各片源码及工件接受。
 
 - 拟新增`SessionTargetRef`只描述已注册live ServerRef上的稳定Session及其实际Location，不要求Shell tab。真实`MountedSession`和`SessionScreen`继续持有source布局；target内容从该server现有Data与参数化会话解析读取。跨server key沿`${server.id}\n${session.id}`；挂载不写parentID、controller、fork或执行claim。
 - 同server所有目标共享现ServerRuntime、SharedEvents与Data。可见/持有目标各自水合及重连重读；旧API响应在原Data owner弃读。草稿寿命在原Composer/Tab memory owner补多视图持有，存储沿既有target键，视图不复制第二份历史或草稿。
@@ -91,7 +91,7 @@
 
 2026-11-08 用户补充：可插拔、可替换、可启停、可组合逻辑覆盖全部底座能力与工作界面，包括项目树、会话列表、SSE 数据通道和侧边栏，共同支撑 Custom 装配自定义智能体或脚手架。完整目标与讨论顺序见[全平台装配方向](docs/research/upstream-v2-sync/2026-10-29-shared-foundation-decision.md#platform-assembly-direction)：先完成当前元智能体实施任务，再讨论具体架构与布局。
 
-2026-11-09 用户要求以会话详情页已有右侧栏作为统一模块底座。[右侧栏实施附件](/home/keer/workspace/aigcfroge-v2/docs/research/upstream-v2-sync/2026-11-09-unified-right-sidebar-implementation-plan.md)已按[第一性审批](/home/keer/workspace/aigcfroge-v2/docs/review/v2-implementation-approval-2026-11-09-unified-right-sidebar.md)完成减法修订并批准：复用 Extension Host/Panel/createRegion/SideRegion，一个管理扩展贡献任务、协作、Meta、工作流和产物五个独立 Panel；文件树保留辅助 Slot，终端保留 DockRegion。显示、标签布局、扩展启禁和业务执行分别归原 owner；Custom 的明确实际输出可直接复用同宿主，不设置两输出前置。具体功能接受与后继项见原账本。
+2026-11-09 用户要求以会话详情页已有右侧栏作为统一模块底座。[右侧栏实施附件](docs/research/upstream-v2-sync/2026-11-09-unified-right-sidebar-implementation-plan.md)已按[第一性审批](docs/review/v2-implementation-approval-2026-11-09-unified-right-sidebar.md)完成减法修订并批准：复用 Extension Host/Panel/createRegion/SideRegion，一个管理扩展贡献任务、协作、Meta、工作流和产物五个独立 Panel；文件树保留辅助 Slot，终端保留 DockRegion。显示、标签布局、扩展启禁和业务执行分别归原 owner；Custom 的明确实际输出可直接复用同宿主，不设置两输出前置。具体功能接受与后继项见原账本。
 
 新Custom从V2通用owner与电路板目标重新设计，默认旧Custom不作参考；现有目标仓Custom专属规则是待重构源码事实，不定义目标。基础组合/内置与用户引用/装配绑定/采用快照合同先由B04.0设计，旧会话数据保护另列，不以旧格式绑架新模式。
 

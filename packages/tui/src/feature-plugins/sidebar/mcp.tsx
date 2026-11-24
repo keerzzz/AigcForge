@@ -1,4 +1,4 @@
-import { Plugin } from "@aigcfroge/plugin/tui"
+import { Plugin } from "@omnixa/plugin/tui"
 import { createMemo, For, Match, Show, Switch } from "solid-js"
 import { DialogMcp } from "../../component/dialog-mcp"
 
@@ -93,7 +93,7 @@ export function SidebarMcp(props: { context: Plugin.Context; sessionID: string }
 }
 
 export default Plugin.define({
-  id: "aigcfroge.sidebar.mcp",
+  id: "omnixa.sidebar.mcp",
   setup(context) {
     context.ui.slot({
       append: "sidebar.content",

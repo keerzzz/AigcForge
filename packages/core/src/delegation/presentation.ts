@@ -1,12 +1,12 @@
 export * as DelegationPresentation from "./presentation"
 
 import type { DelegationFoldState } from "./fold"
-import { Delegation } from "@aigcfroge/schema/delegation"
+import { Delegation } from "@omnixa/schema/delegation"
 import { evaluateReviewBarrier, canComplete } from "./review"
 
 export const DEFAULT_SOFT_EXPIRY_DAYS = 7
 
-export function softExpiryMs(value = process.env.AIGCFROGE_DELEGATION_SOFT_EXPIRY_DAYS) {
+export function softExpiryMs(value = process.env.OMNIXA_DELEGATION_SOFT_EXPIRY_DAYS) {
   const days = Number(value ?? DEFAULT_SOFT_EXPIRY_DAYS)
   return (Number.isFinite(days) && days > 0 ? days : DEFAULT_SOFT_EXPIRY_DAYS) * 86_400_000
 }

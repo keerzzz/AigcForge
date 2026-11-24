@@ -1,9 +1,9 @@
 export * as Pty from "./pty.js"
 
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import type { Disp, Proc } from "#pty"
 import { Context, Effect, Layer, Schema, Types } from "effect"
-import { Pty } from "@aigcfroge/schema/pty"
+import { Pty } from "@omnixa/schema/pty"
 import { Bus } from "./bus.js"
 import { Location } from "./location.js"
 import { ShellSelect } from "./shell/select.js"
@@ -48,7 +48,7 @@ export const UpdateInput = Pty.UpdateInput
 
 export type UpdateInput = Types.DeepMutable<typeof UpdateInput.Type>
 
-export { Event } from "@aigcfroge/schema/pty"
+export { Event } from "@omnixa/schema/pty"
 
 export type AttachInput = {
   // Absolute output cursor to replay from. -1 tails from the current end; omitted replays the full retained buffer.
@@ -88,7 +88,7 @@ export interface Interface {
   readonly attach: (id: ID, input: AttachInput) => Effect.Effect<Attachment, NotFoundError | ExitedError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Pty") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Pty") {}
 
 const layer = Layer.effect(
   Service,
@@ -172,7 +172,7 @@ const layer = Layer.effect(
         ...process.env,
         ...input.env,
         TERM: "xterm-256color",
-        AIGCFROGE_TERMINAL: "1",
+        OMNIXA_TERMINAL: "1",
       } as Record<string, string>
       if (process.platform === "win32") {
         env.LC_ALL = "C.UTF-8"

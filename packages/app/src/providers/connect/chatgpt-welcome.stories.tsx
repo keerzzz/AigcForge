@@ -1,5 +1,5 @@
-import { Button } from "@aigcfroge/ui/button"
-import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { Button } from "@omnixa/ui/button"
+import { useDialog } from "@omnixa/ui/context/dialog"
 import { onMount } from "solid-js"
 import { DialogChatGPTPlanWelcome } from "./chatgpt-welcome"
 

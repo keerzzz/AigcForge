@@ -1,8 +1,8 @@
 export * as WorkReviewMachine from "./work-review"
 
 import { absurd } from "effect/Function"
-import { WorkReview } from "@aigcfroge/schema/work-review"
-import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
+import { WorkReview } from "@omnixa/schema/work-review"
+import { WorkflowAsset } from "@omnixa/schema/workflow-asset"
 
 /**
  * Pure S9A Work review-lifecycle state machine

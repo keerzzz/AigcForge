@@ -2,10 +2,10 @@ import { Effect, FileSystem, Scope } from "effect"
 import { Command } from "effect/cli"
 import { PrintLogs } from "../commands/commands"
 import { Spec } from "./spec"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import { Updater } from "../services/updater"
 import { Config } from "../config"
-import { Npm } from "@aigcfroge/util/npm"
+import { Npm } from "@omnixa/util/npm"
 
 export type Input<Value> =
   Value extends Spec.Node<infer _Name, infer Command, infer _Commands>
@@ -97,7 +97,7 @@ function provide(node: Spec.Any, handlers: ReadonlyArray<LazyHandler>): Provided
     ? node.spec.pipe(
         Command.withHandler((input) =>
           Effect.gen(function* () {
-            if (yield* PrintLogs) process.env.AIGCFROGE_PRINT_LOGS = "1"
+            if (yield* PrintLogs) process.env.OMNIXA_PRINT_LOGS = "1"
             const module = yield* Effect.promise(handler.load)
             return yield* module.default(input)
           }),

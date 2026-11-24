@@ -1,5 +1,5 @@
 {
-  "$schema": "https://aigcfroge.ai/desktop-theme.json",
+  "$schema": "../desktop-theme.schema.json",
   "name": "One Dark Pro",
   "id": "onedarkpro",
   "light": {

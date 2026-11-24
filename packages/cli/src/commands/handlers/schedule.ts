@@ -1,9 +1,9 @@
 export * as ScheduleCommand from "./schedule"
 
-import { AigcForge, type AigcForgeClient } from "@aigcfroge/client"
-import { Service } from "@aigcfroge/client/effect/service"
-import { Schedule } from "@aigcfroge/schema/schedule"
-import { SessionID } from "@aigcfroge/schema/session-id"
+import { Omnixa, type OmnixaClient } from "@omnixa/client"
+import { Service } from "@omnixa/client/effect/service"
+import { Schedule } from "@omnixa/schema/schedule"
+import { SessionID } from "@omnixa/schema/session-id"
 import { Effect, Option, Schema } from "effect"
 import { EOL } from "node:os"
 import { Commands } from "../commands"
@@ -17,7 +17,7 @@ const CreateInput = Schema.Struct({
 })
 
 export const execute = Effect.fn("cli.schedule.execute")(function* (
-  client: AigcForgeClient,
+  client: OmnixaClient,
   input: {
     sessionID: string
     action: "list" | "read" | "create" | "edit" | "pause" | "resume" | "cancel" | "run" | "history" | "cancel-run"
@@ -89,7 +89,7 @@ export default Runtime.handler(Commands.commands.schedule, (input) =>
       server: Option.getOrUndefined(input.server),
       standalone: input.standalone,
     })
-    const client = AigcForge.make({ baseUrl: server.endpoint.url, headers: Service.headers(server.endpoint) })
+    const client = Omnixa.make({ baseUrl: server.endpoint.url, headers: Service.headers(server.endpoint) })
     const result = yield* execute(client, {
       sessionID: input.sessionID,
       action: Option.getOrElse(input.action, () => "list"),

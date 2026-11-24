@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { model } from "@aigcfroge/ai/providers/openai"
+import { model } from "@omnixa/ai/providers/openai"
 import { LLM } from "../src/index.js"
 import { Endpoint } from "../src/route/endpoint.js"
 
@@ -9,10 +9,10 @@ const configuration = (provider: string, message: string) =>
 describe("provider package entrypoints", () => {
   test("maps Alibaba API entrypoints onto explicit regional routes", async () => {
     const modules = await Promise.all([
-      import("@aigcfroge/ai/providers/alibaba"),
-      import("@aigcfroge/ai/providers/alibaba/chat"),
-      import("@aigcfroge/ai/providers/alibaba/messages"),
-      import("@aigcfroge/ai/providers/alibaba/responses"),
+      import("@omnixa/ai/providers/alibaba"),
+      import("@omnixa/ai/providers/alibaba/chat"),
+      import("@omnixa/ai/providers/alibaba/messages"),
+      import("@omnixa/ai/providers/alibaba/responses"),
     ])
     const settings = {
       region: "eu-central-1",
@@ -36,10 +36,10 @@ describe("provider package entrypoints", () => {
 
   test("maps Moonshot API entrypoints onto provider-owned routes", async () => {
     const modules = await Promise.all([
-      import("@aigcfroge/ai/providers/moonshot"),
-      import("@aigcfroge/ai/providers/moonshot/chat"),
-      import("@aigcfroge/ai/providers/moonshot/messages"),
-      import("@aigcfroge/ai/providers/moonshot/responses"),
+      import("@omnixa/ai/providers/moonshot"),
+      import("@omnixa/ai/providers/moonshot/chat"),
+      import("@omnixa/ai/providers/moonshot/messages"),
+      import("@omnixa/ai/providers/moonshot/responses"),
     ])
     const settings = {
       apiKey: "fixture",
@@ -60,8 +60,8 @@ describe("provider package entrypoints", () => {
 
   test("maps Cohere entrypoints onto native and compatibility routes", async () => {
     const modules = await Promise.all([
-      import("@aigcfroge/ai/providers/cohere"),
-      import("@aigcfroge/ai/providers/cohere/chat"),
+      import("@omnixa/ai/providers/cohere"),
+      import("@omnixa/ai/providers/cohere/chat"),
     ])
     const settings = { apiKey: "fixture", headers: { "x-test": "fixture" }, body: { future_option: true } }
     const routes = [
@@ -79,15 +79,15 @@ describe("provider package entrypoints", () => {
 
   test("maps MiniMax API entrypoints onto provider-owned routes", async () => {
     const modules = await Promise.all([
-      import("@aigcfroge/ai/providers/minimax"),
-      import("@aigcfroge/ai/providers/minimax/messages"),
-      import("@aigcfroge/ai/providers/minimax/chat"),
-      import("@aigcfroge/ai/providers/minimax/responses"),
+      import("@omnixa/ai/providers/minimax"),
+      import("@omnixa/ai/providers/minimax/messages"),
+      import("@omnixa/ai/providers/minimax/chat"),
+      import("@omnixa/ai/providers/minimax/responses"),
     ])
     const settings = {
       apiKey: "fixture",
       baseURL: "https://gateway.example/v1",
-      headers: { "x-application": "aigcfroge" },
+      headers: { "x-application": "omnixa" },
       body: { service_tier: "priority" },
     }
     const routes = ["minimax-messages", "minimax-messages", "minimax-chat", "minimax-responses"]
@@ -103,12 +103,12 @@ describe("provider package entrypoints", () => {
 
   test("maps ZAI and Coding Plan entrypoints onto distinct provider-owned routes", async () => {
     const modules = await Promise.all([
-      import("@aigcfroge/ai/providers/zai"),
-      import("@aigcfroge/ai/providers/zai/chat"),
-      import("@aigcfroge/ai/providers/zai-coding-plan"),
-      import("@aigcfroge/ai/providers/zai-coding-plan/chat"),
-      import("@aigcfroge/ai/providers/zai-coding-plan/messages"),
-      import("@aigcfroge/ai/providers/zai-coding-plan/responses"),
+      import("@omnixa/ai/providers/zai"),
+      import("@omnixa/ai/providers/zai/chat"),
+      import("@omnixa/ai/providers/zai-coding-plan"),
+      import("@omnixa/ai/providers/zai-coding-plan/chat"),
+      import("@omnixa/ai/providers/zai-coding-plan/messages"),
+      import("@omnixa/ai/providers/zai-coding-plan/responses"),
     ])
     const routes = [
       "zai-chat",
@@ -135,11 +135,11 @@ describe("provider package entrypoints", () => {
   })
 
   test("maps DeepInfra package settings onto its native executable model", async () => {
-    const DeepInfra = await import("@aigcfroge/ai/providers/deepinfra")
+    const DeepInfra = await import("@omnixa/ai/providers/deepinfra")
     const settings = {
       apiKey: "fixture",
       baseURL: "https://provider.example.test/v1/",
-      headers: { "x-application": "aigcfroge" },
+      headers: { "x-application": "omnixa" },
       body: { service_tier: "priority" },
       reasoningEffort: "high" as const,
     }
@@ -154,32 +154,32 @@ describe("provider package entrypoints", () => {
 
   test("maps Cloudflare package settings onto provider-owned models", async () => {
     const modules = await Promise.all([
-      import("@aigcfroge/ai/providers/cloudflare-ai-gateway"),
-      import("@aigcfroge/ai/providers/cloudflare-workers-ai"),
+      import("@omnixa/ai/providers/cloudflare-ai-gateway"),
+      import("@omnixa/ai/providers/cloudflare-workers-ai"),
     ])
     for (const provider of modules) {
       const selected = provider.model("provider-model", {
         accountId: "account",
         apiKey: "fixture",
-        headers: { "x-application": "aigcfroge" },
+        headers: { "x-application": "omnixa" },
         body: { custom: true },
         reasoningEffort: "high",
       })
       expect(selected.provider).toBe(provider.id)
       expect(selected.route.endpoint.baseURL).toBe(provider.baseURL({ accountId: "account" }))
-      expect(selected.route.defaults.headers).toMatchObject({ "x-application": "aigcfroge" })
+      expect(selected.route.defaults.headers).toMatchObject({ "x-application": "omnixa" })
       expect(selected.route.defaults.http?.body).toEqual({ custom: true })
       expect(selected.route.defaults.providerOptions).toEqual({ reasoningEffort: "high" })
     }
   })
 
   test("maps OpenRouter and xAI package settings onto executable models", async () => {
-    const OpenRouter = await import("@aigcfroge/ai/providers/openrouter")
-    const XAI = await import("@aigcfroge/ai/providers/xai")
+    const OpenRouter = await import("@omnixa/ai/providers/openrouter")
+    const XAI = await import("@omnixa/ai/providers/xai")
     const settings = {
       apiKey: "fixture",
       baseURL: "https://provider.example.test/v1",
-      headers: { "x-application": "aigcfroge" },
+      headers: { "x-application": "omnixa" },
       body: { service_tier: "priority" },
     }
     const openrouter = OpenRouter.model("anthropic/claude-sonnet-4", {
@@ -204,23 +204,23 @@ describe("provider package entrypoints", () => {
     const selected = model("gpt-5", {
       apiKey: "fixture",
       baseURL: "https://api.openai.test/v1",
-      headers: { "x-application": "aigcfroge" },
+      headers: { "x-application": "omnixa" },
       body: { service_tier: "priority" },
       unrelatedInheritedSetting: true,
     })
 
     expect(selected.route.id).toBe("openai-responses")
-    expect(selected.route.defaults.headers).toEqual({ "x-application": "aigcfroge" })
+    expect(selected.route.defaults.headers).toEqual({ "x-application": "omnixa" })
     expect(selected.route.defaults.http?.body).toEqual({ service_tier: "priority" })
   })
 
   test("maps OpenAI-compatible Responses settings onto the executable model", async () => {
-    const OpenAICompatibleResponses = await import("@aigcfroge/ai/providers/openai-compatible/responses")
+    const OpenAICompatibleResponses = await import("@omnixa/ai/providers/openai-compatible/responses")
     const selected = OpenAICompatibleResponses.model("custom-model", {
       apiKey: "fixture",
       baseURL: "https://responses.example.test/v1",
       provider: "example",
-      headers: { "x-application": "aigcfroge" },
+      headers: { "x-application": "omnixa" },
       body: { service_tier: "priority" },
       reasoningEffort: "low",
       store: true,
@@ -232,7 +232,7 @@ describe("provider package entrypoints", () => {
       baseURL: "https://responses.example.test/v1",
       path: "/responses",
     })
-    expect(selected.route.defaults.headers).toEqual({ "x-application": "aigcfroge" })
+    expect(selected.route.defaults.headers).toEqual({ "x-application": "omnixa" })
     expect(selected.route.defaults.http?.body).toEqual({ service_tier: "priority" })
     expect(selected.route.defaults.providerOptions).toEqual({
       reasoningEffort: "low",
@@ -242,12 +242,12 @@ describe("provider package entrypoints", () => {
   })
 
   test("maps Anthropic-compatible settings onto the executable model", async () => {
-    const AnthropicCompatible = await import("@aigcfroge/ai/providers/anthropic-compatible")
+    const AnthropicCompatible = await import("@omnixa/ai/providers/anthropic-compatible")
     const selected = AnthropicCompatible.model("compatible-model", {
       apiKey: "fixture",
       baseURL: "https://messages.example.test/v1",
       provider: "example",
-      headers: { "x-application": "aigcfroge" },
+      headers: { "x-application": "omnixa" },
       body: { metadata: { user_id: "user_1" } },
       effort: "low",
     })
@@ -262,13 +262,13 @@ describe("provider package entrypoints", () => {
     expect(
       Endpoint.render(selected.route.endpoint, { request: LLM.request({ model: selected }), body: {} }).toString(),
     ).toBe("https://messages.example.test/v1/messages")
-    expect(selected.route.defaults.headers).toEqual({ "x-application": "aigcfroge" })
+    expect(selected.route.defaults.headers).toEqual({ "x-application": "omnixa" })
     expect(selected.route.defaults.http?.body).toEqual({ metadata: { user_id: "user_1" } })
     expect(selected.route.defaults.providerOptions).toEqual({ effort: "low" })
   })
 
   test("maps Anthropic provider options onto the executable model", async () => {
-    const Anthropic = await import("@aigcfroge/ai/providers/anthropic")
+    const Anthropic = await import("@omnixa/ai/providers/anthropic")
     const selected = Anthropic.model("claude-sonnet-4-6", {
       apiKey: "fixture",
       thinking: { type: "adaptive" },
@@ -279,7 +279,7 @@ describe("provider package entrypoints", () => {
   })
 
   test("requires an Anthropic-compatible base URL at runtime", async () => {
-    const AnthropicCompatible = await import("@aigcfroge/ai/providers/anthropic-compatible")
+    const AnthropicCompatible = await import("@omnixa/ai/providers/anthropic-compatible")
     expect(() =>
       // oxlint-disable-next-line no-restricted-globals -- This test intentionally bypasses static required-option checks.
       Reflect.apply(AnthropicCompatible.model, undefined, ["compatible-model", { apiKey: "fixture" }]),
@@ -287,8 +287,8 @@ describe("provider package entrypoints", () => {
   })
 
   test("rejects conflicting Anthropic-compatible auth settings at runtime", async () => {
-    const Anthropic = await import("@aigcfroge/ai/providers/anthropic")
-    const AnthropicCompatible = await import("@aigcfroge/ai/providers/anthropic-compatible")
+    const Anthropic = await import("@omnixa/ai/providers/anthropic")
+    const AnthropicCompatible = await import("@omnixa/ai/providers/anthropic-compatible")
     expect(() =>
       // oxlint-disable-next-line no-restricted-globals -- This test intentionally passes a statically invalid option combination.
       Reflect.apply(AnthropicCompatible.model, undefined, [
@@ -320,13 +320,13 @@ describe("provider package entrypoints", () => {
   })
 
   test("selects Azure API entrypoints with the same model contract", async () => {
-    const Azure = await import("@aigcfroge/ai/providers/azure")
-    const AzureChat = await import("@aigcfroge/ai/providers/azure/chat")
-    const AzureResponses = await import("@aigcfroge/ai/providers/azure/responses")
+    const Azure = await import("@omnixa/ai/providers/azure")
+    const AzureChat = await import("@omnixa/ai/providers/azure/chat")
+    const AzureResponses = await import("@omnixa/ai/providers/azure/responses")
     const settings = {
       apiKey: "fixture",
-      resourceName: "aigcfroge-test",
-      headers: { "x-application": "aigcfroge" },
+      resourceName: "omnixa-test",
+      headers: { "x-application": "omnixa" },
       body: { service_tier: "priority" },
     }
 
@@ -335,17 +335,17 @@ describe("provider package entrypoints", () => {
 
     expect(Azure.model("deployment", settings).route.id).toBe("azure-openai-responses")
     expect(responses.route.id).toBe("azure-openai-responses")
-    expect(responses.route.endpoint.baseURL).toBe("https://aigcfroge-test.openai.azure.com/openai/v1")
-    expect(responses.route.defaults.headers).toEqual({ "x-application": "aigcfroge" })
+    expect(responses.route.endpoint.baseURL).toBe("https://omnixa-test.openai.azure.com/openai/v1")
+    expect(responses.route.defaults.headers).toEqual({ "x-application": "omnixa" })
     expect(responses.route.defaults.http?.body).toEqual({ service_tier: "priority" })
     expect(chat.route.id).toBe("azure-openai-chat")
   })
 
   test("constructs Azure deployment URLs and preserves custom gateway URLs", async () => {
-    const Azure = await import("@aigcfroge/ai/providers/azure")
+    const Azure = await import("@omnixa/ai/providers/azure")
     const deployment = Azure.model("custom-deployment", {
       apiKey: "fixture",
-      resourceName: "aigcfroge-test",
+      resourceName: "omnixa-test",
       apiVersion: "2025-01-01-preview",
       useDeploymentBasedUrls: true,
     })
@@ -355,7 +355,7 @@ describe("provider package entrypoints", () => {
     })
 
     expect(deployment.route.endpoint).toMatchObject({
-      baseURL: "https://aigcfroge-test.openai.azure.com/openai/deployments/custom-deployment",
+      baseURL: "https://omnixa-test.openai.azure.com/openai/deployments/custom-deployment",
       query: { "api-version": "2025-01-01-preview" },
     })
     expect(gateway.route.endpoint.baseURL).toBe("https://gateway.example/azure")
@@ -363,19 +363,19 @@ describe("provider package entrypoints", () => {
   })
 
   test("maps Google package settings onto the Gemini model", async () => {
-    const Google = await import("@aigcfroge/ai/providers/google")
-    const GoogleInteractions = await import("@aigcfroge/ai/providers/google/interactions")
+    const Google = await import("@omnixa/ai/providers/google")
+    const GoogleInteractions = await import("@omnixa/ai/providers/google/interactions")
     const selected = Google.model("gemini-2.5-flash", {
       apiKey: "fixture",
       baseURL: "https://generativelanguage.test/v1beta",
-      headers: { "x-application": "aigcfroge" },
+      headers: { "x-application": "omnixa" },
       body: { safetySettings: [] },
       thinkingConfig: { thinkingBudget: 1_024 },
     })
 
     expect(selected.route.id).toBe("gemini")
     expect(selected.route.endpoint.baseURL).toBe("https://generativelanguage.test/v1beta")
-    expect(selected.route.defaults.headers).toEqual({ "x-application": "aigcfroge" })
+    expect(selected.route.defaults.headers).toEqual({ "x-application": "omnixa" })
     expect(selected.route.defaults.http?.body).toEqual({ safetySettings: [] })
     expect(selected.route.defaults.providerOptions).toEqual({ thinkingConfig: { thinkingBudget: 1_024 } })
     const interactions = GoogleInteractions.model("gemini-3.8-flash", {
@@ -391,13 +391,13 @@ describe("provider package entrypoints", () => {
   })
 
   test("selects Vertex entrypoints with the same model contract", async () => {
-    const GoogleVertex = await import("@aigcfroge/ai/providers/google-vertex")
-    const GoogleVertexChat = await import("@aigcfroge/ai/providers/google-vertex/chat")
-    const GoogleVertexResponses = await import("@aigcfroge/ai/providers/google-vertex/responses")
-    const GoogleVertexMessages = await import("@aigcfroge/ai/providers/google-vertex/messages")
+    const GoogleVertex = await import("@omnixa/ai/providers/google-vertex")
+    const GoogleVertexChat = await import("@omnixa/ai/providers/google-vertex/chat")
+    const GoogleVertexResponses = await import("@omnixa/ai/providers/google-vertex/responses")
+    const GoogleVertexMessages = await import("@omnixa/ai/providers/google-vertex/messages")
     const gemini = GoogleVertex.model("gemini-3.5-flash", {
       apiKey: "fixture",
-      headers: { "x-application": "aigcfroge" },
+      headers: { "x-application": "omnixa" },
       body: { safetySettings: [] },
     })
     const messages = GoogleVertexMessages.model("claude-sonnet-4-6", {
@@ -419,7 +419,7 @@ describe("provider package entrypoints", () => {
     expect(gemini.route.id).toBe("google-vertex-gemini")
     expect(gemini.route.protocol).toBe("gemini")
     expect(gemini.route.endpoint.baseURL).toBe("https://aiplatform.googleapis.com/v1/publishers/google")
-    expect(gemini.route.defaults.headers).toEqual({ "x-application": "aigcfroge" })
+    expect(gemini.route.defaults.headers).toEqual({ "x-application": "omnixa" })
     expect(gemini.route.defaults.http?.body).toEqual({ safetySettings: [] })
     expect(
       GoogleVertex.model("gemini-3.5-flash", {
@@ -452,12 +452,12 @@ describe("provider package entrypoints", () => {
   })
 
   test("maps Vertex Interactions package settings onto the shared protocol", async () => {
-    const GoogleVertexInteractions = await import("@aigcfroge/ai/providers/google-vertex/interactions")
+    const GoogleVertexInteractions = await import("@omnixa/ai/providers/google-vertex/interactions")
     const selected = GoogleVertexInteractions.model("gemini-3.8-flash", {
       accessToken: "fixture",
       project: "vertex-project",
       location: "global",
-      headers: { "x-application": "aigcfroge" },
+      headers: { "x-application": "omnixa" },
       body: { generation_config: { temperature: 0.5 } },
       thinkingLevel: "low",
       store: false,
@@ -469,17 +469,17 @@ describe("provider package entrypoints", () => {
       path: "/interactions",
       query: { alt: "sse" },
     })
-    expect(selected.route.defaults.headers).toEqual({ "x-application": "aigcfroge" })
+    expect(selected.route.defaults.headers).toEqual({ "x-application": "omnixa" })
     expect(selected.route.defaults.http?.body).toEqual({ generation_config: { temperature: 0.5 } })
     expect(selected.route.defaults.providerOptions).toEqual({ thinkingLevel: "low", store: false })
   })
 
   test("rejects conflicting Vertex auth settings at runtime", async () => {
-    const GoogleVertex = await import("@aigcfroge/ai/providers/google-vertex")
-    const GoogleVertexChat = await import("@aigcfroge/ai/providers/google-vertex/chat")
-    const GoogleVertexMessages = await import("@aigcfroge/ai/providers/google-vertex/messages")
-    const GoogleVertexResponses = await import("@aigcfroge/ai/providers/google-vertex/responses")
-    const Providers = await import("@aigcfroge/ai/providers")
+    const GoogleVertex = await import("@omnixa/ai/providers/google-vertex")
+    const GoogleVertexChat = await import("@omnixa/ai/providers/google-vertex/chat")
+    const GoogleVertexMessages = await import("@omnixa/ai/providers/google-vertex/messages")
+    const GoogleVertexResponses = await import("@omnixa/ai/providers/google-vertex/responses")
+    const Providers = await import("@omnixa/ai/providers")
     expect(() =>
       // oxlint-disable-next-line no-restricted-globals -- This test intentionally passes a statically invalid option combination.
       Reflect.apply(GoogleVertex.model, undefined, [

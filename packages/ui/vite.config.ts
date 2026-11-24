@@ -45,11 +45,11 @@ function providerIconsPlugin() {
 }
 
 async function fetchProviderIcons() {
-  const url = process.env.AIGCFROGE_MODELS_URL || "https://models.aigcfroge.ai"
+  const url = process.env.OMNIXA_MODELS_URL || "https://models.dev"
 
   const providers = await fetch(`${url}/api.json`)
     .then((res) => res.json())
-    .then((json) => Object.keys(json))
+    .then((json) => Object.keys(json).filter((provider) => provider !== "opencode" && provider !== "opencode-go"))
 
   await Promise.all(
     providers.map((provider) =>

@@ -1,12 +1,12 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@aigcfroge/server",
+  "name": "@omnixa/server",
   "version": "0.0.9",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/anomalyco/aigcfroge.git",
+    "url": "git+https://github.com/keerzzz/AigcForge.git",
     "directory": "packages/server"
   },
   "publishConfig": {
@@ -27,18 +27,18 @@
   "dependencies": {
     "@effect/platform-node": "catalog:",
     "@effect/platform-node-shared": "catalog:",
-    "@aigcfroge/core": "workspace:*",
-    "@aigcfroge/protocol": "workspace:*",
-    "@aigcfroge/schema": "workspace:*",
-    "@aigcfroge/simulation": "workspace:*",
-    "@aigcfroge/util": "workspace:*",
+    "@omnixa/core": "workspace:*",
+    "@omnixa/protocol": "workspace:*",
+    "@omnixa/schema": "workspace:*",
+    "@omnixa/simulation": "workspace:*",
+    "@omnixa/util": "workspace:*",
     "effect": "catalog:"
   },
   "devDependencies": {
     "@opencode-ai/pty": "0.2.0",
-    "@aigcfroge/ai": "workspace:*",
-    "@aigcfroge/client": "workspace:*",
-    "@aigcfroge/plugin": "workspace:*",
+    "@omnixa/ai": "workspace:*",
+    "@omnixa/client": "workspace:*",
+    "@omnixa/plugin": "workspace:*",
     "@tsconfig/bun": "catalog:",
     "@types/bun": "catalog:",
     "@typescript/native-preview": "catalog:",

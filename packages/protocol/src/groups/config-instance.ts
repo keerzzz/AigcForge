@@ -1,4 +1,4 @@
-import { ConfigV1 } from "@aigcfroge/schema/v1/config/config"
+import { ConfigV1 } from "@omnixa/schema/v1/config/config"
 import { ProviderInstanceConfigResult } from "./provider-contract.js"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { InvalidRequestError } from "../errors.js"
@@ -19,7 +19,7 @@ export const ConfigInstanceGroup = HttpApiGroup.make("config-instance")
       OpenApi.annotations({
         identifier: "config.instance.get",
         summary: "Get configuration",
-        description: "Retrieve the current AigcForge configuration settings and preferences.",
+        description: "Retrieve the current Omnixa configuration settings and preferences.",
       }),
     ),
   )
@@ -33,7 +33,7 @@ export const ConfigInstanceGroup = HttpApiGroup.make("config-instance")
       OpenApi.annotations({
         identifier: "config.instance.update",
         summary: "Update configuration",
-        description: "Update AigcForge configuration settings and preferences.",
+        description: "Update Omnixa configuration settings and preferences.",
       }),
     ),
   )

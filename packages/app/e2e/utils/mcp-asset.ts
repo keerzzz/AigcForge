@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test"
-import type { McpAssetApplyOutput, JsonValue, SessionMessageInfo } from "@aigcfroge/client/promise"
+import type { McpAssetApplyOutput, JsonValue, SessionMessageInfo } from "@omnixa/client/promise"
 import { SkillAssets } from "./skill-asset"
 
 export function body() {

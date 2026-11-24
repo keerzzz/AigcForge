@@ -1,5 +1,5 @@
-import { AgentAsset } from "@aigcfroge/schema/agent-asset"
-import { Session } from "@aigcfroge/schema/session"
+import { AgentAsset } from "@omnixa/schema/agent-asset"
+import { Session } from "@omnixa/schema/session"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { ConflictError, InvalidRequestError } from "../errors.js"

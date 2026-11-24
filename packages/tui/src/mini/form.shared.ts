@@ -1,4 +1,4 @@
-import type { FormAnswer, FormField, FormInfo, FormValue } from "@aigcfroge/client/promise"
+import type { FormAnswer, FormField, FormInfo, FormValue } from "@omnixa/client/promise"
 import {
   formCustom,
   formDisplayValue,

@@ -1,18 +1,6 @@
-<p align="center">
-  <a href="https://aigcfroge.ai">
-    <picture>
-      <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="AigcForge logo">
-    </picture>
-  </a>
-</p>
+# Omnixa
+
 <p align="center">オープンソースのAIコーディングエージェント。</p>
-<p align="center">
-  <a href="https://aigcfroge.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/aigcfroge-ai"><img alt="npm" src="https://img.shields.io/npm/v/aigcfroge-ai?style=flat-square" /></a>
-  <a href="https://github.com/anomalyco/aigcfroge/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/anomalyco/aigcfroge/publish.yml?style=flat-square&branch=dev" /></a>
-</p>
 
 <p align="center">
   <a href="README.md">English</a> |
@@ -39,66 +27,28 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![AigcForge Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://aigcfroge.ai)
-
 ---
 
 ### インストール
 
-```bash
-# YOLO
-curl -fsSL https://aigcfroge.ai/install | bash
-
-# パッケージマネージャー
-scoop install aigcfroge             # Windows
-choco install aigcfroge             # Windows
-brew install anomalyco/tap/aigcfroge # macOS と Linux（推奨。常に最新）
-brew install aigcfroge              # macOS と Linux（公式 brew formula。更新頻度は低め）
-sudo pacman -S aigcfroge            # Arch Linux (Stable)
-paru -S aigcfroge-bin               # Arch Linux (Latest from AUR)
-mise use -g aigcfroge               # どのOSでも
-nix run nixpkgs#aigcfroge           # または github:anomalyco/aigcfroge で最新 dev ブランチ
-```
-
-> [!TIP]
-> インストール前に 0.1.x より古いバージョンを削除してください。
-
-### デスクトップアプリ (BETA)
-
-AigcForge はデスクトップアプリとしても利用できます。[releases page](https://github.com/anomalyco/aigcfroge/releases) から直接ダウンロードするか、[aigcfroge.ai/download](https://aigcfroge.ai/download) を利用してください。
-
-| プラットフォーム      | ダウンロード                        |
-| --------------------- | ----------------------------------- |
-| macOS (Apple Silicon) | `aigcfroge-desktop-mac-arm64.dmg`   |
-| macOS (Intel)         | `aigcfroge-desktop-mac-x64.dmg`     |
-| Windows               | `aigcfroge-desktop-windows-x64.exe` |
-| Linux                 | `.deb`、`.rpm`、または AppImage     |
+このリポジトリからローカルでビルドした CLI バイナリをインストールします：
 
 ```bash
-# macOS (Homebrew)
-brew install --cask aigcfroge-desktop
-# Windows (Scoop)
-scoop bucket add extras; scoop install extras/aigcfroge-desktop
+./install --binary /absolute/path/to/omnixa
+"$HOME/.omnixa/bin/omnixa" --version
 ```
 
-#### インストールディレクトリ
+インストール先は `$HOME/.omnixa/bin` です。リモートインストールと CLI の自動更新には、有効な `OMNIXA_UPDATE_URL` の設定が必要です。
 
-インストールスクリプトは、インストール先パスを次の優先順位で決定します。
+### デスクトップアプリ
 
-1. `$AIGCFROGE_INSTALL_DIR` - カスタムのインストールディレクトリ
-2. `$XDG_BIN_DIR` - XDG Base Directory Specification に準拠したパス
-3. `$HOME/bin` - 標準のユーザー用バイナリディレクトリ（存在する場合、または作成できる場合）
-4. `$HOME/.aigcfroge/bin` - デフォルトのフォールバック
+デスクトップ版のリリース先: [keerzzz/AigcForge](https://github.com/keerzzz/AigcForge/releases).
 
-```bash
-# 例
-AIGCFROGE_INSTALL_DIR=/usr/local/bin curl -fsSL https://aigcfroge.ai/install | bash
-XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://aigcfroge.ai/install | bash
-```
+同じソースからのローカルビルドとパッケージ作成: [packages/desktop/README.md](packages/desktop/README.md).
 
 ### Agents
 
-AigcForge には組み込みの Agent が2つあり、`Tab` キーで切り替えられます。
+Omnixa には組み込みの Agent が2つあり、`Tab` キーで切り替えられます。
 
 - **build** - デフォルト。開発向けのフルアクセス Agent
 - **plan** - 分析とコード探索向けの読み取り専用 Agent
@@ -109,20 +59,20 @@ AigcForge には組み込みの Agent が2つあり、`Tab` キーで切り替�
 また、複雑な検索やマルチステップのタスク向けに **general** サブ Agent も含まれています。
 内部的に使用されており、メッセージで `@general` と入力して呼び出せます。
 
-[agents](https://aigcfroge.ai/docs/agents) の詳細はこちら。
+[agents](packages/core/README.md) の詳細はこちら。
 
 ### ドキュメント
 
-AigcForge の設定については [**ドキュメント**](https://aigcfroge.ai/docs) を参照してください。
+Omnixa の設定については [**ドキュメント**](specs/v2/README.md) を参照してください。
 
 ### コントリビュート
 
-AigcForge に貢献したい場合は、Pull Request を送る前に [contributing docs](./CONTRIBUTING.md) を読んでください。
+Omnixa に貢献したい場合は、Pull Request を送る前に [contributing docs](./CONTRIBUTING.md) を読んでください。
 
-### AigcForge の上に構築する
+### Omnixa の上に構築する
 
-AigcForge に関連するプロジェクトで、名前に "aigcfroge"（例: "aigcfroge-dashboard" や "aigcfroge-mobile"）を含める場合は、そのプロジェクトが AigcForge チームによって作られたものではなく、いかなる形でも関係がないことを README に明記してください。
+Omnixa に関連するプロジェクトで、名前に "omnixa"（例: "omnixa-dashboard" や "omnixa-mobile"）を含める場合は、そのプロジェクトが Omnixa チームによって作られたものではなく、いかなる形でも関係がないことを README に明記してください。
 
 ---
 
-**コミュニティに参加** [Discord](https://discord.gg/aigcfroge) | [X.com](https://x.com/aigcfroge)
+Based on [OpenCode](https://github.com/anomalyco/opencode), under the [MIT license](LICENSE).

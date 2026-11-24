@@ -1,5 +1,5 @@
-import type { SessionStatsInfo } from "@aigcfroge/client"
-import { TokenUsage } from "@aigcfroge/schema/token-usage"
+import type { SessionStatsInfo } from "@omnixa/client"
+import { TokenUsage } from "@omnixa/schema/token-usage"
 
 export function statsMetrics(stats: SessionStatsInfo) {
   return [

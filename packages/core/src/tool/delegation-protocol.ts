@@ -1,7 +1,7 @@
 export * as DelegationProtocolTool from "./delegation-protocol.js"
 
-import { ToolFailure } from "@aigcfroge/ai"
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
+import { ToolFailure } from "@omnixa/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
 import { Effect, Schema } from "effect"
 import { Agent } from "../agent.js"
 import { Location } from "../location.js"
@@ -42,7 +42,7 @@ export const Output = Schema.Struct({
 })
 
 export const Plugin = {
-  id: "aigcfroge.tool.generate_delegation_protocol",
+  id: "omnixa.tool.generate_delegation_protocol",
   effect: Effect.fn("DelegationProtocolTool.Plugin")(function* (ctx: Context) {
     const agents = yield* Agent.Service
     const sessions = yield* Session.Service

@@ -8,9 +8,9 @@ import type {
   SessionCommunicationReadInput,
   SessionCommunicationMessage,
   ModelGroupCurrent,
-} from "@aigcfroge/client/promise"
-import type { SessionReference } from "@aigcfroge/schema/session-reference"
-import { createSimpleContext } from "@aigcfroge/ui/context"
+} from "@omnixa/client/promise"
+import type { SessionReference } from "@omnixa/schema/session-reference"
+import { createSimpleContext } from "@omnixa/ui/context"
 import { PreloadMultiFileDiffResult } from "@pierre/diffs/ssr"
 
 export type SessionSummary = Pick<SessionInfo, "id" | "parentID" | "title" | "time">

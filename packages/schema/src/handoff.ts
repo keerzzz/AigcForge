@@ -13,7 +13,7 @@ export type Handoff = typeof Handoff.Type
 /**
  * Handoff send policy (D13, S3).
  *
- * Lives in `@aigcfroge/schema` because both clients need it and it is the only
+ * Lives in `@omnixa/schema` because both clients need it and it is the only
  * workspace package the app may import without risking the `process is not
  * defined` blank screen (`packages/app/src/utils/browser-boundary.test.ts`).
  * A second copy in `packages/tui` was the alternative and is not allowed:

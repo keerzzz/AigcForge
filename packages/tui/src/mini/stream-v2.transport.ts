@@ -2,15 +2,15 @@ import type {
   EventSubscribeOutput,
   FormInfo,
   LocationRef,
-  AigcForgeClient,
+  OmnixaClient,
   PermissionRequest,
   SessionMessageAssistantTool,
   SessionMessageInfo,
   SessionMessageUser,
   SessionInboxInfo,
-} from "@aigcfroge/client/promise"
-import { Event } from "@aigcfroge/schema/event"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
+} from "@omnixa/client/promise"
+import { Event } from "@omnixa/schema/event"
+import { SessionMessage } from "@omnixa/schema/session-message"
 import { blockerStatus, pickBlockerView } from "./session-data"
 import { writeSessionOutput } from "./stream"
 import { createFragmentReconciler, fragmentRef, type FragmentReconciler } from "./stream-v2.fragment"
@@ -41,9 +41,9 @@ type Trace = {
 }
 
 type StreamInput = {
-  sdk: AigcForgeClient
-  reconnect?: (signal: AbortSignal) => Promise<AigcForgeClient>
-  onClient?: (sdk: AigcForgeClient) => void
+  sdk: OmnixaClient
+  reconnect?: (signal: AbortSignal) => Promise<OmnixaClient>
+  onClient?: (sdk: OmnixaClient) => void
   readTextFile?: (url: string) => Promise<string>
   location?: LocationRef
   sessionID: string
@@ -64,10 +64,7 @@ export type SessionTurnInput = {
   agent: string | undefined
   model: RunInput["model"]
   variant: string | undefined
-  selection?: Pick<
-    Awaited<ReturnType<AigcForgeClient["session"]["get"]>>,
-    "controller" | "model" | "executorPreference"
-  >
+  selection?: Pick<Awaited<ReturnType<OmnixaClient["session"]["get"]>>, "controller" | "model" | "executorPreference">
   prompt: RunPrompt
   files: RunFilePart[]
   includeFiles: boolean
@@ -115,7 +112,7 @@ type RunV2Event = EventSubscribeOutput
 type PromptFilePart = Extract<RunPromptPart, { type: "file" }>
 
 type Attempt = {
-  client: AigcForgeClient
+  client: OmnixaClient
   signal: AbortSignal
   generation: number
 }
@@ -454,7 +451,7 @@ function compactionError(messageID: string, text: string): StreamCommit {
 
 async function resolveSelectedModel(
   input: StreamInput,
-  sdk: AigcForgeClient,
+  sdk: OmnixaClient,
   next: Pick<SessionTurnInput, "model" | "variant" | "signal">,
 ) {
   if (next.model) {
@@ -493,7 +490,7 @@ export async function createSessionTransport(input: StreamInput): Promise<Sessio
   let sdk = input.sdk
   let generation = 0
   let activeAttempt: Attempt | undefined
-  let settlementClient: AigcForgeClient | undefined
+  let settlementClient: OmnixaClient | undefined
   input.signal?.addEventListener("abort", () => controller.abort(), { once: true })
   const state: State = {
     permissions: [],
@@ -910,7 +907,7 @@ export async function createSessionTransport(input: StreamInput): Promise<Sessio
     }
   }
 
-  const projectedMessages = async (client: AigcForgeClient, signal: AbortSignal) =>
+  const projectedMessages = async (client: OmnixaClient, signal: AbortSignal) =>
     (
       await client.message.list(
         { sessionID: input.sessionID, limit: input.replayLimit ?? 200, order: "desc" },
@@ -918,18 +915,14 @@ export async function createSessionTransport(input: StreamInput): Promise<Sessio
       )
     ).data.toReversed()
 
-  const settleSession = async (client: AigcForgeClient) => {
+  const settleSession = async (client: OmnixaClient) => {
     await client.session.wait({ sessionID: input.sessionID }, { signal: controller.signal })
     for (const message of await projectedMessages(client, controller.signal)) renderMessage(message, true)
     paintIdle(blockerStatus(state.view))
     await input.footer.idle()
   }
 
-  const resolvePermissionSources = async (
-    client: AigcForgeClient,
-    permissions: PermissionRequest[],
-    attempt: Attempt,
-  ) => {
+  const resolvePermissionSources = async (client: OmnixaClient, permissions: PermissionRequest[], attempt: Attempt) => {
     const pending = new Set(
       permissions.flatMap((request) =>
         request.source?.type === "tool" ? [permissionSourceKey(request.source.messageID, request.source.id)] : [],
@@ -1611,7 +1604,7 @@ export async function createSessionTransport(input: StreamInput): Promise<Sessio
   const runTurnWait = async (
     next: SessionTurnInput,
     messageID: string,
-    client: AigcForgeClient,
+    client: OmnixaClient,
     send: () => Promise<SessionInboxInfo | void>,
     onAdmitted?: () => void,
   ) => {
@@ -1738,7 +1731,7 @@ export async function createSessionTransport(input: StreamInput): Promise<Sessio
   let queuedResizeReplay: SessionResizeReplayInput | undefined
   let closing: Promise<void> | undefined
 
-  const admitPrompt = async (next: SessionTurnInput, client: AigcForgeClient, delivery: RunDelivery) => {
+  const admitPrompt = async (next: SessionTurnInput, client: OmnixaClient, delivery: RunDelivery) => {
     const messageID = next.prompt.messageID
     if (!messageID) throw new Error("Prompt message ID is required")
     const command = next.prompt.command

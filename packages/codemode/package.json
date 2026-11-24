@@ -1,13 +1,13 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "@aigcfroge/codemode",
+  "name": "@omnixa/codemode",
   "version": "0.0.9",
   "description": "Effect-native confined code execution over schema-described tools",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/anomalyco/aigcfroge.git",
+    "url": "git+https://github.com/keerzzz/AigcForge.git",
     "directory": "packages/codemode"
   },
   "publishConfig": {

@@ -1,10 +1,10 @@
 export * as PtyTicket from "./ticket.js"
 
-import type { Workspace } from "@aigcfroge/schema/workspace"
-import { PtyTicket } from "@aigcfroge/schema/pty-ticket"
-import type { Pty } from "@aigcfroge/schema/pty"
+import type { Workspace } from "@omnixa/schema/workspace"
+import { PtyTicket } from "@omnixa/schema/pty-ticket"
+import type { Pty } from "@omnixa/schema/pty"
 import { Cache, Context, Duration, Effect, Layer } from "effect"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 
 const DEFAULT_TTL = Duration.seconds(60)
 const CAPACITY = 10_000
@@ -22,7 +22,7 @@ export interface Interface {
   consume(input: Scope & { readonly ticket: string }): Effect.Effect<boolean>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/PtyTicket") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/PtyTicket") {}
 
 function matches(record: Scope, input: Scope) {
   return (

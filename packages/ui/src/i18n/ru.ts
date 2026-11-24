@@ -69,17 +69,6 @@ export const dict = {
   "ui.sessionTurn.retry.attempt": "попытка №{{attempt}}",
   "ui.sessionTurn.retry.attemptLine": "{{line}} - попытка №{{attempt}}",
   "ui.sessionTurn.retry.geminiHot": "gemini сейчас перегружен",
-  "ui.sessionTurn.error.freeUsageExceeded": "Лимит бесплатного использования превышен",
-  "ui.sessionTurn.error.addCredits": "Добавить кредиты",
-
-  "dialog.usageExceeded.freeTier.title": "Достигнут бесплатный лимит",
-  "dialog.usageExceeded.freeTier.description":
-    "Подпишитесь на AigcForge Go за $10/месяц для надёжного доступа к лучшим моделям с открытым исходным кодом.",
-  "dialog.usageExceeded.freeTier.actionLabel": "Подписаться",
-  "dialog.usageExceeded.accountRateLimit.title": "Достигнут лимит Go",
-  "dialog.usageExceeded.accountRateLimit.description":
-    "Достигнут лимит использования. Чтобы продолжить использовать эту модель сейчас, включите использование из доступного баланса",
-  "dialog.usageExceeded.accountRateLimit.actionLabel": "Открыть настройки",
 
   "ui.sessionTurn.status.delegating": "Делегирование работы",
   "ui.sessionTurn.status.planning": "Планирование следующих шагов",

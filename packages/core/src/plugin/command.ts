@@ -1,6 +1,6 @@
 export * as CommandPlugin from "./command.js"
 
-import { define } from "@aigcfroge/plugin/effect/plugin"
+import { define } from "@omnixa/plugin/effect/plugin"
 import { Effect, Schema, Stream } from "effect"
 import { Bus } from "../bus.js"
 import { Location } from "../location.js"
@@ -13,7 +13,7 @@ import PROMPT_INITIALIZE from "./command/initialize.txt"
 import PROMPT_REVIEW from "./command/review.txt"
 
 export const Plugin = define({
-  id: "aigcfroge.command",
+  id: "omnixa.command",
   effect: Effect.fn(function* (ctx) {
     const location = yield* Location.Service
     const mcp = yield* Mcp.Service
@@ -88,7 +88,7 @@ export const Plugin = define({
 })
 
 export const MetaCommands = define({
-  id: "aigcfroge.command.meta",
+  id: "omnixa.command.meta",
   effect: Effect.fn("MetaCommands.Plugin")(function* (ctx) {
     const goals = yield* SessionGoal.Service
     const execution = yield* SessionExecution.Service

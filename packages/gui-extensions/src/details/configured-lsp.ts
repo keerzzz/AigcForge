@@ -1,4 +1,4 @@
-import type { ConfigEntry } from "@aigcfroge/client"
+import type { ConfigEntry } from "@omnixa/client"
 import { Predicate } from "effect"
 
 export function configuredLsps(entries: readonly ConfigEntry[]) {

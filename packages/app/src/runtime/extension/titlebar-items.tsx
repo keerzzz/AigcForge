@@ -1,6 +1,6 @@
 import { createMemo, For, Show } from "solid-js"
-import { Icon } from "@aigcfroge/ui/icon"
-import { TitlebarItem } from "@aigcfroge/gui-extensions/sdk"
+import { Icon } from "@omnixa/ui/icon"
+import { TitlebarItem } from "@omnixa/gui-extensions/sdk"
 import { useExtensionHost } from "./host"
 
 /** TitlebarItem contributions placed in the titlebar (the default placement). */

@@ -3,8 +3,8 @@ export * as ScheduleExecution from "./schedule-execution.js"
 import { eq } from "drizzle-orm"
 import { Context, DateTime, Effect, Layer, Option, Stream } from "effect"
 import { createHash, randomUUID } from "node:crypto"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
-import { Schedule } from "@aigcfroge/schema/schedule"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
+import { Schedule } from "@omnixa/schema/schedule"
 import { Bus } from "../bus.js"
 import { Database } from "../database/database.js"
 import { DelegationExecution } from "../delegation/execution.js"
@@ -41,7 +41,7 @@ const sourceOf = (run: Schedule.Occurrence) =>
   })
 
 export type Interface = Effect.Success<ReturnType<typeof make>>
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/ScheduleExecution") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/ScheduleExecution") {}
 
 const make = Effect.fn("ScheduleExecution.make")(function* () {
   const database = yield* Database.Service

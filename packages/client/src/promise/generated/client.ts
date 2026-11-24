@@ -28928,7 +28928,7 @@ export function make(options: ClientOptions) {
               method: "POST",
               path: `/api/pty/${encodeURIComponent(input.ptyID)}/connect-token`,
               query: { location: input["location"] },
-              headers: { "x-aigcfroge-ticket": input["x-aigcfroge-ticket"] },
+              headers: { "x-omnixa-ticket": input["x-omnixa-ticket"] },
               successStatus: 200,
               declaredStatuses: [400, 401, 403, 404],
               empty: false,
@@ -29053,7 +29053,7 @@ export function make(options: ClientOptions) {
             {
               method: "POST",
               path: `/api/experimental/persistent-pty/${encodeURIComponent(input.ptyID)}/connect-token`,
-              headers: { "x-aigcfroge-ticket": input["x-aigcfroge-ticket"] },
+              headers: { "x-omnixa-ticket": input["x-omnixa-ticket"] },
               successStatus: 200,
               declaredStatuses: [400, 401, 403, 404, 503],
               empty: false,

@@ -30,7 +30,7 @@ describe("theme preload", () => {
     ({ stored, systemDark, scheme, background }) => {
       setSystemDark(systemDark)
 
-      if (stored) localStorage.setItem("aigcfroge-color-scheme", stored)
+      if (stored) localStorage.setItem("omnixa-color-scheme", stored)
       run()
 
       expect(document.documentElement.dataset.theme).toBe("oc-2")
@@ -40,12 +40,12 @@ describe("theme preload", () => {
   )
 
   test.each([
-    { scheme: undefined, key: "aigcfroge-theme-css-light", css: "--background-base:#fff;", expected: "light" },
-    { scheme: "dark", key: "aigcfroge-theme-css-dark", css: "--background-base:#010203;", expected: "dark" },
+    { scheme: undefined, key: "omnixa-theme-css-light", css: "--background-base:#fff;", expected: "light" },
+    { scheme: "dark", key: "omnixa-theme-css-dark", css: "--background-base:#010203;", expected: "dark" },
   ])("restores the cached $expected css of a custom theme", ({ scheme, key, css, expected }) => {
-    localStorage.setItem("aigcfroge-theme-id", "nightowl")
+    localStorage.setItem("omnixa-theme-id", "nightowl")
 
-    if (scheme) localStorage.setItem("aigcfroge-color-scheme", scheme)
+    if (scheme) localStorage.setItem("omnixa-color-scheme", scheme)
     localStorage.setItem(key, css)
     run()
 

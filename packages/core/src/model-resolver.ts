@@ -1,17 +1,17 @@
 export * as ModelResolver from "./model-resolver.js"
 
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { HttpOptions, LanguageModel, mergeHttpOptions, ProviderConfigurationError } from "@aigcfroge/ai"
-import { Auth } from "@aigcfroge/ai/route"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import { HttpOptions, LanguageModel, mergeHttpOptions, ProviderConfigurationError } from "@omnixa/ai"
+import { Auth } from "@omnixa/ai/route"
 import { Context, Effect, Layer, Schema, Struct } from "effect"
 import { AISDK } from "./aisdk.js"
 import { Credential } from "./credential.js"
 import { Integration } from "./integration.js"
 import { Capabilities, ID, Info, Model, Ref, VariantID } from "./model.js"
 import type { RuntimeInfo } from "./model.js"
-import { Npm } from "@aigcfroge/util/npm"
+import { Npm } from "@omnixa/util/npm"
 import { Provider } from "./provider.js"
-import { ModelSource } from "@aigcfroge/schema/model-source"
+import { ModelSource } from "@omnixa/schema/model-source"
 import type { ModelGroup } from "./model-group.js"
 
 export class VariantUnavailableError extends Schema.TaggedError<VariantUnavailableError>()(
@@ -145,7 +145,7 @@ export interface Interface {
   ) => Effect.Effect<Resolved, Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/ModelResolver") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/ModelResolver") {}
 
 // Variant resolution adds request-local overlays without changing the committed model snapshot.
 export const withVariant = (
@@ -321,7 +321,7 @@ const nativeCredentialSettings = (model: RuntimeInfo, specifier: string, credent
   if (credential.type === "key") return { apiKey: credential.key }
   if (credential.type === "oauth") return tokenSettings(specifier, credential.access)
   // The saved profile reaches the package through metadata; SigV4 keeps an ambient bearer token from taking over.
-  if (specifier.startsWith("@aigcfroge/ai/providers/amazon-bedrock")) return { auth: "sigv4" }
+  if (specifier.startsWith("@omnixa/ai/providers/amazon-bedrock")) return { auth: "sigv4" }
   // The Azure plugin's request hooks replace this with an Entra ID token from the Azure CLI; it only gets the
   // request past the package's own credential check.
   if (model.providerID === Provider.ID.azure) return tokenSettings(specifier, "azure-cli")
@@ -329,12 +329,9 @@ const nativeCredentialSettings = (model: RuntimeInfo, specifier: string, credent
 }
 
 const tokenSettings = (specifier: string, token: string) => {
-  if (specifier === "@aigcfroge/ai/providers/anthropic" || specifier === "@aigcfroge/ai/providers/anthropic-compatible")
+  if (specifier === "@omnixa/ai/providers/anthropic" || specifier === "@omnixa/ai/providers/anthropic-compatible")
     return { authToken: token }
-  if (
-    specifier === "@aigcfroge/ai/providers/google-vertex" ||
-    specifier.startsWith("@aigcfroge/ai/providers/google-vertex/")
-  )
+  if (specifier === "@omnixa/ai/providers/google-vertex" || specifier.startsWith("@omnixa/ai/providers/google-vertex/"))
     return { accessToken: token }
   return { apiKey: token }
 }
@@ -505,28 +502,28 @@ function usesAPIKeyAuth(packageName: string | undefined) {
     name === "@ai-sdk/xai" ||
     name === "@openrouter/ai-sdk-provider" ||
     name === "@ai-sdk/azure" ||
-    name === "@aigcfroge/ai/providers/openai" ||
-    name?.startsWith("@aigcfroge/ai/providers/openai/") === true ||
-    name === "@aigcfroge/ai/providers/anthropic" ||
-    name === "@aigcfroge/ai/providers/anthropic-compatible" ||
-    name === "@aigcfroge/ai/providers/baseten" ||
-    name === "@aigcfroge/ai/providers/cerebras" ||
-    name === "@aigcfroge/ai/providers/cloudflare-ai-gateway" ||
-    name === "@aigcfroge/ai/providers/cloudflare-workers-ai" ||
-    name === "@aigcfroge/ai/providers/deepinfra" ||
-    name === "@aigcfroge/ai/providers/deepseek" ||
-    name === "@aigcfroge/ai/providers/fireworks" ||
-    name === "@aigcfroge/ai/providers/openai-compatible" ||
-    name === "@aigcfroge/ai/providers/google" ||
-    name === "@aigcfroge/ai/providers/google/interactions" ||
-    name === "@aigcfroge/ai/providers/groq" ||
-    name === "@aigcfroge/ai/providers/mistral" ||
-    name === "@aigcfroge/ai/providers/togetherai" ||
-    name === "@aigcfroge/ai/providers/vercel-ai-gateway" ||
-    name === "@aigcfroge/ai/providers/xai" ||
-    name === "@aigcfroge/ai/providers/openrouter" ||
-    name === "@aigcfroge/ai/providers/azure" ||
-    name?.startsWith("@aigcfroge/ai/providers/azure/") === true
+    name === "@omnixa/ai/providers/openai" ||
+    name?.startsWith("@omnixa/ai/providers/openai/") === true ||
+    name === "@omnixa/ai/providers/anthropic" ||
+    name === "@omnixa/ai/providers/anthropic-compatible" ||
+    name === "@omnixa/ai/providers/baseten" ||
+    name === "@omnixa/ai/providers/cerebras" ||
+    name === "@omnixa/ai/providers/cloudflare-ai-gateway" ||
+    name === "@omnixa/ai/providers/cloudflare-workers-ai" ||
+    name === "@omnixa/ai/providers/deepinfra" ||
+    name === "@omnixa/ai/providers/deepseek" ||
+    name === "@omnixa/ai/providers/fireworks" ||
+    name === "@omnixa/ai/providers/openai-compatible" ||
+    name === "@omnixa/ai/providers/google" ||
+    name === "@omnixa/ai/providers/google/interactions" ||
+    name === "@omnixa/ai/providers/groq" ||
+    name === "@omnixa/ai/providers/mistral" ||
+    name === "@omnixa/ai/providers/togetherai" ||
+    name === "@omnixa/ai/providers/vercel-ai-gateway" ||
+    name === "@omnixa/ai/providers/xai" ||
+    name === "@omnixa/ai/providers/openrouter" ||
+    name === "@omnixa/ai/providers/azure" ||
+    name?.startsWith("@omnixa/ai/providers/azure/") === true
   )
 }
 

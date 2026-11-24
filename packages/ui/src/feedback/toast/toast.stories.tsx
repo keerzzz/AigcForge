@@ -1,5 +1,5 @@
 import { Toast, showToast } from "./toast"
-import { Button } from "@aigcfroge/ui/button"
+import { Button } from "@omnixa/ui/button"
 
 const docs = `### Overview
 Toast notifications with optional icons, actions, and progress.

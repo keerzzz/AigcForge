@@ -1,5 +1,5 @@
-import { base64Encode } from "@aigcfroge/util/encode"
-import { createSimpleContext } from "@aigcfroge/ui/context"
+import { base64Encode } from "@omnixa/util/encode"
+import { createSimpleContext } from "@omnixa/ui/context"
 import { useParams, useSearchParams } from "@solidjs/router"
 import { createMemo, createResource, createRoot, getOwner, onCleanup, untrack } from "solid-js"
 import { requireServerKey } from "@/shell/routes/session"

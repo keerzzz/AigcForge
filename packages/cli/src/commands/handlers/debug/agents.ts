@@ -1,16 +1,16 @@
 import { EOL } from "os"
 import { Effect } from "effect"
-import { AigcForge } from "@aigcfroge/client"
+import { Omnixa } from "@omnixa/client"
 import { Commands } from "../../commands"
 import { Runtime } from "../../../framework/runtime"
-import { Service } from "@aigcfroge/client/effect/service"
+import { Service } from "@omnixa/client/effect/service"
 import { ServerConnection } from "../../../services/server-connection"
 
 export default Runtime.handler(
   Commands.commands.debug.commands.agents,
   Effect.fn("cli.debug.agents")(function* () {
     const { endpoint } = yield* ServerConnection.resolve()
-    const client = AigcForge.make({ baseUrl: endpoint.url, headers: Service.headers(endpoint) })
+    const client = Omnixa.make({ baseUrl: endpoint.url, headers: Service.headers(endpoint) })
     const response = yield* Effect.promise(() => client.agent.list({ location: { directory: process.cwd() } }))
     process.stdout.write(
       JSON.stringify(

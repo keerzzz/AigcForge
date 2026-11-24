@@ -37,5 +37,5 @@ between revisions; this switch only covers those two measured modules.
 For a separate diagnostic build, set `PATCH_COUNTERS=1`. Its build-only transform
 counts grouping, normalization, reconstruction, and line-diff calls with User
 Timing marks. Do not mix instrumented results with clean timings. Set
-`AIGCFROGE_PERFORMANCE_TRACE_DIR` for the existing Chrome trace collector, and
+`OMNIXA_PERFORMANCE_TRACE_DIR` for the existing Chrome trace collector, and
 `PATCH_SCREENSHOTS=1` for collapsed/expanded screenshots after measurement.

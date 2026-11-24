@@ -1,14 +1,14 @@
 import { expect, setDefaultTimeout } from "bun:test"
-import { Agent } from "@aigcfroge/core/agent"
-import { Bus } from "@aigcfroge/core/bus"
-import { Model } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
-import { Session } from "@aigcfroge/core/session"
-import { SessionEvent } from "@aigcfroge/core/session/event"
-import { SessionExecution } from "@aigcfroge/core/session/execution"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { Money } from "@aigcfroge/schema/money"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
+import { Agent } from "@omnixa/core/agent"
+import { Bus } from "@omnixa/core/bus"
+import { Model } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
+import { Session } from "@omnixa/core/session"
+import { SessionEvent } from "@omnixa/core/session/event"
+import { SessionExecution } from "@omnixa/core/session/execution"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { Money } from "@omnixa/schema/money"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
 import { Effect, Layer } from "effect"
 import { tmpdir } from "../../core/test/fixture/tmpdir"
 import { it } from "../../core/test/lib/effect"
@@ -18,7 +18,7 @@ setDefaultTimeout(30_000)
 
 it.live("serves turn diffs by user message with range validation", () =>
   Effect.gen(function* () {
-    const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("aigcfroge-session-diff-")))
+    const tmp = yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("omnixa-session-diff-")))
     const ids = { user: SessionMessage.ID.create(), assistant: SessionMessage.ID.create() }
     // Deliver the prompt and one step the way the runner would, without a model.
     const execution = Layer.effect(
@@ -70,7 +70,7 @@ it.live("serves turn diffs by user message with range validation", () =>
     const request = (path: string, body?: unknown) =>
       Effect.promise(async () => {
         const response = await handler(
-          new Request(`http://aigcfroge.local${path}`, {
+          new Request(`http://omnixa.local${path}`, {
             method: body === undefined ? "GET" : "POST",
             headers: body === undefined ? undefined : { "content-type": "application/json" },
             body: body === undefined ? undefined : JSON.stringify(body),

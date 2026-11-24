@@ -2,8 +2,8 @@ export * as LocationMutation from "./location-mutation"
 
 import path from "path"
 import { Context, Effect, Layer, Schema } from "effect"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { AbsolutePath } from "./schema"
 import { Location } from "./location"
 
@@ -59,7 +59,7 @@ export interface Interface {
   readonly resolve: (input: ResolveInput) => Effect.Effect<Target, PathError | FSUtil.Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/LocationMutation") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/LocationMutation") {}
 
 interface ResolvedPath {
   readonly canonical: string

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { CacheShape } from "@aigcfroge/core/cache/cache-shape"
+import { CacheShape } from "@omnixa/core/cache/cache-shape"
 
 describe("CacheShape.capture", () => {
   test("returns stable hash for identical input", () => {

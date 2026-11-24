@@ -3,7 +3,7 @@ import { expect, sourceURL, story } from "../../storybook/playwright/story"
 const fixture = sourceURL(new URL("./timeline-virtualizer.fixture.tsx", import.meta.url))
 
 story.beforeEach(async ({ mount }) => {
-  const component = await mount("aigcforge-composer-flow--mixed-attachments")
+  const component = await mount("omnixa-composer-flow--mixed-attachments")
   await expect(component.getByRole("textbox", { name: "Prompt", exact: true })).toBeVisible()
 })
 

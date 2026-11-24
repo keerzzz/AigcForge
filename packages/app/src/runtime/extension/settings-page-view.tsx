@@ -1,5 +1,5 @@
 import { For } from "solid-js"
-import { Tabs } from "@aigcfroge/ui/tabs"
+import { Tabs } from "@omnixa/ui/tabs"
 import { useSettingsSurface } from "@/settings/surface"
 import { Contribution } from "./render"
 

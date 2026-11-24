@@ -1,5 +1,5 @@
-import { Provider } from "@aigcfroge/schema/provider"
-import { NonNegativeInt } from "@aigcfroge/schema/schema"
+import { Provider } from "@omnixa/schema/provider"
+import { NonNegativeInt } from "@omnixa/schema/schema"
 import { Schema } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { InvalidRequestError } from "../errors.js"

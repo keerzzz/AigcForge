@@ -1,4 +1,4 @@
-import { ServerConnection, useCurrentRoute, useGlobal, useServers, useTabs } from "@aigcfroge/app/desktop"
+import { ServerConnection, useCurrentRoute, useGlobal, useServers, useTabs } from "@omnixa/app/desktop"
 import { createResource } from "solid-js"
 import type { ElectronAPI } from "../api-types"
 

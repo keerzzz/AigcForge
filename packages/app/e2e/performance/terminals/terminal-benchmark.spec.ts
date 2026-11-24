@@ -5,7 +5,7 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 import type { Page } from "@playwright/test"
 import { benchmark, benchmarkDiagnostics, expect } from "../benchmark"
-import { mockAigcForgeServer } from "../../utils/mock-server"
+import { mockOmnixaServer } from "../../utils/mock-server"
 import { expectSessionTitle } from "../../utils/waits"
 import type {} from "./probe"
 
@@ -104,7 +104,7 @@ for (const scenario of ["visible-output", "hidden-output", "full-scrollback-tear
         pid: pty.pid,
       }
 
-      await mockAigcForgeServer(page, {
+      await mockOmnixaServer(page, {
         directory: dir,
         project: {
           id: location.project.id,
@@ -117,13 +117,13 @@ for (const scenario of ["visible-output", "hidden-output", "full-scrollback-tear
         provider: {
           all: [
             {
-              id: "aigcfroge",
-              name: "AigcForge",
+              id: "omnixa",
+              name: "Omnixa",
               models: { test: { id: "test", name: "Test", limit: { context: 200_000 } } },
             },
           ],
-          connected: ["aigcfroge"],
-          default: { providerID: "aigcfroge", modelID: "test" },
+          connected: ["omnixa"],
+          default: { providerID: "omnixa", modelID: "test" },
         },
         sessions: [
           {
@@ -170,7 +170,7 @@ for (const scenario of ["visible-output", "hidden-output", "full-scrollback-tear
         ({ server, sessionID }) => {
           localStorage.setItem("settings.v3", JSON.stringify({ general: { terminalPlacement: "bottom" } }))
           localStorage.setItem(
-            "aigcfroge.window.browser.dat:tabs",
+            "omnixa.window.browser.dat:tabs",
             JSON.stringify([{ type: "session", server, sessionId: sessionID }]),
           )
         },

@@ -1,5 +1,5 @@
-import { Icon, type IconProps } from "@aigcfroge/ui/icon"
-import { Toast, showToast, toaster, type ToastOptions } from "@aigcfroge/ui/toast"
+import { Icon, type IconProps } from "@omnixa/ui/icon"
+import { Toast, showToast, toaster, type ToastOptions } from "@omnixa/ui/toast"
 import type { JSX } from "solid-js"
 
 type AppToastOptions = Omit<ToastOptions, "icon"> & {

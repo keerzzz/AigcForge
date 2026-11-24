@@ -1,6 +1,6 @@
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
-import { Asset } from "@aigcfroge/schema/asset"
+import { Asset } from "@omnixa/schema/asset"
 import { Schema } from "effect"
 import { AssetKind } from "../src/asset-kind"
 import { it } from "./lib/effect"
@@ -11,7 +11,7 @@ const testKindDef: AssetKind.AssetKindDef = {
     Summary: Schema.Struct({ name: Schema.String }),
     Info: Schema.Struct({ name: Schema.String, content: Schema.String }),
   },
-  ownerDir: ".aigcfroge/custom-profiles",
+  ownerDir: ".omnixa/custom-profiles",
 }
 
 describe("AssetKindRegistry", () => {
@@ -25,14 +25,14 @@ describe("AssetKindRegistry", () => {
       )
 
       const expectedDirs: ReadonlyArray<readonly [Asset.AssetKindId, string]> = [
-        ["prompt", ".aigcfroge/prompts"],
-        ["skill", ".aigcfroge/skills"],
-        ["mcp", ".aigcfroge/mcps"],
-        ["command", ".aigcfroge/commands"],
-        ["agent", ".aigcfroge/agents"],
-        ["workflow", ".aigcfroge/workflows"],
-        ["plugin", ".aigcfroge/plugins"],
-        ["custom-profile", ".aigcfroge/custom-profiles"],
+        ["prompt", ".omnixa/prompts"],
+        ["skill", ".omnixa/skills"],
+        ["mcp", ".omnixa/mcps"],
+        ["command", ".omnixa/commands"],
+        ["agent", ".omnixa/agents"],
+        ["workflow", ".omnixa/workflows"],
+        ["plugin", ".omnixa/plugins"],
+        ["custom-profile", ".omnixa/custom-profiles"],
       ]
 
       for (const [id, dir] of expectedDirs) {

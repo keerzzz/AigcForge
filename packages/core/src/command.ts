@@ -1,17 +1,17 @@
 export * as Command from "./command.js"
 
-import { Command } from "@aigcfroge/schema/command"
-import type { PromptInput } from "@aigcfroge/schema/prompt-input"
-import type { Session } from "@aigcfroge/schema/session"
-import type { SessionInbox } from "@aigcfroge/schema/session-inbox"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { Command } from "@omnixa/schema/command"
+import type { PromptInput } from "@omnixa/schema/prompt-input"
+import type { Session } from "@omnixa/schema/session"
+import type { SessionInbox } from "@omnixa/schema/session-inbox"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Context, Effect, Layer, Schema } from "effect"
 import { Bus } from "./bus.js"
 import { State } from "./state.js"
 
 export const Info = Command.Info
 export type Info = Command.Info
-export { Event } from "@aigcfroge/schema/command"
+export { Event } from "@omnixa/schema/command"
 
 export interface Invocation {
   readonly sessionID: Session.ID
@@ -48,7 +48,7 @@ export interface Interface extends State.Transformable<Editor> {
   }) => Effect.Effect<void, NotFoundError | ExecutionError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Command") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Command") {}
 
 export const layer = Layer.effect(
   Service,

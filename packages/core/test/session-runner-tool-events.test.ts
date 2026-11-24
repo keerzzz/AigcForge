@@ -1,27 +1,27 @@
 import { expect, test } from "bun:test"
 import { Cause, Deferred, Effect, Exit, Fiber, Schema } from "effect"
 import { eq } from "drizzle-orm"
-import { LLMEvent } from "@aigcfroge/ai"
-import { Money } from "@aigcfroge/schema/money"
-import { Bus } from "@aigcfroge/core/bus"
-import { Database } from "@aigcfroge/core/database/database"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { EventTable } from "@aigcfroge/core/event/sql"
-import { Event } from "@aigcfroge/schema/event"
-import { Agent } from "@aigcfroge/core/agent"
-import { SessionEvent } from "@aigcfroge/core/session/event"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { Session } from "@aigcfroge/core/session"
-import { SessionProjector } from "@aigcfroge/core/session/projector"
-import { SessionMessageTable, SessionTable } from "@aigcfroge/core/session/sql"
-import { Project } from "@aigcfroge/core/project"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
-import { Model } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
-import { AbsolutePath, RelativePath } from "@aigcfroge/core/schema"
-import { Snapshot } from "@aigcfroge/core/snapshot"
-import { createLLMEventPublisher } from "@aigcfroge/core/session/runner/publish-llm-event"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { LLMEvent } from "@omnixa/ai"
+import { Money } from "@omnixa/schema/money"
+import { Bus } from "@omnixa/core/bus"
+import { Database } from "@omnixa/core/database/database"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { EventTable } from "@omnixa/core/event/sql"
+import { Event } from "@omnixa/schema/event"
+import { Agent } from "@omnixa/core/agent"
+import { SessionEvent } from "@omnixa/core/session/event"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { Session } from "@omnixa/core/session"
+import { SessionProjector } from "@omnixa/core/session/projector"
+import { SessionMessageTable, SessionTable } from "@omnixa/core/session/sql"
+import { Project } from "@omnixa/core/project"
+import { ProjectTable } from "@omnixa/core/project/sql"
+import { Model } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
+import { AbsolutePath, RelativePath } from "@omnixa/core/schema"
+import { Snapshot } from "@omnixa/core/snapshot"
+import { createLLMEventPublisher } from "@omnixa/core/session/runner/publish-llm-event"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { it, testEffect } from "./lib/effect"
 import { TestClock } from "effect/testing"
 
@@ -62,7 +62,7 @@ const capture = (
       agent: Agent.ID.make("build"),
       model: {
         id: Model.ID.make("model"),
-        providerID: Provider.ID.aigcfroge,
+        providerID: Provider.ID.omnixa,
       },
       providerMetadataKey,
       pendingSnapshot: options?.pendingSnapshot,
@@ -183,7 +183,7 @@ testEffect(
       sessionID,
       assistantMessageID,
       agent: Agent.defaultID,
-      model: { id: Model.ID.make("test-model"), providerID: Provider.ID.aigcfroge },
+      model: { id: Model.ID.make("test-model"), providerID: Provider.ID.omnixa },
       providerMetadataKey: "openai",
       started: 0,
     })
@@ -253,7 +253,7 @@ for (const executed of [false, true]) {
             sessionID,
             assistantMessageID,
             agent: Agent.defaultID,
-            model: { id: Model.ID.make("test-model"), providerID: Provider.ID.aigcfroge },
+            model: { id: Model.ID.make("test-model"), providerID: Provider.ID.omnixa },
             providerMetadataKey: "openai",
             started: 0,
           },

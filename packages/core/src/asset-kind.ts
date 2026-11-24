@@ -1,7 +1,7 @@
 export * as AssetKind from "./asset-kind"
 
 import { Context, Effect, Layer, Schema } from "effect"
-import { Asset } from "@aigcfroge/schema/asset"
+import { Asset } from "@omnixa/schema/asset"
 import {
   PromptAsset,
   SkillAsset,
@@ -11,7 +11,7 @@ import {
   WorkflowAsset,
   PluginAsset,
   CustomProfile,
-} from "@aigcfroge/schema"
+} from "@omnixa/schema"
 
 import {
   AGENTS_DIR,
@@ -39,9 +39,7 @@ export interface AssetKindRegistryInterface {
   readonly list: () => ReadonlyArray<Asset.AssetKindId>
 }
 
-export class Service extends Context.Service<Service, AssetKindRegistryInterface>()(
-  "@aigcfroge/v2/AssetKindRegistry",
-) {}
+export class Service extends Context.Service<Service, AssetKindRegistryInterface>()("@omnixa/v2/AssetKindRegistry") {}
 
 export const layer = Layer.effect(
   Service,

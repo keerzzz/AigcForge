@@ -1,10 +1,10 @@
 export * as ConfigPluginSource from "./source.js"
 
-import { Directory, Document, type Entry } from "@aigcfroge/schema/config"
-import { ConfigPlugin } from "@aigcfroge/schema/config/plugin"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Host } from "@aigcfroge/plugin/host"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { Directory, Document, type Entry } from "@omnixa/schema/config"
+import { ConfigPlugin } from "@omnixa/schema/config/plugin"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Host } from "@omnixa/plugin/host"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Context, Effect, Layer, Option, PubSub, Scope, Stream } from "effect"
 import path from "path"
 import { fileURLToPath, pathToFileURL } from "url"
@@ -30,7 +30,7 @@ export interface Interface {
   readonly changes: () => Stream.Stream<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/ConfigPluginSource") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/ConfigPluginSource") {}
 
 export const layer = Layer.effect(
   Service,

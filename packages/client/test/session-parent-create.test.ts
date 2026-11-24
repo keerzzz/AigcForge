@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test"
-import { AigcForge } from "../src/promise/index"
+import { Omnixa } from "../src/promise/index"
 
 test("session.create forwards parentID from the Promise client", async () => {
   let body: unknown
-  const client = AigcForge.make({
+  const client = Omnixa.make({
     baseUrl: "http://localhost:3000",
     fetch: async (_input, init) => {
       body = JSON.parse(String(init?.body))

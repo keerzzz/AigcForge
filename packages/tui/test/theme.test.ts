@@ -2,29 +2,29 @@ import { expect, test } from "bun:test"
 import { mkdir, writeFile } from "node:fs/promises"
 import path from "node:path"
 import type { TerminalColors } from "@opentui/core"
-import { allThemes, hasTheme, getAigcForgeTheme, parseTheme, resolveTheme } from "../src/theme"
+import { allThemes, hasTheme, getOmnixaTheme, parseTheme, resolveTheme } from "../src/theme"
 import { discoverThemes } from "../src/theme/discovery"
 import { configDirectories } from "../src/util/config-directories"
 import { terminalMode } from "../src/theme/system"
-import aigcfrogeSource from "../src/theme/assets/aigcfroge.json" with { type: "json" }
-import type { ThemeV1Json } from "@aigcfroge/theme/tui/v1"
+import omnixaSource from "../src/theme/assets/omnixa.json" with { type: "json" }
+import type { ThemeV1Json } from "@omnixa/theme/tui/v1"
 import { tmpdir } from "./fixture/fixture"
 
-const aigcfrogeV1 = aigcfrogeSource as ThemeV1Json
+const omnixaV1 = omnixaSource as ThemeV1Json
 
 test("rejects unrecognized theme structures", () => {
   expect(() => parseTheme({})).toThrow()
   expect(() => parseTheme({ version: 3 })).toThrow("Invalid theme")
 })
 
-test("registers aigcfroge as a native V2 theme", () => {
-  expect(allThemes().aigcfroge).toBe(getAigcForgeTheme())
-  expect(parseTheme(getAigcForgeTheme()).base).toBeDefined()
+test("registers omnixa as a native V2 theme", () => {
+  expect(allThemes().omnixa).toBe(getOmnixaTheme())
+  expect(parseTheme(getOmnixaTheme()).base).toBeDefined()
 })
 
 test("detects V1 themes from their theme field and caches migrations", () => {
-  const unversioned = structuredClone(aigcfrogeV1)
-  const explicit = { ...structuredClone(aigcfrogeV1), version: 1 }
+  const unversioned = structuredClone(omnixaV1)
+  const explicit = { ...structuredClone(omnixaV1), version: 1 }
   const first = parseTheme(unversioned, "unversioned")
   const second = parseTheme(explicit, "explicit")
 
@@ -36,8 +36,8 @@ test("detects V1 themes from their theme field and caches migrations", () => {
 
 test("decodes native V2 themes lazily once", () => {
   const source = {
-    base: getAigcForgeTheme().base,
-    light: { ...getAigcForgeTheme().light, categorical: ["red"] },
+    base: getOmnixaTheme().base,
+    light: { ...getOmnixaTheme().light, categorical: ["red"] },
   } as const
 
   const document = parseTheme(source)
@@ -50,7 +50,7 @@ test("rejects invalid V2 themes when parsing", () => {
 })
 
 test("rejects invalid V1 themes when parsing", () => {
-  const source = structuredClone(aigcfrogeV1)
+  const source = structuredClone(omnixaV1)
   source.defs = { ...source.defs, one: "two", two: "one" }
   source.theme.primary = "one"
 
@@ -58,8 +58,8 @@ test("rejects invalid V1 themes when parsing", () => {
 })
 
 test("replacement sources receive independent parse caches", () => {
-  const first = structuredClone(aigcfrogeV1)
-  const second = structuredClone(aigcfrogeV1)
+  const first = structuredClone(omnixaV1)
+  const second = structuredClone(omnixaV1)
   second.theme.primary = "#123456"
 
   const previous = parseTheme(first)
@@ -70,18 +70,18 @@ test("replacement sources receive independent parse caches", () => {
 
 test("hasTheme checks theme presence", () => {
   expect(hasTheme("missing-theme")).toBe(false)
-  expect(hasTheme("aigcfroge")).toBe(true)
+  expect(hasTheme("omnixa")).toBe(true)
 })
 
 test("resolveTheme rejects circular color refs", () => {
-  const item = structuredClone(aigcfrogeV1)
+  const item = structuredClone(omnixaV1)
   item.defs = { ...item.defs, one: "two", two: "one" }
   item.theme.primary = "one"
   expect(() => resolveTheme(item, "dark")).toThrow("Circular color reference")
 })
 
 test("resolveTheme preserves full theme numeric color and marker semantics", () => {
-  const item = structuredClone(aigcfrogeV1)
+  const item = structuredClone(omnixaV1)
   item.theme.primary = 6
   delete item.theme.selectedListItemText
 
@@ -132,9 +132,9 @@ test("theme directories include global config before project directories", async
   const global = path.join(tmp.path, "global")
   const project = path.join(tmp.path, "repo", "package")
   await mkdir(path.join(global, "themes"), { recursive: true })
-  await mkdir(path.join(project, ".aigcfroge", "themes"), { recursive: true })
+  await mkdir(path.join(project, ".omnixa", "themes"), { recursive: true })
   await writeFile(path.join(global, "themes", "global.json"), JSON.stringify({ source: "global" }))
-  await writeFile(path.join(project, ".aigcfroge", "themes", "project.json"), JSON.stringify({ source: "project" }))
+  await writeFile(path.join(project, ".omnixa", "themes", "project.json"), JSON.stringify({ source: "project" }))
 
   await expect(discoverThemes(configDirectories(global, project))).resolves.toEqual({
     global: { source: "global" },

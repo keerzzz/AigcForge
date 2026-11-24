@@ -3,8 +3,8 @@ export * as ScheduleService from "./schedule-service"
 import { and, desc, eq, lt, or } from "drizzle-orm"
 import { Context, DateTime, Effect, Layer, Ref } from "effect"
 import { Database } from "../database/database"
-import { Schedule } from "@aigcfroge/schema/schedule"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Schedule } from "@omnixa/schema/schedule"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { Bus } from "../bus"
 import { SessionSchema } from "./schema"
 import { SchedulerCore } from "./schedule-core"
@@ -164,7 +164,7 @@ export interface Interface {
   readonly recoverClaim: (id: Schedule.ID) => Effect.Effect<Schedule.Info | undefined>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/ScheduleService") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/ScheduleService") {}
 
 export const layer = Layer.effect(
   Service,
@@ -440,7 +440,7 @@ export interface DeliveryInterface {
 }
 
 export class DeliveryService extends Context.Service<DeliveryService, DeliveryInterface>()(
-  "@aigcfroge/v2/DeliveryService",
+  "@omnixa/v2/DeliveryService",
 ) {}
 
 export const deliveryLayer = Layer.effect(

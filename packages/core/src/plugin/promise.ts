@@ -1,3 +1,3 @@
 export * as PluginPromise from "./promise.js"
 
-export { fromPromise } from "@aigcfroge/plugin/promise/adapter"
+export { fromPromise } from "@omnixa/plugin/promise/adapter"

@@ -173,7 +173,7 @@ export function DevToolsBar() {
           return events.slice(-100)
         })().catch(() => client.connection.internal.history())
       : Promise.resolve([]))
-    const file = path.join(tmpdir(), `aigcfroge-debug-${crypto.randomUUID()}.json`)
+    const file = path.join(tmpdir(), `omnixa-debug-${crypto.randomUUID()}.json`)
     const output =
       JSON.stringify(
         {

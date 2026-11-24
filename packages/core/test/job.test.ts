@@ -1,11 +1,11 @@
 import { describe, expect } from "bun:test"
-import { Job } from "@aigcfroge/core/job"
-import { KV } from "@aigcfroge/core/kv"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Integration } from "@aigcfroge/core/integration"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Job } from "@omnixa/core/job"
+import { KV } from "@omnixa/core/kv"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Integration } from "@omnixa/core/integration"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { Cause, Deferred, Effect, Exit, Fiber, Scope } from "effect"
-import { SessionSchema } from "@aigcfroge/core/session/schema"
+import { SessionSchema } from "@omnixa/core/session/schema"
 import { awaitWithTimeout, testEffect } from "./lib/effect"
 
 const it = testEffect(AppNodeBuilder.build(LayerNode.group([Job.node, KV.node])))

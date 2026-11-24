@@ -3,17 +3,17 @@
 import { $ } from "bun"
 import { mkdir, rm } from "fs/promises"
 import path from "path"
-import { Script } from "@aigcfroge/script"
+import { Script } from "@omnixa/script"
 import { createSolidTransformPlugin } from "@opentui/solid/bun-plugin"
 import type { BunPlugin } from "bun"
 import pkg from "../package.json"
-import { discoverPluginRuntimeSpecifiers, pluginRuntimeLoaderCode } from "@aigcfroge/plugin/runtime-modules"
+import { discoverPluginRuntimeSpecifiers, pluginRuntimeLoaderCode } from "@omnixa/plugin/runtime-modules"
 import { buildAppArchive } from "./app-assets"
 import { verifyArtifact, verifySimulationGraph } from "./verify-artifact"
-import { resolveOpencodePty } from "./aigcfroge-pty"
+import { resolveOpencodePty } from "./omnixa-pty"
 
 const dir = path.resolve(import.meta.dirname, "..")
-const binary = "aigcfroge"
+const binary = "omnixa"
 const outdir = path.resolve(
   dir,
   process.argv.find((arg) => arg.startsWith("--outdir="))?.slice("--outdir=".length) ?? "dist",
@@ -68,13 +68,13 @@ if (!skipInstall)
 const appArchive = path.join(dir, ".cache", "bun-app-archive.bin")
 await Bun.write(appArchive, await buildAppArchive(Script.channel, { skipBuild: skipWebUi }))
 const appAssetsPlugin: BunPlugin = {
-  name: "aigcfroge-app-assets",
+  name: "omnixa-app-assets",
   setup(build) {
-    build.onResolve({ filter: /^virtual:aigcfroge-app-assets$/ }, () => ({
-      path: "aigcfroge-app-assets",
-      namespace: "aigcfroge",
+    build.onResolve({ filter: /^virtual:omnixa-app-assets$/ }, () => ({
+      path: "omnixa-app-assets",
+      namespace: "omnixa",
     }))
-    build.onLoad({ filter: /^aigcfroge-app-assets$/, namespace: "aigcfroge" }, () => ({
+    build.onLoad({ filter: /^omnixa-app-assets$/, namespace: "omnixa" }, () => ({
       loader: "js",
       // Embedded as a file, not a string: its bytes go into the executable once and unencoded.
       contents: `import { readFileSync } from "node:fs"
@@ -94,7 +94,7 @@ const pluginRuntimeModulesSource = [
   "export const loadRuntimeModules = () => modules",
 ].join("\n")
 const pluginRuntimePlugin: BunPlugin = {
-  name: "aigcfroge-plugin-runtime",
+  name: "omnixa-plugin-runtime",
   setup(build) {
     build.onLoad({ filter: /plugin[/\\]src[/\\]runtime-modules\.ts$/ }, () => ({
       contents: pluginRuntimeModulesSource,
@@ -102,33 +102,33 @@ const pluginRuntimePlugin: BunPlugin = {
     }))
     build.onLoad({ filter: /[/\\]internal[/\\]httpApi(?:Scalar|Swagger)\.js$/ }, () => ({
       contents:
-        'export const css = ""; export const javascript = \'document.body.textContent = "Scalar/Swagger UI assets are not bundled in AigcForge"\'',
+        'export const css = ""; export const javascript = \'document.body.textContent = "Scalar/Swagger UI assets are not bundled in Omnixa"\'',
       loader: "js",
     }))
   },
 }
 
 for (const item of targets) {
-  const aigcfrogePty = await resolveOpencodePty({
+  const omnixaPty = await resolveOpencodePty({
     platform: item.os,
     arch: item.arch,
     ...(item.os === "linux" ? { libc: item.abi ?? "glibc" } : {}),
   })
-  const aigcfrogePtyPlugin: BunPlugin = {
-    name: "aigcfroge-pty-binary",
+  const omnixaPtyPlugin: BunPlugin = {
+    name: "omnixa-pty-binary",
     setup(build) {
       build.onLoad({ filter: /persistent-pty[/\\]pty-binding\.ts$/ }, () => ({
         loader: "js",
-        contents: aigcfrogePty
-          ? `import file from ${JSON.stringify(aigcfrogePty.source)} with { type: "file" }
-export default { path: file, version: ${JSON.stringify(aigcfrogePty.version)}, sha256: ${JSON.stringify(aigcfrogePty.sha256)} }`
+        contents: omnixaPty
+          ? `import file from ${JSON.stringify(omnixaPty.source)} with { type: "file" }
+export default { path: file, version: ${JSON.stringify(omnixaPty.version)}, sha256: ${JSON.stringify(omnixaPty.sha256)} }`
           : "export default undefined",
       }))
     },
   }
   const simulationInputs = new Set<string>()
   const simulationGraphPlugin: BunPlugin = {
-    name: "aigcfroge-simulation-graph",
+    name: "omnixa-simulation-graph",
     setup(build) {
       build.onLoad(
         { filter: /packages[/\\]simulation[/\\]src[/\\](frontend[/\\](simulation|server)|control-server)\.ts$/ },
@@ -157,7 +157,7 @@ export default { path: file, version: ${JSON.stringify(aigcfrogePty.version)}, s
       appAssetsPlugin,
       solidPlugin,
       parcelWatcherPlugin,
-      aigcfrogePtyPlugin,
+      omnixaPtyPlugin,
       pluginRuntimePlugin,
       simulationGraphPlugin,
     ],
@@ -177,7 +177,7 @@ export default { path: file, version: ${JSON.stringify(aigcfrogePty.version)}, s
       outfile: path.join(outdir, name, "bin", binary),
       execArgv: [
         "--smol",
-        `--user-agent=aigcfroge/${Script.channel}/${Script.version}/cli`,
+        `--user-agent=omnixa/${Script.channel}/${Script.version}/cli`,
         "--use-system-ca",
         "--no-warnings",
         "--",
@@ -185,11 +185,11 @@ export default { path: file, version: ${JSON.stringify(aigcfrogePty.version)}, s
       windows: {},
     },
     define: {
-      AIGCFROGE_VERSION: `'${Script.version}'`,
-      AIGCFROGE_CLI_NAME: "'aigcfroge'",
-      AIGCFROGE_CHANNEL: `'${Script.channel}'`,
-      AIGCFROGE_ARTIFACT: `'cli'`,
-      AIGCFROGE_LIBC: item.os === "linux" ? `'${item.abi ?? "glibc"}'` : "undefined",
+      OMNIXA_VERSION: `'${Script.version}'`,
+      OMNIXA_CLI_NAME: "'omnixa'",
+      OMNIXA_CHANNEL: `'${Script.channel}'`,
+      OMNIXA_ARTIFACT: `'cli'`,
+      OMNIXA_LIBC: item.os === "linux" ? `'${item.abi ?? "glibc"}'` : "undefined",
       // FFF_LIBC selects the fff native lib variant: "musl" or "gnu".
       FFF_LIBC: item.os === "linux" ? `'${item.abi ?? "gnu"}'` : "undefined",
       ...(item.os === "linux" ? { "process.env.OPENTUI_LIBC": JSON.stringify(item.abi ?? "glibc") } : {}),
@@ -206,10 +206,10 @@ export default { path: file, version: ${JSON.stringify(aigcfrogePty.version)}, s
     path.join(outdir, name, "package.json"),
     JSON.stringify(
       {
-        name: `@aigcfroge/${name}`,
+        name: `@omnixa/${name}`,
         version: Script.version,
         license: "MIT",
-        repository: { type: "git", url: "git+https://github.com/anomalyco/aigcfroge.git" },
+        repository: { type: "git", url: "git+https://github.com/keerzzz/AigcForge.git" },
         os: [item.os],
         cpu: [item.arch],
       },

@@ -1,9 +1,9 @@
 export * as Browser from "./rpc.js"
 
 import { Schema } from "effect"
-import { Rpc } from "@aigcfroge/schema/rpc"
-import { Session } from "@aigcfroge/schema/session"
-import { optional } from "@aigcfroge/schema/schema"
+import { Rpc } from "@omnixa/schema/rpc"
+import { Session } from "@omnixa/schema/session"
+import { optional } from "@omnixa/schema/schema"
 
 export const MAX_FILE_BYTES = 5 * 1024 * 1024
 export const TUNNEL_CHUNK_BYTES = 64 * 1024

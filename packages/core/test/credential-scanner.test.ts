@@ -1,6 +1,6 @@
 import { describe, expect } from "bun:test"
 import { Effect, Schema } from "effect"
-import { CredentialScanner } from "@aigcfroge/core/credential-scanner"
+import { CredentialScanner } from "@omnixa/core/credential-scanner"
 import { testEffect } from "./lib/effect"
 
 const it = testEffect(CredentialScanner.layer)

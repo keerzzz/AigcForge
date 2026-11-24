@@ -2,7 +2,7 @@ import { createStore } from "solid-js/store"
 import { dedupeWith } from "effect/Array"
 import { createSimpleContext } from "./helper"
 import { batch, createMemo, onCleanup, type ParentProps } from "solid-js"
-import type { ModelSelection, SessionExecutorPreference } from "@aigcfroge/client/promise"
+import type { ModelSelection, SessionExecutorPreference } from "@omnixa/client/promise"
 import { useEvent } from "./event"
 import path from "path"
 import { useTuiPaths } from "./runtime"
@@ -32,7 +32,7 @@ import { useClient } from "./client"
 import { usePermission } from "./permission"
 import { useLocation } from "./location"
 import { parse } from "../util/model"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { ProductMode } from "@omnixa/schema/product-mode"
 
 const context = createSimpleContext({
   name: "Local",

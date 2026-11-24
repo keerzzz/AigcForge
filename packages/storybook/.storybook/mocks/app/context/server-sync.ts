@@ -1,4 +1,4 @@
-import type { IntegrationMethod } from "@aigcfroge/client/promise"
+import type { IntegrationMethod } from "@omnixa/client/promise"
 
 type ProviderAuthMethod = Extract<IntegrationMethod, { type: "key" | "oauth" }>
 

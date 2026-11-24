@@ -1,8 +1,8 @@
-import type { RpcApi, RpcCallOptions } from "@aigcfroge/client/promise/api"
-import type { Rpc } from "@aigcfroge/schema/rpc"
+import type { RpcApi, RpcCallOptions } from "@omnixa/client/promise/api"
+import type { Rpc } from "@omnixa/schema/rpc"
 import type { Registration } from "./registration.js"
 
-export type { RpcEventPayload } from "@aigcfroge/client/promise/api"
+export type { RpcEventPayload } from "@omnixa/client/promise/api"
 
 export interface RpcCallContext<M extends Rpc.Method> {
   readonly signal: AbortSignal

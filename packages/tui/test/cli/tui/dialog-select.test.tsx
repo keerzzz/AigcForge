@@ -292,7 +292,7 @@ test("renders the complete truncated footer within the option row", async () => 
   await using tmp = await tmpdir()
   const title = "Project"
   const footer = truncateFilePath(
-    "/tmp/aigcfroge/projects/a-very-long-project-directory/distinctive-tail.tsx",
+    "/tmp/omnixa/projects/a-very-long-project-directory/distinctive-tail.tsx",
     dialogSelectContentWidth(dialogWidth("medium")) - stringWidth(title),
   )
   const select = await mountSelect(tmp.path, [{ title, footer, value: "project" }])
@@ -604,7 +604,7 @@ test("shows no-match and still closes after a flat filter goes empty", async () 
     tmp.path,
     [
       { title: "models.dev", value: "models.dev", category: "Projects" },
-      { title: "aigcfroge2", value: "aigcfroge2", category: "Projects" },
+      { title: "omnixa2", value: "omnixa2", category: "Projects" },
     ],
     undefined,
     undefined,
@@ -614,7 +614,7 @@ test("shows no-match and still closes after a flat filter goes empty", async () 
   try {
     await select.app.waitForFrame((frame) => frame.includes("models.dev"))
     await select.app.mockInput.typeText("models")
-    await select.app.waitForFrame((frame) => frame.includes("models.dev") && !frame.includes("aigcfroge2"))
+    await select.app.waitForFrame((frame) => frame.includes("models.dev") && !frame.includes("omnixa2"))
     await select.app.mockInput.typeText(" missing")
     await select.app.waitForFrame((frame) => frame.includes("No results found"))
     expect(select.app.captureCharFrame()).not.toContain("models.dev")

@@ -1,9 +1,9 @@
 import { readJson, writeJsonAtomic } from "./util/persistence"
 import { isRecord } from "./util/record"
-import { Flock } from "@aigcfroge/util/flock"
+import { Flock } from "@omnixa/util/flock"
 import { watch } from "node:fs"
 import path from "node:path"
-import type { ModelGroupRef, ModelSelection } from "@aigcfroge/client/promise"
+import type { ModelGroupRef, ModelSelection } from "@omnixa/client/promise"
 
 export type ModelPreferenceModel = { providerID: string; modelID: string } | ModelGroupRef
 export type ModelPreferenceSelection = ModelPreferenceModel & { variant?: string }

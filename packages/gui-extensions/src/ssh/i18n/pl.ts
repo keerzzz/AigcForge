@@ -20,14 +20,8 @@ export default {
   "error.input":
     "Wprowadź hosta lub polecenie połączenia SSH. Polecenia zdalne i nieobsługiwane opcje SSH nie są dozwolone.",
   "error.connection": "Nie udało się nawiązać połączenia SSH. Sprawdź swoją sieć i konfigurację SSH.",
-  "error.platform":
-    "Ta zdalna platforma nie jest obsługiwana. Automatyczne ustawienia wymagają obecnie Linuxa lub macOS na x64 lub arm64.",
   "error.version": "Zdalna usługa musi pasować do tej wersji Desktop przed połączeniem.",
-  "error.install":
-    "Nie udało się zainstalować zdalnego serwera. Sprawdź łączność, miejsce na dysku oraz czy tar jest zainstalowany.",
-  "error.unpublished":
-    "Ta wersja Desktop nie ma opublikowanego zdalnego serwera. W przypadku wersji deweloperskich zainstaluj i uruchom V2 na hoście, a następnie spróbuj ponownie.",
-  "error.service": "SSH połączony, ale serwer AigcForge nie stał się gotowy.",
+  "error.service": "SSH połączony, ale serwer Omnixa nie stał się gotowy.",
   "error.host-key":
     "Tożsamość hosta nie mogła zostać zweryfikowana. Zweryfikuj jego odcisk palca przed aktualizacją znanych hostów SSH.",
   "error.ssh-missing": "Nie znaleziono OpenSSH. Zainstaluj klienta OpenSSH i upewnij się, że ssh jest dostępne w PATH.",

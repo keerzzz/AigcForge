@@ -12,15 +12,15 @@ import type {
   SkillAssetApplyOutput,
   WorkflowAssetApplyOutput,
   WorkflowAssetListOutput,
-} from "@aigcfroge/client/promise"
-import { AgentAsset } from "@aigcfroge/schema/agent-asset"
-import { AssetPlacement } from "@aigcfroge/schema/asset-placement"
-import { CommandAsset } from "@aigcfroge/schema/command-asset"
-import { MCPAsset } from "@aigcfroge/schema/mcp-asset"
-import { PluginAsset } from "@aigcfroge/schema/plugin-asset"
-import { PromptAsset } from "@aigcfroge/schema/prompt-asset"
-import { SkillAsset } from "@aigcfroge/schema/skill-asset"
-import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
+} from "@omnixa/client/promise"
+import { AgentAsset } from "@omnixa/schema/agent-asset"
+import { AssetPlacement } from "@omnixa/schema/asset-placement"
+import { CommandAsset } from "@omnixa/schema/command-asset"
+import { MCPAsset } from "@omnixa/schema/mcp-asset"
+import { PluginAsset } from "@omnixa/schema/plugin-asset"
+import { PromptAsset } from "@omnixa/schema/prompt-asset"
+import { SkillAsset } from "@omnixa/schema/skill-asset"
+import { WorkflowAsset } from "@omnixa/schema/workflow-asset"
 import { Match, Schema } from "effect"
 import { SkillProposalContract } from "./contract"
 import { SkillProposal } from "./proposal"
@@ -185,8 +185,8 @@ function target(scope: AssetPlacement.Scope = "project") {
     scope,
     root: Match.value(scope).pipe(
       Match.when("global", () => "/global/config/skills"),
-      Match.when("location", () => "/project/packages/app/.aigcfroge/skills"),
-      Match.orElse(() => "/project/.aigcfroge/skills"),
+      Match.when("location", () => "/project/packages/app/.omnixa/skills"),
+      Match.orElse(() => "/project/.omnixa/skills"),
     ),
   }
 }
@@ -290,7 +290,7 @@ describe("saved Workflow proposal parser", () => {
       "Review.md",
       "Review.yml",
       ".yaml",
-      ".aigcfroge/workflows/Review.yaml",
+      ".omnixa/workflows/Review.yaml",
       "nested/Review.yaml",
       "../Review.yaml",
       "nested\\Review.yaml",
@@ -430,13 +430,13 @@ describe("current file and native consumer identity", () => {
       name: input().name,
       description: input().description,
       content: input().content,
-      path: "/project/.aigcfroge/skills/Review.md",
+      path: "/project/.omnixa/skills/Review.md",
     }
 
     expect(SkillProposal.native(asset(), { directory: "/project" }, [current])?.id).toBe("Review")
     expect(
       SkillProposal.native(asset(), { directory: "/project" }, [
-        { ...current, path: "/other/.aigcfroge/skills/Review.md" },
+        { ...current, path: "/other/.omnixa/skills/Review.md" },
       ]),
     ).toBeUndefined()
     expect(
@@ -444,7 +444,7 @@ describe("current file and native consumer identity", () => {
     ).toBeUndefined()
     expect(
       SkillProposal.native(asset(), { directory: "C:\\project" }, [
-        { ...current, path: "C:\\project\\.aigcfroge\\skills\\Review.md" },
+        { ...current, path: "C:\\project\\.omnixa\\skills\\Review.md" },
       ])?.id,
     ).toBe("Review")
   })
@@ -480,9 +480,9 @@ describe("Skill proposal placement", () => {
       [],
       {},
       { scope: "project" },
-      { root: "/project/.aigcfroge/skills" },
-      { scope: "workspace", root: "/project/.aigcfroge/skills" },
-      { scope: "Project", root: "/project/.aigcfroge/skills" },
+      { root: "/project/.omnixa/skills" },
+      { scope: "workspace", root: "/project/.omnixa/skills" },
+      { scope: "Project", root: "/project/.omnixa/skills" },
       { scope: "project", root: null },
       { scope: "project", root: 1 },
     ].map((target) => ({ target })),
@@ -512,7 +512,7 @@ describe("Skill proposal placement", () => {
   })
 
   test("preserves root strings accepted by the canonical AbsolutePath brand", () => {
-    for (const root of ["", "relative/skills", "/project/.aigcfroge/skills", "C:\\project\\.aigcfroge\\skills"]) {
+    for (const root of ["", "relative/skills", "/project/.omnixa/skills", "C:\\project\\.omnixa\\skills"]) {
       const placement = { scope: "project", root }
 
       expect(skillReady(tool(input(), { ...facts(), target: placement })).target).toEqual(
@@ -543,7 +543,7 @@ describe("Skill proposal placement", () => {
 
     for (const placement of [
       { ...target(), scope: "location" },
-      { ...target(), root: "/other/.aigcfroge/skills" },
+      { ...target(), root: "/other/.omnixa/skills" },
     ]) {
       const changed = SkillProposal.list([message("msg_target", tool(input(), { ...facts(), target: placement }))])[0]
 
@@ -653,7 +653,7 @@ describe("selected Skill owner identity", () => {
 
   test.each([
     { label: "same root with different scope", target: { ...target(), scope: "location" as const } },
-    { label: "same scope with different root", target: { ...target(), root: "/other/.aigcfroge/skills" } },
+    { label: "same scope with different root", target: { ...target(), root: "/other/.omnixa/skills" } },
   ])("rejects $label in content, catalog and apply replies", (mismatch) => {
     expect(SkillProposal.current(proposal(), { ...content(), target: mismatch.target }, catalog())).toEqual({
       kind: "blocked",
@@ -787,8 +787,8 @@ function commandTarget(scope: AssetPlacement.Scope = "project") {
     scope,
     root: Match.value(scope).pipe(
       Match.when("global", () => "/global/config/commands"),
-      Match.when("location", () => "/project/packages/app/.aigcfroge/commands"),
-      Match.orElse(() => "/project/.aigcfroge/commands"),
+      Match.when("location", () => "/project/packages/app/.omnixa/commands"),
+      Match.orElse(() => "/project/.omnixa/commands"),
     ),
   }
 }
@@ -915,9 +915,9 @@ describe("Command proposal placement", () => {
       [],
       {},
       { scope: "project" },
-      { root: "/project/.aigcfroge/commands" },
-      { scope: "workspace", root: "/project/.aigcfroge/commands" },
-      { scope: "Project", root: "/project/.aigcfroge/commands" },
+      { root: "/project/.omnixa/commands" },
+      { scope: "workspace", root: "/project/.omnixa/commands" },
+      { scope: "Project", root: "/project/.omnixa/commands" },
       { scope: "project", root: null },
       { scope: "project", root: 1 },
     ].map((target) => ({ target })),
@@ -965,7 +965,7 @@ describe("Command proposal placement", () => {
   })
 
   test("keeps canonical root strings without inventing a second path validator", () => {
-    ;["", "relative/commands", "/project/.aigcfroge/commands", "C:\\project\\.aigcfroge\\commands"].forEach((root) => {
+    ;["", "relative/commands", "/project/.omnixa/commands", "C:\\project\\.omnixa\\commands"].forEach((root) => {
       const placement = { scope: "project", root }
 
       expect(commandReady(commandTool(commandInput(), { ...facts(), target: placement })).target).toEqual(
@@ -998,7 +998,7 @@ describe("Command proposal placement", () => {
     if (!original) throw new Error("Expected the original Command proposal")
     ;[
       { ...commandTarget(), scope: "location" },
-      { ...commandTarget(), root: "/other/.aigcfroge/commands" },
+      { ...commandTarget(), root: "/other/.omnixa/commands" },
     ].forEach((placement) => {
       const changed = SkillProposal.list(
         [message("msg_command_target", commandTool(commandInput(), { ...facts(), target: placement }))],
@@ -1116,7 +1116,7 @@ describe("selected Command owner identity", () => {
 
   test.each([
     { label: "same root with different scope", target: { ...commandTarget(), scope: "location" as const } },
-    { label: "same scope with different root", target: { ...commandTarget(), root: "/other/.aigcfroge/commands" } },
+    { label: "same scope with different root", target: { ...commandTarget(), root: "/other/.omnixa/commands" } },
   ])("rejects $label in either authoritative read and apply", (mismatch) => {
     const changedContent = { ...content(), target: mismatch.target }
     const changedCatalog = { ...commandCatalog("project"), target: mismatch.target }
@@ -1352,8 +1352,8 @@ function promptTarget(scope: AssetPlacement.Scope = "project") {
       scope,
       root: Match.value(scope).pipe(
         Match.when("global", () => "/global/config/prompts"),
-        Match.when("location", () => "/project/packages/app/.aigcfroge/prompts"),
-        Match.orElse(() => "/project/.aigcfroge/prompts"),
+        Match.when("location", () => "/project/packages/app/.omnixa/prompts"),
+        Match.orElse(() => "/project/.omnixa/prompts"),
       ),
     }),
   )
@@ -1637,7 +1637,7 @@ describe("Prompt proposal target metadata", () => {
   })
 
   test("preserves root strings accepted by the canonical Prompt target schema", () => {
-    ;["", "relative/prompts", "/project/.aigcfroge/prompts", "C:\\project\\.aigcfroge\\prompts"].forEach((root) => {
+    ;["", "relative/prompts", "/project/.omnixa/prompts", "C:\\project\\.omnixa\\prompts"].forEach((root) => {
       const target = Schema.decodeUnknownSync(AssetPlacement.Target)({ ...promptTarget(), root })
 
       const parsed = promptReady(
@@ -1657,7 +1657,7 @@ describe("Prompt proposal target metadata", () => {
     if (!original) throw new Error("Expected a persisted Prompt proposal")
     ;[
       { ...promptTarget("location"), root: promptTarget().root },
-      { ...promptTarget(), root: "/other/.aigcfroge/prompts" },
+      { ...promptTarget(), root: "/other/.omnixa/prompts" },
     ].forEach((target) => {
       const changed = SkillProposal.list(
         [message("msg_prompt_target", promptTool(promptInput(), { ...facts(), target }))],
@@ -1786,7 +1786,7 @@ describe("selected Prompt owner identity", () => {
   })
 
   test.each([
-    { label: "same SHA at a different root", target: { ...promptTarget(), root: "/other/.aigcfroge/prompts" } },
+    { label: "same SHA at a different root", target: { ...promptTarget(), root: "/other/.omnixa/prompts" } },
     { label: "same root with a different scope", target: { ...promptTarget("location"), root: promptTarget().root } },
   ])("rejects $label in catalog, content and apply", (row) => {
     const content = { ...promptAsset("project"), target: row.target }
@@ -2441,7 +2441,7 @@ describe("saved Plugin proposal contract", () => {
       "Review.md",
       "Review.plugin.yml",
       ".plugin.yaml",
-      ".aigcfroge/plugins/Review.plugin.yaml",
+      ".omnixa/plugins/Review.plugin.yaml",
       "nested/Review.plugin.yaml",
       "../Review.plugin.yaml",
       "nested\\Review.plugin.yaml",

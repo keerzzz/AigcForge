@@ -1,10 +1,10 @@
 import { describe, expect } from "bun:test"
-import { LanguageModel } from "@aigcfroge/ai"
-import { OpenAIChat } from "@aigcfroge/ai/protocols"
-import { Composition } from "@aigcfroge/schema/composition"
-import { Provider } from "@aigcfroge/schema/provider"
-import { Global } from "@aigcfroge/util/global"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { LanguageModel } from "@omnixa/ai"
+import { OpenAIChat } from "@omnixa/ai/protocols"
+import { Composition } from "@omnixa/schema/composition"
+import { Provider } from "@omnixa/schema/provider"
+import { Global } from "@omnixa/util/global"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { eq } from "drizzle-orm"
 import { Context, Effect, Layer, Result, Schema, Scope } from "effect"
 import { Agent } from "../src/agent"
@@ -136,7 +136,7 @@ const contextLayer = Layer.unwrap(
           Database.node.replace(
             Database.layer({ path: ":memory:" }).pipe(
               Layer.provide(
-                Layer.succeed(Global.Service, Global.make({ data: "/data", config: "/config", tmp: "/tmp/aigcfroge" })),
+                Layer.succeed(Global.Service, Global.make({ data: "/data", config: "/config", tmp: "/tmp/omnixa" })),
               ),
             ),
           ),

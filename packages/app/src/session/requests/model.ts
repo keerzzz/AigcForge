@@ -1,6 +1,6 @@
 import { createEffect, createMemo } from "solid-js"
 import { createStore } from "solid-js/store"
-import type { FormInfo, PermissionRequest } from "@aigcfroge/client/promise"
+import type { FormInfo, PermissionRequest } from "@omnixa/client/promise"
 import { showToast } from "@/shell/notifications/toast"
 import { useServerSDK } from "@/runtime/server/client"
 import { useLanguage } from "@/runtime/i18n/language"

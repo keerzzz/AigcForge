@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test"
+import type { MarkdownWorkerState } from "../src/components/markdown-worker-protocol"
 import { expect, sourceURL, story } from "../../storybook/playwright/story"
 
 const png = Buffer.from(
@@ -34,6 +35,61 @@ story("renders small completed Markdown immediately without skipping sanitizatio
   await expect(harness.locator('[data-component="markdown"]')).toHaveAttribute("data-markdown-ready", "")
   await expect(harness.locator("pre code")).toHaveText("const value = 42")
   await expect(harness.locator("pre.shiki")).toBeVisible()
+})
+
+story("resolves code languages through the real worker", async ({ page }) => {
+  const source = 'const value = "hello"'
+  const cases = [
+    { language: "typescript", resolved: "typescript", syntax: true },
+    { language: "ts", resolved: "ts", syntax: true },
+    { language: "unknown-markdown-language", resolved: "text", syntax: false },
+    { language: "constructor", resolved: "text", syntax: false },
+    { language: "__proto__", resolved: "text", syntax: false },
+  ]
+  const result = await page.evaluate(
+    async (input) => {
+      const { disposeStreamingCode, highlightStreamingCode, parseMarkdown } = await import(input.fixture)
+      const results = []
+      for (const testcase of input.cases) {
+        const key = `markdown-language:${testcase.language}`
+        const live = await highlightStreamingCode(key, input.source, testcase.language)
+        const complete = await highlightStreamingCode(key, input.source, testcase.language, true)
+        const html = await parseMarkdown(
+          ["```" + testcase.language, input.source, "```"].join("\n"),
+          new AbortController().signal,
+        )
+        disposeStreamingCode(key)
+        const code = new DOMParser().parseFromString(html, "text/html").querySelector("code")
+        results.push({
+          language: testcase.language,
+          states: [live, complete].map((state: MarkdownWorkerState) => ({
+            language: state.language,
+            text: [...state.stable, ...state.unstable].map((token) => token[0]).join(""),
+            syntax: [...state.stable, ...state.unstable].some((token) => token[1].includes("--syntax-")),
+          })),
+          parsed: {
+            className: code?.className,
+            text: code?.textContent,
+            syntax: Array.from(code?.querySelectorAll("span") ?? []).some((token) =>
+              token.getAttribute("style")?.includes("--syntax-"),
+            ),
+          },
+        })
+      }
+      return results
+    },
+    { fixture, cases, source },
+  )
+  expect(result).toEqual(
+    cases.map((testcase) => ({
+      language: testcase.language,
+      states: [
+        { language: testcase.resolved, text: source, syntax: testcase.syntax },
+        { language: testcase.resolved, text: source, syntax: testcase.syntax },
+      ],
+      parsed: { className: `language-${testcase.resolved}`, text: source, syntax: testcase.syntax },
+    })),
+  )
 })
 
 story("keeps Markdown text selectable inside a container that disables selection", async ({ page }) => {
@@ -183,7 +239,7 @@ story("shows a stable GitHub mark without changing link text or other sites", as
     const { mountMarkdown } = await import(fixture)
     await mountMarkdown({
       text: [
-        "[#540](https://github.com/anomalyco/aigcfroge/pull/540)",
+        "[#540](https://github.com/anomalyco/omnixa/pull/540)",
         "[GitHub](https://github.com)",
         "[other site](https://example.com/docs)",
         "[lookalike](https://github.com.evil.example/pull/540)",
@@ -195,7 +251,7 @@ story("shows a stable GitHub mark without changing link text or other sites", as
   const markdown = page.getByTestId("markdown-fixture").locator('[data-component="markdown"]')
   await expect(markdown).toHaveAttribute("data-markdown-ready", "")
   const github = markdown.getByRole("link", { name: "#540" })
-  await expect(github).toHaveAttribute("href", "https://github.com/anomalyco/aigcfroge/pull/540")
+  await expect(github).toHaveAttribute("href", "https://github.com/anomalyco/omnixa/pull/540")
   await expect(github).toHaveText("#540")
   expect(await github.evaluate((link) => getComputedStyle(link, "::before").width)).toBe("14px")
   expect(await github.evaluate((link) => getComputedStyle(link, "::before").maskImage)).toContain("data:image/svg+xml")
@@ -230,7 +286,7 @@ story("keeps favicon space stable across loading and failure without fetching pr
         "[docs](https://developer.mozilla.org/docs)",
         "[missing](https://broken.example.org/docs)",
         "[private](http://localhost:8080/docs)",
-        "[GitHub](https://github.com/anomalyco/aigcfroge)",
+        "[GitHub](https://github.com/anomalyco/omnixa)",
       ].join(" · "),
       cached: true,
     })
@@ -656,7 +712,7 @@ for (const streaming of [false, true]) {
       const requests: string[] = []
       await page.route("**/api/fs/read/**", async (route) => {
         expect(route.request().headers().authorization).toBe(
-          `Basic ${Buffer.from("aigcfroge:fixture").toString("base64")}`,
+          `Basic ${Buffer.from("omnixa:fixture").toString("base64")}`,
         )
         requests.push(route.request().url())
         await route.fulfill({ contentType: "image/png", body: png })

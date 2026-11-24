@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test"
 import { createRoot } from "solid-js"
 import { createData, type CreateDataInput } from "../src/solid"
-import { AigcForge, type AigcForgeEvent } from "../src/promise"
+import { Omnixa, type OmnixaEvent } from "../src/promise"
 
 const location = { directory: "/project" }
 const account = { type: "credential", id: "cred_directory" } as const
@@ -38,7 +38,7 @@ function directory(phase: "ready" | "failed", generation: number) {
 function fixture(fetch: (request: Request) => Promise<Response>) {
   const listeners = new Set<Parameters<CreateDataInput["event"]["listen"]>[0]>()
   const owner = {
-    api: AigcForge.make({ baseUrl: "http://aigcfroge.local", fetch: (input, init) => fetch(new Request(input, init)) }),
+    api: Omnixa.make({ baseUrl: "http://omnixa.local", fetch: (input, init) => fetch(new Request(input, init)) }),
   }
   const setup = createRoot((dispose) => ({
     data: createData({
@@ -57,7 +57,7 @@ function fixture(fetch: (request: Request) => Promise<Response>) {
   return {
     ...setup,
     owner,
-    emit(event: AigcForgeEvent) {
+    emit(event: OmnixaEvent) {
       listeners.forEach((listener) => listener({ name: event.type, details: event }))
     },
   }
@@ -74,7 +74,7 @@ test("directory diagnostics refresh observed connections in both windows without
     return Response.json({ location, data: directory(state.phase, state.generation) })
   }
   const windows = [fixture(fetch), fixture(fetch)]
-  const event: AigcForgeEvent = {
+  const event: OmnixaEvent = {
     id: "evt_directory",
     created: 2,
     type: "provider.discovery.updated",
@@ -162,7 +162,7 @@ test("replacing the server hides old directory data and rejects its pending publ
     setup.data.location.provider.discovery.invalidate("custom", account)
     const before = setup.data.location.provider.discovery.sync("custom", account)
     await started.promise
-    setup.owner.api = AigcForge.make({
+    setup.owner.api = Omnixa.make({
       baseUrl: "http://replacement.local",
       fetch: async () => {
         replacementStarted.resolve()

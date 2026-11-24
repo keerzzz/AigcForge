@@ -1,10 +1,10 @@
 export * as PluginInternal from "./internal.js"
 
-import { LLMClient } from "@aigcfroge/ai"
-import type { Plugin } from "@aigcfroge/plugin/effect/plugin"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { httpClient } from "@aigcfroge/util/effect/app-node-platform"
-import { AppProcess } from "@aigcfroge/util/process"
+import { LLMClient } from "@omnixa/ai"
+import type { Plugin } from "@omnixa/plugin/effect/plugin"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { httpClient } from "@omnixa/util/effect/app-node-platform"
+import { AppProcess } from "@omnixa/util/process"
 import { CorrectionStore } from "../session/correction-store.js"
 import { ToolIntegrityPlugin } from "./tool-integrity.js"
 import { Context, Effect, Scope } from "effect"
@@ -52,8 +52,8 @@ import { Formatter } from "../formatter.js"
 import { Form } from "../form.js"
 import { FileSystem } from "../filesystem.js"
 import { LocationWatcherPolicy } from "../filesystem/location-watcher-policy.js"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Global } from "@aigcfroge/util/global"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Global } from "@omnixa/util/global"
 import { Image } from "../image.js"
 import { InstructionDiscovery } from "../instruction-discovery.js"
 import { Integration } from "../integration.js"
@@ -64,7 +64,7 @@ import { LocationMutation } from "../location-mutation.js"
 import { ManagedPolicy } from "../managed-policy.js"
 import { ModelsDev } from "../models-dev.js"
 import { Mcp } from "../mcp/index.js"
-import { Npm } from "@aigcfroge/util/npm"
+import { Npm } from "@omnixa/util/npm"
 import { Permission } from "../permission.js"
 import { Reference } from "../reference.js"
 import { WebSearch } from "../websearch.js"
@@ -88,7 +88,7 @@ import { EditTool } from "../tool/plugin/edit.js"
 import { GlobTool } from "../tool/plugin/glob.js"
 import { GrepTool } from "../tool/plugin/grep.js"
 import { McpResourceTools } from "../tool/plugin/mcp-resource.js"
-import { AigcForgeTools } from "../tool/plugin/aigcfroge.js"
+import { OmnixaTools } from "../tool/plugin/omnixa.js"
 import { QuestionTool } from "../tool/plugin/question.js"
 import { ReadToolFileSystem } from "../tool/read-filesystem.js"
 import { ReadTool } from "../tool/plugin/read.js"
@@ -147,14 +147,13 @@ import { PluginAssetService } from "../plugin-asset-service.js"
 import { WorkflowAsset } from "../workflow-asset.js"
 import { WorkflowAssetService } from "../workflow-asset-service.js"
 import { AgentPlugin } from "./agent.js"
-import BrowserPlugin from "@aigcfroge/plugin-browser"
+import BrowserPlugin from "@omnixa/plugin-browser"
 import { CommandPlugin } from "./command.js"
 import { IdentityPlugin } from "./identity.js"
 import { PlanPlugin } from "./plan.js"
 import { ModelsDevPlugin } from "./models-dev.js"
 import { McpCodeModeDefaultsPlugin } from "./mcp-codemode-defaults.js"
 import { ProviderPlugins } from "./provider.js"
-import { AigcfrogePlugin } from "./provider/aigcfroge.js"
 import { WebSearchPlugins } from "./websearch/index.js"
 import { SkillPlugin } from "./skill.js"
 import { VcsHgPlugin } from "./vcs/hg.js"
@@ -355,7 +354,7 @@ const pre = [
   EditTool.Plugin,
   GlobTool.Plugin,
   GrepTool.Plugin,
-  AigcForgeTools.Plugin,
+  OmnixaTools.Plugin,
   McpResourceTools.Plugin,
   QuestionTool.Plugin,
   ReadTool.Plugin,
@@ -418,9 +417,8 @@ const post = [
   ConfigPolicyPlugin.Plugin,
 ] as const satisfies readonly InternalPlugin[]
 
-// Repository config must not switch off policy enforcement or the Console connection that delivers
-// organization statements, so plugin remove operations skip these IDs.
-export const guarded: ReadonlySet<string> = new Set([AigcfrogePlugin.id, ConfigPolicyPlugin.Plugin.id])
+// Repository config must not switch off policy enforcement, so plugin remove operations skip this ID.
+export const guarded: ReadonlySet<string> = new Set([ConfigPolicyPlugin.Plugin.id])
 
 export const list = Effect.fn("PluginInternal.list")(function* () {
   // Capture only services; activation supplies the child Scope and batching context.

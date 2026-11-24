@@ -1,6 +1,6 @@
 import { notifySessionTabsRemoved } from "@/shell/titlebar/session-events"
 import type { ServerConnection } from "@/runtime/server/registry"
-import type { SessionInfo } from "@aigcfroge/client/promise"
+import type { SessionInfo } from "@omnixa/client/promise"
 
 type HomeSession = Pick<SessionInfo, "id" | "location">
 

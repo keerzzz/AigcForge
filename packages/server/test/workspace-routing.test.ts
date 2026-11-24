@@ -1,18 +1,18 @@
 import fs from "node:fs/promises"
 import path from "node:path"
 import { expect } from "bun:test"
-import { Environment } from "@aigcfroge/core/environment/index"
-import { Location } from "@aigcfroge/core/location"
-import { LocationServiceMap } from "@aigcfroge/core/location-services"
-import { Workspace } from "@aigcfroge/core/workspace"
-import { WorkspaceDriver } from "@aigcfroge/core/workspace/driver"
-import { ApiNotFoundError } from "@aigcfroge/protocol/errors"
+import { Environment } from "@omnixa/core/environment/index"
+import { Location } from "@omnixa/core/location"
+import { LocationServiceMap } from "@omnixa/core/location-services"
+import { Workspace } from "@omnixa/core/workspace"
+import { WorkspaceDriver } from "@omnixa/core/workspace/driver"
+import { ApiNotFoundError } from "@omnixa/protocol/errors"
 import {
   InstanceContext,
   WorkspaceRouteContext,
   WorkspaceRouting,
   WorkspaceRoutingQueryFields,
-} from "@aigcfroge/protocol/middleware/workspace-routing"
+} from "@omnixa/protocol/middleware/workspace-routing"
 import { Context, Deferred, Effect, Equal, Layer, RcMap, Schema } from "effect"
 import { HttpEffect, HttpRouter, HttpServer, HttpServerRequest } from "effect/http"
 import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup } from "effect/http-api"
@@ -50,7 +50,7 @@ const setup = Effect.fnUntraced(function* (
   drivers: Readonly<Record<string, WorkspaceDriver.Interface>> = {},
   password?: string,
 ) {
-  const tmp = yield* tmpdirScoped("aigcfroge-routing-")
+  const tmp = yield* tmpdirScoped("omnixa-routing-")
   const started = yield* Deferred.make<void>()
   const stopped = yield* Deferred.make<void>()
   const context = yield* Layer.build(
@@ -124,7 +124,7 @@ const setup = Effect.fnUntraced(function* (
     options: { route?: string; workspace?: string; file?: string; headers?: HeadersInit; signal?: AbortSignal } = {},
   ) =>
     Effect.promise(() => {
-      const url = new URL(options.route ?? "/routing-probe", "http://aigcfroge.local")
+      const url = new URL(options.route ?? "/routing-probe", "http://omnixa.local")
       if (directory !== undefined) url.searchParams.set("directory", directory)
       if (options.workspace !== undefined) url.searchParams.set("workspace", options.workspace)
       if (options.file !== undefined) url.searchParams.set("file", options.file)
@@ -158,11 +158,11 @@ it.live("normalizes flat directory queries, decodes the header once, and preserv
       marker: "query",
     })
     const header = yield* test.request(undefined, {
-      headers: { "x-aigcfroge-directory": encodeURIComponent(directory), "x-test-request": "header" },
+      headers: { "x-omnixa-directory": encodeURIComponent(directory), "x-test-request": "header" },
     })
     expect(header.status).toBe(200)
     expect(yield* routed(header)).toMatchObject({ location: { directory }, marker: "header" })
-    const precedence = yield* test.request(directory, { headers: { "x-aigcfroge-directory": "/absent" } })
+    const precedence = yield* test.request(directory, { headers: { "x-omnixa-directory": "/absent" } })
     expect(precedence.status).toBe(200)
     const fallback = yield* test.request()
     expect(fallback.status).toBe(200)
@@ -192,7 +192,7 @@ it.live("returns declared 400 errors before boot for invalid routing input", () 
     })
     expect(duplicatedWorkspace.status).toBe(400)
     expect(yield* Effect.promise(() => duplicatedWorkspace.json())).toMatchObject({ _tag: "InvalidRequestError" })
-    const headerNul = yield* test.request(undefined, { headers: { "x-aigcfroge-directory": "%00" } })
+    const headerNul = yield* test.request(undefined, { headers: { "x-omnixa-directory": "%00" } })
     expect(headerNul.status).toBe(400)
     expect(yield* Effect.promise(() => headerNul.json())).toMatchObject({ field: "directory" })
     expect(Array.from(yield* RcMap.keys(test.locations.rcMap))).toHaveLength(0)
@@ -210,7 +210,7 @@ it.live("authenticates production workspace routes before validating or resolvin
     expect((yield* test.request(test.tmp.path, { route, workspace: "invalid" })).status).toBe(401)
     expect(Array.from(yield* RcMap.keys(test.locations.rcMap))).toHaveLength(0)
 
-    const headers = { authorization: `Basic ${btoa("aigcfroge:routing-fixture")}` }
+    const headers = { authorization: `Basic ${btoa("omnixa:routing-fixture")}` }
     const missing = yield* test.request(test.tmp.path, { route, workspace: unknown, headers })
     expect(missing.status).toBe(404)
     expect(yield* Effect.promise(() => missing.json())).toMatchObject({
@@ -392,7 +392,7 @@ it.live("interrupts an active routed handler on abort and keeps the cached Locat
     const test = yield* setup()
     const controller = new AbortController()
     const pending = test.handler(
-      new Request(`http://aigcfroge.local/routing-wait?directory=${encodeURIComponent(test.tmp.path)}`, {
+      new Request(`http://omnixa.local/routing-wait?directory=${encodeURIComponent(test.tmp.path)}`, {
         signal: controller.signal,
       }),
     )

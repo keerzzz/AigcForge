@@ -23,12 +23,12 @@ Transcription.generate({
   model: deepgram,
   audio,
   timestamps: "word",
-  providerOptions: { keyterm: ["AigcForge"], diarize_model: "future-model", futureOption: true },
+  providerOptions: { keyterm: ["Omnixa"], diarize_model: "future-model", futureOption: true },
 })
 Transcription.start({ model: AssemblyAI.configure({ apiKey: "test" }).transcription("universal-3-5-pro"), audio })
 
 // @ts-expect-error Known provider options are inferred from the selected model.
-Transcription.generate({ model: deepgram, audio, providerOptions: { keyterm: "AigcForge" } })
+Transcription.generate({ model: deepgram, audio, providerOptions: { keyterm: "Omnixa" } })
 // @ts-expect-error Timestamp granularity is a closed set.
 Transcription.generate({ model: deepgram, audio, timestamps: "character" })
 // @ts-expect-error Audio is required.

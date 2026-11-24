@@ -1,12 +1,12 @@
 export * as SessionIdentityProjection from "./session-identity"
 
 import { Context, Effect, Layer, Option, Schema } from "effect"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { AgentAsset } from "../agent-asset"
 import { CommandAsset } from "../command-asset"
-import { SessionIdentity } from "@aigcfroge/schema/session-identity"
-import { Model } from "@aigcfroge/schema/model"
-import { PermissionTier } from "@aigcfroge/schema/permission-tier"
+import { SessionIdentity } from "@omnixa/schema/session-identity"
+import { Model } from "@omnixa/schema/model"
+import { PermissionTier } from "@omnixa/schema/permission-tier"
 import { Git } from "../git"
 import { MCPAsset } from "../mcp-asset"
 import { MetaAgentService } from "../meta-agent/service"
@@ -62,7 +62,7 @@ export interface Interface {
   >
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/SessionIdentityProjection") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/SessionIdentityProjection") {}
 
 /** A session with no agent is corrupt data, not a normal state: the projection refuses it. */
 export class IdentityFieldMissing extends Schema.TaggedError<IdentityFieldMissing>()(

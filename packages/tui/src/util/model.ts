@@ -1,5 +1,5 @@
-import type { ModelGroupCurrent, ModelSelection } from "@aigcfroge/client/promise"
-import { Model } from "@aigcfroge/schema/model"
+import type { ModelGroupCurrent, ModelSelection } from "@omnixa/client/promise"
+import { Model } from "@omnixa/schema/model"
 import { isModelGroup, toModelPreference } from "../model-preference"
 
 export function parse(value: string) {

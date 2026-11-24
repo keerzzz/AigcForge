@@ -1,5 +1,5 @@
 {
-  description = "AigcForge development flake";
+  description = "Omnixa development flake";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -38,11 +38,11 @@
             };
           in
           rec {
-            aigcfroge = final.callPackage ./nix/aigcfroge.nix {
+            omnixa = final.callPackage ./nix/omnixa.nix {
               inherit node_modules;
             };
-            aigcfroge-desktop = final.callPackage ./nix/desktop.nix {
-              inherit aigcfroge;
+            omnixa-desktop = final.callPackage ./nix/desktop.nix {
+              inherit omnixa;
             };
           };
       };
@@ -55,12 +55,12 @@
           };
         in
         rec {
-          default = aigcfroge;
-          aigcfroge = pkgs.callPackage ./nix/aigcfroge.nix {
+          default = omnixa;
+          omnixa = pkgs.callPackage ./nix/omnixa.nix {
             inherit node_modules;
           };
-          aigcfroge-desktop = pkgs.callPackage ./nix/desktop.nix {
-            inherit aigcfroge;
+          omnixa-desktop = pkgs.callPackage ./nix/desktop.nix {
+            inherit omnixa;
           };
           # Updater derivation with fakeHash - build fails and reveals correct hash
           node_modules_updater = node_modules.override {

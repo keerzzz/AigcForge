@@ -9,7 +9,7 @@ import path from "node:path"
 // so a process that must survive an installer keeps a second link to its own image while it
 // runs. Windows reuses process IDs quickly, so names carry a random suffix and only links of
 // processes that no longer exist are swept.
-const pattern = /^aigcfroge-(?:service|upgrade)-(\d+)-[0-9a-f]+\.exe$/
+const pattern = /^omnixa-(?:service|upgrade)-(\d+)-[0-9a-f]+\.exe$/
 
 /** Hold a second link to the running image in `directory` for the lifetime of the scope. */
 export const retain = Effect.fnUntraced(function* (directory: string, role: "service" | "upgrade") {
@@ -25,7 +25,7 @@ export const retain = Effect.fnUntraced(function* (directory: string, role: "ser
           yield* fs.remove(path.join(directory, name)).pipe(Effect.ignore)
         }),
       )
-      const target = path.join(directory, `aigcfroge-${role}-${process.pid}-${randomBytes(4).toString("hex")}.exe`)
+      const target = path.join(directory, `omnixa-${role}-${process.pid}-${randomBytes(4).toString("hex")}.exe`)
       const executable = yield* fs.realPath(process.execPath).pipe(Effect.orElseSucceed(() => process.execPath))
       return yield* fs.link(executable, target).pipe(
         Effect.as(target),
@@ -60,7 +60,7 @@ export function installed(home: string) {
   const executable = path.resolve(process.execPath)
   return (
     executable.split(path.sep).includes("node_modules") ||
-    executable === path.resolve(home, ".aigcfroge", "bin", "aigcfroge.exe")
+    executable === path.resolve(home, ".omnixa", "bin", "omnixa.exe")
   )
 }
 

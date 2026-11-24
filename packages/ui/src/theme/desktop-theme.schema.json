@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://aigcfroge.ai/desktop-theme.json",
-  "title": "AigcForge Desktop Theme",
-  "description": "A theme definition for the AigcForge desktop application",
+  "$id": "https://raw.githubusercontent.com/keerzzz/AigcForge/main/packages/ui/src/theme/desktop-theme.schema.json",
+  "title": "Omnixa Desktop Theme",
+  "description": "A theme definition for the Omnixa desktop application",
   "type": "object",
   "required": ["name", "id", "light", "dark"],
   "properties": {

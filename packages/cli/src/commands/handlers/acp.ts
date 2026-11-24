@@ -1,7 +1,7 @@
 import { MessageTooLargeError, ndJsonStream } from "@agentclientprotocol/sdk"
-import { AigcForge } from "@aigcfroge/client/effect"
-import { Service } from "@aigcfroge/client/effect/service"
-import { CrossSpawnSpawner } from "@aigcfroge/util/cross-spawn-spawner"
+import { Omnixa } from "@omnixa/client/effect"
+import { Service } from "@omnixa/client/effect/service"
+import { CrossSpawnSpawner } from "@omnixa/util/cross-spawn-spawner"
 import { Effect, Option } from "effect"
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http"
 import { Writable } from "node:stream"
@@ -23,9 +23,9 @@ export default Runtime.handler(
         standalone: false,
       })
     }
-    process.env.AIGCFROGE_CLIENT = "acp"
+    process.env.OMNIXA_CLIENT = "acp"
     const endpoint = yield* Standalone.start()
-    const client = yield* AigcForge.make({ baseUrl: endpoint.url }).pipe(
+    const client = yield* Omnixa.make({ baseUrl: endpoint.url }).pipe(
       Effect.provideServiceEffect(
         HttpClient.HttpClient,
         HttpClient.HttpClient.pipe(
@@ -54,7 +54,7 @@ export default Runtime.handler(
     )
     // Exit directly: closing the scope would wait on the server's graceful shutdown, and its lease pipe ends it anyway.
     yield* Effect.sync(() => {
-      if (failure) process.stderr.write(`aigcfroge acp: ${failure}\n`)
+      if (failure) process.stderr.write(`omnixa acp: ${failure}\n`)
       process.exit(failure ? 1 : 0)
     })
   }),

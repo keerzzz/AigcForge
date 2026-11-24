@@ -1,18 +1,18 @@
 import { afterAll, describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
 import fs from "fs/promises"
-import { Database } from "@aigcfroge/core/database/database"
-import { Bus } from "@aigcfroge/core/bus"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Environment } from "@aigcfroge/core/environment/index"
-import { Location } from "@aigcfroge/core/location"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { Database } from "@omnixa/core/database/database"
+import { Bus } from "@omnixa/core/bus"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Environment } from "@omnixa/core/environment/index"
+import { Location } from "@omnixa/core/location"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { location } from "./fixture/location"
-import { FileMutation } from "@aigcfroge/core/file-mutation"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Global } from "@aigcfroge/util/global"
-import { KBService } from "@aigcfroge/core/session/kb-service"
+import { FileMutation } from "@omnixa/core/file-mutation"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Global } from "@omnixa/util/global"
+import { KBService } from "@omnixa/core/session/kb-service"
 import { pollWithTimeout, testEffect } from "./lib/effect"
 
 const core = AppNodeBuilder.build(
@@ -31,7 +31,7 @@ const it = testEffect(KBService.layer.pipe(Layer.provideMerge(FileMutation.layer
 // run inside testEffect where `await using` is not available.
 const createdDirs: string[] = []
 const base = () => {
-  const dir = `${process.env.TMPDIR ?? "/tmp"}/aigcfroge-kb-${Math.random().toString(36).slice(2)}`
+  const dir = `${process.env.TMPDIR ?? "/tmp"}/omnixa-kb-${Math.random().toString(36).slice(2)}`
   createdDirs.push(dir)
   return dir
 }
@@ -58,10 +58,10 @@ describe("KBService", () => {
         baseDir: dir,
       })
 
-      // The .md file is written under <base>/.aigcfroge/knowledge-base/.
+      // The .md file is written under <base>/.omnixa/knowledge-base/.
       const fs = yield* FSUtil.Service
-      expect(yield* fs.existsSafe(`${dir}/.aigcfroge/knowledge-base/Meeting.md`)).toBe(true)
-      expect(yield* fs.readFileStringSafe(`${dir}/.aigcfroge/knowledge-base/Meeting.md`)).toBe(
+      expect(yield* fs.existsSafe(`${dir}/.omnixa/knowledge-base/Meeting.md`)).toBe(true)
+      expect(yield* fs.readFileStringSafe(`${dir}/.omnixa/knowledge-base/Meeting.md`)).toBe(
         "Discussed [[Roadmap]] and [[Budget]].",
       )
 
@@ -261,8 +261,8 @@ describe("KBService review hardening", () => {
       const dir = base()
       const note = yield* kb.create({ title: "OldName", content: "v1", scope: "project", baseDir: dir })
       yield* kb.update({ id: note.id, title: "NewName", content: "v2", baseDir: dir })
-      expect(yield* fs.existsSafe(`${dir}/.aigcfroge/knowledge-base/OldName.md`)).toBe(false)
-      expect(yield* fs.readFileStringSafe(`${dir}/.aigcfroge/knowledge-base/NewName.md`)).toBe("v2")
+      expect(yield* fs.existsSafe(`${dir}/.omnixa/knowledge-base/OldName.md`)).toBe(false)
+      expect(yield* fs.readFileStringSafe(`${dir}/.omnixa/knowledge-base/NewName.md`)).toBe("v2")
     }),
   )
 
@@ -275,7 +275,7 @@ describe("KBService review hardening", () => {
       const target = yield* kb.create({ title: "B", content: "target", scope: "project", baseDir: dir })
 
       yield* kb.remove({ id: target.id, baseDir: dir })
-      expect(yield* fs.existsSafe(`${dir}/.aigcfroge/knowledge-base/B.md`)).toBe(false)
+      expect(yield* fs.existsSafe(`${dir}/.omnixa/knowledge-base/B.md`)).toBe(false)
       const link = (yield* kb.linksFrom(source.id))[0]
       expect(link?.dangling).toBe(true)
       expect(link?.targetNoteID).toBeUndefined()
@@ -342,13 +342,13 @@ describe("KBService atomicity", () => {
       const fs = yield* FSUtil.Service
       const dir = base()
       const first = yield* kb.create({ title: "Note", content: "first", scope: "project", baseDir: dir })
-      expect(yield* fs.readFileStringSafe(`${dir}/.aigcfroge/knowledge-base/Note.md`)).toBe("first")
+      expect(yield* fs.readFileStringSafe(`${dir}/.omnixa/knowledge-base/Note.md`)).toBe("first")
       const exit = yield* kb
         .create({ title: "Note", content: "second", scope: "project", baseDir: dir })
         .pipe(Effect.exit)
       expect(exit._tag).toBe("Failure")
       // The existing note's file must not have been clobbered by the failed create.
-      expect(yield* fs.readFileStringSafe(`${dir}/.aigcfroge/knowledge-base/Note.md`)).toBe("first")
+      expect(yield* fs.readFileStringSafe(`${dir}/.omnixa/knowledge-base/Note.md`)).toBe("first")
       const notes = yield* kb.list({ scope: "project" })
       expect(notes.filter((n) => n.title === "Note")).toHaveLength(1)
       expect(notes.find((n) => n.id === first.id)?.content).toBe("first")
@@ -365,8 +365,8 @@ describe("KBService atomicity", () => {
       const exit = yield* kb.update({ id: a.id, title: "B", baseDir: dir }).pipe(Effect.exit)
       expect(exit._tag).toBe("Failure")
       // Old mirror still there, victim's mirror not clobbered.
-      expect(yield* fs.readFileStringSafe(`${dir}/.aigcfroge/knowledge-base/A.md`)).toBe("content A")
-      expect(yield* fs.readFileStringSafe(`${dir}/.aigcfroge/knowledge-base/B.md`)).toBe("content B")
+      expect(yield* fs.readFileStringSafe(`${dir}/.omnixa/knowledge-base/A.md`)).toBe("content A")
+      expect(yield* fs.readFileStringSafe(`${dir}/.omnixa/knowledge-base/B.md`)).toBe("content B")
       const notes = yield* kb.list({ scope: "project" })
       expect(notes.find((n) => n.id === a.id)?.title).toBe("A")
       expect(notes.find((n) => n.id === b.id)?.title).toBe("B")
@@ -381,18 +381,18 @@ describe("KBService atomicity", () => {
       const note = yield* kb.create({ title: "Old", content: "old content", scope: "project", baseDir: dir })
       // Occupy the target path as a directory: the rename's exists-guard must
       // die before any write is attempted.
-      yield* fs.ensureDir(`${dir}/.aigcfroge/knowledge-base/New.md`).pipe(Effect.orDie)
+      yield* fs.ensureDir(`${dir}/.omnixa/knowledge-base/New.md`).pipe(Effect.orDie)
       const exit = yield* kb
         .update({ id: note.id, title: "New", content: "new content", baseDir: dir })
         .pipe(Effect.exit)
       expect(exit._tag).toBe("Failure")
       // Old mirror must still exist; the new target must not have become a file.
-      expect(yield* fs.existsSafe(`${dir}/.aigcfroge/knowledge-base/Old.md`)).toBe(true)
-      expect(yield* fs.readFileStringSafe(`${dir}/.aigcfroge/knowledge-base/Old.md`)).toBe("old content")
+      expect(yield* fs.existsSafe(`${dir}/.omnixa/knowledge-base/Old.md`)).toBe(true)
+      expect(yield* fs.readFileStringSafe(`${dir}/.omnixa/knowledge-base/Old.md`)).toBe("old content")
       // Cleanup the directory we created for the failure injection.
       yield* Effect.tryPromise(() =>
         import("fs/promises").then((m) =>
-          m.rm(`${dir}/.aigcfroge/knowledge-base/New.md`, { recursive: true, force: true }),
+          m.rm(`${dir}/.omnixa/knowledge-base/New.md`, { recursive: true, force: true }),
         ),
       ).pipe(Effect.catch(() => Effect.void))
     }),
@@ -407,7 +407,7 @@ describe("KBService atomicity", () => {
       // startupLayer reads Global.Path.config once at layer-build time (the
       // forked sweep captures globalDir then), so swapping it just around the
       // build is race-free. Same mutable-Path pattern as
-      // aigcfroge/test/config/config.test.ts.
+      // omnixa/test/config/config.test.ts.
       const previous = Global.Path.config
       ;(Global.Path as { config: string }).config = dir
       yield* Layer.build(KBService.startupLayer).pipe(

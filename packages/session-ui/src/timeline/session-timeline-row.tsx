@@ -3,14 +3,14 @@ import type {
   SessionMessageInfo,
   SessionMessageUser,
   SessionStatus,
-} from "@aigcfroge/client/promise"
-import { SessionTask } from "@aigcfroge/schema/session-task"
-import { SessionID } from "@aigcfroge/schema/session-id"
-import { SessionCommunication } from "@aigcfroge/schema/session-communication"
-import type { SessionReference } from "@aigcfroge/schema/session-reference"
-import { Button } from "@aigcfroge/ui/button"
-import { Collapsible } from "@aigcfroge/ui/collapsible"
-import { useI18n } from "@aigcfroge/ui/context/i18n"
+} from "@omnixa/client/promise"
+import { SessionTask } from "@omnixa/schema/session-task"
+import { SessionID } from "@omnixa/schema/session-id"
+import { SessionCommunication } from "@omnixa/schema/session-communication"
+import type { SessionReference } from "@omnixa/schema/session-reference"
+import { Button } from "@omnixa/ui/button"
+import { Collapsible } from "@omnixa/ui/collapsible"
+import { useI18n } from "@omnixa/ui/context/i18n"
 import { Option, Predicate, Schema } from "effect"
 import { For, Show, createMemo, type Accessor, type JSX } from "solid-js"
 import { Dynamic } from "solid-js/web"

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test"
-import type { AigcForgeEvent, SessionMessageInfo } from "@aigcfroge/client/promise"
+import type { OmnixaEvent, SessionMessageInfo } from "@omnixa/client/promise"
 import {
   NO_PROVIDER,
   REMOTE_SERVER,
@@ -30,7 +30,7 @@ test("tab strip keeps draft tabs as wide as session tabs and navigates on mouse 
   const workspace = await mockWorkspace(page, {
     name: "Tabs",
     sessions: [a, b],
-    seed: { tabs: [a.id, { draft: "draft_tab_width", directory: "C:/AigcForge/Tabs" }, b.id] },
+    seed: { tabs: [a.id, { draft: "draft_tab_width", directory: "C:/Omnixa/Tabs" }, b.id] },
   })
 
   await page.goto(sessionHref(a.id))
@@ -321,7 +321,7 @@ test("inactive tabs stay busy while work waits in their inbox, and pulse on a ne
         inboxID: "msg_tab_c_prompt",
         item: { type: "user", payload: { text: "Another client's prompt" }, delivery: "queue" },
       },
-    } satisfies Extract<AigcForgeEvent, { type: "session.inbox.enqueued" }>,
+    } satisfies Extract<OmnixaEvent, { type: "session.inbox.enqueued" }>,
   ])
 
   await expect(tab(c.id)).toHaveAttribute("data-test-pulsed", "")
@@ -396,7 +396,7 @@ test("inactive tabs load attention and inbox, but read the transcript only on se
           id: `msg_${id}_assistant`,
           type: "assistant",
           agent: "build",
-          model: { id: "claude-opus-4-6", providerID: "aigcfroge" },
+          model: { id: "claude-opus-4-6", providerID: "omnixa" },
           content: [{ type: "text", text: state.text }],
           time: { created: 2, completed: 3 },
         },
@@ -467,7 +467,7 @@ test("five loaded workspace tabs stay rendered and reactive through repeated swi
           id: `msg_assistant_${id}`,
           type: "assistant",
           agent: "build",
-          model: { id: "claude-opus-4-6", providerID: "aigcfroge" },
+          model: { id: "claude-opus-4-6", providerID: "omnixa" },
           time: { created: 2, completed: 3 },
           content: [{ type: "text", text: `Answer for ${id}` }],
         },
@@ -510,10 +510,10 @@ test("five loaded workspace tabs stay rendered and reactive through repeated swi
 
 test("each session tab shows its own file tab after a switch to a session in another folder", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  const directory = "C:/AigcForge/FolderSwitch"
+  const directory = "C:/Omnixa/FolderSwitch"
   const alpha = { id: "ses_folderswitch_alpha", title: "Folder switch alpha" }
   const beta = { id: "ses_folderswitch_beta", title: "Folder switch beta" }
-  const other = { id: "ses_folderswitch_other", title: "Folder switch other", directory: "C:/AigcForge/FolderOther" }
+  const other = { id: "ses_folderswitch_other", title: "Folder switch other", directory: "C:/Omnixa/FolderOther" }
   await openSession(page, {
     name: "FolderSwitch",
     sessions: [alpha, beta, other],
@@ -562,7 +562,7 @@ test("each session tab shows its own file tab after a switch to a session in ano
 test("the Windows titlebar menu pastes through the desktop edit action", async ({ page }) => {
   await mockWorkspace(page, { name: "WindowsMenu", sessions: [] })
   await page.goto(`/e2e/utils/windows-menu.html?${new URLSearchParams({ server: SERVER })}`)
-  await page.getByRole("button", { name: "AigcForge menu", exact: true }).click()
+  await page.getByRole("button", { name: "Omnixa menu", exact: true }).click()
   await page.getByRole("menuitem", { name: "Edit", exact: true }).click()
   const paste = page.getByRole("menuitem", { name: /^Paste/ })
   await expect(paste).toHaveText("PasteCtrl+V")

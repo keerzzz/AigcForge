@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
-import { AigcForge } from "@aigcfroge/client/promise"
-import { createData } from "@aigcfroge/client/solid"
+import { Omnixa } from "@omnixa/client/promise"
+import { createData } from "@omnixa/client/solid"
 import { createRoot } from "solid-js"
 import { createWorktree } from "./create"
 
@@ -31,7 +31,7 @@ describe("worktree creation", () => {
     const project = { id: "proj_clone", directory: input.root, canonical: input.canonical }
     const requests: Request[] = []
 
-    const api = AigcForge.make({
+    const api = Omnixa.make({
       baseUrl: "http://localhost:3000",
       fetch: Object.assign(
         async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -87,7 +87,7 @@ describe("worktree creation", () => {
   test("does not fall back to a shared project when location lookup fails", async () => {
     const requests: Request[] = []
 
-    const api = AigcForge.make({
+    const api = Omnixa.make({
       baseUrl: "http://localhost:3000",
       fetch: Object.assign(
         async (input: RequestInfo | URL, init?: RequestInit) => {

@@ -1,7 +1,7 @@
 # Native Terminal Benchmark
 
 Manual Windows benchmark. Run only in an isolated development worktree. It does
-not connect to an AigcForge service, user profile, or database.
+not connect to an Omnixa service, user profile, or database.
 
 Build from `packages/app` with
 `bun x vite build --config e2e/performance/terminals/vite.config.ts`, then freeze
@@ -33,7 +33,7 @@ snapshot. Input, focus, resizing, and native process survival are checked.
 `probe.ts` is included only by this benchmark build. It observes actual writes,
 renderer calls, and serialization. Chrome `TaskDuration` measures renderer task
 time, not total process CPU or RAM. For attribution, set
-`AIGCFROGE_PERFORMANCE_TRACE_DIR`; keep traced runs separate from clean timing.
+`OMNIXA_PERFORMANCE_TRACE_DIR`; keep traced runs separate from clean timing.
 `TERMINAL_DRAW_PROBE=1` separately counts actual canvas draws to verify hidden
 rendering; do not mix these instrumented samples with clean timing.
 Use `TERMINAL_REVISION` and `TERMINAL_BUNDLE` to identify frozen artifacts.

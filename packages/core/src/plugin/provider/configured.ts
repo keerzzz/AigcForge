@@ -1,5 +1,5 @@
 import { Effect, Option } from "effect"
-import type { Document, Entry } from "@aigcfroge/schema/config"
+import type { Document, Entry } from "@omnixa/schema/config"
 import { Config } from "../../config.js"
 import { Provider } from "../../provider.js"
 

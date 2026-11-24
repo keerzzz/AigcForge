@@ -1,4 +1,4 @@
-import { SessionProgressIndicatorV2 } from "@aigcfroge/session-ui/v2/session-progress-indicator-v2"
+import { SessionProgressIndicatorV2 } from "@omnixa/session-ui/v2/session-progress-indicator-v2"
 import { Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createAnimatedPresence } from "@/runtime/animated-presence"

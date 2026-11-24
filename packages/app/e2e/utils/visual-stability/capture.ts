@@ -10,7 +10,7 @@ export type VisualCapture = {
 }
 
 export async function startVisualCapture(page: Page, startedAtEpoch: number) {
-  if (process.env.AIGCFROGE_STABILITY_CAPTURE !== "1") return
+  if (process.env.OMNIXA_STABILITY_CAPTURE !== "1") return
   const session = await page.context().newCDPSession(page)
   await session.send("Page.enable")
 

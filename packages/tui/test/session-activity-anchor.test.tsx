@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test"
 import { createTestRenderer, TestRecorder } from "@opentui/core/testing"
 import { Effect, FileSystem } from "effect"
-import { Global } from "@aigcfroge/util/global"
-import type { SessionMessageInfo } from "@aigcfroge/client"
+import { Global } from "@omnixa/util/global"
+import type { SessionMessageInfo } from "@omnixa/client"
 import { createEventStream, createFetch, directory, json } from "./fixture/tui-client"
 import { tmpdir } from "./fixture/fixture"
 

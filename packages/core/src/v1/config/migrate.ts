@@ -1,6 +1,6 @@
 export * as ConfigMigrateV1 from "./migrate.js"
 
-import { ConfigAgent } from "@aigcfroge/schema/config/agent"
+import { ConfigAgent } from "@omnixa/schema/config/agent"
 import { Schema } from "effect"
 import { ConfigAgentV1 } from "./agent.js"
 import { ConfigCommandV1 } from "./command.js"
@@ -9,7 +9,7 @@ import { ConfigPermissionV1 } from "./permission.js"
 import { ConfigProviderV1 } from "./provider.js"
 import { ConfigProviderOptionsV1 } from "./provider-options.js"
 import { Provider } from "../../provider.js"
-import { Model } from "@aigcfroge/schema/model"
+import { Model } from "@omnixa/schema/model"
 
 const decodeOptions = { errors: "all", onExcessProperty: "ignore" } as const
 const decodeAgent = Schema.decodeUnknownSync(Schema.fromJsonString(ConfigAgent.Info), decodeOptions)

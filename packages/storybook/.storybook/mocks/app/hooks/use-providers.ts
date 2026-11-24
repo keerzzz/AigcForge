@@ -15,8 +15,8 @@ const provider = {
 }
 
 const popular = [
-  { id: "aigcfroge-go", name: "AigcForge Go", models: {} },
-  { id: "aigcfroge", name: "AigcForge Zen", models: {} },
+  { id: "omnixa-go", name: "Omnixa Go", models: {} },
+  { id: "omnixa", name: "Omnixa Zen", models: {} },
   { id: "openai", name: "OpenAI", models: {} },
   provider,
   { id: "google", name: "Google", models: {} },

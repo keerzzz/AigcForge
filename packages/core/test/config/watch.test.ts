@@ -1,13 +1,13 @@
 import path from "path"
 import { describe, expect, test } from "bun:test"
-import type { ConfigDiscovery } from "@aigcfroge/core/config/discovery"
-import { ConfigWatch } from "@aigcfroge/core/config/watch"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import type { ConfigDiscovery } from "@omnixa/core/config/discovery"
+import { ConfigWatch } from "@omnixa/core/config/watch"
+import { AbsolutePath } from "@omnixa/core/schema"
 
 const project = path.resolve("watch-plan-project")
-const root = AbsolutePath.make(path.join(project, ".aigcfroge"))
+const root = AbsolutePath.make(path.join(project, ".omnixa"))
 const sources: ConfigDiscovery.Sources = {
-  direct: ["aigcfroge.json", "aigcfroge.jsonc"].map((name) => AbsolutePath.make(path.join(project, name))),
+  direct: ["omnixa.json", "omnixa.jsonc"].map((name) => AbsolutePath.make(path.join(project, name))),
   project: [{ path: root, present: false }],
   claude: [AbsolutePath.make(path.join(project, ".claude"))],
   agents: [AbsolutePath.make(path.join(project, ".agents"))],
@@ -20,7 +20,7 @@ describe("ConfigWatch.plan", () => {
       {
         path: project,
         type: "entries",
-        names: [".agents", ".aigcfroge", ".claude", "aigcfroge.json", "aigcfroge.jsonc"],
+        names: [".agents", ".claude", ".omnixa", "omnixa.json", "omnixa.jsonc"],
       },
     ])
     const present = ConfigWatch.plan({ ...sources, project: [{ path: root, present: true }] })

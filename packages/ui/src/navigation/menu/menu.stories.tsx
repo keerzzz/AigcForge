@@ -1,9 +1,9 @@
 // @ts-nocheck
 import { createSignal } from "solid-js"
 import { Menu } from "./menu"
-import { Button } from "@aigcfroge/ui/button"
-import { Avatar } from "@aigcfroge/ui/avatar"
-import { Icon } from "@aigcfroge/ui/icon"
+import { Button } from "@omnixa/ui/button"
+import { Avatar } from "@omnixa/ui/avatar"
+import { Icon } from "@omnixa/ui/icon"
 
 const docs = `### Overview
 Composable menu primitive built on Kobalte's \`DropdownMenu\` and \`ContextMenu\`. The same item components (\`Item\`, \`CheckboxItem\`, \`RadioItem\`, \`SubTrigger\`) work inside either container.

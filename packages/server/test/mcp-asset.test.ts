@@ -1,19 +1,19 @@
 import path from "node:path"
 import { expect } from "bun:test"
-import { TestLLM } from "@aigcfroge/ai/testing"
-import { Agent } from "@aigcfroge/core/agent"
-import { MCPAsset } from "@aigcfroge/core/mcp-asset"
-import { MCPAssetService } from "@aigcfroge/core/mcp-asset-service"
-import { McpConnection } from "@aigcfroge/core/mcp/connection"
-import { Model } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
-import { Session } from "@aigcfroge/core/session"
-import { SessionInputResult } from "@aigcfroge/core/session/input-result"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { ProposeMCPAssetTool } from "@aigcfroge/core/tool/propose-mcp-asset"
-import { InvalidRequestError } from "@aigcfroge/protocol/errors"
-import { BaseRevision, Candidate, Info, InvalidEntry, Revision, Summary } from "@aigcfroge/schema/mcp-asset"
-import { Hash } from "@aigcfroge/util/hash"
+import { TestLLM } from "@omnixa/ai/testing"
+import { Agent } from "@omnixa/core/agent"
+import { MCPAsset } from "@omnixa/core/mcp-asset"
+import { MCPAssetService } from "@omnixa/core/mcp-asset-service"
+import { McpConnection } from "@omnixa/core/mcp/connection"
+import { Model } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
+import { Session } from "@omnixa/core/session"
+import { SessionInputResult } from "@omnixa/core/session/input-result"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { ProposeMCPAssetTool } from "@omnixa/core/tool/propose-mcp-asset"
+import { InvalidRequestError } from "@omnixa/protocol/errors"
+import { BaseRevision, Candidate, Info, InvalidEntry, Revision, Summary } from "@omnixa/schema/mcp-asset"
+import { Hash } from "@omnixa/util/hash"
 import { Context, Effect, Layer, Option, Schema } from "effect"
 import { withEnv } from "../../core/test/fixture/env"
 import { awaitWithTimeout, pollWithTimeout, testEffect } from "../../core/test/lib/effect"
@@ -35,10 +35,10 @@ const listResponse = Schema.Struct({ assets: Schema.Array(Summary), invalid: Sch
 const decodeInput = Schema.decodeUnknownSync(ProposeMCPAssetTool.Input)
 
 const setup = (files: readonly { relativePath: string; content: string }[] = []) =>
-  AssetHttpFixture.setup({ prefix: "aigcfroge-mcp-http-", assetDirectory: ".aigcfroge/mcps", model, files })
+  AssetHttpFixture.setup({ prefix: "omnixa-mcp-http-", assetDirectory: ".omnixa/mcps", model, files })
 
 it.live("persists MCP facts and round-trips the reviewed configuration without starting a process", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true", AIGCFROGE_CUSTOM_MODE: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true", OMNIXA_CUSTOM_MODE: "true" }, () =>
     Effect.gen(function* () {
       const fixture = yield* setup()
       const marker = path.join(fixture.directory, "mcp-started.txt")
@@ -98,7 +98,7 @@ it.live("persists MCP facts and round-trips the reviewed configuration without s
         ["exists", "nameConflict", "pathConflict", "relativePath", "revision", "truncated"].toSorted(),
       )
       const candidate = Candidate.make({ ...input, relativePath: "review-server.md" })
-      const target = path.join(fixture.directory, ".aigcfroge/mcps", candidate.relativePath)
+      const target = path.join(fixture.directory, ".omnixa/mcps", candidate.relativePath)
       expect(yield* Effect.promise(() => Bun.file(target).exists())).toBe(false)
       expect(
         (yield* fixture.request(`/session/${session.id}/mcp-asset/apply`, {
@@ -209,7 +209,7 @@ it.live("persists MCP facts and round-trips the reviewed configuration without s
 )
 
 it.live("rejects mismatched MCP targets before writing and reports invalid inventory", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "true" }, () =>
     Effect.gen(function* () {
       const fixture = yield* setup([{ relativePath: "broken.md", content: "No frontmatter" }])
       const session = yield* fixture.sessions.create({
@@ -232,7 +232,7 @@ it.live("rejects mismatched MCP targets before writing and reports invalid inven
         Schema.decodeUnknownSync(InvalidRequestError)(yield* Effect.promise<unknown>(() => response.json())),
       ).toMatchObject({ kind: "invalid_candidate" })
       expect(
-        yield* Effect.promise(() => Bun.file(path.join(fixture.directory, ".aigcfroge/mcps/review.md")).exists()),
+        yield* Effect.promise(() => Bun.file(path.join(fixture.directory, ".omnixa/mcps/review.md")).exists()),
       ).toBe(false)
       const catalogue = Schema.decodeUnknownSync(listResponse)(yield* readBody(yield* fixture.request("/mcp-asset")))
       expect(catalogue).toEqual({ assets: [], invalid: [{ relativePath: "broken.md", errorTag: "parse_error" }] })
@@ -252,7 +252,7 @@ it.live("rejects mismatched MCP targets before writing and reports invalid inven
 )
 
 it.live("keeps MCP creation disabled while allowing an explicit existing asset deletion", () =>
-  withEnv({ AIGCFROGE_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
+  withEnv({ OMNIXA_EXPERIMENTAL_CHAT_ASSET: "false" }, () =>
     Effect.gen(function* () {
       const content = "---\nkind: mcp\nname: review\ndescription: Review\ncommand: node\nargs: []\nenv: {}\n---\n{}"
       const fixture = yield* setup([{ relativePath: "review.md", content }])
@@ -270,16 +270,16 @@ it.live("keeps MCP creation disabled while allowing an explicit existing asset d
       expect(
         Schema.decodeUnknownSync(InvalidRequestError)(yield* Effect.promise<unknown>(() => response.json())),
       ).toMatchObject({ kind: "disabled" })
-      expect(
-        yield* Effect.promise(() => Bun.file(path.join(fixture.directory, ".aigcfroge/mcps/review.md")).text()),
-      ).toBe(content)
+      expect(yield* Effect.promise(() => Bun.file(path.join(fixture.directory, ".omnixa/mcps/review.md")).text())).toBe(
+        content,
+      )
       expect(
         (yield* fixture.request(`/session/${session.id}/mcp-asset/delete`, {
           body: { relativePath: saved.relativePath },
         })).status,
       ).toBe(200)
       expect(
-        yield* Effect.promise(() => Bun.file(path.join(fixture.directory, ".aigcfroge/mcps/review.md")).exists()),
+        yield* Effect.promise(() => Bun.file(path.join(fixture.directory, ".omnixa/mcps/review.md")).exists()),
       ).toBe(false)
       expect(yield* fixture.llm.requests()).toEqual([])
     }),

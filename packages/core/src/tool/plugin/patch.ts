@@ -1,17 +1,17 @@
 export * as PatchTool from "./patch.js"
 
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import type { SessionHooks } from "@aigcfroge/plugin/effect/session"
-import { ToolFailure } from "@aigcfroge/ai"
-import { FileDiff } from "@aigcfroge/schema/file-diff"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import type { SessionHooks } from "@omnixa/plugin/effect/session"
+import { ToolFailure } from "@omnixa/ai"
+import { FileDiff } from "@omnixa/schema/file-diff"
 import { Effect, Result, Schema } from "effect"
-import { Bom } from "@aigcfroge/util/bom"
+import { Bom } from "@omnixa/util/bom"
 import { Environment } from "../../environment/index.js"
 import { Formatter } from "../../formatter.js"
 import { FileMutation } from "../../file-mutation.js"
 import { Location } from "../../location.js"
 import { FileAccess } from "../../file-access.js"
-import { Patch } from "@aigcfroge/util/patch"
+import { Patch } from "@omnixa/util/patch"
 import { Permission } from "../../permission.js"
 import DESCRIPTION from "../patch.txt"
 import { fileDiff } from "./file-diff.js"
@@ -65,7 +65,7 @@ type Prepared =
     })
 
 export const Plugin = {
-  id: "aigcfroge.tool.patch",
+  id: "omnixa.tool.patch",
   effect: Effect.fn("PatchTool.Plugin")(function* (ctx: Context) {
     const environment = yield* Environment.Service
     const access = yield* FileAccess.Service

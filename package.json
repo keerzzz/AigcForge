@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "aigcfroge",
+  "name": "omnixa",
   "description": "AI-powered development tool",
   "version": "0.0.9",
   "private": true,
@@ -24,7 +24,7 @@
     "postinstall": "bun run --cwd packages/core fix-node-pty",
     "prepare": "husky",
     "random": "echo 'Random script'",
-    "sso": "aws sso login --sso-session=aigcfroge --no-browser",
+    "sso": "aws sso login --sso-session=omnixa --no-browser",
     "test": "echo 'do not run tests from root' && exit 1"
   },
   "workspaces": {
@@ -107,7 +107,7 @@
   "devDependencies": {
     "@actions/artifact": "5.0.1",
     "@ast-grep/cli": "0.44.0",
-    "@aigcfroge/client": "workspace:*",
+    "@omnixa/client": "workspace:*",
     "@oxlint/plugins": "1.60.0",
     "@tsconfig/bun": "catalog:",
     "@types/mime-types": "3.0.1",
@@ -124,14 +124,14 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.933.0",
-    "@aigcfroge/plugin": "workspace:*",
-    "@aigcfroge/script": "workspace:*",
+    "@omnixa/plugin": "workspace:*",
+    "@omnixa/script": "workspace:*",
     "effect": "catalog:",
     "typescript": "catalog:"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/anomalyco/aigcfroge"
+    "url": "https://github.com/keerzzz/AigcForge"
   },
   "license": "MIT",
   "prettier": {

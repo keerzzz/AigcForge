@@ -1,6 +1,6 @@
 # Icon artwork provenance
 
-The 16px non-brand artwork adapts the reviewed AigcForge icon preview. The reference vocabulary is recorded per catalog key in [provenance.json](provenance.json). Task, Custom composition, and Providers are redrawn for their product meaning. The artwork uses currentColor and has no runtime library dependency. GitHub, Discord, and MCP retain their existing artwork and viewports; brand identification is separate from the UI artwork licenses.
+The 16px non-brand artwork adapts the reviewed Omnixa icon preview. The reference vocabulary is recorded per catalog key in [provenance.json](provenance.json). Task, Custom composition, and Providers are redrawn for their product meaning. The artwork uses currentColor and has no runtime library dependency. GitHub, Discord, and MCP retain their existing artwork and viewports; brand identification is separate from the UI artwork licenses.
 
 Reference sources: [Lucide 0.468.0](https://github.com/lucide-icons/lucide/tree/0.468.0) and [Radix Icons at 112af91](https://github.com/radix-ui/icons/tree/112af91ad275a63c3a29b0da2588342af74ef9bf). Reference names identify the design source, not a claim that each modified body is an unchanged upstream SVG.
 

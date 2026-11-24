@@ -2,18 +2,18 @@ export * as MCPAsset from "./mcp-asset"
 
 import { Context, Effect, Layer, Option, Schema, Scope, Stream } from "effect"
 import path from "path"
-import { MCPAsset } from "@aigcfroge/schema/mcp-asset"
+import { MCPAsset } from "@omnixa/schema/mcp-asset"
 import { AssetMigration } from "./asset-migration"
 import { Config } from "./config"
 import { ConfigMarkdown } from "./config/markdown"
 import { Bus } from "./bus"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Flag } from "./flag/flag"
 import { KeyedMutex } from "./effect/keyed-mutex"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Location } from "./location"
 import { MCPAssetPath } from "./mcp-asset/path"
-import { Hash } from "@aigcfroge/util/hash"
+import { Hash } from "@omnixa/util/hash"
 import { Watcher } from "./filesystem/watcher"
 import { MCPS_DIR } from "./constants"
 
@@ -49,7 +49,7 @@ export interface Interface {
   readonly reload: () => Effect.Effect<void, FSUtil.Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/MCPAsset") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/MCPAsset") {}
 
 export function loadDir<E = never>(
   fs: FSUtil.Interface,
@@ -184,7 +184,7 @@ export const layer = Layer.effect(
       )
     }
 
-    if (Flag.AIGCFROGE_EXPERIMENTAL_CHAT_ASSET && Option.isSome(config)) {
+    if (Flag.OMNIXA_EXPERIMENTAL_CHAT_ASSET && Option.isSome(config)) {
       yield* AssetMigration.importEntriesOnce(fs, {
         ownerRoot,
         entries: AssetMigration.mcpConfigEntries(yield* config.value.entries(), location.project.directory),

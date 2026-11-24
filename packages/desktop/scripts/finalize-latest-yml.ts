@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { $ } from "bun"
-import { ReleaseMetadata } from "@aigcfroge/script/release-metadata"
+import { ReleaseMetadata } from "@omnixa/script/release-metadata"
 import path from "path"
 
 const dir = process.env.LATEST_YML_DIR!
@@ -10,8 +10,8 @@ if (!dir) throw new Error("LATEST_YML_DIR is required")
 const repo = process.env.GH_REPO
 if (!repo) throw new Error("GH_REPO is required")
 
-const version = process.env.AIGCFROGE_VERSION
-if (!version) throw new Error("AIGCFROGE_VERSION is required")
+const version = process.env.OMNIXA_VERSION
+if (!version) throw new Error("OMNIXA_VERSION is required")
 
 async function read(subdir: string, filename: string): Promise<ReleaseMetadata.Metadata | undefined> {
   const file = Bun.file(path.join(dir, subdir, filename))

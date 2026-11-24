@@ -1,17 +1,17 @@
-import { Service, type Endpoint } from "@aigcfroge/client/effect/service"
-import { AigcForge, type SessionMessageAssistantTool } from "@aigcfroge/client/promise"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { Service, type Endpoint } from "@omnixa/client/effect/service"
+import { Omnixa, type SessionMessageAssistantTool } from "@omnixa/client/promise"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { open } from "node:fs/promises"
 import path from "node:path"
 import { readStdin } from "../util/io"
 import { ServerConnection } from "../services/server-connection"
 import { parseSessionTargetModel, resolveSessionTarget } from "../session-target"
-import { toolInlineInfo } from "@aigcfroge/tui/mini/tool"
+import { toolInlineInfo } from "@omnixa/tui/mini/tool"
 import { runNonInteractivePrompt } from "./noninteractive"
 import { UI } from "./ui"
 import { Env } from "../env"
 import { errorMessage } from "../util/error"
-import { isModelGroup, toModelPreference, toModelSelection } from "@aigcfroge/tui/model-preference"
+import { isModelGroup, toModelPreference, toModelSelection } from "@omnixa/tui/model-preference"
 
 export type RunCommandInput = {
   server: ServerConnection.Resolved
@@ -82,7 +82,7 @@ async function run(input: RunCommandInput, options: ExecutionOptions) {
 }
 
 async function execute(input: RunCommandInput, prepared: Prepared, endpoint: Endpoint, options: ExecutionOptions) {
-  const client = AigcForge.make({
+  const client = Omnixa.make({
     baseUrl: endpoint.url,
     headers: Service.headers(endpoint),
     // Bun's default five-minute deadline terminates the event stream used by long-running sessions.

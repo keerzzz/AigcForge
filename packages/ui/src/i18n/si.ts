@@ -65,16 +65,6 @@ export const dict: Record<string, string> = {
   "ui.sessionTurn.retry.attempt": "උත්සාහ කරන්න #{{attempt}}",
   "ui.sessionTurn.retry.attemptLine": "{{line}} - උත්සාහ කරන්න #{{attempt}}",
   "ui.sessionTurn.retry.geminiHot": "මිථුන ලග්නය දැන් උණුසුම් වැඩියි",
-  "ui.sessionTurn.error.freeUsageExceeded": "නිදහස් භාවිතය ඉක්මවා ඇත",
-  "ui.sessionTurn.error.addCredits": "ණය එකතු කරන්න",
-  "dialog.usageExceeded.freeTier.title": "නිදහස් සීමාව ළඟා විය",
-  "dialog.usageExceeded.freeTier.description":
-    "හොඳම විවෘත මූලාශ්‍ර ආකෘති වෙත විශ්වාසනීය ප්‍රවේශය සඳහා මසකට $10 බැගින් AigcForge Go වෙත දායක වන්න.",
-  "dialog.usageExceeded.freeTier.actionLabel": "දායක වන්න",
-  "dialog.usageExceeded.accountRateLimit.title": "යන සීමාවට ළඟා විය",
-  "dialog.usageExceeded.accountRateLimit.description":
-    "භාවිත සීමාව ළඟා විය. දැන් මෙම ආකෘතිය දිගටම භාවිතා කිරීමට, ඔබගේ පවතින ශේෂයෙන් භාවිතය සබල කරන්න",
-  "dialog.usageExceeded.accountRateLimit.actionLabel": "සැකසුම් විවෘත කරන්න",
   "ui.sessionTurn.status.delegating": "වැඩ පැවරීම",
   "ui.sessionTurn.status.planning": "ඉදිරි පියවර සැලසුම් කිරීම",
   "ui.sessionTurn.status.gatheringContext": "ගවේෂණය",

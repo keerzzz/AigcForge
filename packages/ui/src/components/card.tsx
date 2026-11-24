@@ -1,5 +1,5 @@
 import { type ComponentProps, Show, splitProps } from "solid-js"
-import { Icon, type IconProps } from "@aigcfroge/ui/icon"
+import { Icon, type IconProps } from "@omnixa/ui/icon"
 
 type Variant = "normal" | "error" | "warning" | "success" | "info"
 

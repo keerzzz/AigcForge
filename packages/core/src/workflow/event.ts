@@ -1,12 +1,12 @@
 export * as WorkflowEvent from "./event"
 
 import { Effect, Schema } from "effect"
-import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
-import { Updated } from "@aigcfroge/schema/workflow-event"
+import { WorkflowAsset } from "@omnixa/schema/workflow-asset"
+import { Updated } from "@omnixa/schema/workflow-event"
 import { Bus } from "../bus"
-import { Event } from "@aigcfroge/schema/event"
+import { Event } from "@omnixa/schema/event"
 
-export { Updated } from "@aigcfroge/schema/workflow-event"
+export { Updated } from "@omnixa/schema/workflow-event"
 
 export type Update = Event.Data<typeof Updated>
 
@@ -25,7 +25,7 @@ export const publish = Effect.fn("WorkflowEvent.publish")(function* (
   commit: (seq: number) => Effect.Effect<boolean>,
 ) {
   return yield* events
-    .publish(Updated, update, {
+    .publish<typeof Updated>(Updated, update, {
       commit: (seq) => {
         if (seq + 1 !== update.revision) {
           return Effect.die(new CommitRejected({ runID: update.runID, revision: update.revision }))

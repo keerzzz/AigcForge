@@ -48,7 +48,7 @@ describe("window state", () => {
   })
 
   test("reads the file electron-window-state wrote and ignores an unreadable one", () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "aigcfroge-window-state-"))
+    const dir = mkdtempSync(path.join(tmpdir(), "omnixa-window-state-"))
     const file = path.join(dir, "window-state-a.json")
     writeFileSync(
       file,

@@ -1,5 +1,5 @@
-import type { SessionInfo } from "@aigcfroge/client/promise"
-import { Button } from "@aigcfroge/ui/button"
+import type { SessionInfo } from "@omnixa/client/promise"
+import { Button } from "@omnixa/ui/button"
 import { useNavigate } from "@solidjs/router"
 import { createMemo, For, onCleanup, Show } from "solid-js"
 import { createStore } from "solid-js/store"

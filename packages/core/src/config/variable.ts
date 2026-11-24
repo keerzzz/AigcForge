@@ -3,7 +3,7 @@ export * as ConfigVariable from "./variable.js"
 import os from "os"
 import path from "path"
 import { Effect } from "effect"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { InvalidError } from "../v1/config/error.js"
 
 type ParseSource =

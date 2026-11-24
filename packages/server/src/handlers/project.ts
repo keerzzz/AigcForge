@@ -1,8 +1,8 @@
-import { Project } from "@aigcfroge/core/project"
+import { Project } from "@omnixa/core/project"
 import { Effect } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
 import { Api } from "../api"
-import { ProjectNotFoundError } from "@aigcfroge/protocol/errors"
+import { ProjectNotFoundError } from "@omnixa/protocol/errors"
 
 export const ProjectHandler = HttpApiBuilder.group(Api, "server.project", (handlers) =>
   handlers

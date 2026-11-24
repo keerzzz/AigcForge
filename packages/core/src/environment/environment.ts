@@ -1,5 +1,5 @@
-import { CrossSpawnSpawner } from "@aigcfroge/util/cross-spawn-spawner"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { CrossSpawnSpawner } from "@omnixa/util/cross-spawn-spawner"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Context, Effect, Layer } from "effect"
 import { ChildProcessSpawner } from "effect/process/ChildProcessSpawner"
 import type { Files } from "./files.js"
@@ -13,7 +13,7 @@ export interface Interface {
   readonly spawner: ChildProcessSpawner["Service"]
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Environment") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Environment") {}
 
 const layer = Layer.effect(
   Service,

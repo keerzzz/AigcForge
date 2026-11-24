@@ -3,7 +3,7 @@ import path from "node:path"
 import { readFile, stat, writeFile } from "node:fs/promises"
 import { Effect, Option } from "effect"
 import { applyEdits, modify } from "jsonc-parser"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import { Commands } from "../../commands"
 import { Runtime } from "../../../framework/runtime"
 
@@ -39,10 +39,10 @@ export default Runtime.handler(
 
 export async function resolveConfigPath(directory: string) {
   const candidates = [
-    path.join(directory, "aigcfroge.json"),
-    path.join(directory, "aigcfroge.jsonc"),
-    path.join(directory, ".aigcfroge", "aigcfroge.json"),
-    path.join(directory, ".aigcfroge", "aigcfroge.jsonc"),
+    path.join(directory, "omnixa.json"),
+    path.join(directory, "omnixa.jsonc"),
+    path.join(directory, ".omnixa", "omnixa.json"),
+    path.join(directory, ".omnixa", "omnixa.jsonc"),
   ]
   for (const candidate of candidates) {
     if (

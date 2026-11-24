@@ -10,8 +10,8 @@ import {
   type Media,
   Message,
   SystemPart,
-} from "@aigcfroge/ai"
-import type { StreamOptions } from "@aigcfroge/ai/route"
+} from "@omnixa/ai"
+import type { StreamOptions } from "@omnixa/ai/route"
 import type {
   SessionCompaction,
   SessionContext,
@@ -19,13 +19,13 @@ import type {
   SessionRequest,
   SessionRequestKind,
   SessionTitle,
-} from "@aigcfroge/plugin/effect/session"
-import type { Agent } from "@aigcfroge/schema/agent"
-import type { Model } from "@aigcfroge/schema/model"
-import type { Content } from "@aigcfroge/schema/tool"
+} from "@omnixa/plugin/effect/session"
+import type { Agent } from "@omnixa/schema/agent"
+import type { Model } from "@omnixa/schema/model"
+import type { Content } from "@omnixa/schema/tool"
 import { Cause, Clock, Context, Effect, Layer, Option, Result, Stream } from "effect"
 import { HttpClientRequest, HttpClientResponse } from "effect/http"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { App } from "../app.js"
 import { Permission } from "../permission.js"
 import { PluginHooks } from "../plugin/hooks.js"
@@ -40,7 +40,7 @@ import { SessionSchema } from "./schema.js"
 import { SessionSystemPrompt } from "./system-prompt.js"
 import { toLLMMessages } from "./runner/to-llm-message.js"
 import type { SessionMessage } from "./message.js"
-import { SessionAttempt } from "@aigcfroge/schema/session-attempt"
+import { SessionAttempt } from "@omnixa/schema/session-attempt"
 import { CorrectionStore } from "./correction-store.js"
 
 const IMAGE_BYTES_TRIGGER = 25 * 1024 * 1024 // 25 MiB
@@ -239,7 +239,7 @@ export interface Interface {
   readonly title: (input: Input) => Effect.Effect<Prepared<SessionTitle>>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionModelRequest") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/SessionModelRequest") {}
 
 export const layer = Layer.effect(
   Service,
@@ -303,15 +303,15 @@ export const layer = Layer.effect(
           body: input.request?.body,
           headers: Provider.mergeHeaders(
             {
-              "x-aigcfroge-session-id": session.id,
-              ...(session.parentID ? { "x-aigcfroge-parent-session-id": session.parentID } : {}),
+              "x-omnixa-session-id": session.id,
+              ...(session.parentID ? { "x-omnixa-parent-session-id": session.parentID } : {}),
               "x-session-affinity": affinity,
               "X-Session-Id": affinity,
               ...(session.parentID ? { "x-parent-session-id": session.parentID } : {}),
               "User-Agent": App.useragent(app),
-              "x-aigcfroge-project": session.projectID,
-              "x-aigcfroge-session": affinity,
-              "x-aigcfroge-client": app.name,
+              "x-omnixa-project": session.projectID,
+              "x-omnixa-session": affinity,
+              "x-omnixa-client": app.name,
             },
             input.request?.headers,
           ),

@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test"
-import type { AigcForgeEvent, SessionInboxInfo, SessionMessageInfo } from "@aigcfroge/client/promise"
-import { PromptInput } from "@aigcfroge/schema/prompt-input"
-import { SessionInbox } from "@aigcfroge/schema/session-inbox"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
+import type { OmnixaEvent, SessionInboxInfo, SessionMessageInfo } from "@omnixa/client/promise"
+import { PromptInput } from "@omnixa/schema/prompt-input"
+import { SessionInbox } from "@omnixa/schema/session-inbox"
+import { SessionMessage } from "@omnixa/schema/session-message"
 import { Schema } from "effect"
 import { provider } from "../utils/app"
 import type { MockServerConfig } from "../utils/mock-server"
@@ -60,26 +60,23 @@ function createQueueMock(seed: string[], messages: SessionMessageInfo[] = []) {
     delivery: "queue",
   }))
 
-  const events: AigcForgeEvent[] = []
+  const events: OmnixaEvent[] = []
   const prompts: (typeof PromptBody.Type)[] = []
   const compactions: SessionInboxInfo[] = []
   const changes: { inboxID: string; action: "cancel" | "steer" | "queue" }[] = []
   const log: string[] = []
   let sequence = 0
 
-  const emit = <Type extends AigcForgeEvent["type"]>(
-    type: Type,
-    data: Extract<AigcForgeEvent, { type: Type }>["data"],
-  ) => {
+  const emit = <Type extends OmnixaEvent["type"]>(type: Type, data: Extract<OmnixaEvent, { type: Type }>["data"]) => {
     sequence += 1
-    // SAFETY: `type` selects `data` from the same AigcForgeEvent member, so the pair is that member.
+    // SAFETY: `type` selects `data` from the same OmnixaEvent member, so the pair is that member.
     events.push({
       id: `evt_queue_${sequence}`,
       type,
       created: Date.now(),
       durable: { aggregateID: sessionID, seq: sequence, version: type === "session.tool.success" ? 2 : 1 },
       data,
-    } as AigcForgeEvent)
+    } as OmnixaEvent)
   }
 
   return {
@@ -169,7 +166,7 @@ async function openQueue(
       {
         id: sessionID,
         title: "Session queue regression",
-        model: { id: model.id, providerID: "aigcfroge" },
+        model: { id: model.id, providerID: "omnixa" },
         revert: revert ? { messageID: revert } : undefined,
       },
     ],
@@ -736,7 +733,7 @@ test("/compact runs with the composer model and shows a queued compaction, as in
   await expect(page.locator('[data-timeline-row="CompactionQueued"]')).toHaveText("Session compaction queued")
   // The row is optimistic; the model switch still precedes the admission.
   await expect.poll(() => mock.log).toEqual(["model", "compact"])
-  expect(models).toMatchObject([{ model: { id: "queue-model", providerID: "aigcfroge" } }])
+  expect(models).toMatchObject([{ model: { id: "queue-model", providerID: "omnixa" } }])
 })
 
 for (const [action, status] of [
@@ -827,7 +824,7 @@ for (const delivery of ["steer", "queue"] as const) {
   test(`keeps finished tools above a pending ${delivery === "queue" ? "queue-to-steer" : "steer"} follow-up`, async ({
     page,
   }, testInfo) => {
-    const model = { id: "queue-model", providerID: "aigcfroge" }
+    const model = { id: "queue-model", providerID: "omnixa" }
     const userID = "msg_queue_initial_user"
     const assistantID = "msg_queue_continued_assistant"
     const followUp = "U2: Also check the retry path."

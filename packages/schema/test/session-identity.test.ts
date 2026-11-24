@@ -12,11 +12,11 @@ const reasonPending = Schema.decodeSync(SessionIdentity.ReasonCode)("work-preset
 const common = {
   sessionID: "ses_identity_projection",
   mode: "work",
-  location: { directory: "/tmp/aigcfroge-identity" },
+  location: { directory: "/tmp/omnixa-identity" },
   projectID: "proj_identity",
   agent: "build",
   // Datum since the S6 amendment: a session may legitimately have no model yet.
-  model: { status: "ready", value: { providerID: "aigcfroge", modelID: "test-model" } },
+  model: { status: "ready", value: { providerID: "omnixa", modelID: "test-model" } },
   permission: { declaredTier: "propose", effect: "ask" },
   capability: { health: "ready", reasons: [] },
 }
@@ -151,7 +151,7 @@ describe("SessionIdentity.Identity", () => {
             source: "coding",
             vcs: {
               branch: { status: "ready", value: "main" },
-              worktree: { status: "ready", value: "/tmp/aigcfroge-identity" },
+              worktree: { status: "ready", value: "/tmp/omnixa-identity" },
             },
           },
         },
@@ -424,7 +424,7 @@ describe("SessionIdentity model datum (S6 amendment)", () => {
         detail: { source: "coding", vcs: { branch: { status: "missing" }, worktree: { status: "missing" } } },
       },
     })
-    expect(identity.model).toEqual({ status: "ready", value: { providerID: "aigcfroge", modelID: "test-model" } })
+    expect(identity.model).toEqual({ status: "ready", value: { providerID: "omnixa", modelID: "test-model" } })
   })
 })
 

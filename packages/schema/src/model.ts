@@ -73,7 +73,7 @@ export const Settings = Schema.StructWithRest(
   Schema.Struct({
     compaction: Provider.Compaction.pipe(optional),
   }),
-  // Provider packages may define arbitrary model-level options beyond AigcForge's shared compaction policy.
+  // Provider packages may define arbitrary model-level options beyond Omnixa's shared compaction policy.
   [Schema.Record(Schema.String, Schema.Any)],
 ).annotate({ identifier: "Model.Settings" })
 export type Settings = typeof Settings.Type

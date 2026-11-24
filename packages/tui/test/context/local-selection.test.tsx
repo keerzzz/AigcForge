@@ -7,7 +7,7 @@ import type {
   SessionPromptInput,
   SessionSwitchAgentInput,
   ModelSelection,
-} from "@aigcfroge/client"
+} from "@omnixa/client"
 import { CliRenderEvents, InputRenderable, TextareaRenderable } from "@opentui/core"
 import { once } from "node:events"
 import { DialogVariant } from "../../src/component/dialog-variant"
@@ -30,7 +30,7 @@ import { TestTuiContexts } from "../fixture/tui-environment"
 import { createTuiResolvedConfig } from "../fixture/tui-runtime"
 import { createAppFixture } from "../fixture/app"
 import { isModelGroup } from "../../src/model-preference"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { ProductMode } from "@omnixa/schema/product-mode"
 
 function physicalModel(value: ModelSelection | undefined) {
   if (value && isModelGroup(value)) throw new Error("This fixture requires a physical model")
@@ -300,6 +300,7 @@ test("production Prompt switches a historical Meta root to Plan with its capture
       return json({ data: server.canonical })
     }
     if (url.pathname === "/api/session/" + root.id + "/model" && request.method === "POST") {
+      expect(await request.json()).toEqual({ model: selectedModel })
       server.modelPosts++
       return new Response(null, { status: 204 })
     }
@@ -336,13 +337,14 @@ test("production Prompt switches a historical Meta root to Plan with its capture
   setup.mockInput.pressEnter()
   expect(await switched.promise).toEqual({ agent: "plan", model: selectedModel })
   expect((await admitted.promise).text).toBe("historical root selection")
-  expect(server.readsAfterSwitch).toBe(1)
+  expect(server.readsAfterSwitch).toBe(2)
   expect(server.canonical.agent).toBe("plan")
   expect(server.canonical.model).toEqual(selectedModel)
   expect(server.canonical.controller).toEqual(root.controller)
   expect(server.canonical.executorPreference).toEqual(root.executorPreference)
   expect(server.executorPosts).toBe(0)
-  expect(server.modelPosts).toBe(0)
+  // Admission reasserts the captured model after earlier queue work; the server treats an unchanged selection as a no-op.
+  expect(server.modelPosts).toBe(1)
 })
 
 test("a manual agent switch supersedes the CLI agent after its commit", async () => {

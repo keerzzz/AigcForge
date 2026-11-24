@@ -317,7 +317,7 @@ export const Identity = IdentityStruct.pipe(
       },
       {
         message: "Mode detail source must match the identity mode",
-        representation: { id: "aigcfroge/identityModeSource", payload: {} },
+        representation: { id: "omnixa/identityModeSource", payload: {} },
         arbitraryConstraint: {} as Record<string, unknown>,
         // Server-side + tests enforce the invariant; the generated client is a
         // display-side consumer and re-runs nothing (pass-through check).
@@ -338,7 +338,7 @@ export const Identity = IdentityStruct.pipe(
       {
         message:
           "Capability must fold non-ready contributors: health at the contributor floor (degraded, or blocked when a contributor is blocked) with every contributor reason code folded into reasons",
-        representation: { id: "aigcfroge/identityCapabilityFold", payload: {} },
+        representation: { id: "omnixa/identityCapabilityFold", payload: {} },
         arbitraryConstraint: {} as Record<string, unknown>,
         toCode: () => ({ runtime: "Schema.makeFilter(() => true)" }),
       },

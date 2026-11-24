@@ -1,7 +1,7 @@
 export * as ProviderQuota from "./quota.js"
 
 import { Option, Schema } from "effect"
-import { optional } from "@aigcfroge/schema/schema"
+import { optional } from "@omnixa/schema/schema"
 
 const decodeNumber = Schema.decodeUnknownOption(
   Schema.Union([Schema.Finite, Schema.NumberFromString.check(Schema.isFinite())]),

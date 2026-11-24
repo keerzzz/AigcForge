@@ -1,9 +1,9 @@
 /** @jsxImportSource @opentui/solid */
 import { expect, test } from "bun:test"
 import { testRender } from "@opentui/solid"
-import type { AigcForgeEvent } from "@aigcfroge/client"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { Event } from "@aigcfroge/schema/event"
+import type { OmnixaEvent } from "@omnixa/client"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { Event } from "@omnixa/schema/event"
 import { Expected } from "../../../../core/test/lib/session-message"
 import { createEffect, onMount, type ParentProps } from "solid-js"
 import { ConfigProvider } from "../../../src/config"
@@ -42,7 +42,7 @@ async function wait(fn: () => boolean, timeout = 2000) {
   }
 }
 
-function emitEvent(events: ReturnType<typeof createEventStream>, event: AigcForgeEvent) {
+function emitEvent(events: ReturnType<typeof createEventStream>, event: OmnixaEvent) {
   events.emit({ ...event, location: { directory } })
 }
 
@@ -51,7 +51,7 @@ const config = createTuiResolvedConfig()
 function DataProvider(props: ParentProps) {
   return (
     <ConfigProvider config={config}>
-      <DataProviderBase directory={process.cwd()}>
+      <DataProviderBase directory={directory}>
         <LocationProvider>
           <SyncLocation />
           {props.children}
@@ -171,7 +171,7 @@ test("proactively syncs project metadata most recently active first", async () =
       {
         id: "proj_test",
         canonical: worktree,
-        name: "AigcForge",
+        name: "Omnixa",
         time: { created: 1, updated: 2, active: 2 },
         sandboxes: [],
       },
@@ -209,7 +209,7 @@ test("proactively syncs project metadata most recently active first", async () =
       {
         id: "proj_test",
         canonical: worktree,
-        name: "AigcForge",
+        name: "Omnixa",
         time: { created: 1, updated: 2, active: 2 },
         sandboxes: [],
       },
@@ -362,7 +362,7 @@ test("refreshes resources into reactive getters", async () => {
 
   try {
     await mounted
-    expect(data.location.default()).toEqual({ directory: process.cwd() })
+    expect(data.location.default()).toEqual({ directory })
     expect(data.session.get("ses_test")).toBeUndefined()
     expect(data.location.agent.list(location)).toBeUndefined()
 
@@ -469,10 +469,29 @@ test("applies absolute usage events to session info", async () => {
 test("truncates committed revert messages without changing lifetime usage", async () => {
   const events = createEventStream()
   const sessionID = "ses_revert_usage"
+  let reverted = false
   let cost = 0
   let tokens = { input: 0, output: 0, reasoning: 0, cache: { read: 0, write: 0 } }
   const calls = createFetch((url) => {
-    if (url.pathname === `/api/session/${sessionID}/message`) return json({ data: [], cursor: {} })
+    if (url.pathname === `/api/session/${sessionID}/message`)
+      return json({
+        data: reverted
+          ? [
+              {
+                id: "msg_revert_boundary",
+                type: "assistant",
+                agent: "build",
+                model: { providerID: "provider", id: "model" },
+                content: [],
+                finish: "stop",
+                cost: 0.5,
+                tokens: { input: 5, output: 2, reasoning: 1, cache: { read: 1, write: 1 } },
+                time: { created: 1, completed: 2 },
+              },
+            ]
+          : [],
+        cursor: {},
+      })
     if (url.pathname !== `/api/session/${sessionID}`) return
     return json({
       data: {
@@ -587,6 +606,7 @@ test("truncates committed revert messages without changing lifetime usage", asyn
     })
     await wait(() => data.session.get(sessionID)?.revert?.messageID === "msg_revert_later")
 
+    reverted = true
     emitEvent(events, {
       id: "evt_revert_committed",
       created: 6,
@@ -606,7 +626,7 @@ test("truncates committed revert messages without changing lifetime usage", asyn
 
 test("updates session location when moved", async () => {
   const events = createEventStream()
-  const destination = "/tmp/aigcfroge-moved"
+  const destination = "/tmp/omnixa-moved"
   const calls = createFetch((url) => {
     if (url.pathname === "/api/session/ses_test")
       return json({
@@ -687,7 +707,7 @@ test("restores running manual compaction before applying live deltas", async () 
       return json({
         data: [
           {
-            id: "message-compaction",
+            id: "msg_compaction",
             type: "compaction",
             status: "running",
             reason: "manual",
@@ -720,7 +740,7 @@ test("restores running manual compaction before applying live deltas", async () 
 
   try {
     await data.session.message.sync("session-compaction")
-    expect(data.session.message.get("session-compaction", "message-compaction")).toMatchObject({
+    expect(data.session.message.get("session-compaction", "msg_compaction")).toMatchObject({
       type: "compaction",
       status: "running",
       summary: "Existing ",
@@ -734,7 +754,7 @@ test("restores running manual compaction before applying live deltas", async () 
     })
 
     await wait(() => {
-      const message = data.session.message.get("session-compaction", "message-compaction")
+      const message = data.session.message.get("session-compaction", "msg_compaction")
       return message?.type === "compaction" && message.status === "running" && message.summary === "Existing summary"
     })
   } finally {
@@ -763,7 +783,7 @@ test("reconnects the event stream and resyncs active data", async () => {
       requests.message++
       if (requests.message === 1)
         return json({
-          data: [{ id: "message-stale", type: "user", text: "Stale", time: { created: 1 } }],
+          data: [{ id: "msg_stale", type: "user", text: "Stale", time: { created: 1 } }],
           cursor: {},
         })
       return new Promise<Response>((resolve) => {
@@ -816,7 +836,7 @@ test("reconnects the event stream and resyncs active data", async () => {
     await wait(() => data.location.model.list()?.[0]?.id === "model-1")
     await wait(() => data.session.status("session-stale") === "running")
     await data.session.message.sync("session-stale")
-    expect(data.session.message.get("session-stale", "message-stale")?.id).toBe("message-stale")
+    expect(data.session.message.get("session-stale", "msg_stale")?.id).toBe("msg_stale")
     expect(client.connection.status()).toBe("connected")
     expect(client.connection.attempt()).toBe(0)
 
@@ -832,15 +852,15 @@ test("reconnects the event stream and resyncs active data", async () => {
     await wait(() => data.location.model.list()?.[0]?.id === "model-2", 4000)
     await wait(() => data.session.status("session-stale") === "idle")
     await wait(() => requests.message === 2)
-    expect(data.session.message.get("session-stale", "message-stale")?.id).toBe("message-stale")
+    expect(data.session.message.get("session-stale", "msg_stale")?.id).toBe("msg_stale")
     resolveMessages(
       json({
-        data: [{ id: "message-fresh", type: "user", text: "Fresh", time: { created: 2 } }],
+        data: [{ id: "msg_fresh", type: "user", text: "Fresh", time: { created: 2 } }],
         cursor: {},
       }),
     )
-    await wait(() => data.session.message.get("session-stale", "message-fresh") !== undefined)
-    expect(data.session.message.get("session-stale", "message-stale")).toBeUndefined()
+    await wait(() => data.session.message.get("session-stale", "msg_fresh") !== undefined)
+    expect(data.session.message.get("session-stale", "msg_stale")).toBeUndefined()
     await wait(() => data.session.status("session-new") === "running")
     expect(requests.event).toBe(2)
     expect(requests.message).toBe(2)
@@ -898,24 +918,24 @@ test("completes exploration and keeps live rows when a queued prompt is promoted
       data: {
         started: 1,
         sessionID,
-        assistantMessageID: "message-assistant",
+        assistantMessageID: "msg_assistant",
         agent: "build",
         model: { id: "model", providerID: "provider" },
       },
     })
-    await wait(() => data.session.message.get(sessionID, "message-assistant") !== undefined)
+    await wait(() => data.session.message.get(sessionID, "msg_assistant") !== undefined)
     emitEvent(events, {
       id: "evt_text_started",
       created: 1,
       type: "session.text.started",
       durable: durable(sessionID, 1),
-      data: { sessionID, assistantMessageID: "message-assistant", ordinal: 0 },
+      data: { sessionID, assistantMessageID: "msg_assistant", ordinal: 0 },
     })
     emitEvent(events, {
       id: "evt_text_delta",
       created: 1,
       type: "session.text.delta",
-      data: { sessionID, assistantMessageID: "message-assistant", ordinal: 0, delta: "Looking" },
+      data: { sessionID, assistantMessageID: "msg_assistant", ordinal: 0, delta: "Looking" },
     })
     emitEvent(events, {
       id: "evt_tool_started",
@@ -924,7 +944,7 @@ test("completes exploration and keeps live rows when a queued prompt is promoted
       durable: durable(sessionID, 2),
       data: {
         sessionID,
-        assistantMessageID: "message-assistant",
+        assistantMessageID: "msg_assistant",
         id: "call-read",
         name: "read",
       },
@@ -939,7 +959,7 @@ test("completes exploration and keeps live rows when a queued prompt is promoted
       durable: durable(sessionID, 3),
       data: {
         sessionID,
-        inboxID: "message-user",
+        inboxID: "msg_user",
         item: { type: "user", payload: { text: "Continue" }, delivery: "steer" },
       },
     })
@@ -953,13 +973,13 @@ test("completes exploration and keeps live rows when a queued prompt is promoted
       durable: durable(sessionID, 4),
       data: {
         sessionID,
-        inboxID: "message-user",
+        inboxID: "msg_user",
       },
     })
     await wait(() => rows.find((row) => row.type === "group")?.completed === true)
-    expect(rows.at(-1)).toMatchObject({ type: "message", messageID: "message-user" })
+    expect(rows.at(-1)).toMatchObject({ type: "message", messageID: "msg_user" })
     // Promotion rebuilds every row; the live text must keep its store object or it remounts.
-    expect(text).toMatchObject({ type: "part", ref: { messageID: "message-assistant", partID: "text:0" } })
+    expect(text).toMatchObject({ type: "part", ref: { messageID: "msg_assistant", partID: "text:0" } })
     expect(rows.find((row) => row.type === "part")).toBe(text)
   } finally {
     app.renderer.destroy()
@@ -1004,40 +1024,40 @@ test("updates and removes queued inputs from durable lifecycle events", async ()
       durable: durable(sessionID),
       data: {
         sessionID,
-        inboxID: "message-queued",
+        inboxID: "msg_queued",
         item: { type: "user", payload: { text: "Steer me" }, delivery: "queue" },
       },
     })
     await wait(() => data.session.pending.list(sessionID).length === 1)
-    expect(rows).not.toContainEqual(expect.objectContaining({ type: "message", messageID: "message-queued" }))
+    expect(rows).not.toContainEqual(expect.objectContaining({ type: "message", messageID: "msg_queued" }))
 
     emitEvent(events, {
       id: "evt_queue_steered",
       created: 2,
       type: "session.inbox.delivery.changed",
       durable: durable(sessionID, 1),
-      data: { sessionID, inboxID: "message-queued", delivery: "steer" },
+      data: { sessionID, inboxID: "msg_queued", delivery: "steer" },
     })
     await wait(() =>
       data.session.pending
         .list(sessionID)
-        .some((item) => item.id === "message-queued" && item.type !== "compaction" && item.delivery === "steer"),
+        .some((item) => item.id === "msg_queued" && item.type !== "compaction" && item.delivery === "steer"),
     )
-    expect(rows).toContainEqual(expect.objectContaining({ type: "message", messageID: "message-queued" }))
+    expect(rows).toContainEqual(expect.objectContaining({ type: "message", messageID: "msg_queued" }))
 
     emitEvent(events, {
       id: "evt_queue_restored",
       created: 3,
       type: "session.inbox.delivery.changed",
       durable: durable(sessionID, 2),
-      data: { sessionID, inboxID: "message-queued", delivery: "queue" },
+      data: { sessionID, inboxID: "msg_queued", delivery: "queue" },
     })
     await wait(() =>
       data.session.pending
         .list(sessionID)
-        .some((item) => item.id === "message-queued" && item.type !== "compaction" && item.delivery === "queue"),
+        .some((item) => item.id === "msg_queued" && item.type !== "compaction" && item.delivery === "queue"),
     )
-    expect(rows).not.toContainEqual(expect.objectContaining({ type: "message", messageID: "message-queued" }))
+    expect(rows).not.toContainEqual(expect.objectContaining({ type: "message", messageID: "msg_queued" }))
 
     emitEvent(events, {
       id: "evt_cancel_admitted",
@@ -1046,7 +1066,7 @@ test("updates and removes queued inputs from durable lifecycle events", async ()
       durable: durable(sessionID, 3),
       data: {
         sessionID,
-        inboxID: "message-cancelled",
+        inboxID: "msg_cancelled",
         item: { type: "user", payload: { text: "Delete me" }, delivery: "queue" },
       },
     })
@@ -1056,11 +1076,11 @@ test("updates and removes queued inputs from durable lifecycle events", async ()
       created: 5,
       type: "session.inbox.cancelled",
       durable: durable(sessionID, 4),
-      data: { sessionID, inboxID: "message-cancelled" },
+      data: { sessionID, inboxID: "msg_cancelled" },
     })
-    await wait(() => !data.session.input.has(sessionID, "message-cancelled"))
-    expect(data.session.pending.list(sessionID).map((item) => item.id)).toEqual(["message-queued"])
-    expect(data.session.message.get(sessionID, "message-cancelled")).toBeUndefined()
+    await wait(() => !data.session.input.has(sessionID, "msg_cancelled"))
+    expect(data.session.pending.list(sessionID).map((item) => item.id)).toEqual(["msg_queued"])
+    expect(data.session.message.get(sessionID, "msg_cancelled")).toBeUndefined()
   } finally {
     app.renderer.destroy()
   }
@@ -1102,16 +1122,14 @@ test("classifies live tool rows independently of their call ID", async () => {
       durable: durable(sessionID),
       data: {
         sessionID,
-        assistantMessageID: "message-assistant",
+        assistantMessageID: "msg_assistant",
         id: "reasoning:0",
         name: "bash",
       },
     })
 
     await wait(() => rows.length > 0)
-    expect(unwrap(rows)).toMatchObject([
-      { type: "part", ref: { messageID: "message-assistant", partID: "reasoning:0" } },
-    ])
+    expect(unwrap(rows)).toMatchObject([{ type: "part", ref: { messageID: "msg_assistant", partID: "reasoning:0" } }])
   } finally {
     app.renderer.destroy()
   }
@@ -1211,7 +1229,23 @@ test("loads older pages until the oldest exploration group is complete before re
 test("removes committed revert messages from local state", async () => {
   const events = createEventStream()
   const sessionID = "session-revert"
+  let reverted = false
   const calls = createFetch((url) => {
+    if (url.pathname === `/api/session/${sessionID}/inbox`)
+      return json({
+        data: reverted
+          ? [
+              {
+                id: "msg_001",
+                sessionID,
+                type: "user",
+                payload: { text: "msg_001" },
+                delivery: "steer",
+                time: { created: 0 },
+              },
+            ]
+          : [],
+      })
     if (url.pathname === `/api/session/${sessionID}/message`) return json({ data: [], cursor: {} })
   }, events)
   let data!: ReturnType<typeof useData>
@@ -1245,6 +1279,7 @@ test("removes committed revert messages from local state", async () => {
     }
     await wait(() => data.session.message.list(sessionID).length === 3)
 
+    reverted = true
     emitEvent(events, {
       id: Event.ID.create(),
       created: 3,
@@ -1403,7 +1438,7 @@ test("tracks session status from active sessions and execution events", async ()
       data: {
         started: 0,
         sessionID: "session-live",
-        assistantMessageID: "message-live",
+        assistantMessageID: "msg_live",
         agent: "build",
         model: { id: "model", providerID: "provider" },
       },
@@ -1415,7 +1450,7 @@ test("tracks session status from active sessions and execution events", async ()
       durable: durable("session-live", 1),
       data: {
         sessionID: "session-live",
-        assistantMessageID: "message-live",
+        assistantMessageID: "msg_live",
         finish: "stop",
         cost: 0.75,
         tokens: { input: 10, output: 4, reasoning: 2, cache: { read: 3, write: 1 } },
@@ -1432,7 +1467,7 @@ test("tracks session status from active sessions and execution events", async ()
       },
     })
     await wait(() => {
-      const assistant = data.session.message.get("session-live", "message-live")
+      const assistant = data.session.message.get("session-live", "msg_live")
       return assistant?.type === "assistant" && assistant.finish === "stop"
     })
     await wait(() => data.session.get("session-live")?.cost === 0.75)
@@ -1469,7 +1504,7 @@ test("tracks session status from active sessions and execution events", async ()
       data: {
         started: 0,
         sessionID: "session-failed",
-        assistantMessageID: "message-failed",
+        assistantMessageID: "msg_failed",
         agent: "build",
         model: { id: "model", providerID: "provider" },
       },
@@ -1481,7 +1516,7 @@ test("tracks session status from active sessions and execution events", async ()
       durable: durable("session-failed", 1),
       data: {
         sessionID: "session-failed",
-        assistantMessageID: "message-failed",
+        assistantMessageID: "msg_failed",
         error: { type: "provider.content-filter", message: "Provider blocked the response" },
         cost: 0.25,
         tokens: { input: 5, output: 1, reasoning: 1, cache: { read: 1, write: 0 } },
@@ -1498,7 +1533,7 @@ test("tracks session status from active sessions and execution events", async ()
       },
     })
     await wait(() => {
-      const assistant = data.session.message.get("session-failed", "message-failed")
+      const assistant = data.session.message.get("session-failed", "msg_failed")
       return (
         assistant?.type === "assistant" &&
         assistant.finish === "error" &&
@@ -1541,7 +1576,7 @@ test("tracks session status from active sessions and execution events", async ()
       data: {
         started: 0,
         sessionID: "session-retry",
-        assistantMessageID: "message-retry",
+        assistantMessageID: "msg_retry",
         agent: "build",
         model: { id: "model", providerID: "provider" },
       },
@@ -1553,17 +1588,17 @@ test("tracks session status from active sessions and execution events", async ()
       durable: durable("session-retry", 1),
       data: {
         sessionID: "session-retry",
-        assistantMessageID: "message-retry",
+        assistantMessageID: "msg_retry",
         attempt: 2,
         at: 2_000,
         error: { type: "provider.transport", message: "Disconnected" },
       },
     })
     await wait(() => {
-      const assistant = data.session.message.get("session-retry", "message-retry")
+      const assistant = data.session.message.get("session-retry", "msg_retry")
       return assistant?.type === "assistant" && assistant.retry?.attempt === 2
     })
-    await wait(() => rows.some((row) => row.type === "assistant-footer" && row.messageID === "message-retry"))
+    await wait(() => rows.some((row) => row.type === "assistant-footer" && row.messageID === "msg_retry"))
     emitEvent(events, {
       id: "evt_retry_next_step",
       created: 2_000,
@@ -1572,16 +1607,16 @@ test("tracks session status from active sessions and execution events", async ()
       data: {
         started: 2_000,
         sessionID: "session-retry",
-        assistantMessageID: "message-retry",
+        assistantMessageID: "msg_retry",
         agent: "build",
         model: { id: "model", providerID: "provider" },
       },
     })
     await wait(() => {
-      const assistant = data.session.message.get("session-retry", "message-retry")
+      const assistant = data.session.message.get("session-retry", "msg_retry")
       return assistant?.type === "assistant" && assistant.retry === undefined
     })
-    await wait(() => !rows.some((row) => row.type === "assistant-footer" && row.messageID === "message-retry"))
+    await wait(() => !rows.some((row) => row.type === "assistant-footer" && row.messageID === "msg_retry"))
     expect(data.session.message.list("session-retry").filter((message) => message.type === "assistant")).toHaveLength(1)
     emitEvent(events, {
       id: "evt_retry_scheduled_again",
@@ -1590,14 +1625,14 @@ test("tracks session status from active sessions and execution events", async ()
       durable: durable("session-retry", 1),
       data: {
         sessionID: "session-retry",
-        assistantMessageID: "message-retry",
+        assistantMessageID: "msg_retry",
         attempt: 3,
         at: 6_000,
         error: { type: "provider.transport", message: "Disconnected again" },
       },
     })
     await wait(() => {
-      const assistant = data.session.message.get("session-retry", "message-retry")
+      const assistant = data.session.message.get("session-retry", "msg_retry")
       return assistant?.type === "assistant" && assistant.retry?.attempt === 3
     })
     emitEvent(events, {
@@ -1608,7 +1643,7 @@ test("tracks session status from active sessions and execution events", async ()
       data: { sessionID: "session-retry", reason: "shutdown" },
     })
     await wait(() => data.session.status("session-retry") === "idle")
-    expect(data.session.message.get("session-retry", "message-retry")).not.toHaveProperty("retry")
+    expect(data.session.message.get("session-retry", "msg_retry")).not.toHaveProperty("retry")
 
     emitEvent(events, {
       id: "evt_manual_compaction_admitted",
@@ -1617,17 +1652,17 @@ test("tracks session status from active sessions and execution events", async ()
       durable: durable("session-manual", 1),
       data: {
         sessionID: "session-manual",
-        inboxID: "message-compaction",
+        inboxID: "msg_compaction",
         item: { type: "compaction", payload: {}, delivery: "queue" },
       },
     })
-    await wait(() => data.session.pending.list("session-manual").some((item) => item.id === "message-compaction"))
+    await wait(() => data.session.pending.list("session-manual").some((item) => item.id === "msg_compaction"))
     emitEvent(events, {
       id: "evt_manual_compaction_started",
       created: 1,
       type: "session.compaction.started",
       durable: durable("session-manual", 2),
-      data: { sessionID: "session-manual", reason: "manual", recent: "", inputID: "message-compaction" },
+      data: { sessionID: "session-manual", reason: "manual", recent: "", inputID: "msg_compaction" },
     })
     emitEvent(events, {
       id: "evt_manual_compaction_delta",
@@ -1636,11 +1671,11 @@ test("tracks session status from active sessions and execution events", async ()
       data: { sessionID: "session-manual", text: "Streamed summary" },
     })
     await wait(() => {
-      const message = data.session.message.get("session-manual", "message-compaction")
+      const message = data.session.message.get("session-manual", "msg_compaction")
       return message?.type === "compaction" && message.status === "running" && message.summary === "Streamed summary"
     })
     expect(data.session.pending.list("session-manual")).toEqual([])
-    const compactionRow = manualRows.find((row) => row.type === "message" && row.messageID === "message-compaction")
+    const compactionRow = manualRows.find((row) => row.type === "message" && row.messageID === "msg_compaction")
     emitEvent(events, {
       id: "evt_manual_compaction_ended",
       created: 3,
@@ -1649,15 +1684,13 @@ test("tracks session status from active sessions and execution events", async ()
       data: { sessionID: "session-manual", reason: "manual", text: "Streamed summary", recent: "recent" },
     })
     await wait(() => {
-      const message = data.session.message.get("session-manual", "message-compaction")
+      const message = data.session.message.get("session-manual", "msg_compaction")
       return message?.type === "compaction" && message.status === "completed"
     })
     expect(manualRows.filter((row) => row.type === "message")).toMatchObject([
-      { type: "message", messageID: "message-compaction" },
+      { type: "message", messageID: "msg_compaction" },
     ])
-    expect(manualRows.find((row) => row.type === "message" && row.messageID === "message-compaction")).toBe(
-      compactionRow,
-    )
+    expect(manualRows.find((row) => row.type === "message" && row.messageID === "msg_compaction")).toBe(compactionRow)
 
     emitEvent(events, {
       id: "evt_compaction_started",
@@ -1735,7 +1768,11 @@ test.each(["before", "between", "after"])("shows compaction admitted %s steers i
     </TestTuiContexts>
   ))
   const admissions =
-    order === "before" ? ["compact", "a", "b"] : order === "between" ? ["a", "compact", "b"] : ["a", "b", "compact"]
+    order === "before"
+      ? ["msg_compact", "msg_a", "msg_b"]
+      : order === "between"
+        ? ["msg_a", "msg_compact", "msg_b"]
+        : ["msg_a", "msg_b", "msg_compact"]
   try {
     await wait(() => client?.connection.status() === "connected")
     admissions.forEach((id, index) =>
@@ -1748,27 +1785,29 @@ test.each(["before", "between", "after"])("shows compaction admitted %s steers i
           sessionID,
           inboxID: id,
           item:
-            id === "compact"
+            id === "msg_compact"
               ? { type: "compaction", payload: {}, delivery: "steer" }
-              : { type: "user", payload: { text: `STEER_${id.toUpperCase()}` }, delivery: "steer" },
+              : { type: "user", payload: { text: `STEER_${id.slice(4).toUpperCase()}` }, delivery: "steer" },
         },
       }),
     )
     await wait(() => rows.length === 3)
     expect(unwrap(rows)).toMatchObject([
-      { type: "compaction-queued", inboxID: "compact" },
-      { type: "message", messageID: "a" },
-      { type: "message", messageID: "b" },
+      { type: "compaction-queued", inboxID: "msg_compact" },
+      { type: "message", messageID: "msg_a" },
+      { type: "message", messageID: "msg_b" },
     ])
     emitEvent(events, {
       id: "evt_compaction_started",
       created: 4,
       type: "session.compaction.started",
       durable: durable(sessionID, 4),
-      data: { sessionID, reason: "manual", recent: "", inputID: "compact" },
+      data: { sessionID, reason: "manual", recent: "", inputID: "msg_compact" },
     })
     await wait(() => rows[0]?.type === "message")
-    expect(unwrap(rows)).toMatchObject(["compact", "a", "b"].map((messageID) => ({ type: "message", messageID })))
+    expect(unwrap(rows)).toMatchObject(
+      ["msg_compact", "msg_a", "msg_b"].map((messageID) => ({ type: "message", messageID })),
+    )
     emitEvent(events, {
       id: "evt_compaction_ended",
       created: 5,
@@ -1776,7 +1815,7 @@ test.each(["before", "between", "after"])("shows compaction admitted %s steers i
       durable: durable(sessionID, 5),
       data: { sessionID, reason: "manual", text: "## Objective\n- Checkpoint", recent: "" },
     })
-    for (const [index, id] of ["a", "b"].entries()) {
+    for (const [index, id] of ["msg_a", "msg_b"].entries()) {
       emitEvent(events, {
         id: `evt_deliver_${id}`,
         created: index + 6,
@@ -1786,7 +1825,9 @@ test.each(["before", "between", "after"])("shows compaction admitted %s steers i
       })
     }
     await app.renderOnce()
-    expect(unwrap(rows)).toMatchObject(["compact", "a", "b"].map((messageID) => ({ type: "message", messageID })))
+    expect(unwrap(rows)).toMatchObject(
+      ["msg_compact", "msg_a", "msg_b"].map((messageID) => ({ type: "message", messageID })),
+    )
   } finally {
     app.renderer.destroy()
   }
@@ -1797,7 +1838,7 @@ test("restores queued compaction from durable pending input", async () => {
   const sessionID = "session-compaction-queued"
   let pending = [
     {
-      id: "message-compaction-queued",
+      id: "msg_compaction-queued",
       sessionID,
       time: { created: 1 },
       type: "compaction" as const,
@@ -1805,7 +1846,7 @@ test("restores queued compaction from durable pending input", async () => {
       delivery: "queue" as const,
     },
     {
-      id: "message-compaction-later",
+      id: "msg_compaction-later",
       sessionID,
       time: { created: 2 },
       type: "compaction" as const,
@@ -1844,13 +1885,13 @@ test("restores queued compaction from durable pending input", async () => {
     await wait(() => client.connection.status() === "connected")
     await wait(() => data.session.pending.list(sessionID).length === 2)
     expect(data.session.pending.list(sessionID).map((item) => item.id)).toEqual([
-      "message-compaction-queued",
-      "message-compaction-later",
+      "msg_compaction-queued",
+      "msg_compaction-later",
     ])
     await wait(() => rows.filter((row) => row.type === "compaction-queued").length === 2)
     expect(rows.filter((row) => row.type === "compaction-queued")).toMatchObject([
-      { type: "compaction-queued", inboxID: "message-compaction-queued" },
-      { type: "compaction-queued", inboxID: "message-compaction-later" },
+      { type: "compaction-queued", inboxID: "msg_compaction-queued" },
+      { type: "compaction-queued", inboxID: "msg_compaction-later" },
     ])
 
     emitEvent(events, {
@@ -1861,7 +1902,7 @@ test("restores queued compaction from durable pending input", async () => {
       data: {
         started: 2,
         sessionID,
-        assistantMessageID: "message-assistant",
+        assistantMessageID: "msg_assistant",
         agent: "build",
         model: { id: "model", providerID: "provider" },
       },
@@ -1873,7 +1914,7 @@ test("restores queued compaction from durable pending input", async () => {
       durable: durable(sessionID, 4),
       data: {
         sessionID,
-        assistantMessageID: "message-assistant",
+        assistantMessageID: "msg_assistant",
         ordinal: 0,
       },
     })
@@ -1884,7 +1925,7 @@ test("restores queued compaction from durable pending input", async () => {
       durable: durable(sessionID, 5),
       data: {
         sessionID,
-        assistantMessageID: "message-assistant",
+        assistantMessageID: "msg_assistant",
         ordinal: 0,
         text: "Active output",
       },
@@ -1901,11 +1942,11 @@ test("restores queued compaction from durable pending input", async () => {
         sessionID,
         reason: "manual",
         recent: "",
-        inputID: "message-compaction-queued",
+        inputID: "msg_compaction-queued",
       },
     })
     await wait(() => data.session.pending.list(sessionID).length === 1)
-    expect(data.session.pending.list(sessionID).map((item) => item.id)).toEqual(["message-compaction-later"])
+    expect(data.session.pending.list(sessionID).map((item) => item.id)).toEqual(["msg_compaction-later"])
 
     emitEvent(events, {
       id: "evt_compaction_ended",
@@ -1914,7 +1955,7 @@ test("restores queued compaction from durable pending input", async () => {
       durable: durable(sessionID, 7),
       data: { sessionID, reason: "manual", text: "Summary", recent: "" },
     })
-    expect(data.session.pending.list(sessionID).map((item) => item.id)).toEqual(["message-compaction-later"])
+    expect(data.session.pending.list(sessionID).map((item) => item.id)).toEqual(["msg_compaction-later"])
 
     pending = []
     data.session.pending.invalidate(sessionID)
@@ -2203,7 +2244,7 @@ test("refreshes references after updates", async () => {
 
 test("keeps shell state scoped to location", async () => {
   const events = createEventStream()
-  const other = "/tmp/aigcfroge/other"
+  const other = "/tmp/omnixa/other"
   let removed: URL | undefined
   const calls = createFetch((url, request) => {
     if (url.pathname === "/api/shell/sh_other" && request.method === "DELETE") {
@@ -2224,7 +2265,7 @@ test("keeps shell state scoped to location", async () => {
           command: requestDirectory === other ? "pnpm dev" : "bun test",
           cwd: requestDirectory ?? directory,
           shell: "/bin/sh",
-          file: "/tmp/aigcfroge-shell",
+          file: "/tmp/omnixa-shell",
           metadata: { sessionID: "ses_shared" },
           time: { started: 1 },
         },
@@ -2298,7 +2339,7 @@ test("keeps shell state scoped to location", async () => {
           command: "npm run watch",
           cwd: other,
           shell: "/bin/sh",
-          file: "/tmp/aigcfroge-shell-live",
+          file: "/tmp/omnixa-shell-live",
           metadata: { sessionID: "ses_shared" },
           time: { started: 2 },
         },
@@ -2568,7 +2609,7 @@ test("adds, dismisses, and refreshes form requests", async () => {
 test("tracks global forms by location", async () => {
   const events = createEventStream()
   const calls = createFetch(undefined, events)
-  const other = { directory: "/tmp/aigcfroge-other" }
+  const other = { directory: "/tmp/omnixa-other" }
   let data!: ReturnType<typeof useData>
   let client!: ReturnType<typeof useClient>
 
@@ -2633,7 +2674,7 @@ test("tracks global forms by location", async () => {
 test("syncs global forms once for each requested location", async () => {
   const events = createEventStream()
   const requests: URL[] = []
-  const other = { directory: "/tmp/aigcfroge-other" }
+  const other = { directory: "/tmp/omnixa-other" }
   const calls = createFetch((url) => {
     if (url.pathname !== "/api/form") return
     requests.push(url)
@@ -2700,7 +2741,7 @@ test("resyncs global forms only for the active location after reconnect", async 
   const requests: URL[] = []
   const counts = new Map<string, number>()
   const home = { directory: process.cwd() }
-  const other = { directory: "/tmp/aigcfroge-other" }
+  const other = { directory: "/tmp/omnixa-other" }
   const calls = createFetch((url) => {
     if (url.pathname === "/api/location")
       return json({ ...home, project: { id: "proj_test", directory: home.directory } })
@@ -3189,6 +3230,7 @@ function sessionInfo(id: string, parentID: string | undefined, cost = 0) {
 // given parent map (sessionID -> parentID). Roots omit the entry. Reused across
 // the family-index tests below.
 async function mountData(parents: Record<string, string>, costs: Record<string, number> = {}) {
+  const events = createEventStream()
   const calls = createFetch((url) => {
     if (url.pathname === "/api/session") {
       const parentID = url.searchParams.get("parentID")
@@ -3201,13 +3243,15 @@ async function mountData(parents: Record<string, string>, costs: Record<string, 
     }
     const match = url.pathname.match(/^\/api\/session\/([^/]+)$/)
     if (match && match[1] !== "active") return json({ data: sessionInfo(match[1], parents[match[1]], costs[match[1]]) })
-  })
+  }, events)
+  let client!: ReturnType<typeof useClient>
   let data!: ReturnType<typeof useData>
   let ready!: () => void
   const mounted = new Promise<void>((resolve) => {
     ready = resolve
   })
   function Probe() {
+    client = useClient()
     data = useData()
     onMount(ready)
     return <box />
@@ -3224,6 +3268,7 @@ async function mountData(parents: Record<string, string>, costs: Record<string, 
     </TestTuiContexts>
   ))
   await mounted
+  await wait(() => client.connection.status() === "connected")
   return { data, app }
 }
 
@@ -3441,10 +3486,12 @@ test("hydrates durable pending prompts into the visible transcript", async () =>
     payload: { text: "waiting" },
     delivery: "steer" as const,
   }
+  const events = createEventStream()
   const calls = createFetch((url) => {
     if (url.pathname === `/api/session/${sessionID}/inbox`) return json({ data: [item] })
     if (url.pathname === `/api/session/${sessionID}/message`) return json({ data: [], cursor: {} })
-  })
+  }, events)
+  let client!: ReturnType<typeof useClient>
   let sync!: ReturnType<typeof useData>
   let ready!: () => void
   const mounted = new Promise<void>((resolve) => {
@@ -3452,6 +3499,7 @@ test("hydrates durable pending prompts into the visible transcript", async () =>
   })
 
   function Probe() {
+    client = useClient()
     sync = useData()
     onMount(ready)
     return <box />
@@ -3471,6 +3519,7 @@ test("hydrates durable pending prompts into the visible transcript", async () =>
 
   try {
     await mounted
+    await wait(() => client.connection.status() === "connected")
     await sync.session.pending.sync(sessionID)
     expect(sync.session.message.list(sessionID)).toEqual([
       { id: item.id, ...Expected.user("waiting"), time: { created: 5 } },

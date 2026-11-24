@@ -15,9 +15,9 @@ export type Info = {
 
 export const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60
 
-export class Config extends Context.Service<Config, Info>()("@aigcfroge/ServerAuthConfig") {
+export class Config extends Context.Service<Config, Info>()("@omnixa/ServerAuthConfig") {
   static configLayer(input: Pick<Info, "password">) {
-    return Layer.succeed(this, this.of({ ...input, username: "aigcfroge" }))
+    return Layer.succeed(this, this.of({ ...input, username: "omnixa" }))
   }
 
   static get layer() {
@@ -57,10 +57,10 @@ export function verifySession(token: string, config: Info, now = Date.now()) {
 // Browsers share cookies across ports on the same host, so the name carries the port to keep local servers apart.
 export function sessionCookieName(host: string | undefined) {
   const port = URL.parse(`http://${host ?? ""}`)?.port
-  return port ? `aigcfroge_session_${port}` : "aigcfroge_session"
+  return port ? `omnixa_session_${port}` : "omnixa_session"
 }
 
 function sign(password: string, payload: string) {
-  const key = createHmac("sha256", password).update("aigcfroge-session-v1").digest()
+  const key = createHmac("sha256", password).update("omnixa-session-v1").digest()
   return createHmac("sha256", key).update(payload).digest("base64url")
 }

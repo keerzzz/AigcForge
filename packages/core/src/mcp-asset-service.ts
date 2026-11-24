@@ -2,14 +2,14 @@ export * as MCPAssetService from "./mcp-asset-service"
 
 import path from "path"
 import { Context, Effect, Layer, Option, Schema } from "effect"
-import type { Candidate } from "@aigcfroge/schema/mcp-asset"
+import type { Candidate } from "@omnixa/schema/mcp-asset"
 import { MCPAsset } from "./mcp-asset"
 import { FileMutation } from "./file-mutation"
 import { MCPAssetPath } from "./mcp-asset/path"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { LocationMutation } from "./location-mutation"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { Hash } from "@aigcfroge/util/hash"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import { Hash } from "@omnixa/util/hash"
 import { KeyedMutex } from "./effect/keyed-mutex"
 import { yamlEscape } from "./util/yaml-escape"
 
@@ -130,7 +130,7 @@ export interface Interface {
   readonly delete: (input: DeleteInput) => Effect.Effect<void, DeleteError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/MCPAssetService") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/MCPAssetService") {}
 
 export const locationLayer = Layer.effect(
   Service,

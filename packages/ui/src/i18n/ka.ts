@@ -65,16 +65,6 @@ export const dict: Record<string, string> = {
   "ui.sessionTurn.retry.attempt": "ცდა #{{attempt}}",
   "ui.sessionTurn.retry.attemptLine": "{{line}} - მცდელობა #{{attempt}}",
   "ui.sessionTurn.retry.geminiHot": "Gemini ახლა ზედმეტად დატვირთულია",
-  "ui.sessionTurn.error.freeUsageExceeded": "უფასო გამოყენება გადაჭარბებულია",
-  "ui.sessionTurn.error.addCredits": "დაამატე კრედიტები",
-  "dialog.usageExceeded.freeTier.title": "უფასო ლიმიტი მიღწეულია",
-  "dialog.usageExceeded.freeTier.description":
-    "გამოიწერეთ AigcForge Go საუკეთესო ღია კოდის მოდელებზე სანდო წვდომისთვის, თვეში $10-ად.",
-  "dialog.usageExceeded.freeTier.actionLabel": "გამოწერა",
-  "dialog.usageExceeded.accountRateLimit.title": "გადასვლის ლიმიტი მიღწეულია",
-  "dialog.usageExceeded.accountRateLimit.description":
-    "გამოყენების ლიმიტი მიღწეულია. ამ მოდელის ახლა გამოყენების გასაგრძელებლად, ჩართეთ გამოყენება ხელმისაწვდომი ბალანსიდან",
-  "dialog.usageExceeded.accountRateLimit.actionLabel": "გახსნა პარამეტრები",
   "ui.sessionTurn.status.delegating": "სამუშაოს დელეგირება",
   "ui.sessionTurn.status.planning": "შემდეგი ნაბიჯების დაგეგმვა",
   "ui.sessionTurn.status.gatheringContext": "შესწავლა",

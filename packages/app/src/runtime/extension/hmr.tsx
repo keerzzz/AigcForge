@@ -1,5 +1,5 @@
 import { makeEventListener } from "@solid-primitives/event-listener"
-import type { Definition } from "@aigcfroge/gui-extensions/sdk"
+import type { Definition } from "@omnixa/gui-extensions/sdk"
 import { BUILTINS_UPDATED } from "./builtins"
 import { useExtensionHost } from "./host"
 

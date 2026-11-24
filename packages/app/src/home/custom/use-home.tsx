@@ -8,11 +8,11 @@ import {
   type CustomProfileSummary,
   type ModelSelection,
   type SessionInfo,
-} from "@aigcfroge/client/promise"
-import { Composition } from "@aigcfroge/schema/composition"
-import { Button } from "@aigcfroge/ui/button"
-import { Icon } from "@aigcfroge/ui/icon"
-import { Select } from "@aigcfroge/ui/select"
+} from "@omnixa/client/promise"
+import { Composition } from "@omnixa/schema/composition"
+import { Button } from "@omnixa/ui/button"
+import { Icon } from "@omnixa/ui/icon"
+import { Select } from "@omnixa/ui/select"
 import { createEffect, createMemo, For, onCleanup, Show, untrack } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLanguage } from "@/runtime/i18n/language"
@@ -36,7 +36,7 @@ import {
 import { uploadAttachment } from "@/composer/attachments/destination"
 import { uuid } from "@/runtime/persistence/uuid"
 import { Schema } from "effect"
-import { Model } from "@aigcfroge/schema/model"
+import { Model } from "@omnixa/schema/model"
 import { buildModelOptions, formatSelectedModelLabel, type CustomOwner } from "./shared"
 
 type Progress =

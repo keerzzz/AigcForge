@@ -1,5 +1,5 @@
 import type {
-  AigcForgeEvent,
+  OmnixaEvent,
   SessionMessageInfo,
   DelegationLegacyState,
   DelegationResultInput,
@@ -9,12 +9,12 @@ import type {
   MetaAgentMemoryRecord,
   SessionAttemptInfo,
   SessionMessageAssistant,
-} from "@aigcfroge/client/promise"
-import { ConflictError, InvalidRequestError } from "@aigcfroge/protocol/errors"
-import { Composition } from "@aigcfroge/schema/composition"
-import { SessionEvent } from "@aigcfroge/schema/session-event"
-import { WorkflowEvent } from "@aigcfroge/schema/workflow-event"
-import { timelinePresets } from "@aigcfroge/session-ui/timeline/detail"
+} from "@omnixa/client/promise"
+import { ConflictError, InvalidRequestError } from "@omnixa/protocol/errors"
+import { Composition } from "@omnixa/schema/composition"
+import { SessionEvent } from "@omnixa/schema/session-event"
+import { WorkflowEvent } from "@omnixa/schema/workflow-event"
+import { timelinePresets } from "@omnixa/session-ui/timeline/detail"
 import { expect, test, type Page } from "@playwright/test"
 import { readFile } from "node:fs/promises"
 import { Schema } from "effect"
@@ -45,7 +45,7 @@ test("status bar follows the main location and preserves navigation controls acr
     lastProject: { local: next },
     tabs: [fixture.sourceID],
     storage: {
-      "aigcfroge.global.dat:layout": {
+      "omnixa.global.dat:layout": {
         home: { sessionMode: "coding", selection: { server: SERVER, directory: next } },
       },
     },
@@ -155,7 +155,7 @@ for (const direction of ["ltr", "rtl"] as const) {
       tabs: [fixture.sourceID, fixture.targetID, ...(direction === "ltr" ? [work.id] : [])],
       settings: { general: { showStatus: true, showFileTree: false } },
       storage: {
-        "aigcfroge.global.dat:notification": {
+        "omnixa.global.dat:notification": {
           list:
             direction === "ltr"
               ? [
@@ -169,7 +169,7 @@ for (const direction of ["ltr", "rtl"] as const) {
                 ]
               : [],
         },
-        "aigcfroge.global.dat:layout": {
+        "omnixa.global.dat:layout": {
           sidebar: { opened: false, width: 260, workspaces: {}, workspacesDefault: false },
           home: { mode: "work", selection: { server: SERVER } },
           fileTree: { opened: false, width: 240, tab: "changes" },
@@ -217,7 +217,7 @@ for (const direction of ["ltr", "rtl"] as const) {
       { button: review, icon: "sidebar-right", narrowLeft: false },
     ]) {
       const icon = current.button.locator('[data-slot="icon-svg"]')
-      await expect(icon.locator("use")).toHaveAttribute("href", `#aigcfroge-v2-icon-${current.icon}`)
+      await expect(icon.locator("use")).toHaveAttribute("href", `#omnixa-v2-icon-${current.icon}`)
       await expect
         .poll(() =>
           icon.evaluate((element, narrowLeft) => {
@@ -350,7 +350,7 @@ for (const direction of ["ltr", "rtl"] as const) {
       const showLess = projectGroup.getByRole("button", { name: "Show less", exact: true })
 
       await expect(sidebarProject).toHaveAttribute("aria-expanded", "true")
-      await expect(projectIcon).toHaveAttribute("href", "#aigcfroge-v2-icon-folder-open")
+      await expect(projectIcon).toHaveAttribute("href", "#omnixa-v2-icon-folder-open")
       await expect(retry).toBeVisible()
       await expect(unreadBadge).toHaveCount(0)
       await expect(target.locator('[data-component="home-session-title"]')).toHaveText(fixture.expected.targetTitle)
@@ -406,7 +406,7 @@ for (const direction of ["ltr", "rtl"] as const) {
               created: 1700000001000 + index,
               durable: { aggregateID: older.id, seq: index + 1, version: 1 },
               data: { sessionID: older.id },
-            }) satisfies AigcForgeEvent,
+            }) satisfies OmnixaEvent,
         ),
         ...workUnread.map(
           (item, index) =>
@@ -416,7 +416,7 @@ for (const direction of ["ltr", "rtl"] as const) {
               created: 1700000002000 + index,
               durable: { aggregateID: item.id, seq: 1, version: 1 },
               data: { sessionID: item.id },
-            }) satisfies AigcForgeEvent,
+            }) satisfies OmnixaEvent,
         ),
       ]
 
@@ -505,14 +505,14 @@ for (const direction of ["ltr", "rtl"] as const) {
       expect(pressed.background).toBe("rgba(0, 0, 0, 0)")
       expect(pressed.url).toBe(new URL(sessionHref(fixture.targetID), page.url()).href)
       await expect(sidebarProject).toHaveAttribute("aria-expanded", "false")
-      await expect(projectIcon).toHaveAttribute("href", "#aigcfroge-v2-icon-folder")
+      await expect(projectIcon).toHaveAttribute("href", "#omnixa-v2-icon-folder")
       await expect(target).toBeHidden()
       await expect(page).toHaveURL(new URL(sessionHref(fixture.targetID), page.url()).href)
       await sidebarProject.focus()
       await expect(sidebarProject).toBeFocused()
       await sidebarProject.press("Enter")
       await expect(sidebarProject).toHaveAttribute("aria-expanded", "true")
-      await expect(projectIcon).toHaveAttribute("href", "#aigcfroge-v2-icon-folder-open")
+      await expect(projectIcon).toHaveAttribute("href", "#omnixa-v2-icon-folder-open")
       await expect(sidebarProject).toHaveAttribute("data-selected", "")
       await expect(target).toHaveAttribute("aria-current", "page")
 
@@ -554,7 +554,7 @@ for (const direction of ["ltr", "rtl"] as const) {
             badge: await unreadBadge.textContent(),
             activeSessionID: work.id,
             events: notificationEvents,
-            persisted: await page.evaluate(() => localStorage.getItem("aigcfroge.global.dat:notification")),
+            persisted: await page.evaluate(() => localStorage.getItem("omnixa.global.dat:notification")),
           }),
           contentType: "application/json",
         })
@@ -714,7 +714,7 @@ for (const direction of ["ltr", "rtl"] as const) {
       await expect(filePanel).toBeHidden()
       await expect
         .poll(() =>
-          page.evaluate(() => JSON.parse(localStorage.getItem("aigcfroge.global.dat:layout") ?? "{}").sidebar?.opened),
+          page.evaluate(() => JSON.parse(localStorage.getItem("omnixa.global.dat:layout") ?? "{}").sidebar?.opened),
         )
         .toBe(true)
       await page.reload()
@@ -731,14 +731,14 @@ for (const direction of ["ltr", "rtl"] as const) {
       await expect(filePanel).toBeHidden()
       await expect
         .poll(() =>
-          page.evaluate(() => JSON.parse(localStorage.getItem("aigcfroge.global.dat:layout") ?? "{}").sidebar?.opened),
+          page.evaluate(() => JSON.parse(localStorage.getItem("omnixa.global.dat:layout") ?? "{}").sidebar?.opened),
         )
         .toBe(false)
     }
 
     await expect
       .poll(() =>
-        page.evaluate(() => JSON.parse(localStorage.getItem("aigcfroge.global.dat:layout") ?? "{}").fileTree?.opened),
+        page.evaluate(() => JSON.parse(localStorage.getItem("omnixa.global.dat:layout") ?? "{}").fileTree?.opened),
       )
       .toBe(false)
     await expect
@@ -1051,7 +1051,7 @@ test.describe("session menu commands", () => {
     test(`keyboard shortcut ${item.id} uses its existing session action`, async ({ page }, testInfo) => {
       const sessionID = `ses_shortcut_${item.key.toLowerCase()}`
       const title = `Session shortcut ${item.key}`
-      const model = { providerID: "aigcfroge", id: "shortcut-model" }
+      const model = { providerID: "omnixa", id: "shortcut-model" }
       const staged: { sessionID: string; messageID: string }[] = []
       const compactions: { sessionID: string; body: Schema.JsonObject }[] = []
 
@@ -1319,7 +1319,7 @@ test.describe("revert", () => {
       id: "msg_first_reply",
       type: "assistant",
       agent: "build",
-      model: { id: "test", providerID: "aigcfroge" },
+      model: { id: "test", providerID: "omnixa" },
       content: [{ type: "text", text: "First reply" }],
       time: { created: 2, completed: 3 },
     },
@@ -1791,7 +1791,7 @@ test.describe("session management", () => {
         deliveryOrigin: "human",
         senderParticipantID: "par_one",
         attempt: 1,
-        directory: "C:/AigcForge/Delegation consumer",
+        directory: "C:/Omnixa/Delegation consumer",
       },
       {
         delegationID: "dlg_ui",
@@ -1800,7 +1800,7 @@ test.describe("session management", () => {
         deliveryOrigin: "meta",
         senderParticipantID: "par_external",
         attempt: 1,
-        directory: "C:/AigcForge/Delegation consumer",
+        directory: "C:/Omnixa/Delegation consumer",
       },
       {
         delegationID: "dlg_ui",
@@ -1809,7 +1809,7 @@ test.describe("session management", () => {
         deliveryOrigin: "human",
         senderParticipantID: "par_one",
         attempt: 2,
-        directory: "C:/AigcForge/Delegation consumer",
+        directory: "C:/Omnixa/Delegation consumer",
       },
     ])
     await page.screenshot({ path: testInfo.outputPath("collaboration-desktop.png") })
@@ -1818,7 +1818,7 @@ test.describe("session management", () => {
     await expect(collaboration.getByRole("alert")).toContainText("Saved collaboration is temporarily unavailable")
     expect(state.actionCount).toBe(1)
     expect(calls).toEqual([
-      { action: "interrupt", delegationID: "dlg_ui", directory: "C:/AigcForge/Delegation consumer", body: {} },
+      { action: "interrupt", delegationID: "dlg_ui", directory: "C:/Omnixa/Delegation consumer", body: {} },
     ])
     state.unreadable = false
     await collaboration.getByRole("button", { name: "Reload collaborations", exact: true }).click()
@@ -2113,7 +2113,7 @@ test.describe("session management", () => {
             id,
             title: "Readback worker",
             parentID: ids.parent,
-            directory: "C:/AigcForge/SC02 collaboration sources",
+            directory: "C:/Omnixa/SC02 collaboration sources",
             projectID: "proj_sc02_collaboration_sources",
           }),
         )
@@ -3657,7 +3657,7 @@ test("project sessions follow message activity and remain stable while viewed", 
         sessionID: older.id,
         assistantMessageID: "msg_sidebar_new_message",
         agent: "build",
-        model: { providerID: "aigcfroge", id: "test" },
+        model: { providerID: "omnixa", id: "test" },
         started: 10000,
       },
     },

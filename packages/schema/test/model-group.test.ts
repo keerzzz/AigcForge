@@ -44,7 +44,7 @@ test("group writes retain the original target contract and reject unrelated oper
   expect(ModelGroup.Source).toBe(ProviderDefinition.Source)
   const input = {
     groupID: "primary",
-    target: { scope: "project", path: "/workspace/aigcfroge.jsonc" },
+    target: { scope: "project", path: "/workspace/omnixa.jsonc" },
     expectedDigest: null,
     patch: {
       set: {

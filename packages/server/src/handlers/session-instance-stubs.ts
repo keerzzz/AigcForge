@@ -1,29 +1,29 @@
-import { Session } from "@aigcfroge/core/session"
-import { SessionComposition } from "@aigcfroge/core/session/composition"
-import { SessionIdentityProjection } from "@aigcfroge/core/session/session-identity"
-import { LocationServiceMap } from "@aigcfroge/core/location-services"
-import { SessionTask } from "@aigcfroge/core/session/task"
-import { Database } from "@aigcfroge/core/database/database"
-import { getCacheDiagnostics } from "@aigcfroge/core/session/cache-diagnostics"
-import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
-import { MetaAgentMemory } from "@aigcfroge/core/agent/meta/memory"
-import { MetaAgent } from "@aigcfroge/schema/meta-agent"
-import { SessionTodo } from "@aigcfroge/core/session/todo"
-import { WorkflowRun } from "@aigcfroge/core/workflow/workflow-run"
-import { WorkflowExecution } from "@aigcfroge/core/workflow/execution"
+import { Session } from "@omnixa/core/session"
+import { SessionComposition } from "@omnixa/core/session/composition"
+import { SessionIdentityProjection } from "@omnixa/core/session/session-identity"
+import { LocationServiceMap } from "@omnixa/core/location-services"
+import { SessionTask } from "@omnixa/core/session/task"
+import { Database } from "@omnixa/core/database/database"
+import { getCacheDiagnostics } from "@omnixa/core/session/cache-diagnostics"
+import { MetaAgentService } from "@omnixa/core/meta-agent/service"
+import { MetaAgentMemory } from "@omnixa/core/agent/meta/memory"
+import { MetaAgent } from "@omnixa/schema/meta-agent"
+import { SessionTodo } from "@omnixa/core/session/todo"
+import { WorkflowRun } from "@omnixa/core/workflow/workflow-run"
+import { WorkflowExecution } from "@omnixa/core/workflow/execution"
 import {
   ApiNotFoundError,
   ConflictError,
   ForbiddenError,
   InvalidRequestError,
   UnsupportedProductModeError,
-} from "@aigcfroge/protocol/errors"
-import { WorkspaceRouteContext } from "@aigcfroge/protocol/middleware/workspace-routing"
-import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
+} from "@omnixa/protocol/errors"
+import { WorkspaceRouteContext } from "@omnixa/protocol/middleware/workspace-routing"
+import { WorkflowAsset } from "@omnixa/schema/workflow-asset"
 import {
   SessionInstanceCacheDiagnostics,
   SessionInstanceStepCacheStats,
-} from "@aigcfroge/protocol/groups/session-instance"
+} from "@omnixa/protocol/groups/session-instance"
 import { HttpApiBuilder } from "effect/http-api"
 import { Effect } from "effect"
 import { Api } from "../api"

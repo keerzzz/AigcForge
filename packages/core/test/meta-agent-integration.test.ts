@@ -4,87 +4,102 @@ import { createHash, randomUUID } from "node:crypto"
 import { EventEmitter } from "node:events"
 import { Readable, Writable } from "node:stream"
 import type { HookCallback, Query, SDKResultSuccess, SpawnedProcess } from "@anthropic-ai/claude-agent-sdk"
+import os from "node:os"
 import path from "node:path"
-import { MetaPrompt } from "@aigcfroge/core/agent/meta/meta-prompt"
-import { MetaAgentMemory } from "@aigcfroge/core/agent/meta/memory"
-import { AIError, InvalidRequestError, LLMClient, LLMEvent } from "@aigcfroge/ai"
-import { TestLLM } from "@aigcfroge/ai/testing"
-import { Agent } from "@aigcfroge/core/agent"
-import { AgentAsset } from "@aigcfroge/core/agent-asset"
-import { SkillAsset } from "@aigcfroge/core/skill-asset"
-import { Skill } from "@aigcfroge/core/skill"
-import { Tool } from "@aigcfroge/core/tool"
-import { Bus } from "@aigcfroge/core/bus"
-import { Job } from "@aigcfroge/core/job"
-import { KV } from "@aigcfroge/core/kv"
-import { DelegationEvent } from "@aigcfroge/core/delegation/event"
-import { Database } from "@aigcfroge/core/database/database"
-import { DelegationExecution } from "@aigcfroge/core/delegation/execution"
-import { DelegationFold } from "@aigcfroge/core/delegation/fold"
-import { DelegationService } from "@aigcfroge/core/delegation/service"
-import { DelegationReceipt } from "@aigcfroge/core/delegation/receipt"
-import { DelegationReview } from "@aigcfroge/core/delegation/review"
-import { ScopedGrantTable } from "@aigcfroge/core/grant/sql"
-import { Environment } from "@aigcfroge/core/environment/index"
-import { CliAdapter } from "@aigcfroge/core/tool/cli-adapter"
-import { CodexAppServer } from "@aigcfroge/core/tool/codex-app-server"
-import { ClaudeCodeSdkAdapter } from "@aigcfroge/core/tool/claude-code-sdk"
-import { ClaudeCodeAcpAdapter } from "@aigcfroge/core/tool/claude-code-acp"
-import { AcpClientConnection } from "@aigcfroge/core/acp-client/connection"
+import { MetaPrompt } from "@omnixa/core/agent/meta/meta-prompt"
+import { MetaAgentMemory } from "@omnixa/core/agent/meta/memory"
+import { AIError, InvalidRequestError, LLMClient, LLMEvent } from "@omnixa/ai"
+import { TestLLM } from "@omnixa/ai/testing"
+import { Agent } from "@omnixa/core/agent"
+import { AgentAsset } from "@omnixa/core/agent-asset"
+import { SkillAsset } from "@omnixa/core/skill-asset"
+import { Skill } from "@omnixa/core/skill"
+import { Tool } from "@omnixa/core/tool"
+import { Bus } from "@omnixa/core/bus"
+import { Job } from "@omnixa/core/job"
+import { KV } from "@omnixa/core/kv"
+import { DelegationEvent } from "@omnixa/core/delegation/event"
+import { Database } from "@omnixa/core/database/database"
+import { DelegationExecution } from "@omnixa/core/delegation/execution"
+import { DelegationFold } from "@omnixa/core/delegation/fold"
+import { DelegationService } from "@omnixa/core/delegation/service"
+import { DelegationReceipt } from "@omnixa/core/delegation/receipt"
+import { DelegationReview } from "@omnixa/core/delegation/review"
+import { ScopedGrantTable } from "@omnixa/core/grant/sql"
+import { Environment } from "@omnixa/core/environment/index"
+import { CliAdapter } from "@omnixa/core/tool/cli-adapter"
+import { CodexAppServer } from "@omnixa/core/tool/codex-app-server"
+import { ClaudeCodeSdkAdapter } from "@omnixa/core/tool/claude-code-sdk"
+import { ClaudeCodeAcpAdapter } from "@omnixa/core/tool/claude-code-acp"
+import { AcpClientConnection } from "@omnixa/core/acp-client/connection"
 import { AgentSideConnection } from "@agentclientprotocol/sdk"
 import type { AnyMessage, InitializeRequest, ReadTextFileRequest } from "@agentclientprotocol/sdk"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNodePlatform } from "@aigcfroge/core/effect/app-node-platform"
-import { Location } from "@aigcfroge/core/location"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
-import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNodePlatform } from "@omnixa/core/effect/app-node-platform"
+import { Location } from "@omnixa/core/location"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
+import { MetaAgentService } from "@omnixa/core/meta-agent/service"
 import {
   MetaAgentMemoryTable,
   MetaAgentStepTable,
   MetaAgentSessionTable,
   MetaAgentTable,
-} from "@aigcfroge/core/meta-agent/sql"
-import { EventTable } from "@aigcfroge/core/event/sql"
-import { Form } from "@aigcfroge/core/form"
-import { Model } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
-import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Session } from "@aigcfroge/core/session"
-import { SessionSchema } from "@aigcfroge/core/session/schema"
-import { SessionEvent } from "@aigcfroge/core/session/event"
-import { SessionExecution } from "@aigcfroge/core/session/execution"
-import { SessionInputResult } from "@aigcfroge/core/session/input-result"
-import { SessionInbox } from "@aigcfroge/core/session/inbox"
-import { SessionMessageTable, SessionTable } from "@aigcfroge/core/session/sql"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { SessionTask } from "@aigcfroge/core/session/task"
-import { SessionComposition } from "@aigcfroge/core/session/composition"
-import { WorkflowAsset } from "@aigcfroge/core/workflow-asset"
-import { WorkflowExecution } from "@aigcfroge/core/workflow/execution"
-import { WorkflowRun } from "@aigcfroge/core/workflow/workflow-run"
-import { WorkflowRunTable } from "@aigcfroge/core/workflow/sql"
-import { Composition } from "@aigcfroge/schema/composition"
-import { ConfigMeta } from "@aigcfroge/core/config/meta"
-import { Config } from "@aigcfroge/core/config"
-import { Verifier } from "@aigcfroge/core/session/verifier"
-import { VerificationRouter } from "@aigcfroge/core/session/verification-router"
-import { TaskTool } from "@aigcfroge/core/tool/plugin/task"
-import { ClaudeCodeAdapter } from "@aigcfroge/core/tool/claude-code"
-import { SessionShareTool } from "@aigcfroge/core/tool/plugin/share"
-import { QuestionTool } from "@aigcfroge/core/tool/plugin/question"
-import { Delegation } from "@aigcfroge/schema/delegation"
-import { DelegationID, ParticipantID, TurnID } from "@aigcfroge/schema/delegation-id"
-import { Permission } from "@aigcfroge/core/permission"
-import { ApprovalPresence } from "@aigcfroge/core/permission/approval-presence"
-import { MetaAgent } from "@aigcfroge/schema/meta-agent"
-import { Event } from "@aigcfroge/schema/event"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Global } from "@aigcfroge/util/global"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+} from "@omnixa/core/meta-agent/sql"
+import { EventTable } from "@omnixa/core/event/sql"
+import { Form } from "@omnixa/core/form"
+import { Model } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
+import { PluginHooks } from "@omnixa/core/plugin/hooks"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Session } from "@omnixa/core/session"
+import { SessionSchema } from "@omnixa/core/session/schema"
+import { SessionEvent } from "@omnixa/core/session/event"
+import { SessionExecution } from "@omnixa/core/session/execution"
+import { SessionInputResult } from "@omnixa/core/session/input-result"
+import { SessionInbox } from "@omnixa/core/session/inbox"
+import { SessionMessageTable, SessionTable } from "@omnixa/core/session/sql"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { SessionTask } from "@omnixa/core/session/task"
+import { SessionComposition } from "@omnixa/core/session/composition"
+import { WorkflowAsset } from "@omnixa/core/workflow-asset"
+import { WorkflowExecution } from "@omnixa/core/workflow/execution"
+import { WorkflowRun } from "@omnixa/core/workflow/workflow-run"
+import { WorkflowRunTable } from "@omnixa/core/workflow/sql"
+import { Composition } from "@omnixa/schema/composition"
+import { ConfigMeta } from "@omnixa/core/config/meta"
+import { Config } from "@omnixa/core/config"
+import { Verifier } from "@omnixa/core/session/verifier"
+import { VerificationRouter } from "@omnixa/core/session/verification-router"
+import { TaskTool } from "@omnixa/core/tool/plugin/task"
+import { ClaudeCodeAdapter } from "@omnixa/core/tool/claude-code"
+import { SessionShareTool } from "@omnixa/core/tool/plugin/share"
+import { QuestionTool } from "@omnixa/core/tool/plugin/question"
+import { Delegation } from "@omnixa/schema/delegation"
+import { DelegationID, ParticipantID, TurnID } from "@omnixa/schema/delegation-id"
+import { Permission } from "@omnixa/core/permission"
+import { ApprovalPresence } from "@omnixa/core/permission/approval-presence"
+import { MetaAgent } from "@omnixa/schema/meta-agent"
+import { Event } from "@omnixa/schema/event"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Global } from "@omnixa/util/global"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { and, eq, sql } from "drizzle-orm"
-import { Cause, Context, DateTime, Deferred, Effect, Exit, Fiber, Layer, Option, Schema, Stream, Struct } from "effect"
+import {
+  Cause,
+  Context,
+  DateTime,
+  Deferred,
+  Effect,
+  Exit,
+  Fiber,
+  Layer,
+  Option,
+  Result,
+  Schema,
+  Stream,
+  Struct,
+} from "effect"
 import { git, initRepo } from "./fixture/git"
 import { tempGlobalLayer } from "./fixture/global"
 import { offlineModels, useOfflineCatalog } from "./fixture/models"
@@ -128,7 +143,7 @@ describe("Meta-agent A injection integration", () => {
 
   it("fillCliList refills an earlier empty fill (order-independent)", () => {
     // The core plugin fills {{CLI_LIST}} with an empty list at init; the
-    // aigcfroge filler must still be able to overwrite that marker later.
+    // omnixa filler must still be able to overwrite that marker later.
     const empty = MetaPrompt.fillCliList("CLIs:\n{{CLI_LIST}}", [])
     expect(empty).toContain(MetaPrompt.NO_CLI_MESSAGE)
     const refilled = MetaPrompt.fillCliList(empty, ["claude-code", "codex"])
@@ -205,7 +220,7 @@ const metaSetup = (
     if (external || meta)
       yield* Effect.promise(() =>
         Bun.write(
-          `${directory.path}/aigcfroge.json`,
+          `${directory.path}/omnixa.json`,
           JSON.stringify({
             ...(external
               ? {
@@ -235,7 +250,7 @@ const metaSetup = (
         info: Provider.Info.make({
           ...Provider.Info.empty(providerID),
           activation: "enabled",
-          package: "@aigcfroge/ai/providers/openai/responses",
+          package: "@omnixa/ai/providers/openai/responses",
         }),
         models: [metaModel, executorModel].map((ref) => Model.Info.make(Model.Info.default(ref.providerID, ref.id))),
       },
@@ -496,7 +511,7 @@ effectTest.live(
       })
       const reviewText = (digest: string, verdict: "rejected" | "approved") =>
         `<review>${JSON.stringify({
-          kind: "aigcfroge.review.v1",
+          kind: "omnixa.review.v1",
           reviewed_revision_digest: digest,
           verdict,
           findings: [],
@@ -1476,7 +1491,7 @@ effectTest.live(
           info: Provider.Info.make({
             ...Provider.Info.empty(fixture.metaModel.providerID),
             activation: "enabled",
-            package: "@aigcfroge/ai/providers/openai/responses",
+            package: "@omnixa/ai/providers/openai/responses",
           }),
           models: [fixture.metaModel, fixture.executorModel, ...refs].map((ref) =>
             Model.Info.make({
@@ -1693,7 +1708,7 @@ effectTest.live(
           info: Provider.Info.make({
             ...Provider.Info.empty(fixture.metaModel.providerID),
             activation: "enabled",
-            package: "@aigcfroge/ai/providers/openai/responses",
+            package: "@omnixa/ai/providers/openai/responses",
           }),
           models: [
             Model.Info.make(Model.Info.default(fixture.metaModel.providerID, fixture.metaModel.id)),
@@ -1878,7 +1893,7 @@ effectTest.live(
       expect((yield* fixture.sessions.inbox(fixture.root.id)).filter((item) => item.type === "synthetic")).toEqual([])
       expect((yield* fixture.sessions.get(fixture.root.id)).mode).toBe("work")
       expect((yield* fixture.sessions.get(fixture.root.id)).agent).toBe(Agent.ID.make("meta"))
-      const evidencePath = process.env.AIGCFROGE_MC08_J1_EVIDENCE
+      const evidencePath = process.env.OMNIXA_MC08_J1_EVIDENCE
       if (evidencePath)
         yield* Effect.promise(() =>
           Bun.write(
@@ -1926,11 +1941,11 @@ effectTest.live("MC08 W2 ordinary Work Meta consumes a frozen Workflow through i
         { id: "B", name: "B", agent: "wf-coder", input: { payload: "published B" }, next: "END" },
       ],
     })
-    yield* Effect.promise(() => Bun.write(`${fixture.root.location.directory}/.aigcfroge/agents/wf-coder.md`, agent))
+    yield* Effect.promise(() => Bun.write(`${fixture.root.location.directory}/.omnixa/agents/wf-coder.md`, agent))
     yield* Effect.promise(() =>
-      Bun.write(`${fixture.root.location.directory}/.aigcfroge/workflows/mc08-w2.yaml`, workflow),
+      Bun.write(`${fixture.root.location.directory}/.omnixa/workflows/mc08-w2.yaml`, workflow),
     )
-    yield* Effect.promise(() => Bun.write(`${fixture.root.location.directory}/.aigcfroge/skills/wf/SKILL.md`, skill))
+    yield* Effect.promise(() => Bun.write(`${fixture.root.location.directory}/.omnixa/skills/wf/SKILL.md`, skill))
     yield* AgentAsset.Service.use((assets) => assets.reload()).pipe(Effect.provide(local))
     yield* WorkflowAsset.Service.use((assets) => assets.reload()).pipe(Effect.provide(local))
     yield* SkillAsset.Service.use((assets) => assets.reload()).pipe(Effect.provide(local))
@@ -2007,7 +2022,7 @@ effectTest.live("MC08 W2 ordinary Work Meta consumes a frozen Workflow through i
     ).pipe(Effect.provide(local))
     yield* Effect.promise(() =>
       Bun.write(
-        `${fixture.root.location.directory}/.aigcfroge/skills/wf/SKILL.md`,
+        `${fixture.root.location.directory}/.omnixa/skills/wf/SKILL.md`,
         "---\nname: wf\ndescription: Changed skill\n---\nLIVE_CHANGED_WORKFLOW_SKILL_BODY\n",
       ),
     )
@@ -2018,7 +2033,7 @@ effectTest.live("MC08 W2 ordinary Work Meta consumes a frozen Workflow through i
           Skill.Info.make({
             id: Skill.ID.make("wf"),
             name: Skill.Name.make("wf"),
-            path: AbsolutePath.make(`${fixture.root.location.directory}/.aigcfroge/skills/wf/SKILL.md`),
+            path: AbsolutePath.make(`${fixture.root.location.directory}/.omnixa/skills/wf/SKILL.md`),
             content: "LIVE_CHANGED_WORKFLOW_SKILL_BODY",
           }),
         ),
@@ -2174,10 +2189,8 @@ effectTest.live("MC08 W2 ordinary Work Meta consumes a frozen Workflow through i
     console.info("MC08_W2_PARENT", JSON.stringify({ callID: "mc08-w2-workflow", source, binding, text, consumed }))
     const registry = yield* Tool.Service.pipe(Effect.provide(local))
     const beforeRetryTasks = yield* SessionTask.Service.use((tasks) => tasks.get(fixture.root.id))
-    yield* Effect.promise(() => Bun.file(`${fixture.root.location.directory}/.aigcfroge/agents/wf-coder.md`).delete())
-    yield* Effect.promise(() =>
-      Bun.file(`${fixture.root.location.directory}/.aigcfroge/workflows/mc08-w2.yaml`).delete(),
-    )
+    yield* Effect.promise(() => Bun.file(`${fixture.root.location.directory}/.omnixa/agents/wf-coder.md`).delete())
+    yield* Effect.promise(() => Bun.file(`${fixture.root.location.directory}/.omnixa/workflows/mc08-w2.yaml`).delete())
     yield* AgentAsset.Service.use((assets) => assets.reload()).pipe(Effect.provide(local))
     yield* WorkflowAsset.Service.use((assets) => assets.reload()).pipe(Effect.provide(local))
     const retryCall = {
@@ -2335,7 +2348,7 @@ const mc07Review = Effect.fnUntraced(function* (
     }),
     TestLLM.text(
       `<review>${JSON.stringify({
-        kind: "aigcfroge.review.v1",
+        kind: "omnixa.review.v1",
         reviewed_revision_digest: digest,
         verdict,
         findings: [],
@@ -3354,7 +3367,7 @@ effectTest.live(
           revision_digest: fixture.digest,
         }),
         TestLLM.text(
-          `<review>${JSON.stringify({ kind: "aigcfroge.review.v1", reviewed_revision_digest: fixture.digest, verdict: "changes_requested", findings: [], summary: "Add the required r2 line." })}</review>`,
+          `<review>${JSON.stringify({ kind: "omnixa.review.v1", reviewed_revision_digest: fixture.digest, verdict: "changes_requested", findings: [], summary: "Add the required r2 line." })}</review>`,
           "mc07-r2-changes-child",
         ),
         TestLLM.text("Consumed the request for repair.", "mc07-r2-changes-parent"),
@@ -3417,7 +3430,7 @@ effectTest.live(
           revision_digest: digest,
         }),
         TestLLM.text(
-          `<review>${JSON.stringify({ kind: "aigcfroge.review.v1", reviewed_revision_digest: digest, verdict: "approved", findings: [], summary: "The actual R2 is approved." })}</review>`,
+          `<review>${JSON.stringify({ kind: "omnixa.review.v1", reviewed_revision_digest: digest, verdict: "approved", findings: [], summary: "The actual R2 is approved." })}</review>`,
           "mc07-r2-approve-child",
         ),
         TestLLM.text("Consumed the current approval.", "mc07-r2-approve-parent"),
@@ -4241,7 +4254,7 @@ effectTest.live("MC07 R1 produces a complete artifact and typed review through r
       "Review context " +
       "x".repeat(60000) +
       `\n<review>${JSON.stringify({
-        kind: "aigcfroge.review.v1",
+        kind: "omnixa.review.v1",
         reviewed_revision_digest: fixture.digest,
         verdict: "approved",
         findings: [],
@@ -4597,7 +4610,7 @@ for (const invalid of ["missing", "malformed", "wrong_digest"] as const)
           ? "Approved without an envelope."
           : invalid === "malformed"
             ? "<review>{broken}</review>"
-            : `<review>${JSON.stringify({ kind: "aigcfroge.review.v1", reviewed_revision_digest: `rev_${"f".repeat(64)}`, verdict: "approved", findings: [], summary: "Wrong artifact." })}</review>`
+            : `<review>${JSON.stringify({ kind: "omnixa.review.v1", reviewed_revision_digest: `rev_${"f".repeat(64)}`, verdict: "approved", findings: [], summary: "Wrong artifact." })}</review>`
       yield* fixture.llm.push(
         TestLLM.tool("mc07-invalid-review", TaskTool.name, {
           description: "Validate one review",
@@ -6182,17 +6195,17 @@ const externalSetup = (
     if (background)
       yield* Effect.acquireRelease(
         Effect.sync(() => {
-          const previous = process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS
-          process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS = "1"
+          const previous = process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS
+          process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS = "1"
           return previous
         }),
         (previous) =>
           Effect.sync(() => {
             if (previous === undefined) {
-              delete process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS
+              delete process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS
               return
             }
-            process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS = previous
+            process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS = previous
           }),
       )
     const calls: {
@@ -6526,7 +6539,7 @@ effectTest.live(
         "MC07_EXTERNAL_R1_" +
         "x".repeat(5000) +
         `<review>${JSON.stringify({
-          kind: "aigcfroge.review.v1",
+          kind: "omnixa.review.v1",
           reviewed_revision_digest: fixture.digest,
           verdict: "rejected",
           findings: [{ file: "artifact.txt", severity: "blocking", summary: "将末行 r1 改为 r2，保留 base 行。" }],
@@ -6645,7 +6658,7 @@ effectTest.live(
       expect(repaired?.revisions).toHaveLength(2)
       expect(repaired?.revisions[1]).toMatchObject({ revisionDigest: digest, changeKind: "rework" })
       external.outputs[1] = `<review>${JSON.stringify({
-        kind: "aigcfroge.review.v1",
+        kind: "omnixa.review.v1",
         reviewed_revision_digest: digest,
         verdict: "approved",
         findings: [],
@@ -7088,7 +7101,7 @@ for (const invalid of ["missing", "malformed", "wrong_digest"] as const)
           : invalid === "malformed"
             ? "<review>{not-json}</review>"
             : `<review>${JSON.stringify({
-                kind: "aigcfroge.review.v1",
+                kind: "omnixa.review.v1",
                 reviewed_revision_digest: `rev_${"0".repeat(64)}`,
                 verdict: "approved",
                 findings: [],
@@ -7183,7 +7196,7 @@ for (const ownerDuringRead of [false, true])
           "MC07_COLD_" +
           "x".repeat(5000) +
           `<review>${JSON.stringify({
-            kind: "aigcfroge.review.v1",
+            kind: "omnixa.review.v1",
             reviewed_revision_digest: fixture.digest,
             verdict: "rejected",
             findings: [],
@@ -7248,7 +7261,7 @@ for (const ownerDuringRead of [false, true])
             info: Provider.Info.make({
               ...Provider.Info.empty(fixture.metaModel.providerID),
               activation: "enabled",
-              package: "@aigcfroge/ai/providers/openai/responses",
+              package: "@omnixa/ai/providers/openai/responses",
             }),
             models: [fixture.metaModel, fixture.executorModel].map((ref) =>
               Model.Info.make(Model.Info.default(ref.providerID, ref.id)),
@@ -7902,7 +7915,7 @@ for (const linked of [false, true])
           const locations = yield* LocationServiceMap.Service
           const config = yield* Config.Service.pipe(Effect.provide(locations.get(f.root.location)))
           const files = yield* FSUtil.Service
-          yield* files.writeFileString(`${f.root.location.directory}/aigcfroge.json`, "{}\n")
+          yield* files.writeFileString(`${f.root.location.directory}/omnixa.json`, "{}\n")
           yield* pollWithTimeout(
             config
               .entries()
@@ -8099,7 +8112,7 @@ effectTest.live("MC06 R3a closes a shared Job and withdraws its permission witho
 effectTest.live("MC06-R2 keeps external Task foreground when the background flag is disabled", () =>
   Effect.gen(function* () {
     const f = yield* externalSetup(false, Agent.ID.make("meta"), true)
-    process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS = "0"
+    process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS = "0"
     f.outputs[0] = "MC06_FOREGROUND_FLAG_DISABLED"
     yield* f.sessions.prompt({ sessionID: f.root.id, text: "Request background with the feature disabled." })
     yield* pollWithTimeout(
@@ -8792,17 +8805,17 @@ const sdkTaskSetup = (
     if (background)
       yield* Effect.acquireRelease(
         Effect.sync(() => {
-          const previous = process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS
-          process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS = "1"
+          const previous = process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS
+          process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS = "1"
           return previous
         }),
         (previous) =>
           Effect.sync(() => {
             if (previous === undefined) {
-              delete process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS
+              delete process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS
               return
             }
-            process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS = previous
+            process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS = previous
           }),
       )
     const nativeStarted = yield* Deferred.make<void>()
@@ -8987,17 +9000,17 @@ const sdkSteerUser = Schema.Struct({
 const sdkSteerSetup = Effect.fnUntraced(function* (timeoutMs = 30_000, cancelA = true) {
   yield* Effect.acquireRelease(
     Effect.sync(() => {
-      const previous = process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS
-      process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS = "1"
+      const previous = process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS
+      process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS = "1"
       return previous
     }),
     (previous) =>
       Effect.sync(() => {
         if (previous === undefined) {
-          delete process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS
+          delete process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS
           return
         }
-        process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS = previous
+        process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS = previous
       }),
   )
   const f = yield* metaSetup(
@@ -10582,17 +10595,17 @@ effectTest.live(
     Effect.gen(function* () {
       yield* Effect.acquireRelease(
         Effect.sync(() => {
-          const previous = process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS
-          delete process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS
+          const previous = process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS
+          delete process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS
           return previous
         }),
         (previous) =>
           Effect.sync(() => {
             if (previous === undefined) {
-              delete process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS
+              delete process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS
               return
             }
-            process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS = previous
+            process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS = previous
           }),
       )
       const f = yield* acpTaskSetup()
@@ -11771,7 +11784,7 @@ for (const scenario of [
           info: Provider.Info.make({
             ...Provider.Info.empty(f.metaModel.providerID),
             activation: "enabled",
-            package: "@aigcfroge/ai/providers/openai/responses",
+            package: "@omnixa/ai/providers/openai/responses",
           }),
           models: [f.metaModel, f.executorModel].map((ref) =>
             Model.Info.make(Model.Info.default(ref.providerID, ref.id)),
@@ -12534,7 +12547,7 @@ for (const scenario of [
           info: Provider.Info.make({
             ...Provider.Info.empty(f.metaModel.providerID),
             activation: "enabled",
-            package: "@aigcfroge/ai/providers/openai/responses",
+            package: "@omnixa/ai/providers/openai/responses",
           }),
           models: [f.metaModel, f.executorModel].map((ref) =>
             Model.Info.make(Model.Info.default(ref.providerID, ref.id)),
@@ -13032,7 +13045,7 @@ effectTest.live(
         "MC06_SDK_REVIEW_0" +
         sdk.text +
         `<review>${JSON.stringify({
-          kind: "aigcfroge.review.v1",
+          kind: "omnixa.review.v1",
           reviewed_revision_digest: f.digest,
           verdict: "rejected",
           findings: [{ file: "artifact.txt", severity: "blocking", summary: "Replace r1 with r2 and preserve base." }],
@@ -13115,7 +13128,7 @@ effectTest.live(
         "MC06_SDK_REVIEW_1_" +
         sdk.continuedText +
         `<review>${JSON.stringify({
-          kind: "aigcfroge.review.v1",
+          kind: "omnixa.review.v1",
           reviewed_revision_digest: digest,
           verdict: "approved",
           findings: [],
@@ -13241,7 +13254,7 @@ for (const invalid of ["missing", "malformed", "wrong_digest"] as const)
           ? "No typed review was returned."
           : invalid === "malformed"
             ? "<review>{not-json}</review>"
-            : `<review>${JSON.stringify({ kind: "aigcfroge.review.v1", reviewed_revision_digest: `rev_${"0".repeat(64)}`, verdict: "approved", findings: [], summary: "A different artifact was reviewed." })}</review>`)
+            : `<review>${JSON.stringify({ kind: "omnixa.review.v1", reviewed_revision_digest: `rev_${"0".repeat(64)}`, verdict: "approved", findings: [], summary: "A different artifact was reviewed." })}</review>`)
       yield* Deferred.succeed(sdk.resultGate, undefined)
       const id = `mc06-sdk-review-invalid-${invalid}`
       const result = yield* sdkTask(f, id, {
@@ -13325,7 +13338,7 @@ for (const terminal of ["cancelled", "missing-uuid"] as const)
       const id = `mc06-sdk-review-terminal-${terminal}`
       sdk.outputs[0] =
         sdk.text +
-        `<review>${JSON.stringify({ kind: "aigcfroge.review.v1", reviewed_revision_digest: f.digest, verdict: "approved", findings: [], summary: "The artifact would otherwise be approved." })}</review>`
+        `<review>${JSON.stringify({ kind: "omnixa.review.v1", reviewed_revision_digest: f.digest, verdict: "approved", findings: [], summary: "The artifact would otherwise be approved." })}</review>`
       yield* f.llm.push(
         TestLLM.tool(id, TaskTool.name, {
           description: "Review before the terminal boundary",
@@ -13409,7 +13422,7 @@ for (const scenario of [
         sdk.text +
         (scenario.kind === "invalid"
           ? "<review>{not-json}</review>"
-          : `<review>${JSON.stringify({ kind: "aigcfroge.review.v1", reviewed_revision_digest: f.digest, verdict: "approved", findings: [], summary: "The original R1 is approved." })}</review>`)
+          : `<review>${JSON.stringify({ kind: "omnixa.review.v1", reviewed_revision_digest: f.digest, verdict: "approved", findings: [], summary: "The original R1 is approved." })}</review>`)
       const locations = Context.get(originalContext, LocationServiceMap.Service)
       const hooks = yield* PluginHooks.Service.pipe(Effect.provide(locations.get(f.root.location)))
       const entered = yield* Deferred.make<void>()
@@ -13470,7 +13483,7 @@ for (const scenario of [
           info: Provider.Info.make({
             ...Provider.Info.empty(f.metaModel.providerID),
             activation: "enabled",
-            package: "@aigcfroge/ai/providers/openai/responses",
+            package: "@omnixa/ai/providers/openai/responses",
           }),
           models: [f.metaModel, f.executorModel].map((ref) =>
             Model.Info.make(Model.Info.default(ref.providerID, ref.id)),
@@ -14454,7 +14467,7 @@ for (const phase of ["queued", "start_unknown"] as const)
             info: Provider.Info.make({
               ...Provider.Info.empty(f.metaModel.providerID),
               activation: "enabled",
-              package: "@aigcfroge/ai/providers/openai/responses",
+              package: "@omnixa/ai/providers/openai/responses",
             }),
             models: [f.metaModel, f.executorModel].map((ref) =>
               Model.Info.make(Model.Info.default(ref.providerID, ref.id)),
@@ -14587,7 +14600,7 @@ testEffect(Layer.empty).live(
         "MC06_SDK_REVIEW_0" +
         sdk.text +
         `<review>${JSON.stringify({
-          kind: "aigcfroge.review.v1",
+          kind: "omnixa.review.v1",
           reviewed_revision_digest: f.digest,
           verdict: "rejected",
           findings: [{ file: "artifact.txt", severity: "blocking", summary: "The original R1 requires repair." }],
@@ -14699,7 +14712,7 @@ testEffect(Layer.empty).live(
           info: Provider.Info.make({
             ...Provider.Info.empty(f.metaModel.providerID),
             activation: "enabled",
-            package: "@aigcfroge/ai/providers/openai/responses",
+            package: "@omnixa/ai/providers/openai/responses",
           }),
           models: [f.metaModel, f.executorModel].map((ref) =>
             Model.Info.make(Model.Info.default(ref.providerID, ref.id)),
@@ -14893,7 +14906,7 @@ const sdkEarlyOpen = Effect.fnUntraced(function* (
       info: Provider.Info.make({
         ...Provider.Info.empty(fixture.metaModel.providerID),
         activation: "enabled",
-        package: "@aigcfroge/ai/providers/openai/responses",
+        package: "@omnixa/ai/providers/openai/responses",
       }),
       models: [fixture.metaModel, fixture.executorModel].map((ref) =>
         Model.Info.make(Model.Info.default(ref.providerID, ref.id)),
@@ -15000,7 +15013,7 @@ const sdkEarlyReviewerStage = Effect.fnUntraced(function* (phase: "raw" | "deliv
     "MC06_SDK_REVIEW_0" +
     sdk.text +
     `<review>${JSON.stringify({
-      kind: "aigcfroge.review.v1",
+      kind: "omnixa.review.v1",
       reviewed_revision_digest: f.digest,
       verdict: "rejected",
       findings: [{ file: "artifact.txt", severity: "blocking", summary: "The original R1 requires repair." }],
@@ -15731,15 +15744,83 @@ reader.on("close", () => {
     jobs: yield* Job.Service,
     bus: yield* Bus.Service,
     events: files.readFileString(logPath).pipe(
-      Effect.map((text) =>
-        text
-          .split("\n")
-          .filter(Boolean)
-          .map((line) => Schema.decodeUnknownSync(Schema.fromJsonString(JsonlPeerEvent))(line)),
+      Effect.flatMap((text) =>
+        Effect.gen(function* () {
+          const lines = text.split("\n")
+          // A newline commits a sidecar record; the final split item is pending or empty.
+          const decoded = lines
+            .slice(0, -1)
+            .flatMap((line, index) =>
+              line
+                ? [{ line, index, result: Schema.decodeUnknownResult(Schema.fromJsonString(JsonlPeerEvent))(line) }]
+                : [],
+            )
+          const invalid = decoded.flatMap((entry) =>
+            Result.isFailure(entry.result)
+              ? [{ line: entry.line, index: entry.index, cause: entry.result.failure }]
+              : [],
+          )[0]
+
+          if (invalid) {
+            const evidencePath = path.join(
+              process.env.OMNIXA_TEST_EVIDENCE_DIR ?? os.tmpdir(),
+              `omnixa-jsonl-peer-snapshot-${randomUUID()}.jsonl`,
+            )
+            yield* files.writeWithDirs(evidencePath, text)
+            return yield* Effect.die(
+              new Error(
+                `MC06 JSONL decode diagnostic ${JSON.stringify({
+                  stage: "jsonl_peer_log",
+                  logPath,
+                  evidencePath,
+                  snapshotChars: text.length,
+                  snapshotUtf8Bytes: Buffer.byteLength(text, "utf8"),
+                  snapshotEndsWithNewline: text.endsWith("\n"),
+                  lineCount: text.endsWith("\n") ? lines.length - 1 : lines.length,
+                  failedLineNumber: invalid.index + 1,
+                  failedLineTerminated: invalid.index < lines.length - 1,
+                  failedLineChars: invalid.line.length,
+                  failedLinePrefix: invalid.line.slice(0, 160),
+                  failedLineSuffix: invalid.line.slice(-160),
+                })}`,
+                { cause: invalid.cause },
+              ),
+            )
+          }
+
+          return decoded.flatMap((entry) => (Result.isSuccess(entry.result) ? [entry.result.success] : []))
+        }),
       ),
     ),
   }
 })
+
+effectTest.live(
+  "MC06 JSONL journal waits for newline before reading each record and rejects malformed complete records",
+  () =>
+    Effect.gen(function* () {
+      const f = yield* jsonlTaskSetup()
+      expect(yield* f.events).toEqual([])
+      const first = JSON.stringify({ event: "first", pid: process.pid, content: "第一条🙂" })
+      const second = JSON.stringify({ event: "second", pid: process.pid, content: "第二条🙂" })
+      const boundary = Math.floor(second.length / 2)
+      yield* f.files.writeFileString(f.logPath, first + "\n" + second.slice(0, boundary))
+      expect((yield* f.events).map((event) => event.event)).toEqual(["first"])
+      yield* f.files.writeFileString(f.logPath, second.slice(boundary) + "\n", { flag: "a" })
+      expect((yield* f.events).map((event) => event.event)).toEqual(["first", "second"])
+      yield* f.files.writeFileString(f.logPath, '{"event": }\n', { flag: "a" })
+      const failed = yield* f.events.pipe(Effect.exit)
+      expect(Exit.isFailure(failed)).toBe(true)
+      if (Exit.isFailure(failed)) {
+        const defect = Cause.findDefect(failed.cause)
+        expect(
+          Result.isSuccess(defect) &&
+            (Schema.isSchemaError(defect.success) ||
+              (defect.success instanceof Error && Schema.isSchemaError(defect.success.cause))),
+        ).toBe(true)
+      }
+    }),
+)
 
 const jsonlInput = (
   f: Effect.Success<ReturnType<typeof jsonlTaskSetup>>,
@@ -16222,9 +16303,36 @@ for (const phase of ["binding", "task", "delivery", "tool"] as const)
         const consumed = yield* mc07Consumed(opened, f.id)
         if (consumed.tool.state.status !== "completed")
           return yield* Effect.die(new Error(`Cold JSONL ${phase} did not publish its original complete Tool result`))
-        const output = Schema.decodeUnknownSync(Schema.fromJsonString(DelegationReceipt.JsonlOutput))(consumed.text)
-        expect(output.output).toBe(f.outputs[0])
-        expect(output.jsonlMessage).toEqual(f.receipt.jsonlMessage)
+        const output = Schema.decodeUnknownResult(Schema.fromJsonString(DelegationReceipt.JsonlOutput))(consumed.text)
+        if (Result.isFailure(output)) {
+          const evidencePath = path.join(
+            process.env.OMNIXA_TEST_EVIDENCE_DIR ?? os.tmpdir(),
+            `omnixa-jsonl-tool-result-${phase}-${randomUUID()}.json`,
+          )
+          yield* f.files.writeWithDirs(evidencePath, consumed.text)
+          return yield* Effect.die(
+            new Error(
+              `MC06 JSONL decode diagnostic ${JSON.stringify({
+                stage: "jsonl_tool_result",
+                phase,
+                callID: f.id,
+                evidencePath,
+                snapshotChars: consumed.text.length,
+                snapshotUtf8Bytes: Buffer.byteLength(consumed.text, "utf8"),
+                snapshotEndsWithNewline: consumed.text.endsWith("\n"),
+                contentParts: consumed.tool.state.content.map((part) => ({
+                  type: part.type,
+                  ...(part.type === "text" ? { chars: part.text.length } : {}),
+                })),
+                snapshotPrefix: consumed.text.slice(0, 160),
+                snapshotSuffix: consumed.text.slice(-160),
+              })}`,
+              { cause: output.failure },
+            ),
+          )
+        }
+        expect(output.success.output).toBe(f.outputs[0])
+        expect(output.success.jsonlMessage).toEqual(f.receipt.jsonlMessage)
         expect(
           Schema.decodeUnknownSync(DelegationReceipt.Jsonl)(consumed.tool.state.metadata?.externalReceipt),
         ).toEqual(f.receipt)
@@ -16395,17 +16503,17 @@ effectTest.live(
 const sdkResultPairSetup = Effect.fnUntraced(function* (duplicate = false) {
   yield* Effect.acquireRelease(
     Effect.sync(() => {
-      const previous = process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS
-      process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS = "1"
+      const previous = process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS
+      process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS = "1"
       return previous
     }),
     (previous) =>
       Effect.sync(() => {
         if (previous === undefined) {
-          delete process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS
+          delete process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS
           return
         }
-        process.env.AIGCFROGE_EXPERIMENTAL_BACKGROUND_SUBAGENTS = previous
+        process.env.OMNIXA_EXPERIMENTAL_BACKGROUND_SUBAGENTS = previous
       }),
   )
   const f = yield* metaSetup(

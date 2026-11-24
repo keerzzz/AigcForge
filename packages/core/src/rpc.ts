@@ -1,13 +1,13 @@
 export * as Rpc from "./rpc.js"
-export { define } from "@aigcfroge/schema/rpc"
-export type { Definition, EventPayload, Failure } from "@aigcfroge/schema/rpc"
+export { define } from "@omnixa/schema/rpc"
+export type { Definition, EventPayload, Failure } from "@omnixa/schema/rpc"
 
-import type { RpcClient, RpcDomain, RpcHandlers } from "@aigcfroge/plugin/effect/rpc"
-import type { Rpc } from "@aigcfroge/schema/rpc"
-import { Event } from "@aigcfroge/schema/event"
-import type { Tool } from "@aigcfroge/schema/tool"
+import type { RpcClient, RpcDomain, RpcHandlers } from "@omnixa/plugin/effect/rpc"
+import type { Rpc } from "@omnixa/schema/rpc"
+import { Event } from "@omnixa/schema/event"
+import type { Tool } from "@omnixa/schema/tool"
 import type { StandardSchemaV1 } from "@standard-schema/spec"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Context, Deferred, Effect, JsonSchema, Layer, Schema, SchemaRepresentation, Stream } from "effect"
 import { Bus } from "./bus.js"
 import { Location } from "./location.js"
@@ -20,7 +20,7 @@ export interface Interface {
   readonly close: Effect.Effect<void>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Rpc") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Rpc") {}
 
 class DeclaredError extends Error {
   constructor(

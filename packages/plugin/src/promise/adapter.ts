@@ -1,6 +1,6 @@
-import { Tool } from "@aigcfroge/schema/tool"
-import type { Rpc } from "@aigcfroge/schema/rpc"
-import type { RpcCallOptions, RpcEventPayload } from "@aigcfroge/client/promise/api"
+import { Tool } from "@omnixa/schema/tool"
+import type { Rpc } from "@omnixa/schema/rpc"
+import type { RpcCallOptions, RpcEventPayload } from "@omnixa/client/promise/api"
 import { Effect, Schema, SchemaAST, Stream } from "effect"
 import type { Scope } from "effect"
 import { HttpApiEndpoint, HttpApiSchema } from "effect/http-api"
@@ -223,8 +223,8 @@ export function fromPromise(plugin: Plugin) {
     id: plugin.id,
     effect: (host) =>
       Effect.gen(function* () {
-        const [{ ClientApi }, { AigcForgeEvent }] = yield* Effect.promise(() =>
-          Promise.all([import("@aigcfroge/protocol/client"), import("@aigcfroge/protocol/groups/event")]),
+        const [{ ClientApi }, { OmnixaEvent }] = yield* Effect.promise(() =>
+          Promise.all([import("@omnixa/protocol/client"), import("@omnixa/protocol/groups/event")]),
         )
         const AgentEndpoints = ClientApi.groups["server.agent"].endpoints
         const CommandEndpoints = ClientApi.groups["server.command"].endpoints
@@ -294,7 +294,7 @@ export function fromPromise(plugin: Plugin) {
             )
 
         const eventStream = () =>
-          host.event.subscribe().pipe(Stream.mapEffect((event) => Schema.encodeUnknownEffect(AigcForgeEvent)(event)))
+          host.event.subscribe().pipe(Stream.mapEffect((event) => Schema.encodeUnknownEffect(OmnixaEvent)(event)))
 
         const context2: PromiseContext = {
           app: host.app,

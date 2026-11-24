@@ -1,6 +1,6 @@
-import type { IntegrationOAuthMethodRegistration } from "@aigcfroge/plugin/effect/integration"
-import type { SessionRequestKind, SessionTitle } from "@aigcfroge/plugin/effect/session"
-import type { ModelSource } from "@aigcfroge/schema/model-source"
+import type { IntegrationOAuthMethodRegistration } from "@omnixa/plugin/effect/integration"
+import type { SessionRequestKind, SessionTitle } from "@omnixa/plugin/effect/session"
+import type { ModelSource } from "@omnixa/schema/model-source"
 import { DateTime, Effect, Option, Schema, Semaphore, Stream } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/http"
 import { IntegrationConnection } from "../../integration/connection.js"
@@ -11,7 +11,7 @@ import { App } from "../../app.js"
 import { Integration } from "../../integration.js"
 import { Model } from "../../model.js"
 import { Agent } from "../../agent.js"
-import { define } from "@aigcfroge/plugin/effect/plugin"
+import { define } from "@omnixa/plugin/effect/plugin"
 import { Provider } from "../../provider.js"
 import { ProviderQuota } from "../../provider/quota.js"
 import { SessionAffinity } from "../../session/affinity.js"
@@ -158,7 +158,7 @@ const oauth = (app: App.Info) =>
   }) satisfies IntegrationOAuthMethodRegistration
 
 export const GithubCopilotPlugin = define({
-  id: "aigcfroge.provider.github.copilot",
+  id: "omnixa.provider.github.copilot",
   effect: Effect.fn(function* (ctx) {
     const providers = yield* Provider.Service
     const models = yield* Model.Service

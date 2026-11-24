@@ -11,10 +11,10 @@ import type {
   SkillAssetInfo,
   SkillAssetListOutput,
   WorkflowAssetListOutput,
-} from "@aigcfroge/client/promise"
-import { ApiNotFoundError } from "@aigcfroge/protocol/errors"
-import { AssetPlacement } from "@aigcfroge/schema/asset-placement"
-import { SkillAsset } from "@aigcfroge/schema/skill-asset"
+} from "@omnixa/client/promise"
+import { ApiNotFoundError } from "@omnixa/protocol/errors"
+import { AssetPlacement } from "@omnixa/schema/asset-placement"
+import { SkillAsset } from "@omnixa/schema/skill-asset"
 import { Schema } from "effect"
 
 export function body(name = " Review ") {
@@ -75,7 +75,7 @@ export function history(
       time: { created: 2, completed: 3 },
       metadata: { parentID: userID },
       agent: "build",
-      model: { providerID: "aigcfroge", id: "claude-opus-4-6", variant: "max" },
+      model: { providerID: "omnixa", id: "claude-opus-4-6", variant: "max" },
       content: [
         {
           type: "tool",
@@ -222,7 +222,7 @@ function defaultInspection(call: Call): Reply {
       ...facts(input.candidate.relativePath),
       target: {
         scope: input.scope,
-        root: input.scope === "global" ? "/global/config/skills" : directory + "/.aigcfroge/skills",
+        root: input.scope === "global" ? "/global/config/skills" : directory + "/.omnixa/skills",
       },
     },
   }

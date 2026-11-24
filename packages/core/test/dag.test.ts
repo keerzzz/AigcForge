@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { blockedBy, findCycle, type DagTask } from "@aigcfroge/core/session/dag"
+import { blockedBy, findCycle, type DagTask } from "@omnixa/core/session/dag"
 
 const task = (id: string, over: Partial<DagTask> = {}): DagTask => ({ id, status: "pending", ...over })
 

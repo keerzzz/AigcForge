@@ -1,6 +1,6 @@
 import type { Page } from "@playwright/test"
-import { base64Encode } from "@aigcfroge/util/encode"
-import { mockAigcForgeServer } from "../../utils/mock-server"
+import { base64Encode } from "@omnixa/util/encode"
+import { mockOmnixaServer } from "../../utils/mock-server"
 import { expectSessionTitle } from "../../utils/waits"
 import { benchmark, benchmarkDiagnostics, expect } from "../benchmark"
 import { fixture, installStressSessionTabs, installTimelineSettings } from "../../utils/session-fixture"
@@ -74,8 +74,7 @@ scenarios.forEach((scenario) => {
       {
         ...result,
         messageRequestsDuringSwitch: requests.length - requestsBefore,
-        rendererMemory:
-          process.env.AIGCFROGE_PERFORMANCE_MEMORY === "1" ? await retainedRendererMemory(page) : undefined,
+        rendererMemory: process.env.OMNIXA_PERFORMANCE_MEMORY === "1" ? await retainedRendererMemory(page) : undefined,
       },
       {
         ...scenario,
@@ -88,7 +87,7 @@ scenarios.forEach((scenario) => {
         serviceWorkers: "blocked",
         reviewFiles: scenario.review === "closed" ? 0 : reviewDiffs.length,
         data: scenario.cache === "cold" ? "on-demand" : "cached",
-        transport: process.env.AIGCFROGE_PERFORMANCE_HTTP_FIXTURE === "1" ? "http" : "playwright-route",
+        transport: process.env.OMNIXA_PERFORMANCE_HTTP_FIXTURE === "1" ? "http" : "playwright-route",
         inputEvent: "mousedown",
         requireReadyAnswer: true,
       },
@@ -110,8 +109,8 @@ async function prepareSessionTabs(page: Page, reviewOpen: boolean) {
     if (match) requests.push(decodeURIComponent(match[1]))
   })
 
-  if (process.env.AIGCFROGE_PERFORMANCE_HTTP_FIXTURE !== "1")
-    await mockAigcForgeServer(page, {
+  if (process.env.OMNIXA_PERFORMANCE_HTTP_FIXTURE !== "1")
+    await mockOmnixaServer(page, {
       sessions: fixture.sessions,
       provider: fixture.provider,
       directory: fixture.directory,
@@ -125,7 +124,7 @@ async function prepareSessionTabs(page: Page, reviewOpen: boolean) {
   await seed(page, {
     panes: Object.fromEntries([fixture.sourceID, fixture.targetID].map((id) => [id, { review: reviewOpen }])),
     storage: {
-      "aigcfroge.global.dat:layout": {
+      "omnixa.global.dat:layout": {
         sessionTabs: Object.fromEntries(
           [fixture.sourceID, fixture.targetID].map((id) => [
             `local\u0000${base64Encode(fixture.directory)}/${id}`,

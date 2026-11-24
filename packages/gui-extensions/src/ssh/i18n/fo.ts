@@ -20,13 +20,8 @@ export default {
   "error.input":
     "Skriva eina verts- ella SSH sambandsskipan. Fjarskipanir og óstuðlaðir SSH møguleikar eru ikki loyvdir.",
   "error.connection": "Kundi ikki fáa SSH sambandið upp. Kanna títt net og SSH uppseting.",
-  "error.platform":
-    "Hesin fjarskiftispallurin er ikki stuðlaður. Sjálvvirkandi uppseting krevur í løtuni Linux ella macOS á x64 ella arm64.",
   "error.version": "Fjartænastan skal passa til hesa skriviborðsútgávuna áðrenn tú setur samband.",
-  "error.install": "Kundi ikki seta fjar-ambætaran upp. Kanna samband, diskpláss, og at tar er sett upp.",
-  "error.unpublished":
-    "Hendan skriviborðsútgávan hevur ongan útgivnan fjarskiftis-ambætara. Til menningarbyggingar, installera og byrja V2 á vertinum, royn síðani aftur.",
-  "error.service": "SSH varð knýtt, men AigcForge ambætarin gjørdist ikki klárur.",
+  "error.service": "SSH varð knýtt, men Omnixa ambætarin gjørdist ikki klárur.",
   "error.host-key":
     "Samleikin hjá vertinum kundi ikki staðfestast. Staðfest fingramerkið áðrenn tú dagførir tínar SSH kendu vertir.",
   "error.ssh-missing": "OpenSSH varð ikki funnið. Set ein OpenSSH klient upp og tryggja tær at ssh er tøkt á PATH.",

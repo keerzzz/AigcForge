@@ -5,16 +5,16 @@ import { rm } from "node:fs/promises"
 import { randomUUID } from "node:crypto"
 import * as os from "node:os"
 import * as path from "node:path"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Bus } from "@aigcfroge/core/bus"
-import { Database } from "@aigcfroge/core/database/database"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { McpConnection } from "@aigcfroge/core/mcp/connection"
-import { Tool } from "@aigcfroge/core/tool"
-import { Composition } from "@aigcfroge/schema/composition"
-import { McpServerBinding } from "@aigcfroge/schema/mcp-scope"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Bus } from "@omnixa/core/bus"
+import { Database } from "@omnixa/core/database/database"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { McpConnection } from "@omnixa/core/mcp/connection"
+import { Tool } from "@omnixa/core/tool"
+import { Composition } from "@omnixa/schema/composition"
+import { McpServerBinding } from "@omnixa/schema/mcp-scope"
 import { withCustomModeEnabled } from "./lib/product-mode"
 import { offlineModels } from "./fixture/models"
 import { pollWithTimeout, testEffect } from "./lib/effect"
@@ -113,7 +113,7 @@ const view = (server: string) =>
 describe("MCP Location isolation through the real LayerMap (M3 exit condition)", () => {
   it.live("keeps each Location's MCP tools and connections out of the other", () =>
     Effect.gen(function* () {
-      const root = path.join(os.tmpdir(), `aigcfroge-loc-iso-${randomUUID()}`)
+      const root = path.join(os.tmpdir(), `omnixa-loc-iso-${randomUUID()}`)
       const dirA = path.join(root, "a")
       const dirB = path.join(root, "b")
       mkdirSync(dirA, { recursive: true })
@@ -185,7 +185,7 @@ describe("MCP Location isolation through the real LayerMap (M3 exit condition)",
    */
   it.live("releases a Location's child process and tools when the LayerMap invalidates it", () =>
     Effect.gen(function* () {
-      const root = path.join(os.tmpdir(), `aigcfroge-loc-unload-${randomUUID()}`)
+      const root = path.join(os.tmpdir(), `omnixa-loc-unload-${randomUUID()}`)
       mkdirSync(root, { recursive: true })
       yield* Effect.addFinalizer(() => Effect.promise(() => removeDir(root)))
 

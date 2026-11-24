@@ -1,4 +1,4 @@
-import { Form } from "@aigcfroge/core/form"
+import { Form } from "@omnixa/core/form"
 import { Effect } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
 import { Api } from "../api"

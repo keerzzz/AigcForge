@@ -1,9 +1,9 @@
-import type { FileSystem } from "@aigcfroge/core/filesystem"
+import type { FileSystem } from "@omnixa/core/filesystem"
 import fs from "fs/promises"
 import path from "path"
 import { describe, expect } from "bun:test"
-import { Config } from "@aigcfroge/schema/config"
-import { Money } from "@aigcfroge/schema/money"
+import { Config } from "@omnixa/schema/config"
+import { Money } from "@omnixa/schema/money"
 import {
   Cause,
   DateTime,
@@ -23,23 +23,23 @@ import {
   Stream,
 } from "effect"
 import { TestClock } from "effect/testing"
-import { Agent } from "@aigcfroge/core/agent"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Global } from "@aigcfroge/util/global"
-import { LocationServiceMap, type LocationServices } from "@aigcfroge/core/location-services"
-import { LocationActivity } from "@aigcfroge/core/location-activity"
-import { Location } from "@aigcfroge/core/location"
-import { LocationWatcher } from "@aigcfroge/core/filesystem/location-watcher"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { Model } from "@aigcfroge/core/model"
-import { Project } from "@aigcfroge/core/project"
-import { Provider } from "@aigcfroge/core/provider"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Session } from "@aigcfroge/core/session"
-import { Workspace } from "@aigcfroge/core/workspace"
-import { SessionEvent } from "@aigcfroge/core/session/event"
-import { SessionRunnerModel } from "@aigcfroge/core/session/runner/model"
+import { Agent } from "@omnixa/core/agent"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Global } from "@omnixa/util/global"
+import { LocationServiceMap, type LocationServices } from "@omnixa/core/location-services"
+import { LocationActivity } from "@omnixa/core/location-activity"
+import { Location } from "@omnixa/core/location"
+import { LocationWatcher } from "@omnixa/core/filesystem/location-watcher"
+import { Plugin } from "@omnixa/core/plugin"
+import { Model } from "@omnixa/core/model"
+import { Project } from "@omnixa/core/project"
+import { Provider } from "@omnixa/core/provider"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Session } from "@omnixa/core/session"
+import { Workspace } from "@omnixa/core/workspace"
+import { SessionEvent } from "@omnixa/core/session/event"
+import { SessionRunnerModel } from "@omnixa/core/session/runner/model"
 import { tmpdir, tmpdirScoped } from "./fixture/tmpdir"
 import { tempGlobalLayer } from "./fixture/global"
 import { offlineModels } from "./fixture/models"
@@ -105,7 +105,7 @@ describe("LocationServiceMap", () => {
           if (failure === "config reference") {
             yield* Effect.promise(() => fs.mkdir(directory))
             yield* Effect.promise(() =>
-              fs.writeFile(path.join(directory, "aigcfroge.json"), JSON.stringify({ username: "{file:username.txt}" })),
+              fs.writeFile(path.join(directory, "omnixa.json"), JSON.stringify({ username: "{file:username.txt}" })),
             )
           }
           const first = yield* Effect.exit(load)
@@ -149,7 +149,7 @@ describe("LocationServiceMap", () => {
         if (failure === "config reference") {
           yield* Effect.promise(() => fs.mkdir(directory))
           yield* Effect.promise(() =>
-            fs.writeFile(path.join(directory, "aigcfroge.json"), JSON.stringify({ username: "{file:username.txt}" })),
+            fs.writeFile(path.join(directory, "omnixa.json"), JSON.stringify({ username: "{file:username.txt}" })),
           )
         }
 
@@ -552,10 +552,7 @@ describe("LocationServiceMap", () => {
       Effect.flatMap((dir) =>
         Effect.gen(function* () {
           yield* Effect.promise(() =>
-            fs.writeFile(
-              path.join(dir.path, "aigcfroge.json"),
-              JSON.stringify({ agents: { plan: { disabled: true } } }),
-            ),
+            fs.writeFile(path.join(dir.path, "omnixa.json"), JSON.stringify({ agents: { plan: { disabled: true } } })),
           )
           yield* Effect.gen(function* () {
             const plugins = yield* Plugin.Service
@@ -582,7 +579,7 @@ describe("LocationServiceMap", () => {
           const location = Location.Ref.make({ directory: AbsolutePath.make(dir.path) })
           yield* Effect.promise(() =>
             fs.writeFile(
-              path.join(dir.path, "aigcfroge.json"),
+              path.join(dir.path, "omnixa.json"),
               JSON.stringify({
                 providers: {
                   unavailable: {
@@ -685,7 +682,7 @@ describe("LocationServiceMap", () => {
             const modelState = yield* Model.Service
             yield* providers.transform((editor) => {
               editor.update(Provider.ID.make("aliased"), (provider) => {
-                provider.package = "@aigcfroge/ai/providers/openai"
+                provider.package = "@omnixa/ai/providers/openai"
               })
               editor.models.update(Provider.ID.make("aliased"), Model.ID.make("fast"), (model) => {
                 // Catalog id and package model id intentionally differ, like gpt-5.5-fast -> gpt-5.5.

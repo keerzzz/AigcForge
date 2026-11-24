@@ -1,7 +1,7 @@
 import { useCommand } from "@/shell/commands/command"
 import { useLanguage } from "@/runtime/i18n/language"
 import { useData } from "@/runtime/server/current"
-import { Timeline } from "@aigcfroge/session-ui/timeline/projection"
+import { Timeline } from "@omnixa/session-ui/timeline/projection"
 import { createEffect, createMemo, createSignal, createUniqueId, on, onCleanup, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useSessionContent } from "../content-context"
@@ -237,8 +237,8 @@ export function createTimelineSearchController(input: {
       },
     ])
     const onOpenRequest = () => open()
-    document.addEventListener("aigcfroge:timeline-search-open", onOpenRequest)
-    onCleanup(() => document.removeEventListener("aigcfroge:timeline-search-open", onOpenRequest))
+    document.addEventListener("omnixa:timeline-search-open", onOpenRequest)
+    onCleanup(() => document.removeEventListener("omnixa:timeline-search-open", onOpenRequest))
   }
 
   function open() {

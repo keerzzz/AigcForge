@@ -72,22 +72,22 @@ describe("server persistence schema", () => {
   })
 
   test("moves canonical project buckets without changing server keys or unrelated scopes", () => {
-    const schema = serverSchema(() => "https://aigcfroge.example.com")
+    const schema = serverSchema(() => "https://omnixa.example.com")
 
     const state = Schema.decodeUnknownSync(schema)({
-      list: ["https://aigcfroge.example.com"],
-      hidden: { "https://aigcfroge.example.com": true },
+      list: ["https://omnixa.example.com"],
+      hidden: { "https://omnixa.example.com": true },
       projects: {
         local: [{ worktree: "/local", expanded: false }],
-        "https://aigcfroge.example.com": [
+        "https://omnixa.example.com": [
           { worktree: "/local", expanded: true },
           { worktree: "/remote", expanded: true },
           { worktree: "/remote", expanded: false },
         ],
         other: [{ worktree: "/other", expanded: true }],
       },
-      lastProject: { local: "/local", "https://aigcfroge.example.com": "/remote", other: "/other" },
-      recentlyClosed: { local: ["/closed"], "https://aigcfroge.example.com": ["/old-closed"] },
+      lastProject: { local: "/local", "https://omnixa.example.com": "/remote", other: "/other" },
+      recentlyClosed: { local: ["/closed"], "https://omnixa.example.com": ["/old-closed"] },
     })
 
     expect(state.projects).toEqual({
@@ -98,9 +98,9 @@ describe("server persistence schema", () => {
       other: [{ worktree: "/other", expanded: true }],
     })
     expect(state.lastProject).toEqual({ local: "/local", other: "/other" })
-    expect(state.list[0]?.http.url).toBe("https://aigcfroge.example.com")
-    expect(state.hidden).toEqual({ "https://aigcfroge.example.com": true })
-    expect(state.recentlyClosed).toEqual({ local: ["/closed"], "https://aigcfroge.example.com": ["/old-closed"] })
+    expect(state.list[0]?.http.url).toBe("https://omnixa.example.com")
+    expect(state.hidden).toEqual({ "https://omnixa.example.com": true })
+    expect(state.recentlyClosed).toEqual({ local: ["/closed"], "https://omnixa.example.com": ["/old-closed"] })
     expect(Schema.encodeSync(schema)(state)).toEqual(state)
     expect(Schema.decodeUnknownSync(schema)(state)).toEqual(state)
   })

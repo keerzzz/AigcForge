@@ -8,12 +8,12 @@ import { Context, Effect, Layer, Option, Result, Schema } from "effect"
 import { Agent } from "../agent.js"
 import { MetaPrompt } from "../agent/meta/meta-prompt.js"
 import { App } from "../app.js"
-import { Composition } from "@aigcfroge/schema/composition"
+import { Composition } from "@omnixa/schema/composition"
 import { CompositionConsumerView } from "../composition/consumer-view.js"
 import { CompositionDigest } from "../composition/digest.js"
 import { CodeModeInstructions } from "../codemode/instructions.js"
 import { Database } from "../database/database.js"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { InstructionDiscovery } from "../instruction-discovery.js"
 import { Instructions } from "../instructions/index.js"
 import { InstructionBuiltIns } from "../instructions/builtins.js"
@@ -103,7 +103,7 @@ export interface Interface {
 }
 
 /** Location-scoped model-context loader for durable Session Steps. */
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionContext") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/SessionContext") {}
 
 const layer = Layer.effect(
   Service,
@@ -419,7 +419,7 @@ const layer = Layer.effect(
               definitions: loaded.tools.definitions.map((tool) => {
                 if (tool.name !== "task") return tool
                 const producer = loaded.tools.catalog.find((entry) => entry.name === tool.name)?.producer
-                if (producer && producer.id !== "aigcfroge.tool.task") return tool
+                if (producer && producer.id !== "omnixa.tool.task") return tool
                 const properties = Schema.decodeUnknownOption(Schema.Record(Schema.String, Schema.Unknown))(
                   tool.inputSchema.properties,
                 )

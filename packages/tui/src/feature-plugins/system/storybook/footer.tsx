@@ -1,4 +1,4 @@
-import type { Plugin } from "@aigcfroge/plugin/tui"
+import type { Plugin } from "@omnixa/plugin/tui"
 import { For, Show } from "solid-js"
 
 export type StoryFooterControl = {

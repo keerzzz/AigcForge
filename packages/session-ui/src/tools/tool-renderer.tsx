@@ -24,22 +24,22 @@ import stripAnsi from "strip-ansi"
 import { createTwoFilesPatch, diffLines } from "diff"
 import { Dynamic } from "solid-js/web"
 import { type SessionSummary, useData } from "../context"
-import { useFileComponent } from "@aigcfroge/ui/context/file"
-import { type UiI18n, useI18n } from "@aigcfroge/ui/context/i18n"
+import { useFileComponent } from "@omnixa/ui/context/file"
+import { type UiI18n, useI18n } from "@omnixa/ui/context/i18n"
 import { BasicTool, GenericTool } from "../components/basic-tool"
-import { FileIcon } from "@aigcfroge/ui/file-icon"
-import { Icon, type IconProps } from "@aigcfroge/ui/icon"
+import { FileIcon } from "@omnixa/ui/file-icon"
+import { Icon, type IconProps } from "@omnixa/ui/icon"
 import { ToolErrorCard } from "../components/tool-error-card"
-import { DiffChanges } from "@aigcfroge/ui/diff-changes"
+import { DiffChanges } from "@omnixa/ui/diff-changes"
 import { Markdown } from "../components/markdown"
 import { createMarkdownImages } from "../components/markdown-image"
 import { createImagePreview } from "../components/image-preview"
 import { useMarkdown } from "../context/markdown"
-import { getDirectory, getFilename } from "@aigcfroge/util/path"
-import { checksum } from "@aigcfroge/util/encode"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
-import { IconButton } from "@aigcfroge/ui/icon-button"
-import { TextShimmer } from "@aigcfroge/ui/text-shimmer"
+import { getDirectory, getFilename } from "@omnixa/util/path"
+import { checksum } from "@omnixa/util/encode"
+import { Tooltip } from "@omnixa/ui/tooltip"
+import { IconButton } from "@omnixa/ui/icon-button"
+import { TextShimmer } from "@omnixa/ui/text-shimmer"
 import { changedFileDiff, patchFileGroups } from "../components/apply-patch-file"
 import { animate } from "motion"
 import { SessionProgressIndicatorV2 } from "../v2/components/session-progress-indicator-v2"
@@ -48,7 +48,7 @@ import type {
   SessionMessageAssistantReasoning,
   SessionMessageAssistantTool,
   SessionMessageShell,
-} from "@aigcfroge/client/promise"
+} from "@omnixa/client/promise"
 import {
   currentToolError,
   currentToolGroupedRead,
@@ -275,8 +275,8 @@ function webSearchProviderLabel(provider: JsonValue | undefined, i18n: ReturnTyp
       ? undefined
       : provider === "tinyfish"
         ? "TinyFish"
-        : provider === "aigcfroge"
-          ? "AigcForge"
+        : provider === "omnixa"
+          ? "Omnixa"
           : `${provider[0].toUpperCase()}${provider.slice(1)}`
 
   if (name) return i18n.t("ui.tool.websearch.provider", { provider: name })
@@ -816,7 +816,7 @@ export function CurrentContextToolGroup(props: {
                       }),
                     )
 
-                    const marker = "__AIGCFROGE_LOADED_SKILL__"
+                    const marker = "__OMNIXA_LOADED_SKILL__"
 
                     const loaded = createMemo(() =>
                       i18n.plural("ui.tool.loadedSkills", skills().length, { name: marker }),
@@ -1670,7 +1670,7 @@ ToolRegistry.register({
       }),
     )
 
-    const marker = "__AIGCFROGE_LOADED_PATH__"
+    const marker = "__OMNIXA_LOADED_PATH__"
     const parts = createMemo(() => i18n.t("ui.tool.loadedFile", { path: marker }).split(marker))
 
     return (
@@ -2615,7 +2615,7 @@ ToolRegistry.register({
     const i18n = useI18n()
     const name = createMemo(() => skillToolName(props.input, props.metadata))
     const running = createMemo(() => props.status === "streaming" || props.status === "running")
-    const marker = "__AIGCFROGE_LOADED_SKILL__"
+    const marker = "__OMNIXA_LOADED_SKILL__"
     const parts = createMemo(() => i18n.t("ui.tool.loadedSkill", { name: marker }).split(marker))
 
     return (

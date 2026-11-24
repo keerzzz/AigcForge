@@ -37,7 +37,7 @@ function fail(message: string) {
 
 /** The default registration file. */
 export function fallback() {
-  return join(process.env["XDG_STATE_HOME"] ?? join(homedir(), ".local", "state"), "aigcfroge", "service.json")
+  return join(process.env["XDG_STATE_HOME"] ?? join(homedir(), ".local", "state"), "omnixa", "service.json")
 }
 
 /** Whether two registrations describe the same service instance. */
@@ -49,7 +49,7 @@ export function same(left: Info, right: Info) {
 export async function probeResult(info: Info, timeout = defaultEnsureTiming.requestTimeout) {
   const endpoint = {
     url: info.url,
-    auth: info.password === undefined ? undefined : { type: "basic", username: "aigcfroge", password: info.password },
+    auth: info.password === undefined ? undefined : { type: "basic", username: "omnixa", password: info.password },
   } satisfies Endpoint
   const signal = AbortSignal.timeout(timeout)
   const result = await fetch(new URL("/api/info", info.url), { headers: headers(endpoint), signal })

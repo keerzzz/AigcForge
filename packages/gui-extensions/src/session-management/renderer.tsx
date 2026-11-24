@@ -1,12 +1,12 @@
 import { For, Show, createMemo, createSignal, lazy, onCleanup, Suspense } from "solid-js"
 import { createStore } from "solid-js/store"
-import { Icon } from "@aigcfroge/ui/icon"
-import { IconButton } from "@aigcfroge/ui/icon-button"
-import { Switch } from "@aigcfroge/ui/switch"
-import { showToast } from "@aigcfroge/ui/toast"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
-import { errorMessage } from "@aigcfroge/util/error"
-import type { SessionControllerSource } from "@aigcfroge/client/promise"
+import { Icon } from "@omnixa/ui/icon"
+import { IconButton } from "@omnixa/ui/icon-button"
+import { Switch } from "@omnixa/ui/switch"
+import { showToast } from "@omnixa/ui/toast"
+import { Tooltip } from "@omnixa/ui/tooltip"
+import { errorMessage } from "@omnixa/util/error"
+import type { SessionControllerSource } from "@omnixa/client/promise"
 import {
   Command,
   createKeyed,
@@ -28,7 +28,7 @@ import {
 import type definition from "./index"
 import { isChildSession } from "./panel-drafts"
 import { delegationRunning, executionStatus, operationRunning } from "./execution-status"
-import { SessionProgressIndicatorV2 } from "@aigcfroge/session-ui/v2/session-progress-indicator-v2"
+import { SessionProgressIndicatorV2 } from "@omnixa/session-ui/v2/session-progress-indicator-v2"
 import delegationStyles from "./delegation-panel.css?inline"
 import metaStyles from "./meta-agent-panel.css?inline"
 import workflowStyles from "./workflow-run-panel.css?inline"

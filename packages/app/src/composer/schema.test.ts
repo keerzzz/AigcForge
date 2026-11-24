@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
 import { Persistence } from "@/runtime/persistence/schema"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
+import { SessionMessage } from "@omnixa/schema/session-message"
 import {
   CommentStore,
   ComposerStore,

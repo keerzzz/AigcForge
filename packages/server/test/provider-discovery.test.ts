@@ -2,21 +2,21 @@ import path from "node:path"
 import { createServer } from "node:http"
 import { expect } from "bun:test"
 import { NodeFileSystem, NodeHttpServer } from "@effect/platform-node"
-import { AigcForge } from "@aigcfroge/client/effect"
-import { Database } from "@aigcfroge/core/database/database"
-import { Integration } from "@aigcfroge/core/integration"
-import { KVTable } from "@aigcfroge/core/kv/sql"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
-import { Session } from "@aigcfroge/core/session"
-import { Agent } from "@aigcfroge/schema/agent"
-import { Credential } from "@aigcfroge/schema/credential"
-import { Model } from "@aigcfroge/schema/model"
-import { ModelSource } from "@aigcfroge/schema/model-source"
-import { Provider } from "@aigcfroge/schema/provider"
-import { ProviderDefinition } from "@aigcfroge/schema/provider-definition"
-import { ProviderDiscovery } from "@aigcfroge/schema/provider-discovery"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
-import { Global } from "@aigcfroge/util/global"
+import { Omnixa } from "@omnixa/client/effect"
+import { Database } from "@omnixa/core/database/database"
+import { Integration } from "@omnixa/core/integration"
+import { KVTable } from "@omnixa/core/kv/sql"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
+import { Session } from "@omnixa/core/session"
+import { Agent } from "@omnixa/schema/agent"
+import { Credential } from "@omnixa/schema/credential"
+import { Model } from "@omnixa/schema/model"
+import { ModelSource } from "@omnixa/schema/model-source"
+import { Provider } from "@omnixa/schema/provider"
+import { ProviderDefinition } from "@omnixa/schema/provider-definition"
+import { ProviderDiscovery } from "@omnixa/schema/provider-discovery"
+import { AbsolutePath } from "@omnixa/schema/schema"
+import { Global } from "@omnixa/util/global"
 import { Context, DateTime, Deferred, Effect, Exit, Fiber, FileSystem, Layer, Schema, Scope, Stream } from "effect"
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpRouter, HttpServer } from "effect/http"
 import { tmpdirScoped } from "../../core/test/fixture/tmpdir"
@@ -27,7 +27,7 @@ const it = testEffect(Layer.mergeAll(FetchHttpClient.layer, NodeHttpServer.layer
 
 const chat = {
   id: Provider.ID.make("discovery-chat"),
-  package: "@aigcfroge/ai/providers/openai-compatible",
+  package: "@omnixa/ai/providers/openai-compatible",
   prefix: "/gateway-chat/v1",
   key: "fixture-discovery-chat-a",
   alternateKey: "fixture-discovery-chat-b",
@@ -37,7 +37,7 @@ const chat = {
 } as const
 const messages = {
   id: Provider.ID.make("discovery-messages"),
-  package: "@aigcfroge/ai/providers/anthropic-compatible",
+  package: "@omnixa/ai/providers/anthropic-compatible",
   prefix: "/gateway-messages/v1",
   key: "fixture-discovery-messages",
   apiModelID: Model.ID.make("catalog-messages-a"),
@@ -231,12 +231,12 @@ const boot = Effect.fnUntraced(function* (directory: string) {
       .pipe(Effect.provide(NodeHttpServer.layerHttpServices))
     const http = yield* HttpClient.HttpClient
     const makeClient = () =>
-      AigcForge.make({ baseUrl: HttpServer.formatAddress(server.address) }).pipe(
+      Omnixa.make({ baseUrl: HttpServer.formatAddress(server.address) }).pipe(
         Effect.provideService(
           HttpClient.HttpClient,
           http.pipe(
             HttpClient.mapRequest((request) =>
-              HttpClientRequest.setHeader(request, "authorization", "Basic " + btoa("aigcfroge:secret")),
+              HttpClientRequest.setHeader(request, "authorization", "Basic " + btoa("omnixa:secret")),
             ),
           ),
         ),
@@ -340,7 +340,7 @@ const boot = Effect.fnUntraced(function* (directory: string) {
 })
 
 const observeDiscovery = Effect.fnUntraced(function* (
-  client: Effect.Success<ReturnType<typeof AigcForge.make>>,
+  client: Effect.Success<ReturnType<typeof Omnixa.make>>,
   location: { readonly directory: AbsolutePath },
   providerID: Provider.ID,
 ) {
@@ -382,7 +382,7 @@ it.live(
   "P2 saves key-preview aliases once, retries their bound seed exactly, and executes before refresh and after discovery shutdown",
   () =>
     Effect.gen(function* () {
-      const tmp = yield* tmpdirScoped("aigcfroge-provider-discovery-import-")
+      const tmp = yield* tmpdirScoped("omnixa-provider-discovery-import-")
       const fixture = yield* recorder
       const host = yield* boot(tmp.path)
       const definition = {
@@ -582,7 +582,7 @@ it.live(
   "P2 keeps same-URL accounts separate, preserves stored preview secrets, and rereads failures over two actual SSE connections",
   () =>
     Effect.gen(function* () {
-      const tmp = yield* tmpdirScoped("aigcfroge-provider-discovery-status-")
+      const tmp = yield* tmpdirScoped("omnixa-provider-discovery-status-")
       const fixture = yield* recorder
       const host = yield* boot(tmp.path)
       const saved = yield* host.save(
@@ -696,7 +696,7 @@ it.live(
             "location[directory]": host.location.directory,
             "connection[type]": "credential",
           }),
-          HttpClientRequest.setHeader("authorization", "Basic " + btoa("aigcfroge:secret")),
+          HttpClientRequest.setHeader("authorization", "Basic " + btoa("omnixa:secret")),
         ),
       )
       expect(malformed.status).toBe(400)
@@ -751,7 +751,7 @@ it.live(
   "P2 follows the Messages listing cursor through HTTP and sends its imported API model through the original Session",
   () =>
     Effect.gen(function* () {
-      const tmp = yield* tmpdirScoped("aigcfroge-provider-discovery-messages-")
+      const tmp = yield* tmpdirScoped("omnixa-provider-discovery-messages-")
       const fixture = yield* recorder
       const host = yield* boot(tmp.path)
       const definition = {
@@ -845,7 +845,7 @@ it.live(
   "P2 previews an expiring OAuth account without renewal and lets explicit refresh renew its actual stored credential once",
   () =>
     Effect.gen(function* () {
-      const tmp = yield* tmpdirScoped("aigcfroge-provider-discovery-oauth-")
+      const tmp = yield* tmpdirScoped("omnixa-provider-discovery-oauth-")
       const fixture = yield* recorder
       const host = yield* boot(tmp.path)
       yield* host.save(

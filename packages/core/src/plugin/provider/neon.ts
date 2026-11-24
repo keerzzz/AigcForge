@@ -1,8 +1,8 @@
 import { Effect } from "effect"
-import { define } from "@aigcfroge/plugin/effect/plugin"
+import { define } from "@omnixa/plugin/effect/plugin"
 
 export const NeonPlugin = define({
-  id: "aigcfroge.provider.neon",
+  id: "omnixa.provider.neon",
   effect: Effect.fn(function* (ctx) {
     yield* ctx.integration.transform((editor) => {
       // models.dev also lists NEON_AI_GATEWAY_BASE_URL, which only fills the base URL template.

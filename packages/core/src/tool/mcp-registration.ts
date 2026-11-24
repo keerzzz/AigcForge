@@ -1,8 +1,8 @@
 export * as McpRegistration from "./mcp-registration.js"
 
-import type { Info } from "@aigcfroge/schema/tool"
+import type { Info } from "@omnixa/schema/tool"
 import { Effect, Schema, Scope } from "effect"
-import { Hash } from "@aigcfroge/util/hash"
+import { Hash } from "@omnixa/util/hash"
 import { Tool } from "../tool.js"
 
 /**

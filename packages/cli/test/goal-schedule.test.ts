@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { AigcForge } from "@aigcfroge/client"
+import { Omnixa } from "@omnixa/client"
 import { Effect } from "effect"
 import { GoalCommand } from "../src/commands/handlers/goal"
 import { ScheduleCommand } from "../src/commands/handlers/schedule"
@@ -35,7 +35,7 @@ describe("Goal and Schedule CLI API consumers", () => {
       requests.push({ url, method: request.method, body: request.method === "POST" ? await request.json() : undefined })
       return { data: request.method === "POST" ? { id: "gol_cli", revision: 3 } : null }
     })
-    const client = AigcForge.make({ baseUrl: server.url.toString() })
+    const client = Omnixa.make({ baseUrl: server.url.toString() })
     await Effect.runPromise(GoalCommand.execute(client, { sessionID: session.id, action: "read", goal: "gol_cli" }))
     const payload = { expectedRevision: 3, evidenceIDs: ["command:exact"], evidenceSetDigest: "a1".repeat(32) }
     await Effect.runPromise(
@@ -68,7 +68,7 @@ describe("Goal and Schedule CLI API consumers", () => {
       bodies.push(await request.json())
       return { data: { id: "gol_cli" } }
     })
-    const client = AigcForge.make({ baseUrl: server.url.toString() })
+    const client = Omnixa.make({ baseUrl: server.url.toString() })
     await expect(
       Effect.runPromise(GoalCommand.execute(client, { sessionID: session.id, action: "resume", goal: "gol_cli" })),
     ).rejects.toThrow("requires --revision")
@@ -86,7 +86,7 @@ describe("Goal and Schedule CLI API consumers", () => {
       writes.push({ url, body: await request.json() })
       return schedule
     })
-    const client = AigcForge.make({ baseUrl: server.url.toString() })
+    const client = Omnixa.make({ baseUrl: server.url.toString() })
     const payload = {
       kind: "prompt",
       content: "Timed task",
@@ -113,7 +113,7 @@ describe("Goal and Schedule CLI API consumers", () => {
       mutations.push(url.pathname)
       return { id: "occ_cli", status: "cancelled" }
     })
-    const client = AigcForge.make({ baseUrl: server.url.toString() })
+    const client = Omnixa.make({ baseUrl: server.url.toString() })
     expect(
       await Effect.runPromise(
         ScheduleCommand.execute(client, { sessionID: session.id, action: "history", id: schedule.id }),

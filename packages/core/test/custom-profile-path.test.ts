@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Layer } from "effect"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { LocationMutation } from "@aigcfroge/core/location-mutation"
-import { Location } from "@aigcfroge/core/location"
-import { AbsolutePath } from "@aigcfroge/core/schema"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { LocationMutation } from "@omnixa/core/location-mutation"
+import { Location } from "@omnixa/core/location"
+import { AbsolutePath } from "@omnixa/core/schema"
 import { location } from "./fixture/location"
 import { tmpdir } from "./fixture/tmpdir"
 import fs from "fs/promises"
@@ -110,19 +110,19 @@ describe("CustomProfilePath.validateRelativePath", () => {
 
 describe("CustomProfilePath.nameToRelativePath", () => {
   test("generates default path", () => {
-    expect(CustomProfilePath.nameToRelativePath("my-profile")).toBe(".aigcfroge/custom-profiles/my-profile.yaml")
+    expect(CustomProfilePath.nameToRelativePath("my-profile")).toBe(".omnixa/custom-profiles/my-profile.yaml")
   })
 
   test("generates path for Chinese name", () => {
-    expect(CustomProfilePath.nameToRelativePath("前端开发配置")).toBe(".aigcfroge/custom-profiles/前端开发配置.yaml")
+    expect(CustomProfilePath.nameToRelativePath("前端开发配置")).toBe(".omnixa/custom-profiles/前端开发配置.yaml")
   })
 
   test("NFKC normalizes unicode", () => {
-    expect(CustomProfilePath.nameToRelativePath("ｈello")).toBe(".aigcfroge/custom-profiles/hello.yaml")
+    expect(CustomProfilePath.nameToRelativePath("ｈello")).toBe(".omnixa/custom-profiles/hello.yaml")
   })
 
   test("trims whitespace", () => {
-    expect(CustomProfilePath.nameToRelativePath("  hello  ")).toBe(".aigcfroge/custom-profiles/hello.yaml")
+    expect(CustomProfilePath.nameToRelativePath("  hello  ")).toBe(".omnixa/custom-profiles/hello.yaml")
   })
 
   test("rejects invalid name", () => {
@@ -134,9 +134,7 @@ describe("CustomProfilePath.nameToRelativePath", () => {
 
 describe("CustomProfilePath.resolveOwnerRoot", () => {
   nonWindowsTest("computes owner root from directory", () => {
-    expect(CustomProfilePath.resolveOwnerRoot("/home/user/project")).toBe(
-      "/home/user/project/.aigcfroge/custom-profiles",
-    )
+    expect(CustomProfilePath.resolveOwnerRoot("/home/user/project")).toBe("/home/user/project/.omnixa/custom-profiles")
   })
 })
 
@@ -154,7 +152,7 @@ describe("CustomProfilePath.resolveSafeTarget", () => {
     Effect.gen(function* () {
       const mutation = yield* LocationMutation.Service
       const result = yield* CustomProfilePath.resolveSafeTarget("test.yaml", mutation)
-      expect(result.absolute).toBe(AbsolutePath.make("/tmp/.aigcfroge/custom-profiles/test.yaml"))
+      expect(result.absolute).toBe(AbsolutePath.make("/tmp/.omnixa/custom-profiles/test.yaml"))
     }).pipe(Effect.provide(mutationLayer("/tmp"))),
   )
 
@@ -169,9 +167,9 @@ describe("CustomProfilePath.resolveSafeTarget", () => {
   nonWindowsTest("rejects a custom-profiles root symlink redirected elsewhere in the Location", async () => {
     const tmp = await tmpdir()
     try {
-      await fs.mkdir(path.join(tmp.path, ".aigcfroge"), { recursive: true })
+      await fs.mkdir(path.join(tmp.path, ".omnixa"), { recursive: true })
       await fs.mkdir(path.join(tmp.path, "elsewhere"), { recursive: true })
-      await fs.symlink(path.join(tmp.path, "elsewhere"), path.join(tmp.path, ".aigcfroge", "custom-profiles"))
+      await fs.symlink(path.join(tmp.path, "elsewhere"), path.join(tmp.path, ".omnixa", "custom-profiles"))
 
       const result = await Effect.runPromise(
         Effect.gen(function* () {

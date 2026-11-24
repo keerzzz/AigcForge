@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import type { CompactionUpdate, SessionNotification } from "@agentclientprotocol/sdk"
-import type { AigcForgeEventEncoded } from "@aigcfroge/protocol/groups/event"
+import type { OmnixaEventEncoded } from "@omnixa/protocol/groups/event"
 import { Schema } from "effect"
 import { durableEvent, enqueued, ephemeralEvent, startSession, turn, type InitializeOptions } from "./wire-fixture"
 
@@ -53,7 +53,7 @@ describe("acp standard compaction updates over the wire", () => {
 
 // Holds the compact response so the test can publish the turn's events while the request is in flight.
 async function compactTurn(
-  events: (sessionID: string, id: string) => AigcForgeEventEncoded[],
+  events: (sessionID: string, id: string) => OmnixaEventEncoded[],
   capabilities: InitializeOptions,
 ) {
   const held = Promise.withResolvers<Response>()
@@ -73,7 +73,7 @@ async function compactTurn(
 }
 
 function marker(sessionId: string, value: Record<string, unknown>): SessionNotification {
-  return { sessionId, update: { sessionUpdate: "session_info_update", _meta: { "aigcfroge/compaction": value } } }
+  return { sessionId, update: { sessionUpdate: "session_info_update", _meta: { "omnixa/compaction": value } } }
 }
 
 function compaction(sessionId: string, update: CompactionUpdate): SessionNotification {

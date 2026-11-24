@@ -1,8 +1,8 @@
-import type { ConnectionInfo } from "@aigcfroge/client"
-import type { IntegrationApi } from "@aigcfroge/client/promise/api"
-import { Connection } from "@aigcfroge/schema/connection"
-import { Credential } from "@aigcfroge/schema/credential"
-import { Form } from "@aigcfroge/schema/form"
+import type { ConnectionInfo } from "@omnixa/client"
+import type { IntegrationApi } from "@omnixa/client/promise/api"
+import { Connection } from "@omnixa/schema/connection"
+import { Credential } from "@omnixa/schema/credential"
+import { Form } from "@omnixa/schema/form"
 import type { Transform } from "./registration.js"
 
 type IntegrationRef = { id: string; name: string }

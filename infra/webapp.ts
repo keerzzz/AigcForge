@@ -5,8 +5,8 @@ export function createWebApp(domain: string) {
     environment:
       $app.stage === "beta"
         ? {
-            AIGCFROGE_CHANNEL: "beta",
-            VITE_AIGCFROGE_SERVER_MODE: "none",
+            OMNIXA_CHANNEL: "beta",
+            VITE_OMNIXA_SERVER_MODE: "none",
             VITE_SENTRY_ENVIRONMENT: "beta",
           }
         : undefined,

@@ -2,18 +2,18 @@ import { expect } from "bun:test"
 import { Clock, Context, DateTime, Deferred, Duration, Effect, Exit, Layer, Ref, Scope } from "effect"
 import { TestClock } from "effect/testing"
 import { HttpServer, HttpServerRequest, HttpServerResponse } from "effect/http"
-import { Bus } from "@aigcfroge/core/bus"
-import { Database } from "@aigcfroge/core/database/database"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Project } from "@aigcfroge/core/project"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { ScheduleService } from "@aigcfroge/core/session/schedule-service"
-import { SessionTable } from "@aigcfroge/core/session/sql"
-import { Session } from "@aigcfroge/schema/session"
-import { Schedule } from "@aigcfroge/schema/schedule"
-import { Global } from "@aigcfroge/util/global"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { Bus } from "@omnixa/core/bus"
+import { Database } from "@omnixa/core/database/database"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Project } from "@omnixa/core/project"
+import { ProjectTable } from "@omnixa/core/project/sql"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { ScheduleService } from "@omnixa/core/session/schedule-service"
+import { SessionTable } from "@omnixa/core/session/sql"
+import { Session } from "@omnixa/schema/session"
+import { Schedule } from "@omnixa/schema/schedule"
+import { Global } from "@omnixa/util/global"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { tempGlobalLayer } from "../../core/test/fixture/global"
 import { tmpdirScoped } from "../../core/test/fixture/tmpdir"
 import { awaitWithTimeout, it, pollWithTimeout } from "../../core/test/lib/effect"
@@ -59,7 +59,7 @@ it.live("authenticates API requests behind the frontend transform while allowing
     const status = yield* Effect.promise(() =>
       fetch(new URL("/api/info", HttpServer.formatAddress(server.address)), {
         headers: {
-          authorization: `Basic ${btoa("aigcfroge:secret")}`,
+          authorization: `Basic ${btoa("omnixa:secret")}`,
           origin: "http://localhost:3000",
         },
       }),
@@ -89,7 +89,7 @@ it.live("authenticates API requests behind the frontend transform while allowing
 
           const status = yield* Effect.promise(() =>
             fetch(new URL("/api/info", HttpServer.formatAddress(server.address)), {
-              headers: { origin, authorization: `Basic ${btoa("aigcfroge:secret")}` },
+              headers: { origin, authorization: `Basic ${btoa("omnixa:secret")}` },
             }),
           )
           expect(status.status).toBe(200)
@@ -109,7 +109,7 @@ it.live("authenticates API requests behind the frontend transform while allowing
       fetch(new URL("/api/event", HttpServer.formatAddress(server.address)), {
         headers: {
           "accept-encoding": "br",
-          authorization: `Basic ${btoa("aigcfroge:secret")}`,
+          authorization: `Basic ${btoa("omnixa:secret")}`,
         },
       }),
     )
@@ -129,7 +129,7 @@ it.live("authenticates API requests behind the frontend transform while allowing
       fetch(new URL("/missing", HttpServer.formatAddress(server.address)), {
         headers: {
           "accept-encoding": "br",
-          authorization: `Basic ${btoa("aigcfroge:secret")}`,
+          authorization: `Basic ${btoa("omnixa:secret")}`,
         },
       }),
     )
@@ -154,7 +154,7 @@ it.live("authenticates API requests behind the frontend transform while allowing
       Effect.gen(function* () {
         yield* Effect.forEach(["GET", "HEAD"], (method) =>
           Effect.gen(function* () {
-            yield* Effect.forEach([undefined, `Basic ${btoa("aigcfroge:wrong")}`], (authorization) =>
+            yield* Effect.forEach([undefined, `Basic ${btoa("omnixa:wrong")}`], (authorization) =>
               Effect.gen(function* () {
                 const response = yield* Effect.promise(() =>
                   fetch(new URL(pathname, HttpServer.formatAddress(server.address)), {
@@ -170,7 +170,7 @@ it.live("authenticates API requests behind the frontend transform while allowing
             const response = yield* Effect.promise(() =>
               fetch(new URL(pathname, HttpServer.formatAddress(server.address)), {
                 method,
-                headers: { authorization: `Basic ${btoa("aigcfroge:secret")}` },
+                headers: { authorization: `Basic ${btoa("omnixa:secret")}` },
               }),
             )
             expect(response.status).toBe(200)
@@ -197,7 +197,7 @@ it.live("pairing links sign in browsers with a cookie and API clients with a tok
     const pair = Effect.gen(function* () {
       const response = yield* request("/api/pair", {
         method: "POST",
-        headers: { authorization: `Basic ${btoa("aigcfroge:secret")}` },
+        headers: { authorization: `Basic ${btoa("omnixa:secret")}` },
       })
       expect(response.status).toBe(200)
       return (yield* Effect.promise(() => response.json())) as { code: string; expires_in: number }
@@ -217,14 +217,14 @@ it.live("pairing links sign in browsers with a cookie and API clients with a tok
     expect(redirect.status).toBe(302)
     expect(redirect.headers.get("location")).toBe("/")
     const setCookie = redirect.headers.get("set-cookie") ?? ""
-    expect(setCookie).toContain(`aigcfroge_session_${new URL(base).port}=`)
+    expect(setCookie).toContain(`omnixa_session_${new URL(base).port}=`)
     expect(setCookie).toContain("HttpOnly")
     expect(setCookie).toContain("SameSite=Lax")
     const cookie = setCookie.split(";")[0]
 
     const reused = yield* request(`/auth/connect/${browser.code}`, { headers: { accept: "text/html" } })
     expect(reused.status).toBe(401)
-    expect(yield* Effect.promise(() => reused.text())).toContain("aigcfroge pair")
+    expect(yield* Effect.promise(() => reused.text())).toContain("omnixa pair")
 
     expect((yield* request("/api/info", { headers: { cookie } })).status).toBe(200)
     expect((yield* request("/api/info", { headers: { cookie, origin: base } })).status).toBe(200)
@@ -236,8 +236,7 @@ it.live("pairing links sign in browsers with a cookie and API clients with a tok
     expect(redeemed.status).toBe(200)
     const session = (yield* Effect.promise(() => redeemed.json())) as { token: string }
     expect(
-      (yield* request("/api/info", { headers: { authorization: `Basic ${btoa(`aigcfroge:${session.token}`)}` } }))
-        .status,
+      (yield* request("/api/info", { headers: { authorization: `Basic ${btoa(`omnixa:${session.token}`)}` } })).status,
     ).toBe(200)
     expect((yield* request(`/auth/connect/${client.code}`)).status).toBe(401)
     expect((yield* request("/auth/connect/unknown")).status).toBe(401)
@@ -264,7 +263,7 @@ it.live("server info lists remote URLs alongside local addresses while they are 
     const base = HttpServer.formatAddress(server.address)
     const info = () =>
       Effect.promise(() =>
-        fetch(new URL("/api/info", base), { headers: { authorization: `Basic ${btoa("aigcfroge:secret")}` } }).then(
+        fetch(new URL("/api/info", base), { headers: { authorization: `Basic ${btoa("omnixa:secret")}` } }).then(
           (response) => response.json() as Promise<{ urls: ReadonlyArray<string> }>,
         ),
       )

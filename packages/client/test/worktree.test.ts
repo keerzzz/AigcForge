@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
-import { Worktree } from "@aigcfroge/schema/worktree"
+import { Worktree } from "@omnixa/schema/worktree"
 
 describe("Worktree.adopt", () => {
   const event = {

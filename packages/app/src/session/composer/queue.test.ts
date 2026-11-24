@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { SessionInboxInfo } from "@aigcfroge/client/promise"
+import type { SessionInboxInfo } from "@omnixa/client/promise"
 import { queuedPromptAttachments, queuedPromptRows } from "./queue"
 
 const queued = [

@@ -1,18 +1,18 @@
 import { describe, expect } from "bun:test"
 import { eq, sql } from "drizzle-orm"
 import { Effect, Layer, Schema } from "effect"
-import { Agent } from "@aigcfroge/schema/agent"
-import { Composition } from "@aigcfroge/schema/composition"
-import { AssetPlacement } from "@aigcfroge/schema/asset-placement"
-import { Event } from "@aigcfroge/schema/event"
-import { Location } from "@aigcfroge/schema/location"
-import { Project } from "@aigcfroge/schema/project"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
-import { Session } from "@aigcfroge/schema/session"
-import { SessionEvent } from "@aigcfroge/schema/session-event"
-import { SessionMessage } from "@aigcfroge/schema/session-message"
-import { Workspace } from "@aigcfroge/schema/workspace"
-import { Global } from "@aigcfroge/util/global"
+import { Agent } from "@omnixa/schema/agent"
+import { Composition } from "@omnixa/schema/composition"
+import { AssetPlacement } from "@omnixa/schema/asset-placement"
+import { Event } from "@omnixa/schema/event"
+import { Location } from "@omnixa/schema/location"
+import { Project } from "@omnixa/schema/project"
+import { AbsolutePath } from "@omnixa/schema/schema"
+import { Session } from "@omnixa/schema/session"
+import { SessionEvent } from "@omnixa/schema/session-event"
+import { SessionMessage } from "@omnixa/schema/session-message"
+import { Workspace } from "@omnixa/schema/workspace"
+import { Global } from "@omnixa/util/global"
 import { Database } from "../src/database/database"
 import { EventSequenceTable, EventTable } from "../src/event/sql"
 import { ProjectTable } from "../src/project/sql"
@@ -23,7 +23,7 @@ import { testEffect } from "./lib/effect"
 
 const globalLayer = Layer.succeed(
   Global.Service,
-  Global.Service.of(Global.make({ data: "/data", config: "/config", tmp: "/tmp/aigcfroge" })),
+  Global.Service.of(Global.make({ data: "/data", config: "/config", tmp: "/tmp/omnixa" })),
 )
 const layer = (filename = ":memory:") =>
   SessionComposition.layer.pipe(
@@ -227,7 +227,7 @@ describe("Session composition reverse references", () => {
         expect((yield* query("agent", "executor.md")).snapshots).toHaveLength(1)
         expect((yield* query("agent", "origin.md")).snapshots).toHaveLength(1)
         expect((yield* query("prompt", " shared\\precise.md ")).snapshots).toHaveLength(1)
-        expect((yield* query("prompt", ".aigcfroge/prompts/shared/precise.md")).snapshots).toEqual([])
+        expect((yield* query("prompt", ".omnixa/prompts/shared/precise.md")).snapshots).toEqual([])
         expect((yield* query("prompt", "unrelated.md")).snapshots).toEqual([])
         const composition = yield* SessionComposition.Service
         expect(

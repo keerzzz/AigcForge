@@ -11,7 +11,7 @@ import { resolveExternalURL, resolveLocalFilePath } from "./external-url"
 
 export type Interface = ReturnType<typeof make>
 
-export class Service extends Context.Service<Service, Interface>()("aigcfroge/desktop/DesktopFiles") {}
+export class Service extends Context.Service<Service, Interface>()("omnixa/desktop/DesktopFiles") {}
 
 export const layer = Layer.effect(
   Service,

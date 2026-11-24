@@ -1,4 +1,4 @@
-import { create as createIdentifier } from "@aigcfroge/schema/identifier"
+import { create as createIdentifier } from "@omnixa/schema/identifier"
 
 const prefixes = {
   job: "job",

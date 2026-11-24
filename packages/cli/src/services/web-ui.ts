@@ -1,4 +1,4 @@
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Effect, FileSystem } from "effect"
 import { FindMyWay, HttpRouter, HttpServerError, HttpServerRequest, HttpServerResponse } from "effect/http"
 import { createHash } from "node:crypto"
@@ -9,7 +9,7 @@ export const handler = Effect.fn("cli.web-ui.handler")(function* (options?: {
   readonly brotli?: BrotliMap
 }) {
   const fileSystem = yield* FileSystem.FileSystem
-  const { Api } = yield* Effect.promise(() => import("@aigcfroge/server/api"))
+  const { Api } = yield* Effect.promise(() => import("@omnixa/server/api"))
   const routes = FindMyWay.make<void>(yield* HttpRouter.RouterConfig)
   // /api is forwarded by prefix below. Only retained endpoints outside it need path matching.
   new Set(

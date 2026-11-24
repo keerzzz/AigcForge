@@ -4,66 +4,66 @@ import fs from "fs/promises"
 import path from "path"
 import { Cause, DateTime, Deferred, Effect, Exit, Fiber, Layer, Schema, Scope, Stream } from "effect"
 import { TestClock } from "effect/testing"
-import { LLMClient } from "@aigcfroge/ai"
-import { TestLLM } from "@aigcfroge/ai/testing"
-import { Money } from "@aigcfroge/schema/money"
-import { Shell } from "@aigcfroge/schema/shell"
-import { Skill } from "@aigcfroge/schema/skill"
-import { Agent } from "@aigcfroge/core/agent"
+import { LLMClient } from "@omnixa/ai"
+import { TestLLM } from "@omnixa/ai/testing"
+import { Money } from "@omnixa/schema/money"
+import { Shell } from "@omnixa/schema/shell"
+import { Skill } from "@omnixa/schema/skill"
+import { Agent } from "@omnixa/core/agent"
 import { and, asc, eq, getTableName, sql } from "drizzle-orm"
-import { Database } from "@aigcfroge/core/database/database"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNodePlatform } from "@aigcfroge/core/effect/app-node-platform"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Hash } from "@aigcfroge/util/hash"
-import { Bus } from "@aigcfroge/core/bus"
-import { EventSequenceTable, EventTable } from "@aigcfroge/core/event/sql"
-import { Instructions } from "@aigcfroge/core/instructions/index"
-import { Location } from "@aigcfroge/core/location"
-import { Model } from "@aigcfroge/core/model"
-import { ModelGroup } from "@aigcfroge/core/model-group"
-import { DelegationService } from "@aigcfroge/core/delegation/service"
-import { Project } from "@aigcfroge/core/project"
-import { ProjectTable } from "@aigcfroge/core/project/sql"
-import { Provider } from "@aigcfroge/core/provider"
-import { AbsolutePath, RelativePath } from "@aigcfroge/core/schema"
-import { Session } from "@aigcfroge/core/session"
-import { SessionSchema } from "@aigcfroge/core/session/schema"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { SessionInputResult } from "@aigcfroge/core/session/input-result"
-import { SessionProjector } from "@aigcfroge/core/session/projector"
-import { SessionExecution } from "@aigcfroge/core/session/execution"
-import { SessionInbox } from "@aigcfroge/core/session/inbox"
-import { InstructionEntry } from "@aigcfroge/core/session/instruction-entry"
-import { SessionEvent } from "@aigcfroge/core/session/event"
+import { Database } from "@omnixa/core/database/database"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNodePlatform } from "@omnixa/core/effect/app-node-platform"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Hash } from "@omnixa/util/hash"
+import { Bus } from "@omnixa/core/bus"
+import { EventSequenceTable, EventTable } from "@omnixa/core/event/sql"
+import { Instructions } from "@omnixa/core/instructions/index"
+import { Location } from "@omnixa/core/location"
+import { Model } from "@omnixa/core/model"
+import { ModelGroup } from "@omnixa/core/model-group"
+import { DelegationService } from "@omnixa/core/delegation/service"
+import { Project } from "@omnixa/core/project"
+import { ProjectTable } from "@omnixa/core/project/sql"
+import { Provider } from "@omnixa/core/provider"
+import { AbsolutePath, RelativePath } from "@omnixa/core/schema"
+import { Session } from "@omnixa/core/session"
+import { SessionSchema } from "@omnixa/core/session/schema"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { SessionInputResult } from "@omnixa/core/session/input-result"
+import { SessionProjector } from "@omnixa/core/session/projector"
+import { SessionExecution } from "@omnixa/core/session/execution"
+import { SessionInbox } from "@omnixa/core/session/inbox"
+import { InstructionEntry } from "@omnixa/core/session/instruction-entry"
+import { SessionEvent } from "@omnixa/core/session/event"
 import {
   SessionCompositionSnapshotTable,
   SessionConsultationTable,
   SessionInboxTable,
   SessionMessageTable,
   SessionTable,
-} from "@aigcfroge/core/session/sql"
-import { MetaAgentSessionTable, MetaAgentTable } from "@aigcfroge/core/meta-agent/sql"
-import { SessionStore } from "@aigcfroge/core/session/store"
-import { SessionTransfer } from "@aigcfroge/core/session/transfer"
-import { CorrectionStore } from "@aigcfroge/core/session/correction-store"
-import { Config } from "@aigcfroge/core/config"
-import { Event } from "@aigcfroge/schema/event"
-import { Workspace } from "@aigcfroge/core/workspace"
+} from "@omnixa/core/session/sql"
+import { MetaAgentSessionTable, MetaAgentTable } from "@omnixa/core/meta-agent/sql"
+import { SessionStore } from "@omnixa/core/session/store"
+import { SessionTransfer } from "@omnixa/core/session/transfer"
+import { CorrectionStore } from "@omnixa/core/session/correction-store"
+import { Config } from "@omnixa/core/config"
+import { Event } from "@omnixa/schema/event"
+import { Workspace } from "@omnixa/core/workspace"
 import { Expected } from "./lib/session-message"
 import { awaitWithTimeout, testEffect } from "./lib/effect"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
 import { offlineModels, useOfflineCatalog } from "./fixture/models"
 import { promptLocationNode } from "./fixture/prompt-location"
 import { globalProjectNode } from "./lib/project"
 import { tmpdirScoped } from "./fixture/tmpdir"
-import { MetaAgentService } from "@aigcfroge/core/meta-agent/service"
-import { SessionComposition } from "@aigcfroge/core/session/composition"
-import { SessionContext } from "@aigcfroge/core/session/context"
-import { PluginHooks } from "@aigcfroge/core/plugin/hooks"
-import { Composition } from "@aigcfroge/schema/composition"
-import { Global } from "@aigcfroge/util/global"
+import { MetaAgentService } from "@omnixa/core/meta-agent/service"
+import { SessionComposition } from "@omnixa/core/session/composition"
+import { SessionContext } from "@omnixa/core/session/context"
+import { PluginHooks } from "@omnixa/core/plugin/hooks"
+import { Composition } from "@omnixa/schema/composition"
+import { Global } from "@omnixa/util/global"
 import { tempGlobalLayer } from "./fixture/global"
 import { withCustomMode } from "./lib/product-mode"
 
@@ -142,8 +142,7 @@ const metaAdmission = Effect.fn("Keeper.metaAdmission")(function* (custom: boole
   const directory = yield* tmpdirScoped()
   const location = Location.Ref.make({ directory: AbsolutePath.make(directory.path) })
   const agent = `---\nkind: agent\nname: meta-worker\ndescription: Meta admission executor\n${executorGroup ? `config: |\n  model: group:${executorGroup.groupID}\n  mode: subagent\n` : ""}---\nUse the admitted input.\n`
-  if (custom)
-    yield* Effect.promise(() => Bun.write(path.join(directory.path, ".aigcfroge/agents/meta-worker.md"), agent))
+  if (custom) yield* Effect.promise(() => Bun.write(path.join(directory.path, ".omnixa/agents/meta-worker.md"), agent))
   const model = Model.Ref.make({ providerID: Provider.ID.make("meta-admission-keeper"), id: Model.ID.make("meta") })
   const locations = yield* LocationServiceMap.Service
   yield* useOfflineCatalog([
@@ -151,7 +150,7 @@ const metaAdmission = Effect.fn("Keeper.metaAdmission")(function* (custom: boole
       info: Provider.Info.make({
         ...Provider.Info.empty(model.providerID),
         activation: "enabled",
-        package: "@aigcfroge/ai/providers/openai/responses",
+        package: "@omnixa/ai/providers/openai/responses",
       }),
       models: [Model.Info.make(Model.Info.default(model.providerID, model.id))],
     },
@@ -243,7 +242,7 @@ admissionIt.live("runs ordinary Meta Group selection from current configuration 
         info: Provider.Info.make({
           ...Provider.Info.empty(f.model.providerID),
           activation: "enabled",
-          package: "@aigcfroge/ai/providers/openai/responses",
+          package: "@omnixa/ai/providers/openai/responses",
         }),
         models: [f.model, next].map((ref) => Model.Info.make(Model.Info.default(ref.providerID, ref.id))),
       },
@@ -283,7 +282,7 @@ admissionIt.live(
             info: Provider.Info.make({
               ...Provider.Info.empty(f.model.providerID),
               activation: "enabled",
-              package: "@aigcfroge/ai/providers/openai/responses",
+              package: "@omnixa/ai/providers/openai/responses",
             }),
             models: [f.model, next].map((ref) => Model.Info.make(Model.Info.default(ref.providerID, ref.id))),
           },
@@ -346,7 +345,7 @@ admissionIt.live("keeps a frozen child Group on exact retry and carries its beha
           info: Provider.Info.make({
             ...Provider.Info.empty(f.model.providerID),
             activation: "enabled",
-            package: "@aigcfroge/ai/providers/openai/responses",
+            package: "@omnixa/ai/providers/openai/responses",
           }),
           models: [f.model, next].map((ref) => Model.Info.make(Model.Info.default(ref.providerID, ref.id))),
         },
@@ -423,7 +422,7 @@ admissionIt.live("captures an asset executor's Group during real freeze and keep
           info: Provider.Info.make({
             ...Provider.Info.empty(f.model.providerID),
             activation: "enabled",
-            package: "@aigcfroge/ai/providers/openai/responses",
+            package: "@omnixa/ai/providers/openai/responses",
           }),
           models: [f.model, future].map((ref) =>
             Model.Info.make({
@@ -505,7 +504,7 @@ admissionIt.live("captures an asset executor's Group during real freeze and keep
       yield* awaitWithTimeout(sessions.resume(child.id), "The exact frozen Group child did not resume", "10 seconds")
       const requests = yield* llm.requests()
       expect(requests.map((request) => String(request.model.id))).toEqual(["frozen-group-api", "frozen-group-api"])
-      expect(requests.map((request) => request.http?.headers?.["x-aigcfroge-session-id"])).toEqual([child.id, child.id])
+      expect(requests.map((request) => request.http?.headers?.["x-omnixa-session-id"])).toEqual([child.id, child.id])
       expect(JSON.stringify(requests[1]?.messages)).toContain("Resume this exact frozen Group child")
       expect(yield* compositions.get(child.id)).toEqual(childSnapshot)
       expect((yield* sessions.get(child.id)).controller).toEqual(child.controller)
@@ -1860,7 +1859,7 @@ describe("Session.create", () => {
     withTmp((directory) =>
       Effect.gen(function* () {
         yield* Effect.promise(() =>
-          Bun.write(path.join(directory, "aigcfroge.json"), JSON.stringify({ default_agent: "plan" })),
+          Bun.write(path.join(directory, "omnixa.json"), JSON.stringify({ default_agent: "plan" })),
         )
         const session = yield* Session.Service
         const created = yield* session.create({
@@ -1880,7 +1879,7 @@ describe("Session.create", () => {
         const clone = AbsolutePath.make(path.join(directory, "other-clone"))
         yield* Effect.promise(async () => {
           await $`git init -q ${main}`.cwd(directory)
-          await $`git -c user.name=Test -c user.email=test@aigcfroge.test -c commit.gpgsign=false commit --allow-empty -qm root`
+          await $`git -c user.name=Test -c user.email=test@omnixa.test -c commit.gpgsign=false commit --allow-empty -qm root`
             .cwd(main)
             .quiet()
           await $`git remote add origin git@github.com:owner/repo.git`.cwd(main)
@@ -3105,12 +3104,12 @@ describe("Session.create", () => {
         const created = yield* legacyRoot({
           location: Location.Ref.make({ directory: AbsolutePath.make(directory) }),
         })
-        yield* session.environment({ sessionID: created.id, variables: { AIGCFROGE_SESSION_ENV_TEST: "attached" } })
+        yield* session.environment({ sessionID: created.id, variables: { OMNIXA_SESSION_ENV_TEST: "attached" } })
 
         const command =
           process.platform === "win32"
-            ? "[Console]::Out.Write($env:AIGCFROGE_SESSION_ENV_TEST)"
-            : 'printf %s "$AIGCFROGE_SESSION_ENV_TEST"'
+            ? "[Console]::Out.Write($env:OMNIXA_SESSION_ENV_TEST)"
+            : 'printf %s "$OMNIXA_SESSION_ENV_TEST"'
         yield* session.shell({ sessionID: created.id, command })
 
         const messages = yield* session.messages({ sessionID: created.id, order: "asc" })

@@ -1,5 +1,5 @@
 import { Schema } from "effect"
-import { Tool } from "@aigcfroge/schema/tool"
+import { Tool } from "@omnixa/schema/tool"
 import { ModelID, ProviderID, RouteID } from "./ids.js"
 
 export const ProviderFailureClassification = Schema.Literals([

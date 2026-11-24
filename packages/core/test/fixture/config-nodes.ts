@@ -1,7 +1,7 @@
 import { Effect, Layer } from "effect"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
-import { Credential } from "@aigcfroge/core/credential"
-import { WellKnown } from "@aigcfroge/core/wellknown"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
+import { Credential } from "@omnixa/core/credential"
+import { WellKnown } from "@omnixa/core/wellknown"
 
 export const emptyCredentialNode = makeGlobalNode({
   service: Credential.Service,

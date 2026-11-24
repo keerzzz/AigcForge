@@ -1,4 +1,4 @@
-import { isLineRangeHash, parsePathLineSuffix } from "@aigcfroge/util/path"
+import { isLineRangeHash, parsePathLineSuffix } from "@omnixa/util/path"
 import type { ReadMarkdownImage } from "../context/markdown"
 
 export function localImagePath(source: string) {

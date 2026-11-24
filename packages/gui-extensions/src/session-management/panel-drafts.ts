@@ -1,6 +1,6 @@
 import { Schema } from "effect"
-import type { SessionInfo } from "@aigcfroge/client/promise"
-import { MetaAgent } from "@aigcfroge/schema/meta-agent"
+import type { SessionInfo } from "@omnixa/client/promise"
+import { MetaAgent } from "@omnixa/schema/meta-agent"
 
 export class CollaborationDraft extends Schema.Class<CollaborationDraft>("SessionManagement.CollaborationDraft")({
   view: Schema.optional(Schema.Literal("advanced")),

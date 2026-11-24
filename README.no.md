@@ -1,18 +1,6 @@
-<p align="center">
-  <a href="https://aigcfroge.ai">
-    <picture>
-      <source srcset="packages/console/app/src/asset/logo-ornate-dark.svg" media="(prefers-color-scheme: dark)">
-      <source srcset="packages/console/app/src/asset/logo-ornate-light.svg" media="(prefers-color-scheme: light)">
-      <img src="packages/console/app/src/asset/logo-ornate-light.svg" alt="AigcForge logo">
-    </picture>
-  </a>
-</p>
+# Omnixa
+
 <p align="center">AI-kodeagent med åpen kildekode.</p>
-<p align="center">
-  <a href="https://aigcfroge.ai/discord"><img alt="Discord" src="https://img.shields.io/discord/1391832426048651334?style=flat-square&label=discord" /></a>
-  <a href="https://www.npmjs.com/package/aigcfroge-ai"><img alt="npm" src="https://img.shields.io/npm/v/aigcfroge-ai?style=flat-square" /></a>
-  <a href="https://github.com/anomalyco/aigcfroge/actions/workflows/publish.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/anomalyco/aigcfroge/publish.yml?style=flat-square&branch=dev" /></a>
-</p>
 
 <p align="center">
   <a href="README.md">English</a> |
@@ -39,66 +27,28 @@
   <a href="README.vi.md">Tiếng Việt</a>
 </p>
 
-[![AigcForge Terminal UI](packages/web/src/assets/lander/screenshot.png)](https://aigcfroge.ai)
-
 ---
 
 ### Installasjon
 
-```bash
-# YOLO
-curl -fsSL https://aigcfroge.ai/install | bash
-
-# Pakkehåndterere
-scoop install aigcfroge             # Windows
-choco install aigcfroge             # Windows
-brew install anomalyco/tap/aigcfroge # macOS og Linux (anbefalt, alltid oppdatert)
-brew install aigcfroge              # macOS og Linux (offisiell brew-formel, oppdateres sjeldnere)
-sudo pacman -S aigcfroge            # Arch Linux (Stable)
-paru -S aigcfroge-bin               # Arch Linux (Latest from AUR)
-mise use -g aigcfroge               # alle OS
-nix run nixpkgs#aigcfroge           # eller github:anomalyco/aigcfroge for nyeste dev-branch
-```
-
-> [!TIP]
-> Fjern versjoner eldre enn 0.1.x før du installerer.
-
-### Desktop-app (BETA)
-
-AigcForge er også tilgjengelig som en desktop-app. Last ned direkte fra [releases-siden](https://github.com/anomalyco/aigcfroge/releases) eller [aigcfroge.ai/download](https://aigcfroge.ai/download).
-
-| Plattform             | Nedlasting                          |
-| --------------------- | ----------------------------------- |
-| macOS (Apple Silicon) | `aigcfroge-desktop-mac-arm64.dmg`   |
-| macOS (Intel)         | `aigcfroge-desktop-mac-x64.dmg`     |
-| Windows               | `aigcfroge-desktop-windows-x64.exe` |
-| Linux                 | `.deb`, `.rpm` eller AppImage       |
+Installer en CLI-binærfil bygget lokalt fra dette repositoryet:
 
 ```bash
-# macOS (Homebrew)
-brew install --cask aigcfroge-desktop
-# Windows (Scoop)
-scoop bucket add extras; scoop install extras/aigcfroge-desktop
+./install --binary /absolute/path/to/omnixa
+"$HOME/.omnixa/bin/omnixa" --version
 ```
 
-#### Installasjonsmappe
+Installasjonsmappen er `$HOME/.omnixa/bin`. Fjerninstallasjon og automatiske CLI-oppgraderinger krever en konfigurert `OMNIXA_UPDATE_URL`.
 
-Installasjonsskriptet bruker følgende prioritet for installasjonsstien:
+### Desktop-app
 
-1. `$AIGCFROGE_INSTALL_DIR` - Egendefinert installasjonsmappe
-2. `$XDG_BIN_DIR` - Sti som følger XDG Base Directory Specification
-3. `$HOME/bin` - Standard brukerbinar-mappe (hvis den finnes eller kan opprettes)
-4. `$HOME/.aigcfroge/bin` - Standard fallback
+Mål for desktoputgivelser: [keerzzz/AigcForge](https://github.com/keerzzz/AigcForge/releases).
 
-```bash
-# Eksempler
-AIGCFROGE_INSTALL_DIR=/usr/local/bin curl -fsSL https://aigcfroge.ai/install | bash
-XDG_BIN_DIR=$HOME/.local/bin curl -fsSL https://aigcfroge.ai/install | bash
-```
+Lokal bygging og pakking fra samme kilde: [packages/desktop/README.md](packages/desktop/README.md).
 
 ### Agents
 
-AigcForge har to innebygde agents du kan bytte mellom med `Tab`-tasten.
+Omnixa har to innebygde agents du kan bytte mellom med `Tab`-tasten.
 
 - **build** - Standard, agent med full tilgang for utviklingsarbeid
 - **plan** - Skrivebeskyttet agent for analyse og kodeutforsking
@@ -109,20 +59,20 @@ AigcForge har to innebygde agents du kan bytte mellom med `Tab`-tasten.
 Det finnes også en **general**-subagent for komplekse søk og flertrinnsoppgaver.
 Den brukes internt og kan kalles via `@general` i meldinger.
 
-Les mer om [agents](https://aigcfroge.ai/docs/agents).
+Les mer om [agents](packages/core/README.md).
 
 ### Dokumentasjon
 
-For mer info om hvordan du konfigurerer AigcForge, [**se dokumentasjonen**](https://aigcfroge.ai/docs).
+For mer info om hvordan du konfigurerer Omnixa, [**se dokumentasjonen**](specs/v2/README.md).
 
 ### Bidra
 
-Hvis du vil bidra til AigcForge, les [contributing docs](./CONTRIBUTING.md) før du sender en pull request.
+Hvis du vil bidra til Omnixa, les [contributing docs](./CONTRIBUTING.md) før du sender en pull request.
 
-### Bygge på AigcForge
+### Bygge på Omnixa
 
-Hvis du jobber med et prosjekt som er relatert til AigcForge og bruker "aigcfroge" som en del av navnet; for eksempel "aigcfroge-dashboard" eller "aigcfroge-mobile", legg inn en merknad i README som presiserer at det ikke er bygget av AigcForge-teamet og ikke er tilknyttet oss på noen måte.
+Hvis du jobber med et prosjekt som er relatert til Omnixa og bruker "omnixa" som en del av navnet; for eksempel "omnixa-dashboard" eller "omnixa-mobile", legg inn en merknad i README som presiserer at det ikke er bygget av Omnixa-teamet og ikke er tilknyttet oss på noen måte.
 
 ---
 
-**Bli med i fellesskapet** [Discord](https://discord.gg/aigcfroge) | [X.com](https://x.com/aigcfroge)
+Based on [OpenCode](https://github.com/anomalyco/opencode), under the [MIT license](LICENSE).

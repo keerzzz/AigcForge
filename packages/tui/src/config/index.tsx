@@ -1,7 +1,7 @@
 export * as Config from "."
 
 import { createBindingLookup } from "@opentui/keymap/extras"
-import { Vcs } from "@aigcfroge/schema/vcs"
+import { Vcs } from "@omnixa/schema/vcs"
 import { Schema } from "effect"
 import { createContext, onCleanup, type JSX, useContext } from "solid-js"
 import { createStore, reconcile } from "solid-js/store"
@@ -301,7 +301,7 @@ export function resolve(
       notifications: input.attention?.notifications ?? false,
       sound: input.attention?.sound ?? false,
       volume: input.attention?.volume ?? 0.4,
-      sound_pack: input.attention?.sound_pack ?? "aigcfroge.default",
+      sound_pack: input.attention?.sound_pack ?? "omnixa.default",
       sounds: input.attention?.sounds ?? {},
     },
     keybinds: createBindingLookup(TuiKeybind.toBindingConfig(TuiKeybind.parse(keybinds)), {

@@ -1,5 +1,5 @@
-import { Integration } from "@aigcfroge/core/integration"
-import { Plugin } from "@aigcfroge/core/plugin"
+import { Integration } from "@omnixa/core/integration"
+import { Plugin } from "@omnixa/core/plugin"
 import { Effect } from "effect"
 import { HttpApiBuilder, HttpApiSchema } from "effect/http-api"
 import { Api } from "../api"
@@ -8,9 +8,9 @@ import {
   IntegrationMethodNotFoundError,
   IntegrationNotFoundError,
   InvalidRequestError,
-} from "@aigcfroge/protocol/errors"
+} from "@omnixa/protocol/errors"
 import { response } from "../location"
-import { WellKnown } from "@aigcfroge/core/wellknown"
+import { WellKnown } from "@omnixa/core/wellknown"
 
 const authorize = <A, R>(effect: Effect.Effect<A, Integration.AuthorizationError, R>) =>
   effect.pipe(

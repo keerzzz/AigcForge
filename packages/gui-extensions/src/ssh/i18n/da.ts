@@ -20,14 +20,8 @@ export default {
   "error.input":
     "Indtast en værts- eller SSH-forbindelseskommando. Fjernkommandoer og ikke-understøttede SSH-indstillinger er ikke tilladt.",
   "error.connection": "Kunne ikke etablere SSH-forbindelsen. Tjek dit netværk og din SSH-konfiguration.",
-  "error.platform":
-    "Denne fjernplatform er ikke understøttet. Automatisk opsætning kræver i øjeblikket Linux eller macOS på x64 eller arm64.",
   "error.version": "Fjerntjenesten skal matche denne Desktop-version, før der oprettes forbindelse.",
-  "error.install":
-    "Fjernserveren kunne ikke installeres. Tjek tilslutningsmuligheder, diskplads, og at tar er installeret.",
-  "error.unpublished":
-    "Denne desktopversion har ingen offentliggjort fjernserver. For udviklingsbuilds, installer og start V2 på værten, og prøv derefter igen.",
-  "error.service": "SSH tilsluttet, men AigcForge-serveren blev ikke klar.",
+  "error.service": "SSH tilsluttet, men Omnixa-serveren blev ikke klar.",
   "error.host-key":
     "Værtens identitet kunne ikke bekræftes. Bekræft dets fingeraftryk, før du opdaterer dine SSH kendte værter.",
   "error.ssh-missing":

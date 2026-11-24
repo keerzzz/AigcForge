@@ -1,8 +1,8 @@
 import { describe, test, expect } from "bun:test"
 import { Effect, FileSystem, Layer } from "effect"
-import { LayerNodePlatform } from "@aigcfroge/util/effect/app-node-platform"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { LayerNodePlatform } from "@omnixa/util/effect/app-node-platform"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { testEffect } from "../lib/effect"
 import path from "path"
 

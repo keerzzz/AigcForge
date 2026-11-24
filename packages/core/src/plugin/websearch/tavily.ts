@@ -1,6 +1,6 @@
 export * as WebSearchTavily from "./tavily.js"
 
-import { define } from "@aigcfroge/plugin/effect/plugin"
+import { define } from "@omnixa/plugin/effect/plugin"
 import { Duration, Effect, Schema, Scope } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 import { App } from "../../app.js"
@@ -25,7 +25,7 @@ const SearchResponse = Schema.Struct({
 })
 
 export const Plugin = define<HttpClient.HttpClient | Scope.Scope>({
-  id: "aigcfroge.websearch.tavily",
+  id: "omnixa.websearch.tavily",
   effect: Effect.fn("WebSearchTavily.Plugin")(function* (ctx) {
     const http = yield* HttpClient.HttpClient
     yield* ctx.integration.transform((editor) => {
@@ -51,7 +51,7 @@ export const Plugin = define<HttpClient.HttpClient | Scope.Scope>({
               HttpClientRequest.acceptJson,
               HttpClientRequest.setHeaders({
                 "User-Agent": App.useragent(ctx.app),
-                "X-Client-Name": "aigcfroge2",
+                "X-Client-Name": "omnixa2",
                 ...(credential?.type === "key"
                   ? { Authorization: `Bearer ${credential.key}` }
                   : { "X-Tavily-Access-Mode": "keyless" }),

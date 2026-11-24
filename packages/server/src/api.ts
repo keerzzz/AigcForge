@@ -1,4 +1,4 @@
-import { makeDefaultApi } from "@aigcfroge/protocol/api"
+import { makeDefaultApi } from "@omnixa/protocol/api"
 import { LocationMiddleware } from "./location"
 import { FormLocationMiddleware } from "./middleware/form-location"
 import { SessionLocationMiddleware } from "./middleware/session-location"

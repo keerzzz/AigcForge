@@ -1,11 +1,12 @@
 import { createSignal, Index, Show } from "solid-js"
 import { Effect, Option, Predicate, Schema } from "effect"
-import { Button } from "@aigcfroge/ui/button"
-import { Dialog } from "@aigcfroge/ui/dialog"
+import { Button } from "@omnixa/ui/button"
+import { Dialog } from "@omnixa/ui/dialog"
 import { useExtension, type DialogHandle, type SetupContext } from "../sdk"
 import type definition from "./index"
 
-const CHANGELOG_URL = "https://aigcfroge.ai/changelog.json"
+// Hosted release highlights feed is disabled until an Omnixa changelog endpoint is published.
+const CHANGELOG_URL = ""
 
 type Highlight = {
   title: string
@@ -57,6 +58,8 @@ export function showWhatsNew(
   ctx: SetupContext<typeof definition>,
   input: { readonly previous: string; readonly current: string; readonly markSeen: () => void },
 ) {
+  if (!CHANGELOG_URL) return input.markSeen()
+
   const timers = new Set<ReturnType<typeof setTimeout>>()
 
   ctx.signal.addEventListener("abort", () => timers.forEach(clearTimeout))

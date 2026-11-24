@@ -3,8 +3,8 @@ import path from "node:path"
 import { Effect, FileSystem, Layer, Schema } from "effect"
 import { NodeFileSystem } from "@effect/platform-node"
 // The schema and registry export the same CustomProfile name.
-import { CustomProfile as SchemaCustomProfile } from "@aigcfroge/schema/custom-profile"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { CustomProfile as SchemaCustomProfile } from "@omnixa/schema/custom-profile"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { CustomProfile } from "../../src/custom-profile"
 import { CustomProfileService } from "../../src/custom-profile-service"
 import { FileMutation } from "../../src/file-mutation"
@@ -58,7 +58,7 @@ const aliases = [
 
 const probe = Effect.gen(function* () {
   const filesystem = yield* FileSystem.FileSystem
-  const directory = yield* filesystem.makeTempDirectoryScoped({ prefix: "aigcfroge-asset-yaml-" })
+  const directory = yield* filesystem.makeTempDirectoryScoped({ prefix: "omnixa-asset-yaml-" })
   const canonical = yield* filesystem.realPath(directory)
   const scope = Layer.succeed(
     Location.Service,

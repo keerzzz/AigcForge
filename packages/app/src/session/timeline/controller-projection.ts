@@ -1,4 +1,4 @@
-import type { SessionInboxInfo, SessionMessageInfo, SessionMessageUser } from "@aigcfroge/client/promise"
+import type { SessionInboxInfo, SessionMessageInfo, SessionMessageUser } from "@omnixa/client/promise"
 
 export function applyTimelineMessageHandoff(messages: SessionMessageInfo[], handoff?: SessionMessageUser) {
   if (!handoff) return messages

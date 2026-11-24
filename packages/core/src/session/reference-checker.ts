@@ -3,8 +3,8 @@ export * as ReferenceChecker from "./reference-checker"
 import { Context, Effect, Layer } from "effect"
 import path from "path"
 import { Config } from "../config"
-import { Document, type Entry } from "@aigcfroge/schema/config"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { Document, type Entry } from "@omnixa/schema/config"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Location } from "../location"
 import { Ripgrep } from "../ripgrep"
 import { SessionSchema } from "./schema"
@@ -35,7 +35,7 @@ export interface Interface {
   readonly check: (input: Input) => Effect.Effect<string>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/v2/ReferenceChecker") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/v2/ReferenceChecker") {}
 
 const extensions = [
   "",

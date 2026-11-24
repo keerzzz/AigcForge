@@ -1,6 +1,6 @@
 import { NodeFileSystem } from "@effect/platform-node"
-import { Global } from "@aigcfroge/util/global"
-import { AIGCFROGE_VERSION } from "../src/version"
+import { Global } from "@omnixa/util/global"
+import { OMNIXA_VERSION } from "../src/version"
 import { expect, test } from "bun:test"
 import { Effect, FileSystem, Scope } from "effect"
 import fs from "node:fs/promises"
@@ -10,13 +10,13 @@ import { ServerConnection } from "../src/services/server-connection"
 import { ServiceConfig } from "../src/services/service-config"
 
 test("resolution groups Effect-native lifecycle operations only for the managed service", async () => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-server-resolution-"))
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "omnixa-server-resolution-"))
   const id = "server-resolution-test"
   const server = Bun.serve({
     port: 0,
     fetch() {
       return Response.json({
-        version: AIGCFROGE_VERSION,
+        version: OMNIXA_VERSION,
         pid: process.pid,
         urls: [],
       })
@@ -33,7 +33,7 @@ test("resolution groups Effect-native lifecycle operations only for the managed 
       registration,
       JSON.stringify({
         id,
-        version: AIGCFROGE_VERSION,
+        version: OMNIXA_VERSION,
         url: server.url.toString(),
         pid: process.pid,
       }),
@@ -57,14 +57,14 @@ test("resolution groups Effect-native lifecycle operations only for the managed 
 })
 
 test("service options only require a matching version when requested", async () => {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "aigcfroge-service-options-"))
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "omnixa-service-options-"))
   const layer = Global.layerWith({ config: path.join(root, "config"), state: path.join(root, "state") })
   const runPromise = <A, E>(effect: Effect.Effect<A, E, Global.Service | FileSystem.FileSystem | Scope.Scope>) =>
     Effect.runPromise(effect.pipe(Effect.provide(layer), Effect.provide(NodeFileSystem.layer), Effect.scoped))
 
   try {
     expect((await runPromise(ServiceConfig.options())).version).toBeUndefined()
-    expect((await runPromise(ServiceConfig.options({ checkVersion: true }))).version).toBe(AIGCFROGE_VERSION)
+    expect((await runPromise(ServiceConfig.options({ checkVersion: true }))).version).toBe(OMNIXA_VERSION)
   } finally {
     await fs.rm(root, { recursive: true, force: true })
   }

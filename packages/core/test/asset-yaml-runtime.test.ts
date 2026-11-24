@@ -3,8 +3,8 @@ import { Effect, FileSystem, Layer, Schema, Stream } from "effect"
 import { ChildProcess } from "effect/process"
 import { NodeFileSystem } from "@effect/platform-node"
 import path from "node:path"
-import { CrossSpawnSpawner } from "@aigcfroge/util/cross-spawn-spawner"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
+import { CrossSpawnSpawner } from "@omnixa/util/cross-spawn-spawner"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
 import { testEffect } from "./lib/effect"
 
 class ProbeResult extends Schema.Class<ProbeResult>("AssetYaml.ProbeResult")({

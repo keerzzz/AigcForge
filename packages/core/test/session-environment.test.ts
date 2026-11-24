@@ -1,8 +1,8 @@
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Session } from "@aigcfroge/core/session"
-import { SessionEnvironment } from "@aigcfroge/core/session/environment"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Session } from "@omnixa/core/session"
+import { SessionEnvironment } from "@omnixa/core/session/environment"
 import { testEffect } from "./lib/effect"
 
 const it = testEffect(AppNodeBuilder.build(SessionEnvironment.node))

@@ -65,16 +65,6 @@ export const dict = {
   "ui.sessionTurn.retry.attempt": "ניסיון #{{attempt}}",
   "ui.sessionTurn.retry.attemptLine": "{{line}} - ניסיון #{{attempt}}",
   "ui.sessionTurn.retry.geminiHot": "העומס על Gemini גבוה מדי כרגע",
-  "ui.sessionTurn.error.freeUsageExceeded": "חריגה מהשימוש בחינם",
-  "ui.sessionTurn.error.addCredits": "הוסף קרדיטים",
-  "dialog.usageExceeded.freeTier.title": "הגעת למגבלה החינמית",
-  "dialog.usageExceeded.freeTier.description":
-    "הירשם ל-AigcForge Go לקבלת גישה אמינה למודלי הקוד הפתוח הטובים ביותר, החל מ-$5 לחודש.",
-  "dialog.usageExceeded.freeTier.actionLabel": "הירשם",
-  "dialog.usageExceeded.accountRateLimit.title": "הגעת למגבלת Go",
-  "dialog.usageExceeded.accountRateLimit.description":
-    "הגעת למגבלת השימוש. כדי להמשיך להשתמש במודל זה כעת, הפעל שימוש מהיתרה הזמינה שלך",
-  "dialog.usageExceeded.accountRateLimit.actionLabel": "פתח את ההגדרות",
   "ui.sessionTurn.status.delegating": "מעביר את העבודה לסוכן אחר",
   "ui.sessionTurn.status.planning": "תכנון השלבים הבאים",
   "ui.sessionTurn.status.gatheringContext": "בודק את הפרויקט",

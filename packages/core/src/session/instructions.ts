@@ -2,9 +2,9 @@ export * as SessionInstructions from "./instructions.js"
 
 import { relative } from "path"
 import { Context, Effect, Layer, Option, Ref, Schema } from "effect"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Bus } from "../bus.js"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Location } from "../location.js"
 import { SessionEvent } from "./event.js"
 import { MessageDecodeError } from "./error.js"
@@ -23,7 +23,7 @@ export interface Interface {
   }) => Effect.Effect<void, MessageDecodeError | FSUtil.Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/SessionInstructions") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/SessionInstructions") {}
 
 const layer = Layer.effect(
   Service,

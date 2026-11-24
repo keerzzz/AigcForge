@@ -1,8 +1,8 @@
 ;(function () {
-  var key = "aigcfroge-theme-id"
+  var key = "omnixa-theme-id"
   var themeId = localStorage.getItem(key) || "oc-2"
 
-  var scheme = localStorage.getItem("aigcfroge-color-scheme") || "system"
+  var scheme = localStorage.getItem("omnixa-color-scheme") || "system"
   var isDark = scheme === "dark" || (scheme === "system" && matchMedia("(prefers-color-scheme: dark)").matches)
   var mode = isDark ? "dark" : "light"
 
@@ -16,7 +16,7 @@
 
   if (themeId === "oc-2") return
 
-  var css = localStorage.getItem("aigcfroge-theme-css-" + mode)
+  var css = localStorage.getItem("omnixa-theme-css-" + mode)
   if (css) {
     var style = document.createElement("style")
     style.id = "oc-theme-preload"

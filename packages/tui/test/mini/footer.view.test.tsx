@@ -11,7 +11,7 @@ import {
 import { createTestRenderer } from "@opentui/core/testing"
 import { testRender } from "@opentui/solid"
 import { createSignal } from "solid-js"
-import type { FormInfo } from "@aigcfroge/client/promise"
+import type { FormInfo } from "@omnixa/client/promise"
 import { Keymap } from "../../src/context/keymap"
 import type { ClipboardContent, ClipboardService } from "../../src/context/clipboard"
 import {
@@ -61,8 +61,8 @@ const tuiConfig = createTuiResolvedConfig()
 async function nativeLightTheme() {
   await using tmp = await tmpdir()
   await Bun.write(`${tmp.path}/themes/mini-native-light.json`, JSON.stringify({ light: {} }))
-  const previous = process.env.AIGCFROGE_CONFIG_DIR
-  process.env.AIGCFROGE_CONFIG_DIR = tmp.path
+  const previous = process.env.OMNIXA_CONFIG_DIR
+  process.env.OMNIXA_CONFIG_DIR = tmp.path
   try {
     return await resolveRunTheme(
       {
@@ -74,8 +74,8 @@ async function nativeLightTheme() {
       { name: "mini-native-light" },
     )
   } finally {
-    if (previous === undefined) delete process.env.AIGCFROGE_CONFIG_DIR
-    else process.env.AIGCFROGE_CONFIG_DIR = previous
+    if (previous === undefined) delete process.env.OMNIXA_CONFIG_DIR
+    else process.env.OMNIXA_CONFIG_DIR = previous
   }
 }
 
@@ -106,8 +106,8 @@ function model(input: {
 
 function provider() {
   return {
-    id: "aigcfroge",
-    name: "aigcfroge",
+    id: "omnixa",
+    name: "omnixa",
     models: {
       "gpt-5": model({ id: "gpt-5", name: "GPT-5", variants: { high: {}, minimal: {} } }),
       "gpt-free": model({ id: "gpt-free", name: "GPT Free", cost: 0 }),
@@ -658,13 +658,13 @@ test("direct footer leads with the active agent and default model", async () => 
 test("direct footer describes commands and context and shows the model provider", async () => {
   const app = await renderFooter({
     providers: [provider()],
-    currentModel: { providerID: "aigcfroge", modelID: "gpt-5" },
+    currentModel: { providerID: "omnixa", modelID: "gpt-5" },
     state: { first: true },
   })
   try {
     await app.renderOnce()
     expect(app.captureCharFrame()).toContain("┃ Ask anything, / for commands, @ for context…")
-    expect(app.captureCharFrame()).toContain("Build · GPT-5 · aigcfroge · ctrl+p menu")
+    expect(app.captureCharFrame()).toContain("Build · GPT-5 · omnixa · ctrl+p menu")
   } finally {
     app.cleanup()
   }
@@ -675,7 +675,7 @@ test.each([56, 160])("exit confirmation replaces routine footer details at %i co
     width,
     currentAgent: "Build",
     providers: [provider()],
-    currentModel: { providerID: "aigcfroge", modelID: "gpt-5" },
+    currentModel: { providerID: "omnixa", modelID: "gpt-5" },
     currentVariant: "high",
     state: { usage: { tokens: 12000, percent: 10 } },
     queuedPrompts: [{ messageID: "queued", prompt: { text: "later", parts: [] }, delivery: "queue" }],
@@ -689,7 +689,7 @@ test.each([56, 160])("exit confirmation replaces routine footer details at %i co
     await app.renderOnce()
     const frame = app.captureCharFrame()
     expect(frame).toContain("Press ctrl+c again to exit")
-    for (const text of ["Build", "GPT-5", "aigcfroge", "high", "12.0K", "queued", "menu"])
+    for (const text of ["Build", "GPT-5", "omnixa", "high", "12.0K", "queued", "menu"])
       expect(frame).not.toContain(text)
     app.setState((state) => ({ ...state, exit: 0 }))
     await app.renderOnce()
@@ -1820,9 +1820,9 @@ test("selectedCommand validates the bound command and refreshes its arguments", 
 
 test("direct footer counts queued and steering work while running", async () => {
   const app = await renderFooter({
-    width: 160,
+    width: 157,
     state: { phase: "running" },
-    currentModel: { providerID: "aigcfroge", modelID: "a-model-name-long-enough-to-force-responsive-truncation" },
+    currentModel: { providerID: "omnixa", modelID: "a-model-name-long-enough-to-force-responsive-truncation" },
     subagents: {
       tabs: [subagent({ sessionID: "s-1", label: "Explore", description: "Inspect auth flow" })],
       details: {},
@@ -1841,7 +1841,7 @@ test("direct footer counts queued and steering work while running", async () => 
     const transparent = RGBA.fromValues(0, 0, 0, 0).toInts()
     const statusline = footerStatusline(app.renderer.root)
     expect(frame).toContain("esc stop · ctrl+x q 2 pending · ↓ 1 subagent · ctrl+b background · Build")
-    expect(frame).toMatch(/aigcfroge · ctrl\+p menu *$/m)
+    expect(frame).toMatch(/omnixa · ctrl\+p menu *$/m)
     expect(frame).not.toContain("1 agent")
     expect(statusline.backgroundColor.toInts()).toEqual(transparent)
   } finally {
@@ -1883,7 +1883,7 @@ test.each([16, 20, 24, 32])("status takeovers retain complete instructions at %i
       mono,
       currentVariant: "high",
       providers: [provider()],
-      currentModel: { providerID: "aigcfroge", modelID: "gpt-5" },
+      currentModel: { providerID: "omnixa", modelID: "gpt-5" },
       state: { exit: 1, usage: { tokens: 12000, percent: 10 } },
       queuedPrompts: [{ messageID: "queued", prompt: { text: "later", parts: [] }, delivery: "queue" }],
     })
@@ -1909,7 +1909,7 @@ test.each([16, 20, 24, 32])("status takeovers retain complete instructions at %i
           expect(text).toMatch(state.action ? /exit/ : /stop|interrupt/)
           expect(statusline.height).toBe(1)
         }
-        for (const value of ["Build", "GPT-5", "aigcfroge", "high", "12.0K", "queued", "menu", "..."])
+        for (const value of ["Build", "GPT-5", "omnixa", "high", "12.0K", "queued", "menu", "..."])
           expect(text).not.toContain(value)
         expect(!!statusline.findDescendantById("mini-work-spinner")).toBe(state.phase === "running")
       }
@@ -1923,7 +1923,7 @@ test.each([
   { field: "agent", text: "esc stop · GPT-5 [high]" },
   {
     field: "model",
-    text: "esc stop · Build · long-model-long-model-lo… [high] · aigcfroge · ctrl+p menu",
+    text: "esc stop · Build · long-model-long-model-lo… [high] · omnixa · ctrl+p menu",
   },
   { field: "provider", text: "esc stop · Build · GPT-5 [high]" },
 ])("running footer abbreviates only the model and stops at an oversized $field", async ({ field, text }) => {
@@ -1932,11 +1932,11 @@ test.each([
     width: 80,
     currentAgent: field === "agent" ? long : "Build",
     currentVariant: "high",
-    currentModel: { providerID: "aigcfroge", modelID: "gpt-5" },
+    currentModel: { providerID: "omnixa", modelID: "gpt-5" },
     providers: [
       {
         ...provider(),
-        name: field === "provider" ? long : "aigcfroge",
+        name: field === "provider" ? long : "omnixa",
         models: { "gpt-5": model({ id: "gpt-5", name: field === "model" ? long : "GPT-5" }) },
       },
     ],
@@ -2101,7 +2101,7 @@ test("identity and context precede the provider and a non-fitting provider block
   const app = await renderFooter({
     width: 56,
     providers: [{ ...provider(), name: "Long provider display name" }],
-    currentModel: { providerID: "aigcfroge", modelID: "gpt-5" },
+    currentModel: { providerID: "omnixa", modelID: "gpt-5" },
     currentVariant: "high",
     state: { usage: { tokens: 12000, percent: 10 } },
   })
@@ -2456,7 +2456,7 @@ test("direct model panel keeps native V2 light search and options readable on a 
     provider(),
     { id: "openai", name: "OpenAI", models: { "gpt-5": model({ id: "gpt-5", name: "GPT-5" }) } },
   ])
-  const [current] = createSignal<RunInput["model"]>({ providerID: "aigcfroge", modelID: "gpt-5" })
+  const [current] = createSignal<RunInput["model"]>({ providerID: "omnixa", modelID: "gpt-5" })
 
   const app = await testRender(
     () => (
@@ -2483,7 +2483,7 @@ test("direct model panel keeps native V2 light search and options readable on a 
 
     expect(frame).toContain("Select model")
     expect(frame).toContain("Search")
-    expect(frame).toContain("aigcfroge")
+    expect(frame).toContain("omnixa")
     expect(frame).toContain("GPT-5")
     expect(frame).toContain("current")
     expect(frame).toContain("GPT Free")
@@ -2507,7 +2507,7 @@ test("direct model panel keeps native V2 light search and options readable on a 
     const search = app.captureCharFrame()
 
     expect(search.match(/GPT-5/g)).toHaveLength(2)
-    expect(search).toContain("aigcfroge")
+    expect(search).toContain("omnixa")
     expect(search).toContain("OpenAI")
     const spans = app.captureSpans().lines.flatMap((line) => line.spans)
     const query = spans.find((span) => span.text.includes("gpt-5"))!

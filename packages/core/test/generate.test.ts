@@ -1,16 +1,16 @@
 import { expect } from "bun:test"
-import { LanguageModel, LLMClient } from "@aigcfroge/ai"
-import { RequestExecutor } from "@aigcfroge/ai/route"
-import { OpenAIChat } from "@aigcfroge/ai/protocols"
-import { TestLLM } from "@aigcfroge/ai/testing"
-import { AISDK } from "@aigcfroge/core/aisdk"
-import { Generate } from "@aigcfroge/core/generate"
-import { Integration } from "@aigcfroge/core/integration"
-import { ModelResolver } from "@aigcfroge/core/model-resolver"
-import { ID, Info, Model, Ref } from "@aigcfroge/core/model"
-import { ModelGroup } from "@aigcfroge/core/model-group"
-import { Provider } from "@aigcfroge/core/provider"
-import { Npm } from "@aigcfroge/util/npm"
+import { LanguageModel, LLMClient } from "@omnixa/ai"
+import { RequestExecutor } from "@omnixa/ai/route"
+import { OpenAIChat } from "@omnixa/ai/protocols"
+import { TestLLM } from "@omnixa/ai/testing"
+import { AISDK } from "@omnixa/core/aisdk"
+import { Generate } from "@omnixa/core/generate"
+import { Integration } from "@omnixa/core/integration"
+import { ModelResolver } from "@omnixa/core/model-resolver"
+import { ID, Info, Model, Ref } from "@omnixa/core/model"
+import { ModelGroup } from "@omnixa/core/model-group"
+import { Provider } from "@omnixa/core/provider"
+import { Npm } from "@omnixa/util/npm"
 import { Effect, Layer } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 import { testEffect } from "./lib/effect"
@@ -136,7 +136,7 @@ testEffect(Layer.empty).effect("attributes each stateless completion without cre
       HttpClient.HttpClient,
       HttpClient.make((request) =>
         Effect.sync(() => {
-          const session = request.headers["x-aigcfroge-session"]
+          const session = request.headers["x-omnixa-session"]
           if (!session)
             return HttpClientResponse.fromWeb(
               request,

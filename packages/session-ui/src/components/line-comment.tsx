@@ -1,11 +1,11 @@
-import { useFilteredList } from "@aigcfroge/ui/hooks"
-import { getDirectory, getFilename } from "@aigcfroge/util/path"
+import { useFilteredList } from "@omnixa/ui/hooks"
+import { getDirectory, getFilename } from "@omnixa/util/path"
 import { createSignal, For, onMount, Show, splitProps, type JSX } from "solid-js"
-import { Button } from "@aigcfroge/ui/button"
-import { FileIcon } from "@aigcfroge/ui/file-icon"
-import { Icon } from "@aigcfroge/ui/icon"
+import { Button } from "@omnixa/ui/button"
+import { FileIcon } from "@omnixa/ui/file-icon"
+import { Icon } from "@omnixa/ui/icon"
 import { installLineCommentStyles } from "./line-comment-styles"
-import { useI18n } from "@aigcfroge/ui/context/i18n"
+import { useI18n } from "@omnixa/ui/context/i18n"
 
 installLineCommentStyles()
 

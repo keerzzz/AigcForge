@@ -31,7 +31,7 @@ Your app is ready to be deployed!
 
 ## E2E Testing
 
-Locally, Playwright starts the Vite dev server automatically via `webServer`, or reuses one already running at the configured address. The browser suite uses isolated API fixtures rather than a live aigcfroge backend.
+Locally, Playwright starts the Vite dev server automatically via `webServer`, or reuses one already running at the configured address. The browser suite uses isolated API fixtures rather than a live omnixa backend.
 
 ```bash
 bunx playwright install chromium
@@ -69,33 +69,25 @@ Environment options:
 - `PLAYWRIGHT_PORT` (managed dev or preview server port, default: `3000`)
 - `PLAYWRIGHT_BASE_URL` (use an externally managed app instead of starting a server; otherwise defaults to `http://127.0.0.1:<PLAYWRIGHT_PORT>`)
 
-## Deployment
+## Serving the app
 
-The `deploy` GitHub Actions workflow uses SST to deploy the web app from these branches in `anomalyco/aigcfroge`:
+Build the app with `bun run build` and preview it with `bun run serve` from `packages/app`.
+The CLI serves the bundled app through `omnixa serve`. Static hosting can use this package's `dist` output
+and connect to a separately configured server.
 
-| Branch       | Site                   |
-| ------------ | ---------------------- |
-| `dev`        | `app.dev.aigcfroge.ai` |
-| `production` | `app.aigcfroge.ai`     |
-| `beta`       | `beta.aigcfroge.ai`    |
+`VITE_OMNIXA_SERVER_MODE` controls which server the web build provides at startup:
 
-Changes merged into `v2` reach the beta site when they are promoted to `beta`. The beta SST stage deploys
-only the web app, using the same `WebApp` StaticSite definition as production. It sets the build channel
-and Sentry environment to `beta` without deploying the API, console, database, or billing infrastructure.
+| Mode               | Initial server                                                                     |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| `none`             | No initial server.                                                                 |
+| `origin` (default) | The current page's origin. CLI builds explicitly use this mode for `omnixa serve`. |
 
-`VITE_AIGCFROGE_SERVER_MODE` controls which server the web build provides at startup:
-
-| Mode               | Initial server                                                                        |
-| ------------------ | ------------------------------------------------------------------------------------- |
-| `none`             | No initial server. The beta deployment uses this mode.                                |
-| `origin` (default) | The current page's origin. CLI builds explicitly use this mode for `aigcfroge serve`. |
-
-In Vite development mode, `origin` uses `VITE_AIGCFROGE_SERVER_HOST` / `VITE_AIGCFROGE_SERVER_PORT`
+In Vite development mode, `origin` uses `VITE_OMNIXA_SERVER_HOST` / `VITE_OMNIXA_SERVER_PORT`
 (default: `http://localhost:4096`) instead of the frontend origin. Both modes restore user-added servers
 from storage. Desktop provides the local server it discovers or starts through native initialization.
 
 With no configured servers, or when the only server rejects the saved credentials, the app shows a full-screen
-connection form. Enter a server address and password, paste a link from `aigcfroge pair`, or choose
+connection form. Enter a server address and password, paste a link from `omnixa pair`, or choose
 **Scan QR code** to read its QR code. Pairing links are single-use; the app exchanges them for a session token
 and immediately attempts to connect. Failed connections leave the details available
 to edit and retry with **Connect**. Credentials are checked before saving the server. Camera access requires
@@ -104,11 +96,11 @@ HTTPS (or localhost) and browser permission. Saved offline servers continue to u
 When the service is exposed through an HTTPS reverse proxy, advertise its external address at runtime:
 
 ```bash
-aigcfroge pair --url https://aigcfroge.example.com
+omnixa pair --url https://omnixa.example.com
 ```
 
 This replaces the addresses in the printed links and QR code.
-The proxy URL must reach the AigcForge API, not just the frontend. For separate frontend and API processes,
+The proxy URL must reach the Omnixa API, not just the frontend. For separate frontend and API processes,
 route `/api` to the service while preserving the `/api` prefix. No machine-specific app or CLI build is required.
 
 When an HTTPS page fails to connect to a non-loopback HTTP server, the connection forms show a specific
@@ -117,11 +109,3 @@ HTTPS-to-HTTP error instead of the generic connection failure. HTTP servers on `
 browser local-network permissions can allow some HTTP LAN connections.
 QR scanning is enabled only in a browser-reported secure context with camera support and an available
 video input; insecure pages and unavailable cameras show an explanation beside the disabled action.
-
-The workflow reuses the repository's `CLOUDFLARE_API_TOKEN` and web Sentry settings. The Cloudflare token
-must cover SST's R2 state storage, KV assets, Workers, and custom-domain management in the account that
-owns `aigcfroge.ai`. The beta GitHub environment must allow deployments from the `beta` branch; it does not
-need AWS credentials.
-
-SST manages the beta site's custom domain. The first deployment creates its DNS record and TLS certificate.
-Do not create a CNAME for `beta.aigcfroge.ai` first, because it would conflict with the Workers custom domain.

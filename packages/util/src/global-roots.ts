@@ -7,7 +7,7 @@ const cache = process.env.XDG_CACHE_HOME || (home ? path.join(home, ".cache") : 
 const config = process.env.XDG_CONFIG_HOME || (home ? path.join(home, ".config") : undefined)
 const state = process.env.XDG_STATE_HOME || (home ? path.join(home, ".local", "state") : undefined)
 
-/** The XDG base directories that root aigcfroge's global paths. */
+/** The XDG base directories that root omnixa's global paths. */
 export function roots(app: string) {
   return {
     data: path.join(data!, app),

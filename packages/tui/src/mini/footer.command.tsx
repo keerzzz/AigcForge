@@ -29,7 +29,7 @@ import type {
 } from "./types"
 import { matchMiniVerbosity, verbosityChange, verbosityLabel } from "./verbosity"
 import { modelPreferenceKey, type ModelPreferenceModel } from "../model-preference"
-import type { ModelGroupCurrent } from "@aigcfroge/client/promise"
+import type { ModelGroupCurrent } from "@omnixa/client/promise"
 
 type PanelEntry = RunFooterMenuItem & {
   category: string
@@ -1129,7 +1129,7 @@ export function RunModelSelectBody(props: {
             const current = selected !== undefined && modelPreferenceKey(selected) === `${provider.id}/${modelID}`
             const footer = current
               ? "current"
-              : model.cost?.input === 0 && provider.id === "aigcfroge"
+              : model.cost?.input === 0 && provider.id === "omnixa"
                 ? "Free"
                 : title !== modelID
                   ? modelID
@@ -1148,7 +1148,7 @@ export function RunModelSelectBody(props: {
           }),
       )
       .sort((a, b) => {
-        const provider = Number(a.providerID !== "aigcfroge") - Number(b.providerID !== "aigcfroge")
+        const provider = Number(a.providerID !== "omnixa") - Number(b.providerID !== "omnixa")
         if (provider !== 0) {
           return provider
         }

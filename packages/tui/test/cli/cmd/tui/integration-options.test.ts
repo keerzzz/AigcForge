@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import type { IntegrationInfo } from "@aigcfroge/client"
+import type { IntegrationInfo } from "@omnixa/client"
 import {
   connectionSummary,
   connectMethods,
@@ -21,10 +21,9 @@ describe("integrationOptions", () => {
         integration({ id: "openai", name: "OpenAI" }),
         integration({ id: "custom-z", name: "Zebra" }),
         integration({ id: "anthropic", name: "Anthropic" }),
-        integration({ id: "aigcfroge", name: "AigcForge Zen" }),
-        integration({ id: "aigcfroge-go", name: "AigcForge Go" }),
+        integration({ id: "google", name: "Google" }),
       ]).map((item) => item.id),
-    ).toEqual(["aigcfroge-go", "aigcfroge", "openai", "anthropic", "mistral", "custom-z"])
+    ).toEqual(["openai", "anthropic", "google", "mistral", "custom-z"])
   })
 
   test("keeps MCP integrations above popular integrations without relying on their IDs", () => {
@@ -33,10 +32,9 @@ describe("integrationOptions", () => {
         integration({ id: "openai", name: "OpenAI" }),
         integration({ id: "linear", name: "Linear", metadata: { source: "mcp" } }),
         integration({ id: "github", name: "GitHub", metadata: { source: "mcp" } }),
-        integration({ id: "aigcfroge", name: "AigcForge Zen" }),
-        integration({ id: "aigcfroge-go", name: "AigcForge Go" }),
+        integration({ id: "anthropic", name: "Anthropic" }),
       ]).map((item) => item.id),
-    ).toEqual(["github", "linear", "aigcfroge-go", "aigcfroge", "openai"])
+    ).toEqual(["github", "linear", "openai", "anthropic"])
   })
 })
 

@@ -12,8 +12,8 @@ if (mode === "record-start") {
   process.exit(1)
 }
 if (mode === "environment") {
-  await writeFile(registration + ".environment", process.env.AIGCFROGE_SERVICE_ENV_TEST ?? "")
-  await writeFile(registration + ".handoff", process.env.AIGCFROGE_PTY_HANDOFF ?? "null")
+  await writeFile(registration + ".environment", process.env.OMNIXA_SERVICE_ENV_TEST ?? "")
+  await writeFile(registration + ".handoff", process.env.OMNIXA_PTY_HANDOFF ?? "null")
 }
 if (mode === "signal") process.kill(process.pid, process.platform === "win32" ? "SIGTERM" : "SIGKILL")
 
@@ -63,7 +63,7 @@ const server = Bun.serve({
       return Response.json({ handoff: null })
     }
     if (pathname === "/api/experimental/persistent-pty/handoff" && mode === "handoff") {
-      if (request.method !== "POST" || request.headers.get("authorization") !== "Basic " + btoa("aigcfroge:private"))
+      if (request.method !== "POST" || request.headers.get("authorization") !== "Basic " + btoa("omnixa:private"))
         return new Response(null, { status: 401 })
       await writeFile(registration + ".prepared", JSON.stringify(handoff))
       return Response.json({ handoff })
@@ -86,19 +86,19 @@ const server = Bun.serve({
     }
     if (mode === "starting" && !(await Bun.file(registration + ".release").exists()))
       return Response.json(
-        { version, pid: process.pid, urls: [server.url.toString()], paths: { tmp: "/tmp/aigcfroge" } },
+        { version, pid: process.pid, urls: [server.url.toString()], paths: { tmp: "/tmp/omnixa" } },
         { status: 503 },
       )
     if (mode === "failed-owner")
       return Response.json(
-        { version, pid: process.pid, urls: [server.url.toString()], paths: { tmp: "/tmp/aigcfroge" } },
+        { version, pid: process.pid, urls: [server.url.toString()], paths: { tmp: "/tmp/omnixa" } },
         { status: 500 },
       )
     return Response.json({
       version,
       pid: process.pid,
       urls: [server.url.toString()],
-      paths: { tmp: "/tmp/aigcfroge" },
+      paths: { tmp: "/tmp/omnixa" },
     })
   },
 })

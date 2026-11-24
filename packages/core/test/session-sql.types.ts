@@ -1,4 +1,4 @@
-import { SessionMessageTable } from "@aigcfroge/core/session/sql"
+import { SessionMessageTable } from "@omnixa/core/session/sql"
 
 type MessageData = (typeof SessionMessageTable.$inferInsert)["data"]
 

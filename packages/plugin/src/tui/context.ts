@@ -9,8 +9,8 @@ import type {
   McpResource,
   McpServer,
   ModelInfo,
-  AigcForgeClient,
-  AigcForgeEvent,
+  OmnixaClient,
+  OmnixaEvent,
   PermissionSavedInfo,
   PermissionRequest,
   Project,
@@ -22,8 +22,8 @@ import type {
   ShellInfo,
   SkillInfo,
   VcsInfo,
-} from "@aigcfroge/client"
-import type { ResolvedTheme } from "@aigcfroge/theme/tui"
+} from "@omnixa/client"
+import type { ResolvedTheme } from "@omnixa/theme/tui"
 import type { CliRenderer, KeyEvent, MarkdownCodeBlockRenderer, Renderable } from "@opentui/core"
 import type { JSX } from "@opentui/solid"
 import type { Store } from "solid-js/store"
@@ -58,14 +58,14 @@ interface LocationCollection<Value> {
   invalidate(location?: LocationRef): void
 }
 
-type AigcForgeEventMap = { [Type in AigcForgeEvent["type"]]: Extract<AigcForgeEvent, { type: Type }> }
+type OmnixaEventMap = { [Type in OmnixaEvent["type"]]: Extract<OmnixaEvent, { type: Type }> }
 
 export interface Data {
-  readonly on: <Type extends AigcForgeEvent["type"]>(
+  readonly on: <Type extends OmnixaEvent["type"]>(
     type: Type,
-    handler: (event: AigcForgeEventMap[Type]) => void,
+    handler: (event: OmnixaEventMap[Type]) => void,
   ) => () => void
-  readonly listen: (handler: (event: { details: AigcForgeEvent }) => void) => () => void
+  readonly listen: (handler: (event: { details: OmnixaEvent }) => void) => () => void
   readonly session: {
     list(): SessionInfo[]
     get(sessionID: string): SessionInfo | undefined
@@ -433,7 +433,7 @@ export interface KeymapCommand {
 }
 
 export interface KeymapLayer {
-  /** Limits the layer to one AigcForge input mode. Use global to opt out; defaults to base. */
+  /** Limits the layer to one Omnixa input mode. Use global to opt out; defaults to base. */
   readonly mode?: string
   /** Enables or disables the complete layer. */
   readonly enabled?: boolean | (() => boolean)
@@ -478,7 +478,7 @@ export interface Keymap {
   pending(): readonly KeymapPending[]
   /** Returns bindings reachable from the pending key sequence. Reactive when read in a Solid computation. */
   active(): readonly KeymapActive[]
-  /** Controls mutually exclusive AigcForge input modes. */
+  /** Controls mutually exclusive Omnixa input modes. */
   readonly mode: {
     /** Returns the active mode. */
     current(): string
@@ -546,7 +546,7 @@ export interface Context {
   readonly location: LocationRef | undefined
   readonly app: App
   readonly renderer: CliRenderer
-  readonly client: AigcForgeClient
+  readonly client: OmnixaClient
   readonly data: Data
   readonly attention: Attention
   readonly theme: ResolvedTheme

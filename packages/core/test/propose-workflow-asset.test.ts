@@ -1,15 +1,15 @@
 import path from "node:path"
 import { expect } from "bun:test"
 import { NodeFileSystem } from "@effect/platform-node"
-import { Candidate, StepDef } from "@aigcfroge/schema/workflow-asset"
-import { Environment } from "@aigcfroge/core/environment/index"
-import { FileMutation } from "@aigcfroge/core/file-mutation"
-import { Location } from "@aigcfroge/core/location"
-import { LocationMutation } from "@aigcfroge/core/location-mutation"
-import { WorkflowAsset } from "@aigcfroge/core/workflow-asset"
-import { WorkflowAssetService } from "@aigcfroge/core/workflow-asset-service"
-import { ProposeWorkflowAssetTool } from "@aigcfroge/core/tool/propose-workflow-asset"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { Candidate, StepDef } from "@omnixa/schema/workflow-asset"
+import { Environment } from "@omnixa/core/environment/index"
+import { FileMutation } from "@omnixa/core/file-mutation"
+import { Location } from "@omnixa/core/location"
+import { LocationMutation } from "@omnixa/core/location-mutation"
+import { WorkflowAsset } from "@omnixa/core/workflow-asset"
+import { WorkflowAssetService } from "@omnixa/core/workflow-asset-service"
+import { ProposeWorkflowAssetTool } from "@omnixa/core/tool/propose-workflow-asset"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Effect, Layer, Schema } from "effect"
 import { systemError } from "effect/PlatformError"
 import { hostEnvironmentLayer } from "./fixture/environment"
@@ -61,7 +61,7 @@ it.live("uses the real registry short path and round-trips the original workflow
         maxAttempts: 1,
       }),
     ])
-    expect(yield* fs.readFileString(path.join(location.directory, ".aigcfroge/workflows/review.yaml"))).toBe(content)
+    expect(yield* fs.readFileString(path.join(location.directory, ".omnixa/workflows/review.yaml"))).toBe(content)
     expect(yield* registry.getByPath("review.yaml")).toEqual(saved)
     expect(yield* service.propose(candidate())).toEqual({ ...proposed, exists: true, revision: saved.revision })
     expect(yield* ProposeWorkflowAssetTool.propose(candidate(), service)).toEqual({
@@ -128,14 +128,14 @@ it.live("rolls back a new file that would duplicate another registry name", () =
     const registry = yield* WorkflowAsset.Service
     const fs = yield* FSUtil.Service
     const location = yield* Location.Service
-    const original = path.join(location.directory, ".aigcfroge/workflows/original.yaml")
+    const original = path.join(location.directory, ".omnixa/workflows/original.yaml")
     yield* fs.writeWithDirs(original, content)
     yield* registry.reload()
     expect((yield* service.propose(candidate())).nameConflict).toBe(true)
     expect(
       yield* service.apply({ candidate: candidate(), baseRevision: null, overwrite: false }).pipe(Effect.flip),
     ).toBeInstanceOf(WorkflowAssetService.ReadbackMismatchError)
-    expect(yield* fs.exists(path.join(location.directory, ".aigcfroge/workflows/review.yaml"))).toBe(false)
+    expect(yield* fs.exists(path.join(location.directory, ".omnixa/workflows/review.yaml"))).toBe(false)
     expect(yield* fs.readFileString(original)).toBe(content)
     expect(yield* registry.listInvalid()).toEqual([])
     expect((yield* registry.list()).map((asset) => asset.relativePath)).toEqual(["original.yaml"])
@@ -149,7 +149,7 @@ it.live("propagates a proposal read failure without inventing new-file facts", (
     const fs = yield* FSUtil.Service
     const location = yield* Location.Service
     const saved = yield* service.apply({ candidate: candidate(), baseRevision: null, overwrite: false })
-    const target = path.join(location.directory, ".aigcfroge/workflows/review.yaml")
+    const target = path.join(location.directory, ".omnixa/workflows/review.yaml")
     const failure = systemError({
       _tag: "PermissionDenied",
       module: "FileSystem",
@@ -185,7 +185,7 @@ for (const existing of [false, true]) {
         const fs = yield* FSUtil.Service
         const files = yield* FileMutation.Service
         const location = yield* Location.Service
-        const target = path.join(location.directory, ".aigcfroge/workflows/review.yaml")
+        const target = path.join(location.directory, ".omnixa/workflows/review.yaml")
         const saved = existing
           ? yield* service.apply({ candidate: candidate(), baseRevision: null, overwrite: false })
           : undefined
@@ -244,7 +244,7 @@ it.live("reports a rollback write failure and leaves the unconfirmed replacement
     const files = yield* FileMutation.Service
     const location = yield* Location.Service
     const saved = yield* service.apply({ candidate: candidate(), baseRevision: null, overwrite: false })
-    const target = path.join(location.directory, ".aigcfroge/workflows/review.yaml")
+    const target = path.join(location.directory, ".omnixa/workflows/review.yaml")
     const replacement = candidate(content.replace('"1.0.0"', '"2.0.0"'))
     const calls = { writes: 0, reloads: 0 }
     const injected = yield* faultService({
@@ -287,7 +287,7 @@ it.live("preserves an external overwrite that arrives before the first written-c
     const files = yield* FileMutation.Service
     const location = yield* Location.Service
     const saved = yield* service.apply({ candidate: candidate(), baseRevision: null, overwrite: false })
-    const target = path.join(location.directory, ".aigcfroge/workflows/review.yaml")
+    const target = path.join(location.directory, ".omnixa/workflows/review.yaml")
     const replacement = candidate(content.replace('"1.0.0"', '"2.0.0"'))
     const external = content.replace('"1.0.0"', '"3.0.0"')
     const calls = { writes: 0 }
@@ -321,7 +321,7 @@ it.live("restores deleted workflow bytes and reloads the registry after a transi
     const fs = yield* FSUtil.Service
     const location = yield* Location.Service
     const saved = yield* service.apply({ candidate: candidate(), baseRevision: null, overwrite: false })
-    const target = path.join(location.directory, ".aigcfroge/workflows/review.yaml")
+    const target = path.join(location.directory, ".omnixa/workflows/review.yaml")
     const calls = { reloads: 0 }
     const injected = yield* faultService({
       reload: () =>
@@ -353,7 +353,7 @@ it.live("preserves a file recreated by an external writer before deletion rollba
     const fs = yield* FSUtil.Service
     const location = yield* Location.Service
     const saved = yield* service.apply({ candidate: candidate(), baseRevision: null, overwrite: false })
-    const target = path.join(location.directory, ".aigcfroge/workflows/review.yaml")
+    const target = path.join(location.directory, ".omnixa/workflows/review.yaml")
     const external = content.replace('"1.0.0"', '"3.0.0"')
     const calls = { reloads: 0 }
     const injected = yield* faultService({
@@ -453,7 +453,7 @@ it.live("round-trips a BOM and the complete nested step definition", () =>
     )
     expect(saved.steps[3].branches).toEqual({ accept: "END", finish: "finish" })
     expect(saved.triggers).toEqual([])
-    expect(yield* fs.readFile(path.join(location.directory, ".aigcfroge/workflows/review.yaml"))).toEqual(
+    expect(yield* fs.readFile(path.join(location.directory, ".omnixa/workflows/review.yaml"))).toEqual(
       new TextEncoder().encode(value.content),
     )
     expect(yield* registry.getByPath(saved.relativePath)).toEqual(saved)
@@ -469,7 +469,7 @@ it.live("preserves the empty graph contract and reads larger existing disk decla
     const saved = yield* service.apply({ candidate: candidate(withSteps([])), baseRevision: null, overwrite: false })
     expect(saved.steps).toEqual([])
     const raw = content + "#" + "x".repeat(100_001)
-    yield* fs.writeFileString(path.join(location.directory, ".aigcfroge/workflows/review.yaml"), raw)
+    yield* fs.writeFileString(path.join(location.directory, ".omnixa/workflows/review.yaml"), raw)
     yield* registry.reload()
     expect((yield* registry.getByPath(saved.relativePath)).content).toBe(raw)
     expect(ProposeWorkflowAssetTool.validateContent(raw)).toContain("100000 UTF-8 bytes")
@@ -483,7 +483,7 @@ it.live("preserves the historical disk size boundary while retaining the leading
     const location = yield* Location.Service
     const prefix = withSteps([]) + "\n#"
     const raw = "\uFEFF" + prefix + "x".repeat(5_000_000 - prefix.length)
-    const target = path.join(location.directory, ".aigcfroge/workflows/review.yaml")
+    const target = path.join(location.directory, ".omnixa/workflows/review.yaml")
     yield* fs.writeWithDirs(target, raw)
     yield* registry.reload()
     expect((yield* registry.getByPath("review.yaml")).content).toBe(raw)
@@ -560,8 +560,8 @@ if (process.platform !== "win32") {
       const location = yield* Location.Service
       const other = path.join(location.directory, "other-workflows")
       yield* fs.makeDirectory(other)
-      yield* fs.makeDirectory(path.join(location.directory, ".aigcfroge"), { recursive: true })
-      yield* fs.symlink(other, path.join(location.directory, ".aigcfroge/workflows"))
+      yield* fs.makeDirectory(path.join(location.directory, ".omnixa"), { recursive: true })
+      yield* fs.symlink(other, path.join(location.directory, ".omnixa/workflows"))
       expect(yield* service.propose(candidate()).pipe(Effect.flip)).toBeInstanceOf(
         WorkflowAssetService.InvalidCandidateError,
       )
@@ -648,7 +648,7 @@ it.live("retains structurally valid disk graphs for the existing composition dia
     const fs = yield* FSUtil.Service
     const location = yield* Location.Service
     const raw = withSteps([{ ...entry, next: "missing" }])
-    yield* fs.writeWithDirs(path.join(location.directory, ".aigcfroge/workflows/review.yaml"), raw)
+    yield* fs.writeWithDirs(path.join(location.directory, ".omnixa/workflows/review.yaml"), raw)
     yield* registry.reload()
     expect((yield* registry.getByPath("review.yaml")).content).toBe(raw)
     expect(yield* registry.listInvalid()).toEqual([])
@@ -700,7 +700,7 @@ for (const scenario of [
           .apply({ candidate: candidate(fullContent), baseRevision: saved.revision, overwrite: true })
           .pipe(Effect.flip),
       ).toBeInstanceOf(WorkflowAssetService.ReadbackMismatchError)
-      expect(yield* fs.readFileString(path.join(location.directory, ".aigcfroge/workflows/review.yaml"))).toBe(content)
+      expect(yield* fs.readFileString(path.join(location.directory, ".omnixa/workflows/review.yaml"))).toBe(content)
       expect(yield* registry.getByPath(saved.relativePath)).toEqual(saved)
     }),
   )

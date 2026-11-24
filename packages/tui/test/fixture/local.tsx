@@ -1,5 +1,5 @@
 import { testRender } from "@opentui/solid"
-import type { AgentInfo, ModelInfo, SessionInfo, ModelGroupRead } from "@aigcfroge/client"
+import type { AgentInfo, ModelInfo, SessionInfo, ModelGroupRead } from "@omnixa/client"
 import path from "node:path"
 import { ConfigProvider } from "../../src/config"
 import { ArgsProvider, type Args } from "../../src/context/args"

@@ -1,10 +1,10 @@
-import { DialogBody, DialogHeader, DialogTitle, Dialog } from "@aigcfroge/ui/dialog"
-import { Badge } from "@aigcfroge/ui/badge"
-import { Icon } from "@aigcfroge/ui/icon"
+import { DialogBody, DialogHeader, DialogTitle, Dialog } from "@omnixa/ui/dialog"
+import { Badge } from "@omnixa/ui/badge"
+import { Icon } from "@omnixa/ui/icon"
 import { ProviderModelIcon } from "@/providers/models/provider-group"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
-import { useDialog } from "@aigcfroge/ui/context/dialog"
-import { useTheme } from "@aigcfroge/ui/theme"
+import { Tooltip } from "@omnixa/ui/tooltip"
+import { useDialog } from "@omnixa/ui/context/dialog"
+import { useTheme } from "@omnixa/ui/theme"
 import { createMemo, onCleanup, onMount, type Component, For, Show } from "solid-js"
 import { useLocal, type ModelSelection } from "@/providers/models/selection"
 import { useIntegrations } from "@/providers/catalog/integrations"
@@ -14,7 +14,7 @@ import { ModelTooltip } from "./tooltip"
 
 type ModelState = ModelSelection
 
-const featuredProviders = ["aigcfroge-go", "aigcfroge", "openai", "anthropic", "google", "github-copilot"]
+const featuredProviders = ["openai", "anthropic", "google", "github-copilot"]
 
 const displayModelName = (name: string) => name.replace(/\s+(?:\(free\)|free)$/i, "")
 
@@ -35,9 +35,6 @@ export const DialogSelectModelUnpaid: Component<{ model?: ModelState }> = (props
   })
 
   const isFree = (item: ReturnType<ModelState["list"]>[number]) => item.metadata?.quote?.status === "free"
-
-  const providerName = (provider: { id: string; name: string }) =>
-    provider.id === "aigcfroge" ? language.t("provider.connect.aigcfroge.name") : provider.name
 
   const freeModels = createMemo(() => model.list().filter(isFree))
 
@@ -89,47 +86,49 @@ export const DialogSelectModelUnpaid: Component<{ model?: ModelState }> = (props
       </DialogHeader>
       <DialogBody class="max-h-[calc(100vh_-_68px)] min-h-0 flex-none gap-0 overflow-y-auto px-2 pb-2">
         <div ref={listEl} class="flex min-h-0 flex-col">
-          <div data-section="free-models" class="flex w-full flex-col items-start pb-3">
-            <div class="flex h-8 w-full flex-none select-none flex-row items-center px-3 pb-2">
-              <div class="flex h-5 items-center text-[13px] font-[440] leading-5 tracking-[-0.04px] text-v2-text-text-muted [font-family:var(--v2-font-family-sans)] [font-variant-numeric:tabular-nums] [font-variation-settings:'slnt'_0]">
-                {language.t("dialog.model.unpaid.freeModels.title")}
+          <Show when={freeModels().length > 0}>
+            <div data-section="free-models" class="flex w-full flex-col items-start pb-3">
+              <div class="flex h-8 w-full flex-none select-none flex-row items-center px-3 pb-2">
+                <div class="flex h-5 items-center text-[13px] font-[440] leading-5 tracking-[-0.04px] text-v2-text-text-muted [font-family:var(--v2-font-family-sans)] [font-variant-numeric:tabular-nums] [font-variation-settings:'slnt'_0]">
+                  {language.t("dialog.model.unpaid.freeModels.title")}
+                </div>
               </div>
-            </div>
-            <For each={freeModels()}>
-              {(item) => (
-                <Tooltip
-                  class="w-full"
-                  placement="right-start"
-                  gutter={6}
-                  openDelay={0}
-                  contentStyle={{ "font-family": "var(--v2-font-family-sans)" }}
-                  value={
-                    <ModelTooltip
-                      model={{ ...item, name: displayModelName(item.name) }}
-                      latest={item.latest}
-                      free={isFree(item)}
-                      v2
-                    />
-                  }
-                >
-                  <button
-                    type="button"
-                    class="flex w-full scroll-my-3.5 flex-row items-center gap-1.5 rounded-md px-3 py-2 text-left text-[13px] font-[530] leading-5 tracking-[-0.04px] text-v2-text-text-base [font-family:var(--v2-font-family-sans)] [font-variation-settings:'slnt'_0] hover:bg-v2-overlay-simple-overlay-hover focus:bg-v2-overlay-simple-overlay-hover focus:outline-none"
-                    onClick={() => selectModel(item)}
+              <For each={freeModels()}>
+                {(item) => (
+                  <Tooltip
+                    class="w-full"
+                    placement="right-start"
+                    gutter={6}
+                    openDelay={0}
+                    contentStyle={{ "font-family": "var(--v2-font-family-sans)" }}
+                    value={
+                      <ModelTooltip
+                        model={{ ...item, name: displayModelName(item.name) }}
+                        latest={item.latest}
+                        free={isFree(item)}
+                        v2
+                      />
+                    }
                   >
-                    <span class="min-w-0 truncate">{displayModelName(item.name)}</span>
-                    <Badge class="shrink-0">{language.t("model.tag.free")}</Badge>
-                    <Show when={item.latest}>
-                      <Badge class="shrink-0">{language.t("model.tag.latest")}</Badge>
-                    </Show>
-                    <Show when={currentKey() === modelKey(item)}>
-                      <Icon name="check" class="ml-auto size-4 shrink-0 text-v2-icon-icon-base" />
-                    </Show>
-                  </button>
-                </Tooltip>
-              )}
-            </For>
-          </div>
+                    <button
+                      type="button"
+                      class="flex w-full scroll-my-3.5 flex-row items-center gap-1.5 rounded-md px-3 py-2 text-left text-[13px] font-[530] leading-5 tracking-[-0.04px] text-v2-text-text-base [font-family:var(--v2-font-family-sans)] [font-variation-settings:'slnt'_0] hover:bg-v2-overlay-simple-overlay-hover focus:bg-v2-overlay-simple-overlay-hover focus:outline-none"
+                      onClick={() => selectModel(item)}
+                    >
+                      <span class="min-w-0 truncate">{displayModelName(item.name)}</span>
+                      <Badge class="shrink-0">{language.t("model.tag.free")}</Badge>
+                      <Show when={item.latest}>
+                        <Badge class="shrink-0">{language.t("model.tag.latest")}</Badge>
+                      </Show>
+                      <Show when={currentKey() === modelKey(item)}>
+                        <Icon name="check" class="ml-auto size-4 shrink-0 text-v2-icon-icon-base" />
+                      </Show>
+                    </button>
+                  </Tooltip>
+                )}
+              </For>
+            </div>
+          </Show>
 
           <div class="flex w-full flex-col">
             <div class="flex w-full flex-col items-start rounded-lg border-[0.5px] border-v2-border-border-muted bg-v2-background-bg-layer-02 p-2.5 pt-2">
@@ -158,20 +157,11 @@ export const DialogSelectModelUnpaid: Component<{ model?: ModelState }> = (props
                       onClick={() => openProviders(provider.id)}
                     >
                       <ProviderModelIcon
-                        provider={{ id: provider.id, name: providerName(provider) }}
+                        provider={{ id: provider.id, name: provider.name }}
                         class="mt-0.5 shrink-0 text-v2-icon-icon-base"
                       />
                       <span class="flex min-w-0 flex-col">
-                        <span class="truncate">{providerName(provider)}</span>
-                        <Show when={provider.id === "aigcfroge" || provider.id === "aigcfroge-go"}>
-                          <span class="truncate font-[440] text-v2-text-text-muted">
-                            {language.t(
-                              provider.id === "aigcfroge"
-                                ? "dialog.provider.aigcfroge.tagline"
-                                : "dialog.provider.aigcfrogeGo.tagline",
-                            )}
-                          </span>
-                        </Show>
+                        <span class="truncate">{provider.name}</span>
                       </span>
                     </button>
                   )}

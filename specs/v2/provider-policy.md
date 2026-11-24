@@ -4,7 +4,7 @@ Status: **Implemented.**
 
 ## Purpose
 
-Policies control whether an operation on a named resource is allowed. Statements are authored in configuration files or delivered by the connected AigcForge Console, and applied by a terminal plugin.
+Policies control whether an operation on a named resource is allowed. Statements are authored in configuration files and applied by the protected terminal config policy plugin. A trusted host producer can supply organization-managed statements through `ManagedPolicy`.
 
 The supported actions are:
 
@@ -71,7 +71,7 @@ interface PolicyInfo {
 
 ## Matching
 
-Both `action` and `resource` use aigcfroge's existing wildcard matching behavior.
+Both `action` and `resource` use omnixa's existing wildcard matching behavior.
 
 Examples:
 
@@ -197,7 +197,7 @@ Result:
 provider.use / openai -> deny
 ```
 
-The relative policy precedence of direct project files and `.aigcfroge` files is intentionally deferred until `.aigcfroge` configuration is reviewed.
+The relative policy precedence of direct project files and `.omnixa` files is intentionally deferred until `.omnixa` configuration is reviewed.
 
 ## Organization-Managed Policy
 
@@ -209,31 +209,13 @@ repository policy -> user-global policy -> organization-managed policy
 
 ### Delivery
 
-The AigcForge Console compiles a workspace's Providers and Tools policies into statements for the authenticated caller and returns them from `GET /api/v2/config` alongside managed providers:
+The upstream Console provider and its remote config transport are retired in the current build. `ManagedPolicy` (`packages/core/src/managed-policy.ts`) remains the process-global in-memory owner for organization-managed statements and an optional organization name.
 
-```jsonc
-{
-  "providers": { "aigcfroge": {} },
-  "experimental": {
-    "policies": [
-      { "action": "provider.use", "resource": "*", "effect": "deny" },
-      { "action": "provider.use", "resource": "aigcfroge", "effect": "allow" },
-      { "action": "tool.use", "resource": "shell:sudo *", "effect": "deny" },
-    ],
-  },
-}
-```
-
-- `experimental` is omitted when the caller has no statements; omission and an empty array are equivalent.
-- The list is per caller and its order is significant. The client stores it exactly as received; it never reorders, dedupes, or normalizes statements.
-- Every request the Console plugin makes, this fetch and the token refresh included, carries the `User-Agent` `aigcfroge/<channel>/<version>/<app>`. The Console reads it to tell which AigcForge a member runs and whether it evaluates the statements it is being sent; older builds that drop them are otherwise indistinguishable from ones that enforce.
-- `ManagedPolicy` (`packages/core/src/managed-policy.ts`) is the process-global home for the current statements and the organization name. The Console plugin (`aigcfroge.provider.aigcfroge`) writes it whenever its config snapshot is applied; the policy plugin reads it synchronously when evaluating.
-- Statements ride on the Console plugin's snapshot, so they follow the connection: a credential switch replaces them, and a disconnect or a 404 from the Console clears them. Statements from different connections never merge.
-- Freshness is the snapshot's freshness: the next poll (about one minute) or the next credential switch.
-
-### Failure
-
-A config fetch or credential refresh that fails for the connection already in place keeps that connection's last config, providers and statements alike, and logs a warning. Dropping the config would fail closed for managed providers but open for policy, because a member's personal credentials keep working while the organization's restrictions vanish. A disconnect, a credential switch, or a 404 still replaces the snapshot. There is no durable offline cache.
+- Without a host producer, its initial state contains no managed statements.
+- A producer obtains `ManagedPolicy.Service` and calls `set(state)` to replace the complete state; statements never merge across connections.
+- Statement order is preserved. Consumers read the current state synchronously during catalog transforms and permission checks.
+- A changed state publishes on the service's `changes()` stream. The terminal config policy plugin reloads provider, MCP, and skill catalogs after that notification.
+- The service does not prescribe a remote endpoint, polling interval, credential lifecycle, or durable offline cache. A future producer owns its transport and refresh contract.
 
 ### Messages
 
@@ -241,9 +223,9 @@ When the deciding `tool.use` statement is organization-managed, the denial reads
 
 ### Protection
 
-Plugins must not be allowed to add, remove, or override policy statements. Plugins can contribute functionality or configured providers; policy determines whether aigcfroge permits an operation through its managed execution paths.
+Plugins must not be allowed to add, remove, or override policy statements. Plugins can contribute functionality or configured providers; policy determines whether omnixa permits an operation through its managed execution paths.
 
-Plugin `remove` operations in config ignore `aigcfroge.config.policy` and `aigcfroge.provider.aigcfroge`, whatever the selector (`-*`, `-aigcfroge.*`, or the exact ID). Otherwise a repository could switch off enforcement or the fetch that delivers organization statements.
+Plugin `remove` operations in config ignore `omnixa.config.policy`, whatever the selector (`-*`, `-omnixa.*`, or the exact ID). Otherwise a repository could switch off policy enforcement.
 
 Provider policy is not a full sandbox for executable plugins. A denied provider must not be usable through the normal provider/model path, but arbitrary plugin code requires separate governance if that becomes a compliance requirement.
 
@@ -251,7 +233,7 @@ Provider policy is not a full sandbox for executable plugins. A denied provider 
 
 `tool.use` is the only tool-policy action. An allow statement never overrides an agent/session denial or grants a saved approval.
 
-Console-managed config ignores unknown fields and skips statements whose action is unsupported, preserving the order of every supported statement. A future action cannot invalidate the providers or supported policies in the response. Supported actions still require a valid resource and effect; malformed supported statements remain configuration errors. Skipped actions are not enforced by that client. Authored config drops unsupported statements with a diagnostic.
+Authored config drops unsupported policy actions with a diagnostic. Supported actions require a valid resource and effect; malformed supported statements remain configuration errors. A host producer passes typed supported statements to `ManagedPolicy`.
 
 `tool.use` statements run in the `permission.evaluate` hook after agent and session rules, saved approvals, and every other plugin's hook. For each resource the tool checks, the string `<action>:<resource>` is matched against the statement resource; if the last matching statement for any resource is `deny`, the evaluation becomes `deny` with the message above.
 
@@ -266,7 +248,7 @@ tool.use / shell:git status     -> unchanged: the agent's rules decide allow or 
 
 ## Skill Integration Policy
 
-Skills use their AigcForge IDs, including a namespace when present. Denied skills are absent from the client catalog and model guidance, and cannot be loaded by the skill tool, a prompt mention, or standalone activation.
+Skills use their Omnixa IDs, including a namespace when present. Denied skills are absent from the client catalog and model guidance, and cannot be loaded by the skill tool, a prompt mention, or standalone activation.
 
 ```jsonc
 {
@@ -281,7 +263,7 @@ Skills use their AigcForge IDs, including a namespace when present. Denied skill
 
 The protected terminal config policy plugin filters `skill:<id>` through `ctx.skill.transform`, following the provider and MCP catalog pattern. The skill domain does not interpret policy statements. Config and managed policy changes reload the catalog and publish an update after the transformed values are visible. Removing a restriction restores the registered skill without reinstallation. A global integrations allow list also excludes skills unless it explicitly allows their IDs. Skill policy does not remove content already stored in session history or sandbox plugin filesystem access.
 
-Plugin hooks are governed by the existing plugin integration resource: blocking an external plugin prevents its import or unloads its active generation, including its hooks. There is no separate hook resource; required built-in policy and Console authentication plugins remain protected.
+Plugin hooks are governed by the existing plugin integration resource: blocking an external plugin prevents its import or unloads its active generation, including its hooks. There is no separate hook resource; the built-in `omnixa.config.policy` plugin remains protected.
 
 ## Interaction With Provider Configuration
 
@@ -289,7 +271,7 @@ Plugin hooks are governed by the existing plugin integration resource: blocking 
 {
   "providers": {
     "company-ai": {
-      "package": "@aigcfroge/ai/providers/openai-compatible",
+      "package": "@omnixa/ai/providers/openai-compatible",
       "settings": { "baseURL": "https://ai.company.example/v1" },
     },
   },
@@ -318,12 +300,12 @@ Provider records and model overrides are assembled before checking provider poli
 
 Flow:
 
-1. Build provider/model catalog entries, including providers managed by the connected Console.
+1. Build registered and configured provider/model catalog entries.
 2. Apply configured provider and model overrides.
 3. Run the terminal config policy transform over the reversed authored statements followed by the organization-managed statements.
 4. Remove providers denied by the final matching `provider.use` statement.
 
-Config reload refreshes the plugin's policy snapshot and rebuilds the catalog. A changed Console snapshot notifies the policy plugin to rebuild its catalogs and re-run the terminal transforms.
+Config reload refreshes the plugin's authored policy snapshot and rebuilds the catalog. A changed `ManagedPolicy` state notifies the policy plugin to rebuild its catalogs and re-run the terminal transforms.
 
 ## Legacy Migration
 

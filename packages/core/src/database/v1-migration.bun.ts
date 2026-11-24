@@ -3,17 +3,17 @@ export * as V1Migration from "./v1-migration.js"
 import { Cause, Effect, Layer, Option, Schema, Semaphore } from "effect"
 import { Database } from "./database.js"
 import { SessionMessageTable, SessionTable } from "../session/sql.js"
-import { SessionV1 } from "@aigcfroge/schema/session-v1"
+import { SessionV1 } from "@omnixa/schema/session-v1"
 import { SessionMessage } from "../session/message.js"
 import { SessionSchema } from "../session/schema.js"
 import { KVTable } from "../kv/sql.js"
 import { EventSequenceTable } from "../event/sql.js"
 import { eq, sql } from "drizzle-orm"
-import { Global } from "@aigcfroge/util/global"
+import { Global } from "@omnixa/util/global"
 import { existsSync } from "node:fs"
 import path from "node:path"
 import type { Database as SQLiteDatabase } from "bun:sqlite"
-import { Project } from "@aigcfroge/schema/project"
+import { Project } from "@omnixa/schema/project"
 
 export type SourceMessage = {
   readonly id: string
@@ -705,8 +705,8 @@ export function run(options: Options = {}): Effect.Effect<RunResult, never, Data
 
 function nextPath(options: Options, data: string) {
   if (options.nextDatabasePath) return options.nextDatabasePath
-  if (process.env.AIGCFROGE_DB === ":memory:") return undefined
-  return path.join(data, "aigcfroge-next.db")
+  if (process.env.OMNIXA_DB === ":memory:") return undefined
+  return path.join(data, "omnixa-next.db")
 }
 
 function openNextDatabase(sourcePath: string) {
@@ -740,7 +740,7 @@ function importNextDatabase(
     Effect.gen(function* () {
       const source = yield* openNextDatabase(sourcePath)
       if (!isNextDatabase(source)) {
-        yield* Effect.logWarning("Skipped incompatible aigcfroge-next.db", { path: sourcePath })
+        yield* Effect.logWarning("Skipped incompatible omnixa-next.db", { path: sourcePath })
         return
       }
       source.run("BEGIN")
@@ -861,7 +861,7 @@ function selectNextRows<A>(source: SQLiteDatabase, table: "project" | "session",
     .filter(([column, strategy]) => strategy === "required" && !columns.has(column))
     .map(([column]) => column)
   if (missing.length)
-    throw new Error(`Incompatible aigcfroge-next.db: ${table} is missing required columns: ${missing.join(", ")}`)
+    throw new Error(`Incompatible omnixa-next.db: ${table} is missing required columns: ${missing.join(", ")}`)
   const projection = Object.entries(definition).map(([column, strategy]) => {
     if (columns.has(column)) return `"${column}"`
     if (

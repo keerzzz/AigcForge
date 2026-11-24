@@ -1,11 +1,11 @@
 export * as FileMutation from "./file-mutation.js"
 
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Context, Effect, Layer, Schema } from "effect"
 import { dirname } from "path"
 import { KeyedMutex } from "./effect/keyed-mutex.js"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Bom } from "@aigcfroge/util/bom"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Bom } from "@omnixa/util/bom"
 import { Environment } from "./environment/index.js"
 import type { Files } from "./environment/index.js"
 import type { FileAccess } from "./file-access.js"
@@ -88,7 +88,7 @@ export interface Interface {
   ) => Effect.Effect<AtomicWriteResult, Environment.NotFound | Environment.WrongKind | Environment.Failed>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/FileMutation") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/FileMutation") {}
 
 export const readText = Effect.fn("FileMutation.readText")(function* (files: Files, target: string) {
   return Bom.decodeBytes((yield* files.read(target)).bytes)
@@ -108,7 +108,7 @@ export const syncTextBom = Effect.fn("FileMutation.syncTextBom")(function* (
 const transactionLocks = KeyedMutex.makeUnsafe<string>()
 
 /**
- * Mutation locking is process-local and serializes cooperating AigcForge
+ * Mutation locking is process-local and serializes cooperating Omnixa
  * changes; external writes can still race.
  */
 export const layer = Layer.effect(

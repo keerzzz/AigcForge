@@ -3,10 +3,10 @@ import { createEffect, createMemo, createResource, Match, Show, Switch, untrack 
 import { createStore, unwrap } from "solid-js/store"
 import { Dynamic } from "solid-js/web"
 import { useLocation, useNavigate } from "@solidjs/router"
-import { IconButton } from "@aigcfroge/ui/icon-button"
-import { Icon } from "@aigcfroge/ui/icon"
-import { Keybind } from "@aigcfroge/ui/keybind"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
+import { IconButton } from "@omnixa/ui/icon-button"
+import { Icon } from "@omnixa/ui/icon"
+import { Keybind } from "@omnixa/ui/keybind"
+import { Tooltip } from "@omnixa/ui/tooltip"
 
 import { LayoutRoute, useLayout } from "@/shell/state/layout"
 import { usePlatform } from "@/runtime/platform/platform"
@@ -21,7 +21,7 @@ import { createMediaQuery } from "@solid-primitives/media"
 import { readSessionTabsRemovedDetail, SESSION_TABS_REMOVED_EVENT } from "@/shell/titlebar/session-events"
 import { useGlobal } from "@/runtime/server/runtime"
 import { createTabComposerState } from "@/composer/persistence"
-import { base64Encode } from "@aigcfroge/util/encode"
+import { base64Encode } from "@omnixa/util/encode"
 import { ServerConnection } from "@/runtime/server/registry"
 import { tabKey, useTabs } from "@/shell/tabs/tabs"
 import "./titlebar.css"
@@ -29,14 +29,14 @@ import { TitlebarRightMount } from "@/shell/titlebar/right-slot"
 import { MobileDrawer, MobileDrawerContent, MobileDrawerLabel, MobileDrawerTrigger } from "@/shell/mobile-drawer"
 import { sessionTabTitle } from "./tab-title"
 import { SessionTabAvatar } from "@/shell/layout/session-tab-avatar"
-import { SessionProgressIndicatorV2 } from "@aigcfroge/session-ui/v2/session-progress-indicator-v2"
+import { SessionProgressIndicatorV2 } from "@omnixa/session-ui/v2/session-progress-indicator-v2"
 import { RecentlyClosedTabsMenu } from "./recently-closed-tabs-menu"
 import { useSettingsDialog } from "@/settings/command"
 import { rootSession } from "@/shell/routes/session"
-import { TitlebarItem } from "@aigcfroge/gui-extensions/sdk"
+import { TitlebarItem } from "@omnixa/gui-extensions/sdk"
 import { useExtensionHost } from "@/runtime/extension/host"
 import { TitlebarItems, useTitlebarItems } from "@/runtime/extension/titlebar-items"
-import { ProductMode } from "@aigcfroge/schema/product-mode"
+import { ProductMode } from "@omnixa/schema/product-mode"
 import { ModeRoute } from "@/shell/routes/mode"
 import { showToast } from "@/shell/notifications/toast"
 import { ProjectSidebar } from "@/shell/project-sidebar"
@@ -727,7 +727,7 @@ export function Titlebar() {
                                 class="flex h-7 shrink-0 items-center gap-2 rounded-[6px] px-2 text-[13px] leading-4 text-v2-text-text-faint hover:bg-v2-background-bg-layer-02 focus-visible:outline-none focus-visible:bg-v2-background-bg-layer-02"
                                 onClick={() => {
                                   setMobileTabs("open", false)
-                                  platform.openExternal("https://aigcfroge.ai/desktop-feedback")
+                                  platform.openExternal("https://github.com/keerzzz/AigcForge/issues/new")
                                 }}
                               >
                                 <Icon name="help" size="small" />
@@ -784,7 +784,7 @@ function ChannelIndicator() {
   const language = useLanguage()
   const platform = usePlatform()
   const host = useExtensionHost()
-  const channel = import.meta.env.VITE_AIGCFROGE_CHANNEL
+  const channel = import.meta.env.VITE_OMNIXA_CHANNEL
 
   if (!channel || channel === "prod") return null
 

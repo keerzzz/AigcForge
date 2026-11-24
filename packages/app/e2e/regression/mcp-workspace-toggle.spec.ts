@@ -4,9 +4,9 @@ import type { MockServerConfig } from "../utils/mock-server"
 import { mockWorkspace } from "../utils/workspace"
 import { expectSessionTitle } from "../utils/waits"
 
-const directory = "C:\\AigcForge\\main"
+const directory = "C:\\Omnixa\\main"
 
-const workspace = "C:\\AigcForge\\worktree"
+const workspace = "C:\\Omnixa\\worktree"
 
 const sessionID = "ses_mcp_workspace"
 

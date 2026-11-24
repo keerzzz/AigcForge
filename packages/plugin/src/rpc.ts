@@ -1,1 +1,1 @@
-export { Rpc } from "@aigcfroge/schema/rpc"
+export { Rpc } from "@omnixa/schema/rpc"

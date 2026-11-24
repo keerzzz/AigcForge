@@ -1,4 +1,4 @@
-import type { SessionMessageUser } from "@aigcfroge/client/promise"
+import type { SessionMessageUser } from "@omnixa/client/promise"
 import { createStore } from "solid-js/store"
 
 const MAX = 40

@@ -3,47 +3,47 @@ import { realpathSync, watch } from "node:fs"
 import os from "os"
 import path from "path"
 import { describe, expect } from "bun:test"
-import { LanguageModel, LLM, LLMEvent } from "@aigcfroge/ai"
-import { OpenAIChat } from "@aigcfroge/ai/protocols/openai-chat"
-import { normalizeToolHistory } from "@aigcfroge/ai/tool-history"
+import { LanguageModel, LLM, LLMEvent } from "@omnixa/ai"
+import { OpenAIChat } from "@omnixa/ai/protocols/openai-chat"
+import { normalizeToolHistory } from "@omnixa/ai/tool-history"
 import { Cause, Deferred, Duration, Effect, Exit, Fiber, Layer, Queue, Scope, Stream } from "effect"
-import { Money } from "@aigcfroge/schema/money"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { makeGlobalNode, makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { filesystem } from "@aigcfroge/util/effect/app-node-platform"
-import { Database } from "@aigcfroge/core/database/database"
-import { Bus } from "@aigcfroge/core/bus"
-import { Config } from "@aigcfroge/core/config"
-import { Environment } from "@aigcfroge/core/environment/index"
-import { FSUtil } from "@aigcfroge/util/fs-util"
-import { Global } from "@aigcfroge/util/global"
-import { Location } from "@aigcfroge/core/location"
-import { FileAccess } from "@aigcfroge/core/file-access"
-import { LocationServiceMap } from "@aigcfroge/core/location-service-map"
-import { Model } from "@aigcfroge/core/model"
-import { Provider } from "@aigcfroge/core/provider"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Agent } from "@aigcfroge/core/agent"
-import { Job } from "@aigcfroge/core/job"
-import { Session } from "@aigcfroge/core/session"
-import { SessionEvent } from "@aigcfroge/core/session/event"
-import { SessionExecution } from "@aigcfroge/core/session/execution"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { createLLMEventPublisher } from "@aigcfroge/core/session/runner/publish-llm-event"
-import { toLLMMessages } from "@aigcfroge/core/session/runner/to-llm-message"
-import { SessionStore } from "@aigcfroge/core/session/store"
-import { Permission } from "@aigcfroge/core/permission"
-import { PermissionSaved } from "@aigcfroge/core/permission/saved"
-import { ApprovalPresence } from "@aigcfroge/core/permission/approval-presence"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { PluginSupervisor } from "@aigcfroge/core/plugin/supervisor"
-import { Shell } from "@aigcfroge/core/shell"
-import { ShellSelect } from "@aigcfroge/core/shell/select"
-import { ID } from "@aigcfroge/schema/shell"
-import { ShellTool } from "@aigcfroge/core/tool/plugin/shell"
-import { ToolOutput } from "@aigcfroge/core/tool-output"
-import { Tool } from "@aigcfroge/core/tool"
+import { Money } from "@omnixa/schema/money"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { makeGlobalNode, makeLocationNode } from "@omnixa/util/effect/app-node"
+import { filesystem } from "@omnixa/util/effect/app-node-platform"
+import { Database } from "@omnixa/core/database/database"
+import { Bus } from "@omnixa/core/bus"
+import { Config } from "@omnixa/core/config"
+import { Environment } from "@omnixa/core/environment/index"
+import { FSUtil } from "@omnixa/util/fs-util"
+import { Global } from "@omnixa/util/global"
+import { Location } from "@omnixa/core/location"
+import { FileAccess } from "@omnixa/core/file-access"
+import { LocationServiceMap } from "@omnixa/core/location-service-map"
+import { Model } from "@omnixa/core/model"
+import { Provider } from "@omnixa/core/provider"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Agent } from "@omnixa/core/agent"
+import { Job } from "@omnixa/core/job"
+import { Session } from "@omnixa/core/session"
+import { SessionEvent } from "@omnixa/core/session/event"
+import { SessionExecution } from "@omnixa/core/session/execution"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { createLLMEventPublisher } from "@omnixa/core/session/runner/publish-llm-event"
+import { toLLMMessages } from "@omnixa/core/session/runner/to-llm-message"
+import { SessionStore } from "@omnixa/core/session/store"
+import { Permission } from "@omnixa/core/permission"
+import { PermissionSaved } from "@omnixa/core/permission/saved"
+import { ApprovalPresence } from "@omnixa/core/permission/approval-presence"
+import { Plugin } from "@omnixa/core/plugin"
+import { PluginSupervisor } from "@omnixa/core/plugin/supervisor"
+import { Shell } from "@omnixa/core/shell"
+import { ShellSelect } from "@omnixa/core/shell/select"
+import { ID } from "@omnixa/schema/shell"
+import { ShellTool } from "@omnixa/core/tool/plugin/shell"
+import { ToolOutput } from "@omnixa/core/tool-output"
+import { Tool } from "@omnixa/core/tool"
 import { tmpdir, tmpdirScoped } from "./fixture/tmpdir"
 import { tempGlobalLayer } from "./fixture/global"
 import { offlineModels } from "./fixture/models"
@@ -243,7 +243,7 @@ const withScanner = <A, E, R>(
         yield* Effect.promise(() => Promise.all([fs.mkdir(fixture.active), fs.mkdir(fixture.outside)]))
         yield* Effect.promise(() =>
           Bun.write(
-            path.join(fixture.active, "aigcfroge.json"),
+            path.join(fixture.active, "omnixa.json"),
             JSON.stringify({ experimental: { portable_shell_scanner: portable } }),
           ),
         )
@@ -1025,11 +1025,11 @@ describe("ShellTool", () => {
               const sessions = yield* Session.Service
               yield* sessions.environment({
                 sessionID,
-                variables: { AIGCFROGE_SESSION_ENV_TEST: "from-session" },
+                variables: { OMNIXA_SESSION_ENV_TEST: "from-session" },
               })
               const command = isWindows
-                ? "[Console]::Out.Write($env:AIGCFROGE_SESSION_ENV_TEST)"
-                : 'printf %s "$AIGCFROGE_SESSION_ENV_TEST"'
+                ? "[Console]::Out.Write($env:OMNIXA_SESSION_ENV_TEST)"
+                : 'printf %s "$OMNIXA_SESSION_ENV_TEST"'
 
               const settled = yield* executeTool(registry, call({ command }))
 
@@ -1055,15 +1055,15 @@ describe("ShellTool", () => {
               const sessions = yield* Session.Service
               yield* sessions.environment({
                 sessionID,
-                variables: { AGENT: "0", AIGCFROGE: "0", AI_AGENT: "", AIGCFROGE_SESSION_ID: "stale" },
+                variables: { AGENT: "0", OMNIXA: "0", AI_AGENT: "", OMNIXA_SESSION_ID: "stale" },
               })
               const command = isWindows
-                ? '[Console]::Out.Write("$env:AGENT|$env:AIGCFROGE|$env:AI_AGENT|$env:AIGCFROGE_SESSION_ID")'
-                : 'printf %s "$AGENT|$AIGCFROGE|$AI_AGENT|$AIGCFROGE_SESSION_ID"'
+                ? '[Console]::Out.Write("$env:AGENT|$env:OMNIXA|$env:AI_AGENT|$env:OMNIXA_SESSION_ID")'
+                : 'printf %s "$AGENT|$OMNIXA|$AI_AGENT|$OMNIXA_SESSION_ID"'
               const settled = yield* executeTool(registry, call({ command }))
 
               expect(settled.status).toBe("completed")
-              expect(settled.content?.[0]).toEqual({ type: "text", text: `1|1|aigcfroge|${sessionID}` })
+              expect(settled.content?.[0]).toEqual({ type: "text", text: `1|1|omnixa|${sessionID}` })
             }),
           )
         },
@@ -1346,7 +1346,7 @@ describe("ShellTool", () => {
               reset()
               yield* Effect.promise(() =>
                 Bun.write(
-                  path.join(tmp.path, "aigcfroge.json"),
+                  path.join(tmp.path, "omnixa.json"),
                   JSON.stringify({ experimental: { portable_shell_scanner: portable } }),
                 ),
               )
@@ -1394,7 +1394,7 @@ describe("ShellTool", () => {
           name: `test/shell-plugins-${channel}`,
           layer: Layer.effectDiscard(
             registerToolPlugin(ShellTool.Plugin, {
-              app: { name: "aigcfroge", version: "test", channel },
+              app: { name: "omnixa", version: "test", channel },
             }),
           ),
           deps: [
@@ -1417,7 +1417,7 @@ describe("ShellTool", () => {
               if (configured !== undefined)
                 yield* Effect.promise(() =>
                   Bun.write(
-                    path.join(tmp.path, "aigcfroge.json"),
+                    path.join(tmp.path, "omnixa.json"),
                     JSON.stringify({ experimental: { portable_shell_scanner: configured } }),
                   ),
                 )
@@ -1466,7 +1466,7 @@ describe("ShellTool", () => {
                   reset()
                   yield* Effect.promise(() =>
                     Bun.write(
-                      path.join(tmp.path, "aigcfroge.json"),
+                      path.join(tmp.path, "omnixa.json"),
                       JSON.stringify({ experimental: { portable_shell_scanner: portable } }),
                     ),
                   )
@@ -1566,7 +1566,7 @@ describe("ShellTool", () => {
         return Effect.gen(function* () {
           yield* Effect.promise(() =>
             Bun.write(
-              path.join(tmp.path, "aigcfroge.json"),
+              path.join(tmp.path, "omnixa.json"),
               JSON.stringify({ tool_output: { max_lines: 2, max_bytes: 1_000 } }),
             ),
           )

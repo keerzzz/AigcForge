@@ -1,5 +1,5 @@
-import { Plugin } from "@aigcfroge/plugin/tui"
-import type { AttentionSoundName } from "@aigcfroge/plugin/tui/context"
+import { Plugin } from "@omnixa/plugin/tui"
+import type { AttentionSoundName } from "@omnixa/plugin/tui/context"
 
 function notify(
   context: Plugin.Context,
@@ -19,7 +19,7 @@ function notify(
 }
 
 export default Plugin.define({
-  id: "aigcfroge.notifications",
+  id: "omnixa.notifications",
   setup(context) {
     const errored = new Set<string>()
     const terminal = new Set<string>()

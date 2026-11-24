@@ -1,13 +1,13 @@
 import { expect, test } from "bun:test"
 import { createComputed, createRoot } from "solid-js"
-import { AigcForge } from "@aigcfroge/client/promise"
-import { createData } from "@aigcfroge/client/solid"
+import { Omnixa } from "@omnixa/client/promise"
+import { createData } from "@omnixa/client/solid"
 
 test("publishes an initial message page, its index, and its cursor together", async () => {
   const observed: { ids: string[]; more: boolean; text: string | undefined }[] = []
 
-  const api = AigcForge.make({
-    baseUrl: "http://aigcfroge.local",
+  const api = Omnixa.make({
+    baseUrl: "http://omnixa.local",
     fetch: async () =>
       Response.json({
         data: [{ id: "msg_page", type: "user", text: "History", time: { created: 1 } }],

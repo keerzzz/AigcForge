@@ -1,5 +1,5 @@
-import type { ReferenceGitSource, ReferenceLocalSource } from "@aigcfroge/client"
-import type { ReferenceApi } from "@aigcfroge/client/effect/api"
+import type { ReferenceGitSource, ReferenceLocalSource } from "@omnixa/client"
+import type { ReferenceApi } from "@omnixa/client/effect/api"
 import type { Effect } from "effect"
 import type { Transform } from "./registration.js"
 

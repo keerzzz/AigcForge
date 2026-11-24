@@ -37,7 +37,7 @@ export const DefaultServices = Layer.merge(EffectCache.Default, EffectLogger.Def
  * @example
  * ```ts
  * import { SqliteClient } from "@effect/sql-sqlite-node"
- * import { EffectDrizzleSqlite } from "@aigcfroge/core/database/drizzle"
+ * import { EffectDrizzleSqlite } from "@omnixa/core/database/drizzle"
  * import { Effect } from "effect"
  *
  * const db = yield* EffectDrizzleSqlite.make({ relations }).pipe(

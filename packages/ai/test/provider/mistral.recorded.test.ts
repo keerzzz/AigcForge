@@ -1,4 +1,4 @@
-import { configure } from "@aigcfroge/ai/providers/mistral"
+import { configure } from "@omnixa/ai/providers/mistral"
 import { describe, expect } from "bun:test"
 import { Effect } from "effect"
 import { LLM, LLMEvent, LLMRequest, Message, SystemPart, ToolChoice, ToolDefinition } from "../../src/index.js"

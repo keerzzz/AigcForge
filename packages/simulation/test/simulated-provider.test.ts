@@ -2,21 +2,21 @@ import { expect, test } from "bun:test"
 import { mkdir, mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { Agent } from "@aigcfroge/core/agent"
-import { Config } from "@aigcfroge/core/config"
-import { Database } from "@aigcfroge/core/database/database"
-import { makeGlobalNode } from "@aigcfroge/util/effect/app-node"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { LayerNode } from "@aigcfroge/util/effect/layer-node"
-import { Bus } from "@aigcfroge/core/bus"
-import { Location } from "@aigcfroge/core/location"
-import { LocationServiceMap } from "@aigcfroge/core/location-services"
-import { Plugin } from "@aigcfroge/core/plugin"
-import { SdkPlugins } from "@aigcfroge/core/plugin/sdk"
-import { AbsolutePath } from "@aigcfroge/core/schema"
-import { Session } from "@aigcfroge/core/session"
-import { SessionMessage } from "@aigcfroge/core/session/message"
-import { Tool } from "@aigcfroge/core/tool"
+import { Agent } from "@omnixa/core/agent"
+import { Config } from "@omnixa/core/config"
+import { Database } from "@omnixa/core/database/database"
+import { makeGlobalNode } from "@omnixa/util/effect/app-node"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { LayerNode } from "@omnixa/util/effect/layer-node"
+import { Bus } from "@omnixa/core/bus"
+import { Location } from "@omnixa/core/location"
+import { LocationServiceMap } from "@omnixa/core/location-services"
+import { Plugin } from "@omnixa/core/plugin"
+import { SdkPlugins } from "@omnixa/core/plugin/sdk"
+import { AbsolutePath } from "@omnixa/core/schema"
+import { Session } from "@omnixa/core/session"
+import { SessionMessage } from "@omnixa/core/session/message"
+import { Tool } from "@omnixa/core/tool"
 import { Deferred, Effect, Fiber, Layer, Queue, Stream } from "effect"
 import type { Scope } from "effect/Scope"
 import { SimulatedProvider } from "../src/backend/simulated-provider"
@@ -44,7 +44,7 @@ test("streams a Drive-controlled provider response and removes the finished invo
         result: {
           protocolVersion: 1,
           role: "backend",
-          server: { name: "aigcfroge", version: expect.any(String) },
+          server: { name: "omnixa", version: expect.any(String) },
           capabilities: expect.arrayContaining(["llm.attach", "llm.request"]),
         },
       })
@@ -214,7 +214,7 @@ test("fails the provider stream when Drive disconnects the invocation", async ()
 
 test("controls arbitrary tools through scoped SDK overlays", async () => {
   const endpoint = availableEndpoint()
-  const directory = await mkdtemp(join(tmpdir(), "aigcfroge-simulated-tools-"))
+  const directory = await mkdtemp(join(tmpdir(), "omnixa-simulated-tools-"))
   const secondDirectory = join(directory, "second")
   await mkdir(secondDirectory)
   try {

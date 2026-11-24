@@ -104,8 +104,8 @@ jobs:
       - name: Setup git committer
         uses: ./.github/actions/setup-git-committer
         with:
-          aigcfroge-app-id: ${{ vars.AIGCFROGE_APP_ID }}
-          aigcfroge-app-secret: ${{ secrets.AIGCFROGE_APP_SECRET }}
+          omnixa-app-id: ${{ vars.OMNIXA_APP_ID }}
+          omnixa-app-secret: ${{ secrets.OMNIXA_APP_SECRET }}
 
       - name: Pull latest changes
         run: |

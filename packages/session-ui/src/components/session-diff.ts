@@ -1,7 +1,7 @@
 import { parseDiffFromFile, parsePatchFiles, processFile, type FileDiffMetadata } from "@pierre/diffs"
 import { parsePatch } from "diff"
-import { checksum } from "@aigcfroge/util/encode"
-import type { FileDiffInfo } from "@aigcfroge/client/promise"
+import { checksum } from "@omnixa/util/encode"
+import type { FileDiffInfo } from "@omnixa/client/promise"
 import type { PresentationFileDiff } from "../file-presentation"
 
 type LegacyDiff = {

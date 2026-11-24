@@ -1,5 +1,5 @@
-import type { AgentApi } from "@aigcfroge/client/promise/api"
-import type { Agent } from "@aigcfroge/schema/agent"
+import type { AgentApi } from "@omnixa/client/promise/api"
+import type { Agent } from "@omnixa/schema/agent"
 import type { Transform } from "./registration.js"
 import type { DeepMutable } from "./types.js"
 

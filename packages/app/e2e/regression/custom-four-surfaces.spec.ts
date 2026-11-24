@@ -9,12 +9,12 @@ import type {
   PromptAssetInfo,
   SkillAssetInfo,
   WorkflowAssetInfo,
-} from "@aigcfroge/client/promise"
-import { Agent } from "@aigcfroge/schema/agent"
-import { Composition } from "@aigcfroge/schema/composition"
-import { CustomProfile } from "@aigcfroge/schema/custom-profile"
-import { SessionTask } from "@aigcfroge/schema/session-task"
-import { WorkflowAsset } from "@aigcfroge/schema/workflow-asset"
+} from "@omnixa/client/promise"
+import { Agent } from "@omnixa/schema/agent"
+import { Composition } from "@omnixa/schema/composition"
+import { CustomProfile } from "@omnixa/schema/custom-profile"
+import { SessionTask } from "@omnixa/schema/session-task"
+import { WorkflowAsset } from "@omnixa/schema/workflow-asset"
 import { expect, test } from "@playwright/test"
 import { Schema } from "effect"
 import { expectPath, provider, session, sessionHref } from "../utils/app"
@@ -72,7 +72,7 @@ function promptFixture(scope: "location" | "project" | "global", directory: stri
     template: `Review code under ${scope}.`,
     target: {
       scope,
-      root: scope === "global" ? "/global/.aigcfroge/prompts" : `${directory}/.aigcfroge/prompts`,
+      root: scope === "global" ? "/global/.omnixa/prompts" : `${directory}/.omnixa/prompts`,
     },
   }
 }
@@ -88,7 +88,7 @@ function skillFixture(directory: string): SkillAssetInfo {
     content: "Verify every diff hunk.",
     triggers: [],
     tags: [],
-    target: { scope: "location", root: `${directory}/.aigcfroge/skills` },
+    target: { scope: "location", root: `${directory}/.omnixa/skills` },
   }
 }
 
@@ -101,7 +101,7 @@ function commandFixture(directory: string): CommandAssetInfo {
     revision: revD,
     invocation: "/audit",
     source: "Run audit checks.",
-    target: { scope: "location", root: `${directory}/.aigcfroge/commands` },
+    target: { scope: "location", root: `${directory}/.omnixa/commands` },
   }
 }
 
@@ -629,7 +629,7 @@ test("Surface 2: Compose Workspace wires real role bindings, workflow diagnostic
             kind: "prompt",
             relativePath: "shared/review.md",
             revision: revB,
-            target: { scope: "project", root: `${directory}/.aigcfroge/prompts` },
+            target: { scope: "project", root: `${directory}/.omnixa/prompts` },
           },
         ],
       },
@@ -756,7 +756,7 @@ test("Surface 3: Asset Library covers 7 kinds, paired scopes, snapshotsComplete=
       kind: "prompt",
       path: "shared/review.md",
       scope: "global",
-      targetRoot: "/global/.aigcfroge/prompts",
+      targetRoot: "/global/.omnixa/prompts",
     },
   ])
 
@@ -771,7 +771,7 @@ test("Surface 3: Asset Library covers 7 kinds, paired scopes, snapshotsComplete=
       {
         kind: "prompt",
         relativePath: "shared/review.md",
-        target: { scope: "global", root: "/global/.aigcfroge/prompts" },
+        target: { scope: "global", root: "/global/.omnixa/prompts" },
       },
     ])
 

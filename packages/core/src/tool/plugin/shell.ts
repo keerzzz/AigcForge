@@ -1,11 +1,11 @@
 export * as ShellTool from "./shell.js"
 
-import { ToolFailure } from "@aigcfroge/ai"
-import type { Context } from "@aigcfroge/plugin/effect/plugin"
-import type { SessionHooks } from "@aigcfroge/plugin/effect/session"
-import type { ShellCreateBefore } from "@aigcfroge/plugin/effect/shell"
-import type { Tool } from "@aigcfroge/schema/tool"
-import { CommandResult } from "@aigcfroge/schema/shell"
+import { ToolFailure } from "@omnixa/ai"
+import type { Context } from "@omnixa/plugin/effect/plugin"
+import type { SessionHooks } from "@omnixa/plugin/effect/session"
+import type { ShellCreateBefore } from "@omnixa/plugin/effect/shell"
+import type { Tool } from "@omnixa/schema/tool"
+import { CommandResult } from "@omnixa/schema/shell"
 import { Deferred, Effect, Schema, Scope } from "effect"
 import { Config } from "../../config.js"
 import { Environment } from "../../environment/index.js"
@@ -103,7 +103,7 @@ const backgroundResult = (shellID: string, file: string) => ({
 })
 
 export const Plugin = {
-  id: "aigcfroge.tool.shell",
+  id: "omnixa.tool.shell",
   effect: Effect.fn("ShellTool.Plugin")(function* (ctx: Context) {
     const sessions = yield* Session.Service
     const jobs = yield* Job.Service
@@ -213,9 +213,9 @@ export const Plugin = {
                 (invocation) =>
                   Effect.gen(function* () {
                     invocation.env.AGENT = "1"
-                    invocation.env.AIGCFROGE = "1"
-                    invocation.env.AI_AGENT ||= "aigcfroge"
-                    invocation.env.AIGCFROGE_SESSION_ID = context.sessionID
+                    invocation.env.OMNIXA = "1"
+                    invocation.env.AI_AGENT ||= "omnixa"
+                    invocation.env.OMNIXA_SESSION_ID = context.sessionID
                     finalTimeout = yield* prepare(invocation, context)
                   }),
               )

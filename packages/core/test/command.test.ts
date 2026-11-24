@@ -1,7 +1,7 @@
 import { describe, expect } from "bun:test"
-import { Command } from "@aigcfroge/core/command"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { Session } from "@aigcfroge/schema/session"
+import { Command } from "@omnixa/core/command"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { Session } from "@omnixa/schema/session"
 import { Effect } from "effect"
 import { testEffect } from "./lib/effect"
 

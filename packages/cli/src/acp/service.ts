@@ -1,9 +1,9 @@
-import type { AigcForgeClient } from "@aigcfroge/client/effect"
-import { SessionsCursor } from "@aigcfroge/protocol/groups/session"
-import { AbsolutePath } from "@aigcfroge/schema/schema"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import type { OmnixaClient } from "@omnixa/client/effect"
+import { SessionsCursor } from "@omnixa/protocol/groups/session"
+import { AbsolutePath } from "@omnixa/schema/schema"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { DateTime, Effect, Ref, Schema } from "effect"
-import { withTimestampedFallback } from "@aigcfroge/util/session-title-fallback"
+import { withTimestampedFallback } from "@omnixa/util/session-title-fallback"
 import type {
   AuthenticateRequest,
   AuthenticateResponse,
@@ -33,7 +33,7 @@ import type {
   SetSessionModeRequest,
   SetSessionModeResponse,
 } from "@agentclientprotocol/sdk"
-import { AIGCFROGE_VERSION } from "../version"
+import { OMNIXA_VERSION } from "../version"
 import { ACPCapabilities, type Capabilities } from "./capabilities"
 import type { ACPCatalog } from "./catalog"
 import { ACPClient } from "./client"
@@ -44,7 +44,7 @@ import { ACPReplay } from "./replay"
 import type { ACPSessions, SupportedMcpServer } from "./sessions"
 import type { ACPTurn } from "./turn"
 
-const AuthMethodID = "aigcfroge-login"
+const AuthMethodID = "omnixa-login"
 
 export interface Interface {
   readonly initialize: (input: InitializeRequest) => Effect.Effect<InitializeResponse>
@@ -65,7 +65,7 @@ export interface Interface {
 }
 
 export function make(input: {
-  readonly client: AigcForgeClient
+  readonly client: OmnixaClient
   readonly connection: ACPConnection.Interface
   readonly catalog: ACPCatalog.Interface
   readonly sessions: ACPSessions.Interface
@@ -84,14 +84,14 @@ export function make(input: {
     initialize: Effect.fnUntraced(function* (params) {
       yield* Ref.set(input.capabilities, ACPCapabilities.parse(params.clientCapabilities))
       const authMethod: AuthMethod = {
-        description: "Run `aigcfroge auth login` in the terminal",
-        name: "Login with aigcfroge",
+        description: "Run `omnixa auth login` in the terminal",
+        name: "Login with omnixa",
         id: AuthMethodID,
         ...(params.clientCapabilities?.auth?.terminal ? { type: "terminal" as const, args: ["--login"] } : {}),
       }
       if (params.clientCapabilities?._meta?.["terminal-auth"] === true) {
         authMethod._meta = {
-          "terminal-auth": { command: "aigcfroge", args: ["auth", "login"], label: "AigcForge Login" },
+          "terminal-auth": { command: "omnixa", args: ["auth", "login"], label: "Omnixa Login" },
         }
       }
       return {
@@ -104,7 +104,7 @@ export function make(input: {
           _meta: { [ACPCapabilities.ChildSessionUpdates]: true },
         },
         authMethods: [authMethod],
-        agentInfo: { name: "AigcForge", version: AIGCFROGE_VERSION },
+        agentInfo: { name: "Omnixa", version: OMNIXA_VERSION },
       }
     }),
     authenticate: Effect.fnUntraced(function* (params) {

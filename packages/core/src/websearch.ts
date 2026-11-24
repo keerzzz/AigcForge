@@ -1,11 +1,11 @@
 export * as WebSearch from "./websearch.js"
 
-import { WebSearch } from "@aigcfroge/schema/websearch"
-import type { Session } from "@aigcfroge/schema/session"
-import { SessionEvent } from "@aigcfroge/schema/session-event"
+import { WebSearch } from "@omnixa/schema/websearch"
+import type { Session } from "@omnixa/schema/session"
+import { SessionEvent } from "@omnixa/schema/session-event"
 import { Clock, Context, Effect, Layer, Option, Schema, Stream } from "effect"
 import { HttpClientError } from "effect/http"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
 import { Bus } from "./bus.js"
 import { KV } from "./kv.js"
 import { State } from "./state.js"
@@ -16,7 +16,7 @@ export type ID = WebSearch.ID
 export const Provider = WebSearch.Provider
 export type Provider = WebSearch.Provider
 
-export { Event } from "@aigcfroge/schema/websearch"
+export { Event } from "@omnixa/schema/websearch"
 
 export const Input = WebSearch.Input
 export type Input = WebSearch.Input
@@ -67,7 +67,7 @@ export interface Interface extends State.Transformable<Editor> {
   ) => Effect.Effect<Response, Error>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/WebSearch") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/WebSearch") {}
 
 type Data = {
   readonly providers: Map<ID, ProviderImplementation>

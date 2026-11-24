@@ -2,9 +2,9 @@ export * as Ripgrep from "./ripgrep.js"
 
 import { Context, Effect, Fiber, Layer, Schema, Stream } from "effect"
 import { ChildProcess } from "effect/process"
-import { Entry, Match } from "@aigcfroge/schema/filesystem"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { collectStream, waitForAbort } from "@aigcfroge/util/process"
+import { Entry, Match } from "@omnixa/schema/filesystem"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import { collectStream, waitForAbort } from "@omnixa/util/process"
 import { Environment } from "./environment/index.js"
 import { NonNegativeInt, PositiveInt, RelativePath } from "./schema.js"
 import { RipgrepBinary } from "./ripgrep/binary.js"
@@ -86,7 +86,7 @@ export interface Interface {
   readonly grep: (input: GrepInput) => Effect.Effect<readonly Match[], Error | InvalidPatternError>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Ripgrep") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Ripgrep") {}
 
 const failure = (message: string, cause?: unknown) => new Error({ message, cause })
 

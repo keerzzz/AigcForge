@@ -1,12 +1,12 @@
-import { Service, type Endpoint } from "@aigcfroge/client/effect/service"
-import { ClientError, AigcForge, type AigcForgeClient } from "@aigcfroge/client/promise"
-import type { MiniFrontendInput } from "@aigcfroge/tui/mini"
+import { Service, type Endpoint } from "@omnixa/client/effect/service"
+import { ClientError, Omnixa, type OmnixaClient } from "@omnixa/client/promise"
+import type { MiniFrontendInput } from "@omnixa/tui/mini"
 import { setTimeout } from "node:timers/promises"
 import { readStdin } from "./util/io"
 import { createMiniHost, INTERACTIVE_INPUT_ERROR, usingInteractiveStdin } from "./mini-host"
 import { parseSessionTargetModel, resolveSessionTarget, type SessionTargetPreparation } from "./session-target"
 import { Env } from "./env"
-import { isModelGroup, toModelPreference, toModelSelection } from "@aigcfroge/tui/model-preference"
+import { isModelGroup, toModelPreference, toModelSelection } from "@omnixa/tui/model-preference"
 
 export type MiniCommandInput = {
   server: {
@@ -36,7 +36,7 @@ export async function runMini(input: MiniCommandInput) {
     validate(input)
     await usingInteractiveStdin(async (terminal) => {
       const initialInput = mergeInput(process.stdin.isTTY ? undefined : await readStdin(), input.prompt)
-      const frontendTask = import("@aigcfroge/tui/mini")
+      const frontendTask = import("@omnixa/tui/mini")
       const directory = localDirectory()
       const connection = createMiniConnection(input.server)
       const sdk = connection.sdk
@@ -44,7 +44,7 @@ export async function runMini(input: MiniCommandInput) {
       const requested = parseModel(input.model)
       const model = requested ? toModelPreference(requested) : undefined
       const prepare: SessionTargetPreparation = async (next) => ({ model: next.model, agent: next.agent })
-      const resolveTarget = async (initial: AigcForgeClient, signal: AbortSignal) => {
+      const resolveTarget = async (initial: OmnixaClient, signal: AbortSignal) => {
         const resolved = await resolveMiniTarget({
           sdk: initial,
           reconnect: connection.reconnect,
@@ -86,7 +86,7 @@ export async function runMini(input: MiniCommandInput) {
         }
       }
       const create = (
-        client: AigcForgeClient,
+        client: OmnixaClient,
         next: {
           location: { directory: string }
           agent: string | undefined
@@ -150,7 +150,7 @@ export async function runMini(input: MiniCommandInput) {
 /** @internal Exported for CLI boundary tests. */
 export function createMiniConnection(input: MiniCommandInput["server"]) {
   const make = (endpoint: Endpoint) =>
-    AigcForge.make({
+    Omnixa.make({
       baseUrl: endpoint.url,
       headers: Service.headers(endpoint),
     })
@@ -168,10 +168,10 @@ export function createMiniConnection(input: MiniCommandInput["server"]) {
 
 /** @internal Exported for reconnect lifecycle tests. */
 export async function resolveMiniTarget<A>(input: {
-  sdk: AigcForgeClient
-  reconnect?: (signal: AbortSignal) => Promise<AigcForgeClient>
+  sdk: OmnixaClient
+  reconnect?: (signal: AbortSignal) => Promise<OmnixaClient>
   signal: AbortSignal
-  resolve: (sdk: AigcForgeClient) => Promise<A>
+  resolve: (sdk: OmnixaClient) => Promise<A>
 }) {
   let sdk = input.sdk
   while (true) {
@@ -193,7 +193,7 @@ export async function resolveMiniTarget<A>(input: {
 }
 
 export function validateMiniTerminal() {
-  if (!process.stdout.isTTY) fail("aigcfroge mini requires a TTY stdout")
+  if (!process.stdout.isTTY) fail("omnixa mini requires a TTY stdout")
 }
 
 /** @internal Exported for testing. */

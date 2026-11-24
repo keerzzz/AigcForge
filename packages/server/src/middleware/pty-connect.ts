@@ -1,4 +1,4 @@
-import { PtyConnectAuthorization } from "@aigcfroge/protocol/middleware/pty-connect"
+import { PtyConnectAuthorization } from "@omnixa/protocol/middleware/pty-connect"
 import { Effect, Layer } from "effect"
 
 /**

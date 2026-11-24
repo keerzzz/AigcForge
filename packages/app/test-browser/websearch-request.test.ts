@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test"
-import type { FormCreated, FormReplyInput, AigcForgeEvent } from "@aigcfroge/client/promise"
+import type { FormCreated, FormReplyInput, OmnixaEvent } from "@omnixa/client/promise"
 import { createEffect, createRoot } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createWebSearchRequest } from "@/session/requests/websearch"
@@ -43,7 +43,7 @@ function ready(condition: () => boolean) {
 function fixture(form: FormCreated["data"]["form"] | null = consent) {
   return createRoot((dispose) => {
     cleanups.push(dispose)
-    const listeners = new Set<(event: AigcForgeEvent) => void>()
+    const listeners = new Set<(event: OmnixaEvent) => void>()
     const replies: FormReplyInput[] = []
     const loads: string[] = []
 

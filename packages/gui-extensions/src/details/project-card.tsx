@@ -1,11 +1,6 @@
-import { Button } from "@aigcfroge/ui/button"
-import { Icon } from "@aigcfroge/ui/icon"
-import {
-  displayName,
-  getProjectAvatarSource,
-  getProjectAvatarVariant,
-  ProjectAvatar,
-} from "@aigcfroge/ui/project-avatar"
+import { Button } from "@omnixa/ui/button"
+import { Icon } from "@omnixa/ui/icon"
+import { displayName, getProjectAvatarSource, getProjectAvatarVariant, ProjectAvatar } from "@omnixa/ui/project-avatar"
 import { createUniqueId, Show, type ParentProps } from "solid-js"
 import type { Project } from "../sdk"
 

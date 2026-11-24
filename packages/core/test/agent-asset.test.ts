@@ -2,7 +2,7 @@ import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
 import os from "os"
 import path from "path"
-import { FSUtil } from "@aigcfroge/util/fs-util"
+import { FSUtil } from "@omnixa/util/fs-util"
 import { Location } from "../src/location"
 import { LocationMutation } from "../src/location-mutation"
 import { PromptAsset } from "../src/prompt-asset"
@@ -25,7 +25,7 @@ describe("AgentAsset", () => {
     Effect.gen(function* () {
       const directory = yield* tmpdirScoped()
       const fs = yield* FSUtil.Service
-      const file = path.join(directory.path, ".aigcfroge/agents/reviewer.md")
+      const file = path.join(directory.path, ".omnixa/agents/reviewer.md")
       const source = (card: string) =>
         `---\nkind: agent\nname: reviewer\ndescription: Review\nconfig: |\n  card: ${card}\n---\nReview carefully.\n`
       yield* fs.writeWithDirs(file, source("{ capabilities: [review], constraints: [], protocol: Exact A }"))
@@ -53,7 +53,7 @@ describe("AgentAsset", () => {
   it.live("loads agent assets and isolates from command, mcp, skill, prompt with same filename", () =>
     Effect.gen(function* () {
       const fs = yield* FSUtil.Service
-      const tmpDir = yield* fs.makeTempDirectory({ directory: os.tmpdir(), prefix: "aigcfroge-agent-test-" })
+      const tmpDir = yield* fs.makeTempDirectory({ directory: os.tmpdir(), prefix: "omnixa-agent-test-" })
       const locationDir = AbsolutePath.make(tmpDir)
 
       const locationLayer = Layer.succeed(
@@ -82,11 +82,11 @@ describe("AgentAsset", () => {
         const skillService = yield* SkillAsset.Service
         const promptService = yield* PromptAsset.Service
 
-        const agentDir = path.resolve(tmpDir, ".aigcfroge/agents")
-        const cmdDir = path.resolve(tmpDir, ".aigcfroge/commands")
-        const mcpDir = path.resolve(tmpDir, ".aigcfroge/mcps")
-        const skillDir = path.resolve(tmpDir, ".aigcfroge/skills")
-        const promptDir = path.resolve(tmpDir, ".aigcfroge/prompts")
+        const agentDir = path.resolve(tmpDir, ".omnixa/agents")
+        const cmdDir = path.resolve(tmpDir, ".omnixa/commands")
+        const mcpDir = path.resolve(tmpDir, ".omnixa/mcps")
+        const skillDir = path.resolve(tmpDir, ".omnixa/skills")
+        const promptDir = path.resolve(tmpDir, ".omnixa/prompts")
 
         yield* fs.makeDirectory(agentDir, { recursive: true })
         yield* fs.makeDirectory(cmdDir, { recursive: true })

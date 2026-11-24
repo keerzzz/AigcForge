@@ -1,15 +1,15 @@
-import { Button } from "@aigcfroge/ui/button"
-import { Dialog, DialogBody, DialogHeader, DialogTitle, DialogTitleGroup } from "@aigcfroge/ui/dialog"
-import { Switch } from "@aigcfroge/ui/switch"
-import { TextInput } from "@aigcfroge/ui/text-input"
-import { Tooltip } from "@aigcfroge/ui/tooltip"
-import { useFilteredList } from "@aigcfroge/ui/hooks"
-import { createEffect, createMemo, For, onCleanup, Show, type Component, untrack } from "solid-js"
+import { Button } from "@omnixa/ui/button"
+import { Dialog, DialogBody, DialogHeader, DialogTitle, DialogTitleGroup } from "@omnixa/ui/dialog"
+import { Switch } from "@omnixa/ui/switch"
+import { TextInput } from "@omnixa/ui/text-input"
+import { Tooltip } from "@omnixa/ui/tooltip"
+import { useFilteredList } from "@omnixa/ui/hooks"
+import { createEffect, For, onCleanup, Show, type Component, untrack } from "solid-js"
 import { createStore } from "solid-js/store"
 import { useLocal } from "@/providers/models/selection"
 import { popularProviders } from "@/providers/catalog/providers"
 import { useLanguage } from "@/runtime/i18n/language"
-import { useDialog } from "@aigcfroge/ui/context/dialog"
+import { useDialog } from "@omnixa/ui/context/dialog"
 import { DialogConnectProvider } from "@/providers/connect/dialog"
 import { CustomProviderForm } from "@/providers/credentials/dialog"
 import { ModelTooltip } from "@/providers/models/tooltip"
@@ -18,7 +18,7 @@ import { useServerSDK } from "@/runtime/server/client"
 import { decode64 } from "@/runtime/persistence/base64"
 import { SettingsList } from "@/settings/list"
 import { SettingsRow } from "@/settings/row"
-import { consoleModelGroup, ProviderModelSections } from "@/providers/models/provider-group"
+import { ProviderModelSections } from "@/providers/models/provider-group"
 import "@/settings/settings.css"
 
 type ModelItem = ReturnType<ReturnType<typeof useLocal>["model"]["list"]>[number]
@@ -132,7 +132,6 @@ export const DialogManageModels: Component = () => {
     },
   })
 
-  const managed = createMemo(() => consoleModelGroup(local.model.list()))
   const searching = () => list.filter().length > 0
   const expanded = (key: string) => searching() || !store.collapsed[key]
 
@@ -236,11 +235,9 @@ export const DialogManageModels: Component = () => {
               >
                 <ProviderModelSections
                   groups={list.grouped.latest}
-                  managed={managed()}
                   expanded={expanded}
                   disabled={searching()}
                   onExpandedChange={(key, value) => setStore("collapsed", key, !value)}
-                  onSetVisibility={setProviderVisibility}
                   action={(group) => (
                     <Switch
                       class="me-6"

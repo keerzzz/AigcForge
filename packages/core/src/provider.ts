@@ -1,20 +1,20 @@
 export * as Provider from "./provider.js"
 
 import { Context, Effect, Layer, Option, Schema, Stream, Struct } from "effect"
-import { Provider } from "@aigcfroge/schema/provider"
-import { Model } from "@aigcfroge/schema/model"
-import type { ModelSource } from "@aigcfroge/schema/model-source"
-import { makeLocationNode } from "@aigcfroge/util/effect/app-node"
-import { HttpTimeout, type ProviderPackageDefinition } from "@aigcfroge/ai"
-import { isRecord } from "@aigcfroge/ai/utils/record"
-import { Npm } from "@aigcfroge/util/npm"
+import { Provider } from "@omnixa/schema/provider"
+import { Model } from "@omnixa/schema/model"
+import type { ModelSource } from "@omnixa/schema/model-source"
+import { makeLocationNode } from "@omnixa/util/effect/app-node"
+import { HttpTimeout, type ProviderPackageDefinition } from "@omnixa/ai"
+import { isRecord } from "@omnixa/ai/utils/record"
+import { Npm } from "@omnixa/util/npm"
 import type { DeepMutable } from "./schema.js"
-import { importModule, resolveModule } from "@aigcfroge/util/runtime-import"
+import { importModule, resolveModule } from "@omnixa/util/runtime-import"
 import { Bus } from "./bus.js"
 import { Integration } from "./integration.js"
 import { State } from "./state.js"
 import { IntegrationConnection } from "./integration/connection.js"
-import { Credential } from "@aigcfroge/schema/credential"
+import { Credential } from "@omnixa/schema/credential"
 import { Location } from "./location.js"
 import { castDraft, freeze } from "immer"
 import { AISDKNative } from "./aisdk-native.js"
@@ -29,8 +29,6 @@ export function packageName(value: string): string
 export function packageName(value: undefined): undefined
 export function packageName(value: string | undefined): string | undefined
 export function packageName(value: string | undefined) {
-  // Native provider entrypoints can persist in user configuration across the npm scope migration.
-  if (value?.startsWith("@opencode-ai/ai/")) return value.replace("@opencode-ai/", "@aigcfroge/")
   if (value === undefined || !isAISDK(value)) return value
   return value.slice(AISDK_PREFIX.length)
 }
@@ -47,84 +45,72 @@ export type ProviderPackage = ProviderPackageDefinition
 
 const packages = new Map<string, Promise<unknown>>()
 const builtins = new Map<string, () => Promise<unknown>>([
-  ["@aigcfroge/ai/providers/amazon-bedrock", () => import("@aigcfroge/ai/providers/amazon-bedrock")],
-  ["@aigcfroge/ai/providers/amazon-bedrock/mantle", () => import("@aigcfroge/ai/providers/amazon-bedrock/mantle")],
+  ["@omnixa/ai/providers/amazon-bedrock", () => import("@omnixa/ai/providers/amazon-bedrock")],
+  ["@omnixa/ai/providers/amazon-bedrock/mantle", () => import("@omnixa/ai/providers/amazon-bedrock/mantle")],
+  ["@omnixa/ai/providers/amazon-bedrock/mantle/chat", () => import("@omnixa/ai/providers/amazon-bedrock/mantle/chat")],
   [
-    "@aigcfroge/ai/providers/amazon-bedrock/mantle/chat",
-    () => import("@aigcfroge/ai/providers/amazon-bedrock/mantle/chat"),
+    "@omnixa/ai/providers/amazon-bedrock/mantle/responses",
+    () => import("@omnixa/ai/providers/amazon-bedrock/mantle/responses"),
+  ],
+  ["@omnixa/ai/providers/alibaba/chat", () => import("@omnixa/ai/providers/alibaba/chat")],
+  ["@omnixa/ai/providers/alibaba/messages", () => import("@omnixa/ai/providers/alibaba/messages")],
+  ["@omnixa/ai/providers/alibaba/responses", () => import("@omnixa/ai/providers/alibaba/responses")],
+  ["@omnixa/ai/providers/anthropic", () => import("@omnixa/ai/providers/anthropic")],
+  ["@omnixa/ai/providers/anthropic-compatible", () => import("@omnixa/ai/providers/anthropic-compatible")],
+  ["@omnixa/ai/providers/azure", () => import("@omnixa/ai/providers/azure")],
+  ["@omnixa/ai/providers/azure/chat", () => import("@omnixa/ai/providers/azure/chat")],
+  ["@omnixa/ai/providers/azure/responses", () => import("@omnixa/ai/providers/azure/responses")],
+  ["@omnixa/ai/providers/baseten", () => import("@omnixa/ai/providers/baseten")],
+  ["@omnixa/ai/providers/cerebras", () => import("@omnixa/ai/providers/cerebras")],
+  ["@omnixa/ai/providers/cloudflare-ai-gateway", () => import("@omnixa/ai/providers/cloudflare-ai-gateway")],
+  ["@omnixa/ai/providers/cloudflare-workers-ai", () => import("@omnixa/ai/providers/cloudflare-workers-ai")],
+  ["@omnixa/ai/providers/cohere", () => import("@omnixa/ai/providers/cohere")],
+  ["@omnixa/ai/providers/cohere/chat", () => import("@omnixa/ai/providers/cohere/chat")],
+  ["@omnixa/ai/providers/deepinfra", () => import("@omnixa/ai/providers/deepinfra")],
+  ["@omnixa/ai/providers/deepseek", () => import("@omnixa/ai/providers/deepseek")],
+  ["@omnixa/ai/providers/digitalocean", () => import("@omnixa/ai/providers/digitalocean")],
+  ["@omnixa/ai/providers/fireworks", () => import("@omnixa/ai/providers/fireworks")],
+  ["@omnixa/ai/providers/google", () => import("@omnixa/ai/providers/google")],
+  ["@omnixa/ai/providers/google/interactions", () => import("@omnixa/ai/providers/google/interactions")],
+  ["@omnixa/ai/providers/google-vertex", () => import("@omnixa/ai/providers/google-vertex")],
+  ["@omnixa/ai/providers/google-vertex/gemini", () => import("@omnixa/ai/providers/google-vertex/gemini")],
+  ["@omnixa/ai/providers/google-vertex/interactions", () => import("@omnixa/ai/providers/google-vertex/interactions")],
+  ["@omnixa/ai/providers/google-vertex/chat", () => import("@omnixa/ai/providers/google-vertex/chat")],
+  ["@omnixa/ai/providers/google-vertex/responses", () => import("@omnixa/ai/providers/google-vertex/responses")],
+  ["@omnixa/ai/providers/google-vertex/messages", () => import("@omnixa/ai/providers/google-vertex/messages")],
+  ["@omnixa/ai/providers/google-vertex/mistral", () => import("@omnixa/ai/providers/google-vertex/mistral")],
+  ["@omnixa/ai/providers/groq", () => import("@omnixa/ai/providers/groq")],
+  ["@omnixa/ai/providers/meta/chat", () => import("@omnixa/ai/providers/meta/chat")],
+  ["@omnixa/ai/providers/meta/messages", () => import("@omnixa/ai/providers/meta/messages")],
+  ["@omnixa/ai/providers/meta/responses", () => import("@omnixa/ai/providers/meta/responses")],
+  ["@omnixa/ai/providers/minimax/chat", () => import("@omnixa/ai/providers/minimax/chat")],
+  ["@omnixa/ai/providers/minimax/messages", () => import("@omnixa/ai/providers/minimax/messages")],
+  ["@omnixa/ai/providers/minimax/responses", () => import("@omnixa/ai/providers/minimax/responses")],
+  ["@omnixa/ai/providers/mistral", () => import("@omnixa/ai/providers/mistral")],
+  ["@omnixa/ai/providers/moonshot/chat", () => import("@omnixa/ai/providers/moonshot/chat")],
+  ["@omnixa/ai/providers/moonshot/messages", () => import("@omnixa/ai/providers/moonshot/messages")],
+  ["@omnixa/ai/providers/moonshot/responses", () => import("@omnixa/ai/providers/moonshot/responses")],
+  ["@omnixa/ai/providers/openai", () => import("@omnixa/ai/providers/openai")],
+  ["@omnixa/ai/providers/openai/chat", () => import("@omnixa/ai/providers/openai/chat")],
+  ["@omnixa/ai/providers/openai/responses", () => import("@omnixa/ai/providers/openai/responses")],
+  ["@omnixa/ai/providers/openai-compatible", () => import("@omnixa/ai/providers/openai-compatible")],
+  [
+    "@omnixa/ai/providers/openai-compatible/responses",
+    () => import("@omnixa/ai/providers/openai-compatible/responses"),
   ],
   [
-    "@aigcfroge/ai/providers/amazon-bedrock/mantle/responses",
-    () => import("@aigcfroge/ai/providers/amazon-bedrock/mantle/responses"),
+    "@omnixa/ai/providers/openai-compatible-responses",
+    () => import("@omnixa/ai/providers/openai-compatible-responses"),
   ],
-  ["@aigcfroge/ai/providers/alibaba/chat", () => import("@aigcfroge/ai/providers/alibaba/chat")],
-  ["@aigcfroge/ai/providers/alibaba/messages", () => import("@aigcfroge/ai/providers/alibaba/messages")],
-  ["@aigcfroge/ai/providers/alibaba/responses", () => import("@aigcfroge/ai/providers/alibaba/responses")],
-  ["@aigcfroge/ai/providers/anthropic", () => import("@aigcfroge/ai/providers/anthropic")],
-  ["@aigcfroge/ai/providers/anthropic-compatible", () => import("@aigcfroge/ai/providers/anthropic-compatible")],
-  ["@aigcfroge/ai/providers/azure", () => import("@aigcfroge/ai/providers/azure")],
-  ["@aigcfroge/ai/providers/azure/chat", () => import("@aigcfroge/ai/providers/azure/chat")],
-  ["@aigcfroge/ai/providers/azure/responses", () => import("@aigcfroge/ai/providers/azure/responses")],
-  ["@aigcfroge/ai/providers/baseten", () => import("@aigcfroge/ai/providers/baseten")],
-  ["@aigcfroge/ai/providers/cerebras", () => import("@aigcfroge/ai/providers/cerebras")],
-  ["@aigcfroge/ai/providers/cloudflare-ai-gateway", () => import("@aigcfroge/ai/providers/cloudflare-ai-gateway")],
-  ["@aigcfroge/ai/providers/cloudflare-workers-ai", () => import("@aigcfroge/ai/providers/cloudflare-workers-ai")],
-  ["@aigcfroge/ai/providers/cohere", () => import("@aigcfroge/ai/providers/cohere")],
-  ["@aigcfroge/ai/providers/cohere/chat", () => import("@aigcfroge/ai/providers/cohere/chat")],
-  ["@aigcfroge/ai/providers/deepinfra", () => import("@aigcfroge/ai/providers/deepinfra")],
-  ["@aigcfroge/ai/providers/deepseek", () => import("@aigcfroge/ai/providers/deepseek")],
-  ["@aigcfroge/ai/providers/digitalocean", () => import("@aigcfroge/ai/providers/digitalocean")],
-  ["@aigcfroge/ai/providers/fireworks", () => import("@aigcfroge/ai/providers/fireworks")],
-  ["@aigcfroge/ai/providers/google", () => import("@aigcfroge/ai/providers/google")],
-  ["@aigcfroge/ai/providers/google/interactions", () => import("@aigcfroge/ai/providers/google/interactions")],
-  ["@aigcfroge/ai/providers/google-vertex", () => import("@aigcfroge/ai/providers/google-vertex")],
-  ["@aigcfroge/ai/providers/google-vertex/gemini", () => import("@aigcfroge/ai/providers/google-vertex/gemini")],
-  [
-    "@aigcfroge/ai/providers/google-vertex/interactions",
-    () => import("@aigcfroge/ai/providers/google-vertex/interactions"),
-  ],
-  ["@aigcfroge/ai/providers/google-vertex/chat", () => import("@aigcfroge/ai/providers/google-vertex/chat")],
-  ["@aigcfroge/ai/providers/google-vertex/responses", () => import("@aigcfroge/ai/providers/google-vertex/responses")],
-  ["@aigcfroge/ai/providers/google-vertex/messages", () => import("@aigcfroge/ai/providers/google-vertex/messages")],
-  ["@aigcfroge/ai/providers/google-vertex/mistral", () => import("@aigcfroge/ai/providers/google-vertex/mistral")],
-  ["@aigcfroge/ai/providers/groq", () => import("@aigcfroge/ai/providers/groq")],
-  ["@aigcfroge/ai/providers/meta/chat", () => import("@aigcfroge/ai/providers/meta/chat")],
-  ["@aigcfroge/ai/providers/meta/messages", () => import("@aigcfroge/ai/providers/meta/messages")],
-  ["@aigcfroge/ai/providers/meta/responses", () => import("@aigcfroge/ai/providers/meta/responses")],
-  ["@aigcfroge/ai/providers/minimax/chat", () => import("@aigcfroge/ai/providers/minimax/chat")],
-  ["@aigcfroge/ai/providers/minimax/messages", () => import("@aigcfroge/ai/providers/minimax/messages")],
-  ["@aigcfroge/ai/providers/minimax/responses", () => import("@aigcfroge/ai/providers/minimax/responses")],
-  ["@aigcfroge/ai/providers/mistral", () => import("@aigcfroge/ai/providers/mistral")],
-  ["@aigcfroge/ai/providers/moonshot/chat", () => import("@aigcfroge/ai/providers/moonshot/chat")],
-  ["@aigcfroge/ai/providers/moonshot/messages", () => import("@aigcfroge/ai/providers/moonshot/messages")],
-  ["@aigcfroge/ai/providers/moonshot/responses", () => import("@aigcfroge/ai/providers/moonshot/responses")],
-  ["@aigcfroge/ai/providers/openai", () => import("@aigcfroge/ai/providers/openai")],
-  ["@aigcfroge/ai/providers/openai/chat", () => import("@aigcfroge/ai/providers/openai/chat")],
-  ["@aigcfroge/ai/providers/openai/responses", () => import("@aigcfroge/ai/providers/openai/responses")],
-  ["@aigcfroge/ai/providers/openai-compatible", () => import("@aigcfroge/ai/providers/openai-compatible")],
-  [
-    "@aigcfroge/ai/providers/openai-compatible/responses",
-    () => import("@aigcfroge/ai/providers/openai-compatible/responses"),
-  ],
-  [
-    "@aigcfroge/ai/providers/openai-compatible-responses",
-    () => import("@aigcfroge/ai/providers/openai-compatible-responses"),
-  ],
-  ["@aigcfroge/ai/providers/openrouter", () => import("@aigcfroge/ai/providers/openrouter")],
-  ["@aigcfroge/ai/providers/togetherai", () => import("@aigcfroge/ai/providers/togetherai")],
-  ["@aigcfroge/ai/providers/venice", () => import("@aigcfroge/ai/providers/venice")],
-  ["@aigcfroge/ai/providers/vercel-ai-gateway", () => import("@aigcfroge/ai/providers/vercel-ai-gateway")],
-  ["@aigcfroge/ai/providers/xai", () => import("@aigcfroge/ai/providers/xai")],
-  ["@aigcfroge/ai/providers/zai/chat", () => import("@aigcfroge/ai/providers/zai/chat")],
-  ["@aigcfroge/ai/providers/zai-coding-plan/chat", () => import("@aigcfroge/ai/providers/zai-coding-plan/chat")],
-  [
-    "@aigcfroge/ai/providers/zai-coding-plan/messages",
-    () => import("@aigcfroge/ai/providers/zai-coding-plan/messages"),
-  ],
-  [
-    "@aigcfroge/ai/providers/zai-coding-plan/responses",
-    () => import("@aigcfroge/ai/providers/zai-coding-plan/responses"),
-  ],
+  ["@omnixa/ai/providers/openrouter", () => import("@omnixa/ai/providers/openrouter")],
+  ["@omnixa/ai/providers/togetherai", () => import("@omnixa/ai/providers/togetherai")],
+  ["@omnixa/ai/providers/venice", () => import("@omnixa/ai/providers/venice")],
+  ["@omnixa/ai/providers/vercel-ai-gateway", () => import("@omnixa/ai/providers/vercel-ai-gateway")],
+  ["@omnixa/ai/providers/xai", () => import("@omnixa/ai/providers/xai")],
+  ["@omnixa/ai/providers/zai/chat", () => import("@omnixa/ai/providers/zai/chat")],
+  ["@omnixa/ai/providers/zai-coding-plan/chat", () => import("@omnixa/ai/providers/zai-coding-plan/chat")],
+  ["@omnixa/ai/providers/zai-coding-plan/messages", () => import("@omnixa/ai/providers/zai-coding-plan/messages")],
+  ["@omnixa/ai/providers/zai-coding-plan/responses", () => import("@omnixa/ai/providers/zai-coding-plan/responses")],
 ])
 
 export const loadPackage = Effect.fn("Provider.loadPackage")(function* (input: string, npm?: Npm.Interface) {
@@ -132,7 +118,7 @@ export const loadPackage = Effect.fn("Provider.loadPackage")(function* (input: s
   const builtin = builtins.get(specifier)
   if (builtin) return yield* importPackage(specifier, specifier, builtin)
   const resolved = yield* Effect.sync(() => {
-    if (specifier.startsWith("file://") || specifier.startsWith("@aigcfroge/ai/")) return specifier
+    if (specifier.startsWith("file://") || specifier.startsWith("@omnixa/ai/")) return specifier
     try {
       return import.meta.resolve(specifier)
     } catch {
@@ -156,7 +142,7 @@ export const loadPackage = Effect.fn("Provider.loadPackage")(function* (input: s
   return yield* importPackage(specifier, entrypoint)
 })
 
-/** aigcfroge settings consumed in Core; native packages never receive them. */
+/** omnixa settings consumed in Core; native packages never receive them. */
 const CORE_KEYS = ["chunkTimeout", "compaction", "fetch", "headerTimeout", "timeout", "transport"] as const
 const PROVIDER_ONLY_KEYS = ["chunkTimeout", "headerTimeout", "timeout", "transport"] as const
 
@@ -239,7 +225,7 @@ export type Info = Provider.Info
 
 export type MutableInfo = DeepMutable<Info>
 
-export { Event } from "@aigcfroge/schema/provider"
+export { Event } from "@omnixa/schema/provider"
 
 /** Provider metadata owns its drafts; model definitions remain immutable inputs. */
 export type Definition = {
@@ -292,7 +278,7 @@ export interface Interface extends State.Transformable<Editor> {
   readonly snapshot: (input?: ConnectionInput) => Effect.Effect<Snapshot>
 }
 
-export class Service extends Context.Service<Service, Interface>()("@aigcfroge/Provider") {}
+export class Service extends Context.Service<Service, Interface>()("@omnixa/Provider") {}
 
 type MutableDefinition = {
   provider: MutableInfo

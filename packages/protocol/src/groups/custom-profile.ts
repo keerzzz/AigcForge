@@ -1,5 +1,5 @@
-import { CustomProfile } from "@aigcfroge/schema/custom-profile"
-import { Session } from "@aigcfroge/schema/session"
+import { CustomProfile } from "@omnixa/schema/custom-profile"
+import { Session } from "@omnixa/schema/session"
 import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/http-api"
 import { ApiNotFoundError, ConflictError, InvalidRequestError, UnknownError } from "../errors.js"

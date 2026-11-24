@@ -5,14 +5,14 @@ import os from "os"
 import path from "path"
 import { Deferred, Effect, Layer } from "effect"
 import { TestClock } from "effect/testing"
-import { AppNodeBuilder } from "@aigcfroge/core/effect/app-node-builder"
-import { FileSystem } from "@aigcfroge/core/filesystem"
-import { Protected } from "@aigcfroge/core/filesystem/protected"
-import { FileSystemSearch } from "@aigcfroge/core/filesystem/search"
-import { Location } from "@aigcfroge/core/location"
-import { Ripgrep } from "@aigcfroge/core/ripgrep"
-import { AbsolutePath, RelativePath } from "@aigcfroge/core/schema"
-import { Workspace } from "@aigcfroge/core/workspace"
+import { AppNodeBuilder } from "@omnixa/core/effect/app-node-builder"
+import { FileSystem } from "@omnixa/core/filesystem"
+import { Protected } from "@omnixa/core/filesystem/protected"
+import { FileSystemSearch } from "@omnixa/core/filesystem/search"
+import { Location } from "@omnixa/core/location"
+import { Ripgrep } from "@omnixa/core/ripgrep"
+import { AbsolutePath, RelativePath } from "@omnixa/core/schema"
+import { Workspace } from "@omnixa/core/workspace"
 import { location } from "../fixture/location"
 import { tmpdir } from "../fixture/tmpdir"
 import { it } from "../lib/effect"
@@ -36,7 +36,7 @@ const ripgrepStub = (entry: string, onFind: (input: Ripgrep.FindInput) => void) 
 describe("FileSystemSearch", () => {
   it.live("honors wildcard directory rules from .gitignore", () =>
     Effect.gen(function* () {
-      const directory = (yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("aigcfroge-fff-ignore-")))).path
+      const directory = (yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("omnixa-fff-ignore-")))).path
       yield* Effect.promise(() => mkdir(path.join(directory, "rust/target/debug/deps"), { recursive: true }))
       yield* Effect.promise(() => Bun.write(path.join(directory, ".gitignore"), "**/target/\n"))
       yield* Effect.promise(() => Bun.write(path.join(directory, "rust/target/debug/deps/ignored.rs"), "ignored"))
@@ -65,8 +65,7 @@ describe("FileSystemSearch", () => {
 
   it.live("selects the ripgrep layer for workspace-backed locations even when vcs would pick fff", () =>
     Effect.gen(function* () {
-      const directory = (yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("aigcfroge-search-workspace-"))))
-        .path
+      const directory = (yield* Effect.acquireDisposable(Effect.promise(() => tmpdir("omnixa-search-workspace-")))).path
       // A local file that only an fff index of the server directory could surface.
       // The fff-vs-ripgrep discrimination only bites where Fff.available() is
       // true; elsewhere the layer choice already falls back to ripgrep.
@@ -139,7 +138,7 @@ describe("FileSystemSearch", () => {
           Layer.succeed(
             Location.Service,
             Location.Service.of(
-              location({ directory: AbsolutePath.make(path.join(os.tmpdir(), "aigcfroge-search-atomic")) }),
+              location({ directory: AbsolutePath.make(path.join(os.tmpdir(), "omnixa-search-atomic")) }),
             ),
           ),
         ),
@@ -208,7 +207,7 @@ describe("FileSystemSearch", () => {
           Layer.succeed(
             Location.Service,
             Location.Service.of(
-              location({ directory: AbsolutePath.make(path.join(os.tmpdir(), "aigcfroge-search-cache")) }),
+              location({ directory: AbsolutePath.make(path.join(os.tmpdir(), "omnixa-search-cache")) }),
             ),
           ),
         ),

@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/solid */
 import { InputRenderable, TextareaRenderable } from "@opentui/core"
-import type { FormFields, LocationRef } from "@aigcfroge/client"
+import type { FormFields, LocationRef } from "@omnixa/client"
 import { testRender } from "@opentui/solid"
 import { expect, test } from "bun:test"
 import { onMount } from "solid-js"
@@ -261,7 +261,7 @@ async function renderIntegration(activeLocation?: LocationRef, form?: FormFields
   const calls = createFetch(async (url, request) => {
     const directory =
       url.searchParams.get("location[directory]") ??
-      decodeURIComponent(request.headers.get("x-aigcfroge-directory") ?? process.cwd())
+      decodeURIComponent(request.headers.get("x-omnixa-directory") ?? process.cwd())
     const requestedLocation = { directory }
     const location = {
       ...requestedLocation,
