@@ -103,19 +103,17 @@ for (const direction of ["ltr", "rtl"] as const) {
       await expect(models).toBeHidden()
       await expect(model).toBeFocused()
 
-      if (paid) {
-        await model.click()
-        await models.getByRole("button", { name: "Manage models", exact: true }).click()
-        await expect(models).toBeHidden()
-        await expect(page.getByRole("dialog", { name: "Manage models", exact: true })).toBeVisible()
-        await expect(page.getByRole("dialog")).toHaveCount(1)
-
-        return
-      }
-
       await model.click()
-      await models.getByRole("button", { name: "Connect provider", exact: true }).click()
+      await models.getByRole("button", { name: "Manage models", exact: true }).click()
       await expect(models).toBeHidden()
+      const managed = page.getByRole("dialog", { name: "Manage models", exact: true })
+      await expect(managed).toBeVisible()
+      await expect(page.getByRole("dialog")).toHaveCount(1)
+
+      if (paid) return
+
+      await managed.getByRole("button", { name: "Connect provider", exact: true }).click()
+      await expect(managed).toBeHidden()
       const providers = page.getByRole("dialog", { name: "Connect provider", exact: true })
       await expect(providers.getByRole("searchbox", { name: "Search providers", exact: true })).toBeVisible()
       await expect(page.getByRole("dialog")).toHaveCount(1)

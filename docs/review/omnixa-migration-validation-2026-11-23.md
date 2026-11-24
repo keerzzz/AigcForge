@@ -108,3 +108,25 @@ The next canonical check exposed eight Core type errors because Event.Payload<D>
 | Incremental lint against origin/main               | `repository root`: `GOMAXPROCS=2 GOMEMLIMIT=3GiB ./script/bun run lint:changed origin/main` | exit 0 | `611bdedcca239ef172b69d4424e1f4dbc35454cca2aa64126c50b96c4ca9a014` |
 
 Client generation changed the Effect API’s SessionLogItem owner reference; the other eleven generated files retained their bytes. Generated files were changed only through the formal generator. The Stage 4 Desktop package and screenshots above were built before these submission repairs; their installation result remains attached to the historical source freeze. The final submission has current-source package, browser, generation, lint and type receipts.
+
+## PR #156 CI follow-up — 2026-11-24
+
+The first GitHub run completed type checks and both operating systems’ unit tests, but failed in the Linux performance baseline and three Windows App E2E cases. The aggregate CI job failed because those E2E jobs failed. Original job logs were retained separately; the initial empty CLI log downloads received no verification credit.
+
+The historical `main` baseline reads the old performance environment and owns the old package, mock-server and storage names. CI had copied the candidate scenario into that baseline while invoking normal test discovery. The comparison now uses the existing dedicated performance configuration. Only a historical base with the old root manifest name receives the four identity substitutions; both revisions retain the shared scenario, five states, three repetitions, workers=1 and retries=0. The original and adapted harness hashes are recorded separately. The adapted baseline scenario compiles byte-for-byte identically to its existing scenario.
+
+Two mobile picker cases still expected the retired keyless hosted-provider shortcut. They now enter ordinary provider connection through the existing Manage models dialog. The zero-price and paid fixtures, LTR/RTL coverage and original selection, focus, layout and dialog assertions remain. The project search case used the old `FORGE` substring against renamed `Omnixa` projects; `NIXA` restores the intended partial, case-insensitive and trimmed search input.
+
+The two failing keeper cases were reproduced locally before the repair. The complete affected App keeper files then passed **20 tests** against a fresh production build, workers=1 and retries=0. The historical baseline and candidate each passed **15 benchmark scenarios**, with all five scenario groups contributing three valid records and complete timing metrics. These runs verify completion and metric collection; their raw observations are retained. Intermediate component and unrelated E2E errors that passed CI retries remain recorded as flakes and received no speculative production changes.
+
+| Owning verification           | Result                 | Complete log SHA-256                                               |
+| ----------------------------- | ---------------------- | ------------------------------------------------------------------ |
+| App failure reproduction      | 2 failed before repair | `20e22afd77f7cfb21395833654f28e50a549677313c62fafc4d50efd06ebea0c` |
+| App affected keeper files     | 20 passed              | `1275d7fc44418312f3271a16056f4c706ded7c773c5e04d38aa4f8e556a98569` |
+| Historical base benchmark     | 15 passed              | `45e8dd2b09b7347e6fa6ae723674a3bdb312f8aca15dc1b367f93686d5ffd85c` |
+| Candidate benchmark           | 15 passed              | `5c16c59cba839d9273088270aacb93c3f25501b722e1b0cbc0e2663b69faab83` |
+| App E2E types                 | exit 0                 | `639662b16a8949b8806db38c87e0b25e79ca257224fe15c2194472352dc57577` |
+| Canonical lint and types      | exit 0; 24 type tasks  | `81b0f85ce0a79a3440450a0fd25652ea826cfd160eeaf56ffd872bd0a892ee05` |
+| Incremental lint against main | exit 0                 | `b58d94c2ef3a19b0ef700b60d908b326a7761e1974bebc881ff57f07f5e4a3bc` |
+
+The stable package manifests and previously accepted Omnixa binaries remain **0.0.9**. GitHub’s latest published release is **v0.0.9** with the earlier AigcForge asset names. This CI repair does not publish or install a new binary.
